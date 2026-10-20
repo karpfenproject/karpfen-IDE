@@ -16,9 +16,12 @@ import java.nio.file.Path
  * ([setTree]) is internal, so views cannot bypass the mediator (decision 31 of the work-package plan).
  *
  * Expansion is remembered across tree updates for the directories that still exist; a new tree root (another folder)
- * starts with only the root expanded. Used from the UI thread.
+ * starts with only the root expanded. The context [menu] is decided Compose-free as well. Used from the UI thread.
  */
-public class ProjectTreeState {
+public class ProjectTreeState(
+    /** The context menu of the tree's nodes. */
+    public val menu: ProjectTreeMenu = ProjectTreeMenu(),
+) {
 
     private val currentTree = MutableStateFlow<WorkspaceTree?>(null)
     private val expandedPaths = MutableStateFlow<Set<Path>>(emptySet())

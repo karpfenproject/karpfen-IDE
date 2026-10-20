@@ -10,6 +10,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
+import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeMenu
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
@@ -51,7 +52,8 @@ internal class DefaultWorkbenchState(
     private val ownScope = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
     private val holder = WorkspaceHolder()
 
-    override val projectTree: ProjectTreeState = ProjectTreeState()
+    override val projectTree: ProjectTreeState =
+        ProjectTreeState(ProjectTreeMenu(services.platform, services.fileOperations.supportsRevealInFileManager))
     override val tabs: EditorTabsState = EditorTabsState(ownScope)
     override val outline: OutlineState = OutlineState(ownScope)
     override val problems: ProblemsState = ProblemsState(ownScope)
