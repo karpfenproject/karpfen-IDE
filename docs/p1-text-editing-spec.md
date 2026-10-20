@@ -3,6 +3,10 @@
 Status: v1.1, 2026-10-20 (adds §1a design principles requested by the owner). Companion to `docs/architecture-proposal.md` (v0.3, accepted). This document is the
 contract for the phase-1 work packages. Where it says MUST, tests must prove it.
 
+The contracts step refined some signatures of the sketches below where they conflicted with §1a; the refinements and
+the assignment of every file to a work package are in [p1-work-packages.md](p1-work-packages.md) (§6 lists the
+refinements).
+
 ## 0. Scope
 
 In scope (IDE side of roadmap phase P1): `core-text`, `core-document`, `core-workspace`, `core-lang`,
