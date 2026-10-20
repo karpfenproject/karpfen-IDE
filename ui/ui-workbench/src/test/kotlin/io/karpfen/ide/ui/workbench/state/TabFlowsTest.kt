@@ -1,5 +1,6 @@
 package io.karpfen.ide.ui.workbench.state
 
+import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
@@ -63,6 +64,25 @@ class TabFlowsTest {
         openEditor(machine)
         assertEquals(3, state.tabs.tabs.value.size, "no second tab")
         assertEquals(machine, state.tabs.active.value)
+    }
+
+    @Test
+    fun `the outline and the status bar follow the active tab`() = scenario {
+        openEditor(machine)
+        openEditor(metamodel)
+        assertEquals(metamodel, state.outline.state.value.path)
+        assertEquals(KarpfenLanguage.KMETA, state.statusBar.state.value.language)
+
+        state.tabs.activate(machine)
+        settle()
+        assertEquals(machine, state.outline.state.value.path)
+        assertEquals(KarpfenLanguage.KSTATES, state.statusBar.state.value.language)
+        assertEquals(1, state.statusBar.state.value.line)
+
+        state.closeTab(machine).joinSettled()
+        state.closeTab(metamodel).joinSettled()
+        assertNull(state.outline.state.value.path)
+        assertNull(state.statusBar.state.value.language)
     }
 
     @Test
