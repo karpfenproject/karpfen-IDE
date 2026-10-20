@@ -76,6 +76,43 @@ class ModuleDependencyRulesTest {
     }
 
     @Test
+    fun `forbidden project dependencies that only show up on a resolved classpath are reported`() {
+        // e.g. added in the module's own afterEvaluate block or by withDependencies, after the declarations were scanned
+        val violations = ModuleDependencyRules.violations(
+            ":core:core-text",
+            dependencies = emptyList(),
+            resolved = listOf(
+                DeclaredDependency("compileClasspath", ":ui:ui-foundation"),
+                DeclaredDependency("runtimeClasspath", ":ui:ui-foundation"),
+                DeclaredDependency("testCompileClasspath", ":core:core-document"),
+            ),
+        )
+        assertEquals(
+            listOf(
+                "project(\":ui:ui-foundation\") on compileClasspath, runtimeClasspath is not allowed: " +
+                    ":core:* may depend on :core:*",
+            ),
+            violations,
+        )
+    }
+
+    @Test
+    fun `a forbidden declaration is not reported again for the classpaths it reaches`() {
+        val violations = ModuleDependencyRules.violations(
+            ":core:core-text",
+            dependencies = listOf(DeclaredDependency("implementation", ":ui:ui-foundation")),
+            resolved = listOf(
+                DeclaredDependency("compileClasspath", ":ui:ui-foundation"),
+                DeclaredDependency("runtimeClasspath", ":ui:ui-foundation"),
+            ),
+        )
+        assertEquals(
+            listOf("implementation(project(\":ui:ui-foundation\")) is not allowed: :core:* may depend on :core:*"),
+            violations,
+        )
+    }
+
+    @Test
     fun `modules outside the matrix are rejected`() {
         val violations = ModuleDependencyRules.violations(":experimental:foo", emptyList())
         assertEquals(1, violations.size)

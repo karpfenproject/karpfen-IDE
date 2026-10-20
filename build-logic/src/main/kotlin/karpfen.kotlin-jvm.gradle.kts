@@ -1,4 +1,5 @@
 import io.karpfen.ide.buildlogic.ModuleDependencyRules
+import io.karpfen.ide.buildlogic.ResolvedProjectDependencies
 import io.karpfen.ide.buildlogic.VerifyModuleDependencies
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
@@ -38,23 +39,27 @@ tasks.withType<Test>().configureEach {
 }
 
 // --- module dependency rules ---------------------------------------------------------------------
-// The project's own declared project dependencies are captured in afterEvaluate, i.e. at configuration time (also
-// without the configuration cache) and after the module's build script has declared them, and are handed to the task
-// as plain strings. The task never touches the project model, and no other project is accessed.
-// Every configuration is inspected, not only api/implementation/compileOnly/runtimeOnly and their test variants: a
-// project dependency declared on a custom configuration that a classpath extends from, or on annotationProcessor,
-// kapt or ksp, is checked as well. (`dependencies` holds what is declared on that configuration itself, so inherited
-// declarations are not reported twice.)
+// The task gets two plain string lists, so it never touches the project model and no other project is accessed:
+//
+// 1. Declared project dependencies of every configuration, not only api/implementation/compileOnly/runtimeOnly and
+//    their test variants: a project dependency declared on a custom configuration that a classpath extends from, or
+//    on annotationProcessor, kapt or ksp, is checked as well. (`dependencies` holds what is declared on that
+//    configuration itself, so inherited declarations are not reported twice.) The scan runs in projectsEvaluated,
+//    i.e. after every afterEvaluate callback, including those of the module's own build script.
+// 2. First-level project dependencies of the resolved classpaths of every source set, as providers of the resolution
+//    result. They are evaluated when the configuration cache entry is stored (or when the task runs without the
+//    configuration cache), so they also see dependencies added at resolution time (withDependencies,
+//    defaultDependencies) and any declaration that the scan in 1. did not see.
 val modulePath: String = path
 
 val verifyModuleDependencies = tasks.register<VerifyModuleDependencies>("verifyModuleDependencies") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    description = "Checks the declared project dependencies against the module dependency matrix (D7)."
+    description = "Checks the project dependencies against the module dependency matrix (D7)."
     projectPath = modulePath
     reportFile = layout.buildDirectory.file("reports/module-dependencies/$name.txt")
 }
 
-afterEvaluate {
+gradle.projectsEvaluated {
     val declaredProjectDependencies: List<String> = configurations
         .flatMap { configuration ->
             configuration.dependencies.withType<ProjectDependency>().map { dependency ->
@@ -64,6 +69,17 @@ afterEvaluate {
         .sorted()
     verifyModuleDependencies.configure {
         this.declaredProjectDependencies.set(declaredProjectDependencies)
+    }
+}
+
+sourceSets.configureEach {
+    listOf(compileClasspathConfigurationName, runtimeClasspathConfigurationName).forEach { classpath ->
+        val firstLevelProjectDependencies: Provider<List<String>> = configurations.named(classpath)
+            .flatMap { it.incoming.resolutionResult.rootComponent }
+            .map { root -> ResolvedProjectDependencies.firstLevel(classpath, root) }
+        verifyModuleDependencies.configure {
+            resolvedProjectDependencies.addAll(firstLevelProjectDependencies)
+        }
     }
 }
 

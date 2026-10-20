@@ -11,11 +11,14 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.work.DisableCachingByDefault
 
 /**
- * Fails when the module declares a project dependency that violates [ModuleDependencyRules].
+ * Fails when the module has a project dependency that violates [ModuleDependencyRules].
  *
- * The declared project dependencies are captured at configuration time as a plain list of strings
- * (see `karpfen.kotlin-jvm`), so the task never touches the project model while executing and is
- * compatible with the configuration cache.
+ * Both inputs are plain lists of strings (see `karpfen.kotlin-jvm`), so the task never touches the project model
+ * while executing and is compatible with the configuration cache:
+ * - [declaredProjectDependencies]: the project dependencies declared on every configuration of the module, scanned
+ *   after all projects have been evaluated (so `afterEvaluate` declarations are included);
+ * - [resolvedProjectDependencies]: the first-level project dependencies of the module's resolved classpaths, which
+ *   also contain dependencies added at resolution time (`withDependencies`, `defaultDependencies`).
  */
 @DisableCachingByDefault(because = "Cheap check; up-to-date checking via the report file is sufficient")
 abstract class VerifyModuleDependencies : DefaultTask() {
@@ -28,6 +31,13 @@ abstract class VerifyModuleDependencies : DefaultTask() {
     @get:Input
     abstract val declaredProjectDependencies: ListProperty<String>
 
+    /**
+     * First-level project dependencies of the resolved classpaths, encoded like [declaredProjectDependencies] with the
+     * classpath configuration (e.g. `compileClasspath`) in place of the declaring configuration.
+     */
+    @get:Input
+    abstract val resolvedProjectDependencies: ListProperty<String>
+
     /** Written on success so the task is up to date until its inputs change. */
     @get:OutputFile
     abstract val reportFile: RegularFileProperty
@@ -36,7 +46,8 @@ abstract class VerifyModuleDependencies : DefaultTask() {
     fun verify() {
         val from = projectPath.get()
         val dependencies = declaredProjectDependencies.get().map(ModuleDependencyRules.DeclaredDependency::decode)
-        val violations = ModuleDependencyRules.violations(from, dependencies)
+        val resolved = resolvedProjectDependencies.get().map(ModuleDependencyRules.DeclaredDependency::decode)
+        val violations = ModuleDependencyRules.violations(from, dependencies, resolved)
         if (violations.isNotEmpty()) {
             throw GradleException(
                 buildString {
@@ -47,8 +58,10 @@ abstract class VerifyModuleDependencies : DefaultTask() {
         }
         reportFile.get().asFile.writeText(
             buildString {
-                appendLine("$from: ${dependencies.size} project dependencies, all allowed")
+                appendLine("$from: ${dependencies.size} declared project dependencies, all allowed")
                 dependencies.forEach { appendLine("  ${it.configuration} -> ${it.targetPath}") }
+                appendLine("resolved on the classpaths:")
+                resolved.forEach { appendLine("  ${it.configuration} -> ${it.targetPath}") }
             },
         )
     }

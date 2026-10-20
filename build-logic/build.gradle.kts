@@ -17,4 +17,9 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    // VerifyModuleDependenciesFunctionalTest builds a fixture with TestKit; it reads the shared version catalog relative
+    // to the working directory (this project's directory).
+    inputs.file(layout.projectDirectory.file("../gradle/libs.versions.toml"))
+        .withPathSensitivity(PathSensitivity.NONE)
+        .withPropertyName("versionCatalog")
 }

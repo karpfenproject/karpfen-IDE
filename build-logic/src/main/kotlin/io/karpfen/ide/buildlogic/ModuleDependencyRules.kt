@@ -62,16 +62,36 @@ object ModuleDependencyRules {
         return rule.allowed.any { matches(it, to) }
     }
 
-    /** Human-readable violations for the [dependencies] declared by module [from]; empty if all are allowed. */
-    fun violations(from: String, dependencies: Collection<DeclaredDependency>): List<String> {
+    /**
+     * Human-readable violations of module [from]; empty if all project dependencies are allowed.
+     *
+     * [dependencies] are the project dependencies declared on the module's configurations. [resolved] are the
+     * first-level project dependencies of its resolved classpaths ([DeclaredDependency.configuration] is then the
+     * classpath, e.g. `compileClasspath`); they also contain dependencies added after the declarations were scanned or
+     * during resolution (`withDependencies`, `defaultDependencies`). A forbidden target that is already reported as a
+     * declaration is not repeated for the classpaths it reaches.
+     */
+    fun violations(
+        from: String,
+        dependencies: Collection<DeclaredDependency>,
+        resolved: Collection<DeclaredDependency> = emptyList(),
+    ): List<String> {
         val rule = ruleFor(from)
             ?: return listOf(
                 "$from is not covered by the module dependency matrix; add a rule to " +
                     "build-logic/src/main/kotlin/io/karpfen/ide/buildlogic/ModuleDependencyRules.kt",
             )
         val allowedText = if (rule.allowed.isEmpty()) "no project dependencies" else rule.allowed.joinToString(", ")
-        return dependencies
-            .filterNot { isAllowed(from, it.targetPath) }
-            .map { "${it.configuration}(project(\"${it.targetPath}\")) is not allowed: ${rule.from} may depend on $allowedText" }
+        val declaredViolations = dependencies.filterNot { isAllowed(from, it.targetPath) }
+        val reportedTargets = declaredViolations.map { it.targetPath }.toSet()
+        val resolvedViolations = resolved
+            .filterNot { isAllowed(from, it.targetPath) || it.targetPath in reportedTargets }
+            .groupBy({ it.targetPath }, { it.configuration })
+        return declaredViolations.map {
+            "${it.configuration}(project(\"${it.targetPath}\")) is not allowed: ${rule.from} may depend on $allowedText"
+        } + resolvedViolations.map { (target, classpaths) ->
+            "project(\"$target\") on ${classpaths.distinct().joinToString(", ")} is not allowed: " +
+                "${rule.from} may depend on $allowedText"
+        }
     }
 }

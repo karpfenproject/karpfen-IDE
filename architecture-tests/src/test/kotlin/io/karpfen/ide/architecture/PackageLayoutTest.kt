@@ -34,6 +34,27 @@ class PackageLayoutTest {
     }
 
     @Test
+    fun `modules contain no Java sources`() {
+        // All modules are plain Kotlin/JVM (proposal §4). karpfen.kotlin-jvm applies java-library, so src/*/java would
+        // compile, but Konsist reads Kotlin files only: Java code would bypass every rule in this module.
+        val root = File(Konsist.projectRootPath)
+        val sourceFiles = root.walkTopDown()
+            .onEnter { dir -> dir == root || !(dir.name.startsWith(".") || dir.name == "build" || dir.isNestedBuild()) }
+            .filter { it.isFile && "src" in it.relativeTo(root).invariantSeparatorsPath.split('/').dropLast(1) }
+            .toList()
+        kotlinAssertTrue(sourceFiles.any { it.extension == "kt" }, "No Kotlin sources found under $root; this check would be vacuous")
+        val javaFiles = sourceFiles.filter { it.extension == "java" }.map { it.relativeTo(root).invariantSeparatorsPath }
+        kotlinAssertTrue(
+            javaFiles.isEmpty(),
+            "Java sources are not allowed (the architecture tests only check Kotlin; write Kotlin instead): $javaFiles",
+        )
+    }
+
+    /** A directory below the root with its own settings file, e.g. build-logic/, is a separate build, not a module. */
+    private fun File.isNestedBuild(): Boolean =
+        resolve("settings.gradle.kts").isFile || resolve("settings.gradle").isFile
+
+    @Test
     fun `build-logic and build output are excluded from the product scope`() {
         val rawScope = Konsist.scopeFromProject().files.map { it.projectPath.replace('\\', '/') }
         val productScope = KarpfenModules.sourceFiles.map { it.projectPath.replace('\\', '/') }

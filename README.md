@@ -44,9 +44,11 @@ Status: **phase 0 (skeleton)**. Every module exists and is wired into the build,
 Module boundaries are enforced twice during `./gradlew build`:
 
 - `verifyModuleDependencies` (every module, part of `check`) rejects project dependencies that violate the
-  dependency matrix in `build-logic/src/main/kotlin/io/karpfen/ide/buildlogic/ModuleDependencyRules.kt`.
+  dependency matrix in `build-logic/src/main/kotlin/io/karpfen/ide/buildlogic/ModuleDependencyRules.kt`. It checks
+  the declarations of every configuration and the project dependencies the classpaths actually resolve to.
 - `architecture-tests` (Konsist) rejects forbidden imports and fully qualified references, e.g. Compose, Ktor or
-  Docker in `core/*`, or AWT/Swing outside `ui/*` and `app/`.
+  Docker in `core/*`, or AWT/Swing outside `ui/*` and `app/`. All modules are Kotlin-only: Konsist reads Kotlin
+  files, so Java sources under `src/` are rejected as well.
 
 ## karpfen-dsl-tools resolution
 
