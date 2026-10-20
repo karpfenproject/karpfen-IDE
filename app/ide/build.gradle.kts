@@ -5,9 +5,14 @@ plugins {
 }
 
 dependencies {
+    // Composition root: the workbench brings ui-editor, ui-foundation and core-lang (api chain down to core-text).
     implementation(project(":ui:ui-workbench"))
     implementation(libs.kotlinx.coroutines.swing)
+    implementation(libs.slf4j.api)
     runtimeOnly(libs.logback.classic)
+
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(testFixtures(project(":core:core-document")))
 }
 
 compose.desktop {
