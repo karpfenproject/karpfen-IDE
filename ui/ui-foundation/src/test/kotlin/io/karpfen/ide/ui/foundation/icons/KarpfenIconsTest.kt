@@ -48,7 +48,6 @@ class KarpfenIconsTest {
     private fun paths(node: VectorNode): List<VectorPath> = when (node) {
         is VectorPath -> listOf(node)
         is VectorGroup -> node.flatMap(::paths)
-        else -> emptyList()
     }
 
     private fun ImageVector.paintColors(): Set<Color> =
@@ -95,7 +94,9 @@ class KarpfenIconsTest {
         setContent {
             Row {
                 coloured.forEach { (name, icon) -> Image(icon, contentDescription = name, modifier = Modifier.testTag(name)) }
-                glyphs.forEach { (name, icon) -> Icon(icon, contentDescription = name, tint = Color.Red, modifier = Modifier.testTag(name)) }
+                glyphs.forEach { (name, icon) ->
+                    Icon(icon, contentDescription = name, tint = Color.Red, modifier = Modifier.testTag(name))
+                }
             }
         }
 

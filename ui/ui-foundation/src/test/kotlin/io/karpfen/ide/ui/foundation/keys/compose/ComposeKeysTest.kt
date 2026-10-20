@@ -184,7 +184,10 @@ class ComposeKeysTest {
     @Test
     fun `every key code has a menu shortcut`() {
         for (code in KeyCode.entries) {
-            assertEquals(ComposeKeyShortcut(ComposeKeyTable.composeKeyOf(code), ctrl = true), KeyShortcut(code, primary = true).toMenuShortcut(HostPlatform.LINUX))
+            assertEquals(
+                ComposeKeyShortcut(ComposeKeyTable.composeKeyOf(code), ctrl = true),
+                KeyShortcut(code, primary = true).toMenuShortcut(HostPlatform.LINUX),
+            )
         }
     }
 }
