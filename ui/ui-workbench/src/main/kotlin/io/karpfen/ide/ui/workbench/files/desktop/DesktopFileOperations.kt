@@ -5,6 +5,7 @@ import io.karpfen.ide.ui.workbench.files.FolderChooser
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
 import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.Comparator
@@ -44,7 +45,7 @@ internal class DesktopProjectFileOperations(private val desktop: DesktopActions)
     override fun rename(path: Path, newName: String): Path = Files.move(path, path.resolveSibling(checkedName(newName)))
 
     override fun delete(path: Path): DeleteOutcome {
-        if (!Files.exists(path)) throw java.nio.file.NoSuchFileException(path.toString())
+        if (!Files.exists(path)) throw NoSuchFileException(path.toString())
         if (supportsTrash) {
             if (!desktop.moveToTrash(path)) throw IOException("Could not move $path to the trash")
             return DeleteOutcome.MOVED_TO_TRASH

@@ -12,6 +12,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.io.IOException
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
 /**
@@ -82,7 +84,7 @@ internal class FileOperationFlows(
 
 /** A user-readable reason of a failed file operation. */
 internal fun IOException.reason(): String = when (this) {
-    is java.nio.file.FileAlreadyExistsException -> "${file ?: message} already exists."
-    is java.nio.file.NoSuchFileException -> "${file ?: message} does not exist."
+    is FileAlreadyExistsException -> "${file ?: message} already exists."
+    is NoSuchFileException -> "${file ?: message} does not exist."
     else -> message ?: toString()
 }
