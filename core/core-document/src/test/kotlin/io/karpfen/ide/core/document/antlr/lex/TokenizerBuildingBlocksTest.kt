@@ -42,6 +42,19 @@ class TokenizerBuildingBlocksTest {
     }
 
     @Test
+    fun `the overlap index finds overlaps among unsorted and nested ranges`() {
+        val index = RangeOverlapIndex(listOf(TextRange(20, 30), TextRange(0, 50), TextRange(60, 61), TextRange.empty(70)))
+
+        assertTrue(index.overlapsAny(TextRange(45, 55)))
+        assertTrue(index.overlapsAny(TextRange(60, 61)))
+        assertFalse(index.overlapsAny(TextRange(50, 60)))
+        assertFalse(index.overlapsAny(TextRange(61, 80)))
+        assertFalse(index.overlapsAny(TextRange.empty(25)))
+        assertFalse(RangeOverlapIndex(emptyList()).overlapsAny(TextRange(0, 10)))
+        assertTrue(RangeOverlapIndex(listOf(TextRange(5, 6))).overlapsAny(TextRange(0, 10)))
+    }
+
+    @Test
     fun `token kind tables classify, fall back and reject duplicates`() {
         val table = TokenKindTable.of(TokenKind.KEYWORD to intArrayOf(1, 2), TokenKind.STRING to intArrayOf(3))
 

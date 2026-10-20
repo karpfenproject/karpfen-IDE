@@ -2,9 +2,11 @@ package io.karpfen.ide.core.document.antlr.lex
 
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticCodes
+import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.EvalBodies
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
+import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextSnapshot
@@ -42,6 +44,7 @@ internal fun tokenizeChecked(language: KarpfenLanguage, text: String, label: Str
  * - the version is the snapshot's; tokens are non-empty, inside the text, sorted and non-overlapping;
  * - every non-whitespace character belongs to exactly one token;
  * - diagnostics are sorted with [Diagnostic.ORDER] and none is an internal error (the fail-safe guard never fired);
+ * - KMeta/KModel: every ERROR token overlaps a LEXER diagnostic and vice versa; KStates reports no LEXER errors;
  * - KStates: `embeddedRegions` are exactly the `EvalBody.content` ranges of `EvalBodies.find`, and every embedded,
  *   PATH_REFERENCE and MACRO_REFERENCE token lies in one of them; KMeta/KModel have no embedded regions or tokens.
  */
@@ -66,11 +69,25 @@ internal fun assertTokenInvariants(language: KarpfenLanguage, text: String, resu
         result.diagnostics.none { it.code == DiagnosticCodes.INTERNAL_ERROR },
         "the fail-safe guard fired in $label: ${result.diagnostics}",
     )
+    val lexerErrors = result.diagnostics.filter { it.source == DiagnosticSource.LEXER }
     if (language == KarpfenLanguage.KSTATES) {
+        assertTrue(lexerErrors.isEmpty(), "the KStates lexer has a catch-all token, but reported $lexerErrors in $label")
         assertEmbeddedRegions(text, result, label)
     } else {
         assertTrue(result.embeddedRegions.isEmpty(), "embedded regions in $label")
         assertTrue(result.tokens.none { it.kind.isEmbedded }, "embedded tokens in $label")
+        assertLexerErrorsMatchErrorTokens(result, lexerErrors, label)
+    }
+}
+
+/** KMeta/KModel: lexer errors become ERROR tokens plus LEXER diagnostics (spec §3.1); each explains the other. */
+private fun assertLexerErrorsMatchErrorTokens(result: TokenizeResult, lexerErrors: List<Diagnostic>, label: String) {
+    val errorTokens = result.tokens.filter { it.kind == TokenKind.ERROR }
+    for (token in errorTokens) {
+        assertTrue(lexerErrors.any { it.range.overlaps(token.range) }, "error token $token without a lexer diagnostic in $label")
+    }
+    for (error in lexerErrors) {
+        assertTrue(errorTokens.any { it.range.overlaps(error.range) }, "lexer diagnostic $error without an error token in $label")
     }
 }
 

@@ -18,6 +18,7 @@ import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -124,6 +125,7 @@ internal fun TestScope.session(
  * Runs everything due within the next second of virtual time. The session runs in `backgroundScope`, whose work
  * `advanceUntilIdle` does not wait for; `advanceTimeBy` and `runCurrent` run it.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 internal fun TestScope.settle() {
     advanceTimeBy(1.seconds)
     runCurrent()

@@ -83,6 +83,32 @@ class KmetaTokenizerTest {
     }
 
     @Test
+    fun `a double slash the lexer consumed while recovering from an error is not a comment`() {
+        // The lexer's recovery swallows the first `/` with the failed `type`, so it never lexes a comment here.
+        val text = "ty//pe \"A\" \"d\" { }"
+
+        val tokens = kinds(text)
+
+        assertEquals(listOf(TokenKind.ERROR to "ty", TokenKind.ERROR to "//pe "), tokens.take(2))
+        assertEquals(TokenKind.STRING to "\"A\"", tokens[2])
+        assertTrue(tokenize(text).diagnostics.all { it.source == DiagnosticSource.LEXER })
+    }
+
+    @Test
+    fun `a comment after an unterminated string belongs to the error and one on its own line stays a comment`() {
+        val text = "type \"A\" \"open // not a comment\n// a comment\n{ }"
+
+        assertEquals(
+            listOf(
+                TokenKind.KEYWORD to "type", TokenKind.STRING to "\"A\"", TokenKind.ERROR to "\"open",
+                TokenKind.ERROR to "// not a comment", TokenKind.COMMENT to "// a comment", TokenKind.PUNCTUATION to "{",
+                TokenKind.PUNCTUATION to "}",
+            ),
+            kinds(text),
+        )
+    }
+
+    @Test
     fun `offsets are UTF-16 code units also after supplementary characters`() {
         val text = "// 😀 smile\ntype \"😀\" \"d\" { } 😀"
 

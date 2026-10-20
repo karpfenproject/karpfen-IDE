@@ -7,6 +7,7 @@ import io.karpfen.ide.core.document.parse.ParseOutcome
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import java.util.concurrent.CountDownLatch
@@ -17,6 +18,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** The merged, versioned diagnostics of [DocumentSession] (spec §3.4, decisions 28 and 35) on virtual time. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class DocumentSessionDiagnosticsTest {
 
     private val source = """
