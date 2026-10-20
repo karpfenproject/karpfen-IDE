@@ -17,10 +17,14 @@ import io.karpfen.ide.core.workspace.files.FileChangeKind
 import io.karpfen.ide.ui.foundation.widgets.StatusBarTestTags
 import io.karpfen.ide.ui.foundation.widgets.TabStripTestTags
 import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
+import io.karpfen.ide.ui.workbench.dialog.view.WorkbenchDialogTestTags
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.problems.view.ProblemKey
+import io.karpfen.ide.ui.workbench.problems.view.ProblemsViewTestTags
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
+import io.karpfen.ide.ui.workbench.tabs.view.EditorAreaTestTags
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
+import io.karpfen.ide.ui.workbench.welcome.view.WelcomeTestTags
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
@@ -63,24 +67,24 @@ class WorkbenchUiTest {
         Examples.copyTo(root)
         workbench.settings.update { IdeSettings().withRecentFolder(root.toString()) }
         settle()
-        tagged(WorkbenchTestTags.WELCOME).assertIsDisplayed()
+        tagged(WelcomeTestTags.VIEW).assertIsDisplayed()
 
-        tagged(WorkbenchTestTags.OPEN_FOLDER).performClick()
+        tagged(WelcomeTestTags.OPEN_FOLDER).performClick()
         settle()
         assertEquals(1, workbench.folderChooser.calls.size)
 
-        tagged(WorkbenchTestTags.recentFolder(root.toString())).performClick()
+        tagged(WelcomeTestTags.recentFolder(root.toString())).performClick()
         settle()
         assertEquals(root, workbench.state.workspace.value?.root)
         tagged(WorkbenchTestTags.toolWindow(ToolWindowId.PROJECT)).assertIsDisplayed()
-        test.onNodeWithTag(WorkbenchTestTags.WELCOME).assertDoesNotExist()
+        test.onNodeWithTag(WelcomeTestTags.VIEW).assertDoesNotExist()
     }
 
     @Test
     fun `the layout shows the tool windows and hides a toggled one`() = workbenchUiTest(dir) {
         openExamples()
         ToolWindowId.entries.forEach { tagged(WorkbenchTestTags.toolWindow(it)).assertIsDisplayed() }
-        tagged(WorkbenchTestTags.EDITOR_AREA).assertIsDisplayed()
+        tagged(EditorAreaTestTags.AREA).assertIsDisplayed()
         tagged(StatusBarTestTags.BAR).assertIsDisplayed()
         treeRow(root).assertIsDisplayed()
 
@@ -96,11 +100,11 @@ class WorkbenchUiTest {
         openFromTree(machine)
         val tabId = machine.toString()
         tagged(TabStripTestTags.tab(tabId)).assertIsDisplayed()
-        tagged(WorkbenchTestTags.EDITOR).assertIsDisplayed()
+        tagged(EditorAreaTestTags.EDITOR).assertIsDisplayed()
         test.onNodeWithTag(TabStripTestTags.dirty(tabId), useUnmergedTree = true).assertDoesNotExist()
 
-        tagged(WorkbenchTestTags.EDITOR).requestFocus()
-        tagged(WorkbenchTestTags.EDITOR).performTextInput("// typed\n")
+        tagged(EditorAreaTestTags.EDITOR).requestFocus()
+        tagged(EditorAreaTestTags.EDITOR).performTextInput("// typed\n")
         settle()
         test.onNodeWithTag(TabStripTestTags.dirty(tabId), useUnmergedTree = true).assertIsDisplayed()
         assertTrue(workbench.document(machine).session.text.snapshot.value.text.startsWith("// typed"))
@@ -116,22 +120,22 @@ class WorkbenchUiTest {
         openExamples()
         openFromTree(machine)
         val tabId = machine.toString()
-        tagged(WorkbenchTestTags.EDITOR).requestFocus()
-        tagged(WorkbenchTestTags.EDITOR).performTextInput("x")
+        tagged(EditorAreaTestTags.EDITOR).requestFocus()
+        tagged(EditorAreaTestTags.EDITOR).performTextInput("x")
         settle()
 
         tagged(TabStripTestTags.close(tabId)).performClick()
         settle()
-        tagged(WorkbenchTestTags.DIALOG).assertIsDisplayed()
+        tagged(WorkbenchDialogTestTags.DIALOG).assertIsDisplayed()
         test.onNodeWithText("Save the changes to 'cleaning_robot.kstates'?").assertIsDisplayed()
-        tagged(WorkbenchTestTags.dialogButton("Cancel")).performClick()
+        tagged(WorkbenchDialogTestTags.button("Cancel")).performClick()
         settle()
-        test.onNodeWithTag(WorkbenchTestTags.DIALOG).assertDoesNotExist()
+        test.onNodeWithTag(WorkbenchDialogTestTags.DIALOG).assertDoesNotExist()
         tagged(TabStripTestTags.tab(tabId)).assertIsDisplayed()
 
         tagged(TabStripTestTags.close(tabId)).performClick()
         settle()
-        tagged(WorkbenchTestTags.dialogButton("Don't Save")).performClick()
+        tagged(WorkbenchDialogTestTags.button("Don't Save")).performClick()
         settle()
         test.onNodeWithTag(TabStripTestTags.tab(tabId)).assertDoesNotExist()
         assertTrue(!Files.readString(machine).startsWith("x"))
@@ -166,7 +170,7 @@ class WorkbenchUiTest {
         val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
         test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(descriptor, 1))).assertExists()
 
-        tagged(WorkbenchTestTags.problemsFilter("warnings")).performClick()
+        tagged(ProblemsViewTestTags.filter("warnings")).performClick()
         settle()
         assertEquals(false, workbench.state.problems.state.value.filter.showWarnings)
         test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(descriptor, 1))).assertDoesNotExist()
@@ -206,24 +210,24 @@ class WorkbenchUiTest {
     fun `the conflict banner offers Reload and Keep mine, and Close for a deleted file`() = workbenchUiTest(dir) {
         openExamples()
         openFromTree(machine)
-        tagged(WorkbenchTestTags.EDITOR).requestFocus()
-        tagged(WorkbenchTestTags.EDITOR).performTextInput("x")
+        tagged(EditorAreaTestTags.EDITOR).requestFocus()
+        tagged(EditorAreaTestTags.EDITOR).performTextInput("x")
         Files.writeString(machine, "changed on disk\n")
         workbench.watcher.report(machine, FileChangeKind.MODIFIED)
         settle()
-        tagged(WorkbenchTestTags.CONFLICT_BANNER).assertIsDisplayed()
-        tagged(WorkbenchTestTags.conflictButton("Keep mine")).assertIsDisplayed()
+        tagged(EditorAreaTestTags.CONFLICT_BANNER).assertIsDisplayed()
+        tagged(EditorAreaTestTags.conflictButton("Keep mine")).assertIsDisplayed()
 
-        tagged(WorkbenchTestTags.conflictButton("Reload")).performClick()
+        tagged(EditorAreaTestTags.conflictButton("Reload")).performClick()
         settle()
-        test.onNodeWithTag(WorkbenchTestTags.CONFLICT_BANNER).assertDoesNotExist()
+        test.onNodeWithTag(EditorAreaTestTags.CONFLICT_BANNER).assertDoesNotExist()
         assertEquals("changed on disk\n", workbench.document(machine).session.text.snapshot.value.text)
 
-        tagged(WorkbenchTestTags.EDITOR).performTextInput("y")
+        tagged(EditorAreaTestTags.EDITOR).performTextInput("y")
         Files.delete(machine)
         workbench.watcher.report(machine, FileChangeKind.DELETED)
         settle()
-        tagged(WorkbenchTestTags.conflictButton("Close")).performClick()
+        tagged(EditorAreaTestTags.conflictButton("Close")).performClick()
         settle()
         test.onNodeWithTag(TabStripTestTags.tab(machine.toString())).assertDoesNotExist()
     }
@@ -237,9 +241,9 @@ class WorkbenchUiTest {
         settle()
         test.onNodeWithText("New KStates File").performClick()
         settle()
-        tagged(WorkbenchTestTags.DIALOG_INPUT).performTextReplacement("second")
+        tagged(WorkbenchDialogTestTags.INPUT).performTextReplacement("second")
         settle()
-        tagged(WorkbenchTestTags.dialogButton("Create")).performClick()
+        tagged(WorkbenchDialogTestTags.button("Create")).performClick()
         settle()
 
         val created = robot.resolve("second.kstates")

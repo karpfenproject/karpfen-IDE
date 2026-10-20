@@ -41,7 +41,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
-import io.karpfen.ide.ui.workbench.WorkbenchTestTags
 import io.karpfen.ide.ui.workbench.dialog.DialogButton
 import io.karpfen.ide.ui.workbench.dialog.DialogPresentation
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
@@ -79,7 +78,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                 .background(colors.panel, RoundedCornerShape(6.dp))
                 .border(1.dp, colors.border, RoundedCornerShape(6.dp))
                 .padding(16.dp)
-                .testTag(WorkbenchTestTags.DIALOG)
+                .testTag(WorkbenchDialogTestTags.DIALOG)
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                     when (event.key) {
@@ -99,14 +98,14 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                     value = text,
                     onValueChange = { text = it },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag(WorkbenchTestTags.DIALOG_INPUT),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag(WorkbenchDialogTestTags.INPUT),
                 )
             }
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                 presentation.buttons.forEach { button ->
                     val enabled = presentation.responseFor(button.choice, text.text) != null
-                    val tagged = Modifier.testTag(WorkbenchTestTags.dialogButton(button.label))
+                    val tagged = Modifier.testTag(WorkbenchDialogTestTags.button(button.label))
                     if (button.isDefault) {
                         Button(onClick = { press(button) }, enabled = enabled, modifier = tagged) { Text(button.label) }
                     } else {

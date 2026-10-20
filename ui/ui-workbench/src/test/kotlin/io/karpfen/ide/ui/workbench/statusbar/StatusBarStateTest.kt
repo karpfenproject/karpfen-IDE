@@ -43,7 +43,10 @@ class StatusBarStateTest {
         val editor = editorOf(document, scope, dispatcher, settings)
 
         status.bindEditor(document, editor)
-        assertEquals(StatusBarUiState(line = 1, column = 1, language = KarpfenLanguage.KSTATES, lineSeparator = LineSeparator.LF), status.state.value)
+        assertEquals(
+            StatusBarUiState(line = 1, column = 1, language = KarpfenLanguage.KSTATES, lineSeparator = LineSeparator.LF),
+            status.state.value,
+        )
 
         editor.caret.select(anchor = 6, position = 10) // line 2 after "\tab\t"
         advanceUntilIdle()
@@ -71,7 +74,8 @@ class StatusBarStateTest {
         val diagnostics = listOf(Severity.ERROR, Severity.WARNING, Severity.WARNING, Severity.INFO).mapIndexed { i, severity ->
             Diagnostic(TextRange(i, i), severity, "m", "c", DiagnosticSource.PARSER)
         }
-        workspace.problems.value = WorkspaceProblems(1, listOf(FileProblems(root.resolve("a.kmeta"), FileKind.KMETA, diagnostics, null, false)))
+        val file = FileProblems(root.resolve("a.kmeta"), FileKind.KMETA, diagnostics, null, false)
+        workspace.problems.value = WorkspaceProblems(1, listOf(file))
         workspace.isAnalyzing.value = true
         advanceUntilIdle()
         assertEquals(StatusBarUiState(errorCount = 1, warningCount = 2, isAnalyzing = true), status.state.value)

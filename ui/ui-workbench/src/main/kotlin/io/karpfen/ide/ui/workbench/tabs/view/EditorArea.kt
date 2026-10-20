@@ -25,7 +25,6 @@ import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.foundation.widgets.TabItem
 import io.karpfen.ide.ui.foundation.widgets.TabStrip
-import io.karpfen.ide.ui.workbench.WorkbenchTestTags
 import io.karpfen.ide.ui.workbench.tabs.ConflictBanner
 import io.karpfen.ide.ui.workbench.tabs.EditorTab
 import java.nio.file.Path
@@ -52,7 +51,7 @@ internal fun EditorArea(
     val colors = KarpfenTheme.colors
     val popups = remember { EditorPopups() }
     val byId = tabs.associateBy { it.path.toString() }
-    Column(modifier.fillMaxSize().background(colors.window).testTag(WorkbenchTestTags.EDITOR_AREA)) {
+    Column(modifier.fillMaxSize().background(colors.window).testTag(EditorAreaTestTags.AREA)) {
         if (tabs.isNotEmpty()) {
             TabStrip(
                 tabs = tabs.map { TabItem(it.path.toString(), it.title, it.tooltip, it.isDirty, iconOf(it.language)) },
@@ -66,7 +65,11 @@ internal fun EditorArea(
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (activeEditor != null && activePath != null) {
                 key(activePath) {
-                    CodeEditor(state = activeEditor, modifier = Modifier.fillMaxSize().testTag(WorkbenchTestTags.EDITOR), overlays = popups)
+                    CodeEditor(
+                        state = activeEditor,
+                        modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.EDITOR),
+                        overlays = popups,
+                    )
                 }
             } else {
                 Text(
@@ -84,14 +87,14 @@ internal fun EditorArea(
 private fun ConflictBannerView(banner: ConflictBanner, onResolve: (ConflictResolution) -> Unit) {
     val colors = KarpfenTheme.colors
     Row(
-        Modifier.fillMaxWidth().background(colors.selection).padding(horizontal = 8.dp).testTag(WorkbenchTestTags.CONFLICT_BANNER),
+        Modifier.fillMaxWidth().background(colors.selection).padding(horizontal = 8.dp).testTag(EditorAreaTestTags.CONFLICT_BANNER),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(banner.message, color = colors.text, style = KarpfenTheme.typography.uiSmall, modifier = Modifier.weight(1f))
         banner.actions.forEach { action ->
             TextButton(
                 onClick = { onResolve(action.resolution) },
-                modifier = Modifier.testTag(WorkbenchTestTags.conflictButton(action.label)),
+                modifier = Modifier.testTag(EditorAreaTestTags.conflictButton(action.label)),
             ) { Text(action.label) }
         }
     }

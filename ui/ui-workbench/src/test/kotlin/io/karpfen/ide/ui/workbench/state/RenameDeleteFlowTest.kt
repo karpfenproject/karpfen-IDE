@@ -92,7 +92,7 @@ class RenameDeleteFlowTest {
         openTabs()
         renameRobotDirectory(DialogResponse.Save)
 
-        val moved = listOf(other, renamedRobot.resolve("cleaning_robot.kstates"), renamedRobot.resolve("cleaning_robot.kmodel"), renamedRobot.resolve("EVENTS.kmeta"))
+        val moved = listOf(other) + listOf("cleaning_robot.kstates", "cleaning_robot.kmodel", "EVENTS.kmeta").map(renamedRobot::resolve)
         assertEquals(moved, state.tabs.tabs.value.map { it.path })
         assertEquals(moved[1], state.tabs.active.value, "the active tab stays active")
         assertTrue(Files.readString(moved[1]).startsWith("// mine"), "saved before the rename")
@@ -106,7 +106,8 @@ class RenameDeleteFlowTest {
         renameRobotDirectory(DialogResponse.Discard)
 
         val renamedMachine = renamedRobot.resolve("cleaning_robot.kstates")
-        assertEquals(listOf(other, renamedMachine, renamedRobot.resolve("cleaning_robot.kmodel"), renamedRobot.resolve("EVENTS.kmeta")), state.tabs.tabs.value.map { it.path })
+        val moved = listOf(other, renamedMachine) + listOf("cleaning_robot.kmodel", "EVENTS.kmeta").map(renamedRobot::resolve)
+        assertEquals(moved, state.tabs.tabs.value.map { it.path })
         assertEquals(renamedMachine, state.tabs.active.value)
         assertFalse(Files.readString(renamedMachine).startsWith("// mine"))
     }
@@ -148,7 +149,8 @@ class RenameDeleteFlowTest {
     }
 
     @Test
-    fun `deleting an open file confirms, closes its tab without saving and deletes it`() = scenario(RecordingFileOperations(supportsTrash = true)) {
+    fun `deleting an open file confirms, closes its tab without saving and deletes it`() =
+        scenario(RecordingFileOperations(supportsTrash = true)) {
         openEditor(machine)
         openEditor(model)
         edit(machine)

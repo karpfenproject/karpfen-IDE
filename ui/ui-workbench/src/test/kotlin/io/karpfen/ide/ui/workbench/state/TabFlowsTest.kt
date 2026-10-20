@@ -54,7 +54,8 @@ class TabFlowsTest {
         state.tabs.activate(machine)
         val editor = openEditor(metamodel)
 
-        assertEquals(listOf("cleaning_robot.kstates", "cleaning_robot.kmeta", "cleaning_robot.kmodel"), state.tabs.tabs.value.map { it.title })
+        val titles = state.tabs.tabs.value.map { it.title }
+        assertEquals(listOf("cleaning_robot.kstates", "cleaning_robot.kmeta", "cleaning_robot.kmodel"), titles)
         assertEquals(metamodel, state.tabs.active.value)
         assertTrue(state.tabs.activeEditor.value === editor)
         assertEquals("karpfen-runtime/single_robot_example/cleaning_robot.kmeta", state.tabs.tabs.value[1].tooltip)

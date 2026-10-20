@@ -43,7 +43,8 @@ import kotlin.time.TestTimeSource
  * A [WorkbenchState] for tests, wired like the production services but on the virtual time of [scheduler]: every
  * dispatcher (the mediator's scope, the workspace's I/O and analysis, the sessions', the editors' background work, the
  * workbench's I/O) is one test dispatcher, so [settle] runs everything due; a [FakeFileWatcher], a
- * [ControllableFileStore], a [RecordingFileOperations], a [FakeFolderChooser], JSON settings in [settingsDirectory] (counted by [settings]) with a
+ * [ControllableFileStore], a [RecordingFileOperations], a [FakeFolderChooser], JSON settings in [settingsDirectory]
+ * (counted by [settings]) with a
  * fixed clock, real workspaces, language services and editors (macOS keymap).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -170,4 +171,5 @@ suspend fun TestScope.withWorkbench(
 }
 
 /** Asserts equality of two paths after normalization. */
-fun assertSamePath(expected: Path, actual: Path?) = assertEquals(expected.toAbsolutePath().normalize(), actual?.toAbsolutePath()?.normalize())
+fun assertSamePath(expected: Path, actual: Path?) =
+    assertEquals(expected.toAbsolutePath().normalize(), actual?.toAbsolutePath()?.normalize())

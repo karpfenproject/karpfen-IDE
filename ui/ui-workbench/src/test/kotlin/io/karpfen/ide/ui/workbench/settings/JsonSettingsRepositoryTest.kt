@@ -29,7 +29,8 @@ class JsonSettingsRepositoryTest {
     private fun kotlinx.coroutines.test.TestScope.repository(directory: Path = dir) =
         SettingsRepository(directory, StandardTestDispatcher(testScheduler), clock)
 
-    private fun backups(): List<String> = Files.list(dir).use { files -> files.map { it.fileName.toString() }.filter { "corrupt" in it }.sorted().toList() }
+    private fun backups(): List<String> =
+        Files.list(dir).use { files -> files.map { it.fileName.toString() }.filter { "corrupt" in it }.sorted().toList() }
 
     @Test
     fun `without a file the defaults load and nothing is written`() = runTest {
@@ -80,7 +81,7 @@ class JsonSettingsRepositoryTest {
         Files.writeString(file, """{ "recentFolders": "not a list" }""")
         assertEquals(IdeSettings(), repository().load())
         assertEquals(
-            listOf("settings.json.corrupt-20261021-083005", "settings.json.corrupt-20261021-083005-2", "settings.json.corrupt-20261021-083005-3"),
+            listOf("", "-2", "-3").map { "settings.json.corrupt-20261021-083005$it" },
             backups(),
         )
     }
@@ -105,7 +106,11 @@ class JsonSettingsRepositoryTest {
             System.setProperty(SettingsLocations.HOME_PROPERTY, " ")
             assertEquals(".karpfen-ide", SettingsLocations.defaultDirectory().fileName.toString())
         } finally {
-            if (previous == null) System.clearProperty(SettingsLocations.HOME_PROPERTY) else System.setProperty(SettingsLocations.HOME_PROPERTY, previous)
+            if (previous == null) {
+                System.clearProperty(SettingsLocations.HOME_PROPERTY)
+            } else {
+                System.setProperty(SettingsLocations.HOME_PROPERTY, previous)
+            }
         }
     }
 }

@@ -9,6 +9,7 @@ import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.workbench.testing.FakeOpenDocument
 import io.karpfen.ide.ui.workbench.testing.editorOf
 import kotlinx.coroutines.CoroutineScope
@@ -33,7 +34,7 @@ class OutlineStateTest {
     private val path: Path = Path.of("/ws/robot.kstates").toAbsolutePath()
     private val machine = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text
 
-    private fun scenario(block: suspend TestScope.(OutlineState, FakeOpenDocument, () -> io.karpfen.ide.ui.editor.state.CodeEditorState) -> Unit) =
+    private fun scenario(block: suspend TestScope.(OutlineState, FakeOpenDocument, () -> CodeEditorState) -> Unit) =
         runTest {
             val dispatcher = StandardTestDispatcher(testScheduler)
             val scope = CoroutineScope(dispatcher + SupervisorJob())

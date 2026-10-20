@@ -44,6 +44,8 @@ internal class SubStateBindings(
         projectTree.setTree(workspace?.files?.value)
         problems.bindWorkspace(workspace)
         statusBar.bindWorkspace(workspace)
-        treeBinding = workspace?.let { bound -> scope.launch(start = CoroutineStart.UNDISPATCHED) { bound.files.collect(projectTree::setTree) } }
+        treeBinding = workspace?.let { bound ->
+            scope.launch(start = CoroutineStart.UNDISPATCHED) { bound.files.collect(projectTree::setTree) }
+        }
     }
 }

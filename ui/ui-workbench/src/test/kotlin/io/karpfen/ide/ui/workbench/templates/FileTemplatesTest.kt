@@ -21,6 +21,8 @@ class FileTemplatesTest {
     private val languages = defaultLanguageRegistry()
     private val directory: Path = Path.of("/ws/robot").toAbsolutePath()
 
+    private fun descriptorOf(text: String): EnvironmentDescriptor = Json.decodeFromString(EnvironmentDescriptor.serializer(), text)
+
     private fun assertClean(kind: FileTemplateKind, text: String, label: String) {
         val language = when (kind) {
             FileTemplateKind.KMETA -> KarpfenLanguage.KMETA
@@ -50,7 +52,8 @@ class FileTemplatesTest {
 
     @Test
     fun `sources name their type after the file or use the context's first type`() {
-        assertTrue(templates.content(FileTemplateKind.KMETA, "cleaning_robot", TemplateContext(directory)).startsWith("type \"CleaningRobot\""))
+        val metamodel = templates.content(FileTemplateKind.KMETA, "cleaning_robot", TemplateContext(directory))
+        assertTrue(metamodel.startsWith("type \"CleaningRobot\""))
         assertTrue(templates.content(FileTemplateKind.KMODEL, "room", TemplateContext(directory)).contains("make object \"room\":\"Room\""))
         val context = TemplateContext(directory, typeNames = listOf("Vector", "Robot"))
         assertTrue(templates.content(FileTemplateKind.KMODEL, "room", context).contains("\"room\":\"Vector\""))
@@ -86,14 +89,17 @@ class FileTemplatesTest {
             metamodel = directory.resolve("cleaning_robot.kmeta"),
             events = directory.resolve("EVENTS.kmeta"),
             models = listOf(directory.resolve("cleaning_robot.kmodel"), directory.resolve("other.kmodel")),
-            stateMachines = listOf(StateMachineBinding(directory.resolve("cleaning_robot.kstates"), null), StateMachineBinding(directory.resolve("sub/x.kstates"), null)),
+            stateMachines = listOf("cleaning_robot.kstates", "sub/x.kstates").map { StateMachineBinding(directory.resolve(it), null) },
         )
         val template = TemplateContext(
             directory, context,
             objects = listOf(TemplateObject("APB 2101", "Room"), TemplateObject("turtle", "Robot")),
-            stateMachineTypes = mapOf(directory.resolve("cleaning_robot.kstates") to "Robot", directory.resolve("sub/x.kstates") to "Drone"),
+            stateMachineTypes = mapOf(
+                directory.resolve("cleaning_robot.kstates") to "Robot",
+                directory.resolve("sub/x.kstates") to "Drone",
+            ),
         )
-        val descriptor = Json.decodeFromString(EnvironmentDescriptor.serializer(), templates.content(FileTemplateKind.ENVIRONMENT, "env", template))
+        val descriptor = descriptorOf(templates.content(FileTemplateKind.ENVIRONMENT, "env", template))
         assertEquals(
             EnvironmentDescriptor(
                 metamodel = "cleaning_robot.kmeta",
@@ -111,11 +117,15 @@ class FileTemplatesTest {
 
     @Test
     fun `without a context the environment names files after itself and attaches to the placeholder`() {
-        val descriptor = Json.decodeFromString(EnvironmentDescriptor.serializer(), templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory)))
+        val descriptor = descriptorOf(templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory)))
         assertEquals(
-            EnvironmentDescriptor("lab.kmeta", null, "lab.kmodel", listOf(EnvironmentDescriptor.StateMachineEntry("lab.kstates", EnvironmentTemplate.PLACEHOLDER_OBJECT))),
+            EnvironmentDescriptor(
+                "lab.kmeta", null, "lab.kmodel",
+                listOf(EnvironmentDescriptor.StateMachineEntry("lab.kstates", EnvironmentTemplate.PLACEHOLDER_OBJECT)),
+            ),
             descriptor,
         )
-        assertEquals("object", EnvironmentTemplate.attachedTo(directory.resolve("x.kstates"), TemplateContext(directory, objects = listOf(TemplateObject("", "T")))))
+        val anonymousOnly = TemplateContext(directory, objects = listOf(TemplateObject("", "T")))
+        assertEquals("object", EnvironmentTemplate.attachedTo(directory.resolve("x.kstates"), anonymousOnly))
     }
 }

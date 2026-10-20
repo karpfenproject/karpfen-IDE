@@ -25,7 +25,12 @@ internal fun OutlineView(state: OutlineUiState, onNavigate: (Location) -> Unit, 
     if (state.nodes.isEmpty()) {
         Box(modifier.fillMaxSize()) {
             val text = if (state.path == null) "No file open" else "Nothing to outline"
-            Text(text, color = KarpfenTheme.colors.textMuted, style = KarpfenTheme.typography.uiSmall, modifier = Modifier.align(Alignment.Center))
+            Text(
+                text,
+                color = KarpfenTheme.colors.textMuted,
+                style = KarpfenTheme.typography.uiSmall,
+                modifier = Modifier.align(Alignment.Center),
+            )
         }
         return
     }

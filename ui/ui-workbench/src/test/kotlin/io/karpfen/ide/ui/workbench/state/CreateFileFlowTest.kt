@@ -82,7 +82,8 @@ class CreateFileFlowTest {
         assertEquals("cleaning_robot.kmeta", written.metamodel)
         assertEquals("EVENTS.kmeta", written.events)
         assertEquals("cleaning_robot.kmodel", written.model)
-        assertEquals(listOf(EnvironmentDescriptor.StateMachineEntry("cleaning_robot.kstates", DescriptorExamples.ATTACHED_TO)), written.stateMachines)
+        val attached = EnvironmentDescriptor.StateMachineEntry("cleaning_robot.kstates", DescriptorExamples.ATTACHED_TO)
+        assertEquals(listOf(attached), written.stateMachines)
 
         val model = create(robot, FileTemplateKind.KMODEL, "second")
         assertTrue(Files.readString(model).contains("\"second\":\"Vector\""), "the context's first domain type")

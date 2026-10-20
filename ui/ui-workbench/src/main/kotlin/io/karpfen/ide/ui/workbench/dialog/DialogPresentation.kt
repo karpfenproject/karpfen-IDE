@@ -46,14 +46,14 @@ internal data class DialogPresentation(
             is DialogRequest.Rename -> DialogPresentation(
                 title = "Rename",
                 message = "New name for '${name(request.path)}':",
-                buttons = listOf(DialogButton("Rename", DialogChoice.SubmitText, isDefault = true), answer("Cancel", DialogResponse.Cancel)),
+                buttons = listOf(submit("Rename"), answer("Cancel", DialogResponse.Cancel)),
                 dismiss = DialogResponse.Cancel,
                 input = name(request.path),
             )
             is DialogRequest.NewFile -> DialogPresentation(
                 title = "New ${request.kind.displayName}",
                 message = "Name of the new file in '${name(request.directory)}' (${request.kind.suffix} is added):",
-                buttons = listOf(DialogButton("Create", DialogChoice.SubmitText, isDefault = true), answer("Cancel", DialogResponse.Cancel)),
+                buttons = listOf(submit("Create"), answer("Cancel", DialogResponse.Cancel)),
                 dismiss = DialogResponse.Cancel,
                 input = "",
             )
@@ -79,6 +79,8 @@ internal data class DialogPresentation(
             ),
             dismiss = DialogResponse.Cancel,
         )
+
+        private fun submit(label: String) = DialogButton(label, DialogChoice.SubmitText, isDefault = true)
 
         private fun answer(label: String, response: DialogResponse, isDefault: Boolean = false) =
             DialogButton(label, DialogChoice.Answer(response), isDefault)

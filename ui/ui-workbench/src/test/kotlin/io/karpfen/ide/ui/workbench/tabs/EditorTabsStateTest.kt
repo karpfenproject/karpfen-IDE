@@ -78,7 +78,8 @@ class EditorTabsStateTest {
     fun `tab values carry title, relative tooltip and language`() = fixture { f ->
         f.open("sub/robot.kstates")
         val tab = f.tabs.tabs.value.single()
-        assertEquals(EditorTab(root.resolve("sub/robot.kstates"), "robot.kstates", "sub/robot.kstates", KarpfenLanguage.KSTATES, false), tab)
+        val expected = EditorTab(root.resolve("sub/robot.kstates"), "robot.kstates", "sub/robot.kstates", KarpfenLanguage.KSTATES, false)
+        assertEquals(expected, tab)
         assertFalse(tab.hasConflict)
     }
 

@@ -20,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
-import io.karpfen.ide.ui.workbench.WorkbenchTestTags
 
 /** The empty state (spec §8): "Open Folder…" and the recent folders. */
 @Composable
@@ -32,13 +31,13 @@ internal fun WelcomeView(
 ) {
     val colors = KarpfenTheme.colors
     Column(
-        modifier.fillMaxSize().background(colors.window).padding(32.dp).testTag(WorkbenchTestTags.WELCOME),
+        modifier.fillMaxSize().background(colors.window).padding(32.dp).testTag(WelcomeTestTags.VIEW),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
         Text("karpfen IDE", style = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onOpenFolder, modifier = Modifier.testTag(WorkbenchTestTags.OPEN_FOLDER)) { Text("Open Folder…") }
+        Button(onClick = onOpenFolder, modifier = Modifier.testTag(WelcomeTestTags.OPEN_FOLDER)) { Text("Open Folder…") }
         if (recentFolders.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
             Text("Recent folders", style = KarpfenTheme.typography.uiSmall, color = colors.textMuted)
@@ -53,7 +52,7 @@ internal fun WelcomeView(
                         .widthIn(max = 600.dp)
                         .clickable(role = Role.Button) { onOpenRecent(folder) }
                         .padding(vertical = 4.dp)
-                        .testTag(WorkbenchTestTags.recentFolder(folder)),
+                        .testTag(WelcomeTestTags.recentFolder(folder)),
                 )
             }
         }

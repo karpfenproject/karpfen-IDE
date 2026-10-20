@@ -22,7 +22,10 @@ internal class AwtFolderChooser(private val platform: HostPlatform = HostPlatfor
         if (GraphicsEnvironment.isHeadless()) return null
         return suspendCancellableCoroutine { continuation ->
             EventQueue.invokeLater {
-                val chosen = if (platform == HostPlatform.MAC_OS) macFolder(title, initialDirectory) else swingFolder(title, initialDirectory)
+                val chosen = when (platform) {
+                    HostPlatform.MAC_OS -> macFolder(title, initialDirectory)
+                    HostPlatform.WINDOWS, HostPlatform.LINUX -> swingFolder(title, initialDirectory)
+                }
                 continuation.resume(chosen)
             }
         }

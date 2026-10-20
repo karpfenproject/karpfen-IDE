@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.foundation.widgets.TreeView
-import io.karpfen.ide.ui.workbench.WorkbenchTestTags
 import io.karpfen.ide.ui.workbench.problems.ProblemFilter
 import io.karpfen.ide.ui.workbench.problems.ProblemsUiState
 
@@ -40,8 +39,12 @@ internal fun ProblemsView(
     val filter = state.filter
     Column(modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterToggle("errors", "Errors (${state.errorCount})", filter.showErrors) { onFilterChange(filter.copy(showErrors = it)) }
-            FilterToggle("warnings", "Warnings (${state.warningCount})", filter.showWarnings) { onFilterChange(filter.copy(showWarnings = it)) }
+            FilterToggle("errors", "Errors (${state.errorCount})", filter.showErrors) {
+                onFilterChange(filter.copy(showErrors = it))
+            }
+            FilterToggle("warnings", "Warnings (${state.warningCount})", filter.showWarnings) {
+                onFilterChange(filter.copy(showWarnings = it))
+            }
             FilterToggle("infos", "Infos", filter.showInfos) { onFilterChange(filter.copy(showInfos = it)) }
         }
         val nodes = remember(state) { ProblemsTreeNodes(state) }
@@ -79,6 +82,6 @@ private fun FilterToggle(name: String, label: String, selected: Boolean, onChang
         selected = selected,
         onClick = { onChange(!selected) },
         label = { Text(label, style = KarpfenTheme.typography.uiSmall) },
-        modifier = Modifier.testTag(WorkbenchTestTags.problemsFilter(name)),
+        modifier = Modifier.testTag(ProblemsViewTestTags.filter(name)),
     )
 }

@@ -74,15 +74,17 @@ class ProjectTreeStateTest {
         val menu = ProjectTreeMenu(HostPlatform.MAC_OS, canRevealInFileManager = true)
         val forFile = menu.entries(file, isDirectory = false, isRoot = false)
         assertEquals(
-            listOf("New KMeta File", "New KModel File", "New KStates File", "New Environment File", "Rename…", "Delete…", "Reveal in Finder"),
+            FileTemplateKind.entries.map { "New ${it.displayName}" } + listOf("Rename…", "Delete…", "Reveal in Finder"),
             forFile.map { it.label },
         )
         assertEquals(ProjectTreeCommand.NewFile(deep, FileTemplateKind.KMETA), forFile.first().command, "new files go next to a file")
         assertTrue(forFile.all { it.isEnabled })
-        assertEquals(ProjectTreeCommand.NewFile(sub, FileTemplateKind.KSTATES), menu.entries(sub, isDirectory = true, isRoot = false)[2].command)
+        val forDirectory = menu.entries(sub, isDirectory = true, isRoot = false)
+        assertEquals(ProjectTreeCommand.NewFile(sub, FileTemplateKind.KSTATES), forDirectory[2].command)
 
         val forRoot = menu.entries(root, isDirectory = true, isRoot = true)
-        assertEquals(listOf(false, false), forRoot.filter { it.command is ProjectTreeCommand.Rename || it.command is ProjectTreeCommand.Delete }.map { it.isEnabled })
+        val renameOrDelete = forRoot.filter { it.command is ProjectTreeCommand.Rename || it.command is ProjectTreeCommand.Delete }
+        assertEquals(listOf(false, false), renameOrDelete.map { it.isEnabled })
 
         assertEquals("Show in Explorer", ProjectTreeMenu(HostPlatform.WINDOWS).fileManagerLabel)
         assertEquals("Show in File Manager", ProjectTreeMenu(HostPlatform.LINUX).fileManagerLabel)

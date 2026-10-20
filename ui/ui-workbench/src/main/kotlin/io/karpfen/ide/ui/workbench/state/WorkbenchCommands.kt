@@ -44,7 +44,9 @@ internal class WorkbenchCommands(
                 intents.saveAll()
             },
         )
-        registry.register(Command(WorkbenchCommandIds.CLOSE_TAB, "Close Tab", primary(KeyCode.W), hasActiveTab) { intents.closeActiveTab() })
+        registry.register(
+            Command(WorkbenchCommandIds.CLOSE_TAB, "Close Tab", primary(KeyCode.W), hasActiveTab) { intents.closeActiveTab() },
+        )
         ToolWindowId.entries.forEach { id ->
             registry.register(Command(WorkbenchCommandIds.toggleToolWindow(id), id.title) { layout.toggleToolWindow(id) })
         }
@@ -58,7 +60,8 @@ internal class WorkbenchCommands(
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             settings.settings.map { it.recentFolders }.distinctUntilChanged().collect { folders ->
                 folders.forEachIndexed { index, folder ->
-                    registry.register(Command(WorkbenchCommandIds.OPEN_RECENT_PREFIX + index, folder) { intents.openFolder(Path.of(folder)) })
+                    val id = WorkbenchCommandIds.OPEN_RECENT_PREFIX + index
+                    registry.register(Command(id, folder) { intents.openFolder(Path.of(folder)) })
                 }
                 (folders.size until registered).forEach { registry.unregister(WorkbenchCommandIds.OPEN_RECENT_PREFIX + it) }
                 registered = folders.size

@@ -104,7 +104,8 @@ class NavigationTest {
 
         state.navigateTo(assertNotNull(outline.locationOf(observe))).joinSettled()
         val caret = editor.caret.primary.position
-        assertTrue(text(machine).substring(caret).startsWith("observe\""), "caret at the state name, was ${text(machine).substring(caret).take(20)}")
+        val atCaret = text(machine).substring(caret)
+        assertTrue(atCaret.startsWith("observe\""), "caret at the state name, was ${atCaret.take(20)}")
     }
 
     @Test

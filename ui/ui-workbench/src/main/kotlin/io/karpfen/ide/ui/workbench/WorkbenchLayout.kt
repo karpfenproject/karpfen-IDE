@@ -31,7 +31,9 @@ internal fun WorkbenchLayout(
 ) {
     ToolWindowSplit(ToolWindowId.PROJECT, SplitOrientation.HORIZONTAL, SplitSide.FIRST, layout, layoutState, project, modifier) {
         ToolWindowSplit(ToolWindowId.PROBLEMS, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, problems) {
-            ToolWindowSplit(ToolWindowId.OUTLINE, SplitOrientation.HORIZONTAL, SplitSide.SECOND, layout, layoutState, outline, main = editor)
+            ToolWindowSplit(
+                ToolWindowId.OUTLINE, SplitOrientation.HORIZONTAL, SplitSide.SECOND, layout, layoutState, outline, main = editor,
+            )
         }
     }
 }
