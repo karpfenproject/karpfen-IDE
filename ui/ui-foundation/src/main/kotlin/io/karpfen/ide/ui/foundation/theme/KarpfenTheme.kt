@@ -1,9 +1,15 @@
 package io.karpfen.ide.ui.foundation.theme
 
+import androidx.compose.foundation.LocalScrollbarStyle
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -47,13 +53,13 @@ public data class KarpfenTypography(
 )
 
 /** The light palette. */
-public fun lightKarpfenColors(): KarpfenColors = TODO("WP-FOUNDATION: light palette")
+public fun lightKarpfenColors(): KarpfenColors = KarpfenPalettes.light
 
 /** The dark palette. */
-public fun darkKarpfenColors(): KarpfenColors = TODO("WP-FOUNDATION: dark palette")
+public fun darkKarpfenColors(): KarpfenColors = KarpfenPalettes.dark
 
 /** Default typography (platform UI font, a monospace font for code). */
-public fun defaultKarpfenTypography(): KarpfenTypography = TODO("WP-FOUNDATION: typography")
+public fun defaultKarpfenTypography(): KarpfenTypography = KarpfenPalettes.typography
 
 /** The current palette; provided by [KarpfenTheme]. */
 public val LocalKarpfenColors: ProvidableCompositionLocal<KarpfenColors> =
@@ -78,8 +84,25 @@ public object KarpfenTheme {
 
 /**
  * Applies the karpfen theme (spec §6): provides [LocalKarpfenColors] (light or dark palette) and
- * [LocalKarpfenTypography], and configures the Material 3 theme used by basic widgets to match.
+ * [LocalKarpfenTypography], and configures the Material 3 theme used by basic widgets to match. Inside [content],
+ * Material's content colour is the palette's text colour, its default text style the UI style, and the desktop
+ * scrollbars are styled from the palette.
  */
 @Composable
-public fun KarpfenTheme(darkTheme: Boolean, content: @Composable () -> Unit): Unit =
-    TODO("WP-FOUNDATION: provide palette, typography and Material theme")
+public fun KarpfenTheme(darkTheme: Boolean, content: @Composable () -> Unit) {
+    val colors = if (darkTheme) darkKarpfenColors() else lightKarpfenColors()
+    val typography = defaultKarpfenTypography()
+    val colorScheme = remember(colors, darkTheme) { MaterialThemeMapping.colorScheme(colors, darkTheme) }
+    val materialTypography = remember(typography) { MaterialThemeMapping.typography(typography) }
+    val scrollbarStyle = remember(colors) { MaterialThemeMapping.scrollbarStyle(colors) }
+    CompositionLocalProvider(LocalKarpfenColors provides colors, LocalKarpfenTypography provides typography) {
+        MaterialTheme(colorScheme = colorScheme, typography = materialTypography) {
+            CompositionLocalProvider(
+                LocalContentColor provides colors.text,
+                LocalTextStyle provides typography.ui,
+                LocalScrollbarStyle provides scrollbarStyle,
+                content = content,
+            )
+        }
+    }
+}
