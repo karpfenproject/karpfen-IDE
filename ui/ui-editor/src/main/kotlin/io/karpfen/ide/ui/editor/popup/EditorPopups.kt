@@ -1,6 +1,7 @@
 package io.karpfen.ide.ui.editor.popup
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.EditorActionTitles
 import io.karpfen.ide.ui.editor.overlay.EditorOverlayHost
@@ -16,6 +17,11 @@ import io.karpfen.ide.ui.editor.overlay.EditorOverlays
  *
  * Each popup composable renders immutable state and reports intents to the host's `EditorPopupModel`; none holds
  * editing logic. Popups that own focus return it with `EditorPopupModel.requestFocus()`.
+ *
+ * Structure: this class only composes the slots (`PopupSlots.kt`), which read the host's state and hand it to the
+ * stateless popup composables; gestures become model calls in [PopupIntents], placement is [PopupPlacement], and the
+ * find bar's text fields are hoisted in [FindBarFields]. Stateless itself, so one instance can serve every editor of a
+ * workbench.
  */
 public class EditorPopups(
     /** Entries of the editor context menu, by action id (spec §7.2: Cut, Copy, Paste, Go to Definition, Toggle Comment). */
@@ -23,10 +29,19 @@ public class EditorPopups(
 ) : EditorOverlays {
 
     @Composable
-    override fun Header(host: EditorOverlayHost): Unit = TODO("WP-EDITOR-POPUPS: find/replace bar slot")
+    override fun Header(host: EditorOverlayHost) {
+        val intents = remember(host.state) { PopupIntents(host.state) }
+        FindBarSlot(host, intents)
+    }
 
     @Composable
-    override fun Popups(host: EditorOverlayHost): Unit = TODO("WP-EDITOR-POPUPS: completion, go-to-line, hover, context menu")
+    override fun Popups(host: EditorOverlayHost) {
+        val intents = remember(host.state) { PopupIntents(host.state) }
+        CompletionSlot(host, intents)
+        HoverSlot(host, intents)
+        GoToLineSlot(host, intents)
+        ContextMenuSlot(host, contextMenuActions, intents)
+    }
 
     public companion object {
         /** The default context menu (titles from [EditorActionTitles], shared with the window menu). */
