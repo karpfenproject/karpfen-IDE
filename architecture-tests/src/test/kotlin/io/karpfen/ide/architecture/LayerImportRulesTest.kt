@@ -111,7 +111,9 @@ class LayerImportRulesTest {
         )
     }
 
-    private fun assertNoImports(files: List<KoFileDeclaration>, forbidden: List<String>, rule: String) {
+    // Inline so that Konsist, which derives the test name from the call stack, reports and suppresses by the test method name.
+    @Suppress("NOTHING_TO_INLINE")
+    private inline fun assertNoImports(files: List<KoFileDeclaration>, forbidden: List<String>, rule: String) {
         assertTrue(files.isNotEmpty(), "Rule '$rule' matched no files; is the Konsist scope broken?")
         files.flatMap { it.imports }.assertFalse(additionalMessage = rule) { import -> import.name.isWithinAny(forbidden) }
     }
