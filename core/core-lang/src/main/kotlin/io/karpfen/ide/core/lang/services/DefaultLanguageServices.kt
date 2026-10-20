@@ -13,13 +13,14 @@ import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Facade: builds a `DocumentContext` (document + `analysis.value` + the document's context analysis), picks the
- * features of the document's language and delegates; catches and logs (SLF4J) anything a provider throws and returns
- * the empty result instead. Languages without features yield empty results.
+ * Facade: builds a `FeatureRequest` (document + `analysis.value` + the document's context analysis), picks the
+ * features of the document's language and delegates; catches anything a provider throws, logs it (SLF4J), reports it
+ * to [onProviderFailure] and returns the empty result instead. Languages without features yield empty results.
  */
 internal class DefaultLanguageServices(
     private val analysis: StateFlow<ProjectAnalysis>,
     private val features: Map<KarpfenLanguage, LanguageFeatures>,
+    private val onProviderFailure: (ProviderFailure) -> Unit,
 ) : LanguageServices {
 
     override fun highlight(doc: LanguageDocument): List<HighlightSpan> = TODO("WP-LANG: delegate highlight")

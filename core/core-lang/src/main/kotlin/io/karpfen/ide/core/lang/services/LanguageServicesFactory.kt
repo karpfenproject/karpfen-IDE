@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.services
 
+import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.brackets.TokenBracketMatcher
 import io.karpfen.ide.core.lang.context.CaretContextDetector
@@ -9,6 +10,7 @@ import io.karpfen.ide.core.lang.kmeta.KmetaLanguageFeatures
 import io.karpfen.ide.core.lang.kmodel.KmodelLanguageFeatures
 import io.karpfen.ide.core.lang.kstates.KstatesLanguageFeatures
 import io.karpfen.ide.core.lang.modelpath.ModelPathResolver
+import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import kotlinx.coroutines.flow.StateFlow
 
@@ -17,29 +19,43 @@ import kotlinx.coroutines.flow.StateFlow
  * knowledge from [analysis] (the workspace's `Workspace.analysis`; tests pass a `MutableStateFlow` of a hand-built
  * analysis). Construction only wires objects.
  *
+ * @param onProviderFailure called (on the calling thread) with every provider exception the facade caught and logged
+ *   instead of letting it escape; robustness tests (spec §11 item 3) pass a recorder and assert it stays empty.
  * @throws IllegalArgumentException if two [features] declare the same language.
  */
 public fun defaultLanguageServices(
     analysis: StateFlow<ProjectAnalysis>,
     features: List<LanguageFeatures> = karpfenLanguageFeatures(),
+    onProviderFailure: (ProviderFailure) -> Unit = {},
 ): LanguageServices {
     val byLanguage = features.associateBy { it.language }
     require(byLanguage.size == features.size) { "duplicate languages in ${features.map { it.language }}" }
-    return DefaultLanguageServices(analysis, byLanguage)
+    return DefaultLanguageServices(analysis, byLanguage, onProviderFailure)
 }
 
 /**
- * The feature bundles of KMeta, KModel and KStates, sharing one caret-context detector, model-path resolver,
- * highlight provider and bracket matcher. Wiring only.
+ * The feature bundles of KMeta, KModel and KStates, sharing one caret-context detector, type catalog, model-path
+ * resolver, highlight provider and bracket matcher. Wiring only.
  */
 public fun karpfenLanguageFeatures(): List<LanguageFeatures> {
-    val contexts = CaretContextDetector()
+    val caretContexts = CaretContextDetector()
+    val types = TypeCatalog()
     val paths = ModelPathResolver()
     val highlight = DefaultHighlightProvider()
     val brackets = TokenBracketMatcher()
     return listOf(
-        KmetaLanguageFeatures(contexts, highlight, brackets),
-        KmodelLanguageFeatures(contexts, highlight, brackets),
-        KstatesLanguageFeatures(contexts, paths, highlight, brackets),
+        KmetaLanguageFeatures(caretContexts, types, highlight, brackets),
+        KmodelLanguageFeatures(caretContexts, types, highlight, brackets),
+        KstatesLanguageFeatures(caretContexts, types, paths, highlight, brackets),
     )
 }
+
+/**
+ * A provider exception that [defaultLanguageServices] caught: the facade [operation] (`highlight`, `complete`,
+ * `definition`, `references`, `hover`, `matchingBracket`), the document's [language] and the [error].
+ */
+public data class ProviderFailure(
+    public val operation: String,
+    public val language: KarpfenLanguage,
+    public val error: Throwable,
+)

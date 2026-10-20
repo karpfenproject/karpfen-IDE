@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.lang.highlight
 
 import io.karpfen.ide.core.lang.HighlightSpan
-import io.karpfen.ide.core.lang.feature.DocumentContext
+import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.feature.HighlightProvider
 
 /**
@@ -10,6 +10,6 @@ import io.karpfen.ide.core.lang.feature.HighlightProvider
  * covers part of them, e.g. the name inside a string's quotes). Result sorted and non-overlapping.
  */
 internal class DefaultHighlightProvider : HighlightProvider {
-    override fun highlight(context: DocumentContext): List<HighlightSpan> =
+    override fun highlight(request: FeatureRequest): List<HighlightSpan> =
         TODO("WP-LANG: lexical styles overlaid with semantic spans")
 }

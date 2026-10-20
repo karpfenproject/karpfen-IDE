@@ -8,15 +8,17 @@ import io.karpfen.ide.core.lang.feature.HighlightProvider
 import io.karpfen.ide.core.lang.feature.HoverProvider
 import io.karpfen.ide.core.lang.feature.LanguageFeatures
 import io.karpfen.ide.core.lang.feature.NavigationProvider
+import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /** The KModel provider family (concrete factory, spec §1a); shared mechanics are injected. Wiring only. */
 internal class KmodelLanguageFeatures(
-    contexts: CaretContextDetector,
+    caretContexts: CaretContextDetector,
+    types: TypeCatalog,
     override val highlight: HighlightProvider,
     override val brackets: BracketMatcher,
 ) : LanguageFeatures {
     override val language: KarpfenLanguage = KarpfenLanguage.KMODEL
-    override val completion: CompletionProvider = KmodelCompletionProvider(contexts)
-    override val navigation: NavigationProvider = KmodelNavigationProvider()
-    override val hover: HoverProvider = KmodelHoverProvider()
+    override val completion: CompletionProvider = KmodelCompletionProvider(caretContexts, types)
+    override val navigation: NavigationProvider = KmodelNavigationProvider(types)
+    override val hover: HoverProvider = KmodelHoverProvider(types)
 }
