@@ -1,0 +1,103 @@
+package io.karpfen.ide.ui.workbench.state
+
+import io.karpfen.ide.core.document.fixtures.Examples
+import io.karpfen.ide.core.text.EditOrigin
+import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
+import io.karpfen.ide.ui.workbench.testing.assertSamePath
+import io.karpfen.ide.ui.workbench.testing.withWorkbench
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
+import java.nio.file.Path
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
+
+/** Opening folders (spec §8): workspace, tree, problems, recent folders, window title and the unsaved-changes flow. */
+class FolderFlowTest {
+
+    @TempDir
+    lateinit var dir: Path
+
+    private val root: Path get() = dir.resolve("examples").toAbsolutePath().normalize()
+    private val settingsDirectory: Path get() = dir.resolve("settings")
+
+    @Test
+    fun `opening a folder binds the tree, the problems and the title and records the folder`() = runTest(timeout = 60.seconds) {
+        Examples.copyTo(root)
+        withWorkbench(settingsDirectory) {
+            assertEquals("karpfen IDE", state.windowTitle.value)
+            open(root)
+
+            assertSamePath(root, state.workspace.value?.root)
+            assertTrue(state.languageServices.value != null)
+            assertEquals("examples — karpfen IDE", state.windowTitle.value)
+            assertSamePath(root, state.projectTree.tree.value?.root?.path)
+            assertEquals(setOf(root), state.projectTree.expanded.value)
+            assertEquals(listOf(root.toString()), state.settings.value.recentFolders)
+            assertEquals(0, state.statusBar.state.value.errorCount, "the examples have no errors")
+            assertFalse(state.statusBar.state.value.isAnalyzing)
+            assertTrue(Files.exists(settingsDirectory.resolve("settings.json")), "the recent folder is persisted")
+        }
+    }
+
+    @Test
+    fun `switching folders asks about unsaved changes and Cancel keeps the folder`() = runTest(timeout = 60.seconds) {
+        Examples.copyTo(root)
+        val other = Files.createDirectories(dir.resolve("other")).toAbsolutePath().normalize()
+        val file = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kmeta")
+        withWorkbench(settingsDirectory) {
+            open(root)
+            val editor = openEditor(file)
+            editor.session.text.apply(listOf(TextEdit.insert(0, "// x\n")), EditOrigin.Typing)
+            settle()
+
+            val cancelled = state.openFolder(other)
+            answer(DialogRequest.UnsavedChanges::class, DialogResponse.Cancel)
+            assertTrue(cancelled.isCompleted)
+            assertSamePath(root, workspace.root)
+            assertNotNull(state.tabs.editorFor(file))
+
+            val discarded = state.openFolder(other)
+            answer(DialogRequest.UnsavedChanges::class, DialogResponse.Discard)
+            assertTrue(discarded.isCompleted)
+            assertSamePath(other, workspace.root)
+            assertTrue(state.tabs.tabs.value.isEmpty(), "the tabs of the old folder are closed")
+            assertNull(state.outline.state.value.path)
+            assertFalse(Files.readString(file).startsWith("// x"), "discarded changes are not written")
+            assertEquals(listOf(other.toString(), root.toString()), state.settings.value.recentFolders)
+        }
+    }
+
+    @Test
+    fun `a missing folder becomes an error dialog`() = runTest(timeout = 60.seconds) {
+        withWorkbench(settingsDirectory) {
+            val job = state.openFolder(dir.resolve("missing"))
+            val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)
+            assertEquals("Cannot open folder", error.title)
+            assertTrue(job.isCompleted)
+            assertNull(state.workspace.value)
+        }
+    }
+
+    @Test
+    fun `choose and open folder uses the folder chooser`() = runTest(timeout = 60.seconds) {
+        Examples.copyTo(root)
+        withWorkbench(settingsDirectory) {
+            folderChooser.answer = null
+            state.chooseAndOpenFolder().joinSettled()
+            assertNull(state.workspace.value, "cancelled")
+
+            folderChooser.answer = root
+            state.chooseAndOpenFolder().joinSettled()
+            assertSamePath(root, state.workspace.value?.root)
+            assertEquals(2, folderChooser.calls.size)
+        }
+    }
+}

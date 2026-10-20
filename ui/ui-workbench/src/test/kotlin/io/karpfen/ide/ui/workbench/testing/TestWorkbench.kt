@@ -1,0 +1,173 @@
+package io.karpfen.ide.ui.workbench.testing
+
+import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
+import io.karpfen.ide.core.document.session.DocumentSessionConfig
+import io.karpfen.ide.core.lang.LanguageServices
+import io.karpfen.ide.core.lang.services.defaultLanguageServices
+import io.karpfen.ide.core.workspace.Workspace
+import io.karpfen.ide.core.workspace.WorkspaceFactory
+import io.karpfen.ide.core.workspace.WorkspaceOptions
+import io.karpfen.ide.core.workspace.document.OpenDocument
+import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
+import io.karpfen.ide.ui.editor.state.CodeEditorState
+import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
+import io.karpfen.ide.ui.workbench.settings.SettingsRepository
+import io.karpfen.ide.ui.workbench.state.LanguageServicesFactory
+import io.karpfen.ide.ui.workbench.state.WorkbenchServices
+import io.karpfen.ide.ui.workbench.state.WorkbenchState
+import io.karpfen.ide.ui.workbench.templates.FileTemplates
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.TestScope
+import java.nio.file.Files
+import java.nio.file.Path
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import kotlin.reflect.KClass
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.TestTimeSource
+
+/**
+ * A [WorkbenchState] for tests, wired like the production services but on the virtual time of [scheduler]: every
+ * dispatcher (the mediator's scope, the workspace's I/O and analysis, the sessions', the editors' background work, the
+ * workbench's I/O) is one test dispatcher, so [settle] runs everything due; a [FakeFileWatcher], a
+ * [ControllableFileStore], a [RecordingFileOperations], a [FakeFolderChooser], JSON settings in [settingsDirectory] (counted by [settings]) with a
+ * fixed clock, real workspaces, language services and editors (macOS keymap).
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class TestWorkbench(
+    val scheduler: TestCoroutineScheduler,
+    val settingsDirectory: Path,
+    val fileOperations: RecordingFileOperations = RecordingFileOperations(),
+    languageServices: (Workspace) -> LanguageServices = { defaultLanguageServices(it.analysis) },
+) {
+    val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
+    val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
+    val watcher = FakeFileWatcher()
+    val folderChooser = FakeFolderChooser()
+    val fileStore = ControllableFileStore()
+    val clipboard = TestClipboard()
+    val time = TestTimeSource()
+    val settings = CountingSettingsRepository(SettingsRepository(settingsDirectory, dispatcher, FIXED_CLOCK))
+    val keymap = defaultEditorKeymap(HostPlatform.MAC_OS)
+
+    val options = WorkspaceOptions(
+        watch = true,
+        ioDispatcher = dispatcher,
+        analysisDispatcher = dispatcher,
+        sessionConfig = DocumentSessionConfig(tokenizeDispatcher = dispatcher, parseDispatcher = dispatcher),
+        timeSource = time,
+    )
+
+    val languages = defaultLanguageRegistry()
+
+    val services = WorkbenchServices(
+        settings = settings,
+        languages = languages,
+        workspaceFactory = WorkspaceFactory { root, workspaceScope ->
+            Workspace(root, workspaceScope, options, languages, fileStore = fileStore, fileWatcher = watcher)
+        },
+        languageServicesFactory = LanguageServicesFactory(languageServices),
+        editorStateFactory = { session, services, editorScope, editorSettings, keymap ->
+            CodeEditorState(session, services, editorScope, clipboard, editorSettings, keymap = keymap, backgroundDispatcher = dispatcher)
+        },
+        fileOperations = fileOperations,
+        folderChooser = folderChooser,
+        templates = FileTemplates(),
+        editorKeymap = keymap,
+        ioDispatcher = dispatcher,
+    )
+
+    val state: WorkbenchState = WorkbenchState(scope, services)
+
+    /** The current workspace (fails without one). */
+    val workspace: Workspace get() = assertNotNull(state.workspace.value, "no folder is open")
+
+    /** Runs everything due on the virtual clock (Compose UI tests run their frames on a clock of their own). */
+    fun settle() = scheduler.advanceUntilIdle()
+
+    /** Opens [root] and settles, including the first analysis. */
+    suspend fun open(root: Path) {
+        state.openFolder(root).joinSettled()
+        workspace.awaitAnalysis()
+        settle()
+    }
+
+    /** Opens [path] in a tab and returns its editor. */
+    fun openEditor(path: Path): CodeEditorState {
+        state.openFile(path).joinSettled()
+        return assertNotNull(state.tabs.editorFor(path.toAbsolutePath().normalize()), "no tab for $path")
+    }
+
+    /** The open document of [path]. */
+    fun document(path: Path): OpenDocument = assertNotNull(workspace.documents.get(path.toAbsolutePath().normalize()))
+
+    /** Settles and asserts the job completed. */
+    fun Job.joinSettled() {
+        settle()
+        assertTrue(isCompleted, "the intent did not complete (waiting for a dialog: ${state.dialogs.current.value})")
+    }
+
+    /** Settles, asserts that a dialog of [type] is shown, answers it with [response] and settles again. */
+    fun <T : DialogRequest<*>> answer(type: KClass<T>, response: DialogResponse): T {
+        settle()
+        val current = state.dialogs.current.value
+        assertTrue(type.isInstance(current), "expected a ${type.simpleName}, was $current")
+        state.dialogs.respond(response)
+        settle()
+        @Suppress("UNCHECKED_CAST")
+        return current as T
+    }
+
+    /** Asserts that no dialog is shown. */
+    fun assertNoDialog() {
+        settle()
+        assertNull(state.dialogs.current.value, "unexpected dialog")
+    }
+
+    /** Closes the workbench and cancels its scope. */
+    fun close() {
+        state.close()
+        scope.cancel()
+    }
+
+    companion object {
+        /** The clock of the settings backups. */
+        val FIXED_CLOCK: Clock = Clock.fixed(Instant.parse("2026-10-21T08:30:00Z"), ZoneOffset.UTC)
+
+        /** Writes [text] to [path], creating its directories, and returns [path]. */
+        fun write(path: Path, text: String): Path {
+            Files.createDirectories(path.parent)
+            return Files.writeString(path, text)
+        }
+    }
+}
+
+/** Runs [block] with a [TestWorkbench] and closes it afterwards. */
+suspend fun TestScope.withWorkbench(
+    settingsDirectory: Path,
+    fileOperations: RecordingFileOperations = RecordingFileOperations(),
+    block: suspend TestWorkbench.() -> Unit,
+) {
+    val workbench = TestWorkbench(testScheduler, settingsDirectory, fileOperations)
+    try {
+        workbench.block()
+    } finally {
+        workbench.close()
+    }
+}
+
+/** Asserts equality of two paths after normalization. */
+fun assertSamePath(expected: Path, actual: Path?) = assertEquals(expected.toAbsolutePath().normalize(), actual?.toAbsolutePath()?.normalize())
