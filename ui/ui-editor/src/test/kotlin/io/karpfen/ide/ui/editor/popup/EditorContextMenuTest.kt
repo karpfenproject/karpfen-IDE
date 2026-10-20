@@ -1,7 +1,10 @@
 package io.karpfen.ide.ui.editor.popup
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -63,6 +66,19 @@ class EditorContextMenuTest {
         onNodeWithText("Go to Definition").assertIsNotEnabled()
         onNodeWithText("Copy").assertIsEnabled()
         onNodeWithText("Toggle Comment").assertIsEnabled()
+        val disabled = darkestLuminance("Cut")
+        val enabled = darkestLuminance("Copy")
+        assertTrue(disabled > enabled + 0.2f, "disabled text is greyed out: darkest luminance $disabled vs $enabled")
+    }
+
+    /** The luminance of the darkest pixel of the node showing [text] (its glyphs on the menu background). */
+    private fun ComposeUiTest.darkestLuminance(text: String): Float {
+        val pixels = onNodeWithText(text).captureToImage().toPixelMap()
+        var darkest = 1f
+        for (x in 0 until pixels.width) {
+            for (y in 0 until pixels.height) darkest = minOf(darkest, pixels[x, y].luminance())
+        }
+        return darkest
     }
 
     @Test
