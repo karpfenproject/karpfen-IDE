@@ -7,10 +7,14 @@ import java.nio.file.Path
  * Opens, saves and closes the documents of one workspace (spec §4). Owned by the `Workspace`; all suspend functions
  * do their file I/O on the workspace's IO dispatcher and are safe to call from the UI thread.
  *
- * Loading decodes UTF-8 (malformed input → replacement characters + a WARNING), normalizes line separators to `\n`
- * (mixed separators → one INFO), and publishes those findings as the session's external diagnostics `"file"`.
- * Saving writes atomically (temp file in the same directory, then an atomic move), restores the line separator,
- * marks the save point and ignores the watch event it causes itself.
+ * Loading goes through the workspace's `SourceLoader` (UTF-8 with replacement characters + a WARNING, byte order mark
+ * removed, line separators normalized to `\n` + one INFO for mixed separators) and publishes its findings as the
+ * session's external diagnostics `ExternalDiagnosticSources.FILE`. Each document's `EditableText` uses
+ * `WorkspaceOptions.timeSource`. Saving writes atomically (temp file in the same directory, then an atomic move),
+ * restores the line separator and the byte order mark, marks the save point and ignores the watch event it causes
+ * itself.
+ *
+ * Threading: called from the workspace's scope dispatcher (see `Workspace`, Threading); texts are only mutated there.
  */
 public interface DocumentManager {
 
@@ -41,7 +45,10 @@ public sealed interface OpenResult {
     /** The opened (or already open) document. */
     public data class Opened(public val document: OpenDocument) : OpenResult
 
-    /** The file is not a karpfen source (e.g. `*.kenv.json`); the editor cannot open it in phase 1. */
+    /**
+     * The file is not a karpfen source (e.g. `*.kenv.json`); the editor cannot open it in phase 1, so the workbench
+     * opens it in the system's default application (decision 14 of the work-package plan).
+     */
     public data class Unsupported(public val path: Path) : OpenResult
 
     /** Reading failed; [message] is user-readable. */

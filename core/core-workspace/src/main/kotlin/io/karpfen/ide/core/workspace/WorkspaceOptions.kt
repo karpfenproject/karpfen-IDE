@@ -5,9 +5,11 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 /**
- * Configuration of a [Workspace]. Tests inject test dispatchers (virtual time) and usually disable [watch].
+ * Configuration of a [Workspace]. Tests inject test dispatchers (virtual time), a `TestTimeSource` and usually disable
+ * [watch].
  *
  * @property watch whether to watch the file system (the CLI and most tests pass false and call `refresh()`).
  * @property watchDebounce quiet time after the last file event before rescanning (spec §4: 200 ms).
@@ -17,6 +19,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property ioDispatcher file I/O (scan, read, write).
  * @property analysisDispatcher project analysis (CPU).
  * @property sessionConfig configuration of the document sessions of opened files.
+ * @property timeSource clock of the opened documents' `EditableText`s (undo coalescing, spec §2).
  */
 public data class WorkspaceOptions(
     public val watch: Boolean = true,
@@ -26,6 +29,7 @@ public data class WorkspaceOptions(
     public val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     public val analysisDispatcher: CoroutineDispatcher = Dispatchers.Default,
     public val sessionConfig: DocumentSessionConfig = DocumentSessionConfig(),
+    public val timeSource: TimeSource = TimeSource.Monotonic,
 ) {
     init {
         require(!watchDebounce.isNegative() && !analysisDebounce.isNegative()) { "debounce durations must not be negative" }

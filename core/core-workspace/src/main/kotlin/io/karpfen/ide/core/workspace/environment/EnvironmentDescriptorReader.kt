@@ -9,10 +9,12 @@ import java.nio.file.Path
  * referenced files are detected by the `ContextResolver`, which uses [DescriptorReadResult.references] for ranges).
  *
  * Never throws: invalid JSON or missing required keys → ERROR `descriptor-invalid` (no descriptor); unknown keys →
- * WARNING `descriptor-unknown-key` at the key. All diagnostics have source IDE and ranges in [text].
+ * WARNING `descriptor-unknown-key` at the key. All diagnostics have source IDE and ranges in the text passed to [read],
+ * which is the `\n`-normalized text loaded by the workspace's `SourceLoader` (so `line:col` in the Problems view and
+ * the CLI is computed like for every other file).
  */
 public fun interface EnvironmentDescriptorReader {
-    /** Reads the descriptor at [path] with content [text]. */
+    /** Reads the descriptor at [path] with the normalized content [text]. */
     public fun read(path: Path, text: String): DescriptorReadResult
 }
 

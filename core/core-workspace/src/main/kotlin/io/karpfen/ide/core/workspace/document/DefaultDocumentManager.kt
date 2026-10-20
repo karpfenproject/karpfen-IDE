@@ -6,19 +6,26 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
+import kotlin.time.TimeSource
 
 /**
  * Default [DocumentManager]. Besides the public API it receives the workspace's debounced file changes
  * (reload / conflict handling, ignoring self-induced events after a save).
  *
+ * @param scope the workspace's scope; its dispatcher is the single writer of every document's text.
+ * @param sourceLoader loads files for opening and reloading.
+ * @param fileStore writes files when saving.
  * @param sessionConfig base configuration of every session; `EVENTS.kmeta` sessions use `SemanticMode.SYNTAX_ONLY`.
+ * @param timeSource clock of every document's `EditableText`.
  */
 internal class DefaultDocumentManager(
     private val scope: CoroutineScope,
     private val languages: LanguageRegistry,
+    private val sourceLoader: SourceLoader,
     private val fileStore: TextFileStore,
     private val ioDispatcher: CoroutineDispatcher,
     private val sessionConfig: DocumentSessionConfig,
+    private val timeSource: TimeSource,
 ) : DocumentManager {
 
     override val openDocuments: StateFlow<List<OpenDocument>>

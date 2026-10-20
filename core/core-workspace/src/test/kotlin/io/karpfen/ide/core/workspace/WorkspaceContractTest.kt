@@ -1,6 +1,20 @@
 package io.karpfen.ide.core.workspace
 
+import io.karpfen.ide.core.document.Diagnostic
+import io.karpfen.ide.core.document.DiagnosticCodes
+import io.karpfen.ide.core.document.DiagnosticSource
+import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.parse.ParseOutcome
+import io.karpfen.ide.core.document.parse.SyntaxIndex
+import io.karpfen.ide.core.document.syntax.TokenizeResult
+import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.core.workspace.analysis.AnalyzedFile
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
+import io.karpfen.ide.core.workspace.analysis.SourceText
+import io.karpfen.ide.core.workspace.problems.FileProblems
+import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.context.StateMachineBinding
@@ -69,5 +83,32 @@ class WorkspaceContractTest {
         assertFailsWith<IllegalArgumentException> {
             WorkspaceOptions(analysisDebounce = kotlin.time.Duration.parse("-1s"))
         }
+    }
+
+    @Test
+    fun `an analyzed file merges its own diagnostics like a session`() {
+        fun diagnostic(start: Int, severity: Severity, code: String, source: DiagnosticSource) =
+            Diagnostic(TextRange(start, start + 1), severity, code, code, source)
+        val lexer = diagnostic(1, Severity.ERROR, DiagnosticCodes.LEXER_ERROR, DiagnosticSource.LEXER)
+        val parser = diagnostic(4, Severity.ERROR, DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
+        val standalone = diagnostic(0, Severity.ERROR, DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
+        val file = diagnostic(2, Severity.INFO, DiagnosticCodes.MIXED_LINE_SEPARATORS, DiagnosticSource.IDE)
+        val snapshot = TextSnapshot("type \"A\" \"d\" { }", 0)
+        val parse = ParseOutcome(
+            KarpfenLanguage.KMETA, 0, listOf(lexer, parser), emptyList(), SyntaxIndex.EMPTY, emptyList(), emptyList(),
+            standaloneModel = null, standaloneDiagnostics = listOf(standalone),
+        )
+        val analyzed = AnalyzedFile(root.resolve("a.kmeta"), FileKind.KMETA, snapshot, parse, listOf(lexer), listOf(file))
+
+        assertEquals(listOf(standalone, lexer, file, parser), analyzed.ownDiagnostics, "the parser's LEXER copy is dropped")
+        assertEquals(analyzed, ProjectAnalysis(1, emptyList(), emptyMap(), mapOf(analyzed.path to analyzed)).file(analyzed.path))
+        assertFailsWith<IllegalArgumentException> { AnalyzedFile(analyzed.path, FileKind.KMETA, TextSnapshot("", 1), parse) }
+        assertFailsWith<IllegalArgumentException> { SourceText(snapshot, parse = null, tokens = TokenizeResult.empty(3)) }
+
+        val problems = WorkspaceProblems(1, listOf(FileProblems(analyzed.path, FileKind.KMETA, analyzed.ownDiagnostics, snapshot, isOpen = false)))
+        assertEquals(3, problems.errorCount)
+        assertEquals(0, problems.warningCount)
+        assertNull(problems.of(root.resolve("b.kmeta")))
+        assertFailsWith<IllegalArgumentException> { FileProblems(analyzed.path, FileKind.KMETA, emptyList(), null, isOpen = false) }
     }
 }

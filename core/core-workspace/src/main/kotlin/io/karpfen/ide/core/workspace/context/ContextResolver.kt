@@ -15,7 +15,8 @@ import java.nio.file.Path
  * - Every directory that contains karpfen files and no descriptor forms an implicit context: metamodel = the single
  *   `.kmeta` that is not `EVENTS.kmeta` (several → INFO `context-multiple-metamodels` on each, the alphabetically first
  *   is used), events = `EVENTS.kmeta`, models = all `.kmodel`, state machines = all `.kstates` (attachedTo null).
- *   Directories containing a descriptor are covered by it; their files not named by any descriptor are not analyzed.
+ *   Directories containing a descriptor are covered by it; their karpfen files not named by any descriptor are
+ *   [ContextResolution.looseFiles] (not converted, but still tokenized and parsed).
  * - The descriptors' own read diagnostics are included in [ContextResolution.diagnostics].
  */
 public fun interface ContextResolver {
