@@ -1,6 +1,7 @@
 # P1 — Text editing: implementation specification
 
-Status: v1.1, 2026-10-20 (adds §1a design principles requested by the owner). Companion to `docs/architecture-proposal.md` (v0.3, accepted). This document is the
+Status: v1.2, 2026-10-20 (v1.1 added §1a design principles requested by the owner; v1.2 names the CLI `karpfen`
+like its start script). Companion to `docs/architecture-proposal.md` (v0.3, accepted). This document is the
 contract for the phase-1 work packages. Where it says MUST, tests must prove it.
 
 The contracts step refined some signatures of the sketches below where they conflicted with §1a; the refinements and
@@ -397,10 +398,10 @@ signature; model path → resolved type of the path.
   Navigate: Go to Line, Go to Definition); window title `<folder> — karpfen IDE`; window bounds persisted; close request
   runs the unsaved-changes flow; uncaught exceptions are logged and shown in a dialog instead of killing the app;
   `logback.xml` (console WARN; rolling file `~/.karpfen-ide/logs/ide.log`); `KARPFEN_IDE_EXIT_AFTER_MS` kept.
-- `tools/cli`: `karpfen-cli validate <dir> [--format text|json]` loads a `Workspace` without watching, runs the project
-  analysis plus per-file syntax parsing, prints `path:line:col: severity: message [code]` (one-based), exits 1 if any
-  ERROR. dsl-tools prints to stdout while parsing; the CLI must keep its own output clean (redirect `System.out` during
-  analysis and print through the original stream).
+- `tools/cli`: `karpfen validate <dir> [--format text|json]` (start script `karpfen`) loads a `Workspace` without
+  watching, runs the project analysis plus per-file syntax parsing, prints `path:line:col: severity: message [code]`
+  (one-based), exits 1 if any ERROR. dsl-tools prints to stdout while parsing; the CLI must keep its own output clean
+  (redirect `System.out` during analysis and print through the original stream).
 
 ## 10. Test fixtures
 
@@ -420,7 +421,7 @@ punctuation/keywords, truncations), and a generator for a large synthetic KState
 3. Robustness: tokenizer, parser, outline, index, highlight, completion, definition, hover never throw on 10,000
    deterministic random mutations of the examples (and on every prefix of one KStates example).
 4. Editor model and Compose UI tests listed in §7 pass headless; benchmark numbers reported.
-5. `karpfen-cli validate <examples dir>` exits 0 and prints no errors.
+5. `karpfen validate <examples dir>` exits 0 and prints no errors.
 6. `KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app:ide:run --args=<examples dir>` exits 0 with no ERROR in the log.
 7. `docs/p1-manual-test.md` lists a 10-minute manual smoke test for the owner (typing on a German macOS layout,
    completion, navigation, save/undo, external change).
