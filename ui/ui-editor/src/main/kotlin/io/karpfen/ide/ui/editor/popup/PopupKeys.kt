@@ -42,3 +42,7 @@ internal object PopupKeys {
  */
 internal fun Modifier.onPopupKey(onKey: (PopupKey) -> Boolean): Modifier =
     onPreviewKeyEvent { event -> PopupKeys.of(event.toKeyStroke())?.let(onKey) ?: false }
+
+/** Runs [action] for the popup key [key] (consuming it) and leaves every other key alone; see [onPopupKey]. */
+internal fun Modifier.onPopupKey(key: PopupKey, action: () -> Unit): Modifier =
+    onPopupKey { pressed -> (pressed == key).also { matched -> if (matched) action() } }

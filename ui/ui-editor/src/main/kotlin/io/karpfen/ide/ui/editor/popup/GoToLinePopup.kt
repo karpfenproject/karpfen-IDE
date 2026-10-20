@@ -55,14 +55,8 @@ internal fun GoToLinePopup(
             Modifier
                 .width(320.dp)
                 .onFocusLost(onDismiss)
-                .onPopupKey { key ->
-                    when (key) {
-                        PopupKey.CONFIRM -> query?.let(onGo)
-                        PopupKey.CANCEL -> onCancel()
-                        PopupKey.CONFIRM_BACKWARD -> Unit
-                    }
-                    key != PopupKey.CONFIRM_BACKWARD
-                }
+                .onPopupKey(PopupKey.CONFIRM) { query?.let(onGo) }
+                .onPopupKey(PopupKey.CANCEL, onCancel)
                 .testTag(EditorPopupTags.GO_TO_LINE),
         ) {
             Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

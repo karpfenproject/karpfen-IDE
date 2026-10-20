@@ -55,7 +55,7 @@ internal fun FindReplaceBar(
             .fillMaxWidth()
             .background(theme.popupBackground)
             .drawBehind { drawLine(theme.popupBorder, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx()) }
-            .onPopupKey { key -> (key == PopupKey.CANCEL).also { cancel -> if (cancel) onClose() } }
+            .onPopupKey(PopupKey.CANCEL, onClose)
             .padding(horizontal = 6.dp, vertical = 4.dp)
             .testTag(EditorPopupTags.FIND_BAR),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -70,14 +70,8 @@ internal fun FindReplaceBar(
                 modifier = Modifier
                     .weight(1f)
                     .focusRequester(queryFocus)
-                    .onPopupKey { key ->
-                        when (key) {
-                            PopupKey.CONFIRM -> onNext()
-                            PopupKey.CONFIRM_BACKWARD -> onPrevious()
-                            PopupKey.CANCEL -> Unit // handled by the bar (preview phase reaches the bar first)
-                        }
-                        key != PopupKey.CANCEL
-                    }
+                    .onPopupKey(PopupKey.CONFIRM, onNext)
+                    .onPopupKey(PopupKey.CONFIRM_BACKWARD, onPrevious)
                     .testTag(EditorPopupTags.FIND_QUERY),
             )
             FindOption.entries.forEach { option ->
@@ -98,7 +92,7 @@ internal fun FindReplaceBar(
                     placeholder = "Replace",
                     modifier = Modifier
                         .weight(1f)
-                        .onPopupKey { key -> (key == PopupKey.CONFIRM).also { confirm -> if (confirm) onReplace(fields.replacementField.text) } }
+                        .onPopupKey(PopupKey.CONFIRM) { onReplace(fields.replacementField.text) }
                         .testTag(EditorPopupTags.REPLACE_FIELD),
                 )
                 BarButton("Replace", "Replace", theme, enabled = hasMatches) { onReplace(fields.replacementField.text) }

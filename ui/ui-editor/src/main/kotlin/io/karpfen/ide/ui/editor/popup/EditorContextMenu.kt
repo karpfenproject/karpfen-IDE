@@ -44,7 +44,7 @@ internal fun EditorContextMenu(
             containerColor = theme.popupBackground,
             border = BorderStroke(1.dp, theme.popupBorder),
             modifier = Modifier
-                .onPopupKey { key -> (key == PopupKey.CANCEL).also { cancel -> if (cancel) onDismiss() } }
+                .onPopupKey(PopupKey.CANCEL, onDismiss)
                 .testTag(EditorPopupTags.CONTEXT_MENU),
         ) {
             val colors = MenuDefaults.itemColors(
