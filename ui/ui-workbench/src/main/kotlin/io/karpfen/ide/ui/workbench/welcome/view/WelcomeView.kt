@@ -1,4 +1,4 @@
-package io.karpfen.ide.ui.workbench.welcome
+package io.karpfen.ide.ui.workbench.welcome.view
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier

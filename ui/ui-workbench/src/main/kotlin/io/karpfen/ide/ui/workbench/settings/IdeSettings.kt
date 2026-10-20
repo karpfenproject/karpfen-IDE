@@ -10,7 +10,9 @@ import kotlinx.serialization.Serializable
  * @property theme light, dark or following the system.
  * @property editorFontSize editor font size in sp.
  * @property windowBounds the main window's last bounds, or null for the default placement.
- * @property toolWindows visibility and sizes of the tool windows.
+ * @property toolWindows visibility and size of the tool windows by tool-window name (`ToolWindowId.name` of the
+ *   workbench's layout package); a missing entry means the default layout, an unknown one is kept but ignored, so a
+ *   new tool window needs no schema change.
  */
 @Serializable
 public data class IdeSettings(
@@ -18,7 +20,7 @@ public data class IdeSettings(
     public val theme: ThemeMode = ThemeMode.SYSTEM,
     public val editorFontSize: Float = 13f,
     public val windowBounds: WindowBounds? = null,
-    public val toolWindows: ToolWindowSettings = ToolWindowSettings(),
+    public val toolWindows: Map<String, ToolWindowLayout> = emptyMap(),
 ) {
     init {
         require(recentFolders.size <= MAX_RECENT_FOLDERS) { "at most $MAX_RECENT_FOLDERS recent folders" }
@@ -58,13 +60,10 @@ public data class WindowBounds(
     public val maximized: Boolean = false,
 )
 
-/** Tool-window layout: visibility and sizes in dp. */
+/** The persisted layout of one tool window: whether it is [visible] and its [size] in dp (width or height). */
 @Serializable
-public data class ToolWindowSettings(
-    public val projectVisible: Boolean = true,
-    public val outlineVisible: Boolean = true,
-    public val problemsVisible: Boolean = true,
-    public val projectWidth: Float = 260f,
-    public val outlineWidth: Float = 240f,
-    public val problemsHeight: Float = 200f,
-)
+public data class ToolWindowLayout(public val visible: Boolean = true, public val size: Float) {
+    init {
+        require(size > 0f) { "size must be positive, was $size" }
+    }
+}

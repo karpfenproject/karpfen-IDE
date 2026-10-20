@@ -5,9 +5,14 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
+import io.karpfen.ide.ui.workbench.dialog.DialogState
+import io.karpfen.ide.ui.workbench.layout.LayoutState
+import io.karpfen.ide.ui.workbench.outline.OutlineState
+import io.karpfen.ide.ui.workbench.problems.ProblemsState
+import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
-import io.karpfen.ide.ui.workbench.settings.ThemeMode
-import io.karpfen.ide.ui.workbench.settings.WindowBounds
+import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
+import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -16,9 +21,11 @@ import java.nio.file.Path
 /**
  * Default [WorkbenchState]: creates the sub-states and coordinates them (Mediator). A coordinator only (spec §1a, no
  * god class, ≤ ~300 lines): the flows are internal collaborators of this package with one responsibility each, e.g. a
- * command registrar (commands, enablement, recent folders), a tool-window layout holder (visibility, sizes, theme,
- * window bounds persisted through the settings), an unsaved-changes flow (tab close, folder switch, exit) and a
- * file-operations flow (create, rename, delete, reveal on `WorkbenchServices.ioDispatcher`).
+ * command registrar (commands, enablement, recent folders, editor commands with `EditorActionTitles` and
+ * `WorkbenchServices.editorKeymap`), a layout persister (writes `layout.state` into the settings debounced, about
+ * 500 ms, and on exit; restores it in [start]), an editor-navigation collector (each tab's `navigationRequests` from
+ * open to close → [navigateTo]), an unsaved-changes flow (tab close, folder switch, exit) and a file-operations flow
+ * (create with a `TemplateContext`, rename, delete, reveal on `WorkbenchServices.ioDispatcher`).
  */
 internal class DefaultWorkbenchState(
     private val scope: CoroutineScope,
@@ -33,10 +40,11 @@ internal class DefaultWorkbenchState(
     override val problems: ProblemsState get() = TODO("WP-WORKBENCH: problems state")
     override val statusBar: StatusBarState get() = TODO("WP-WORKBENCH: status bar state")
     override val dialogs: DialogState get() = TODO("WP-WORKBENCH: dialog state")
+    override val layout: LayoutState get() = TODO("WP-WORKBENCH: layout state")
     override val settings: StateFlow<IdeSettings> get() = TODO("WP-WORKBENCH: settings")
     override val windowTitle: StateFlow<String> get() = TODO("WP-WORKBENCH: window title")
 
-    override suspend fun start(): Unit = TODO("WP-WORKBENCH: load settings")
+    override suspend fun start(): Unit = TODO("WP-WORKBENCH: load settings, restore the layout")
 
     override suspend fun openFolder(path: Path): Unit = TODO("WP-WORKBENCH: open folder")
 
@@ -52,7 +60,7 @@ internal class DefaultWorkbenchState(
 
     override suspend fun delete(path: Path): Unit = TODO("WP-WORKBENCH: delete flow")
 
-    override suspend fun reveal(path: Path): Unit = TODO("WP-WORKBENCH: reveal")
+    override suspend fun revealInFileManager(path: Path): Unit = TODO("WP-WORKBENCH: reveal in Finder/Explorer")
 
     override suspend fun resolveConflict(path: Path, resolution: ConflictResolution): Unit =
         TODO("WP-WORKBENCH: resolve external-change conflict")
@@ -66,14 +74,6 @@ internal class DefaultWorkbenchState(
     override suspend fun closeActiveTab(): Boolean = TODO("WP-WORKBENCH: close active tab")
 
     override suspend fun requestExit(): Boolean = TODO("WP-WORKBENCH: exit flow")
-
-    override fun toggleToolWindow(id: ToolWindowId): Unit = TODO("WP-WORKBENCH: toggle tool window")
-
-    override fun resizeToolWindow(id: ToolWindowId, size: Float): Unit = TODO("WP-WORKBENCH: resize tool window")
-
-    override fun setTheme(mode: ThemeMode): Unit = TODO("WP-WORKBENCH: theme")
-
-    override fun updateWindowBounds(bounds: WindowBounds): Unit = TODO("WP-WORKBENCH: window bounds")
 
     override fun registerCommands(registry: CommandRegistry): Unit = TODO("WP-WORKBENCH: commands")
 

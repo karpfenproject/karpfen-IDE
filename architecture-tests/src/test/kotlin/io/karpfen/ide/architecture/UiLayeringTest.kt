@@ -14,6 +14,25 @@ class UiLayeringTest {
     private companion object {
         const val EDITOR = "io.karpfen.ide.ui.editor"
         const val WORKBENCH = "io.karpfen.ide.ui.workbench"
+        const val FOUNDATION = "io.karpfen.ide.ui.foundation"
+
+        /** The workbench feature packages holding sub-states (decision 31 of the work-package plan). */
+        val WORKBENCH_FEATURES = listOf("projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout")
+            .map { "$WORKBENCH.$it" }
+
+        /** Workbench packages that may use Compose: the root, every `view` package, the desktop adapters. */
+        fun String.isWorkbenchUiPackage(): Boolean =
+            this == WORKBENCH || endsWith(".view") || isWithin("$WORKBENCH.files.desktop")
+    }
+
+    @Test
+    fun `the key model does not depend on its Compose adapter`() {
+        assertNoEdges(
+            module = "ui/ui-foundation",
+            from = { it == "$FOUNDATION.keys" || it == "$FOUNDATION.command" },
+            to = { it.isWithin("$FOUNDATION.keys.compose") },
+            rule = "$FOUNDATION.keys and .command must not depend on $FOUNDATION.keys.compose (the Compose adapter)",
+        )
     }
 
     @Test
@@ -43,14 +62,18 @@ class UiLayeringTest {
     }
 
     @Test
-    fun `workbench state holders see no views, ports see no adapters`() {
-        val views = setOf("projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "welcome", "files.desktop")
-            .map { "$WORKBENCH.$it" }.toSet() + WORKBENCH
+    fun `workbench state holders see no views, sub-states see no mediator, ports see no adapters`() {
         assertNoEdges(
             module = "ui/ui-workbench",
-            from = { it == "$WORKBENCH.state" },
-            to = { it in views },
-            rule = "$WORKBENCH.state must not depend on the workbench views, the root package or files.desktop",
+            from = { it.isWithin(WORKBENCH) && !it.isWorkbenchUiPackage() },
+            to = { it.isWorkbenchUiPackage() },
+            rule = "Compose-free workbench packages must not depend on view packages, the root package or files.desktop",
+        )
+        assertNoEdges(
+            module = "ui/ui-workbench",
+            from = { it in WORKBENCH_FEATURES },
+            to = { it == "$WORKBENCH.state" },
+            rule = "the feature sub-states must not depend on the mediator package $WORKBENCH.state",
         )
         assertNoEdges(
             module = "ui/ui-workbench",

@@ -38,8 +38,22 @@ public object SettingsLocations {
     /** Name of the settings file. */
     public const val SETTINGS_FILE_NAME: String = "settings.json"
 
-    /** `~/.karpfen-ide`. */
-    public fun defaultDirectory(): Path = Path.of(System.getProperty("user.home"), ".karpfen-ide")
+    /**
+     * System property naming the IDE's home directory (settings and logs). The app's `logback.xml` reads the same
+     * property (`${karpfen.ide.home:-${user.home}/.karpfen-ide}`), so settings and log move together.
+     */
+    public const val HOME_PROPERTY: String = "karpfen.ide.home"
+
+    /**
+     * Environment variable the app's `main` copies into [HOME_PROPERTY] before the first logger is created, so launch
+     * smoke tests run with a temporary home instead of the owner's real one.
+     */
+    public const val HOME_ENVIRONMENT_VARIABLE: String = "KARPFEN_IDE_HOME"
+
+    /** The directory named by [HOME_PROPERTY] if set (and not blank), else `~/.karpfen-ide`. */
+    public fun defaultDirectory(): Path =
+        System.getProperty(HOME_PROPERTY)?.takeIf { it.isNotBlank() }?.let { Path.of(it) }
+            ?: Path.of(System.getProperty("user.home"), ".karpfen-ide")
 
     /** `<directory>/logs`, where `logback.xml` of the app writes `ide.log`. */
     public fun logDirectory(directory: Path = defaultDirectory()): Path = directory.resolve("logs")

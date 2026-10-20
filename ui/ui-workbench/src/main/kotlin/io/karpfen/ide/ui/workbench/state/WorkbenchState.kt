@@ -5,32 +5,31 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogState
+import io.karpfen.ide.ui.workbench.layout.LayoutState
+import io.karpfen.ide.ui.workbench.outline.OutlineState
+import io.karpfen.ide.ui.workbench.problems.ProblemsState
+import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
-import io.karpfen.ide.ui.workbench.settings.ThemeMode
-import io.karpfen.ide.ui.workbench.settings.WindowBounds
+import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
+import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
-/** The tool windows around the editor area (spec §8). */
-public enum class ToolWindowId {
-    /** Project tree (left). */
-    PROJECT,
-
-    /** Outline of the active document (right). */
-    OUTLINE,
-
-    /** Problems (bottom). */
-    PROBLEMS,
-}
-
 /**
  * The workbench coordinator (Mediator, spec §8): owns the current [Workspace] and its [LanguageServices] and
- * coordinates the cohesive sub-states, each a plain Compose-free class with its own tests. Composables render the
- * sub-states' UI state and call the intents below; cross-cutting flows (open folder, open/navigate, file operations of
- * the project tree, external-change conflicts, close with unsaved changes, exit) live here, because they span several
- * sub-states, the [Workspace] and the dialogs.
+ * coordinates the cohesive sub-states, each a plain Compose-free class in its feature package with its own tests.
+ * Composables render the sub-states' UI state and call the intents below and the sub-states' public UI intents;
+ * the sub-states' coordination operations (binding, opening and removing tabs, setting the tree) are internal to the
+ * module, so only the mediator reaches them (decision 31 of the work-package plan). Cross-cutting flows (open folder,
+ * open/navigate, file operations of the project tree, external-change conflicts, close with unsaved changes, exit) live
+ * here, because they span several sub-states, the [Workspace] and the dialogs.
+ *
+ * The mediator collects every editor's `CodeEditorState.navigationRequests` from opening its tab until closing it and
+ * runs [navigateTo] for each, so navigation never depends on a composable being on screen.
  *
  * Used from the UI thread; long-running work runs in the scope given to the factory, blocking file work on
  * `WorkbenchServices.ioDispatcher`.
@@ -61,13 +60,19 @@ public interface WorkbenchState : AutoCloseable {
     /** Pending dialog (unsaved changes, delete confirmation, rename, new file, errors). */
     public val dialogs: DialogState
 
-    /** The IDE settings (recent folders, theme, font size, window bounds, tool-window layout). */
+    /**
+     * Tool-window visibility and sizes, theme and window bounds as live UI state; persisted into [settings] by the
+     * mediator (debounced, and in [requestExit]).
+     */
+    public val layout: LayoutState
+
+    /** The persisted IDE settings (recent folders, font size; the layout as last persisted). */
     public val settings: StateFlow<IdeSettings>
 
     /** `<folder> — karpfen IDE`, or `karpfen IDE` without a folder (spec §9). */
     public val windowTitle: StateFlow<String>
 
-    /** Loads the settings; call once before showing the window. */
+    /** Loads the settings and restores the [layout]; call once before showing the window. */
     public suspend fun start()
 
     /**
@@ -87,18 +92,21 @@ public interface WorkbenchState : AutoCloseable {
     public suspend fun openFile(path: Path)
 
     /**
-     * Opens the file of [location] and moves the caret to its range start, centred (spec §8, navigateTo): a versioned
-     * range ([Location.version]) is mapped into the document's current text with `EditableText.mapOffset` when
-     * possible, otherwise clamped. The caret move, `scrollTo(center = true)` and the focus request are pending state of
-     * the editor (`CodeEditorState.scrollRequest`/`focusRequested`), so they take effect when a new tab is composed.
-     * Files the editor cannot open are opened externally (Problems navigation to descriptor diagnostics).
+     * Opens the file of [location] and moves the caret to its range start, centred (spec §8, navigateTo): the range is
+     * mapped into the document's current text with `EditableText.mapOffset` when [Location.lineage] is the text's
+     * lineage and [Location.version] is not newer than the current version (and the history still has it), otherwise
+     * clamped. The caret move, `scrollTo(center = true)` and the focus request are pending state of the editor
+     * (`CodeEditorState.scrollRequest`/`focusRequested`), so they take effect when a new tab is composed. Files the editor
+     * cannot open are opened externally (Problems navigation to descriptor diagnostics). The Problems and Outline views
+     * call it with `ProblemItem.location` and `OutlineUiState.locationOf(node)`.
      */
     public suspend fun navigateTo(location: Location)
 
     /**
      * New file from a template (project-tree context menu, spec §8): asks for the name ([DialogRequest.NewFile]),
-     * creates `FileTemplates.fileName(kind, name)` with `FileTemplates.content(kind, name)` in [directory] through
-     * `ProjectFileOperations.createFile`, refreshes the workspace, reveals the new file in the project tree and opens it
+     * creates `FileTemplates.fileName(kind, name)` with `FileTemplates.content(kind, name, templateContext)` in
+     * [directory] through `ProjectFileOperations.createFile` (the `TemplateContext` built from the directory's current
+     * context and the latest analysis), refreshes the workspace, reveals the new file in the project tree and opens it
      * ([openFile]). Cancel does nothing; failures (e.g. the file exists) become an error dialog.
      */
     public suspend fun createFile(directory: Path, kind: FileTemplateKind)
@@ -120,7 +128,7 @@ public interface WorkbenchState : AutoCloseable {
     public suspend fun delete(path: Path)
 
     /** Shows [path] in Finder/Explorer (`ProjectFileOperations.reveal`); no-op where unsupported. */
-    public suspend fun reveal(path: Path)
+    public suspend fun revealInFileManager(path: Path)
 
     /**
      * Resolves the external-change conflict of the open document [path] (the editor area's banner, Reload / Keep mine;
@@ -141,31 +149,24 @@ public interface WorkbenchState : AutoCloseable {
     /** Closes the active tab (see [closeTab]). */
     public suspend fun closeActiveTab(): Boolean
 
-    /** Runs the unsaved-changes flow over every dirty document and persists the settings; true if the app may exit. */
+    /**
+     * Runs the unsaved-changes flow over every dirty document and persists the settings (with the current [layout]);
+     * true if the app may exit.
+     */
     public suspend fun requestExit(): Boolean
 
-    /** Shows or hides a tool window. */
-    public fun toggleToolWindow(id: ToolWindowId)
-
-    /** Sets a tool window's size in dp (width for PROJECT/OUTLINE, height for PROBLEMS). */
-    public fun resizeToolWindow(id: ToolWindowId, size: Float)
-
-    /** Switches the theme. */
-    public fun setTheme(mode: ThemeMode)
-
-    /** Records the main window's bounds (persisted with the settings). */
-    public fun updateWindowBounds(bounds: WindowBounds)
-
     /**
-     * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder)
-     * and the editor commands in [registry]; keeps enablement and the recent-folder commands up to date.
+     * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder;
+     * the View commands drive [layout]) and the editor commands in [registry]; keeps enablement and the recent-folder
+     * commands up to date.
      *
-     * Editor commands are registered under their `EditorActionIds`, forwarded to the active editor
-     * (`CodeEditorState.execute(id)`), enabled while the active editor's `enabledActions` contains the id, and carry
-     * `shortcut = defaultEditorKeymap(platform).shortcutFor(id)` (the editor keymap is the single source of their
-     * shortcuts). Key routing (decision 15 of the work-package plan): the focused component handles and consumes its
-     * keys first (the editor through its keymap, text fields natively), so a menu accelerator only fires for strokes
-     * nobody consumed; one key press runs an action once.
+     * Editor commands are registered under their `EditorActionIds` with their `EditorActionTitles` (the titles the
+     * editor context menu shows too), forwarded to the active editor (`CodeEditorState.execute(id)`), enabled while the
+     * active editor's `enabledActions` contains the id, and carry `shortcut = WorkbenchServices.editorKeymap
+     * .shortcutFor(id)` (the keymap every editor is created with, the single source of their shortcuts). Key routing
+     * (decision 15 of the work-package plan): the focused component handles and consumes its keys first (the editor
+     * through `CodeEditorState.handleKey`, text fields natively), so a menu accelerator only fires for strokes nobody
+     * consumed; one key press runs an action once.
      */
     public fun registerCommands(registry: CommandRegistry)
 

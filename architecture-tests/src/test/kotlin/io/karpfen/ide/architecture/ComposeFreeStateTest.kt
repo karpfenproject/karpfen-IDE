@@ -7,34 +7,46 @@ import kotlin.test.assertTrue
 
 /**
  * Unidirectional data flow (spec §1a, §7.1): the editor models and every state holder are plain Kotlin, unit-testable
- * without Compose. The rule applies to an explicit list of production packages of the UI modules ([COMPOSE_FREE]):
- * the Compose-free editor model, the state-holder packages of editor and workbench, and the workbench's ports
- * (commands, file-operation ports, settings, templates) and foundation's command registry.
+ * without Compose. The rule applies to
+ * - an explicit list of packages of ui-editor and ui-foundation ([COMPOSE_FREE]): the Compose-free editor model, the
+ *   editor's state holders, foundation's command registry and key model (its Compose adapter is `keys.compose`);
+ * - every package of ui-workbench except the root package (the `Workbench` composable and its wiring), the features'
+ *   `view` sub-packages and the desktop adapters `files.desktop` ([isWorkbenchUiPackage]): the workbench is organized
+ *   by feature (decision 31 of the work-package plan), each feature package holding its Compose-free state and a
+ *   `view` sub-package holding its composables.
  *
  * Those packages must not use Compose (`androidx.compose..`, `org.jetbrains.compose..`) nor AWT/Swing; composables,
  * Compose-side helper state (e.g. a hoisted `TreeViewState`) and toolkit adapters live in view or adapter packages
- * that depend on them, never the other way round. The list is explicit (not derived from class names), so a Compose
- * helper named `*State` in a view package is not a violation; a new state-holder package is added here.
+ * that depend on them, never the other way round.
  */
 class ComposeFreeStateTest {
 
     private companion object {
-        /** Compose-free packages; an entry ending in `..` includes its sub-packages. */
+        /** Compose-free packages of ui-editor and ui-foundation; an entry ending in `..` includes its sub-packages. */
         val COMPOSE_FREE = listOf(
             "io.karpfen.ide.ui.editor.model..",
             "io.karpfen.ide.ui.editor.state",
-            "io.karpfen.ide.ui.workbench.state",
-            "io.karpfen.ide.ui.workbench.command",
-            "io.karpfen.ide.ui.workbench.files",
-            "io.karpfen.ide.ui.workbench.settings",
-            "io.karpfen.ide.ui.workbench.templates",
             "io.karpfen.ide.ui.foundation.command",
+            "io.karpfen.ide.ui.foundation.keys",
         )
+
+        const val WORKBENCH = "io.karpfen.ide.ui.workbench"
+
+        /** Compose-free packages of ui-workbench that must exist (guards the by-feature rule against renames). */
+        val WORKBENCH_STATE_PACKAGES = listOf(
+            "state", "projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout",
+            "command", "files", "settings", "templates",
+        ).map { "$WORKBENCH.$it" }
+
         val UI_TOOLKITS = listOf("androidx.compose", "org.jetbrains.compose", "java.awt", "javax.swing")
 
-        fun String.isComposeFree(): Boolean = COMPOSE_FREE.any { entry ->
-            if (entry.endsWith("..")) isWithin(entry.removeSuffix("..")) else this == entry
-        }
+        /** The workbench packages that may use Compose: the root, every `view` package, the desktop adapters. */
+        fun String.isWorkbenchUiPackage(): Boolean =
+            this == WORKBENCH || endsWith(".view") || isWithin("$WORKBENCH.files.desktop")
+
+        fun String.isComposeFree(): Boolean =
+            COMPOSE_FREE.any { entry -> if (entry.endsWith("..")) isWithin(entry.removeSuffix("..")) else this == entry } ||
+                (isWithin(WORKBENCH) && !isWorkbenchUiPackage())
     }
 
     private val uiMainFiles: List<KoFileDeclaration> by lazy {
@@ -62,9 +74,10 @@ class ComposeFreeStateTest {
     fun `every listed Compose-free package exists`() {
         // Guards against a vacuous rule: a renamed package would silently drop out of the list.
         val packages = uiMainFiles.map { it.packageName }.toSet()
-        COMPOSE_FREE.forEach { entry ->
+        (COMPOSE_FREE + WORKBENCH_STATE_PACKAGES).forEach { entry ->
             val found = if (entry.endsWith("..")) packages.any { it.isWithin(entry.removeSuffix("..")) } else entry in packages
             assertTrue(found, "no production files in $entry")
         }
+        assertTrue(packages.filter { it.isWithin(WORKBENCH) }.any { it.endsWith(".view") }, "no workbench view packages")
     }
 }

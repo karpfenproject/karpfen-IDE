@@ -4,6 +4,9 @@ import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.workspace.Workspace
+import io.karpfen.ide.core.workspace.WorkspaceFactory
+import io.karpfen.ide.ui.editor.model.action.EditorKeymap
+import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
@@ -15,12 +18,15 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
-import java.nio.file.Path
 
 /**
  * The collaborators of the [WorkbenchState] (constructor injection, spec §1a); tests replace any of them with fakes.
  * A plain holder of services, without value semantics.
  *
+ * @property workspaceFactory opens folders (core-workspace's seam, shared with the CLI).
+ * @property editorKeymap the one editor keymap of the workbench: every editor is created with it
+ *   ([EditorStateFactory.create]) and the editor commands of the menu take their shortcuts from it, so the menu and the
+ *   editors always bind the same strokes (decision 15 of the work-package plan).
  * @property ioDispatcher where the workbench runs blocking file work ([fileOperations]); tests pass a test dispatcher.
  */
 public class WorkbenchServices(
@@ -33,14 +39,9 @@ public class WorkbenchServices(
     public val folderChooser: FolderChooser,
     public val templates: FileTemplates,
     public val platform: HostPlatform,
+    public val editorKeymap: EditorKeymap = defaultEditorKeymap(platform),
     public val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 )
-
-/** Opens a folder as a [Workspace] in [scope]. */
-public fun interface WorkspaceFactory {
-    /** The workspace of [root]; [scope]'s dispatcher is the UI thread (the documents' single writer). */
-    public fun open(root: Path, scope: CoroutineScope): Workspace
-}
 
 /** Creates the [LanguageServices] of a workspace. */
 public fun interface LanguageServicesFactory {
@@ -50,14 +51,18 @@ public fun interface LanguageServicesFactory {
 
 /**
  * Creates the editor state of an opened document. Implementations decide the editor's background dispatcher (the
- * production one passes `Dispatchers.Default`, tests a test dispatcher).
+ * production one passes its background dispatcher, tests a test dispatcher).
  */
 public fun interface EditorStateFactory {
-    /** The editor state of [session] in [scope] (the UI thread) with display [settings]. */
+    /**
+     * The editor state of [session] in [scope] (the UI thread) with display [settings] and the workbench's [keymap]
+     * (`WorkbenchServices.editorKeymap`), which the state must use.
+     */
     public fun create(
         session: DocumentSession,
-        services: LanguageServices,
+        languageServices: LanguageServices,
         scope: CoroutineScope,
         settings: StateFlow<EditorSettings>,
+        keymap: EditorKeymap,
     ): CodeEditorState
 }

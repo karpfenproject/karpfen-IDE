@@ -1,4 +1,4 @@
-package io.karpfen.ide.ui.workbench.state
+package io.karpfen.ide.ui.workbench.statusbar
 
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.text.LineSeparator
@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
  * encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), and
  * "Analyzing…".
  */
-public data class StatusBarInfo(
+public data class StatusBarUiState(
     public val line: Int? = null,
     public val column: Int? = null,
     public val selectionLength: Int = 0,
@@ -25,15 +25,18 @@ public data class StatusBarInfo(
     public val isAnalyzing: Boolean = false,
 )
 
-/** Status bar state; follows the active editor and the workspace (collected in [scope]). */
+/**
+ * Status bar state; follows the active editor and the workspace (collected in [scope]). The bindings are mediator
+ * operations and internal (decision 31 of the work-package plan).
+ */
 public class StatusBarState(private val scope: CoroutineScope) {
 
     /** What the status bar shows. */
-    public val info: StateFlow<StatusBarInfo> get() = TODO("WP-WORKBENCH: status bar info")
+    public val state: StateFlow<StatusBarUiState> get() = TODO("WP-WORKBENCH: status bar state")
 
-    /** Follows the active [document] and its [editor] (null: no editor). */
-    public fun bindEditor(document: OpenDocument?, editor: CodeEditorState?): Unit = TODO("WP-WORKBENCH: bind editor")
+    /** Follows the active [document] and its [editor] (null: no editor). Mediator only. */
+    internal fun bindEditor(document: OpenDocument?, editor: CodeEditorState?): Unit = TODO("WP-WORKBENCH: bind editor")
 
-    /** Follows [workspace] for the problem counts (`Workspace.problems`) and the analyzing flag. */
-    public fun bindWorkspace(workspace: Workspace?): Unit = TODO("WP-WORKBENCH: bind workspace")
+    /** Follows [workspace] for the problem counts (`Workspace.problems`) and the analyzing flag. Mediator only. */
+    internal fun bindWorkspace(workspace: Workspace?): Unit = TODO("WP-WORKBENCH: bind workspace")
 }
