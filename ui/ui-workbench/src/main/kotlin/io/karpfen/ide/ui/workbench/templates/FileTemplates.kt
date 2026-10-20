@@ -74,9 +74,25 @@ public interface FileTemplates {
 /** The built-in templates. */
 public fun FileTemplates(): FileTemplates = DefaultFileTemplates()
 
+/**
+ * The built-in templates: the file name rule here, the content per kind in [KarpfenSourceTemplates] (KMeta, KModel,
+ * KStates) and [EnvironmentTemplate] (descriptor). A [baseName] that already ends with the kind's suffix is used without
+ * it, so "robot" and "robot.kmeta" create the same file.
+ */
 internal class DefaultFileTemplates : FileTemplates {
-    override fun fileName(kind: FileTemplateKind, baseName: String): String = TODO("WP-WORKBENCH: template file name")
 
-    override fun content(kind: FileTemplateKind, baseName: String, context: TemplateContext): String =
-        TODO("WP-WORKBENCH: template content in ${context.directory}")
+    override fun fileName(kind: FileTemplateKind, baseName: String): String {
+        val name = baseName.trim()
+        return if (name.endsWith(kind.suffix, ignoreCase = true)) name else name + kind.suffix
+    }
+
+    override fun content(kind: FileTemplateKind, baseName: String, context: TemplateContext): String {
+        val name = fileName(kind, baseName).dropLast(kind.suffix.length)
+        return when (kind) {
+            FileTemplateKind.KMETA -> KarpfenSourceTemplates.kmeta(name)
+            FileTemplateKind.KMODEL -> KarpfenSourceTemplates.kmodel(name, context)
+            FileTemplateKind.KSTATES -> KarpfenSourceTemplates.kstates(name, context)
+            FileTemplateKind.ENVIRONMENT -> EnvironmentTemplate.content(name, context)
+        }
+    }
 }

@@ -1,7 +1,10 @@
 package io.karpfen.ide.ui.workbench.projecttree
 
+import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.nio.file.Path
 
 /**
@@ -11,27 +14,62 @@ import java.nio.file.Path
  *
  * Public: the read flows and the pure UI intents ([toggle], [select], [reveal]). The mediator's coordination operation
  * ([setTree]) is internal, so views cannot bypass the mediator (decision 31 of the work-package plan).
+ *
+ * Expansion is remembered across tree updates for the directories that still exist; a new tree root (another folder)
+ * starts with only the root expanded. Used from the UI thread.
  */
 public class ProjectTreeState {
 
+    private val currentTree = MutableStateFlow<WorkspaceTree?>(null)
+    private val expandedPaths = MutableStateFlow<Set<Path>>(emptySet())
+    private val selection = MutableStateFlow<Path?>(null)
+
     /** The tree of the current workspace, or null without a workspace. */
-    public val tree: StateFlow<WorkspaceTree?> get() = TODO("WP-WORKBENCH: tree")
+    public val tree: StateFlow<WorkspaceTree?> get() = currentTree.asStateFlow()
 
     /** Expanded directories (the root is expanded initially). */
-    public val expanded: StateFlow<Set<Path>> get() = TODO("WP-WORKBENCH: expanded directories")
+    public val expanded: StateFlow<Set<Path>> get() = expandedPaths.asStateFlow()
 
     /** The selected node, or null. */
-    public val selected: StateFlow<Path?> get() = TODO("WP-WORKBENCH: selection")
+    public val selected: StateFlow<Path?> get() = selection.asStateFlow()
+
+    /** True if [path] is a directory of the current tree (opening it toggles it instead of opening a file). */
+    public fun isDirectory(path: Path): Boolean = currentTree.value?.find(path) is WorkspaceNode.Directory
 
     /** Shows [tree] (null clears); expansion and selection of vanished paths are dropped. Mediator only. */
-    internal fun setTree(tree: WorkspaceTree?): Unit = TODO("WP-WORKBENCH: set tree")
+    internal fun setTree(tree: WorkspaceTree?) {
+        val previous = currentTree.value
+        currentTree.value = tree
+        if (tree == null) {
+            expandedPaths.value = emptySet()
+            selection.value = null
+            return
+        }
+        expandedPaths.value = if (previous?.root?.path != tree.root.path) {
+            setOf(tree.root.path)
+        } else {
+            expandedPaths.value.filterTo(LinkedHashSet()) { tree.find(it) is WorkspaceNode.Directory }
+        }
+        selection.value = selection.value?.takeIf { tree.find(it) != null }
+    }
 
     /** Expands or collapses the directory [path]. */
-    public fun toggle(path: Path): Unit = TODO("WP-WORKBENCH: toggle")
+    public fun toggle(path: Path) {
+        expandedPaths.value = expandedPaths.value.let { if (path in it) it - path else it + path }
+    }
 
     /** Selects [path]. */
-    public fun select(path: Path?): Unit = TODO("WP-WORKBENCH: select")
+    public fun select(path: Path?) {
+        selection.value = path
+    }
 
     /** Expands the ancestors of [path] and selects it (e.g. the active or a newly created file). */
-    public fun reveal(path: Path): Unit = TODO("WP-WORKBENCH: reveal in the tree")
+    public fun reveal(path: Path) {
+        val root = currentTree.value?.root?.path
+        if (root != null && path.startsWith(root)) {
+            val ancestors = generateSequence(path.parent) { it.parent }.takeWhile { it.startsWith(root) }
+            expandedPaths.value = expandedPaths.value + ancestors
+        }
+        selection.value = path
+    }
 }

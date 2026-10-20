@@ -1,7 +1,12 @@
 package io.karpfen.ide.ui.workbench.dialog
 
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.nio.file.Path
 
 /**
@@ -69,18 +74,43 @@ public sealed interface TextAnswer : DialogResponse
 /**
  * The pending dialog (spec §8). The mediator (and WP-APP's crash handling) suspends in [ask] until the composable
  * answers through [respond]; one dialog at a time (further requests wait).
+ *
+ * Requests wait in call order (a fair mutex); cancelling a waiting or a shown request removes it, so a cancelled flow
+ * never leaves a dialog on screen. Used from the UI thread.
  */
 public class DialogState {
 
+    private val queue = Mutex()
+    private val shown = MutableStateFlow<Pending?>(null)
+    private val currentRequest = MutableStateFlow<DialogRequest<*>?>(null)
+
     /** The dialog to show, or null. */
-    public val current: StateFlow<DialogRequest<*>?> get() = TODO("WP-WORKBENCH: current dialog")
+    public val current: StateFlow<DialogRequest<*>?> get() = currentRequest.asStateFlow()
 
     /** Shows [request] and suspends until it is answered (cancellation of the caller cancels the dialog). */
-    public suspend fun <R : DialogResponse> ask(request: DialogRequest<R>): R = TODO("WP-WORKBENCH: ask")
+    public suspend fun <R : DialogResponse> ask(request: DialogRequest<R>): R = queue.withLock {
+        val pending = Pending(request, CompletableDeferred())
+        shown.value = pending
+        currentRequest.value = request
+        try {
+            // respond() accepts only the request's answers (DialogRequest.accepts), so the cast is safe.
+            @Suppress("UNCHECKED_CAST")
+            pending.answer.await() as R
+        } finally {
+            shown.value = null
+            currentRequest.value = null
+        }
+    }
 
     /**
      * Answers the current dialog; no-op without one.
      * @throws IllegalArgumentException if the current dialog does not accept [response] ([DialogRequest.accepts]).
      */
-    public fun respond(response: DialogResponse): Unit = TODO("WP-WORKBENCH: respond")
+    public fun respond(response: DialogResponse) {
+        val pending = shown.value ?: return
+        require(pending.request.accepts(response)) { "${pending.request} does not accept $response" }
+        pending.answer.complete(response)
+    }
+
+    private class Pending(val request: DialogRequest<*>, val answer: CompletableDeferred<DialogResponse>)
 }

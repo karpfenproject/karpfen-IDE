@@ -4,6 +4,7 @@ import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.ConflictResolution
+import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.layout.LayoutState
@@ -16,7 +17,12 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import java.nio.file.Path
 
 /**
@@ -31,56 +37,109 @@ import java.nio.file.Path
  * flow (create with a `TemplateContext`, rename incl. directories with reopening, delete, reveal in the file manager on
  * `WorkbenchServices.ioDispatcher`) and a template-context builder (from `Workspace.contexts` and the syntax indexes of
  * `Workspace.analysis`). Collaborators use editors as `EditorHandle`.
+ *
+ * The collaborators: [IntentRunner], [WorkspaceHolder], [SubStateBindings], [EditorNavigationCollector],
+ * [EditorLifecycle], [UnsavedChangesFlow], [FileOpenFlow], [NavigationFlow], [TabFlows], [FolderFlow],
+ * [FileOperationFlows] (with [TemplateContextBuilder]), [RenameFlow], [LayoutPersister], [WorkbenchCommands] and
+ * [EditorCommands]. All work runs in a supervisor child of [scope], cancelled by [close].
  */
 internal class DefaultWorkbenchState(
-    private val scope: CoroutineScope,
+    scope: CoroutineScope,
     private val services: WorkbenchServices,
 ) : WorkbenchState {
 
-    override val workspace: StateFlow<Workspace?> get() = TODO("WP-WORKBENCH: workspace")
-    override val languageServices: StateFlow<LanguageServices?> get() = TODO("WP-WORKBENCH: language services")
-    override val projectTree: ProjectTreeState get() = TODO("WP-WORKBENCH: project tree state")
-    override val tabs: EditorTabsState get() = TODO("WP-WORKBENCH: tabs state")
-    override val outline: OutlineState get() = TODO("WP-WORKBENCH: outline state")
-    override val problems: ProblemsState get() = TODO("WP-WORKBENCH: problems state")
-    override val statusBar: StatusBarState get() = TODO("WP-WORKBENCH: status bar state")
-    override val dialogs: DialogState get() = TODO("WP-WORKBENCH: dialog state")
-    override val layout: LayoutState get() = TODO("WP-WORKBENCH: layout state")
-    override val settings: StateFlow<IdeSettings> get() = TODO("WP-WORKBENCH: settings")
-    override val windowTitle: StateFlow<String> get() = TODO("WP-WORKBENCH: window title")
+    private val ownScope = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
+    private val holder = WorkspaceHolder()
 
-    override suspend fun start(): Unit = TODO("WP-WORKBENCH: load settings, restore the layout")
+    override val projectTree: ProjectTreeState = ProjectTreeState()
+    override val tabs: EditorTabsState = EditorTabsState(ownScope)
+    override val outline: OutlineState = OutlineState(ownScope)
+    override val problems: ProblemsState = ProblemsState(ownScope)
+    override val statusBar: StatusBarState = StatusBarState(ownScope)
+    override val dialogs: DialogState = DialogState()
+    override val layout: LayoutState = LayoutState()
 
-    override fun openFolder(path: Path): Job = TODO("WP-WORKBENCH: open folder")
+    override val workspace: StateFlow<Workspace?> get() = holder.workspace
+    override val languageServices: StateFlow<LanguageServices?> get() = holder.languageServices
+    override val settings: StateFlow<IdeSettings> get() = services.settings.settings
+    override val windowTitle: StateFlow<String> get() = holder.windowTitle
 
-    override fun chooseAndOpenFolder(): Job = TODO("WP-WORKBENCH: choose folder")
+    private val runner = IntentRunner(ownScope) { intent, error ->
+        dialogs.showError("Unexpected error", "'$intent' failed: ${error.message ?: error}")
+    }
+    private val editorSettings: StateFlow<EditorSettings> = services.settings.settings
+        .map { EditorSettings(fontSize = it.editorFontSize) }
+        .stateIn(ownScope, SharingStarted.Eagerly, EditorSettings(fontSize = services.settings.settings.value.editorFontSize))
+    private val bindings = SubStateBindings(ownScope, tabs, projectTree, outline, problems, statusBar)
+    private val navigation = EditorNavigationCollector(ownScope, ::navigateTo)
+    private val lifecycle = EditorLifecycle(
+        ownScope, holder, tabs, services.editorStateFactory, editorSettings, services.editorKeymap, navigation,
+    )
+    private val unsaved = UnsavedChangesFlow(holder, dialogs)
+    private val fileOpen = FileOpenFlow(lifecycle, dialogs, services.fileOperations, services.ioDispatcher)
+    private val navigationFlow = NavigationFlow(fileOpen, tabs)
+    private val tabFlows = TabFlows(holder, tabs, lifecycle, unsaved, dialogs)
+    private val folders = FolderFlow(
+        ownScope, holder, tabs, lifecycle, unsaved, bindings, services.workspaceFactory, services.languageServicesFactory,
+        services.settings, services.folderChooser, dialogs,
+    )
+    private val fileOperations = FileOperationFlows(
+        holder, tabs, lifecycle, fileOpen, projectTree, dialogs, services.fileOperations, services.templates, services.ioDispatcher,
+    )
+    private val renames = RenameFlow(holder, tabs, lifecycle, unsaved, projectTree, dialogs, services.fileOperations, services.ioDispatcher)
+    private val persister = LayoutPersister(ownScope, layout, services.settings)
 
-    override fun openFile(path: Path): Job = TODO("WP-WORKBENCH: open file")
+    init {
+        bindings.start()
+    }
 
-    override fun navigateTo(location: Location): Job = TODO("WP-WORKBENCH: navigate")
+    override suspend fun start() {
+        layout.restore(services.settings.load())
+        persister.start()
+    }
 
-    override fun createFile(directory: Path, kind: FileTemplateKind): Job = TODO("WP-WORKBENCH: new file flow")
+    override fun openFolder(path: Path): Job = runner.launch("open folder") { folders.openFolder(path) }
 
-    override fun rename(path: Path): Job = TODO("WP-WORKBENCH: rename flow (files and directories)")
+    override fun chooseAndOpenFolder(): Job = runner.launch("choose folder") { folders.chooseAndOpenFolder() }
 
-    override fun delete(path: Path): Job = TODO("WP-WORKBENCH: delete flow")
+    override fun openFile(path: Path): Job = runner.launch("open file") { fileOpen.openFile(path.normalized()) }
 
-    override fun revealInFileManager(path: Path): Job = TODO("WP-WORKBENCH: reveal in Finder/Explorer")
+    override fun navigateTo(location: Location): Job = runner.launch("navigate") { navigationFlow.navigateTo(location) }
+
+    override fun createFile(directory: Path, kind: FileTemplateKind): Job =
+        runner.launch("new file") { fileOperations.createFile(directory.normalized(), kind) }
+
+    override fun rename(path: Path): Job = runner.launch("rename") { renames.rename(path.normalized()) }
+
+    override fun delete(path: Path): Job = runner.launch("delete") { fileOperations.delete(path.normalized()) }
+
+    override fun revealInFileManager(path: Path): Job =
+        runner.launch("reveal in file manager") { fileOperations.revealInFileManager(path.normalized()) }
 
     override fun resolveConflict(path: Path, resolution: ConflictResolution): Job =
-        TODO("WP-WORKBENCH: resolve external-change conflict")
+        runner.launch("resolve conflict") { tabFlows.resolveConflict(path.normalized(), resolution) }
 
-    override fun saveActive(): Job = TODO("WP-WORKBENCH: save active")
+    override fun saveActive(): Job = runner.launch("save") { tabFlows.saveActive() }
 
-    override fun saveAll(): Job = TODO("WP-WORKBENCH: save all")
+    override fun saveAll(): Job = runner.launch("save all") { tabFlows.saveAll() }
 
-    override fun closeTab(path: Path): Job = TODO("WP-WORKBENCH: close tab")
+    override fun closeTab(path: Path): Job = runner.launch("close tab") { tabFlows.closeTab(path.normalized()) }
 
-    override fun closeActiveTab(): Job = TODO("WP-WORKBENCH: close active tab")
+    override fun closeActiveTab(): Job = runner.launch("close tab") { tabFlows.closeActiveTab() }
 
-    override suspend fun requestExit(): Boolean = TODO("WP-WORKBENCH: exit flow")
+    override suspend fun requestExit(): Boolean = runner.exclusive {
+        unsaved.confirm(tabs.documents()).also { mayExit -> if (mayExit) persister.persistNow() }
+    }
 
-    override fun registerCommands(registry: CommandRegistry): Unit = TODO("WP-WORKBENCH: commands")
+    override fun registerCommands(registry: CommandRegistry) {
+        WorkbenchCommands(ownScope, this, tabs, layout, services.settings).register(registry)
+        EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(registry)
+    }
 
-    override fun close(): Unit = TODO("WP-WORKBENCH: close")
+    override fun close() {
+        folders.closeWorkspace()
+        ownScope.cancel()
+    }
+
+    private fun Path.normalized(): Path = toAbsolutePath().normalize()
 }
