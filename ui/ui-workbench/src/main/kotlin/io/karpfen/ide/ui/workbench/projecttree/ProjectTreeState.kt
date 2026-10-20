@@ -58,7 +58,8 @@ public class ProjectTreeState(
 
     /** Expands or collapses the directory [path]. */
     public fun toggle(path: Path) {
-        expandedPaths.value = expandedPaths.value.let { if (path in it) it - path else it + path }
+        // minusElement/plusElement: a Path is an Iterable<Path> of its names, so `set - path` would remove the names.
+        expandedPaths.value = expandedPaths.value.let { if (path in it) it.minusElement(path) else it.plusElement(path) }
     }
 
     /** Selects [path]. */
