@@ -178,6 +178,22 @@ class DocumentManagerOpenSaveTest {
     }
 
     @Test
+    fun `a malformed UTF-8 file saves as valid UTF-8 with its replacement characters`() = runTest {
+        val manager = documentManager(this)
+        val path = bytes("bad.kmeta", "type \"A\" \"".toByteArray() + byteArrayOf(0xFF.toByte()) + "\" {\n}\n".toByteArray())
+        val document = manager.openOrFail(path)
+        runCurrent()
+        assertTrue(WorkspaceDiagnosticCodes.MALFORMED_ENCODING in document.diagnosticCodes)
+
+        manager.save(path)
+        runCurrent()
+
+        assertFalse(WorkspaceDiagnosticCodes.MALFORMED_ENCODING in document.diagnosticCodes)
+        assertContentEquals("type \"A\" \"\uFFFD\" {\n}\n".toByteArray(Charsets.UTF_8), Files.readAllBytes(path))
+        assertEquals(emptyList(), SourceLoader().load(path).diagnostics, "the file on disk is valid now")
+    }
+
+    @Test
     fun `a failed save keeps the document dirty and reports the failure`() = runTest {
         val manager = documentManager(this)
         val path = file("robot.kmeta", metamodel)
