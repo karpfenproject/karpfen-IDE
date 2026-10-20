@@ -17,7 +17,9 @@ class KstatesBlocksTest {
 
     @Test
     fun `the introducing keyword is the last one outside parentheses, after earlier actions of the block`() {
-        val blocks = blocksAt("DO { SET(\"a\", \"b\") APPEND(\"l\", \"x\") IF IN SCOPE(\"p\") { WITH MACRO(\"m\", \"q\") AS \"x\" { ‸ } } }")
+        val blocks = blocksAt(
+            "DO { SET(\"a\", \"b\") APPEND(\"l\", \"x\") IF IN SCOPE(\"p\") { WITH MACRO(\"m\", \"q\") AS \"x\" { ‸ } } }",
+        )
 
         assertEquals(listOf("DO", "IF", "WITH"), blocks.map(KstatesBlocks::kindOf))
         assertEquals(listOf("IF", "IN", "SCOPE", "(", "p", ")"), KstatesBlocks.constructOf(blocks[1]).map { it.text })

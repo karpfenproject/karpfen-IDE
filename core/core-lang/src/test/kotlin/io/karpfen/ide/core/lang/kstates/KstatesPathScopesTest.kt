@@ -80,7 +80,8 @@ class KstatesPathScopesTest {
                 val where = "${example.path} @$offset (${reference.name})"
                 assertEquals(fromTokens.path, fromOutline.path, where)
                 assertEquals(fromTokens.facts.copy(bindings = emptyList()), fromOutline.facts.copy(bindings = emptyList()), where)
-                assertEquals(fromTokens.facts.bindings.map { it.name to it.macro }, fromOutline.facts.bindings.map { it.name to it.macro }, where)
+                val bindings = { scope: KstatesScope -> scope.facts.bindings.map { it.name to it.macro } }
+                assertEquals(bindings(fromTokens), bindings(fromOutline), where)
                 compared++
             }
         }

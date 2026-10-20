@@ -9,7 +9,7 @@ import io.karpfen.ide.core.lang.symbols.MemberInfo
  * The texts KStates completion and hover show for its symbols (spec §5): macro signatures, state hierarchy paths and
  * type texts. Pure functions over declarations.
  */
-internal object KstatesSignatures {
+internal object KstatesTexts {
 
     /** `macro m(p1: TwoDObject, p2: list(Obstacle)): number` from the macro's TAKES and RETURNS declarations. */
     fun macro(declarations: DocumentDeclarations, name: String): String {

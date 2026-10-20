@@ -27,9 +27,9 @@ internal class KstatesHoverProvider(
         val declarations = DocumentDeclarations(request.document)
         return when (slot) {
             is KstatesSlot.StateName -> slot.name.takeIf { declarations.named(SymbolKind.STATE, it).isNotEmpty() }
-                ?.let { Hover(slot.range, KstatesSignatures.state(declarations, it)) }
+                ?.let { Hover(slot.range, KstatesTexts.state(declarations, it)) }
             is KstatesSlot.MacroName -> slot.name.takeIf { declarations.named(SymbolKind.MACRO, it).isNotEmpty() }
-                ?.let { Hover(slot.range, KstatesSignatures.macro(declarations, it)) }
+                ?.let { Hover(slot.range, KstatesTexts.macro(declarations, it)) }
             is KstatesSlot.TypeName -> if (slot.inString) types.type(request, slot.name)?.let { Hover(slot.range, it.hoverText) } else null
             is KstatesSlot.EventName -> types.contextTypes(request).firstOrNull { it.origin == TypeOrigin.EVENTS && it.name == slot.name }
                 ?.let { Hover(slot.range, it.hoverText) }
@@ -37,7 +37,7 @@ internal class KstatesHoverProvider(
             is KstatesSlot.RelationKey -> paths.typeOf(request, context, slot.sourcePath)?.member(slot.name)
                 ?.let { Hover(slot.range, it.signature) }
             is KstatesSlot.BindingName -> paths.declaredBindingType(request, context)
-                ?.let { Hover(slot.range, "binding ${slot.name}: ${KstatesSignatures.typeText(it)}") }
+                ?.let { Hover(slot.range, "binding ${slot.name}: ${KstatesTexts.typeText(it)}") }
             is KstatesSlot.ParameterName -> declarations.all(SymbolKind.MACRO_PARAMETER)
                 .firstOrNull { it.declaration.name == slot.name && it.declaration.container == KstatesBlocks.macroOf(context.blocks) }
                 ?.let { Hover(slot.range, "parameter ${slot.name}: ${it.declaration.typeName.orEmpty()}") }
@@ -51,7 +51,7 @@ internal class KstatesHoverProvider(
         val type = if (hit.isUndeterminedEvent) {
             "any event (" + hit.scope.path.eventTypes.joinToString(", ") { it.name } + ")"
         } else {
-            KstatesSignatures.typeText(member.type)
+            KstatesTexts.typeText(member.type)
         }
         val detail = when (member.origin) {
             PathOrigin.MEMBER -> member.member?.signature

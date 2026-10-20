@@ -55,7 +55,7 @@ internal class KstatesCompletionProvider(
     private fun macros(request: FeatureRequest, range: TextRange): List<CompletionItem> {
         val declarations = DocumentDeclarations(request.document)
         return declarations.all(SymbolKind.MACRO).distinctBy { it.declaration.name }.map {
-            nameItem(it.declaration.name, CompletionKind.MACRO, range, detail = KstatesSignatures.macro(declarations, it.declaration.name))
+            nameItem(it.declaration.name, CompletionKind.MACRO, range, detail = KstatesTexts.macro(declarations, it.declaration.name))
         }
     }
 
@@ -88,14 +88,14 @@ internal class KstatesCompletionProvider(
             PathOrigin.MEMBER -> 1
             PathOrigin.ROOT -> 2
         }
-        val detail = KstatesSignatures.typeText(member.type)
+        val detail = KstatesTexts.typeText(member.type)
         return nameItem(member.name, kind, replace, detail = detail, documentation = member.member?.signature, rank = rank)
     }
 
     private fun relations(request: FeatureRequest, context: CaretContext, slot: KstatesSlot.RelationKey): List<CompletionItem> {
         val source = paths.typeOf(request, context, slot.sourcePath) ?: return emptyList()
         return source.members.filter { it.kind != MemberKind.PROPERTY }.map {
-            nameItem(it.name, CompletionKind.RELATION, slot.range, detail = KstatesSignatures.typeText(it), documentation = it.signature)
+            nameItem(it.name, CompletionKind.RELATION, slot.range, detail = KstatesTexts.typeText(it), documentation = it.signature)
         }
     }
 
