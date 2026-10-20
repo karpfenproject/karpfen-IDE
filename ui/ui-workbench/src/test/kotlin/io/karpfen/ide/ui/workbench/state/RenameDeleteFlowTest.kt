@@ -191,6 +191,14 @@ class RenameDeleteFlowTest {
     }
 
     @Test
+    fun `the opened folder itself is neither renamed nor deleted`() = scenario {
+        state.rename(root).joinSettled()
+        state.delete(root).joinSettled()
+        assertNoDialog()
+        assertTrue(Files.exists(root))
+    }
+
+    @Test
     fun `reveal in the file manager goes to the port`() = scenario {
         state.revealInFileManager(machine).joinSettled()
         assertEquals(listOf(machine), fileOperations.revealed)

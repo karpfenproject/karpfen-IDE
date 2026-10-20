@@ -52,9 +52,9 @@ internal class FileOperationFlows(
         files.openFile(created.toAbsolutePath().normalize())
     }
 
-    /** Confirms, closes the affected tabs without saving, deletes and refreshes the workspace. */
+    /** Confirms, closes the affected tabs without saving, deletes and refreshes the workspace (not the open folder itself). */
     suspend fun delete(path: Path) {
-        val workspace = holder.workspace.value ?: return
+        val workspace = holder.workspace.value?.takeIf { it.root != path } ?: return
         val answer = dialogs.ask(DialogRequest.ConfirmDelete(path, toTrash = fileOperations.supportsTrash))
         if (answer != DialogResponse.Confirm) return
         tabs.documents().map { it.path }.filter { it.startsWith(path) }.forEach { lifecycle.close(it) }

@@ -16,7 +16,7 @@ import java.nio.file.Path
  * name, runs the unsaved-changes dialog over the affected open documents (the file, or every open document below the
  * directory; Cancel aborts), closes them, renames on [ioDispatcher], refreshes the workspace and reopens each document
  * under its new path in its former tab position, keeping the active tab active. When the rename fails, an error dialog
- * says why and the documents are reopened under their old paths.
+ * says why and the documents are reopened under their old paths. The opened folder itself is not renamed here.
  */
 internal class RenameFlow(
     private val holder: WorkspaceHolder,
@@ -30,7 +30,7 @@ internal class RenameFlow(
 ) {
 
     suspend fun rename(path: Path) {
-        val workspace = holder.workspace.value ?: return
+        val workspace = holder.workspace.value?.takeIf { it.root != path } ?: return // the open folder itself stays
         val answer = dialogs.ask(DialogRequest.Rename(path))
         val newName = (answer as? DialogResponse.Text)?.value?.trim()?.takeIf { it.isNotEmpty() } ?: return
         if (newName == path.fileName?.toString()) return
