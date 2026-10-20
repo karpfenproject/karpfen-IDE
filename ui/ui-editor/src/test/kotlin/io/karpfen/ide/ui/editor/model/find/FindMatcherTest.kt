@@ -1,6 +1,8 @@
 package io.karpfen.ide.ui.editor.model.find
 
+import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.text.TextRange
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -113,6 +115,28 @@ class FindMatcherTest {
         assertTrue(checks > 0, "the callback is polled while matching")
         assertFailsWith<IllegalStateException> {
             matcher.find(text, FindQuery("(a+)+b", regex = true)) { error("cancelled") }
+        }
+    }
+
+    @Test
+    fun `random queries never throw on the examples`() {
+        val random = Random(20261020)
+        val alphabet = "ab()[]{}*+?|^$\\.-> \"#"
+        for (file in Examples.files()) {
+            repeat(20) {
+                val query = FindQuery(
+                    text = String(CharArray(random.nextInt(1, 6)) { alphabet[random.nextInt(alphabet.length)] }),
+                    caseSensitive = random.nextBoolean(),
+                    wholeWord = random.nextBoolean(),
+                    regex = random.nextBoolean(),
+                )
+                val outcome = matcher.find(file.text, query)
+                assertTrue(outcome.error == null || outcome.matches.isEmpty(), "${file.path} $query")
+                outcome.matches.zipWithNext { a, b -> assertTrue(a.end <= b.start, "sorted, non-overlapping: $query") }
+                assertTrue(outcome.matches.none { it.isEmpty }, "no empty matches: $query")
+                val replaced = matcher.replacements(file.text, query, outcome.matches, "\$1x")
+                assertEquals(outcome.matches.size, replaced.size)
+            }
         }
     }
 }

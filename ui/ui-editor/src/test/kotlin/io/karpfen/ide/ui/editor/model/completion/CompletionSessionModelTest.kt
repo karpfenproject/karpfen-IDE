@@ -24,6 +24,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -232,6 +233,25 @@ class CompletionSessionModelTest {
     }
 
     @Test
+    fun `keys and accept never act on a session the caret already left`() = completionTest("pr| rest") { f ->
+        f.completion.open()
+        advanceUntilIdle()
+        f.editor.caret.moveTo(7)
+        assertNotNull(f.completion.state.value, "the caret observer has not run yet")
+
+        assertFalse(f.completion.accept())
+        assertEquals("pr rest", f.editor.plain)
+        assertNull(f.completion.state.value)
+
+        f.editor.caret.moveTo(2)
+        f.completion.open()
+        advanceUntilIdle()
+        f.editor.caret.moveTo(7)
+        assertFalse(f.completion.handleKey(key(KeyCode.ENTER)), "Enter goes to the editor")
+        assertEquals("pr rest", f.editor.plain)
+    }
+
+    @Test
     fun `escape and focus loss close the session and cancel a pending request`() = completionTest("pr|") { f ->
         f.completion.open()
         advanceUntilIdle()
@@ -351,5 +371,28 @@ class CompletionSessionModelTest {
         f.completion.open()
         advanceUntilIdle()
         assertNotNull(f.completion.state.value, "the next request works again")
+    }
+
+    @Test
+    fun `random typing, moves and keys keep the session consistent`() = completionTest("|") { f ->
+        val random = Random(20261020)
+        f.source.labels = listOf("position", "prop", "robot", "speed", "STATE", "INITIAL STATE", "x_1")
+        val typed = listOf("p", "o", "s", "r", "\"", "(", "$", "-", ">", " ", "_", "1", "\n", ")")
+        val keys = listOf(KeyCode.UP, KeyCode.DOWN, KeyCode.PAGE_DOWN, KeyCode.ESCAPE, KeyCode.ENTER, KeyCode.TAB)
+        repeat(2_000) {
+            when (random.nextInt(6)) {
+                0, 1, 2 -> f.type(typed[random.nextInt(typed.size)])
+                3 -> f.completion.handleKey(key(keys[random.nextInt(keys.size)]))
+                4 -> f.editor.caret.moveTo(random.nextInt(0, f.editor.plain.length + 1))
+                else -> if (random.nextBoolean()) f.completion.open() else f.editor.run(EditorActionIds.UNDO)
+            }
+            if (random.nextInt(3) != 0) return@repeat
+            advanceUntilIdle()
+            val state = f.completion.state.value ?: return@repeat
+            val caret = f.editor.caret.primary.position
+            assertTrue(caret in state.replaceRange.start..state.replaceRange.end, "the caret is inside the range")
+            assertEquals(f.editor.plain.substring(state.replaceRange.start, caret), state.filterText)
+            assertTrue(state.items.all { CompletionRanking.qualityOf(it.label, state.filterText) != null })
+        }
     }
 }

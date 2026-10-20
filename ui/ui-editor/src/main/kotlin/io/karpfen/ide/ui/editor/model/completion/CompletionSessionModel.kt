@@ -137,7 +137,9 @@ public fun CompletionSessionModel(
  * filters an open session for the current text and caret (with [CompletionRanking]) and computes what accepting does,
  * `CommandEditAction` carries the accepted edit to the executor; this class owns the request and the current session.
  * A request runs in [scope]; its result is installed only for the version it was computed for, otherwise it is dropped
- * and the request repeated for the current text.
+ * and the request repeated for the current text. The caret is observed in [scope] as well, so [state] may lag a caret
+ * change by one dispatch; [accept] and [handleKey] therefore re-check the session against the current caret first and
+ * never act on a session the caret has already left.
  */
 internal class DefaultCompletionSessionModel(
     private val text: EditableText,
@@ -176,6 +178,7 @@ internal class DefaultCompletionSessionModel(
     }
 
     override fun accept(): Boolean {
+        refresh()
         val item = uiState.value?.selected ?: return false
         val open = session ?: return false
         val version = text.snapshot.value.version
@@ -193,6 +196,7 @@ internal class DefaultCompletionSessionModel(
     }
 
     override fun handleKey(stroke: KeyStroke): Boolean {
+        refresh()
         val open = uiState.value != null
         if (stroke.modifiers.isNotEmpty()) return false
         when (stroke.key) {

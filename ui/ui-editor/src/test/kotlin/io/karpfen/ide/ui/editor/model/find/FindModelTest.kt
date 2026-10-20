@@ -7,6 +7,7 @@ import io.karpfen.ide.ui.editor.model.action.EditorAction
 import io.karpfen.ide.ui.editor.model.action.EditorActionExecutor
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.TestEditor
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -14,6 +15,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlin.coroutines.CoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -289,5 +291,31 @@ class FindModelTest {
             listOf(SelectMatchAction.ID, SelectMatchAction.ID, SelectMatchAction.ID, "editor.find.replace", SelectMatchAction.ID, "editor.find.replaceAll"),
             ids,
         )
+    }
+
+    /** A dispatcher that counts the blocks it runs for [delegate]. */
+    private class CountingDispatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {
+        var dispatches = 0
+
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            dispatches++
+            delegate.dispatch(context, block)
+        }
+    }
+
+    @Test
+    fun `matching runs on the injected background dispatcher, the empty query on none`() = runTest {
+        val editor = TestEditor("|foo")
+        val background = CountingDispatcher(StandardTestDispatcher(testScheduler))
+        val job = Job()
+        val find = FindModel(editor.text, editor.caret, editor.executor, CoroutineScope(StandardTestDispatcher(testScheduler) + job), background)
+        advanceUntilIdle()
+        assertEquals(0, background.dispatches, "the empty query of a closed find bar")
+
+        find.setQuery(FindQuery("foo"))
+        advanceUntilIdle()
+        assertTrue(background.dispatches > 0)
+        assertEquals(1, find.state.value.total)
+        job.cancel()
     }
 }
