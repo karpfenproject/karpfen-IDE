@@ -19,7 +19,13 @@ public sealed interface ProjectTreeCommand {
     public data class RevealInFileManager(public val path: Path) : ProjectTreeCommand
 }
 
-/** An entry of the project tree's context menu. */
+/**
+ * An entry of the project tree's context menu.
+ *
+ * @property label the menu text.
+ * @property isEnabled false greys the entry out.
+ * @property command what choosing the entry does.
+ */
 public data class ProjectTreeMenuEntry(
     public val label: String,
     public val isEnabled: Boolean,
