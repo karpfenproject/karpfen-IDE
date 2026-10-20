@@ -157,7 +157,10 @@ internal class DefaultFindModel(
     override fun setQuery(query: FindQuery) {
         selectPending = true
         this.query.value = query
-        if (isFresh()) selectPendingMatch()
+        if (isFresh()) {
+            followCaret()
+            selectPendingMatch()
+        }
     }
 
     override fun next() = step(forward = true)
