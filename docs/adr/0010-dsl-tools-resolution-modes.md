@@ -1,26 +1,25 @@
 # 10. karpfen-dsl-tools resolution: composite build or artifact
 
-- Status: Accepted
+- Status: Accepted; amends [ADR 0003](0003-dsl-tools-is-the-language-core.md) for CI until dsl-tools is published
 - Date: 2026-10-20
-- Source: architecture proposal §5.1 (dependency mechanics), §9 item 4
+- Source: architecture proposal D2, §5.1 (dependency mechanics), §8 (pin dsl-tools), §9 item 4
 
 ## Context
 
-The IDE depends on karpfen-dsl-tools (ADR 0003), and both repositories will change together often. dsl-tools is
-not published to a remote Maven repository yet; its Gradle coordinates are `io.karpfen:karpfen-dsl-tools`.
+The IDE depends on dsl-tools (ADR 0003); both repositories often change together. D2 and §5.1 have CI use published
+artifacts, but dsl-tools is not published to a remote repository yet.
 
 ## Decision
 
-`settings.gradle.kts` supports two modes:
-- **Composite build**: `dslToolsPath` comes from `-PdslToolsPath`, else `local.properties` (git-ignored), else
-  `../karpfen-dsl-tools`. A Gradle build there is included and substitutes the module (`using(project(":"))`).
-  On the owner's machine `../karpfen-runtime/karpfen-dsl-tools` is the initialized submodule.
-- **Artifact**: otherwise (or with an empty `dslToolsPath`), the catalog version is resolved from the repositories.
-  Locally that is `mavenLocal()`, restricted to the `io.karpfen` group; a published repository later.
+- **Composite build**: `dslToolsPath` from `-PdslToolsPath`, else `local.properties` (git-ignored), else
+  `../karpfen-dsl-tools`; a Gradle build there is included and substitutes the module (`using(project(":"))`).
+- **Artifact**: otherwise (or an empty `dslToolsPath`): the catalog version from `mavenLocal()` (`io.karpfen` only).
+- **CI, a temporary deviation from D2/§5.1**: CI clones dsl-tools at a pinned commit (`DSL_TOOLS_REF`, §8) to the
+  default path and builds in composite mode, until dsl-tools publishes versioned artifacts.
 
 ## Consequences
 
-- Cross-repository changes are a single local iteration; the build log states the active mode.
-- Until dsl-tools is published, CI clones it next to the checkout and uses the composite mode.
-- The dsl-tools build is not configuration-cache compatible yet; composite builds therefore run without storing a
-  configuration cache entry (graceful degradation), artifact builds use the cache.
+- Cross-repository changes are a single local iteration. The settings log the active mode, though not on a
+  configuration-cache hit (`--no-configuration-cache` or `dependencyInsight` then shows it).
+- dsl-tools is not configuration-cache compatible yet: composite builds store no cache entry, and dsl-tools tasks
+  invoked directly need `--no-configuration-cache` (until §5.1 item 6 lands).

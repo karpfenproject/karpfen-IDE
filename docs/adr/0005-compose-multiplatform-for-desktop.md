@@ -21,5 +21,5 @@ is confined to `ui/*` and `app/`; every other module is UI-agnostic. JavaFX is n
 - The code editor (virtualized lines, caret, gutter, highlighting, completion) is built in-house; a
   `BasicTextField`-based implementation is only an acceptable stopgap behind the editor interface.
 - Packaging uses the Compose Gradle plugin (dmg/msi/deb).
-- Architecture tests reject Compose, AWT/Swing and JavaFX imports outside the permitted layers (ADR 0008).
+- Architecture tests reject Compose, AWT and Swing outside `ui/*` and `app/`, and JavaFX anywhere (ADR 0008).
 - Jewel may provide IntelliJ-style widgets but must be wrapped because its API is unstable.

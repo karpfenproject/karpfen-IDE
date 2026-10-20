@@ -45,7 +45,8 @@ Module boundaries are enforced twice during `./gradlew build`:
 
 - `verifyModuleDependencies` (every module, part of `check`) rejects project dependencies that violate the
   dependency matrix in `build-logic/src/main/kotlin/io/karpfen/ide/buildlogic/ModuleDependencyRules.kt`.
-- `architecture-tests` (Konsist) rejects forbidden imports, e.g. Compose, Ktor or Docker in `core/*`.
+- `architecture-tests` (Konsist) rejects forbidden imports and fully qualified references, e.g. Compose, Ktor or
+  Docker in `core/*`, or AWT/Swing outside `ui/*` and `app/`.
 
 ## karpfen-dsl-tools resolution
 
@@ -56,6 +57,9 @@ The IDE depends on `io.karpfen:karpfen-dsl-tools`. The build resolves it in one 
    - the Gradle property `-PdslToolsPath=<path>`, else
    - `dslToolsPath=<path>` in a git-ignored `local.properties` in the repository root, else
    - the default `../karpfen-dsl-tools` (a sibling checkout).
+
+   `local.properties` is read as a Java properties file, where `\` is an escape character: on Windows write
+   `dslToolsPath=C:/work/karpfen-dsl-tools` (or double every backslash).
 
    If that directory contains a Gradle build, it is included and substitutes the artifact. The build log shows
    `karpfen-dsl-tools: composite build from <path>`. On a machine where dsl-tools lives inside the runtime
@@ -88,22 +92,42 @@ The IDE depends on `io.karpfen:karpfen-dsl-tools`. The build resolves it in one 
    ./gradlew --init-script /tmp/publish-dsl-tools.gradle publishToMavenLocal
    ```
 
+The mode line is printed while the settings are evaluated, so a build that reuses the configuration cache does not
+repeat it. To see the active mode, run with `--no-configuration-cache` or use
+`./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools --configuration compileClasspath`.
+
 The configuration cache is enabled (`gradle.properties`). In composite mode, the dsl-tools build script is not
-configuration-cache compatible yet, so those builds run without storing a cache entry (Gradle reports
+configuration-cache compatible yet, so builds that compile the IDE run without storing a cache entry (Gradle reports
 "Configuration cache entry discarded because incompatible task was found"); artifact-mode builds use the cache
-normally.
+normally. Invoking dsl-tools tasks directly in composite mode (e.g. `./gradlew :karpfen-dsl-tools:jar`) fails under
+the configuration cache; add `--no-configuration-cache` for those until dsl-tools stops rewriting its generated
+sources (architecture proposal §5.1, item 6).
+
+CI clones dsl-tools at a pinned commit (`DSL_TOOLS_REF` in `.github/workflows/build.yml`) and builds in composite
+mode until dsl-tools publishes artifacts (ADR 0010).
 
 ## Build and run
 
-Requirements: JDK 21 (Gradle toolchains can provision it), network access to Maven Central and Google Maven.
+Requirements:
+
+- A JDK 17 or newer to run Gradle (JDK 21 recommended). The JDK 21 toolchain used for compiling is taken from the local
+  installations or provisioned automatically through the foojay resolver.
+- Network access to the Gradle Plugin Portal, Maven Central and Google Maven; for automatic JDK provisioning also to
+  the foojay discovery API (`api.foojay.io`) and the JDK vendor's download host.
 
 ```bash
 ./gradlew build                      # compile, unit tests, architecture tests, module dependency checks
 ./gradlew :app:ide:run               # start the IDE (an empty window for now)
 ./gradlew :tools:cli:run             # command-line tool (prints usage)
 ./gradlew :bridges:bridge-runner:run # headless bridge runner (prints usage)
+./gradlew :tools:cli:installDist     # start script: tools/cli/build/install/karpfen/bin/karpfen
+./gradlew :bridges:bridge-runner:installDist  # .../install/karpfen-bridge-runner/bin/karpfen-bridge-runner
 ./gradlew :app:ide:packageDistributionForCurrentOS   # native installer (dmg / msi / deb)
 ```
+
+The installer version is `0.1.0` for Msi and Deb. jpackage on macOS rejects an app version whose first number is 0,
+so the macOS app image and dmg are versioned `1.0.0` (override in `app/ide/build.gradle.kts`) until the product reaches
+1.x. The dmg is written to `app/ide/build/compose/binaries/main/dmg/`.
 
 Launch smoke test: with `KARPFEN_IDE_EXIT_AFTER_MS=<ms>` set, the IDE closes itself after that many milliseconds
 and exits with status 0, e.g. `KARPFEN_IDE_EXIT_AFTER_MS=4000 ./gradlew :app:ide:run`.
