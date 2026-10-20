@@ -1,9 +1,11 @@
 package io.karpfen.ide.ui.editor.model.action
 
-/** Requests handled by the UI (find bar, go to line, completion, go to definition). */
+/** Requests handled by the UI (find bar, find next/previous, go to line, completion, go to definition). */
 internal enum class UiRequest(val actionId: String) {
     FIND(EditorActionIds.FIND),
     REPLACE(EditorActionIds.REPLACE),
+    FIND_NEXT(EditorActionIds.FIND_NEXT),
+    FIND_PREVIOUS(EditorActionIds.FIND_PREVIOUS),
     GO_TO_LINE(EditorActionIds.GO_TO_LINE),
     COMPLETION(EditorActionIds.COMPLETION),
     GO_TO_DEFINITION(EditorActionIds.GO_TO_DEFINITION),

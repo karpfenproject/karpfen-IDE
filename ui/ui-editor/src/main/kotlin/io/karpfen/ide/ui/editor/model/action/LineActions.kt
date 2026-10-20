@@ -23,7 +23,8 @@ internal class LineAction(private val operation: LineOperation) : EditorAction {
  * Toggles `//` line comments; inside an EVAL body `#` (there `//` is a karpfen comment, spec §7.1). Decided per line:
  * a line is inside an EVAL body iff `context.tokens.embeddedRegionAt(o)` is non-null for `o` = the offset of its first
  * non-blank character (its start when blank). So the `EVAL {` line itself gets `//`, the body's lines (blank lines,
- * lines holding only a comment and the line of the closing `}` included) get `#`.
+ * lines holding only a comment and the line of the closing `}` included) get `#`. The context's tokens always belong to
+ * the current text (`EditorActionContext.tokens`), so the decision holds right after an edit, too.
  */
 internal class ToggleCommentAction : EditorAction {
     override val id: String = EditorActionIds.TOGGLE_COMMENT

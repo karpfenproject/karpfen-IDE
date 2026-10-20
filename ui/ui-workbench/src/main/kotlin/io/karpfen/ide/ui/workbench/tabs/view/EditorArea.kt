@@ -8,9 +8,11 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTab
 import java.nio.file.Path
 
 /**
- * The editor area (spec §8): `TabStrip` of [tabs], the external-change banner (Reload / Keep mine) of the active tab,
- * and the `CodeEditor` of [activeEditor] with the editor popups. Navigation requests of the editors are collected by
- * the mediator, not relayed through this view.
+ * The editor area (spec §8): `TabStrip` of [tabs], the external-change banner of the active tab rendered from
+ * `EditorTab.conflict` (MODIFIED: Reload / Keep mine; DELETED: Close / Keep mine; both report a `ConflictResolution`,
+ * RELOAD for Reload and Close), and the `CodeEditor` of [activeEditor] with the editor popups. Navigation requests of
+ * the editors are collected by the mediator, not relayed through this view. The callbacks call the non-suspending
+ * `WorkbenchState` intents directly (no coroutine launched here).
  *
  * @param onClose closes a tab through `WorkbenchState.closeTab` (unsaved-changes flow).
  */

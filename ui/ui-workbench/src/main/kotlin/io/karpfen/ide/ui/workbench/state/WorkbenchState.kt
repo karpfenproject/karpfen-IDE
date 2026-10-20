@@ -16,6 +16,7 @@ import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
@@ -28,8 +29,16 @@ import java.nio.file.Path
  * open/navigate, file operations of the project tree, external-change conflicts, close with unsaved changes, exit) live
  * here, because they span several sub-states, the [Workspace] and the dialogs.
  *
- * The mediator collects every editor's `CodeEditorState.navigationRequests` from opening its tab until closing it and
- * runs [navigateTo] for each, so navigation never depends on a composable being on screen.
+ * Intents own their lifetime (decision 42 of the work-package plan): the UI intents are plain functions that launch
+ * their flow in the mediator's scope and return its [Job] (tests `join()` it), so a flow survives the composable that
+ * started it (a tree row disappearing after a rename, a tab closing) and views never launch coroutines for intents.
+ * Flows run one at a time in call order (a later intent waits until the earlier flow finished, e.g. a second click on
+ * a tab's close button cannot open a second unsaved-changes dialog); [registerCommands]' commands call the same
+ * intents. Only [start] and [requestExit], called by the composition root, suspend.
+ *
+ * The mediator collects every editor's `EditorHandle.navigationRequests` from opening its tab until closing it and
+ * runs [navigateTo] for each, so navigation never depends on a composable being on screen. Its collaborators and the
+ * sub-states use editors through the `EditorHandle` role; only the editor area renders the full `CodeEditorState`.
  *
  * Used from the UI thread; long-running work runs in the scope given to the factory, blocking file work on
  * `WorkbenchServices.ioDispatcher`.
@@ -79,45 +88,48 @@ public interface WorkbenchState : AutoCloseable {
      * Opens [path] as the workspace (after the unsaved-changes flow for the current one; no-op if cancelled) and records
      * it as the most recent folder.
      */
-    public suspend fun openFolder(path: Path)
+    public fun openFolder(path: Path): Job
 
     /** Shows the folder chooser and opens the chosen folder. */
-    public suspend fun chooseAndOpenFolder()
+    public fun chooseAndOpenFolder(): Job
 
     /**
      * Opens [path] in an editor tab (or activates its tab). Files the editor cannot open (`OpenResult.Unsupported`, e.g.
      * `*.kenv.json`) are opened in the system's default application (`ProjectFileOperations.openExternally`, decision 14
      * of the work-package plan); failures become an error dialog.
      */
-    public suspend fun openFile(path: Path)
+    public fun openFile(path: Path): Job
 
     /**
      * Opens the file of [location] and moves the caret to its range start, centred (spec §8, navigateTo): the range is
-     * mapped into the document's current text with `EditableText.mapOffset` when [Location.lineage] is the text's
-     * lineage and [Location.version] is not newer than the current version (and the history still has it), otherwise
-     * clamped. The caret move, `scrollTo(center = true)` and the focus request are pending state of the editor
-     * (`CodeEditorState.scrollRequest`/`focusRequested`), so they take effect when a new tab is composed. Files the editor
-     * cannot open are opened externally (Problems navigation to descriptor diagnostics). The Problems and Outline views
-     * call it with `ProblemItem.location` and `OutlineUiState.locationOf(node)`.
+     * mapped into the document's current text with `EditableText.mapRange(range, version, lineage)` and clamped to the
+     * text when that returns null (another lineage, a newer version, evicted history, or no version at all). The caret
+     * move, `scrollTo(center = true)` and the focus request are pending state of the editor, so they take effect when a
+     * new tab is composed. Files the editor cannot open are opened externally (Problems navigation to descriptor
+     * diagnostics). The Problems and Outline views call it with `ProblemItem.location` and
+     * `OutlineUiState.locationOf(node)`.
      */
-    public suspend fun navigateTo(location: Location)
+    public fun navigateTo(location: Location): Job
 
     /**
      * New file from a template (project-tree context menu, spec §8): asks for the name ([DialogRequest.NewFile]),
      * creates `FileTemplates.fileName(kind, name)` with `FileTemplates.content(kind, name, templateContext)` in
-     * [directory] through `ProjectFileOperations.createFile` (the `TemplateContext` built from the directory's current
-     * context and the latest analysis), refreshes the workspace, reveals the new file in the project tree and opens it
-     * ([openFile]). Cancel does nothing; failures (e.g. the file exists) become an error dialog.
+     * [directory] through `ProjectFileOperations.createFile` (the `TemplateContext` built as documented on it, from the
+     * directory's current context and the syntax indexes of the latest analysis), refreshes the workspace, reveals the
+     * new file in the project tree and opens it ([openFile]). Cancel does nothing; failures (e.g. the file exists)
+     * become an error dialog.
      */
-    public suspend fun createFile(directory: Path, kind: FileTemplateKind)
+    public fun createFile(directory: Path, kind: FileTemplateKind): Job
 
     /**
-     * Renames [path] (project-tree context menu): asks for the new name ([DialogRequest.Rename]); if the file is open
-     * and dirty, runs the unsaved-changes dialog first (Save / Discard / Cancel); closes its document, renames through
-     * `ProjectFileOperations.rename`, refreshes the workspace and, if it was open, reopens the renamed file in the same
-     * tab position. Failures become an error dialog (the document is reopened under the old name).
+     * Renames [path], a file or a directory (project-tree context menu): asks for the new name ([DialogRequest.Rename]);
+     * runs the unsaved-changes dialog over the dirty documents among the open ones affected — the file, or every open
+     * document below the directory — (Save / Discard / Cancel; Cancel aborts); closes those documents, renames through
+     * `ProjectFileOperations.rename`, refreshes the workspace and reopens each of them under its new path in its former
+     * tab position (the active tab stays active). Failures become an error dialog, and the documents are reopened under
+     * their old paths.
      */
-    public suspend fun rename(path: Path)
+    public fun rename(path: Path): Job
 
     /**
      * Deletes [path] (project-tree context menu) after confirmation ([DialogRequest.ConfirmDelete], to the trash when
@@ -125,48 +137,53 @@ public interface WorkbenchState : AutoCloseable {
      * saving, deletes through `ProjectFileOperations.delete` and refreshes the workspace. Failures become an error
      * dialog.
      */
-    public suspend fun delete(path: Path)
+    public fun delete(path: Path): Job
 
-    /** Shows [path] in Finder/Explorer (`ProjectFileOperations.reveal`); no-op where unsupported. */
-    public suspend fun revealInFileManager(path: Path)
+    /** Shows [path] in Finder/Explorer (`ProjectFileOperations.revealInFileManager`); no-op where unsupported. */
+    public fun revealInFileManager(path: Path): Job
 
     /**
-     * Resolves the external-change conflict of the open document [path] (the editor area's banner, Reload / Keep mine;
-     * spec §4, §8) through `OpenDocument.resolveConflict`. For a file deleted on disk the banner offers Close / Keep
-     * mine and RELOAD closes the tab without saving. No-op without a conflict.
+     * Resolves the external-change conflict of the open document [path] (the editor area's banner, chosen from
+     * `EditorTab.conflict`; spec §4, §8) through `OpenDocument.resolveConflict`. For a file changed on disk the banner
+     * offers Reload ([ConflictResolution.RELOAD]) / Keep mine; for a file deleted on disk it offers Close
+     * ([ConflictResolution.RELOAD], answered with `ConflictResult.DeletedOnDisk`, on which the mediator closes the tab
+     * without saving) / Keep mine. `ConflictResult.Failed` becomes an error dialog. No-op without a conflict.
      */
-    public suspend fun resolveConflict(path: Path, resolution: ConflictResolution)
+    public fun resolveConflict(path: Path, resolution: ConflictResolution): Job
 
     /** Saves the active document. */
-    public suspend fun saveActive()
+    public fun saveActive(): Job
 
     /** Saves all dirty documents. */
-    public suspend fun saveAll()
+    public fun saveAll(): Job
 
-    /** Closes the tab of [path], asking about unsaved changes; returns false if the user cancelled. */
-    public suspend fun closeTab(path: Path): Boolean
+    /** Closes the tab of [path], asking about unsaved changes (Cancel keeps it open). */
+    public fun closeTab(path: Path): Job
 
     /** Closes the active tab (see [closeTab]). */
-    public suspend fun closeActiveTab(): Boolean
+    public fun closeActiveTab(): Job
 
     /**
      * Runs the unsaved-changes flow over every dirty document and persists the settings (with the current [layout]);
-     * true if the app may exit.
+     * true if the app may exit. Waits for a running intent flow first.
      */
     public suspend fun requestExit(): Boolean
 
     /**
-     * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder;
-     * the View commands drive [layout]) and the editor commands in [registry]; keeps enablement and the recent-folder
-     * commands up to date.
+     * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder and
+     * one toggle per `ToolWindowId`; the View commands drive [layout]) and the editor commands in [registry]; keeps
+     * enablement and the recent-folder commands up to date. Commands call the non-suspending intents above.
      *
      * Editor commands are registered under their `EditorActionIds` with their `EditorActionTitles` (the titles the
-     * editor context menu shows too), forwarded to the active editor (`CodeEditorState.execute(id)`), enabled while the
-     * active editor's `enabledActions` contains the id, and carry `shortcut = WorkbenchServices.editorKeymap
-     * .shortcutFor(id)` (the keymap every editor is created with, the single source of their shortcuts). Key routing
-     * (decision 15 of the work-package plan): the focused component handles and consumes its keys first (the editor
-     * through `CodeEditorState.handleKey`, text fields natively), so a menu accelerator only fires for strokes nobody
-     * consumed; one key press runs an action once.
+     * editor context menu shows too), forwarded to the active editor (`EditorHandle.execute(id)`), and carry
+     * `shortcut = WorkbenchServices.editorKeymap.shortcutFor(id)` (the keymap every editor is created with, the single
+     * source of their shortcuts). Enablement: the id is in the active editor's `enabledActions`, and — for every editor
+     * command except FIND, REPLACE, FIND_NEXT, FIND_PREVIOUS, GO_TO_LINE and GO_TO_DEFINITION, which open a popup or
+     * navigate and first request focus for the editor — the active editor `isFocused`. So Cut, Paste, Undo, Duplicate,
+     * Toggle Comment … from the menu never act on an editor while the Project tree, Outline, Problems or a text field
+     * has focus (decision 36 of the work-package plan). Key routing (decision 15): the focused component handles and
+     * consumes its keys first (the editor through `CodeEditorState.handleKey`, text fields natively), so a menu
+     * accelerator only fires for strokes nobody consumed; one key press runs an action once.
      */
     public fun registerCommands(registry: CommandRegistry)
 

@@ -4,13 +4,14 @@ import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.text.LineSeparator
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.OpenDocument
-import io.karpfen.ide.ui.editor.state.CodeEditorState
+import io.karpfen.ide.ui.editor.state.EditorHandle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * What the status bar shows (spec §8): `Ln x, Col y` (one-based), selection length, language, line separator,
- * encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), and
+ * What the status bar shows (spec §8): `Ln x, Col y` (one-based; [column] is the display column with tabs expanded by
+ * `TabStops` of the editor's `tabDisplayWidth`, so it matches what the user sees), selection length, language, line
+ * separator, encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), and
  * "Analyzing…".
  */
 public data class StatusBarUiState(
@@ -35,7 +36,7 @@ public class StatusBarState(private val scope: CoroutineScope) {
     public val state: StateFlow<StatusBarUiState> get() = TODO("WP-WORKBENCH: status bar state")
 
     /** Follows the active [document] and its [editor] (null: no editor). Mediator only. */
-    internal fun bindEditor(document: OpenDocument?, editor: CodeEditorState?): Unit = TODO("WP-WORKBENCH: bind editor")
+    internal fun bindEditor(document: OpenDocument?, editor: EditorHandle?): Unit = TODO("WP-WORKBENCH: bind editor")
 
     /** Follows [workspace] for the problem counts (`Workspace.problems`) and the analyzing flag. Mediator only. */
     internal fun bindWorkspace(workspace: Workspace?): Unit = TODO("WP-WORKBENCH: bind workspace")

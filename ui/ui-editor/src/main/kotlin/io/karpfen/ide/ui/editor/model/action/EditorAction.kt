@@ -18,7 +18,13 @@ public interface EditorAction {
     /** Stable id; menus, context menus and keymaps reference it (see [EditorActionIds]). */
     public val id: String
 
-    /** Whether the action can run in [context] (e.g. undo needs history); disabled actions are not executed. */
+    /**
+     * Whether the action can run in [context] (e.g. undo needs history, cut needs text); disabled actions are not
+     * executed. Cheap and side-effect free, and it depends only on the carets, the text and the undo history, because
+     * the editor recomputes enablement whenever those change (`EditorPopupModel.enabledActions`): it never reads
+     * [EditorActionContext.clipboard] or [EditorActionContext.tokens]. An action whose precondition depends on such
+     * inputs stays enabled and returns false from [execute] when there is nothing to do (Paste with an empty clipboard).
+     */
     public fun isEnabled(context: EditorActionContext): Boolean = true
 
     /** Runs the action; returns false if it did nothing (lets the key event propagate). */
@@ -44,9 +50,12 @@ public interface EditorActionContext {
     public val autoPairs: AutoClosedPairs
 
     /**
-     * The tokens of the current text if available (they may lag one version behind while tokenizing); actions use
-     * them for context. "Inside an EVAL body" is `tokens.embeddedRegionAt(offset)` (toggle comment uses `#` there),
-     * never derived from the token kinds.
+     * The tokens of exactly the current text (`tokens.version == text.snapshot.value.version`, MUST): the editor state
+     * supplies `DocumentSession.tokensFor(text.snapshot.value)`, which tokenizes synchronously when the session's
+     * tokenize pipeline lags (e.g. Cmd+/ right after Enter or a paste), so offsets of the current text and token ranges
+     * always agree. Reading it may therefore tokenize; actions read it in [EditorAction.execute] only, never in
+     * [EditorAction.isEnabled]. "Inside an EVAL body" is `tokens.embeddedRegionAt(offset)` (toggle comment uses `#`
+     * there), never derived from the token kinds.
      */
     public val tokens: TokenizeResult
 
@@ -76,6 +85,15 @@ public interface EditorUiPort {
 
     /** Opens the go-to-line popup. */
     public fun openGoToLine()
+
+    /**
+     * Find next (FIND_NEXT): the editor's `FindModel.next()` (which selects through the executor, so the match is
+     * revealed); opens the find bar instead while the find query is empty.
+     */
+    public fun findNext()
+
+    /** Find previous (FIND_PREVIOUS): like [findNext] with `FindModel.previous()`. */
+    public fun findPrevious()
 
     /** Opens completion at the caret (explicit request). */
     public fun triggerCompletion()

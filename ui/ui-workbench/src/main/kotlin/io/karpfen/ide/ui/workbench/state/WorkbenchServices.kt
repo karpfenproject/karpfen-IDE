@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
  * @property workspaceFactory opens folders (core-workspace's seam, shared with the CLI).
  * @property editorKeymap the one editor keymap of the workbench: every editor is created with it
  *   ([EditorStateFactory.create]) and the editor commands of the menu take their shortcuts from it, so the menu and the
- *   editors always bind the same strokes (decision 15 of the work-package plan).
+ *   editors always bind the same strokes (decision 15 of the work-package plan). Its platform is [platform].
  * @property ioDispatcher where the workbench runs blocking file work ([fileOperations]); tests pass a test dispatcher.
  */
 public class WorkbenchServices(
@@ -38,10 +38,16 @@ public class WorkbenchServices(
     public val fileOperations: ProjectFileOperations,
     public val folderChooser: FolderChooser,
     public val templates: FileTemplates,
-    public val platform: HostPlatform,
-    public val editorKeymap: EditorKeymap = defaultEditorKeymap(platform),
+    public val editorKeymap: EditorKeymap = defaultEditorKeymap(),
     public val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-)
+) {
+    /**
+     * The platform of the whole workbench — the one source of truth (decision 46 of the work-package plan): the
+     * [editorKeymap]'s, which the editors' pointer gestures and the menu shortcuts use too; the composition root creates
+     * its `CommandRegistry` with it.
+     */
+    public val platform: HostPlatform get() = editorKeymap.platform
+}
 
 /** Creates the [LanguageServices] of a workspace. */
 public fun interface LanguageServicesFactory {

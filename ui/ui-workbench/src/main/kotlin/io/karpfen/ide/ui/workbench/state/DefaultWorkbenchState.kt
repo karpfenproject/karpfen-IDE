@@ -15,17 +15,22 @@ import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
  * Default [WorkbenchState]: creates the sub-states and coordinates them (Mediator). A coordinator only (spec §1a, no
- * god class, ≤ ~300 lines): the flows are internal collaborators of this package with one responsibility each, e.g. a
- * command registrar (commands, enablement, recent folders, editor commands with `EditorActionTitles` and
+ * god class, ≤ ~300 lines): the flows are internal collaborators of this package with one responsibility each, e.g. an
+ * intent runner (launches each intent's flow in [scope], one at a time in call order, and returns its `Job`; the flows
+ * themselves are internal suspend functions the tests may also call), a command registrar (commands, enablement incl.
+ * the focus rule, recent folders, tool-window toggles, editor commands with `EditorActionTitles` and
  * `WorkbenchServices.editorKeymap`), a layout persister (writes `layout.state` into the settings debounced, about
  * 500 ms, and on exit; restores it in [start]), an editor-navigation collector (each tab's `navigationRequests` from
- * open to close → [navigateTo]), an unsaved-changes flow (tab close, folder switch, exit) and a file-operations flow
- * (create with a `TemplateContext`, rename, delete, reveal on `WorkbenchServices.ioDispatcher`).
+ * open to close → [navigateTo]), an unsaved-changes flow (tab close, folder switch, rename, exit), a file-operations
+ * flow (create with a `TemplateContext`, rename incl. directories with reopening, delete, reveal in the file manager on
+ * `WorkbenchServices.ioDispatcher`) and a template-context builder (from `Workspace.contexts` and the syntax indexes of
+ * `Workspace.analysis`). Collaborators use editors as `EditorHandle`.
  */
 internal class DefaultWorkbenchState(
     private val scope: CoroutineScope,
@@ -46,32 +51,32 @@ internal class DefaultWorkbenchState(
 
     override suspend fun start(): Unit = TODO("WP-WORKBENCH: load settings, restore the layout")
 
-    override suspend fun openFolder(path: Path): Unit = TODO("WP-WORKBENCH: open folder")
+    override fun openFolder(path: Path): Job = TODO("WP-WORKBENCH: open folder")
 
-    override suspend fun chooseAndOpenFolder(): Unit = TODO("WP-WORKBENCH: choose folder")
+    override fun chooseAndOpenFolder(): Job = TODO("WP-WORKBENCH: choose folder")
 
-    override suspend fun openFile(path: Path): Unit = TODO("WP-WORKBENCH: open file")
+    override fun openFile(path: Path): Job = TODO("WP-WORKBENCH: open file")
 
-    override suspend fun navigateTo(location: Location): Unit = TODO("WP-WORKBENCH: navigate")
+    override fun navigateTo(location: Location): Job = TODO("WP-WORKBENCH: navigate")
 
-    override suspend fun createFile(directory: Path, kind: FileTemplateKind): Unit = TODO("WP-WORKBENCH: new file flow")
+    override fun createFile(directory: Path, kind: FileTemplateKind): Job = TODO("WP-WORKBENCH: new file flow")
 
-    override suspend fun rename(path: Path): Unit = TODO("WP-WORKBENCH: rename flow")
+    override fun rename(path: Path): Job = TODO("WP-WORKBENCH: rename flow (files and directories)")
 
-    override suspend fun delete(path: Path): Unit = TODO("WP-WORKBENCH: delete flow")
+    override fun delete(path: Path): Job = TODO("WP-WORKBENCH: delete flow")
 
-    override suspend fun revealInFileManager(path: Path): Unit = TODO("WP-WORKBENCH: reveal in Finder/Explorer")
+    override fun revealInFileManager(path: Path): Job = TODO("WP-WORKBENCH: reveal in Finder/Explorer")
 
-    override suspend fun resolveConflict(path: Path, resolution: ConflictResolution): Unit =
+    override fun resolveConflict(path: Path, resolution: ConflictResolution): Job =
         TODO("WP-WORKBENCH: resolve external-change conflict")
 
-    override suspend fun saveActive(): Unit = TODO("WP-WORKBENCH: save active")
+    override fun saveActive(): Job = TODO("WP-WORKBENCH: save active")
 
-    override suspend fun saveAll(): Unit = TODO("WP-WORKBENCH: save all")
+    override fun saveAll(): Job = TODO("WP-WORKBENCH: save all")
 
-    override suspend fun closeTab(path: Path): Boolean = TODO("WP-WORKBENCH: close tab")
+    override fun closeTab(path: Path): Job = TODO("WP-WORKBENCH: close tab")
 
-    override suspend fun closeActiveTab(): Boolean = TODO("WP-WORKBENCH: close active tab")
+    override fun closeActiveTab(): Job = TODO("WP-WORKBENCH: close active tab")
 
     override suspend fun requestExit(): Boolean = TODO("WP-WORKBENCH: exit flow")
 

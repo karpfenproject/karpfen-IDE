@@ -33,6 +33,9 @@ public class ContextMenuAction(
  * Left collapses or moves to the parent, Right expands or moves to the first child, Enter opens). Double-click opens.
  * Stateless: [expanded] and [selected] are hoisted.
  *
+ * Whenever [selected] changes — by keyboard, by click or programmatically (e.g. the workbench revealing a newly created
+ * file after expanding its ancestors) — the tree scrolls minimally so the selected row is visible (MUST, tested).
+ *
  * @param icon slot rendering a node's icon; null uses [TreeNode.icon].
  * @param contextMenu the context-menu entries of a node (empty: no menu).
  */

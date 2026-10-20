@@ -10,6 +10,7 @@ import io.karpfen.ide.ui.editor.model.action.EditorActionTitles
 import io.karpfen.ide.ui.editor.model.action.defaultEditorActions
 import io.karpfen.ide.ui.editor.model.caret.Caret
 import io.karpfen.ide.ui.editor.model.caret.DEFAULT_TAB_WIDTH
+import io.karpfen.ide.ui.editor.model.caret.TabStops
 import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
 import io.karpfen.ide.ui.editor.popup.EditorPopups
 import io.karpfen.ide.ui.editor.state.ContextMenuRequest
@@ -55,6 +56,7 @@ class EditorContractTest {
             EditorActionIds.UNDO, EditorActionIds.REDO, EditorActionIds.CUT, EditorActionIds.COPY, EditorActionIds.PASTE,
             EditorActionIds.SELECT_ALL, EditorActionIds.FIND, EditorActionIds.REPLACE, EditorActionIds.TOGGLE_COMMENT,
             EditorActionIds.DUPLICATE, EditorActionIds.GO_TO_LINE, EditorActionIds.GO_TO_DEFINITION,
+            EditorActionIds.FIND_NEXT, EditorActionIds.FIND_PREVIOUS,
         ).forEach { assertTrue(it in ids, "missing $it") }
     }
 
@@ -98,5 +100,25 @@ class EditorContractTest {
     @Test
     fun `the caret model's default tab width matches the editor settings`() {
         assertEquals(EditorSettings().tabDisplayWidth, DEFAULT_TAB_WIDTH)
+    }
+
+    @Test
+    fun `tab stops convert between columns and display columns`() {
+        val stops = TabStops(4)
+
+        assertEquals(4, stops.displayColumn("\tab", 1))
+        assertEquals(6, stops.displayColumn("\tab", 3))
+        assertEquals(4, stops.displayColumn("a\tb", 2), "a tab advances to the next stop")
+        assertEquals(6, stops.displayColumn("\tab", 99), "clamped to the line")
+        assertEquals(1, stops.columnAt("\tab", 4))
+        assertEquals(0, stops.columnAt("\tab", 2), "a tie inside a tab goes left")
+        assertEquals(1, stops.columnAt("\tab", 3), "the nearer bound of a tab")
+        assertEquals(3, stops.columnAt("\tab", 99))
+        assertEquals(0, stops.columnAt("ab", -1))
+        val pair = "x\uD83D\uDE00y"
+        assertEquals(2, stops.displayColumn(pair, 3), "a surrogate pair is one display column")
+        assertEquals(3, stops.columnAt(pair, 2), "never inside a surrogate pair")
+        assertEquals(2, TabStops(2).displayColumn("\t", 1))
+        assertFailsWith<IllegalArgumentException> { TabStops(0) }
     }
 }

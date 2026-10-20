@@ -60,6 +60,12 @@ public object EditorActionIds {
     // --- UI requests -----------------------------------------------------------------------------------------------------
     public const val FIND: String = "editor.find"
     public const val REPLACE: String = "editor.replace"
+
+    /** Selects the next match of the find query (opens the find bar while the query is empty). */
+    public const val FIND_NEXT: String = "editor.findNext"
+
+    /** Selects the previous match of the find query (opens the find bar while the query is empty). */
+    public const val FIND_PREVIOUS: String = "editor.findPrevious"
     public const val GO_TO_LINE: String = "editor.goToLine"
     public const val COMPLETION: String = "editor.completion"
     public const val GO_TO_DEFINITION: String = "editor.goToDefinition"
@@ -119,6 +125,8 @@ public object EditorActionTitles {
         EditorActionIds.REDO to "Redo",
         EditorActionIds.FIND to "Find…",
         EditorActionIds.REPLACE to "Replace…",
+        EditorActionIds.FIND_NEXT to "Find Next",
+        EditorActionIds.FIND_PREVIOUS to "Find Previous",
         EditorActionIds.GO_TO_LINE to "Go to Line…",
         EditorActionIds.COMPLETION to "Complete Code",
         EditorActionIds.GO_TO_DEFINITION to "Go to Definition",

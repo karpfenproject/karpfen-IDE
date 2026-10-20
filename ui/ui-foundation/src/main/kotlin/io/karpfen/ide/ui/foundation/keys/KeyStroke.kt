@@ -3,6 +3,13 @@ package io.karpfen.ide.ui.foundation.keys
 /**
  * Toolkit-neutral keys for shortcuts. Compose-free on purpose: the editor's keymap and command lookups live in
  * Compose-free model code (spec §1a, §7.1); `ComposeKeys.kt` converts Compose key events.
+ *
+ * Letters, digits, function and navigation keys denote physical keys. The punctuation codes ([SLASH] … [RIGHT_BRACKET])
+ * denote the *character* (slash, backslash, minus, equals, comma, period, semicolon, apostrophe, grave accent,
+ * brackets) on the current keyboard layout (decision 41 of the work-package plan): the key adapter reports the code of
+ * the character a key produced, without the Shift the layout needed for it. On a German layout Shift+7 produces `/`,
+ * so Cmd+Shift+7 arrives as `KeyStroke(SLASH, {META})` and matches the binding primary+/ (toggle comment) like on a US
+ * layout.
  */
 public enum class KeyCode {
     A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,

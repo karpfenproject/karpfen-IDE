@@ -14,17 +14,22 @@ import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
  * - Rendering: virtualized (visible lines + overscan) with `TextMeasurer`/`drawText` and a per-line layout LRU cache
  *   keyed by line text + spans + font settings; gutter with one-based line numbers and diagnostic markers; current
  *   line, selection, blinking caret (solid while typing), wavy (ERROR, WARNING) and dotted (INFO) underlines,
- *   matching-bracket boxes, find matches (only while `overlays.findBar` is open); tabs at 4-column stops; highlight
- *   spans of older versions mapped through `EditableText.mapOffset`.
+ *   matching-bracket boxes, find matches (only while `overlays.findBar` is open); tabs at `EditorSettings.tabDisplayWidth`
+ *   stops with `TabStops` (also for hit-testing and the caret x); ranges of older versions (highlight spans,
+ *   diagnostics while `VersionedDiagnostics` lags, bracket matches) mapped with `EditableText.mapRange` — never by
+ *   mapping their bounds separately; a range that does not map is not drawn.
  * - Input: key events become `KeyStroke`s for `state.handleKey`, and the event is consumed exactly when it returns true
  *   (decision 15); typed text goes to `state.type` through the platform text-input API or a hidden proxy text field
  *   (works for every layout, macOS Option combinations, dead keys, IME; the chosen approach is documented in the
- *   implementation); exposes `SemanticsActions.InsertTextAtCursor` so `performTextInput` works in tests.
- * - Mouse: click, drag-select with edge auto-scroll, double/triple click, Shift+click (caret-model calls);
- *   Cmd/Ctrl+click → `state.goToDefinition(offset)`; pointer movement → `state.pointerHover(offset)` (the state owns the
- *   600 ms delay); right-click → `state.openContextMenuAt(offset, x, y)` with x/y in the `EditorOverlayHost` space.
- * - Pending requests: applies `state.scrollRequest` (the state also issues the caret reveal after actions and typing)
- *   and `state.focusRequested` when composed, then consumes them.
+ *   implementation); exposes `SemanticsActions.InsertTextAtCursor` so `performTextInput` works in tests. Focus changes
+ *   of the text area go to `state.onFocusChanged`.
+ * - Mouse: hit-testing only — primary press → `state.pointerPressed(offset, clickCount, modifiers)`, drag →
+ *   `state.pointerDragged(offset)` (plus the edge auto-scroll timer), release → `state.pointerReleased()`; the state
+ *   decides caret move, word/line selection, Shift-extension and primary-modifier go-to-definition. Pointer movement →
+ *   `state.pointerHover(offset)` (the state owns the 600 ms delay); right-click → `state.openContextMenuAt(offset, x, y)`
+ *   with x/y in the `EditorOverlayHost` space.
+ * - Pending requests: applies `state.scrollRequest` (the state also issues the caret reveal after actions, typing and
+ *   find navigation) and `state.focusRequested` when composed, then consumes them.
  * - Overlays: [overlays] hosts the popups (see [EditorOverlays]).
  *
  * @param onNavigate for simple embeddings without a workbench: collects `state.navigationRequests` while composed and

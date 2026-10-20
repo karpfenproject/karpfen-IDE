@@ -48,22 +48,34 @@ public data class FindResult(
  * Find and replace in one editor (spec §7.1). Compose-free state holder; matches follow the text: recomputed for every
  * new version and query on the factory's background dispatcher (latest wins) and published in its scope. Invalid
  * regular expressions put the model into an error state; nothing throws. [next], [previous] and the replace functions
- * act on the matches of the current text: when the published state lags behind (right after an edit), they compute
- * the matches of the current snapshot synchronously first. Replacing runs as an `EditorAction` through the factory's
- * [EditorActionExecutor] (origin `Command`, caret mementos, one undo step), like every other edit.
+ * act on the matches of the current text: when the published state lags behind (right after an edit or a new query),
+ * they compute the matches of the current snapshot synchronously first.
+ *
+ * Every selection and edit goes through the factory's [EditorActionExecutor] (Command pattern, spec §1a): selecting a
+ * match runs an internal select-match `EditorAction` (caret only, no undo step), replacing runs a replace action
+ * (origin `Command`, caret mementos, one undo step). Because the editor state reveals the caret after every executed
+ * action, a selected match is always scrolled into view, whoever asked for it (find bar, FIND_NEXT key, menu).
  */
 public interface FindModel {
 
     /** The current query, matches and selection of the current match. */
     public val state: StateFlow<FindResult>
 
-    /** Replaces the query; the current match becomes the first match at or after the primary caret. */
+    /**
+     * Replaces the query (incremental search): once the matches of the new query are known, the current match is the
+     * first match at or after the start of the primary selection (so a match that is already selected stays current)
+     * and it is selected through the executor; without matches the selection stays. Typing in the find field calls
+     * this for every change.
+     */
     public fun setQuery(query: FindQuery)
 
-    /** Moves to the next match (wrapping) and selects it. */
+    /**
+     * Find next: if the primary selection is not exactly the current match yet, selects the current match; otherwise
+     * moves to the next match (wrapping) and selects it. No-op without matches.
+     */
     public fun next()
 
-    /** Moves to the previous match (wrapping) and selects it. */
+    /** Find previous: like [next], moving to the previous match (wrapping). */
     public fun previous()
 
     /** Replaces the current match by [replacement] (with `$1` group references in regex mode) and moves to the next. */

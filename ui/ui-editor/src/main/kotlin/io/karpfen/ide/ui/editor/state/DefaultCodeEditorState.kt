@@ -11,6 +11,7 @@ import io.karpfen.ide.ui.editor.model.caret.CaretModel
 import io.karpfen.ide.ui.editor.model.completion.CompletionSessionModel
 import io.karpfen.ide.ui.editor.model.find.FindModel
 import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
+import io.karpfen.ide.ui.foundation.keys.KeyModifier
 import io.karpfen.ide.ui.foundation.keys.KeyStroke
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -21,25 +22,32 @@ import kotlinx.coroutines.flow.StateFlow
  * Default [CodeEditorState]. A coordinator only (spec §1a: no god class, ≤ ~300 lines): it creates the models
  * (`CaretModel` with the settings' tab width, `AutoClosedPairs`, `FindModel` with [backgroundDispatcher] and
  * `CompletionSessionModel`, both with `execute(action)` as their executor; decision 24 of the work-package plan records
- * why these per-editor models are created here rather than injected) and delegates to internal collaborators of this
- * package, each with one responsibility, e.g.:
- * - an action-context adapter implementing `EditorActionContext` and `EditorUiPort` for the actions;
+ * why these per-editor models are created here rather than injected) and delegates to internal collaborators, each
+ * with one responsibility, e.g.:
+ * - an action-context adapter implementing `EditorActionContext` and `EditorUiPort` for the actions (its `tokens` are
+ *   `session.tokensFor(text.snapshot.value)`, read lazily, so they always belong to the current text; `findNext` /
+ *   `findPrevious` call the `FindModel` and open the find bar when the query is empty);
  * - an editor completion source implementing the suspending `CompletionSource`: `withContext(backgroundDispatcher)`,
  *   then `LanguageServices.complete` on `LanguageDocument.of(session, snapshot)`;
- * - a highlight pipeline and a bracket tracker on [backgroundDispatcher] ([highlights], [bracketMatch]);
+ * - a highlight pipeline (incl. the semantic carry-over documented on [EditorViewModel.highlights]) and a bracket
+ *   tracker on [backgroundDispatcher] ([highlights], [bracketMatch]);
  * - a hover/definition resolver (bounded wait for a current parse, then `LanguageServices` on [backgroundDispatcher]);
- * - an input handler for [handleKey], [pointerHover] (delay in the editor's scope) and [openContextMenuAt];
+ * - an input handler for [handleKey], the pointer intents (gesture policy, drag anchor), [pointerHover] (delay in the
+ *   editor's scope), [openContextMenuAt] and [onFocusChanged];
  * - an enablement tracker for [enabledActions] and the pending view requests ([scrollRequest] incl. the caret reveal
  *   after actions and typing, [focusRequested]).
+ *
+ * Collaborators may live in sub-packages of `state` (decision 37 of the work-package plan) as long as those do not
+ * depend back on this package (no package cycles).
  */
 internal class DefaultCodeEditorState(
     override val session: DocumentSession,
-    override val languageServices: LanguageServices,
+    private val languageServices: LanguageServices,
     private val parentScope: CoroutineScope,
     private val clipboard: ClipboardPort,
     override val settings: StateFlow<EditorSettings>,
-    override val keymap: EditorKeymap,
-    override val actions: EditorActionRegistry,
+    private val keymap: EditorKeymap,
+    private val actions: EditorActionRegistry,
     private val backgroundDispatcher: CoroutineDispatcher,
 ) : CodeEditorState {
 
@@ -51,6 +59,7 @@ internal class DefaultCodeEditorState(
     override val highlights: StateFlow<HighlightSnapshot> get() = TODO("WP-EDITOR-VIEW: highlights")
     override val bracketMatch: StateFlow<BracketMatchSnapshot> get() = TODO("WP-EDITOR-VIEW: bracket match")
     override val enabledActions: StateFlow<Set<String>> get() = TODO("WP-EDITOR-VIEW: enabled actions")
+    override val isFocused: StateFlow<Boolean> get() = TODO("WP-EDITOR-VIEW: focus state")
     override val scrollRequest: StateFlow<ScrollRequest?> get() = TODO("WP-EDITOR-VIEW: pending scroll request")
     override val focusRequested: StateFlow<Boolean> get() = TODO("WP-EDITOR-VIEW: pending focus request")
     override val navigationRequests: SharedFlow<Location> get() = TODO("WP-EDITOR-VIEW: navigation requests")
@@ -63,10 +72,19 @@ internal class DefaultCodeEditorState(
 
     override fun handleKey(stroke: KeyStroke): Boolean = TODO("WP-EDITOR-VIEW: key routing (completion, then keymap)")
 
+    override fun pointerPressed(offset: Int, clickCount: Int, modifiers: Set<KeyModifier>): Unit =
+        TODO("WP-EDITOR-VIEW: click policy (definition, extend, caret, word, line)")
+
+    override fun pointerDragged(offset: Int): Unit = TODO("WP-EDITOR-VIEW: drag selection")
+
+    override fun pointerReleased(): Unit = TODO("WP-EDITOR-VIEW: end drag")
+
     override fun pointerHover(offset: Int?): Unit = TODO("WP-EDITOR-VIEW: hover delay")
 
     override fun openContextMenuAt(offset: Int, x: Float, y: Float): Unit =
         TODO("WP-EDITOR-VIEW: move the caret unless inside the selection, open the context menu")
+
+    override fun onFocusChanged(focused: Boolean): Unit = TODO("WP-EDITOR-VIEW: focus state, close completion and hover")
 
     override fun scrollTo(offset: Int, center: Boolean): Unit = TODO("WP-EDITOR-VIEW: scroll request")
 
@@ -77,8 +95,6 @@ internal class DefaultCodeEditorState(
     override fun goToDefinition(offset: Int): Unit = TODO("WP-EDITOR-VIEW: go to definition")
 
     override fun goToLine(query: GoToLineQuery): Unit = TODO("WP-EDITOR-VIEW: go to line")
-
-    override suspend fun hoverAt(offset: Int): HoverContent? = TODO("WP-EDITOR-VIEW: hover content")
 
     override fun requestFocus(): Unit = TODO("WP-EDITOR-VIEW: focus request")
 

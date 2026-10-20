@@ -8,25 +8,31 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * The carets of one editor over an [EditableText] (spec §7.1). Compose-free state holder, used from the UI thread.
  *
- * Mapping through changes: carets are stamped with the text version they refer to ([CaretSnapshot.version]). Changes
- * the model has not seen yet (e.g. a reload, or edits by another component) are mapped through
- * `EditableText.mapOffset` as they are emitted, but only if the carets predate them; carets set explicitly after an
- * edit (actions pass their `caretsAfter`) carry the new version and are never mapped twice.
+ * Mapping through changes (MUST): carets are stamped with the text version they refer to ([CaretSnapshot.version]).
+ * Every member first catches up synchronously when the carets are older than the text (lazy mapping with
+ * `EditableText.mapOffset`, like `AutoClosedPairs`), so [current], [primary], [mementos] and every movement always act
+ * on the current text, also when a change (a reload, an edit by another component) arrived and the collector in the
+ * model's scope has not run yet — the scope's dispatcher does not matter. [state] follows the changes for observers
+ * (rendering, completion) and may lag by one dispatch. Carets set explicitly after an edit (actions pass their
+ * `caretsAfter`) carry the new version and are never mapped twice.
  *
  * Undo coalescing: every explicit caret change ([move], [moveTo], [select], [selectWord], [selectLine], [selectAll])
  * calls `text.undo.breakCoalescing()`, so typing at another place starts a new undo step; [restore] and the mapping
  * through changes do not.
  *
- * Preferred column: [Caret.preferredColumn] is a display column with tabs expanded to the factory's `tabWidth()`
- * (the editor passes `EditorSettings.tabDisplayWidth`).
+ * Preferred column: [Caret.preferredColumn] is a display column computed with [TabStops] of the factory's
+ * `tabWidth()` (the editor passes `EditorSettings.tabDisplayWidth`), the conversion the view and the status bar use too.
  */
 public interface CaretModel {
 
-    /** The current carets and the version they refer to. */
+    /** The carets and the version they refer to, for observers; may lag the text by one dispatch (see above). */
     public val state: StateFlow<CaretSnapshot>
 
-    /** Shortcut for `state.value.primary`. */
-    public val primary: Caret get() = state.value.primary
+    /** The carets mapped to the current text version (catches up synchronously when [state] lags). */
+    public val current: CaretSnapshot
+
+    /** Shortcut for `current.primary`. */
+    public val primary: Caret get() = current.primary
 
     /**
      * Moves every caret by [movement]; with [extendSelection] the anchors stay (Shift+movement), otherwise selections
@@ -60,17 +66,14 @@ public interface CaretModel {
  * A [CaretModel] with one caret at offset 0, mapping carets through the changes of [text] in [scope] (collected on the
  * UI thread; tests pass an `UnconfinedTestDispatcher` scope).
  *
- * @param tabWidth columns per tab stop for [Caret.preferredColumn], read on every vertical move (the setting may
- *   change at runtime).
+ * @param tabWidth columns per tab stop for [Caret.preferredColumn] ([TabStops]), read on every vertical move (the
+ *   setting may change at runtime).
  */
 public fun CaretModel(
     text: EditableText,
     scope: CoroutineScope,
     tabWidth: () -> Int = { DEFAULT_TAB_WIDTH },
 ): CaretModel = DefaultCaretModel(text, scope, tabWidth)
-
-/** Columns per tab stop unless the editor settings say otherwise (spec §7.2). */
-public const val DEFAULT_TAB_WIDTH: Int = 4
 
 internal class DefaultCaretModel(
     private val text: EditableText,
@@ -80,6 +83,9 @@ internal class DefaultCaretModel(
 
     override val state: StateFlow<CaretSnapshot>
         get() = TODO("WP-EDITOR-MODEL: caret state")
+
+    override val current: CaretSnapshot
+        get() = TODO("WP-EDITOR-MODEL: carets caught up with the text")
 
     override fun move(movement: CaretMovement, extendSelection: Boolean, pageLines: Int): Unit =
         TODO("WP-EDITOR-MODEL: caret movement")

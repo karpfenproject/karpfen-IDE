@@ -1,5 +1,7 @@
 package io.karpfen.ide.ui.workbench.command
 
+import io.karpfen.ide.ui.workbench.layout.ToolWindowId
+
 /**
  * Ids of the commands the workbench registers in the `CommandRegistry` (`WorkbenchState.registerCommands`), referenced
  * by the application's menus (spec §9). Editor commands (Undo … Go to Definition) are registered under the editor's
@@ -16,9 +18,14 @@ public object WorkbenchCommandIds {
     public const val CLOSE_TAB: String = "workbench.closeTab"
 
     // View
-    public const val TOGGLE_PROJECT: String = "workbench.toggleProject"
-    public const val TOGGLE_OUTLINE: String = "workbench.toggleOutline"
-    public const val TOGGLE_PROBLEMS: String = "workbench.toggleProblems"
+    /** Prefix of the tool-window toggles; see [toggleToolWindow]. */
+    public const val TOGGLE_TOOL_WINDOW_PREFIX: String = "workbench.toggle."
     public const val THEME_LIGHT: String = "workbench.themeLight"
     public const val THEME_DARK: String = "workbench.themeDark"
+
+    /**
+     * The id of the command that shows or hides tool window [id] (`workbench.toggle.PROJECT`, …), derived from the enum,
+     * so a new `ToolWindowId` needs no new constant (the menus iterate `ToolWindowId.entries`).
+     */
+    public fun toggleToolWindow(id: ToolWindowId): String = TOGGLE_TOOL_WINDOW_PREFIX + id.name
 }

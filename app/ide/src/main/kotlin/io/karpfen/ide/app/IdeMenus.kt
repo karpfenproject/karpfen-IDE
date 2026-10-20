@@ -7,9 +7,9 @@ import io.karpfen.ide.ui.foundation.command.MenuSpec
 
 /**
  * The window menus (spec §9): File (Open Folder…, Open Recent, Save, Save All, Close Tab), Edit (Undo, Redo, Cut,
- * Copy, Paste, Select All, Find, Replace, Toggle Comment, Duplicate Line), View (Project, Outline, Problems,
- * Light/Dark theme), Navigate (Go to Line, Go to Definition); items reference `WorkbenchCommandIds` and
- * `EditorActionIds`.
+ * Copy, Paste, Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line), View (one toggle
+ * per `ToolWindowId.entries` with its `title` and `WorkbenchCommandIds.toggleToolWindow(id)`, Light/Dark theme), Navigate
+ * (Go to Line, Go to Definition); items reference `WorkbenchCommandIds` and `EditorActionIds`.
  */
 public object IdeMenus {
     /** The menu structure; [recentFolderCount] "Open Recent" items reference `OPEN_RECENT_PREFIX + index`. */

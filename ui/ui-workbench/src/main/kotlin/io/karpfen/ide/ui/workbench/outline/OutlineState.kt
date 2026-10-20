@@ -3,7 +3,7 @@ package io.karpfen.ide.ui.workbench.outline
 import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.text.TextLineage
-import io.karpfen.ide.ui.editor.state.CodeEditorState
+import io.karpfen.ide.ui.editor.state.EditorHandle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
@@ -47,6 +47,9 @@ public class OutlineState(private val scope: CoroutineScope) {
     /** What the Outline tool window shows. */
     public val state: StateFlow<OutlineUiState> get() = TODO("WP-WORKBENCH: outline state")
 
-    /** Follows [editor] (the active tab's), or shows nothing for null. Mediator only. */
-    internal fun bindEditor(editor: CodeEditorState?): Unit = TODO("WP-WORKBENCH: bind outline to the active editor")
+    /**
+     * Follows [editor] (the active tab's: its session's parse and last good parse, its text and `caret.state`), or shows
+     * nothing for null. Mediator only.
+     */
+    internal fun bindEditor(editor: EditorHandle?): Unit = TODO("WP-WORKBENCH: bind outline to the active editor")
 }

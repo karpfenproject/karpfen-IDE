@@ -10,8 +10,11 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * What the editor popups (find/replace bar, completion list, go-to-line, hover tooltip, context menu) may use of an
  * editor (interface segregation, spec §1a): the models they render and drive, the overlay state, action execution and
- * enablement. [CodeEditorState] extends it; popup tests fake only this interface (with the real Compose-free models).
- * Used from the UI thread.
+ * enablement. [CodeEditorState] extends it (next to `EditorViewModel` and `EditorHandle`); popup tests fake only this
+ * interface (with the real Compose-free models). Used from the UI thread.
+ *
+ * The find bar drives [find] directly (`setQuery`, `next`, `previous`, replace); `FindModel` selects matches through the
+ * editor's executor, so the editor reveals them (see `CodeEditorState`, Caret reveal).
  */
 public interface EditorPopupModel {
 
@@ -33,7 +36,9 @@ public interface EditorPopupModel {
     /**
      * Ids of the registered actions that are enabled now (`EditorAction.isEnabled` in the editor's action context),
      * recomputed whenever the carets, the text or the undo history change. The context menu greys out the others; the
-     * workbench derives `Command.isEnabled` of forwarded editor commands from it.
+     * workbench derives `Command.isEnabled` of forwarded editor commands from it. `isEnabled` depends only on those
+     * inputs (see `EditorAction.isEnabled`): clipboard-dependent actions such as Paste are always enabled, so the
+     * enablement never goes stale when another application changes the clipboard.
      */
     public val enabledActions: StateFlow<Set<String>>
 

@@ -7,19 +7,20 @@ import io.karpfen.ide.ui.workbench.settings.WindowBounds
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The tool windows around the editor area (spec §8), with their default size in dp (width for side windows, height for
- * bottom ones). A new tool window is a new entry here; the persisted form is a map by [name], so it needs no schema
- * change.
+ * The tool windows around the editor area (spec §8), with their [title] (tool-window header and View menu) and default
+ * size in dp (width for side windows, height for bottom ones). A new tool window is a new entry here: the persisted
+ * form is a map by [name] (no schema change), the toggle command id is `WorkbenchCommandIds.toggleToolWindow(id)` and
+ * the View menu iterates the entries.
  */
-public enum class ToolWindowId(public val defaultSize: Float) {
+public enum class ToolWindowId(public val title: String, public val defaultSize: Float) {
     /** Project tree (left). */
-    PROJECT(260f),
+    PROJECT("Project", 260f),
 
     /** Outline of the active document (right). */
-    OUTLINE(240f),
+    OUTLINE("Outline", 240f),
 
     /** Problems (bottom). */
-    PROBLEMS(200f),
+    PROBLEMS("Problems", 200f),
     ;
 
     /** Visible with the default size. */
@@ -70,7 +71,11 @@ public class LayoutState {
     /** Shows or hides a tool window. */
     public fun toggleToolWindow(id: ToolWindowId): Unit = TODO("WP-WORKBENCH: toggle tool window")
 
-    /** Sets a tool window's size in dp (width for PROJECT/OUTLINE, height for PROBLEMS), clamped to a minimum. */
+    /**
+     * Sets a tool window's size in dp (width for PROJECT/OUTLINE, height for PROBLEMS), clamped to a minimum. The
+     * workbench passes the value of the size-based `SplitPane`'s `onFixedSizeChange` unchanged (`Dp.value`), so the
+     * composable converts nothing.
+     */
     public fun resizeToolWindow(id: ToolWindowId, size: Float): Unit = TODO("WP-WORKBENCH: resize tool window")
 
     /** Switches the theme. */

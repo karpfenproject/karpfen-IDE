@@ -3,18 +3,20 @@ package io.karpfen.ide.ui.workbench.files
 import java.nio.file.Path
 
 /**
- * File operations of the project tree (spec §8): create, rename, delete (to the trash when the platform supports it),
- * reveal in Finder/Explorer and opening files the editor does not support in the system's default application. A port
- * (Compose- and AWT-free); the desktop adapter lives in `files.desktop`. Blocking: the workbench calls it on
- * `WorkbenchServices.ioDispatcher`. The workspace notices the changes through its watcher or an explicit refresh.
+ * File operations of the project tree (spec §8): create, rename (files and directories), delete (to the trash when the
+ * platform supports it), reveal in Finder/Explorer and opening files the editor does not support in the system's
+ * default application. A port (Compose- and AWT-free); the desktop adapter lives in `files.desktop`. Blocking: the
+ * workbench calls it on `WorkbenchServices.ioDispatcher`. The workspace notices the changes through its watcher or an
+ * explicit refresh. Naming (decision 32): "reveal" alone means "make visible in this component"; the file manager is
+ * always named.
  */
 public interface ProjectFileOperations {
 
     /** True if [delete] moves files to the trash on this platform. */
     public val supportsTrash: Boolean
 
-    /** True if [reveal] is supported on this platform. */
-    public val supportsReveal: Boolean
+    /** True if [revealInFileManager] is supported on this platform. */
+    public val supportsRevealInFileManager: Boolean
 
     /** True if [openExternally] is supported on this platform. */
     public val supportsOpenExternally: Boolean
@@ -37,8 +39,8 @@ public interface ProjectFileOperations {
      */
     public fun delete(path: Path): DeleteOutcome
 
-    /** Shows [path] in the platform file manager; no-op if unsupported. */
-    public fun reveal(path: Path)
+    /** Shows [path] in the platform file manager (Finder/Explorer); no-op if unsupported. */
+    public fun revealInFileManager(path: Path)
 
     /**
      * Opens [path] in the system's default application (phase 1: environment descriptors and other files the editor
