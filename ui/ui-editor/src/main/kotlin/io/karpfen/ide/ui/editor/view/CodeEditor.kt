@@ -1,12 +1,37 @@
 package io.karpfen.ide.ui.editor.view
 
+import androidx.compose.foundation.HorizontalScrollbar
+import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.focused
+import androidx.compose.ui.semantics.insertTextAtCursor
+import androidx.compose.ui.semantics.isEditable
+import androidx.compose.ui.semantics.requestFocus
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setText
+import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.ui.editor.overlay.EditorOverlays
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
+import io.karpfen.ide.ui.editor.view.scroll.ScrollAxis
+import io.karpfen.ide.ui.editor.view.scroll.ViewportScrollbarAdapter
 
 /**
  * The code editor (spec §7.2). Renders [state] and sends user intents to it; contains no editing logic.
@@ -19,15 +44,15 @@ import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
  *   diagnostics while `VersionedDiagnostics` lags, bracket matches) mapped with `EditableText.mapRange` — never by
  *   mapping their bounds separately; a range that does not map is not drawn.
  * - Input: key events become `KeyStroke`s for `state.handleKey`, and the event is consumed exactly when it returns true
- *   (decision 15); typed text goes to `state.type` through the platform text-input API or a hidden proxy text field
- *   (works for every layout, macOS Option combinations, dead keys, IME; the chosen approach is documented in the
- *   implementation); exposes `SemanticsActions.InsertTextAtCursor` so `performTextInput` works in tests. Focus changes
- *   of the text area go to `state.onFocusChanged`.
+ *   (decision 15); typed text goes to `state.type` through a hidden proxy text field at the caret (works for every
+ *   layout, macOS Option combinations, dead keys, IME; the approach and why it was chosen are documented on the
+ *   internal `ProxyTextInput`); exposes `SemanticsActions.InsertTextAtCursor` (and `RequestFocus`) on this composable's
+ *   node so `performTextInput` works in tests. Focus changes of the text area go to `state.onFocusChanged`.
  * - Mouse: hit-testing only — primary press → `state.pointerPressed(offset, clickCount, modifiers)`, drag →
  *   `state.pointerDragged(offset)` (plus the edge auto-scroll timer), release → `state.pointerReleased()`; the state
  *   decides caret move, word/line selection, Shift-extension and primary-modifier go-to-definition. Pointer movement →
  *   `state.pointerHover(offset)` (the state owns the 600 ms delay); right-click → `state.openContextMenuAt(offset, x, y)`
- *   with x/y in the `EditorOverlayHost` space.
+ *   with x/y in the `EditorOverlayHost` space. The wheel and the desktop scrollbars scroll `state.viewport`.
  * - Pending requests: applies `state.scrollRequest` (the state also issues the caret reveal after actions, typing and
  *   find navigation) and `state.focusRequested` when composed, then consumes them.
  * - Overlays: [overlays] hosts the popups (see [EditorOverlays]).
@@ -43,4 +68,64 @@ public fun CodeEditor(
     onNavigate: (Location) -> Unit = {},
     overlays: EditorOverlays = EditorOverlays.None,
     theme: EditorTheme = LocalEditorTheme.current,
-): Unit = TODO("WP-EDITOR-VIEW: code editor composable")
+) {
+    val currentOnNavigate by rememberUpdatedState(onNavigate)
+    LaunchedEffect(state) { state.navigationRequests.collect { currentOnNavigate(it) } }
+
+    val render = rememberEditorRenderState(state, theme)
+    val focusRequester = remember { FocusRequester() }
+    PendingViewRequests(render, focusRequester)
+
+    val caretWidth = with(LocalDensity.current) { CARET_HOST_WIDTH.dp.toPx() }
+    val host = remember(render, caretWidth) {
+        TextAreaOverlayHost(
+            state = state,
+            themeState = render.theme,
+            textStyleState = render.textStyle,
+            frame = { render.frame() },
+            primaryCaret = { render.drawnCarets().first().position },
+            caretWidth = caretWidth,
+        )
+    }
+    val focused = render.focused.value
+
+    Column(
+        modifier
+            .background(theme.background)
+            .semantics {
+                this.focused = focused
+                isEditable = true
+                requestFocus {
+                    focusRequester.requestFocus()
+                    true
+                }
+                insertTextAtCursor { text ->
+                    state.type(text.text)
+                    true
+                }
+                // Replacing the whole document is not an editor gesture; the action exists because text input in tests
+                // requires it next to InsertTextAtCursor.
+                setText { false }
+            },
+    ) {
+        overlays.Header(host)
+        Row(Modifier.weight(1f).fillMaxWidth()) {
+            EditorGutter(render)
+            Box(Modifier.weight(1f).fillMaxHeight().clipToBounds()) {
+                EditorTextArea(render, focusRequester)
+                VerticalScrollbar(
+                    adapter = remember(state) { ViewportScrollbarAdapter(render.viewport, state.viewport, ScrollAxis.VERTICAL) },
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                )
+                HorizontalScrollbar(
+                    adapter = remember(state) { ViewportScrollbarAdapter(render.viewport, state.viewport, ScrollAxis.HORIZONTAL) },
+                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+                )
+                overlays.Popups(host)
+            }
+        }
+    }
+}
+
+/** Width of the caret rectangle reported to the overlays. */
+private const val CARET_HOST_WIDTH = 2f

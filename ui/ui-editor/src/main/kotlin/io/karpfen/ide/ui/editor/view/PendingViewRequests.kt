@@ -1,0 +1,41 @@
+package io.karpfen.ide.ui.editor.view
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+
+/**
+ * Applies the editor state's pending view requests once `CodeEditor` is composed and laid out (decision 18 of the
+ * work-package plan: requests are state, so requests made earlier are not lost):
+ * - a scroll request reveals its offset (centred if requested) through `EditorViewport.reveal`, as soon as the text area
+ *   has a size and the drawn geometry belongs to the current text (the offset refers to it), then consumes it;
+ * - a focus request focuses the text area's input field, then consumes it.
+ */
+@Composable
+internal fun PendingViewRequests(render: EditorRenderState, focusRequester: FocusRequester) {
+    val editor = render.editor
+    val scrollRequest by editor.scrollRequest.collectAsState()
+    val focusRequested by editor.focusRequested.collectAsState()
+    val geometry = render.geometry.value
+    val laidOut by remember(render) { derivedStateOf { render.viewport.value.let { it.lineHeight > 0f && it.viewportHeight > 0f } } }
+
+    LaunchedEffect(scrollRequest, laidOut, geometry) {
+        val request = scrollRequest ?: return@LaunchedEffect
+        if (!laidOut || geometry.snapshot.version != editor.snapshot.value.version) return@LaunchedEffect
+        val offset = request.offset.coerceIn(0, geometry.snapshot.length)
+        val x = geometry.xOf(offset)
+        val top = geometry.lineTop(geometry.lineOf(offset))
+        editor.viewport.reveal(x, top, x + geometry.charWidth, top + geometry.lineHeight, request.center)
+        editor.consumeScrollRequest(request)
+    }
+
+    LaunchedEffect(focusRequested) {
+        if (!focusRequested) return@LaunchedEffect
+        focusRequester.requestFocus()
+        editor.consumeFocusRequest()
+    }
+}

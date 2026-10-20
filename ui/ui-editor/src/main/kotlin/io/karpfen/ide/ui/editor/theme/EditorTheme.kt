@@ -33,10 +33,10 @@ public data class EditorTheme(
 )
 
 /** The light editor theme. */
-public fun lightEditorTheme(): EditorTheme = TODO("WP-EDITOR-VIEW: light editor theme")
+public fun lightEditorTheme(): EditorTheme = EditorPalettes.light
 
 /** The dark editor theme. */
-public fun darkEditorTheme(): EditorTheme = TODO("WP-EDITOR-VIEW: dark editor theme")
+public fun darkEditorTheme(): EditorTheme = EditorPalettes.dark
 
 /** The editor theme for the current composition; the workbench provides light or dark. */
 public val LocalEditorTheme: ProvidableCompositionLocal<EditorTheme> = staticCompositionLocalOf { lightEditorTheme() }
