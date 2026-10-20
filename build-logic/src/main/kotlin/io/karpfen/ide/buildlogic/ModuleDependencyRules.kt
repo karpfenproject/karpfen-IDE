@@ -44,16 +44,6 @@ object ModuleDependencyRules {
         Rule(":architecture-tests", emptyList()),
     )
 
-    private val dependencyScopeNames = listOf("api", "implementation", "compileOnly", "compileOnlyApi", "runtimeOnly")
-
-    /**
-     * True for configurations in which dependencies are declared: `api`, `implementation`, `compileOnly`,
-     * `compileOnlyApi`, `runtimeOnly` and their source-set variants (`testImplementation`, `testRuntimeOnly`, ...).
-     */
-    fun isDependencyScope(configurationName: String): Boolean = dependencyScopeNames.any { scope ->
-        configurationName == scope || configurationName.endsWith(scope.replaceFirstChar(Char::uppercaseChar))
-    }
-
     /** True if [projectPath] matches [pattern] (see the class documentation for the pattern syntax). */
     fun matches(pattern: String, projectPath: String): Boolean = when {
         pattern == "*" -> true

@@ -83,14 +83,6 @@ class ModuleDependencyRulesTest {
     }
 
     @Test
-    fun `dependency scopes include test variants but not resolvable classpaths`() {
-        listOf("api", "implementation", "compileOnly", "runtimeOnly", "testImplementation", "testCompileOnly", "testRuntimeOnly")
-            .forEach { assertTrue(ModuleDependencyRules.isDependencyScope(it), it) }
-        listOf("compileClasspath", "runtimeClasspath", "testRuntimeClasspath", "apiElements", "kotlinCompilerPluginClasspath")
-            .forEach { assertFalse(ModuleDependencyRules.isDependencyScope(it), it) }
-    }
-
-    @Test
     fun `declared dependencies survive encoding`() {
         val dependency = DeclaredDependency("testRuntimeOnly", ":core:core-text")
         assertEquals(dependency, DeclaredDependency.decode(dependency.encode()))

@@ -36,6 +36,8 @@ rootProject.name = "karpfen-ide"
 //   2. local.properties         dslToolsPath=<path>   (git-ignored, per machine)
 //   3. the default              ../karpfen-dsl-tools  (relative to this directory)
 // A relative path is resolved against this directory. A blank value disables the composite build.
+// local.properties is read with java.util.Properties, where '\' is an escape character: write Windows paths with
+// forward slashes (C:/work/karpfen-dsl-tools) or doubled backslashes (C:\\work\\karpfen-dsl-tools).
 // If the directory holds a Gradle build (settings.gradle or settings.gradle.kts), it is included as
 // a composite build and substitutes io.karpfen:karpfen-dsl-tools. Otherwise the artifact declared in
 // the version catalog is resolved from the repositories above (mavenLocal locally, a published
@@ -79,7 +81,7 @@ run {
 // Modules: the project path mirrors the directory path (core/core-text -> :core:core-text).
 // Later (not created yet): runtime/runtime-embedded, tools/lsp-server.
 // ---------------------------------------------------------------------------------------------
-listOf(
+val modulePaths: List<String> = listOf(
     "core/core-text",
     "core/core-document",
     "core/core-workspace",
@@ -101,4 +103,22 @@ listOf(
     "app/ide",
     "tools/cli",
     "architecture-tests",
-).forEach { dir -> include(":" + dir.replace('/', ':')) }
+).map { dir -> ":" + dir.replace('/', ':') }
+
+modulePaths.forEach { include(it) }
+
+// Every module must apply a karpfen.* convention plugin (all of them build on karpfen.kotlin-jvm); otherwise it would
+// have no verifyModuleDependencies task and could bypass the module dependency matrix (D7) unnoticed.
+run {
+    // A local copy: the isolated action must not capture the settings script object.
+    val conventionModules: Set<String> = modulePaths.toSet()
+    gradle.lifecycle.afterProject {
+        if (path in conventionModules && !pluginManager.hasPlugin("karpfen.kotlin-jvm")) {
+            throw GradleException(
+                "$path does not apply karpfen.kotlin-jvm (directly or through karpfen.compose, karpfen.application or " +
+                    "karpfen.kotlin-serialization); every module needs it for the module dependency rules " +
+                    "(docs/adr/0008-module-boundaries-enforced-by-the-build.md)",
+            )
+        }
+    }
+}

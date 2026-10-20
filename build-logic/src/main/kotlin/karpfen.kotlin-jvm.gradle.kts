@@ -38,28 +38,33 @@ tasks.withType<Test>().configureEach {
 }
 
 // --- module dependency rules ---------------------------------------------------------------------
-// The project's own declared project dependencies are read when the task graph is built (the provider is
-// evaluated at configuration time / when the configuration cache entry is stored) and handed to the task
-// as plain strings. No other project is accessed.
-val projectDependenciesOfThisModule: Provider<List<String>> = providers.provider {
-    configurations
-        .filter { ModuleDependencyRules.isDependencyScope(it.name) }
-        .flatMap { configuration ->
-            configuration.dependencies.withType<ProjectDependency>().map { dependency ->
-                ModuleDependencyRules.DeclaredDependency(configuration.name, dependency.path).encode()
-            }
-        }
-        .sorted()
-}
-
+// The project's own declared project dependencies are captured in afterEvaluate, i.e. at configuration time (also
+// without the configuration cache) and after the module's build script has declared them, and are handed to the task
+// as plain strings. The task never touches the project model, and no other project is accessed.
+// Every configuration is inspected, not only api/implementation/compileOnly/runtimeOnly and their test variants: a
+// project dependency declared on a custom configuration that a classpath extends from, or on annotationProcessor,
+// kapt or ksp, is checked as well. (`dependencies` holds what is declared on that configuration itself, so inherited
+// declarations are not reported twice.)
 val modulePath: String = path
 
 val verifyModuleDependencies = tasks.register<VerifyModuleDependencies>("verifyModuleDependencies") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Checks the declared project dependencies against the module dependency matrix (D7)."
     projectPath = modulePath
-    declaredProjectDependencies = projectDependenciesOfThisModule
     reportFile = layout.buildDirectory.file("reports/module-dependencies/$name.txt")
+}
+
+afterEvaluate {
+    val declaredProjectDependencies: List<String> = configurations
+        .flatMap { configuration ->
+            configuration.dependencies.withType<ProjectDependency>().map { dependency ->
+                ModuleDependencyRules.DeclaredDependency(configuration.name, dependency.path).encode()
+            }
+        }
+        .sorted()
+    verifyModuleDependencies.configure {
+        this.declaredProjectDependencies.set(declaredProjectDependencies)
+    }
 }
 
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
