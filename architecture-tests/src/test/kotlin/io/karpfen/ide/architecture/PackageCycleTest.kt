@@ -6,31 +6,36 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Dependency direction inside modules is acyclic (spec §1a): within each core module, the packages of the production
- * code must not depend on each other in a cycle. A package depends on another package of the same module when one of
- * its files imports (or fully-qualified references) a declaration of it; the declaring package of a name is the
- * longest package of the module that contains it.
+ * Dependency direction inside modules is acyclic (spec §1a): within each core and UI module, the packages of the
+ * production code must not depend on each other in a cycle. A package depends on another package of the same module
+ * when one of its files imports (or fully-qualified references) a declaration of it; the declaring package of a name
+ * is the longest package of the module that contains it.
  */
 class PackageCycleTest {
 
     @Test
-    fun `the packages of each core module form no dependency cycle`() {
-        assertTrue(KarpfenModules.coreModules.isNotEmpty(), "no core modules; is KarpfenModules broken?")
-        val cycles = KarpfenModules.coreModules.flatMap { module ->
-            val files = KarpfenModules.mainFiles.filter { it.moduleDir == module }
-            PackageGraph.of(files).cycles().map { cycle -> "$module: ${cycle.sorted().joinToString(" <-> ")}" }
+    fun `the packages of each core and UI module form no dependency cycle`() {
+        val modules = KarpfenModules.coreModules + KarpfenModules.uiModules
+        assertTrue(KarpfenModules.coreModules.isNotEmpty() && KarpfenModules.uiModules.isNotEmpty(), "is KarpfenModules broken?")
+        val cycles = modules.flatMap { module ->
+            PackageGraph.ofModule(module).cycles().map { cycle -> "$module: ${cycle.sorted().joinToString(" <-> ")}" }
         }
-        assertTrue(cycles.isEmpty(), "Package cycles inside core modules (spec §1a): $cycles")
+        assertTrue(cycles.isEmpty(), "Package cycles inside core and UI modules (spec §1a): $cycles")
     }
 
     @Test
-    fun `the graph is built from the real core packages`() {
-        val files = KarpfenModules.mainFiles.filter { it.moduleDir == "core/core-document" }
-        val graph = PackageGraph.of(files)
-        // The built-in language registry wires the adapters: a known edge that must be seen.
+    fun `the graph is built from the real packages`() {
+        // Known edges that must be seen: the built-in language registry wires the adapters; the editor state holds
+        // the caret model.
+        val document = PackageGraph.ofModule("core/core-document")
         assertTrue(
-            "io.karpfen.ide.core.document.antlr.lex" in graph.edges["io.karpfen.ide.core.document.registry"].orEmpty(),
-            "expected registry -> antlr.lex, got ${graph.edges}",
+            "io.karpfen.ide.core.document.antlr.lex" in document.edges["io.karpfen.ide.core.document.registry"].orEmpty(),
+            "expected registry -> antlr.lex, got ${document.edges}",
+        )
+        val editor = PackageGraph.ofModule("ui/ui-editor")
+        assertTrue(
+            "io.karpfen.ide.ui.editor.model.caret" in editor.edges["io.karpfen.ide.ui.editor.state"].orEmpty(),
+            "expected state -> model.caret, got ${editor.edges}",
         )
     }
 
@@ -87,6 +92,9 @@ internal data class PackageGraph(val nodes: Set<String>, val edges: Map<String, 
     }
 
     companion object {
+        /** The graph of the production packages of [module] (a module directory such as `ui/ui-editor`). */
+        fun ofModule(module: String): PackageGraph = of(KarpfenModules.mainFiles.filter { it.moduleDir == module })
+
         /** The graph of the packages of [files] (one module) and the dependencies between them. */
         fun of(files: List<KoFileDeclaration>): PackageGraph {
             val packages = files.map { it.packageName }.toSet()
