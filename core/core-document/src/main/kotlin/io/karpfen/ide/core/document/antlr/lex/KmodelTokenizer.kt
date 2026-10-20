@@ -5,12 +5,12 @@ import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * [Tokenizer] for KModel on top of the dsl-tools `kmodel.KmodelLexer` with its console error listener removed and an IDE
- * collector added (spec §3.1).
+ * [Tokenizer] for KModel (spec §3.1) on the shared ANTLR mechanics of the `antlr` package: lexes with
+ * `KarpfenLexers.lex` (console listener removed, `IdeErrorListener` collecting LEXER diagnostics) and converts token
+ * indices with `LexedText.rangeOf` (`CodePointOffsets`).
  *
- * The KModel lexer skips comments; they are recovered from the gaps between tokens (by construction of the grammar a gap
- * contains only whitespace and `//` comments) and emitted as COMMENT. Token offsets are converted with
- * `CodePointOffsets`.
+ * The KModel lexer skips whitespace and comments: `LexerGaps.scan` recovers COMMENT pieces (→ COMMENT tokens) and
+ * UNRECOGNIZED pieces (→ ERROR tokens; their diagnostics come from the listener) from the gaps between the tokens.
  */
 internal class KmodelTokenizer : Tokenizer {
     override fun tokenize(snapshot: TextSnapshot): TokenizeResult = TODO("WP-TOKENS: tokenize KModel")
