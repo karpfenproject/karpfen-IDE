@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 @Composable
 public fun rememberCodeEditorState(
     session: DocumentSession,
-    services: LanguageServices,
+    languageServices: LanguageServices,
     settings: StateFlow<EditorSettings>? = null,
     clipboard: ClipboardPort = systemClipboard(),
     backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default,

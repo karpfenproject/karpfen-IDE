@@ -2,7 +2,7 @@ package io.karpfen.ide.ui.editor.popup
 
 import androidx.compose.runtime.Composable
 import io.karpfen.ide.ui.editor.model.find.FindQuery
-import io.karpfen.ide.ui.editor.model.find.FindState
+import io.karpfen.ide.ui.editor.model.find.FindResult
 import io.karpfen.ide.ui.editor.state.FindBarMode
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
@@ -14,7 +14,7 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
 @Composable
 internal fun FindReplaceBar(
     mode: FindBarMode,
-    state: FindState,
+    state: FindResult,
     theme: EditorTheme,
     onQueryChange: (FindQuery) -> Unit,
     onNext: () -> Unit,

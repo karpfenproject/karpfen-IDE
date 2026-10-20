@@ -29,13 +29,14 @@ public enum class CompletionTrigger {
 }
 
 /**
- * Supplies unfiltered completion items; the editor state implements it with `LanguageServices.complete` on a
- * `LanguageDocument` of exactly the given snapshot (tokenizing it if the session's tokens lag behind). Pure and
- * thread-safe, so the model may call it off the UI thread. Must not throw.
+ * Supplies unfiltered completion items; the editor state implements it with `LanguageServices.complete` on
+ * `LanguageDocument.of(session, snapshot)` (tokenizing the snapshot if the session's tokens lag behind). Suspends: the
+ * implementation decides where the work runs (the editor state's injected background dispatcher, via `withContext`),
+ * so the dispatcher stays injected in one place and the model never names one. Main-safe, cancellable, must not throw.
  */
 public fun interface CompletionSource {
     /** The items at [offset] of [snapshot]; their `replaceRange`s are in [snapshot]'s coordinates. */
-    public fun items(snapshot: TextSnapshot, offset: Int): List<CompletionItem>
+    public suspend fun items(snapshot: TextSnapshot, offset: Int): List<CompletionItem>
 }
 
 /**
@@ -66,9 +67,10 @@ public data class CompletionUiState(
  *
  * - Opens on [open] (explicit) or auto-triggers from [onTyped]: an identifier character typed after ≥ 1 identifier
  *   character, `"` in a completable string position, `$(` or `->`. Opening with no items keeps it closed.
- * - Asks the [CompletionSource] for the snapshot current at the request (possibly in background work in its scope) and
- *   drops results computed for an older version (re-requesting while still open), so `replaceRange`s always match the
- *   text they are applied to.
+ * - Asks the [CompletionSource] for the snapshot current at the request in a coroutine launched in its scope (the
+ *   source switches threads itself; a newer request cancels an older one) and drops results computed for an older
+ *   version (re-requesting while still open), so `replaceRange`s always match the text they are applied to. Tests use
+ *   a test dispatcher in the scope and a fake source; nothing runs on real threads.
  * - Filters by the text between `replaceRange.start` and the caret, case-insensitively: prefix matches before
  *   camel/word-boundary matches before subsequence matches; stable sort by match quality, then sortKey, then label.
  * - [accept] inserts `insertText` over the replace range as one `EditorAction` run through the factory's
@@ -108,7 +110,7 @@ public interface CompletionSessionModel {
 
 /**
  * A [CompletionSessionModel] for [text]/[caret], asking [source] for items and accepting through [executor]; caret
- * observation and background work run in [scope].
+ * observation and the item requests run in [scope] (the editor's UI scope; [source] moves the work off the UI thread).
  */
 public fun CompletionSessionModel(
     text: EditableText,

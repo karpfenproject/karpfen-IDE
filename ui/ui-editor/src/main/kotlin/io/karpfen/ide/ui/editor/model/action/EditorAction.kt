@@ -9,7 +9,9 @@ import io.karpfen.ide.ui.editor.model.caret.CaretModel
  * [id] in an [EditorActionRegistry]; parameterized commands (typing text, accepting a completion) are created per
  * use, e.g. with [typeTextAction].
  *
- * Every action that changes text is exactly one undo step and records the carets before and after (Memento).
+ * Every action that changes text is exactly one undo step and records the carets before and after (Memento). Actions
+ * never scroll: the editor state reveals the primary caret after every executed action and typed text (see
+ * `CodeEditorState.execute`).
  */
 public interface EditorAction {
 
@@ -43,7 +45,8 @@ public interface EditorActionContext {
 
     /**
      * The tokens of the current text if available (they may lag one version behind while tokenizing); actions use
-     * them for context such as "inside an EVAL body" (toggle comment uses `#` there).
+     * them for context. "Inside an EVAL body" is `tokens.embeddedRegionAt(offset)` (toggle comment uses `#` there),
+     * never derived from the token kinds.
      */
     public val tokens: TokenizeResult
 
@@ -79,9 +82,6 @@ public interface EditorUiPort {
 
     /** Navigates to the definition of the symbol at the caret. */
     public fun goToDefinition()
-
-    /** Scrolls so that the primary caret is visible. */
-    public fun revealCaret()
 }
 
 /**

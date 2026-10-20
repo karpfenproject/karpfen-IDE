@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * The carets of one editor over an [EditableText] (spec §7.1). Compose-free state holder, used from the UI thread.
  *
- * Mapping through changes: carets are stamped with the text version they refer to ([CaretState.version]). Changes
+ * Mapping through changes: carets are stamped with the text version they refer to ([CaretSnapshot.version]). Changes
  * the model has not seen yet (e.g. a reload, or edits by another component) are mapped through
  * `EditableText.mapOffset` as they are emitted, but only if the carets predate them; carets set explicitly after an
  * edit (actions pass their `caretsAfter`) carry the new version and are never mapped twice.
@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 public interface CaretModel {
 
     /** The current carets and the version they refer to. */
-    public val state: StateFlow<CaretState>
+    public val state: StateFlow<CaretSnapshot>
 
     /** Shortcut for `state.value.primary`. */
     public val primary: Caret get() = state.value.primary
@@ -78,7 +78,7 @@ internal class DefaultCaretModel(
     private val tabWidth: () -> Int,
 ) : CaretModel {
 
-    override val state: StateFlow<CaretState>
+    override val state: StateFlow<CaretSnapshot>
         get() = TODO("WP-EDITOR-MODEL: caret state")
 
     override fun move(movement: CaretMovement, extendSelection: Boolean, pageLines: Int): Unit =

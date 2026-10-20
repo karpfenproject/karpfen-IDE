@@ -5,9 +5,12 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 
-/** A segment of the [StatusBar]; clickable when [onClick] is set. */
+/**
+ * A segment of the [StatusBar]; clickable when [onClick] is set. Holds behaviour, so it is a plain class with identity
+ * equality (not a data class).
+ */
 @Immutable
-public data class StatusBarItem(
+public class StatusBarItem(
     public val id: String,
     public val text: String,
     public val tooltip: String? = null,

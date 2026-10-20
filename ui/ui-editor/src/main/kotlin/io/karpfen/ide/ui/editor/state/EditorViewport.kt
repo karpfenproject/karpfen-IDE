@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 public interface EditorViewport {
 
     /** Current scroll offsets and geometry. */
-    public val state: StateFlow<ViewportState>
+    public val state: StateFlow<ViewportSnapshot>
 
     /** Reports the measured viewport size, line height and content size (after layout or text changes). */
     public fun updateGeometry(
@@ -50,7 +50,7 @@ public interface EditorViewport {
 public fun EditorViewport(): EditorViewport = DefaultEditorViewport()
 
 /** Scroll offsets (px) and geometry (px) of an [EditorViewport]. */
-public data class ViewportState(
+public data class ViewportSnapshot(
     public val scrollX: Float = 0f,
     public val scrollY: Float = 0f,
     public val viewportWidth: Float = 0f,
@@ -67,7 +67,7 @@ public data class ViewportState(
 }
 
 internal class DefaultEditorViewport : EditorViewport {
-    override val state: StateFlow<ViewportState>
+    override val state: StateFlow<ViewportSnapshot>
         get() = TODO("WP-EDITOR-VIEW: viewport state")
 
     override fun updateGeometry(

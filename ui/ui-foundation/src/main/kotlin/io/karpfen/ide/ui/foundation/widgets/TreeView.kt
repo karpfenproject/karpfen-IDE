@@ -17,9 +17,12 @@ public data class TreeNode<K>(
     public val icon: ImageVector? = null,
 )
 
-/** An entry of a context menu: [label], whether it [isEnabled], and what happens [onClick]. */
+/**
+ * An entry of a context menu: [label], whether it [isEnabled], and what happens [onClick]. Holds behaviour, so it is a
+ * plain class with identity equality (not a data class).
+ */
 @Immutable
-public data class ContextMenuAction(
+public class ContextMenuAction(
     public val label: String,
     public val isEnabled: Boolean = true,
     public val onClick: () -> Unit,

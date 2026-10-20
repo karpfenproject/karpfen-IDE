@@ -6,13 +6,15 @@ import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
+import io.karpfen.ide.ui.editor.model.action.EditorActionTitles
 import io.karpfen.ide.ui.editor.model.action.defaultEditorActions
 import io.karpfen.ide.ui.editor.model.caret.Caret
 import io.karpfen.ide.ui.editor.model.caret.DEFAULT_TAB_WIDTH
 import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
+import io.karpfen.ide.ui.editor.popup.EditorPopups
 import io.karpfen.ide.ui.editor.state.ContextMenuRequest
 import io.karpfen.ide.ui.editor.state.EditorSettings
-import io.karpfen.ide.ui.editor.state.EditorOverlayController
+import io.karpfen.ide.ui.editor.state.EditorOverlayState
 import io.karpfen.ide.ui.editor.state.FindBarMode
 import io.karpfen.ide.ui.editor.state.HoverContent
 import kotlin.test.Test
@@ -57,8 +59,20 @@ class EditorContractTest {
     }
 
     @Test
-    fun `the overlay controller tracks open overlays`() {
-        val overlays = EditorOverlayController()
+    fun `every editor action id has one shared title`() {
+        val declaredIds = EditorActionIds::class.java.declaredFields
+            .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
+            .map { it.get(null) as String }
+
+        assertTrue(declaredIds.size > 40, "reflection found only $declaredIds")
+        assertEquals(declaredIds.toSet(), EditorActionTitles.titles.keys)
+        defaultEditorActions().forEach { EditorActionTitles.of(it.id) }
+        assertEquals("Go to Definition", EditorPopups.DEFAULT_CONTEXT_MENU.single { it.actionId == EditorActionIds.GO_TO_DEFINITION }.title)
+    }
+
+    @Test
+    fun `the overlay state tracks open overlays`() {
+        val overlays = EditorOverlayState()
         val hover = HoverContent(
             TextRange(0, 1),
             listOf(Diagnostic(TextRange(0, 1), Severity.ERROR, "x", DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)),
@@ -66,6 +80,8 @@ class EditorContractTest {
         )
 
         overlays.openFind(FindBarMode.REPLACE)
+        overlays.openFind(FindBarMode.REPLACE)
+        assertEquals(2L, overlays.findFocusRequests.value, "a repeated Cmd/Ctrl+F requests focus again")
         overlays.showHover(hover)
         overlays.openContextMenu(ContextMenuRequest(0, 1f, 2f))
 

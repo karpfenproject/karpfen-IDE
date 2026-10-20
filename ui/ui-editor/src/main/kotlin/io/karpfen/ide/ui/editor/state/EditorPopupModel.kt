@@ -28,7 +28,7 @@ public interface EditorPopupModel {
     public val completion: CompletionSessionModel
 
     /** Open overlays (find bar, go-to-line, hover, context menu). */
-    public val overlays: EditorOverlayController
+    public val overlays: EditorOverlayState
 
     /**
      * Ids of the registered actions that are enabled now (`EditorAction.isEnabled` in the editor's action context),

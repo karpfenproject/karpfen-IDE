@@ -26,24 +26,39 @@ public data class HoverContent(public val range: TextRange, public val diagnosti
     }
 }
 
-/** A context-menu request at text [offset], shown at ([x], [y]) px in the editor's coordinate space. */
+/**
+ * A context-menu request at text [offset], shown at ([x], [y]) px in the coordinate space of the `EditorOverlayHost`
+ * (the text area, i.e. the Box the `EditorOverlays.Popups` slot is placed in; neither the gutter nor the header slot
+ * is included), so the view reports and the popups place it in the same space.
+ */
 public data class ContextMenuRequest(public val offset: Int, public val x: Float, public val y: Float)
 
 /**
  * Which editor overlays are open (find bar, go-to-line, hover, context menu). The completion popup's state lives in
- * `CompletionSessionModel`. This is the state the overlay slot (`EditorOverlays`) renders; the view opens overlays from
- * gestures and actions, the popups close them. Compose-free; complete in the contracts step (shared by WP-EDITOR-VIEW
- * and WP-EDITOR-POPUPS).
+ * `CompletionSessionModel`. This is the state the overlay slot (`EditorOverlays`) renders; the editor state opens
+ * overlays from gestures and actions, the popups close them. Compose-free; complete in the contracts step (shared by
+ * WP-EDITOR-VIEW and WP-EDITOR-POPUPS). A mutable state holder like `CodeEditorState` (naming rule of the work-package
+ * plan, decision 32).
+ *
+ * Find matches are drawn by the view only while [findBar] is open; closing the bar ends the highlights without
+ * touching the find query.
  */
-public class EditorOverlayController {
+public class EditorOverlayState {
 
     private val findBarState = MutableStateFlow<FindBarMode?>(null)
+    private val findFocusState = MutableStateFlow(0L)
     private val goToLineState = MutableStateFlow(false)
     private val hoverState = MutableStateFlow<HoverContent?>(null)
     private val contextMenuState = MutableStateFlow<ContextMenuRequest?>(null)
 
     /** The open find bar, or null. */
     public val findBar: StateFlow<FindBarMode?> = findBarState.asStateFlow()
+
+    /**
+     * Counts [openFind] calls. The find bar focuses its query field and selects the query whenever the value changes,
+     * so a second Cmd/Ctrl+F while the bar is open in the same mode (no change of [findBar]) still refocuses it.
+     */
+    public val findFocusRequests: StateFlow<Long> = findFocusState.asStateFlow()
 
     /** True while the go-to-line popup is open. */
     public val goToLine: StateFlow<Boolean> = goToLineState.asStateFlow()
@@ -54,9 +69,14 @@ public class EditorOverlayController {
     /** The open context menu, or null. */
     public val contextMenu: StateFlow<ContextMenuRequest?> = contextMenuState.asStateFlow()
 
-    /** Opens the find bar in [mode] (switches mode if already open). */
+    /**
+     * Opens the find bar in [mode] (switches mode if already open) and requests focus for its query field
+     * ([findFocusRequests]). Seeding the query (e.g. from a one-line selection) is done before through
+     * `FindModel.setQuery`.
+     */
     public fun openFind(mode: FindBarMode) {
         findBarState.value = mode
+        findFocusState.value = findFocusState.value + 1
     }
 
     /** Closes the find bar. */

@@ -35,7 +35,7 @@ public data class Caret(public val anchor: Int, public val position: Int, public
  * The carets of an editor at one text [version] (spec §7.1: one caret in phase 1, list-ready for multi-caret).
  * [carets] is non-empty; the first caret is the primary one.
  */
-public data class CaretState(public val version: Long, public val carets: List<Caret>) {
+public data class CaretSnapshot(public val version: Long, public val carets: List<Caret>) {
     init {
         require(carets.isNotEmpty()) { "there is always at least one caret" }
     }
