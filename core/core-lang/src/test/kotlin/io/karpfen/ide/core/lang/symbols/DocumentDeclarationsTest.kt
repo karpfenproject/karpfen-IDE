@@ -2,6 +2,7 @@ package io.karpfen.ide.core.lang.symbols
 
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.lang.fixtures.ExampleProject
+import io.karpfen.ide.core.text.TextSnapshot
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -46,7 +47,7 @@ class DocumentDeclarationsTest {
     @Test
     fun `the latest outcome prefers the parse of the current text`() {
         assertEquals(5L, DocumentDeclarations(broken).latest()?.outcome?.version)
-        val lagging = broken.copy(text = io.karpfen.ide.core.text.TextSnapshot(broken.text.text, 9, broken.text.lineage))
+        val lagging = broken.copy(text = TextSnapshot(broken.text.text, 9, broken.text.lineage))
         assertEquals(5L, DocumentDeclarations(lagging).latest()?.outcome?.version, "falls back to the latest parse")
         assertNull(DocumentDeclarations(broken.copy(parse = null, lastGoodParse = null)).latest())
     }

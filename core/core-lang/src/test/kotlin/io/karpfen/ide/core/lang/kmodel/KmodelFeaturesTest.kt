@@ -52,7 +52,8 @@ class KmodelFeaturesTest {
             listOf("closest_obstacle", "closest_wall", "obstacles", "walls"),
             probe.labels(model, after(text, "knows(\"")),
         )
-        assertEquals(listOf("diameter"), probe.labels(model, after(text, "make object \"turtleBoundingBox\":\"TwoDObject\" {\n            prop(\"")))
+        val boxBody = after(text, "make object \"turtleBoundingBox\":\"TwoDObject\" {\n            prop(\"")
+        assertEquals(listOf("diameter"), probe.labels(model, boxBody))
     }
 
     @Test
@@ -61,7 +62,8 @@ class KmodelFeaturesTest {
 
         assertEquals("Robot", labels.first())
         assertEquals(setOf("Obstacle", "Robot", "Room", "TwoDObject", "Vector", "Wall"), labels.toSet())
-        assertTrue(probe.complete(model, after(text, "make object \"APB 2101\":\"")).all { it.sortKey.startsWith("1:") }, "the root has no relation")
+        val root = probe.complete(model, after(text, "make object \"APB 2101\":\""))
+        assertTrue(root.all { it.sortKey.startsWith("1:") }, "the root has no relation")
     }
 
     @Test

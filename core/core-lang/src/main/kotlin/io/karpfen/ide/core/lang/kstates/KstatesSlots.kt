@@ -96,24 +96,20 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         return KstatesSlot.None
     }
 
+    /** A string argument of [call]: macro calls, events, operations, VALUE/IF IN SCOPE paths, TAKES/RETURNS types. */
     private fun callArgument(call: CallContext, name: String, range: TextRange): KstatesSlot {
+        val index = call.argumentIndex
         val operation = call.name.uppercase()
         return when {
-            call.name == MACRO -> if (call.argumentIndex == 0) KstatesSlot.MacroName(name, range, isDeclaration = false) else KstatesSlot.ModelPath(range)
-            call.name == EVENT -> when (call.argumentIndex) {
-                0 -> KstatesSlot.EventDomain(name, range)
-                1 -> KstatesSlot.EventName(name, range, call.arguments.firstOrNull())
-                else -> KstatesSlot.None
-            }
-            operation in OPERATIONS -> when {
-                call.argumentIndex == 0 -> KstatesSlot.ModelPath(range)
-                call.argumentIndex == 1 && operation in OBJECT_OPERATIONS -> KstatesSlot.RelationKey(call.arguments.firstOrNull().orEmpty(), name, range)
-                else -> KstatesSlot.None
-            }
+            call.name == MACRO && index == 0 -> KstatesSlot.MacroName(name, range, isDeclaration = false)
+            call.name == MACRO -> KstatesSlot.ModelPath(range)
+            call.name == EVENT && index == 0 -> KstatesSlot.EventDomain(name, range)
+            call.name == EVENT && index == 1 -> KstatesSlot.EventName(name, range, call.arguments.firstOrNull())
+            operation in OPERATIONS && index == 0 -> KstatesSlot.ModelPath(range)
+            operation in OBJECT_OPERATIONS && index == 1 -> KstatesSlot.RelationKey(call.arguments.firstOrNull().orEmpty(), name, range)
             call.name == VALUE || call.name == SCOPE -> KstatesSlot.ModelPath(range)
-            call.name == TAKES -> if (call.argumentIndex == 0) KstatesSlot.ParameterName(name, range) else KstatesSlot.TypeName(name, range, primitives = true)
-            call.name == RETURNS || call.name == LIST -> KstatesSlot.TypeName(name, range, primitives = true)
-            call.name == REFERENCE -> KstatesSlot.TypeName(name, range, primitives = false)
+            call.name == TAKES && index == 0 -> KstatesSlot.ParameterName(name, range)
+            call.name in TYPE_CALLS -> KstatesSlot.TypeName(name, range, primitives = call.name != REFERENCE)
             else -> KstatesSlot.None
         }
     }
@@ -128,7 +124,8 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             last.kind == TokenKind.KEYWORD && last.text.uppercase() == AS -> KstatesSlot.BindingName(name, range)
             last.isKeyword(TO) && statement.getOrNull(statement.size - 2)?.isKeyword(ATTACHED) == true ->
                 KstatesSlot.TypeName(name, range, primitives = false)
-            last.isKeyword(MACRO) && context.innermostBlock?.let(KstatesBlocks::kindOf) == MACROS -> KstatesSlot.MacroName(name, range, isDeclaration = true)
+            last.isKeyword(MACRO) && context.innermostBlock?.let(KstatesBlocks::kindOf) == MACROS ->
+                KstatesSlot.MacroName(name, range, isDeclaration = true)
             else -> KstatesSlot.None
         }
     }
@@ -160,7 +157,8 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
     /** True if the statement ends with `TRANSITION|SPLIT|JOIN` followed only by state strings, commas and arrows. */
     private fun isTransitionHeader(statement: List<ContextToken>): Boolean {
         val start = statement.indexOfLast { it.kind == TokenKind.KEYWORD && it.text in TRANSITION_KEYWORDS }
-        return start >= 0 && statement.subList(start + 1, statement.size).all { it.kind == TokenKind.STRING || it.text == "," || it.text == "->" }
+        return start >= 0 &&
+            statement.subList(start + 1, statement.size).all { it.kind == TokenKind.STRING || it.text == "," || it.text == "->" }
     }
 
     private fun ContextToken.isKeyword(text: String): Boolean = kind == TokenKind.KEYWORD && this.text == text
@@ -190,12 +188,14 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         /** The operations whose second argument is a relation of the first argument's type. */
         val OBJECT_OPERATIONS: Set<String> = setOf("SETOBJ", "APPENDOBJ")
 
-        /** The keyword position inside a block, by the block's first header token. */
+        /** The calls whose string arguments are types (TAKES from its second argument on). */
+        val TYPE_CALLS: Set<String> = setOf(TAKES, RETURNS, LIST, REFERENCE)
+
+        /** The keyword position inside a block, by the block's introducing keyword ([KstatesBlocks.kindOf]). */
         val POSITIONS: Map<String, KstatesPosition> = mapOf(
             "STATEMACHINE" to KstatesPosition.MACHINE,
             "STATES" to KstatesPosition.STATES,
             "STATE" to KstatesPosition.STATE_BODY,
-            "INITIAL" to KstatesPosition.STATE_BODY,
             "ENTRY" to KstatesPosition.ACTIONS,
             "DO" to KstatesPosition.ACTIONS,
             "IF" to KstatesPosition.ACTIONS,

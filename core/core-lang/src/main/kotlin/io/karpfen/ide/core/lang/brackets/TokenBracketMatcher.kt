@@ -41,7 +41,9 @@ internal class TokenBracketMatcher : BracketMatcher {
         for ((index, token) in brackets.withIndex()) {
             when (bracketOf(text, token)) {
                 '(', '{' -> open += index
-                ')' -> if (open.lastOrNull()?.let { bracketOf(text, brackets[it]) } == '(') link(partners, open.removeAt(open.lastIndex), index)
+                ')' -> if (open.isNotEmpty() && bracketOf(text, brackets[open.last()]) == '(') {
+                    link(partners, open.removeAt(open.lastIndex), index)
+                }
                 '}' -> {
                     while (open.isNotEmpty() && bracketOf(text, brackets[open.last()]) == '(') open.removeAt(open.lastIndex)
                     if (open.isNotEmpty()) link(partners, open.removeAt(open.lastIndex), index)

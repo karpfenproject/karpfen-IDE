@@ -165,7 +165,8 @@ class DefaultLanguageServicesTest {
     @Test
     fun `the default services work without a project analysis`() {
         val services = defaultLanguageServices(MutableStateFlow(ProjectAnalysis.EMPTY))
-        val loose = ExampleProject.document(Path.of("/elsewhere/m.kstates"), "STATEMACHINE ATTACHED TO \"R\" { STATES { STATE \"a\" { } } TRANSITIONS { TRANSITION \"a\" -> \"a\" { } } }")
+        val text = "STATEMACHINE ATTACHED TO \"R\" { STATES { STATE \"a\" { } } TRANSITIONS { TRANSITION \"a\" -> \"a\" { } } }"
+        val loose = ExampleProject.document(Path.of("/elsewhere/m.kstates"), text)
 
         assertEquals(listOf("a"), services.complete(loose, loose.text.text.lastIndexOf("\"a\"") + 1).map { it.label })
         assertIs<List<Location>>(services.definition(loose, loose.text.text.lastIndexOf("\"a\"") + 1)).single()

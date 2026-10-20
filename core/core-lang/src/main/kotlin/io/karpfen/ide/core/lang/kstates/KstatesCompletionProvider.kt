@@ -64,7 +64,9 @@ internal class KstatesCompletionProvider(
             nameItem(type.name, CompletionKind.TYPE, slot.range, type.description, type.hoverText, rank = 0, quoted = !slot.inString)
         }
         val primitives = if (slot.primitives) {
-            MemberInfo.PRIMITIVE_TYPES.sorted().map { nameItem(it, CompletionKind.PRIMITIVE_TYPE, slot.range, rank = 1, quoted = !slot.inString) }
+            MemberInfo.PRIMITIVE_TYPES.sorted().map {
+                nameItem(it, CompletionKind.PRIMITIVE_TYPE, slot.range, rank = 1, quoted = !slot.inString)
+            }
         } else {
             emptyList()
         }
@@ -86,7 +88,8 @@ internal class KstatesCompletionProvider(
             PathOrigin.MEMBER -> 1
             PathOrigin.ROOT -> 2
         }
-        return nameItem(member.name, kind, replace, detail = KstatesSignatures.typeText(member.type), documentation = member.member?.signature, rank = rank)
+        val detail = KstatesSignatures.typeText(member.type)
+        return nameItem(member.name, kind, replace, detail = detail, documentation = member.member?.signature, rank = rank)
     }
 
     private fun relations(request: FeatureRequest, context: CaretContext, slot: KstatesSlot.RelationKey): List<CompletionItem> {

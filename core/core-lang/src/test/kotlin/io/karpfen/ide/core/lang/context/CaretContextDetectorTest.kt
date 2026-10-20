@@ -97,7 +97,8 @@ class CaretContextDetectorTest {
     fun `blocks are listed outermost first with headers and ranges, unclosed ones to the end of the text`() {
         val (text, context) = detect(
             "a.kstates",
-            "STATEMACHINE ATTACHED TO \"Robot\" {\n STATES {\n  STATE \"a\" {\n   ENTRY { SET(\"x\", \"1\") WITH MACRO(\"m\", \"p\") AS \"d\" { ‸ }\n  }\n }\n",
+            "STATEMACHINE ATTACHED TO \"Robot\" {\n STATES {\n  STATE \"a\" {\n" +
+                "   ENTRY { SET(\"x\", \"1\") WITH MACRO(\"m\", \"p\") AS \"d\" { ‸ }\n  }\n }\n",
         )
 
         assertEquals(

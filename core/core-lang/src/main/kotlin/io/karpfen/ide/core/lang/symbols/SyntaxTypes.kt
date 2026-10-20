@@ -55,7 +55,10 @@ internal object SyntaxTypes {
                 TypeInfo(
                     name = type.name,
                     description = descriptions[type.name],
-                    members = members[type.name].orEmpty().filter { it.name.isNotEmpty() }.distinctBy { it.name }.map { member(it, source) },
+                    members = members[type.name].orEmpty()
+                        .filter { it.name.isNotEmpty() }
+                        .distinctBy { it.name }
+                        .map { member(it, source) },
                     origin = origin,
                     declaration = source.location(type.nameRange),
                 )

@@ -28,7 +28,8 @@ class KstatesCompletionTest {
         return ExampleProject.document(robot.path, text, version = 7) to offset
     }
 
-    private fun labelsIn(textWithCaret: String): List<String> = robotDocument(textWithCaret).let { (document, offset) -> probe.labels(document, offset) }
+    private fun labelsIn(textWithCaret: String): List<String> =
+        robotDocument(textWithCaret).let { (document, offset) -> probe.labels(document, offset) }
 
     private fun machine(body: String) = "STATEMACHINE ATTACHED TO \"Robot\" {\n$body\n}\n"
 
@@ -63,7 +64,8 @@ class KstatesCompletionTest {
     fun `action blocks offer the operations, EVENT, IF IN SCOPE and WITH, also after earlier actions and blocks`() {
         val actions = listOf(
             "APPEND(\"…\", …)", "APPENDOBJ(\"…\", \"…\", …)", "DROPLIST(\"…\")", "DROPOBJ(\"…\")", "EVENT(\"…\", \"…\")",
-            "IF IN SCOPE(\"…\") { }", "SET(\"…\", …)", "SETLIST(\"…\", …)", "SETOBJ(\"…\", \"…\", …)", "WITH … AS \"…\" { }",
+            "IF IN SCOPE(\"…\") { }", "SET(\"…\", …)", "SETLIST(\"…\", …)", "SETOBJ(\"…\", \"…\", …)",
+            "WITH … AS \"…\" { }",
         )
         val state = { body: String -> machine(" STATES {\n  STATE \"a\" {\n   DO {\n$body\n   }\n  }\n }") }
 
@@ -118,7 +120,8 @@ class KstatesCompletionTest {
         assertEquals(domainTypes, probe.labels(robot, after(robotText, "ATTACHED TO \"")), "domain types only")
         assertEquals(domainTypes + listOf("boolean", "number", "string"), probe.labels(robot, after(robotText, "TAKES(\"p1\", \"")))
         assertEquals(domainTypes, probe.labels(robot, after(robotText, "RETURNS(reference(\"")))
-        assertEquals(domainTypes + listOf("boolean", "number", "string"), probe.labels(robot, after(robotText, "TAKES(\"obstacles\", list(\"")))
+        val listArgument = after(robotText, "TAKES(\"obstacles\", list(\"")
+        assertEquals(domainTypes + listOf("boolean", "number", "string"), probe.labels(robot, listArgument))
 
         val (document, offset) = robotDocument(machine(" MACROS { MACRO \"m\" { RETURNS(‸) } }"))
         val items = probe.complete(document, offset)
@@ -144,7 +147,8 @@ class KstatesCompletionTest {
 
         assertEquals(listOf("x", "y"), items.map { it.label })
         assertEquals("x", robot.text.substring(items.first().replaceRange))
-        assertEquals(listOf("diameter", "position"), probe.labels(robot, after(robotText, "MACRO(\"get_closest_obstacle\", \"boundingBox->")))
+        val macroArgument = after(robotText, "MACRO(\"get_closest_obstacle\", \"boundingBox->")
+        assertEquals(listOf("diameter", "position"), probe.labels(robot, macroArgument))
         assertEquals(listOf("diameter", "position"), probe.labels(robot, after(robotText, "\$(boundingBox->")))
         assertTrue(probe.complete(robot, after(robotText, "\$(obstacle->")).isEmpty(), "Python loop variables are not bound")
     }
@@ -167,13 +171,15 @@ class KstatesCompletionTest {
         val drone = ExampleProject.example(ExamplePaths.DRONE_KSTATES)
         val droneText = drone.text.text
 
-        assertEquals(listOf("destination", "packageId", "priority"), probe.labels(drone, after(droneText, "EVAL { return \$(event->priority) >= 1") - "priority) >= 1".length))
+        val guard = after(droneText, "EVAL { return \$(event->priority) >= 1") - "priority) >= 1".length
+        assertEquals(listOf("destination", "packageId", "priority"), probe.labels(drone, guard))
         assertEquals(
             listOf("destination", "factor", "packageId", "priority"),
             probe.labels(drone, after(droneText, "SET(\"packageId\", EVAL { return \$(event->")),
             "in a state: all event types",
         )
-        assertEquals(listOf("destination", "factor", "packageId", "priority"), probe.labels(drone, after(droneText, "IF IN SCOPE(\"event->")))
+        val scope = after(droneText, "IF IN SCOPE(\"event->")
+        assertEquals(listOf("destination", "factor", "packageId", "priority"), probe.labels(drone, scope))
         assertEquals(listOf("x", "y"), probe.labels(drone, after(droneText, "return \$(event->destination->")))
     }
 
@@ -196,7 +202,8 @@ class KstatesCompletionTest {
         assertEquals(listOf("setSpeed", "start", "teleport"), items.map { it.label }.sorted())
         assertTrue(items.none { it.label in domainTypes })
         assertTrue(items.all { it.kind == CompletionKind.EVENT })
-        assertEquals(listOf("setSpeed", "start", "teleport"), probe.labels(robot, after(robotText, "EVENT(\"public\", \"oh")), "also as an action")
+        val action = after(robotText, "EVENT(\"public\", \"oh")
+        assertEquals(listOf("setSpeed", "start", "teleport"), probe.labels(robot, action), "also as an action")
         assertEquals(listOf("public"), probe.labels(robot, after(robotText, "EVENT(\"pu")))
     }
 

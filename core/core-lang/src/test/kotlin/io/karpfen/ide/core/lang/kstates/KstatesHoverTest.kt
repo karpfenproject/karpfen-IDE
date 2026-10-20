@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.kstates
 
+import io.karpfen.ide.core.lang.LanguageDocument
 import io.karpfen.ide.core.lang.fixtures.ExamplePaths
 import io.karpfen.ide.core.lang.fixtures.ExampleProject
 import io.karpfen.ide.core.lang.fixtures.ServicesProbe
@@ -18,7 +19,7 @@ class KstatesHoverTest {
     private val robot = ExampleProject.example(ExamplePaths.ROBOT_KSTATES)
     private val text = robot.text.text
 
-    private fun hover(offset: Int, document: io.karpfen.ide.core.lang.LanguageDocument = robot): String = assertNotNull(probe.hover(document, offset)).text
+    private fun hover(offset: Int, document: LanguageDocument = robot): String = assertNotNull(probe.hover(document, offset)).text
 
     @Test
     fun `a state shows its hierarchy path`() {
@@ -34,7 +35,10 @@ class KstatesHoverTest {
             "macro circular_bounding_box_distance(p1: TwoDObject, p2: TwoDObject): number",
             hover(after(text, "MACRO(\"circular_b")),
         )
-        assertEquals("macro get_closest_obstacle(robot_position: Vector, obstacles: list(Obstacle)): reference(Obstacle)", hover(after(text, "MACRO \"get_closest_ob")))
+        assertEquals(
+            "macro get_closest_obstacle(robot_position: Vector, obstacles: list(Obstacle)): reference(Obstacle)",
+            hover(after(text, "MACRO \"get_closest_ob")),
+        )
         assertEquals("macro point_to_point_distance(p1: Vector, p2: Vector): number", hover(after(text, "@point_to")))
     }
 

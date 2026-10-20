@@ -11,6 +11,7 @@ import io.karpfen.ide.core.text.TextRange
 import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
+import java.nio.file.Path
 import java.util.Collections
 import kotlin.random.Random
 import kotlin.test.Test
@@ -74,15 +75,19 @@ class LanguageServicesRobustnessTest {
         for (offset in offsets) {
             services.complete(document, offset).forEach { check(it.replaceRange.end <= length) { "$label @$offset: $it" } }
             services.hover(document, offset)?.let { check(it.range.end <= length) { "$label @$offset: $it" } }
-            services.definition(document, offset).forEach { check(isValid(document, it.path, it.version, it.range)) { "$label @$offset: $it" } }
-            services.matchingBracket(document, offset)?.let { check(it.open.end <= length && it.close.end <= length) { "$label @$offset: $it" } }
+            services.definition(document, offset).forEach {
+                check(isValid(document, it.path, it.version, it.range)) { "$label @$offset: $it" }
+            }
+            services.matchingBracket(document, offset)?.let {
+                check(it.open.end <= length && it.close.end <= length) { "$label @$offset: $it" }
+            }
         }
         services.references(document, offsets.first()).forEach { check(isValid(document, it.path, it.version, it.range)) { "$label: $it" } }
         check(failures.isEmpty()) { "$label: provider failures ${failures.map { "${it.operation}: ${it.error}" }}" }
     }
 
     /** A location of the document itself in its text's version lies inside its text. */
-    private fun isValid(document: LanguageDocument, path: java.nio.file.Path, version: Long?, range: TextRange): Boolean =
+    private fun isValid(document: LanguageDocument, path: Path, version: Long?, range: TextRange): Boolean =
         path != document.path || version != document.text.version || range.end <= document.text.length
 
     private companion object {

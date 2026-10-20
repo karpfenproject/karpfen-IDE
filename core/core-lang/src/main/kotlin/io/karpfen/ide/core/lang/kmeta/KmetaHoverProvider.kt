@@ -19,7 +19,8 @@ internal class KmetaHoverProvider(private val slots: KmetaSlots, private val typ
             } else {
                 null
             }
-            is KmetaSlot.MemberName -> slot.owner?.let { types.type(request, it) }?.member(slot.name)?.let { Hover(slot.range, it.signature) }
+            is KmetaSlot.MemberName -> slot.owner?.let { types.type(request, it) }?.member(slot.name)
+                ?.let { Hover(slot.range, it.signature) }
             KmetaSlot.TopLevel, is KmetaSlot.TypeBody, KmetaSlot.None -> null
         }
 }

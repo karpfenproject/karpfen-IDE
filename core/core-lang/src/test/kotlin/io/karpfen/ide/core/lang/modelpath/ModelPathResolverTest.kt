@@ -12,7 +12,8 @@ import kotlin.test.assertTrue
 /** Model-path resolution over `TypeInfo` members (spec §5): roots, bindings, members, lists, events. */
 class ModelPathResolverTest {
 
-    private fun member(name: String, kind: MemberKind, type: String, isList: Boolean = false) = MemberInfo(name, kind, type, isList, declaration = null)
+    private fun member(name: String, kind: MemberKind, type: String, isList: Boolean = false) =
+        MemberInfo(name, kind, type, isList, declaration = null)
 
     private fun type(name: String, vararg members: MemberInfo, origin: TypeOrigin = TypeOrigin.DOMAIN) =
         TypeInfo(name, description = null, members.toList(), origin, declaration = null)
@@ -29,7 +30,11 @@ class ModelPathResolverTest {
     private val setSpeed = type("setSpeed", member("factor", MemberKind.PROPERTY, "number"), origin = TypeOrigin.EVENTS)
     private val teleport = type("teleport", member("position", MemberKind.HAS, "Vector"), origin = TypeOrigin.EVENTS)
     private val types = listOf(vector, box, obstacle, robot, setSpeed, teleport)
-    private val scope = PathScope(types, rootType = "Robot", bindings = mapOf("dir" to PathType("Vector", isList = false, isPrimitive = false)))
+    private val scope = PathScope(
+        types,
+        rootType = "Robot",
+        bindings = mapOf("dir" to PathType("Vector", isList = false, isPrimitive = false)),
+    )
     private val resolver = ModelPathResolver()
 
     @Test
@@ -91,8 +96,12 @@ class ModelPathResolverTest {
             listOf("dir", "self", "event", "log", "boundingBox", "obstacles"),
             resolver.completions("bou", scope).map { it.name },
         )
-        assertEquals(listOf(PathOrigin.BINDING, PathOrigin.ROOT, PathOrigin.ROOT), resolver.completions("", scope).take(3).map { it.origin })
-        assertEquals(listOf("self", "log", "boundingBox", "obstacles"), resolver.completions("", PathScope(listOf(robot), "Robot")).map { it.name })
+        assertEquals(
+            listOf(PathOrigin.BINDING, PathOrigin.ROOT, PathOrigin.ROOT),
+            resolver.completions("", scope).take(3).map { it.origin },
+        )
+        val withoutEvents = PathScope(listOf(robot), "Robot")
+        assertEquals(listOf("self", "log", "boundingBox", "obstacles"), resolver.completions("", withoutEvents).map { it.name })
     }
 
     @Test

@@ -62,7 +62,10 @@ internal class DefaultLanguageServices(
     ): T {
         val bundle = features[doc.language] ?: return empty
         if (offset != null && (offset !in 0..doc.text.length || !doc.isConsistent)) {
-            LOG.debug("{} skipped for {}: offset {} of {}, tokens of version {} for text version {}", operation, doc.path, offset, doc.text.length, doc.tokens.version, doc.text.version)
+            LOG.debug(
+                "{} skipped for {}: offset {} of {}, tokens of version {} for text version {}",
+                operation, doc.path, offset, doc.text.length, doc.tokens.version, doc.text.version,
+            )
             return empty
         }
         return try {

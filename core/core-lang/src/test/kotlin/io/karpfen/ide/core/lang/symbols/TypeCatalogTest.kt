@@ -91,7 +91,10 @@ class TypeCatalogTest {
         assertEquals(document.text.version, hall.declaration?.version)
         assertSame(document.text.lineage, hall.declaration?.lineage)
         assertEquals("A room that contains a robot and obstacles", hall.description)
-        assertEquals(listOf("has robot: Robot", "has obstacles: list(Obstacle)", "has walls: list(Wall)"), hall.members.map { it.signature })
+        assertEquals(
+            listOf("has robot: Robot", "has obstacles: list(Obstacle)", "has walls: list(Wall)"),
+            hall.members.map { it.signature },
+        )
     }
 
     @Test
@@ -131,13 +134,15 @@ class TypeCatalogTest {
 
     @Test
     fun `documents outside a context see only their own types`() {
-        val document = ExampleProject.document(ExampleProject.ROOT.resolve("loose/a.kmeta"), "type \"A\" \"d\" { knows(\"b\", list(\"B\")) }")
+        val text = "type \"A\" \"d\" { knows(\"b\", list(\"B\")) }"
+        val document = ExampleProject.document(ExampleProject.ROOT.resolve("loose/a.kmeta"), text)
         val request = ExampleProject.request(document)
 
         val types = catalog.types(request)
 
         assertEquals(listOf("A"), types.map { it.name })
-        assertEquals(MemberInfo("b", MemberKind.KNOWS, "B", isList = true, declaration = types.single().members.single().declaration), types.single().members.single())
-        assertEquals(TextRange(22, 23), types.single().members.single().declaration?.range)
+        val member = types.single().members.single()
+        assertEquals(MemberInfo("b", MemberKind.KNOWS, "B", isList = true, declaration = member.declaration), member)
+        assertEquals(TextRange(22, 23), member.declaration?.range)
     }
 }

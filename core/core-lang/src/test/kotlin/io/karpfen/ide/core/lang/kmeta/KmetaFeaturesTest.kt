@@ -1,6 +1,8 @@
 package io.karpfen.ide.core.lang.kmeta
 
 import io.karpfen.ide.core.lang.CompletionKind
+import io.karpfen.ide.core.lang.LanguageDocument
+import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.fixtures.ExamplePaths
 import io.karpfen.ide.core.lang.fixtures.ExampleProject
 import io.karpfen.ide.core.lang.fixtures.ServicesProbe
@@ -69,7 +71,9 @@ class KmetaFeaturesTest {
 
     @Test
     fun `outside the quotes the names are inserted quoted and list is offered`() {
-        val (document, offset) = edited { it.replace("has(\"position\", \"Vector\")", "has(\"position\", )") to after(it, "has(\"position\", ") }
+        val (document, offset) = edited {
+            it.replace("has(\"position\", \"Vector\")", "has(\"position\", )") to after(it, "has(\"position\", ")
+        }
 
         val items = probe.complete(document, offset)
 
@@ -89,7 +93,9 @@ class KmetaFeaturesTest {
 
     @Test
     fun `unterminated strings still complete`() {
-        val (document, offset) = edited { it.replace("has(\"position\", \"Vector\")\n}", "has(\"position\", \"Ve\n}") to after(it, "has(\"position\", \"Ve") }
+        val (document, offset) = edited {
+            it.replace("has(\"position\", \"Vector\")\n}", "has(\"position\", \"Ve\n}") to after(it, "has(\"position\", \"Ve")
+        }
 
         val item = probe.complete(document, offset).single { it.label == "Vector" }
         assertEquals("Ve", document.text.substring(item.replaceRange))
@@ -133,15 +139,20 @@ class KmetaFeaturesTest {
         val kstatesText = ExampleProject.textOf(ExamplePaths.ROBOT_KSTATES)
         assertTrue(kstates.all { textAt(kstatesText, it) == "x" })
         assertTrue(kstates.any { it.range.start > at(kstatesText, "SET(\"boundingBox->position->x\"") }, "an action path")
-        assertTrue(kstates.any { it.range.start > at(kstatesText, "\$(p1->x)") && it.range.start < at(kstatesText, "\$(p1->x)") + 8 }, "a macro parameter path")
-        assertTrue(kstates.any { it.range.start in at(kstatesText, "\$(dir->x)")..at(kstatesText, "\$(dir->x)") + 8 }, "a WITH binding path")
+        val parameterPath = at(kstatesText, "\$(p1->x)")
+        assertTrue(kstates.any { it.range.start in parameterPath..parameterPath + 8 }, "a macro parameter path")
+        val bindingPath = at(kstatesText, "\$(dir->x)")
+        assertTrue(kstates.any { it.range.start in bindingPath..bindingPath + 8 }, "a WITH binding path")
         assertTrue(references.any { it.path == metamodel.path && textAt(text, it) == "x" }, "the declaration")
     }
 
     @Test
     fun `hover shows the type with members and member signatures`() {
         val type = assertNotNull(probe.hover(metamodel, after(text, "has(\"boundingBox\", \"Two")))
-        assertEquals("type TwoDObject\nA two-dimensional object with a position and diameter\n\nprop diameter: number\nhas position: Vector", type.text)
+        assertEquals(
+            "type TwoDObject\nA two-dimensional object with a position and diameter\n\nprop diameter: number\nhas position: Vector",
+            type.text,
+        )
         assertEquals("TwoDObject", text.substring(type.range.start, type.range.end))
 
         val member = assertNotNull(probe.hover(metamodel, after(text, "knows(\"obst")))
@@ -149,11 +160,11 @@ class KmetaFeaturesTest {
         assertNull(probe.hover(metamodel, after(text, "prop(\"x\", \"num")), "primitives have no hover")
     }
 
-    private fun edited(edit: (String) -> Pair<String, Int>): Pair<io.karpfen.ide.core.lang.LanguageDocument, Int> {
+    private fun edited(edit: (String) -> Pair<String, Int>): Pair<LanguageDocument, Int> {
         val (changed, offset) = edit(text)
         return ExampleProject.document(metamodel.path, changed, version = 2) to offset
     }
 
-    private fun textOfAll(examplePath: String, locations: List<io.karpfen.ide.core.lang.Location>): List<String> =
+    private fun textOfAll(examplePath: String, locations: List<Location>): List<String> =
         ExampleProject.textOf(examplePath).let { source -> locations.map { textAt(source, it) } }
 }

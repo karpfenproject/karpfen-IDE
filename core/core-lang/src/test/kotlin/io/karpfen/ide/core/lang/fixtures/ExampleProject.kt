@@ -56,18 +56,27 @@ object ExampleProject {
         val analyses = contexts.map { example ->
             val files = example.files.associate { file -> pathOf(file.path) to analyzedFile(pathOf(file.path), file.text) }
             val metamodelFile = example.metamodel?.let { files.getValue(pathOf(it.path)) }
-            val metamodel = metamodelFile?.let { converter.kmeta(it.snapshot, it.parse.index) }?.also { record(diagnostics, metamodelFile, it.diagnostics) }?.value
+            val metamodel = metamodelFile
+                ?.let { converter.kmeta(it.snapshot, it.parse.index) }
+                ?.also { record(diagnostics, metamodelFile, it.diagnostics) }
+                ?.value
             val eventsFile = example.events?.let { files.getValue(pathOf(it.path)) }
             val events = eventsFile?.let { file -> converter.kmeta(file.snapshot, file.parse.index, metamodel?.types.orEmpty()) }
                 ?.also { record(diagnostics, eventsFile, it.diagnostics) }?.value
             val models = example.models.mapNotNull { model ->
                 val file = files.getValue(pathOf(model.path))
-                metamodel?.let { converter.kmodel(file.snapshot, file.parse.index, it) }?.also { record(diagnostics, file, it.diagnostics) }?.value
+                metamodel
+                    ?.let { converter.kmodel(file.snapshot, file.parse.index, it) }
+                    ?.also { record(diagnostics, file, it.diagnostics) }
+                    ?.value
                     ?.let { file.path to it }
             }.toMap()
             val machines = example.stateMachines.mapNotNull { machine ->
                 val file = files.getValue(pathOf(machine.path))
-                converter.kstates(file.snapshot, file.parse.index).also { record(diagnostics, file, it.diagnostics) }.value?.let { file.path to it }
+                converter.kstates(file.snapshot, file.parse.index)
+                    .also { record(diagnostics, file, it.diagnostics) }
+                    .value
+                    ?.let { file.path to it }
             }.toMap()
             ContextAnalysis(
                 context = ModelingContext(
@@ -93,7 +102,8 @@ object ExampleProject {
         val support = registry.support(languageOf(path))
         val snapshot = TextSnapshot(text, 0)
         val tokens = support.tokenizer.tokenize(snapshot)
-        return AnalyzedFile(path, FileKind.of(path.fileName.toString()), snapshot, support.parser.parse(snapshot, SemanticMode.SYNTAX_ONLY), tokens.diagnostics)
+        val parse = support.parser.parse(snapshot, SemanticMode.SYNTAX_ONLY)
+        return AnalyzedFile(path, FileKind.of(path.fileName.toString()), snapshot, parse, tokens.diagnostics)
     }
 
     /**
@@ -105,11 +115,13 @@ object ExampleProject {
         val support = registry.support(language)
         val snapshot = TextSnapshot(text, version)
         val parse = support.parser.parse(snapshot, SemanticMode.SYNTAX_ONLY)
-        return LanguageDocument(path, language, snapshot, support.tokenizer.tokenize(snapshot), parse, lastGoodParse ?: parse.takeIf { it.isSyntaxClean })
+        val tokens = support.tokenizer.tokenize(snapshot)
+        return LanguageDocument(path, language, snapshot, tokens, parse, lastGoodParse ?: parse.takeIf { it.isSyntaxClean })
     }
 
     /** The example at [examplePath] as a document, its text changed by [edit]. */
-    fun example(examplePath: String, edit: (String) -> String = { it }): LanguageDocument = document(pathOf(examplePath), edit(textOf(examplePath)))
+    fun example(examplePath: String, edit: (String) -> String = { it }): LanguageDocument =
+        document(pathOf(examplePath), edit(textOf(examplePath)))
 
     /** A request for [document] against [analysis]. */
     fun request(document: LanguageDocument, analysis: ProjectAnalysis = this.analysis): FeatureRequest =

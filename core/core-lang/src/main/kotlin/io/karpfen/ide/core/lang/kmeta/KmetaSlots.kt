@@ -27,8 +27,13 @@ internal sealed interface KmetaSlot {
      * A type argument: [primitive] for `prop(…, "…")` (also inside `list(`), else a type reference of `has`/`knows`.
      * [inString] is false when the caret is at the argument but not inside quotes yet ([name] is then empty).
      */
-    data class TypeArgument(val primitive: Boolean, val name: String, val range: TextRange, val inString: Boolean, val listAllowed: Boolean) :
-        KmetaSlot
+    data class TypeArgument(
+        val primitive: Boolean,
+        val name: String,
+        val range: TextRange,
+        val inString: Boolean,
+        val listAllowed: Boolean,
+    ) : KmetaSlot
 
     /** Anything else (descriptions, comments, broken positions). */
     data object None : KmetaSlot

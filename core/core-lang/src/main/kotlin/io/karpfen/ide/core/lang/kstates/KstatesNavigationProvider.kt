@@ -66,7 +66,7 @@ internal class KstatesNavigationProvider(
             is KstatesSlot.MacroName -> Target.Local(SymbolKind.MACRO, ReferenceKind.MACRO, slot.name)
             is KstatesSlot.BindingName -> Target.Binding(slot.name, Location(request.document.path, slot.range, request.document.text))
             is KstatesSlot.ParameterName -> Target.Binding(slot.name, Location(request.document.path, slot.range, request.document.text))
-            is KstatesSlot.TypeName -> if (slot.inString) Target.Shared(ContextSymbol.Type(slot.name), types.type(request, slot.name)?.declaration) else null
+            is KstatesSlot.TypeName -> if (slot.inString) typeTarget(request, slot.name) else null
             is KstatesSlot.EventName -> Target.Shared(
                 ContextSymbol.Type(slot.name),
                 types.contextTypes(request).firstOrNull { it.origin == TypeOrigin.EVENTS && it.name == slot.name }?.declaration,
@@ -85,10 +85,13 @@ internal class KstatesNavigationProvider(
         val member = hit.member ?: return null
         return when (member.origin) {
             PathOrigin.MEMBER -> hit.resolved?.owner?.let { Target.Shared(ContextSymbol.Member(it.name, member.name), member.declaration) }
-            PathOrigin.ROOT -> if (hit.isUndeterminedEvent) null else Target.Shared(ContextSymbol.Type(member.type.name), types.type(request, member.type.name)?.declaration)
+            PathOrigin.ROOT -> if (hit.isUndeterminedEvent) null else typeTarget(request, member.type.name)
             PathOrigin.BINDING -> Target.Binding(member.name, bindingDeclaration(request, hit))
         }
     }
+
+    private fun typeTarget(request: FeatureRequest, name: String): Target =
+        Target.Shared(ContextSymbol.Type(name), types.type(request, name)?.declaration)
 
     /** Where the binding or macro parameter of [hit] is declared: the enclosing `WITH … AS`, else the macro's TAKES. */
     private fun bindingDeclaration(request: FeatureRequest, hit: PathHit): Location? {

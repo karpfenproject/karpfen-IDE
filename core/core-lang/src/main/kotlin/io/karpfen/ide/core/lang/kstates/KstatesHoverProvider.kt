@@ -34,7 +34,8 @@ internal class KstatesHoverProvider(
             is KstatesSlot.EventName -> types.contextTypes(request).firstOrNull { it.origin == TypeOrigin.EVENTS && it.name == slot.name }
                 ?.let { Hover(slot.range, it.hoverText) }
             is KstatesSlot.ModelPath -> pathHover(request, context, slot)
-            is KstatesSlot.RelationKey -> paths.typeOf(request, context, slot.sourcePath)?.member(slot.name)?.let { Hover(slot.range, it.signature) }
+            is KstatesSlot.RelationKey -> paths.typeOf(request, context, slot.sourcePath)?.member(slot.name)
+                ?.let { Hover(slot.range, it.signature) }
             is KstatesSlot.BindingName -> paths.declaredBindingType(request, context)
                 ?.let { Hover(slot.range, "binding ${slot.name}: ${KstatesSignatures.typeText(it)}") }
             is KstatesSlot.ParameterName -> declarations.all(SymbolKind.MACRO_PARAMETER)

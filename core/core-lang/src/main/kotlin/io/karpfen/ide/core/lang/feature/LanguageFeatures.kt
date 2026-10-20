@@ -59,7 +59,10 @@ public data class FeatureRequest(
      */
     public val isEventsDocument: Boolean
         get() = document.language == KarpfenLanguage.KMETA &&
-            (contextAnalysis?.context?.events == document.path || FileKind.of(document.path.fileName?.toString().orEmpty()) == FileKind.EVENTS_KMETA)
+            (
+                contextAnalysis?.context?.events == document.path ||
+                    FileKind.of(document.path.fileName?.toString().orEmpty()) == FileKind.EVENTS_KMETA
+                )
 }
 
 /** Highlighting strategy (see `LanguageServices.highlight`). */

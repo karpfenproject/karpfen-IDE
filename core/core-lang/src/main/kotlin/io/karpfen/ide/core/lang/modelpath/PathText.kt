@@ -65,6 +65,7 @@ private fun segmentOf(text: String, from: Int, to: Int): PathSegment {
  */
 internal fun pathSegmentsOf(path: String, range: TextRange, text: String?): List<PathSegment> = when {
     text != null && range.end <= text.length -> pathSegments(text, range)
-    range.length == path.length -> pathSegments(path, TextRange(0, path.length)).map { PathSegment(it.name, it.range.shiftedBy(range.start)) }
+    range.length == path.length ->
+        pathSegments(path, TextRange(0, path.length)).map { PathSegment(it.name, it.range.shiftedBy(range.start)) }
     else -> path.split(PathSyntax.SEPARATOR).map { PathSegment(it, range) }
 }

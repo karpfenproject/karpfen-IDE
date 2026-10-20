@@ -82,8 +82,11 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
         val transition = path.lastOrNull { it.kind in TRANSITION_KINDS }
         val facts = ScopeFacts(
             attachedType = index.declarationsOf(SymbolKind.STATEMACHINE).firstOrNull()?.typeName,
-            eventName = transition?.let { node -> index.referencesOf(ReferenceKind.EVENT_NAME).firstOrNull { it.range in node.range }?.name },
-            bindings = path.filter { it.kind == SymbolKind.BINDING }.map { BindingFact(it.name, it.detail, source.location(it.selectionRange)) },
+            eventName = transition?.let { node ->
+                index.referencesOf(ReferenceKind.EVENT_NAME).firstOrNull { it.range in node.range }?.name
+            },
+            bindings = path.filter { it.kind == SymbolKind.BINDING }
+                .map { BindingFact(it.name, it.detail, source.location(it.selectionRange)) },
             macro = path.lastOrNull { it.kind == SymbolKind.MACRO }?.name,
         )
         return build(request, facts, MacroSignatures(listOf(index)))
@@ -102,7 +105,9 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
     private fun bindingOf(document: LanguageDocument, construct: List<ContextToken>): BindingFact? {
         val asIndex = construct.indexOfLast { it.kind == TokenKind.KEYWORD && it.text.uppercase() == AS }
         val name = construct.getOrNull(asIndex + 1)?.takeIf { asIndex >= 0 && it.kind == TokenKind.STRING } ?: return null
-        val macro = construct.getOrNull(3)?.takeIf { construct.getOrNull(1)?.text == KstatesSlots.MACRO && it.kind == TokenKind.STRING }?.text
+        val macro = construct.getOrNull(3)
+            ?.takeIf { construct.getOrNull(1)?.text == KstatesSlots.MACRO && it.kind == TokenKind.STRING }
+            ?.text
         val content = TextRange(name.range.start + 1, maxOf(name.range.start + 1, name.range.end - 1))
         return BindingFact(name.text, macro, Location(document.path, content, document.text))
     }
@@ -143,7 +148,9 @@ internal class MacroSignatures(private val indexes: List<SyntaxIndex>) {
     /** The TAKES parameters of [macro] with their types, in declaration order. */
     fun parameters(macro: String): List<Pair<String, PathType>> =
         indexes.firstNotNullOfOrNull { index ->
-            index.declarationsOf(SymbolKind.MACRO_PARAMETER).filter { it.container == macro && it.name.isNotEmpty() }.takeIf { it.isNotEmpty() }
+            index.declarationsOf(SymbolKind.MACRO_PARAMETER)
+                .filter { it.container == macro && it.name.isNotEmpty() }
+                .takeIf { it.isNotEmpty() }
         }.orEmpty().map { it.name to pathTypeOf(it.typeName) }
 
     private fun pathTypeOf(written: String?): PathType =

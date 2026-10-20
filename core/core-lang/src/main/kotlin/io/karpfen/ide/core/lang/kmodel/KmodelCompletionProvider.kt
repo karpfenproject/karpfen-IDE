@@ -72,7 +72,11 @@ internal class KmodelCompletionProvider(
         val ROOT_SNIPPET = Snippet("make object \"…\":\"…\" { }", "make object \"\$0\":\"\" { }", detail = "root object")
         val STATEMENT_SNIPPETS = listOf(
             Snippet("prop(\"…\") -> \"…\"", "prop(\"\$0\") -> \"\"", detail = "property value"),
-            Snippet("has(\"…\") -> make object \"…\":\"…\" { }", "has(\"\$0\") -> make object \"\":\"\" { }", detail = "contained object"),
+            Snippet(
+                "has(\"…\") -> make object \"…\":\"…\" { }",
+                "has(\"\$0\") -> make object \"\":\"\" { }",
+                detail = "contained object",
+            ),
             Snippet("knows(\"…\") -> \"…\"", "knows(\"\$0\") -> \"\"", detail = "object reference"),
         )
     }
