@@ -13,6 +13,8 @@ dependencies {
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
+    // Test-only: the logging-configuration tests read logback's LoggerContext (rule 7 of the work-package plan).
+    testImplementation(libs.logback.classic)
 }
 
 compose.desktop {

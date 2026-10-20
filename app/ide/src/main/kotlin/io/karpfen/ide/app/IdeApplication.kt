@@ -1,11 +1,26 @@
 package io.karpfen.ide.app
 
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.window.WindowExceptionHandler
+import androidx.compose.ui.window.WindowExceptionHandlerFactory
+import androidx.compose.ui.window.application
+import io.karpfen.ide.app.crash.ErrorDialogPresenter
+import io.karpfen.ide.app.crash.IDE_LOG_FILE_NAME
+import io.karpfen.ide.app.window.awtScreenAreas
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
+import io.karpfen.ide.ui.workbench.settings.SettingsLocations
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.plus
+import kotlinx.coroutines.swing.Swing
+import java.awt.EventQueue
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Composition root of the desktop application (spec §9, ADR 0009: explicit wiring, no DI framework).
@@ -36,13 +51,57 @@ public class IdeApplication(
     /**
      * Wires the IDE without UI in [scope] (the UI scope): creates the services and the workbench state, registers the
      * commands in a new `CommandRegistry(services.platform)`, starts the state and opens [initialFolder] if given
-     * (joining the `openFolder` job, so the session is ready when this returns).
+     * (joining the `openFolder` job, so the session is ready when this returns). If anything fails (or the caller is
+     * cancelled), the state is closed and the failure propagates.
      */
-    public suspend fun prepare(scope: CoroutineScope, initialFolder: Path?): IdeSession =
-        TODO("WP-APP: wire the workbench state and the commands")
+    public suspend fun prepare(scope: CoroutineScope, initialFolder: Path?): IdeSession {
+        val workbenchServices = services()
+        val state = workbenchStateFactory(scope, workbenchServices)
+        try {
+            val commands = CommandRegistry(workbenchServices.platform)
+            state.registerCommands(commands)
+            state.start()
+            if (initialFolder != null) state.openFolder(initialFolder).join()
+            return IdeSession(state, commands)
+        } catch (e: Throwable) {
+            state.close()
+            throw e
+        }
+    }
 
-    /** Starts the UI (blocking until the application exits); opens [initialFolder] if given. */
-    public fun run(initialFolder: Path?): Unit = TODO("WP-APP: run the application around prepare()")
+    /**
+     * Starts the UI (blocking until the application exits); opens [initialFolder] if given.
+     *
+     * The application scope runs on the Swing event-dispatch thread; its failures, uncaught exceptions of every thread
+     * and failures inside the main window are logged and shown by [CrashHandling]. The workbench state is closed when
+     * the application exits.
+     *
+     * @throws IllegalStateException if the session could not be prepared (the cause is logged, the application ends).
+     */
+    @OptIn(ExperimentalComposeUiApi::class)
+    public fun run(initialFolder: Path?) {
+        val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Swing)
+        val errorDialogs = ErrorDialogPresenter(uiScope, SettingsLocations.logDirectory().resolve(IDE_LOG_FILE_NAME))
+        val crashHandling = CrashHandling { error -> errorDialogs.show(error) }
+        crashHandling.install()
+        val applicationScope = uiScope + CoroutineExceptionHandler { _, error -> crashHandling.handle(error) }
+        val runner = IdeRunner(
+            scope = applicationScope,
+            prepare = { prepare(applicationScope, initialFolder) },
+            onRunning = { session -> errorDialogs.attach { request -> session.state.dialogs.ask(request) } },
+            exitAfter = exitAfterMs?.milliseconds,
+        )
+        val windowExceptions = WindowExceptionHandlerFactory { WindowExceptionHandler(crashHandling::handle) }
+        val screens = awtScreenAreas()
+        runner.start()
+        try {
+            application(exitProcessOnExit = false) { IdeApplicationContent(runner, windowExceptions, screens) }
+        } finally {
+            // The workbench state is used from the UI thread only, so it is closed there.
+            EventQueue.invokeAndWait(runner::dispose)
+        }
+        runner.startupFailure?.let { throw IllegalStateException("the IDE could not start", it) }
+    }
 }
 
 /** The wired IDE of one application run: the workbench [state] and the [commands] the menus are built from. */
