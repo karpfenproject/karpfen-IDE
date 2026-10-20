@@ -71,7 +71,7 @@ class ProjectTreeStateTest {
 
     @Test
     fun `the context menu offers the templates, rename, delete and the file manager`() {
-        val menu = ProjectTreeMenu(HostPlatform.MAC_OS, canRevealInFileManager = true)
+        val menu = ProjectTreeMenu(HostPlatform.MAC_OS) { true }
         val forFile = menu.entries(file, isDirectory = false, isRoot = false)
         assertEquals(
             FileTemplateKind.entries.map { "New ${it.displayName}" } + listOf("Rename…", "Delete…", "Reveal in Finder"),

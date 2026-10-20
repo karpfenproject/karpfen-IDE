@@ -29,12 +29,13 @@ public data class ProjectTreeMenuEntry(
 /**
  * The project tree's context menu (spec §8): New KMeta/KModel/KStates/Environment file (in the node's directory, or
  * the file's parent directory), Rename…, Delete… (both disabled for the workspace root) and Reveal in Finder / Show in
- * Explorer / Show in File Manager (by [platform]; disabled unless [canRevealInFileManager]). Compose-free, so the menu
- * is decided here and the view only renders it.
+ * Explorer / Show in File Manager (by [platform]; disabled unless [canRevealInFileManager] answers true — asked when a
+ * menu is built, so creating the menu never touches a platform toolkit). Compose-free, so the menu is decided here and
+ * the view only renders it.
  */
 public class ProjectTreeMenu(
     private val platform: HostPlatform = HostPlatform.current(),
-    private val canRevealInFileManager: Boolean = false,
+    private val canRevealInFileManager: () -> Boolean = { false },
 ) {
 
     /** The label of the file-manager entry on [platform]. */
@@ -53,7 +54,7 @@ public class ProjectTreeMenu(
         } + listOf(
             ProjectTreeMenuEntry("Rename…", isEnabled = !isRoot, ProjectTreeCommand.Rename(path)),
             ProjectTreeMenuEntry("Delete…", isEnabled = !isRoot, ProjectTreeCommand.Delete(path)),
-            ProjectTreeMenuEntry(fileManagerLabel, isEnabled = canRevealInFileManager, ProjectTreeCommand.RevealInFileManager(path)),
+            ProjectTreeMenuEntry(fileManagerLabel, isEnabled = canRevealInFileManager(), ProjectTreeCommand.RevealInFileManager(path)),
         )
     }
 }

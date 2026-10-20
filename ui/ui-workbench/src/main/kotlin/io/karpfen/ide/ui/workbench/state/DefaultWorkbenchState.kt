@@ -53,7 +53,7 @@ internal class DefaultWorkbenchState(
     private val holder = WorkspaceHolder()
 
     override val projectTree: ProjectTreeState =
-        ProjectTreeState(ProjectTreeMenu(services.platform, services.fileOperations.supportsRevealInFileManager))
+        ProjectTreeState(ProjectTreeMenu(services.platform) { services.fileOperations.supportsRevealInFileManager })
     override val tabs: EditorTabsState = EditorTabsState(ownScope)
     override val outline: OutlineState = OutlineState(ownScope)
     override val problems: ProblemsState = ProblemsState(ownScope)
