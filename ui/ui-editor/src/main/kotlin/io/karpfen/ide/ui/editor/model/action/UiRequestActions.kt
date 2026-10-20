@@ -15,5 +15,17 @@ internal enum class UiRequest(val actionId: String) {
 internal class UiRequestAction(private val request: UiRequest) : EditorAction {
     override val id: String = request.actionId
 
-    override fun execute(context: EditorActionContext): Boolean = TODO("WP-EDITOR-MODEL: ${request.name}")
+    override fun execute(context: EditorActionContext): Boolean {
+        val ui = context.ui
+        when (request) {
+            UiRequest.FIND -> ui.openFind(replace = false)
+            UiRequest.REPLACE -> ui.openFind(replace = true)
+            UiRequest.FIND_NEXT -> ui.findNext()
+            UiRequest.FIND_PREVIOUS -> ui.findPrevious()
+            UiRequest.GO_TO_LINE -> ui.openGoToLine()
+            UiRequest.COMPLETION -> ui.triggerCompletion()
+            UiRequest.GO_TO_DEFINITION -> ui.goToDefinition()
+        }
+        return true
+    }
 }

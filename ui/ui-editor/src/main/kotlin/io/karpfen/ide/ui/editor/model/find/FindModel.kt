@@ -1,12 +1,25 @@
 package io.karpfen.ide.ui.editor.model.find
 
+import io.karpfen.ide.core.text.CaretMemento
 import io.karpfen.ide.core.text.EditableText
+import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.ui.editor.model.action.CommandEditAction
+import io.karpfen.ide.ui.editor.model.action.EditShift
 import io.karpfen.ide.ui.editor.model.action.EditorActionExecutor
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** What to search for (spec §7.1). An empty [text] matches nothing. */
 public data class FindQuery(
@@ -98,6 +111,20 @@ public fun FindModel(
     backgroundDispatcher: CoroutineDispatcher,
 ): FindModel = DefaultFindModel(text, caret, executor, scope, backgroundDispatcher)
 
+/**
+ * Default [FindModel], a coordinator: [FindMatcher] computes matches and replacement texts, [SelectMatchAction] and
+ * `CommandEditAction` carry every selection and edit to the executor; this class owns the query and the published
+ * [FindResult].
+ *
+ * Pipeline: the newest text snapshot and query are matched on [backgroundDispatcher] (latest wins, a running regular
+ * expression search stops when a newer one starts) and published in [scope]; a result is only published while it is
+ * still current. When [next], [previous] or a replace function find the published state behind the text or the query,
+ * they compute it synchronously first. The current match is always the first match at or after the start of the
+ * primary selection (wrapping to the first match), so it follows the caret ([CaretModel.state] is observed) and stays
+ * on a match the model selected. A pending selection of [setQuery] is made by whichever computation publishes the new
+ * query's matches first.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class DefaultFindModel(
     private val text: EditableText,
     private val caret: CaretModel,
@@ -105,16 +132,136 @@ internal class DefaultFindModel(
     private val scope: CoroutineScope,
     private val backgroundDispatcher: CoroutineDispatcher,
 ) : FindModel {
-    override val state: StateFlow<FindResult>
-        get() = TODO("WP-EDITOR-MODEL: find state")
 
-    override fun setQuery(query: FindQuery): Unit = TODO("WP-EDITOR-MODEL: set query")
+    private val matcher = FindMatcher()
+    private val query = MutableStateFlow(FindQuery())
+    private val result = MutableStateFlow(FindResult(FindQuery(), text.snapshot.value.version, emptyList(), null, null))
 
-    override fun next(): Unit = TODO("WP-EDITOR-MODEL: next match")
+    /** True from [setQuery] until the new query's current match was selected (or found to have no matches). */
+    private var selectPending = false
 
-    override fun previous(): Unit = TODO("WP-EDITOR-MODEL: previous match")
+    init {
+        scope.launch {
+            combine(text.snapshot, query) { snapshot, query -> snapshot to query }
+                .mapLatest { (snapshot, query) ->
+                    val outcome = withContext(backgroundDispatcher) { matcher.find(snapshot.text, query) { ensureActive() } }
+                    Triple(snapshot, query, outcome)
+                }
+                .collect { (snapshot, query, outcome) -> publish(snapshot, query, outcome) }
+        }
+        scope.launch { caret.state.collect { followCaret() } }
+    }
 
-    override fun replaceCurrent(replacement: String): Unit = TODO("WP-EDITOR-MODEL: replace current")
+    override val state: StateFlow<FindResult> = result.asStateFlow()
 
-    override fun replaceAll(replacement: String): Int = TODO("WP-EDITOR-MODEL: replace all")
+    override fun setQuery(query: FindQuery) {
+        selectPending = true
+        this.query.value = query
+        if (isFresh()) selectPendingMatch()
+    }
+
+    override fun next() = step(forward = true)
+
+    override fun previous() = step(forward = false)
+
+    override fun replaceCurrent(replacement: String) {
+        ensureFresh()
+        val current = result.value
+        val match = current.current ?: return
+        val snapshot = text.snapshot.value
+        val newText = matcher.replacements(snapshot.text, current.query, listOf(match), replacement).single()
+        val action = CommandEditAction(
+            REPLACE_ID, "Replace", snapshot.version, listOf(TextEdit(match, newText)),
+            listOf(CaretMemento.at(match.start + newText.length)),
+        )
+        if (!executor.execute(action)) return
+        ensureFresh()
+        result.value.currentIndex?.let(::select)
+    }
+
+    override fun replaceAll(replacement: String): Int {
+        ensureFresh()
+        val current = result.value
+        if (current.matches.isEmpty()) return 0
+        val snapshot = text.snapshot.value
+        val texts = matcher.replacements(snapshot.text, current.query, current.matches, replacement)
+        val edits = current.matches.zip(texts) { match, newText -> TextEdit(match, newText) }
+        val shift = EditShift(edits)
+        val action = CommandEditAction(REPLACE_ALL_ID, "Replace All", snapshot.version, edits, caret.current.carets.map(shift::caret))
+        return if (executor.execute(action)) edits.size else 0
+    }
+
+    /** [next] or [previous]: select the current match if it is not selected yet, else the following (preceding) one. */
+    private fun step(forward: Boolean) {
+        ensureFresh()
+        val current = result.value
+        val index = current.currentIndex ?: return
+        val target = when {
+            caret.primary.selection != current.matches[index] -> index
+            forward -> (index + 1) % current.total
+            else -> (index - 1 + current.total) % current.total
+        }
+        select(target)
+    }
+
+    /** Selects match [index] of the published result through the executor (revealed by the editor). */
+    private fun select(index: Int) {
+        val current = result.value
+        result.value = current.copy(currentIndex = index)
+        executor.execute(SelectMatchAction(current.matches[index]))
+    }
+
+    private fun isFresh(): Boolean = result.value.version == text.snapshot.value.version && result.value.query == query.value
+
+    /** Computes the matches of the current text and query synchronously if the published ones lag behind. */
+    private fun ensureFresh() {
+        if (isFresh()) {
+            followCaret()
+            return
+        }
+        val snapshot = text.snapshot.value
+        install(snapshot.version, query.value, matcher.find(snapshot.text, query.value))
+    }
+
+    /** Publishes a background result unless the text or the query moved on, or it was computed synchronously already. */
+    private fun publish(snapshot: TextSnapshot, query: FindQuery, outcome: MatchOutcome) {
+        if (snapshot.version != text.snapshot.value.version || query != this.query.value || isFresh()) return
+        install(snapshot.version, query, outcome)
+    }
+
+    private fun install(version: Long, query: FindQuery, outcome: MatchOutcome) {
+        result.value = FindResult(query, version, outcome.matches, currentIndexIn(outcome.matches), outcome.error)
+        selectPendingMatch()
+    }
+
+    private fun selectPendingMatch() {
+        if (!selectPending) return
+        selectPending = false
+        result.value.currentIndex?.let(::select)
+    }
+
+    /** Keeps the current match on the first match at or after the primary selection's start. */
+    private fun followCaret() {
+        val current = result.value
+        if (current.version != text.snapshot.value.version) return
+        val index = currentIndexIn(current.matches)
+        if (index != current.currentIndex) result.value = current.copy(currentIndex = index)
+    }
+
+    private fun currentIndexIn(matches: List<TextRange>): Int? {
+        if (matches.isEmpty()) return null
+        val start = caret.primary.selection.start
+        var low = 0
+        var high = matches.size
+        while (low < high) {
+            val middle = (low + high) ushr 1
+            if (matches[middle].start < start) low = middle + 1 else high = middle
+        }
+        return if (low < matches.size) low else 0
+    }
+
+    private companion object {
+        const val REPLACE_ID = "editor.find.replace"
+        const val REPLACE_ALL_ID = "editor.find.replaceAll"
+    }
 }

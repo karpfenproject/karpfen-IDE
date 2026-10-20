@@ -1,0 +1,183 @@
+package io.karpfen.ide.ui.editor.model.action
+
+import io.karpfen.ide.core.document.syntax.TokenizeResult
+import io.karpfen.ide.core.text.EditableText
+import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.ui.editor.model.caret.Caret
+import io.karpfen.ide.ui.editor.model.caret.CaretModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlin.time.TestTimeSource
+
+/**
+ * An editor for model tests: the real [EditableText], [CaretModel] and [AutoClosedPairs] with a fake clipboard, a
+ * recording UI port and hand-built tokens. Texts are written with markers: `|` is the caret, `^` the anchor of a
+ * selection (both absent from the text itself).
+ *
+ * @param scope where the caret model follows the text; unconfined by default (no virtual time needed).
+ * @param tokensOf the tokens of a snapshot (default: none, i.e. no EVAL bodies).
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class TestEditor(
+    marked: String,
+    scope: CoroutineScope = CoroutineScope(UnconfinedTestDispatcher() + Job()),
+    tabWidth: Int = 4,
+    private val tokensOf: (TextSnapshot) -> TokenizeResult = { TokenizeResult.empty(it.version) },
+) : EditorActionContext {
+
+    /** The clock of the text's undo coalescing. */
+    val time = TestTimeSource()
+
+    private val initial = Marked.parse(marked)
+
+    override val text: EditableText = EditableText(initial.text, time)
+
+    override val caret: CaretModel = CaretModel(text, scope) { tabWidth }
+
+    override val autoPairs: AutoClosedPairs = AutoClosedPairs(text)
+
+    /** How often [tokens] was read (actions read tokens only when they need them). */
+    var tokenReads: Int = 0
+        private set
+
+    override val tokens: TokenizeResult
+        get() {
+            tokenReads++
+            return tokensOf(text.snapshot.value)
+        }
+
+    override var pageLines: Int = 10
+
+    override val clipboard: FakeClipboard = FakeClipboard()
+
+    override val ui: RecordingUiPort = RecordingUiPort()
+
+    /** The default actions. */
+    val registry: EditorActionRegistry = EditorActionRegistry()
+
+    /** Runs actions in this context like the editor state does (only when enabled). */
+    val executor: EditorActionExecutor = EditorActionExecutor { action -> action.isEnabled(this) && action.execute(this) }
+
+    init {
+        caret.restore(listOf(initial.caret.toMemento()))
+    }
+
+    /** Runs the registered action [id]. */
+    fun run(id: String): Boolean = registry.execute(id, this)
+
+    /** Types [typed] through [typeTextAction]. */
+    fun type(typed: String): Boolean = executor.execute(typeTextAction(typed))
+
+    /** Types every character of [typed] separately, like key presses. */
+    fun typeEach(typed: String) = typed.forEach { type(it.toString()) }
+
+    /** The text with the caret (and anchor) markers. */
+    fun marked(): String = Marked.render(text.snapshot.value.text, caret.primary)
+
+    /** The plain text. */
+    val plain: String get() = text.snapshot.value.text
+}
+
+/** The `|` (caret) and `^` (anchor) notation of [TestEditor]. */
+object Marked {
+    /** A text with its caret. */
+    data class Parsed(val text: String, val caret: Caret)
+
+    /** Splits [marked] into text and caret; without `|` the caret is at 0. */
+    fun parse(marked: String): Parsed {
+        val text = StringBuilder()
+        var position = -1
+        var anchor = -1
+        for (char in marked) {
+            when (char) {
+                '|' -> position = text.length
+                '^' -> anchor = text.length
+                else -> text.append(char)
+            }
+        }
+        if (position < 0) position = 0
+        if (anchor < 0) anchor = position
+        return Parsed(text.toString(), Caret(anchor, position))
+    }
+
+    /** [text] with the markers of [caret]. */
+    fun render(text: String, caret: Caret): String {
+        val marks = buildList {
+            add(caret.position to '|')
+            if (caret.hasSelection) add(caret.anchor to '^')
+        }.sortedByDescending { it.first }
+        val out = StringBuilder(text)
+        marks.forEach { (offset, mark) -> out.insert(offset, mark) }
+        return out.toString()
+    }
+}
+
+/** A clipboard in memory. */
+class FakeClipboard(var content: String? = null) : ClipboardPort {
+    override fun getText(): String? = content
+
+    override fun setText(text: String) {
+        content = text
+    }
+}
+
+/** Records the UI requests of actions. */
+class RecordingUiPort : EditorUiPort {
+    /** The requests in order, by name. */
+    val requests: MutableList<String> = mutableListOf()
+
+    override fun openFind(replace: Boolean) {
+        requests += if (replace) "openReplace" else "openFind"
+    }
+
+    override fun openGoToLine() {
+        requests += "openGoToLine"
+    }
+
+    override fun findNext() {
+        requests += "findNext"
+    }
+
+    override fun findPrevious() {
+        requests += "findPrevious"
+    }
+
+    override fun triggerCompletion() {
+        requests += "triggerCompletion"
+    }
+
+    override fun goToDefinition() {
+        requests += "goToDefinition"
+    }
+}
+
+/**
+ * Hand-built tokens for KStates test texts: no tokens, and the content of every `EVAL {…}` body (brace-balanced, to
+ * the end of the text when unclosed) as embedded region — what the KStates tokenizer publishes.
+ */
+fun evalBodies(snapshot: TextSnapshot): TokenizeResult {
+    val text = snapshot.text
+    val regions = ArrayList<TextRange>()
+    var from = 0
+    while (true) {
+        val eval = text.indexOf("EVAL", from)
+        if (eval < 0) break
+        val open = text.indexOf('{', eval)
+        if (open < 0) break
+        var depth = 1
+        var index = open + 1
+        while (index < text.length && depth > 0) {
+            when (text[index]) {
+                '{' -> depth++
+                '}' -> depth--
+            }
+            if (depth > 0) index++
+        }
+        regions += TextRange(open + 1, index.coerceAtMost(text.length))
+        from = index
+    }
+    return TokenizeResult(snapshot.version, emptyList(), emptyList(), regions)
+}

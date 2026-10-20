@@ -53,16 +53,44 @@ public interface EditorKeymap {
 public fun defaultEditorKeymap(platform: HostPlatform = HostPlatform.current()): EditorKeymap =
     DefaultEditorKeymap(platform)
 
+/** Default [EditorActionRegistry]: the actions by id. */
 internal class DefaultEditorActionRegistry(actions: Collection<EditorAction>) : EditorActionRegistry {
     override val actions: Collection<EditorAction> = actions
 
-    override fun get(id: String): EditorAction? = TODO("WP-EDITOR-MODEL: action lookup")
+    private val byId: Map<String, EditorAction> = actions.associateBy(EditorAction::id)
 
-    override fun execute(id: String, context: EditorActionContext): Boolean = TODO("WP-EDITOR-MODEL: execute action")
+    init {
+        val duplicates = actions.groupBy(EditorAction::id).filterValues { it.size > 1 }.keys
+        require(duplicates.isEmpty()) { "editor action ids must be unique, duplicated: $duplicates" }
+    }
+
+    override fun get(id: String): EditorAction? = byId[id]
+
+    override fun execute(id: String, context: EditorActionContext): Boolean {
+        val action = byId[id] ?: return false
+        return action.isEnabled(context) && action.execute(context)
+    }
 }
 
+/**
+ * Default [EditorKeymap]: the bindings of [defaultKeyBindings] for [platform], resolved to physical key strokes once.
+ * Every stroke has at most one action (checked); [shortcutFor] answers an action's first binding.
+ */
 internal class DefaultEditorKeymap(override val platform: HostPlatform) : EditorKeymap {
-    override fun actionFor(stroke: KeyStroke): String? = TODO("WP-EDITOR-MODEL: keymap lookup")
 
-    override fun shortcutFor(actionId: String): KeyShortcut? = TODO("WP-EDITOR-MODEL: shortcut lookup")
+    private val bindings: List<KeyBinding> = defaultKeyBindings(platform)
+
+    private val actionByStroke: Map<KeyStroke, String> = bindings.associate { it.shortcut.strokeFor(platform) to it.actionId }
+
+    private val shortcutByAction: Map<String, KeyShortcut> =
+        bindings.groupBy(KeyBinding::actionId).mapValues { (_, bound) -> bound.first().shortcut }
+
+    init {
+        val strokes = bindings.groupBy { it.shortcut.strokeFor(platform) }.filterValues { it.size > 1 }
+        require(strokes.isEmpty()) { "key strokes bound twice on $platform: ${strokes.keys}" }
+    }
+
+    override fun actionFor(stroke: KeyStroke): String? = actionByStroke[stroke]
+
+    override fun shortcutFor(actionId: String): KeyShortcut? = shortcutByAction[actionId]
 }

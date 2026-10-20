@@ -1,0 +1,50 @@
+package io.karpfen.ide.ui.editor.model.action
+
+import io.karpfen.ide.core.text.Bias
+import io.karpfen.ide.core.text.CaretMemento
+import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.ui.editor.model.caret.Caret
+
+/**
+ * Where offsets land after an action's *own* [edits] (non-overlapping, coordinates of the text before them): an
+ * action that edits several places (indent, toggle comment, replace all) computes its `caretsAfter` with it before it
+ * applies the edits, because `EditableText.apply` records the caret mementos together with the change. Carets of
+ * changes made elsewhere are not computed here; the `CaretModel` maps them through the text's history.
+ *
+ * An offset before an edit stays, one after it shifts by the edit's length delta, one inside a replaced range goes to
+ * the start ([Bias.LEFT]) or the end ([Bias.RIGHT]) of the replacement; at an insertion point the bias decides as well.
+ */
+internal class EditShift(edits: List<TextEdit>) {
+
+    private val sorted = edits.sortedBy { it.range.start }
+
+    /** [offset] after the edits. */
+    fun offset(offset: Int, bias: Bias): Int {
+        var delta = 0
+        for (edit in sorted) {
+            val range = edit.range
+            when {
+                range.isEmpty && (range.start < offset || (range.start == offset && bias == Bias.RIGHT)) ->
+                    delta += edit.newText.length
+                range.isEmpty -> break
+                range.end <= offset -> delta += edit.lengthDelta
+                range.start < offset ->
+                    return range.start + delta + if (bias == Bias.RIGHT) edit.newText.length else 0
+                else -> break
+            }
+        }
+        return offset + delta
+    }
+
+    /**
+     * [caret] after the edits: a selection keeps its direction and grows over text inserted at its bounds (start
+     * [Bias.LEFT], end [Bias.RIGHT], so indenting or commenting whole lines keeps them selected); a caret without
+     * selection moves along ([Bias.RIGHT]).
+     */
+    fun caret(caret: Caret): CaretMemento {
+        if (!caret.hasSelection) return CaretMemento.at(offset(caret.position, Bias.RIGHT))
+        val start = offset(caret.selection.start, Bias.LEFT)
+        val end = offset(caret.selection.end, Bias.RIGHT)
+        return if (caret.anchor <= caret.position) CaretMemento(start, end) else CaretMemento(end, start)
+    }
+}
