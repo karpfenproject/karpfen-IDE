@@ -1,0 +1,29 @@
+type "Point" "A point in 2D space" {
+    prop("x", "number")
+    prop("y", "number")
+}
+
+type "TwoDObject" "A two-dimensional object with a position and diameter" {
+    prop("diameter", "number")
+    has("position", "Point")
+}
+
+type "Obstacle" "An obstacle in the room" {
+    has("boundingBox", "TwoDObject")
+}
+
+type "Robot" "A cleaning robot that can move around the room and log its actions" {
+    prop("speed", "number")
+    prop("log", list("string"))
+    has("boundingBox", "TwoDObject")
+    knows("obstacles", list("Obstacle"))
+}
+
+type "Room" "A room that contains a robot and obstacles" {
+    has("robot", "Robot")
+    has("obstacles", list("Obstacle"))
+    has("top_left", "Point")
+    has("top_right", "Point")
+    has("bottom_left", "Point")
+    has("bottom_right", "Point")
+}

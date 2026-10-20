@@ -1,0 +1,23 @@
+# Every example file below this directory, one path per line (relative, '/'-separated).
+# Read by io.karpfen.ide.core.document.fixtures.Examples; ExamplesFixtureTest checks it against the directory.
+karpfen-dsl-tools/metamodel_dsl_example.kmeta
+karpfen-dsl-tools/model_dsl_example.kmodel
+karpfen-dsl-tools/statemachine_full_example/cleaning_robot.kmeta
+karpfen-dsl-tools/statemachine_full_example/cleaning_robot.kmodel
+karpfen-dsl-tools/statemachine_full_example/cleaning_robot.kstates
+karpfen-runtime/autonomous_car_example/EVENTS.kmeta
+karpfen-runtime/autonomous_car_example/autonomous_car.kmeta
+karpfen-runtime/autonomous_car_example/autonomous_car.kmodel
+karpfen-runtime/autonomous_car_example/autonomous_car.kstates
+karpfen-runtime/delivery_drone_example/EVENTS.kmeta
+karpfen-runtime/delivery_drone_example/delivery_drone.kmeta
+karpfen-runtime/delivery_drone_example/delivery_drone.kmodel
+karpfen-runtime/delivery_drone_example/delivery_drone.kstates
+karpfen-runtime/drone_swarm_example/EVENTS.kmeta
+karpfen-runtime/drone_swarm_example/drone_swarm.kmeta
+karpfen-runtime/drone_swarm_example/drone_swarm.kmodel
+karpfen-runtime/drone_swarm_example/drone_swarm.kstates
+karpfen-runtime/single_robot_example/EVENTS.kmeta
+karpfen-runtime/single_robot_example/cleaning_robot.kmeta
+karpfen-runtime/single_robot_example/cleaning_robot.kmodel
+karpfen-runtime/single_robot_example/cleaning_robot.kstates

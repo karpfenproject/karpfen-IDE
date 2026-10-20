@@ -1,0 +1,48 @@
+make object "APB 2101":"Room" {
+    has("top_left") -> make object "topLeftPoint":"Point" {
+        prop("x") -> "0.0"
+        prop("y") -> "10.0"
+    }
+    has("top_right") -> make object "topRightPoint":"Point" {
+        prop("x") -> "10.0"
+        prop("y") -> "10.0"
+    }
+    has("bottom_left") -> make object "bottomLeftPoint":"Point" {
+        prop("x") -> "0.0"
+        prop("y") -> "0.0"
+    }
+    has("bottom_right") -> make object "bottomRightPoint":"Point" {
+        prop("x") -> "0.0"
+        prop("y") -> "0.0"
+    }
+    has("obstacles") -> make object "chair":"Obstacle" {
+        has("boundingBox") -> make object "chairBoundingBox":"TwoDObject" {
+            prop("diameter") -> "1.0"
+            has("position") -> make object "chairPosition":"Point" {
+                prop("x") -> "2.0"
+                prop("y") -> "3.0"
+            }
+        }
+    }
+    has("obstacles") -> make object "table":"Obstacle" {
+        has("boundingBox") -> make object "tableBoundingBox":"TwoDObject" {
+            prop("diameter") -> "3.0"
+            has("position") -> make object "tablePosition":"Point" {
+                prop("x") -> "5.0"
+                prop("y") -> "7.0"
+            }
+        }
+    }
+    has("robot") -> make object "turtle":"Robot" {
+        prop("speed") -> "1.0"
+        has("boundingBox") -> make object "turtleBoundingBox":"TwoDObject" {
+            prop("diameter") -> "1.0"
+            has("position") -> make object "turtlePosition":"Point" {
+                prop("x") -> "5.0"
+                prop("y") -> "5.0"
+            }
+        }
+        knows("obstacles") -> "chair"
+        knows("obstacles") -> "table"
+    }
+}
