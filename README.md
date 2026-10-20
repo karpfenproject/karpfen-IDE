@@ -110,8 +110,10 @@ mode until dsl-tools publishes artifacts (ADR 0010).
 
 Requirements:
 
-- A JDK 17 or newer to run Gradle (JDK 21 recommended). The JDK 21 toolchain used for compiling is taken from the local
-  installations or provisioned automatically through the foojay resolver.
+- A JDK 17 or newer to run Gradle (JDK 21 recommended). Everything else uses the JDK 21 toolchain, which is taken from
+  the local installations or provisioned automatically through the foojay resolver: compiling, tests, the `run` tasks
+  and packaging. For `app/ide`, the Compose `javaHome` is pinned to that toolchain, so `:app:ide:run`, jlink/jpackage
+  and the runtime bundled into the app image are JDK 21 even when Gradle runs on an older JDK.
 - Network access to the Gradle Plugin Portal, Maven Central and Google Maven; for automatic JDK provisioning also to
   the foojay discovery API (`api.foojay.io`) and the JDK vendor's download host.
 

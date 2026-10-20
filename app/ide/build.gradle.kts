@@ -13,6 +13,10 @@ dependencies {
 compose.desktop {
     application {
         mainClass = "io.karpfen.ide.app.MainKt"
+        // `run`, jlink/jpackage and the runtime bundled into the app image come from javaHome, which defaults to the
+        // JDK that runs Gradle, not to the toolchain. Gradle may run on JDK 17, but the classes target the JDK 21
+        // toolchain (karpfen.kotlin-jvm), so pin javaHome to that toolchain.
+        javaHome = javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath.asFile.absolutePath
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "karpfen-ide"
