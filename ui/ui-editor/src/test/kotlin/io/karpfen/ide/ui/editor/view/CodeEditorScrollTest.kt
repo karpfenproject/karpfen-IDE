@@ -8,8 +8,8 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.test.withKeyDown
-import io.karpfen.ide.ui.editor.state.FakeLanguageServices
 import io.karpfen.ide.ui.editor.state.EditorViewport
+import io.karpfen.ide.ui.editor.state.FakeLanguageServices
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -33,7 +33,8 @@ class CodeEditorScrollTest {
         val viewport = state.viewport.state.value
         val top = caretLine() * viewport.lineHeight
         val above = minOf(margin, caretLine()) * viewport.lineHeight
-        return top - above >= viewport.scrollY - 0.5f && top + (margin + 1) * viewport.lineHeight <= viewport.scrollY + viewport.viewportHeight + 0.5f
+        val bottom = top + (margin + 1) * viewport.lineHeight
+        return top - above >= viewport.scrollY - 0.5f && bottom <= viewport.scrollY + viewport.viewportHeight + 0.5f
     }
 
     @Test

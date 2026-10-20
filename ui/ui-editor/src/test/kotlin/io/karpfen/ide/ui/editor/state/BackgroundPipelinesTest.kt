@@ -93,7 +93,9 @@ class BackgroundPipelinesTest {
     @Test
     fun `the bracket match follows the caret`() = editorTest(
         "( )",
-        services = FakeLanguageServices(brackets = { _, offset -> if (offset == 0) BracketMatch(TextRange(0, 1), TextRange(2, 3)) else null }),
+        services = FakeLanguageServices(
+            brackets = { _, offset -> if (offset == 0) BracketMatch(TextRange(0, 1), TextRange(2, 3)) else null },
+        ),
     ) { harness ->
         advanceUntilIdle()
         assertEquals(BracketMatchSnapshot(0, BracketMatch(TextRange(0, 1), TextRange(2, 3))), harness.state.bracketMatch.value)

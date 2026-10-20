@@ -7,10 +7,10 @@ import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextRange
-import io.karpfen.ide.ui.editor.model.action.EditorKeymap
-import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.editor.model.action.ClipboardPort
 import io.karpfen.ide.ui.editor.model.action.EditorActionRegistry
+import io.karpfen.ide.ui.editor.model.action.EditorKeymap
+import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyCode
 import io.karpfen.ide.ui.foundation.keys.KeyModifier

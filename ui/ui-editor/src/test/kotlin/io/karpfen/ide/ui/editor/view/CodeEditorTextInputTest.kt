@@ -75,7 +75,9 @@ class CodeEditorTextInputTest {
 
     @Test
     fun `a stroke the editor handled does not type its character`() = runComposeUiTest {
-        val items = { offset: Int -> listOf(CompletionItem("STATE", CompletionKind.KEYWORD, "STATE", TextRange.empty(offset), null, null, null, "s")) }
+        val items = { offset: Int ->
+            listOf(CompletionItem("STATE", CompletionKind.KEYWORD, "STATE", TextRange.empty(offset), null, null, null, "s"))
+        }
         val ui = EditorUi(this, FakeLanguageServices(completions = { _, offset -> items(offset) }))
         ui.compose("")
         ui.editor.requestFocus()

@@ -100,8 +100,17 @@ class EditorUi(private val test: ComposeUiTest, val services: FakeLanguageServic
     /** The centre of the character at [offset] in text-area coordinates. */
     fun centerOf(offset: Int): Offset = checkNotNull(host.boundsOf(offset)) { "offset $offset is not laid out" }.center
 
-    /** Composes the editor over [initialText] in a box of [width] x [height]; [beforeComposition] runs on the new state first. */
-    fun compose(initialText: String, width: Dp = 600.dp, height: Dp = 300.dp, beforeComposition: (CodeEditorState) -> Unit = {}) {
+    /**
+     * Composes the editor over [initialText] in a box of [width] x [height] with [slots] as overlays;
+     * [beforeComposition] runs on the new state before the editor is composed.
+     */
+    fun compose(
+        initialText: String,
+        width: Dp = 600.dp,
+        height: Dp = 300.dp,
+        slots: EditorOverlays = overlays,
+        beforeComposition: (CodeEditorState) -> Unit = {},
+    ) {
         test.setContent {
             val scope = rememberCoroutineScope()
             val editorState = remember {
@@ -129,7 +138,7 @@ class EditorUi(private val test: ComposeUiTest, val services: FakeLanguageServic
                     state = editorState,
                     modifier = Modifier.fillMaxSize().testTag(EditorTestTags.EDITOR),
                     onNavigate = { navigated += it },
-                    overlays = overlays,
+                    overlays = slots,
                     theme = lightEditorTheme(),
                 )
             }

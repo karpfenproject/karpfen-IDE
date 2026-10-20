@@ -34,6 +34,12 @@ class PointerPolicyTest {
 
     private fun navigating() = FakeLanguageServices(definitions = { _, _ -> listOf(target) })
 
+    private fun completingX() = FakeLanguageServices(
+        completions = { _, offset ->
+            listOf(CompletionItem("x", CompletionKind.KEYWORD, "x", TextRange.empty(offset), null, null, null, "x"))
+        },
+    )
+
     /** Collects the navigation requests of [harness] from now on. */
     private fun TestScope.navigations(harness: EditorStateHarness): List<Location> {
         val received = mutableListOf<Location>()
@@ -133,9 +139,7 @@ class PointerPolicyTest {
     @Test
     fun `every press closes completion and the context menu, hides the hover and requests focus`() = editorTest(
         text,
-        services = FakeLanguageServices(
-            completions = { _, offset -> listOf(CompletionItem("x", CompletionKind.KEYWORD, "x", TextRange.empty(offset), null, null, null, "x")) },
-        ),
+        services = completingX(),
     ) { harness ->
         harness.state.execute(EditorActionIds.COMPLETION)
         advanceUntilIdle()
@@ -166,9 +170,7 @@ class PointerPolicyTest {
     @Test
     fun `focus loss closes completion and the hover and updates isFocused`() = editorTest(
         text,
-        services = FakeLanguageServices(
-            completions = { _, offset -> listOf(CompletionItem("x", CompletionKind.KEYWORD, "x", TextRange.empty(offset), null, null, null, "x")) },
-        ),
+        services = completingX(),
     ) { harness ->
         harness.state.onFocusChanged(true)
         assertTrue(harness.state.isFocused.value)

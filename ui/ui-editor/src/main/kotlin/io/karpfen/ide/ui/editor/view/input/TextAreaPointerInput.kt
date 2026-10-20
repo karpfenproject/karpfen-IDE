@@ -16,6 +16,7 @@ import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
+import androidx.compose.ui.unit.IntSize
 import io.karpfen.ide.ui.editor.state.EditorViewModel
 import io.karpfen.ide.ui.editor.state.EditorViewport
 import io.karpfen.ide.ui.editor.view.geometry.TextAreaFrame
@@ -72,7 +73,8 @@ internal fun Modifier.textAreaPointerInput(model: EditorViewModel, frame: () -> 
                             frame()?.let { model.pointerDragged(it.offsetAt(last.x, last.y)) }
                             val outside = last.x < 0f || last.y < 0f || last.x > size.width || last.y > size.height
                             if (outside && autoScroll?.isActive != true) {
-                                autoScroll = timers.launch { autoScroll(model, frame, { last }, size.width.toFloat(), size.height.toFloat()) }
+                                val area = size
+                                autoScroll = timers.launch { autoScroll(model, frame, { last }, area) }
                             } else if (!outside) {
                                 autoScroll?.cancel()
                             }
@@ -128,14 +130,14 @@ private suspend fun CoroutineScope.autoScroll(
     model: EditorViewModel,
     frame: () -> TextAreaFrame?,
     last: () -> Offset,
-    width: Float,
-    height: Float,
+    area: IntSize,
 ) {
     while (isActive) {
         delay(AutoScroll.INTERVAL_MILLIS)
         val at = frame() ?: return
         val position = last()
-        val (dx, dy) = AutoScroll.step(position.x, position.y, width, height, at.geometry.lineHeight * AUTO_SCROLL_MAX_LINES)
+        val maxStep = at.geometry.lineHeight * AUTO_SCROLL_MAX_LINES
+        val (dx, dy) = AutoScroll.step(position.x, position.y, area.width.toFloat(), area.height.toFloat(), maxStep)
         if (dx == 0f && dy == 0f) return
         model.viewport.scrollBy(dx, dy)
         frame()?.let { model.pointerDragged(it.offsetAt(position.x, position.y)) }

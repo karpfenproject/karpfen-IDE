@@ -2,9 +2,9 @@ package io.karpfen.ide.ui.editor.state
 
 import io.karpfen.ide.core.lang.BracketMatch
 import io.karpfen.ide.core.lang.CompletionItem
-import io.karpfen.ide.core.lang.Hover
 import io.karpfen.ide.core.lang.HighlightSpan
 import io.karpfen.ide.core.lang.HighlightStyle
+import io.karpfen.ide.core.lang.Hover
 import io.karpfen.ide.core.lang.LanguageDocument
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location

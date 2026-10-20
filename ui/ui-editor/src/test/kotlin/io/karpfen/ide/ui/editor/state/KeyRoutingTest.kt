@@ -30,7 +30,9 @@ class KeyRoutingTest {
     private fun completing() = FakeLanguageServices(completions = { _, offset -> items(offset) })
 
     private fun typingAlpha() = FakeLanguageServices(
-        completions = { _, offset -> listOf(CompletionItem("alpha", CompletionKind.KEYWORD, "alpha", TextRange(0, offset), null, null, null, "a")) },
+        completions = { _, offset ->
+            listOf(CompletionItem("alpha", CompletionKind.KEYWORD, "alpha", TextRange(0, offset), null, null, null, "a"))
+        },
     )
 
     @Test

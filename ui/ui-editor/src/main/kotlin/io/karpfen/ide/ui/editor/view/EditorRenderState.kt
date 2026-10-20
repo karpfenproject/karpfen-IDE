@@ -67,7 +67,11 @@ internal class EditorRenderState(
         if (carets.version == snapshot.version) return carets.carets
         val text = editor.session.text
         fun point(offset: Int): Int {
-            val mapped = if (carets.version < snapshot.version) text.mapOffset(offset, carets.version, snapshot.version, Bias.RIGHT) else null
+            val mapped = if (carets.version < snapshot.version) {
+                text.mapOffset(offset, carets.version, snapshot.version, Bias.RIGHT)
+            } else {
+                null
+            }
             return (mapped ?: offset).coerceIn(0, snapshot.length)
         }
         return carets.carets.map { Caret(point(it.anchor), point(it.position)) }
@@ -82,7 +86,9 @@ internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorThem
     val themeState = rememberUpdatedState(theme)
     val fontSize = settings.value.fontSize
     val textStyle = rememberUpdatedState(
-        remember(theme.foreground, fontSize) { TextStyle(fontFamily = FontFamily.Monospace, fontSize = fontSize.sp, color = theme.foreground) },
+        remember(theme.foreground, fontSize) {
+            TextStyle(fontFamily = FontFamily.Monospace, fontSize = fontSize.sp, color = theme.foreground)
+        },
     )
     val measurer = rememberTextMeasurer(cacheSize = 0)
     val metrics = rememberUpdatedState(rememberEditorMetrics(measurer, textStyle.value))
