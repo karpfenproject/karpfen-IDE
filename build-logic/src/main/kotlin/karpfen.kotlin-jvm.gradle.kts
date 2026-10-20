@@ -25,6 +25,10 @@ kotlin {
 }
 
 dependencies {
+    // One kotlinx version across all modules (and their tests), whatever the transitive graph of a module pulls in.
+    implementation(platform(libs.findLibrary("kotlinx-coroutines-bom").get()))
+    implementation(platform(libs.findLibrary("kotlinx-serialization-bom").get()))
+
     testImplementation(platform(libs.findLibrary("junit-bom").get()))
     testImplementation(libs.findBundle("testing").get())
     testRuntimeOnly(libs.findLibrary("junit-platform-launcher").get())

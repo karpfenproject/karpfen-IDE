@@ -29,6 +29,10 @@ karpfen-dsl-tools = { module = "io.karpfen:karpfen-dsl-tools", version.ref = "ka
 antlr4-runtime = { module = "org.antlr:antlr4-runtime", version.ref = "antlr" }
 
 # --- kotlinx -----------------------------------------------------------------------------------
+# The BOMs are applied to every module by karpfen.kotlin-jvm, so transitive dependencies (Compose, Ktor) cannot pull
+# a module down to an older kotlinx version than the one the app ships with.
+kotlinx-coroutines-bom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }
+kotlinx-serialization-bom = { module = "org.jetbrains.kotlinx:kotlinx-serialization-bom", version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
