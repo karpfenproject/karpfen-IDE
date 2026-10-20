@@ -106,7 +106,9 @@ the configuration cache; add `--no-configuration-cache` for those until dsl-tool
 sources (architecture proposal §5.1, item 6).
 
 CI clones dsl-tools at a pinned commit (`DSL_TOOLS_REF` in `.github/workflows/build.yml`) and builds in composite
-mode until dsl-tools publishes artifacts (ADR 0010).
+mode until dsl-tools publishes artifacts (ADR 0010). CI caches the Gradle User Home with the MIT-licensed basic
+provider of `gradle/actions/setup-gradle` (`cache-provider: basic`); its default, enhanced caching, is a proprietary
+component under the Gradle Technologies Terms of Use and has not been chosen.
 
 ## Build and run
 

@@ -1,6 +1,6 @@
 # 10. karpfen-dsl-tools resolution: composite build or artifact
 
-- Status: Accepted; amends [ADR 0003](0003-dsl-tools-is-the-language-core.md) for CI until dsl-tools is published
+- Status: Accepted; partially supersedes [ADR 0003](0003-dsl-tools-is-the-language-core.md) (CI part) until dsl-tools is published
 - Date: 2026-10-20
 - Source: architecture proposal D2, §5.1 (dependency mechanics), §8 (pin dsl-tools), §9 item 4
 

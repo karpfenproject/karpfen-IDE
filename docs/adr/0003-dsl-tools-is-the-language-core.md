@@ -1,6 +1,6 @@
 # 3. karpfen-dsl-tools is the language core; the IDE adds only editor concerns
 
-- Status: Accepted (decided by the owner); CI part temporarily amended by [ADR 0010](0010-dsl-tools-resolution-modes.md)
+- Status: Accepted (decided by the owner); CI part partially superseded by [ADR 0010](0010-dsl-tools-resolution-modes.md) until dsl-tools is published
 - Date: 2026-10-20
 - Source: architecture proposal D2, §5.1
 
