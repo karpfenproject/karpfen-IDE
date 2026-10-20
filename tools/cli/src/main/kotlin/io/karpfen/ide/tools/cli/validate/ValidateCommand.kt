@@ -2,6 +2,10 @@ package io.karpfen.ide.tools.cli.validate
 
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
+import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.job
 import java.nio.file.Path
 
 /**
@@ -21,6 +25,31 @@ public class ValidateCommand(
     private val outputGuard: StandardOutputGuard = StandardOutputGuard(),
     private val workspaceFactory: WorkspaceFactory = WorkspaceFactory(WorkspaceOptions(watch = false)),
 ) {
-    /** Validates [directory]. */
-    public suspend fun run(directory: Path): ValidationReport = TODO("WP-APP: validate a directory")
+    /**
+     * Validates [directory]: every problem of the workspace, with paths relative to the directory (see
+     * [ValidationReport]). The returned report is complete; printing it is the caller's job.
+     *
+     * @throws IllegalArgumentException if [directory] is not a directory (from the workspace factory).
+     */
+    public suspend fun run(directory: Path): ValidationReport {
+        val root = directory.toAbsolutePath().normalize()
+        val problems = outputGuard.silenced { collectProblems(root) }
+        return problems.toValidationReport(root)
+    }
+
+    /**
+     * One workspace run in a child scope: the workspace is closed and every coroutine it started is cancelled before
+     * this returns (also on failure), so no analysis can print after the guard restored the streams.
+     */
+    private suspend fun collectProblems(root: Path): WorkspaceProblems = coroutineScope {
+        val workspace = workspaceFactory.open(root, this)
+        try {
+            workspace.refresh()
+            workspace.awaitAnalysis()
+            workspace.problems.value
+        } finally {
+            workspace.close()
+            coroutineContext.job.cancelChildren()
+        }
+    }
 }

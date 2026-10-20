@@ -1,10 +1,16 @@
 package io.karpfen.ide.tools.cli
 
-/** One-line usage of the karpfen command-line tool (phase-0 stub: no command is implemented yet). */
-public const val USAGE: String =
-    "Usage: karpfen <validate|format|deploy|export-layout> [options]  (phase-0 stub, no command is implemented)"
+import kotlinx.coroutines.runBlocking
+import kotlin.system.exitProcess
 
-/** Entry point of the karpfen command-line tool. */
-public fun main() {
-    println(USAGE)
+/** One-line usage of the karpfen command-line tool. */
+public const val USAGE: String = "Usage: karpfen validate <dir> [--format text|json]"
+
+/**
+ * Entry point of the karpfen command-line tool (start script `karpfen`): runs the command line and exits with its
+ * status, see [ExitCodes] (0 clean, 1 if `validate` found an ERROR, 2 for invalid arguments, 3 on an internal failure).
+ */
+public fun main(args: Array<String>) {
+    val status = runBlocking { KarpfenCli().execute(args.asList()) }
+    exitProcess(status)
 }
