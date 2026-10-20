@@ -4,6 +4,8 @@ plugins {
 
 application {
     mainClass = "io.karpfen.ide.tools.cli.MainKt"
+    // Start script name (build/install/karpfen/bin/karpfen), matching the usage line.
+    applicationName = "karpfen"
 }
 
 dependencies {

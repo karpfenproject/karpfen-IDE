@@ -10,7 +10,10 @@ dependencies {
         // plugin; the generated parsers only need the runtime, which is pinned below.
         exclude(group = "org.antlr", module = "antlr4")
     }
-    implementation(libs.antlr4.runtime)
+    // api, not implementation: the excluded antlr4 was what carried the runtime onto consumers' compile classpaths,
+    // and dsl-tools' public lexers/parsers (kmeta.KmetaLexer, ...) extend org.antlr.v4.runtime types. Downstream
+    // modules (e.g. tokenizer-based highlighting in core-lang/ui-editor, D2) must see those supertypes.
+    api(libs.antlr4.runtime)
 }
 
 // Composite mode (docs/adr/0010-dsl-tools-resolution-modes.md): the build script of karpfen-dsl-tools is not

@@ -4,6 +4,8 @@ plugins {
 
 application {
     mainClass = "io.karpfen.ide.bridges.runner.MainKt"
+    // Start script name (build/install/karpfen-bridge-runner/bin/karpfen-bridge-runner), matching the usage line.
+    applicationName = "karpfen-bridge-runner"
 }
 
 dependencies {

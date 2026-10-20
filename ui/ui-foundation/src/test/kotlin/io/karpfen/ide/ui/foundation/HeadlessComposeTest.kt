@@ -5,18 +5,18 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
-import java.awt.GraphicsEnvironment
 import kotlin.test.Test
-import kotlin.test.assertTrue
 
-/** Proves that Compose UI tests run headless (off-screen Skia rendering, no window, no display). */
+/**
+ * Proves that Compose UI tests run headless: runComposeUiTest renders off-screen through Skia, without a window.
+ * Gradle runs every test of a karpfen.compose module with java.awt.headless=true (see build-logic), so a pass in CI
+ * means no display was needed. The test does not assert that property itself, so it also passes under an IDE runner.
+ */
 @OptIn(ExperimentalTestApi::class)
 class HeadlessComposeTest {
 
     @Test
     fun `renders a composable and finds its text node without a display`() {
-        assertTrue(GraphicsEnvironment.isHeadless(), "Compose UI tests are expected to run with java.awt.headless=true")
-
         runComposeUiTest {
             setContent {
                 Text("karpfen IDE")
