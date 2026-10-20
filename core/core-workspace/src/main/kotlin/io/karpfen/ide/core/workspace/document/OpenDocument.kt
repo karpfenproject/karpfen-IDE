@@ -40,8 +40,8 @@ public interface OpenDocument {
 
     /**
      * Resolves the current [conflict]: [ConflictResolution.RELOAD] replaces the text with the disk content as one
-     * undoable `External` change and marks the save point; [ConflictResolution.KEEP_MINE] keeps the buffer (the next
-     * save overwrites the disk). No-op without a conflict.
+     * undoable `External` change, marks the save point and replaces the FILE findings (see [DocumentManager]);
+     * [ConflictResolution.KEEP_MINE] keeps the buffer (the next save overwrites the disk). No-op without a conflict.
      * @throws IllegalArgumentException for RELOAD of a file deleted on disk.
      */
     public suspend fun resolveConflict(resolution: ConflictResolution)

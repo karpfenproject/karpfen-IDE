@@ -5,10 +5,14 @@ import io.karpfen.ide.core.document.language.LanguageSupport
 import io.karpfen.ide.core.document.parse.ParseOutcome
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.EditableText
+import io.karpfen.ide.core.text.TextSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
-/** Default [DocumentSession]: tokenize pipeline (mapLatest), debounced parse scheduler, diagnostics merger. */
+/**
+ * Default [DocumentSession]: tokenize pipeline (mapLatest), debounced parse scheduler, diagnostics merger (maps every
+ * source to the newest snapshot, then [mergeDiagnostics]; never a merge rule of its own).
+ */
 internal class DefaultDocumentSession(
     override val id: DocumentId,
     override val support: LanguageSupport,
@@ -29,7 +33,7 @@ internal class DefaultDocumentSession(
     override val diagnostics: StateFlow<VersionedDiagnostics>
         get() = TODO("WP-TOKENS: merged diagnostics")
 
-    override fun setExternalDiagnostics(source: String, version: Long, diagnostics: List<Diagnostic>): Unit =
+    override fun setExternalDiagnostics(source: String, snapshot: TextSnapshot, diagnostics: List<Diagnostic>): Unit =
         TODO("WP-TOKENS: external diagnostics")
 
     override fun close(): Unit = TODO("WP-TOKENS: cancel the session scope")

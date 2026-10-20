@@ -11,6 +11,7 @@ import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.analysis.AnalyzedFile
+import io.karpfen.ide.core.workspace.analysis.ContextAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.analysis.SourceText
 import io.karpfen.ide.core.workspace.problems.FileProblems
@@ -110,5 +111,26 @@ class WorkspaceContractTest {
         assertEquals(0, problems.warningCount)
         assertNull(problems.of(root.resolve("b.kmeta")))
         assertFailsWith<IllegalArgumentException> { FileProblems(analyzed.path, FileKind.KMETA, emptyList(), null, isOpen = false) }
+    }
+
+    @Test
+    fun `analyses list context files in context order before loose files`() {
+        val parse = ParseOutcome(
+            KarpfenLanguage.KMETA, 0, emptyList(), emptyList(), SyntaxIndex.EMPTY, emptyList(), emptyList(),
+            standaloneModel = null, standaloneDiagnostics = emptyList(),
+        )
+        fun analyzed(name: String) = AnalyzedFile(root.resolve(name), FileKind.of(name), TextSnapshot("", 0), parse)
+        fun context(vararg files: AnalyzedFile) = ContextAnalysis(
+            ModelingContext(root, null, files.first().path, null, emptyList(), emptyList()),
+            files.associateBy { it.path }, metamodel = null, events = null, models = emptyMap(), stateMachines = emptyMap(),
+        )
+        val first = context(analyzed("b.kmeta"), analyzed("shared.kmeta"))
+        val second = context(analyzed("a.kmeta"), analyzed("shared.kmeta"))
+        val loose = analyzed("loose.kmeta")
+        val analysis = ProjectAnalysis(1, listOf(first, second), emptyMap(), mapOf(loose.path to loose))
+
+        assertEquals(listOf("b.kmeta", "shared.kmeta", "a.kmeta", "loose.kmeta"), analysis.files.keys.map { it.fileName.toString() })
+        assertTrue(analysis.files[root.resolve("shared.kmeta")] === first.files[root.resolve("shared.kmeta")], "the first context wins")
+        assertTrue(analysis.file(root.resolve("shared.kmeta")) === analysis.files[root.resolve("shared.kmeta")])
     }
 }

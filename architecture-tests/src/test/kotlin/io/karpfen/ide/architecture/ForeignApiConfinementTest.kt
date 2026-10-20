@@ -45,6 +45,26 @@ class ForeignApiConfinementTest {
     }
 
     @Test
+    fun `inside core-document only the registry wires the adapter packages`() {
+        // The internal adapter API hands out foreign types (e.g. `LexedText.tokens: List<Token>`), which Kotlin's type
+        // inference lets a caller use without importing org.antlr; so the entry points themselves are confined: only
+        // the adapter packages and the registry (the Abstract Factory wiring them) may depend on them. Other modules
+        // reach the public `DslConverter` of the dsl package directly.
+        val registry = "io.karpfen.ide.core.document.registry"
+        val graph = PackageGraph.ofModule("core/core-document")
+        listOf(KarpfenModules.ANTLR_ADAPTER_PACKAGE, KarpfenModules.DSL_ADAPTER_PACKAGE).forEach { adapter ->
+            val violations = graph.edges
+                .filterKeys { source -> !source.isWithin(adapter) && source != registry }
+                .flatMap { (source, targets) -> targets.filter { it.isWithin(adapter) }.map { "$source -> $it" } }
+            assertTrue(violations.isEmpty(), "only $adapter.. and $registry may depend on $adapter..: $violations")
+            assertTrue(
+                graph.edges[registry].orEmpty().any { it.isWithin(adapter) },
+                "expected $registry -> $adapter..; is the rule still aimed at the right packages?",
+            )
+        }
+    }
+
+    @Test
     fun `the adapter packages exist and are where the foreign APIs are used`() {
         // Guards against vacuous rules: if a package were renamed, the confinement rules above would pass trivially.
         val antlrFiles = KarpfenModules.filesInPackage(KarpfenModules.ANTLR_ADAPTER_PACKAGE)

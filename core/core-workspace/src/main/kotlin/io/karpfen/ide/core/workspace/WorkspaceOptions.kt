@@ -18,7 +18,8 @@ import kotlin.time.TimeSource
  *   `.`) are always ignored as well.
  * @property ioDispatcher file I/O (scan, read, write).
  * @property analysisDispatcher project analysis (CPU).
- * @property sessionConfig configuration of the document sessions of opened files.
+ * @property sessionConfig base configuration of the document sessions of opened files (dispatchers, debounce); the
+ *   `DocumentManager` always uses it with `SemanticMode.SYNTAX_ONLY` (see `DocumentManager`, Semantic mode).
  * @property timeSource clock of the opened documents' `EditableText`s (undo coalescing, spec §2).
  */
 public data class WorkspaceOptions(

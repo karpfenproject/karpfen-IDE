@@ -20,10 +20,9 @@ internal class WorkspaceProblemsAggregator {
     ): WorkspaceProblems = TODO("WP-WORKSPACE: merge ${openDocuments.size} open documents into analysis ${analysis.generation}")
 }
 
-/** The current diagnostics of an open document and the snapshot of their version. */
+/** The current diagnostics of an open document (with the snapshot their ranges refer to). */
 internal data class OpenDocumentDiagnostics(
     val path: Path,
     val kind: FileKind,
     val diagnostics: VersionedDiagnostics,
-    val snapshot: TextSnapshot,
 )

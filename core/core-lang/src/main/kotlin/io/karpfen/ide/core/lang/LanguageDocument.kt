@@ -4,6 +4,7 @@ import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.parse.ParseOutcome
 import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.document.syntax.TokenizeResult
+import io.karpfen.ide.core.text.TextLineage
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import java.nio.file.Path
@@ -39,12 +40,15 @@ public data class LanguageDocument(
 
     public companion object {
         /**
-         * The current state of [session]: its text, the tokens of exactly that text (tokenized synchronously with the
-         * session's tokenizer when the session's tokens lag behind, e.g. right after an edit), the latest parse and the
-         * last good parse. The result is always [isConsistent].
+         * [session] as seen at [text] (default: its current snapshot; the completion source passes the snapshot a
+         * request was made for): the tokens of exactly that text (the session's own when their version matches, else
+         * tokenized synchronously with the session's tokenizer, e.g. right after an edit), the latest parse and the last
+         * good parse (possibly of other versions, see the staleness rule). The result is always [isConsistent].
+         *
+         * @param text a snapshot of `session.text` (same lineage).
          */
-        public fun of(session: DocumentSession): LanguageDocument {
-            val text = session.text.snapshot.value
+        public fun of(session: DocumentSession, text: TextSnapshot = session.text.snapshot.value): LanguageDocument {
+            require(text.lineage === session.text.lineage) { "the snapshot is not a version of the session's text" }
             val tokens = session.tokens.value.takeIf { it.version == text.version } ?: session.support.tokenizer.tokenize(text)
             return LanguageDocument(
                 path = session.id.path,
@@ -59,14 +63,32 @@ public data class LanguageDocument(
 }
 
 /**
- * A range in a file: the target of navigation (definition, references, problems).
+ * A range in a file: the target of navigation (definition, references, problems, outline).
  *
- * @property version the version of the text snapshot [range] was computed in: the request's `text.version` for the
- *   request's own document, `AnalyzedFile.snapshot.version` for another file of the modeling context; null if
- *   unknown. Navigation maps a versioned range into the open document's current text with `EditableText.mapOffset`
- *   when that is possible (version not newer than the current one, history not evicted) and clamps it otherwise.
+ * @property version the version of the text [range] was computed in: the version of the outcome the range came from —
+ *   the request's `text.version` for tokens or the current parse, the `lastGoodParse` version for a declaration only
+ *   known from the last good parse, `AnalyzedFile.snapshot.version` for another file of the modeling context, the
+ *   diagnostics' snapshot for a problem; null if unknown.
+ * @property lineage the [TextLineage] [version] counts in (the document's `text.lineage` for its own parses, the analyzed
+ *   snapshot's for other files); null if unknown. Navigation maps the range into the open document's current text
+ *   with `EditableText.mapOffset` only when [lineage] is that text's lineage and [version] is not newer than its current
+ *   version (and the history is not evicted); otherwise it clamps the range, because a version of another lineage
+ *   (e.g. of a document that was closed and reopened since) says nothing about this text.
  */
-public data class Location(public val path: Path, public val range: TextRange, public val version: Long? = null)
+public data class Location(
+    public val path: Path,
+    public val range: TextRange,
+    public val version: Long? = null,
+    public val lineage: TextLineage? = null,
+) {
+    init {
+        require(lineage == null || version != null) { "a lineage needs a version" }
+    }
+
+    /** A location of [range] in [snapshot] of the file [path] (version and lineage from [snapshot]). */
+    public constructor(path: Path, range: TextRange, snapshot: TextSnapshot) :
+        this(path, range, snapshot.version, snapshot.lineage)
+}
 
 /** Hover content for [range]: plain text, possibly several lines (no markup). */
 public data class Hover(public val range: TextRange, public val text: String)

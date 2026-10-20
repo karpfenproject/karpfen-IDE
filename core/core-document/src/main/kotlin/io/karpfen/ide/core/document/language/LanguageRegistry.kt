@@ -18,7 +18,10 @@ public interface LanguageRegistry {
      */
     public fun support(language: KarpfenLanguage): LanguageSupport
 
-    /** The language of the first registered support that [LanguageSupport.matches] [fileName], or null. */
+    /**
+     * The language of a file named [fileName] (`KarpfenLanguage.fromFileName`, the one file-name rule) if it is
+     * registered, else null.
+     */
     public fun languageOf(fileName: String): KarpfenLanguage?
 
     /** The support for a file named [fileName], or null if its language is not registered. */
@@ -35,7 +38,7 @@ public fun LanguageRegistry(supports: Collection<LanguageSupport>): LanguageRegi
     return MapLanguageRegistry(byLanguage)
 }
 
-/** Supports in registration order; file names are resolved by asking each support ([LanguageSupport.matches]). */
+/** Supports by language; file names are resolved with `KarpfenLanguage.fromFileName`. */
 private class MapLanguageRegistry(private val byLanguage: Map<KarpfenLanguage, LanguageSupport>) : LanguageRegistry {
 
     override val languages: Set<KarpfenLanguage> = byLanguage.keys
@@ -44,5 +47,5 @@ private class MapLanguageRegistry(private val byLanguage: Map<KarpfenLanguage, L
         requireNotNull(byLanguage[language]) { "language $language is not registered (registered: $languages)" }
 
     override fun languageOf(fileName: String): KarpfenLanguage? =
-        byLanguage.values.firstOrNull { it.matches(fileName) }?.language
+        KarpfenLanguage.fromFileName(fileName)?.takeIf { it in byLanguage }
 }

@@ -13,8 +13,10 @@ package io.karpfen.ide.core.lang
  * - For [complete], [definition], [references], [hover] and [matchingBracket] the document's tokens belong to its
  *   text ([LanguageDocument.isConsistent]; `LanguageDocument.of(session)` guarantees it); its parse outcomes may be
  *   older and are used by the staleness rule documented on [LanguageDocument].
- * - Ranges in results are in the request's text coordinates, except [Location]s in other files, which carry the
- *   version of the analyzed snapshot they refer to ([Location.version]).
+ * - Ranges of highlight spans, completion items, hovers and bracket matches are in the request's text coordinates.
+ *   Every [Location] carries the version and lineage of the outcome its range came from ([Location.version]: the
+ *   request's text or current parse, the last good parse for declarations only known from it, the analyzed snapshot
+ *   for other files), so navigation can map it into the live text.
  */
 public interface LanguageServices {
 

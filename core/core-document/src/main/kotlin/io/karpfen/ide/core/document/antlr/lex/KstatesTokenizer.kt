@@ -13,7 +13,9 @@ import io.karpfen.ide.core.text.TextSnapshot
  * - EVAL bodies and their content come from `EvalBodies.find`/`scan` (shared with the tree walker, so highlighting and
  *   references agree): CODE → EMBEDDED_CODE, KEYWORD → EMBEDDED_KEYWORD, STRING → EMBEDDED_STRING, NUMBER →
  *   EMBEDDED_NUMBER, COMMENT (`#`) → EMBEDDED_COMMENT, PATH_REFERENCE / MACRO_REFERENCE → the token kinds of the same
- *   name, KARPFEN_COMMENT (`//`) → COMMENT plus an `eval-double-slash` WARNING (source IDE).
+ *   name, KARPFEN_COMMENT (`//`) → COMMENT plus an `eval-double-slash` WARNING (source IDE). The bodies' content
+ *   ranges (`EvalBody.content`) are published as `TokenizeResult.embeddedRegions`, the one answer to "is this offset
+ *   embedded Python?" for the editor and core-lang.
  * - `EVENT` is an OPERATION inside action blocks and a KEYWORD inside CONDITION blocks (block structure tracked on the
  *   brace tokens).
  */

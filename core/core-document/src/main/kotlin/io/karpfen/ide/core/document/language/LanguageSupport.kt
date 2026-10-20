@@ -11,14 +11,12 @@ import io.karpfen.ide.core.document.syntax.Tokenizer
  * a test in core-lang checks that every registered language has features.
  */
 public interface LanguageSupport {
-    /** The supported language. */
-    public val language: KarpfenLanguage
-
     /**
-     * True if this support handles a file named [fileName] (a name, not a path). The registry resolves file names
-     * through this strategy; the default matches the language's extension, ignoring case.
+     * The supported language. File names map to languages by one closed rule, `KarpfenLanguage.fromFileName` (the
+     * enum's extension), used by the registry and by core-workspace's `FileKind` alike (decision 20 of the
+     * work-package plan).
      */
-    public fun matches(fileName: String): Boolean = KarpfenLanguage.fromFileName(fileName) == language
+    public val language: KarpfenLanguage
 
     /** Tokenizer for highlighting (never throws). */
     public val tokenizer: Tokenizer

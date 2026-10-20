@@ -18,6 +18,9 @@ public interface EditableText {
     /** The current snapshot. Starts at version 0 with the initial text. */
     public val snapshot: StateFlow<TextSnapshot>
 
+    /** The lineage shared by every snapshot of this text (see [TextLineage]). */
+    public val lineage: TextLineage get() = snapshot.value.lineage
+
     /**
      * Every applied change, exactly once and in order, emitted synchronously from [apply] (no replay; emission never
      * suspends or blocks the writer, slow collectors are buffered).
@@ -56,6 +59,9 @@ public interface EditableText {
      * using [bias] at edit points (see [Bias]). Returns null if [fromVersion] is older than the retained history
      * (at least the last 1000 versions are kept).
      *
+     * Versions are versions of *this* text: a caller holding a range of another snapshot first checks that the
+     * snapshot's [TextSnapshot.lineage] is [lineage], and clamps instead of mapping otherwise (see [TextLineage]).
+     *
      * @throws IllegalArgumentException if the versions are not ordered as above or [offset] is negative.
      */
     public fun mapOffset(
@@ -76,7 +82,7 @@ public interface EditableText {
 }
 
 /**
- * Creates an [EditableText] with [initialText] at version 0 and an empty undo history.
+ * Creates an [EditableText] with [initialText] at version 0, a new [TextLineage] and an empty undo history.
  *
  * @param initialText the initial text; must already be normalized to `\n` separators.
  * @param timeSource clock for undo coalescing; tests pass a `kotlin.time.TestTimeSource`.

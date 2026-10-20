@@ -11,7 +11,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * virtual time (`kotlinx-coroutines-test`).
  *
  * @property parseDebounce quiet time after the last change before re-parsing (spec §3.4: 120 ms).
- * @property semanticMode passed to the parser; core-workspace uses [SemanticMode.SYNTAX_ONLY] for `EVENTS.kmeta`.
+ * @property semanticMode passed to the parser. [SemanticMode.STANDALONE] (the default) suits a document edited on its
+ *   own (embedded editors, tests); core-workspace opens every document with [SemanticMode.SYNTAX_ONLY], because in a
+ *   workspace the project analysis is the only place that converts files (decision 4 of the work-package plan).
  * @property tokenizeDispatcher where tokenizing runs (CPU work).
  * @property parseDispatcher where parsing and standalone conversion run (CPU work).
  */

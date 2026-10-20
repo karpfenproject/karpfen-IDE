@@ -6,6 +6,7 @@ import io.karpfen.ide.core.document.language.LanguageSupport
 import io.karpfen.ide.core.document.parse.ParseOutcome
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.EditableText
+import io.karpfen.ide.core.text.TextSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
@@ -51,17 +52,21 @@ public interface DocumentSession : AutoCloseable {
 
     /**
      * Lexer diagnostics (from [tokens]), PARSER diagnostics and standalone DSL_TOOLS diagnostics (from [parse]) and
-     * every external set, merged, deduplicated and sorted, with ranges mapped to the newest version the session has
-     * seen (via `EditableText.mapOffset`; diagnostics whose range can no longer be mapped are dropped).
+     * every external set, merged by [mergeDiagnostics] (the one merge rule, shared with core-workspace) after mapping
+     * every range to the newest snapshot the session has seen (via `EditableText.mapOffset`; diagnostics whose range
+     * can no longer be mapped are dropped). [VersionedDiagnostics.snapshot] is that snapshot.
      */
     public val diagnostics: StateFlow<VersionedDiagnostics>
 
     /**
-     * Replaces the external diagnostics of [source] (see [ExternalDiagnosticSources]), computed for text [version]. An
-     * empty list removes the source's diagnostics. Thread-safe: may be called from any thread (core-workspace calls it
-     * after an analysis on its analysis dispatcher); the merged [diagnostics] are recomputed in the session's scope.
+     * Replaces the external diagnostics of [source] (see [ExternalDiagnosticSources]), computed for [snapshot]. An
+     * empty list removes the source's diagnostics. A [snapshot] of another lineage than [text]
+     * (`TextSnapshot.lineage`, e.g. an analysis of the file that started before it was closed and reopened) is ignored,
+     * because its version cannot be mapped into this text. Thread-safe: may be called from any thread (core-workspace
+     * calls it after an analysis on its analysis dispatcher); the merged [diagnostics] are recomputed in the session's
+     * scope.
      */
-    public fun setExternalDiagnostics(source: String, version: Long, diagnostics: List<Diagnostic>)
+    public fun setExternalDiagnostics(source: String, snapshot: TextSnapshot, diagnostics: List<Diagnostic>)
 
     /** Cancels all background work of this session. Idempotent. */
     override fun close()
@@ -87,6 +92,9 @@ public object ExternalDiagnosticSources {
     /** Project analysis of core-workspace (DSL_TOOLS conversions, descriptor and context findings). */
     public const val PROJECT: String = "project"
 
-    /** Loading the file: malformed UTF-8 (WARNING) and mixed line separators (INFO), source IDE. */
+    /**
+     * Loading the file: malformed UTF-8 (WARNING) and mixed line separators (INFO), source IDE. Set on open and replaced
+     * on every reload; cleared by a successful save (the written file is valid UTF-8 with one separator).
+     */
     public const val FILE: String = "file"
 }

@@ -3,6 +3,9 @@ package io.karpfen.ide.core.lang
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.document.syntax.TokenizeResult
+import io.karpfen.ide.core.lang.modelpath.PathMember
+import io.karpfen.ide.core.lang.modelpath.PathOrigin
+import io.karpfen.ide.core.lang.modelpath.PathType
 import io.karpfen.ide.core.lang.services.karpfenLanguageFeatures
 import io.karpfen.ide.core.lang.symbols.MemberInfo
 import io.karpfen.ide.core.lang.symbols.MemberKind
@@ -44,6 +47,12 @@ class LanguageContractTest {
             TypeInfo("Robot", "A cleaning robot", listOf(x, position), TypeOrigin.DOMAIN, declaration = null).hoverText,
         )
         assertEquals("type Empty", TypeInfo("Empty", "", emptyList(), TypeOrigin.DOCUMENT, declaration = null).hoverText)
+
+        val segment = PathMember.of(position)
+        assertEquals(MemberKind.HAS, segment.kind)
+        assertEquals(PathType("Vector", isList = false, isPrimitive = false), segment.type)
+        assertNull(PathMember("self", PathOrigin.ROOT, PathType("Robot", isList = false, isPrimitive = false)).kind)
+        assertFailsWith<IllegalArgumentException> { PathMember("x", PathOrigin.MEMBER, PathType.of(x)) }
     }
 
     @Test
@@ -56,6 +65,10 @@ class LanguageContractTest {
         assertFalse(lagging.isConsistent)
         assertNull(lagging.currentParse)
         assertNull(Location(path, TextRange(0, 5)).version)
+        val located = Location(path, TextRange(0, 5), text)
+        assertEquals(3L, located.version)
+        assertTrue(located.lineage === text.lineage)
+        assertFailsWith<IllegalArgumentException> { Location(path, TextRange(0, 5), version = null, lineage = text.lineage) }
         assertFailsWith<IllegalArgumentException> {
             CompletionItem("x", CompletionKind.KEYWORD, "x", TextRange.EMPTY, 2, null, null, "x")
         }

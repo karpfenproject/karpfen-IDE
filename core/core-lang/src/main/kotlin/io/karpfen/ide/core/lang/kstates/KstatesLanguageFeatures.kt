@@ -19,8 +19,10 @@ internal class KstatesLanguageFeatures(
     override val highlight: HighlightProvider,
     override val brackets: BracketMatcher,
 ) : LanguageFeatures {
+    private val scopes: KstatesPathScopes = DefaultKstatesPathScopes(types)
+
     override val language: KarpfenLanguage = KarpfenLanguage.KSTATES
-    override val completion: CompletionProvider = KstatesCompletionProvider(caretContexts, paths, types)
-    override val navigation: NavigationProvider = KstatesNavigationProvider(paths, types)
-    override val hover: HoverProvider = KstatesHoverProvider(paths, types)
+    override val completion: CompletionProvider = KstatesCompletionProvider(caretContexts, paths, types, scopes)
+    override val navigation: NavigationProvider = KstatesNavigationProvider(paths, types, scopes)
+    override val hover: HoverProvider = KstatesHoverProvider(paths, types, scopes)
 }

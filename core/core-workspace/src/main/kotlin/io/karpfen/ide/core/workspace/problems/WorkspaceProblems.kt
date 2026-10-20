@@ -12,11 +12,15 @@ import java.nio.file.Path
  * counts and `karpfen validate` consume it unchanged (they only map and filter), so the IDE and the CLI always agree.
  *
  * The rule, per file:
- * - an open document: its session's merged diagnostics (`DocumentSession.diagnostics`: lexer, parser, standalone and
- *   the external sources `"file"` and `"project"`);
+ * - an open document: its session's merged diagnostics (`DocumentSession.diagnostics`: lexer, parser and the external
+ *   sources `"file"` and `"project"`; sessions of a workspace are syntax-only, so no standalone conversion);
  * - any other karpfen source of the tree, in a context or loose: `AnalyzedFile.ownDiagnostics` of the latest analysis
  *   plus the file's project diagnostics (`ProjectAnalysis.diagnosticsFor`);
  * - any other file with project diagnostics (environment descriptors): those.
+ *
+ * Both karpfen cases merge with the same function (`mergeDiagnostics` of core-document) and get DSL_TOOLS diagnostics
+ * only from the project analysis (context files converted, loose files never), so opening or closing a file changes
+ * no finding.
  *
  * Files without diagnostics are absent.
  *
@@ -44,8 +48,8 @@ public data class WorkspaceProblems(public val generation: Long, public val file
  * The diagnostics of one file.
  *
  * @property diagnostics non-empty, sorted with [Diagnostic.ORDER], without duplicates.
- * @property snapshot the `\n`-normalized text the ranges refer to: the open document's snapshot of the diagnostics'
- *   version, the analyzed snapshot, or the loaded descriptor text; null if the text is unavailable (unreadable file).
+ * @property snapshot the `\n`-normalized text the ranges refer to: the open document's `VersionedDiagnostics.snapshot`,
+ *   the analyzed snapshot, or the loaded descriptor text; null if the text is unavailable (unreadable file).
  * @property isOpen true if the diagnostics come from an open document's session (their ranges follow the live text).
  */
 public data class FileProblems(

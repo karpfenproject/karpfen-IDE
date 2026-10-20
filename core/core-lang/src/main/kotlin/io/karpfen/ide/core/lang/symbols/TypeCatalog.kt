@@ -8,6 +8,11 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
  * language): the types visible from a document with their members and declaration [Location]s, as IDE-owned values,
  * so the dsl-tools `meta.*` model stays behind this interface. Used by completion, navigation and hover of all three
  * languages and by the `ModelPathResolver`. Owned by WP-LANG, which may refine it.
+ *
+ * Implementations are thread-safe and convert the dsl-tools metamodels of a context into [TypeInfo]s once per analysis
+ * (memoized by `ContextAnalysis` identity, which changes with every analysis generation, keeping only the latest), so a
+ * hover, a completion or a path segment never walks the mutable dsl-tools objects again (spec §1a, immutable values
+ * across threads). The document's own declarations come from its parse and are not memoized.
  */
 public interface TypeCatalog {
 
@@ -107,7 +112,10 @@ public enum class MemberKind(public val keyword: String) {
     KNOWS("knows"),
 }
 
-/** [TypeCatalog] reading the document's own TYPE declarations and the context's converted metamodels. */
+/**
+ * [TypeCatalog] reading the document's own TYPE declarations and the context's converted metamodels (memoized per
+ * `ContextAnalysis`, see [TypeCatalog]).
+ */
 internal class ContextTypeCatalog : TypeCatalog {
     override fun types(request: FeatureRequest): List<TypeInfo> =
         TODO("WP-LANG: document types, then domain and event metamodel types of ${request.document.path}")

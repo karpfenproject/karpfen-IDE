@@ -14,6 +14,8 @@ import io.karpfen.ide.core.document.parse.SyntaxIndex
 import io.karpfen.ide.core.document.parse.pathAt
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.document.session.DocumentId
+import io.karpfen.ide.core.document.session.VersionedDiagnostics
+import io.karpfen.ide.core.document.session.mergeDiagnostics
 import io.karpfen.ide.core.document.syntax.SyntaxToken
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.document.syntax.TokenizeResult
@@ -70,6 +72,40 @@ class DocumentContractTest {
             TokenizeResult(0, listOf(SyntaxToken(TextRange(0, 4), TokenKind.KEYWORD), SyntaxToken(TextRange(3, 5), TokenKind.STRING)), emptyList())
         }
         assertFailsWith<IllegalArgumentException> { SyntaxToken(TextRange.empty(2), TokenKind.ERROR) }
+    }
+
+    @Test
+    fun `embedded regions are found with inclusive bounds`() {
+        val tokens = TokenizeResult(0, emptyList(), emptyList(), embeddedRegions = listOf(TextRange(10, 20), TextRange(30, 30)))
+
+        assertEquals(TextRange(10, 20), tokens.embeddedRegionAt(10))
+        assertEquals(TextRange(10, 20), tokens.embeddedRegionAt(20))
+        assertEquals(TextRange(30, 30), tokens.embeddedRegionAt(30))
+        assertNull(tokens.embeddedRegionAt(9))
+        assertNull(tokens.embeddedRegionAt(21))
+        assertNull(TokenizeResult.empty(0).embeddedRegionAt(0))
+        assertFailsWith<IllegalArgumentException> {
+            TokenizeResult(0, emptyList(), emptyList(), embeddedRegions = listOf(TextRange(10, 20), TextRange(15, 25)))
+        }
+    }
+
+    @Test
+    fun `one merge rule drops the parser's lexer copies, deduplicates and sorts`() {
+        fun diagnostic(start: Int, code: String, source: DiagnosticSource) =
+            Diagnostic(TextRange(start, start + 1), Severity.ERROR, code, code, source)
+        val lexer = diagnostic(3, DiagnosticCodes.LEXER_ERROR, DiagnosticSource.LEXER)
+        val parser = diagnostic(1, DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
+        val standalone = diagnostic(0, DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
+        val project = diagnostic(5, DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
+        val parse = ParseOutcome(
+            KarpfenLanguage.KMETA, 0, listOf(lexer, parser), emptyList(), SyntaxIndex.EMPTY, emptyList(), emptyList(),
+            standaloneModel = null, standaloneDiagnostics = listOf(standalone),
+        )
+
+        assertEquals(listOf(standalone, parser, lexer, project), mergeDiagnostics(listOf(lexer), parse, listOf(listOf(project, standalone))))
+        assertEquals(listOf(lexer), mergeDiagnostics(listOf(lexer), parse = null))
+        val snapshot = TextSnapshot("abc", 4)
+        assertEquals(4, VersionedDiagnostics(snapshot, listOf(lexer)).version)
     }
 
     @Test

@@ -5,13 +5,19 @@ package io.karpfen.ide.core.text
  * background work (tokenizing, parsing, analysis) only ever reads snapshots.
  *
  * Equality is identity: two snapshots are the same snapshot, not merely equal text (comparing large texts would be
- * O(n)). Compare [version]s when the question is "is this result still current?".
+ * O(n)). Compare [version]s (of the same [lineage]) when the question is "is this result still current?".
  *
  * @property text the complete text, `\n` line separators only.
- * @property version monotonically increasing per [EditableText], starting at 0; every applied change produces
- *   `version + 1`, including undo and redo.
+ * @property version monotonically increasing per [EditableText] (per [lineage]), starting at 0; every applied change
+ *   produces `version + 1`, including undo and redo.
+ * @property lineage the text this snapshot is a version of: shared by all snapshots of one [EditableText]; a snapshot
+ *   created on its own (default) is its own lineage. See [TextLineage].
  */
-public class TextSnapshot(public val text: String, public val version: Long) {
+public class TextSnapshot(
+    public val text: String,
+    public val version: Long,
+    public val lineage: TextLineage = TextLineage(),
+) {
 
     init {
         require(version >= 0) { "version must be >= 0, was $version" }

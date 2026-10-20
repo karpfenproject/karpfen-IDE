@@ -8,11 +8,12 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
  * KStates hover (spec §5): state → its hierarchy path; macro → its TAKES/RETURNS signature; model path → the resolved
- * type of the path ([paths]); type → `TypeInfo.hoverText` ([types]).
+ * type of the path ([paths] in the scope of [scopes]); type → `TypeInfo.hoverText` ([types]).
  */
 internal class KstatesHoverProvider(
     private val paths: ModelPathResolver,
     private val types: TypeCatalog,
+    private val scopes: KstatesPathScopes,
 ) : HoverProvider {
     override fun hover(request: FeatureRequest, offset: Int): Hover? = TODO("WP-LANG: KStates hover")
 }

@@ -9,10 +9,22 @@ import java.nio.file.Path
  *
  * Loading goes through the workspace's `SourceLoader` (UTF-8 with replacement characters + a WARNING, byte order mark
  * removed, line separators normalized to `\n` + one INFO for mixed separators) and publishes its findings as the
- * session's external diagnostics `ExternalDiagnosticSources.FILE`. Each document's `EditableText` uses
- * `WorkspaceOptions.timeSource`. Saving writes atomically (temp file in the same directory, then an atomic move),
- * restores the line separator and the byte order mark, marks the save point and ignores the watch event it causes
- * itself.
+ * session's external diagnostics `ExternalDiagnosticSources.FILE` for the loaded snapshot. Each document's
+ * `EditableText` uses `WorkspaceOptions.timeSource`. Saving writes atomically (temp file in the same directory, then an
+ * atomic move), restores the line separator and the byte order mark, marks the save point and ignores the watch event
+ * it causes itself.
+ *
+ * FILE findings follow the disk (MUST, so the IDE and `karpfen validate` agree): a successful save clears them
+ * (`setExternalDiagnostics(FILE, savedSnapshot, emptyList())`; the written file is valid UTF-8 with one separator), and
+ * every reload (automatic, or conflict RELOAD) replaces them with the new `LoadedSource.diagnostics` for the reloaded
+ * snapshot.
+ *
+ * Semantic mode (MUST): every session is created with `SemanticMode.SYNTAX_ONLY` (the base
+ * `WorkspaceOptions.sessionConfig` with that mode), whatever the file's role. In a workspace the project analysis is the
+ * only place that converts files (context files through `DslConverter`, loose files never), and its DSL_TOOLS
+ * diagnostics reach open documents as `ExternalDiagnosticSources.PROJECT`; so opening, closing or re-classifying a file
+ * (e.g. it becomes loose when a descriptor appears) never changes what is reported (decisions 4, 17, 28 and 29 of the
+ * work-package plan).
  *
  * Threading: called from the workspace's scope dispatcher (see `Workspace`, Threading); texts are only mutated there.
  */

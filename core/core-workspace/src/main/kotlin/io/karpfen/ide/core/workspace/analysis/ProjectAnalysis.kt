@@ -2,8 +2,8 @@ package io.karpfen.ide.core.workspace.analysis
 
 import instance.Model
 import io.karpfen.ide.core.document.Diagnostic
-import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.parse.ParseOutcome
+import io.karpfen.ide.core.document.session.mergeDiagnostics
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.files.FileKind
@@ -14,6 +14,15 @@ import java.nio.file.Path
 /**
  * Result of analyzing every modeling context of a workspace with dsl-tools (spec §4). Immutable snapshot; the
  * dsl-tools model objects inside are never mutated (D1).
+ *
+ * Conventions of the analyzer (MUST; consumers such as core-lang and tests building analyses by hand rely on them):
+ * - every path is absolute and normalized (`Path.toAbsolutePath().normalize()`), like `DocumentId`;
+ * - an open document is analyzed with its session's snapshot (so its `TextSnapshot.lineage` and version are the
+ *   editor's, and ranges map into the live text); a file read from disk gets a fresh snapshot at version 0 with a
+ *   lineage of its own (one per load);
+ * - every [AnalyzedFile.parse] is a `SemanticMode.SYNTAX_ONLY` parse (open documents are parsed that way too, see
+ *   `DocumentManager`); conversions happen only through the analyzer's `DslConverter`, their diagnostics are in
+ *   [diagnostics].
  *
  * @property generation increases with every analysis run of a workspace (0 for [EMPTY]).
  * @property contexts one entry per resolved context, in resolution order.
@@ -39,11 +48,14 @@ public data class ProjectAnalysis(
     /** The analyzed file at [path] in any context, else among the [looseFiles], or null. */
     public fun file(path: Path): AnalyzedFile? = contexts.firstNotNullOfOrNull { it.files[path] } ?: looseFiles[path]
 
-    /** Every analyzed file (context files first, then loose files), by path. */
+    /**
+     * Every analyzed file by path, iterating context files first (contexts in order, a file named by several contexts
+     * under its first one, as [file] answers) and then loose files.
+     */
     public val files: Map<Path, AnalyzedFile>
-        get() = buildMap {
-            putAll(looseFiles)
-            contexts.asReversed().forEach { putAll(it.files) }
+        get() = LinkedHashMap<Path, AnalyzedFile>().apply {
+            contexts.forEach { context -> context.files.forEach { (path, file) -> putIfAbsent(path, file) } }
+            looseFiles.forEach { (path, file) -> putIfAbsent(path, file) }
         }
 
     public companion object {
@@ -74,8 +86,10 @@ public data class ContextAnalysis(
 /**
  * A karpfen file as seen by one analysis run: its role, the text version used, and its tokenizer and parse results.
  *
- * @property parse the parse outcome of [snapshot]: the open document's own one (supplied through `SourceText`), or a
- *   [io.karpfen.ide.core.document.parse.SemanticMode.SYNTAX_ONLY] parse by the analyzer.
+ * @property snapshot the analyzed text (see the conventions on [ProjectAnalysis]: the session's snapshot for open
+ *   documents, a fresh lineage at version 0 for files read from disk).
+ * @property parse the `SemanticMode.SYNTAX_ONLY` parse outcome of [snapshot]: the open document's own one (supplied
+ *   through `SourceText`), or one made by the analyzer.
  * @property lexicalDiagnostics the tokenizer's diagnostics of [snapshot] (LEXER errors, `eval-double-slash`
  *   warnings), sorted.
  * @property fileDiagnostics the findings of loading the file (`LoadedSource.diagnostics`); empty for open documents,
@@ -96,15 +110,11 @@ public data class AnalyzedFile(
     }
 
     /**
-     * The file's own diagnostics, merged by the rule of `DocumentSession.diagnostics`: [lexicalDiagnostics], the PARSER
-     * diagnostics of [parse] (its LEXER ones repeat the tokenizer's), its standalone DSL_TOOLS diagnostics and
-     * [fileDiagnostics]; sorted with [Diagnostic.ORDER], without duplicates. Project diagnostics are not included.
+     * The file's own diagnostics, merged by the one rule of `DocumentSession.diagnostics` (`mergeDiagnostics` of
+     * core-document): [lexicalDiagnostics], the PARSER diagnostics of [parse] (its LEXER ones repeat the tokenizer's),
+     * its standalone DSL_TOOLS diagnostics (none for the analyzer's syntax-only parses) and [fileDiagnostics]; sorted
+     * with [Diagnostic.ORDER], without duplicates. Project diagnostics are not included.
      */
     public val ownDiagnostics: List<Diagnostic>
-        get() = (
-            lexicalDiagnostics +
-                parse.syntaxDiagnostics.filter { it.source == DiagnosticSource.PARSER } +
-                parse.standaloneDiagnostics +
-                fileDiagnostics
-            ).distinct().sortedWith(Diagnostic.ORDER)
+        get() = mergeDiagnostics(lexicalDiagnostics, parse, listOf(fileDiagnostics))
 }

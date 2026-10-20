@@ -10,8 +10,11 @@ import java.nio.file.Path
  *   directory path).
  * @property diagnostics per file (descriptors, metamodels): descriptor findings and context diagnostics such as
  *   `context-multiple-metamodels` or `descriptor-missing-file`, each list sorted with [Diagnostic.ORDER].
- * @property looseFiles the karpfen sources of the tree that belong to no context (files in a directory covered by a
- *   descriptor that no descriptor names), in tree order; analyzed syntax-only.
+ * @property looseFiles every karpfen source of the tree that is in no context's [ModelingContext.files], in tree order:
+ *   files in a directory covered by a descriptor that no descriptor names, and the metamodels an implicit context did
+ *   not choose (`context-multiple-metamodels`). Tokenized and parsed like every file (their syntax diagnostics appear in
+ *   the Problems view and in the CLI), never converted, in the IDE and in the CLI alike (decision 13 of the
+ *   work-package plan).
  */
 public data class ContextResolution(
     public val contexts: List<ModelingContext>,

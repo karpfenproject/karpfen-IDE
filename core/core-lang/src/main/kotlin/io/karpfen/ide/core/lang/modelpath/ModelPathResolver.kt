@@ -1,6 +1,8 @@
 package io.karpfen.ide.core.lang.modelpath
 
 import io.karpfen.ide.core.lang.Location
+import io.karpfen.ide.core.lang.symbols.MemberInfo
+import io.karpfen.ide.core.lang.symbols.MemberKind
 import io.karpfen.ide.core.lang.symbols.TypeInfo
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
@@ -52,30 +54,47 @@ public data class PathScope(
 }
 
 /** A type reached by a path: a metamodel type name or a primitive (`number`, `string`, `boolean`), maybe a list. */
-public data class PathType(public val name: String, public val isList: Boolean, public val isPrimitive: Boolean)
+public data class PathType(public val name: String, public val isList: Boolean, public val isPrimitive: Boolean) {
+    public companion object {
+        /** The type of [member] (element type, list flag, primitive flag). */
+        public fun of(member: MemberInfo): PathType = PathType(member.typeName, member.isList, member.isPrimitive)
+    }
+}
 
 /**
- * A member that can follow a path prefix.
+ * A segment that can follow a path prefix (or start a path). Type members wrap the [TypeCatalog][io.karpfen.ide.core.lang.symbols.TypeCatalog]'s
+ * [MemberInfo] instead of copying it, so there is one value family for members.
  *
- * @property declaration where the member is declared (for navigation), or null (roots, bindings, unknown).
+ * @property origin a type [PathOrigin.MEMBER], the `self`/`event` [PathOrigin.ROOT] or a [PathOrigin.BINDING].
+ * @property type the type the segment reaches.
+ * @property member the member for [PathOrigin.MEMBER] (kind, declaration, signature), null for roots and bindings.
  */
 public data class PathMember(
     public val name: String,
-    public val kind: PathMemberKind,
+    public val origin: PathOrigin,
     public val type: PathType,
-    public val declaration: Location? = null,
-)
+    public val member: MemberInfo? = null,
+) {
+    init {
+        require((origin == PathOrigin.MEMBER) == (member != null)) { "exactly the MEMBER segments wrap a MemberInfo" }
+    }
 
-/** Kind of a [PathMember]. */
-public enum class PathMemberKind {
-    /** `prop(…)`. */
-    PROPERTY,
+    /** The member's kind (`prop`/`has`/`knows`), or null for roots and bindings. */
+    public val kind: MemberKind? get() = member?.kind
 
-    /** `has(…)`. */
-    HAS,
+    /** Where the member is declared (for navigation), or null (roots, bindings, unknown). */
+    public val declaration: Location? get() = member?.declaration
 
-    /** `knows(…)`. */
-    KNOWS,
+    public companion object {
+        /** The segment for type member [member]. */
+        public fun of(member: MemberInfo): PathMember = PathMember(member.name, PathOrigin.MEMBER, PathType.of(member), member)
+    }
+}
+
+/** Where a [PathMember] comes from. */
+public enum class PathOrigin {
+    /** A member (`prop`, `has`, `knows`) of the previous segment's type. */
+    MEMBER,
 
     /** The `self` or `event` root. */
     ROOT,

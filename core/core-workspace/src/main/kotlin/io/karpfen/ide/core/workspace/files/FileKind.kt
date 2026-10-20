@@ -43,7 +43,10 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
         /** Name of the event metamodel. */
         public const val EVENTS_FILE_NAME: String = "EVENTS.kmeta"
 
-        /** The kind of a file named [fileName] (a name, not a path); suffixes are compared ignoring case. */
+        /**
+         * The kind of a file named [fileName] (a name, not a path); suffixes are compared ignoring case. Languages come
+         * from `KarpfenLanguage.fromFileName`, the one file-name rule that `LanguageRegistry.languageOf` uses too.
+         */
         public fun of(fileName: String): FileKind = when {
             fileName.equals(EVENTS_FILE_NAME, ignoreCase = true) -> EVENTS_KMETA
             fileName.endsWith(DESCRIPTOR_SUFFIX, ignoreCase = true) -> ENV_DESCRIPTOR

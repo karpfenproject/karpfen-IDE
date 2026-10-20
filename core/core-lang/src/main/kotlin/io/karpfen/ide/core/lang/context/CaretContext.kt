@@ -25,7 +25,8 @@ public fun CaretContextDetector(): CaretContextDetector = TokenCaretContextDetec
  * @property string set when the caret is inside a string literal (also an unterminated one).
  * @property call the innermost unclosed call around the caret, e.g. `prop(` or `MACRO(`.
  * @property blocks the enclosing brace blocks, outermost first.
- * @property embedded set when the caret is inside an EVAL body.
+ * @property embedded set exactly when `document.tokens.embeddedRegionAt(offset)` finds an EVAL body (the tokenizer's
+ *   scanner is the only definition of "inside embedded Python"; the detector never re-derives EVAL bodies from tokens).
  */
 public data class CaretContext(
     public val offset: Int,
@@ -53,9 +54,9 @@ public data class CallContext(public val name: String, public val nameRange: Tex
 public data class BlockFrame(public val header: List<String>, public val range: TextRange)
 
 /**
- * The caret is inside an EVAL body ([bodyRange]). [pathPrefix] is the text between `$(` and the caret when the caret
- * is inside a `$( … )` reference (e.g. `boundingBox->pos`); [macroPrefix] the text after `@` when it is in a macro
- * reference.
+ * The caret is inside an EVAL body: [bodyRange] is `TokenizeResult.embeddedRegionAt(offset)`. [pathPrefix] is the text
+ * between `$(` and the caret when the caret is inside a `$( … )` reference (e.g. `boundingBox->pos`, from the
+ * PATH_REFERENCE token); [macroPrefix] the text after `@` when it is in a macro reference (MACRO_REFERENCE token).
  */
 public data class EmbeddedContext(
     public val bodyRange: TextRange,

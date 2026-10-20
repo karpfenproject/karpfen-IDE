@@ -17,7 +17,8 @@ import java.nio.file.Path
  *
  * Every context file and every loose file (`ContextResolution.looseFiles`) becomes an [AnalyzedFile]: tokenized unless
  * [SourceText.tokens] are given, parsed with `SemanticMode.SYNTAX_ONLY` unless [SourceText.parse] is given, with the
- * source's [SourceText.fileDiagnostics]. Loose files are never converted.
+ * source's [SourceText.fileDiagnostics]. Loose files are never converted. The result follows the conventions documented
+ * on [ProjectAnalysis] (paths, snapshots, parse modes).
  *
  * Cancellable (checks for cancellation between files) and never throws otherwise.
  */
@@ -34,8 +35,9 @@ public fun ProjectAnalyzer(languages: LanguageRegistry, converter: DslConverter)
     DefaultProjectAnalyzer(languages, converter)
 
 /**
- * Supplies the text to analyze: the editor text of open documents, the disk text otherwise, loaded through the
- * workspace's `SourceLoader` (spec §4). Implemented by the workspace; tests supply texts from fixtures.
+ * Supplies the text to analyze: the editor text of open documents (the session's current snapshot, with its lineage),
+ * the disk text otherwise, loaded through the workspace's `SourceLoader` into a fresh `TextSnapshot(text, 0)` (a lineage
+ * of its own per load) (spec §4). Implemented by the workspace; tests supply texts from fixtures the same way.
  */
 public fun interface AnalysisSources {
     /** The source of [path], or null if it cannot be read (the analyzer then reports nothing for it). */
@@ -43,8 +45,8 @@ public fun interface AnalysisSources {
 }
 
 /**
- * Text to analyze. [parse] and [tokens] are results for exactly [snapshot] if they are at hand (open documents), so the
- * analyzer does not compute them again; null otherwise.
+ * Text to analyze. [parse] (syntax-only) and [tokens] are results for exactly [snapshot] if they are at hand (open
+ * documents), so the analyzer does not compute them again; null otherwise.
  *
  * @property fileDiagnostics the findings of loading the file (`LoadedSource.diagnostics`); empty for open documents.
  */

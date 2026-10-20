@@ -59,4 +59,12 @@ class TextValuesContractTest {
         assertEquals("\"A\"", snapshot.substring(TextRange(5, 8)))
         assertFailsWith<IllegalArgumentException> { TextSnapshot("", -1) }
     }
+
+    @Test
+    fun `snapshots created on their own are lineages of their own`() {
+        val lineage = TextLineage()
+
+        assertTrue(TextSnapshot("a", 0, lineage).lineage === TextSnapshot("ab", 1, lineage).lineage)
+        assertFalse(TextSnapshot("a", 0).lineage == TextSnapshot("a", 0).lineage, "equal versions of unrelated texts")
+    }
 }

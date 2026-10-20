@@ -7,14 +7,18 @@ import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ContextResolver
+import io.karpfen.ide.core.workspace.document.DefaultDocumentManager
 import io.karpfen.ide.core.workspace.document.DocumentManager
 import io.karpfen.ide.core.workspace.document.SourceLoader
 import io.karpfen.ide.core.workspace.document.TextFileStore
 import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
 import io.karpfen.ide.core.workspace.files.FileWatcher
+import io.karpfen.ide.core.workspace.files.WorkspaceScanner
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Files
 import java.nio.file.Path
@@ -30,7 +34,8 @@ import java.nio.file.Path
  * - tree + descriptors (loaded with the [SourceLoader]) → [contexts];
  * - contexts + text of open documents (on every change) → debounced (`analysisDebounce`), cancellable re-analysis →
  *   [analysis]; afterwards the per-file project diagnostics are pushed into the open sessions with
- *   `setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, version, …)`;
+ *   `setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, analyzedFile.snapshot, …)` (the session ignores a
+ *   snapshot of another lineage, e.g. of a document closed and reopened during the analysis);
  * - analysis + the open documents' diagnostics + descriptor texts → [problems].
  *
  * Threading (MUST): the workspace and its [DocumentManager] are used from the dispatcher of the scope given to the
@@ -107,11 +112,40 @@ public fun Workspace(
 ): Workspace {
     val normalizedRoot = root.toAbsolutePath().normalize()
     require(Files.isDirectory(normalizedRoot)) { "workspace root $normalizedRoot is not a directory" }
+    val workspaceScope = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
+    val documents = DefaultDocumentManager(
+        workspaceScope, languages, sourceLoader, fileStore, options.ioDispatcher, options.sessionConfig, options.timeSource,
+    )
     return DefaultWorkspace(
         root = normalizedRoot,
-        parentScope = scope,
+        scope = workspaceScope,
         options = options,
         languages = languages,
-        collaborators = WorkspaceCollaborators(fileStore, fileWatcher, sourceLoader, descriptorReader, contextResolver, analyzer),
+        collaborators = WorkspaceCollaborators(
+            fileStore, fileWatcher, sourceLoader, descriptorReader, contextResolver, analyzer,
+            documents = documents,
+            scanner = WorkspaceScanner(options.ignoredDirectoryNames),
+        ),
     )
+}
+
+/**
+ * Opens folders as workspaces: the seam through which the workbench and the CLI create their [Workspace]s, so tests
+ * pass a fake or a factory with test options (dispatchers, time source, file watcher).
+ */
+public fun interface WorkspaceFactory {
+    /** The workspace of [root]; [scope]'s dispatcher is the documents' single writer (see [Workspace], Threading). */
+    public fun open(root: Path, scope: CoroutineScope): Workspace
+}
+
+/**
+ * The default [WorkspaceFactory]: production workspaces with [options], [fileWatcher] and [languages] (every other
+ * collaborator as in the [Workspace] factory). Wiring only.
+ */
+public fun WorkspaceFactory(
+    options: WorkspaceOptions = WorkspaceOptions(),
+    fileWatcher: FileWatcher = FileWatcher(),
+    languages: LanguageRegistry = defaultLanguageRegistry(),
+): WorkspaceFactory = WorkspaceFactory { root, scope ->
+    Workspace(root, scope, options, languages, fileWatcher = fileWatcher)
 }
