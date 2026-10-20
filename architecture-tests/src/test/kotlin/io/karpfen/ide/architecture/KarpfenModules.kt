@@ -34,6 +34,25 @@ internal object KarpfenModules {
         "architecture-tests" to "io.karpfen.ide.architecture",
     )
 
+    /**
+     * The only package (with its sub-packages) that may use ANTLR and the ANTLR-generated dsl-tools lexers/parsers
+     * (`kmeta`, `kmodel`, `kstates`), so it can later be replaced by dsl-tools' own source-map API (spec §0).
+     */
+    const val ANTLR_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.antlr"
+
+    /**
+     * The only package (with its sub-packages) that may use the dsl-tools converters (`dsl.textual`), builders
+     * (`dsl.functional`) and hand-written parsers (`parser`). core-workspace reaches them through this package's
+     * public `DslConverter` adapter, so it needs no adapter package of its own (spec §1a, Adapters).
+     */
+    const val DSL_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.dsl"
+
+    /** Module directories of the core layer (UI-agnostic, explicit API mode). */
+    val coreModules: List<String> get() = packagePrefixes.keys.filter { it.startsWith("core/") }
+
+    /** Module directories of the UI layer (Compose). */
+    val uiModules: List<String> get() = packagePrefixes.keys.filter { it.startsWith("ui/") }
+
     /** Directories whose Kotlin files are build tooling, not product code. */
     private val nonProductModules = setOf("build-logic")
 
