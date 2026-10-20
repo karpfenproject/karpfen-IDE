@@ -1,6 +1,8 @@
 package io.karpfen.ide.architecture
 
+import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.verify.assertTrue
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertTrue as kotlinAssertTrue
 
@@ -32,11 +34,21 @@ class PackageLayoutTest {
     }
 
     @Test
-    fun `build-logic and build output are not part of the scanned product code`() {
-        val leaked = KarpfenModules.moduleFiles.filter { file ->
-            val path = file.projectPath.replace('\\', '/')
-            path.startsWith("/build-logic/") || "/build/" in path
-        }
-        kotlinAssertTrue(leaked.isEmpty(), "Unexpected files in the product scope: ${leaked.map { it.projectPath }}")
+    fun `build-logic and build output are excluded from the product scope`() {
+        val rawScope = Konsist.scopeFromProject().files.map { it.projectPath.replace('\\', '/') }
+        val productScope = KarpfenModules.sourceFiles.map { it.projectPath.replace('\\', '/') }
+
+        // build-logic/ is part of the raw Konsist scope, so the filter in KarpfenModules.sourceFiles is what keeps it out.
+        val buildLogicInRawScope = rawScope.filter { it.startsWith("/build-logic/") }
+        kotlinAssertTrue(buildLogicInRawScope.isNotEmpty(), "Konsist no longer sees build-logic/; this check would be vacuous")
+        val buildLogicInProductScope = productScope.filter { it.startsWith("/build-logic/") }
+        kotlinAssertTrue(buildLogicInProductScope.isEmpty(), "build-logic/ leaked into the product scope: $buildLogicInProductScope")
+
+        // Build output contains Kotlin sources (build-logic's generated kotlin-dsl accessors exist whenever this build
+        // runs, because build-logic is compiled first), and Konsist itself must skip them.
+        val generatedSources = File(Konsist.projectRootPath, "build-logic/build").walkTopDown().filter { it.extension == "kt" }
+        kotlinAssertTrue(generatedSources.any(), "No generated Kotlin sources under build-logic/build; this check would be vacuous")
+        val buildOutputInRawScope = rawScope.filter { "/build/" in it }
+        kotlinAssertTrue(buildOutputInRawScope.isEmpty(), "Build output is part of the Konsist scope: $buildOutputInRawScope")
     }
 }
