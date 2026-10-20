@@ -1,4 +1,4 @@
-package io.karpfen.ide.core.document
+package io.karpfen.ide.core.document.dsl
 
 import dsl.textual.KmetaDSLConverter
 import meta.AssociationType

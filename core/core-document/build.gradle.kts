@@ -1,19 +1,26 @@
 plugins {
     id("karpfen.kotlin-jvm")
+    // Shared fixtures (spec §10): example files, mutations, synthetic documents; consumed by the tests of this module
+    // and, through testFixtures(project(":core:core-document")), by the tests of downstream modules.
+    `java-test-fixtures`
 }
 
 dependencies {
-    // DocumentSnapshot exposes the text (core-text) and the parse result (dsl-tools model types, D2).
+    // Public API: TextSnapshot/EditableText (core-text) and the dsl-tools semantic model types (meta.*, instance.*,
+    // states.*) in DslModel, DslConverter and, downstream, the project analysis (D2).
     api(project(":core:core-text"))
     api(libs.karpfen.dsl.tools) {
         // dsl-tools leaks the ANTLR *tool* (antlr4 + ST4 + ICU4J) into its API through the Gradle antlr
         // plugin; the generated parsers only need the runtime, which is pinned below.
         exclude(group = "org.antlr", module = "antlr4")
     }
-    // api, not implementation: the excluded antlr4 was what carried the runtime onto consumers' compile classpaths,
-    // and dsl-tools' public lexers/parsers (kmeta.KmetaLexer, ...) extend org.antlr.v4.runtime types. Downstream
-    // modules (e.g. tokenizer-based highlighting in core-lang/ui-editor, D2) must see those supertypes.
-    api(libs.antlr4.runtime)
+    // implementation, not api: only the internal adapter package io.karpfen.ide.core.document.antlr may use ANTLR or
+    // the generated parsers (architecture-tests, spec §0), so no public signature exposes ANTLR types and downstream
+    // modules compile without it. It stays on their runtime classpath, which dsl-tools' parsers need.
+    implementation(libs.antlr4.runtime)
+    implementation(libs.slf4j.api)
+
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 // Composite mode (docs/adr/0010-dsl-tools-resolution-modes.md): the build script of karpfen-dsl-tools is not
