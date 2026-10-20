@@ -1,0 +1,9 @@
+{
+  "metamodel": "cleaning_robot.kmeta",
+  "events": "EVENTS.kmeta",
+  "model": "missing.kmodel",
+  "stateMachines": [
+    { "file": "cleaning_robot.kstates", "attachedTo": "turtle" }
+  ],
+  "tickDelay": 50
+}

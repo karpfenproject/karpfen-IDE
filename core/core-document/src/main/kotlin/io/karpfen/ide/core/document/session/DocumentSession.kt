@@ -16,6 +16,9 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * Lifecycle: all work runs in a child scope of the scope given to the factory; [close] cancels it. Flows keep their
  * last values after closing.
+ *
+ * Threading: [text] has a single writer (spec §1); the session only reads it (snapshots and the change flow) and never
+ * edits it. Tokenizing and parsing run on the dispatchers of [DocumentSessionConfig].
  */
 public interface DocumentSession : AutoCloseable {
 
@@ -54,8 +57,9 @@ public interface DocumentSession : AutoCloseable {
     public val diagnostics: StateFlow<VersionedDiagnostics>
 
     /**
-     * Replaces the external diagnostics of [source] (e.g. `"project"` from core-workspace, `"file"` for encoding and
-     * line-separator findings), computed for text [version]. An empty list removes the source's diagnostics.
+     * Replaces the external diagnostics of [source] (see [ExternalDiagnosticSources]), computed for text [version]. An
+     * empty list removes the source's diagnostics. Thread-safe: may be called from any thread (core-workspace calls it
+     * after an analysis on its analysis dispatcher); the merged [diagnostics] are recomputed in the session's scope.
      */
     public fun setExternalDiagnostics(source: String, version: Long, diagnostics: List<Diagnostic>)
 
@@ -77,3 +81,12 @@ public fun DocumentSession(
     scope: CoroutineScope,
     config: DocumentSessionConfig = DocumentSessionConfig(),
 ): DocumentSession = DefaultDocumentSession(id, support, text, scope, config)
+
+/** The external diagnostic sources used by the core modules ([DocumentSession.setExternalDiagnostics]). */
+public object ExternalDiagnosticSources {
+    /** Project analysis of core-workspace (DSL_TOOLS conversions, descriptor and context findings). */
+    public const val PROJECT: String = "project"
+
+    /** Loading the file: malformed UTF-8 (WARNING) and mixed line separators (INFO), source IDE. */
+    public const val FILE: String = "file"
+}

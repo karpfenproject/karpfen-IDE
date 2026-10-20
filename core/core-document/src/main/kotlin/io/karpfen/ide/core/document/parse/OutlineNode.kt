@@ -7,7 +7,11 @@ import io.karpfen.ide.core.text.TextRange
  *
  * @property name display name: the declared name (without quotes); `:T` for an anonymous KModel object of type `T`;
  *   `a -> b`, `a -> b, c` or `a, b -> c` for transitions; `ENTRY`/`DO` for blocks.
- * @property detail optional secondary text, e.g. the type of a property (`number`, `list(Obstacle)`).
+ * @property detail optional secondary text by kind: TYPE → the description; SIMPLE_PROPERTY → the primitive
+ *   (`number`); HAS_RELATION/KNOWS_RELATION → the target (`Vector`, `list(Obstacle)`); OBJECT → the type name;
+ *   PROPERTY_ASSIGNMENT → the value; KNOWS_ASSIGNMENT → the target object key; STATEMACHINE → the `ATTACHED TO` type;
+ *   MACRO → the RETURNS expression; MACRO_PARAMETER → the parameter type; BINDING → the macro name; null otherwise
+ *   (the same types as [SymbolDeclaration.typeName] where both exist).
  * @property range the whole construct.
  * @property selectionRange the part to select/reveal when navigating to the node (usually the name inside quotes);
  *   lies within [range].

@@ -1,0 +1,13 @@
+{
+  "metamodel": "cleaning_robot.kmeta",
+  "events": "EVENTS.kmeta",
+  "model": "cleaning_robot.kmodel",
+  "stateMachines": [
+    { "file": "cleaning_robot.kstates", "attachedTo": "turtle" }
+  ],
+  "tickDelayMs": 50,
+  "eventTtlMs": 3000,
+  "observe": { "objects": "*", "domains": ["public"] },
+  "runtime": { "pythonPackages": ["numpy"] },
+  "bridges": []
+}

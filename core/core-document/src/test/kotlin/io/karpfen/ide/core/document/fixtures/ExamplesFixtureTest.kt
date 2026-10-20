@@ -88,6 +88,20 @@ class ExamplesFixtureTest {
     }
 
     @Test
+    fun `descriptor examples load and copy with the files they name`(@TempDir target: Path) {
+        DescriptorExamples.names().forEach { name -> assertTrue(DescriptorExamples.text(name).isNotBlank(), name) }
+
+        val descriptor = DescriptorExamples.copyExplicitContext(target)
+
+        assertEquals(DescriptorExamples.text(DescriptorExamples.VALID), descriptor.readText())
+        val named = Regex(""""(\w+\.k\w+)"""").findAll(descriptor.readText()).map { it.groupValues[1] }.toSet()
+        assertEquals(setOf("cleaning_robot.kmeta", "EVENTS.kmeta", "cleaning_robot.kmodel", "cleaning_robot.kstates"), named)
+        named.forEach { assertTrue(Files.isRegularFile(target.resolve(it)), "$it was not copied") }
+        assertTrue("\"${DescriptorExamples.ATTACHED_TO}\"" in Examples.file("${DescriptorExamples.CONTEXT_DIRECTORY}/cleaning_robot.kmodel").text)
+        assertTrue("missing.kmodel" in DescriptorExamples.text(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE))
+    }
+
+    @Test
     fun `a synthetic KStates document with 5000 states has at least 5000 lines`() {
         val text = SyntheticKstates(5000)
 

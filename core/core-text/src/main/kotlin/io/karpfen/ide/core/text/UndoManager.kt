@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.StateFlow
  * - [EditOrigin.Paste], [EditOrigin.Cut], [EditOrigin.Command], [EditOrigin.External] and
  *   [EditOrigin.Programmatic] never coalesce.
  * - Applying a new change clears the redo stack.
+ *
+ * Caret mementos of a step (MUST): a step made of several changes (a [group] or a coalesced typing run) keeps the
+ * `caretsBefore` of its first change and the `caretsAfter` of its last change; undo restores the former, redo the
+ * latter (see [UndoResult.carets]). A missing memento stays missing (null), it is not taken from another change.
  */
 public interface UndoManager {
 
@@ -44,7 +48,10 @@ public interface UndoManager {
      */
     public fun <T> group(name: String, block: () -> T): T
 
-    /** Ends the current coalescing run, so the next change starts a new step (e.g. after the caret was moved). */
+    /**
+     * Ends the current coalescing run, so the next change starts a new step. The editor's caret model calls it for
+     * every explicit caret move (arrow keys, clicks, selections), so typing at another place is a new step.
+     */
     public fun breakCoalescing()
 
     /** Records the current state as the saved state ([isAtSavePoint] becomes true). */
