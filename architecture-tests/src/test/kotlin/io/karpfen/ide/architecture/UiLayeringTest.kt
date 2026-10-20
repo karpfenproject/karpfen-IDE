@@ -47,17 +47,25 @@ class UiLayeringTest {
 
     @Test
     fun `the editor view and the popups meet only through the overlay slot API`() {
+        // Sub-packages count as their parent (owners may create them, work-package plan §1), so `view.render` or
+        // `popup.find` cannot bypass the rule.
         assertNoEdges(
             module = "ui/ui-editor",
-            from = { it == "$EDITOR.view" || it == "$EDITOR.popup" },
-            to = { it == "$EDITOR.view" || it == "$EDITOR.popup" },
-            rule = "$EDITOR.view and $EDITOR.popup must not depend on each other; use $EDITOR.overlay",
+            from = { it.isWithin("$EDITOR.view") },
+            to = { it.isWithin("$EDITOR.popup") },
+            rule = "$EDITOR.view.. must not depend on $EDITOR.popup..; use $EDITOR.overlay",
         )
         assertNoEdges(
             module = "ui/ui-editor",
-            from = { it == "$EDITOR.state" },
-            to = { it in setOf("$EDITOR.view", "$EDITOR.popup", "$EDITOR.overlay", "$EDITOR.theme") },
-            rule = "$EDITOR.state must not depend on view, popup, overlay or theme",
+            from = { it.isWithin("$EDITOR.popup") },
+            to = { it.isWithin("$EDITOR.view") },
+            rule = "$EDITOR.popup.. must not depend on $EDITOR.view..; use $EDITOR.overlay",
+        )
+        assertNoEdges(
+            module = "ui/ui-editor",
+            from = { it.isWithin("$EDITOR.state") },
+            to = { target -> listOf("view", "popup", "overlay", "theme").any { target.isWithin("$EDITOR.$it") } },
+            rule = "$EDITOR.state.. must not depend on view, popup, overlay or theme (or their sub-packages)",
         )
     }
 

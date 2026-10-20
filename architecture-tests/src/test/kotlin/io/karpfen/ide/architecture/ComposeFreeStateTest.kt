@@ -9,7 +9,8 @@ import kotlin.test.assertTrue
  * Unidirectional data flow (spec §1a, §7.1): the editor models and every state holder are plain Kotlin, unit-testable
  * without Compose. The rule applies to
  * - an explicit list of packages of ui-editor and ui-foundation ([COMPOSE_FREE]): the Compose-free editor model, the
- *   editor's state holders, foundation's command registry and key model (its Compose adapter is `keys.compose`);
+ *   editor's state holders, foundation's command registry and key model (its Compose adapter is `keys.compose`), each
+ *   with its sub-packages where a WP may add feature sub-packages (`ui.editor.model..`, `ui.editor.state..`);
  * - every package of ui-workbench except the root package (the `Workbench` composable and its wiring), the features'
  *   `view` sub-packages and the desktop adapters `files.desktop` ([isWorkbenchUiPackage]): the workbench is organized
  *   by feature (decision 31 of the work-package plan), each feature package holding its Compose-free state and a
@@ -25,7 +26,7 @@ class ComposeFreeStateTest {
         /** Compose-free packages of ui-editor and ui-foundation; an entry ending in `..` includes its sub-packages. */
         val COMPOSE_FREE = listOf(
             "io.karpfen.ide.ui.editor.model..",
-            "io.karpfen.ide.ui.editor.state",
+            "io.karpfen.ide.ui.editor.state..",
             "io.karpfen.ide.ui.foundation.command",
             "io.karpfen.ide.ui.foundation.keys",
         )
