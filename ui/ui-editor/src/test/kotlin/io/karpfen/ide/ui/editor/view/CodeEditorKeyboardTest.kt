@@ -31,6 +31,7 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.state.FakeLanguageServices
+import io.karpfen.ide.ui.editor.state.FindBarMode
 import io.karpfen.ide.ui.editor.state.TestClipboard
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import kotlinx.coroutines.Dispatchers
@@ -154,7 +155,7 @@ class CodeEditorKeyboardTest {
 
         ui.editor.performKeyInput { withKeyDown(Key.MetaLeft) { pressKey(Key.F) } }
         waitForIdle()
-        assertEquals(io.karpfen.ide.ui.editor.state.FindBarMode.FIND, ui.state.overlays.findBar.value)
+        assertEquals(FindBarMode.FIND, ui.state.overlays.findBar.value)
     }
 
     @Test

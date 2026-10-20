@@ -2,6 +2,7 @@ package io.karpfen.ide.ui.editor.state
 
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
+import io.karpfen.ide.core.lang.Hover
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
@@ -176,7 +177,7 @@ class PointerPolicyTest {
         assertTrue(harness.state.isFocused.value)
         harness.state.execute(EditorActionIds.COMPLETION)
         advanceUntilIdle()
-        harness.state.overlays.showHover(HoverContent(TextRange(0, 1), emptyList(), io.karpfen.ide.core.lang.Hover(TextRange(0, 1), "h")))
+        harness.state.overlays.showHover(HoverContent(TextRange(0, 1), emptyList(), Hover(TextRange(0, 1), "h")))
         harness.state.overlays.openFind(FindBarMode.FIND)
 
         harness.state.onFocusChanged(false)

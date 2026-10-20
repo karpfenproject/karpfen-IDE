@@ -5,6 +5,8 @@ import io.karpfen.ide.core.lang.BracketMatch
 import io.karpfen.ide.core.lang.HighlightSpan
 import io.karpfen.ide.core.lang.HighlightStyle
 import io.karpfen.ide.core.lang.Location
+import io.karpfen.ide.core.text.EditOrigin
+import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.foundation.keys.KeyCode
@@ -144,7 +146,7 @@ class BackgroundPipelinesTest {
 
         harness.state.close()
         harness.state.close()
-        harness.text.apply(listOf(io.karpfen.ide.core.text.TextEdit.insert(0, "x")), io.karpfen.ide.core.text.EditOrigin.Typing)
+        harness.text.apply(listOf(TextEdit.insert(0, "x")), EditOrigin.Typing)
         advanceUntilIdle()
 
         assertEquals(before, harness.state.highlights.value, "no highlighting after close")

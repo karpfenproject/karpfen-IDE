@@ -198,6 +198,8 @@ internal class DefaultCodeEditorState(
     override fun close() {
         if (closed) return
         closed = true
+        completion.close()
+        hover.hide()
         scope.cancel()
         overlays.closeAll()
     }
