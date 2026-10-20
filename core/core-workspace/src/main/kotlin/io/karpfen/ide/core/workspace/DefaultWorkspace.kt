@@ -29,6 +29,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -63,8 +64,9 @@ internal class WorkspaceCollaborators(
  * - [ProjectDiagnosticsPublisher] — each `AnalyzedFile`'s project diagnostics into the open sessions;
  * - [ProblemsPublisher] with the [WorkspaceProblemsAggregator] → [problems].
  *
- * Start-up (in [scope]): watching (if enabled) and the publishers start, then the first scan runs, then the analysis
- * scheduler and its triggers (contexts, completed rescans, every text version of every open document).
+ * Start-up (in [scope]): watching (if enabled), the publishers and the analysis triggers (contexts, completed rescans,
+ * every text version of every open document) start, then the first scan runs, then the analysis scheduler serves the
+ * request made at construction (so [isAnalyzing] is true from the start) and every trigger after it.
  *
  * @param scope the workspace's own scope (a supervisor child of the factory's scope, created by the factory and shared
  *   with [WorkspaceCollaborators.documents]); [close] cancels it.
@@ -140,6 +142,12 @@ internal class DefaultWorkspace(
         if (options.watch) treeRefresher.watch(scope)
         problemsPublisher.start(scope, scheduler.published, documents)
         diagnosticsPublisher.start(scope, scheduler.analysis, documents)
+        // Subscribed before the first scan; the initial state is covered by the request made in init.
+        scope.launch {
+            combine(contextTracker.state, treeRefresher.revision, openTextVersions()) { _, _, _ -> }
+                .drop(1)
+                .collect { scheduler.schedule() }
+        }
         try {
             treeRefresher.refresh()
         } catch (cancellation: CancellationException) {
@@ -148,10 +156,6 @@ internal class DefaultWorkspace(
             logger.error("The first scan of {} failed", root, e)
         }
         scheduler.start(scope)
-        scope.launch {
-            combine(contextTracker.state, treeRefresher.revision, openTextVersions()) { _, _, _ -> }
-                .collect { scheduler.schedule() }
-        }
     }
 
     /** Emits whenever the set of open documents or the text of one of them changes. */

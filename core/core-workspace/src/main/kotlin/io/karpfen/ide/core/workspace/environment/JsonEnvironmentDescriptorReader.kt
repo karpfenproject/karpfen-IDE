@@ -74,13 +74,18 @@ internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
     }
 
     /**
-     * Best-effort range of a kotlinx.serialization error in [text]: the offset its message names, else the value at the
-     * JSON path it names (`$.stateMachines[0].file`), else the first character of the document.
+     * Best-effort range of a kotlinx.serialization error in [text]: the offset its message names, else the end of a
+     * truncated document, else the value at the JSON path it names (`$.stateMachines[0].file`), else the first character
+     * of the document.
      */
     private class ErrorLocation(private val text: String, private val tree: JsonNode?) {
 
         fun of(message: String): TextRange =
-            offsetIn(message) ?: pathIn(message) ?: documentStart()
+            offsetIn(message) ?: endOfInput(message) ?: pathIn(message) ?: documentStart()
+
+        /** A truncated document: the empty range after its last non-blank character. */
+        private fun endOfInput(message: String): TextRange? =
+            if (END_OF_INPUT in message) TextRange.empty(text.trimEnd().length) else null
 
         private fun offsetIn(message: String): TextRange? {
             val offset = OFFSET.find(message)?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it >= 0 } ?: return null
@@ -116,6 +121,7 @@ internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
         const val KEY_FILE = "file"
         const val KEY_BRIDGES = "bridges"
 
+        const val END_OF_INPUT = "end of the input"
         val OFFSET = Regex("""at offset (-?\d+)""")
         val PATH = Regex("""at path:? (\$\S*)""")
         val SEGMENT = Regex("""\.([^.\[]+)|\[(\d+)]""")
