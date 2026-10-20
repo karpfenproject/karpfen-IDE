@@ -12,6 +12,13 @@ import kotlinx.coroutines.flow.StateFlow
  * the model has not seen yet (e.g. a reload, or edits by another component) are mapped through
  * `EditableText.mapOffset` as they are emitted, but only if the carets predate them; carets set explicitly after an
  * edit (actions pass their `caretsAfter`) carry the new version and are never mapped twice.
+ *
+ * Undo coalescing: every explicit caret change ([move], [moveTo], [select], [selectWord], [selectLine], [selectAll])
+ * calls `text.undo.breakCoalescing()`, so typing at another place starts a new undo step; [restore] and the mapping
+ * through changes do not.
+ *
+ * Preferred column: [Caret.preferredColumn] is a display column with tabs expanded to the factory's `tabWidth()`
+ * (the editor passes `EditorSettings.tabDisplayWidth`).
  */
 public interface CaretModel {
 
@@ -52,10 +59,24 @@ public interface CaretModel {
 /**
  * A [CaretModel] with one caret at offset 0, mapping carets through the changes of [text] in [scope] (collected on the
  * UI thread; tests pass an `UnconfinedTestDispatcher` scope).
+ *
+ * @param tabWidth columns per tab stop for [Caret.preferredColumn], read on every vertical move (the setting may
+ *   change at runtime).
  */
-public fun CaretModel(text: EditableText, scope: CoroutineScope): CaretModel = DefaultCaretModel(text, scope)
+public fun CaretModel(
+    text: EditableText,
+    scope: CoroutineScope,
+    tabWidth: () -> Int = { DEFAULT_TAB_WIDTH },
+): CaretModel = DefaultCaretModel(text, scope, tabWidth)
 
-internal class DefaultCaretModel(private val text: EditableText, private val scope: CoroutineScope) : CaretModel {
+/** Columns per tab stop unless the editor settings say otherwise (spec §7.2). */
+public const val DEFAULT_TAB_WIDTH: Int = 4
+
+internal class DefaultCaretModel(
+    private val text: EditableText,
+    private val scope: CoroutineScope,
+    private val tabWidth: () -> Int,
+) : CaretModel {
 
     override val state: StateFlow<CaretState>
         get() = TODO("WP-EDITOR-MODEL: caret state")

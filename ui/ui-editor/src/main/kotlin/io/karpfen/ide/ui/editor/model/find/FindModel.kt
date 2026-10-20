@@ -2,6 +2,7 @@ package io.karpfen.ide.ui.editor.model.find
 
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.ui.editor.model.action.EditorActionExecutor
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,8 @@ public data class FindState(
 /**
  * Find and replace in one editor (spec §7.1). Compose-free state holder; matches follow the text (recomputed for
  * every new version in its scope). Invalid regular expressions put the model into an error state; nothing throws.
+ * Replacing runs as an `EditorAction` through the factory's [EditorActionExecutor] (origin `Command`, caret mementos,
+ * one undo step), like every other edit.
  */
 public interface FindModel {
 
@@ -67,13 +70,17 @@ public interface FindModel {
     public fun replaceAll(replacement: String): Int
 }
 
-/** A [FindModel] over [text] that selects matches through [caret]; recomputation runs in [scope]. */
-public fun FindModel(text: EditableText, caret: CaretModel, scope: CoroutineScope): FindModel =
-    DefaultFindModel(text, caret, scope)
+/**
+ * A [FindModel] over [text] that selects matches through [caret] and replaces through [executor]; recomputation runs
+ * in [scope].
+ */
+public fun FindModel(text: EditableText, caret: CaretModel, executor: EditorActionExecutor, scope: CoroutineScope): FindModel =
+    DefaultFindModel(text, caret, executor, scope)
 
 internal class DefaultFindModel(
     private val text: EditableText,
     private val caret: CaretModel,
+    private val executor: EditorActionExecutor,
     private val scope: CoroutineScope,
 ) : FindModel {
     override val state: StateFlow<FindState>

@@ -16,7 +16,13 @@ public object IdeMenus {
     public fun specs(recentFolderCount: Int): List<MenuSpec> = TODO("WP-APP: menu structure")
 }
 
-/** The native menu bar built from [menus] and the commands in [registry] (titles, shortcuts, enablement). */
+/**
+ * The native menu bar built from [menus] and the commands in [registry] (titles, shortcuts, enablement); items of
+ * unregistered command ids are hidden. Accelerators are bound with `KeyShortcut.toMenuShortcut`. Key routing
+ * (decision 15 of the work-package plan): the focused component handles and consumes its keys first, so an accelerator
+ * only fires for strokes nobody consumed and one key press runs a command once. The resolution of [menus] against
+ * [registry] is a Compose-free internal function (testable headless); this composable only renders its result.
+ */
 @Composable
 public fun FrameWindowScope.IdeMenuBar(registry: CommandRegistry, menus: List<MenuSpec>): Unit =
     TODO("WP-APP: menu bar from the command registry")

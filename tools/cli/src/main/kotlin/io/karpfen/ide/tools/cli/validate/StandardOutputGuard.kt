@@ -7,6 +7,9 @@ import java.io.PrintStream
  * the duration of a block; the CLI prints through [output], the original stream captured at construction.
  */
 public class StandardOutputGuard(public val output: PrintStream = System.out) {
-    /** Runs [block] with `System.out` redirected; restores it afterwards, also on exceptions. Not reentrant. */
-    public fun <T> silenced(block: () -> T): T = TODO("WP-APP: redirect System.out")
+    /**
+     * Runs [block] with `System.out` redirected; restores it afterwards, also on exceptions and cancellation. Suspends
+     * instead of blocking, so it can wrap `Workspace.awaitAnalysis()` (also under `runTest`). Not reentrant.
+     */
+    public suspend fun <T> silenced(block: suspend () -> T): T = TODO("WP-APP: redirect System.out")
 }

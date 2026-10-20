@@ -4,8 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.text.TextStyle
-import io.karpfen.ide.core.lang.Location
-import io.karpfen.ide.ui.editor.state.CodeEditorState
+import io.karpfen.ide.ui.editor.state.EditorPopupModel
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
@@ -15,12 +14,14 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
  * `CodeEditor` calls [Header] above the text area (in a Column; the find/replace bar goes here) and [Popups] in a Box
  * layered over the text area, filling it (completion list, go-to-line, hover tooltip, context menu, positioned with
  * [EditorOverlayHost.boundsOf] / [EditorOverlayHost.caretBounds]). Both slots read what to show from the host's
- * [CodeEditorState] (`completion.state`, `overlays.*`, `find.state`). The workbench passes the popups
- * implementation (`io.karpfen.ide.ui.editor.popup.EditorPopups`); tests and embedded editors may pass [None].
+ * [EditorPopupModel] (`completion.state`, `overlays.*`, `find.state`) and report intents to it. The workbench passes
+ * the popups implementation (`io.karpfen.ide.ui.editor.popup.EditorPopups`); tests and embedded editors may pass
+ * [None].
  *
  * Keyboard: while the completion list is open the text area keeps focus and routes keys through
  * `CompletionSessionModel.handleKey`; the find bar and go-to-line popup own focus while open and return it with
- * [EditorOverlayHost.requestEditorFocus].
+ * `EditorPopupModel.requestFocus()`. Navigation is not a popup concern: "Go to Definition" in the context menu runs
+ * the editor action of that id.
  */
 @Stable
 public interface EditorOverlays {
@@ -52,8 +53,8 @@ public interface EditorOverlays {
 @Stable
 public interface EditorOverlayHost {
 
-    /** The editor state (models, overlay state, actions). */
-    public val state: CodeEditorState
+    /** What the popups may use of the editor (models, overlay state, actions). */
+    public val state: EditorPopupModel
 
     /** The editor's colours and styles. */
     public val theme: EditorTheme
@@ -66,10 +67,4 @@ public interface EditorOverlayHost {
 
     /** The rectangle of the character at [offset], or null if that line is not laid out (off-screen). */
     public fun boundsOf(offset: Int): Rect?
-
-    /** Moves keyboard focus back to the text area. */
-    public fun requestEditorFocus()
-
-    /** Forwards a navigation target to `CodeEditor`'s `onNavigate`. */
-    public fun navigate(location: Location)
 }

@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * What the status bar shows (spec §8): `Ln x, Col y` (one-based), selection length, language, line separator,
- * encoding, error and warning counts of the workspace, and "Analyzing…".
+ * encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), and
+ * "Analyzing…".
  */
 public data class StatusBarInfo(
     public val line: Int? = null,
@@ -33,6 +34,6 @@ public class StatusBarState(private val scope: CoroutineScope) {
     /** Follows the active [document] and its [editor] (null: no editor). */
     public fun bindEditor(document: OpenDocument?, editor: CodeEditorState?): Unit = TODO("WP-WORKBENCH: bind editor")
 
-    /** Follows [workspace] for problem counts and the analyzing flag. */
+    /** Follows [workspace] for the problem counts (`Workspace.problems`) and the analyzing flag. */
     public fun bindWorkspace(workspace: Workspace?): Unit = TODO("WP-WORKBENCH: bind workspace")
 }

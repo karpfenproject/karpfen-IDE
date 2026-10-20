@@ -33,8 +33,9 @@ public data class ProblemsUiState(
 )
 
 /**
- * Problems of the workspace grouped by file (spec §8): live session diagnostics for open documents, otherwise the
- * syntax diagnostics of the analyzed file plus the project diagnostics of the latest analysis (collected in [scope]).
+ * Problems of the workspace grouped by file (spec §8): maps `Workspace.problems` (the single rule of core-workspace,
+ * shared with the status bar and `karpfen validate`) into groups and items with one-based `line:col`
+ * (`FileProblems.positionOf`); it never merges diagnostics itself (collected in [scope]).
  */
 public class ProblemsState(private val scope: CoroutineScope) {
 

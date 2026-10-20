@@ -3,6 +3,8 @@ package io.karpfen.ide.ui.editor.model.completion
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.ui.editor.model.action.EditorActionExecutor
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 import io.karpfen.ide.ui.foundation.keys.KeyStroke
 import kotlinx.coroutines.CoroutineScope
@@ -27,12 +29,13 @@ public enum class CompletionTrigger {
 }
 
 /**
- * Supplies unfiltered completion items for the current text at [offset]; the editor state implements it with
- * `LanguageServices.complete` on a `LanguageDocument` of the current version. Must not throw.
+ * Supplies unfiltered completion items; the editor state implements it with `LanguageServices.complete` on a
+ * `LanguageDocument` of exactly the given snapshot (tokenizing it if the session's tokens lag behind). Pure and
+ * thread-safe, so the model may call it off the UI thread. Must not throw.
  */
 public fun interface CompletionSource {
-    /** The items at [offset] of the current text. */
-    public fun items(offset: Int): List<CompletionItem>
+    /** The items at [offset] of [snapshot]; their `replaceRange`s are in [snapshot]'s coordinates. */
+    public fun items(snapshot: TextSnapshot, offset: Int): List<CompletionItem>
 }
 
 /**
@@ -63,11 +66,15 @@ public data class CompletionUiState(
  *
  * - Opens on [open] (explicit) or auto-triggers from [onTyped]: an identifier character typed after ≥ 1 identifier
  *   character, `"` in a completable string position, `$(` or `->`. Opening with no items keeps it closed.
+ * - Asks the [CompletionSource] for the snapshot current at the request (possibly in background work in its scope) and
+ *   drops results computed for an older version (re-requesting while still open), so `replaceRange`s always match the
+ *   text they are applied to.
  * - Filters by the text between `replaceRange.start` and the caret, case-insensitively: prefix matches before
  *   camel/word-boundary matches before subsequence matches; stable sort by match quality, then sortKey, then label.
- * - [accept] inserts `insertText` over the replace range as one undo step and places the caret at
- *   `caretOffsetInInsert`.
- * - Closes when the caret leaves the replace range, when no item matches, on Escape and on focus loss ([close]).
+ * - [accept] inserts `insertText` over the replace range as one `EditorAction` run through the factory's
+ *   [EditorActionExecutor] (one undo step, caret mementos) and places the caret at `caretOffsetInInsert`.
+ * - Follows `CaretModel.state` itself: closes when the primary caret leaves the replace range, when no item matches,
+ *   on Escape and on focus loss ([close]).
  */
 public interface CompletionSessionModel {
 
@@ -79,9 +86,6 @@ public interface CompletionSessionModel {
 
     /** Informs the model that [text] was just typed at the caret (auto-trigger and re-filtering). */
     public fun onTyped(text: String)
-
-    /** Informs the model that the caret moved without typing (closes it when the caret left the range). */
-    public fun onCaretMoved()
 
     /** Highlights the item [delta] rows away (clamped; ±1 for arrows, ±page for Page Up/Down). */
     public fun moveSelection(delta: Int)
@@ -102,18 +106,23 @@ public interface CompletionSessionModel {
     public fun handleKey(stroke: KeyStroke): Boolean
 }
 
-/** A [CompletionSessionModel] for [text]/[caret], asking [source] for items; background work runs in [scope]. */
+/**
+ * A [CompletionSessionModel] for [text]/[caret], asking [source] for items and accepting through [executor]; caret
+ * observation and background work run in [scope].
+ */
 public fun CompletionSessionModel(
     text: EditableText,
     caret: CaretModel,
     source: CompletionSource,
+    executor: EditorActionExecutor,
     scope: CoroutineScope,
-): CompletionSessionModel = DefaultCompletionSessionModel(text, caret, source, scope)
+): CompletionSessionModel = DefaultCompletionSessionModel(text, caret, source, executor, scope)
 
 internal class DefaultCompletionSessionModel(
     private val text: EditableText,
     private val caret: CaretModel,
     private val source: CompletionSource,
+    private val executor: EditorActionExecutor,
     private val scope: CoroutineScope,
 ) : CompletionSessionModel {
     override val state: StateFlow<CompletionUiState?>
@@ -122,8 +131,6 @@ internal class DefaultCompletionSessionModel(
     override fun open(trigger: CompletionTrigger): Unit = TODO("WP-EDITOR-MODEL: open completion")
 
     override fun onTyped(text: String): Unit = TODO("WP-EDITOR-MODEL: auto-trigger and filter")
-
-    override fun onCaretMoved(): Unit = TODO("WP-EDITOR-MODEL: close when leaving the range")
 
     override fun moveSelection(delta: Int): Unit = TODO("WP-EDITOR-MODEL: move selection")
 

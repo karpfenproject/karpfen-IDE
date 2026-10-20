@@ -6,7 +6,8 @@ import java.nio.file.Path
 
 /**
  * State of the Project tool window (spec §8): the workspace tree, expanded directories and the selection. Opening
- * files and file operations are intents of the [WorkbenchState]; this class only holds tree state.
+ * files and the file operations of the context menu are intents of the [WorkbenchState] (`openFile`, `createFile`,
+ * `rename`, `delete`, `reveal`); this class only holds tree state.
  */
 public class ProjectTreeState {
 

@@ -8,8 +8,10 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.defaultEditorActions
 import io.karpfen.ide.ui.editor.model.caret.Caret
+import io.karpfen.ide.ui.editor.model.caret.DEFAULT_TAB_WIDTH
 import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
 import io.karpfen.ide.ui.editor.state.ContextMenuRequest
+import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.editor.state.EditorOverlayController
 import io.karpfen.ide.ui.editor.state.FindBarMode
 import io.karpfen.ide.ui.editor.state.HoverContent
@@ -75,5 +77,10 @@ class EditorContractTest {
         overlays.closeAll()
         assertNull(overlays.findBar.value)
         assertFailsWith<IllegalArgumentException> { HoverContent(TextRange(0, 1), emptyList(), null) }
+    }
+
+    @Test
+    fun `the caret model's default tab width matches the editor settings`() {
+        assertEquals(EditorSettings().tabDisplayWidth, DEFAULT_TAB_WIDTH)
     }
 }

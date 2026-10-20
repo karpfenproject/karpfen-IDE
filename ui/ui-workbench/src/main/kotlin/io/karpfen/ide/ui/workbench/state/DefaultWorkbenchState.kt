@@ -3,15 +3,23 @@ package io.karpfen.ide.ui.workbench.state
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
+import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.ThemeMode
 import io.karpfen.ide.ui.workbench.settings.WindowBounds
+import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
-/** Default [WorkbenchState]: creates the sub-states and coordinates them (Mediator). */
+/**
+ * Default [WorkbenchState]: creates the sub-states and coordinates them (Mediator). A coordinator only (spec §1a, no
+ * god class, ≤ ~300 lines): the flows are internal collaborators of this package with one responsibility each, e.g. a
+ * command registrar (commands, enablement, recent folders), a tool-window layout holder (visibility, sizes, theme,
+ * window bounds persisted through the settings), an unsaved-changes flow (tab close, folder switch, exit) and a
+ * file-operations flow (create, rename, delete, reveal on `WorkbenchServices.ioDispatcher`).
+ */
 internal class DefaultWorkbenchState(
     private val scope: CoroutineScope,
     private val services: WorkbenchServices,
@@ -37,6 +45,17 @@ internal class DefaultWorkbenchState(
     override suspend fun openFile(path: Path): Unit = TODO("WP-WORKBENCH: open file")
 
     override suspend fun navigateTo(location: Location): Unit = TODO("WP-WORKBENCH: navigate")
+
+    override suspend fun createFile(directory: Path, kind: FileTemplateKind): Unit = TODO("WP-WORKBENCH: new file flow")
+
+    override suspend fun rename(path: Path): Unit = TODO("WP-WORKBENCH: rename flow")
+
+    override suspend fun delete(path: Path): Unit = TODO("WP-WORKBENCH: delete flow")
+
+    override suspend fun reveal(path: Path): Unit = TODO("WP-WORKBENCH: reveal")
+
+    override suspend fun resolveConflict(path: Path, resolution: ConflictResolution): Unit =
+        TODO("WP-WORKBENCH: resolve external-change conflict")
 
     override suspend fun saveActive(): Unit = TODO("WP-WORKBENCH: save active")
 

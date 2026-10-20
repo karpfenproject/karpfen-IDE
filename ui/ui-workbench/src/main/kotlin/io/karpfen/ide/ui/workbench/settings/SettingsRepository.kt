@@ -4,11 +4,12 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
+import java.time.Clock
 
 /**
  * Loads and stores [IdeSettings] (Repository pattern, spec §8) as `settings.json` in an injectable directory. A
- * corrupt file is backed up (`settings.json.corrupt-<timestamp>`) and replaced by defaults; I/O errors are logged and
- * never thrown to the UI.
+ * corrupt file is backed up (`settings.json.corrupt-<yyyyMMdd-HHmmss>`, the time taken from the injected clock, with
+ * `-2`, `-3`, … appended if that name exists) and replaced by defaults; I/O errors are logged and never thrown to the UI.
  */
 public interface SettingsRepository {
 
@@ -22,11 +23,15 @@ public interface SettingsRepository {
     public suspend fun update(transform: (IdeSettings) -> IdeSettings): IdeSettings
 }
 
-/** A JSON-file [SettingsRepository] in [directory] (created on first write); file I/O runs on [ioDispatcher]. */
+/**
+ * A JSON-file [SettingsRepository] in [directory] (created on first write); file I/O runs on [ioDispatcher]; [clock]
+ * names corrupt-file backups (tests pass `Clock.fixed`).
+ */
 public fun SettingsRepository(
     directory: Path = SettingsLocations.defaultDirectory(),
     ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-): SettingsRepository = JsonSettingsRepository(directory, ioDispatcher)
+    clock: Clock = Clock.systemDefaultZone(),
+): SettingsRepository = JsonSettingsRepository(directory, ioDispatcher, clock)
 
 /** Where the IDE keeps its per-user files (spec §8, §9). Pure functions over system properties. */
 public object SettingsLocations {

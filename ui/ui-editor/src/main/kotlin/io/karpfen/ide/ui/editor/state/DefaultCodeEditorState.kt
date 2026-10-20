@@ -1,7 +1,6 @@
 package io.karpfen.ide.ui.editor.state
 
 import io.karpfen.ide.core.document.session.DocumentSession
-import io.karpfen.ide.core.lang.BracketMatch
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.ui.editor.model.action.ClipboardPort
@@ -11,13 +10,23 @@ import io.karpfen.ide.ui.editor.model.action.EditorKeymap
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 import io.karpfen.ide.ui.editor.model.completion.CompletionSessionModel
 import io.karpfen.ide.ui.editor.model.find.FindModel
+import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Default [CodeEditorState]: creates the models, implements `EditorActionContext`/`EditorUiPort` for the actions and
- * `CompletionSource` for completion, and computes highlights and bracket matches off the UI thread.
+ * Default [CodeEditorState]. A coordinator only (spec §1a: no god class, ≤ ~300 lines): it creates the models
+ * (`CaretModel` with the settings' tab width, `AutoClosedPairs`, `FindModel` and `CompletionSessionModel` with
+ * `execute(action)` as their executor) and delegates to internal collaborators of this package, each with one
+ * responsibility, e.g.:
+ * - an action-context adapter implementing `EditorActionContext` and `EditorUiPort` for the actions;
+ * - an editor completion source implementing `CompletionSource` (a `LanguageDocument` of exactly the requested
+ *   snapshot, tokenized synchronously if the session's tokens lag);
+ * - a highlight pipeline and a bracket tracker on [backgroundDispatcher] ([highlights], [bracketMatch]);
+ * - a hover/definition resolver (bounded wait for a current parse, then `LanguageServices` on [backgroundDispatcher]);
+ * - an enablement tracker for [enabledActions] and the pending view requests ([scrollRequest], [focusRequested]).
  */
 internal class DefaultCodeEditorState(
     override val session: DocumentSession,
@@ -27,6 +36,7 @@ internal class DefaultCodeEditorState(
     override val settings: StateFlow<EditorSettings>,
     override val keymap: EditorKeymap,
     override val actions: EditorActionRegistry,
+    private val backgroundDispatcher: CoroutineDispatcher,
 ) : CodeEditorState {
 
     override val caret: CaretModel get() = TODO("WP-EDITOR-VIEW: caret model")
@@ -35,10 +45,11 @@ internal class DefaultCodeEditorState(
     override val overlays: EditorOverlayController get() = TODO("WP-EDITOR-VIEW: overlay controller")
     override val viewport: EditorViewport get() = TODO("WP-EDITOR-VIEW: viewport")
     override val highlights: StateFlow<HighlightState> get() = TODO("WP-EDITOR-VIEW: highlights")
-    override val bracketMatch: StateFlow<BracketMatch?> get() = TODO("WP-EDITOR-VIEW: bracket match")
-    override val scrollRequests: SharedFlow<ScrollRequest> get() = TODO("WP-EDITOR-VIEW: scroll requests")
+    override val bracketMatch: StateFlow<BracketMatchState> get() = TODO("WP-EDITOR-VIEW: bracket match")
+    override val enabledActions: StateFlow<Set<String>> get() = TODO("WP-EDITOR-VIEW: enabled actions")
+    override val scrollRequest: StateFlow<ScrollRequest?> get() = TODO("WP-EDITOR-VIEW: pending scroll request")
+    override val focusRequested: StateFlow<Boolean> get() = TODO("WP-EDITOR-VIEW: pending focus request")
     override val navigationRequests: SharedFlow<Location> get() = TODO("WP-EDITOR-VIEW: navigation requests")
-    override val focusRequests: SharedFlow<Unit> get() = TODO("WP-EDITOR-VIEW: focus requests")
 
     override fun execute(actionId: String): Boolean = TODO("WP-EDITOR-VIEW: execute action by id")
 
@@ -48,9 +59,15 @@ internal class DefaultCodeEditorState(
 
     override fun scrollTo(offset: Int, center: Boolean): Unit = TODO("WP-EDITOR-VIEW: scroll request")
 
+    override fun consumeScrollRequest(request: ScrollRequest): Unit = TODO("WP-EDITOR-VIEW: consume scroll request")
+
+    override fun consumeFocusRequest(): Unit = TODO("WP-EDITOR-VIEW: consume focus request")
+
     override fun goToDefinition(offset: Int): Unit = TODO("WP-EDITOR-VIEW: go to definition")
 
-    override fun hoverAt(offset: Int): HoverContent? = TODO("WP-EDITOR-VIEW: hover content")
+    override fun goToLine(query: GoToLineQuery): Unit = TODO("WP-EDITOR-VIEW: go to line")
+
+    override suspend fun hoverAt(offset: Int): HoverContent? = TODO("WP-EDITOR-VIEW: hover content")
 
     override fun requestFocus(): Unit = TODO("WP-EDITOR-VIEW: focus request")
 

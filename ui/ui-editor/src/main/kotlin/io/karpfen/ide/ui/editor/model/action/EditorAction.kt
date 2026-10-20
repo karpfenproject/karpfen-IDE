@@ -24,7 +24,8 @@ public interface EditorAction {
 }
 
 /**
- * What an [EditorAction] may use. Implemented by the editor state; tests implement it with fakes.
+ * What an [EditorAction] may use. Implemented by the editor state (one per editor); tests implement it with fakes and
+ * the real Compose-free models.
  */
 public interface EditorActionContext {
 
@@ -33,6 +34,12 @@ public interface EditorActionContext {
 
     /** The carets. */
     public val caret: CaretModel
+
+    /**
+     * The closers this editor inserted automatically (typing over one moves over it, Backspace between an
+     * auto-inserted pair deletes both; spec §7.1). One tracker per editor.
+     */
+    public val autoPairs: AutoClosedPairs
 
     /**
      * The tokens of the current text if available (they may lag one version behind while tokenizing); actions use
@@ -75,6 +82,16 @@ public interface EditorUiPort {
 
     /** Scrolls so that the primary caret is visible. */
     public fun revealCaret()
+}
+
+/**
+ * Runs editor actions in an editor's [EditorActionContext] (the editor state's `execute(action)`). Models that edit
+ * text (find/replace, completion accept) receive one, so every edit is an [EditorAction] with caret mementos and one
+ * undo step (spec §1a, Command pattern).
+ */
+public fun interface EditorActionExecutor {
+    /** Runs [action]; returns whether it did something (false if disabled). */
+    public fun execute(action: EditorAction): Boolean
 }
 
 /** The action that types [text] at every caret (replacing selections), with auto-indent and auto-close rules. */

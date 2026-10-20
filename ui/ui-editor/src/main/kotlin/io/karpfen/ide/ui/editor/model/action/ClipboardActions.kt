@@ -13,10 +13,3 @@ internal class ClipboardAction(private val operation: ClipboardOperation) : Edit
 
     override fun execute(context: EditorActionContext): Boolean = TODO("WP-EDITOR-MODEL: ${operation.name}")
 }
-
-/** Undo or redo, restoring the recorded carets. */
-internal class HistoryAction(private val redo: Boolean) : EditorAction {
-    override val id: String = if (redo) EditorActionIds.REDO else EditorActionIds.UNDO
-
-    override fun execute(context: EditorActionContext): Boolean = TODO("WP-EDITOR-MODEL: ${if (redo) "redo" else "undo"}")
-}
