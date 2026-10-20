@@ -50,10 +50,11 @@ internal fun EditorTextArea(render: EditorRenderState, focusRequester: FocusRequ
     val geometry = render.geometry.value
     val metrics = render.metrics.value
     val maxColumns = remember(geometry) { geometry.maxDisplayColumns() }
+    val areaSize = size // read in composition, so a resize recomposes and reports the new geometry
     SideEffect {
         editor.viewport.updateGeometry(
-            viewportWidth = size.width.toFloat(),
-            viewportHeight = size.height.toFloat(),
+            viewportWidth = areaSize.width.toFloat(),
+            viewportHeight = areaSize.height.toFloat(),
             lineHeight = metrics.lineHeight,
             contentWidth = geometry.textLeft + (maxColumns + RIGHT_PADDING_CELLS) * metrics.charWidth,
             contentHeight = (geometry.snapshot.lineCount + EditorViewport.CARET_MARGIN_LINES) * metrics.lineHeight,

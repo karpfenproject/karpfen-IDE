@@ -1,13 +1,13 @@
 package io.karpfen.ide.ui.editor.view.input
 
 import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerKeyboardModifiers
 import androidx.compose.ui.input.pointer.areAnyPressed
+import androidx.compose.ui.input.pointer.changedToDownIgnoreConsumed
 import androidx.compose.ui.input.pointer.isAltPressed
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
@@ -47,8 +47,10 @@ internal fun Modifier.textAreaPointerInput(model: EditorViewModel, frame: () -> 
         coroutineScope {
             val timers: CoroutineScope = this
             awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                val event = currentEvent
+                // Any button: awaitFirstDown only reports the primary mouse button on desktop.
+                var event = awaitPointerEvent(PointerEventPass.Initial)
+                while (event.changes.none { it.changedToDownIgnoreConsumed() }) event = awaitPointerEvent(PointerEventPass.Initial)
+                val down = event.changes.first { it.changedToDownIgnoreConsumed() }
                 val at = frame() ?: return@awaitEachGesture
                 down.consume()
                 val position = down.position
@@ -89,7 +91,7 @@ internal fun Modifier.textAreaPointerInput(model: EditorViewModel, frame: () -> 
                 val event = awaitPointerEvent()
                 val change = event.changes.firstOrNull() ?: continue
                 when (event.type) {
-                    PointerEventType.Move -> if (!event.buttons.areAnyPressed) {
+                    PointerEventType.Enter, PointerEventType.Move -> if (!event.buttons.areAnyPressed) {
                         model.pointerHover(frame()?.characterAt(change.position.x, change.position.y))
                     }
                     PointerEventType.Exit -> model.pointerHover(null)
