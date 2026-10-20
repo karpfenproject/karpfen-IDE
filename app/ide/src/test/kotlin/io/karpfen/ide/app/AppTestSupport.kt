@@ -39,8 +39,8 @@ import kotlin.time.Duration
 /**
  * A scripted [WorkbenchState] (WP-WORKBENCH may not be merged, so app tests never run the real one): records the
  * calls of the composition root, registers one command, and lets a test decide how long `openFolder` takes, whether
- * `start` fails and how `requestExit` answers. The sub-states are the real classes, only constructed (their members
- * are never called).
+ * `start` fails and how `requestExit` answers. The composition root never touches the sub-states outside the window,
+ * so the fake fails on access instead of constructing WP-WORKBENCH's classes.
  */
 internal class FakeWorkbenchState(val scope: CoroutineScope, val services: WorkbenchServices) : WorkbenchState {
     val calls = mutableListOf<String>()
@@ -54,13 +54,13 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
 
     override val workspace: StateFlow<Workspace?> = MutableStateFlow(null)
     override val languageServices: StateFlow<LanguageServices?> = MutableStateFlow(null)
-    override val projectTree: ProjectTreeState = ProjectTreeState()
-    override val tabs: EditorTabsState = EditorTabsState(scope)
-    override val outline: OutlineState = OutlineState(scope)
-    override val problems: ProblemsState = ProblemsState(scope)
-    override val statusBar: StatusBarState = StatusBarState(scope)
-    override val dialogs: DialogState = DialogState()
-    override val layout: LayoutState = LayoutState()
+    override val projectTree: ProjectTreeState get() = unused("projectTree")
+    override val tabs: EditorTabsState get() = unused("tabs")
+    override val outline: OutlineState get() = unused("outline")
+    override val problems: ProblemsState get() = unused("problems")
+    override val statusBar: StatusBarState get() = unused("statusBar")
+    override val dialogs: DialogState get() = unused("dialogs")
+    override val layout: LayoutState get() = unused("layout")
     override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
     override val windowTitle: StateFlow<String> = MutableStateFlow("karpfen IDE")
 
@@ -106,6 +106,8 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun closeActiveTab(): Job = unexpected("closeActiveTab")
 
     private fun unexpected(intent: String): Nothing = throw AssertionError("the composition root does not call $intent")
+
+    private fun unused(subState: String): Nothing = throw AssertionError("the composition root does not use $subState")
 
     companion object {
         const val FAKE_COMMAND_ID = "fake.command"

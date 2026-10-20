@@ -21,19 +21,19 @@ import io.karpfen.ide.app.window.initialWindowState
 import io.karpfen.ide.ui.workbench.Workbench
 
 /**
- * The application's content for [runner]'s phase: nothing while the session is prepared, the main window while it
- * runs, and the end of the application once the run exited. Rendering only; the lifecycle is [IdeRunner]'s.
+ * The application's content for [runState]'s phase: nothing while the session is prepared, the main window while it
+ * runs, and the end of the application once the run exited. Rendering only; the lifecycle is [IdeRunState]'s.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun ApplicationScope.IdeApplicationContent(
-    runner: IdeRunner,
+    runState: IdeRunState,
     windowExceptions: WindowExceptionHandlerFactory,
     screens: ScreenAreas,
 ) {
-    when (val phase = runner.phase.collectAsState().value) {
+    when (val phase = runState.phase.collectAsState().value) {
         IdePhase.Starting -> Unit
-        is IdePhase.Running -> IdeMainWindow(phase.session, onCloseRequest = { runner.requestClose() }, windowExceptions, screens)
+        is IdePhase.Running -> IdeMainWindow(phase.session, onCloseRequest = { runState.requestClose() }, windowExceptions, screens)
         IdePhase.Exited -> SideEffect { exitApplication() }
     }
 }

@@ -9,21 +9,6 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import kotlin.coroutines.cancellation.CancellationException
 
-/** Exit statuses of the karpfen command-line tool. */
-public object ExitCodes {
-    /** The usage was printed, or the validation found no ERROR. */
-    public const val OK: Int = 0
-
-    /** The validation found at least one ERROR. */
-    public const val ERRORS_FOUND: Int = 1
-
-    /** Invalid command line, or the directory to validate does not exist. */
-    public const val USAGE: Int = 2
-
-    /** The validation failed unexpectedly (a defect; the cause is logged). */
-    public const val FAILURE: Int = 3
-}
-
 /**
  * The karpfen command-line tool: parses the arguments ([CliArguments]) and runs the command, returning its exit status
  * ([ExitCodes]). Everything it prints goes through [outputGuard]: the report and the usage of `help` to its `output`

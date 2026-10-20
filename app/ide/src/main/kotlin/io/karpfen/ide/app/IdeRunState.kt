@@ -38,7 +38,7 @@ internal sealed interface IdePhase {
  * @param exitAfter when set (`KARPFEN_IDE_EXIT_AFTER_MS`), the run exits after this time without the unsaved-changes
  *   flow.
  */
-internal class IdeRunner(
+internal class IdeRunState(
     private val scope: CoroutineScope,
     private val prepare: suspend () -> IdeSession,
     private val onRunning: (IdeSession) -> Unit = {},
@@ -112,7 +112,7 @@ internal class IdeRunner(
     }
 
     private companion object {
-        private val log = LoggerFactory.getLogger(IdeRunner::class.java)
+        private val log = LoggerFactory.getLogger(IdeRunState::class.java)
         private val COMPLETED: Job = CompletableDeferred(Unit)
     }
 }

@@ -85,7 +85,7 @@ public class IdeApplication(
         val crashHandling = CrashHandling { error -> errorDialogs.show(error) }
         crashHandling.install()
         val applicationScope = uiScope + CoroutineExceptionHandler { _, error -> crashHandling.handle(error) }
-        val runner = IdeRunner(
+        val runState = IdeRunState(
             scope = applicationScope,
             prepare = { prepare(applicationScope, initialFolder) },
             onRunning = { session -> errorDialogs.attach { request -> session.state.dialogs.ask(request) } },
@@ -93,14 +93,14 @@ public class IdeApplication(
         )
         val windowExceptions = WindowExceptionHandlerFactory { WindowExceptionHandler(crashHandling::handle) }
         val screens = awtScreenAreas()
-        runner.start()
+        runState.start()
         try {
-            application(exitProcessOnExit = false) { IdeApplicationContent(runner, windowExceptions, screens) }
+            application(exitProcessOnExit = false) { IdeApplicationContent(runState, windowExceptions, screens) }
         } finally {
             // The workbench state is used from the UI thread only, so it is closed there.
-            EventQueue.invokeAndWait(runner::dispose)
+            EventQueue.invokeAndWait(runState::dispose)
         }
-        runner.startupFailure?.let { throw IllegalStateException("the IDE could not start", it) }
+        runState.startupFailure?.let { throw IllegalStateException("the IDE could not start", it) }
     }
 }
 
