@@ -43,10 +43,28 @@ internal class TextGeometry(
     /** The right end of [line]'s text. */
     fun lineRight(line: Int): Float = xOf(snapshot.lineIndex.lineEnd(line))
 
-    /** Number of display columns of the widest line (for the content width). */
-    fun maxDisplayColumns(): Int = (0 until snapshot.lineCount).maxOf { line ->
-        val text = snapshot.lineText(line)
-        if ('\t' in text) tabStops.displayColumn(text, text.length) else text.length
+    /**
+     * Number of display columns of the widest line (for the content width): one pass over the text, [TabStops] only for
+     * lines that contain a tab.
+     */
+    fun maxDisplayColumns(): Int {
+        val text = snapshot.text
+        val index = snapshot.lineIndex
+        var widest = 0
+        for (line in 0 until snapshot.lineCount) {
+            val start = index.lineStart(line)
+            val end = index.lineEnd(line)
+            var hasTab = false
+            for (offset in start until end) {
+                if (text[offset] == '\t') {
+                    hasTab = true
+                    break
+                }
+            }
+            val columns = if (hasTab) tabStops.displayColumn(text.subSequence(start, end), end - start) else end - start
+            if (columns > widest) widest = columns
+        }
+        return widest
     }
 
     /**
