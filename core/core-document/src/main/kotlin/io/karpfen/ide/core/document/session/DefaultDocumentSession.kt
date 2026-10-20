@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * A coordinator (Facade, spec §1a) that wires single-purpose collaborators and implements nothing itself:
  * - [TokenizePipeline] — [tokens], the initial snapshot synchronously, later versions without debounce, latest wins;
- * - [ParseScheduler] — [parse] and [lastGoodParse], the initial snapshot at once, later versions debounced and
+ * - [ParseScheduler] — [parse] and [lastGoodParse], the first snapshot at once, later versions debounced and
  *   cancellable;
  * - [ExternalDiagnosticsStore] — the external sets of [setExternalDiagnostics], thread-safe, other lineages ignored;
  * - [DiagnosticsPublisher] with a [DiagnosticsMerger] — [diagnostics], every source mapped with `EditableText.mapRange`
