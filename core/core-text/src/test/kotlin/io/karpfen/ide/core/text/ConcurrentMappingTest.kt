@@ -42,7 +42,13 @@ class ConcurrentMappingTest {
                 started.countDown()
                 started.await()
                 try {
-                    while (writing.get()) lookups += randomLookup(text, random)
+                    var from = text.snapshot.value
+                    var count = 0
+                    while (writing.get()) {
+                        // Keep an older snapshot for a while, so lookups cross versions the writer publishes meanwhile.
+                        if (++count % 100 == 0) from = text.snapshot.value
+                        lookups += randomLookup(text, from, random)
+                    }
                 } catch (throwable: Throwable) {
                     failure.compareAndSet(null, throwable)
                 }
@@ -74,19 +80,25 @@ class ConcurrentMappingTest {
         // Single-threaded now: every answer must equal the mapping of the version the reader asked for.
         var points = 0
         var ranges = 0
+        var racing = 0
         for (lookup in lookups) when (lookup) {
             is Lookup.Point -> {
                 assertEquals(text.mapOffset(lookup.offset, lookup.from, lookup.to, lookup.bias), lookup.answer, "$lookup")
                 points++
+                if (lookup.to > lookup.from) racing++
             }
             is Lookup.Range -> {
                 val candidates = (lookup.lowest..lookup.highest).map { text.mapRange(lookup.range, lookup.from, text.lineage, it) }
                 assertTrue(lookup.answer in candidates, "$lookup not in $candidates")
                 ranges++
+                if (lookup.highest > lookup.from) racing++
             }
         }
-        assertTrue(points > 0 && ranges > 0, "the readers ran while the writer edited")
-        reporter.publishEntry("concurrent lookups", "$WRITES writes, $points point and $ranges range lookups verified")
+        assertTrue(points > 0 && ranges > 0 && racing > 0, "the readers mapped across versions while the writer edited")
+        reporter.publishEntry(
+            "concurrent lookups",
+            "$WRITES writes, $points point and $ranges range lookups verified, $racing of them across versions written meanwhile",
+        )
     }
 
     @Test
@@ -120,8 +132,7 @@ class ConcurrentMappingTest {
         assertNotNull(text.mapOffset(0, WRITES - 4L))
     }
 
-    private fun randomLookup(text: EditableText, random: Random): Lookup {
-        val from = text.snapshot.value
+    private fun randomLookup(text: EditableText, from: TextSnapshot, random: Random): Lookup {
         val to = text.snapshot.value
         val toVersion = random.nextLong(from.version, to.version + 1)
         return if (random.nextBoolean()) {
@@ -134,7 +145,7 @@ class ConcurrentMappingTest {
             val a = random.nextInt(from.length + 1)
             val b = random.nextInt(from.length + 1)
             val range = TextRange(minOf(a, b), maxOf(a, b))
-            val lowest = text.snapshot.value.version
+            val lowest = to.version
             val answer = text.mapRange(range, from)
             val highest = text.snapshot.value.version
             assertNotNull(answer, "nothing is evicted in this test")

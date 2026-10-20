@@ -7,6 +7,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.TestTimeSource
 
 /**
@@ -40,6 +41,8 @@ class OffsetMappingPropertyTest {
         val checkpoints = ArrayList<Checkpoint>()
         var mapped = 0
         var evicted = 0
+        var collapsed = 0
+        var empty = 0
 
         repeat(OPERATIONS) {
             val change = when (random.nextInt(10)) {
@@ -78,7 +81,12 @@ class OffsetMappingPropertyTest {
             }
             for (range in ranges) {
                 val result = text.mapRange(range.range, range.fromVersion, text.lineage)
-                if (current.version - range.fromVersion > HISTORY) assertNull(result) else assertEquals(range.expected, result, "range ${range.range}")
+                if (current.version - range.fromVersion > HISTORY) {
+                    assertNull(result)
+                } else {
+                    assertEquals(range.expected, result, "range ${range.range}")
+                    if (range.range.isEmpty) empty++ else if (range.start.offset > range.end!!.offset) collapsed++
+                }
             }
             for (checkpoint in checkpoints) {
                 val result = text.mapOffset(checkpoint.original, checkpoint.fromVersion, checkpoint.atVersion, checkpoint.bias)
@@ -102,7 +110,11 @@ class OffsetMappingPropertyTest {
                 if (range.isEmpty) null else reference.track(current.version, range.end, Bias.LEFT),
             )
         }
-        reporter.publishEntry("seed $seed", "$OPERATIONS operations, $mapped offsets checked, $evicted evicted lookups")
+        assertTrue(collapsed > 0 && empty > 0 && evicted > 0, "every case of the range rule was exercised")
+        reporter.publishEntry(
+            "seed $seed",
+            "$OPERATIONS operations, $mapped offsets checked, $evicted evicted lookups, $collapsed inverted ranges collapsed, $empty empty ranges",
+        )
     }
 
     @Test
