@@ -1,7 +1,8 @@
 # P1 — Work packages
 
-Status: v1.1, 2026-10-20 (contracts step; v1.1 applies the contract review, see [§6](#6-decisions-of-the-contracts-step-that-refine-the-spec)
-and [§7](#7-review-findings-not-adopted)). Companion to [p1-text-editing-spec.md](p1-text-editing-spec.md) (the
+Status: v1.2, 2026-10-20 (contracts step; v1.1 applied the first contract review, v1.2 the second one, see
+[§6](#6-decisions-of-the-contracts-step-that-refine-the-spec) and [§7](#7-review-findings-not-adopted)). Companion to
+[p1-text-editing-spec.md](p1-text-editing-spec.md) (the
 contract of phase 1; §1a, the design principles, is a hard requirement). This document assigns every file created in
 the contracts step to exactly one work package (WP), says what each WP implements, which fakes it may use while its
 dependencies are not merged, which spec sections and acceptance tests it must satisfy, and what it must not touch.
@@ -28,14 +29,18 @@ in the heading.
 1. Branch/worktree per WP; commits end with the trailer line `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
    Never run Docker or the karpfen runtime; never modify karpfen-dsl-tools or karpfen-runtime.
 2. `JAVA_HOME=<JDK 21> ./gradlew build` is green at every merge, in artifact mode (composite mode is checked by CI).
-   That includes `verifyModuleDependencies` and `architecture-tests`: ANTLR/converter confinement; Compose-, AWT- and
-   Swing-free packages (an explicit list in `ComposeFreeStateTest`: `ui.editor.model..`, `ui.editor.state`,
-   `ui.workbench.{state,command,files,settings,templates}`, `ui.foundation.command`); no package cycles in core and UI
-   modules; UI layering (`UiLayeringTest`: the editor model sees no other editor package, editor `view` and `popup`
-   meet only through `overlay`, editor `state` sees no view/popup/overlay/theme, workbench `state` sees no workbench
-   view package, the root package or `files.desktop`, ports in `files` see no adapters); the P0 layer rules.
-   Compose-side helper state (e.g. a hoisted `TreeViewState` for a widget) belongs in view packages and may be named
-   `*State`; a new Compose-free state-holder package is a contract change (§5).
+   That includes `verifyModuleDependencies` and `architecture-tests`: ANTLR/converter confinement (imports and
+   qualified references; inside core-document only `registry` may depend on the `antlr` and `dsl` adapter packages);
+   Compose-, AWT- and Swing-free packages (`ComposeFreeStateTest`: `ui.editor.model..`, `ui.editor.state`,
+   `ui.foundation.command`, `ui.foundation.keys`, and every ui-workbench package except the root package, the
+   features' `view` packages and `files.desktop`); no package cycles in core and UI modules; UI layering
+   (`UiLayeringTest`: the editor model sees no other editor package, editor `view` and `popup` meet only through
+   `overlay`, editor `state` sees no view/popup/overlay/theme, foundation `keys`/`command` see no `keys.compose`,
+   Compose-free workbench packages see no view package, the root package or `files.desktop`, the feature sub-states
+   see no mediator package `state`, ports in `files` see no adapters); the P0 layer rules. Compose-side helper state
+   (e.g. a hoisted `TreeViewState` for a widget) belongs in view packages; a new Compose-free state-holder package in
+   ui-editor or ui-foundation is a contract change (§5); in ui-workbench a new feature follows the by-feature layout
+   (decision 31).
 3. No `TODO(` remains in owned files at merge time.
 4. **No test executes code of a WP that is not merged yet.** Use the fakes listed per WP (or write your own in your test
    sources). Every interface at a seam exists so it can be faked.
@@ -47,16 +52,25 @@ in the heading.
    JUnit's `TestReporter` (it is written to the test report; the core test classpaths have no SLF4J binding, so SLF4J
    output would be dropped), as the spec requires.
 7. Build files: a WP may only touch its own module's `build.gradle.kts`, and only to add **test-only** libraries
-   (`testImplementation`/`testRuntimeOnly`). All production dependencies are in place. WPs sharing a module
-   (TOKENS + PARSE in core-document; EDITOR-MODEL + EDITOR-VIEW + EDITOR-POPUPS in ui-editor) add lines only; the later
-   merge resolves the trivial conflict.
+   (`testImplementation`/`testRuntimeOnly`). All production dependencies are in place. A test-only library goes
+   through the version catalog like every dependency: a WP may **append** test-only entries (version + library alias)
+   to `gradle/libs.versions.toml`; it never changes or removes existing entries, and raw coordinates in build files
+   are not allowed. WPs sharing a module (TOKENS + PARSE in core-document; EDITOR-MODEL + EDITOR-VIEW + EDITOR-POPUPS
+   in ui-editor) or the catalog add lines only; the later merge resolves the trivial conflict.
 8. Shared test fixtures (`core/core-document/src/testFixtures`) are CONTRACT. Use them through
    `testImplementation(testFixtures(project(":core:core-document")))` (already declared in every module that needs
    them): `Examples.files()`, `Examples.contexts()`, `Examples.copyTo(dir)`, `Mutations.random(text, seed, count)`,
    `Mutations.prefixes(text)`, `SyntheticKstates(n)` / `SyntheticKstates.withMinLines(n)`, and the IDE-authored
    environment descriptors `DescriptorExamples.text(name)` / `DescriptorExamples.copyExplicitContext(dir)` (valid,
-   unknown key + missing file, invalid JSON; expected findings in `ide-examples/README.md`). Do not invent descriptors.
+   unknown key + missing file, invalid JSON; expected findings in `ide-examples/README.md`). Shared, end-to-end and
+   CLI scenarios use these descriptors and invent none. Unit tests of the descriptor reader and the context resolver
+   (WP-WORKSPACE) may write descriptor text or build `EnvironmentDescriptor`/`DescriptorReadResult` values in their own
+   test sources for rules the shared files do not cover (a missing required key, paths into sub-directories and `..`,
+   one file named by two descriptors, two descriptors in one directory).
 9. The phase-0 `<Name>Module` stub objects and their tests stay untouched.
+10. Logging configuration: `logback.xml` exists only in `app/ide/src/main/resources` and `tools/cli/src/main/resources`
+    (WP-APP). The test classpaths of `app/ide` and `tools/cli` may have a `src/test/resources/logback-test.xml`
+    (console only), so tests never write into a real log directory.
 
 ### Merge order
 
@@ -70,15 +84,19 @@ in the heading.
 | 4 | WP-WORKBENCH | WP-WORKSPACE, WP-LANG, WP-EDITOR-VIEW, WP-EDITOR-POPUPS |
 | 5 | INTEGRATION | all |
 
-WP-APP compiles against the workbench API (CONTRACT) but cannot run the application before WP-WORKBENCH is merged;
-the launch smoke test (spec §11 item 6) is verified by INTEGRATION.
+WP-APP compiles against the workbench API (CONTRACT) but cannot run the application before WP-WORKBENCH is merged:
+it tests `IdeApplication.prepare` headless with a fake `WorkbenchState` (an interface), the menus and the crash
+handling; the launch smoke test (spec §11 item 6) and the first run of the real window are verified by INTEGRATION,
+which may fix defects in owned files of merged WPs (§5 rule 7). Likewise `CodeEditor` and `EditorPopups` first run
+together in INTEGRATION's `ui.editor.e2e`.
 
 ## 3. Contract files (frozen)
 
 Changes only through [§5](#5-contract-change-protocol). Owners of the surrounding module may *read* and *use* them.
 
 core/core-text (`…/core/text/`): `TextRange.kt`, `TextPosition.kt`, `TextEdit.kt`, `Bias.kt`, `CaretMemento.kt`,
-`EditOrigin.kt`, `TextChange.kt`, `UndoResult.kt`, `TextSnapshot.kt`, `UndoManager.kt`, `EditableText.kt`.
+`EditOrigin.kt`, `TextChange.kt`, `UndoResult.kt`, `TextSnapshot.kt`, `TextLineage.kt`, `UndoManager.kt`,
+`EditableText.kt`.
 
 core/core-document (`…/core/document/`): `KarpfenLanguage.kt`, `Diagnostic.kt`, `syntax/TokenKind.kt`,
 `syntax/SyntaxToken.kt`, `syntax/TokenizeResult.kt`, `syntax/Tokenizer.kt`, `parse/SymbolKind.kt`,
@@ -86,7 +104,8 @@ core/core-document (`…/core/document/`): `KarpfenLanguage.kt`, `Diagnostic.kt`
 `parse/ParseOutcome.kt`, `parse/DocumentParser.kt`, `language/LanguageSupport.kt`, `language/LanguageRegistry.kt`,
 `registry/DefaultLanguageRegistry.kt`, `registry/KarpfenLanguageSupports.kt`, `dsl/DslConverter.kt`,
 `dsl/DslErrorLocator.kt`, `session/DocumentId.kt`, `session/DocumentSession.kt` (incl. `ExternalDiagnosticSources`),
-`session/DocumentSessionConfig.kt`, `session/VersionedDiagnostics.kt`.
+`session/DocumentSessionConfig.kt`, `session/VersionedDiagnostics.kt`, `session/DiagnosticsMerge.kt` (the one merge
+rule `mergeDiagnostics`, complete).
 **Shared ANTLR mechanics** of WP-TOKENS and WP-PARSE, complete and tested in the contracts step (decision 16):
 `antlr/CodePointOffsets.kt`, `antlr/IdeErrorListener.kt`, `antlr/KarpfenLexers.kt`, `antlr/LexerGaps.kt`,
 `antlr/EvalBodies.kt`. The test fixtures `src/testFixtures/**` (incl. `ide-examples/**` and `DescriptorExamples.kt`)
@@ -94,33 +113,44 @@ and the tests `src/test/kotlin/io/karpfen/ide/core/document/fixtures/ExamplesFix
 `…/dsl/FixtureConversionTest.kt`, `…/antlr/CodePointOffsetsTest.kt`, `…/antlr/IdeErrorListenerTest.kt`,
 `…/antlr/LexerGapsTest.kt`, `…/antlr/EvalBodiesTest.kt`.
 
-core/core-workspace (`…/core/workspace/`): `Workspace.kt`, `WorkspaceOptions.kt`, `files/FileKind.kt`,
+core/core-workspace (`…/core/workspace/`): `Workspace.kt` (incl. `WorkspaceFactory`), `WorkspaceOptions.kt`,
+`files/FileKind.kt`,
 `files/WorkspaceTree.kt`, `files/FileWatcher.kt`, `document/DocumentManager.kt`, `document/OpenDocument.kt`,
 `document/TextFileStore.kt`, `document/SourceLoader.kt`, `environment/EnvironmentDescriptor.kt`,
 `environment/EnvironmentDescriptorReader.kt`, `context/ModelingContext.kt`, `context/ContextResolution.kt`,
 `context/ContextResolver.kt`, `analysis/ProjectAnalysis.kt`, `analysis/ProjectAnalyzer.kt`,
 `problems/WorkspaceProblems.kt`.
 
-core/core-lang (`…/core/lang/`): `LanguageServices.kt`, `LanguageDocument.kt`, `Highlighting.kt`, `Completion.kt`, and
-the *signatures* of `defaultLanguageServices(…)` (with `ProviderFailure`) and `karpfenLanguageFeatures()` in
-`services/LanguageServicesFactory.kt` (the file itself is owned by WP-LANG, see below).
+core/core-lang (`…/core/lang/`): `LanguageServices.kt`, `LanguageDocument.kt` (incl. `Location`), `Highlighting.kt`,
+`Completion.kt`, and the *signatures* of `defaultLanguageServices(…)` (with `ProviderFailure`) and
+`karpfenLanguageFeatures()` in `services/LanguageServicesFactory.kt` (the file itself is owned by WP-LANG, see below).
 
 ui/ui-foundation (`…/ui/foundation/`): `keys/KeyStroke.kt`, `command/Command.kt`.
 
 ui/ui-editor (`…/ui/editor/`): `model/caret/Caret.kt`, `model/action/EditorAction.kt` (incl. `EditorActionContext`,
-`EditorActionExecutor`), `model/action/EditorActionIds.kt`, `model/navigation/GoToLineQuery.kt`,
-`state/CodeEditorState.kt`, `state/EditorPopupModel.kt` (what the popups may use), `state/EditorOverlayController.kt`
-(complete; shared by VIEW and POPUPS), `overlay/EditorOverlays.kt` (the slot API between VIEW and POPUPS).
+`EditorActionExecutor`), `model/action/EditorActionIds.kt` (incl. `EditorActionTitles`),
+`model/navigation/GoToLineQuery.kt`, `state/CodeEditorState.kt`, `state/EditorPopupModel.kt` (what the popups may use),
+`state/EditorOverlayState.kt` (complete; shared by VIEW and POPUPS), `overlay/EditorOverlays.kt` (the slot API between
+VIEW and POPUPS).
 
 ui/ui-workbench (`…/ui/workbench/`): `state/WorkbenchState.kt`, `state/WorkbenchServices.kt`,
-`command/WorkbenchCommandIds.kt`, `settings/IdeSettings.kt`, `settings/SettingsRepository.kt`,
-`files/ProjectFileOperations.kt` (the ports `ProjectFileOperations`, `DeleteOutcome`, `FolderChooser`), and the
-*signature* of `defaultWorkbenchServices(…)` in `DefaultWorkbenchServices.kt` and of `Workbench(…)` in `Workbench.kt`.
-The *public members as declared* of the sub-states (`state/ProjectTreeState.kt`, `EditorTabsState.kt`,
-`OutlineState.kt`, `ProblemsState.kt`, `StatusBarState.kt`, `DialogState.kt`) are part of the contract (other WPs may
-use them, e.g. WP-APP `dialogs.ask(DialogRequest.Error(…))`); WP-WORKBENCH owns the files and may add members.
+`command/WorkbenchCommandIds.kt`, `settings/IdeSettings.kt`, `settings/SettingsRepository.kt` (incl.
+`SettingsLocations`), `files/ProjectFileOperations.kt` (the ports `ProjectFileOperations`, `DeleteOutcome`,
+`FolderChooser`), and the *signature* of `defaultWorkbenchServices(…)` in `DefaultWorkbenchServices.kt` and of
+`Workbench(…)` in `Workbench.kt`. The *public members as declared* of the sub-states in their feature packages
+(`projecttree/ProjectTreeState.kt`, `tabs/EditorTabsState.kt`, `outline/OutlineState.kt`, `problems/ProblemsState.kt`,
+`statusbar/StatusBarState.kt`, `dialog/DialogState.kt`, `layout/LayoutState.kt`) and of `templates/FileTemplates.kt`
+are part of the contract, and their value types (`EditorTab`, `OutlineUiState`, `ProblemItem`, `ProblemGroup`,
+`ProblemFilter`, `ProblemsUiState`, `StatusBarUiState`, `DialogRequest`/`DialogResponse` and the answer interfaces,
+`ToolWindowId`, `LayoutUiState`, `FileTemplateKind`, `TemplateContext`) are complete; other WPs may use them (e.g.
+WP-APP `dialogs.ask(DialogRequest.Error(…))`). WP-WORKBENCH owns the files and may add members; the sub-states'
+internal members (mediator-only operations) may change.
 
-tools/cli (`…/tools/cli/`): `validate/ValidationReport.kt`.
+app/ide (`…/app/`): the *signatures* of `IdeApplication(…)`, `IdeApplication.prepare`, `IdeApplication.run` and the
+class `IdeSession` in `IdeApplication.kt` (the file is owned by WP-APP).
+
+tools/cli (`…/tools/cli/`): `validate/ValidationReport.kt`, and the *signature* of `ValidateCommand(…)` (owned by
+WP-APP).
 
 architecture-tests: `KarpfenModules.kt`, `ForeignApiConfinementTest.kt`, `ComposeFreeStateTest.kt`,
 `PackageCycleTest.kt`, `UiLayeringTest.kt` and the P0 tests.
@@ -134,7 +164,8 @@ Contract tests (they pin the complete values and wiring; extend coverage in your
 `ui/ui-editor/src/test/kotlin/io/karpfen/ide/ui/editor/EditorContractTest.kt`,
 `ui/ui-workbench/src/test/kotlin/io/karpfen/ide/ui/workbench/WorkbenchContractTest.kt`.
 
-Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradle/libs.versions.toml`, `build-logic/**`.
+Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradle/libs.versions.toml` (except appended
+test-only entries, rule 7), `build-logic/**`.
 
 ## 4. Work packages
 
@@ -144,7 +175,8 @@ Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradl
   (`core/core-text/…/core/text/`): `DefaultEditableText.kt`, `DefaultUndoManager.kt`, `LineIndex.kt` (bodies),
   `LineSeparator.kt` (the `LineSeparators` bodies; `LineSeparator` and `NormalizedText` are complete). New internal
   files (edit log, offset mapping, coalescing policy) go into the same package.
-- **Implements**: `EditableText` (via `DefaultEditableText`), `UndoManager`, `LineIndex`, `LineSeparators`.
+- **Implements**: `EditableText` (via `DefaultEditableText`; every snapshot carries the instance's one `TextLineage`),
+  `UndoManager`, `LineIndex`, `LineSeparators`.
 - **Fakes**: none needed (no dependencies). Time: `kotlin.time.TestTimeSource`.
 - **Must satisfy**: spec §1 (offsets, separators, threading, determinism), §2 all MUST rules. Acceptance tests (spec §2
   Tests): ≥ 10,000 random ops per seed against a `StringBuilder` reference; undo-all returns the initial text,
@@ -153,18 +185,22 @@ Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradl
   coalesced run restores the first change's `caretsBefore` on undo and the last change's `caretsAfter` on redo, see
   `UndoManager`); `isAtSavePoint` through undo/redo; `mapOffset` with both biases against a reference and `null` after
   eviction; `LineIndex` edge cases (empty text, trailing newline, only newlines, very long line); `LineSeparators`
-  round trip and mixed detection; `apply` rejects overlapping edits and returns null for no-ops.
+  round trip and mixed detection; `apply` rejects overlapping edits and returns null for no-ops; all snapshots of one
+  text share its `lineage`, two texts have different ones.
 - **Must not touch**: any other module.
 
 ### WP-FOUNDATION — ui-foundation
 
 - **Owns**: all of `io.karpfen.ide.ui.foundation` except CONTRACT files. Skeletons (`ui/ui-foundation/…/ui/foundation/`):
-  `keys/ComposeKeys.kt`, `command/CommandRegistry.kt`, `theme/KarpfenTheme.kt`, `icons/KarpfenIcons.kt`,
-  `layout/SplitPane.kt` (`SplitPane`, `ToolWindow`), `widgets/TabStrip.kt`, `widgets/TreeView.kt`, `widgets/StatusBar.kt`.
-- **Implements**: `CommandRegistry` (`DefaultCommandRegistry`), `KeyEvent.toKeyStroke()`, `KeyShortcut.displayText`,
-  `KeyShortcut.toMenuShortcut` (WP-APP binds menu accelerators with it, decision 15), palettes/typography,
-  `KarpfenTheme`, icons (`ImageVector.Builder`, no material-icons-extended), the widgets. Hoisted widget state
-  (e.g. a `TreeViewState`) may use Compose; `ui.foundation.command` must stay Compose-free (rule 2).
+  `keys/KeyShortcutText.kt`, `keys/compose/ComposeKeys.kt`, `command/CommandRegistry.kt`, `theme/KarpfenTheme.kt`,
+  `icons/KarpfenIcons.kt`, `layout/SplitPane.kt` (`SplitPane`, `ToolWindow`), `widgets/TabStrip.kt`,
+  `widgets/TreeView.kt`, `widgets/StatusBar.kt`.
+- **Implements**: `CommandRegistry` (`DefaultCommandRegistry`), `KeyShortcut.displayText` (pure Kotlin in `keys`),
+  `KeyEvent.toKeyStroke()` and `KeyShortcut.toMenuShortcut` (the Compose adapters in `keys.compose`; WP-APP binds menu
+  accelerators with the latter, decision 15), palettes/typography, `KarpfenTheme`, icons (`ImageVector.Builder`, no
+  material-icons-extended), the widgets (`ContextMenuAction` and `StatusBarItem` are plain classes holding behaviour,
+  decision 33). Hoisted widget state (e.g. a `TreeViewState`) may use Compose; `ui.foundation.command` and
+  `ui.foundation.keys` must stay Compose-free (rule 2).
 - **Fakes**: none needed.
 - **Must satisfy**: spec §6. Tests: registry register/replace/unregister/lookup by stroke per platform, disabled
   commands do not execute; shortcut display per platform; key-event mapping (headless `runComposeUiTest` with key
@@ -182,11 +218,13 @@ Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradl
   (listener replaced, LEXER diagnostics, `LexedText.rangeOf` for every index); KMeta/KModel comments and unrecognized
   input from `LexerGaps.scan` (COMMENT and ERROR tokens); KStates hidden `LINE_COMMENT` tokens; EVAL bodies and their
   pieces from `EvalBodies.find`/`scan` (mapping documented on `KstatesTokenizer`: `//` → COMMENT + `eval-double-slash`
-  WARNING); `EVENT` as OPERATION in action blocks, KEYWORD in CONDITION blocks (block structure on brace tokens).
+  WARNING), and the bodies' content ranges as `TokenizeResult.embeddedRegions` (decision 27); `EVENT` as OPERATION in
+  action blocks, KEYWORD in CONDITION blocks (block structure on brace tokens).
   `DocumentSession` (tokens via mapLatest without debounce, initial tokens synchronous; debounced, cancellable parse
-  with the initial parse undebounced; `lastGoodParse`; merged, deduplicated, sorted `VersionedDiagnostics` mapped to
-  the newest version; `setExternalDiagnostics` thread-safe (any thread); `close`). Keep the no-arg constructors (used
-  by `registry/KarpfenLanguageSupports.kt`) and the factory semantics.
+  with the initial parse undebounced; `lastGoodParse`; `VersionedDiagnostics` with the newest snapshot, every source
+  mapped to it and merged by `mergeDiagnostics` — never a merge rule of its own (decision 28); `setExternalDiagnostics`
+  thread-safe (any thread), ignoring snapshots of another lineage; `close`). Keep the no-arg constructors (used by
+  `registry/KarpfenLanguageSupports.kt`) and the factory semantics.
 - **Fakes**: `DocumentParser` is WP-PARSE: build sessions with `LanguageSupport(language, realTokenizer, fakeParser)`
   where the fake returns hand-built `ParseOutcome`s (also with syntax diagnostics, to test `lastGoodParse`).
   Time: `StandardTestDispatcher` in `DocumentSessionConfig` + `runTest` virtual time.
@@ -195,9 +233,12 @@ Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradl
   §11 item 2 (zero LEXER diagnostics for every example) and item 3 for tokenizers (never throw on
   `Mutations.random(…, count = 10_000)` over the examples and on every prefix of one KStates example; token invariants
   hold on all of them). Rule from §3.1: every non-whitespace character in exactly one token — test it on all mutations.
+  `embeddedRegions` equal the `EvalBody.content` ranges of `EvalBodies.find` on all mutations, and every EMBEDDED_*,
+  PATH_REFERENCE and MACRO_REFERENCE token lies in one of them. Session: an external set for a snapshot of another
+  lineage is ignored; the merged diagnostics equal `mergeDiagnostics` of the mapped sources.
 - **Must not touch**: `antlr/tree`, `dsl`, `parse`, `registry`, `language`, the root package, the shared files in the
   `antlr` root package (`CodePointOffsets.kt`, `IdeErrorListener.kt`, `KarpfenLexers.kt`, `LexerGaps.kt`,
-  `EvalBodies.kt`), fixtures.
+  `EvalBodies.kt`), the CONTRACT files of `session` (incl. `DiagnosticsMerge.kt`), fixtures.
 
 ### WP-PARSE — core-document: ANTLR parse adapter, tree walkers, dsl-tools adapter
 
@@ -249,41 +290,55 @@ Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradl
   factory's `tabWidth()`, `breakCoalescing()` on every explicit move), `AutoClosedPairs` (version-stamped, mapped on
   query), every action of `EditorActionIds` (one undo step each, caret mementos before/after), `typeTextAction`
   (auto-close and over-type of *tracked* closers only), `EditorActionRegistry`, `defaultEditorKeymap` (bindings
-  listed on `EditorKeymap`), `FindModel` and `CompletionSessionModel` (triggers, filtering and ranking, close rules,
-  `handleKey`; observes `caret.state` itself; versioned `CompletionSource` calls, stale results dropped), both editing
-  only through internal replace/accept `EditorAction`s run by their `EditorActionExecutor`.
-- **Fakes**: `EditorActionContext`, `ClipboardPort`, `EditorUiPort`, `CompletionSource` (hand-written fakes); an
-  `EditorActionExecutor` that runs the action in the fake context; real `AutoClosedPairs`; tokens as hand-built
-  `TokenizeResult`s (e.g. EMBEDDED_* tokens to mark an EVAL body for toggle comment); `KeyStroke`s built directly
-  (values are complete). Real `EditableText` (WP-TEXT merged). Coroutines: `UnconfinedTestDispatcher`.
+  listed on `EditorKeymap`), `FindModel` (matches on the injected background dispatcher, published in its scope,
+  synchronous recomputation when the published state lags) and `CompletionSessionModel` (triggers, filtering and
+  ranking, close rules, `handleKey`; observes `caret.state` itself; requests the suspending, versioned `CompletionSource`
+  in coroutines of its scope, a newer request cancelling an older one, stale results dropped; it never names a
+  dispatcher, decision 30), both editing only through internal replace/accept `EditorAction`s run by their
+  `EditorActionExecutor`. Toggle comment decides `#` vs `//` per line with `context.tokens.embeddedRegionAt`, as
+  documented on `ToggleCommentAction` (decision 27). Actions never scroll (the editor state reveals the caret).
+- **Fakes**: `EditorActionContext`, `ClipboardPort`, `EditorUiPort`, `CompletionSource` (hand-written fakes, the source
+  e.g. suspending until the test releases it); an `EditorActionExecutor` that runs the action in the fake context; real
+  `AutoClosedPairs`; tokens as hand-built `TokenizeResult`s with explicit `embeddedRegions` for EVAL bodies; `KeyStroke`s
+  built directly (values are complete). Real `EditableText` (WP-TEXT merged). Coroutines: `StandardTestDispatcher` or
+  `UnconfinedTestDispatcher` as scope and as find's background dispatcher (virtual time, no real threads).
 - **Must satisfy**: spec §7.1 (all bullets), "every action is exactly one undo step", undo/redo restore carets (rule of
   `UndoManager`). Tests per action group, per movement (incl. Up/Down over tab lines with tab widths 2 and 4), per find
   option (invalid regex → error state), completion ranking/stability, a typed `)` before a user-typed `)` is inserted
-  (not over-typed), Backspace inside a user-typed `()` deletes one character.
+  (not over-typed), Backspace inside a user-typed `()` deletes one character; toggle comment on an empty line, a
+  `// note` line and the closing-brace line inside a multi-line EVAL body uses `#`, on the `EVAL {` line `//`;
+  completion results for an older version are dropped and re-requested.
 - **Must not touch**: `state`, `view`, `theme`, `overlay`, `popup`; CONTRACT files.
 
 ### WP-WORKSPACE — core-workspace
 
 - **Owns**: all of `io.karpfen.ide.core.workspace` except CONTRACT files. Skeletons
   (`core/core-workspace/…/core/workspace/`): `DefaultWorkspace.kt` (incl. `WorkspaceCollaborators`),
-  `files/WatchServiceFileWatcher.kt`, `files/WorkspaceScanner.kt`, `document/DefaultDocumentManager.kt`,
-  `document/AtomicTextFileStore.kt`, `document/DefaultSourceLoader.kt`, `environment/JsonEnvironmentDescriptorReader.kt`,
+  `files/WatchServiceFileWatcher.kt`, `files/WorkspaceScanner.kt`, `document/DefaultDocumentManager.kt` (incl. the
+  internal `WorkspaceDocuments` interface the workspace depends on), `document/AtomicTextFileStore.kt`,
+  `document/DefaultSourceLoader.kt`, `environment/JsonEnvironmentDescriptorReader.kt`,
   `context/DefaultContextResolver.kt`, `analysis/DefaultProjectAnalyzer.kt`, `problems/WorkspaceProblemsAggregator.kt`.
+  The wiring in the `Workspace(…)` and `WorkspaceFactory(…)` factories (CONTRACT `Workspace.kt`) is complete.
 - **Implements**: `Workspace` (scan, watch + 200 ms debounce, refresh, contexts incl. loose files, debounced 300 ms
   cancellable analysis, `isAnalyzing`, `awaitAnalysis` returning once `analysis` and `problems` reflect it, pushing
-  `ExternalDiagnosticSources.PROJECT` diagnostics into open sessions, `problems` by the single rule documented on
-  `WorkspaceProblems`) as a coordinator over internal collaborators (tree refresher, analysis scheduler, diagnostics
-  publisher, problems aggregator); the injected collaborators of the `Workspace(…)` factory are used, never created
-  inside. `FileWatcher` (recursive `WatchService`). `SourceLoader` (UTF-8 with replacement + WARNING on the first
+  `ExternalDiagnosticSources.PROJECT` diagnostics into open sessions with the `AnalyzedFile.snapshot`, `problems` by
+  the single rule documented on `WorkspaceProblems`) as a coordinator over internal collaborators (tree refresher,
+  analysis scheduler, diagnostics publisher, problems aggregator); every collaborator — the `WorkspaceDocuments`
+  (`DefaultDocumentManager`) and the `WorkspaceScanner` included — comes through `WorkspaceCollaborators` from the
+  `Workspace(…)` factory, never created inside, and the watch pipeline talks to `WorkspaceDocuments.onFileChanged`, not
+  to the class. `FileWatcher` (recursive `WatchService`). `SourceLoader` (UTF-8 with replacement + WARNING on the first
   U+FFFD, BOM removed and flagged, separators normalized + INFO on the first minority line break). `TextFileStore`
   (BOM-aware read/write). `DocumentManager`/`OpenDocument` (loading through the `SourceLoader`, findings as external
-  source `FILE`, `WorkspaceOptions.timeSource` for every `EditableText`, dirty flag from the save point, atomic save
-  restoring separators and BOM, self-induced event suppression, reload as one `External` change when clean, conflict
-  when dirty or deleted, `SYNTAX_ONLY` sessions for `EVENTS.kmeta`; every text mutation on the workspace scope's
-  dispatcher). `EnvironmentDescriptorReader` (on normalized text; unknown keys → WARNING, JSON value ranges).
-  `ContextResolver` (rules on the interface, `looseFiles`). `ProjectAnalyzer` (through `DslConverter` only — never
-  dsl-tools directly, enforced by architecture tests; `AnalyzedFile` with lexical and file diagnostics for context and
-  loose files).
+  source `FILE` — cleared by a successful save, replaced by every reload; `WorkspaceOptions.timeSource` for every
+  `EditableText`, dirty flag from the save point, atomic save restoring separators and BOM, self-induced event
+  suppression, reload as one `External` change when clean, conflict when dirty or deleted, **every** session
+  `SYNTAX_ONLY` (decision 28); every text mutation on the workspace scope's dispatcher). `EnvironmentDescriptorReader`
+  (on normalized text; unknown keys → WARNING, JSON value ranges). `ContextResolver` (rules on the interface;
+  `looseFiles` = every karpfen source in no context, the metamodels an implicit context did not choose included,
+  decision 29). `ProjectAnalyzer` (through `DslConverter` only — never dsl-tools directly, enforced by architecture
+  tests; `AnalyzedFile` with lexical and file diagnostics for context and loose files; the conventions documented on
+  `ProjectAnalysis`: normalized paths, session snapshots for open documents, version 0 with a fresh lineage for disk
+  files, syntax-only parses).
 - **Fakes**: a `FileWatcher` fake that emits `FileChange`s on demand (the JDK's macOS watch service polls slowly; at most
   one real-watcher test, tagged slow-tolerant with generous timeouts); optionally an in-memory `TextFileStore` or
   `SourceLoader`. Real tokenizers/parsers/`DslConverter` (WP-TOKENS, WP-PARSE merged). Virtual time via test dispatchers
@@ -291,10 +346,14 @@ Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradl
   `DescriptorExamples.copyExplicitContext(@TempDir)`.
 - **Must satisfy**: spec §4 (all bullets) and §11 item 2 (every example context analyzes with zero DSL_TOOLS errors).
   Tests: tree order and ignore rules; FileKind; descriptor reading over `DescriptorExamples` (valid, invalid JSON,
-  unknown key, missing file with range); explicit and implicit contexts incl. several metamodels and loose files;
-  analysis of every example context; the problems rule (open document, unopened context file, loose file,
-  descriptor); external-change reload and conflict; save round trip with CRLF/CR files and with a BOM; malformed
-  UTF-8.
+  unknown key, missing file with range) plus test-local descriptors (rule 8: missing required key, sub-directory and
+  `..` paths, a file in two descriptors, two descriptors in one directory); explicit and implicit contexts incl. loose
+  files; two metamodels `a.kmeta` and `b.kmeta` in one directory with `b` missing a `}`: `b` is a loose file and its
+  PARSER error is in `problems` (as the CLI reports it), next to the INFO `context-multiple-metamodels`; analysis of
+  every example context; the problems rule (open document, unopened context file, loose file, descriptor), and that
+  opening and closing a loose or a context file leaves `problems` unchanged once the analysis caught up; external-change
+  reload and conflict; a save clears the FILE findings and a reload replaces them; a PROJECT push of an analysis started
+  before a close and reopen is ignored; save round trip with CRLF/CR files and with a BOM; malformed UTF-8.
 - **Must not touch**: other modules; CONTRACT files.
 
 ### WP-LANG — core-lang
@@ -302,164 +361,219 @@ Build files: all `build.gradle.kts` (except test-only additions, rule 7), `gradl
 - **Owns**: all of `io.karpfen.ide.core.lang` except the CONTRACT root files (`LanguageServices.kt`,
   `LanguageDocument.kt`, `Highlighting.kt`, `Completion.kt`). Skeletons (`core/core-lang/…/core/lang/`):
   `feature/LanguageFeatures.kt` (SPI with `FeatureRequest`, may be extended), `context/CaretContext.kt`,
-  `symbols/TypeCatalog.kt` (values complete, `ContextTypeCatalog` to implement), `modelpath/ModelPathResolver.kt`,
-  `highlight/DefaultHighlightProvider.kt`, `brackets/TokenBracketMatcher.kt`, `kmeta/Kmeta{LanguageFeatures,
-  CompletionProvider,NavigationProvider,HoverProvider}.kt`, the same four files in `kmodel/` (`Kmodel…`) and `kstates/`
-  (`Kstates…`), `services/DefaultLanguageServices.kt`, `services/LanguageServicesFactory.kt` (keep the two public
-  signatures and `ProviderFailure`). The shared mechanics (`CaretContextDetector`, `TypeCatalog`, `ModelPathResolver`)
-  and their value types may be refined.
+  `symbols/TypeCatalog.kt` (values complete, `ContextTypeCatalog` to implement), `modelpath/ModelPathResolver.kt`
+  (values complete: `PathMember` wraps `MemberInfo`), `highlight/DefaultHighlightProvider.kt`,
+  `brackets/TokenBracketMatcher.kt`, `kmeta/Kmeta{LanguageFeatures,CompletionProvider,NavigationProvider,
+  HoverProvider}.kt`, the same four files in `kmodel/` (`Kmodel…`) and `kstates/` (`Kstates…`) plus
+  `kstates/KstatesPathScopes.kt`, `services/DefaultLanguageServices.kt`, `services/LanguageServicesFactory.kt` (keep
+  the two public signatures and `ProviderFailure`). The shared mechanics (`CaretContextDetector`, `TypeCatalog`,
+  `ModelPathResolver`, `KstatesPathScopes`) and their value types may be refined.
 - **Implements**: `LanguageServices` facade (delegation per language, never throws, logs provider failures and reports
   them to `onProviderFailure`), highlighting (lexical + semantic overlay when versions match), per-language
-  completion/navigation/hover per spec §5, bracket matching, and the shared collaborators: caret-context detection,
-  `TypeCatalog` (types of the document and the context with members and declaration `Location`s; hover texts from
-  `TypeInfo.hoverText`/`MemberInfo.signature`), model-path resolution over `TypeInfo`. Every provider follows the
-  staleness rule on `LanguageDocument` and fills `Location.version`.
+  completion/navigation/hover per spec §5, bracket matching, and the shared collaborators: caret-context detection
+  (`embedded` exactly from `tokens.embeddedRegionAt`, decision 27), `TypeCatalog` (types of the document and the
+  context with members and declaration `Location`s, converted once per `ContextAnalysis` and memoized; hover texts from
+  `TypeInfo.hoverText`/`MemberInfo.signature`), model-path resolution over `TypeInfo`, the KStates path scope at an
+  offset (`KstatesPathScopes`, one collaborator for completion, hover and navigation). Every provider follows the
+  staleness rule on `LanguageDocument` and fills `Location.version` and `Location.lineage` from the outcome the range
+  came from (current parse, last good parse, analyzed snapshot; decision 26).
 - **Fakes**: none for code; project knowledge is built directly: `ProjectAnalysis`/`ContextAnalysis`/`AnalyzedFile`/
   `ModelingContext` are complete values, metamodels/models/state machines come from `DslConverter()` (WP-PARSE) over
-  `Examples.contexts()`, parse outcomes from `defaultLanguageRegistry()`. Pass `MutableStateFlow(analysis)` to
+  `Examples.contexts()`, parse outcomes from `defaultLanguageRegistry()` with `SemanticMode.SYNTAX_ONLY`. Build them by
+  the conventions documented on `ProjectAnalysis` (normalized absolute paths, `TextSnapshot(text, 0)` per disk file,
+  syntax-only parses), so they look like the real analyzer's. Pass `MutableStateFlow(analysis)` to
   `defaultLanguageServices`. Do not use WP-WORKSPACE's analyzer.
 - **Must satisfy**: spec §5 (completion by context for all three languages, definition/references, hover, matching
   bracket, structure with per-language strategies and shared collaborators) and §11 item 3 for highlight, completion,
   definition and hover (never throw on 10,000 mutations of the examples and every prefix of one KStates example). The
   robustness tests call `defaultLanguageServices(…, onProviderFailure = recorder)` and assert the recorder stays empty
-  (the facade's catch-all must not hide provider exceptions).
+  (the facade's catch-all must not hide provider exceptions). Definition of a state reference while the file is broken
+  (declaration only in the last good parse) returns that parse's version, so navigation after edits above the target
+  lands on the declaration.
 - **Must not touch**: other modules; the CONTRACT root files.
 
 ### WP-EDITOR-VIEW — ui-editor view, state, theme
 
 - **Owns**: packages `io.karpfen.ide.ui.editor.state` (except CONTRACT files `CodeEditorState.kt`,
-  `EditorPopupModel.kt`, `EditorOverlayController.kt`), `io.karpfen.ide.ui.editor.view`, `io.karpfen.ide.ui.editor.theme`.
+  `EditorPopupModel.kt`, `EditorOverlayState.kt`), `io.karpfen.ide.ui.editor.view`, `io.karpfen.ide.ui.editor.theme`.
   Skeletons (`ui/ui-editor/…/ui/editor/`): `state/DefaultCodeEditorState.kt`, `state/EditorViewport.kt`,
   `view/CodeEditor.kt`, `view/EditorStateFactories.kt` (`rememberCodeEditorState`, `systemClipboard`),
   `view/LineLayoutCache.kt`, `theme/EditorTheme.kt` (palettes and `LocalEditorTheme`; the data class is frozen).
 - **Implements**: `CodeEditorState` as a coordinator over internal collaborators of the `state` package (action-context
-  adapter implementing `EditorActionContext`/`EditorUiPort` with one `AutoClosedPairs` per editor; completion source
-  implementing the versioned `CompletionSource`; highlight pipeline and bracket tracker on `backgroundDispatcher`;
-  hover/definition resolver waiting (bounded) for a current parse; `enabledActions`; pending `scrollRequest` and
-  `focusRequested` with their consume functions; `goToLine`), `EditorViewport`, `CodeEditor` (rendering,
-  virtualization, layout cache, gutter, decorations, input incl. IME/dead keys/macOS Option combinations and
-  `SemanticsActions.InsertTextAtCursor`, keymap routing with completion first, consuming exactly the strokes it
-  handles (decision 15), mouse, scrollbars, caret reveal with 3-line margin, applying pending requests when composed),
-  hosting `EditorOverlays.Header`/`Popups` with an `EditorOverlayHost` implementation, editor themes, the lazy system
-  clipboard port with headless fallback.
+  adapter implementing `EditorActionContext`/`EditorUiPort` with one `AutoClosedPairs` per editor — `openFind` may seed
+  the query from a one-line selection through `FindModel.setQuery` before `overlays.openFind`; completion source
+  implementing the suspending `CompletionSource` with `withContext(backgroundDispatcher)` and
+  `LanguageDocument.of(session, snapshot)`; `FindModel` created with `backgroundDispatcher`; highlight pipeline and
+  bracket tracker on `backgroundDispatcher`; hover/definition resolver waiting (bounded) for a current parse; the input
+  intents `handleKey` (completion first, then keymap; true exactly when handled), `pointerHover` (600 ms
+  `HOVER_DELAY` in the editor's scope) and `openContextMenuAt` (caret moves to the click unless inside the selection);
+  the caret reveal after every `execute`/`type` that changed carets or text; `enabledActions`; pending `scrollRequest`
+  and `focusRequested` with their consume functions; `goToLine`), `EditorViewport`, `CodeEditor` (rendering,
+  virtualization, layout cache, gutter, decorations — find matches only while `overlays.findBar` is open — input incl.
+  IME/dead keys/macOS Option combinations and `SemanticsActions.InsertTextAtCursor`, key events to `handleKey` consumed
+  exactly when it returns true (decision 15), mouse to the state's intents with x/y in the `EditorOverlayHost` space,
+  scrollbars, applying pending requests when composed, `onNavigate` only for simple embeddings), hosting
+  `EditorOverlays.Header`/`Popups` with an `EditorOverlayHost` implementation, editor themes, the lazy system
+  clipboard port with headless fallback (decisions 15 and 30).
 - **Fakes**: a fake `LanguageServices` (fixed spans/items/locations); `EditorOverlays.None` or a test overlay that
   records host calls (POPUPS is developed in parallel). Real sessions via `DocumentSession(…)` with
   `defaultLanguageRegistry()` (TOKENS and PARSE merged), real models (EDITOR-MODEL merged), real foundation; a test
-  dispatcher as `backgroundDispatcher`.
+  dispatcher as `backgroundDispatcher` and in the editor's scope.
 - **Must satisfy**: spec §7.2 (rendering, input, mouse, scrolling, `scrollTo`) and the headless benchmark (10,000-line
   KStates via `SyntheticKstates.withMinLines(10_000)`, scrolled to the middle, average frame time after warm-up
   < 50 ms, reported), §11 item 4 (headless Compose tests: typing incl. `performTextInput`, selection by mouse and keys,
-  Cmd/Ctrl+click navigation callback, hover after 600 ms with diagnostics, scroll-to-caret). Also: `scrollTo(center)`
-  and `requestFocus()` issued before the first composition take effect once `CodeEditor` is composed; a handled key
-  stroke is consumed and an unhandled one is not; `enabledActions` follows selection and undo history.
+  Cmd/Ctrl+click navigation, hover after 600 ms with diagnostics, scroll-to-caret). Unit tests (Compose-free, virtual
+  time) of the input policy: `handleKey` routes to completion first and returns true exactly for handled strokes; the
+  hover appears after `HOVER_DELAY` and is hidden on move/leave; a right-click outside the selection moves the caret,
+  inside it keeps the selection; Page Down and arrow keys at the viewport edge issue a reveal `scrollRequest`. Also:
+  `scrollTo(center)` and `requestFocus()` issued before the first composition take effect once `CodeEditor` is
+  composed; a handled key stroke is consumed and an unhandled one is not; `enabledActions` follows selection and undo
+  history.
 - **Must not touch**: `model/**`, `popup/**`, `overlay/**`, CONTRACT files.
 
 ### WP-EDITOR-POPUPS — ui-editor popups
 
 - **Owns**: package `io.karpfen.ide.ui.editor.popup`. Skeletons (`ui/ui-editor/…/ui/editor/popup/`): `EditorPopups.kt`,
   `CompletionPopup.kt`, `FindReplaceBar.kt`, `GoToLinePopup.kt`, `HoverTooltip.kt`, `EditorContextMenu.kt`.
-- **Implements**: `EditorPopups : EditorOverlays` — `Header` (find/replace bar) and `Popups` (completion list, go-to-line,
-  hover tooltip, context menu), each composable rendering immutable state and calling the host's `EditorPopupModel`
-  (go-to-line through `goToLine`, context-menu enablement through `isEnabled`, focus return through `requestFocus`).
+- **Implements**: `EditorPopups : EditorOverlays` — `Header` (find/replace bar, focusing and selecting its query field
+  whenever `overlays.findFocusRequests` changes) and `Popups` (completion list, go-to-line, hover tooltip, context menu
+  at `ContextMenuRequest.x/y` in the host's coordinate space with the titles of `EditorActionTitles`), each composable
+  rendering immutable state and calling the host's `EditorPopupModel` (go-to-line through `goToLine`, context-menu
+  enablement through `isEnabled`, focus return through `requestFocus`).
 - **Fakes**: a fake `EditorPopupModel` (the narrow interface, not `CodeEditorState`) wired to real models
   (`CaretModel`, `FindModel`, `CompletionSessionModel` from EDITOR-MODEL, with an `EditorActionExecutor` running the
-  actions in a fake `EditorActionContext`) and a real `EditorOverlayController`; a fake `EditorOverlayHost` with fixed
+  actions in a fake `EditorActionContext`) and a real `EditorOverlayState`; a fake `EditorOverlayHost` with fixed
   geometry; an `EditorTheme` built in the test (the palettes are WP-EDITOR-VIEW's). Do not call
   `CodeEditorState(…)`/`rememberCodeEditorState` (VIEW, not merged).
 - **Must satisfy**: spec §7.2 Popups bullet: completion ≤ 12 rows with kind badge/label/detail; find bar with Aa/W/.*
-  toggles, "n/m" counter, Enter/Shift+Enter, Escape returns focus (`requestFocus`); go-to-line `line[:col]`;
-  hover tooltip; context menu Cut/Copy/Paste/Go to Definition/Toggle Comment by action id, disabled entries greyed
-  out. Headless tests per popup.
+  toggles, "n/m" counter, Enter/Shift+Enter, Escape returns focus (`requestFocus`), a second `openFind` in the same
+  mode refocuses the field; go-to-line `line[:col]`; hover tooltip; context menu Cut/Copy/Paste/Go to
+  Definition/Toggle Comment by action id, disabled entries greyed out. Headless tests per popup.
 - **Must not touch**: everything outside `popup`.
 
 ### WP-WORKBENCH — ui-workbench
 
 - **Owns**: all of `io.karpfen.ide.ui.workbench` except CONTRACT files and INTEGRATION's test package
-  `io.karpfen.ide.ui.workbench.e2e`. Skeletons (`ui/ui-workbench/…/ui/workbench/`): `Workbench.kt` (body),
-  `DefaultWorkbenchServices.kt` (body), `state/DefaultWorkbenchState.kt`, `state/ProjectTreeState.kt`,
-  `state/EditorTabsState.kt`, `state/OutlineState.kt`, `state/ProblemsState.kt`, `state/StatusBarState.kt`,
-  `state/DialogState.kt` (sub-states may get new members; their declared public members are frozen, see §3),
-  `settings/JsonSettingsRepository.kt`, `templates/FileTemplates.kt`, `files/desktop/DesktopFileOperations.kt`,
-  `projecttree/ProjectTreeView.kt`, `tabs/EditorArea.kt`, `outline/OutlineView.kt`, `problems/ProblemsView.kt`,
-  `statusbar/WorkbenchStatusBar.kt`, `dialog/WorkbenchDialogs.kt`, `welcome/WelcomeView.kt`.
+  `io.karpfen.ide.ui.workbench.e2e`. The module is organized by feature (decision 31): each feature package holds its
+  Compose-free sub-state, its `view` sub-package the composables. Skeletons (`ui/ui-workbench/…/ui/workbench/`):
+  `Workbench.kt` (body), `DefaultWorkbenchServices.kt` (body), `state/DefaultWorkbenchState.kt` (the mediator),
+  `projecttree/ProjectTreeState.kt`, `tabs/EditorTabsState.kt`, `outline/OutlineState.kt`, `problems/ProblemsState.kt`,
+  `statusbar/StatusBarState.kt`, `dialog/DialogState.kt`, `layout/LayoutState.kt` (sub-states may get new members;
+  their declared public members are frozen, their internal mediator operations are not, see §3),
+  `settings/JsonSettingsRepository.kt`, `templates/FileTemplates.kt` (`DefaultFileTemplates`),
+  `files/desktop/DesktopFileOperations.kt`, `projecttree/view/ProjectTreeView.kt`, `tabs/view/EditorArea.kt`,
+  `outline/view/OutlineView.kt`, `problems/view/ProblemsView.kt`, `statusbar/view/WorkbenchStatusBar.kt`,
+  `dialog/view/WorkbenchDialogs.kt`, `welcome/view/WelcomeView.kt`. New internal collaborators of the mediator go into
+  `state`; new feature state into its feature package.
 - **Implements**: `WorkbenchState` (Mediator) as a coordinator over internal collaborators of the `state` package
-  (command registrar, tool-window layout, unsaved-changes flow, file-operations flow): `openFolder`, `openFile` (files
-  the editor cannot open go to `openExternally`, decision 14), `navigateTo` (versioned ranges mapped with
-  `mapOffset`, else clamped), the project-tree intents `createFile`/`rename`/`delete`/`reveal` and the conflict banner
-  intent `resolveConflict` as documented on `WorkbenchState`, close/exit flows; the sub-states (`ProblemsState` and the
-  status-bar counts only map `Workspace.problems`); `Workbench` composable and views (no logic; they call the intents);
-  `SettingsRepository` (JSON, corrupt-file backup named from the injected `Clock`); templates; desktop file operations
-  and folder chooser (blocking work on `WorkbenchServices.ioDispatcher`); command registration (`WorkbenchCommandIds`;
-  editor commands under `EditorActionIds` with shortcuts from `defaultEditorKeymap(platform)` and enablement from the
-  active editor's `enabledActions`, forwarded to it); light/dark theme provision.
+  (command registrar, layout persister, editor-navigation collector, unsaved-changes flow, file-operations flow):
+  `openFolder`, `openFile` (files the editor cannot open go to `openExternally`, decision 14), `navigateTo` (mapped
+  with `mapOffset` only for the text's own lineage and an older-or-equal version, else clamped; decision 26), the
+  project-tree intents `createFile` (with a `TemplateContext` from `Workspace.contexts` and `Workspace.analysis`) /
+  `rename`/`delete`/`revealInFileManager` and the conflict banner intent `resolveConflict` as documented on
+  `WorkbenchState`, close/exit flows; collecting each editor's `navigationRequests` from opening its tab until closing
+  it; the sub-states (`ProblemsState` and the status-bar counts only map `Workspace.problems`; `ProblemItem` with the
+  snapshot's version and lineage; `OutlineUiState` with path, parse version and lineage; `LayoutState` as live state,
+  persisted by the mediator debounced and on exit, restored in `start`; the typed `DialogState`); `Workbench`
+  composable and views (no logic; they call the intents, e.g. `navigateTo(item.location)`,
+  `navigateTo(outline.locationOf(node))`, `closeTab`); `SettingsRepository` (JSON, corrupt-file backup named from the
+  injected `Clock`); templates per `TemplateContext` (documented on `FileTemplates`); desktop file operations and
+  folder chooser (blocking work on `WorkbenchServices.ioDispatcher`); command registration (`WorkbenchCommandIds`; View
+  commands drive `layout`; editor commands under `EditorActionIds` with `EditorActionTitles`, shortcuts from
+  `WorkbenchServices.editorKeymap` — the keymap `EditorStateFactory.create` gets too — and enablement from the active
+  editor's `enabledActions`, forwarded to it); light/dark theme provision from `layout`.
 - **Fakes**: fake `FolderChooser`, `ProjectFileOperations` (or the real one on `@TempDir`), `WorkbenchServices` with
   fakes where useful, a test dispatcher as `ioDispatcher` and as the editors' background dispatcher (through an
-  `EditorStateFactory` that calls `CodeEditorState(…, backgroundDispatcher = …)`); real everything else (all
-  dependencies merged). Settings directory: `@TempDir`; clock: `Clock.fixed`.
+  `EditorStateFactory` that calls `CodeEditorState(…, keymap = keymap, backgroundDispatcher = …)`); real everything
+  else (all dependencies merged). Settings directory: `@TempDir`; clock: `Clock.fixed`.
 - **Must satisfy**: spec §8 (all bullets) with unit tests per sub-state (Compose-free) and for the mediator flows (new
-  file from each template, rename and delete of open files, external conflict Reload / Keep mine, navigateTo into an
-  unopened file centres the caret), headless UI tests for the layout, tree open, tab close with unsaved changes,
-  problems navigation (also to a descriptor diagnostic → opened externally), status bar; settings persistence and
-  corrupt-file recovery.
+  file from each template, also in a directory with an implicit context — the new descriptor names the existing files,
+  the new KModel/KStates use the context's types —, rename and delete of open files, external conflict Reload / Keep
+  mine, navigateTo into an unopened file centres the caret, Problems and Outline navigation after edits above the target
+  and with the outline taken from the last good parse, a definition lookup finishing after a tab switch still
+  navigates, a burst of `resizeToolWindow` writes the settings once), headless UI tests for the layout, tree open, tab
+  close with unsaved changes, problems navigation (also to a descriptor diagnostic → opened externally), status bar;
+  settings persistence (tool-window map round trip, unknown tool-window names kept) and corrupt-file recovery.
 - **Must not touch**: other modules; CONTRACT files; `…/ui/workbench/e2e`.
 
 ### WP-APP — app/ide and tools/cli
 
 - **Owns**: package `io.karpfen.ide.app` and `io.karpfen.ide.tools.cli` (incl. `validate`) except the CONTRACT file
-  `validate/ValidationReport.kt` and INTEGRATION's `e2e` test packages. Skeletons: `app/ide/…/app/IdeApplication.kt`,
-  `app/ide/…/app/IdeMenus.kt`, `app/ide/…/app/CrashHandling.kt`, `app/ide/…/app/Main.kt` (rewrite: `main(args)`,
-  optional folder argument, `KARPFEN_IDE_EXIT_AFTER_MS` kept), `tools/cli/…/tools/cli/Main.kt` (rewrite: `main(args)` →
-  exit code; keep a one-line `USAGE`), `tools/cli/…/tools/cli/CliArguments.kt`,
-  `tools/cli/…/tools/cli/validate/ValidateCommand.kt`, `…/validate/ReportFormatter.kt`,
+  `validate/ValidationReport.kt` and INTEGRATION's `e2e` test packages. Skeletons: `app/ide/…/app/IdeApplication.kt`
+  (keep the signatures of `IdeApplication(…)`, `prepare`, `run` and `IdeSession`), `app/ide/…/app/IdeMenus.kt`,
+  `app/ide/…/app/CrashHandling.kt`, `app/ide/…/app/Main.kt` (rewrite: `main(args)`, optional folder argument,
+  `KARPFEN_IDE_EXIT_AFTER_MS` kept, `KARPFEN_IDE_HOME` copied into the system property
+  `SettingsLocations.HOME_PROPERTY` before the first logger exists), `tools/cli/…/tools/cli/Main.kt` (rewrite:
+  `main(args)` → exit code; keep a one-line `USAGE`), `tools/cli/…/tools/cli/CliArguments.kt`,
+  `tools/cli/…/tools/cli/validate/ValidateCommand.kt` (keep the constructor signature), `…/validate/ReportFormatter.kt`,
   `…/validate/StandardOutputGuard.kt`; new resources `app/ide/src/main/resources/logback.xml` and
-  `tools/cli/src/main/resources/logback.xml`.
-- **Implements**: the composition root (`IdeApplication`), menus from `CommandRegistry` + `IdeMenus.specs` through an
-  internal Compose-free `resolveMenus(specs, registry)` that `IdeMenuBar` only renders (accelerators bound with
-  `toMenuShortcut`, decision 15), native macOS menu bar, window title and bounds, close → `requestExit`, crash handling
-  with a dialog (`WorkbenchState.dialogs.ask(DialogRequest.Error(…))` once the workbench runs), logging config
-  (console WARN, rolling file `~/.karpfen-ide/logs/ide.log`); CLI argument parsing, `validate` (workspace with the
-  injected `WorkspaceOptions` without watching, `refresh`, `awaitAnalysis`, report `Workspace.problems` — no own
-  tokenizing or merging; analysis inside the suspending `StandardOutputGuard.silenced`), text/JSON formatters, exit
-  codes (1 on ERROR).
-- **Fakes**: app tests must not run `WorkbenchState`/`Workbench` (WP-WORKBENCH may not be merged): test `IdeMenus.specs`,
-  `resolveMenus` (with a fake `CommandRegistry` if WP-FOUNDATION is not merged yet), `CrashHandling` with a recording
-  callback. CLI tests use the real workspace (WORKSPACE/LANG merged) over `Examples.copyTo(@TempDir)` and
-  `DescriptorExamples.copyExplicitContext(@TempDir)`, with test dispatchers in the `WorkspaceOptions`.
+  `tools/cli/src/main/resources/logback.xml`, and optionally `src/test/resources/logback-test.xml` in both modules
+  (rule 10).
+- **Implements**: the composition root (`IdeApplication`: `prepare` does all window-free wiring — services from the
+  injected factory, the state from the injected `workbenchStateFactory`, a `CommandRegistry` with
+  `registerCommands`, `start`, the initial folder — and `run` shows the window around it), menus from
+  `CommandRegistry` + `IdeMenus.specs` through an internal Compose-free `resolveMenus(specs, registry)` that
+  `IdeMenuBar` only renders (accelerators bound with `toMenuShortcut`, decision 15), native macOS menu bar, window
+  title and bounds (from and to `WorkbenchState.layout`), close → `requestExit`, crash handling with a dialog
+  (`WorkbenchState.dialogs.ask(DialogRequest.Error(…))` once the workbench runs), logging config (console WARN, rolling
+  file `${karpfen.ide.home:-${user.home}/.karpfen-ide}/logs/ide.log`, so the IDE home override moves the log too);
+  CLI argument parsing, `validate` (a workspace from the injected `WorkspaceFactory` without watching, `refresh`,
+  `awaitAnalysis`, report `Workspace.problems` — no own tokenizing or merging; analysis inside the suspending
+  `StandardOutputGuard.silenced`; the workspace closed afterwards), text/JSON formatters, exit codes (1 on ERROR).
+- **Fakes**: app tests must not run the real `WorkbenchState`/`Workbench` (WP-WORKBENCH may not be merged): test
+  `IdeApplication.prepare` headless with a fake `WorkbenchState` (an interface) from `workbenchStateFactory` and a
+  recording services factory, `IdeMenus.specs`, `resolveMenus` (with a fake `CommandRegistry` if WP-FOUNDATION is not
+  merged yet), `CrashHandling` with a recording callback, the home-directory resolution of `main`. CLI tests use the
+  real workspace (WORKSPACE/LANG merged) over `Examples.copyTo(@TempDir)` and
+  `DescriptorExamples.copyExplicitContext(@TempDir)`, through `WorkspaceFactory(WorkspaceOptions(watch = false, …test
+  dispatchers…))`.
 - **Must satisfy**: spec §9 and §11 item 5 (`karpfen validate <examples dir>` exits 0 with no ERROR output; a broken copy
   exits 1 with `path:line:col: error: … [code]`, one-based; descriptor findings are reported with their positions;
-  JSON format parses).
-- **Must not touch**: other modules; `logback.xml` must not be added anywhere else.
+  loose files' syntax errors (e.g. a second, broken metamodel in one directory) are reported; JSON format parses).
+- **Must not touch**: other modules; `logback.xml` must not be added anywhere else (rule 10).
 
 ### INTEGRATION — end-to-end tests and documentation
 
 - **Owns**: new test packages `…/e2e/` in `app/ide`, `tools/cli`, `ui/ui-workbench` and `ui/ui-editor`
   (`io.karpfen.ide.ui.editor.e2e`: `CodeEditor` together with `EditorPopups`, which neither VIEW nor POPUPS may test);
-  `docs/p1-manual-test.md` (new); `README.md` (status, module table, run instructions).
-- **Implements**: end-to-end tests over the merged system: open the examples folder in a `WorkbenchState`, edit, see
-  diagnostics and completion, save/undo, external change; in `ui.editor.e2e` completion opening on typing with keys
-  routed by the view, find-bar Escape returning focus, the context menu by right-click; DoD checks of spec §11 not
-  already covered by a WP.
-- **Must satisfy**: spec §11 items 1–7 (composite mode in CI; `KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app:ide:run
-  --args=<examples dir>` exits 0 with no ERROR in the log; the 10-minute manual smoke test document for the owner).
-  Also: the Problems view, the status-bar counts and `karpfen validate` agree on the examples plus
-  `DescriptorExamples.copyExplicitContext`; one Cmd/Ctrl+Z in the editor undoes exactly one step (headless: the
-  stroke is consumed by the editor and no command runs; the manual test covers the native macOS menu bar).
-- **Must not touch**: production code. Gaps found are reported through §5, not patched.
+  `docs/p1-manual-test.md` (new); `README.md` (status, module table, run instructions). Defect fixes in owned files of
+  merged WPs (§5 rule 7).
+- **Implements**: end-to-end tests over the merged system, built with the production wiring and test values
+  (`defaultWorkbenchServices(settingsDirectory = @TempDir, workspaceOptions = …TestTimeSource…, fileWatcher = fake,
+  clock = Clock.fixed, …)` and `IdeApplication(…).prepare`): open the examples folder in a `WorkbenchState`, edit, see
+  diagnostics and completion, save/undo (coalescing on the test time source), external change through the fake
+  watcher; in `ui.editor.e2e` completion opening on typing with keys routed through `handleKey`, find-bar Escape
+  returning focus, the context menu by right-click; DoD checks of spec §11 not already covered by a WP.
+- **Must satisfy**: spec §11 items 1–7 (composite mode in CI; `KARPFEN_IDE_HOME=<temp dir> KARPFEN_IDE_EXIT_AFTER_MS=6000
+  ./gradlew :app:ide:run --args=<examples dir>` exits 0 with no ERROR in `<temp dir>/logs/ide.log`; the 10-minute
+  manual smoke test document for the owner). Also: the Problems view, the status-bar counts and `karpfen validate`
+  agree on the examples plus `DescriptorExamples.copyExplicitContext`, before and after opening and closing files; one
+  Cmd/Ctrl+Z in the editor undoes exactly one step (headless: the stroke is consumed by the editor and no command
+  runs; the manual test covers the native macOS menu bar).
+- **Must not touch**: CONTRACT files and build files (except test-only additions, rule 7). Contract gaps found are
+  reported through §5 steps 3–4; plain defects in owned files are fixed under §5 rule 7.
 
 ## 5. Contract change protocol
 
 1. A WP may **add** to its own module's API (new types, new functions, new interface members **with default
    implementations**) when the addition is needed for its own work and breaks no other WP's fakes or callers.
-2. A WP **never changes another WP's files** and never changes CONTRACT files, not even for "obvious" fixes.
+2. A WP **never changes another WP's files** and never changes CONTRACT files, not even for "obvious" fixes (the one
+   exception is rule 7).
 3. A **contract gap** (a missing member, a wrong type, an invariant that cannot hold, a spec conflict) is **reported,
    not patched**: describe it in the WP's final report (file, symbol, problem, proposed change, who is affected) and
    work around it locally (e.g. an internal helper, a fake, a documented limitation) so the WP can still merge green.
-4. The architect (or INTEGRATION, after all WPs) applies accepted contract changes in one commit that updates all
-   affected callers and fakes and this document.
+4. The architect applies accepted contract changes (reported by any WP, INTEGRATION included) in one commit that
+   updates all affected callers and fakes and this document.
 5. Changing a public signature in an owned file, removing a declaration, adding an abstract member to a consumed
    interface, or renaming a package always goes through steps 3–4.
 6. Shared mechanics are never copied into a second WP (spec §1a). If two WPs need the same mechanism and it is not in a
    CONTRACT file, that is a contract gap (step 3), not a reason to write it twice.
+7. **Defects found in integration.** Some seams first run together in INTEGRATION (`IdeApplication.run` with the real
+   window, `CodeEditor` with `EditorPopups`, the launch smoke). INTEGRATION fixes a plain defect (behaviour that
+   violates the documented contract or the spec) in any owned file of a merged WP, without changing public signatures
+   or CONTRACT files: each fix comes with a regression test (in INTEGRATION's `e2e` package or the owning WP's test
+   package) and one line in INTEGRATION's report (file, defect, test). Anything that needs a contract change goes
+   through steps 3–4.
 
 ## 6. Decisions of the contracts step that refine the spec
 
@@ -469,9 +583,11 @@ Where the spec sketch and the design principles (§1a) conflicted, the principle
    interface (`EditableText(…)`, `DocumentSession(…)`, `Workspace(…)`, `CaretModel(…)`, …) instead of classes.
 2. `EditableText.apply` and `replaceAll` return `TextChange?` (null for no-ops, which produce no version).
 3. Time is `kotlin.time.TimeSource` (tests: `TestTimeSource`); debounce uses injected dispatchers (virtual time).
-4. `DocumentParser.parse(snapshot, mode: SemanticMode)`: `EVENTS.kmeta` sessions use `SYNTAX_ONLY`, because event
-   payloads reference domain types and only convert with base types in core-workspace; a standalone conversion would
-   report false DSL_TOOLS errors.
+4. `DocumentParser.parse(snapshot, mode: SemanticMode)`. In a workspace **every** session uses `SYNTAX_ONLY` (v1.2;
+   v1.1 did so only for `EVENTS.kmeta`, whose payloads reference domain types and only convert with base types): the
+   project analysis is the only place that converts files, so each file is converted once and opening a file never
+   changes what is reported (decision 28). `STANDALONE` remains the default of `DocumentSessionConfig` for documents
+   edited on their own (embedded editors, tests).
 5. `ParseOutcome.syntaxDiagnostics` contains PARSER errors plus LEXER errors seen by the parser's lexer; the session
    takes LEXER diagnostics from the tokenizer and only PARSER ones from the parse, so nothing is reported twice.
 6. The parse composition (`ComposedDocumentParser`) is separated from the ANTLR adapter (`antlr.tree`) and the converter
@@ -488,12 +604,13 @@ Where the spec sketch and the design principles (§1a) conflicted, the principle
     `CommandRegistry.commandFor(KeyStroke)` instead of a Compose `KeyEvent` (converted with `KeyEvent.toKeyStroke()`);
     `Command.isEnabled` is a `StateFlow<Boolean>`.
 11. `CodeEditor(state, modifier, onNavigate, overlays, theme)`: the popups plug in through `EditorOverlays`, so VIEW and
-    POPUPS own disjoint files.
+    POPUPS own disjoint files. `onNavigate` serves simple embeddings; the workbench collects the editors'
+    navigation requests itself (decision 30).
 12. Additions: `UndoManager.breakCoalescing()`, `Workspace.contexts/isAnalyzing/awaitAnalysis()`, `DiagnosticCodes`,
     `CompletionKind` values, `ThemeMode.SYSTEM`, `OpenResult`/`SaveResult` result types (I/O errors are values).
 13. Implicit contexts: a directory that contains a descriptor is covered by it; its karpfen files not named by a
     descriptor are *loose files* (`ContextResolution.looseFiles`): tokenized and parsed (their syntax diagnostics
-    appear in Problems and in the CLI), never converted.
+    appear in Problems and in the CLI), never converted — open or not (decision 29 completes the definition).
 
 Added by the contract review (v1.1):
 
@@ -501,74 +618,160 @@ Added by the contract review (v1.1):
     workbench open them in the system's default application (`ProjectFileOperations.openExternally`), also when
     navigating from the Problems view. Resolves open question 1 for phase 1 (see §8).
 15. **Key routing** (resolves open question 4): the focused component handles and consumes its key strokes first
-    (`CodeEditor` through its keymap, consuming exactly the strokes it handles; text fields such as the find bar
-    natively); a menu accelerator only sees strokes nobody consumed (Swing key bindings skip consumed events; on macOS
-    the screen menu bar delivers key equivalents as Java key events first). Editor commands in the menu carry
-    `defaultEditorKeymap(platform).shortcutFor(id)` (one source of shortcuts), take their enablement from the active
-    editor's `enabledActions` and are forwarded to the active editor. INTEGRATION proves one Cmd/Ctrl+Z = one undo
-    step; the manual test covers the native macOS menu bar.
+    (`CodeEditor` through `CodeEditorState.handleKey` — completion first, then the keymap — consuming exactly the
+    strokes it handles; text fields such as the find bar natively); a menu accelerator only sees strokes nobody consumed
+    (Swing key bindings skip consumed events; on macOS the screen menu bar delivers key equivalents as Java key events
+    first). There is one editor keymap per workbench (`WorkbenchServices.editorKeymap`): every editor is created with
+    it and the editor commands in the menu carry its `shortcutFor(id)` (one source of shortcuts, v1.2), take their
+    enablement from the active editor's `enabledActions` and are forwarded to the active editor. INTEGRATION proves one
+    Cmd/Ctrl+Z = one undo step; the manual test covers the native macOS menu bar.
 16. **Shared ANTLR mechanics** are complete and tested in the contracts step, like `CodePointOffsets`:
     `IdeErrorListener` (LEXER and PARSER diagnostics instead of console output), `KarpfenLexers` (the only map from a
     language to its generated lexer, listeners replaced), `LexerGaps` (comments and unrecognized input the KMeta/KModel
     lexers drop) and `EvalBodies` (EVAL bodies balanced on brace tokens like the dsl-tools parser, and their embedded
     pieces). WP-TOKENS and WP-PARSE both build on them and never copy them; EVAL references and folding come from the
     lexical scanner in both WPs, so highlighting, navigation and folding agree on every input.
-17. **One problems rule**: `Workspace.problems` (`WorkspaceProblems`) is the only place that merges a file's
-    diagnostics (open document → its session's diagnostics; other karpfen file, in a context or loose →
+17. **One problems rule**: `Workspace.problems` (`WorkspaceProblems`) is the only place that combines the diagnostics of
+    the files (open document → its session's diagnostics; other karpfen file, in a context or loose →
     `AnalyzedFile.ownDiagnostics` plus project diagnostics; descriptor → project diagnostics). The Problems view, the
     status bar and `karpfen validate` only map and filter it. The analyzer records tokenizer and loading diagnostics on
     every `AnalyzedFile`, loose files included. `SourceLoader` is the one loading rule (UTF-8 with replacement, byte
     order mark removed and restored on save, separators normalized, findings as external source
-    `ExternalDiagnosticSources.FILE`); descriptor ranges refer to the normalized text.
+    `ExternalDiagnosticSources.FILE`); descriptor ranges refer to the normalized text. Decision 28 makes the per-file
+    merge itself one function shared by sessions and analyzed files.
 18. **Editor contracts for parallel work**: the popups see `EditorPopupModel` (interface segregation), not the whole
     `CodeEditorState`; view requests are pending *state* with consume functions (`scrollRequest`, `focusRequested`),
     so requests made before `CodeEditor` is composed are not lost, and `navigationRequests` is the only event stream
     (`EditorOverlayHost.navigate`/`requestEditorFocus` were duplicates and are gone); `enabledActions`/`isEnabled`
-    expose action enablement; `hoverAt` suspends; `bracketMatch` is versioned (`BracketMatchState`); the background
+    expose action enablement; `hoverAt` suspends; `bracketMatch` is versioned (`BracketMatchSnapshot`); the background
     dispatcher is injected. Find/replace and completion accept edit through `EditorAction`s run by an
     `EditorActionExecutor` (Command pattern for every edit); the completion model observes `caret.state` itself (no
     `onCaretMoved`) and calls a versioned `CompletionSource.items(snapshot, offset)`; auto-inserted closers are tracked
     per editor by `AutoClosedPairs` in the `EditorActionContext`; `CaretModel(…, tabWidth)` computes preferred columns
-    with tabs expanded and breaks undo coalescing on explicit moves.
+    with tabs expanded and breaks undo coalescing on explicit moves. v1.2 adds decision 30.
 19. **Language services**: `FeatureRequest` (was `DocumentContext`; "context" now only means caret, modeling and action
     contexts) with `contextAnalysis`, also for `BracketMatcher`; the shared `TypeCatalog` (IDE-owned
-    `TypeInfo`/`MemberInfo` with hover texts and declaration `Location`s) serves all three languages and `PathScope`
-    is built on it, so no dsl-tools type appears in the providers' or the resolver's API; `LanguageDocument` has
-    `lastGoodParse`, `isConsistent`, `currentParse` and a staleness rule, and `LanguageDocument.of(session)` tokenizes
-    synchronously when the session's tokens lag; `Location.version` lets navigation map ranges into the current text;
+    `TypeInfo`/`MemberInfo` with hover texts and declaration `Location`s, memoized per `ContextAnalysis`) serves all
+    three languages and `PathScope` is built on it (`PathMember` wraps `MemberInfo`; the KStates scope at an offset is one
+    collaborator, `KstatesPathScopes`), so no dsl-tools type appears in the providers' or the resolver's API;
+    `LanguageDocument` has `lastGoodParse`, `isConsistent`, `currentParse` and a staleness rule, and
+    `LanguageDocument.of(session, snapshot)` tokenizes synchronously when the session's tokens lag;
+    `Location.version`/`lineage` let navigation map ranges into the current text (decision 26);
     `defaultLanguageServices(…, onProviderFailure)` makes the facade's swallowed exceptions observable.
-20. **Open/Closed for languages**: `LanguageSupport.matches(fileName)` resolves file names (the registry asks each
-    support). The product family of a language is split by layer — `LanguageSupport` (tokenizer, parser) in
-    core-document, `LanguageFeatures` (editor features) in core-lang — and `LanguageContractTest` checks that every
-    registered language has features. Accepted closed per-language switches: `KarpfenLanguage` (enum), `FileKind.of`,
-    `DslConverter` (one method per dsl-tools converter; the foreign API is closed), `DslModel` (sealed),
-    `FileTemplateKind`, `KarpfenIcons`. A fourth language adds entries there plus one `LanguageSupport` and one
+20. **Open/Closed for languages**: file names map to languages by one closed rule, `KarpfenLanguage.fromFileName` (the
+    enum's extension), used by `LanguageRegistry.languageOf` and by `FileKind.of` alike (v1.2: the
+    `LanguageSupport.matches` hook is gone, because the closed `FileKind` bypassed it and the two could disagree). The
+    product family of a language is split by layer — `LanguageSupport` (tokenizer, parser) in core-document,
+    `LanguageFeatures` (editor features) in core-lang — and `LanguageContractTest` checks that every registered language
+    has features. Accepted closed per-language switches and vocabularies, i.e. everything a fourth language adds
+    entries to: `KarpfenLanguage` (enum, incl. the file-name rule), `FileKind` and `FileKind.of`, `KarpfenLexers.create`
+    (the only language → generated-lexer map), `DslConverter` (one method per dsl-tools converter; the foreign API is
+    closed), `DslModel` (sealed), the role fields of `ModelingContext` and `ContextAnalysis` (metamodel, events, models,
+    state machines), the shared vocabularies with language-specific members (`TokenKind`, `SymbolKind`,
+    `ReferenceKind`, `SemanticKind`, `HighlightStyle`) and the `TokenKind`/`SemanticKind` → `HighlightStyle` mapping of
+    `DefaultHighlightProvider`, `FileTemplateKind`, `KarpfenIcons`. Plus one `LanguageSupport` and one
     `LanguageFeatures`; no existing language class changes.
 21. **Injected time, threads and collaborators**: `WorkspaceOptions.timeSource` for the documents' `EditableText`s;
     every text mutation on the dispatcher of the workspace's scope (single writer); `setExternalDiagnostics` is
-    thread-safe; the `Workspace(…)` factory takes `sourceLoader`, `descriptorReader`, `contextResolver` and `analyzer`;
-    `CodeEditorState(…, backgroundDispatcher)`; `WorkbenchServices` is a plain class with `ioDispatcher`, and
-    `defaultWorkbenchServices(…, backgroundDispatcher, ioDispatcher)` injects both everywhere;
-    `SettingsRepository(…, clock)`; `ValidateCommand(…, workspaceOptions)`; `StandardOutputGuard.silenced` suspends.
+    thread-safe; the `Workspace(…)` factory takes `sourceLoader`, `descriptorReader`, `contextResolver` and `analyzer`
+    and passes every collaborator — the document side `WorkspaceDocuments` and the scanner included — to the workspace
+    through `WorkspaceCollaborators` (v1.2); `CodeEditorState(…, backgroundDispatcher)`; `WorkbenchServices` is a
+    plain class with `ioDispatcher`, and `defaultWorkbenchServices(…)` injects the dispatchers, `workspaceOptions`,
+    `fileWatcher` and `clock` everywhere (decision 34); `SettingsRepository(…, clock)`;
+    `ValidateCommand(…, workspaceFactory)`; `StandardOutputGuard.silenced` suspends.
 22. **Symbol data for core-lang**: `SymbolDeclaration.typeName` (object types, property and relation targets, parameter
     and return types), the `container` rules, `SymbolReference.qualifier` (KModel keys → the enclosing object's type;
     KStates `SETOBJ`/`APPENDOBJ` relation → the source path; EVENT_NAME → the domain) and `OutlineNode.detail` per kind
     are documented on the types; WP-LANG relies on nothing else of WP-PARSE's output.
 23. **Factory naming**: a factory named like its interface creates the default implementation and lives in the
-    interface's package (`EditableText(…)`, `Workspace(…)`, `SourceLoader(…)`, `TypeCatalog()`, `CaretModel(…)`). A
-    descriptive name is used when the factory assembles a product family (`defaultLanguageRegistry()`,
-    `karpfenLanguageFeatures()`, `defaultEditorActions()`), lives in another package than its interface to keep the
-    packages acyclic (`defaultLanguageServices(…)`) or in an adapter package (`desktopProjectFileOperations()`,
-    `nativeFolderChooser()`), or provides a platform default (`defaultEditorKeymap(…)`, `defaultWorkbenchServices(…)`).
-24. **Concrete state holders** (exception to decision 1): `EditorOverlayController` (complete, without collaborators —
-    it is its own fake) and the workbench sub-states (`ProjectTreeState`, `EditorTabsState`, `OutlineState`,
-    `ProblemsState`, `StatusBarState`, `DialogState`) stay public classes: plain state holders without I/O whose only
+    interface's package (`EditableText(…)`, `Workspace(…)`, `WorkspaceFactory(…)`, `SourceLoader(…)`, `TypeCatalog()`,
+    `CaretModel(…)`). A descriptive name is used when the factory assembles a product family
+    (`defaultLanguageRegistry()`, `karpfenLanguageFeatures()`, `defaultEditorActions()`), lives in another package than
+    its interface to keep the packages acyclic (`defaultLanguageServices(…)`) or in an adapter package
+    (`desktopProjectFileOperations()`, `nativeFolderChooser()`), or provides a platform default
+    (`defaultEditorKeymap(…)`, `defaultWorkbenchServices(…)`).
+24. **Concrete state holders** (exception to decision 1): `EditorOverlayState` (complete, without collaborators — it is
+    its own fake) and the workbench sub-states (`ProjectTreeState`, `EditorTabsState`, `OutlineState`, `ProblemsState`,
+    `StatusBarState`, `DialogState`, `LayoutState`) stay public classes: plain state holders without I/O whose only
     collaborator is a coroutine scope, so tests use the real ones. Their declared public members are frozen (§3). I/O
-    goes through ports (`ProjectFileOperations`, `FolderChooser` in `files`), whose desktop adapters live in
-    `files.desktop`.
+    goes through ports (`ProjectFileOperations`, `FolderChooser` in `files`; persistence of the layout through the
+    mediator and the `SettingsRepository`), whose desktop adapters live in `files.desktop`. Likewise
+    `DefaultCodeEditorState` creates its per-editor models (`CaretModel`, `AutoClosedPairs`, `FindModel`,
+    `CompletionSessionModel`) instead of receiving them (v1.2, recorded exception to decision 21): they are bound to
+    this editor's text, caret and executor, are Compose-free and deterministic (time and threads come from the
+    injected scope and background dispatcher), and the editor's tests use the real ones (WP-EDITOR-MODEL is merged
+    before WP-EDITOR-VIEW); a models factory would only add a parameter nobody fakes.
 25. **Fat facades are coordinators**: `DefaultCodeEditorState`, `DefaultWorkbenchState` and `DefaultWorkspace` keep
     their interfaces but delegate to internal single-purpose collaborators listed in their KDoc (spec §1a, ≤ ~300
     lines per class).
+
+Added by the second contract review (v1.2):
+
+26. **Text lineages and versioned ranges**: versions count per `EditableText` (a reopened document starts again at 0),
+    so every `TextSnapshot` carries a `TextLineage` (identity, shared by all snapshots of one text; a snapshot created
+    on its own — a disk load, a test value — is a lineage of its own). `Location(path, range, version, lineage)`:
+    `version` is the version of the outcome the range came from (the request's text or current parse, the last good
+    parse for declarations only known from it, the analyzed snapshot for other files, the diagnostics' snapshot for
+    problems). Navigation maps a range with `EditableText.mapOffset` only within the text's own lineage and clamps
+    otherwise; `DocumentSession.setExternalDiagnostics(source, snapshot, …)` ignores snapshots of another lineage.
+    `ProblemItem` and `OutlineUiState` carry version and lineage (`ProblemItem.location`, `OutlineUiState.locationOf`).
+27. **Embedded regions** (blocking finding): `TokenizeResult.embeddedRegions` publishes the EVAL body content ranges of
+    the one scanner (`EvalBodies`, filled by the KStates tokenizer), with `embeddedRegionAt(offset)` (inclusive bounds).
+    It is the only answer to "is this embedded Python?" outside core-document: toggle comment decides `#` vs `//` per
+    line by the line's first non-blank offset, the caret context's `EmbeddedContext.bodyRange` is the same lookup; no WP
+    derives EVAL bodies from token kinds.
+28. **One merge rule, one converter**: `mergeDiagnostics(lexical, parse, external)` (core-document `session`, complete)
+    is the per-file merge used by `DocumentSession.diagnostics` and `AnalyzedFile.ownDiagnostics`; in a workspace every
+    session is `SYNTAX_ONLY` (decision 4), so DSL_TOOLS diagnostics come only from the project analysis, for open and
+    unopened files alike, and the IDE and the CLI report the same. FILE findings follow the disk: a successful save
+    clears them, every reload replaces them. `VersionedDiagnostics` carries the snapshot its ranges refer to, so
+    `FileProblems.positionOf` is exact while the diagnostics lag the live text.
+29. **Loose files** (completes decision 13): `ContextResolution.looseFiles` is every karpfen source of the tree that is
+    in no context's files — also the metamodels an implicit context did not choose (`context-multiple-metamodels`), so
+    their syntax errors appear in Problems and in `karpfen validate`. Loose files are never converted, open or not.
+30. **Editor input and background work live in the state**: `CodeEditorState.handleKey` (completion first, then
+    keymap; true exactly when handled), `pointerHover` (the 600 ms `HOVER_DELAY` on the editor's scope, virtual time
+    in tests) and `openContextMenuAt` (caret moves to the click unless inside the selection) make the input policy
+    Compose-free; the state reveals the primary caret after every executed action and typed text
+    (`EditorUiPort.revealCaret` is gone; actions never scroll). `navigationRequests` are collected by their owner for
+    the editor's whole life (the workbench mediator; `CodeEditor.onNavigate` only for embeddings), so no lookup is lost
+    on a tab switch. `CompletionSource.items` suspends (the editor state's source switches to the background
+    dispatcher; the model never names one) and `FindModel(…, backgroundDispatcher)` computes matches off the UI thread.
+    `EditorOverlayState.findFocusRequests` lets a repeated Cmd/Ctrl+F refocus the find field; `ContextMenuRequest`
+    coordinates are in the `EditorOverlayHost` space; find matches are drawn only while the find bar is open.
+31. **ui-workbench by feature** (spec §1a): each feature package (`projecttree`, `tabs`, `outline`, `problems`,
+    `statusbar`, `dialog`, `layout`) holds its Compose-free sub-state and UI values, its `view` sub-package the
+    composables; `state` holds only the mediator, its services and internal collaborators. Every ui-workbench package
+    but the root, the `view` packages and `files.desktop` is Compose-free (architecture test). The sub-states' mediator
+    operations (`EditorTabsState.open/remove`, `ProjectTreeState.setTree`, every `bind*`, `LayoutState.restore`) are
+    `internal`, so views cannot bypass coordinated flows (e.g. close a tab without the unsaved-changes dialog). Tool-window
+    visibility and sizes, theme and window bounds are the live `LayoutState`, persisted by the mediator (debounced and
+    on exit) as `IdeSettings.toolWindows: Map<String, ToolWindowLayout>` by `ToolWindowId.name` (new tool windows need
+    no schema change). Dialogs are typed: `DialogRequest<R>` and `DialogState.ask(request): R` return only the answers
+    a dialog has. Templates receive a `TemplateContext` (directory, its current context, domain types, object keys).
+32. **Naming convention** (UI modules): mutable Compose-free state holders are `*Model` in `ui.editor.model`
+    (`CaretModel`, `FindModel`, `CompletionSessionModel`) and `*State` everywhere else (`CodeEditorState`,
+    `EditorOverlayState` — was `EditorOverlayController` —, the workbench sub-states, `WorkbenchState`); immutable
+    values a view renders are `*UiState` (`CompletionUiState`, `OutlineUiState`, `ProblemsUiState`, `StatusBarUiState`
+    — was `StatusBarInfo` —, `LayoutUiState`); immutable versioned results are `*Snapshot` or `Versioned*`
+    (`TextSnapshot`, `CaretSnapshot`, `HighlightSnapshot`, `BracketMatchSnapshot`, `ViewportSnapshot`,
+    `VersionedDiagnostics`; `FindResult` for the find state); role interfaces keep role names (`EditorPopupModel`,
+    `EditorViewport`, `EditorOverlayHost`). "Reveal" means "make visible in this component"
+    (`ProjectTreeState.reveal`, `EditorViewport.reveal`); showing a file in Finder/Explorer is `revealInFileManager`.
+    Sub-states bind with `bindEditor`/`bindWorkspace`. `KarpfenLanguage.extension` is without dot (`kmeta`),
+    `FileTemplateKind.suffix` with dot (`.kenv.json`). The language services are `languageServices` wherever a
+    `LanguageServices` is meant (`CodeEditorState`, `EditorStateFactory`); `services` is the `WorkbenchServices`.
+33. **Commands are objects, titles and shortcuts have one source**: `Command`, `ContextMenuAction` and `StatusBarItem`
+    hold behaviour and are plain classes (identity equality), not data classes. `EditorActionTitles` (next to
+    `EditorActionIds`) is the one source of the editor actions' labels for the context menu and the window menu; the
+    one keymap is `WorkbenchServices.editorKeymap` (decision 15).
+34. **Test seams of the composition roots**: `defaultWorkbenchServices(…, workspaceOptions, fileWatcher, clock)` (end-to-end
+    tests run the production wiring with a `TestTimeSource`, a fake watcher and a fixed clock); `WorkspaceFactory` lives
+    in core-workspace and is shared by the workbench and `ValidateCommand(outputGuard, workspaceFactory)`;
+    `IdeApplication(…, services, workbenchStateFactory)` with `prepare(scope, initialFolder): IdeSession` (all
+    window-free wiring, headless-testable) and `run`; the IDE home is injectable (`KARPFEN_IDE_HOME` →
+    `SettingsLocations.HOME_PROPERTY`, read by `SettingsLocations.defaultDirectory()` and `logback.xml`), so launch
+    smoke tests never touch the owner's real settings and log.
 
 ## 7. Review findings not adopted
 
@@ -578,10 +781,40 @@ Added by the contract review (v1.1):
    on immutable values of core-workspace (no `Workspace` behaviour), `core/* → core/*` is allowed by the module matrix,
    and `TypeCatalog` (decision 19) already keeps the dsl-tools `meta.*` model out of the providers' APIs. That
    ui-editor sees core-workspace's values transitively through `api` is accepted for a UI module.
-2. **Workbench sub-states and `EditorOverlayController` as interfaces with internal implementations.** See decision 24.
+2. **Workbench sub-states and `EditorOverlayState` as interfaces with internal implementations.** See decision 24.
 3. **A `bindAccelerator` flag on `MenuEntry.Item` (display-only menu shortcuts).** Not needed with decision 15, and
    Compose's `MenuBar` cannot show a shortcut without binding it. If INTEGRATION's manual test finds a platform where
    one key press runs a command twice, the flag is the fallback, applied through §5.
+
+From the second review (v1.2), adopted in part or replaced by another fix:
+
+4. **A shared test-fixture builder of project analyses in core-workspace.** It would be contract code on top of the
+   not yet implemented tokenizers, parsers and converter adapter, so the contracts step could not test it. The
+   analyzer's conventions are documented on `ProjectAnalysis` instead, and WP-LANG builds its analyses by them.
+5. **New shared descriptor fixtures for the resolver's edge cases.** Rule 8 now allows test-local descriptors in
+   WP-WORKSPACE's reader and resolver unit tests; the shared descriptors remain the end-to-end and CLI scenarios.
+6. **`DocumentSession.setSemanticMode`, driven by the workspace when a file's role changes.** Workspace sessions are
+   always syntax-only (decision 28), so the mode never depends on a changing role.
+7. **An opaque `TextVersion(lineage, number)` replacing every `version: Long`.** The lineage became a field of
+   `TextSnapshot` and `Location` (decision 26); tokens, parse outcomes and diagnostics keep plain versions, which are
+   only compared within one session.
+8. **`openFind(mode, initialQuery)`.** Seeding the query from the selection is `FindModel.setQuery` before
+   `openFind` (WP-EDITOR-VIEW's `EditorUiPort.openFind`), so the overlay state holds no find logic.
+9. **A separate `navigateAt(offset)` intent.** `CodeEditorState.goToDefinition(offset)` is that intent.
+10. **`LayoutState` writing through the `SettingsRepository` itself.** The mediator persists it (decision 31), so the
+    sub-state stays a plain holder without I/O (decision 24).
+11. **`EditorTabsState.move` and `ProjectTreeState.reveal` internal.** They stay public: reordering tabs by drag and
+    revealing a tree node are UI intents without coordination.
+12. **An `IdeWindow` composable for headless tests.** Compose's `Window` and `MenuBar` need a running application;
+    `IdeApplication.prepare` makes all window-free wiring testable (decision 34), `Workbench(state)` is tested by
+    WP-WORKBENCH, the window itself by INTEGRATION's launch smoke and the manual test.
+13. **An `EditorModelsFactory` parameter of `CodeEditorState(…)`.** Recorded as an exception in decision 24.
+14. **The project analysis producing `TypeInfo`.** That would move core-lang types into core-workspace; `TypeCatalog`
+    memoizes its conversion per `ContextAnalysis` instead (decision 19).
+15. **Renaming `EditorPopupModel`.** It is a role interface (the popups' view of the editor state) and keeps its role
+    name (decision 32).
+16. **A `title` member on `EditorAction`.** Presentation data would become an abstract member of every action class;
+    `EditorActionTitles` keeps the titles next to the ids (decision 33).
 
 ## 8. Open questions for the owner
 
