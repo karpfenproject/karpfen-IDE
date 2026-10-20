@@ -1,0 +1,98 @@
+package io.karpfen.ide.buildlogic
+
+import io.karpfen.ide.buildlogic.ModuleDependencyRules.DeclaredDependency
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+class ModuleDependencyRulesTest {
+
+    @Test
+    fun `core must not depend on ui`() {
+        assertFalse(ModuleDependencyRules.isAllowed(":core:core-text", ":ui:ui-editor"))
+    }
+
+    @Test
+    fun `ui may depend on core`() {
+        assertTrue(ModuleDependencyRules.isAllowed(":ui:ui-editor", ":core:core-text"))
+    }
+
+    @Test
+    fun `core may depend on core only`() {
+        assertTrue(ModuleDependencyRules.isAllowed(":core:core-document", ":core:core-text"))
+        listOf(":notation:notation-diagram", ":runtime:runtime-protocol", ":bridges:bridge-api", ":app:ide", ":tools:cli")
+            .forEach { assertFalse(ModuleDependencyRules.isAllowed(":core:core-lang", it), it) }
+    }
+
+    @Test
+    fun `notation may depend on core but core not on notation`() {
+        assertTrue(ModuleDependencyRules.isAllowed(":notation:notation-diagram", ":core:core-workspace"))
+        assertTrue(ModuleDependencyRules.isAllowed(":notation:notation-sync", ":notation:notation-diagram"))
+        assertFalse(ModuleDependencyRules.isAllowed(":core:core-workspace", ":notation:notation-diagram"))
+        assertFalse(ModuleDependencyRules.isAllowed(":notation:notation-sync", ":runtime:runtime-session"))
+    }
+
+    @Test
+    fun `bridges may reach runtime-protocol but no other runtime module`() {
+        assertTrue(ModuleDependencyRules.isAllowed(":bridges:bridge-api", ":runtime:runtime-protocol"))
+        assertTrue(ModuleDependencyRules.isAllowed(":bridges:bridge-mqtt", ":bridges:bridge-mapping"))
+        assertFalse(ModuleDependencyRules.isAllowed(":bridges:bridge-api", ":runtime:runtime-session"))
+        assertFalse(ModuleDependencyRules.isAllowed(":bridges:bridge-api", ":ui:ui-foundation"))
+    }
+
+    @Test
+    fun `runtime, ui, app and cli follow the matrix`() {
+        assertTrue(ModuleDependencyRules.isAllowed(":runtime:runtime-session", ":core:core-workspace"))
+        assertFalse(ModuleDependencyRules.isAllowed(":runtime:runtime-host", ":bridges:bridge-api"))
+        assertTrue(ModuleDependencyRules.isAllowed(":ui:ui-workbench", ":runtime:runtime-host"))
+        assertFalse(ModuleDependencyRules.isAllowed(":ui:ui-workbench", ":app:ide"))
+        assertTrue(ModuleDependencyRules.isAllowed(":app:ide", ":ui:ui-workbench"))
+        assertTrue(ModuleDependencyRules.isAllowed(":tools:cli", ":runtime:runtime-session"))
+        assertFalse(ModuleDependencyRules.isAllowed(":tools:cli", ":ui:ui-foundation"))
+        assertFalse(ModuleDependencyRules.isAllowed(":architecture-tests", ":core:core-text"))
+    }
+
+    @Test
+    fun `group wildcard does not match a sibling group with the same prefix`() {
+        assertFalse(ModuleDependencyRules.matches(":core:*", ":corelib:x"))
+        assertFalse(ModuleDependencyRules.matches(":core:*", ":core"))
+        assertTrue(ModuleDependencyRules.matches(":core:*", ":core:core-text"))
+    }
+
+    @Test
+    fun `violations name the offending declaration and the allowed targets`() {
+        val violations = ModuleDependencyRules.violations(
+            ":core:core-text",
+            listOf(
+                DeclaredDependency("implementation", ":ui:ui-foundation"),
+                DeclaredDependency("testImplementation", ":core:core-document"),
+            ),
+        )
+        assertEquals(
+            listOf("implementation(project(\":ui:ui-foundation\")) is not allowed: :core:* may depend on :core:*"),
+            violations,
+        )
+    }
+
+    @Test
+    fun `modules outside the matrix are rejected`() {
+        val violations = ModuleDependencyRules.violations(":experimental:foo", emptyList())
+        assertEquals(1, violations.size)
+        assertTrue(violations.single().contains("not covered"))
+    }
+
+    @Test
+    fun `dependency scopes include test variants but not resolvable classpaths`() {
+        listOf("api", "implementation", "compileOnly", "runtimeOnly", "testImplementation", "testCompileOnly", "testRuntimeOnly")
+            .forEach { assertTrue(ModuleDependencyRules.isDependencyScope(it), it) }
+        listOf("compileClasspath", "runtimeClasspath", "testRuntimeClasspath", "apiElements", "kotlinCompilerPluginClasspath")
+            .forEach { assertFalse(ModuleDependencyRules.isDependencyScope(it), it) }
+    }
+
+    @Test
+    fun `declared dependencies survive encoding`() {
+        val dependency = DeclaredDependency("testRuntimeOnly", ":core:core-text")
+        assertEquals(dependency, DeclaredDependency.decode(dependency.encode()))
+    }
+}

@@ -1,0 +1,99 @@
+# Single source of truth for every external version used by karpfen IDE.
+# Used by the main build (default location) and by build-logic (see build-logic/settings.gradle.kts).
+
+[versions]
+kotlin = "2.4.21"
+compose-multiplatform = "1.12.2"
+# Compose Multiplatform 1.12.2 maps its material3 accessor to this version (material3 is versioned separately).
+compose-material3 = "1.9.0"
+kotlinx-coroutines = "1.11.0"
+kotlinx-serialization = "1.12.0"
+ktor = "3.6.0"
+elk = "0.12.0"
+hivemq-mqtt = "1.4.1"
+docker-java = "3.7.1"
+lsp4j = "1.0.0"
+junit = "6.1.3"
+konsist = "0.18.1"
+slf4j = "2.0.20"
+logback = "1.6.5"
+# Pinned to the ANTLR version that generated the parsers committed in karpfen-dsl-tools.
+antlr = "4.13.1"
+karpfen-dsl-tools = "1.0-SNAPSHOT"
+# Also hard-coded in settings.gradle.kts: version catalogs are not available in the settings plugins block.
+foojay-resolver = "1.0.0"
+
+[libraries]
+# --- language core -----------------------------------------------------------------------------
+karpfen-dsl-tools = { module = "io.karpfen:karpfen-dsl-tools", version.ref = "karpfen-dsl-tools" }
+antlr4-runtime = { module = "org.antlr:antlr4-runtime", version.ref = "antlr" }
+
+# --- kotlinx -----------------------------------------------------------------------------------
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+# --- Ktor client -------------------------------------------------------------------------------
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+
+# --- notation ----------------------------------------------------------------------------------
+elk-core = { module = "org.eclipse.elk:org.eclipse.elk.core", version.ref = "elk" }
+elk-alg-layered = { module = "org.eclipse.elk:org.eclipse.elk.alg.layered", version.ref = "elk" }
+
+# --- runtime host / bridges --------------------------------------------------------------------
+docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "docker-java" }
+docker-java-transport-httpclient5 = { module = "com.github.docker-java:docker-java-transport-httpclient5", version.ref = "docker-java" }
+hivemq-mqtt-client = { module = "com.hivemq:hivemq-mqtt-client", version.ref = "hivemq-mqtt" }
+
+# --- tools (later: tools/lsp-server) -----------------------------------------------------------
+lsp4j = { module = "org.eclipse.lsp4j:org.eclipse.lsp4j", version.ref = "lsp4j" }
+
+# --- Compose Multiplatform (desktop); the OS-specific desktop artifact comes from compose.desktop.currentOs
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
+compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
+compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "compose-multiplatform" }
+
+# --- logging -----------------------------------------------------------------------------------
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+
+# --- testing -----------------------------------------------------------------------------------
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
+konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
+
+# --- Gradle plugins as libraries, for the convention plugins in build-logic -------------------
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+kotlin-compose-compiler-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
+kotlin-serialization-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }
+compose-gradle-plugin = { module = "org.jetbrains.compose:compose-gradle-plugin", version.ref = "compose-multiplatform" }
+
+[bundles]
+ktor-client = [
+    "ktor-client-core",
+    "ktor-client-cio",
+    "ktor-client-websockets",
+    "ktor-client-content-negotiation",
+    "ktor-serialization-kotlinx-json",
+]
+docker-java = ["docker-java-core", "docker-java-transport-httpclient5"]
+elk = ["elk-core", "elk-alg-layered"]
+# Versions of the JUnit artifacts come from the junit-bom platform, applied by karpfen.kotlin-jvm.
+testing = ["kotlin-test-junit5", "junit-jupiter"]
+
+[plugins]
+# The plugin implementations reach the modules through build-logic (karpfen.* convention plugins);
+# these aliases document the versions and are available for one-off use.
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
+foojay-resolver = { id = "org.gradle.toolchains.foojay-resolver-convention", version.ref = "foojay-resolver" }
