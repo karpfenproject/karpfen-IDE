@@ -25,7 +25,8 @@ import kotlin.math.roundToInt
  * The menu is a focusable desktop popup anchored at a zero-size point at ([ContextMenuRequest.x],
  * [ContextMenuRequest.y]) of the overlay area (the `EditorOverlayHost` space), so it opens there and, like every menu,
  * flips or shifts when the window has no room; Escape and clicks outside report [onDismiss], arrow keys move between
- * the entries.
+ * the entries. Escape is handled by the menu itself while one of its entries has focus (keyboard navigation) and by
+ * the platform popup otherwise; either way [onDismiss] is reported once.
  */
 @Composable
 internal fun EditorContextMenu(
@@ -42,7 +43,9 @@ internal fun EditorContextMenu(
             onDismissRequest = onDismiss,
             containerColor = theme.popupBackground,
             border = BorderStroke(1.dp, theme.popupBorder),
-            modifier = Modifier.testTag(EditorPopupTags.CONTEXT_MENU),
+            modifier = Modifier
+                .onPopupKey { key -> (key == PopupKey.CANCEL).also { cancel -> if (cancel) onDismiss() } }
+                .testTag(EditorPopupTags.CONTEXT_MENU),
         ) {
             val colors = MenuDefaults.itemColors(
                 textColor = theme.foreground,
