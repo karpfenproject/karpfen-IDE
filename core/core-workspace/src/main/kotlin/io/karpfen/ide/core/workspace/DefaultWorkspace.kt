@@ -115,6 +115,7 @@ internal class DefaultWorkspace(
 
     override val documents: DocumentManager get() = collaborators.documents
 
+    /** Rescans now and, as the explicit alternative to watching, checks every open document against its file. */
     override suspend fun refresh() {
         treeRefresher.refresh()
     }
