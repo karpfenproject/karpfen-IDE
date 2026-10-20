@@ -25,3 +25,21 @@ replay_pid*
 
 # Kotlin Gradle plugin data, see https://kotlinlang.org/docs/whatsnew20.html#new-directory-for-kotlin-data-in-gradle-projects
 .kotlin/
+
+# Gradle wrapper (must be committed despite *.jar above)
+!gradle/wrapper/gradle-wrapper.jar
+
+# Gradle / build output
+.gradle/
+build/
+out/
+
+# IDEs
+.idea/
+*.iml
+
+# Per-machine settings (e.g. dslToolsPath for the karpfen-dsl-tools composite build)
+local.properties
+
+# macOS
+.DS_Store
