@@ -1,9 +1,18 @@
 package io.karpfen.ide.ui.foundation.keys.compose
 
 import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.foundation.keys.KeyModifier
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import io.karpfen.ide.ui.foundation.keys.KeyStroke
+import io.karpfen.ide.ui.foundation.keys.LayoutAwareStrokes
 import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
 
 /**
@@ -18,8 +27,25 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
  * physical key and modifiers are reported unchanged (US Shift+/ produces `?` and stays `SLASH` + SHIFT). Headless
  * tests cover both layouts with synthesized events; "Cmd+/ on a German layout" is in the manual test.
  */
-public fun KeyEvent.toKeyStroke(): KeyStroke? = TODO("WP-FOUNDATION: map Compose key events to key strokes")
+public fun KeyEvent.toKeyStroke(): KeyStroke? {
+    if (type != KeyEventType.KeyDown) return null
+    val modifiers = buildSet {
+        if (isShiftPressed) add(KeyModifier.SHIFT)
+        if (isCtrlPressed) add(KeyModifier.CTRL)
+        if (isAltPressed) add(KeyModifier.ALT)
+        if (isMetaPressed) add(KeyModifier.META)
+    }
+    return LayoutAwareStrokes.resolve(ComposeKeyTable.codeOf(key), modifiers, ProducedCharacter.of(this))
+}
 
 /** The Compose window-menu shortcut for this shortcut on [platform] (for `MenuBar` items). */
-public fun KeyShortcut.toMenuShortcut(platform: HostPlatform): ComposeKeyShortcut =
-    TODO("WP-FOUNDATION: Compose menu shortcut")
+public fun KeyShortcut.toMenuShortcut(platform: HostPlatform): ComposeKeyShortcut {
+    val stroke = strokeFor(platform)
+    return ComposeKeyShortcut(
+        key = ComposeKeyTable.composeKeyOf(stroke.key),
+        ctrl = KeyModifier.CTRL in stroke.modifiers,
+        meta = KeyModifier.META in stroke.modifiers,
+        alt = KeyModifier.ALT in stroke.modifiers,
+        shift = KeyModifier.SHIFT in stroke.modifiers,
+    )
+}

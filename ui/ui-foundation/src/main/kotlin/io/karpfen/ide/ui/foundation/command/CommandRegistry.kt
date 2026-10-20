@@ -2,7 +2,9 @@ package io.karpfen.ide.ui.foundation.command
 
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyStroke
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * The application's commands (spec §6). Compose-free: lookups take [KeyStroke]s (convert Compose events with
@@ -37,18 +39,45 @@ public interface CommandRegistry {
 public fun CommandRegistry(platform: HostPlatform = HostPlatform.current()): CommandRegistry =
     DefaultCommandRegistry(platform)
 
+/**
+ * The default registry. [commands] lists the commands in registration order (a replaced command counts as registered
+ * anew). When several commands share a shortcut, the most recently registered one answers [commandFor]; unregistering
+ * it makes the previous one answer again. [commandFor] returns disabled commands too (the caller decides whether a
+ * stroke bound to a disabled command is consumed); [execute] runs only enabled ones.
+ */
 internal class DefaultCommandRegistry(override val platform: HostPlatform) : CommandRegistry {
 
-    override val commands: StateFlow<Map<String, Command>>
-        get() = TODO("WP-FOUNDATION: command map")
+    private val registered = MutableStateFlow<Map<String, Command>>(emptyMap())
 
-    override fun register(command: Command): Unit = TODO("WP-FOUNDATION: register")
+    /** Derived from [registered] on every change; read and written on the UI thread only. */
+    private var byStroke: Map<KeyStroke, Command> = emptyMap()
 
-    override fun unregister(id: String): Unit = TODO("WP-FOUNDATION: unregister")
+    override val commands: StateFlow<Map<String, Command>> = registered.asStateFlow()
 
-    override fun find(id: String): Command? = TODO("WP-FOUNDATION: find")
+    override fun register(command: Command) {
+        publish(registered.value - command.id + (command.id to command))
+    }
 
-    override fun commandFor(stroke: KeyStroke): Command? = TODO("WP-FOUNDATION: shortcut lookup")
+    override fun unregister(id: String) {
+        if (id in registered.value) publish(registered.value - id)
+    }
 
-    override fun execute(id: String): Boolean = TODO("WP-FOUNDATION: execute")
+    override fun find(id: String): Command? = registered.value[id]
+
+    override fun commandFor(stroke: KeyStroke): Command? = byStroke[stroke]
+
+    override fun execute(id: String): Boolean {
+        val command = find(id) ?: return false
+        if (!command.isEnabled.value) return false
+        command.action()
+        return true
+    }
+
+    private fun publish(next: Map<String, Command>) {
+        // Later entries win in associate: the most recently registered command owns a shared stroke.
+        byStroke = next.values
+            .mapNotNull { command -> command.shortcut?.let { shortcut -> shortcut.strokeFor(platform) to command } }
+            .toMap()
+        registered.value = next
+    }
 }
