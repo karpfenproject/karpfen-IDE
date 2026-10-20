@@ -1,10 +1,8 @@
 package io.karpfen.ide.ui.editor.model.completion
 
 import io.karpfen.ide.core.lang.CompletionItem
-import io.karpfen.ide.core.text.Bias
 import io.karpfen.ide.core.text.CaretMemento
 import io.karpfen.ide.core.text.EditableText
-import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.action.CommandEditAction
@@ -135,15 +133,11 @@ public fun CompletionSessionModel(
 ): CompletionSessionModel = DefaultCompletionSessionModel(text, caret, source, executor, scope)
 
 /**
- * Default [CompletionSessionModel], a coordinator: [CompletionTriggers] decides auto-triggers, [CompletionRanking]
- * filters and ranks, `CommandEditAction` carries the accepted edit to the executor; this class owns the request and the
- * open session.
- *
- * A session keeps the source's items with the text version they were computed for and its range: the first item's
- * replace range extended to the request offset. Typing extends the range — its start is anchored with `Bias.LEFT` and
- * its end with `Bias.RIGHT` (`EditableText.mapOffset`, the point mapping of anchors), because text typed at either
- * bound belongs to the word being completed — so the items are re-filtered locally on every caret change without a new
- * request, and [accept] maps the selected item's range the same way into the current text.
+ * Default [CompletionSessionModel], a coordinator: [CompletionTriggers] decides auto-triggers, [CompletionSession]
+ * filters an open session for the current text and caret (with [CompletionRanking]) and computes what accepting does,
+ * `CommandEditAction` carries the accepted edit to the executor; this class owns the request and the current session.
+ * A request runs in [scope]; its result is installed only for the version it was computed for, otherwise it is dropped
+ * and the request repeated for the current text.
  */
 internal class DefaultCompletionSessionModel(
     private val text: EditableText,
@@ -153,11 +147,8 @@ internal class DefaultCompletionSessionModel(
     private val scope: CoroutineScope,
 ) : CompletionSessionModel {
 
-    /** The items of an open session, computed for text [version]; [start]/[end] is the session range in that version. */
-    private class Session(val items: List<CompletionItem>, val version: Long, val start: Int, val end: Int)
-
     private val uiState = MutableStateFlow<CompletionUiState?>(null)
-    private var session: Session? = null
+    private var session: CompletionSession? = null
     private var request: Job? = null
 
     init {
@@ -185,21 +176,13 @@ internal class DefaultCompletionSessionModel(
     }
 
     override fun accept(): Boolean {
-        val current = uiState.value ?: return false
+        val item = uiState.value?.selected ?: return false
         val open = session ?: return false
-        val item = current.selected
-        val snapshot = text.snapshot.value
-        val position = caret.primary.position
-        val start = anchor(item.replaceRange.start, open.version, Bias.LEFT)
-        val end = anchor(item.replaceRange.end, open.version, Bias.RIGHT)
+        val version = text.snapshot.value.version
+        val acceptance = open.acceptance(text, caret.primary.position, item)
         close()
-        if (start == null || end == null) return false
-        val range = TextRange(minOf(start, position), maxOf(end, position))
-        val caretAfter = range.start + (item.caretOffsetInInsert ?: item.insertText.length)
-        val action = CommandEditAction(
-            ACCEPT_ID, "Accept Completion", snapshot.version, listOf(TextEdit(range, item.insertText)),
-            listOf(CaretMemento.at(caretAfter)),
-        )
+        val (edit, caretAfter) = acceptance ?: return false
+        val action = CommandEditAction(ACCEPT_ID, "Accept Completion", version, listOf(edit), listOf(CaretMemento.at(caretAfter)))
         return executor.execute(action)
     }
 
@@ -258,8 +241,7 @@ internal class DefaultCompletionSessionModel(
             dismiss()
             return
         }
-        val range = items.first().replaceRange
-        session = Session(items, snapshot.version, minOf(range.start, offset), maxOf(range.end, offset))
+        session = CompletionSession.of(items, snapshot, offset)
         uiState.value = null
         refresh()
     }
@@ -267,29 +249,8 @@ internal class DefaultCompletionSessionModel(
     /** Re-filters the open session for the current text and caret, or closes it (caret outside, nothing matches). */
     private fun refresh() {
         val open = session ?: return
-        val snapshot = text.snapshot.value
-        val primary = caret.primary
-        val start = anchor(open.start, open.version, Bias.LEFT)
-        val end = anchor(open.end, open.version, Bias.RIGHT)
-        if (start == null || end == null || primary.hasSelection || primary.position !in start..end) {
-            dismiss()
-            return
-        }
-        val filter = snapshot.text.substring(start, primary.position)
-        val items = CompletionRanking.rank(open.items, filter)
-        if (items.isEmpty()) {
-            dismiss()
-            return
-        }
-        val previous = uiState.value
-        val kept = previous?.takeIf { it.filterText == filter }?.let { items.indexOf(it.selected) } ?: -1
-        uiState.value = CompletionUiState(items, if (kept >= 0) kept else 0, TextRange(start, end), filter)
-    }
-
-    /** [offset] of [version] in the current text with [bias], or null when the history no longer reaches [version]. */
-    private fun anchor(offset: Int, version: Long, bias: Bias): Int? {
-        val current = text.snapshot.value.version
-        return if (version > current) null else text.mapOffset(offset, version, current, bias)
+        val next = open.uiState(text, caret.primary, uiState.value)
+        if (next == null) dismiss() else uiState.value = next
     }
 
     /** Closes the visible session; a running request stays (it may open a new session). */

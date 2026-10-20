@@ -144,7 +144,12 @@ internal class DefaultFindModel(
         scope.launch {
             combine(text.snapshot, query) { snapshot, query -> snapshot to query }
                 .mapLatest { (snapshot, query) ->
-                    val outcome = withContext(backgroundDispatcher) { matcher.find(snapshot.text, query) { ensureActive() } }
+                    // An empty query (the usual state while the find bar is closed) needs no background work.
+                    val outcome = if (query.text.isEmpty()) {
+                        MatchOutcome(emptyList(), null)
+                    } else {
+                        withContext(backgroundDispatcher) { matcher.find(snapshot.text, query) { ensureActive() } }
+                    }
                     Triple(snapshot, query, outcome)
                 }
                 .collect { (snapshot, query, outcome) -> publish(snapshot, query, outcome) }
