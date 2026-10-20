@@ -4,8 +4,52 @@ import io.karpfen.ide.core.document.parse.SyntaxIndex
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
-/** [DslErrorLocator] that searches the symbols whose names appear quoted in the message. */
+/**
+ * [DslErrorLocator] that searches the symbols whose names appear quoted in the message (see [DslErrorLocator] for the
+ * rule). Quoted means between single or double quotes (`'Vector'`, `"Vector"`); empty names never match, so an
+ * anonymous object does not catch every `''` of a message. Ranges outside [TextSnapshot.text] (an index of another
+ * text) are ignored. Stateless and thread-safe.
+ */
 internal class QuotedNameErrorLocator : DslErrorLocator {
+
     override fun locate(message: String?, source: TextSnapshot, index: SyntaxIndex): TextRange =
-        TODO("WP-PARSE: locate quoted names of the message in the index, else the first token")
+        message?.let { symbolNamedIn(it, source, index) } ?: firstToken(source.text)
+
+    /** The name range of the first symbol in document order whose name is quoted in [message], or null. */
+    private fun symbolNamedIn(message: String, source: TextSnapshot, index: SyntaxIndex): TextRange? {
+        val quoted = HashMap<String, Boolean>()
+        fun isQuoted(name: String): Boolean =
+            name.isNotEmpty() && quoted.getOrPut(name) { "'$name'" in message || "\"$name\"" in message }
+        val declarations = index.declarations.filter { isQuoted(it.name) }.map { it.nameRange }
+        val references = index.references.filter { isQuoted(it.name) }.map { it.range }
+        return (declarations + references)
+            .filter { it.end <= source.length }
+            .minWithOrNull(compareBy<TextRange> { it.start }.thenBy { it.end })
+    }
+
+    /**
+     * The first token of [text]: from the first character that is neither whitespace nor part of a `//` comment through
+     * the end of its word (letters, digits, `_`; a single other character, kept whole if it is a surrogate pair); the
+     * empty range at 0 if there is none.
+     */
+    private fun firstToken(text: String): TextRange {
+        var i = 0
+        while (i < text.length) {
+            when {
+                text[i].isWhitespace() -> i++
+                text.startsWith("//", i) -> while (i < text.length && text[i] != '\n' && text[i] != '\r') i++
+                else -> return TextRange(i, wordEnd(text, i))
+            }
+        }
+        return TextRange.EMPTY
+    }
+
+    private fun wordEnd(text: String, start: Int): Int {
+        if (!isWordChar(text[start])) return start + Character.charCount(text.codePointAt(start))
+        var end = start + 1
+        while (end < text.length && isWordChar(text[end])) end++
+        return end
+    }
+
+    private fun isWordChar(char: Char): Boolean = char.isLetterOrDigit() || char == '_'
 }

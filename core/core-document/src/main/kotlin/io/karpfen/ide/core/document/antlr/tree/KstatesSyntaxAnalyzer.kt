@@ -4,6 +4,8 @@ import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.parse.SyntaxAnalysis
 import io.karpfen.ide.core.document.parse.SyntaxAnalyzer
 import io.karpfen.ide.core.text.TextSnapshot
+import kstates.KstatesLexer
+import kstates.KstatesParser
 
 /**
  * Parses KStates with the dsl-tools `kstates.KstatesParser` (default error recovery) on a `CommonTokenStream` of
@@ -16,9 +18,25 @@ import io.karpfen.ide.core.text.TextSnapshot
  * PATH_REFERENCE pieces (name = `EmbeddedPiece.name`, range = `EmbeddedPiece.inner`), MACRO references for
  * MACRO_REFERENCE pieces and EMBEDDED_CODE folding for multi-line bodies. COMMENT folding uses the hidden
  * `LINE_COMMENT` tokens.
+ *
+ * Collaborators: [TreeParser] (parse), [KstatesTreeWalker] (outline, index, spans), [EmbeddedCode] (EVAL bodies),
+ * [BlockFolding] (braces outside EVAL bodies) and [CommentFolding]. Stateless and thread-safe.
  */
 internal class KstatesSyntaxAnalyzer : SyntaxAnalyzer {
     override val language: KarpfenLanguage = KarpfenLanguage.KSTATES
 
-    override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis = TODO("WP-PARSE: parse and walk KStates")
+    private val parser = TreeParser(language, ::KstatesParser, KstatesParser::kstates_file)
+
+    override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis {
+        val tree = parser.parse(snapshot)
+        val embedded = EmbeddedCode.of(tree)
+        val collector = SyntaxCollector(embedded::isEmbedded)
+        val outline = KstatesTreeWalker(tree, collector).walk(tree.root)
+        embedded.recordReferences(collector)
+        val comments = tree.tokens.filter { it.type == KstatesLexer.LINE_COMMENT }.mapNotNull { tree.rangeOf(it) }
+        val folding = BlockFolding.of(tree, KstatesParser.LBRACE, KstatesParser.RBRACE, embedded::isEmbeddedToken) +
+            embedded.folding() +
+            CommentFolding.of(snapshot, comments)
+        return collector.toAnalysis(tree.diagnostics, outline, folding)
+    }
 }
