@@ -1,10 +1,14 @@
 package io.karpfen.ide.core.workspace
 
 import io.karpfen.ide.core.document.language.LanguageRegistry
+import io.karpfen.ide.core.workspace.analysis.AnalysisScheduler
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
+import io.karpfen.ide.core.workspace.analysis.ProjectDiagnosticsPublisher
+import io.karpfen.ide.core.workspace.analysis.WorkspaceAnalysisSources
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ContextResolver
+import io.karpfen.ide.core.workspace.context.ContextTracker
 import io.karpfen.ide.core.workspace.document.DocumentManager
 import io.karpfen.ide.core.workspace.document.SourceLoader
 import io.karpfen.ide.core.workspace.document.TextFileStore
@@ -13,10 +17,25 @@ import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
 import io.karpfen.ide.core.workspace.files.FileWatcher
 import io.karpfen.ide.core.workspace.files.WorkspaceScanner
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
+import io.karpfen.ide.core.workspace.problems.ProblemsPublisher
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
+import io.karpfen.ide.core.workspace.problems.WorkspaceProblemsAggregator
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The injected I/O and domain collaborators of a [DefaultWorkspace], all created by the `Workspace` factory (never
@@ -36,12 +55,16 @@ internal class WorkspaceCollaborators(
 
 /**
  * Default [Workspace]: runs the pipelines described on [Workspace] over the injected [collaborators]. It only
- * coordinates: each pipeline is its own internal class (e.g. a tree refresher for scan + watch debounce + routing
- * changes to `WorkspaceDocuments.onFileChanged`, an analysis scheduler, a diagnostics publisher that pushes each
- * `AnalyzedFile`'s project diagnostics with its snapshot, and `WorkspaceProblemsAggregator` for [problems]), so no class
- * grows beyond one responsibility (spec §1a). The coordinator builds these pipeline objects itself from the injected
- * [collaborators], its [scope] and [options] (they are its internal structure, not seams); everything that does I/O or
- * domain work comes through [collaborators].
+ * coordinates; each pipeline is its own internal class, built here from the [collaborators], the [scope] and the
+ * [options] (they are the workspace's structure, not seams):
+ * - [TreeRefresher] — scan, watch debounce, routing changes to `WorkspaceDocuments.onFileChanged` → [files];
+ * - [ContextTracker] — descriptors read through the `SourceLoader`, contexts resolved → [contexts];
+ * - [AnalysisScheduler] over [WorkspaceAnalysisSources] — debounced, cancellable analysis → [analysis], [isAnalyzing];
+ * - [ProjectDiagnosticsPublisher] — each `AnalyzedFile`'s project diagnostics into the open sessions;
+ * - [ProblemsPublisher] with the [WorkspaceProblemsAggregator] → [problems].
+ *
+ * Start-up (in [scope]): watching (if enabled) and the publishers start, then the first scan runs, then the analysis
+ * scheduler and its triggers (contexts, completed rescans, every text version of every open document).
  *
  * @param scope the workspace's own scope (a supervisor child of the factory's scope, created by the factory and shared
  *   with [WorkspaceCollaborators.documents]); [close] cancels it.
@@ -54,27 +77,91 @@ internal class DefaultWorkspace(
     private val collaborators: WorkspaceCollaborators,
 ) : Workspace {
 
-    override val files: StateFlow<WorkspaceTree>
-        get() = TODO("WP-WORKSPACE: scanned tree")
+    private val contextTracker = ContextTracker(
+        collaborators.sourceLoader, collaborators.descriptorReader, collaborators.contextResolver, options.ioDispatcher,
+    )
+    private val treeRefresher = TreeRefresher(
+        root, collaborators.scanner, collaborators.fileWatcher, collaborators.documents, contextTracker,
+        options.ioDispatcher, options.watchDebounce,
+    )
+    private val scheduler = AnalysisScheduler(
+        collaborators.analyzer,
+        WorkspaceAnalysisSources(collaborators.documents, collaborators.sourceLoader, options.ioDispatcher),
+        contextTracker.state,
+        options.analysisDispatcher,
+        options.analysisDebounce,
+    )
+    private val diagnosticsPublisher = ProjectDiagnosticsPublisher()
+    private val problemsPublisher = ProblemsPublisher(WorkspaceProblemsAggregator(), options.analysisDispatcher)
+    private val closed = AtomicBoolean(false)
+    private val started: Job
 
-    override val contexts: StateFlow<ContextResolution>
-        get() = TODO("WP-WORKSPACE: resolved contexts")
+    init {
+        scheduler.schedule() // "Analyzing…" from the start; served once the first scan is done
+        started = scope.launch { start() }
+    }
 
-    override val analysis: StateFlow<ProjectAnalysis>
-        get() = TODO("WP-WORKSPACE: debounced project analysis")
+    override val files: StateFlow<WorkspaceTree> get() = treeRefresher.files
 
-    override val problems: StateFlow<WorkspaceProblems>
-        get() = TODO("WP-WORKSPACE: aggregated problems")
+    override val contexts: StateFlow<ContextResolution> get() = contextTracker.resolution
 
-    override val isAnalyzing: StateFlow<Boolean>
-        get() = TODO("WP-WORKSPACE: analyzing flag")
+    override val analysis: StateFlow<ProjectAnalysis> get() = scheduler.analysis
 
-    override val documents: DocumentManager
-        get() = TODO("WP-WORKSPACE: document manager")
+    override val problems: StateFlow<WorkspaceProblems> get() = problemsPublisher.problems
 
-    override suspend fun refresh(): Unit = TODO("WP-WORKSPACE: rescan")
+    override val isAnalyzing: StateFlow<Boolean> get() = scheduler.isAnalyzing
 
-    override suspend fun awaitAnalysis(): ProjectAnalysis = TODO("WP-WORKSPACE: immediate analysis")
+    override val documents: DocumentManager get() = collaborators.documents
 
-    override fun close(): Unit = TODO("WP-WORKSPACE: close")
+    override suspend fun refresh() {
+        treeRefresher.refresh()
+    }
+
+    override suspend fun awaitAnalysis(): ProjectAnalysis {
+        check(!closed.get()) { "the workspace of $root is closed" }
+        // In the workspace's scope, so closing the workspace ends the wait instead of leaving it suspended forever.
+        return scope.async {
+            started.join()
+            val analysis = scheduler.runNow()
+            problemsPublisher.problems.first { it.generation >= analysis.generation }
+            analysis
+        }.await()
+    }
+
+    override fun close() {
+        if (!closed.compareAndSet(false, true)) return
+        scheduler.close()
+        collaborators.documents.closeAll()
+        scope.cancel(CancellationException("the workspace of $root was closed"))
+    }
+
+    private suspend fun start() {
+        val documents = collaborators.documents.openDocuments
+        if (options.watch) treeRefresher.watch(scope)
+        problemsPublisher.start(scope, scheduler.published, documents)
+        diagnosticsPublisher.start(scope, scheduler.analysis, documents)
+        try {
+            treeRefresher.refresh()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (e: Exception) {
+            logger.error("The first scan of {} failed", root, e)
+        }
+        scheduler.start(scope)
+        scope.launch {
+            combine(contextTracker.state, treeRefresher.revision, openTextVersions()) { _, _, _ -> }
+                .collect { scheduler.schedule() }
+        }
+    }
+
+    /** Emits whenever the set of open documents or the text of one of them changes. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun openTextVersions(): Flow<Any> =
+        collaborators.documents.openDocuments.flatMapLatest { open ->
+            if (open.isEmpty()) flowOf(open) else combine(open.map { it.session.text.snapshot }) { it.toList() }
+        }
+
+    private companion object {
+        private val logger = LoggerFactory.getLogger(DefaultWorkspace::class.java)
+    }
 }

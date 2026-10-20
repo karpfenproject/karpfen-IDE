@@ -1,0 +1,107 @@
+package io.karpfen.ide.core.workspace
+
+import io.karpfen.ide.core.workspace.context.ContextTracker
+import io.karpfen.ide.core.workspace.document.WorkspaceDocuments
+import io.karpfen.ide.core.workspace.files.FileChange
+import io.karpfen.ide.core.workspace.files.FileChangeKind
+import io.karpfen.ide.core.workspace.files.FileWatcher
+import io.karpfen.ide.core.workspace.files.WorkspaceScanner
+import io.karpfen.ide.core.workspace.files.WorkspaceTree
+import io.karpfen.ide.core.workspace.files.batchedBy
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
+import java.nio.file.Path
+import kotlin.time.Duration
+
+/**
+ * The file side of a workspace (spec §4): scans the folder into [files], keeps the contexts in step through the
+ * [contexts] tracker, and routes changes on disk to the open documents ([WorkspaceDocuments.onFileChanged], which
+ * decides between reload, conflict and nothing).
+ *
+ * - [refresh] rescans now and checks every open document against its file (the explicit alternative to watching);
+ * - [watch] collects the [watcher]'s raw changes, debounced into batches by [watchDebounce] (200 ms by default), and
+ *   for each batch rescans and checks the open documents at or below a changed path (all of them after an overflow).
+ *
+ * Checking a document means handing it to the document side, which reads the file and compares it with what the
+ * document last saw on disk; so a check without a real change (a touch, the document's own save) changes nothing.
+ *
+ * Rescans are serialized; [revision] counts the completed ones, so the analysis also follows content changes of files
+ * the tree shows unchanged.
+ */
+internal class TreeRefresher(
+    private val root: Path,
+    private val scanner: WorkspaceScanner,
+    private val watcher: FileWatcher,
+    private val documents: WorkspaceDocuments,
+    private val contexts: ContextTracker,
+    private val ioDispatcher: CoroutineDispatcher,
+    private val watchDebounce: Duration,
+) {
+
+    private val tree = MutableStateFlow(WorkspaceTree.empty(root))
+    private val completedScans = MutableStateFlow(0L)
+    private val scanning = Mutex()
+
+    /** The latest scanned tree. */
+    val files: StateFlow<WorkspaceTree> = tree.asStateFlow()
+
+    /** The number of completed rescans. */
+    val revision: StateFlow<Long> = completedScans.asStateFlow()
+
+    /** Rescans the folder and checks every open document against its file. */
+    suspend fun refresh() {
+        rescan()
+        documents.openDocuments.value.forEach { documents.onFileChanged(it.path, deleted = false) }
+    }
+
+    /** Starts watching in [scope]; the returned job ends with the scope or when the watcher gives up. */
+    fun watch(scope: CoroutineScope): Job = scope.launch {
+        watcher.watch(root) { scanner.isIgnored(root, it) }
+            .batchedBy(watchDebounce)
+            .collect { batch -> applyBatch(batch) }
+        logger.warn("Watching {} ended; changes on disk are picked up by an explicit refresh only", root)
+    }
+
+    private suspend fun applyBatch(batch: List<FileChange>) {
+        try {
+            rescan()
+            val overflow = batch.any { it.kind == FileChangeKind.OVERFLOW }
+            for (document in documents.openDocuments.value.map { it.path }) {
+                if (overflow || batch.any { change -> document.startsWith(change.path) }) {
+                    // Only a deletion of the file itself is known for sure; anything else is read (a deleted
+                    // directory or a lost event shows up as a missing file there).
+                    val deleted = batch.lastOrNull { it.path == document }?.kind == FileChangeKind.DELETED
+                    documents.onFileChanged(document, deleted)
+                }
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (e: Exception) {
+            logger.error("Applying {} file changes below {} failed", batch.size, root, e)
+        }
+    }
+
+    private suspend fun rescan() {
+        scanning.withLock {
+            val scanned = withContext(ioDispatcher) { scanner.scan(root) }
+            tree.value = scanned
+            contexts.update(scanned)
+            completedScans.update { it + 1 }
+        }
+    }
+
+    private companion object {
+        private val logger = LoggerFactory.getLogger(TreeRefresher::class.java)
+    }
+}

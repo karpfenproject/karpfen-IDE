@@ -1,5 +1,8 @@
 package io.karpfen.ide.core.workspace.files
 
+import org.slf4j.LoggerFactory
+import java.io.IOException
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -20,9 +23,66 @@ internal interface WorkspaceScanner {
 internal fun WorkspaceScanner(ignoredDirectoryNames: Set<String>): WorkspaceScanner =
     FileSystemWorkspaceScanner(ignoredDirectoryNames)
 
+/**
+ * Walks the file system depth-first. Rules:
+ * - a directory is skipped if its name starts with `.` or is one of [ignoredDirectoryNames] (files are never skipped,
+ *   spec §4 ignores directories only);
+ * - symbolic links to directories are followed once: a directory whose real path was already visited (a link cycle) is
+ *   listed empty;
+ * - a directory that cannot be listed (permissions, vanished during the scan) is listed empty and logged; the scan
+ *   itself never throws.
+ */
 internal class FileSystemWorkspaceScanner(private val ignoredDirectoryNames: Set<String>) : WorkspaceScanner {
 
-    override fun scan(root: Path): WorkspaceTree = TODO("WP-WORKSPACE: walk $root")
+    override fun scan(root: Path): WorkspaceTree {
+        val normalizedRoot = root.toAbsolutePath().normalize()
+        return WorkspaceTree(directory(normalizedRoot, visited = HashSet()))
+    }
 
-    override fun isIgnored(root: Path, path: Path): Boolean = TODO("WP-WORKSPACE: ignore rules")
+    override fun isIgnored(root: Path, path: Path): Boolean {
+        val normalizedRoot = root.toAbsolutePath().normalize()
+        val normalized = path.toAbsolutePath().normalize()
+        if (normalized == normalizedRoot) return false
+        if (!normalized.startsWith(normalizedRoot)) return true
+        val segments = normalizedRoot.relativize(normalized).map { it.toString() }
+        // Every parent segment is a directory; the last one only counts if it is a directory itself (a deleted path
+        // cannot be checked and is treated as a file, which at worst triggers one rescan).
+        return segments.dropLast(1).any(::isIgnoredDirectoryName) ||
+            (isIgnoredDirectoryName(segments.last()) && Files.isDirectory(normalized))
+    }
+
+    private fun isIgnoredDirectoryName(name: String): Boolean = name.startsWith(".") || name in ignoredDirectoryNames
+
+    private fun directory(path: Path, visited: MutableSet<Path>): WorkspaceNode.Directory {
+        val name = path.fileName?.toString() ?: path.toString()
+        val children = if (visited.add(realPathOf(path))) children(path, visited) else emptyList()
+        return WorkspaceNode.Directory(path, name, children.sortedWith(WorkspaceNode.ORDER))
+    }
+
+    private fun children(directory: Path, visited: MutableSet<Path>): List<WorkspaceNode> {
+        val entries = try {
+            Files.newDirectoryStream(directory).use { stream -> stream.toList() }
+        } catch (e: IOException) {
+            logger.warn("Cannot list directory {}: {}", directory, e.toString())
+            return emptyList()
+        }
+        return entries.mapNotNull { entry ->
+            val name = entry.fileName.toString()
+            when {
+                Files.isDirectory(entry) -> if (isIgnoredDirectoryName(name)) null else directory(entry, visited)
+                else -> WorkspaceNode.File(entry, name, FileKind.of(name))
+            }
+        }
+    }
+
+    private fun realPathOf(path: Path): Path =
+        try {
+            path.toRealPath()
+        } catch (e: IOException) {
+            path
+        }
+
+    private companion object {
+        private val logger = LoggerFactory.getLogger(FileSystemWorkspaceScanner::class.java)
+    }
 }
