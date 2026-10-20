@@ -4,8 +4,9 @@ package io.karpfen.ide.core.text
  * A half-open range `[start, end)` of UTF-16 code-unit offsets into a document text.
  *
  * Invariant: `0 <= start <= end`. An empty range (`start == end`) denotes a position between two characters, e.g. an
- * insertion point. Ranges are only meaningful together with the text version they were computed for; use
- * [EditableText.mapOffset] to carry them across edits.
+ * insertion point. Ranges are only meaningful together with the text version (and [TextLineage]) they were computed
+ * for; [EditableText.mapRange] carries them across edits (the one range-mapping rule; never map the two bounds
+ * yourself).
  */
 public data class TextRange(public val start: Int, public val end: Int) : Comparable<TextRange> {
 

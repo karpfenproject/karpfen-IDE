@@ -6,8 +6,9 @@ import kotlin.time.TimeSource
 
 /**
  * Default [EditableText]: applies edits to a `String` (files are small, spec §1), keeps a bounded edit log for
- * [mapOffset] and delegates history to a [DefaultUndoManager]. Every snapshot it publishes carries the one
- * [TextLineage] created with the instance.
+ * [mapOffset] (published together with each snapshot as an immutable value, so mapping is thread-safe while the single
+ * writer edits) and delegates history to a [DefaultUndoManager]. Every snapshot it publishes carries the one
+ * [TextLineage] created with the instance. `mapRange` is the interface's own implementation on top of [mapOffset].
  */
 internal class DefaultEditableText(
     private val initialText: String,
