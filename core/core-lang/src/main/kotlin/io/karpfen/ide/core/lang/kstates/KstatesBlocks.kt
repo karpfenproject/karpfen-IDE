@@ -28,6 +28,22 @@ internal object KstatesBlocks {
     fun macroOf(frames: List<BlockFrame>): String? =
         frames.map(::of).lastOrNull { it.kind == KstatesSlots.MACRO }?.construct?.getOrNull(1)?.takeIf { it.kind == TokenKind.STRING }?.text
 
+    /** The macro `m` of a `WITH MACRO("m", …) AS "x"` construct (its tokens from `WITH` on), or null. */
+    fun boundMacroOf(construct: List<ContextToken>): String? =
+        construct.getOrNull(3)?.takeIf { construct.getOrNull(1)?.text == KstatesSlots.MACRO && it.kind == TokenKind.STRING }?.text
+
+    /** The name `x` of a `WITH … AS "x"` construct (its tokens from `WITH` on), or null while it has none. */
+    fun bindingNameOf(construct: List<ContextToken>): ContextToken? {
+        val asIndex = construct.indexOfLast { it.kind == TokenKind.KEYWORD && it.text.uppercase() == AS }
+        return construct.getOrNull(asIndex + 1)?.takeIf { asIndex >= 0 && it.kind == TokenKind.STRING }
+    }
+
+    /** The tokens of the `WITH` construct at the end of [statement] (from `WITH` on), or empty if there is none. */
+    fun withConstructOf(statement: List<ContextToken>): List<ContextToken> {
+        val with = statement.indexOfLast { it.kind == TokenKind.KEYWORD && it.text.uppercase() == WITH }
+        return if (with < 0) emptyList() else statement.subList(with, statement.size)
+    }
+
     /** [frame] read as a KStates block. */
     fun of(frame: BlockFrame): KstatesBlock = constructOf(frame).let { KstatesBlock(it.firstOrNull()?.text?.uppercase(), it, frame.range) }
 
@@ -48,4 +64,7 @@ internal object KstatesBlocks {
 
     private fun isMacroCall(header: List<ContextToken>, index: Int): Boolean =
         header[index].text == KstatesSlots.MACRO && header.getOrNull(index + 1)?.text == "("
+
+    private const val WITH = "WITH"
+    private const val AS = "AS"
 }

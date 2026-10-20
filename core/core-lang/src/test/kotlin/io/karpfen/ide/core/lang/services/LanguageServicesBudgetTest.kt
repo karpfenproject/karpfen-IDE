@@ -1,0 +1,63 @@
+package io.karpfen.ide.core.lang.services
+
+import io.karpfen.ide.core.document.fixtures.SyntheticKstates
+import io.karpfen.ide.core.lang.fixtures.ExamplePaths
+import io.karpfen.ide.core.lang.fixtures.ExampleProject
+import io.karpfen.ide.core.lang.fixtures.ServicesProbe
+import org.junit.jupiter.api.TestReporter
+import kotlin.test.Test
+import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
+
+/**
+ * Latency of the language services on a 5,000-line KStates document (`SyntheticKstates.withMinLines(5000)`, in the
+ * single-robot context): highlight, completion at a model path and among keywords, hover and definition at the end of
+ * the document. The spec sets no core-lang budget; the measured values are reported through [TestReporter] and guarded
+ * by the tokenize budget of the same document size (30 ms, spec §3.4) with 5x slack, so an accidental quadratic
+ * algorithm fails the build.
+ */
+class LanguageServicesBudgetTest {
+
+    private val probe = ServicesProbe()
+
+    @Test
+    fun `features on a 5000-line KStates document stay within the guard`(reporter: TestReporter) {
+        val text = SyntheticKstates.withMinLines(LINES)
+        val document = ExampleProject.document(ExampleProject.pathOf(ExamplePaths.ROBOT_KSTATES), text)
+        val path = text.lastIndexOf("\$(target->") + "\$(target->".length
+        val keywords = text.lastIndexOf("EVENT(\"public\", \"tick\")\n") + "EVENT(\"public\", \"tick\")\n".length
+        val transition = text.lastIndexOf("TRANSITION \"s") + "TRANSITION \"s".length
+        val measurements = mapOf(
+            "highlight" to measure { probe.services.highlight(document) },
+            "complete (model path)" to measure { probe.complete(document, path) },
+            "complete (keywords)" to measure { probe.complete(document, keywords) },
+            "complete (state names)" to measure { probe.complete(document, transition) },
+            "hover (model path)" to measure { probe.hover(document, path - 3) },
+            "definition (state)" to measure { probe.definition(document, transition) },
+        )
+
+        val lines = SyntheticKstates.lineCount(text)
+        measurements.forEach { (feature, measured) ->
+            reporter.publishEntry("$feature on $lines KStates lines", "measured $measured, guard $GUARD (asserted with ${SLACK}x slack)")
+        }
+        measurements.forEach { (feature, measured) -> assertTrue(measured < GUARD * SLACK, "$feature took $measured") }
+        assertTrue(probe.complete(document, keywords).isNotEmpty() && probe.complete(document, transition).isNotEmpty())
+    }
+
+    private fun measure(call: () -> Any?): Duration {
+        repeat(WARM_UP) { call() }
+        val mark = TimeSource.Monotonic.markNow()
+        repeat(MEASURED) { call() }
+        return mark.elapsedNow() / MEASURED
+    }
+
+    private companion object {
+        const val LINES = 5_000
+        const val WARM_UP = 10
+        const val MEASURED = 20
+        const val SLACK = 5
+        val GUARD = 30.milliseconds
+    }
+}

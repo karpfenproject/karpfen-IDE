@@ -85,7 +85,8 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
             eventName = transition?.let { node ->
                 index.referencesOf(ReferenceKind.EVENT_NAME).firstOrNull { it.range in node.range }?.name
             },
-            bindings = path.filter { it.kind == SymbolKind.BINDING }
+            // A binding is in scope in its block, after its `AS "x"` (not in its own macro arguments).
+            bindings = path.filter { it.kind == SymbolKind.BINDING && offset > it.selectionRange.end }
                 .map { BindingFact(it.name, it.detail, source.location(it.selectionRange)) },
             macro = path.lastOrNull { it.kind == SymbolKind.MACRO }?.name,
         )
@@ -103,13 +104,9 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
 
     /** The binding of a `WITH MACRO("m", …) AS "x"` block construct, or null if it has no name yet. */
     private fun bindingOf(document: LanguageDocument, construct: List<ContextToken>): BindingFact? {
-        val asIndex = construct.indexOfLast { it.kind == TokenKind.KEYWORD && it.text.uppercase() == AS }
-        val name = construct.getOrNull(asIndex + 1)?.takeIf { asIndex >= 0 && it.kind == TokenKind.STRING } ?: return null
-        val macro = construct.getOrNull(3)
-            ?.takeIf { construct.getOrNull(1)?.text == KstatesSlots.MACRO && it.kind == TokenKind.STRING }
-            ?.text
+        val name = KstatesBlocks.bindingNameOf(construct) ?: return null
         val content = TextRange(name.range.start + 1, maxOf(name.range.start + 1, name.range.end - 1))
-        return BindingFact(name.text, macro, Location(document.path, content, document.text))
+        return BindingFact(name.text, KstatesBlocks.boundMacroOf(construct), Location(document.path, content, document.text))
     }
 
     /** The event name of the first `EVENT("d", "n")` clause in [range] of the document's tokens, or null. */
@@ -128,7 +125,6 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
     private companion object {
         const val MACHINE = "STATEMACHINE"
         const val WITH = "WITH"
-        const val AS = "AS"
         val TRANSITION_KINDS = setOf(SymbolKind.TRANSITION, SymbolKind.SPLIT, SymbolKind.JOIN)
 
         /** The type of a binding whose macro or RETURNS is unknown: resolution ends there. */

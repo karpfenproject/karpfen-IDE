@@ -53,7 +53,7 @@ internal class KmodelSlots(private val caretContexts: CaretContextDetector) {
 
     private fun classify(document: LanguageDocument, context: CaretContext): KmodelSlot {
         if (context.inComment) return KmodelSlot.None
-        val objectType = context.blocks.lastOrNull { objectTypeOf(it.header) != null }?.let { objectTypeOf(it.header) }
+        val objectType = context.blocks.asReversed().firstNotNullOfOrNull { objectTypeOf(it.header) }
         val call = context.call
         val string = context.string
         val statement = context.statement

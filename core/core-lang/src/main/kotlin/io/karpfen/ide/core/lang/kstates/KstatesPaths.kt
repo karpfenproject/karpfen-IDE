@@ -1,6 +1,5 @@
 package io.karpfen.ide.core.lang.kstates
 
-import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.lang.context.CaretContext
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.modelpath.ModelPathResolver
@@ -48,15 +47,8 @@ internal class KstatesPaths(private val scopes: KstatesPathScopes, private val p
      * RETURNS type of `m`, or null if unknown.
      */
     fun declaredBindingType(request: FeatureRequest, context: CaretContext): PathType? {
-        val statement = context.statement
-        val with = statement.indexOfLast { it.kind == TokenKind.KEYWORD && it.text.uppercase() == WITH }
-        if (with < 0 || statement.getOrNull(with + 1)?.text != KstatesSlots.MACRO) return null
-        val macro = statement.getOrNull(with + 3)?.takeIf { it.kind == TokenKind.STRING }?.text ?: return null
+        val macro = KstatesBlocks.boundMacroOf(KstatesBlocks.withConstructOf(context.statement)) ?: return null
         return MacroSignatures(DocumentDeclarations(request.document).located().map { it.outcome.index }).returns(macro)
-    }
-
-    private companion object {
-        const val WITH = "WITH"
     }
 }
 

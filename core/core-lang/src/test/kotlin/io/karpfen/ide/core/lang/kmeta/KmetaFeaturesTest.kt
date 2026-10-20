@@ -147,6 +147,19 @@ class KmetaFeaturesTest {
     }
 
     @Test
+    fun `references of an event payload member include the event paths of the state machines`() {
+        val events = ExampleProject.example(ExamplePaths.DRONE_EVENTS)
+
+        val references = probe.references(events, after(events.text.text, "prop(\"fac"))
+
+        val kstatesText = ExampleProject.textOf(ExamplePaths.DRONE_KSTATES)
+        val paths = references.filter { it.path == ExampleProject.pathOf(ExamplePaths.DRONE_KSTATES) }
+        assertEquals(2, paths.size, "\$(event->factor) twice in the ENTRY of throttle")
+        assertTrue(paths.all { textAt(kstatesText, it) == "factor" && it.range.start > at(kstatesText, "STATE \"throttle\"") })
+        assertEquals(1, references.count { it.path == events.path }, "the declaration")
+    }
+
+    @Test
     fun `hover shows the type with members and member signatures`() {
         val type = assertNotNull(probe.hover(metamodel, after(text, "has(\"boundingBox\", \"Two")))
         assertEquals(

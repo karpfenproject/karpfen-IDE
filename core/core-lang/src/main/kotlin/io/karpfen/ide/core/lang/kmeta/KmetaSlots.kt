@@ -50,18 +50,16 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
 
     private fun classify(document: LanguageDocument, context: CaretContext): KmetaSlot {
         if (context.inComment) return KmetaSlot.None
-        val owner = context.blocks.lastOrNull { typeNameOf(it.header) != null }?.let { typeNameOf(it.header) }
+        val owner = context.blocks.asReversed().firstNotNullOfOrNull { typeNameOf(it.header) }
         val call = context.call
         val string = context.string
         if (string != null) {
             val range = if (string.closed) string.contentRange else context.replaceRange
             val name = document.text.substring(range)
+            val afterTypeKeyword = context.statement.lastOrNull()?.let { it.kind == TokenKind.KEYWORD && it.text == TYPE } == true
             return when {
-                call == null -> if (context.statement.lastOrNull()?.let { it.kind == TokenKind.KEYWORD && it.text == TYPE } == true) {
-                    KmetaSlot.TypeName(name, range)
-                } else {
-                    KmetaSlot.None
-                }
+                call == null && afterTypeKeyword -> KmetaSlot.TypeName(name, range)
+                call == null -> KmetaSlot.None
                 call.name in RULES && call.argumentIndex == 0 -> KmetaSlot.MemberName(owner, RULES.getValue(call.name), name, range)
                 else -> typeArgument(call, name, range, inString = true) ?: KmetaSlot.None
             }
