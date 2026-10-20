@@ -14,16 +14,20 @@ import io.karpfen.ide.core.text.TextSnapshot
  * - Budget: a 5,000-line KStates document parses in < 150 ms (spec §3.4).
  */
 public interface DocumentParser {
-    /** Parses [snapshot]; [mode] decides whether the standalone dsl-tools conversion may run. */
-    public fun parse(snapshot: TextSnapshot, mode: SemanticMode = SemanticMode.STANDALONE): ParseOutcome
+    /**
+     * Parses [snapshot]; [mode] decides whether the standalone dsl-tools conversion may run ([SemanticMode.SYNTAX_ONLY]
+     * by default, like `DocumentSessionConfig`; standalone conversion is opt-in).
+     */
+    public fun parse(snapshot: TextSnapshot, mode: SemanticMode = SemanticMode.SYNTAX_ONLY): ParseOutcome
 }
 
 /** Whether [DocumentParser.parse] runs the standalone dsl-tools conversion. */
 public enum class SemanticMode {
     /**
-     * Convert KMeta and KStates files with dsl-tools when there are no syntax diagnostics (spec §3.3). Not for
-     * `EVENTS.kmeta`: event payloads may reference domain types and only convert with the domain metamodel as base
-     * types, which core-workspace does.
+     * Convert KMeta and KStates files with dsl-tools when there are no syntax diagnostics (spec §3.3). Opt-in: no
+     * product path uses it (decision 28 of the work-package plan); documents edited on their own and the tests of the
+     * standalone semantics do. Not for `EVENTS.kmeta`: event payloads may reference domain types and only convert with
+     * the domain metamodel as base types, which core-workspace does.
      */
     STANDALONE,
 

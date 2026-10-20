@@ -19,6 +19,7 @@ import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.context.StateMachineBinding
+import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
@@ -93,7 +94,7 @@ class WorkspaceContractTest {
         val lexer = diagnostic(1, Severity.ERROR, DiagnosticCodes.LEXER_ERROR, DiagnosticSource.LEXER)
         val parser = diagnostic(4, Severity.ERROR, DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
         val standalone = diagnostic(0, Severity.ERROR, DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
-        val file = diagnostic(2, Severity.INFO, DiagnosticCodes.MIXED_LINE_SEPARATORS, DiagnosticSource.IDE)
+        val file = diagnostic(2, Severity.INFO, WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS, DiagnosticSource.IDE)
         val snapshot = TextSnapshot("type \"A\" \"d\" { }", 0)
         val parse = ParseOutcome(
             KarpfenLanguage.KMETA, 0, listOf(lexer, parser), emptyList(), SyntaxIndex.EMPTY, emptyList(), emptyList(),
@@ -132,5 +133,18 @@ class WorkspaceContractTest {
         assertEquals(listOf("b.kmeta", "shared.kmeta", "a.kmeta", "loose.kmeta"), analysis.files.keys.map { it.fileName.toString() })
         assertTrue(analysis.files[root.resolve("shared.kmeta")] === first.files[root.resolve("shared.kmeta")], "the first context wins")
         assertTrue(analysis.file(root.resolve("shared.kmeta")) === analysis.files[root.resolve("shared.kmeta")])
+    }
+
+    @Test
+    fun `workspace and document diagnostic codes are distinct`() {
+        fun codes(holder: Any) = holder::class.java.declaredFields
+            .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
+            .map { it.get(null) as String }
+        val workspace = codes(WorkspaceDiagnosticCodes)
+        val document = codes(DiagnosticCodes)
+
+        assertEquals(7, workspace.size, "reflection found $workspace")
+        assertTrue(document.isNotEmpty())
+        assertEquals((workspace + document).size, (workspace + document).toSet().size, "a code is defined twice")
     }
 }

@@ -39,12 +39,34 @@ public interface OpenDocument {
     public val conflict: StateFlow<ExternalChange?>
 
     /**
-     * Resolves the current [conflict]: [ConflictResolution.RELOAD] replaces the text with the disk content as one
-     * undoable `External` change, marks the save point and replaces the FILE findings (see [DocumentManager]);
-     * [ConflictResolution.KEEP_MINE] keeps the buffer (the next save overwrites the disk). No-op without a conflict.
-     * @throws IllegalArgumentException for RELOAD of a file deleted on disk.
+     * Resolves the current [conflict] and reports what happened; never throws (I/O errors are values, decision 12).
+     * [ConflictResolution.RELOAD] takes the disk state: it replaces the text with the disk content as one undoable
+     * `External` change, marks the save point and replaces the FILE findings (see [DocumentManager]) →
+     * [ConflictResult.Reloaded]; for a file that no longer exists on disk it changes nothing and returns
+     * [ConflictResult.DeletedOnDisk] (the caller decides: the workbench closes the tab without saving); a read failure
+     * keeps buffer and conflict → [ConflictResult.Failed]. [ConflictResolution.KEEP_MINE] keeps the buffer and clears the
+     * conflict (the next save overwrites or recreates the file) → [ConflictResult.Kept]. Without a conflict nothing
+     * happens → [ConflictResult.NoConflict].
      */
-    public suspend fun resolveConflict(resolution: ConflictResolution)
+    public suspend fun resolveConflict(resolution: ConflictResolution): ConflictResult
+}
+
+/** Outcome of [OpenDocument.resolveConflict]. */
+public sealed interface ConflictResult {
+    /** The buffer now holds the disk content. */
+    public data object Reloaded : ConflictResult
+
+    /** The buffer was kept; the conflict is cleared. */
+    public data object Kept : ConflictResult
+
+    /** RELOAD of a file deleted on disk: nothing was loaded, buffer and conflict are unchanged. */
+    public data object DeletedOnDisk : ConflictResult
+
+    /** Reading the disk content failed ([message]); buffer and conflict are unchanged. */
+    public data class Failed(public val message: String) : ConflictResult
+
+    /** There was no conflict; nothing happened. */
+    public data object NoConflict : ConflictResult
 }
 
 /** A change on disk that conflicts with an open document. */
@@ -61,7 +83,10 @@ public enum class ExternalChangeKind {
 
 /** User decision for an [ExternalChange]. */
 public enum class ConflictResolution {
-    /** Discard the buffer and load the disk content. */
+    /**
+     * Take the disk state: discard the buffer and load the disk content (banner "Reload"); for a file deleted on disk
+     * there is nothing to load and the workbench closes the tab (banner "Close", see [ConflictResult.DeletedOnDisk]).
+     */
     RELOAD,
 
     /** Keep the buffer; the conflict is cleared. */

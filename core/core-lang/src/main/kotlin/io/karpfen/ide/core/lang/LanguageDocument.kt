@@ -41,15 +41,14 @@ public data class LanguageDocument(
     public companion object {
         /**
          * [session] as seen at [text] (default: its current snapshot; the completion source passes the snapshot a
-         * request was made for): the tokens of exactly that text (the session's own when their version matches, else
-         * tokenized synchronously with the session's tokenizer, e.g. right after an edit), the latest parse and the last
-         * good parse (possibly of other versions, see the staleness rule). The result is always [isConsistent].
+         * request was made for): the tokens of exactly that text (`DocumentSession.tokensFor`), the latest parse and the
+         * last good parse (possibly of other versions, see the staleness rule). The result is always [isConsistent].
          *
          * @param text a snapshot of `session.text` (same lineage).
+         * @throws IllegalArgumentException if [text] is not a version of the session's text (programming error).
          */
         public fun of(session: DocumentSession, text: TextSnapshot = session.text.snapshot.value): LanguageDocument {
-            require(text.lineage === session.text.lineage) { "the snapshot is not a version of the session's text" }
-            val tokens = session.tokens.value.takeIf { it.version == text.version } ?: session.support.tokenizer.tokenize(text)
+            val tokens = session.tokensFor(text)
             return LanguageDocument(
                 path = session.id.path,
                 language = session.language,
@@ -71,9 +70,8 @@ public data class LanguageDocument(
  *   diagnostics' snapshot for a problem; null if unknown.
  * @property lineage the [TextLineage] [version] counts in (the document's `text.lineage` for its own parses, the analyzed
  *   snapshot's for other files); null if unknown. Navigation maps the range into the open document's current text
- *   with `EditableText.mapOffset` only when [lineage] is that text's lineage and [version] is not newer than its current
- *   version (and the history is not evicted); otherwise it clamps the range, because a version of another lineage
- *   (e.g. of a document that was closed and reopened since) says nothing about this text.
+ *   with `EditableText.mapRange(range, version, lineage)`, which answers null for another lineage (e.g. of a document
+ *   that was closed and reopened since), a newer version or evicted history; navigation then clamps the range.
  */
 public data class Location(
     public val path: Path,

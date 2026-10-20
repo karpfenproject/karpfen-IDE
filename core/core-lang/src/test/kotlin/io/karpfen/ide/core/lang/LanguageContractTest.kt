@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.lang
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.lang.modelpath.PathMember
@@ -72,5 +73,43 @@ class LanguageContractTest {
         assertFailsWith<IllegalArgumentException> {
             CompletionItem("x", CompletionKind.KEYWORD, "x", TextRange.EMPTY, 2, null, null, "x")
         }
+    }
+
+    @Test
+    fun `the semantic styles are exactly the semantic kinds`() {
+        val semantic = HighlightStyle.entries.filter { it.isSemantic }.map { it.name }.toSet()
+
+        assertEquals(SemanticKind.entries.map { it.name }.toSet(), semantic)
+    }
+
+    @Test
+    fun `overlays win inside their ranges and split what they cover`() {
+        fun span(start: Int, end: Int, style: HighlightStyle) = HighlightSpan(TextRange(start, end), style)
+        val base = listOf(
+            span(0, 4, HighlightStyle.KEYWORD),
+            span(5, 15, HighlightStyle.STRING),
+            span(16, 17, HighlightStyle.PUNCTUATION),
+        )
+        val overlay = listOf(
+            span(6, 10, HighlightStyle.STATE_NAME),
+            span(12, 17, HighlightStyle.MODEL_PATH),
+            span(20, 20, HighlightStyle.TYPE_NAME),
+        )
+
+        assertEquals(
+            listOf(
+                span(0, 4, HighlightStyle.KEYWORD),
+                span(5, 6, HighlightStyle.STRING),
+                span(6, 10, HighlightStyle.STATE_NAME),
+                span(10, 12, HighlightStyle.STRING),
+                span(12, 17, HighlightStyle.MODEL_PATH),
+            ),
+            overlayHighlights(base, overlay),
+        )
+        assertEquals(base, overlayHighlights(base, emptyList()))
+        val type = span(1, 2, HighlightStyle.TYPE_NAME)
+        assertEquals(listOf(type), overlayHighlights(emptyList(), listOf(type)))
+        val description = span(5, 15, HighlightStyle.DESCRIPTION)
+        assertEquals(listOf(description), overlayHighlights(listOf(span(5, 15, HighlightStyle.STRING)), listOf(description)))
     }
 }

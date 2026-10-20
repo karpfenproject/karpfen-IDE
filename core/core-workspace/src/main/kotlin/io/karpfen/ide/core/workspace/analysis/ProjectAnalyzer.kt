@@ -15,6 +15,13 @@ import java.nio.file.Path
  * against the metamodel; each state machine via `kstates`. Exceptions become DSL_TOOLS diagnostics on the right file
  * (ranges located through each file's syntax index). No IDE-side validation rules beyond what dsl-tools reports.
  *
+ * Syntax first (MUST, decision 44 of the work-package plan): a file is converted only when its
+ * `AnalyzedFile.parse.isSyntaxClean` (dsl-tools would print ANTLR errors to `System.err` and report cryptic messages
+ * next to the PARSER errors, see [DslConverter]). A conversion that needs a metamodel which was not converted (missing,
+ * not syntax-clean or rejected) is skipped: the events file and the models without a domain metamodel. A skipped
+ * conversion reports nothing of its own — the broken file reports its syntax errors — so while the user types, Problems
+ * shows PARSER errors only, and DSL_TOOLS errors return once the syntax is clean.
+ *
  * Every context file and every loose file (`ContextResolution.looseFiles`) becomes an [AnalyzedFile]: tokenized unless
  * [SourceText.tokens] are given, parsed with `SemanticMode.SYNTAX_ONLY` unless [SourceText.parse] is given, with the
  * source's [SourceText.fileDiagnostics]. Loose files are never converted. The result follows the conventions documented
@@ -35,9 +42,10 @@ public fun ProjectAnalyzer(languages: LanguageRegistry, converter: DslConverter)
     DefaultProjectAnalyzer(languages, converter)
 
 /**
- * Supplies the text to analyze: the editor text of open documents (the session's current snapshot, with its lineage),
- * the disk text otherwise, loaded through the workspace's `SourceLoader` into a fresh `TextSnapshot(text, 0)` (a lineage
- * of its own per load) (spec §4). Implemented by the workspace; tests supply texts from fixtures the same way.
+ * Supplies the text to analyze: the editor text of open documents (the session's current snapshot, with its lineage,
+ * its tokens from `DocumentSession.tokensFor` and its parse when the parse has that version), the disk text otherwise,
+ * loaded through the workspace's `SourceLoader` into a fresh `TextSnapshot(text, 0)` (a lineage of its own per load)
+ * (spec §4). Implemented by the workspace; tests supply texts from fixtures the same way.
  */
 public fun interface AnalysisSources {
     /** The source of [path], or null if it cannot be read (the analyzer then reports nothing for it). */

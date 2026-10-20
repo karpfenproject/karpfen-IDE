@@ -19,7 +19,12 @@ public interface TypeCatalog {
     /**
      * The types visible from [request]'s document, in this order (a name appears once, the first wins): the types
      * declared in the document itself when it is a `.kmeta` file (from its parse, so they are known before conversion),
-     * then the context's domain metamodel, then its event metamodel. Never throws.
+     * then the context's domain metamodel, then its event types. Never throws.
+     *
+     * Event types ([TypeOrigin.EVENTS]) are the TYPE declarations of the context's events file itself (its
+     * `AnalyzedFile.parse` syntax index), with members from the converted `ContextAnalysis.events` metamodel — never
+     * all of `events.types`, which dsl-tools fills with the domain base types too (see `ContextAnalysis.events`). So a
+     * provider listing event names or event types offers no domain type.
      */
     public fun types(request: FeatureRequest): List<TypeInfo>
 
@@ -38,7 +43,7 @@ public enum class TypeOrigin {
     /** The context's domain metamodel. */
     DOMAIN,
 
-    /** The context's event metamodel (`EVENTS.kmeta`). */
+    /** Declared in the context's event metamodel file (`EVENTS.kmeta`) itself; not the domain types it reuses. */
     EVENTS,
 }
 

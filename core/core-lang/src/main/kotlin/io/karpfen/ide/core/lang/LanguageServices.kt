@@ -21,8 +21,10 @@ package io.karpfen.ide.core.lang
 public interface LanguageServices {
 
     /**
-     * Highlight spans in the coordinates of `doc.tokens.version`: lexical styles from the tokens, overlaid by semantic
-     * styles from `doc.parse` when `parse.version == tokens.version`. Sorted, non-overlapping; whitespace has no span.
+     * Highlight spans in the coordinates of `doc.tokens.version`: lexical styles from the tokens, overlaid
+     * ([overlayHighlights]) by the semantic styles from `doc.parse` when `parse.version == tokens.version`, lexical only
+     * otherwise (the editor then carries the previous semantic layer forward itself). Sorted, non-overlapping;
+     * whitespace has no span.
      */
     public fun highlight(doc: LanguageDocument): List<HighlightSpan>
 

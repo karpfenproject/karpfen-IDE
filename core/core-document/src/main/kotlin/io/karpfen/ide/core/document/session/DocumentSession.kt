@@ -26,7 +26,10 @@ public interface DocumentSession : AutoCloseable {
     /** The document's identity (its path). */
     public val id: DocumentId
 
-    /** Tokenizer and parser of the document's language. */
+    /**
+     * Tokenizer and parser of the document's language. Identifies the language bundle; consumers never tokenize or
+     * parse the session's text with it themselves — tokens of a given version come from [tokensFor].
+     */
     public val support: LanguageSupport
 
     /** The document's language. */
@@ -51,10 +54,25 @@ public interface DocumentSession : AutoCloseable {
     public val lastGoodParse: StateFlow<ParseOutcome?>
 
     /**
+     * The tokens of exactly [snapshot], a version of [text]: [tokens]' value when its version matches, otherwise
+     * tokenized synchronously with the session's tokenizer (e.g. right after an edit, before the tokenize pipeline
+     * caught up). The one answer to "tokens of this text version" (decision 38 of the work-package plan):
+     * `LanguageDocument.of`, the editor's action context (toggle comment) and the workspace's analysis sources use it,
+     * never a tokenizer of their own. Thread-safe (tokenizers are stateless).
+     *
+     * @throws IllegalArgumentException if [snapshot] is not a version of [text] (another lineage; programming error).
+     */
+    public fun tokensFor(snapshot: TextSnapshot): TokenizeResult {
+        require(snapshot.lineage === text.lineage) { "the snapshot is not a version of the session's text" }
+        return tokens.value.takeIf { it.version == snapshot.version } ?: support.tokenizer.tokenize(snapshot)
+    }
+
+    /**
      * Lexer diagnostics (from [tokens]), PARSER diagnostics and standalone DSL_TOOLS diagnostics (from [parse]) and
      * every external set, merged by [mergeDiagnostics] (the one merge rule, shared with core-workspace) after mapping
-     * every range to the newest snapshot the session has seen (via `EditableText.mapOffset`; diagnostics whose range
-     * can no longer be mapped are dropped). [VersionedDiagnostics.snapshot] is that snapshot.
+     * every range to the newest snapshot the session has seen with `EditableText.mapRange` (the one range-mapping rule;
+     * diagnostics whose range does not map — evicted history — are dropped). [VersionedDiagnostics.snapshot] is that
+     * snapshot.
      */
     public val diagnostics: StateFlow<VersionedDiagnostics>
 

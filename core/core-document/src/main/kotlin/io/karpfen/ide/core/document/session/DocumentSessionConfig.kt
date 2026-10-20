@@ -11,15 +11,17 @@ import kotlin.time.Duration.Companion.milliseconds
  * virtual time (`kotlinx-coroutines-test`).
  *
  * @property parseDebounce quiet time after the last change before re-parsing (spec §3.4: 120 ms).
- * @property semanticMode passed to the parser. [SemanticMode.STANDALONE] (the default) suits a document edited on its
- *   own (embedded editors, tests); core-workspace opens every document with [SemanticMode.SYNTAX_ONLY], because in a
- *   workspace the project analysis is the only place that converts files (decision 4 of the work-package plan).
+ * @property semanticMode passed to the parser. [SemanticMode.SYNTAX_ONLY] (the default) is what every product path uses:
+ *   in a workspace the project analysis is the only place that converts files (decisions 4 and 28 of the work-package
+ *   plan), so sessions created without an explicit config (editor tests, embeddings) run the same diagnostics pipeline
+ *   as the product. [SemanticMode.STANDALONE] is opt-in, for a document converted on its own (spec §3.3; the tests of
+ *   WP-PARSE and WP-TOKENS).
  * @property tokenizeDispatcher where tokenizing runs (CPU work).
  * @property parseDispatcher where parsing and standalone conversion run (CPU work).
  */
 public data class DocumentSessionConfig(
     public val parseDebounce: Duration = DEFAULT_PARSE_DEBOUNCE,
-    public val semanticMode: SemanticMode = SemanticMode.STANDALONE,
+    public val semanticMode: SemanticMode = SemanticMode.SYNTAX_ONLY,
     public val tokenizeDispatcher: CoroutineDispatcher = Dispatchers.Default,
     public val parseDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {

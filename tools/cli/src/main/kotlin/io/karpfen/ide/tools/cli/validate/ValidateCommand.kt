@@ -9,8 +9,10 @@ import java.nio.file.Path
  * `refresh()` and `awaitAnalysis()`, and reports `Workspace.problems`: the same single rule as the IDE's Problems view
  * (every karpfen file's own LEXER/PARSER/IDE diagnostics, loose files included, plus the project's DSL_TOOLS and
  * descriptor/context diagnostics), so the CLI and the IDE never disagree. Positions come from
- * `FileProblems.positionOf`, shown one-based. dsl-tools prints to stdout while converting, so the analysis runs inside
- * [StandardOutputGuard.silenced]. Closes the workspace (and cancels its scope) afterwards.
+ * `FileProblems.positionOf`, shown one-based. dsl-tools writes to stdout and stderr, and a workspace may start its
+ * first analysis as soon as it is opened, so the whole workspace run — open, `refresh`, `awaitAnalysis`, collecting
+ * `problems` and `close` (cancelling its scope) — happens inside [StandardOutputGuard.silenced]; the report and the
+ * CLI's own messages are written afterwards through the guard's original streams.
  *
  * @param workspaceFactory creates the workspace; the default uses the built-in languages and options without watching.
  *   Tests pass `WorkspaceFactory(WorkspaceOptions(watch = false, …test dispatchers…))` or a fake.

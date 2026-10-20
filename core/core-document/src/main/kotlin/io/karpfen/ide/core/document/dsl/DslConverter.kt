@@ -14,10 +14,15 @@ import states.StateMachine
  * core-document and for project analysis in core-workspace.
  *
  * Contract (MUST):
+ * - Callers convert only syntax-clean text (`ParseOutcome.isSyntaxClean` of the same snapshot): dsl-tools' own file
+ *   parsers keep ANTLR's console error listener and their visitors read missing or conjured tokens, so broken text
+ *   yields `System.err` output and cryptic messages. `ComposedDocumentParser` (standalone semantics) and the project
+ *   analyzer of core-workspace follow this rule; the adapter itself does not re-parse to check it.
  * - Never throws for any input: every exception raised by dsl-tools becomes one DSL_TOOLS ERROR [Diagnostic] (code
  *   [io.karpfen.ide.core.document.DiagnosticCodes.DSL_TOOLS_ERROR]) whose range is located by a [DslErrorLocator].
- * - Thread-safe; the converters keep no state between calls. They print to `System.out` while parsing; the adapter
- *   does not redirect it (the CLI does, spec §9).
+ * - Thread-safe; the converters keep no state between calls. dsl-tools writes to `System.out` (`println` while
+ *   converting) and, for syntax errors, to `System.err` (ANTLR's console listener); the adapter redirects neither (the
+ *   CLI silences both around its whole workspace run, spec §9; open question 3 of the work-package plan for the IDE).
  * - The source text is passed unchanged (the converters apply `trimIndent()` themselves; ranges never come from them).
  */
 public interface DslConverter {

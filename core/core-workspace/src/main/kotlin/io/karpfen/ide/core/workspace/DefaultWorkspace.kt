@@ -19,10 +19,11 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * The injected collaborators of a [DefaultWorkspace], all created by the `Workspace` factory (never inside the
- * workspace), so tests of the coordinator can replace each of them, the document side ([documents]) included.
+ * The injected I/O and domain collaborators of a [DefaultWorkspace], all created by the `Workspace` factory (never
+ * inside the workspace), so tests of the coordinator can replace each of them, the document side ([documents]) and the
+ * [scanner] included. A plain holder of services (no value semantics).
  */
-internal data class WorkspaceCollaborators(
+internal class WorkspaceCollaborators(
     val fileStore: TextFileStore,
     val fileWatcher: FileWatcher,
     val sourceLoader: SourceLoader,
@@ -38,7 +39,9 @@ internal data class WorkspaceCollaborators(
  * coordinates: each pipeline is its own internal class (e.g. a tree refresher for scan + watch debounce + routing
  * changes to `WorkspaceDocuments.onFileChanged`, an analysis scheduler, a diagnostics publisher that pushes each
  * `AnalyzedFile`'s project diagnostics with its snapshot, and `WorkspaceProblemsAggregator` for [problems]), so no class
- * grows beyond one responsibility (spec §1a).
+ * grows beyond one responsibility (spec §1a). The coordinator builds these pipeline objects itself from the injected
+ * [collaborators], its [scope] and [options] (they are its internal structure, not seams); everything that does I/O or
+ * domain work comes through [collaborators].
  *
  * @param scope the workspace's own scope (a supervisor child of the factory's scope, created by the factory and shared
  *   with [WorkspaceCollaborators.documents]); [close] cancels it.

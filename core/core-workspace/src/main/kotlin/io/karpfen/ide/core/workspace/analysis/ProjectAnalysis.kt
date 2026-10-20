@@ -69,8 +69,11 @@ public data class ProjectAnalysis(
  *
  * @property files every context file that could be read, with the snapshot and parse outcome the analysis used (the
  *   editor text for open documents, the disk text otherwise).
- * @property metamodel the converted domain metamodel, or null if missing or invalid.
- * @property events the converted event metamodel (converted with the domain types as base types), or null.
+ * @property metamodel the converted domain metamodel, or null if missing, not syntax-clean or rejected.
+ * @property events the converted event metamodel, or null. Converted with the domain types as base types, and
+ *   dsl-tools appends those base types to the result (`Metamodel(classTypes + baseTypes, …)`), so `events.types` also
+ *   contains every domain type. The event types proper are the TYPE declarations of the events file itself (its
+ *   [AnalyzedFile.parse] syntax index); consumers listing events (core-lang's `TypeOrigin.EVENTS`) filter by them.
  * @property models converted models by path (only those that converted).
  * @property stateMachines converted state machines by path (only those that converted).
  */
