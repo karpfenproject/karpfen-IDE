@@ -15,7 +15,8 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
  * Resolution rules: the first segment is looked up in [PathScope.bindings] (WITH bindings, macro parameters), then
  * `self` (the root type itself), then `event` (the event type, or the union of all event types' members when it is not
  * determinable), then the members of [PathScope.rootType]; every further segment in the members of the previous
- * segment's type. Primitive and unknown types end the resolution.
+ * segment's type (a list continues with its element type). Primitive and unknown types end the resolution. Paths are
+ * compared without blanks (`a -> b` is `a->b`).
  */
 public interface ModelPathResolver {
 
@@ -109,12 +110,91 @@ public enum class PathOrigin {
  */
 public data class PathResolution(public val segments: List<ResolvedSegment>, public val type: PathType?)
 
-/** One segment of a resolved path and the member it resolved to (or null). */
-public data class ResolvedSegment(public val name: String, public val member: PathMember?)
+/**
+ * One segment of a resolved path and the member it resolved to (or null).
+ *
+ * @property owner the type whose member the segment is (the root type for a first member segment, the event type a
+ *   union lookup found it in), null for roots, bindings and unresolved segments.
+ */
+public data class ResolvedSegment(public val name: String, public val member: PathMember?, public val owner: TypeInfo? = null)
 
-/** [ModelPathResolver] over the `TypeInfo` members of a [PathScope]. */
+/** [ModelPathResolver] over the `TypeInfo` members of a [PathScope]. Stateless. */
 internal class TypePathResolver : ModelPathResolver {
-    override fun resolve(path: String, scope: PathScope): PathResolution = TODO("WP-LANG: resolve model path")
 
-    override fun completions(prefix: String, scope: PathScope): List<PathMember> = TODO("WP-LANG: path completions")
+    override fun resolve(path: String, scope: PathScope): PathResolution {
+        val names = splitPath(path)
+        val segments = ArrayList<ResolvedSegment>(names.size)
+        var candidates: List<TypeInfo>? = null
+        for ((index, name) in names.withIndex()) {
+            val found = if (index == 0) first(name, scope) else candidates?.let { member(name, it) }
+            if (found == null) {
+                names.drop(index).forEach { segments += ResolvedSegment(it, member = null) }
+                return PathResolution(segments, type = null)
+            }
+            segments += found
+            candidates = found.member?.let { typesAfter(it, scope) }
+        }
+        return PathResolution(segments, segments.lastOrNull()?.member?.type)
+    }
+
+    override fun completions(prefix: String, scope: PathScope): List<PathMember> {
+        val cleaned = prefix.filterNot(PathSyntax::isBlank)
+        val cut = cleaned.lastIndexOf(SEPARATOR)
+        if (cut < 0) return roots(scope)
+        val resolution = resolve(cleaned.substring(0, cut), scope)
+        val last = resolution.segments.lastOrNull()?.member ?: return emptyList()
+        if (resolution.type == null) return emptyList()
+        return typesAfter(last, scope).orEmpty().flatMap { it.members }.distinctBy { it.name }.map(PathMember::of)
+    }
+
+    /** The candidates of a first segment: bindings, `self`, `event`, then the root type's members. */
+    private fun roots(scope: PathScope): List<PathMember> {
+        val bindings = scope.bindings.map { (name, type) -> PathMember(name, PathOrigin.BINDING, type) }
+        val self = listOfNotNull(selfOf(scope))
+        val event = listOfNotNull(eventOf(scope))
+        val members = scope.rootType?.let(scope::type)?.members.orEmpty().map(PathMember::of)
+        return (bindings + self + event + members).distinctBy { it.name }
+    }
+
+    private fun first(name: String, scope: PathScope): ResolvedSegment? {
+        scope.bindings[name]?.let { return ResolvedSegment(name, PathMember(name, PathOrigin.BINDING, it)) }
+        if (name == SELF) selfOf(scope)?.let { return ResolvedSegment(name, it) }
+        if (name == EVENT) eventOf(scope)?.let { return ResolvedSegment(name, it) }
+        return scope.rootType?.let(scope::type)?.let { member(name, listOf(it)) }
+    }
+
+    private fun member(name: String, owners: List<TypeInfo>): ResolvedSegment? {
+        for (owner in owners) {
+            owner.member(name)?.let { return ResolvedSegment(name, PathMember.of(it), owner) }
+        }
+        return null
+    }
+
+    /** The types whose members may follow [member]: its type, or every event type after an undetermined `event`. */
+    private fun typesAfter(member: PathMember, scope: PathScope): List<TypeInfo>? {
+        if (member.origin == PathOrigin.ROOT && member.name == EVENT && scope.eventType == null) return scope.eventTypes
+        if (member.type.isPrimitive) return null
+        return scope.type(member.type.name)?.let(::listOf)
+    }
+
+    private fun selfOf(scope: PathScope): PathMember? =
+        scope.rootType?.let { PathMember(SELF, PathOrigin.ROOT, PathType(it, isList = false, isPrimitive = false)) }
+
+    private fun eventOf(scope: PathScope): PathMember? = when {
+        scope.eventType != null -> PathMember(EVENT, PathOrigin.ROOT, PathType(scope.eventType, isList = false, isPrimitive = false))
+        scope.eventTypes.isNotEmpty() -> PathMember(EVENT, PathOrigin.ROOT, PathType(EVENT, isList = false, isPrimitive = false))
+        else -> null
+    }
+
+    /** The segments of [path] without blanks (`a -> b` → `a`, `b`); empty for a blank path. */
+    private fun splitPath(path: String): List<String> {
+        val cleaned = path.filterNot(PathSyntax::isBlank)
+        return if (cleaned.isEmpty()) emptyList() else cleaned.split(SEPARATOR)
+    }
+
+    private companion object {
+        const val SELF = PathSyntax.SELF
+        const val EVENT = PathSyntax.EVENT
+        const val SEPARATOR = PathSyntax.SEPARATOR
+    }
 }

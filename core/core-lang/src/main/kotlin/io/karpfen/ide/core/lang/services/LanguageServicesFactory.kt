@@ -7,9 +7,14 @@ import io.karpfen.ide.core.lang.context.CaretContextDetector
 import io.karpfen.ide.core.lang.feature.LanguageFeatures
 import io.karpfen.ide.core.lang.highlight.DefaultHighlightProvider
 import io.karpfen.ide.core.lang.kmeta.KmetaLanguageFeatures
+import io.karpfen.ide.core.lang.kmodel.KmodelKeyReferences
 import io.karpfen.ide.core.lang.kmodel.KmodelLanguageFeatures
+import io.karpfen.ide.core.lang.kstates.DefaultKstatesPathScopes
 import io.karpfen.ide.core.lang.kstates.KstatesLanguageFeatures
+import io.karpfen.ide.core.lang.kstates.KstatesSymbolReferences
 import io.karpfen.ide.core.lang.modelpath.ModelPathResolver
+import io.karpfen.ide.core.lang.navigation.ContextReferences
+import io.karpfen.ide.core.lang.navigation.TypeReferences
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import kotlinx.coroutines.flow.StateFlow
@@ -35,18 +40,21 @@ public fun defaultLanguageServices(
 
 /**
  * The feature bundles of KMeta, KModel and KStates, sharing one caret-context detector, type catalog, model-path
- * resolver, highlight provider and bracket matcher. Wiring only.
+ * resolver, KStates path scopes, cross-file reference search (types in every language, KModel keys, KStates paths and
+ * event names), highlight provider and bracket matcher. Wiring only.
  */
 public fun karpfenLanguageFeatures(): List<LanguageFeatures> {
     val caretContexts = CaretContextDetector()
     val types = TypeCatalog()
     val paths = ModelPathResolver()
+    val scopes = DefaultKstatesPathScopes(types)
+    val references = ContextReferences(listOf(TypeReferences(), KmodelKeyReferences(), KstatesSymbolReferences(scopes, paths)))
     val highlight = DefaultHighlightProvider()
     val brackets = TokenBracketMatcher()
     return listOf(
-        KmetaLanguageFeatures(caretContexts, types, highlight, brackets),
-        KmodelLanguageFeatures(caretContexts, types, highlight, brackets),
-        KstatesLanguageFeatures(caretContexts, types, paths, highlight, brackets),
+        KmetaLanguageFeatures(caretContexts, types, references, highlight, brackets),
+        KmodelLanguageFeatures(caretContexts, types, references, highlight, brackets),
+        KstatesLanguageFeatures(caretContexts, types, paths, scopes, references, highlight, brackets),
     )
 }
 

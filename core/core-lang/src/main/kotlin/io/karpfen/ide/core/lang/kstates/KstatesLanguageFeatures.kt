@@ -9,20 +9,27 @@ import io.karpfen.ide.core.lang.feature.HoverProvider
 import io.karpfen.ide.core.lang.feature.LanguageFeatures
 import io.karpfen.ide.core.lang.feature.NavigationProvider
 import io.karpfen.ide.core.lang.modelpath.ModelPathResolver
+import io.karpfen.ide.core.lang.navigation.ContextReferences
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
-/** The KStates provider family (concrete factory, spec §1a); shared mechanics are injected. Wiring only. */
+/**
+ * The KStates provider family (concrete factory, spec §1a); shared mechanics are injected, among them the path scopes
+ * ([KstatesPathScopes]), which the cross-file references of the context use as well. Wiring only.
+ */
 internal class KstatesLanguageFeatures(
     caretContexts: CaretContextDetector,
     types: TypeCatalog,
     paths: ModelPathResolver,
+    scopes: KstatesPathScopes,
+    references: ContextReferences,
     override val highlight: HighlightProvider,
     override val brackets: BracketMatcher,
 ) : LanguageFeatures {
-    private val scopes: KstatesPathScopes = DefaultKstatesPathScopes(types)
+    private val slots = KstatesSlots(caretContexts)
+    private val kstatesPaths = KstatesPaths(scopes, paths)
 
     override val language: KarpfenLanguage = KarpfenLanguage.KSTATES
-    override val completion: CompletionProvider = KstatesCompletionProvider(caretContexts, paths, types, scopes)
-    override val navigation: NavigationProvider = KstatesNavigationProvider(paths, types, scopes)
-    override val hover: HoverProvider = KstatesHoverProvider(paths, types, scopes)
+    override val completion: CompletionProvider = KstatesCompletionProvider(slots, kstatesPaths, types)
+    override val navigation: NavigationProvider = KstatesNavigationProvider(slots, kstatesPaths, types, references)
+    override val hover: HoverProvider = KstatesHoverProvider(slots, kstatesPaths, types)
 }

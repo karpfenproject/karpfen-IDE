@@ -9,6 +9,7 @@ import io.karpfen.ide.core.lang.LanguageDocument
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.analysis.ContextAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
+import io.karpfen.ide.core.workspace.files.FileKind
 
 /**
  * The editor features of one language (Strategy + Abstract Factory, spec §1a, §5). `DefaultLanguageServices`
@@ -51,7 +52,15 @@ public data class FeatureRequest(
     public val document: LanguageDocument,
     public val project: ProjectAnalysis,
     public val contextAnalysis: ContextAnalysis?,
-)
+) {
+    /**
+     * True if the document is an event metamodel: the events file of its modeling context, or — outside a context —
+     * a file named `EVENTS.kmeta` (spec §4).
+     */
+    public val isEventsDocument: Boolean
+        get() = document.language == KarpfenLanguage.KMETA &&
+            (contextAnalysis?.context?.events == document.path || FileKind.of(document.path.fileName?.toString().orEmpty()) == FileKind.EVENTS_KMETA)
+}
 
 /** Highlighting strategy (see `LanguageServices.highlight`). */
 public fun interface HighlightProvider {

@@ -1,16 +1,58 @@
 package io.karpfen.ide.core.lang.kmodel
 
+import io.karpfen.ide.core.document.parse.ReferenceKind
+import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.feature.NavigationProvider
+import io.karpfen.ide.core.lang.navigation.ContextReferences
+import io.karpfen.ide.core.lang.navigation.ContextSymbol
+import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
  * KModel navigation (spec §5): object references → object declarations in the file; object types → TYPE declaration
  * in the context's metamodel; property/relation keys → their declaration in the metamodel (both through [types]).
+ * References: objects within the file (declarations of the latest parse, by the staleness rule), types and keys across
+ * the modeling context ([references]).
  */
-internal class KmodelNavigationProvider(private val types: TypeCatalog) : NavigationProvider {
-    override fun definition(request: FeatureRequest, offset: Int): List<Location> = TODO("WP-LANG: KModel definition")
+internal class KmodelNavigationProvider(
+    private val slots: KmodelSlots,
+    private val types: TypeCatalog,
+    private val references: ContextReferences,
+) : NavigationProvider {
 
-    override fun references(request: FeatureRequest, offset: Int): List<Location> = TODO("WP-LANG: KModel references")
+    override fun definition(request: FeatureRequest, offset: Int): List<Location> =
+        when (val slot = slots.at(request.document, offset).second) {
+            is KmodelSlot.ObjectReference -> objectDeclarations(request, slot.name)
+            is KmodelSlot.ObjectKey -> objectDeclarations(request, slot.name)
+            else -> symbolOf(slot)?.let { declarationOf(request, it) }?.let(::listOf).orEmpty()
+        }
+
+    override fun references(request: FeatureRequest, offset: Int): List<Location> {
+        val slot = slots.at(request.document, offset).second
+        val objectName = (slot as? KmodelSlot.ObjectReference)?.name ?: (slot as? KmodelSlot.ObjectKey)?.name
+        if (objectName != null) return (objectDeclarations(request, objectName) + objectReferences(request, objectName)).distinct()
+        val symbol = symbolOf(slot) ?: return emptyList()
+        return (listOfNotNull(declarationOf(request, symbol)) + references.find(symbol, request)).distinct()
+    }
+
+    private fun symbolOf(slot: KmodelSlot): ContextSymbol? = when (slot) {
+        is KmodelSlot.ObjectType -> ContextSymbol.Type(slot.name)
+        is KmodelSlot.Key -> slot.objectType?.takeIf { slot.inString }?.let { ContextSymbol.Member(it, slot.name) }
+        else -> null
+    }?.takeIf { it.name.isNotBlank() }
+
+    private fun declarationOf(request: FeatureRequest, symbol: ContextSymbol): Location? = when (symbol) {
+        is ContextSymbol.Type -> types.type(request, symbol.name)?.declaration
+        is ContextSymbol.Member -> types.type(request, symbol.owner)?.member(symbol.name)?.declaration
+    }
+
+    private fun objectDeclarations(request: FeatureRequest, name: String): List<Location> =
+        if (name.isBlank()) emptyList() else DocumentDeclarations(request.document).named(SymbolKind.OBJECT, name).map { it.location }
+
+    private fun objectReferences(request: FeatureRequest, name: String): List<Location> {
+        val source = DocumentDeclarations(request.document).latest() ?: return emptyList()
+        return source.outcome.index.references(ReferenceKind.OBJECT, name).map { source.location(it.range) }
+    }
 }

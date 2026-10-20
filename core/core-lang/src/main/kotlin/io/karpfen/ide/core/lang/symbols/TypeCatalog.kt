@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.symbols
 
+import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 
@@ -30,6 +31,14 @@ public interface TypeCatalog {
 
     /** The visible type named [name], or null. */
     public fun type(request: FeatureRequest, name: String): TypeInfo? = types(request).firstOrNull { it.name == name }
+
+    /**
+     * The types of [request]'s modeling context alone — its domain types, then its event types, a name once — without
+     * the requesting document's own declarations; what the analyzed files of the context see (e.g. when resolving the
+     * model paths of another `.kstates` file). The default filters [types]; implementations that shadow context types
+     * by document types return the shadowed ones too. Never throws.
+     */
+    public fun contextTypes(request: FeatureRequest): List<TypeInfo> = types(request).filter { it.origin != TypeOrigin.DOCUMENT }
 }
 
 /** The default [TypeCatalog] over the project analysis and the document's parse. */
@@ -118,10 +127,22 @@ public enum class MemberKind(public val keyword: String) {
 }
 
 /**
- * [TypeCatalog] reading the document's own TYPE declarations and the context's converted metamodels (memoized per
- * `ContextAnalysis`, see [TypeCatalog]).
+ * [TypeCatalog] reading the document's own TYPE declarations (a `.kmeta` document, from its parse outcomes by the
+ * staleness rule, see [DocumentDeclarations]) and the context's types, converted once per `ContextAnalysis` by
+ * [ContextTypesMemo] (see [ContextTypes] for the conversion and its syntax fallback).
  */
-internal class ContextTypeCatalog : TypeCatalog {
-    override fun types(request: FeatureRequest): List<TypeInfo> =
-        TODO("WP-LANG: document types, then domain and event metamodel types of ${request.document.path}")
+internal class ContextTypeCatalog(private val memo: ContextTypesMemo = ContextTypesMemo()) : TypeCatalog {
+
+    override fun types(request: FeatureRequest): List<TypeInfo> {
+        val document = request.document
+        val own = if (document.language == KarpfenLanguage.KMETA) {
+            SyntaxTypes.read(DocumentDeclarations(document).located(), TypeOrigin.DOCUMENT)
+        } else {
+            emptyList()
+        }
+        return (own + contextTypes(request)).distinctBy { it.name }
+    }
+
+    override fun contextTypes(request: FeatureRequest): List<TypeInfo> =
+        request.contextAnalysis?.let { memo.typesOf(request.project, it).all }.orEmpty()
 }
