@@ -5,6 +5,7 @@ import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.antlr.tree.KstatesSyntaxAnalyzer
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import kotlin.test.Test
@@ -129,6 +130,31 @@ class ComposedDocumentParserTest {
         val diagnostic = outcome.standaloneDiagnostics.single()
         assertEquals(DiagnosticCodes.INTERNAL_ERROR to DiagnosticSource.DSL_TOOLS, diagnostic.code to diagnostic.source)
         assertTrue("adapter bug" in diagnostic.message)
+    }
+
+    @Test
+    fun `a stack overflow of the analyzer is reported, not thrown`() {
+        val parser = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { throw StackOverflowError() }, semantics = null)
+
+        val diagnostic = parser.parse(snapshot).syntaxDiagnostics.single()
+
+        assertEquals(DiagnosticCodes.INTERNAL_ERROR to DiagnosticSource.PARSER, diagnostic.code to diagnostic.source)
+        assertTrue("StackOverflowError" in diagnostic.message)
+    }
+
+    @Test
+    fun `pathologically deep nesting is reported, not thrown, by the real parser`() {
+        val depth = 5_000
+        val text = "STATEMACHINE ATTACHED TO \"T\" {\n STATES {\n" + "STATE \"s\" {\n".repeat(depth) + "}\n".repeat(depth) + " }\n TRANSITIONS { }\n}"
+        val parser = ComposedDocumentParser(KarpfenLanguage.KSTATES, KstatesSyntaxAnalyzer(), semantics = null)
+        var outcome: ParseOutcome? = null
+        val smallStack = Thread(null, { outcome = parser.parse(TextSnapshot(text, 0)) }, "small-stack", 256L * 1024)
+
+        smallStack.start()
+        smallStack.join()
+
+        val diagnostic = outcome!!.syntaxDiagnostics.single()
+        assertEquals(DiagnosticCodes.INTERNAL_ERROR to DiagnosticSource.PARSER, diagnostic.code to diagnostic.source)
     }
 
     @Test

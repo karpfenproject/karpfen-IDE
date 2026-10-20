@@ -44,9 +44,10 @@ internal data class StandaloneResult(val model: DslModel?, val diagnostics: List
 /**
  * The [DocumentParser] of every language: runs [syntax]; if the outcome has no syntax diagnostics, the mode is
  * [SemanticMode.STANDALONE] and [semantics] is not null, runs [semantics]; assembles the [ParseOutcome]. Any
- * exception from a collaborator becomes an `internal-error` diagnostic (never throws) at the start of the text and is
- * logged: from [syntax] a PARSER diagnostic with an empty analysis (so the outcome is not syntax-clean, the session
- * shows it and no conversion runs), from [semantics] a DSL_TOOLS one without a model.
+ * exception from a collaborator (and a `StackOverflowError`, which pathologically deep nesting causes in the recursive
+ * ANTLR parser) becomes an `internal-error` diagnostic at the start of the text and is logged, so parsing never throws:
+ * from [syntax] a PARSER diagnostic with an empty analysis (the outcome is not syntax-clean, the session shows it and no
+ * conversion runs), from [semantics] a DSL_TOOLS one without a model.
  *
  * @throws IllegalArgumentException if [syntax] parses another language than [language].
  */
@@ -85,26 +86,38 @@ internal class ComposedDocumentParser(
         try {
             syntax.analyze(snapshot)
         } catch (e: Exception) {
-            logger.error("Syntax analysis of a {} document (version {}) failed", language, snapshot.version, e)
-            SyntaxAnalysis(
-                syntaxDiagnostics = listOf(internalError(e, "Parsing", DiagnosticSource.PARSER)),
-                outline = emptyList(),
-                index = SyntaxIndex.EMPTY,
-                folding = emptyList(),
-                semanticSpans = emptyList(),
-            )
+            failedSyntax(snapshot, e)
+        } catch (e: StackOverflowError) {
+            failedSyntax(snapshot, e)
         }
+
+    private fun failedSyntax(snapshot: TextSnapshot, e: Throwable): SyntaxAnalysis {
+        logger.error("Syntax analysis of a {} document (version {}) failed", language, snapshot.version, e)
+        return SyntaxAnalysis(
+            syntaxDiagnostics = listOf(internalError(e, "Parsing", DiagnosticSource.PARSER)),
+            outline = emptyList(),
+            index = SyntaxIndex.EMPTY,
+            folding = emptyList(),
+            semanticSpans = emptyList(),
+        )
+    }
 
     /** The standalone conversion; a failure of the adapter becomes a DSL_TOOLS `internal-error`. */
     private fun convert(semantics: StandaloneSemantics, snapshot: TextSnapshot, index: SyntaxIndex): StandaloneResult =
         try {
             semantics.convert(snapshot, index)
         } catch (e: Exception) {
-            logger.error("Standalone conversion of a {} document (version {}) failed", language, snapshot.version, e)
-            StandaloneResult(model = null, diagnostics = listOf(internalError(e, "Converting", DiagnosticSource.DSL_TOOLS)))
+            failedConversion(snapshot, e)
+        } catch (e: StackOverflowError) {
+            failedConversion(snapshot, e)
         }
 
-    private fun internalError(e: Exception, stage: String, source: DiagnosticSource): Diagnostic =
+    private fun failedConversion(snapshot: TextSnapshot, e: Throwable): StandaloneResult {
+        logger.error("Standalone conversion of a {} document (version {}) failed", language, snapshot.version, e)
+        return StandaloneResult(model = null, diagnostics = listOf(internalError(e, "Converting", DiagnosticSource.DSL_TOOLS)))
+    }
+
+    private fun internalError(e: Throwable, stage: String, source: DiagnosticSource): Diagnostic =
         Diagnostic(
             range = TextRange.EMPTY,
             severity = Severity.ERROR,

@@ -16,10 +16,11 @@ import states.StateMachine
 
 /**
  * Calls the dsl-tools converters and turns their exceptions into located diagnostics (see [DslConverter] for the
- * contract). Every throwable a conversion raises, except fatal VM errors, becomes one DSL_TOOLS ERROR diagnostic: the
- * converters signal invalid input with `IllegalArgumentException`/`IllegalStateException`, but also with
- * `NotImplementedError` and, on broken input, with arbitrary runtime exceptions of their visitors. The message is the
- * exception's message (its class name when it has none); its range comes from [locator].
+ * contract). Every throwable a conversion raises, except fatal VM errors (a `StackOverflowError` of deeply nested input
+ * is not fatal), becomes one DSL_TOOLS ERROR diagnostic: the converters signal invalid input with
+ * `IllegalArgumentException`/`IllegalStateException`, but also with `NotImplementedError` and, on broken input, with
+ * arbitrary runtime exceptions of their visitors. The message is the exception's message (its class name when it has
+ * none); its range comes from [locator].
  *
  * Stateless and thread-safe.
  */
@@ -37,6 +38,8 @@ internal class DefaultDslConverter(private val locator: DslErrorLocator) : DslCo
     private inline fun <T : Any> convert(source: TextSnapshot, index: SyntaxIndex, conversion: () -> T): Conversion<T> =
         try {
             Conversion(conversion(), emptyList())
+        } catch (e: StackOverflowError) {
+            Conversion(null, listOf(diagnostic(e, source, index)))
         } catch (e: VirtualMachineError) {
             throw e
         } catch (e: Throwable) {
