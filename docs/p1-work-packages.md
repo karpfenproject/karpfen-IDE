@@ -977,6 +977,11 @@ Added by the phase-1 review fixes (core):
     files forms none. A descriptor naming `models/robot.kmodel` thus no longer makes `models/` a second context that
     converts the model again and reports a false `context-no-metamodel`. The descriptor's own directory stays covered
     as a whole (its unnamed files are loose, open question 2).
+51. **A repeated descriptor key is invalid**: a known key given twice in one object is an ERROR `descriptor-invalid`
+    at the repetition (no descriptor, no context). kotlinx.serialization decodes the last value while other JSON
+    readers take the first or fail, so accepting it would let the IDE analyze another file than the runtime runs; the
+    position tree's `member(key)` follows kotlinx (last wins) wherever it is still asked. No new diagnostic code (the
+    contract test pins the set of workspace codes).
 
 ## 7. Review findings not adopted
 

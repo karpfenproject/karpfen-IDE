@@ -13,8 +13,10 @@ import kotlinx.serialization.encoding.CompositeDecoder
  * Checks the keys of a descriptor's JSON against its serial descriptor ([root], the `EnvironmentDescriptor` shape), so
  * the known keys have one source, the `@Serializable` class: unknown keys anywhere in the tree become WARNINGs
  * `descriptor-unknown-key` at the key (spec §4: unknown keys are not errors), required keys missing from an object
- * become ERRORs `descriptor-invalid` at the object's opening brace. Values are not checked here (kotlinx.serialization
- * decodes them). Pure.
+ * become ERRORs `descriptor-invalid` at the object's opening brace, and a known key repeated in one object becomes an
+ * ERROR `descriptor-invalid` at the repetition: kotlinx.serialization would silently decode the last value while other
+ * JSON readers take the first or fail, so the IDE and the runtime could analyze different files. Values are not
+ * checked here (kotlinx.serialization decodes them). Pure.
  */
 internal class DescriptorSchema(private val root: SerialDescriptor) {
 
@@ -31,11 +33,13 @@ internal class DescriptorSchema(private val root: SerialDescriptor) {
     }
 
     private fun visitObject(node: JsonNode.ObjectNode, descriptor: SerialDescriptor, location: String, findings: MutableList<Diagnostic>) {
+        val known = HashSet<String>()
         for (member in node.members) {
             val index = descriptor.getElementIndex(member.key)
             if (index == CompositeDecoder.UNKNOWN_NAME) {
                 findings += unknownKey(member, descriptor, location)
             } else {
+                if (!known.add(member.key)) findings += repeatedKey(member, location)
                 visit(member.value, descriptor.getElementDescriptor(index), path(location, member.key), findings)
             }
         }
@@ -56,6 +60,15 @@ internal class DescriptorSchema(private val root: SerialDescriptor) {
             source = DiagnosticSource.IDE,
         )
     }
+
+    private fun repeatedKey(member: JsonNode.Member, location: String): Diagnostic =
+        Diagnostic(
+            range = member.keyRange,
+            severity = Severity.ERROR,
+            message = "Key '${member.key}'${where(location)} appears more than once; give each key once.",
+            code = WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID,
+            source = DiagnosticSource.IDE,
+        )
 
     private fun missingKey(node: JsonNode.ObjectNode, name: String, location: String): Diagnostic =
         Diagnostic(

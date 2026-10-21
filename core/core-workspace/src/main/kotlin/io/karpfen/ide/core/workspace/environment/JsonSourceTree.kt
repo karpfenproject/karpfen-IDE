@@ -13,8 +13,8 @@ internal sealed interface JsonNode {
 
     /** An object; [members] in document order (duplicate keys are kept). */
     data class ObjectNode(override val range: TextRange, val members: List<Member>) : JsonNode {
-        /** The first member named [key], or null. */
-        fun member(key: String): Member? = members.firstOrNull { it.key == key }
+        /** The last member named [key] (kotlinx.serialization decodes the last of repeated keys), or null. */
+        fun member(key: String): Member? = members.lastOrNull { it.key == key }
     }
 
     /** An array and its [items] in document order. */

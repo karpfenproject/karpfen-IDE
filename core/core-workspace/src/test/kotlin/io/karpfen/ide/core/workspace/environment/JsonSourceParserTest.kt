@@ -29,6 +29,16 @@ class JsonSourceParserTest {
     }
 
     @Test
+    fun `a repeated key keeps both members and is looked up like kotlinx decodes it, the last one`() {
+        val text = "{\"k\": 1, \"k\": \"two\"}"
+
+        val root = assertIs<JsonNode.ObjectNode>(JsonSourceParser(text).parse())
+
+        assertEquals(listOf("k", "k"), root.members.map { it.key })
+        assertEquals("two", assertIs<JsonNode.StringNode>(root.member("k")?.value).value)
+    }
+
+    @Test
     fun `escapes are decoded`() {
         val node = assertIs<JsonNode.StringNode>(JsonSourceParser("\"\\u00e4\\n\\t\\/\\\\\"").parse())
 

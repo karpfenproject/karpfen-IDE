@@ -14,7 +14,7 @@ public object WorkspaceDiagnosticCodes {
     /** The file is not valid UTF-8 and was decoded with replacement characters (WARNING). */
     public const val MALFORMED_ENCODING: String = "malformed-encoding"
 
-    /** An environment descriptor is not valid JSON or misses required keys (ERROR). */
+    /** An environment descriptor is not valid JSON, misses required keys, repeats a key or has a wrong value (ERROR). */
     public const val DESCRIPTOR_INVALID: String = "descriptor-invalid"
 
     /** An environment descriptor contains an unknown key (WARNING). */

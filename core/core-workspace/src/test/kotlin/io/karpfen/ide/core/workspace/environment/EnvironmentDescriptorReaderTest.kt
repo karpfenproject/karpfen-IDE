@@ -129,6 +129,28 @@ class EnvironmentDescriptorReaderTest {
     }
 
     @Test
+    fun `a repeated key is an error at the repetition, also in nested objects, and no descriptor`() {
+        val text = """
+            {"metamodel": "a.kmeta", "metamodel": "b.kmeta", "model": "a.kmodel",
+             "stateMachines": [{"file": "m.kstates", "attachedTo": "x", "file": "n.kstates"}]}
+        """.trimIndent()
+
+        val result = reader.read(path, text)
+
+        assertNull(result.descriptor, "the IDE must not analyze another metamodel than a reader taking the first value")
+        assertEquals(emptyList(), result.references)
+        assertEquals(
+            listOf(
+                TextRange.ofLength(text.indexOf("metamodel", startIndex = text.indexOf("metamodel") + 1), "metamodel".length),
+                TextRange.ofLength(text.lastIndexOf("file"), "file".length),
+            ),
+            result.diagnostics.map { it.range },
+        )
+        assertTrue(result.diagnostics.all { it.code == WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID && it.severity == Severity.ERROR })
+        assertTrue("stateMachines[0]" in result.diagnostics[1].message, result.diagnostics[1].message)
+    }
+
+    @Test
     fun `a value of the wrong type inside a nested object or array is reported at that value`() {
         val required = "\"metamodel\": \"a.kmeta\", \"model\": \"a.kmodel\""
         val machine = "{\"file\": \"m.kstates\", \"attachedTo\": \"x\"}"
