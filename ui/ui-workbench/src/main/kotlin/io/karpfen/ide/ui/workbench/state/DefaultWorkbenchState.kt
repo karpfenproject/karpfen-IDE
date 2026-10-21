@@ -125,9 +125,12 @@ internal class DefaultWorkbenchState(
 
     override fun saveAll(): Job = runner.launch("save all") { tabFlows.saveAll() }
 
-    override fun closeTab(path: Path): Job = runner.launch("close tab") { tabFlows.closeTab(path.normalized()) }
+    override fun closeTab(path: Path): Job {
+        val tab = path.normalized()
+        return runner.launchOnce(CloseTab(tab), "close tab") { tabFlows.closeTab(tab) }
+    }
 
-    override fun closeActiveTab(): Job = runner.launch("close tab") { tabFlows.closeActiveTab() }
+    override fun closeActiveTab(): Job = tabs.active.value?.let(::closeTab) ?: NOTHING_TO_DO
 
     override suspend fun requestExit(): Boolean = runner.exclusive {
         unsaved.confirm(tabs.documents()).also { mayExit -> if (mayExit) persister.persistNow() }
@@ -144,4 +147,12 @@ internal class DefaultWorkbenchState(
     }
 
     private fun Path.normalized(): Path = toAbsolutePath().normalize()
+
+    /** The [IntentRunner.launchOnce] key of closing the tab of [path]. */
+    private data class CloseTab(val path: Path)
+
+    private companion object {
+        /** The job of an intent with nothing to do. */
+        val NOTHING_TO_DO: Job = Job().apply { complete() }
+    }
 }

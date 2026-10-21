@@ -32,9 +32,10 @@ import java.nio.file.Path
  * Intents own their lifetime (decision 42 of the work-package plan): the UI intents are plain functions that launch
  * their flow in the mediator's scope and return its [Job] (tests `join()` it), so a flow survives the composable that
  * started it (a tree row disappearing after a rename, a tab closing) and views never launch coroutines for intents.
- * Flows run one at a time in call order (a later intent waits until the earlier flow finished, e.g. a second click on
- * a tab's close button cannot open a second unsaved-changes dialog); [registerCommands]' commands call the same
- * intents. Only [start] and [requestExit], called by the composition root, suspend.
+ * Flows run one at a time in call order (a later intent waits until the earlier flow finished), and a repeated close
+ * request for a tab returns the running one (a second click on a tab's close button or a second Close Tab cannot open
+ * a second unsaved-changes dialog, whatever the first one is answered; decision 47); [registerCommands]' commands call
+ * the same intents. Only [start] and [requestExit], called by the composition root, suspend.
  *
  * The mediator collects every editor's `EditorHandle.navigationRequests` from opening its tab until closing it and
  * runs [navigateTo] for each, so navigation never depends on a composable being on screen. Its collaborators and the
@@ -158,10 +159,13 @@ public interface WorkbenchState : AutoCloseable {
     /** Saves all dirty documents. */
     public fun saveAll(): Job
 
-    /** Closes the tab of [path], asking about unsaved changes (Cancel keeps it open). */
+    /**
+     * Closes the tab of [path], asking about unsaved changes (Cancel keeps it open). While a close request of the tab is
+     * queued or asking, a further one returns its job instead of asking again.
+     */
     public fun closeTab(path: Path): Job
 
-    /** Closes the active tab (see [closeTab]). */
+    /** Closes the tab that is active when called (see [closeTab]). */
     public fun closeActiveTab(): Job
 
     /**

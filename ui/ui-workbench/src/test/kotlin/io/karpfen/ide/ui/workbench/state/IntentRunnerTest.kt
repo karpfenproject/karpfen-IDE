@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** [IntentRunner]: one flow at a time in call order, jobs, failures reported without cancelling the scope. */
+/** [IntentRunner]: one flow at a time in call order, coalesced flows, jobs, failures reported without cancelling the scope. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class IntentRunnerTest {
 
@@ -41,6 +41,30 @@ class IntentRunnerTest {
         assertEquals(listOf("first start", "first end", "second", "exclusive"), log)
         assertTrue(first.isCompleted && second.isCompleted)
         assertEquals(42, exclusive.await())
+        scope.cancel()
+    }
+
+    @Test
+    fun `launchOnce returns the unfinished flow of its key and launches anew once it completed`() = runTest {
+        val scope = CoroutineScope(StandardTestDispatcher(testScheduler) + SupervisorJob())
+        val runner = IntentRunner(scope) { _, _ -> }
+        val gate = CompletableDeferred<Unit>()
+        var runs = 0
+
+        val first = runner.launchOnce("close a", "close tab") { runs++; gate.await() }
+        val repeated = runner.launchOnce("close a", "close tab") { runs++ }
+        val other = runner.launchOnce("close b", "close tab") { runs++ }
+        advanceUntilIdle()
+        assertTrue(first === repeated, "the queued or asking flow is returned")
+        assertFalse(other === first, "another key is another flow")
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(2, runs)
+        val again = runner.launchOnce("close a", "close tab") { runs++ }
+        advanceUntilIdle()
+        assertFalse(again === first)
+        assertEquals(3, runs)
         scope.cancel()
     }
 

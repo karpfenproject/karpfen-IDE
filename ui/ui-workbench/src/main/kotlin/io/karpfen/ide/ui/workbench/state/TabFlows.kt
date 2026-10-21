@@ -38,10 +38,6 @@ internal class TabFlows(
         if (unsaved.confirm(listOf(document))) lifecycle.close(path)
     }
 
-    suspend fun closeActiveTab() {
-        tabs.active.value?.let { closeTab(it) }
-    }
-
     suspend fun resolveConflict(path: Path, resolution: ConflictResolution) {
         val document = tabs.documentFor(path) ?: return
         when (val result = document.resolveConflict(resolution)) {

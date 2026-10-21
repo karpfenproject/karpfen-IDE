@@ -157,6 +157,48 @@ class TabFlowsTest {
     }
 
     @Test
+    fun `two close requests for a dirty tab answered Cancel show one dialog and keep the tab`() = scenario {
+        openEditor(machine)
+        edit(machine)
+
+        val first = state.closeTab(machine)
+        val second = state.closeTab(machine)
+        answer(DialogRequest.UnsavedChanges::class, DialogResponse.Cancel)
+
+        assertNull(state.dialogs.current.value, "no second unsaved-changes dialog")
+        assertTrue(first.isCompleted && second.isCompleted)
+        assertNotNull(state.tabs.editorFor(machine))
+    }
+
+    @Test
+    fun `a double Close Tab of the active dirty tab answered Cancel shows one dialog`() = scenario {
+        openEditor(machine)
+        edit(machine)
+
+        val first = state.closeActiveTab()
+        val second = state.closeActiveTab()
+        answer(DialogRequest.UnsavedChanges::class, DialogResponse.Cancel)
+
+        assertNull(state.dialogs.current.value, "no second unsaved-changes dialog")
+        assertTrue(first.isCompleted && second.isCompleted)
+        assertNotNull(state.tabs.editorFor(machine))
+    }
+
+    @Test
+    fun `a close request after the first one was answered asks again`() = scenario {
+        openEditor(machine)
+        edit(machine)
+
+        state.closeTab(machine)
+        answer(DialogRequest.UnsavedChanges::class, DialogResponse.Cancel)
+        val again = state.closeTab(machine)
+        answer(DialogRequest.UnsavedChanges::class, DialogResponse.Discard)
+
+        assertTrue(again.isCompleted)
+        assertTrue(state.tabs.tabs.value.isEmpty())
+    }
+
+    @Test
     fun `an external change of a dirty file shows the conflict and Reload takes the disk state`() = scenario {
         openEditor(machine)
         edit(machine)
