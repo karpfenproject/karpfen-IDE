@@ -28,8 +28,12 @@ class PopupIntentsTest {
 
     @Test
     fun `find intents drive the find model`() = intentsTest("ab ab ab") { model, intents ->
-        intents.findQueryChanged(FindQuery("ab"))
+        intents.findTextChanged("ab")
         assertEquals(TextRange(0, 2), model.caret.primary.selection)
+        intents.toggleFindOption(FindOption.WHOLE_WORD)
+        assertEquals(FindQuery("ab", wholeWord = true), model.find.query.value, "a toggle keeps the text")
+        intents.findTextChanged("ab")
+        assertEquals(FindQuery("ab", wholeWord = true), model.find.query.value, "the text keeps the toggles")
 
         intents.findNext()
         assertEquals(TextRange(3, 5), model.caret.primary.selection)
@@ -46,12 +50,12 @@ class PopupIntentsTest {
     @Test
     fun `closing the find bar keeps the query and returns focus`() = intentsTest("ab") { model, intents ->
         model.overlays.openFind(FindBarMode.FIND)
-        intents.findQueryChanged(FindQuery("ab"))
+        intents.findTextChanged("ab")
 
         intents.closeFind()
 
         assertNull(model.overlays.findBar.value)
-        assertEquals("ab", model.find.state.value.query.text)
+        assertEquals("ab", model.find.query.value.text)
         assertEquals(1, model.focusRequests)
     }
 

@@ -40,12 +40,19 @@ internal class FindMatcher {
     /**
      * The texts replacing [matches] (the matches of [query] in [text], in order): [replacement] as is, or in regex mode
      * with `$n`/`${name}` group references expanded (`\` escapes). A replacement that cannot be expanded (a reference
-     * to a missing group, a trailing `\`) is inserted literally everywhere. One pass over [text].
+     * to a missing group, a trailing `\`) is inserted literally everywhere. One pass over [text], which repeats the
+     * search; [checkCancelled] is called regularly like in [find].
      */
-    fun replacements(text: String, query: FindQuery, matches: List<TextRange>, replacement: String): List<String> {
+    fun replacements(
+        text: String,
+        query: FindQuery,
+        matches: List<TextRange>,
+        replacement: String,
+        checkCancelled: () -> Unit = {},
+    ): List<String> {
         if (!query.regex || matches.isEmpty()) return matches.map { replacement }
         return try {
-            expandAll(compile(query).matcher(text), matches, replacement)
+            expandAll(compile(query).matcher(CheckedText(text, checkCancelled)), matches, replacement)
         } catch (e: PatternSyntaxException) {
             matches.map { replacement }
         } catch (e: IllegalArgumentException) {

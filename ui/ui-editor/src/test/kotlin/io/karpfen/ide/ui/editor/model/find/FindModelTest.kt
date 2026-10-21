@@ -132,16 +132,40 @@ class FindModelTest {
     }
 
     @Test
-    fun `navigation computes synchronously when the published state lags`() = findTest("foo bar |foo baz foo") { f ->
+    fun `navigation waits for the background result when the published state lags`() = findTest("foo bar |foo baz foo") { f ->
         f.find.setQuery(FindQuery("foo"))
+        assertEquals(FindQuery("foo"), f.find.query.value, "the query is set at once")
+        assertEquals(FindQuery(), f.state.query, "its matches are not computed yet")
         f.find.next()
+        assertTrue(f.selected.isEmpty(), "nothing is matched on the calling thread")
 
-        assertEquals(TextRange(16, 19), f.selection, "the same result as with the background search done")
-        assertEquals(listOf(TextRange(8, 11), TextRange(16, 19)), f.selected)
         advanceUntilIdle()
-        assertEquals(TextRange(16, 19), f.selection, "the late background result changes nothing")
-        assertEquals(2, f.selected.size)
+        assertEquals(TextRange(16, 19), f.selection, "the same result as with the background search done first")
+        assertEquals(listOf(TextRange(8, 11), TextRange(16, 19)), f.selected)
         assertEquals(2, f.state.currentIndex)
+    }
+
+    @Test
+    fun `operations waiting for the matches run in call order`() = findTest("|a a a a") { f ->
+        f.find.setQuery(FindQuery("a"))
+        f.find.next()
+        f.find.next()
+        f.find.previous()
+
+        advanceUntilIdle()
+        assertEquals(listOf(TextRange(0, 1), TextRange(2, 3), TextRange(4, 5), TextRange(2, 3)), f.selected)
+    }
+
+    @Test
+    fun `a new query drops the operations waiting for the old one`() = findTest("|ab ab b") { f ->
+        f.find.setQuery(FindQuery("ab"))
+        f.find.next()
+        f.find.replaceAll("x")
+        f.find.setQuery(FindQuery("b"))
+
+        advanceUntilIdle()
+        assertEquals("ab ab b", f.editor.plain, "the replacement for the old query was dropped")
+        assertEquals(listOf(TextRange(1, 2)), f.selected, "only the new query's first match was selected")
     }
 
     @Test
@@ -152,6 +176,7 @@ class FindModelTest {
 
         f.editor.text.apply(listOf(TextEdit.insert(0, "xx")), EditOrigin.External)
         f.find.next()
+        advanceUntilIdle()
         assertEquals(TextRange(6, 9), f.selection)
         assertEquals(listOf(TextRange(2, 5), TextRange(6, 9)), f.state.matches)
         assertEquals(1L, f.state.version)
@@ -182,7 +207,8 @@ class FindModelTest {
         f.find.next()
         f.find.previous()
         f.find.replaceCurrent("y")
-        assertEquals(0, f.find.replaceAll("y"))
+        f.find.replaceAll("y")
+        advanceUntilIdle()
         assertEquals("a^b|c", f.editor.marked())
         assertTrue(f.executed.isEmpty())
     }
@@ -194,7 +220,9 @@ class FindModelTest {
         assertNotNull(f.state.error)
         assertEquals(0, f.state.total)
         f.find.next()
-        assertEquals(0, f.find.replaceAll("x"))
+        f.find.replaceAll("x")
+        advanceUntilIdle()
+        assertEquals("(ab", f.editor.plain)
 
         f.find.setQuery(FindQuery("\\(ab", regex = true))
         advanceUntilIdle()
@@ -233,8 +261,9 @@ class FindModelTest {
         advanceUntilIdle()
 
         f.find.replaceCurrent("bb")
-        assertEquals("bb1 a2 a3", f.editor.plain)
-        assertEquals(TextRange(4, 5), f.selection, "the next match is selected")
+        assertEquals("bb1 a2 a3", f.editor.plain, "a literal replacement needs no search")
+        advanceUntilIdle()
+        assertEquals(TextRange(4, 5), f.selection, "the next match is selected once the matches are current")
         assertEquals(listOf(TextRange(4, 5), TextRange(7, 8)), f.state.matches)
 
         f.editor.run(EditorActionIds.UNDO)
@@ -247,19 +276,20 @@ class FindModelTest {
         f.find.setQuery(FindQuery("a(\\d)", regex = true))
         advanceUntilIdle()
         f.find.replaceCurrent("<$1>")
+        advanceUntilIdle()
         assertEquals("<1> a2", f.editor.plain)
         assertEquals(TextRange(4, 6), f.selection)
     }
 
     @Test
-    fun `replace all is one undo step and returns the number of replacements`() = findTest("x a1 a2 a3|") { f ->
+    fun `replace all is one undo step`() = findTest("x a1 a2 a3|") { f ->
         f.find.setQuery(FindQuery("a(\\d)", regex = true))
         advanceUntilIdle()
 
-        assertEquals(3, f.find.replaceAll("$1a"))
+        f.find.replaceAll("$1a")
+        advanceUntilIdle()
         assertEquals("x 1a 2a 3a", f.editor.plain)
         assertEquals("x ^1a| 2a 3a", f.editor.marked(), "the selected first match covers its replacement")
-        advanceUntilIdle()
         assertEquals(0, f.state.total)
 
         f.editor.run(EditorActionIds.UNDO)
@@ -272,10 +302,42 @@ class FindModelTest {
     }
 
     @Test
-    fun `replace all computes synchronously when the state lags`() = findTest("|aaa") { f ->
+    fun `replace all waits for the matches when the state lags`() = findTest("|aaa") { f ->
         f.find.setQuery(FindQuery("a"))
-        assertEquals(3, f.find.replaceAll("b"))
+        f.find.replaceAll("b")
+        assertEquals("aaa", f.editor.plain, "nothing is matched on the calling thread")
+        advanceUntilIdle()
         assertEquals("bbb", f.editor.plain)
+    }
+
+    @Test
+    fun `a regex replacement is expanded on the background dispatcher`() = runTest {
+        val editor = TestEditor("|a1 a2")
+        val background = CountingDispatcher(StandardTestDispatcher(testScheduler))
+        val job = Job()
+        val find = FindModel(editor.text, editor.caret, editor.executor, CoroutineScope(StandardTestDispatcher(testScheduler) + job), background)
+        find.setQuery(FindQuery("a(\\d)", regex = true))
+        advanceUntilIdle()
+        val searches = background.dispatches
+
+        find.replaceAll("<$1>")
+        assertEquals("a1 a2", editor.plain, "not expanded on the calling thread")
+        advanceUntilIdle()
+        assertTrue(background.dispatches > searches, "the expansion ran on the background dispatcher")
+        assertEquals("<1> <2>", editor.plain)
+        job.cancel()
+    }
+
+    @Test
+    fun `a regex replacement outdated by an edit runs for the current text`() = findTest("|a1 a2") { f ->
+        f.find.setQuery(FindQuery("a(\\d)", regex = true))
+        advanceUntilIdle()
+
+        f.find.replaceAll("<$1>")
+        f.editor.text.apply(listOf(TextEdit.insert(0, "a0 ")), EditOrigin.External)
+        advanceUntilIdle()
+
+        assertEquals("<0> <1> <2>", f.editor.plain, "the matches of the current text were replaced")
     }
 
     @Test
@@ -286,6 +348,7 @@ class FindModelTest {
         f.find.previous()
         f.find.replaceCurrent("b")
         f.find.replaceAll("c")
+        advanceUntilIdle()
         val ids = f.executed.map { it.id }
         assertEquals(
             listOf(SelectMatchAction.ID, SelectMatchAction.ID, SelectMatchAction.ID, "editor.find.replace", SelectMatchAction.ID, "editor.find.replaceAll"),

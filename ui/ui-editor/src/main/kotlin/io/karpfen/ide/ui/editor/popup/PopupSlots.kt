@@ -15,31 +15,33 @@ import io.karpfen.ide.ui.editor.overlay.EditorOverlayHost
  */
 
 /**
- * The find/replace bar while `overlays.findBar` is open. Its field state lives as long as the editor's composition
- * (the replacement survives closing the bar); every change of `overlays.findFocusRequests` focuses the query field and
- * selects the query ([FindBarFields.takeFocusRequest]), and the published query is followed ([FindBarFields.follow]).
+ * The find/replace bar while `overlays.findBar` is open, rendering the model's query and matches. Its field state lives
+ * as long as the editor's composition (the replacement survives closing the bar); every change of
+ * `overlays.findFocusRequests` focuses the query field and selects the query ([FindBarFields.takeFocusRequest]).
  */
 @Composable
 internal fun FindBarSlot(host: EditorOverlayHost, intents: PopupIntents) {
     val model = host.state
     val mode by model.overlays.findBar.collectAsState()
+    val query by model.find.query.collectAsState()
     val result by model.find.state.collectAsState()
     val focusRequests by model.overlays.findFocusRequests.collectAsState()
-    val fields = remember(model) { FindBarFields(model.find.state.value.query, model.overlays.findFocusRequests.value) }
-    LaunchedEffect(fields) { model.find.state.collect { fields.follow(it.query) } }
+    val fields = remember(model) { FindBarFields(model.overlays.findFocusRequests.value) }
     val open = mode ?: return
     val queryFocus = remember { FocusRequester() }
     LaunchedEffect(fields, focusRequests) {
-        if (fields.takeFocusRequest(focusRequests, model.find.state.value.query)) queryFocus.requestFocus()
+        if (fields.takeFocusRequest(focusRequests, model.find.query.value.text)) queryFocus.requestFocus()
     }
     FindReplaceBar(
         mode = open,
+        query = query,
         state = result,
         fields = fields,
         queryFocus = queryFocus,
         theme = host.theme,
         textStyle = host.textStyle,
-        onQueryChange = intents::findQueryChanged,
+        onQueryTextChange = intents::findTextChanged,
+        onToggle = intents::toggleFindOption,
         onNext = intents::findNext,
         onPrevious = intents::findPrevious,
         onReplace = intents::replace,

@@ -1,5 +1,6 @@
 package io.karpfen.ide.ui.editor.state
 
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.action.EditorAction
 import io.karpfen.ide.ui.editor.model.action.EditorActionContext
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
@@ -12,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -96,6 +98,27 @@ class ActionsAndRequestsTest {
         assertEquals(8, harness.state.caret.primary.selection.start)
         harness.state.execute(EditorActionIds.FIND_PREVIOUS)
         assertEquals(0, harness.state.caret.primary.selection.start)
+    }
+
+    @Test
+    fun `find next right after a new query navigates instead of opening the bar`() = editorTest("one two one") { harness ->
+        harness.state.find.setQuery(FindQuery("one"))
+        harness.state.execute(EditorActionIds.FIND_NEXT)
+        advanceUntilIdle()
+
+        assertNull(harness.state.overlays.findBar.value, "there is a query: find next navigates")
+        assertEquals(TextRange(8, 11), harness.state.caret.primary.selection, "the first match, then the next one")
+    }
+
+    @Test
+    fun `find seeds the query with the options set just before`() = editorTest("one two one\nthree") { harness ->
+        harness.state.find.setQuery(FindQuery("x", regex = true))
+        harness.state.caret.select(4, 7)
+
+        harness.state.execute(EditorActionIds.FIND)
+        advanceUntilIdle()
+
+        assertEquals(FindQuery("two", regex = true), harness.state.find.state.value.query, "the regex toggle is kept")
     }
 
     @Test

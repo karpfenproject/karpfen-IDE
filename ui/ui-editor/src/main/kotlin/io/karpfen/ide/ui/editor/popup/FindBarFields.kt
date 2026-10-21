@@ -41,78 +41,50 @@ internal enum class FindOption(
 }
 
 /**
- * Hoisted state of the find/replace bar's fields (Compose-side helper state of the popup; the find logic is the
- * `FindModel`'s): the query field, the replacement field and [query], the query the bar shows (field text + toggles).
- * One instance per editor composition, so the replacement survives closing and reopening the bar.
+ * Hoisted state of the find/replace bar's text fields (Compose-side helper state of the popup; the query itself is the
+ * `FindModel`'s [query][io.karpfen.ide.ui.editor.model.find.FindModel.query], which the bar renders): the selection
+ * and input-method composition of the query field and the replacement field. One instance per editor composition, so
+ * the replacement survives closing and reopening the bar.
  *
- * Synchronization with the model: `FindModel.state` publishes a query together with its matches, so it lags behind
- * `setQuery`. The bar therefore remembers the query it sent itself and *follows* the published query ([follow]) only
- * until the user edits the query or a toggle; every focus request ([takeFocusRequest]: `EditorOverlayState.openFind`,
- * which the editor may precede with `FindModel.setQuery` to seed the query from the selection) makes it follow again
- * and adopts the published query. So a result that lags behind the user's typing never reverts the field, and a query
- * the editor seeded reaches the field once it is published.
+ * The query field always shows the model's query text: [queryField] keeps the field as the user edited it while it
+ * shows that text, and shows a text the editor set (e.g. seeded from the selection) selected as a whole.
  *
- * @param published the model's published query when the bar's state is created.
  * @param focusRequest the value of `EditorOverlayState.findFocusRequests` at creation: requests up to it are handled
  *   (a bar composed again, e.g. after switching tabs, does not take focus from the text area).
  */
 @Stable
-internal class FindBarFields(published: FindQuery, focusRequest: Long) {
+internal class FindBarFields(focusRequest: Long) {
 
-    /** The query the bar shows and last sent: the query field's text and the toggles. */
-    var query: FindQuery by mutableStateOf(published)
-        private set
-
-    /** The query field (text, selection, IME composition). */
-    var queryField: TextFieldValue by mutableStateOf(TextFieldValue(published.text))
-        private set
+    /** The query field as last edited or selected (text, selection, IME composition). */
+    private var editedQuery: TextFieldValue by mutableStateOf(TextFieldValue())
 
     /** The replacement field (replace mode). */
     var replacementField: TextFieldValue by mutableStateOf(TextFieldValue())
 
-    private var following = true
     private var handledFocusRequest = focusRequest
 
+    /** The query field showing the model's query [text]: the edited field while it shows [text], else [text] selected. */
+    fun queryField(text: String): TextFieldValue =
+        if (editedQuery.text == text) editedQuery else TextFieldValue(text, TextRange(0, text.length))
+
     /**
-     * The user edited the query field to [value]; returns the query to send to the model, or null if only the selection
-     * or composition changed. Stops following the published query.
+     * The user edited the query field (showing [shownText]) to [value]; returns the new query text to send to the model,
+     * or null if only the selection or composition changed.
      */
-    fun editQuery(value: TextFieldValue): FindQuery? {
-        queryField = value
-        if (value.text == query.text) return null
-        following = false
-        query = query.copy(text = value.text)
-        return query
-    }
-
-    /** The user switched [option]; returns the query to send. Stops following the published query. */
-    fun toggle(option: FindOption): FindQuery {
-        following = false
-        query = option.toggle(query)
-        return query
-    }
-
-    /** The model published [published]: adopted (text selected) while the bar follows the model. */
-    fun follow(published: FindQuery) {
-        if (following && published != query) adopt(published)
+    fun editQuery(value: TextFieldValue, shownText: String): String? {
+        editedQuery = value
+        return value.text.takeIf { it != shownText }
     }
 
     /**
-     * Handles the focus request number [request] (the current `findFocusRequests`), with [published] the model's query
-     * now. Returns false if that request was handled already; otherwise follows the model again, adopts [published],
-     * selects the whole query and returns true (the caller then focuses the query field).
+     * Handles the focus request number [request] (the current `findFocusRequests`) for the model's query [text]: returns
+     * false if that request was handled already; otherwise selects the whole query and returns true (the caller then
+     * focuses the query field).
      */
-    fun takeFocusRequest(request: Long, published: FindQuery): Boolean {
+    fun takeFocusRequest(request: Long, text: String): Boolean {
         if (request == handledFocusRequest) return false
         handledFocusRequest = request
-        following = true
-        if (published != query) adopt(published)
-        queryField = queryField.copy(selection = TextRange(0, queryField.text.length))
+        editedQuery = TextFieldValue(text, TextRange(0, text.length))
         return true
-    }
-
-    private fun adopt(published: FindQuery) {
-        query = published
-        queryField = TextFieldValue(published.text, TextRange(0, published.text.length))
     }
 }

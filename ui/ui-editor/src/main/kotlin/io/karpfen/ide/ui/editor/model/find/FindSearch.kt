@@ -1,0 +1,52 @@
+package io.karpfen.ide.ui.editor.model.find
+
+import io.karpfen.ide.core.text.TextRange
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+
+/**
+ * Runs the search rules of a [FindMatcher] off the UI thread (spec §1: long-running work runs on a background dispatcher
+ * and is cancellable). Matching and the expansion of regex replacements run on [backgroundDispatcher] and stop when
+ * their coroutine is cancelled (a newer text or query) or when they exceed [budget]: a pathological regular expression
+ * (catastrophic backtracking) ends in the error [TOO_SLOW] instead of keeping a thread busy. The budget runs on the
+ * caller's dispatcher clock (`withTimeoutOrNull`), so tests measure it on virtual time. Stateless; callers suspend.
+ */
+internal class FindSearch(
+    private val backgroundDispatcher: CoroutineDispatcher,
+    private val budget: Duration = DEFAULT_BUDGET,
+    private val matcher: FindMatcher = FindMatcher(),
+) {
+
+    /** The matches of [query] in [text]; the error outcome [TOO_SLOW] when the search exceeds the budget. */
+    suspend fun matches(text: String, query: FindQuery): MatchOutcome {
+        if (query.text.isEmpty()) return MatchOutcome(emptyList(), null)
+        return withTimeoutOrNull(budget) {
+            withContext(backgroundDispatcher) { matcher.find(text, query) { ensureActive() } }
+        } ?: MatchOutcome(emptyList(), TOO_SLOW)
+    }
+
+    /** The texts replacing [matches] when they need no search — the literal [replacement] outside regex mode — else null. */
+    fun literalReplacements(query: FindQuery, matches: List<TextRange>, replacement: String): List<String>? =
+        if (query.regex) null else matches.map { replacement }
+
+    /**
+     * The texts replacing [matches] (the matches of [query] in [text]) with group references expanded
+     * ([FindMatcher.replacements]); null when the expansion exceeds the budget.
+     */
+    suspend fun replacements(text: String, query: FindQuery, matches: List<TextRange>, replacement: String): List<String>? =
+        withTimeoutOrNull(budget) {
+            withContext(backgroundDispatcher) { matcher.replacements(text, query, matches, replacement) { ensureActive() } }
+        }
+
+    companion object {
+        /** How long one search or expansion may take before it is given up. */
+        val DEFAULT_BUDGET: Duration = 2.seconds
+
+        /** The error of a search that exceeded its budget. */
+        const val TOO_SLOW: String = "Search took too long; simplify the regular expression"
+    }
+}

@@ -1,6 +1,5 @@
 package io.karpfen.ide.ui.editor.popup
 
-import io.karpfen.ide.ui.editor.model.find.FindQuery
 import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
 import io.karpfen.ide.ui.editor.state.EditorPopupModel
 
@@ -18,8 +17,14 @@ internal class PopupIntents(private val model: EditorPopupModel) {
 
     // --- find/replace bar ------------------------------------------------------------------------------------------
 
-    /** The query or a toggle changed (incremental search; the model selects the first match through the executor). */
-    fun findQueryChanged(query: FindQuery) = model.find.setQuery(query)
+    /**
+     * The query field's text changed to [text] (incremental search): the model's query with that text (the model selects
+     * the first match through the executor).
+     */
+    fun findTextChanged(text: String) = model.find.setQuery(model.find.query.value.copy(text = text))
+
+    /** A toggle was switched: the model's query with [option] switched. */
+    fun toggleFindOption(option: FindOption) = model.find.setQuery(option.toggle(model.find.query.value))
 
     /** Enter in the query field or the "next" button. */
     fun findNext() = model.find.next()

@@ -10,93 +10,53 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The find bar's hoisted field state and its synchronization with the published query; the status text and toggles. */
+/** The find bar's hoisted field state (selection, composition, replacement) over the model's query; the status and toggles. */
 class FindBarFieldsTest {
 
     @Test
-    fun `editing the query returns the query to send, a selection change returns nothing`() {
-        val fields = FindBarFields(FindQuery(), focusRequest = 0)
+    fun `the query field shows the model's text and keeps the user's selection while it does`() {
+        val fields = FindBarFields(focusRequest = 0)
 
-        assertEquals(FindQuery("fo"), fields.editQuery(TextFieldValue("fo", TextRange(2))))
-        assertNull(fields.editQuery(TextFieldValue("fo", TextRange(0, 2))), "only the selection changed")
-        assertEquals(TextRange(0, 2), fields.queryField.selection)
-        assertEquals(FindQuery("fo"), fields.query)
+        assertEquals("fo", fields.editQuery(TextFieldValue("fo", TextRange(2)), shownText = ""), "a new text to send")
+        assertEquals(TextFieldValue("fo", TextRange(2)), fields.queryField("fo"))
+        assertNull(fields.editQuery(TextFieldValue("fo", TextRange(0, 2)), shownText = "fo"), "only the selection changed")
+        assertEquals(TextRange(0, 2), fields.queryField("fo").selection)
+    }
+
+    @Test
+    fun `a text the model got elsewhere is shown selected`() {
+        val fields = FindBarFields(focusRequest = 0)
+        fields.editQuery(TextFieldValue("typed", TextRange(5)), shownText = "")
+
+        assertEquals(TextFieldValue("seed", TextRange(0, 4)), fields.queryField("seed"), "e.g. seeded from the selection")
     }
 
     @Test
     fun `toggles switch one flag and keep the text`() {
-        val fields = FindBarFields(FindQuery("x"), focusRequest = 0)
-
-        assertEquals(FindQuery("x", caseSensitive = true), fields.toggle(FindOption.MATCH_CASE))
-        assertEquals(FindQuery("x", caseSensitive = true, wholeWord = true), fields.toggle(FindOption.WHOLE_WORD))
-        assertEquals(FindQuery("x", caseSensitive = true, wholeWord = true, regex = true), fields.toggle(FindOption.REGEX))
-        assertEquals(FindQuery("x", wholeWord = true, regex = true), fields.toggle(FindOption.MATCH_CASE))
+        assertEquals(FindQuery("x", caseSensitive = true), FindOption.MATCH_CASE.toggle(FindQuery("x")))
+        assertEquals(FindQuery("x", wholeWord = true), FindOption.WHOLE_WORD.toggle(FindQuery("x")))
+        assertEquals(FindQuery("x"), FindOption.REGEX.toggle(FindQuery("x", regex = true)))
         FindOption.entries.forEach { assertEquals(!it.isOn(FindQuery()), it.isOn(it.toggle(FindQuery()))) }
     }
 
     @Test
-    fun `a fresh bar follows the published query and selects it`() {
-        val fields = FindBarFields(FindQuery(), focusRequest = 0)
+    fun `a new focus request selects the model's query once`() {
+        val fields = FindBarFields(focusRequest = 3)
+        fields.editQuery(TextFieldValue("old", TextRange(3)), shownText = "")
 
-        fields.follow(FindQuery("seed"))
-
-        assertEquals(FindQuery("seed"), fields.query)
-        assertEquals(TextFieldValue("seed", TextRange(0, 4)), fields.queryField)
-    }
-
-    @Test
-    fun `a published query lagging behind the user's typing never reverts the field`() {
-        val fields = FindBarFields(FindQuery(), focusRequest = 0)
-        fields.editQuery(TextFieldValue("a", TextRange(1)))
-        fields.editQuery(TextFieldValue("ab", TextRange(2)))
-
-        fields.follow(FindQuery("a"))
-
-        assertEquals("ab", fields.queryField.text)
-        assertEquals(FindQuery("ab"), fields.query)
-    }
-
-    @Test
-    fun `quick toggles use the bar's own query, not the lagging published one`() {
-        val fields = FindBarFields(FindQuery("x"), focusRequest = 0)
-
-        fields.toggle(FindOption.MATCH_CASE)
-        fields.follow(FindQuery("x"))
-        val second = fields.toggle(FindOption.MATCH_CASE)
-
-        assertEquals(FindQuery("x"), second, "two clicks switch the flag off again")
-    }
-
-    @Test
-    fun `a new focus request follows the model again, adopts its query and selects it`() {
-        val fields = FindBarFields(FindQuery(), focusRequest = 3)
-        fields.editQuery(TextFieldValue("old", TextRange(3)))
-
-        assertFalse(fields.takeFocusRequest(3, FindQuery("old")), "request 3 was handled at creation")
-        assertTrue(fields.takeFocusRequest(4, FindQuery("old")))
-        assertEquals(TextFieldValue("old", TextRange(0, 3)), fields.queryField, "the query is selected")
-        assertFalse(fields.takeFocusRequest(4, FindQuery("old")), "handled once")
-
-        fields.follow(FindQuery("seeded"))
-        assertEquals(TextFieldValue("seeded", TextRange(0, 6)), fields.queryField, "a seed published after the request arrives")
-    }
-
-    @Test
-    fun `a focus request adopts a query the model published already`() {
-        val fields = FindBarFields(FindQuery(), focusRequest = 0)
-        fields.editQuery(TextFieldValue("typed", TextRange(5)))
-
-        assertTrue(fields.takeFocusRequest(1, FindQuery("bar", wholeWord = true)))
-
-        assertEquals(FindQuery("bar", wholeWord = true), fields.query)
-        assertEquals(TextFieldValue("bar", TextRange(0, 3)), fields.queryField)
+        assertFalse(fields.takeFocusRequest(3, "old"), "request 3 was handled at creation")
+        assertTrue(fields.takeFocusRequest(4, "old"))
+        assertEquals(TextFieldValue("old", TextRange(0, 3)), fields.queryField("old"), "the query is selected")
+        assertFalse(fields.takeFocusRequest(4, "old"), "handled once")
+        assertTrue(fields.takeFocusRequest(5, "bar"))
+        assertEquals(TextFieldValue("bar", TextRange(0, 3)), fields.queryField("bar"))
     }
 
     @Test
     fun `the replacement is kept`() {
-        val fields = FindBarFields(FindQuery(), focusRequest = 0)
+        val fields = FindBarFields(focusRequest = 0)
         fields.replacementField = TextFieldValue("new")
-        fields.takeFocusRequest(1, FindQuery("x"))
+        fields.takeFocusRequest(1, "x")
 
         assertEquals("new", fields.replacementField.text)
     }

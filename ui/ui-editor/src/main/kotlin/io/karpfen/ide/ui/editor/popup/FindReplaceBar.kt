@@ -30,19 +30,21 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
  * field with Replace / Replace All (Enter in it replaces the current match). Escape anywhere in the bar closes it
  * ([onClose]; the caller returns focus to the editor).
  *
- * Renders [state] (the model's matches) and the hoisted [fields] (the texts and the query the bar shows); [queryFocus]
- * is attached to the query field so the caller can focus it. Field edits and toggles report the query to send through
- * [onQueryChange].
+ * Renders [query] (the model's query: field text and toggles), [state] (the model's matches) and the hoisted [fields]
+ * (selection and composition of the fields, the replacement); [queryFocus] is attached to the query field so the caller
+ * can focus it. A changed query text is reported through [onQueryTextChange], a switched toggle through [onToggle].
  */
 @Composable
 internal fun FindReplaceBar(
     mode: FindBarMode,
+    query: FindQuery,
     state: FindResult,
     fields: FindBarFields,
     queryFocus: FocusRequester,
     theme: EditorTheme,
     textStyle: TextStyle,
-    onQueryChange: (FindQuery) -> Unit,
+    onQueryTextChange: (String) -> Unit,
+    onToggle: (FindOption) -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
     onReplace: (String) -> Unit,
@@ -62,8 +64,8 @@ internal fun FindReplaceBar(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             PopupTextField(
-                value = fields.queryField,
-                onValueChange = { value -> fields.editQuery(value)?.let(onQueryChange) },
+                value = fields.queryField(query.text),
+                onValueChange = { value -> fields.editQuery(value, query.text)?.let(onQueryTextChange) },
                 textStyle = textStyle,
                 theme = theme,
                 placeholder = "Find",
@@ -75,7 +77,7 @@ internal fun FindReplaceBar(
                     .testTag(EditorPopupTags.FIND_QUERY),
             )
             FindOption.entries.forEach { option ->
-                BarToggle(option.label, option.description, option.isOn(fields.query), theme) { onQueryChange(fields.toggle(option)) }
+                BarToggle(option.label, option.description, option.isOn(query), theme) { onToggle(option) }
             }
             FindStatusText(FindStatus.of(state), theme)
             BarButton("↑", "Previous Match", theme, enabled = hasMatches, onClick = onPrevious)
