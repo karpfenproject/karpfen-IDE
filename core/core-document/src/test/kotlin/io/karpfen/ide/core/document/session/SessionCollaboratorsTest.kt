@@ -63,7 +63,7 @@ class SessionCollaboratorsTest {
         val merged = DiagnosticsMerger(text).merge(
             TokenizeResult(0, emptyList(), listOf(lexical)),
             outcome(0, syntax = listOf(parser, lexical)),
-            listOf(ExternalDiagnosticSet(v0, listOf(external))),
+            mapOf("project" to ExternalDiagnosticSet(v0, listOf(external))),
         )
 
         assertSame(text.snapshot.value, merged.snapshot)
@@ -75,11 +75,28 @@ class SessionCollaboratorsTest {
     }
 
     @Test
+    fun `the merger maps an external set from its previous merge, and a newly reported set from its own snapshot`() {
+        val text = EditableText("0123456789", historyLimit = 1)
+        val merger = DiagnosticsMerger(text)
+        val reported = mapOf("file" to ExternalDiagnosticSet(text.snapshot.value, listOf(diagnostic(TextRange(5, 6)))))
+        fun mergedRanges(external: Map<String, ExternalDiagnosticSet>) =
+            merger.merge(TokenizeResult.empty(text.snapshot.value.version), null, external).diagnostics.map { it.range }
+
+        text.type(0, "a")
+        assertEquals(listOf(TextRange(6, 7)), mergedRanges(reported))
+        text.type(0, "b")
+        assertEquals(listOf(TextRange(7, 8)), mergedRanges(reported), "version 0 is evicted; mapped from version 1")
+
+        val replaced = mapOf("file" to ExternalDiagnosticSet(text.snapshot.value, listOf(diagnostic(TextRange(0, 1)))))
+        assertEquals(listOf(TextRange(0, 1)), mergedRanges(replaced))
+    }
+
+    @Test
     fun `the merger keeps diagnostics of the current version unchanged`() {
         val text = EditableText("0123456789")
         val parser = diagnostic(TextRange(3, 4))
 
-        val merged = DiagnosticsMerger(text).merge(TokenizeResult.empty(0), outcome(0, syntax = listOf(parser)), emptyList())
+        val merged = DiagnosticsMerger(text).merge(TokenizeResult.empty(0), outcome(0, syntax = listOf(parser)), emptyMap())
 
         assertSame(parser, merged.diagnostics.single())
     }

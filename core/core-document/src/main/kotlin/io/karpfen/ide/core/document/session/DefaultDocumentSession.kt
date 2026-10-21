@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
  *   cancellable;
  * - [ExternalDiagnosticsStore] — the external sets of [setExternalDiagnostics], thread-safe, other lineages ignored;
  * - [DiagnosticsPublisher] with a [DiagnosticsMerger] — [diagnostics], every source mapped with `EditableText.mapRange`
- *   to the newest snapshot and merged with [mergeDiagnostics].
+ *   to the newest snapshot (external sets from their [ExternalDiagnosticsAnchors]) and merged with [mergeDiagnostics].
  *
  * All of them run in a child scope of [parentScope] (a [SupervisorJob], so the session never cancels its parent);
  * [close] cancels that scope, and the flows keep their last values.
@@ -44,7 +44,7 @@ internal class DefaultDocumentSession(
     private val tokenizing = TokenizePipeline(text, support.tokenizer, config.tokenizeDispatcher)
     private val parsing = ParseScheduler(text, support.parser, config)
     private val external = ExternalDiagnosticsStore(text.lineage)
-    private val publisher = DiagnosticsPublisher(DiagnosticsMerger(text), tokenizing.tokens.value)
+    private val publisher = DiagnosticsPublisher(DiagnosticsMerger(text, ExternalDiagnosticsAnchors()), tokenizing.tokens.value)
 
     init {
         tokenizing.start(scope)

@@ -967,6 +967,11 @@ Added by the phase-1 review fixes (core):
     the coalescing run) and `markSavePoint(state)`. The saver takes the checkpoint with the snapshot it writes and
     marks it after the write, so typing during the write keeps the document dirty, and undoing that typing (not
     undoing past the save) makes it clean; before, the save point stayed at the previous save.
+49. **External diagnostic sets never expire**: the session's merger re-anchors each external set at the snapshot of
+    every merge (`ExternalDiagnosticsAnchors`) and maps it from there, so FILE findings, reported only on open, reload
+    and save, survive more edits than `EditableText` retains (they used to vanish after 1000 edits), and a merge maps
+    only the versions since the previous one. Mapping step by step differs from mapping from the reported version only
+    for a range that collapsed to an empty one: it then stays behind text typed at it, like any empty range.
 
 ## 7. Review findings not adopted
 

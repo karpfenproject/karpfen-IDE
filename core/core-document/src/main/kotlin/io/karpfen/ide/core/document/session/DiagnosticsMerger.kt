@@ -12,16 +12,22 @@ import io.karpfen.ide.core.text.TextSnapshot
  * (spec §3.4): every source's ranges are mapped from the version they were computed for with `EditableText.mapRange`
  * (the one range-mapping rule, decision 35; diagnostics whose range does not map — evicted history — are dropped),
  * then combined by [mergeDiagnostics] (the one merge rule, decision 28). It owns neither a mapping nor a merge rule.
+ * The external sets, which may be reported once and then live for many edits, are mapped from their [anchors] (the
+ * snapshot of the previous merge), so they never expire with the edit history.
  *
- * Pure apart from reading `text.snapshot`; thread-safe, because mapping is (decision 35).
+ * Reads `text.snapshot` and updates the [anchors]; thread-safe, because mapping (decision 35) and the anchors are.
  */
-internal class DiagnosticsMerger(private val text: EditableText) {
+internal class DiagnosticsMerger(
+    private val text: EditableText,
+    private val anchors: ExternalDiagnosticsAnchors = ExternalDiagnosticsAnchors(),
+) {
 
     /**
-     * The merged diagnostics of [tokens], [parse] and [external], in the coordinates of the newest snapshot of [text]
-     * at the time of the call (never older than any source, since all of them come from versions of [text]).
+     * The merged diagnostics of [tokens], [parse] and the [external] sets by source, in the coordinates of the newest
+     * snapshot of [text] at the time of the call (never older than any source, since all of them come from versions of
+     * [text]).
      */
-    fun merge(tokens: TokenizeResult, parse: ParseOutcome?, external: Collection<ExternalDiagnosticSet>): VersionedDiagnostics {
+    fun merge(tokens: TokenizeResult, parse: ParseOutcome?, external: Map<String, ExternalDiagnosticSet>): VersionedDiagnostics {
         val target = text.snapshot.value
         val lexical = mapToTarget(tokens.diagnostics, tokens.version, text.lineage, target)
         val mappedParse = parse?.let { outcome ->
@@ -30,7 +36,7 @@ internal class DiagnosticsMerger(private val text: EditableText) {
                 standaloneDiagnostics = mapToTarget(outcome.standaloneDiagnostics, outcome.version, text.lineage, target),
             )
         }
-        val mappedExternal = external.map { set ->
+        val mappedExternal = anchors.mapAll(external, target) { set ->
             mapToTarget(set.diagnostics, set.snapshot.version, set.snapshot.lineage, target)
         }
         return VersionedDiagnostics(target, mergeDiagnostics(lexical, mappedParse, mappedExternal))

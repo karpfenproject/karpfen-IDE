@@ -233,6 +233,28 @@ class DocumentSessionDiagnosticsTest {
         assertEquals(3L, session.diagnostics.value.version)
     }
 
+    @Test
+    fun `an external set reported once outlives the retained edit history`() = runTest {
+        val text = EditableText(source, historyLimit = 2)
+        val v0 = text.snapshot.value
+        val session = session(text, richParser())
+        val finding = diagnostic(rangeOf("Robot"), DiagnosticSource.IDE, "file finding")
+        session.setExternalDiagnostics(ExternalDiagnosticSources.FILE, v0, listOf(finding))
+        runCurrent()
+
+        repeat(5) {
+            text.type(0, " ")
+            runCurrent()
+        }
+
+        assertEquals(5L, session.diagnostics.value.version)
+        assertEquals(
+            listOf(finding.copy(range = finding.range.shiftedBy(5))),
+            session.diagnostics.value.diagnostics.filter { it.message == "file finding" },
+            "mapped edit by edit, although version 0 left the history after two edits",
+        )
+    }
+
     private companion object {
         const val THREADS = 8
     }

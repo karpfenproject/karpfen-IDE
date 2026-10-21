@@ -3,6 +3,7 @@ package io.karpfen.ide.core.workspace.document
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.parse.SemanticMode
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
+import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.LineSeparator
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.files.FileKind
@@ -97,6 +98,22 @@ class DocumentManagerOpenSaveTest {
             listOf(WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS, WorkspaceDiagnosticCodes.MALFORMED_ENCODING),
             document.diagnosticCodes.filter { it in listOf(WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS, WorkspaceDiagnosticCodes.MALFORMED_ENCODING) },
         )
+    }
+
+    @Test
+    fun `FILE findings last until a save or reload, also beyond the retained edit history`() = runTest {
+        val manager = documentManager(this)
+        val path = bytes("mixed.kmeta", "type \"A\" \"a\" {\r\n}\r\n\n".toByteArray() + byteArrayOf(0xFF.toByte()))
+        val document = manager.openOrFail(path)
+        runCurrent()
+        val fileCodes = listOf(WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS, WorkspaceDiagnosticCodes.MALFORMED_ENCODING)
+
+        repeat(EditableText.DEFAULT_HISTORY_LIMIT + 1) {
+            document.type(document.currentText.length, " ")
+            runCurrent()
+        }
+
+        assertEquals(fileCodes, document.diagnosticCodes.filter { it in fileCodes })
     }
 
     @Test

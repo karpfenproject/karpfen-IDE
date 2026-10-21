@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
  */
 internal class DiagnosticsPublisher(private val merger: DiagnosticsMerger, initialTokens: TokenizeResult) {
 
-    private val state = MutableStateFlow(merger.merge(initialTokens, parse = null, external = emptyList()))
+    private val state = MutableStateFlow(merger.merge(initialTokens, parse = null, external = emptyMap()))
 
     /** The latest merged diagnostics. */
     val diagnostics: StateFlow<VersionedDiagnostics> = state.asStateFlow()
@@ -35,7 +35,7 @@ internal class DiagnosticsPublisher(private val merger: DiagnosticsMerger, initi
         external: Flow<Map<String, ExternalDiagnosticSet>>,
     ): Job = scope.launch {
         combine(snapshots, tokens, parse, external) { _, currentTokens, currentParse, externalSets ->
-            merger.merge(currentTokens, currentParse, externalSets.values)
+            merger.merge(currentTokens, currentParse, externalSets)
         }.collect { state.value = it }
     }
 }

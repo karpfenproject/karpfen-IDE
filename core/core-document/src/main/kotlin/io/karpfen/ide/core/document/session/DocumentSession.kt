@@ -71,8 +71,9 @@ public interface DocumentSession : AutoCloseable {
      * Lexer diagnostics (from [tokens]), PARSER diagnostics and standalone DSL_TOOLS diagnostics (from [parse]) and
      * every external set, merged by [mergeDiagnostics] (the one merge rule, shared with core-workspace) after mapping
      * every range to the newest snapshot the session has seen with `EditableText.mapRange` (the one range-mapping rule;
-     * diagnostics whose range does not map — evicted history — are dropped). [VersionedDiagnostics.snapshot] is that
-     * snapshot.
+     * diagnostics whose range does not map — evicted history — are dropped). An external set is mapped from the
+     * snapshot of the previous merge, so a set reported once (e.g. the FILE findings) lives until its source replaces
+     * or removes it, however long the edit history grows. [VersionedDiagnostics.snapshot] is that snapshot.
      */
     public val diagnostics: StateFlow<VersionedDiagnostics>
 

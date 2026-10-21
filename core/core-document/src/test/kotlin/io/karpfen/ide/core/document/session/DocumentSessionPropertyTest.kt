@@ -25,7 +25,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * Randomized session test (fixed seeds): random edits (typing, deletions, replacements around diagnostics, undo),
  * random pauses around the parse debounce and random external sets. After every step the merged diagnostics refer to
  * the newest snapshot, lie inside it, and equal [mergeDiagnostics] of the current sources, each mapped with
- * `EditableText.mapRange` from the version it was computed for.
+ * `EditableText.mapRange` from the version it was computed for — the external sets from the snapshot of the previous
+ * step, where the session re-anchored them (`ExternalDiagnosticsAnchors`), so they never expire with the short history.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DocumentSessionPropertyTest {
@@ -83,9 +84,15 @@ class DocumentSessionPropertyTest {
             assertEquals(expected, merged.diagnostics, "seed $seed step $step")
             if (session.parse.value?.version == current.version) parsesSeen++
             dropped += external.values.sumOf { set -> set.diagnostics.count { text.mapRange(it.range, set.snapshot) == null } }
+            external.replaceAll { _, set -> ExternalDiagnosticSet(current, mapped(text, set.diagnostics, set.snapshot)) }
         }
-        reporter.publishEntry("seed $seed", "$STEPS steps, $parsesSeen with a current parse, $dropped times an external diagnostic was dropped as evicted")
+        assertEquals(0, dropped, "seed $seed: re-anchored external diagnostics never fall out of the history")
+        reporter.publishEntry("seed $seed", "$STEPS steps, $parsesSeen with a current parse")
     }
+
+    /** [diagnostics] valid in [from], mapped to the current version of [text] with mapRange (unmappable ones dropped). */
+    private fun mapped(text: EditableText, diagnostics: List<Diagnostic>, from: TextSnapshot): List<Diagnostic> =
+        diagnostics.mapNotNull { d -> text.mapRange(d.range, from)?.let { d.copy(range = it) } }
 
     /** The reference: every source mapped with mapRange, then merged with mergeDiagnostics. */
     private fun reference(
