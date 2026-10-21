@@ -941,6 +941,21 @@ Added by the third contract review (v1.3):
     are named `revealInFileManager`/`supportsRevealInFileManager` (decision 32); `WorkspaceCollaborators` is a plain
     class and the scanner an internal interface; the desktop adapters are headless-safe and injectable through
     `defaultWorkbenchServices(…, fileOperations, folderChooser)`; `TreeView` scrolls a changed selection into view.
+47. **Shell review fixes (workbench, app, CLI)**: `WorkbenchServices` lost `languages` (a workspace's languages are
+    `Workspace.languages` from the factory; decision 46). Saving never silently overwrites an external change: Save,
+    Save All and Save in the unsaved-changes dialog ask `DialogRequest.ConfirmOverwrite(paths)` (Confirm / Cancel) for
+    documents with an unresolved conflict; Cancel keeps the disk version and the conflict, activates that tab (its
+    banner shows) and stops a close or exit; the tab strip marks tabs in conflict (warning icon, banner message in the
+    tooltip). The dialogs are modal for commands: `registerCommands` registers through a decorator that disables every
+    command while `DialogState.current` is set. Close requests coalesce per tab (a repeated `closeTab` returns the
+    queued or asking job; `closeActiveTab` closes the tab active at the call), refining decision 42 and §7 item 21.
+    `IdeApplication.prepare` joins the initial folder's job unless its flow asks a dialog first (only the window can
+    show it, so the startup must not wait for the answer). `openFolder` checks the folder before the unsaved-changes
+    flow: a missing one keeps the open workspace and leaves the recent folders (`IdeSettings.withoutRecentFolder`).
+    `ProjectFileOperations.rename` renames case-only changes through a temporary sibling (case-insensitive file
+    systems). A `settings.json` that is not UTF-8 is corrupt (backed up and reset); one that exists but cannot be read
+    is never written over. `karpfen validate` reports a karpfen file or a directory of the scanned tree it cannot read
+    as an ERROR `unreadable` at 1:1 (exit 1), next to `Workspace.problems`, which stay the IDE's.
 
 ## 7. Review findings not adopted
 
@@ -997,7 +1012,8 @@ From the third review (v1.3), adopted in part or replaced by another fix:
 20. **An INFO for conversions skipped because of a broken metamodel.** Not added: it would repeat what the metamodel's
     syntax errors already say and need a new code (decision 44).
 21. **Intents serialized per path.** All intent flows run one at a time instead (decision 42): simpler, and the
-    dialogs they wait for are modal anyway.
+    dialogs they wait for are modal anyway. (Decision 47 adds coalescing of repeated close requests of one tab and
+    makes the dialogs modal for menu commands too.)
 22. **`TabStops` in core-text.** It lives in `ui.editor.model.caret` (decision 40); core-text keeps code-unit columns.
 23. **A `DISCARD` value of `ConflictResolution`.** `RELOAD` keeps its name with the documented meaning "take the disk
     state", and the result type tells the caller what happened (decision 43).

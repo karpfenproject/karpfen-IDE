@@ -1,0 +1,38 @@
+package io.karpfen.ide.ui.workbench.state
+
+import io.karpfen.ide.core.workspace.document.OpenDocument
+import io.karpfen.ide.core.workspace.document.SaveResult
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
+import io.karpfen.ide.ui.workbench.dialog.DialogState
+import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
+
+/**
+ * Saving open documents (Save, Save All, and Save in the unsaved-changes dialog; spec §4, §8) without silently writing
+ * over a change made on disk: a document whose external-change conflict is unresolved (`OpenDocument.conflict`, the
+ * banner's Reload / Keep mine) is only saved once the user confirmed overwriting ([DialogRequest.ConfirmOverwrite], one
+ * dialog for all of them; decision 47 of the work-package plan). On Cancel they stay unsaved and in conflict, and the
+ * first of them becomes the active tab, so its banner shows; the others are saved. A failed save becomes an error dialog.
+ */
+internal class SaveFlow(
+    private val holder: WorkspaceHolder,
+    private val tabs: EditorTabsState,
+    private val dialogs: DialogState,
+) {
+
+    /** Saves [documents] (also clean ones); true if every one of them was saved. */
+    suspend fun save(documents: List<OpenDocument>): Boolean {
+        val workspace = holder.workspace.value ?: return false
+        val inConflict = documents.filter { it.conflict.value != null }
+        val overwrite = inConflict.isEmpty() ||
+            dialogs.ask(DialogRequest.ConfirmOverwrite(inConflict.map { it.path })) == DialogResponse.Confirm
+        val saving = if (overwrite) documents else documents - inConflict.toSet()
+        val failures = saving.map { workspace.documents.save(it.path) }.filterIsInstance<SaveResult.Failed>()
+        if (!overwrite) tabs.activate(inConflict.first().path)
+        if (failures.isNotEmpty()) dialogs.showError(failureTitle(failures), failures.joinToString("\n") { it.message })
+        return overwrite && failures.isEmpty()
+    }
+
+    private fun failureTitle(failures: List<SaveResult.Failed>): String =
+        failures.singleOrNull()?.let { "Could not save ${it.path.fileName}" } ?: "Could not save"
+}

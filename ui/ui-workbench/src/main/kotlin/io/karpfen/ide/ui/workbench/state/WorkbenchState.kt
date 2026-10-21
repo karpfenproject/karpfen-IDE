@@ -37,6 +37,11 @@ import java.nio.file.Path
  * a second unsaved-changes dialog, whatever the first one is answered; decision 47); [registerCommands]' commands call
  * the same intents. Only [start] and [requestExit], called by the composition root, suspend.
  *
+ * Saving never silently writes over a change made on disk: Save, Save All and Save in the unsaved-changes dialog
+ * (tab close, folder switch, rename, exit) ask before overwriting a document whose external-change conflict is
+ * unresolved ([DialogRequest.ConfirmOverwrite]; Cancel keeps the disk version and the conflict, activates that tab so
+ * its banner shows, and stops a close or exit). The editor area marks tabs in conflict on the tab strip too.
+ *
  * The mediator collects every editor's `EditorHandle.navigationRequests` from opening its tab until closing it and
  * runs [navigateTo] for each, so navigation never depends on a composable being on screen. Its collaborators and the
  * sub-states use editors through the `EditorHandle` role; only the editor area renders the full `CodeEditorState`.
@@ -153,10 +158,10 @@ public interface WorkbenchState : AutoCloseable {
      */
     public fun resolveConflict(path: Path, resolution: ConflictResolution): Job
 
-    /** Saves the active document. */
+    /** Saves the active document (asking first if that overwrites an external change, see above). */
     public fun saveActive(): Job
 
-    /** Saves all dirty documents. */
+    /** Saves all dirty documents (asking first about those whose save overwrites an external change, see above). */
     public fun saveAll(): Job
 
     /**

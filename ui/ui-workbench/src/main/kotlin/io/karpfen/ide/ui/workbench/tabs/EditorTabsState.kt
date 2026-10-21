@@ -19,7 +19,7 @@ import java.nio.file.Path
  * @property title file name; [tooltip] the path relative to the workspace root.
  * @property conflict the kind of the document's external-change conflict, or null: the editor area renders the banner
  *   from it — [ExternalChangeKind.MODIFIED] → Reload / Keep mine, [ExternalChangeKind.DELETED] → Close / Keep mine —
- *   and calls `WorkbenchState.resolveConflict`, never the `OpenDocument` itself.
+ *   and calls `WorkbenchState.resolveConflict`, never the `OpenDocument` itself; the tab strip marks the tab.
  */
 public data class EditorTab(
     public val path: Path,

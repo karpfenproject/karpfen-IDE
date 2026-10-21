@@ -11,6 +11,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -241,6 +242,99 @@ class TabFlowsTest {
         assertTrue(state.tabs.tabs.value.isEmpty())
         assertFalse(Files.exists(machine), "nothing was saved")
         assertNoDialog()
+    }
+
+    /** Edits [machine] and [model], activates the model's tab and changes the machine on disk (a `git pull`). */
+    private fun TestWorkbench.externalChangeInBackgroundTab(): String {
+        openEditor(machine)
+        edit(machine)
+        openEditor(model)
+        edit(model)
+        val external = "// EXTERNAL CHANGE FROM GIT PULL\n" + Files.readString(machine)
+        Files.writeString(machine, external)
+        watcher.report(machine, FileChangeKind.MODIFIED)
+        settle()
+        assertEquals(ExternalChangeKind.MODIFIED, conflictOf(machine))
+        assertEquals(model, state.tabs.active.value)
+        return external
+    }
+
+    private fun TestWorkbench.conflictOf(path: Path): ExternalChangeKind? = state.tabs.tabs.value.single { it.path == path }.conflict
+
+    /** Asserts that saving over the external change of [path] is to be confirmed, and answers [response]. */
+    private fun TestWorkbench.answerOverwrite(path: Path, response: DialogResponse) {
+        val asked = answer(DialogRequest.ConfirmOverwrite::class, response)
+        assertEquals(listOf(path), asked.paths)
+    }
+
+    @Test
+    fun `Save All asks before overwriting an external change - Cancel keeps it and shows the tab in conflict`() = scenario {
+        val external = externalChangeInBackgroundTab()
+
+        val job = state.saveAll()
+        answerOverwrite(machine, DialogResponse.Cancel)
+
+        assertTrue(job.isCompleted)
+        assertEquals(external, Files.readString(machine), "the version on disk is kept")
+        assertEquals(ExternalChangeKind.MODIFIED, conflictOf(machine), "the conflict is still to be resolved")
+        assertTrue(document(machine).isDirty.value)
+        assertTrue(Files.readString(model).startsWith("// edited"), "the documents without a conflict are saved")
+        assertEquals(machine, state.tabs.active.value, "the tab in conflict is shown, with its banner")
+    }
+
+    @Test
+    fun `Save All overwrites an external change once confirmed`() = scenario {
+        externalChangeInBackgroundTab()
+
+        val job = state.saveAll()
+        answerOverwrite(machine, DialogResponse.Confirm)
+
+        assertTrue(job.isCompleted)
+        assertTrue(Files.readString(machine).startsWith("// edited"))
+        assertNull(conflictOf(machine))
+        assertTrue(state.tabs.tabs.value.none { it.isDirty })
+    }
+
+    @Test
+    fun `Save of the active tab in conflict asks before overwriting`() = scenario {
+        val external = externalChangeInBackgroundTab()
+        state.tabs.activate(machine)
+
+        state.saveActive()
+        answerOverwrite(machine, DialogResponse.Cancel)
+        assertEquals(external, Files.readString(machine))
+
+        state.resolveConflict(machine, ConflictResolution.KEEP_MINE).joinSettled()
+        state.saveActive().joinSettled()
+        assertTrue(Files.readString(machine).startsWith("// edited"), "after Keep mine, Save overwrites without asking")
+    }
+
+    @Test
+    fun `Save in the close dialog of a tab in conflict asks before overwriting and Cancel keeps the tab`() = scenario {
+        val external = externalChangeInBackgroundTab()
+
+        val job = state.closeTab(machine)
+        answer(DialogRequest.UnsavedChanges::class, DialogResponse.Save)
+        answerOverwrite(machine, DialogResponse.Cancel)
+
+        assertTrue(job.isCompleted)
+        assertEquals(external, Files.readString(machine))
+        assertNotNull(state.tabs.editorFor(machine), "the tab stays open")
+        assertEquals(ExternalChangeKind.MODIFIED, conflictOf(machine))
+    }
+
+    @Test
+    fun `Save in the exit dialog asks before overwriting an external change and Cancel stops the exit`() = scenario {
+        val external = externalChangeInBackgroundTab()
+
+        val exit = scope.async { state.requestExit() }
+        answer(DialogRequest.UnsavedChanges::class, DialogResponse.Save)
+        answerOverwrite(machine, DialogResponse.Cancel)
+
+        assertTrue(exit.isCompleted)
+        assertFalse(exit.await(), "the IDE stays open")
+        assertEquals(external, Files.readString(machine))
+        assertEquals(machine, state.tabs.active.value)
     }
 
     @Test

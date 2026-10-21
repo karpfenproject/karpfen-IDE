@@ -16,23 +16,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.editor.popup.EditorPopups
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.view.CodeEditor
-import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
-import io.karpfen.ide.ui.foundation.widgets.TabItem
 import io.karpfen.ide.ui.foundation.widgets.TabStrip
 import io.karpfen.ide.ui.workbench.tabs.ConflictBanner
 import io.karpfen.ide.ui.workbench.tabs.EditorTab
 import java.nio.file.Path
 
 /**
- * The editor area (spec §8): `TabStrip` of [tabs], the external-change banner of the active tab rendered from
- * `EditorTab.conflict` ([ConflictBanner]: MODIFIED: Reload / Keep mine; DELETED: Close / Keep mine; both report a
- * `ConflictResolution`, RELOAD for Reload and Close), and the `CodeEditor` of [activeEditor] with the editor popups.
+ * The editor area (spec §8): `TabStrip` of [tabs] (items from [tabItemOf], which marks tabs in conflict), the
+ * external-change banner of the active tab rendered from `EditorTab.conflict` ([ConflictBanner]: MODIFIED: Reload /
+ * Keep mine; DELETED: Close / Keep mine; both report a `ConflictResolution`, RELOAD for Reload and Close), and the
+ * `CodeEditor` of [activeEditor] with the editor popups.
  * Navigation requests of the editors are collected by the mediator, not relayed through this view. The callbacks call
  * the non-suspending `WorkbenchState` intents directly (no coroutine launched here).
  *
@@ -54,7 +52,7 @@ internal fun EditorArea(
     Column(modifier.fillMaxSize().background(colors.window).testTag(EditorAreaTestTags.AREA)) {
         if (tabs.isNotEmpty()) {
             TabStrip(
-                tabs = tabs.map { TabItem(it.path.toString(), it.title, it.tooltip, it.isDirty, iconOf(it.language)) },
+                tabs = tabs.map(::tabItemOf),
                 selectedId = activePath?.toString(),
                 onSelect = { id -> byId[id]?.let { onActivate(it.path) } },
                 onClose = { id -> byId[id]?.let { onClose(it.path) } },
@@ -98,10 +96,4 @@ private fun ConflictBannerView(banner: ConflictBanner, onResolve: (ConflictResol
             ) { Text(action.label) }
         }
     }
-}
-
-private fun iconOf(language: KarpfenLanguage) = when (language) {
-    KarpfenLanguage.KMETA -> KarpfenIcons.Kmeta
-    KarpfenLanguage.KMODEL -> KarpfenIcons.Kmodel
-    KarpfenLanguage.KSTATES -> KarpfenIcons.Kstates
 }

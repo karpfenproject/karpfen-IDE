@@ -40,7 +40,7 @@ import java.nio.file.Path
  * `Workspace.analysis`). Collaborators use editors as `EditorHandle`.
  *
  * The collaborators: [IntentRunner], [WorkspaceHolder], [SubStateBindings], [EditorNavigationCollector],
- * [EditorLifecycle], [UnsavedChangesFlow], [FileOpenFlow], [NavigationFlow], [TabFlows], [FolderFlow],
+ * [EditorLifecycle], [SaveFlow], [UnsavedChangesFlow], [FileOpenFlow], [NavigationFlow], [TabFlows], [FolderFlow],
  * [FileOperationFlows] (with [TemplateContextBuilder]), [RenameFlow], [LayoutPersister], and [WorkbenchCommands] and
  * [EditorCommands] registering through a [ModalCommandRegistry]. All work runs in a supervisor child of [scope],
  * cancelled by [close].
@@ -78,10 +78,11 @@ internal class DefaultWorkbenchState(
     private val lifecycle = EditorLifecycle(
         ownScope, holder, tabs, services.editorStateFactory, editorSettings, services.editorKeymap, navigation,
     )
-    private val unsaved = UnsavedChangesFlow(holder, dialogs)
+    private val saving = SaveFlow(holder, tabs, dialogs)
+    private val unsaved = UnsavedChangesFlow(saving, dialogs)
     private val fileOpen = FileOpenFlow(lifecycle, dialogs, services.fileOperations, services.ioDispatcher)
     private val navigationFlow = NavigationFlow(fileOpen, tabs)
-    private val tabFlows = TabFlows(holder, tabs, lifecycle, unsaved, dialogs)
+    private val tabFlows = TabFlows(tabs, lifecycle, unsaved, saving, dialogs)
     private val folders = FolderFlow(
         ownScope, holder, tabs, lifecycle, unsaved, bindings, services.workspaceFactory, services.languageServicesFactory,
         services.settings, services.folderChooser, dialogs, services.ioDispatcher,

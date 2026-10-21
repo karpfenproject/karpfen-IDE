@@ -43,6 +43,7 @@ internal data class DialogPresentation(
                 buttons = listOf(answer("Delete", DialogResponse.Confirm, isDefault = true), answer("Cancel", DialogResponse.Cancel)),
                 dismiss = DialogResponse.Cancel,
             )
+            is DialogRequest.ConfirmOverwrite -> confirmOverwrite(request.paths)
             is DialogRequest.Rename -> DialogPresentation(
                 title = "Rename",
                 message = "New name for '${name(request.path)}':",
@@ -77,6 +78,18 @@ internal data class DialogPresentation(
                 answer("Don't Save", DialogResponse.Discard),
                 answer("Cancel", DialogResponse.Cancel),
             ),
+            dismiss = DialogResponse.Cancel,
+        )
+
+        private fun confirmOverwrite(paths: List<Path>): DialogPresentation = DialogPresentation(
+            title = "Changed on Disk",
+            message = if (paths.size == 1) {
+                "'${name(paths.single())}' was changed or deleted on disk while you edited it. Save your version over it?"
+            } else {
+                "${paths.size} files were changed or deleted on disk while you edited them:\n" +
+                    paths.joinToString("\n") { "• ${name(it)}" } + "\nSave your versions over them?"
+            },
+            buttons = listOf(answer("Overwrite", DialogResponse.Confirm), answer("Cancel", DialogResponse.Cancel, isDefault = true)),
             dismiss = DialogResponse.Cancel,
         )
 

@@ -28,6 +28,15 @@ public sealed interface DialogRequest<out R : DialogResponse> {
         override fun accepts(response: DialogResponse): Boolean = response is ConfirmAnswer
     }
 
+    /**
+     * Confirm saving [paths] over their versions on disk: each was changed or deleted on disk while it had unsaved
+     * changes, and the external-change conflict is not resolved yet (spec §4; decision 47 of the work-package plan).
+     * Confirm overwrites, Cancel keeps the disk versions and the conflicts.
+     */
+    public data class ConfirmOverwrite(public val paths: List<Path>) : DialogRequest<ConfirmAnswer> {
+        override fun accepts(response: DialogResponse): Boolean = response is ConfirmAnswer
+    }
+
     /** Ask for a new name of [path]. */
     public data class Rename(public val path: Path) : DialogRequest<TextAnswer> {
         override fun accepts(response: DialogResponse): Boolean = response is TextAnswer
@@ -52,7 +61,7 @@ public sealed interface DialogResponse {
     /** Discard the changes. */
     public data object Discard : UnsavedChangesAnswer
 
-    /** Confirm (delete, acknowledge an error). */
+    /** Confirm (delete, overwrite, acknowledge an error). */
     public data object Confirm : ConfirmAnswer
 
     /** Cancel the operation. */
@@ -65,7 +74,7 @@ public sealed interface DialogResponse {
 /** Answers to [DialogRequest.UnsavedChanges]: Save, Discard, Cancel. */
 public sealed interface UnsavedChangesAnswer : DialogResponse
 
-/** Answers to [DialogRequest.ConfirmDelete]: Confirm, Cancel. */
+/** Answers to [DialogRequest.ConfirmDelete] and [DialogRequest.ConfirmOverwrite]: Confirm, Cancel. */
 public sealed interface ConfirmAnswer : DialogResponse
 
 /** Answers to [DialogRequest.Rename] and [DialogRequest.NewFile]: Text, Cancel. */

@@ -66,6 +66,8 @@ class DialogStateTest {
             DialogRequest.UnsavedChanges(listOf(path, path.resolveSibling("b.kmeta"))),
             DialogRequest.ConfirmDelete(path, toTrash = true),
             DialogRequest.ConfirmDelete(path, toTrash = false),
+            DialogRequest.ConfirmOverwrite(listOf(path)),
+            DialogRequest.ConfirmOverwrite(listOf(path, path.resolveSibling("b.kmeta"))),
             DialogRequest.Rename(path),
             DialogRequest.NewFile(path.parent, FileTemplateKind.ENVIRONMENT),
             DialogRequest.Error("Title", "Message"),
@@ -96,5 +98,11 @@ class DialogStateTest {
         assertFalse(DialogPresentation.of(DialogRequest.ConfirmDelete(path, toTrash = false)).message.contains("trash"))
         assertEquals("New Environment File", DialogPresentation.of(DialogRequest.NewFile(path.parent, FileTemplateKind.ENVIRONMENT)).title)
         assertEquals(listOf("OK"), DialogPresentation.of(DialogRequest.Error("T", "M")).buttons.map { it.label })
+
+        val overwrite = DialogPresentation.of(DialogRequest.ConfirmOverwrite(listOf(path, path.resolveSibling("b.kmeta"))))
+        assertTrue(overwrite.message.contains("2 files") && overwrite.message.contains("b.kmeta"))
+        assertEquals(listOf("Overwrite", "Cancel"), overwrite.buttons.map { it.label })
+        assertEquals(DialogResponse.Cancel, overwrite.buttons.single { it.isDefault }.let { (it.choice as DialogChoice.Answer).response })
+        assertEquals(DialogResponse.Cancel, overwrite.dismiss, "Enter and Escape keep the version on disk")
     }
 }
