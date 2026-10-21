@@ -83,6 +83,8 @@ public fun CodeEditor(
             themeState = render.theme,
             textStyleState = render.textStyle,
             frame = { render.frame() },
+            liveFrame = { render.liveFrame() },
+            scrollPending = { render.scrollRequest.value != null },
             primaryCaret = { render.drawnCarets().first().position },
             caretWidth = caretWidth,
         )

@@ -204,6 +204,25 @@ class CompletionPopupTest {
     }
 
     @Test
+    fun `a list whose caret is about to be revealed waits for it instead of closing`() = popupTest("") { harness ->
+        harness.model.completionItems = completionItems(labels(2))
+        runOnIdle {
+            harness.host.caretBounds = null
+            harness.host.revealPending = true
+        }
+        openCompletion(harness)
+
+        onNodeWithTag(EditorPopupTags.COMPLETION).assertDoesNotExist()
+        runOnIdle { assertNotNull(harness.model.completion.state.value, "the reveal will show the caret") }
+
+        runOnIdle {
+            harness.host.caretBounds = TestGeometry.cell(0, 0)
+            harness.host.revealPending = false
+        }
+        onNodeWithTag(EditorPopupTags.COMPLETION).assertExists()
+    }
+
+    @Test
     fun `a long list composes only the visible rows`(reporter: TestReporter) = popupTest("") { harness ->
         harness.model.completionItems = completionItems(List(5_000) { "item%04d".format(it) })
 

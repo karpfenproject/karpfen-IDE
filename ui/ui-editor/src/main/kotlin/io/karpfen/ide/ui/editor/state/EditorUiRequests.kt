@@ -15,6 +15,9 @@ import io.karpfen.ide.ui.editor.model.find.FindModel
  *   overlay state holds no find logic (§7 item 8 of the work-package plan).
  * - [findNext]/[findPrevious] move through the `FindModel`, which selects through the editor's executor, so the match
  *   is revealed like every action; while the model's query is empty they open the find bar instead.
+ * - [triggerCompletion] reveals the primary caret ([revealCaret]) before it asks for completion there: the request
+ *   changes neither text nor carets, so the executor reveals nothing, and a list at an off-screen caret could not be
+ *   shown.
  * - [goToDefinition] asks [definitions] for the symbol at the primary caret.
  */
 internal class EditorUiRequests(
@@ -23,6 +26,7 @@ internal class EditorUiRequests(
     private val find: FindModel,
     private val completion: CompletionSessionModel,
     private val overlays: EditorOverlayState,
+    private val revealCaret: () -> Unit,
     private val definitions: (offset: Int) -> Unit,
 ) : EditorUiPort {
 
@@ -48,6 +52,7 @@ internal class EditorUiRequests(
     }
 
     override fun triggerCompletion() {
+        revealCaret()
         completion.open(CompletionTrigger.EXPLICIT)
     }
 

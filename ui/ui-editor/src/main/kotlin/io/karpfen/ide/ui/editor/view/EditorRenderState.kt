@@ -22,6 +22,7 @@ import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.editor.state.FindBarMode
 import io.karpfen.ide.ui.editor.state.HighlightSnapshot
+import io.karpfen.ide.ui.editor.state.ScrollRequest
 import io.karpfen.ide.ui.editor.state.ViewportSnapshot
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 import io.karpfen.ide.ui.editor.view.geometry.TextAreaFrame
@@ -48,6 +49,7 @@ internal class EditorRenderState(
     val find: State<FindResult>,
     val findBar: State<FindBarMode?>,
     val focused: State<Boolean>,
+    val scrollRequest: State<ScrollRequest?>,
 ) {
 
     /** The text area at the scroll position of the last composition (drawing, overlay geometry). */
@@ -112,6 +114,7 @@ internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorThem
     val find = state.find.state.collectAsState()
     val findBar = state.overlays.findBar.collectAsState()
     val focused = state.isFocused.collectAsState()
+    val scrollRequest = state.scrollRequest.collectAsState()
     // Every argument is a remembered State of this composition, so one holder per editor state suffices.
     return remember(state) {
         EditorRenderState(
@@ -129,6 +132,7 @@ internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorThem
             find = find,
             findBar = findBar,
             focused = focused,
+            scrollRequest = scrollRequest,
         )
     }
 }

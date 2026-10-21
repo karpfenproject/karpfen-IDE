@@ -18,7 +18,7 @@ import androidx.compose.ui.focus.FocusRequester
 @Composable
 internal fun PendingViewRequests(render: EditorRenderState, focusRequester: FocusRequester) {
     val editor = render.editor
-    val scrollRequest by editor.scrollRequest.collectAsState()
+    val scrollRequest by render.scrollRequest
     val focusRequested by editor.focusRequested.collectAsState()
     val geometry = render.geometry.value
     val laidOut by remember(render) { derivedStateOf { render.viewport.value.let { it.lineHeight > 0f && it.viewportHeight > 0f } } }

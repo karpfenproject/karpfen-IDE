@@ -51,9 +51,10 @@ internal fun FindBarSlot(host: EditorOverlayHost, intents: PopupIntents) {
 }
 
 /**
- * The completion list while a session is open, anchored at the caret. While the caret is scrolled out of view the list
- * cannot be shown, and the session is reported as hidden ([PopupIntents.completionHidden]), so a list nobody sees never
- * takes the keys (Enter, Tab, arrows) of the text area.
+ * The completion list while a session is open, anchored at the caret. While the caret is out of view the list cannot
+ * be shown: a caret about to be revealed (the keystroke or request that opened the list scrolls to it) only delays the
+ * list, while a caret the user scrolled away ([EditorOverlayHost.isCaretScrolledAway]) makes the session hidden
+ * ([PopupIntents.completionHidden]), so a list nobody sees never takes the keys (Enter, Tab, arrows) of the text area.
  */
 @Composable
 internal fun CompletionSlot(host: EditorOverlayHost, intents: PopupIntents) {
@@ -61,7 +62,7 @@ internal fun CompletionSlot(host: EditorOverlayHost, intents: PopupIntents) {
     val open = state ?: return
     val anchor = host.caretBounds
     if (anchor == null) {
-        LaunchedEffect(open) { intents.completionHidden() }
+        if (host.isCaretScrolledAway) LaunchedEffect(open) { intents.completionHidden() }
         return
     }
     CompletionPopup(open, anchor, host.theme, host.textStyle, intents::selectCompletion, intents::acceptCompletion)

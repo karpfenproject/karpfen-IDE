@@ -65,6 +65,15 @@ public interface EditorOverlayHost {
     /** The primary caret's rectangle, or null if it is scrolled out of view. */
     public val caretBounds: Rect?
 
+    /**
+     * True if the primary caret is out of view and stays there — the user scrolled it away; false while it is visible
+     * or about to be revealed (a pending scroll request, e.g. the caret reveal after a keystroke or an explicit
+     * completion request). [caretBounds] describes the scroll position of the last frame, so it may still be null for a
+     * caret that the next frames show; popups anchored at the caret wait then and close only for a caret scrolled away.
+     * The default knows of no pending reveal.
+     */
+    public val isCaretScrolledAway: Boolean get() = caretBounds == null
+
     /** The rectangle of the character at [offset], or null if that line is not laid out (off-screen). */
     public fun boundsOf(offset: Int): Rect?
 }

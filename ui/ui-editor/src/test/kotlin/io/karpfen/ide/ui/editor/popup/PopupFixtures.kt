@@ -205,7 +205,8 @@ object TestGeometry {
 
 /**
  * An [EditorOverlayHost] with fixed geometry ([TestGeometry]) over [state]: [caretBounds] is set by the test (default:
- * the caret's cell at creation); lines in [offscreenLines] are "not laid out" ([boundsOf] answers null).
+ * the caret's cell at creation), and so is [revealPending]; lines in [offscreenLines] are "not laid out" ([boundsOf]
+ * answers null).
  */
 class FakeOverlayHost(
     override val state: FakePopupModel,
@@ -217,6 +218,11 @@ class FakeOverlayHost(
     var offscreenLines: Set<Int> = emptySet()
 
     override var caretBounds: Rect? by mutableStateOf(boundsOf(state.caret.primary.position))
+
+    /** True while the view is about to reveal the caret (a pending scroll request). */
+    var revealPending: Boolean by mutableStateOf(false)
+
+    override val isCaretScrolledAway: Boolean get() = caretBounds == null && !revealPending
 
     override fun boundsOf(offset: Int): Rect? {
         val snapshot = state.snapshot.value

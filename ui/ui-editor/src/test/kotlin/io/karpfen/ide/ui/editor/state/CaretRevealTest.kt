@@ -117,6 +117,18 @@ class CaretRevealTest {
     }
 
     @Test
+    fun `an explicit completion request reveals the caret it completes at`() = editorTest(lines) { harness ->
+        harness.layOut(visibleLines = 10)
+        harness.state.viewport.scrollTo(0f, 1000f)
+        assertFalse(harness.isCaretVisible())
+
+        harness.state.execute(EditorActionIds.COMPLETION)
+
+        assertNotNull(harness.applyScrollRequest(), "the request acts at the caret, so it shows the caret first")
+        assertTrue(harness.isCaretVisible())
+    }
+
+    @Test
     fun `scrollTo sets a pending request that a newer one replaces and that is consumed only by itself`() = editorTest(lines) { harness ->
         harness.state.scrollTo(30, center = true)
         val first = assertNotNull(harness.state.scrollRequest.value)

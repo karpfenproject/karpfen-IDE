@@ -88,7 +88,7 @@ internal class DefaultCodeEditorState(
         autoPairs = AutoClosedPairs(text),
         viewport = viewport,
         clipboard = clipboard,
-        ui = EditorUiRequests(text, caret, find, completion, overlays, navigator::goToDefinition),
+        ui = EditorUiRequests(text, caret, find, completion, overlays, reveal::revealPrimary, navigator::goToDefinition),
     )
     private val enablement = ActionEnablement(actions, context, text, caret, scope)
     private val hover = HoverController(scope, overlays, CodeEditorState.HOVER_DELAY, HoverController.HIDE_GRACE, lookup::hoverAt)
