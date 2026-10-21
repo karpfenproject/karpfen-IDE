@@ -72,6 +72,15 @@ public data class CompletionUiState(
 
     /** The highlighted item. */
     public val selected: CompletionItem get() = items[selectedIndex]
+
+    /** Constants of [CompletionUiState]. */
+    public companion object {
+        /**
+         * The most rows the completion list shows at once (spec §7.2): the popup's height, and the rows Page Up/Down
+         * move the selection by, so keyboard paging matches what the user sees.
+         */
+        public const val MAX_VISIBLE_ROWS: Int = 12
+    }
 }
 
 /**
@@ -207,8 +216,8 @@ internal class DefaultCompletionSessionModel(
             KeyCode.ESCAPE -> close()
             KeyCode.UP -> if (open) moveSelection(-1)
             KeyCode.DOWN -> if (open) moveSelection(1)
-            KeyCode.PAGE_UP -> if (open) moveSelection(-PAGE_SIZE)
-            KeyCode.PAGE_DOWN -> if (open) moveSelection(PAGE_SIZE)
+            KeyCode.PAGE_UP -> if (open) moveSelection(-CompletionUiState.MAX_VISIBLE_ROWS)
+            KeyCode.PAGE_DOWN -> if (open) moveSelection(CompletionUiState.MAX_VISIBLE_ROWS)
             KeyCode.ENTER, KeyCode.TAB -> if (open) accept()
             else -> return false
         }
@@ -272,9 +281,6 @@ internal class DefaultCompletionSessionModel(
 
     private companion object {
         const val ACCEPT_ID = "editor.completion.accept"
-
-        /** Rows moved by Page Up/Down: the popup shows at most 12 rows (spec §7.2). */
-        const val PAGE_SIZE = 12
 
         val logger: Logger = LoggerFactory.getLogger(DefaultCompletionSessionModel::class.java)
     }

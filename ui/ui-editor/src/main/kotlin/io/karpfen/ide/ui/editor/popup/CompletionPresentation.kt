@@ -7,6 +7,7 @@ import androidx.compose.ui.text.withStyle
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.lang.HighlightStyle
+import io.karpfen.ide.ui.editor.model.completion.CompletionUiState
 
 /**
  * The kind badge of a completion row (spec §7.2): a short [text], an accessible [description], and the highlight
@@ -54,8 +55,8 @@ internal object CompletionText {
 
 /**
  * Measures of the completion list in px (pure): rows of [rowHeight], monospace characters [charWidth] wide. The list
- * shows at most [MAX_VISIBLE_ROWS] rows (spec §7.2) and is as wide as its longest row (badge, label, detail), within
- * [minWidth] and [maxWidth].
+ * shows at most [CompletionUiState.MAX_VISIBLE_ROWS] rows (spec §7.2; the model pages by as many) and is as wide as
+ * its longest row (badge, label, detail), within [minWidth] and [maxWidth].
  */
 internal data class CompletionListMetrics(
     val rowHeight: Int,
@@ -66,8 +67,8 @@ internal data class CompletionListMetrics(
     val rowChrome: Int,
 ) {
 
-    /** The list's height for [itemCount] items: at most [MAX_VISIBLE_ROWS] rows. */
-    fun height(itemCount: Int): Int = rowHeight * itemCount.coerceIn(0, MAX_VISIBLE_ROWS)
+    /** The list's height for [itemCount] items: at most [CompletionUiState.MAX_VISIBLE_ROWS] rows. */
+    fun height(itemCount: Int): Int = rowHeight * itemCount.coerceIn(0, CompletionUiState.MAX_VISIBLE_ROWS)
 
     /** The list's width for [items]: the longest label plus detail (with a gap of [DETAIL_GAP_CHARS]), clamped. */
     fun width(items: List<CompletionItem>): Int {
@@ -76,9 +77,6 @@ internal data class CompletionListMetrics(
     }
 
     companion object {
-        /** The most rows the list shows at once (spec §7.2). */
-        const val MAX_VISIBLE_ROWS: Int = 12
-
         /** Characters of space between a label and its detail. */
         const val DETAIL_GAP_CHARS: Int = 3
     }

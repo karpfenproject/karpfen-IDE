@@ -7,6 +7,7 @@ import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.ui.editor.model.completion.CompletionUiState
 import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -55,6 +56,7 @@ class PopupPresentationTest {
         assertEquals(60, metrics.height(3))
         assertEquals(240, metrics.height(12))
         assertEquals(240, metrics.height(500))
+        assertEquals(20 * CompletionUiState.MAX_VISIBLE_ROWS, metrics.height(500), "as many rows as Page Up/Down move")
         assertEquals(200, metrics.width(listOf(item("a"))), "minimum width")
         assertEquals(40 + (20 + 3 + 10) * 8, metrics.width(listOf(item("a"), item("x".repeat(20), detail = "y".repeat(10)))))
         assertEquals(600, metrics.width(listOf(item("x".repeat(500)))), "maximum width")

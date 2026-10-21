@@ -123,7 +123,7 @@ private fun CompletionList(
                 CompletionRow(item, index, index == state.selectedIndex, state.filterText, rowHeight, theme, textStyle, onSelect, onAccept)
             }
         }
-        if (state.items.size > CompletionListMetrics.MAX_VISIBLE_ROWS) {
+        if (state.items.size > CompletionUiState.MAX_VISIBLE_ROWS) {
             VerticalScrollbar(rememberScrollbarAdapter(listState), Modifier.align(Alignment.CenterEnd).fillMaxHeight())
         }
     }
