@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -42,6 +43,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.dialog.DialogButton
+import io.karpfen.ide.ui.workbench.dialog.DialogFocusOrder
 import io.karpfen.ide.ui.workbench.dialog.DialogPresentation
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
@@ -50,7 +52,8 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
  * Renders the pending [request] as a modal dialog and reports the answer through [onRespond]; it offers exactly the
  * answers the request accepts (`DialogRequest.accepts`), as decided by [DialogPresentation]. Drawn over the workbench
  * with a scrim that swallows pointer input; Enter presses the default button, Escape dismisses. A text field (rename,
- * new file) starts focused with its text selected.
+ * new file) starts focused with its text selected; Tab and Shift+Tab cycle through the dialog's focus stops
+ * ([DialogFocusOrder]) and never leave it. [ModalDialogLayer] keeps the focus out of the workbench behind it.
  */
 @Composable
 internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResponse) -> Unit) {
@@ -60,7 +63,12 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         val initial = presentation.input.orEmpty()
         mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length)))
     }
-    val focus = remember(request) { FocusRequester() }
+    val stops = remember(request) { List(presentation.buttons.size + 1) { FocusRequester() } }
+    val order = DialogFocusOrder.of(presentation, text.text)
+    fun Modifier.focusStop(stop: Int): Modifier = focusRequester(stops[stop]).focusProperties {
+        next = stops[order.next(stop)]
+        previous = stops[order.previous(stop)]
+    }
     fun press(button: DialogButton) {
         presentation.responseFor(button.choice, text.text)?.let(onRespond)
     }
@@ -87,7 +95,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                         else -> false
                     }
                 }
-                .then(if (presentation.input == null) Modifier.focusRequester(focus).focusable() else Modifier),
+                .then(if (presentation.input == null) Modifier.focusStop(0).focusable() else Modifier),
         ) {
             Text(presentation.title, color = colors.text, style = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold))
             Spacer(Modifier.height(8.dp))
@@ -98,14 +106,14 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                     value = text,
                     onValueChange = { text = it },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().focusRequester(focus).testTag(WorkbenchDialogTestTags.INPUT),
+                    modifier = Modifier.fillMaxWidth().focusStop(0).testTag(WorkbenchDialogTestTags.INPUT),
                 )
             }
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                presentation.buttons.forEach { button ->
+                presentation.buttons.forEachIndexed { index, button ->
                     val enabled = presentation.responseFor(button.choice, text.text) != null
-                    val tagged = Modifier.testTag(WorkbenchDialogTestTags.button(button.label))
+                    val tagged = Modifier.testTag(WorkbenchDialogTestTags.button(button.label)).focusStop(index + 1)
                     if (button.isDefault) {
                         Button(onClick = { press(button) }, enabled = enabled, modifier = tagged) { Text(button.label) }
                     } else {
@@ -115,5 +123,5 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
             }
         }
     }
-    LaunchedEffect(request) { focus.requestFocus() }
+    LaunchedEffect(request) { stops.first().requestFocus() }
 }

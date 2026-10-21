@@ -15,7 +15,7 @@ import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
 import io.karpfen.ide.ui.editor.theme.lightEditorTheme
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
-import io.karpfen.ide.ui.workbench.dialog.view.WorkbenchDialogs
+import io.karpfen.ide.ui.workbench.dialog.view.ModalDialogLayer
 import io.karpfen.ide.ui.workbench.layout.isDark
 import io.karpfen.ide.ui.workbench.outline.view.OutlineView
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsView
@@ -34,6 +34,7 @@ import java.nio.file.Path
  * `onFixedSizeChange = { layout.resizeToolWindow(id, it.value) }`; PROJECT is the FIRST pane, OUTLINE and PROBLEMS the
  * SECOND). Renders [state]'s sub-states (each feature's view from its `view` package) and calls its non-suspending
  * intents and the sub-states' public UI intents; contains no business logic and launches no coroutines for intents.
+ * The pending dialog is modal for the pointer and the keyboard ([ModalDialogLayer]).
  */
 @Composable
 public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
@@ -43,7 +44,7 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
         CompositionLocalProvider(LocalEditorTheme provides if (dark) darkEditorTheme() else lightEditorTheme()) {
             val workspace by state.workspace.collectAsState()
             val dialog by state.dialogs.current.collectAsState()
-            Box(modifier.fillMaxSize().background(KarpfenTheme.colors.window)) {
+            ModalDialogLayer(dialog, state.dialogs::respond, modifier.fillMaxSize().background(KarpfenTheme.colors.window)) {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         if (workspace == null) {
@@ -67,7 +68,6 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
                     val status by state.statusBar.state.collectAsState()
                     WorkbenchStatusBar(status)
                 }
-                WorkbenchDialogs(dialog, state.dialogs::respond)
             }
         }
     }
