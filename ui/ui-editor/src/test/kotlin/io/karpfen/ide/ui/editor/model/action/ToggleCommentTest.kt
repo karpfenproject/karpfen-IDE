@@ -1,12 +1,18 @@
 package io.karpfen.ide.ui.editor.model.action
 
+import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.fixtures.Examples
+import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.TextRange
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Toggle comment: `//`, and `#` per line inside EVAL bodies by `embeddedRegionAt` (spec §7.1, decision 27). */
+/**
+ * Toggle comment: `//`, and `#` per line inside EVAL bodies by `embeddedRegionAt` (spec §7.1, decision 27) whose
+ * `EVAL {` line lies above the block (decision 57); EVAL bodies come from the real KStates tokenizer.
+ */
 class ToggleCommentTest {
 
     private val lines = listOf(
@@ -113,12 +119,56 @@ class ToggleCommentTest {
     }
 
     @Test
-    fun `a selection across the EVAL line mixes markers per line`() {
+    fun `a selection holding the EVAL line comments the body with slashes as well`() {
         val editor = editorAt(2)
         val snapshot = editor.text.snapshot.value
         editor.caret.select(snapshot.offsetOf(2, 0), snapshot.offsetOf(3, 99))
-        assertEquals(expect(2 to "        // EVAL {", 3 to "        #     x = 1"), toggledLines(editor))
+        assertEquals(
+            expect(2 to "        // EVAL {", 3 to "        //     x = 1"),
+            toggledLines(editor),
+            "once its EVAL line is a comment, the body is no Python any more",
+        )
+        editor.run(EditorActionIds.TOGGLE_COMMENT)
+        assertEquals(kstates, editor.plain)
     }
+
+    @Test
+    fun `a selection from an EVAL body opened above it keeps # for the body and slashes after it`() {
+        val editor = editorAt(6)
+        val snapshot = editor.text.snapshot.value
+        editor.caret.select(snapshot.offsetOf(6, 0), snapshot.offsetOf(8, 99))
+        assertEquals(
+            expect(6 to "    #         y = 2", 7 to "    #     }", 8 to "    // }"),
+            toggledLines(editor),
+            "the body's closing brace still closes it",
+        )
+        editor.run(EditorActionIds.TOGGLE_COMMENT)
+        assertEquals(kstates, editor.plain)
+    }
+
+    @Test
+    fun `commenting out a macro with a multi-line EVAL keeps the file valid and toggling again restores it`() {
+        val machine = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text
+        val editor = TestEditor(machine, tokensOf = ::evalBodies)
+        val snapshot = editor.text.snapshot.value
+        val first = snapshot.lineIndex.lineOf(machine.indexOf("MACRO \"circular_bounding_box_distance\" {"))
+        val last = first + 12
+        assertEquals("        }", snapshot.lineText(last), "the macro's 13 lines")
+        assertEquals(listOf(), syntaxErrors(machine))
+        editor.caret.select(snapshot.lineIndex.lineStart(first), snapshot.lineIndex.lineEnd(last))
+
+        editor.run(EditorActionIds.TOGGLE_COMMENT)
+        val commented = editor.plain.split("\n").subList(first, last + 1)
+        assertTrue(commented.all { it.trimStart().startsWith("// ") }, commented.joinToString("\n"))
+        assertEquals(listOf(), syntaxErrors(editor.plain), "the commented-out macro is a karpfen comment")
+
+        editor.run(EditorActionIds.TOGGLE_COMMENT)
+        assertEquals(machine, editor.plain, "toggling again restores the macro")
+    }
+
+    private fun syntaxErrors(text: String): List<String> =
+        defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).parser.parse(TestEditor(text).text.snapshot.value)
+            .syntaxDiagnostics.map { it.message }
 
     @Test
     fun `without embedded regions every line gets slashes`() {

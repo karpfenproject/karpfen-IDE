@@ -1,8 +1,9 @@
 package io.karpfen.ide.ui.editor.model.action
 
+import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.EditableText
-import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.caret.Caret
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
@@ -177,29 +178,10 @@ class RecordingUiPort : EditorUiPort {
 }
 
 /**
- * Hand-built tokens for KStates test texts: no tokens, and the content of every `EVAL {…}` body (brace-balanced, to
- * the end of the text when unclosed) as embedded region — what the KStates tokenizer publishes.
+ * The tokens of a KStates test text from the registry's KStates tokenizer, whose embedded regions are the EVAL bodies
+ * of the one scanner (`EvalBodies`): a body opens only at an `EVAL {` that is code, so a commented-out `// EVAL {`
+ * opens none, exactly as in the editor.
  */
-fun evalBodies(snapshot: TextSnapshot): TokenizeResult {
-    val text = snapshot.text
-    val regions = ArrayList<TextRange>()
-    var from = 0
-    while (true) {
-        val eval = text.indexOf("EVAL", from)
-        if (eval < 0) break
-        val open = text.indexOf('{', eval)
-        if (open < 0) break
-        var depth = 1
-        var index = open + 1
-        while (index < text.length && depth > 0) {
-            when (text[index]) {
-                '{' -> depth++
-                '}' -> depth--
-            }
-            if (depth > 0) index++
-        }
-        regions += TextRange(open + 1, index.coerceAtMost(text.length))
-        from = index
-    }
-    return TokenizeResult(snapshot.version, emptyList(), emptyList(), regions)
-}
+fun evalBodies(snapshot: TextSnapshot): TokenizeResult = KSTATES_TOKENIZER.tokenize(snapshot)
+
+private val KSTATES_TOKENIZER = defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).tokenizer

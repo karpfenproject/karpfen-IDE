@@ -32,10 +32,14 @@ internal class LineAction(private val operation: LineOperation) : EditorAction {
 
 /**
  * Toggles `//` line comments; inside an EVAL body `#` (there `//` is a karpfen comment, spec §7.1). Decided per line:
- * a line is inside an EVAL body iff `context.tokens.embeddedRegionAt(o)` is non-null for `o` = the offset of its first
- * non-blank character (its start when blank). So the `EVAL {` line itself gets `//`, the body's lines (blank lines,
- * lines holding only a comment and the line of the closing `}` included) get `#`. The context's tokens always belong to
- * the current text (`EditorActionContext.tokens`), so the decision holds right after an edit, too.
+ * a line gets `#` iff `context.tokens.embeddedRegionAt(o)` is a body whose opening brace lies before the toggled block
+ * (its content starts at or before the block's first line), for `o` = the offset of its first non-blank character (its
+ * start when blank). So the `EVAL {` line itself gets `//`, the body's lines (blank lines, lines holding only a comment
+ * and the line of the closing `}` included) get `#` — unless the block holds the `EVAL {` line as well: commenting that
+ * line out ends the body, so its lines are no Python any more and get `//` like it (a `#` outside a body is no
+ * comment, and the next toggle would not recognize it). The context's tokens always belong to the current text
+ * (`EditorActionContext.tokens`), so the decision holds right after an edit, too, and the next toggle decides the same
+ * markers on the commented text, which makes toggling twice restore the block.
  *
  * The edits themselves are [LineComments]: uncomment when every non-blank line of the block starts with its marker,
  * comment otherwise.
@@ -45,8 +49,16 @@ internal class ToggleCommentAction : EditorAction {
 
     override fun execute(context: EditorActionContext): Boolean {
         val tokens = context.tokens
-        val markerFor = { offset: Int -> if (tokens.embeddedRegionAt(offset) != null) "#" else "//" }
-        return LineComments(markerFor, EditorActionTitles.of(id)).execute(context)
+        val markers = CommentMarkers { offset, blockStart ->
+            val body = tokens.embeddedRegionAt(offset)
+            if (body != null && body.start <= blockStart) PYTHON_COMMENT else KARPFEN_COMMENT
+        }
+        return LineComments(markers, EditorActionTitles.of(id)).execute(context)
+    }
+
+    private companion object {
+        const val KARPFEN_COMMENT = "//"
+        const val PYTHON_COMMENT = "#"
     }
 }
 
