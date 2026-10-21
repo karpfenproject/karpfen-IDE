@@ -37,11 +37,6 @@ class QuotedNameErrorLocatorTest {
         ),
     )
 
-    private fun locate(message: String): String {
-        val range = locator.locate(message, snapshot, index)
-        return text.substring(range.start, range.end)
-    }
-
     @Test
     fun `a message naming 'Vector' points at the first quoted Vector`() {
         assertEquals(inner("Vector"), locator.locate("Unknown target class type 'Vector' for property", snapshot, index))
@@ -49,9 +44,10 @@ class QuotedNameErrorLocatorTest {
     }
 
     @Test
-    fun `the first symbol in document order wins, whatever the message order`() {
-        assertEquals("Robot", locate("Unknown property 'target' for class type 'Robot'"))
+    fun `the name quoted first is the subject, whatever the document order`() {
+        assertEquals(inner("target"), locator.locate("Unknown property 'target' for class type 'Robot'", snapshot, index))
         assertEquals(inner("target"), locator.locate("Unknown property 'target' in 'Nowhere'", snapshot, index))
+        assertEquals(inner("Robot"), locator.locate("Unknown class type 'Nowhere' for 'Robot'", snapshot, index), "a name of no symbol is skipped")
     }
 
     @Test

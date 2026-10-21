@@ -83,7 +83,7 @@ class DefaultDslConverterTest {
     }
 
     @Test
-    fun `a model with an unknown property is located at the first symbol the message names`() {
+    fun `a model with an unknown property is located at the key the message names first`() {
         val metamodelSource = TextSnapshot("type \"Point\" \"p\" {\n    prop(\"x\", \"number\")\n}", 0)
         val metamodel = converter.kmeta(metamodelSource, kmetaIndex(metamodelSource)).value!!
         val text = "make object \"origin\":\"Point\" {\n    prop(\"x\") -> \"0\"\n    prop(\"z\") -> \"1\"\n}"
@@ -94,7 +94,7 @@ class DefaultDslConverterTest {
         assertNull(conversion.value)
         val diagnostic = conversion.diagnostics.single()
         assertTrue("'z'" in diagnostic.message, diagnostic.message)
-        assertEquals("origin", text.substring(diagnostic.range.start, diagnostic.range.end), "the first quoted symbol in document order")
+        assertEquals(TextRange.ofLength(text.indexOf("\"z\"") + 1, 1), diagnostic.range, "the offending key, not the object")
     }
 
     @Test
