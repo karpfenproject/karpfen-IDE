@@ -201,22 +201,22 @@ internal object EvalBodies {
         while (p < limit) {
             val char = text[p]
             p += when {
-                KarpfenSyntax.isIdentifierChar(char) || isBlank(char) -> 1
-                char == '-' && p + 1 < limit && text[p + 1] == '>' -> 2
+                KarpfenSyntax.isIdentifierChar(char) || KarpfenSyntax.isBlank(char) -> 1
+                KarpfenSyntax.isPathSeparatorAt(text, p, limit) -> KarpfenSyntax.MODEL_PATH_SEPARATOR.length
                 else -> break
             }
         }
         val closed = p < limit && text[p] == ')'
         var innerEnd = p
-        while (innerEnd > afterParen && isBlank(text[innerEnd - 1])) innerEnd--
+        while (innerEnd > afterParen && KarpfenSyntax.isBlank(text[innerEnd - 1])) innerEnd--
         var innerStart = afterParen
-        while (innerStart < innerEnd && isBlank(text[innerStart])) innerStart++
+        while (innerStart < innerEnd && KarpfenSyntax.isBlank(text[innerStart])) innerStart++
         val end = if (closed) p + 1 else maxOf(innerEnd, afterParen)
         return EmbeddedPiece(
             range = TextRange(dollar, end),
             kind = EmbeddedKind.PATH_REFERENCE,
             inner = TextRange(innerStart, innerEnd),
-            name = text.substring(innerStart, innerEnd).filterNot(::isBlank),
+            name = KarpfenSyntax.normalizeModelPath(text.substring(innerStart, innerEnd)),
             closed = closed,
         )
     }
@@ -245,7 +245,7 @@ internal object EvalBodies {
 
     private fun trimEnd(text: String, start: Int, end: Int): Int {
         var i = end
-        while (i > start && isBlank(text[i - 1])) i--
+        while (i > start && KarpfenSyntax.isBlank(text[i - 1])) i--
         return i
     }
 
@@ -276,6 +276,4 @@ internal object EvalBodies {
 
     private fun clip(range: TextRange, limit: Int): TextRange =
         TextRange(minOf(range.start, limit), minOf(range.end, limit))
-
-    private fun isBlank(char: Char): Boolean = char == ' ' || char == '\t'
 }

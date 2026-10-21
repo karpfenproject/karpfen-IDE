@@ -20,6 +20,12 @@ public object KarpfenSyntax {
     /** The KStates operations whose second argument is a relation of the type their first argument (a path) names. */
     public val KSTATES_RELATION_OPERATIONS: Set<String> = setOf("SETOBJ", "APPENDOBJ")
 
+    /** The KStates operations that take a path only (`DROPLIST("p")`); the others take a value after their path. */
+    public val KSTATES_UNARY_OPERATIONS: Set<String> = setOf("DROPLIST", "DROPOBJ")
+
+    /** The separator of model-path segments (`self -> room -> robot`). */
+    public const val MODEL_PATH_SEPARATOR: String = "->"
+
     /** The KStates keywords that open an action block (`EVENT` is an operation there), by their upper-case names. */
     public val KSTATES_ACTION_BLOCKS: Set<String> = setOf("ENTRY", "DO", "IF", "WITH")
 
@@ -38,4 +44,18 @@ public object KarpfenSyntax {
      */
     public fun isIdentifierChar(char: Char): Boolean =
         char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' || char == '_'
+
+    /** True for the blanks inside a line, space and tab; a model path may contain them around its segments. */
+    public fun isBlank(char: Char): Boolean = char == ' ' || char == '\t'
+
+    /** True if a [MODEL_PATH_SEPARATOR] starts at [index] of [text] and ends before [limit]. */
+    public fun isPathSeparatorAt(text: CharSequence, index: Int, limit: Int = text.length): Boolean =
+        index >= 0 && index + MODEL_PATH_SEPARATOR.length <= minOf(limit, text.length) &&
+            text.startsWith(MODEL_PATH_SEPARATOR, index)
+
+    /**
+     * A model path as `SymbolReference.name` spells it and the path resolvers read it: without blanks (`a -> b` →
+     * `a->b`), so the tree walkers, the EVAL scanner and core-lang name every path alike.
+     */
+    public fun normalizeModelPath(path: String): String = path.filterNot(::isBlank)
 }

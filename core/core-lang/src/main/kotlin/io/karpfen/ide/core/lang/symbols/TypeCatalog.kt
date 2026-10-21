@@ -120,6 +120,12 @@ public enum class MemberKind(public val keyword: String) {
 
     /** `knows(…)` (reference). */
     KNOWS("knows"),
+    ;
+
+    public companion object {
+        /** The kind declared with [keyword] (`prop`, `has`, `knows`), or null for any other word. */
+        public fun ofKeyword(keyword: String): MemberKind? = entries.firstOrNull { it.keyword == keyword }
+    }
 }
 
 /**

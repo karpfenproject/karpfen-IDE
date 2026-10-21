@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.modelpath
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
 /** The vocabulary of model paths (spec §5). */
@@ -10,11 +11,8 @@ internal object PathSyntax {
     /** The root segment naming the event in scope; also the type name of an undetermined event. */
     const val EVENT: String = "event"
 
-    /** The segment separator. */
-    const val SEPARATOR: String = "->"
-
-    /** True for the blanks a path may contain around its segments. */
-    fun isBlank(char: Char): Boolean = char == ' ' || char == '\t'
+    /** The segment separator ([KarpfenSyntax.MODEL_PATH_SEPARATOR]). */
+    const val SEPARATOR: String = KarpfenSyntax.MODEL_PATH_SEPARATOR
 }
 
 /** A segment of a model path as written: its [name] (blanks removed) and the [range] of its text (blanks trimmed). */
@@ -31,12 +29,12 @@ internal fun pathSegments(text: String, range: TextRange): List<PathSegment> {
     var segmentStart = start
     var i = start
     while (i <= end) {
-        val atSeparator = i + 1 < end && text[i] == '-' && text[i + 1] == '>'
+        val atSeparator = KarpfenSyntax.isPathSeparatorAt(text, i, end)
         if (i == end || atSeparator) {
             segments += segmentOf(text, segmentStart, i)
             if (i == end) break
-            segmentStart = i + 2
-            i += 2
+            segmentStart = i + SEPARATOR_LENGTH
+            i += SEPARATOR_LENGTH
         } else {
             i++
         }
@@ -53,10 +51,12 @@ internal fun List<PathSegment>.pathOf(count: Int): String = take(count).joinToSt
 private fun segmentOf(text: String, from: Int, to: Int): PathSegment {
     var start = from
     var end = to
-    while (start < end && PathSyntax.isBlank(text[start])) start++
-    while (end > start && PathSyntax.isBlank(text[end - 1])) end--
-    return PathSegment(text.substring(start, end).filterNot(PathSyntax::isBlank), TextRange(start, end))
+    while (start < end && KarpfenSyntax.isBlank(text[start])) start++
+    while (end > start && KarpfenSyntax.isBlank(text[end - 1])) end--
+    return PathSegment(KarpfenSyntax.normalizeModelPath(text.substring(start, end)), TextRange(start, end))
 }
+
+private val SEPARATOR_LENGTH = PathSyntax.SEPARATOR.length
 
 /**
  * The segments of a model-path reference ([path] as `SymbolReference.name` spells it, without blanks, at [range]): read

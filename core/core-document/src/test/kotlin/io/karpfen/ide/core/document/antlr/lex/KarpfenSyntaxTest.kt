@@ -7,6 +7,7 @@ import io.karpfen.ide.core.document.syntax.TokenKind
 import kstates.KstatesLexer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** [KarpfenSyntax], the one home of the lexical facts other layers read, checked against the generated lexers. */
@@ -34,6 +35,22 @@ class KarpfenSyntaxTest {
 
         assertTrue(keywords.containsAll(blocks.flatten()), "not keywords: ${blocks.flatten() - keywords}")
         assertEquals(blocks.sumOf { it.size }, blocks.flatten().toSet().size, "a keyword opens one kind of block")
+    }
+
+    @Test
+    fun `model paths are named without blanks and split at the separator`() {
+        assertEquals("self->room->robot", KarpfenSyntax.normalizeModelPath(" self ->\troom-> robot "))
+        assertTrue(KarpfenSyntax.isPathSeparatorAt("a->b", 1))
+        assertFalse(KarpfenSyntax.isPathSeparatorAt("a->b", 1, limit = 2), "the separator must end before the limit")
+        assertFalse(KarpfenSyntax.isPathSeparatorAt("a-b", 1))
+        assertFalse(KarpfenSyntax.isPathSeparatorAt("a-", 1))
+        assertEquals(listOf(true, true, false, false), listOf(' ', '\t', '\n', '\r').map(KarpfenSyntax::isBlank))
+    }
+
+    @Test
+    fun `the unary and relation operations are disjoint operations`() {
+        assertTrue(KarpfenSyntax.KSTATES_OPERATIONS.containsAll(KarpfenSyntax.KSTATES_UNARY_OPERATIONS))
+        assertTrue(KarpfenSyntax.KSTATES_UNARY_OPERATIONS.none { it in KarpfenSyntax.KSTATES_RELATION_OPERATIONS })
     }
 
     @Test

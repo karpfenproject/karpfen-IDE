@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.context
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.SyntaxToken
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.document.syntax.TokenizeResult
@@ -21,7 +22,7 @@ internal object EmbeddedLocator {
         }
         return EmbeddedContext(
             bodyRange = body,
-            pathPrefix = path?.let { view.text.substring(it.range.start + 2, caret).filterNot(::isBlank) },
+            pathPrefix = path?.let { KarpfenSyntax.normalizeModelPath(view.text.substring(it.range.start + 2, caret)) },
             macroPrefix = macro?.let { view.text.substring(it.range.start + 1, caret) },
         )
     }
@@ -31,6 +32,4 @@ internal object EmbeddedLocator {
         val end = if (closed) token.range.end - 1 else token.range.end
         return caret >= token.range.start + 2 && caret <= end
     }
-
-    private fun isBlank(char: Char): Boolean = char == ' ' || char == '\t'
 }

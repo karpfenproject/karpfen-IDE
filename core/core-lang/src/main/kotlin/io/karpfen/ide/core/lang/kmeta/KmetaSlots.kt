@@ -57,10 +57,11 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
             val range = if (string.closed) string.contentRange else context.replaceRange
             val name = document.text.substring(range)
             val afterTypeKeyword = context.statement.lastOrNull()?.let { it.kind == TokenKind.KEYWORD && it.text == TYPE } == true
+            val member = call?.takeIf { it.argumentIndex == 0 }?.let { MemberKind.ofKeyword(it.name) }
             return when {
                 call == null && afterTypeKeyword -> KmetaSlot.TypeName(name, range)
                 call == null -> KmetaSlot.None
-                call.name in RULES && call.argumentIndex == 0 -> KmetaSlot.MemberName(owner, RULES.getValue(call.name), name, range)
+                member != null -> KmetaSlot.MemberName(owner, member, name, range)
                 else -> typeArgument(call, name, range, inString = true) ?: KmetaSlot.None
             }
         }
@@ -74,12 +75,13 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
 
     private fun typeArgument(call: CallContext, name: String, range: TextRange, inString: Boolean): KmetaSlot.TypeArgument? {
         val rule = when {
-            call.name in RULES && call.argumentIndex == 1 -> call.name
+            MemberKind.ofKeyword(call.name) != null && call.argumentIndex == 1 -> call.name
             // `list("…")`: primitives inside `prop(`, types inside `has(`/`knows(` and wherever the rule is unknown.
-            call.name == LIST && call.argumentIndex == 0 -> call.parent?.takeIf { it.name in RULES && it.argumentIndex == 1 }?.name
+            call.name == LIST && call.argumentIndex == 0 -> call.parent?.takeIf { MemberKind.ofKeyword(it.name) != null && it.argumentIndex == 1 }?.name
             else -> return null
         }
-        return KmetaSlot.TypeArgument(rule == PROP, name, range, inString, listAllowed = call.name != LIST)
+        val isProperty = rule?.let(MemberKind::ofKeyword) == MemberKind.PROPERTY
+        return KmetaSlot.TypeArgument(isProperty, name, range, inString, listAllowed = call.name != LIST)
     }
 
     /** The name `N` of a `type "N" "D"` block header, or null for other headers. */
@@ -90,8 +92,6 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
 
     private companion object {
         const val TYPE = "type"
-        const val PROP = "prop"
         const val LIST = "list"
-        val RULES = mapOf(PROP to MemberKind.PROPERTY, "has" to MemberKind.HAS, "knows" to MemberKind.KNOWS)
     }
 }

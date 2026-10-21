@@ -48,7 +48,7 @@ internal class KstatesActionWalker(
             val source = arguments.getOrNull(0)
             references.modelPath(source)
             if (operation != null && KstatesParser.VOCABULARY.getSymbolicName(operation) in KarpfenSyntax.KSTATES_RELATION_OPERATIONS) {
-                val qualifier = source?.let { KstatesReferences.normalizePath(it.value) }
+                val qualifier = source?.let { KarpfenSyntax.normalizeModelPath(it.value) }
                 collector.reference(ReferenceKind.RELATION_KEY, arguments.getOrNull(1), qualifier, SemanticKind.PROPERTY_NAME)
             }
         }

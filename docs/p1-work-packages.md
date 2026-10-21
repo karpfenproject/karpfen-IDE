@@ -1050,6 +1050,15 @@ Added by the review fixes of the core group (r2):
     (`EVENT` as an operation) and completion (action snippets) agree on every block, also in broken text such as
     `WITH MACRO {` or `IF IN SCOPE(STATE) {`. `LexicalFactsTest` rejects a second list of the block keywords.
 
+61. **The rest of the lexical facts move home** (completes decision 53): `KarpfenSyntax` also declares the model-path
+    syntax (`MODEL_PATH_SEPARATOR`, `isBlank`, `isPathSeparatorAt`, `normalizeModelPath`, the one spelling of
+    `SymbolReference.name` for paths) and the unary operations (`KSTATES_UNARY_OPERATIONS`). The EVAL path scanner
+    (CONTRACT `EvalBodies.kt`, implementation only), the KStates walkers (`KstatesReferences.normalizePath` is gone),
+    core-lang's `EmbeddedLocator`, `PathSyntax` and `ModelPathResolver` read them; the action snippets are built from
+    `KSTATES_OPERATIONS`, shaped by arity (unary, relation, else path and value), so a new operation is offered;
+    `MemberKind.ofKeyword` replaces the keyword maps of `KmetaSlots` and `KmodelSlots`. `LexicalFactsTest` checks
+    each fact against its home (`KarpfenSyntax`, `MemberKind` in `TypeCatalog`).
+
 ## 7. Review findings not adopted
 
 1. **A core-lang-owned `ProjectKnowledge` port instead of the workspace's `ProjectAnalysis`.** The providers need the

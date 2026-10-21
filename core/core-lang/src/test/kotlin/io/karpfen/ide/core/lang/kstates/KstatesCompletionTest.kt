@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.kstates
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.lang.LanguageDocument
 import io.karpfen.ide.core.lang.fixtures.ExamplePaths
@@ -80,6 +81,24 @@ class KstatesCompletionTest {
         assertEquals("SET", document.text.substring(item.replaceRange))
         assertEquals("SET(\"\", )", item.insertText)
         assertEquals(5, item.caretOffsetInInsert)
+    }
+
+    @Test
+    fun `every KStates operation of KarpfenSyntax is offered, shaped by its arguments`() {
+        val labels = KstatesKeywords.at(KstatesPosition.ACTIONS).map { it.label }
+        val operations = labels.filter { label -> label.substringBefore('(') in KarpfenSyntax.KSTATES_OPERATIONS }
+
+        assertEquals(KarpfenSyntax.KSTATES_OPERATIONS.toList(), operations.map { it.substringBefore('(') })
+        operations.forEach { label ->
+            val operation = label.substringBefore('(')
+            val arguments = label.count { it == ',' } + 1
+            val expected = when (operation) {
+                in KarpfenSyntax.KSTATES_UNARY_OPERATIONS -> 1
+                in KarpfenSyntax.KSTATES_RELATION_OPERATIONS -> 3
+                else -> 2
+            }
+            assertEquals(expected, arguments, label)
+        }
     }
 
     @Test

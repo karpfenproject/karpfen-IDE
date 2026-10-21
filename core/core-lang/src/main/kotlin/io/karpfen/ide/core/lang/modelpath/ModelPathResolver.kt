@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.modelpath
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.symbols.MemberInfo
 import io.karpfen.ide.core.lang.symbols.MemberKind
@@ -138,7 +139,7 @@ internal class TypePathResolver : ModelPathResolver {
     }
 
     override fun completions(prefix: String, scope: PathScope): List<PathMember> {
-        val cleaned = prefix.filterNot(PathSyntax::isBlank)
+        val cleaned = KarpfenSyntax.normalizeModelPath(prefix)
         val cut = cleaned.lastIndexOf(SEPARATOR)
         if (cut < 0) return roots(scope)
         val resolution = resolve(cleaned.substring(0, cut), scope)
@@ -188,7 +189,7 @@ internal class TypePathResolver : ModelPathResolver {
 
     /** The segments of [path] without blanks (`a -> b` → `a`, `b`); empty for a blank path. */
     private fun splitPath(path: String): List<String> {
-        val cleaned = path.filterNot(PathSyntax::isBlank)
+        val cleaned = KarpfenSyntax.normalizeModelPath(path)
         return if (cleaned.isEmpty()) emptyList() else cleaned.split(SEPARATOR)
     }
 

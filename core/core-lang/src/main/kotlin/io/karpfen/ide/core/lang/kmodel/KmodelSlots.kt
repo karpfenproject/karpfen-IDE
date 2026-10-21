@@ -58,7 +58,7 @@ internal class KmodelSlots(private val caretContexts: CaretContextDetector) {
         val string = context.string
         val statement = context.statement
         if (call != null) {
-            val kind = KEYS[call.name]?.takeIf { call.argumentIndex == 0 } ?: return KmodelSlot.None
+            val kind = MemberKind.ofKeyword(call.name)?.takeIf { call.argumentIndex == 0 } ?: return KmodelSlot.None
             if (string == null) return KmodelSlot.Key(objectType, kind, "", context.replaceRange, inString = false)
             val range = if (string.closed) string.contentRange else context.replaceRange
             return KmodelSlot.Key(objectType, kind, document.text.substring(range), range, inString = true)
@@ -104,7 +104,6 @@ internal class KmodelSlots(private val caretContexts: CaretContextDetector) {
     private companion object {
         const val MAKE = "make"
         const val OBJECT = "object"
-        val KEYS = mapOf("prop" to MemberKind.PROPERTY, "has" to MemberKind.HAS, "knows" to MemberKind.KNOWS)
 
         /** The type `T` of a `make object "k":"T"` block header, or null for other headers. */
         fun objectTypeOf(header: List<ContextToken>): String? {

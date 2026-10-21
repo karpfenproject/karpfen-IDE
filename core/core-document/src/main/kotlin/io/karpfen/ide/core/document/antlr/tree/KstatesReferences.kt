@@ -2,14 +2,15 @@ package io.karpfen.ide.core.document.antlr.tree
 
 import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SemanticKind
-import io.karpfen.ide.core.document.parse.SymbolReference
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import kstates.KstatesParser
 
 /**
  * The KStates reference rules shared by the action, transition and condition walkers (spec §3.3), so each construct is
  * recorded the same way wherever it occurs:
- * - a model-path string → MODEL_PATH reference named by the path with blanks removed (`a -> b` → `a->b`, as for
- *   `$( … )` in EVAL bodies), range inside the quotes, MODEL_PATH span;
+ * - a model-path string → MODEL_PATH reference named by the path with blanks removed
+ *   (`KarpfenSyntax.normalizeModelPath`: `a -> b` → `a->b`, as for `$( … )` in EVAL bodies), range inside the quotes,
+ *   MODEL_PATH span;
  * - `MACRO("m", args…)` → MACRO reference with a MACRO_NAME span plus a model path per argument;
  * - `EVENT("d", "n")` → EVENT_DOMAIN reference (EVENT_DOMAIN span) and EVENT_NAME reference qualified with the domain
  *   (EVENT_NAME span).
@@ -18,7 +19,9 @@ internal class KstatesReferences(private val tree: ParsedTree<*>, private val co
 
     /** Records [path] as a model path (nothing for a missing string). */
     fun modelPath(path: QuotedString?) {
-        if (path != null) collector.reference(ReferenceKind.MODEL_PATH, normalizePath(path.value), path.inner, span = SemanticKind.MODEL_PATH)
+        if (path != null) {
+            collector.reference(ReferenceKind.MODEL_PATH, KarpfenSyntax.normalizeModelPath(path.value), path.inner, span = SemanticKind.MODEL_PATH)
+        }
     }
 
     /** Records a macro call; returns the called macro's name (null if missing). */
@@ -34,10 +37,5 @@ internal class KstatesReferences(private val tree: ParsedTree<*>, private val co
     fun event(domain: QuotedString?, name: QuotedString?) {
         collector.reference(ReferenceKind.EVENT_DOMAIN, domain, span = SemanticKind.EVENT_DOMAIN)
         collector.reference(ReferenceKind.EVENT_NAME, name, qualifier = domain?.value, span = SemanticKind.EVENT_NAME)
-    }
-
-    companion object {
-        /** A model path as [SymbolReference.name] spells it: without blanks (spaces and tabs). */
-        fun normalizePath(path: String): String = path.filterNot { it == ' ' || it == '\t' }
     }
 }
