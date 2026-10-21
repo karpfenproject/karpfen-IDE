@@ -1015,23 +1015,77 @@ Added by the review fixes of the editor group (r1):
     break or a space. Tab and Shift+Tab never move focus out of the editor, also when they change nothing; the caret
     reveal's margin shrinks to what fits into a small viewport.
 
+Added by the review fixes of the editor group (r2):
+
+57. **A completion session ends with its word** (refines spec §7.1 and decision 56): an open session closes as soon as
+    anything but identifier characters lies between its request offset and the caret (`CompletionTriggers.stillHolds`,
+    the rule of an outdated request). The session end still follows text typed at it, but a space, a brace or a line
+    break typed after a keyword closes the list, so Enter and Tab after `DO {` are the editor's again (`}` on its own
+    line) and never accept a snippet whose label (`DO { }`) the filter still matched.
+58. **Toggle comment knows the block** (refines decision 27): a line gets `#` only inside an EVAL body whose opening
+    brace lies before the toggled block (`CommentMarkers.markerAt(offset, blockStart)`); a block holding the `EVAL {`
+    line comments the body with `//` like that line, because a commented opener ends the body and `#` outside a body is
+    no comment. Toggling twice thus restores any block, and the tests use the real KStates tokenizer (a commented
+    `// EVAL {` opens no body) instead of a hand-made scanner.
+59. **A completion list waits for its caret's reveal** (refines decision 56; CONTRACT `overlay/EditorOverlays.kt`):
+    `EditorOverlayHost.isCaretScrolledAway` (default `caretBounds == null`) is true only for a caret outside the
+    viewport's current scroll position with no scroll request pending; the completion slot closes a session it cannot
+    anchor only then, so the list a keystroke at a scrolled-away caret triggered appears with the reveal. An explicit
+    completion request (Ctrl+Space, the action) reveals the primary caret first (`EditorUiRequests.triggerCompletion`).
+60. **Popup state follows the text and outlives the composition**: the hover tooltip hides, and a lookup in progress is
+    dropped, on every change of the text (`HoverController` follows `text.snapshot`), not only on typing and keys.
+    `FindModel.replacement`/`setReplacement` hold the replacement next to the query (replacing that part of decision
+    54), so a new composition of the editor (switching tabs) keeps it; `FindBarFields` keeps only the selection and
+    composition of both fields. `CompletionUiState.MAX_VISIBLE_ROWS` is the one declaration of the list's 12 rows, used
+    for the popup's height and for Page Up/Down.
+61. **Display columns in batches** (refines decision 40; CONTRACT `model/caret/TabStops.kt`):
+    `TabStops.displayColumns(line, columns)` converts many ascending columns of one line in one pass, and
+    `TextGeometry.segments(ranges, lines)` converts all bounds of a line with one call, so painting find matches costs
+    O(line length + matches) per laid-out line instead of O(matches × line length); segments outside the text area's
+    width are not drawn.
+
+Added by the review fixes of the shell group (r2):
+
+62. **Dialogs are modal for the keyboard focus** (refines decision 47): `ModalDialogLayer` covers the workbench content
+    with a focus group the focus cannot enter while a dialog is shown (neither by Tab nor by a focus request) and,
+    when the dialog is gone, gives the focus back to the element that had it when the dialog took it; Tab and
+    Shift+Tab cycle through the dialog's focus stops (`DialogFocusOrder`: the text field or the dialog, then the
+    enabled buttons). Find Next/Previous from the menu request the editor's focus only while its find bar is closed
+    (refines decision 36: typed into the bar, Cmd+G keeps the focus there).
+63. **Tree intents and policy in the state** (CONTRACT `WorkbenchState`, `ProjectTreeState`; spec §1a): the project
+    tree's view only renders and forwards. `ProjectTreeState.menuFor(path)` builds a node's context menu from the tree
+    it owns; `WorkbenchState.openNode(path)` toggles a directory at once (`ProjectTreeState.isDirectory`) or opens a
+    file, and `WorkbenchState.runTreeCommand(command)` runs a `ProjectTreeCommand` through its intent. `TreeView`
+    (ui-foundation) reports every primary click on a row, also on the selected one (`onClick`): the Outline navigates
+    on clicks and on Enter, while the arrow keys only browse (a view-local selection that gives way to the caret's
+    node), so a click on the highlighted node navigates and the keys keep the focus in the Outline (spec §8 "click
+    navigates").
+64. **Shell adapters keep their ports' promises**: `defaultWorkbenchServices(…, clipboard)` creates the system clipboard
+    once and gives it to every editor (decision 55's whole-line mark between editors, headless and with a fake too);
+    `ProjectFileOperations.openExternally` fails with `IOException` only (`NoSuchFileException` for a file deleted
+    since it was shown; the desktop adapter translates `java.awt.Desktop`'s unchecked exceptions), and
+    `FolderChooser.chooseFolder` returns or throws `IOException` in every case — the AWT chooser resumes its caller
+    also when the dialog throws, which left the intent turn held (decision 42) and Save and Exit waiting forever;
+    the folder flow shows "Cannot choose a folder". The Outline anchors its nodes' ranges at the previous projection
+    (`OutlineRanges`, decision 50's remedy), so a keystroke maps each range across one version, not across every edit
+    since the last good parse. `karpfen validate` writes its report and messages in UTF-8 whatever the console's
+    encoding, and rejects an empty directory argument (`Path.of("")` is the working directory).
+
 Added by the review fixes of the core group (r2):
 
-57. **dsl-tools errors land on the offending key** (CONTRACT `DslErrorLocator.kt`, documentation only): dsl-tools
+65. **dsl-tools errors land on the offending key** (CONTRACT `DslErrorLocator.kt`, documentation only): dsl-tools
     quotes the offending key, id or type first and its context after it, so the locator takes the symbols of the name
     quoted first as candidates and ranks them by the other quoted names: inside a declaration they name (the closest
     first), qualified with a quoted name, a declaration the languages' own facts reject (a `prop` of a non-primitive
     type), then document order. Before, the first symbol in document order of any quoted name won, usually an earlier,
     valid object of the same type.
-
-58. **A descriptor role names a file of its language** (CONTRACT `ContextResolver.kt`, documentation only): a
+66. **A descriptor role names a file of its language** (CONTRACT `ContextResolver.kt`, documentation only): a
     reference to an existing file of another language than its role (metamodel and events KMeta, model KModel,
     `stateMachines[].file` KStates; bridges any) is an ERROR `descriptor-invalid` at the reference (no new code,
     decision 52). The context keeps the path, and the converter still converts a file only in its role's language
     (`DescriptorFileRole.language`, the one rule for both), so nothing depending on it converts; before, that passed
     without any finding (and `karpfen validate` exited 0). Refines decision 44, which covered broken files only.
-
-59. **What the workspace cannot read is its own finding** (replaces the CLI-only check of decision 47, so decision
+67. **What the workspace cannot read is its own finding** (replaces the CLI-only check of decision 47, so decision
     17's one problems rule holds again). CONTRACT changes: `WorkspaceDiagnosticCodes.UNREADABLE` (`unreadable`; the
     contract test now pins 8 codes), `WorkspaceNode.Directory.isReadable` (default true), `AnalysisSources.load` throws
     an `IOException` for a file that exists but cannot be read (null now only means "vanished": skipped, a rescan
@@ -1041,16 +1095,14 @@ Added by the review fixes of the core group (r2):
     formerly `descriptor-invalid`) the same way, at 1:1 without a snapshot. The Problems view, the status bar and
     `karpfen validate` (its `UnreadablePaths` is gone; the root is reported as `.`) agree. Opening a folder that cannot
     be listed shows "Cannot open folder" and leaves the recent folders, like a missing one (`FolderFlow`).
-
-60. **One KStates block rule** (completes decision 53): `KstatesBlockHeader` in core-document's `syntax` package decides
+68. **One KStates block rule** (completes decision 53): `KstatesBlockHeader` in core-document's `syntax` package decides
     which keyword introduces a brace block (the last block keyword of its header outside parentheses; `MACRO` only as a
     definition, never as a call `MACRO(`) and the kind it opens (`KstatesBlockKind`: ACTION, CONDITION, OTHER), over
     the block keywords of `KarpfenSyntax`. The tokenizer's block tracker classifies `EVENT` by it, and core-lang's
     `KstatesBlocks` reads headers by it and positions action and condition blocks by their kind, so highlighting
     (`EVENT` as an operation) and completion (action snippets) agree on every block, also in broken text such as
     `WITH MACRO {` or `IF IN SCOPE(STATE) {`. `LexicalFactsTest` rejects a second list of the block keywords.
-
-61. **The rest of the lexical facts move home** (completes decision 53): `KarpfenSyntax` also declares the model-path
+69. **The rest of the lexical facts move home** (completes decision 53): `KarpfenSyntax` also declares the model-path
     syntax (`MODEL_PATH_SEPARATOR`, `isBlank`, `isPathSeparatorAt`, `normalizeModelPath`, the one spelling of
     `SymbolReference.name` for paths) and the unary operations (`KSTATES_UNARY_OPERATIONS`). The EVAL path scanner
     (CONTRACT `EvalBodies.kt`, implementation only), the KStates walkers (`KstatesReferences.normalizePath` is gone),
@@ -1058,8 +1110,7 @@ Added by the review fixes of the core group (r2):
     `KSTATES_OPERATIONS`, shaped by arity (unary, relation, else path and value), so a new operation is offered;
     `MemberKind.ofKeyword` replaces the keyword maps of `KmetaSlots` and `KmodelSlots`. `LexicalFactsTest` checks
     each fact against its home (`KarpfenSyntax`, `MemberKind` in `TypeCatalog`).
-
-62. **A save takes its disk state from the loading rule** (completes decision 17). CONTRACT additions with defaults:
+70. **A save takes its disk state from the loading rule** (completes decision 17). CONTRACT additions with defaults:
     `SourceLoader.loadWritten(path, content, withBom)` (what `load` returns right after that write, without I/O) and
     `TextFileStore.readBack(content, withBom)` (what `read` returns after that `write`; the UTF-8 rule `Utf8Text`,
     which the file-system store reads and writes with). `DocumentSaver` names the written disk state and its FILE

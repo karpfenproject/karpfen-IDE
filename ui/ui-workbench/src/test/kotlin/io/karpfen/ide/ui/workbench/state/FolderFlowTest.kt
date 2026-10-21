@@ -116,6 +116,29 @@ class FolderFlowTest {
     }
 
     @Test
+    fun `a failing folder dialog becomes an error dialog and Save and Exit still run`() = runTest(timeout = 60.seconds) {
+        Examples.copyTo(root)
+        val file = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kmeta")
+        withWorkbench(settingsDirectory) {
+            open(root)
+            val editor = openEditor(file)
+            editor.session.text.apply(listOf(TextEdit.insert(0, "// mine\n")), EditOrigin.Typing)
+            settle()
+            folderChooser.failure = IOException("The folder dialog failed: Win32ShellFolder2")
+
+            val choose = state.chooseAndOpenFolder()
+            val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)
+
+            assertEquals("Cannot choose a folder", error.title)
+            assertEquals("The folder dialog failed: Win32ShellFolder2", error.message)
+            assertTrue(choose.isCompleted)
+            state.saveActive().joinSettled()
+            assertTrue(Files.readString(file).startsWith("// mine"), "Save ran after the failed dialog")
+            assertTrue(state.requestExit(), "exit is not blocked")
+        }
+    }
+
+    @Test
     fun `a folder that cannot be listed is an error dialog and never recent`() = runTest(timeout = 60.seconds) {
         assumeTrue(Files.getFileStore(dir).supportsFileAttributeView("posix"), "needs POSIX permissions")
         Examples.copyTo(root)

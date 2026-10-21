@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 /**
  * One source per fact (decision 46 of the work-package plan): the lexical facts of the karpfen languages that the
  * tokenizers, the language services and the editor must agree on are declared only in core-document's `KarpfenSyntax`
- * (decisions 53, 60 and 61), the member keywords only in core-lang's `MemberKind`. A second declaration could drift
+ * (decisions 53, 68 and 69), the member keywords only in core-lang's `MemberKind`. A second declaration could drift
  * unnoticed (e.g. the completion's replace range against the editor's word rule, or a path the walker names
  * differently than the resolver reads it).
  */

@@ -8,6 +8,7 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -20,7 +21,8 @@ import java.nio.file.Path
  *
  * A folder that is no longer a directory (a stale recent folder: deleted, moved, its volume unmounted) or that cannot
  * be listed (permissions, a protected folder) is checked on [ioDispatcher] before anything is closed: the open
- * workspace and its tabs stay, an error dialog says why, and the folder leaves the recent folders.
+ * workspace and its tabs stay, an error dialog says why, and the folder leaves the recent folders. A folder dialog
+ * that fails is an error dialog too.
  */
 internal class FolderFlow(
     private val scope: CoroutineScope,
