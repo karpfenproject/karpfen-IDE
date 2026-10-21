@@ -45,6 +45,10 @@ A Konsist rule enforces this (only that package may import `org.antlr..`, `kmeta
 - **Determinism**: randomized tests use fixed seeds. Time is injected (`kotlin.time.TimeSource` or a
   `() -> Long` clock) wherever behaviour depends on time (undo coalescing, debounce in tests via
   `kotlinx-coroutines-test` virtual time).
+- **No time-budget testing in test runs** (owner decision, 2026-10-22, [ADR 0011](adr/0011-time-budget-tests-are-not-run.md)):
+  a test that compares a wall-clock duration with a limit carries the JUnit tag `budget` and is excluded from every
+  test task, CI included. Machine load and sleep/wake cycles make the clock unreliable; performance tuning is a later
+  task. The budgets below are targets that such tests document, not build gates.
 
 ## 1a. Design principles (owner requirement; reviewers check these explicitly)
 
@@ -229,7 +233,8 @@ class DocumentSession(val id: DocumentId, val support: LanguageSupport, val text
 }
 ```
 
-Budgets (measured and reported in a test, asserted with 5x slack): tokenize 5,000-line KStates < 30 ms, parse < 150 ms.
+Budgets (targets; documented by `budget`-tagged tests that no test run executes, see §1): tokenize 5,000-line
+KStates < 30 ms, parse < 150 ms.
 
 ## 4. core-workspace (`io.karpfen.ide.core.workspace`)
 
@@ -373,7 +378,7 @@ signature; model path → resolved type of the path.
   hover tooltip.
 - `scrollTo(offset, center)` and caret auto-scroll keep the caret visible with a 3-line margin.
 - Performance: a headless benchmark renders a 10,000-line KStates document scrolled to the middle and reports average
-  frame time after warm-up (assert < 50 ms; report the measured value).
+  frame time after warm-up (target < 50 ms; a `budget`-tagged test, not run, see §1).
 
 ## 8. ui-workbench (`io.karpfen.ide.ui.workbench`)
 
@@ -420,7 +425,8 @@ punctuation/keywords, truncations), and a generator for a large synthetic KState
    DSL_TOOLS errors.
 3. Robustness: tokenizer, parser, outline, index, highlight, completion, definition, hover never throw on 10,000
    deterministic random mutations of the examples (and on every prefix of one KStates example).
-4. Editor model and Compose UI tests listed in §7 pass headless; benchmark numbers reported.
+4. Editor model and Compose UI tests listed in §7 pass headless. (The benchmark exists as a `budget`-tagged test and
+   is not run since ADR 0011.)
 5. `karpfen validate <examples dir>` exits 0 and prints no errors.
 6. `KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app:ide:run --args=<examples dir>` exits 0 with no ERROR in the log.
 7. `docs/p1-manual-test.md` lists a 10-minute manual smoke test for the owner (typing on a German macOS layout,

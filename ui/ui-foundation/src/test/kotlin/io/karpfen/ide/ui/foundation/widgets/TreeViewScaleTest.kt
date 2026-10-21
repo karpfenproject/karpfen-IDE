@@ -8,11 +8,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.setThemedContent
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestReporter
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -22,7 +24,8 @@ import kotlin.time.TimeSource
 
 /**
  * The [TreeView] is lazy: a large expanded tree composes only the rows near the viewport, and flattening it stays cheap.
- * Budgets are asserted with 5x slack; the measured values are written to the test report.
+ * Laziness is checked by counting composed rows. The time budgets (asserted with 5x slack, measured values written to the
+ * test report) are tagged `budget` and excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md).
  */
 @OptIn(ExperimentalTestApi::class)
 class TreeViewScaleTest {
@@ -40,28 +43,27 @@ class TreeViewScaleTest {
     @Test
     fun `a tree of ten thousand rows composes only the rows around the viewport`(reporter: TestReporter) = runComposeUiTest {
         var selected by mutableStateOf<String?>(null)
+        setBigTree(selected = { selected }, onSelect = { selected = it })
+        waitForIdle()
+
+        val composed = onAllNodes(rowTag).fetchSemanticsNodes().size
+        reporter.publishEntry("composedRows", "$composed of ${FOLDERS * (FILES + 1)} (viewport: $VISIBLE_ROWS)")
+        assertTrue(composed <= VISIBLE_ROWS * 2, "only rows near the viewport are composed: $composed")
+
+        selected = "d99/f99"
+        waitForIdle()
+        assertTrue(onAllNodes(rowTag).fetchSemanticsNodes().size <= VISIBLE_ROWS * 2, "still lazy after scrolling to the end")
+    }
+
+    @Test
+    @Tag("budget")
+    fun `the first frame and revealing the last row stay within budget`(reporter: TestReporter) = runComposeUiTest {
+        var selected by mutableStateOf<String?>(null)
         val started = TimeSource.Monotonic.markNow()
-        setThemedContent {
-            Box(Modifier.size(300.dp, 440.dp)) {
-                TreeView(
-                    roots = bigTree,
-                    expanded = allExpanded,
-                    selected = selected,
-                    onToggleExpanded = {},
-                    onSelect = { selected = it },
-                    onOpen = {},
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-        }
+        setBigTree(selected = { selected }, onSelect = { selected = it })
         waitForIdle()
         val firstFrame = started.elapsedNow()
-
-        val visibleRows = 440 / TreeViewDefaults.RowHeight.value.toInt()
-        val composed = onAllNodes(rowTag).fetchSemanticsNodes().size
-        reporter.publishEntry("composedRows", "$composed of ${FOLDERS * (FILES + 1)} (viewport: $visibleRows)")
         reporter.publishEntry("firstFrameMillis", firstFrame.inWholeMilliseconds.toString())
-        assertTrue(composed <= visibleRows * 2, "only rows near the viewport are composed: $composed")
         assertWithinBudget("first frame", firstFrame, FIRST_FRAME_BUDGET)
 
         val revealStarted = TimeSource.Monotonic.markNow()
@@ -69,11 +71,27 @@ class TreeViewScaleTest {
         waitForIdle()
         val reveal = revealStarted.elapsedNow()
         reporter.publishEntry("revealLastRowMillis", reveal.inWholeMilliseconds.toString())
-        assertTrue(onAllNodes(rowTag).fetchSemanticsNodes().size <= visibleRows * 2, "still lazy after scrolling to the end")
         assertWithinBudget("reveal", reveal, REVEAL_BUDGET)
     }
 
+    private fun ComposeUiTest.setBigTree(selected: () -> String?, onSelect: (String) -> Unit) {
+        setThemedContent {
+            Box(Modifier.size(300.dp, TREE_HEIGHT.dp)) {
+                TreeView(
+                    roots = bigTree,
+                    expanded = allExpanded,
+                    selected = selected(),
+                    onToggleExpanded = {},
+                    onSelect = onSelect,
+                    onOpen = {},
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+    }
+
     @Test
+    @Tag("budget")
     fun `flattening ten thousand expanded rows is cheap`(reporter: TestReporter) {
         repeat(WARM_UP_RUNS) { TreeRows.flatten(bigTree, allExpanded) }
         val runs = List(MEASURED_RUNS) {
@@ -95,6 +113,8 @@ class TreeViewScaleTest {
         const val FOLDERS = 100
         const val FILES = 100
         const val SLACK = 5
+        const val TREE_HEIGHT = 440
+        val VISIBLE_ROWS: Int = TREE_HEIGHT / TreeViewDefaults.RowHeight.value.toInt()
         const val WARM_UP_RUNS = 20
         const val MEASURED_RUNS = 21
         val FLATTEN_BUDGET = 5.milliseconds

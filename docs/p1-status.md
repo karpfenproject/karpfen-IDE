@@ -100,8 +100,8 @@ grep ERROR /tmp/karpfen-home/logs/ide.log         # prints nothing
 Before you use phase 1 for real work, run the **10-minute manual smoke test in [p1-manual-test.md](p1-manual-test.md)**
 on your Mac with the German input source. It covers what headless tests cannot: the native menu bar, typing with
 Option combinations, dead keys and the accent menu, real focus and mouse handling, the file watcher and quitting.
-Each module's test report is at `<module>/build/reports/tests/test/index.html`. The measured budgets are JUnit report
-entries in `<module>/build/test-results/test/*.xml`.
+Each module's test report is at `<module>/build/reports/tests/test/index.html`. Time-budget tests are no longer run
+(tag `budget`, [ADR 0011](adr/0011-time-budget-tests-are-not-run.md)); the measurements in §5 are from before that decision.
 
 ## 3. Verification environment
 
@@ -152,7 +152,8 @@ from the build cache in the composite run.
 The skipped test (`DesktopFileOperationsTest`, a case-only rename onto another file of that name) assumes a
 case-sensitive file system. On macOS it is skipped by design; the case-insensitive path is tested.
 
-Budgets of the spec (asserted with 5x slack, measured value reported):
+Budgets of the spec, measured on 2026-10-21 before [ADR 0011](adr/0011-time-budget-tests-are-not-run.md) excluded the
+`budget`-tagged tests from every test run (they are documentation for later performance work now, not gates):
 
 | Budget | Spec | Measured |
 |---|---:|---:|

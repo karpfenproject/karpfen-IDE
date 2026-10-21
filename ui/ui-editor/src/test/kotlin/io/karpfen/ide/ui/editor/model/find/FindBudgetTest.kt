@@ -1,6 +1,7 @@
 package io.karpfen.ide.ui.editor.model.find
 
 import io.karpfen.ide.core.document.fixtures.SyntheticKstates
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestReporter
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -12,7 +13,11 @@ import kotlin.time.measureTime
  * Find on a large document stays interactive: matching and expanding replacements over a 5,000-line KStates text.
  * The editor model has no budget in the spec; these are the model's own targets (incremental search recomputes on
  * every keystroke in the find field), asserted with 5x slack and reported through [TestReporter].
+ *
+ * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
+ * performance work.
  */
+@Tag("budget")
 class FindBudgetTest {
 
     private val text = SyntheticKstates.withMinLines(5000)

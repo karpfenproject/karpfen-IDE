@@ -6,6 +6,7 @@ import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.document.fixtures.SyntheticKstates
 import io.karpfen.ide.ui.editor.state.FakeLanguageServices
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestReporter
 import java.util.Locale
 import kotlin.test.Test
@@ -16,8 +17,12 @@ import kotlin.test.assertTrue
  * highlighting, scrolled to the middle; after a warm-up, every measured frame scrolls by a few lines (so new lines are
  * laid out and drawn) and is rendered into an image, which also forces the draw phase. The average frame time is
  * reported through JUnit's [TestReporter] and asserted against the budget of 50 ms with the plan's 5x slack.
+ *
+ * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
+ * performance work.
  */
 @OptIn(ExperimentalTestApi::class)
+@Tag("budget")
 class CodeEditorBenchmarkTest {
 
     @Test

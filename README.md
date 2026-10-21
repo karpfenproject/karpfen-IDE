@@ -129,6 +129,7 @@ Requirements:
 
 ```bash
 ./gradlew build                      # compile, unit tests, architecture tests, module dependency checks
+                                     # (time-budget tests, tag `budget`, are never run: docs/adr/0011)
 ./gradlew :app:ide:run               # start the IDE (empty state: Open Folder… or a recent folder)
 ./gradlew :app:ide:run --args=/path/to/folder   # start the IDE on a folder of karpfen files
 ./gradlew :tools:cli:run             # command-line tool (prints usage)

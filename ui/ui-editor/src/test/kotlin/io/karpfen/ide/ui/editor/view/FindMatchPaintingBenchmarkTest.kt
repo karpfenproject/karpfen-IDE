@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.editor.model.find.FindQuery
 import io.karpfen.ide.ui.editor.state.FakeLanguageServices
 import io.karpfen.ide.ui.editor.state.FindBarMode
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestReporter
 import java.util.Locale
 import kotlin.test.Test
@@ -19,8 +20,12 @@ import kotlin.test.assertTrue
  * find bar open over a long line full of matches, a frame takes about as long as with the bar closed. Painting used to
  * compute every match's x from the start of its line (O(matches × line length) per frame: a 40,000-character line
  * with 8,000 matches cost many times a frame without find).
+ *
+ * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
+ * performance work.
  */
 @OptIn(ExperimentalTestApi::class)
+@Tag("budget")
 class FindMatchPaintingBenchmarkTest {
 
     @Test

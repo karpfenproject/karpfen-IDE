@@ -2,6 +2,7 @@ package io.karpfen.ide.core.document.antlr.lex
 
 import io.karpfen.ide.core.document.fixtures.SyntheticKstates
 import io.karpfen.ide.core.text.TextSnapshot
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestReporter
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -11,7 +12,11 @@ import kotlin.time.TimeSource
 /**
  * The tokenize budget of spec §3.4: a 5,000-line KStates document tokenizes in < 30 ms, asserted with 5x slack; the
  * measured average after warm-up is reported through [TestReporter].
+ *
+ * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
+ * performance work.
  */
+@Tag("budget")
 class TokenizeBudgetTest {
 
     @Test

@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.text
 
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestReporter
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,7 +14,11 @@ import kotlin.time.TimeSource
 /**
  * Performance budgets of core-text on a 5,000-line document (the size of the tokenize/parse budgets of spec §3.4):
  * each is asserted with 5x slack and the measured value is reported through [TestReporter].
+ *
+ * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
+ * performance work.
  */
+@Tag("budget")
 class TextBudgetTest {
 
     private val document = buildString {

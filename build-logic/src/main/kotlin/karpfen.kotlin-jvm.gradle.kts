@@ -1,4 +1,5 @@
 import io.karpfen.ide.buildlogic.ModuleDependencyRules
+import io.karpfen.ide.buildlogic.TestTags
 import io.karpfen.ide.buildlogic.ResolvedProjectDependencies
 import io.karpfen.ide.buildlogic.VerifyModuleDependencies
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
@@ -34,8 +35,12 @@ dependencies {
     testRuntimeOnly(libs.findLibrary("junit-platform-launcher").get())
 }
 
+// Time-budget tests (JUnit tag "budget") assert wall-clock durations. Load and sleep/wake cycles make that clock
+// unreliable, and performance tuning is a later task, so no test task runs them (docs/adr/0011-time-budget-tests-are-not-run.md).
 tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags(TestTags.BUDGET)
+    }
     testLogging {
         events("failed")
         exceptionFormat = TestExceptionFormat.FULL

@@ -4,6 +4,7 @@ import io.karpfen.ide.core.document.fixtures.SyntheticKstates
 import io.karpfen.ide.core.lang.fixtures.ExamplePaths
 import io.karpfen.ide.core.lang.fixtures.ExampleProject
 import io.karpfen.ide.core.lang.fixtures.ServicesProbe
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestReporter
 import kotlin.test.Test
 import kotlin.test.assertTrue
@@ -17,7 +18,11 @@ import kotlin.time.TimeSource
  * the document. The spec sets no core-lang budget; the measured values are reported through [TestReporter] and guarded
  * by the tokenize budget of the same document size (30 ms, spec §3.4) with 5x slack, so an accidental quadratic
  * algorithm fails the build.
+ *
+ * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
+ * performance work.
  */
+@Tag("budget")
 class LanguageServicesBudgetTest {
 
     private val probe = ServicesProbe()

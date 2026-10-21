@@ -52,9 +52,10 @@ in the heading.
    `object`s, flows instead of listeners, immutable values across threads, time via `kotlin.time.TimeSource` /
    coroutine virtual time, dispatchers and file-system roots injected, SLF4J only (no `println` except CLI output),
    explicit API + KDoc on every public declaration in `core/*`, KDoc on public UI API as well.
-6. Randomized tests use fixed seeds. Budgets are asserted with 5x slack and the measured value is reported through
-   JUnit's `TestReporter` (it is written to the test report; the core test classpaths have no SLF4J binding, so SLF4J
-   output would be dropped), as the spec requires.
+6. Randomized tests use fixed seeds. Measured values are reported through JUnit's `TestReporter` (it is written to
+   the test report; the core test classpaths have no SLF4J binding, so SLF4J output would be dropped). Since decision
+   71, a test that compares a wall-clock duration with a limit carries `@Tag("budget")` and is excluded from every
+   test run; functional assertions never live in a budget test.
 7. Build files: a WP may only touch its own module's `build.gradle.kts`, and only to add **test-only** libraries
    (`testImplementation`/`testRuntimeOnly`). All production dependencies are in place. A test-only library goes
    through the version catalog like every dependency: a WP may **append** test-only entries (version + library alias)
@@ -252,7 +253,7 @@ test-only entries, rule 7), `build-logic/**`.
   where the fake returns hand-built `ParseOutcome`s (also with syntax diagnostics, to test `lastGoodParse`).
   Time: `StandardTestDispatcher` in `DocumentSessionConfig` + `runTest` virtual time.
 - **Must satisfy**: spec §3.1 (all MUST rules), §3.2, §3.4 (flows, debounce, merging) and the tokenize budget
-  (5,000-line KStates < 30 ms, asserted with 5x slack, measured value reported; use `SyntheticKstates.withMinLines(5000)`),
+  (5,000-line KStates < 30 ms; a `budget`-tagged test since decision 71, not run; use `SyntheticKstates.withMinLines(5000)`),
   §11 item 2 (zero LEXER diagnostics for every example) and item 3 for tokenizers (never throw on
   `Mutations.random(…, count = 10_000)` over the examples and on every prefix of one KStates example; token invariants
   hold on all of them). Rule from §3.1: every non-whitespace character in exactly one token — test it on all mutations.
@@ -294,7 +295,7 @@ test-only entries, rule 7), `build-logic/**`.
 - **Fakes**: none needed beyond core-text (merged). The tokenizer is not needed (first token for error location is
   derived from the text).
 - **Must satisfy**: spec §0 (ANTLR only via the adapter), §3.3 (all MUST rules), the parse budget (5,000-line KStates
-  < 150 ms, 5x slack, reported), §11 item 2 (zero PARSER diagnostics on every example; standalone conversion succeeds
+  < 150 ms; `budget`-tagged since decision 71, not run), §11 item 2 (zero PARSER diagnostics on every example; standalone conversion succeeds
   for every example `.kmeta` except `EVENTS.kmeta`, which is parsed with `SYNTAX_ONLY`, and every `.kstates`), item 3 for
   parser/outline/index (never throw on 10,000 mutations and all prefixes; `OutlineNode`/`SymbolDeclaration` invariants
   hold, i.e. clamp ranges of conjured tokens). Error location tests: a message naming `'Vector'` points at the quoted
@@ -479,7 +480,7 @@ test-only entries, rule 7), `build-logic/**`.
   dispatcher as `backgroundDispatcher` and in the editor's scope.
 - **Must satisfy**: spec §7.2 (rendering, input, mouse, scrolling, `scrollTo`) and the headless benchmark (10,000-line
   KStates via `SyntheticKstates.withMinLines(10_000)`, scrolled to the middle, average frame time after warm-up
-  < 50 ms, reported), §11 item 4 (headless Compose tests: typing incl. `performTextInput`, selection by mouse and keys,
+  < 50 ms; `budget`-tagged since decision 71, not run), §11 item 4 (headless Compose tests: typing incl. `performTextInput`, selection by mouse and keys,
   Cmd/Ctrl+click navigation, hover after 600 ms with diagnostics, scroll-to-caret). Unit tests (Compose-free, virtual
   time) of the input policy: `handleKey` routes to completion first and returns true exactly for handled strokes; the
   hover appears after `HOVER_DELAY` and is hidden on move/leave (after a grace period, kept while the pointer is on the
@@ -1118,6 +1119,16 @@ Added by the review fixes of the core group (r2):
     separator, byte order mark; `DefaultOpenDocument.knowsContentOf`), not by findings, which derive from it. So the
     save's own watch event stays a no-op for a loader with findings of its own and for a text starting with U+FEFF,
     which used to raise a false MODIFIED conflict.
+71. **Time-budget tests are written but not run** (owner decision 2026-10-22, [ADR 0011](adr/0011-time-budget-tests-are-not-run.md)).
+    The eight test classes that assert wall-clock budgets (core-text `TextBudgetTest`, core-document
+    `TokenizeBudgetTest` and `ParseBudgetTest`, core-lang `LanguageServicesBudgetTest`, ui-editor `FindBudgetTest`,
+    `CodeEditorBenchmarkTest` and `FindMatchPaintingBenchmarkTest`, ui-foundation `TreeViewScaleTest`'s timing tests)
+    carry `@Tag("budget")`; `karpfen.kotlin-jvm` excludes the tag from every `Test` task (`TestTags.BUDGET`), with no
+    opt-in switch. Functional checks moved out: the tree view's laziness stays an untagged test, and
+    `SyntheticDocumentParseTest` checks that the 5,000-line synthetic KStates document parses cleanly.
+    `BudgetTestTaggingTest` (architecture-tests) requires the tag on test code that reads the wall clock and names a
+    budget, slack or guard limit. Functional tests with generous wall-clock timeouts (watcher, folder chooser, the find
+    search that gives up at its own time limit) are not budget tests and keep running.
 
 ## 7. Review findings not adopted
 

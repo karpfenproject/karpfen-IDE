@@ -15,6 +15,7 @@ The detailed design is in the [architecture proposal](../architecture-proposal.m
 | [0008](0008-module-boundaries-enforced-by-the-build.md) | Module boundaries are enforced by the build | D7 | Accepted |
 | [0009](0009-coroutines-flow-reactive-backbone.md) | Reactive backbone: kotlinx.coroutines with Flow and StateFlow | D8 | Accepted |
 | [0010](0010-dsl-tools-resolution-modes.md) | karpfen-dsl-tools resolution: composite build or artifact | §5.1 | Accepted; partially supersedes 0003 (CI part) |
+| [0011](0011-time-budget-tests-are-not-run.md) | Time-budget tests are written but not run | owner decision, spec §3.4/§7.2/§11 | Accepted |
 
 New ADRs take the next free number. A decision is changed by a new ADR that supersedes the old one in whole or in
 part; the old ADR's status line and this index then point to the new one.
