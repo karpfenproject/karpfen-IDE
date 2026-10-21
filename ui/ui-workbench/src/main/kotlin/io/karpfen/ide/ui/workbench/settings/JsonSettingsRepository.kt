@@ -10,6 +10,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.io.IOException
+import java.nio.charset.CharacterCodingException
 import java.nio.file.Path
 import java.time.Clock
 
@@ -17,10 +18,11 @@ import java.time.Clock
  * [SettingsRepository] storing `settings.json` with kotlinx.serialization (atomic write, corrupt-file backup).
  *
  * The file I/O is [SettingsFile]'s; this class decodes, publishes and serializes the updates (one at a time, so
- * concurrent updates never lose each other's changes). A file that does not decode — invalid JSON, a wrong value type,
- * a value the [IdeSettings] invariants reject — is corrupt: it is moved aside (see [SettingsRepository]) and the
- * defaults are written in its place. Unknown keys are ignored and unknown enum values fall back to the default, so
- * older and newer files load. I/O errors are logged, never thrown.
+ * concurrent updates never lose each other's changes). A file that does not decode — text that is not UTF-8, invalid
+ * JSON, a wrong value type, a value the [IdeSettings] invariants reject — is corrupt: it is moved aside (see
+ * [SettingsRepository]) and the defaults are written in its place. Unknown keys are ignored and unknown enum values fall
+ * back to the default, so older and newer files load. I/O errors are logged, never thrown; a file that exists but
+ * cannot be read is never written over: the defaults are used until a later [load] reads it.
  */
 internal class JsonSettingsRepository(
     directory: Path,
@@ -31,6 +33,9 @@ internal class JsonSettingsRepository(
     private val file = SettingsFile(directory, clock)
     private val current = MutableStateFlow(IdeSettings())
     private val writes = Mutex()
+
+    /** True while the existing file could not be read: it holds settings we do not know, so it is not replaced. */
+    private var keepUnreadableFile = false // guarded by [writes]
 
     override val settings: StateFlow<IdeSettings>
         get() = current.asStateFlow()
@@ -49,10 +54,15 @@ internal class JsonSettingsRepository(
     }
 
     private fun read(): IdeSettings {
+        keepUnreadableFile = false
         val text = try {
             file.read() ?: return IdeSettings()
+        } catch (e: CharacterCodingException) {
+            // Read, but not UTF-8 (e.g. hand-edited and saved as Latin-1): corrupt like invalid JSON.
+            return recoverFromCorruptFile(e)
         } catch (e: IOException) {
-            logger.warn("Could not read the settings {}; using the defaults", file.path, e)
+            logger.warn("Could not read the settings {}; using the defaults and leaving the file as it is", file.path, e)
+            keepUnreadableFile = true
             return IdeSettings()
         }
         return try {
@@ -74,6 +84,10 @@ internal class JsonSettingsRepository(
     }
 
     private fun write(settings: IdeSettings) {
+        if (keepUnreadableFile) {
+            logger.debug("Not writing the settings over the unreadable {}", file.path)
+            return
+        }
         try {
             file.write(json.encodeToString(IdeSettings.serializer(), settings))
         } catch (e: IOException) {

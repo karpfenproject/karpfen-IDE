@@ -8,8 +8,10 @@ import java.time.Clock
 
 /**
  * Loads and stores [IdeSettings] (Repository pattern, spec §8) as `settings.json` in an injectable directory. A
- * corrupt file is backed up (`settings.json.corrupt-<yyyyMMdd-HHmmss>`, the time taken from the injected clock, with
- * `-2`, `-3`, … appended if that name exists) and replaced by defaults; I/O errors are logged and never thrown to the UI.
+ * corrupt file (also one that is not UTF-8) is backed up (`settings.json.corrupt-<yyyyMMdd-HHmmss>`, the time taken
+ * from the injected clock, with `-2`, `-3`, … appended if that name exists) and replaced by defaults; a file that exists
+ * but cannot be read is left as it is (the defaults are used and not written over it). I/O errors are logged and never
+ * thrown to the UI.
  */
 public interface SettingsRepository {
 
