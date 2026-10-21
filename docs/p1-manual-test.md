@@ -57,8 +57,8 @@ In `cleaning_robot.kstates`, put the caret at the end of the line `INITIAL STATE
 2. Caret inside an EVAL body (e.g. the line `distance = @point_to_point_distance(…)` in `MACRO
    "circular_bounding_box_distance"`): Cmd+Shift+7 inserts `# ` (Python comment, because `//` is a karpfen comment
    there); again removes it.
-3. Each toggle is undone by exactly one Cmd+Z. Edit ▸ Toggle Comment in the menu bar shows the shortcut ⌘/ and does
-   the same.
+3. Each toggle is undone by exactly one Cmd+Z. Edit ▸ Toggle Comment in the menu bar does the same; note how the menu
+   shows its shortcut (⌘/ or ⌘⇧7).
 
 ## 4. Completion (1.5 minutes)
 
