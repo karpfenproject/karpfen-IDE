@@ -28,7 +28,8 @@ public interface ProjectFileOperations {
     public fun createFile(directory: Path, fileName: String, content: String): Path
 
     /**
-     * Renames [path] to [newName] in the same directory and returns the new path.
+     * Renames [path] to [newName] in the same directory and returns the new path, also when [newName] only changes the
+     * case of the name on a case-insensitive file system (the name on disk changes).
      * @throws java.io.IOException if the target exists or the move fails.
      */
     public fun rename(path: Path, newName: String): Path

@@ -3,6 +3,7 @@ package io.karpfen.ide.ui.workbench.files.desktop
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.files.DeleteOutcome
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.io.TempDir
 import java.awt.GraphicsEnvironment
 import java.io.IOException
@@ -83,6 +84,39 @@ class DesktopFileOperationsTest {
         assertFalse(Files.exists(dir.resolve("folder")))
         assertFailsWith<NoSuchFileException> { operations.delete(dir.resolve("folder")) }
     }
+
+    @Test
+    fun `a rename that only changes the case renames on case-insensitive file systems too`() {
+        val operations = DesktopProjectFileOperations(AwtDesktopActions())
+        val file = Files.writeString(dir.resolve("Foo.kmeta"), "type \"A\" \"a\" { }\n")
+        val folder = Files.createDirectories(dir.resolve("Robots"))
+        Files.writeString(folder.resolve("x.kstates"), "x")
+
+        val renamedFile = operations.rename(file, "foo.kmeta")
+        val renamedFolder = operations.rename(folder, "robots")
+
+        assertEquals(dir.resolve("foo.kmeta"), renamedFile)
+        assertEquals(dir.resolve("robots"), renamedFolder)
+        assertEquals(listOf("foo.kmeta", "robots"), names(dir), "the names on disk changed (macOS and Windows ignore case)")
+        assertEquals("type \"A\" \"a\" { }\n", Files.readString(renamedFile))
+        assertEquals(listOf("x.kstates"), names(renamedFolder))
+    }
+
+    @Test
+    fun `a case-only rename onto another file of that name fails and changes nothing`() {
+        val operations = DesktopProjectFileOperations(AwtDesktopActions())
+        val upper = Files.writeString(dir.resolve("Foo.kmeta"), "upper")
+        val lower = dir.resolve("foo.kmeta")
+        assumeTrue(!Files.exists(lower), "two names differing in case are one file here (case-insensitive)")
+        Files.writeString(lower, "lower")
+
+        assertFailsWith<FileAlreadyExistsException> { operations.rename(upper, "foo.kmeta") }
+        assertEquals("upper", Files.readString(upper))
+        assertEquals("lower", Files.readString(lower))
+    }
+
+    private fun names(directory: Path): List<String> =
+        Files.list(directory).use { entries -> entries.map { it.fileName.toString() }.sorted().toList() }
 
     @Test
     fun `platform actions go through the desktop seam`() {

@@ -9,6 +9,9 @@ import io.karpfen.ide.ui.editor.model.action.ClipboardPort
 import io.karpfen.ide.ui.workbench.files.DeleteOutcome
 import io.karpfen.ide.ui.workbench.files.FolderChooser
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
+import io.karpfen.ide.ui.workbench.files.desktop.DesktopAction
+import io.karpfen.ide.ui.workbench.files.desktop.DesktopActions
+import io.karpfen.ide.ui.workbench.files.desktop.DesktopProjectFileOperations
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +21,6 @@ import kotlinx.coroutines.flow.filterNot
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardOpenOption
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** A [FileWatcher] that emits the changes a test reports (the real watch service polls slowly on macOS). */
@@ -34,8 +36,9 @@ class FakeFileWatcher : FileWatcher {
 }
 
 /**
- * [ProjectFileOperations] on the real file system (java.nio) that records the platform calls (trash, reveal, open
- * externally) instead of making them; [failNext] makes the next create, rename or delete throw.
+ * [ProjectFileOperations] on the real file system that records the platform calls (trash, reveal, open externally)
+ * instead of making them; [failNext] makes the next create, rename or delete throw. Creating and renaming are the
+ * production adapter's (`DesktopProjectFileOperations`, e.g. its case-only renames), without platform actions.
  */
 class RecordingFileOperations(
     override val supportsTrash: Boolean = false,
@@ -47,14 +50,16 @@ class RecordingFileOperations(
     val trashed: MutableList<Path> = CopyOnWriteArrayList()
     var failNext: IOException? = null
 
+    private val fileSystem: ProjectFileOperations = DesktopProjectFileOperations(NoDesktopActions)
+
     override fun createFile(directory: Path, fileName: String, content: String): Path {
         failIfAsked()
-        return Files.writeString(directory.resolve(fileName), content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)
+        return fileSystem.createFile(directory, fileName, content)
     }
 
     override fun rename(path: Path, newName: String): Path {
         failIfAsked()
-        return Files.move(path, path.resolveSibling(newName))
+        return fileSystem.rename(path, newName)
     }
 
     override fun delete(path: Path): DeleteOutcome {
@@ -77,6 +82,17 @@ class RecordingFileOperations(
             failNext = null
             throw it
         }
+    }
+
+    /** No platform actions: the recording happens above. */
+    private object NoDesktopActions : DesktopActions {
+        override fun supports(action: DesktopAction): Boolean = false
+
+        override fun moveToTrash(path: Path): Boolean = false
+
+        override fun reveal(path: Path) = Unit
+
+        override fun open(path: Path) = Unit
     }
 }
 

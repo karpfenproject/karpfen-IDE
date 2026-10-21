@@ -68,6 +68,29 @@ class RenameDeleteFlowTest {
     }
 
     @Test
+    fun `a rename that only changes the case renames the file on disk and keeps one document per file`() = scenario {
+        openEditor(machine)
+        edit(machine)
+
+        state.rename(machine)
+        answer(DialogRequest.Rename::class, DialogResponse.Text("Cleaning_Robot.kstates"))
+        answer(DialogRequest.UnsavedChanges::class, DialogResponse.Save)
+
+        val renamed = robot.resolve("Cleaning_Robot.kstates")
+        val onDisk = Files.list(robot).use { files -> files.map { it.fileName.toString() }.toList() }
+        assertTrue("Cleaning_Robot.kstates" in onDisk && "cleaning_robot.kstates" !in onDisk, "renamed on disk: $onDisk")
+        assertEquals(listOf(renamed), state.tabs.tabs.value.map { it.path })
+        val treePath = assertNotNull(
+            workspace.files.value.files().singleOrNull { it.path.parent == robot && it.name.endsWith(".kstates") },
+        ).path
+        assertEquals(renamed, treePath, "the tree lists the new name")
+
+        state.openFile(treePath).joinSettled() // double-click in the tree
+        assertEquals(listOf(renamed), state.tabs.tabs.value.map { it.path }, "one tab per file")
+        assertEquals(listOf(renamed), workspace.documents.openDocuments.value.map { it.path }, "one document per file")
+    }
+
+    @Test
     fun `renaming an open file reopens it under the new name in its tab position`() = scenario {
         openEditor(machine)
         openEditor(model)

@@ -5,12 +5,12 @@ import io.karpfen.ide.core.workspace.files.FileWatcher
 import io.karpfen.ide.ui.workbench.files.DeleteOutcome
 import io.karpfen.ide.ui.workbench.files.FolderChooser
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
+import io.karpfen.ide.ui.workbench.files.desktop.desktopProjectFileOperations
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.StandardOpenOption
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -23,9 +23,12 @@ internal class SilentFileWatcher : FileWatcher {
 
 /**
  * [ProjectFileOperations] on the real file system that records the platform calls (reveal, open externally) instead
- * of making them, so no test starts Finder or another application.
+ * of making them, so no test starts Finder or another application. Creating and renaming are the production adapter's
+ * (headless, so it makes no platform calls itself).
  */
 internal class RecordingFileOperations : ProjectFileOperations {
+    private val fileSystem = desktopProjectFileOperations()
+
     val revealed: MutableList<Path> = CopyOnWriteArrayList()
     val openedExternally: MutableList<Path> = CopyOnWriteArrayList()
 
@@ -34,9 +37,9 @@ internal class RecordingFileOperations : ProjectFileOperations {
     override val supportsOpenExternally: Boolean = true
 
     override fun createFile(directory: Path, fileName: String, content: String): Path =
-        Files.writeString(directory.resolve(fileName), content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)
+        fileSystem.createFile(directory, fileName, content)
 
-    override fun rename(path: Path, newName: String): Path = Files.move(path, path.resolveSibling(newName))
+    override fun rename(path: Path, newName: String): Path = fileSystem.rename(path, newName)
 
     override fun delete(path: Path): DeleteOutcome {
         Files.walk(path).use { paths -> paths.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
