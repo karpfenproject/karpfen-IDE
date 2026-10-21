@@ -8,6 +8,7 @@ import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.foundation.command.Command
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.files.DeleteOutcome
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
@@ -37,8 +38,8 @@ import kotlin.time.Duration
 
 /**
  * A scripted [WorkbenchState] (WP-WORKBENCH may not be merged, so app tests never run the real one): records the
- * calls of the composition root, registers one command, and lets a test decide how long `openFolder` takes, whether
- * `start` fails and how `requestExit` answers. The composition root never touches the sub-states outside the window,
+ * calls of the composition root, registers one command, and lets a test decide how long `openFolder` takes and whether
+ * it asks a dialog, whether `start` fails and how `requestExit` answers. The composition root never touches the sub-states outside the window,
  * so the fake fails on access instead of constructing WP-WORKBENCH's classes.
  */
 internal class FakeWorkbenchState(val scope: CoroutineScope, val services: WorkbenchServices) : WorkbenchState {
@@ -47,6 +48,9 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     var openFolderTime: Duration = Duration.ZERO
     var openedFolder: Path? = null
     var startFailure: Exception? = null
+
+    /** When set, `openFolder` asks this dialog (and waits for the answer) before the folder counts as opened. */
+    var openFolderAsks: DialogRequest<*>? = null
 
     /** `requestExit` waits for this answer. */
     var exitAnswer = CompletableDeferred(true)
@@ -58,7 +62,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override val outline: OutlineState get() = unused("outline")
     override val problems: ProblemsState get() = unused("problems")
     override val statusBar: StatusBarState get() = unused("statusBar")
-    override val dialogs: DialogState get() = unused("dialogs")
+    override val dialogs: DialogState = DialogState()
     override val layout: LayoutState get() = unused("layout")
     override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
     override val windowTitle: StateFlow<String> = MutableStateFlow("karpfen IDE")
@@ -72,6 +76,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
         calls += "openFolder $path"
         return scope.launch {
             delay(openFolderTime)
+            openFolderAsks?.let { dialogs.ask(it) }
             openedFolder = path
         }
     }

@@ -9,13 +9,20 @@ import io.karpfen.ide.app.crash.IDE_LOG_FILE_NAME
 import io.karpfen.ide.app.window.awtScreenAreas
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
+import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.settings.SettingsLocations
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.swing.Swing
 import java.awt.EventQueue
@@ -51,8 +58,10 @@ public class IdeApplication(
     /**
      * Wires the IDE without UI in [scope] (the UI scope): creates the services and the workbench state, registers the
      * commands in a new `CommandRegistry(services.platform)`, starts the state and opens [initialFolder] if given
-     * (joining the `openFolder` job, so the session is ready when this returns). If anything fails (or the caller is
-     * cancelled), the state is closed and the failure propagates.
+     * (joining the `openFolder` job, so the session is ready when this returns — unless the flow asks the user first,
+     * e.g. "Cannot open folder" for a folder that vanished: only the window can show that dialog, so this returns
+     * while it is pending; decision 47 of the work-package plan). If anything fails (or the caller is cancelled), the
+     * state is closed and the failure propagates.
      */
     public suspend fun prepare(scope: CoroutineScope, initialFolder: Path?): IdeSession {
         val workbenchServices = services()
@@ -61,7 +70,7 @@ public class IdeApplication(
             val commands = CommandRegistry(workbenchServices.platform)
             state.registerCommands(commands)
             state.start()
-            if (initialFolder != null) state.openFolder(initialFolder).join()
+            if (initialFolder != null) state.openFolder(initialFolder).joinUnlessAsking(state.dialogs)
             return IdeSession(state, commands)
         } catch (e: Throwable) {
             state.close()
@@ -102,6 +111,14 @@ public class IdeApplication(
         }
         runState.startupFailure?.let { throw IllegalStateException("the IDE could not start", it) }
     }
+}
+
+/**
+ * Joins this intent's job, or returns once its flow waits for an answer to a dialog of [dialogs]: before the window
+ * exists, nobody could answer it.
+ */
+private suspend fun Job.joinUnlessAsking(dialogs: DialogState) {
+    merge(flow { join(); emit(Unit) }, dialogs.current.filterNotNull().map { }).first()
 }
 
 /** The wired IDE of one application run: the workbench [state] and the [commands] the menus are built from. */

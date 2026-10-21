@@ -1,6 +1,7 @@
 package io.karpfen.ide.app.e2e
 
 import io.karpfen.ide.app.IdeMenus
+import io.karpfen.ide.app.IdePhase
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
@@ -13,6 +14,8 @@ import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.foundation.command.MenuEntry
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -24,6 +27,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -63,6 +68,24 @@ class IdeEndToEndTest {
             .single { it.command.id == EditorActionIds.UNDO }
         val keymapUndo = defaultEditorKeymap(HostPlatform.MAC_OS).shortcutFor(EditorActionIds.UNDO)
         assertEquals(keymapUndo, undo.accelerator, "Cmd+Z from the one keymap")
+    }
+
+    @Test
+    fun `a command-line folder that vanished before the start opens the window with the error dialog`() = scenario {
+        val vanished = Files.createDirectories(dir.resolve("vanished"))
+        Files.delete(vanished) // a directory when main checked it, gone (unmounted, deleted) when prepare opens it
+
+        val run = startRun(vanished)
+        settle()
+
+        val running = assertIs<IdePhase.Running>(run.phase.value, "the startup does not wait for the dialog")
+        val state = running.session.state
+        assertEquals("Cannot open folder", assertIs<DialogRequest.Error>(state.dialogs.current.value).title)
+        state.dialogs.respond(DialogResponse.Confirm)
+        settle()
+        assertNull(state.dialogs.current.value)
+        assertNull(state.workspace.value, "the empty workbench with Open Folder… and the recent folders")
+        run.exit()
     }
 
     @Test

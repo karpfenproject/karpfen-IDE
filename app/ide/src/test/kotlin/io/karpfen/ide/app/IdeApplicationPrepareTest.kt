@@ -1,6 +1,8 @@
 package io.karpfen.ide.app
 
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -92,6 +94,22 @@ class IdeApplicationPrepareTest {
         assertEquals(false, preparing.isCompleted)
         assertNull(wiring.states.single().openedFolder)
         preparing.await()
+    }
+
+    @Test
+    fun `prepare does not wait for a dialog of the initial folder, which only the window can show`() = runTest(timeout = 10.seconds) {
+        val wiring = Wiring(this)
+        val error = DialogRequest.Error("Cannot open folder", "workspace root $folder is not a directory")
+        wiring.configure = { it.openFolderAsks = error }
+
+        val session = wiring.application.prepare(backgroundScope, folder)
+
+        val state = session.state as FakeWorkbenchState
+        assertEquals(error, state.dialogs.current.value, "the window shows the pending dialog")
+        assertNull(state.openedFolder, "the open flow waits for the answer")
+        state.dialogs.respond(DialogResponse.Confirm)
+        runCurrent()
+        assertEquals(folder, state.openedFolder)
     }
 
     @Test

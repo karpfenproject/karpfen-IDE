@@ -5,6 +5,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.type
 import io.karpfen.ide.app.IdeApplication
 import io.karpfen.ide.app.IdeMenus
+import io.karpfen.ide.app.IdeRunState
 import io.karpfen.ide.app.IdeSession
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
@@ -78,6 +79,13 @@ internal class EndToEndIde(val scheduler: TestCoroutineScheduler, settingsDirect
         prepared = session
         return session
     }
+
+    /**
+     * A started run of the application over this wiring with [folder] as the command-line folder: what
+     * `IdeApplication.run` drives, without the window. The caller ends it (`IdeRunState.exit`).
+     */
+    fun startRun(folder: Path?): IdeRunState =
+        IdeRunState(scope, prepare = { application.prepare(scope, folder) }).also { it.start() }
 
     /** Workspaces like the CLI's (no watching) on the same virtual time, for `ValidateCommand`. */
     fun cliWorkspaces(): WorkspaceFactory = WorkspaceFactory(workspaceOptions.copy(watch = false))
