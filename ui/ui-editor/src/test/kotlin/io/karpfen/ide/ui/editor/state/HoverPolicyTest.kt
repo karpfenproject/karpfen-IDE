@@ -5,7 +5,10 @@ import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.lang.Hover
+import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.ui.editor.model.action.EditorActionIds
+import io.karpfen.ide.ui.editor.model.find.FindQuery
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -166,6 +169,55 @@ class HoverPolicyTest {
         harness.state.pointerOverTooltip(true)
         harness.state.type("x")
         assertNull(harness.state.overlays.hover.value, "typing hides it at once")
+    }
+
+    @Test
+    fun `a change of the text not made by typing hides the tooltip of the older text`() = editorTest(text) { harness ->
+        val range = harness.rangeOf("idle")
+        harness.session.setExternalDiagnostics("test", harness.text.snapshot.value, listOf(error(range)))
+        advanceUntilIdle()
+        val changes: List<Pair<String, () -> Unit>> = listOf(
+            "an external reload" to { harness.text.replaceAll("// reloaded from disk\n" + harness.plain, EditOrigin.External) },
+            "a menu command" to {
+                harness.state.caret.moveTo(0)
+                harness.state.execute(EditorActionIds.TOGGLE_COMMENT)
+            },
+            "Replace All in the find bar" to {
+                harness.state.find.setQuery(FindQuery("idle"))
+                harness.state.find.replaceAll("ready")
+            },
+        )
+
+        for ((change, run) in changes) {
+            val idle = harness.plain.indexOf("idle").takeIf { it >= 0 } ?: harness.offsetOf("ready")
+            harness.session.setExternalDiagnostics("test", harness.text.snapshot.value, listOf(error(TextRange(idle, idle + 4))))
+            advanceUntilIdle()
+            rest(harness, idle + 1)
+            waitHoverDelay()
+            assertNotNull(harness.state.overlays.hover.value, "shown before $change")
+
+            run()
+            advanceUntilIdle()
+
+            assertNull(harness.state.overlays.hover.value, "$change hides the tooltip: its range and diagnostics belong to the older text")
+            rest(harness, null)
+        }
+    }
+
+    @Test
+    fun `a lookup started before a change of the text shows nothing`() = editorTest(
+        text,
+        services = FakeLanguageServices(hovers = { _, offset -> Hover(TextRange(offset, offset + 1), "at $offset") }),
+    ) { harness ->
+        advanceUntilIdle()
+        rest(harness, harness.offsetOf("busy"))
+        advanceTimeBy(CodeEditorState.HOVER_DELAY / 2)
+        harness.text.replaceAll("// reloaded from disk\n" + harness.plain, EditOrigin.External)
+        runCurrent()
+        waitHoverDelay()
+        advanceUntilIdle()
+
+        assertNull(harness.state.overlays.hover.value, "the pointer has to rest again over the new text")
     }
 
     @Test

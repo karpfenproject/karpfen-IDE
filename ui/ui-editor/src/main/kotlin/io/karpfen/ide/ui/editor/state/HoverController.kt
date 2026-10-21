@@ -1,8 +1,11 @@
 package io.karpfen.ide.ui.editor.state
 
+import io.karpfen.ide.core.text.TextSnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -17,10 +20,15 @@ import kotlin.time.Duration.Companion.milliseconds
  * [hideGrace] unless the pointer comes back in time; the grace covers the way from the text onto the tooltip, which
  * leaves the text first. Moving to another offset also restarts the delay there. [hide] (typing, keys, presses, focus
  * loss) hides it at once. Nothing is shown while the context menu is open. Used from the UI thread.
+ *
+ * The tooltip follows the [text]: its range and content describe the text they were computed for, so every change of
+ * the text — typing, commands from menus, find and replace, completion accepted by mouse, external reloads — hides
+ * it and drops a lookup in progress, like [hide]; the pointer rests again to see the new text's content.
  */
 internal class HoverController(
     private val scope: CoroutineScope,
     private val overlays: EditorOverlayState,
+    text: StateFlow<TextSnapshot>,
     private val delay: Duration,
     private val hideGrace: Duration,
     private val contentAt: suspend (offset: Int) -> HoverContent?,
@@ -30,6 +38,12 @@ internal class HoverController(
     private var pending: Job? = null
     private var hiding: Job? = null
     private var onTooltip = false
+
+    init {
+        // Every snapshot after the one current now is a change of the text (snapshots are never reused).
+        val initial = text.value
+        scope.launch { text.filter { it !== initial }.collect { hide() } }
+    }
 
     /** The pointer rests over text [offset], or left the text (null). */
     fun pointerAt(offset: Int?) {

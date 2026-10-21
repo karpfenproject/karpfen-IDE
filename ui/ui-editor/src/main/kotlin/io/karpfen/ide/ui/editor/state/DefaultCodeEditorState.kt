@@ -91,7 +91,8 @@ internal class DefaultCodeEditorState(
         ui = EditorUiRequests(text, caret, find, completion, overlays, reveal::revealPrimary, navigator::goToDefinition),
     )
     private val enablement = ActionEnablement(actions, context, text, caret, scope)
-    private val hover = HoverController(scope, overlays, CodeEditorState.HOVER_DELAY, HoverController.HIDE_GRACE, lookup::hoverAt)
+    private val hover =
+        HoverController(scope, overlays, text.snapshot, CodeEditorState.HOVER_DELAY, HoverController.HIDE_GRACE, lookup::hoverAt)
     private val gestures = PointerGestures(text, caret, keymap.platform, navigator::goToDefinition)
     private val highlightPipeline = HighlightPipeline(session, languageServices, scope, backgroundDispatcher)
     private val brackets = BracketTracker(session, caret, languageServices, scope, backgroundDispatcher)
