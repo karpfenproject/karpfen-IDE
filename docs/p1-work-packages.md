@@ -972,6 +972,11 @@ Added by the phase-1 review fixes (core):
     and save, survive more edits than `EditableText` retains (they used to vanish after 1000 edits), and a merge maps
     only the versions since the previous one. Mapping step by step differs from mapping from the reported version only
     for a range that collapsed to an empty one: it then stays behind text typed at it, like any empty range.
+50. **Files named by a descriptor are covered wherever they lie** (completes decisions 13 and 29): an implicit context
+    is formed only of a directory's karpfen files that no explicit context contains, and a directory left without such
+    files forms none. A descriptor naming `models/robot.kmodel` thus no longer makes `models/` a second context that
+    converts the model again and reports a false `context-no-metamodel`. The descriptor's own directory stays covered
+    as a whole (its unnamed files are loose, open question 2).
 
 ## 7. Review findings not adopted
 

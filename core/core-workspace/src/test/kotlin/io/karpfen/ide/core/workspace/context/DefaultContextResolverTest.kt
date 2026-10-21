@@ -85,8 +85,38 @@ class DefaultContextResolverTest {
         assertEquals(listOf(ws("env/models/robot.kmodel")), explicit.models)
         assertEquals(listOf(ws("env/machines/robot.kstates")), explicit.stateMachines.map { it.file })
         assertNull(resolution.diagnostics[ws("env/robot.kenv.json")], "every reference exists")
-        // The sub-directories have no descriptor of their own, so they also form implicit contexts.
-        assertEquals(listOf(ws("env"), ws("env/machines"), ws("env/models"), ws("shared")), resolution.contexts.map { it.directory })
+        // Every file of the sub-directories is in the descriptor's context, so none of them forms an implicit one.
+        assertEquals(listOf(ws("env")), resolution.contexts.map { it.directory })
+    }
+
+    @Test
+    fun `files named by a descriptor form no implicit context and get no findings of their own`() {
+        val tree = treeOf("robot.kenv.json", "meta/robot.kmeta", "models/robot.kmodel", "machines/robot.kstates")
+        val text = descriptorText("meta/robot.kmeta", "models/robot.kmodel", "machines/robot.kstates")
+
+        val resolution = resolver.resolve(tree, descriptors("robot.kenv.json" to text))
+
+        assertEquals(listOf(ws("")), resolution.contexts.map { it.directory })
+        assertEquals(emptyMap(), resolution.diagnostics, "no context-no-metamodel INFO on files the descriptor converts")
+        assertEquals(emptyList(), resolution.looseFiles)
+    }
+
+    @Test
+    fun `the files of a directory no descriptor names form its implicit context`() {
+        val tree = treeOf("robot.kenv.json", "shared/robot.kmeta", "shared/robot.kmodel", "shared/other.kmodel")
+        val text = descriptorText("shared/robot.kmeta", "shared/robot.kmodel")
+
+        val resolution = resolver.resolve(tree, descriptors("robot.kenv.json" to text))
+
+        val implicit = resolution.contexts.single { it.descriptor == null }
+        assertEquals(ws("shared"), implicit.directory)
+        assertEquals(listOf(ws("shared/other.kmodel")), implicit.files)
+        assertEquals(
+            listOf(WorkspaceDiagnosticCodes.CONTEXT_NO_METAMODEL),
+            resolution.diagnostics.getValue(ws("shared/other.kmodel")).map { it.code },
+            "the directory's metamodel belongs to the descriptor's context",
+        )
+        assertEquals(setOf(ws("shared/other.kmodel")), resolution.diagnostics.keys)
     }
 
     @Test

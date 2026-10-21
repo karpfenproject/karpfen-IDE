@@ -9,18 +9,21 @@ import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
+import java.nio.file.Path
 
 /**
- * The implicit contexts of a workspace (spec §4, rules on [ContextResolver]): every directory of [tree] with karpfen
- * files directly inside and no descriptor (a directory containing a `*.kenv.json`, readable or not, is covered by it),
- * in directory path order. Within a directory the files are taken in tree order, so "alphabetically first" is the
+ * The implicit contexts of a workspace (spec §4, rules on [ContextResolver]): every directory of [tree] without a
+ * descriptor (a directory containing a `*.kenv.json`, readable or not, is covered by it) forms one of its karpfen files
+ * directly inside that are not [covered] by an explicit context, if any are left; in directory path order. So a file
+ * named by a descriptor in another directory is analyzed once, in the descriptor's context, and never reported as a
+ * file without metamodel. Within a directory the files are taken in tree order, so "alphabetically first" is the
  * tree's case-insensitive order ([WorkspaceNode.ORDER]).
  *
  * Findings (source IDE, at the start of the file, since the resolver works without file texts):
  * - several domain metamodels → INFO `context-multiple-metamodels` on each of them;
  * - models or state machines without any domain metamodel → INFO `context-no-metamodel` on each of them.
  */
-internal class DirectoryContexts(private val tree: WorkspaceTree) {
+internal class DirectoryContexts(private val tree: WorkspaceTree, private val covered: Set<Path>) {
 
     /** The implicit contexts; findings go to [diagnostics]. */
     fun resolve(diagnostics: DiagnosticsByFile): List<ModelingContext> =
@@ -30,7 +33,7 @@ internal class DirectoryContexts(private val tree: WorkspaceTree) {
             .sortedBy { it.directory }
 
     private fun contextOf(directory: WorkspaceNode.Directory, diagnostics: DiagnosticsByFile): ModelingContext? {
-        val files = directory.children.filterIsInstance<WorkspaceNode.File>().filter { it.kind.isKarpfenSource }
+        val files = directory.children.filterIsInstance<WorkspaceNode.File>().filter { it.kind.isKarpfenSource && it.path !in covered }
         if (files.isEmpty()) return null
         fun ofKind(kind: FileKind) = files.filter { it.kind == kind }
         val metamodels = ofKind(FileKind.KMETA)

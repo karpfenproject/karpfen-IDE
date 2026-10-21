@@ -12,11 +12,12 @@ import java.nio.file.Path
  * - Every successfully read descriptor defines one explicit context; its paths are resolved against the descriptor's
  *   directory; a referenced file missing from [WorkspaceTree] is an ERROR `descriptor-missing-file` on the descriptor
  *   at the reference's range. A descriptor that could not be read defines no context.
- * - Every directory that contains karpfen files and no descriptor forms an implicit context: metamodel = the single
- *   `.kmeta` that is not `EVENTS.kmeta` (several → INFO `context-multiple-metamodels` on each, the alphabetically first
- *   is used, the others are loose files), events = `EVENTS.kmeta`, models = all `.kmodel`, state machines = all
- *   `.kstates` (attachedTo null). Directories containing a descriptor are covered by it; their karpfen files not named
- *   by any descriptor are loose files.
+ * - Every directory that contains no descriptor forms an implicit context of its karpfen files that no explicit
+ *   context contains (none left → no implicit context): metamodel = the single `.kmeta` that is not `EVENTS.kmeta`
+ *   (several → INFO `context-multiple-metamodels` on each, the alphabetically first is used, the others are loose
+ *   files), events = `EVENTS.kmeta`, models = all `.kmodel`, state machines = all `.kstates` (attachedTo null).
+ *   Directories containing a descriptor are covered by it; their karpfen files not named by any descriptor are loose
+ *   files.
  * - [ContextResolution.looseFiles] is exactly the set of karpfen sources of the tree that are in no context's files
  *   (not converted, but still tokenized and parsed; the same rule in the IDE and the CLI).
  * - The descriptors' own read diagnostics are included in [ContextResolution.diagnostics].
