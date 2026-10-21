@@ -22,8 +22,9 @@ public sealed interface CliCommand {
  * Grammar: no arguments, `help`, `--help` or `-h` → [CliCommand.Help]; `validate [options] <dir>` → [CliCommand.Validate],
  * where the options may stand before or after the directory: `--format text|json` or `--format=text|json` (case
  * insensitive, default text) and `--help`/`-h` (→ [CliCommand.Help]); `--` ends the options, so a directory may start
- * with `-`. Everything else (an unknown command, an unknown option, a missing or second directory, a bad format value,
- * a path the file system cannot represent) is [CliCommand.Invalid] with a one-line message.
+ * with `-`. Everything else (an unknown command, an unknown option, a missing, empty or second directory, a bad format
+ * value, a path the file system cannot represent) is [CliCommand.Invalid] with a one-line message. An empty directory
+ * argument (`karpfen validate "$UNSET"`) is never the working directory, which `Path.of("")` would denote.
  */
 public object CliArguments {
 
@@ -66,6 +67,7 @@ private class ValidateArguments(private val args: List<String>) {
             index++
         }
         val name = directory ?: return CliCommand.Invalid("validate needs a directory")
+        if (name.isEmpty()) return CliCommand.Invalid("validate needs a directory, not an empty argument")
         val path = try {
             Path.of(name)
         } catch (e: InvalidPathException) {

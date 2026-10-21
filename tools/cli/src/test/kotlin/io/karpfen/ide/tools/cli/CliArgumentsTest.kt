@@ -48,6 +48,8 @@ class CliArgumentsTest {
             listOf("validate", "dir", "--format", "xml") to "unknown format 'xml' (text or json)",
             listOf("validate", "--format=", "dir") to "unknown format '' (text or json)",
             listOf("validate", "--verbose", "dir") to "unknown option '--verbose'",
+            listOf("validate", "") to "validate needs a directory, not an empty argument",
+            listOf("validate", "--format", "json", "--", "") to "validate needs a directory, not an empty argument",
         )
         cases.forEach { (args, message) -> assertEquals(CliCommand.Invalid(message), CliArguments.parse(args), "$args") }
     }
