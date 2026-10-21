@@ -7,6 +7,7 @@ import java.nio.channels.FileChannel
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
+import java.nio.file.AccessDeniedException
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.OpenOption
@@ -28,6 +29,9 @@ import java.util.UUID
  *   never leave a renamed but empty or truncated target (the atomic move protects the old content only if the new
  *   one is durable first);
  * - writes through a symbolic link to its target instead of replacing the link;
+ * - refuses a target that exists but is not writable (a read-only file) with an `AccessDeniedException` ("the file is
+ *   read-only"): the move needs write permission on the directory only, so it would silently replace a
+ *   write-protected file;
  * - moves the temp file over the target (`ATOMIC_MOVE`, `REPLACE_EXISTING` where atomic moves are unsupported) and
  *   deletes the temp file if anything failed, leaving the target unchanged;
  * - then forces the directory, so the move itself is durable, where the platform can open a directory (not Windows);
@@ -54,6 +58,9 @@ internal class AtomicTextFileStore(
 
     override fun write(path: Path, content: String, withBom: Boolean) {
         val target = if (Files.isSymbolicLink(path)) path.toRealPath() else path.toAbsolutePath().normalize()
+        if (Files.exists(target) && !Files.isWritable(target)) {
+            throw AccessDeniedException(target.toString(), null, READ_ONLY)
+        }
         val directory = checkNotNull(target.parent) { "cannot write the root directory $target" }
         Files.createDirectories(directory)
         val temp = directory.resolve(".${target.fileName}.${UUID.randomUUID()}.tmp")
@@ -100,6 +107,9 @@ internal class AtomicTextFileStore(
         .onUnmappableCharacter(CodingErrorAction.REPLACE)
 
     private companion object {
+        /** The reason of the failure to write a read-only file. */
+        const val READ_ONLY: String = "the file is read-only"
+
         /** The UTF-8 byte order mark. */
         private val BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
 

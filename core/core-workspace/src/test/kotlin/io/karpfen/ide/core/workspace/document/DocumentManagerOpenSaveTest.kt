@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermissions
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -224,6 +225,21 @@ class DocumentManagerOpenSaveTest {
         assertTrue("robot.kmeta" in result.message, result.message)
         assertTrue(document.isDirty.value)
         assertIs<SaveResult.Failed>(manager.save(dir.resolve("not-open.kmeta")))
+    }
+
+    @Test
+    fun `saving a read-only file fails, keeps the file and the document dirty`() = runTest {
+        val manager = documentManager(this)
+        val path = file("robot.kmeta", metamodel)
+        val document = manager.openOrFail(path)
+        document.type(0, "// change\n")
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("r--r--r--"))
+
+        val result = assertIs<SaveResult.Failed>(manager.save(path))
+
+        assertEquals("Cannot save robot.kmeta: the file is read-only", result.message)
+        assertEquals(metamodel, Files.readString(path))
+        assertTrue(document.isDirty.value)
     }
 
     @Test

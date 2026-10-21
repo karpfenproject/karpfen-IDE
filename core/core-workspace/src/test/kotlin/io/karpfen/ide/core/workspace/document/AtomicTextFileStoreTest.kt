@@ -8,6 +8,7 @@ import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.channels.ReadableByteChannel
 import java.nio.channels.WritableByteChannel
+import java.nio.file.AccessDeniedException
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
@@ -126,6 +127,33 @@ class AtomicTextFileStoreTest {
         store.write(file, "new")
 
         assertEquals(permissions, Files.getPosixFilePermissions(file))
+    }
+
+    @Test
+    fun `a read-only file is never replaced`() {
+        val file = dir.resolve("ro.kmeta")
+        Files.writeString(file, "original")
+        val readOnly = PosixFilePermissions.fromString("r--r--r--")
+        Files.setPosixFilePermissions(file, readOnly)
+
+        val failure = assertFailsWith<AccessDeniedException> { store.write(file, "overwritten") }
+
+        assertEquals("the file is read-only", failure.reason)
+        assertEquals("original", Files.readString(file))
+        assertEquals(readOnly, Files.getPosixFilePermissions(file))
+        assertFalse(dir.listDirectoryEntries().any { it.fileName.toString().endsWith(".tmp") }, "temp files: ${dir.listDirectoryEntries()}")
+    }
+
+    @Test
+    fun `a read-only target behind a symbolic link is never replaced`() {
+        val target = dir.resolve("real.kmeta")
+        Files.writeString(target, "original")
+        Files.setPosixFilePermissions(target, PosixFilePermissions.fromString("r--r--r--"))
+        val link = Files.createSymbolicLink(dir.resolve("link.kmeta"), target)
+
+        assertFailsWith<AccessDeniedException> { store.write(link, "overwritten") }
+
+        assertEquals("original", Files.readString(target))
     }
 
     @Test

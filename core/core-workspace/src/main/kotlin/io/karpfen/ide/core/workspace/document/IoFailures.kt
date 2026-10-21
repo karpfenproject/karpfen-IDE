@@ -13,7 +13,7 @@ internal fun describeIoFailure(path: Path, failure: Exception): String {
     val name = path.fileName?.toString() ?: path.toString()
     val reason = when (failure) {
         is NoSuchFileException -> "the file does not exist"
-        is AccessDeniedException -> "access denied"
+        is AccessDeniedException -> failure.reason ?: "access denied"
         is FileSystemException -> failure.reason ?: failure.javaClass.simpleName
         else -> failure.message ?: failure.javaClass.simpleName
     }
