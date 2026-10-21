@@ -177,7 +177,9 @@ public interface WorkbenchState : AutoCloseable {
     /**
      * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder and
      * one toggle per `ToolWindowId`; the View commands drive [layout]) and the editor commands in [registry]; keeps
-     * enablement and the recent-folder commands up to date. Commands call the non-suspending intents above.
+     * enablement and the recent-folder commands up to date. Commands call the non-suspending intents above. The
+     * [dialogs] are modal: while one is shown, every command is disabled and does nothing when run, so a shortcut typed
+     * into a dialog never acts on the workbench behind it (decision 47).
      *
      * Editor commands are registered under their `EditorActionIds` with their `EditorActionTitles` (the titles the
      * editor context menu shows too), forwarded to the active editor (`EditorHandle.execute(id)`), and carry

@@ -10,6 +10,7 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyCode
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.settings.ThemeMode
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
@@ -144,5 +145,32 @@ class CommandsTest {
         assertTrue(registry.execute(EditorActionIds.FIND))
         assertNotNull(editor.overlays.findBar.value, "find opens the find bar")
         assertTrue(editor.focusRequested.value, "and requests focus for the editor")
+    }
+
+    @Test
+    fun `no command runs while a dialog is shown, and the commands come back when it is answered`() = scenario { registry ->
+        open(root)
+        val editor = openEditor(machine)
+        editor.onFocusChanged(false)
+        settle()
+        editor.consumeFocusRequest()
+        val rename = state.rename(machine)
+        settle()
+        assertNotNull(state.dialogs.current.value, "the rename dialog is shown")
+
+        val everyCommand = registry.commands.value.keys
+        everyCommand.forEach { assertFalse(registry.enabled(it), "$it is disabled behind the dialog") }
+        assertFalse(registry.execute(EditorActionIds.FIND), "Cmd+F typed into the dialog does not reach the editor")
+        assertNull(editor.overlays.findBar.value)
+        assertFalse(editor.focusRequested.value, "the editor behind the dialog does not take the focus")
+        assertFalse(registry.execute(WorkbenchCommandIds.CLOSE_TAB), "Cmd+W typed into the dialog is not queued")
+
+        state.dialogs.respond(DialogResponse.Cancel)
+        settle()
+        assertTrue(rename.isCompleted)
+        assertEquals(listOf(machine), state.tabs.tabs.value.map { it.path }, "no Close Tab ran after the dialog")
+        assertTrue(registry.enabled(WorkbenchCommandIds.CLOSE_TAB))
+        assertTrue(registry.enabled(EditorActionIds.FIND))
+        assertTrue(registry.enabled(WorkbenchCommandIds.OPEN_FOLDER))
     }
 }

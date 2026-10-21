@@ -41,8 +41,9 @@ import java.nio.file.Path
  *
  * The collaborators: [IntentRunner], [WorkspaceHolder], [SubStateBindings], [EditorNavigationCollector],
  * [EditorLifecycle], [UnsavedChangesFlow], [FileOpenFlow], [NavigationFlow], [TabFlows], [FolderFlow],
- * [FileOperationFlows] (with [TemplateContextBuilder]), [RenameFlow], [LayoutPersister], [WorkbenchCommands] and
- * [EditorCommands]. All work runs in a supervisor child of [scope], cancelled by [close].
+ * [FileOperationFlows] (with [TemplateContextBuilder]), [RenameFlow], [LayoutPersister], and [WorkbenchCommands] and
+ * [EditorCommands] registering through a [ModalCommandRegistry]. All work runs in a supervisor child of [scope],
+ * cancelled by [close].
  */
 internal class DefaultWorkbenchState(
     scope: CoroutineScope,
@@ -137,8 +138,9 @@ internal class DefaultWorkbenchState(
     }
 
     override fun registerCommands(registry: CommandRegistry) {
-        WorkbenchCommands(ownScope, this, tabs, layout, services.settings).register(registry)
-        EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(registry)
+        val modal = ModalCommandRegistry(ownScope, registry, dialogs.current)
+        WorkbenchCommands(ownScope, this, tabs, layout, services.settings).register(modal)
+        EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(modal)
     }
 
     override fun close() {

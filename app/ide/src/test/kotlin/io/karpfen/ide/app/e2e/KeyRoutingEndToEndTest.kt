@@ -28,6 +28,7 @@ import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
 import io.karpfen.ide.ui.workbench.Workbench
 import io.karpfen.ide.ui.workbench.WorkbenchTestTags
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
+import io.karpfen.ide.ui.workbench.dialog.view.WorkbenchDialogTestTags
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.tabs.view.EditorAreaTestTags
 import kotlinx.coroutines.currentCoroutineContext
@@ -40,6 +41,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
@@ -48,7 +50,8 @@ import kotlin.time.Duration.Companion.seconds
  * production workbench inside a key handler that plays the window menu's accelerators ([MenuAccelerators]). One
  * Cmd+Z in the editor undoes exactly one step — the editor consumes the stroke, so no menu command runs — and Cmd+X
  * with the focus in the project tree reaches the menu, whose Cut is disabled while the editor is unfocused, so the
- * editor text stays unchanged. (The native macOS menu bar itself is covered by the manual test.)
+ * editor text stays unchanged; shortcuts typed into a dialog reach no command (the dialogs are modal). (The native macOS
+ * menu bar itself is covered by the manual test.)
  */
 @OptIn(ExperimentalTestApi::class)
 class KeyRoutingEndToEndTest {
@@ -119,6 +122,28 @@ class KeyRoutingEndToEndTest {
         assertEquals("x$original", Files.readString(machine))
         assertFalse(ide.session.state.tabs.tabs.value.single().isDirty)
         assertEquals("x$original", text(editor), "the proxy text field typed nothing")
+    }
+
+    @Test
+    fun `shortcuts typed into a dialog do not act on the workbench behind it`() = composedIde { ide, menu, editor ->
+        val state = ide.session.state
+        state.rename(machine)
+        settle(ide)
+        assertNotNull(state.dialogs.current.value)
+
+        onNodeWithTag(WorkbenchDialogTestTags.INPUT).performKeyInput { withKeyDown(Key.MetaLeft) { pressKey(Key.F) } }
+        onNodeWithTag(WorkbenchDialogTestTags.INPUT).performKeyInput { withKeyDown(Key.MetaLeft) { pressKey(Key.W) } }
+        settle(ide)
+
+        assertEquals(listOf(EditorActionIds.FIND, WorkbenchCommandIds.CLOSE_TAB), menu.reached)
+        assertEquals(listOf(), menu.ran, "every command is disabled while the dialog is shown")
+        assertNull(editor.overlays.findBar.value, "no find bar behind the dialog")
+        onNodeWithTag(WorkbenchDialogTestTags.INPUT).assertIsFocused()
+
+        onNodeWithTag(WorkbenchDialogTestTags.INPUT).performKeyInput { pressKey(Key.Escape) }
+        settle(ide)
+        assertNull(state.dialogs.current.value, "Escape still reaches the dialog")
+        assertEquals(listOf(machine), state.tabs.tabs.value.map { it.path }, "no Close Tab ran after the dialog")
     }
 
     /**
