@@ -11,26 +11,21 @@ import kotlinx.coroutines.runInterruptible
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.file.ClosedWatchServiceException
-import java.nio.file.FileVisitResult
-import java.nio.file.Files
 import java.nio.file.Path
-import java.nio.file.SimpleFileVisitor
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.StandardWatchEventKinds.ENTRY_DELETE
 import java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY
-import java.nio.file.StandardWatchEventKinds.OVERFLOW
-import java.nio.file.WatchEvent
-import java.nio.file.WatchKey
 import java.nio.file.WatchService
-import java.nio.file.attribute.BasicFileAttributes
 
 /**
- * [FileWatcher] on `java.nio.file.WatchService`, registering directories recursively: every directory below the root
- * that is not ignored is registered when the flow starts, and every directory created later as soon as its creation is
- * reported. Blocking waits run on [dispatcher] and are interrupted when the collector is cancelled.
+ * [FileWatcher] on `java.nio.file.WatchService`, registering directories recursively through a [WatchRegistry]: every
+ * directory below the root that is not ignored is registered when the flow starts, and every directory created later
+ * as soon as its creation is reported. Symbolic links are followed like the scan follows them (a linked root, linked
+ * directories, the targets of linked files), and changes are reported under the paths the workspace uses. Blocking
+ * waits run on [dispatcher] and are interrupted when the collector is cancelled.
  *
- * Errors of the service (an I/O error while registering, the root disappearing, the service closing) end the flow with
- * one [FileChangeKind.OVERFLOW] change, as [FileWatcher.watch] documents.
+ * Errors of the service (an I/O error while registering, nothing to watch, the root disappearing, the service closing)
+ * end the flow with one [FileChangeKind.OVERFLOW] change, as [FileWatcher.watch] documents.
  */
 internal class WatchServiceFileWatcher(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -41,90 +36,39 @@ internal class WatchServiceFileWatcher(
         return flow {
             try {
                 normalizedRoot.fileSystem.newWatchService().use { service ->
-                    val registration = RecursiveRegistration(service, isIgnored)
-                    registration.registerTree(normalizedRoot)
-                    registration.pump(normalizedRoot, this)
+                    val registry = WatchRegistry(isIgnored) { it.register(service, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY) }
+                    registry.registerTree(normalizedRoot)
+                    if (registry.watchesTree) {
+                        pump(service, registry, normalizedRoot)
+                    } else {
+                        endWithOverflow(normalizedRoot, "nothing could be registered")
+                    }
                 }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (e: IOException) {
-                endWithOverflow(normalizedRoot, e)
+                endWithOverflow(normalizedRoot, e.toString())
             } catch (e: ClosedWatchServiceException) {
-                endWithOverflow(normalizedRoot, e)
+                endWithOverflow(normalizedRoot, e.toString())
             }
         }.flowOn(dispatcher)
     }
 
-    private suspend fun FlowCollector<FileChange>.endWithOverflow(root: Path, cause: Exception) {
-        logger.warn("Watching {} stopped: {}", root, cause.toString())
-        emit(FileChange(root, FileChangeKind.OVERFLOW))
-    }
-
-    /** The registered directories of one [service] (confined to the flow's coroutine). */
-    private class RecursiveRegistration(private val service: WatchService, private val isIgnored: (Path) -> Boolean) {
-
-        private val directories = HashMap<WatchKey, Path>()
-
-        /** Registers [directory] and every non-ignored directory below it (ignored subtrees are not entered). */
-        fun registerTree(directory: Path) {
-            Files.walkFileTree(
-                directory,
-                object : SimpleFileVisitor<Path>() {
-                    override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult {
-                        if (dir != directory && isIgnored(dir)) return FileVisitResult.SKIP_SUBTREE
-                        register(dir)
-                        return FileVisitResult.CONTINUE
-                    }
-
-                    override fun visitFileFailed(file: Path, exc: IOException): FileVisitResult = FileVisitResult.CONTINUE
-                },
-            )
-        }
-
-        /** Emits the changes of every signalled key to [collector] until the root's key becomes invalid. */
-        suspend fun pump(root: Path, collector: FlowCollector<FileChange>) {
-            while (true) {
-                val key = runInterruptible { service.take() }
-                val directory = directories[key]
-                if (directory != null) {
-                    for (event in key.pollEvents()) emitEvent(directory, event, collector)
-                }
-                if (!key.reset()) {
-                    directories.remove(key)
-                    if (directory == root || directories.isEmpty()) {
-                        collector.emit(FileChange(root, FileChangeKind.OVERFLOW))
-                        return
-                    }
-                }
-            }
-        }
-
-        private suspend fun emitEvent(directory: Path, event: WatchEvent<*>, collector: FlowCollector<FileChange>) {
-            if (event.kind() == OVERFLOW) {
-                collector.emit(FileChange(directory, FileChangeKind.OVERFLOW))
+    /** Emits the changes of every signalled key until the root's key becomes invalid or nothing of the tree is left. */
+    private suspend fun FlowCollector<FileChange>.pump(service: WatchService, registry: WatchRegistry, root: Path) {
+        while (true) {
+            val key = runInterruptible { service.take() }
+            for (change in registry.changesOf(key, key.pollEvents())) emit(change)
+            if (!key.reset() && (registry.cancel(key) == root || !registry.watchesTree)) {
+                emit(FileChange(root, FileChangeKind.OVERFLOW))
                 return
             }
-            val path = directory.resolve(event.context() as Path).normalize()
-            if (isIgnored(path)) return
-            val kind = when (event.kind()) {
-                ENTRY_CREATE -> FileChangeKind.CREATED
-                ENTRY_DELETE -> FileChangeKind.DELETED
-                else -> FileChangeKind.MODIFIED
-            }
-            if (kind == FileChangeKind.CREATED && Files.isDirectory(path)) {
-                try {
-                    registerTree(path)
-                } catch (e: IOException) {
-                    // The directory vanished again; its deletion is reported by its parent.
-                    logger.debug("Cannot register new directory {}: {}", path, e.toString())
-                }
-            }
-            collector.emit(FileChange(path, kind))
         }
+    }
 
-        private fun register(directory: Path) {
-            directories[directory.register(service, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY)] = directory
-        }
+    private suspend fun FlowCollector<FileChange>.endWithOverflow(root: Path, cause: String) {
+        logger.warn("Watching {} stopped: {}", root, cause)
+        emit(FileChange(root, FileChangeKind.OVERFLOW))
     }
 
     private companion object {
