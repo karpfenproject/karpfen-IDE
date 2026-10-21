@@ -133,12 +133,12 @@ core/core-lang (`…/core/lang/`): `LanguageServices.kt`, `LanguageDocument.kt` 
 ui/ui-foundation (`…/ui/foundation/`): `keys/KeyStroke.kt` (incl. the punctuation rule on `KeyCode`, decision 41),
 `command/Command.kt`.
 
-ui/ui-editor (`…/ui/editor/`): `model/caret/Caret.kt`, `model/caret/TabStops.kt` (complete, incl. `DEFAULT_TAB_WIDTH`;
-decision 40), `model/action/EditorAction.kt` (incl. `EditorActionContext`, `EditorActionExecutor`, `EditorUiPort`),
+ui/ui-editor (`…/ui/editor/`): `model/caret/Caret.kt`, `model/caret/TabStops.kt` (complete, incl. `DEFAULT_TAB_WIDTH`
+and `displayColumns`; decisions 40 and 61), `model/action/EditorAction.kt` (incl. `EditorActionContext`, `EditorActionExecutor`, `EditorUiPort`),
 `model/action/EditorActionIds.kt` (incl. `EditorActionTitles`), `model/navigation/GoToLineQuery.kt`,
 `state/CodeEditorState.kt` (incl. the role interfaces `EditorHandle` and `EditorViewModel`, decision 36),
 `state/EditorPopupModel.kt` (what the popups may use), `state/EditorOverlayState.kt` (complete; shared by VIEW and
-POPUPS), `overlay/EditorOverlays.kt` (the slot API between VIEW and POPUPS).
+POPUPS), `overlay/EditorOverlays.kt` (the slot API between VIEW and POPUPS; `isCaretScrolledAway`, decision 59).
 
 ui/ui-workbench (`…/ui/workbench/`): `state/WorkbenchState.kt`, `state/WorkbenchServices.kt`,
 `command/WorkbenchCommandIds.kt`, `settings/IdeSettings.kt`, `settings/SettingsRepository.kt` (incl.
@@ -1014,6 +1014,35 @@ Added by the review fixes of the editor group (r1):
     again only while the caret is still in the word it completes (`CompletionTriggers.stillHolds`), never after a line
     break or a space. Tab and Shift+Tab never move focus out of the editor, also when they change nothing; the caret
     reveal's margin shrinks to what fits into a small viewport.
+
+Added by the review fixes of the editor group (r2):
+
+57. **A completion session ends with its word** (refines spec §7.1 and decision 56): an open session closes as soon as
+    anything but identifier characters lies between its request offset and the caret (`CompletionTriggers.stillHolds`,
+    the rule of an outdated request). The session end still follows text typed at it, but a space, a brace or a line
+    break typed after a keyword closes the list, so Enter and Tab after `DO {` are the editor's again (`}` on its own
+    line) and never accept a snippet whose label (`DO { }`) the filter still matched.
+58. **Toggle comment knows the block** (refines decision 27): a line gets `#` only inside an EVAL body whose opening
+    brace lies before the toggled block (`CommentMarkers.markerAt(offset, blockStart)`); a block holding the `EVAL {`
+    line comments the body with `//` like that line, because a commented opener ends the body and `#` outside a body is
+    no comment. Toggling twice thus restores any block, and the tests use the real KStates tokenizer (a commented
+    `// EVAL {` opens no body) instead of a hand-made scanner.
+59. **A completion list waits for its caret's reveal** (refines decision 56; CONTRACT `overlay/EditorOverlays.kt`):
+    `EditorOverlayHost.isCaretScrolledAway` (default `caretBounds == null`) is true only for a caret outside the
+    viewport's current scroll position with no scroll request pending; the completion slot closes a session it cannot
+    anchor only then, so the list a keystroke at a scrolled-away caret triggered appears with the reveal. An explicit
+    completion request (Ctrl+Space, the action) reveals the primary caret first (`EditorUiRequests.triggerCompletion`).
+60. **Popup state follows the text and outlives the composition**: the hover tooltip hides, and a lookup in progress is
+    dropped, on every change of the text (`HoverController` follows `text.snapshot`), not only on typing and keys.
+    `FindModel.replacement`/`setReplacement` hold the replacement next to the query (replacing that part of decision
+    54), so a new composition of the editor (switching tabs) keeps it; `FindBarFields` keeps only the selection and
+    composition of both fields. `CompletionUiState.MAX_VISIBLE_ROWS` is the one declaration of the list's 12 rows, used
+    for the popup's height and for Page Up/Down.
+61. **Display columns in batches** (refines decision 40; CONTRACT `model/caret/TabStops.kt`):
+    `TabStops.displayColumns(line, columns)` converts many ascending columns of one line in one pass, and
+    `TextGeometry.segments(ranges, lines)` converts all bounds of a line with one call, so painting find matches costs
+    O(line length + matches) per laid-out line instead of O(matches × line length); segments outside the text area's
+    width are not drawn.
 
 ## 7. Review findings not adopted
 

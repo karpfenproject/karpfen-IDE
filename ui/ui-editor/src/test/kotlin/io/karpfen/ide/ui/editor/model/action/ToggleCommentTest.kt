@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 
 /**
  * Toggle comment: `//`, and `#` per line inside EVAL bodies by `embeddedRegionAt` (spec §7.1, decision 27) whose
- * `EVAL {` line lies above the block (decision 57); EVAL bodies come from the real KStates tokenizer.
+ * `EVAL {` line lies above the block (decision 58); EVAL bodies come from the real KStates tokenizer.
  */
 class ToggleCommentTest {
 
