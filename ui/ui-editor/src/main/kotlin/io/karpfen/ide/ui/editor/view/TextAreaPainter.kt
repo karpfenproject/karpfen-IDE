@@ -91,20 +91,34 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
         background(Rect(0f, top, size.width, top + frame.geometry.lineHeight), content.theme.currentLine)
     }
 
+    /**
+     * The find matches on the laid-out lines: their segments come in one batch (one pass per line, however many matches
+     * it holds), and segments left or right of the text area are not drawn.
+     */
     private fun DrawScope.paintFindMatches(content: TextAreaContent, find: FindResult, window: TextRange) {
+        val frame = content.frame
         val map = mapper(content, find.version)
         val current = find.current?.let(map)
-        VersionedRanges(find.matches, { it }, map).intersecting(window).forEach { match ->
-            val color = if (match.range == current) content.theme.findMatchCurrent else content.theme.findMatch
-            paintRange(content.frame, match.range, color)
+        val matches = VersionedRanges(find.matches, { it }, map).intersecting(window).map { it.range }
+        frame.geometry.segments(matches, frame.laidOut).forEachIndexed { index, segments ->
+            val color = if (matches[index] == current) content.theme.findMatchCurrent else content.theme.findMatch
+            paintSegments(frame, segments, color)
         }
     }
 
     private fun DrawScope.paintRange(frame: TextAreaFrame, range: TextRange, color: Color) {
+        paintSegments(frame, frame.geometry.segments(range, frame.laidOut), color)
+    }
+
+    /** Fills [segments] with [color]; segments outside the text area's width are skipped. */
+    private fun DrawScope.paintSegments(frame: TextAreaFrame, segments: List<TextGeometry.Segment>, color: Color) {
         val geometry = frame.geometry
-        for (segment in geometry.segments(range, frame.laidOut)) {
+        for (segment in segments) {
+            val left = frame.toAreaX(segment.left)
+            val right = frame.toAreaX(segment.right)
+            if (right < 0f || left > size.width) continue
             val top = frame.toAreaY(geometry.lineTop(segment.line))
-            background(Rect(frame.toAreaX(segment.left), top, frame.toAreaX(segment.right), top + geometry.lineHeight), color)
+            background(Rect(left, top, right, top + geometry.lineHeight), color)
         }
     }
 

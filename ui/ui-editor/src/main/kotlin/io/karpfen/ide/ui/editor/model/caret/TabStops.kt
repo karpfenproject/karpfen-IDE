@@ -30,6 +30,27 @@ public data class TabStops(public val tabWidth: Int = DEFAULT_TAB_WIDTH) {
     }
 
     /**
+     * The display columns of [columns] (ascending, each clamped to `0..line.length` like [displayColumn]) in [line], in
+     * one pass over the line up to the last of them: [displayColumn] for many positions of one line (e.g. the bounds of
+     * every find match on it) at the cost of one call, not one per position.
+     */
+    public fun displayColumns(line: CharSequence, columns: IntArray): IntArray {
+        val result = IntArray(columns.size)
+        var index = 0
+        var display = 0
+        for (k in columns.indices) {
+            val end = columns[k].coerceIn(0, line.length)
+            require(end >= index) { "columns must be ascending: ${columns[k]} after column $index" }
+            while (index < end) {
+                display = advance(line, index, display)
+                index++
+            }
+            result[k] = display
+        }
+        return result
+    }
+
+    /**
      * The column of [line] whose display column is nearest to [displayColumn]: inside a tab, the nearer of its two
      * bounds (the left one on a tie); never between the two halves of a surrogate pair; [line]'s length beyond its end
      * and 0 for negative values.

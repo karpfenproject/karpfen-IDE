@@ -5,6 +5,7 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.caret.TabStops
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /** Caret x, hit-testing and range segments in monospace cells with tab stops (decision 40 of the work-package plan). */
@@ -66,6 +67,34 @@ class TextGeometryTest {
         assertEquals(listOf(TextGeometry.Segment(1, 5f, 35f)), geometry.segments(TextRange(1, 8), 1..1))
         assertEquals(emptyList(), geometry.segments(TextRange(2, 2), 0..2))
         assertEquals(emptyList(), geometry.segments(TextRange(1, 2), 1..2), "not on the laid-out lines")
+    }
+
+    @Test
+    fun `the segments of many ranges are those of each range, computed in one pass per line`() {
+        val text = "a\tb\"c\"d\tee\"\nxx\"\tyy\n\"\uD83D\uDE00\"z\n\tlast\""
+        val geometry = geometry(text)
+        val quotes = text.indices.filter { text[it] == '"' }.map { TextRange(it, it + 1) }
+        val ranges = quotes + listOf(TextRange(3, 12), TextRange(10, 22), TextRange(0, text.length), TextRange(5, 5), TextRange(40, 99))
+
+        for (lines in listOf(0..3, 1..2, 2..2, 5..9)) {
+            assertEquals(ranges.map { geometry.segments(it, lines) }, geometry.segments(ranges, lines), "lines $lines")
+        }
+        assertEquals(
+            quotes.map { listOf(TextGeometry.Segment(geometry.lineOf(it.start), geometry.xOf(it.start), geometry.xOf(it.end))) },
+            geometry.segments(quotes, 0..3),
+            "single-line ranges from x to x",
+        )
+    }
+
+    @Test
+    fun `display columns of many positions agree with one at a time`() {
+        val stops = TabStops(4)
+        val line = "a\tbc\t\uD83D\uDE00x\ty"
+        val columns = intArrayOf(0, 1, 2, 2, 5, 6, 7, 8, 9, 10, 99)
+
+        assertEquals(columns.map { stops.displayColumn(line, it) }, stops.displayColumns(line, columns).toList())
+        assertEquals(emptyList(), stops.displayColumns(line, IntArray(0)).toList())
+        assertFailsWith<IllegalArgumentException>("descending") { stops.displayColumns(line, intArrayOf(3, 2)) }
     }
 
     @Test

@@ -97,22 +97,49 @@ internal class TextGeometry(
      * The pieces of [range] on the lines of [lines]: on every line but the last the piece extends past the line's end by
      * one cell (the selected line break); an empty range yields nothing.
      */
-    fun segments(range: TextRange, lines: IntRange): List<Segment> {
-        if (range.isEmpty || lines.isEmpty()) return emptyList()
-        val first = lineOf(range.start)
-        val last = lineOf(range.end)
-        val from = maxOf(first, lines.first)
-        val to = minOf(last, lines.last)
-        if (from > to) return emptyList()
-        return (from..to).map { line ->
-            val left = if (line == first) xOf(range.start) else textLeft
-            val right = if (line == last) xOf(range.end) else lineRight(line) + charWidth
-            Segment(line, left, right)
+    fun segments(range: TextRange, lines: IntRange): List<Segment> = segments(listOf(range), lines).single()
+
+    /**
+     * The [segments] of each of [ranges], in the same order. The x positions of all bounds on one line come from one pass
+     * over that line ([TabStops.displayColumns]), so k ranges on a line of n characters (find matches) cost
+     * O(n + k log k), not O(k × n) as one [xOf] per bound would.
+     */
+    fun segments(ranges: List<TextRange>, lines: IntRange): List<List<Segment>> {
+        val result = List(ranges.size) { ArrayList<Segment>() }
+        val byLine = ranges.flatMapIndexed { index, range -> pieces(range, lines).map { index to it } }.groupBy { it.second.line }
+        for (line in byLine.keys.sorted()) {
+            val onLine = byLine.getValue(line)
+            val bounds = onLine.flatMap { (_, piece) -> listOf(piece.start, piece.end) }.distinct().sorted().toIntArray()
+            val columns = tabStops.displayColumns(snapshot.lineText(line), bounds)
+            fun x(column: Int): Float = textLeft + columns[bounds.binarySearch(column)] * charWidth
+            for ((index, piece) in onLine) {
+                result[index] += Segment(line, x(piece.start), x(piece.end) + if (piece.pastLineEnd) charWidth else 0f)
+            }
         }
+        return result
     }
 
     /** The range of [line] (without its line break). */
     fun lineRange(line: Int): TextRange = snapshot.lineRange(line)
+
+    /**
+     * The columns [start] until [end] of [line] that a range covers; [pastLineEnd] when it goes on to the next line (its
+     * piece then includes the line break's cell).
+     */
+    private class LinePiece(val line: Int, val start: Int, val end: Int, val pastLineEnd: Boolean)
+
+    /** The pieces of [range] on the lines of [lines], in line order. */
+    private fun pieces(range: TextRange, lines: IntRange): List<LinePiece> {
+        if (range.isEmpty || lines.isEmpty()) return emptyList()
+        val first = lineOf(range.start)
+        val last = lineOf(range.end)
+        return (maxOf(first, lines.first)..minOf(last, lines.last)).map { line ->
+            val lineRange = lineRange(line)
+            val start = if (line == first) range.start - lineRange.start else 0
+            val end = if (line == last) range.end - lineRange.start else lineRange.length
+            LinePiece(line, start, end, pastLineEnd = line != last)
+        }
+    }
 
     private fun lineAt(y: Float): Int = if (lineHeight <= 0f) 0 else floor(y / lineHeight).toInt()
 }
