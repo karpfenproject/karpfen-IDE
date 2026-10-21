@@ -8,10 +8,13 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.testing.assertSamePath
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.io.TempDir
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermissions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -113,25 +116,27 @@ class FolderFlowTest {
     }
 
     @Test
-    fun `a failing folder dialog becomes an error dialog and Save and Exit still run`() = runTest(timeout = 60.seconds) {
+    fun `a folder that cannot be listed is an error dialog and never recent`() = runTest(timeout = 60.seconds) {
+        assumeTrue(Files.getFileStore(dir).supportsFileAttributeView("posix"), "needs POSIX permissions")
         Examples.copyTo(root)
-        val file = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kmeta")
-        withWorkbench(settingsDirectory) {
-            open(root)
-            val editor = openEditor(file)
-            editor.session.text.apply(listOf(TextEdit.insert(0, "// mine\n")), EditOrigin.Typing)
-            settle()
-            folderChooser.failure = IOException("The folder dialog failed: Win32ShellFolder2")
+        val locked = Files.createDirectories(dir.resolve("locked")).toAbsolutePath().normalize()
+        Files.setPosixFilePermissions(locked, emptySet())
+        try {
+            assumeFalse(Files.isReadable(locked), "the user can read any directory (root)")
+            withWorkbench(settingsDirectory) {
+                open(root)
 
-            val choose = state.chooseAndOpenFolder()
-            val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)
+                val job = state.openFolder(locked)
+                val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)
 
-            assertEquals("Cannot choose a folder", error.title)
-            assertEquals("The folder dialog failed: Win32ShellFolder2", error.message)
-            assertTrue(choose.isCompleted)
-            state.saveActive().joinSettled()
-            assertTrue(Files.readString(file).startsWith("// mine"), "Save ran after the failed dialog")
-            assertTrue(state.requestExit(), "exit is not blocked")
+                assertEquals("Cannot open folder", error.title)
+                assertTrue("cannot be read" in error.message, error.message)
+                assertTrue(job.isCompleted)
+                assertSamePath(root, workspace.root)
+                assertEquals(listOf(root.toString()), state.settings.value.recentFolders)
+            }
+        } finally {
+            Files.setPosixFilePermissions(locked, PosixFilePermissions.fromString("rwx------"))
         }
     }
 

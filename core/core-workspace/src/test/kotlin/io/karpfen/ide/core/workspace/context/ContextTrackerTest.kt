@@ -73,7 +73,7 @@ class ContextTrackerTest {
         tracker.update(scanner.scan(root))
 
         val error = tracker.resolution.value.diagnostics.getValue(descriptor).single()
-        assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID, error.code)
+        assertEquals(WorkspaceDiagnosticCodes.UNREADABLE, error.code, "like every file the workspace cannot read")
         assertEquals(Severity.ERROR, error.severity)
         assertTrue("locked" in error.message)
         assertEquals(emptyList(), tracker.resolution.value.contexts)

@@ -1,12 +1,10 @@
 package io.karpfen.ide.core.workspace.context
 
 import io.karpfen.ide.core.document.Diagnostic
-import io.karpfen.ide.core.document.DiagnosticSource
-import io.karpfen.ide.core.document.Severity
-import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
-import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
+import io.karpfen.ide.core.workspace.diagnostics.UnreadableFindings
 import io.karpfen.ide.core.workspace.document.SourceLoader
+import io.karpfen.ide.core.workspace.document.ioFailureReason
 import io.karpfen.ide.core.workspace.environment.DescriptorReadResult
 import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
 import io.karpfen.ide.core.workspace.files.FileKind
@@ -37,8 +35,8 @@ internal data class ContextState(val resolution: ContextResolution, val descript
  * Keeps the modeling contexts of a workspace up to date (spec §4): for a scanned tree it loads every descriptor through
  * the workspace's [SourceLoader] (the one loading rule, so ranges refer to the normalized text and loading findings
  * such as malformed UTF-8 are reported on the descriptor), reads it with the [descriptorReader] and resolves the
- * contexts with the [resolver]. Loading and reading run on [ioDispatcher]; an unreadable descriptor is an ERROR
- * `descriptor-invalid` and defines no context.
+ * contexts with the [resolver]. Loading and reading run on [ioDispatcher]; a descriptor that cannot be read is an ERROR
+ * `unreadable`, like every file the workspace cannot read, and defines no context.
  */
 internal class ContextTracker(
     private val sourceLoader: SourceLoader,
@@ -76,17 +74,8 @@ internal class ContextTracker(
             throw cancellation
         } catch (e: Exception) {
             logger.info("Cannot read environment descriptor {}: {}", path, e.toString())
-            ReadDescriptor(DescriptorReadResult(null, listOf(unreadable(path, e)), emptyList()), text = null)
+            ReadDescriptor(DescriptorReadResult(null, listOf(UnreadableFindings.file(ioFailureReason(e))), emptyList()), text = null)
         }
-
-    private fun unreadable(path: Path, failure: Exception): Diagnostic =
-        Diagnostic(
-            range = TextRange.EMPTY,
-            severity = Severity.ERROR,
-            message = "Cannot read environment descriptor ${path.fileName}: ${failure.message ?: failure.javaClass.simpleName}",
-            code = WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID,
-            source = DiagnosticSource.IDE,
-        )
 
     private class ReadDescriptor(val result: DescriptorReadResult, val text: TextSnapshot?)
 

@@ -24,8 +24,9 @@ import java.nio.file.Path
  *
  * Every context file and every loose file (`ContextResolution.looseFiles`) becomes an [AnalyzedFile]: tokenized unless
  * [SourceText.tokens] are given, parsed with `SemanticMode.SYNTAX_ONLY` unless [SourceText.parse] is given, with the
- * source's [SourceText.fileDiagnostics]. Loose files are never converted. The result follows the conventions documented
- * on [ProjectAnalysis] (paths, snapshots, parse modes).
+ * source's [SourceText.fileDiagnostics]. Loose files are never converted. A file that cannot be read (see
+ * [AnalysisSources.load]) is an ERROR `unreadable` in [ProjectAnalysis.diagnostics], so nothing is skipped silently. The
+ * result follows the conventions documented on [ProjectAnalysis] (paths, snapshots, parse modes).
  *
  * Cancellable (checks for cancellation between files) and never throws otherwise.
  */
@@ -48,7 +49,10 @@ public fun ProjectAnalyzer(languages: LanguageRegistry, converter: DslConverter)
  * (spec §4). Implemented by the workspace; tests supply texts from fixtures the same way.
  */
 public fun interface AnalysisSources {
-    /** The source of [path], or null if it cannot be read (the analyzer then reports nothing for it). */
+    /**
+     * The source of [path], or null if it does not exist (any more: the analyzer skips it, a rescan follows).
+     * @throws java.io.IOException if it exists but cannot be read; the analyzer reports an ERROR `unreadable` on it.
+     */
     public suspend fun load(path: Path): SourceText?
 }
 

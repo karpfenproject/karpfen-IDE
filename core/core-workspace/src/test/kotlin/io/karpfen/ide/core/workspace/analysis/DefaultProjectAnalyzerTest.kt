@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.io.TempDir
 import org.slf4j.LoggerFactory
+import java.nio.file.AccessDeniedException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -216,6 +217,30 @@ class DefaultProjectAnalyzerTest {
         assertEquals(1, result.stateMachines.size)
         assertEquals(listOf(info), analysis.diagnosticsFor(machine), "sorted and without duplicates")
         assertEquals(listOf(DiagnosticCodes.INTERNAL_ERROR), analysis.diagnosticsFor(failing).map { it.code })
+    }
+
+    @Test
+    fun `a file that cannot be read is an unreadable error on it, one that vanished is skipped`() = runTest {
+        val machine = root.resolve("m.kstates")
+        val locked = root.resolve("locked.kmeta")
+        val vanished = root.resolve("vanished.kmodel")
+        Files.writeString(machine, Examples.file("${DescriptorExamples.CONTEXT_DIRECTORY}/cleaning_robot.kstates").text)
+        val context = ModelingContext(root, null, locked, null, listOf(vanished), listOf(StateMachineBinding(machine, null)))
+        val sources = AnalysisSources { path ->
+            when (path) {
+                locked -> throw AccessDeniedException(path.toString())
+                vanished -> null
+                else -> DiskSources().load(path)
+            }
+        }
+
+        val analysis = analyzer().analyze(ContextResolution(listOf(context), emptyMap()), sources, generation = 1)
+
+        assertEquals(setOf(machine), analysis.contexts.single().files.keys)
+        val finding = analysis.diagnosticsFor(locked).single()
+        assertEquals(WorkspaceDiagnosticCodes.UNREADABLE to Severity.ERROR, finding.code to finding.severity)
+        assertEquals("Cannot read this file (access denied), so it was not analyzed.", finding.message)
+        assertEquals(emptyList(), analysis.diagnosticsFor(vanished))
     }
 
     @Test

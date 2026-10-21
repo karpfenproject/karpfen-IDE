@@ -13,11 +13,10 @@ import java.nio.file.Path
  * `refresh()` and `awaitAnalysis()`, and reports `Workspace.problems`: the same single rule as the IDE's Problems view
  * (every karpfen file's own LEXER/PARSER/IDE diagnostics, loose files included, plus the project's DSL_TOOLS and
  * descriptor/context diagnostics), so the CLI and the IDE never disagree. Positions come from
- * `FileProblems.positionOf`, shown one-based. A karpfen file or a directory of the scanned tree that cannot be read is
- * an ERROR `unreadable` at 1:1 of its own (the workspace skips it; without this, a tree the CLI could not read would
- * pass; decision 47 of the work-package plan). dsl-tools writes to stdout and stderr, and a workspace may start its
- * first analysis as soon as it is opened, so the whole workspace run — open, `refresh`, `awaitAnalysis`, collecting
- * `problems` and the unreadable paths of `files`, and `close` (cancelling its scope) — happens inside
+ * `FileProblems.positionOf`, shown one-based; a file or a directory the workspace cannot read is its ERROR
+ * `unreadable` at 1:1, so a tree the CLI could not read never passes. dsl-tools writes to stdout and stderr, and a
+ * workspace may start its first analysis as soon as it is opened, so the whole workspace run — open, `refresh`,
+ * `awaitAnalysis`, collecting `problems`, and `close` (cancelling its scope) — happens inside
  * [StandardOutputGuard.silenced]; the report and the CLI's own messages are written afterwards through the guard's
  * original streams.
  *
@@ -36,26 +35,23 @@ public class ValidateCommand(
      */
     public suspend fun run(directory: Path): ValidationReport {
         val root = directory.toAbsolutePath().normalize()
-        val found = outputGuard.silenced { collect(root) }
-        return found.problems.toValidationReport(root, found.unreadable)
+        val problems = outputGuard.silenced { collect(root) }
+        return problems.toValidationReport(root)
     }
 
     /**
      * One workspace run in a child scope: the workspace is closed and every coroutine it started is cancelled before
      * this returns (also on failure), so no analysis can print after the guard restored the streams.
      */
-    private suspend fun collect(root: Path): Findings = coroutineScope {
+    private suspend fun collect(root: Path): WorkspaceProblems = coroutineScope {
         val workspace = workspaceFactory.open(root, this)
         try {
             workspace.refresh()
             workspace.awaitAnalysis()
-            Findings(workspace.problems.value, unreadablePathsOf(workspace.files.value))
+            workspace.problems.value
         } finally {
             workspace.close()
             coroutineContext.job.cancelChildren()
         }
     }
-
-    /** What one workspace run found: its [problems] and the [unreadable] paths it skipped. */
-    private class Findings(val problems: WorkspaceProblems, val unreadable: List<UnreadablePath>)
 }

@@ -2,14 +2,20 @@ package io.karpfen.ide.core.workspace.diagnostics
 
 /**
  * Stable codes (`Diagnostic.code`) of the findings only core-workspace produces, all with source `DiagnosticSource.IDE`:
- * file loading (`SourceLoader`), environment descriptors (`EnvironmentDescriptorReader`) and modeling contexts
- * (`ContextResolver`). The lexer, parser, EVAL, dsl-tools and internal codes are core-document's `DiagnosticCodes`. A
+ * file loading (`SourceLoader`, files and directories that cannot be read), environment descriptors
+ * (`EnvironmentDescriptorReader`) and modeling contexts (`ContextResolver`). The lexer, parser, EVAL, dsl-tools and internal codes are core-document's `DiagnosticCodes`. A
  * new workspace finding adds its code here (decision 46 of the work-package plan). A leaf package, so every producer
  * may depend on it without package cycles.
  */
 public object WorkspaceDiagnosticCodes {
     /** The file mixes line separators (INFO, reported once when loading). */
     public const val MIXED_LINE_SEPARATORS: String = "mixed-line-separators"
+
+    /**
+     * A file or a directory of the workspace cannot be read, so it (or the files in it) was not analyzed (ERROR at the
+     * start, on the file or directory itself; a silent pass would let `karpfen validate` accept a tree it never saw).
+     */
+    public const val UNREADABLE: String = "unreadable"
 
     /** The file is not valid UTF-8 and was decoded with replacement characters (WARNING). */
     public const val MALFORMED_ENCODING: String = "malformed-encoding"

@@ -1,9 +1,12 @@
 package io.karpfen.ide.core.workspace.files
 
 import io.karpfen.ide.core.workspace.WorkspaceOptions
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermissions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -86,6 +89,28 @@ class FileSystemWorkspaceScannerTest {
 
         val loop = assertIs<WorkspaceNode.Directory>(tree.find(dir.resolve("a/loop").toAbsolutePath().normalize()))
         assertEquals(emptyList(), loop.children)
+    }
+
+    @Test
+    fun `a directory that cannot be listed is marked unreadable, a readable one and a link cycle are not`() {
+        assumeTrue(Files.getFileStore(dir).supportsFileAttributeView("posix"), "needs POSIX permissions")
+        write("locked/inner.kmeta")
+        write("open/model.kmodel")
+        val locked = dir.resolve("locked")
+        Files.setPosixFilePermissions(locked, emptySet())
+        try {
+            assumeFalse(Files.isReadable(locked), "the user can read any directory (root)")
+
+            val tree = scanner.scan(dir)
+
+            val unreadable = assertIs<WorkspaceNode.Directory>(tree.find(locked.toAbsolutePath().normalize()))
+            assertFalse(unreadable.isReadable)
+            assertEquals(emptyList(), unreadable.children)
+            assertTrue(tree.root.isReadable)
+            assertTrue(assertIs<WorkspaceNode.Directory>(tree.find(dir.resolve("open").toAbsolutePath().normalize())).isReadable)
+        } finally {
+            Files.setPosixFilePermissions(locked, PosixFilePermissions.fromString("rwx------"))
+        }
     }
 
     @Test

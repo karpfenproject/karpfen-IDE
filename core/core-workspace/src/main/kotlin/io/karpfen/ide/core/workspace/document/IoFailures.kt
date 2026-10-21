@@ -7,15 +7,17 @@ import java.nio.file.Path
 
 /**
  * A user-readable message for a failure to read or write [path] (I/O errors are values, decision 12): the file name
- * and the reason, without stack traces or exception class names where a reason is known.
+ * and the reason ([ioFailureReason]).
  */
 internal fun describeIoFailure(path: Path, failure: Exception): String {
     val name = path.fileName?.toString() ?: path.toString()
-    val reason = when (failure) {
-        is NoSuchFileException -> "the file does not exist"
-        is AccessDeniedException -> failure.reason ?: "access denied"
-        is FileSystemException -> failure.reason ?: failure.javaClass.simpleName
-        else -> failure.message ?: failure.javaClass.simpleName
-    }
-    return "$name: $reason"
+    return "$name: ${ioFailureReason(failure)}"
+}
+
+/** Why [failure] happened, readable for users: without stack traces or exception class names where a reason is known. */
+internal fun ioFailureReason(failure: Exception): String = when (failure) {
+    is NoSuchFileException -> "the file does not exist"
+    is AccessDeniedException -> failure.reason ?: "access denied"
+    is FileSystemException -> failure.reason ?: failure.javaClass.simpleName
+    else -> failure.message ?: failure.javaClass.simpleName
 }

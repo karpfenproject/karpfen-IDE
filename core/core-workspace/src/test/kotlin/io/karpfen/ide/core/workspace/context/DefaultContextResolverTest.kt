@@ -4,6 +4,8 @@ import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
+import io.karpfen.ide.core.workspace.files.WorkspaceNode
+import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -179,6 +181,22 @@ class DefaultContextResolverTest {
         val resolution = resolver.resolve(tree, descriptors("ctx/robot.kenv.json" to text))
 
         assertEquals(emptyMap(), resolution.diagnostics)
+    }
+
+    @Test
+    fun `a directory that could not be listed is an unreadable error on the directory`() {
+        val readable = treeOf("ctx/robot.kstates", "ctx/sub/inner.kmeta")
+        val sub = readable.find(ws("ctx/sub")) as WorkspaceNode.Directory
+        val ctx = readable.find(ws("ctx")) as WorkspaceNode.Directory
+        val locked = sub.copy(children = emptyList(), isReadable = false)
+        val tree = WorkspaceTree(readable.root.copy(children = listOf(ctx.copy(children = listOf(locked) + ctx.children.drop(1)))))
+
+        val resolution = resolver.resolve(tree, emptyMap())
+
+        val finding = resolution.diagnostics.getValue(ws("ctx/sub")).single()
+        assertEquals(WorkspaceDiagnosticCodes.UNREADABLE to Severity.ERROR, finding.code to finding.severity)
+        assertEquals(TextRange.EMPTY, finding.range)
+        assertEquals(setOf(ws("ctx/sub"), ws("ctx/robot.kstates")), resolution.diagnostics.keys, "and the INFO of the machine")
     }
 
     @Test

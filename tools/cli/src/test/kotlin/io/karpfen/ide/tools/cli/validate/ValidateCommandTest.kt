@@ -51,7 +51,7 @@ class ValidateCommandTest {
 
             val report = command.run(dir)
 
-            assertEquals(listOf("open", "refresh", "awaitAnalysis", "problems", "files", "close"), workspace.calls)
+            assertEquals(listOf("open", "refresh", "awaitAnalysis", "problems", "close"), workspace.calls)
             workspace.streamsSeen.forEach { assertNotSame(processOut, it, "every workspace call runs with stdout silenced") }
             assertTrue(workspace.closed)
             assertFalse(workspace.childJob!!.isActive, "the workspace's coroutines are cancelled")
@@ -130,8 +130,7 @@ class ValidateCommandTest {
         }
 
         override val languages: LanguageRegistry get() = unused()
-        override val files: StateFlow<WorkspaceTree>
-            get() = MutableStateFlow(WorkspaceTree.empty(root)).also { record("files") }
+        override val files: StateFlow<WorkspaceTree> get() = unused()
         override val contexts: StateFlow<ContextResolution> get() = unused()
         override val analysis: StateFlow<ProjectAnalysis> get() = unused()
         override val isAnalyzing: StateFlow<Boolean> get() = unused()

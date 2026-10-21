@@ -1031,6 +1031,17 @@ Added by the review fixes of the core group (r2):
     (`DescriptorFileRole.language`, the one rule for both), so nothing depending on it converts; before, that passed
     without any finding (and `karpfen validate` exited 0). Refines decision 44, which covered broken files only.
 
+59. **What the workspace cannot read is its own finding** (replaces the CLI-only check of decision 47, so decision
+    17's one problems rule holds again). CONTRACT changes: `WorkspaceDiagnosticCodes.UNREADABLE` (`unreadable`; the
+    contract test now pins 8 codes), `WorkspaceNode.Directory.isReadable` (default true), `AnalysisSources.load` throws
+    an `IOException` for a file that exists but cannot be read (null now only means "vanished": skipped, a rescan
+    follows), and the documentation of `ContextResolver`, `ProjectAnalyzer`, `ProjectAnalysis.diagnostics` and
+    `WorkspaceProblems`. The scan marks a directory it cannot list, the resolver reports it as an ERROR `unreadable` on
+    the directory, and the analysis reports a karpfen file it cannot load (and the context tracker a descriptor,
+    formerly `descriptor-invalid`) the same way, at 1:1 without a snapshot. The Problems view, the status bar and
+    `karpfen validate` (its `UnreadablePaths` is gone; the root is reported as `.`) agree. Opening a folder that cannot
+    be listed shows "Cannot open folder" and leaves the recent folders, like a missing one (`FolderFlow`).
+
 ## 7. Review findings not adopted
 
 1. **A core-lang-owned `ProjectKnowledge` port instead of the workspace's `ProjectAnalysis`.** The providers need the

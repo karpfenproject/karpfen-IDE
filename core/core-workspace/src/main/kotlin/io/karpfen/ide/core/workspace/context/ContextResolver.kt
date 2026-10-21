@@ -23,6 +23,8 @@ import java.nio.file.Path
  * - [ContextResolution.looseFiles] is exactly the set of karpfen sources of the tree that are in no context's files
  *   (not converted, but still tokenized and parsed; the same rule in the IDE and the CLI).
  * - The descriptors' own read diagnostics are included in [ContextResolution.diagnostics].
+ * - A directory of the tree that could not be listed (`WorkspaceNode.Directory.isReadable` false) is an ERROR
+ *   `unreadable` on the directory: the files in it are unknown, so they are in no context.
  */
 public fun interface ContextResolver {
     /** Resolves the contexts of [tree]; [descriptors] holds the read result of every `*.kenv.json` in the tree. */

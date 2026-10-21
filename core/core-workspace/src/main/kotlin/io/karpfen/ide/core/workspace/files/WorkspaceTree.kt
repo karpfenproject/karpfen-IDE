@@ -54,11 +54,17 @@ public sealed interface WorkspaceNode {
     /** File or directory name (the last path segment). */
     public val name: String
 
-    /** A directory with its visible [children], sorted with [ORDER] (checked). */
+    /**
+     * A directory with its visible [children], sorted with [ORDER] (checked).
+     *
+     * @property isReadable false if the directory could not be listed (permissions): its files are unknown and
+     *   [children] is empty; the workspace reports it as an ERROR `unreadable`.
+     */
     public data class Directory(
         override val path: Path,
         override val name: String,
         public val children: List<WorkspaceNode>,
+        public val isReadable: Boolean = true,
     ) : WorkspaceNode {
         init {
             for (i in 1 until children.size) {

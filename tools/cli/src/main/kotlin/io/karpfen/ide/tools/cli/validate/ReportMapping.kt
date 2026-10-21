@@ -7,11 +7,10 @@ import kotlin.io.path.invariantSeparatorsPathString
 /**
  * The [ValidationReport] of these problems below [root] (absolute, normalized): one [ReportedProblem] per diagnostic,
  * nothing filtered or merged (the workspace's single problems rule decided what is reported), with the path relative
- * to [root] in `/` form ([reportPath]) and the one-based position of `FileProblems.positionOf`, plus one ERROR per
- * path of [unreadable] (the workspace did not see those). Sorted by path, line and column; ties keep the files'
- * diagnostic order (`Diagnostic.ORDER`).
+ * to [root] in `/` form ([reportPath]) and the one-based position of `FileProblems.positionOf`. Sorted by path, line
+ * and column; ties keep the files' diagnostic order (`Diagnostic.ORDER`).
  */
-internal fun WorkspaceProblems.toValidationReport(root: Path, unreadable: List<UnreadablePath> = emptyList()): ValidationReport {
+internal fun WorkspaceProblems.toValidationReport(root: Path): ValidationReport {
     val problems = files.flatMap { file ->
         val path = reportPath(root, file.path)
         file.diagnostics.map { diagnostic ->
@@ -26,14 +25,17 @@ internal fun WorkspaceProblems.toValidationReport(root: Path, unreadable: List<U
             )
         }
     }
-    return ValidationReport(root, (problems + unreadable.map { it.toReportedProblem(root) }).sortedWith(REPORT_ORDER))
+    return ValidationReport(root, problems.sortedWith(REPORT_ORDER))
 }
 
-/** [path] relative to [root] with `/` separators; an absolute `/` path if it is not below [root]. */
+/**
+ * [path] relative to [root] with `/` separators (`.` for the root itself, e.g. an unreadable root); an absolute `/`
+ * path if it is not below [root].
+ */
 internal fun reportPath(root: Path, path: Path): String {
     val normalized = path.toAbsolutePath().normalize()
     val shown = if (normalized.startsWith(root)) root.relativize(normalized) else normalized
-    return shown.invariantSeparatorsPathString
+    return shown.invariantSeparatorsPathString.ifEmpty { "." }
 }
 
 /** Path, then line, then column (a stable sort keeps the diagnostic order for ties). */

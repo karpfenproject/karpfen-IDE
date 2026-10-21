@@ -8,7 +8,6 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
-import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -19,9 +18,9 @@ import java.nio.file.Path
  * single writer), binding the sub-states and recording the folder as the most recent one. The tree is scanned before
  * the flow ends, so the project tree is filled when the intent's job completes.
  *
- * A folder that is no longer a directory (a stale recent folder: deleted, moved, its volume unmounted) is checked on
- * [ioDispatcher] before anything is closed: the open workspace and its tabs stay, an error dialog says why, and the
- * folder leaves the recent folders. A folder dialog that fails is an error dialog too.
+ * A folder that is no longer a directory (a stale recent folder: deleted, moved, its volume unmounted) or that cannot
+ * be listed (permissions, a protected folder) is checked on [ioDispatcher] before anything is closed: the open
+ * workspace and its tabs stay, an error dialog says why, and the folder leaves the recent folders.
  */
 internal class FolderFlow(
     private val scope: CoroutineScope,
@@ -41,7 +40,7 @@ internal class FolderFlow(
     suspend fun openFolder(path: Path) {
         val root = path.toAbsolutePath().normalize()
         if (holder.workspace.value?.root != root) {
-            if (!isFolder(root)) return cannotOpen(root, notAFolder(root))
+            problemOf(root)?.let { return cannotOpen(root, it) }
             if (!unsaved.confirm(tabs.documents())) return
             closeWorkspace()
             val workspace = try {
@@ -56,7 +55,22 @@ internal class FolderFlow(
         settings.update { it.withRecentFolder(root.toString()) }
     }
 
-    private suspend fun isFolder(root: Path): Boolean = withContext(ioDispatcher) { Files.isDirectory(root) }
+    /** Why [root] cannot be opened, or null if it is a folder that can be listed. */
+    private suspend fun problemOf(root: Path): String? = withContext(ioDispatcher) {
+        when {
+            !Files.isDirectory(root) -> notAFolder(root)
+            !canList(root) -> "$root cannot be read; check its permissions."
+            else -> null
+        }
+    }
+
+    private fun canList(root: Path): Boolean =
+        try {
+            Files.newDirectoryStream(root).close()
+            true
+        } catch (e: IOException) {
+            false
+        }
 
     private fun notAFolder(root: Path): String = "$root does not exist or is not a folder."
 

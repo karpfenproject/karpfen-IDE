@@ -11,10 +11,13 @@ import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermissions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -106,6 +109,56 @@ class WorkspaceAnalysisTest {
         assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID to Severity.ERROR, finding.code to finding.severity)
         assertTrue("cleaning_robot.kstates" in finding.message && "metamodel" in finding.message, finding.message)
         assertEquals(1, workspace.problems.value.errorCount)
+    }
+
+    @Test
+    fun `files and directories the workspace cannot read are unreadable errors in problems`() = runTest(timeout = 60.seconds) {
+        assumeTrue(Files.getFileStore(root).supportsFileAttributeView("posix"), "needs POSIX permissions")
+        val broken = Files.writeString(root.resolve("broken.kstates"), "STATEMACHINE")
+        val sub = Files.createDirectories(root.resolve("sub"))
+        Files.writeString(sub.resolve("m.kstates"), "STATEMACHINE")
+        listOf(broken, sub).forEach { Files.setPosixFilePermissions(it, emptySet()) }
+        try {
+            assumeFalse(Files.isReadable(broken), "the user can read any file (root)")
+            val workspace = TestWorkspaces(this).open(root)
+
+            workspace.awaitAnalysis()
+
+            val problems = workspace.problems.value
+            val file = assertNotNull(problems.of(broken))
+            assertEquals(
+                setOf(WorkspaceDiagnosticCodes.UNREADABLE to Severity.ERROR, WorkspaceDiagnosticCodes.CONTEXT_NO_METAMODEL to Severity.INFO),
+                file.diagnostics.map { it.code to it.severity }.toSet(),
+            )
+            assertEquals(TextPosition.ORIGIN, file.positionOf(file.diagnostics.first { it.code == WorkspaceDiagnosticCodes.UNREADABLE }))
+            val directory = assertNotNull(problems.of(sub))
+            assertEquals(listOf(WorkspaceDiagnosticCodes.UNREADABLE), directory.diagnostics.map { it.code })
+            assertEquals(2, problems.errorCount)
+        } finally {
+            Files.setPosixFilePermissions(sub, PosixFilePermissions.fromString("rwx------"))
+            Files.setPosixFilePermissions(broken, PosixFilePermissions.fromString("rw-------"))
+        }
+    }
+
+    @Test
+    fun `a root the workspace cannot list is an unreadable error, not an empty project`() = runTest(timeout = 60.seconds) {
+        assumeTrue(Files.getFileStore(root).supportsFileAttributeView("posix"), "needs POSIX permissions")
+        val folder = Files.createDirectories(root.resolve("locked"))
+        Files.writeString(folder.resolve("robot.kmeta"), "type \"A\" \"a\" {\n")
+        Files.setPosixFilePermissions(folder, emptySet())
+        try {
+            assumeFalse(Files.isReadable(folder), "the user can read any directory (root)")
+            val workspace = TestWorkspaces(this).open(folder)
+
+            workspace.awaitAnalysis()
+
+            assertFalse(workspace.files.value.root.isReadable)
+            val problems = workspace.problems.value
+            assertEquals(listOf(WorkspaceDiagnosticCodes.UNREADABLE), assertNotNull(problems.of(folder)).diagnostics.map { it.code })
+            assertEquals(1, problems.errorCount)
+        } finally {
+            Files.setPosixFilePermissions(folder, PosixFilePermissions.fromString("rwx------"))
+        }
     }
 
     @Test

@@ -85,6 +85,7 @@ class ReportMappingTest {
     fun `report paths are relative with slashes below the root and absolute outside it`() {
         assertEquals("ctx/robot.kenv.json", reportPath(root, root.resolve("ctx").resolve("robot.kenv.json")))
         assertEquals("x.kmeta", reportPath(root, root.resolve("ctx/../x.kmeta")))
+        assertEquals(".", reportPath(root, root), "the root itself")
         val outside = root.resolveSibling("other").resolve("y.kmeta")
         assertEquals(outside.toString().replace('\\', '/'), reportPath(root, outside))
     }

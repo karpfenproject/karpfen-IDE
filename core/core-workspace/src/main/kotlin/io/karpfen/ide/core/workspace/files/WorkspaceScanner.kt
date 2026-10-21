@@ -3,6 +3,8 @@ package io.karpfen.ide.core.workspace.files
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.NoSuchFileException
+import java.nio.file.NotDirectoryException
 import java.nio.file.Path
 
 /**
@@ -29,8 +31,9 @@ internal fun WorkspaceScanner(ignoredDirectoryNames: Set<String>): WorkspaceScan
  *   spec §4 ignores directories only);
  * - symbolic links to directories are followed once: a directory whose real path was already visited (a link cycle) is
  *   listed empty;
- * - a directory that cannot be listed (permissions, vanished during the scan) is listed empty and logged; the scan
- *   itself never throws.
+ * - a directory that cannot be listed is listed empty and logged; unless it vanished during the scan (a rescan
+ *   follows), it is marked `isReadable = false`, so the workspace reports it instead of passing over its files; the
+ *   scan itself never throws.
  */
 internal class FileSystemWorkspaceScanner(private val ignoredDirectoryNames: Set<String>) : WorkspaceScanner {
 
@@ -55,25 +58,25 @@ internal class FileSystemWorkspaceScanner(private val ignoredDirectoryNames: Set
 
     private fun directory(path: Path, visited: MutableSet<Path>): WorkspaceNode.Directory {
         val name = path.fileName?.toString() ?: path.toString()
-        val children = if (visited.add(realPathOf(path))) children(path, visited) else emptyList()
-        return WorkspaceNode.Directory(path, name, children.sortedWith(WorkspaceNode.ORDER))
+        if (!visited.add(realPathOf(path))) return WorkspaceNode.Directory(path, name, emptyList())
+        val entries = try {
+            Files.newDirectoryStream(path).use { stream -> stream.toList() }
+        } catch (e: IOException) {
+            logger.warn("Cannot list directory {}: {}", path, e.toString())
+            val vanished = e is NoSuchFileException || e is NotDirectoryException
+            return WorkspaceNode.Directory(path, name, emptyList(), isReadable = vanished)
+        }
+        return WorkspaceNode.Directory(path, name, children(entries, visited).sortedWith(WorkspaceNode.ORDER))
     }
 
-    private fun children(directory: Path, visited: MutableSet<Path>): List<WorkspaceNode> {
-        val entries = try {
-            Files.newDirectoryStream(directory).use { stream -> stream.toList() }
-        } catch (e: IOException) {
-            logger.warn("Cannot list directory {}: {}", directory, e.toString())
-            return emptyList()
-        }
-        return entries.mapNotNull { entry ->
+    private fun children(entries: List<Path>, visited: MutableSet<Path>): List<WorkspaceNode> =
+        entries.mapNotNull { entry ->
             val name = entry.fileName.toString()
             when {
                 Files.isDirectory(entry) -> if (isIgnoredDirectoryName(name)) null else directory(entry, visited)
                 else -> WorkspaceNode.File(entry, name, FileKind.of(name))
             }
         }
-    }
 
     private fun realPathOf(path: Path): Path =
         try {
