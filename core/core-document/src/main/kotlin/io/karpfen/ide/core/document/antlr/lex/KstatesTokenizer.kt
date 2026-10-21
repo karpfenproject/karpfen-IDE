@@ -4,6 +4,7 @@ import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.EvalBodies
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.document.syntax.Tokenizer
@@ -76,16 +77,13 @@ internal class KstatesTokenizer : Tokenizer {
 }
 
 /**
- * The KStates vocabulary outside EVAL bodies: the operations `SET APPEND SETLIST DROPLIST SETOBJ APPENDOBJ DROPOBJ`
- * (both cases are one token type each), every other grammar keyword (`EVENT` included; the tokenizer turns it into an
+ * The KStates vocabulary outside EVAL bodies: the operations of [KarpfenSyntax.KSTATES_OPERATIONS] (both cases are one
+ * token type each, found by name in the lexer's vocabulary), every other grammar keyword (`EVENT` included; the tokenizer turns it into an
  * OPERATION in action blocks), double- and single-quoted strings, identifiers (e.g. `list` in a type expression),
  * numbers, `->`, punctuation and hidden `//` comments. `WS` is skipped; the catch-all `SYMBOL` falls back to ERROR.
  */
 internal val KSTATES_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
-    TokenKind.OPERATION to intArrayOf(
-        KstatesLexer.SET, KstatesLexer.APPEND, KstatesLexer.SETLIST, KstatesLexer.DROPLIST, KstatesLexer.SETOBJ,
-        KstatesLexer.APPENDOBJ, KstatesLexer.DROPOBJ,
-    ),
+    TokenKind.OPERATION to KarpfenSyntax.KSTATES_OPERATIONS.map(::kstatesTokenType).toIntArray(),
     TokenKind.KEYWORD to intArrayOf(
         KstatesLexer.STATEMACHINE, KstatesLexer.ATTACHED, KstatesLexer.TO, KstatesLexer.STATES, KstatesLexer.STATE,
         KstatesLexer.INITIAL, KstatesLexer.ENTRY, KstatesLexer.DO, KstatesLexer.EVENT, KstatesLexer.WITH, KstatesLexer.AS,
@@ -103,3 +101,8 @@ internal val KSTATES_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
     ),
     TokenKind.COMMENT to intArrayOf(KstatesLexer.LINE_COMMENT),
 )
+
+/** The KStates token type whose symbolic name is [name]; throws if the lexer has none (a programming error). */
+internal fun kstatesTokenType(name: String): Int =
+    (1..KstatesLexer.VOCABULARY.maxTokenType).firstOrNull { KstatesLexer.VOCABULARY.getSymbolicName(it) == name }
+        ?: error("the KStates lexer has no token $name")

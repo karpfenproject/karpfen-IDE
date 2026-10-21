@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.document.antlr
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 import kstates.KstatesLexer
 import org.antlr.v4.runtime.Token
@@ -200,7 +201,7 @@ internal object EvalBodies {
         while (p < limit) {
             val char = text[p]
             p += when {
-                isPathChar(char) || isBlank(char) -> 1
+                KarpfenSyntax.isIdentifierChar(char) || isBlank(char) -> 1
                 char == '-' && p + 1 < limit && text[p + 1] == '>' -> 2
                 else -> break
             }
@@ -275,9 +276,6 @@ internal object EvalBodies {
 
     private fun clip(range: TextRange, limit: Int): TextRange =
         TextRange(minOf(range.start, limit), minOf(range.end, limit))
-
-    private fun isPathChar(char: Char): Boolean =
-        char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' || char == '_'
 
     private fun isBlank(char: Char): Boolean = char == ' ' || char == '\t'
 }

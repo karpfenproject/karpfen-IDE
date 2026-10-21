@@ -982,6 +982,14 @@ Added by the phase-1 review fixes (core):
     readers take the first or fail, so accepting it would let the IDE analyze another file than the runtime runs; the
     position tree's `member(key)` follows kotlinx (last wins) wherever it is still asked. No new diagnostic code (the
     contract test pins the set of workspace codes).
+52. **One home for the lexical facts** (completes decision 46): `KarpfenSyntax` in core-document's `syntax` package
+    declares the identifier characters `[A-Za-z0-9_]`, the primitive types and the KStates operations (and which of
+    them take a relation). The KStates tokenizer finds the operations' token types by name in the lexer vocabulary,
+    the action walker, `EvalBodies`' path scanner, core-lang's `TokenView`/`KstatesSlots`/completion and ui-editor's
+    `WordBoundaries` read them there; `MemberInfo.PRIMITIVE_TYPES` and the other copies are gone, and
+    `LexicalFactsTest` (architecture) rejects a second declaration. Undo coalescing (core-text, below core-document)
+    and the quoted-name error locator keep their Unicode word rules: they describe text and quoted names, not
+    identifiers.
 
 ## 7. Review findings not adopted
 

@@ -11,6 +11,7 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.document.parse.SymbolReference
 import io.karpfen.ide.core.document.parse.SyntaxAnalysis
 import io.karpfen.ide.core.document.parse.SyntaxIndex
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
 /**
@@ -77,7 +78,7 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
      */
     fun typeReference(name: QuotedString?) {
         val value = name?.value ?: return
-        if (value in PRIMITIVE_TYPES) {
+        if (value in KarpfenSyntax.PRIMITIVE_TYPES) {
             reference(ReferenceKind.PRIMITIVE_TYPE, name, span = SemanticKind.PRIMITIVE_TYPE)
         } else {
             reference(ReferenceKind.TYPE, name, span = SemanticKind.TYPE_NAME)
@@ -120,10 +121,5 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
     private fun record(reference: SymbolReference, span: SemanticKind?) {
         references += reference
         if (span != null && !reference.range.isEmpty) spans += SemanticSpan(reference.range, span)
-    }
-
-    companion object {
-        /** The primitive types of KMeta (dsl-tools' `SimplePropertyType`), as written in the files. */
-        val PRIMITIVE_TYPES: Set<String> = setOf("number", "string", "boolean")
     }
 }

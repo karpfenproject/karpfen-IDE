@@ -1,12 +1,12 @@
 package io.karpfen.ide.core.lang.kmeta
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.lang.completion.Snippet
 import io.karpfen.ide.core.lang.completion.nameItem
 import io.karpfen.ide.core.lang.feature.CompletionProvider
 import io.karpfen.ide.core.lang.feature.FeatureRequest
-import io.karpfen.ide.core.lang.symbols.MemberInfo
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
@@ -36,7 +36,7 @@ internal class KmetaCompletionProvider(
     }
 
     private fun primitives(slot: KmetaSlot.TypeArgument): List<CompletionItem> =
-        MemberInfo.PRIMITIVE_TYPES.sorted().map { nameItem(it, CompletionKind.PRIMITIVE_TYPE, slot.range, quoted = !slot.inString) }
+        KarpfenSyntax.PRIMITIVE_TYPES.sorted().map { nameItem(it, CompletionKind.PRIMITIVE_TYPE, slot.range, quoted = !slot.inString) }
 
     private fun typeNames(request: FeatureRequest, slot: KmetaSlot.TypeArgument): List<CompletionItem> {
         val origins = if (request.isEventsDocument) setOf(TypeOrigin.DOCUMENT, TypeOrigin.DOMAIN) else setOf(TypeOrigin.DOCUMENT)

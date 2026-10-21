@@ -2,6 +2,7 @@ package io.karpfen.ide.core.lang.kstates
 
 import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SymbolKind
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.lang.completion.nameItem
@@ -11,7 +12,6 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.modelpath.PathMember
 import io.karpfen.ide.core.lang.modelpath.PathOrigin
 import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
-import io.karpfen.ide.core.lang.symbols.MemberInfo
 import io.karpfen.ide.core.lang.symbols.MemberKind
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
@@ -64,7 +64,7 @@ internal class KstatesCompletionProvider(
             nameItem(type.name, CompletionKind.TYPE, slot.range, type.description, type.hoverText, rank = 0, quoted = !slot.inString)
         }
         val primitives = if (slot.primitives) {
-            MemberInfo.PRIMITIVE_TYPES.sorted().map {
+            KarpfenSyntax.PRIMITIVE_TYPES.sorted().map {
                 nameItem(it, CompletionKind.PRIMITIVE_TYPE, slot.range, rank = 1, quoted = !slot.inString)
             }
         } else {

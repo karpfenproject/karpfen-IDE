@@ -4,6 +4,7 @@ import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolKind
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import kstates.KstatesParser
 import org.antlr.v4.runtime.tree.ErrorNode
 import org.antlr.v4.runtime.tree.TerminalNode
@@ -46,7 +47,7 @@ internal class KstatesActionWalker(
         } else {
             val source = arguments.getOrNull(0)
             references.modelPath(source)
-            if (operation == KstatesParser.SETOBJ || operation == KstatesParser.APPENDOBJ) {
+            if (operation != null && KstatesParser.VOCABULARY.getSymbolicName(operation) in KarpfenSyntax.KSTATES_RELATION_OPERATIONS) {
                 val qualifier = source?.let { KstatesReferences.normalizePath(it.value) }
                 collector.reference(ReferenceKind.RELATION_KEY, arguments.getOrNull(1), qualifier, SemanticKind.PROPERTY_NAME)
             }

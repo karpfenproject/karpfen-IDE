@@ -3,6 +3,7 @@ package io.karpfen.ide.core.lang.symbols
 import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.SymbolDeclaration
 import io.karpfen.ide.core.document.parse.SymbolKind
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 
 /**
  * A type as written in karpfen sources (`SymbolDeclaration.typeName`): `T`, `list(T)` or `reference(T)`, read as the
@@ -11,7 +12,7 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 internal data class TypeExpression(val name: String, val isList: Boolean) {
 
     /** True if [name] is a KMeta primitive. */
-    val isPrimitive: Boolean get() = name in MemberInfo.PRIMITIVE_TYPES
+    val isPrimitive: Boolean get() = name in KarpfenSyntax.PRIMITIVE_TYPES
 
     companion object {
         private val CALL = Regex("""^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*(.*?)\s*\)\s*$""")

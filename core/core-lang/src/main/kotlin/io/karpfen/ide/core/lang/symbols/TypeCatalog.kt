@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.lang.symbols
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 
@@ -101,17 +102,12 @@ public data class MemberInfo(
     public val isList: Boolean,
     public val declaration: Location?,
 ) {
-    /** True if [typeName] is a primitive (`number`, `string`, `boolean`). */
-    public val isPrimitive: Boolean get() = typeName in PRIMITIVE_TYPES
+    /** True if [typeName] is a primitive (`number`, `string`, `boolean`, [KarpfenSyntax.PRIMITIVE_TYPES]). */
+    public val isPrimitive: Boolean get() = typeName in KarpfenSyntax.PRIMITIVE_TYPES
 
     /** The hover signature (spec §5): `prop x: number`, `has position: Vector`, `knows obstacles: list(Obstacle)`. */
     public val signature: String
         get() = "${kind.keyword} $name: ${if (isList) "list($typeName)" else typeName}"
-
-    public companion object {
-        /** The KMeta primitive types. */
-        public val PRIMITIVE_TYPES: Set<String> = setOf("number", "string", "boolean")
-    }
 }
 
 /** Kind of a [MemberInfo]; [keyword] is how KMeta declares it. */

@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.kstates
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.lang.LanguageDocument
 import io.karpfen.ide.core.lang.context.CallContext
@@ -105,8 +106,9 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             call.name == MACRO -> KstatesSlot.ModelPath(range)
             call.name == EVENT && index == 0 -> KstatesSlot.EventDomain(name, range)
             call.name == EVENT && index == 1 -> KstatesSlot.EventName(name, range, call.arguments.firstOrNull())
-            operation in OPERATIONS && index == 0 -> KstatesSlot.ModelPath(range)
-            operation in OBJECT_OPERATIONS && index == 1 -> KstatesSlot.RelationKey(call.arguments.firstOrNull().orEmpty(), name, range)
+            operation in KarpfenSyntax.KSTATES_OPERATIONS && index == 0 -> KstatesSlot.ModelPath(range)
+            operation in KarpfenSyntax.KSTATES_RELATION_OPERATIONS && index == 1 ->
+                KstatesSlot.RelationKey(call.arguments.firstOrNull().orEmpty(), name, range)
             call.name == VALUE || call.name == SCOPE -> KstatesSlot.ModelPath(range)
             call.name == TAKES && index == 0 -> KstatesSlot.ParameterName(name, range)
             call.name in TYPE_CALLS -> KstatesSlot.TypeName(name, range, primitives = call.name != REFERENCE)
@@ -135,7 +137,8 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         if (call != null) {
             val operation = call.name.uppercase()
             return when {
-                operation in OPERATIONS && call.argumentIndex >= 1 && !(operation in OBJECT_OPERATIONS && call.argumentIndex == 1) ->
+                operation in KarpfenSyntax.KSTATES_OPERATIONS && call.argumentIndex >= 1 &&
+                    !(operation in KarpfenSyntax.KSTATES_RELATION_OPERATIONS && call.argumentIndex == 1) ->
                     KstatesSlot.Keywords(KstatesPosition.RIGHT_SIDE)
                 call.name == TAKES && call.argumentIndex == 1 ->
                     KstatesSlot.TypeName("", context.replaceRange, primitives = true, inString = false, wrappers = listOf(LIST))
@@ -181,12 +184,6 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
 
         /** The keywords that start a transition. */
         val TRANSITION_KEYWORDS: Set<String> = setOf("TRANSITION", "SPLIT", "JOIN")
-
-        /** The action operations (upper case; the grammar accepts both cases). */
-        val OPERATIONS: Set<String> = setOf("SET", "APPEND", "SETLIST", "DROPLIST", "SETOBJ", "APPENDOBJ", "DROPOBJ")
-
-        /** The operations whose second argument is a relation of the first argument's type. */
-        val OBJECT_OPERATIONS: Set<String> = setOf("SETOBJ", "APPENDOBJ")
 
         /** The calls whose string arguments are types (TAKES from its second argument on). */
         val TYPE_CALLS: Set<String> = setOf(TAKES, RETURNS, LIST, REFERENCE)

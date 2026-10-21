@@ -1,5 +1,6 @@
 package io.karpfen.ide.ui.editor.model.caret
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
 /**
@@ -28,9 +29,8 @@ internal object WordBoundaries {
         PUNCTUATION,
     }
 
-    /** True for `[A-Za-z0-9_]`. */
-    fun isIdentifierChar(char: Char): Boolean =
-        char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' || char == '_'
+    /** True for `[A-Za-z0-9_]`: the karpfen identifier characters ([KarpfenSyntax.isIdentifierChar], one source). */
+    fun isIdentifierChar(char: Char): Boolean = KarpfenSyntax.isIdentifierChar(char)
 
     /** The class of [char]. */
     fun classOf(char: Char): CharClass = when {

@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.context
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.SyntaxToken
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.text.TextRange
@@ -46,9 +47,9 @@ internal class TokenView(val text: String, val tokens: List<SyntaxToken>) {
     /** The identifier characters touching [offset] (empty at [offset] if there are none). */
     fun wordRange(offset: Int): TextRange {
         var start = offset
-        while (start > 0 && isWordChar(text[start - 1])) start--
+        while (start > 0 && KarpfenSyntax.isIdentifierChar(text[start - 1])) start--
         var end = offset
-        while (end < text.length && isWordChar(text[end])) end++
+        while (end < text.length && KarpfenSyntax.isIdentifierChar(text[end])) end++
         return TextRange(start, end)
     }
 
@@ -86,10 +87,6 @@ internal class TokenView(val text: String, val tokens: List<SyntaxToken>) {
     companion object {
         /** Bound of [statementBefore] (constructs are short; broken text without braces must not cost more). */
         const val MAX_STATEMENT_TOKENS: Int = 64
-
-        /** True for the characters of identifiers and path segments. */
-        fun isWordChar(char: Char): Boolean =
-            char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' || char == '_'
 
         /** [raw] without its opening quote and, if present, its matching closing quote. */
         fun unquote(raw: String): String {
