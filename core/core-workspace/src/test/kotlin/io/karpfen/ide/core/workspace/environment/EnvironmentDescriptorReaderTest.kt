@@ -129,6 +129,24 @@ class EnvironmentDescriptorReaderTest {
     }
 
     @Test
+    fun `a value of the wrong type inside a nested object or array is reported at that value`() {
+        val required = "\"metamodel\": \"a.kmeta\", \"model\": \"a.kmodel\""
+        val machine = "{\"file\": \"m.kstates\", \"attachedTo\": \"x\"}"
+        val cases = listOf(
+            "{$required, \"stateMachines\": [$machine, {\"file\": 3, \"attachedTo\": \"x\"}]}" to "3",
+            "{$required, \"observe\": {\"objects\": [\"*\"]}}" to "[\"*\"]",
+            "{$required, \"stateMachines\": [$machine], \"bridges\": [{\"file\": \"b.json\"}]}" to "{\"file\": \"b.json\"}",
+        )
+
+        for ((text, value) in cases) {
+            val error = reader.read(path, text).diagnostics.single()
+
+            assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID, error.code, text)
+            assertEquals(TextRange.ofLength(text.indexOf(value), value.length), error.range, "${error.message} in $text")
+        }
+    }
+
+    @Test
     fun `references are in document order, decoded, with ranges of the raw string content`() {
         val text = "{\"model\": \"\\u0062.kmodel\", \"bridges\": [\"mqtt.kbridge.json\"], \"metamodel\": \"dir\\/a.kmeta\", \"events\": null}"
 

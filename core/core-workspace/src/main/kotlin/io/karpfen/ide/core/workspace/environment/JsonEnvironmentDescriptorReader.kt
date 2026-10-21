@@ -3,7 +3,6 @@ package io.karpfen.ide.core.workspace.environment
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
-import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -15,12 +14,14 @@ import java.nio.file.Path
  * Steps: kotlinx.serialization validates the JSON syntax (strict RFC 8259); [JsonSourceParser] records positions;
  * [DescriptorSchema] reports unknown keys (WARNING) and missing required keys (ERROR) against the serial descriptor of
  * [EnvironmentDescriptor]; kotlinx.serialization decodes the values (type errors → ERROR `descriptor-invalid` at the
- * offending value where its message names a path or an offset). File references come from the position tree.
+ * offending value where its message names a path or an offset, see [DecodingErrorLocator]). File references come from
+ * the position tree.
  */
 internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
 
     private val json = Json { ignoreUnknownKeys = true }
-    private val schema = DescriptorSchema(EnvironmentDescriptor.serializer().descriptor)
+    private val shape = EnvironmentDescriptor.serializer().descriptor
+    private val schema = DescriptorSchema(shape)
 
     override fun read(path: Path, text: String): DescriptorReadResult {
         val element = try {
@@ -48,7 +49,7 @@ internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
         val reason = failure.message?.lineSequence()?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }
             ?: failure.javaClass.simpleName
         return Diagnostic(
-            range = ErrorLocation(text, tree).of(failure.message.orEmpty()),
+            range = DecodingErrorLocator(text, tree, shape).rangeOf(failure.message.orEmpty()),
             severity = Severity.ERROR,
             message = "Invalid environment descriptor: $reason",
             code = WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID,
@@ -73,46 +74,6 @@ internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
         return references.sortedBy { it.range.start }
     }
 
-    /**
-     * Best-effort range of a kotlinx.serialization error in [text]: the offset its message names, else the end of a
-     * truncated document, else the value at the JSON path it names (`$.stateMachines[0].file`), else the first character
-     * of the document.
-     */
-    private class ErrorLocation(private val text: String, private val tree: JsonNode?) {
-
-        fun of(message: String): TextRange =
-            offsetIn(message) ?: endOfInput(message) ?: pathIn(message) ?: documentStart()
-
-        /** A truncated document: the empty range after its last non-blank character. */
-        private fun endOfInput(message: String): TextRange? =
-            if (END_OF_INPUT in message) TextRange.empty(text.trimEnd().length) else null
-
-        private fun offsetIn(message: String): TextRange? {
-            val offset = OFFSET.find(message)?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it >= 0 } ?: return null
-            val start = offset.coerceAtMost(text.length)
-            return TextRange(start, (start + 1).coerceAtMost(text.length))
-        }
-
-        private fun pathIn(message: String): TextRange? {
-            val path = PATH.find(message)?.groupValues?.get(1) ?: return null
-            var node: JsonNode = tree ?: return null
-            for (segment in SEGMENT.findAll(path)) {
-                val (key, index) = segment.destructured
-                val child = when {
-                    key.isNotEmpty() -> (node as? JsonNode.ObjectNode)?.member(key)?.value
-                    else -> (node as? JsonNode.ArrayNode)?.items?.getOrNull(index.toInt())
-                }
-                node = child ?: break
-            }
-            return node.range
-        }
-
-        private fun documentStart(): TextRange {
-            val start = tree?.range?.start ?: text.indexOfFirst { !it.isWhitespace() }
-            return if (start < 0) TextRange.EMPTY else TextRange.ofLength(start, 1)
-        }
-    }
-
     private companion object {
         const val KEY_METAMODEL = "metamodel"
         const val KEY_EVENTS = "events"
@@ -120,10 +81,5 @@ internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
         const val KEY_STATE_MACHINES = "stateMachines"
         const val KEY_FILE = "file"
         const val KEY_BRIDGES = "bridges"
-
-        const val END_OF_INPUT = "end of the input"
-        val OFFSET = Regex("""at offset (-?\d+)""")
-        val PATH = Regex("""at path:? (\$\S*)""")
-        val SEGMENT = Regex("""\.([^.\[]+)|\[(\d+)]""")
     }
 }
