@@ -8,6 +8,8 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -19,7 +21,7 @@ import java.nio.file.Path
  *
  * A folder that is no longer a directory (a stale recent folder: deleted, moved, its volume unmounted) is checked on
  * [ioDispatcher] before anything is closed: the open workspace and its tabs stay, an error dialog says why, and the
- * folder leaves the recent folders.
+ * folder leaves the recent folders. A folder dialog that fails is an error dialog too.
  */
 internal class FolderFlow(
     private val scope: CoroutineScope,
@@ -63,9 +65,15 @@ internal class FolderFlow(
         dialogs.showError("Cannot open folder", reason)
     }
 
+    /** Asks the [folderChooser] and opens the chosen folder; a failing dialog becomes an error dialog. */
     suspend fun chooseAndOpenFolder() {
         val initial = holder.workspace.value?.root ?: settings.settings.value.recentFolders.firstOrNull()?.let(Path::of)
-        val folder = folderChooser.chooseFolder("Open Folder", initial) ?: return
+        val folder = try {
+            folderChooser.chooseFolder("Open Folder", initial)
+        } catch (e: IOException) {
+            logger.warn("The folder dialog failed", e)
+            return dialogs.showError("Cannot choose a folder", e.message ?: e.toString())
+        } ?: return
         openFolder(folder)
     }
 
@@ -74,5 +82,9 @@ internal class FolderFlow(
         lifecycle.closeAllTabs()
         bindings.bindWorkspace(null)
         holder.clear()?.close()
+    }
+
+    private companion object {
+        private val logger = LoggerFactory.getLogger(FolderFlow::class.java)
     }
 }

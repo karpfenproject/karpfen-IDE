@@ -63,6 +63,10 @@ public enum class DeleteOutcome {
 
 /** Asks the user for a folder (native dialog). A port; the desktop adapter lives in `files.desktop`. */
 public fun interface FolderChooser {
-    /** Shows the dialog with [title], starting in [initialDirectory]; null if cancelled. */
+    /**
+     * Shows the dialog with [title], starting in [initialDirectory]; null if cancelled. Returns or throws in every case
+     * (never stays suspended after the dialog is gone).
+     * @throws java.io.IOException if the dialog fails.
+     */
     public suspend fun chooseFolder(title: String, initialDirectory: Path?): Path?
 }

@@ -137,12 +137,13 @@ internal class JdkLikeDesktopActions(var failure: RuntimeException? = null) : De
     }
 }
 
-/** A [FolderChooser] answering [answer] and recording its calls. */
-class FakeFolderChooser(var answer: Path? = null) : FolderChooser {
+/** A [FolderChooser] answering [answer] (or failing with [failure]) and recording its calls. */
+class FakeFolderChooser(var answer: Path? = null, var failure: IOException? = null) : FolderChooser {
     val calls: MutableList<Pair<String, Path?>> = CopyOnWriteArrayList()
 
     override suspend fun chooseFolder(title: String, initialDirectory: Path?): Path? {
         calls.add(title to initialDirectory)
+        failure?.let { throw it }
         return answer
     }
 }

@@ -9,6 +9,7 @@ import io.karpfen.ide.ui.workbench.testing.assertSamePath
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -108,6 +109,29 @@ class FolderFlowTest {
             assertNotNull(state.tabs.editorFor(file), "the open folder and its unsaved changes are kept")
             assertTrue(state.tabs.tabs.value.single().isDirty)
             assertEquals(listOf(root.toString()), state.settings.value.recentFolders, "the stale entry is removed")
+        }
+    }
+
+    @Test
+    fun `a failing folder dialog becomes an error dialog and Save and Exit still run`() = runTest(timeout = 60.seconds) {
+        Examples.copyTo(root)
+        val file = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kmeta")
+        withWorkbench(settingsDirectory) {
+            open(root)
+            val editor = openEditor(file)
+            editor.session.text.apply(listOf(TextEdit.insert(0, "// mine\n")), EditOrigin.Typing)
+            settle()
+            folderChooser.failure = IOException("The folder dialog failed: Win32ShellFolder2")
+
+            val choose = state.chooseAndOpenFolder()
+            val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)
+
+            assertEquals("Cannot choose a folder", error.title)
+            assertEquals("The folder dialog failed: Win32ShellFolder2", error.message)
+            assertTrue(choose.isCompleted)
+            state.saveActive().joinSettled()
+            assertTrue(Files.readString(file).startsWith("// mine"), "Save ran after the failed dialog")
+            assertTrue(state.requestExit(), "exit is not blocked")
         }
     }
 
