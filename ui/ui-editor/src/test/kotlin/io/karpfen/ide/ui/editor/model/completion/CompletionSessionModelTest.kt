@@ -197,6 +197,32 @@ class CompletionSessionModelTest {
     }
 
     @Test
+    fun `an outdated result is not re-requested after the word ended`() = completionTest("|") { f ->
+        val gate = CompletableDeferred<Unit>()
+        f.source.gate = gate
+        f.type("p")
+        f.type("r")
+        advanceUntilIdle()
+        f.type(" ")
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(1, f.source.requests.size, "dropped, not repeated after the space")
+        assertNull(f.completion.state.value)
+
+        f.editor.caret.moveTo(2)
+        f.source.gate = CompletableDeferred()
+        f.completion.open()
+        advanceUntilIdle()
+        f.editor.run(EditorActionIds.ENTER)
+        f.source.gate?.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(2, f.source.requests.size, "dropped after a line break as well")
+        assertNull(f.completion.state.value)
+        assertFalse(f.completion.handleKey(key(KeyCode.ENTER)), "Enter is the editor's again")
+    }
+
+    @Test
     fun `a newer request cancels an older one`() = completionTest("pr|") { f ->
         val gate = CompletableDeferred<Unit>()
         f.source.gate = gate

@@ -81,8 +81,11 @@ public data class CompletionUiState(
  *   character, `"` in a completable string position, `$(` or `->`. Opening with no items keeps it closed.
  * - Asks the [CompletionSource] for the snapshot current at the request in a coroutine launched in its scope (the
  *   source switches threads itself; a newer request cancels an older one) and drops results computed for an older
- *   version (re-requesting while still open), so `replaceRange`s always match the text they are applied to. Tests use
- *   a test dispatcher in the scope and a fake source; nothing runs on real threads.
+ *   version, so `replaceRange`s always match the text they are applied to. A dropped request is repeated for the
+ *   current text only while the caret is still in the word it completes (the text changed elsewhere, or identifier
+ *   characters were typed or deleted there); after a line break, a space or other punctuation it is not, so completion
+ *   never opens where no trigger fired. Tests use a test dispatcher in the scope and a fake source; nothing runs on
+ *   real threads.
  * - Filters by the text between `replaceRange.start` and the caret, case-insensitively: prefix matches before
  *   camel/word-boundary matches before subsequence matches; stable sort by match quality, then sortKey, then label.
  * - [accept] inserts `insertText` over the replace range as one `EditorAction` run through the factory's
@@ -137,9 +140,9 @@ public fun CompletionSessionModel(
  * filters an open session for the current text and caret (with [CompletionRanking]) and computes what accepting does,
  * `CommandEditAction` carries the accepted edit to the executor; this class owns the request and the current session.
  * A request runs in [scope]; its result is installed only for the version it was computed for, otherwise it is dropped
- * and the request repeated for the current text. The caret is observed in [scope] as well, so [state] may lag a caret
- * change by one dispatch; [accept] and [handleKey] therefore re-check the session against the current caret first and
- * never act on a session the caret has already left.
+ * and the request repeated for the current text while it still holds there ([CompletionTriggers.stillHolds]). The caret
+ * is observed in [scope] as well, so [state] may lag a caret change by one dispatch; [accept] and [handleKey] therefore
+ * re-check the session against the current caret first and never act on a session the caret has already left.
  */
 internal class DefaultCompletionSessionModel(
     private val text: EditableText,
@@ -235,10 +238,13 @@ internal class DefaultCompletionSessionModel(
         job.start()
     }
 
-    /** Installs [items] computed for [snapshot] at [offset]; results for an older version are dropped and re-requested. */
+    /**
+     * Installs [items] computed for [snapshot] at [offset]; results for an older version are dropped, and re-requested
+     * at the caret while the request still holds there.
+     */
     private fun receive(trigger: CompletionTrigger, snapshot: TextSnapshot, offset: Int, items: List<CompletionItem>) {
         if (snapshot.version != text.snapshot.value.version) {
-            request(trigger)
+            if (CompletionTriggers.stillHolds(text, snapshot, offset, caret.primary)) request(trigger)
             return
         }
         if (items.isEmpty()) {

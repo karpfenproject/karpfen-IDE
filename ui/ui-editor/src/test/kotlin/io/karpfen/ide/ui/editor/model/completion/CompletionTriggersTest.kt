@@ -1,5 +1,8 @@
 package io.karpfen.ide.ui.editor.model.completion
 
+import io.karpfen.ide.core.text.EditOrigin
+import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.TestEditor
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -53,5 +56,31 @@ class CompletionTriggersTest {
         assertNull(CompletionTriggers.afterTyping(editor.text.snapshot.value, 2, "x"))
         assertNull(CompletionTriggers.afterTyping(editor.text.snapshot.value, 0, "a"))
         assertNull(CompletionTriggers.afterTyping(editor.text.snapshot.value, 2, ""))
+    }
+
+    /** Whether a request at the caret of [marked] still holds after [change] ran on the editor. */
+    private fun holdsAfter(marked: String, change: TestEditor.() -> Unit): Boolean {
+        val editor = TestEditor(marked)
+        val snapshot = editor.text.snapshot.value
+        val offset = editor.caret.primary.position
+        editor.change()
+        return CompletionTriggers.stillHolds(editor.text, snapshot, offset, editor.caret.primary)
+    }
+
+    @Test
+    fun `a request still holds while the caret stays in the word it completes`() {
+        assertEquals(true, holdsAfter("ST|") { type("A") }, "typed on")
+        assertEquals(true, holdsAfter("ST|") { run(EditorActionIds.BACKSPACE) }, "deleted back")
+        assertEquals(true, holdsAfter("EVAL { $(|") { type("x") }, "the first character after a path start")
+        assertEquals(true, holdsAfter("ST|") { text.apply(listOf(TextEdit.insert(0, "x\n")), EditOrigin.External) }, "an edit elsewhere")
+    }
+
+    @Test
+    fun `a request no longer holds after the word ended or the caret left it`() {
+        assertEquals(false, holdsAfter("ST|") { run(EditorActionIds.ENTER) }, "a line break")
+        assertEquals(false, holdsAfter("ST|") { type(" ") }, "a space")
+        assertEquals(false, holdsAfter("ST|") { type(".") }, "punctuation")
+        assertEquals(false, holdsAfter("ST| x") { caret.moveTo(4) }, "the caret moved out of the word")
+        assertEquals(false, holdsAfter("ST|") { caret.select(0, 2) }, "a selection")
     }
 }
