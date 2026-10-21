@@ -181,6 +181,24 @@ class CompletionSessionModelTest {
     }
 
     @Test
+    fun `a space or a brace typed after the word closes the session, so Enter and Tab stay the editor's`() = completionTest("|") { f ->
+        f.source.labels = listOf("DO { }", "DOUBLE")
+        f.type("D")
+        f.type("O")
+        advanceUntilIdle()
+        assertEquals(listOf("DO { }", "DOUBLE"), f.labels)
+
+        f.type(" ")
+        assertNull(f.completion.state.value, "a space ends the word being completed, though the snippet's label goes on")
+        f.type("{")
+        advanceUntilIdle()
+        assertNull(f.completion.state.value, "and the brace opens nothing")
+        assertFalse(f.completion.handleKey(key(KeyCode.ENTER)), "Enter is the editor's")
+        assertFalse(f.completion.handleKey(key(KeyCode.TAB)), "Tab is the editor's")
+        assertEquals("DO {|}", f.editor.marked())
+    }
+
+    @Test
     fun `results for an older version are dropped and re-requested`() = completionTest("pr|") { f ->
         val gate = CompletableDeferred<Unit>()
         f.source.gate = gate

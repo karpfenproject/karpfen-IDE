@@ -1,6 +1,7 @@
 package io.karpfen.ide.ui.editor.e2e
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
@@ -68,6 +69,57 @@ class EditorWithPopupsTest {
         assertEquals("TRANSITION \"ready\" -> \"observe\"", ui.lineAt(ui.state.caret.primary.position).trim())
         assertEquals(listOf(), ui.unconsumedKeys, "Enter, Escape and Ctrl+Space were consumed by the editor")
         assertTrue(ui.providerFailures.isEmpty(), "no provider failed: ${ui.providerFailures}")
+    }
+
+    @Test
+    fun `Enter after DO and a brace opens the block instead of accepting the DO snippet`() = runComposeUiTest {
+        assertEnterOpensBlock(EditorWithPopups(this), "DO", STATE_BODY.indexOf(EMPTY_BODY_LINE) + 1 + 12, "            ")
+    }
+
+    @Test
+    fun `Enter after TRANSITIONS and a brace opens the block instead of accepting the TRANSITIONS snippet`() = runComposeUiTest {
+        assertEnterOpensBlock(EditorWithPopups(this), "TRANSITIONS", STATE_BODY.indexOf("\n}\n"), "    ", lineBreakFirst = true)
+    }
+
+    /**
+     * Types [keyword] at [offset] of [STATE_BODY] (after a line break when [lineBreakFirst]), checks that it opened the
+     * list, types ` {` and Enter, and asserts the block of spec §7.1 at [indent]: `}` on its own line.
+     */
+    private fun ComposeUiTest.assertEnterOpensBlock(ui: EditorWithPopups, keyword: String, offset: Int, indent: String, lineBreakFirst: Boolean = false) {
+        ui.compose(STATE_BODY)
+        ui.editor.requestFocus()
+        ui.state.caret.moveTo(offset)
+        if (lineBreakFirst) {
+            ui.editor.performKeyInput { pressKey(Key.Enter) }
+            waitForIdle()
+        }
+
+        ui.typeChars(keyword)
+        assertNotNull(ui.state.completion.state.value, "$keyword opened the list with its snippet")
+        ui.typeChars(" {")
+        assertNull(ui.state.completion.state.value, "the space ended the word being completed")
+        ui.editor.performKeyInput { pressKey(Key.Enter) }
+        waitForIdle()
+
+        val start = ui.plain.indexOf("$keyword {")
+        assertEquals("$indent$keyword {", ui.lineAt(start), "spec §7.1: `}` goes on its own line")
+        assertEquals("$indent    ", ui.lineAt(ui.state.caret.primary.position), "the caret on the indented line")
+        assertEquals("$indent}", ui.lineAt(ui.plain.indexOf('}', start)))
+        assertEquals(listOf(), ui.unconsumedKeys)
+    }
+
+    @Test
+    fun `Tab after a block keyword and a brace indents instead of accepting the keyword's snippet`() = runComposeUiTest {
+        val ui = EditorWithPopups(this)
+        ui.compose(STATE_BODY)
+        ui.editor.requestFocus()
+        ui.state.caret.moveTo(STATE_BODY.indexOf(EMPTY_BODY_LINE) + 1 + 12)
+
+        ui.typeChars("DO {")
+        ui.editor.performKeyInput { pressKey(Key.Tab) }
+        waitForIdle()
+
+        assertEquals("            DO {    }", ui.lineAt(ui.state.caret.primary.position), "Tab inserted an indent")
     }
 
     @Test
@@ -203,6 +255,12 @@ class EditorWithPopupsTest {
 
     private companion object {
         val MACHINE: String = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text
+
+        /** A state machine whose initial state has an empty body line ([EMPTY_BODY_LINE]). */
+        const val STATE_BODY = "STATEMACHINE ATTACHED TO \"Robot\" {\n    STATES {\n        INITIAL STATE \"a\" {\n            \n        }\n    }\n}\n"
+
+        /** The line break before the empty body line of [STATE_BODY] and the line itself. */
+        const val EMPTY_BODY_LINE = "\n            \n"
 
         /** 200 lines with "needle" on lines 5, 120 and 190, so the second and third match start off-screen. */
         val NEEDLES: String = (0 until 200).joinToString("\n") { line ->

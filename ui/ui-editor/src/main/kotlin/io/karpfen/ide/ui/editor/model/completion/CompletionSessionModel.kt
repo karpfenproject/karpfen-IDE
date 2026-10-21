@@ -90,8 +90,9 @@ public data class CompletionUiState(
  *   camel/word-boundary matches before subsequence matches; stable sort by match quality, then sortKey, then label.
  * - [accept] inserts `insertText` over the replace range as one `EditorAction` run through the factory's
  *   [EditorActionExecutor] (one undo step, caret mementos) and places the caret at `caretOffsetInInsert`.
- * - Follows `CaretModel.state` itself: closes when the primary caret leaves the replace range, when no item matches,
- *   on Escape and on focus loss ([close]).
+ * - Follows `CaretModel.state` itself: closes when the primary caret leaves the replace range or the word being
+ *   completed (anything but identifier characters typed since the request, e.g. the space and `{` after `DO`), when no
+ *   item matches, on Escape and on focus loss ([close]).
  */
 public interface CompletionSessionModel {
 
@@ -244,7 +245,7 @@ internal class DefaultCompletionSessionModel(
      */
     private fun receive(trigger: CompletionTrigger, snapshot: TextSnapshot, offset: Int, items: List<CompletionItem>) {
         if (snapshot.version != text.snapshot.value.version) {
-            if (CompletionTriggers.stillHolds(text, snapshot, offset, caret.primary)) request(trigger)
+            if (CompletionTriggers.stillHolds(text, snapshot.version, offset, caret.primary)) request(trigger)
             return
         }
         if (items.isEmpty()) {

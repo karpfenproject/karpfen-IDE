@@ -18,7 +18,8 @@ import io.karpfen.ide.ui.editor.model.caret.WordBoundaries
  * - [CompletionTrigger.PATH_START]: `$(` before the caret after typing `(`;
  * - [CompletionTrigger.ARROW]: `->` before the caret after typing `>`.
  *
- * A request whose text changed before its items arrived completes the current text only while [stillHolds].
+ * A request whose text changed before its items arrived completes the current text only while [stillHolds], and an open
+ * session closes once it no longer does.
  */
 internal object CompletionTriggers {
 
@@ -38,17 +39,18 @@ internal object CompletionTriggers {
     }
 
     /**
-     * True if a request made at [offset] of [snapshot] still completes at [caret] in the current [text]: nothing is
+     * True if a request made at [offset] of text [version] still completes at [caret] in the current [text]: nothing is
      * selected and only identifier characters lie between the request position (mapped into the current text, text
      * inserted at it counting as typed after it) and the caret — the user kept typing or deleting in the word being
      * completed, or the text changed elsewhere. A line break, a space or other punctuation typed since, or a caret moved
-     * out of the word, ends the request: no trigger fired at the caret. False if the history no longer reaches [snapshot].
+     * out of the word, ends the request and the session it opened: no trigger fired at the caret. False if the history
+     * no longer reaches [version].
      */
-    fun stillHolds(text: EditableText, snapshot: TextSnapshot, offset: Int, caret: Caret): Boolean {
+    fun stillHolds(text: EditableText, version: Long, offset: Int, caret: Caret): Boolean {
         if (caret.hasSelection) return false
         val current = text.snapshot.value
-        if (snapshot.version > current.version) return false
-        val mapped = text.mapOffset(offset, snapshot.version, current.version, Bias.LEFT) ?: return false
+        if (version > current.version) return false
+        val mapped = text.mapOffset(offset, version, current.version, Bias.LEFT) ?: return false
         return (minOf(mapped, caret.position) until maxOf(mapped, caret.position)).all { WordBoundaries.isIdentifierChar(current[it]) }
     }
 }

@@ -9,31 +9,39 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.caret.Caret
 
 /**
- * One open completion session: the source's [items], computed for text [version], and the session range
- * [start]..[end] in that version — the first item's replace range extended to the request offset. Immutable; the
- * [CompletionSessionModel] keeps the current one.
+ * One open completion session: the source's [items], computed for text [version] at the request [offset], and the
+ * session range [start]..[end] in that version — the first item's replace range extended to the request offset.
+ * Immutable; the [CompletionSessionModel] keeps the current one.
  *
  * The session follows the text without a new request: its bounds are anchors mapped with `EditableText.mapOffset`
  * (the point mapping of carets and anchors), the start with `Bias.LEFT` and the end with `Bias.RIGHT`, because text
  * typed at either bound belongs to the word being completed (a decoration range, mapped with `mapRange`, would shrink
  * instead). An item's own replace range is mapped the same way when it is accepted.
+ *
+ * Only the word being completed belongs to the session: it ends as soon as anything but identifier characters lies
+ * between the request offset and the caret ([CompletionTriggers.stillHolds], the rule an outdated request follows as
+ * well). A space, a bracket or a line break typed after a keyword thus closes the list, so the next Enter or Tab is the
+ * editor's again and never accepts a snippet such as `DO { }` over the text typed since (labels may contain spaces and
+ * brackets, and prefix matching would keep them).
  */
 internal class CompletionSession private constructor(
     private val items: List<CompletionItem>,
     private val version: Long,
+    private val offset: Int,
     private val start: Int,
     private val end: Int,
 ) {
 
     /**
      * The visible state for the current [text] and [caret], keeping the [previous] highlighted item while the filter
-     * text is unchanged; null when the session must close: the caret has a selection or left the range, nothing
-     * matches, or the history no longer reaches [version].
+     * text is unchanged; null when the session must close: the caret has a selection, left the range or the word it
+     * completes, nothing matches, or the history no longer reaches [version].
      */
     fun uiState(text: EditableText, caret: Caret, previous: CompletionUiState?): CompletionUiState? {
         val from = anchor(text, start, Bias.LEFT) ?: return null
         val to = anchor(text, end, Bias.RIGHT) ?: return null
         if (caret.hasSelection || caret.position !in from..to) return null
+        if (!CompletionTriggers.stillHolds(text, version, offset, caret)) return null
         val filter = text.snapshot.value.text.substring(from, caret.position)
         val ranked = CompletionRanking.rank(items, filter)
         if (ranked.isEmpty()) return null
@@ -63,7 +71,7 @@ internal class CompletionSession private constructor(
         fun of(items: List<CompletionItem>, snapshot: TextSnapshot, offset: Int): CompletionSession {
             require(items.isNotEmpty()) { "a session has items" }
             val range = items.first().replaceRange
-            return CompletionSession(items, snapshot.version, minOf(range.start, offset), maxOf(range.end, offset))
+            return CompletionSession(items, snapshot.version, offset, minOf(range.start, offset), maxOf(range.end, offset))
         }
     }
 }

@@ -64,7 +64,7 @@ class CompletionTriggersTest {
         val snapshot = editor.text.snapshot.value
         val offset = editor.caret.primary.position
         editor.change()
-        return CompletionTriggers.stillHolds(editor.text, snapshot, offset, editor.caret.primary)
+        return CompletionTriggers.stillHolds(editor.text, snapshot.version, offset, editor.caret.primary)
     }
 
     @Test
