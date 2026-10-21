@@ -959,30 +959,30 @@ Added by the third contract review (v1.3):
 
 Added by the phase-1 review fixes (core):
 
-47. **Keep mine leaves the document dirty**: `UndoManager.invalidateSavePoint()` makes no history state the saved
+48. **Keep mine leaves the document dirty**: `UndoManager.invalidateSavePoint()` makes no history state the saved
     state until the next `markSavePoint`. `ConflictResolution.KEEP_MINE` calls it, because the disk then holds the
     external text or nothing, which no undo state matches: the kept buffer is saved by Save All, guarded by the
     unsaved-changes prompt, and a later change on disk is a conflict instead of a silent reload.
-48. **A save marks the state it wrote**: `UndoManager.checkpoint(): HistoryState` (an opaque state identity; it ends
+49. **A save marks the state it wrote**: `UndoManager.checkpoint(): HistoryState` (an opaque state identity; it ends
     the coalescing run) and `markSavePoint(state)`. The saver takes the checkpoint with the snapshot it writes and
     marks it after the write, so typing during the write keeps the document dirty, and undoing that typing (not
     undoing past the save) makes it clean; before, the save point stayed at the previous save.
-49. **External diagnostic sets never expire**: the session's merger re-anchors each external set at the snapshot of
+50. **External diagnostic sets never expire**: the session's merger re-anchors each external set at the snapshot of
     every merge (`ExternalDiagnosticsAnchors`) and maps it from there, so FILE findings, reported only on open, reload
     and save, survive more edits than `EditableText` retains (they used to vanish after 1000 edits), and a merge maps
     only the versions since the previous one. Mapping step by step differs from mapping from the reported version only
     for a range that collapsed to an empty one: it then stays behind text typed at it, like any empty range.
-50. **Files named by a descriptor are covered wherever they lie** (completes decisions 13 and 29): an implicit context
+51. **Files named by a descriptor are covered wherever they lie** (completes decisions 13 and 29): an implicit context
     is formed only of a directory's karpfen files that no explicit context contains, and a directory left without such
     files forms none. A descriptor naming `models/robot.kmodel` thus no longer makes `models/` a second context that
     converts the model again and reports a false `context-no-metamodel`. The descriptor's own directory stays covered
     as a whole (its unnamed files are loose, open question 2).
-51. **A repeated descriptor key is invalid**: a known key given twice in one object is an ERROR `descriptor-invalid`
+52. **A repeated descriptor key is invalid**: a known key given twice in one object is an ERROR `descriptor-invalid`
     at the repetition (no descriptor, no context). kotlinx.serialization decodes the last value while other JSON
     readers take the first or fail, so accepting it would let the IDE analyze another file than the runtime runs; the
     position tree's `member(key)` follows kotlinx (last wins) wherever it is still asked. No new diagnostic code (the
     contract test pins the set of workspace codes).
-52. **One home for the lexical facts** (completes decision 46): `KarpfenSyntax` in core-document's `syntax` package
+53. **One home for the lexical facts** (completes decision 46): `KarpfenSyntax` in core-document's `syntax` package
     declares the identifier characters `[A-Za-z0-9_]`, the primitive types and the KStates operations (and which of
     them take a relation). The KStates tokenizer finds the operations' token types by name in the lexer vocabulary,
     the action walker, `EvalBodies`' path scanner, core-lang's `TokenView`/`KstatesSlots`/completion and ui-editor's
