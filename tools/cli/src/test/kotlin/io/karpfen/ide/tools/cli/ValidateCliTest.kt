@@ -10,10 +10,13 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermissions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -169,6 +172,33 @@ class ValidateCliTest {
 
         assertEquals(CliRun(ExitCodes.OK, stdout = "$USAGE\n", stderr = ""), help)
         assertEquals(CliRun(ExitCodes.USAGE, stdout = "", stderr = "karpfen: unknown command 'deploy'\n$USAGE\n"), invalid)
+    }
+
+    @Test
+    fun `karpfen files and directories it cannot read are errors, never a silent pass`() = runTest(timeout = 60.seconds) {
+        assumeTrue(Files.getFileStore(dir).supportsFileAttributeView("posix"), "needs POSIX permissions")
+        val unreadableFile = Files.writeString(dir.resolve("broken.kmeta"), "type \"A\" \"a\" {\n")
+        val unreadableDirectory = Files.createDirectories(dir.resolve("sub"))
+        Files.writeString(unreadableDirectory.resolve("inner.kmeta"), "type \"B\" \"b\" {\n")
+        val otherFile = Files.writeString(dir.resolve("notes.txt"), "not a karpfen file")
+        val locked = listOf(unreadableFile, unreadableDirectory, otherFile)
+        locked.forEach { Files.setPosixFilePermissions(it, emptySet()) }
+        try {
+            assumeFalse(Files.isReadable(unreadableFile), "the user can read any file (root)")
+
+            val run = runCli(testWorkspaceFactory(this), "validate", dir.toString())
+
+            assertEquals(ExitCodes.ERRORS_FOUND, run.status, "not validated is not valid")
+            assertEquals(
+                listOf("broken.kmeta:1:1: error: [unreadable]", "sub:1:1: error: [unreadable]"),
+                run.lines.map { it.withoutMessage() },
+                "unreadable karpfen files and directories are named; other files are not validated anyway",
+            )
+            assertEquals("", run.stderr)
+        } finally {
+            Files.setPosixFilePermissions(unreadableDirectory, PosixFilePermissions.fromString("rwx------"))
+            listOf(unreadableFile, otherFile).forEach { Files.setPosixFilePermissions(it, PosixFilePermissions.fromString("rw-------")) }
+        }
     }
 
     @Test
