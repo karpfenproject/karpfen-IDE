@@ -107,9 +107,15 @@ internal class DefaultOpenDocument(
         conflictState.value = null
     }
 
-    /** Keep mine: the buffer stays, the observed disk state becomes the known one (the next save overwrites it). */
+    /**
+     * Keep mine: the buffer stays, the observed disk state (null for a deletion) becomes the known one. No state of the
+     * undo history matches that disk state, so the save point is invalidated: the document stays dirty until a save
+     * overwrites or recreates the file, is covered by Save All and the unsaved-changes prompt, and a later change on
+     * disk is a conflict, never a silent reload over the kept buffer.
+     */
     fun keepMine() {
         diskState = observedDiskState
+        text.undo.invalidateSavePoint()
         clearConflict()
     }
 

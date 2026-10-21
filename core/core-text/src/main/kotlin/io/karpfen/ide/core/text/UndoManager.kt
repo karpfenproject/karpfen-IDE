@@ -58,6 +58,13 @@ public interface UndoManager {
     public fun markSavePoint()
 
     /**
+     * Makes no text state the saved state: [isAtSavePoint] stays false through any edits, undos and redos until the
+     * next [markSavePoint]. For a file whose content no state of the history matches any more (it changed or vanished
+     * on disk while the buffer was kept).
+     */
+    public fun invalidateSavePoint()
+
+    /**
      * Forgets the undo and redo history. The save point survives only if the current state is the save point.
      * Does not change the text.
      */

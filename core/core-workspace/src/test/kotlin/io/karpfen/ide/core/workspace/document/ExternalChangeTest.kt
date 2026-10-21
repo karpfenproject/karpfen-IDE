@@ -120,6 +120,54 @@ class ExternalChangeTest {
     }
 
     @Test
+    fun `KEEP_MINE of a deleted file leaves the document dirty, so Save All recreates the file`() = runTest {
+        val manager = documentManager(this)
+        val path = file()
+        val document = manager.openOrFail(path)
+        Files.delete(path)
+        manager.onFileChanged(path, deleted = true)
+
+        assertEquals(ConflictResult.Kept, document.resolveConflict(ConflictResolution.KEEP_MINE))
+
+        assertTrue(document.isDirty.value, "the kept buffer is the only copy of the file")
+        assertEquals(listOf<SaveResult>(SaveResult.Saved(document.path, 0L)), manager.saveAll())
+        assertEquals(original, Files.readString(path))
+        assertFalse(document.isDirty.value)
+    }
+
+    @Test
+    fun `KEEP_MINE of a modified file stays dirty when undone to the former save point`() = runTest {
+        val manager = documentManager(this)
+        val path = file()
+        val document = manager.openOrFail(path)
+        document.type(0, "// mine\n")
+        Files.writeString(path, changed)
+        manager.onFileChanged(path, deleted = false)
+
+        document.resolveConflict(ConflictResolution.KEEP_MINE)
+        document.session.text.undo.undo()
+
+        assertEquals(original, document.currentText)
+        assertTrue(document.isDirty.value, "the disk holds the external text, not the opened one")
+    }
+
+    @Test
+    fun `after KEEP_MINE of a deleted file, a re-created file is a conflict, not a reload over the buffer`() = runTest {
+        val manager = documentManager(this)
+        val path = file()
+        val document = manager.openOrFail(path)
+        Files.delete(path)
+        manager.onFileChanged(path, deleted = true)
+        document.resolveConflict(ConflictResolution.KEEP_MINE)
+
+        Files.writeString(path, changed)
+        manager.onFileChanged(path, deleted = false)
+
+        assertEquals(original, document.currentText)
+        assertEquals(ExternalChange(document.path, ExternalChangeKind.MODIFIED), document.conflict.value)
+    }
+
+    @Test
     fun `a deletion reported as a change of the parent directory is detected by reading`() = runTest {
         val manager = documentManager(this)
         val path = file()

@@ -130,7 +130,7 @@ The JDK's file watcher on macOS polls, so a change on disk shows up after **up t
    while it has unsaved changes." offers **Reload** and **Keep mine**. Reload shows the disk content.
 3. `touch /tmp/karpfen-smoke/karpfen-runtime/new_machine.kstates`: the file appears in the Project tree.
 4. With `new_machine.kstates` open, delete it in the terminal: the banner "… was deleted on disk." offers **Close** and
-   **Keep mine**.
+   **Keep mine**. Keep mine keeps the tab and marks it dirty; Cmd+S recreates the file.
 
 ## 10. Quit and restart (30 seconds)
 

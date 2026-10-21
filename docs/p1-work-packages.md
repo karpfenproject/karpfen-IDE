@@ -957,6 +957,13 @@ Added by the third contract review (v1.3):
     is never written over. `karpfen validate` reports a karpfen file or a directory of the scanned tree it cannot read
     as an ERROR `unreadable` at 1:1 (exit 1), next to `Workspace.problems`, which stay the IDE's.
 
+Added by the phase-1 review fixes (core):
+
+47. **Keep mine leaves the document dirty**: `UndoManager.invalidateSavePoint()` makes no history state the saved
+    state until the next `markSavePoint`. `ConflictResolution.KEEP_MINE` calls it, because the disk then holds the
+    external text or nothing, which no undo state matches: the kept buffer is saved by Save All, guarded by the
+    unsaved-changes prompt, and a later change on disk is a conflict instead of a silent reload.
+
 ## 7. Review findings not adopted
 
 1. **A core-lang-owned `ProjectKnowledge` port instead of the workspace's `ProjectAnalysis`.** The providers need the

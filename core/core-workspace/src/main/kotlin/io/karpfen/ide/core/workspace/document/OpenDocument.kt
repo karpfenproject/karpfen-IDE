@@ -45,8 +45,9 @@ public interface OpenDocument {
      * [ConflictResult.Reloaded]; for a file that no longer exists on disk it changes nothing and returns
      * [ConflictResult.DeletedOnDisk] (the caller decides: the workbench closes the tab without saving); a read failure
      * keeps buffer and conflict → [ConflictResult.Failed]. [ConflictResolution.KEEP_MINE] keeps the buffer and clears the
-     * conflict (the next save overwrites or recreates the file) → [ConflictResult.Kept]. Without a conflict nothing
-     * happens → [ConflictResult.NoConflict].
+     * conflict; the document is dirty until the next save overwrites or recreates the file (no undo state matches the
+     * disk, `UndoManager.invalidateSavePoint`) → [ConflictResult.Kept]. Without a conflict nothing happens →
+     * [ConflictResult.NoConflict].
      */
     public suspend fun resolveConflict(resolution: ConflictResolution): ConflictResult
 }

@@ -106,6 +106,11 @@ internal class DefaultUndoManager(
         publishState()
     }
 
+    override fun invalidateSavePoint() {
+        history.invalidateSaved()
+        publishState()
+    }
+
     override fun clear() {
         check(groupDepth == 0) { "clear inside an undo group" }
         lastKeystroke = null

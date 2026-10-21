@@ -69,6 +69,11 @@ internal class UndoHistory {
         savedState = currentState
     }
 
+    /** Makes no state the saved state: a fresh identity that no reachable state has. */
+    fun invalidateSaved() {
+        savedState = Any()
+    }
+
     /** Forgets both stacks; the current state becomes the base state and keeps its identity (and save point). */
     fun clear() {
         baseState = currentState

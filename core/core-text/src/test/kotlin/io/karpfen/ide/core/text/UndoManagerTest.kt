@@ -342,6 +342,28 @@ class UndoManagerTest {
     }
 
     @Test
+    fun `invalidateSavePoint leaves no state at the save point until the next markSavePoint`() {
+        text.apply(listOf(TextEdit.insert(0, "a")), EditOrigin.Paste)
+        undo.markSavePoint()
+        text.apply(listOf(TextEdit.insert(1, "b")), EditOrigin.Paste)
+
+        undo.invalidateSavePoint()
+        assertFalse(undo.isAtSavePoint.value)
+        undo.undo()
+        assertFalse(undo.isAtSavePoint.value, "the formerly saved state is not the save point any more")
+        undo.undo()
+        assertFalse(undo.isAtSavePoint.value, "nor is the initial state")
+        undo.redo()
+        undo.redo()
+        assertFalse(undo.isAtSavePoint.value)
+        undo.clear()
+        assertFalse(undo.isAtSavePoint.value, "clear keeps the save point invalid")
+
+        undo.markSavePoint()
+        assertTrue(undo.isAtSavePoint.value)
+    }
+
+    @Test
     fun `clear forgets the history and keeps the save point only if it is the current state`() {
         type("a")
         undo.markSavePoint()
