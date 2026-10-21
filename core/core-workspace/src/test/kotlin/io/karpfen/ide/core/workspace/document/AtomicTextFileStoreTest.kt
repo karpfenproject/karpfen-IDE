@@ -2,6 +2,12 @@ package io.karpfen.ide.core.workspace.document
 
 import org.junit.jupiter.api.io.TempDir
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.MappedByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.channels.FileLock
+import java.nio.channels.ReadableByteChannel
+import java.nio.channels.WritableByteChannel
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
@@ -83,6 +89,34 @@ class AtomicTextFileStoreTest {
     }
 
     @Test
+    fun `the temp file is forced to storage before it replaces the target, the directory after`() {
+        val file = dir.resolve("a.kmeta")
+        Files.writeString(file, "old")
+        val forced = ArrayList<String>()
+        val recording = FileChannelOpener { path, options ->
+            object : ForwardingFileChannel(FileChannel.open(path, options)) {
+                override fun force(metaData: Boolean) {
+                    val what = when {
+                        path == dir -> "directory"
+                        path.parent == dir && path.fileName.toString().endsWith(".tmp") -> "temp file of ${size()} bytes"
+                        else -> "unexpected $path"
+                    }
+                    forced += "$what, metadata $metaData, target '${Files.readString(file)}'"
+                    super.force(metaData)
+                }
+            }
+        }
+
+        AtomicTextFileStore(recording).write(file, "new", withBom = true)
+
+        assertEquals(
+            listOf("temp file of 6 bytes, metadata true, target 'old'", "directory, metadata true, target '\uFEFFnew'"),
+            forced,
+            "the content is durable before the move, the move after it",
+        )
+    }
+
+    @Test
     fun `writing keeps the permissions of the existing file`() {
         val file = dir.resolve("a.kmeta")
         Files.writeString(file, "old")
@@ -126,4 +160,25 @@ class AtomicTextFileStoreTest {
         assertEquals("kept", Files.readString(blocked.resolve("child")))
         assertFalse(dir.listDirectoryEntries().any { it.fileName.toString().endsWith(".tmp") }, "temp files: ${dir.listDirectoryEntries()}")
     }
+}
+
+/** A [FileChannel] that forwards everything to [delegate]; tests override what they observe. */
+private open class ForwardingFileChannel(private val delegate: FileChannel) : FileChannel() {
+    override fun read(dst: ByteBuffer): Int = delegate.read(dst)
+    override fun read(dsts: Array<out ByteBuffer>, offset: Int, length: Int): Long = delegate.read(dsts, offset, length)
+    override fun read(dst: ByteBuffer, position: Long): Int = delegate.read(dst, position)
+    override fun write(src: ByteBuffer): Int = delegate.write(src)
+    override fun write(srcs: Array<out ByteBuffer>, offset: Int, length: Int): Long = delegate.write(srcs, offset, length)
+    override fun write(src: ByteBuffer, position: Long): Int = delegate.write(src, position)
+    override fun position(): Long = delegate.position()
+    override fun position(newPosition: Long): FileChannel = apply { delegate.position(newPosition) }
+    override fun size(): Long = delegate.size()
+    override fun truncate(size: Long): FileChannel = apply { delegate.truncate(size) }
+    override fun force(metaData: Boolean) = delegate.force(metaData)
+    override fun transferTo(position: Long, count: Long, target: WritableByteChannel): Long = delegate.transferTo(position, count, target)
+    override fun transferFrom(src: ReadableByteChannel, position: Long, count: Long): Long = delegate.transferFrom(src, position, count)
+    override fun map(mode: MapMode, position: Long, size: Long): MappedByteBuffer = delegate.map(mode, position, size)
+    override fun lock(position: Long, size: Long, shared: Boolean): FileLock = delegate.lock(position, size, shared)
+    override fun tryLock(position: Long, size: Long, shared: Boolean): FileLock? = delegate.tryLock(position, size, shared)
+    override fun implCloseChannel() = delegate.close()
 }
