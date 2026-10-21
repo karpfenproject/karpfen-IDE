@@ -10,16 +10,22 @@ as its language core.
 The accepted architecture is described in [docs/architecture-proposal.md](docs/architecture-proposal.md); the
 individual decisions are recorded as ADRs in [docs/adr/](docs/adr/README.md).
 
-Status: **phase 0 (skeleton)**. Every module exists and is wired into the build, but contains only a stub.
+Status: **phase 1 (text editing) complete**. The IDE opens a folder of karpfen files and edits them with syntax and
+semantic highlighting (including the Python of `EVAL` bodies), live syntax diagnostics, the diagnostics of a
+karpfen-dsl-tools analysis of each modeling context, completion, go to definition, hover, outline, problems, find and
+replace, and a project tree with file templates; `karpfen validate` checks a folder from the command line. The phase's
+contract is [docs/p1-text-editing-spec.md](docs/p1-text-editing-spec.md) (work packages in
+[docs/p1-work-packages.md](docs/p1-work-packages.md), manual smoke test in
+[docs/p1-manual-test.md](docs/p1-manual-test.md)). Diagrams, the runtime and the bridges (later phases) are stubs.
 
 ## Modules
 
 | Module | Purpose | Status |
 |---|---|---|
-| `core/core-text` | Text buffer, `TextEdit`, offset/line-column mapping, line index | stub |
-| `core/core-document` | Parse pipeline on top of karpfen-dsl-tools, document snapshots, diagnostics, text patcher | stub |
-| `core/core-workspace` | Project model, environment descriptor, element identities, snapshot diff | stub |
-| `core/core-lang` | Language services: completion, hover, rename, folding, outline, go-to | stub |
+| `core/core-text` | Text buffer, `TextEdit`, offset/line-column mapping, line index, undo/redo with typing coalescing | P1 |
+| `core/core-document` | Parse pipeline on top of karpfen-dsl-tools (tokenizers, ANTLR adapter, outline, symbols), document sessions, diagnostics, text patcher | P1 (no patcher yet) |
+| `core/core-workspace` | Project model (scan, watch, open documents, save), environment descriptor, modeling contexts, project analysis, problems, element identities, snapshot diff | P1 (no identities/diff yet) |
+| `core/core-lang` | Language services: highlighting, completion, hover, go-to, references, bracket matching, rename, folding | P1 (no rename or folding yet) |
 | `runtime/runtime-protocol` | Typed HTTP/WebSocket client for the karpfen runtime, environment lifecycle | stub |
 | `runtime/runtime-session` | Deploy pipeline, live model mirror, event injector, trace stream | stub |
 | `runtime/runtime-host` | `RuntimeHost` with the IDE-owned Docker runtime (default), attach and process hosts | stub |
@@ -30,12 +36,12 @@ Status: **phase 0 (skeleton)**. Every module exists and is wired into the build,
 | `bridges/bridge-mqtt` | MQTT bridge (HiveMQ MQTT client) | stub |
 | `bridges/bridge-ros` | ROS bridge over the rosbridge protocol (JSON over WebSocket) | stub |
 | `bridges/bridge-runner` | Headless bridge runner (CLI) | stub |
-| `ui/ui-foundation` | Theme, dock/split layout, command registry, keymap, common widgets | stub |
-| `ui/ui-editor` | Custom code editor component | stub |
+| `ui/ui-foundation` | Theme, dock/split layout, command registry, keymap, common widgets | P1 |
+| `ui/ui-editor` | Custom code editor component (Compose-free model, Compose view, completion/find/hover popups) | P1 |
 | `ui/ui-diagram` | Diagram canvas and interaction | stub |
-| `ui/ui-workbench` | Project tree, problems, outline, runtime/bridge tool windows, log console | stub |
-| `app/ide` | Desktop application entry point, wiring, packaging | stub (empty window) |
-| `tools/cli` | `validate` / `format` / `deploy` / `export-layout` for CI | stub |
+| `ui/ui-workbench` | Project tree, editor tabs, problems, outline, status bar, settings, runtime/bridge tool windows, log console | P1 (no runtime/bridge windows yet) |
+| `app/ide` | Desktop application entry point, wiring, menus, crash handling, logging, packaging | P1 |
+| `tools/cli` | `validate` / `format` / `deploy` / `export-layout` for CI | P1 (`validate`) |
 | `architecture-tests` | Konsist rules enforcing the module boundaries | active |
 
 `build-logic/` holds the convention plugins (`karpfen.kotlin-jvm`, `karpfen.kotlin-serialization`,
@@ -123,7 +129,8 @@ Requirements:
 
 ```bash
 ./gradlew build                      # compile, unit tests, architecture tests, module dependency checks
-./gradlew :app:ide:run               # start the IDE (an empty window for now)
+./gradlew :app:ide:run               # start the IDE (empty state: Open Folder… or a recent folder)
+./gradlew :app:ide:run --args=/path/to/folder   # start the IDE on a folder of karpfen files
 ./gradlew :tools:cli:run             # command-line tool (prints usage)
 ./gradlew :bridges:bridge-runner:run # headless bridge runner (prints usage)
 ./gradlew :tools:cli:installDist     # start script: tools/cli/build/install/karpfen/bin/karpfen
@@ -135,8 +142,45 @@ The installer version is `0.1.0` for Msi and Deb. jpackage on macOS rejects an a
 so the macOS app image and dmg are versioned `1.0.0` (override in `app/ide/build.gradle.kts`) until the product reaches
 1.x. The dmg is written to `app/ide/build/compose/binaries/main/dmg/`.
 
-Launch smoke test: with `KARPFEN_IDE_EXIT_AFTER_MS=<ms>` set, the IDE closes itself after that many milliseconds
-and exits with status 0, e.g. `KARPFEN_IDE_EXIT_AFTER_MS=4000 ./gradlew :app:ide:run`.
+### Running the IDE
+
+`./gradlew :app:ide:run --args=<folder>` opens the folder (try a copy of the examples:
+`cp -R core/core-document/src/testFixtures/resources/examples /tmp/karpfen-examples`). Without a folder the IDE shows
+an empty state with "Open Folder…" and the recent folders. Every directory with karpfen files forms a modeling
+context (its `.kmeta` metamodel, `EVENTS.kmeta`, its `.kmodel` models and `.kstates` state machines) unless an
+environment descriptor (`*.kenv.json`) names the files of a context explicitly. Text files on disk are the single
+source of truth; changes made by other tools are picked up (on macOS the JDK's file watcher polls, so this takes up to
+about 10 seconds).
+
+Settings (`settings.json`: recent folders, theme, font size, window bounds, tool-window sizes) and the log
+(`logs/ide.log`) live in `~/.karpfen-ide`; the environment variable `KARPFEN_IDE_HOME=<dir>` moves both, e.g. for a
+throw-away run. Launch smoke test: with `KARPFEN_IDE_EXIT_AFTER_MS=<ms>` set, the IDE closes itself after that many
+milliseconds and exits with status 0, e.g.
+
+```bash
+KARPFEN_IDE_HOME=/tmp/karpfen-home KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app:ide:run --args=/tmp/karpfen-examples
+grep ERROR /tmp/karpfen-home/logs/ide.log   # prints nothing
+```
+
+Before a release, run the 10-minute manual smoke test in [docs/p1-manual-test.md](docs/p1-manual-test.md) (German
+keyboard layout, completion, navigation, save/undo, external changes, quit).
+
+### Command-line tool
+
+`karpfen validate` checks a folder like the IDE does (syntax of every file plus the dsl-tools analysis of every
+modeling context and the environment descriptors) and prints one line per problem, with one-based positions relative
+to the folder:
+
+```bash
+./gradlew :tools:cli:installDist
+tools/cli/build/install/karpfen/bin/karpfen validate <folder> [--format text|json]
+# karpfen-runtime/single_robot_example/cleaning_robot.kstates:8:13: error: extraneous input 'ENTRY' expecting '{' [syntax-error]
+```
+
+Exit status: 0 without errors (warnings and infos are printed but allowed), 1 if any error was found, 2 for an invalid
+command line or a missing folder, 3 if the validation itself failed (a defect; see the message). `--format json`
+prints `{root, errorCount, warningCount, problems: [{path, line, column, severity, message, code}]}`. The output
+contains only the report: what dsl-tools prints while it analyzes is suppressed.
 
 ## License
 
