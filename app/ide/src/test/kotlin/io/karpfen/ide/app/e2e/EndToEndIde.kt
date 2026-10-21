@@ -1,0 +1,131 @@
+package io.karpfen.ide.app.e2e
+
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
+import io.karpfen.ide.app.IdeApplication
+import io.karpfen.ide.app.IdeMenus
+import io.karpfen.ide.app.IdeSession
+import io.karpfen.ide.app.menu.ResolvedMenuEntry
+import io.karpfen.ide.app.menu.resolveMenus
+import io.karpfen.ide.core.document.session.DocumentSessionConfig
+import io.karpfen.ide.core.workspace.WorkspaceFactory
+import io.karpfen.ide.core.workspace.WorkspaceOptions
+import io.karpfen.ide.ui.foundation.command.CommandRegistry
+import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.foundation.keys.compose.toKeyStroke
+import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import java.nio.file.Path
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
+import kotlin.time.TestTimeSource
+
+/**
+ * The IDE as `main` wires it — `IdeApplication(…).prepare` over `defaultWorkbenchServices(…)` and the real
+ * `WorkbenchState` (decision 34 of the work-package plan) — with test values for everything time-, thread-,
+ * file-system- and toolkit-dependent: one test dispatcher on [scheduler] for the UI scope, the workspace, the sessions,
+ * the editors' background work and the workbench's I/O; a [TestTimeSource] for undo coalescing; a watcher that reports
+ * nothing; a fixed clock; recording file operations; settings below [settingsDirectory]; the macOS keymap.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal class EndToEndIde(val scheduler: TestCoroutineScheduler, settingsDirectory: Path) : AutoCloseable {
+    val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
+    val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
+    val time = TestTimeSource()
+    val fileOperations = RecordingFileOperations()
+
+    private val workspaceOptions = WorkspaceOptions(
+        ioDispatcher = dispatcher,
+        analysisDispatcher = dispatcher,
+        sessionConfig = DocumentSessionConfig(tokenizeDispatcher = dispatcher, parseDispatcher = dispatcher),
+        timeSource = time,
+    )
+
+    private val application = IdeApplication(
+        services = {
+            defaultWorkbenchServices(
+                settingsDirectory = settingsDirectory,
+                platform = HostPlatform.MAC_OS,
+                backgroundDispatcher = dispatcher,
+                ioDispatcher = dispatcher,
+                workspaceOptions = workspaceOptions,
+                fileWatcher = SilentFileWatcher(),
+                clock = FIXED_CLOCK,
+                fileOperations = fileOperations,
+                folderChooser = UnusedFolderChooser(),
+            )
+        },
+    )
+
+    private var prepared: IdeSession? = null
+
+    /** The prepared session (fails before [prepare]). */
+    val session: IdeSession get() = checkNotNull(prepared) { "prepare first" }
+
+    /** `IdeApplication.prepare` with [folder] as the command-line folder; waits for the first analysis. */
+    suspend fun prepare(folder: Path): IdeSession {
+        val session = application.prepare(scope, folder)
+        checkNotNull(session.state.workspace.value) { "prepare opened no workspace" }.awaitAnalysis()
+        scheduler.advanceUntilIdle()
+        prepared = session
+        return session
+    }
+
+    /** Workspaces like the CLI's (no watching) on the same virtual time, for `ValidateCommand`. */
+    fun cliWorkspaces(): WorkspaceFactory = WorkspaceFactory(workspaceOptions.copy(watch = false))
+
+    /** Runs everything due on the virtual clock. */
+    fun settle() = scheduler.advanceUntilIdle()
+
+    override fun close() {
+        prepared?.state?.close()
+        scope.cancel()
+    }
+
+    companion object {
+        /** The clock of the settings backups. */
+        val FIXED_CLOCK: Clock = Clock.fixed(Instant.parse("2026-10-21T08:30:00Z"), ZoneOffset.UTC)
+    }
+}
+
+/**
+ * The window menu's accelerators without a window: the items of `resolveMenus(IdeMenus.specs(…), registry)` with their
+ * bound shortcuts. [dispatch] does what the native menu bar does with a key stroke that no component consumed
+ * (decision 15 of the work-package plan): it finds the item whose accelerator is the stroke and invokes it through the
+ * registry. Installed as the outermost `onKeyEvent`, it sees exactly the unconsumed strokes.
+ */
+internal class MenuAccelerators(registry: CommandRegistry, recentFolderCount: Int) {
+    private val platform = registry.platform
+    private val items: List<ResolvedMenuEntry.Item> =
+        resolveMenus(IdeMenus.specs(recentFolderCount), registry).flatMap { menu -> menu.entries.flatMap(::itemsOf) }
+
+    /** Command ids whose accelerator saw an unconsumed stroke. */
+    val reached: MutableList<String> = mutableListOf()
+
+    /** Command ids that ran from an accelerator (enabled at that moment). */
+    val ran: MutableList<String> = mutableListOf()
+
+    /** Handles an unconsumed key event; true if an accelerator matched. */
+    fun dispatch(event: KeyEvent): Boolean {
+        if (event.type != KeyEventType.KeyDown) return false
+        val stroke = event.toKeyStroke() ?: return false
+        val item = items.firstOrNull { it.accelerator?.strokeFor(platform) == stroke } ?: return false
+        reached += item.command.id
+        if (item.invoke()) ran += item.command.id
+        return true
+    }
+
+    private fun itemsOf(entry: ResolvedMenuEntry): List<ResolvedMenuEntry.Item> = when (entry) {
+        is ResolvedMenuEntry.Item -> listOf(entry)
+        is ResolvedMenuEntry.Submenu -> entry.entries.flatMap(::itemsOf)
+        ResolvedMenuEntry.Separator -> emptyList()
+    }
+}

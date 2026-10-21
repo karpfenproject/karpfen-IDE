@@ -15,6 +15,8 @@ dependencies {
     testImplementation(testFixtures(project(":core:core-document")))
     // Test-only: the logging-configuration tests read logback's LoggerContext (rule 7 of the work-package plan).
     testImplementation(libs.logback.classic)
+    // Test-only (INTEGRATION's e2e): the Problems view, the status bar and `karpfen validate` agree on one folder.
+    testImplementation(project(":tools:cli"))
 }
 
 compose.desktop {
