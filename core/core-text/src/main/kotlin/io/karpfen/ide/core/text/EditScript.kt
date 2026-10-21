@@ -19,6 +19,9 @@ internal class EditScript private constructor(edits: List<TextEdit>) {
     /** True if the script changes nothing. */
     val isEmpty: Boolean get() = edits.isEmpty()
 
+    /** The index [mapOffset] searches, built on first use (most scripts are never mapped across). */
+    private val mapper: OffsetMapper by lazy(LazyThreadSafetyMode.PUBLICATION) { OffsetMapper(edits) }
+
     /** Applies the script to [text], the text whose coordinates it uses. */
     fun applyTo(text: String): String {
         if (edits.isEmpty()) return text
@@ -53,41 +56,16 @@ internal class EditScript private constructor(edits: List<TextEdit>) {
      *   moves behind text inserted at the offset and to the end of a replacement it lies in.
      * - [Bias.LEFT] keeps the offset behind the last character before it that survives the script, so it stays in
      *   front of text inserted at the offset and moves to the start of a replacement it lies in.
+     *
+     * O(log n) in the number of edits ([OffsetMapper]).
      */
-    fun mapOffset(offset: Int, bias: Bias): Int = when (bias) {
-        Bias.RIGHT -> mapRight(offset)
-        Bias.LEFT -> mapLeft(offset)
+    fun mapOffset(offset: Int, bias: Bias): Int = when {
+        edits.isEmpty() -> offset
+        bias == Bias.RIGHT -> mapper.mapRight(offset)
+        else -> mapper.mapLeft(offset)
     }
 
     override fun toString(): String = "EditScript$edits"
-
-    private fun mapRight(offset: Int): Int {
-        var anchor = offset
-        var delta = 0
-        for (edit in edits) {
-            if (edit.range.start > anchor) break
-            // The character at the anchor is replaced: the first survivor is the one after the replaced range.
-            if (edit.range.end > anchor) anchor = edit.range.end
-            delta += edit.lengthDelta
-        }
-        return anchor + delta
-    }
-
-    private fun mapLeft(offset: Int): Int {
-        var anchor = offset
-        for (index in edits.indices.reversed()) {
-            val range = edits[index].range
-            if (range.end < anchor) break
-            // The character before the anchor is replaced: the last survivor is the one before the replaced range.
-            if (!range.isEmpty && range.start < anchor) anchor = range.start
-        }
-        var delta = 0
-        for (edit in edits) {
-            if (edit.range.start >= anchor) break
-            delta += edit.lengthDelta
-        }
-        return anchor + delta
-    }
 
     companion object {
         /** The script that changes nothing. */

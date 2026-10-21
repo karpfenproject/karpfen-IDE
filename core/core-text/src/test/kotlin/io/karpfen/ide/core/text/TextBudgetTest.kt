@@ -61,6 +61,26 @@ class TextBudgetTest {
     }
 
     @Test
+    fun `mapping ranges across one version made of 10000 edits`(reporter: TestReporter) {
+        val lines = 2 * LINES
+        val text = EditableText(buildString { repeat(lines) { append("line ").append(it).append('\n') } })
+        val index = LineIndex(text.snapshot.value.text)
+        // Select All + Tab: one action, one version, one insertion per line.
+        text.apply((0 until lines).map { TextEdit.insert(index.lineStart(it), "    ") }, EditOrigin.Command("indent"))
+        val before = text.snapshot.value.version - 1
+        val length = index.lineStart(lines - 1)
+        var next = 0
+        val mapping = {
+            val start = (next * 7_919) % length
+            next++
+            text.mapRange(TextRange(start, start + 10), before, text.lineage)
+        }
+        repeat(WARM_UP) { mapping() }
+
+        check(reporter, "mapRange across one version of $lines edits", measure(MEASURED) { mapping() }, 5.microseconds)
+    }
+
+    @Test
     fun `undo and redo of a step in a 5000-line text`(reporter: TestReporter) {
         val text = EditableText(document)
         repeat(STEPS) { text.apply(listOf(TextEdit.replace(TextRange(it * 40, it * 40 + 5), "edit$it")), EditOrigin.Command("edit")) }

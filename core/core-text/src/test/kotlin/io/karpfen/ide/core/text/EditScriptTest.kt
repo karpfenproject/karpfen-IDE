@@ -84,6 +84,41 @@ class EditScriptTest {
     }
 
     @Test
+    fun `scripts of many edits, with runs of adjacent replacements, map like the reference`() {
+        val random = Random(7)
+        val edits = RandomEdits(random)
+        repeat(300) {
+            val text = edits.text(200)
+            val split = text.length / 2
+            // Many random edits in the first half, a run of adjacent replacements and insertions in the second.
+            val list = edits.edits(split, maxEdits = 60) + adjacentRun(split + 1, text.length)
+            val script = EditScript.of(list, text.length)
+            val reference = ReferenceText(text)
+            val trackers = (0..text.length).flatMap { offset -> Bias.entries.map { reference.track(0, offset, it) } }
+
+            reference.apply(list)
+
+            for (tracker in trackers) {
+                assertEquals(tracker.offset, script.mapOffset(tracker.original, tracker.bias), "${tracker.bias} ${tracker.original} through ${script.edits}")
+            }
+        }
+    }
+
+    /** Adjacent replacements with insertions at their shared bounds from [start] on, if a text of [length] has room. */
+    private fun adjacentRun(start: Int, length: Int): List<TextEdit> =
+        if (length - start < 10) {
+            emptyList()
+        } else {
+            listOf(
+                TextEdit.replace(TextRange(start, start + 3), "ab"),
+                TextEdit.insert(start + 3, "i"),
+                TextEdit.delete(start + 3, start + 5),
+                TextEdit.insert(start + 5, "j"),
+                TextEdit.replace(TextRange(start + 5, start + 9), "xyz"),
+            )
+        }
+
+    @Test
     fun `random scripts apply, invert and map like the reference`() {
         val random = Random(1)
         val edits = RandomEdits(random)
