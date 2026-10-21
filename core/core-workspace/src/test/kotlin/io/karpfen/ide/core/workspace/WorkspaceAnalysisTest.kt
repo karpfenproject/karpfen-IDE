@@ -90,6 +90,25 @@ class WorkspaceAnalysisTest {
     }
 
     @Test
+    fun `a descriptor naming a state machine as metamodel is an error, never a silent pass`() = runTest(timeout = 60.seconds) {
+        val ctx = root.resolve("ctx")
+        val descriptor = DescriptorExamples.copyExplicitContext(ctx).toAbsolutePath().normalize()
+        Files.writeString(descriptor, Files.readString(descriptor).replace("\"metamodel\": \"cleaning_robot.kmeta\"", "\"metamodel\": \"cleaning_robot.kstates\""))
+        val model = ctx.resolve("cleaning_robot.kmodel")
+        Files.writeString(model, Files.readString(model).replace("prop(\"d_closest_obstacle\")", "prop(\"no_such_property\")"))
+        val workspace = TestWorkspaces(this).open(root)
+
+        val analysis = workspace.awaitAnalysis()
+
+        assertEquals(null, analysis.contexts.single().metamodel, "nothing converts")
+        val problems = assertNotNull(workspace.problems.value.of(descriptor))
+        val finding = problems.diagnostics.single()
+        assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID to Severity.ERROR, finding.code to finding.severity)
+        assertTrue("cleaning_robot.kstates" in finding.message && "metamodel" in finding.message, finding.message)
+        assertEquals(1, workspace.problems.value.errorCount)
+    }
+
+    @Test
     fun `of two metamodels the broken one is loose and its PARSER error is in problems next to the INFO`() = runTest(timeout = 60.seconds) {
         val ctx = root.resolve("ctx")
         Files.createDirectories(ctx)

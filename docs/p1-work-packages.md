@@ -1024,6 +1024,13 @@ Added by the review fixes of the core group (r2):
     type), then document order. Before, the first symbol in document order of any quoted name won, usually an earlier,
     valid object of the same type.
 
+58. **A descriptor role names a file of its language** (CONTRACT `ContextResolver.kt`, documentation only): a
+    reference to an existing file of another language than its role (metamodel and events KMeta, model KModel,
+    `stateMachines[].file` KStates; bridges any) is an ERROR `descriptor-invalid` at the reference (no new code,
+    decision 52). The context keeps the path, and the converter still converts a file only in its role's language
+    (`DescriptorFileRole.language`, the one rule for both), so nothing depending on it converts; before, that passed
+    without any finding (and `karpfen validate` exited 0). Refines decision 44, which covered broken files only.
+
 ## 7. Review findings not adopted
 
 1. **A core-lang-owned `ProjectKnowledge` port instead of the workspace's `ProjectAnalysis`.** The providers need the

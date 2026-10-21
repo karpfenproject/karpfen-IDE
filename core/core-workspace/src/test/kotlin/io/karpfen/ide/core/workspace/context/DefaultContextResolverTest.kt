@@ -149,6 +149,39 @@ class DefaultContextResolverTest {
     }
 
     @Test
+    fun `a file of another language than its role is an error at the reference`() {
+        val text = descriptorText("robot.kstates", "robot.kmeta", "robot.kmodel", events = "robot.kmodel")
+        val tree = treeOf("ctx/robot.kenv.json", "ctx/robot.kmeta", "ctx/robot.kmodel", "ctx/robot.kstates")
+
+        val resolution = resolver.resolve(tree, descriptors("ctx/robot.kenv.json" to text))
+
+        val findings = resolution.diagnostics.getValue(ws("ctx/robot.kenv.json"))
+        assertTrue(findings.all { it.code == WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID && it.severity == Severity.ERROR }, "$findings")
+        val kmodel = Regex("\"robot\\.kmodel\"").findAll(text).map { TextRange.ofLength(it.range.first + 1, "robot.kmodel".length) }.toList()
+        assertEquals(
+            (listOf(rangeIn(text, "robot.kstates"), rangeIn(text, "robot.kmeta")) + kmodel).sortedBy { it.start },
+            findings.map { it.range }.sortedBy { it.start },
+            "metamodel, model, events and state machine",
+        )
+        assertEquals(
+            "The file 'robot.kstates' named by 'metamodel' is not a KMeta file (.kmeta).",
+            findings.single { it.range == rangeIn(text, "robot.kstates") }.message,
+        )
+        assertEquals(ws("ctx/robot.kstates"), resolution.contexts.single().metamodel, "the context still names the file")
+    }
+
+    @Test
+    fun `a metamodel or events file of any kmeta name and a bridge of any kind fit their roles`() {
+        val text = "{\"metamodel\": \"EVENTS.kmeta\", \"events\": \"domain.kmeta\", \"model\": \"robot.kmodel\", " +
+            "\"stateMachines\": [], \"bridges\": [\"bridge.py\", \"robot.kstates\"]}"
+        val tree = treeOf("ctx/robot.kenv.json", "ctx/EVENTS.kmeta", "ctx/domain.kmeta", "ctx/robot.kmodel", "ctx/bridge.py", "ctx/robot.kstates")
+
+        val resolution = resolver.resolve(tree, descriptors("ctx/robot.kenv.json" to text))
+
+        assertEquals(emptyMap(), resolution.diagnostics)
+    }
+
+    @Test
     fun `a directory without descriptor forms an implicit context of its karpfen files`() {
         val tree = treeOf("robot/EVENTS.kmeta", "robot/robot.kmeta", "robot/b.kmodel", "robot/a.kmodel", "robot/robot.kstates", "robot/README.md", "docs/notes.txt")
 

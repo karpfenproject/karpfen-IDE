@@ -2,6 +2,7 @@ package io.karpfen.ide.core.workspace.context
 
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
+import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.workspace.diagnostics.DiagnosticsByFile
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
@@ -20,7 +21,10 @@ import java.nio.file.Path
  * order, with paths resolved against the descriptor's directory (sub-directories and `..` allowed; the result is
  * normalized). Every reference that names no file of the tree — missing, in an ignored directory, outside the
  * workspace, a directory, or not a valid path — is an ERROR `descriptor-missing-file` on the descriptor at the
- * reference's range; bridges are references too. The descriptors' read findings are reported as they are.
+ * reference's range; bridges are references too. A reference to a file of another language than its role's
+ * ([DescriptorFileRole.language], e.g. a `.kstates` file as metamodel) is an ERROR `descriptor-invalid` there: the
+ * analysis converts nothing that depends on it, which would otherwise pass without a finding. The descriptors' read
+ * findings are reported as they are.
  */
 internal class DescriptorContexts(private val tree: WorkspaceTree, private val descriptors: Map<Path, DescriptorReadResult>) {
 
@@ -34,7 +38,7 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
             diagnostics.add(path, result.diagnostics)
             val descriptor = result.descriptor ?: return@mapNotNull null
             val directory = checkNotNull(path.parent) { "descriptor $path has no directory" }
-            result.references.filterNot { exists(directory, it.value) }.forEach { diagnostics.add(path, missingFile(it)) }
+            result.references.forEach { reference -> check(reference, directory)?.let { diagnostics.add(path, it) } }
             contextOf(path, directory, descriptor)
         }
     }
@@ -51,8 +55,16 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
             },
         )
 
-    private fun exists(directory: Path, value: String): Boolean =
-        resolve(directory, value)?.let { tree.find(it) is WorkspaceNode.File } ?: false
+    /** The finding on [reference] (a missing file or one of the wrong language), or null if it names a fitting file. */
+    private fun check(reference: DescriptorFileReference, directory: Path): Diagnostic? {
+        val file = resolve(directory, reference.value)?.let { tree.find(it) as? WorkspaceNode.File }
+        val language = reference.role.language
+        return when {
+            file == null -> missingFile(reference)
+            language != null && file.kind.language != language -> wrongLanguage(reference, language)
+            else -> null
+        }
+    }
 
     private fun resolve(directory: Path, value: String): Path? =
         try {
@@ -65,16 +77,18 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
         Diagnostic(
             range = reference.range,
             severity = Severity.ERROR,
-            message = "The file '${reference.value}' named by '${keyOf(reference.role)}' does not exist in the workspace.",
+            message = "The file '${reference.value}' named by '${reference.role.key}' does not exist in the workspace.",
             code = WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE,
             source = DiagnosticSource.IDE,
         )
 
-    private fun keyOf(role: DescriptorFileRole): String = when (role) {
-        DescriptorFileRole.METAMODEL -> "metamodel"
-        DescriptorFileRole.EVENTS -> "events"
-        DescriptorFileRole.MODEL -> "model"
-        DescriptorFileRole.STATE_MACHINE -> "stateMachines[].file"
-        DescriptorFileRole.BRIDGE -> "bridges[]"
-    }
+    private fun wrongLanguage(reference: DescriptorFileReference, language: KarpfenLanguage): Diagnostic =
+        Diagnostic(
+            range = reference.range,
+            severity = Severity.ERROR,
+            message = "The file '${reference.value}' named by '${reference.role.key}' is not a ${language.displayName} file " +
+                "(.${language.extension}).",
+            code = WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID,
+            source = DiagnosticSource.IDE,
+        )
 }

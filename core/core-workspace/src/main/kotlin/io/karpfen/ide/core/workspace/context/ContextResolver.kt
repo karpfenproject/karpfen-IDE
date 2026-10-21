@@ -11,7 +11,9 @@ import java.nio.file.Path
  * Rules (MUST):
  * - Every successfully read descriptor defines one explicit context; its paths are resolved against the descriptor's
  *   directory; a referenced file missing from [WorkspaceTree] is an ERROR `descriptor-missing-file` on the descriptor
- *   at the reference's range. A descriptor that could not be read defines no context.
+ *   at the reference's range, one in another language than its role (metamodel and events KMeta, model KModel, state
+ *   machines KStates; bridges any) an ERROR `descriptor-invalid` there. A descriptor that could not be read defines no
+ *   context.
  * - Every directory that contains no descriptor forms an implicit context of its karpfen files that no explicit
  *   context contains (none left → no implicit context): metamodel = the single `.kmeta` that is not `EVENTS.kmeta`
  *   (several → INFO `context-multiple-metamodels` on each, the alphabetically first is used, the others are loose
