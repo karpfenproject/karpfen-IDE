@@ -9,6 +9,8 @@ import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.core.text.TextLineage
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.workbench.testing.FakeOpenDocument
 import io.karpfen.ide.ui.workbench.testing.editorOf
@@ -49,6 +51,18 @@ class OutlineStateTest {
         }
 
     private fun List<OutlineNode>.flatten(): List<OutlineNode> = flatMap { listOf(it) + it.children.flatten() }
+
+    private val kstatesParser = defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).parser
+
+    /** An [EditableText] that counts the version steps its ranges are mapped across ([steps]). */
+    private class CountingText(private val delegate: EditableText) : EditableText by delegate {
+        var steps = 0L
+
+        override fun mapRange(range: TextRange, fromVersion: Long, fromLineage: TextLineage, toVersion: Long): TextRange? {
+            steps += (toVersion - fromVersion).coerceAtLeast(0)
+            return delegate.mapRange(range, fromVersion, fromLineage, toVersion)
+        }
+    }
 
     @Test
     fun `the outline follows the bound editor's parse and highlights the nodes at the caret`() = scenario { outline, document, editor ->
@@ -96,6 +110,42 @@ class OutlineStateTest {
         document.session.text.apply(listOf(TextEdit.insert(0, "// x\n")), EditOrigin.Typing)
         advanceUntilIdle()
         assertEquals(OutlineUiState(), outline.state.value)
+    }
+
+    @Test
+    fun `while the last good parse lags, a projection maps the node ranges only across the versions since the previous one`() {
+        val text = CountingText(EditableText(machine))
+        val good = kstatesParser.parse(text.snapshot.value)
+        val nodeCount = good.outline.flatten().size
+        val projection = OutlineProjection(path, text)
+        val caret = machine.indexOf("STATE \"drive fast\"") + 8
+        projection.of(null, good, text.snapshot.value, caret)
+
+        val costs = (1..300).map { typed ->
+            text.apply(listOf(TextEdit.insert(0, "x")), EditOrigin.Typing)
+            text.steps = 0
+            val state = projection.of(null, good, text.snapshot.value, caret + typed)
+            assertEquals(listOf("drive", "drive fast"), state.highlighted.map { it.name }.takeLast(2), "after $typed keystrokes")
+            text.steps
+        }
+
+        assertTrue(costs.all { it <= 2L * nodeCount }, "one version step per node range at most, was up to ${costs.max()} for $nodeCount nodes")
+        assertEquals(costs.first(), costs.last(), "the cost does not grow with the edits since the last good parse")
+    }
+
+    @Test
+    fun `the highlight survives more edits since the last good parse than the text retains`() {
+        val text = EditableText(machine, historyLimit = 10)
+        val good = kstatesParser.parse(text.snapshot.value)
+        val projection = OutlineProjection(path, text)
+        val caret = machine.indexOf("STATE \"drive fast\"") + 8
+
+        val names = (1..50).map { typed ->
+            text.apply(listOf(TextEdit.insert(0, "x")), EditOrigin.Typing)
+            projection.of(null, good, text.snapshot.value, caret + typed).highlighted.lastOrNull()?.name
+        }
+
+        assertEquals(List(50) { "drive fast" }, names)
     }
 
     @Test
