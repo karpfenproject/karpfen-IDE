@@ -191,7 +191,8 @@ public interface WorkbenchState : AutoCloseable {
      * `shortcut = WorkbenchServices.editorKeymap.shortcutFor(id)` (the keymap every editor is created with, the single
      * source of their shortcuts). Enablement: the id is in the active editor's `enabledActions`, and — for every editor
      * command except FIND, REPLACE, FIND_NEXT, FIND_PREVIOUS, GO_TO_LINE and GO_TO_DEFINITION, which open a popup or
-     * navigate and first request focus for the editor — the active editor `isFocused`. So Cut, Paste, Undo, Duplicate,
+     * navigate and first request focus for the editor (FIND_NEXT and FIND_PREVIOUS only while its find bar is closed:
+     * typed into the bar, they keep the focus there) — the active editor `isFocused`. So Cut, Paste, Undo, Duplicate,
      * Toggle Comment … from the menu never act on an editor while the Project tree, Outline, Problems or a text field
      * has focus (decision 36 of the work-package plan). Key routing (decision 15): the focused component handles and
      * consumes its keys first (the editor through `CodeEditorState.handleKey`, text fields natively), so a menu

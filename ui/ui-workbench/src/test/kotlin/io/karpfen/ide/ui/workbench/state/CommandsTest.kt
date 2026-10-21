@@ -5,6 +5,7 @@ import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.EditorActionTitles
+import io.karpfen.ide.ui.editor.model.find.FindQuery
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyCode
@@ -145,6 +146,33 @@ class CommandsTest {
         assertTrue(registry.execute(EditorActionIds.FIND))
         assertNotNull(editor.overlays.findBar.value, "find opens the find bar")
         assertTrue(editor.focusRequested.value, "and requests focus for the editor")
+    }
+
+    @Test
+    fun `find next and previous keep the focus in the open find bar and focus the editor otherwise`() = scenario { registry ->
+        open(root)
+        val editor = openEditor(machine)
+        assertTrue(registry.execute(EditorActionIds.FIND))
+        editor.find.setQuery(FindQuery("STATE"))
+        settle()
+        editor.consumeFocusRequest() // the find bar's query field has the focus
+        val matches = editor.find.state.value.matches
+        assertTrue(matches.size > 2)
+
+        assertTrue(registry.execute(EditorActionIds.FIND_NEXT))
+        settle()
+        assertFalse(editor.focusRequested.value, "Cmd+G typed into the find bar leaves the focus there")
+        assertEquals(matches[1], editor.caret.primary.selection, "and selects the next match")
+        assertTrue(registry.execute(EditorActionIds.FIND_PREVIOUS))
+        settle()
+        assertFalse(editor.focusRequested.value)
+        assertEquals(matches[0], editor.caret.primary.selection)
+
+        editor.overlays.closeFind()
+        assertTrue(registry.execute(EditorActionIds.FIND_NEXT))
+        settle()
+        assertTrue(editor.focusRequested.value, "without the find bar, find next focuses the editor")
+        assertEquals(matches[1], editor.caret.primary.selection)
     }
 
     @Test

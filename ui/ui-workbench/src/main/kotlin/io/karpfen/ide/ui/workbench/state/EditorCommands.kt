@@ -24,7 +24,7 @@ internal data class EditorCommandState(val enabled: Set<String>, val focused: Bo
 
     /**
      * True if the editor command [id] may run: it is enabled, and the editor is focused unless the command opens a popup
-     * or navigates ([FOCUS_INDEPENDENT]; those request focus for the editor first).
+     * or navigates ([FOCUS_INDEPENDENT]; those request focus for the editor first, see [focusesEditor]).
      */
     fun allows(id: String): Boolean = id in enabled && (focused || id in FOCUS_INDEPENDENT)
 
@@ -38,6 +38,18 @@ internal data class EditorCommandState(val enabled: Set<String>, val focused: Bo
             EditorActionIds.GO_TO_LINE, EditorActionIds.GO_TO_DEFINITION,
         )
 
+        /** Find navigation: steps through the matches of the find bar's query. */
+        val FIND_STEPS: Set<String> = setOf(EditorActionIds.FIND_NEXT, EditorActionIds.FIND_PREVIOUS)
+
+        /**
+         * True if running [id] from the menu first requests focus for the editor: the [FOCUS_INDEPENDENT] commands do,
+         * except find next/previous while the editor's find bar is open ([findBarOpen]) — typed into the bar's query
+         * field (Cmd+G, F3), they step through the matches and leave the focus there, so typing refines the query
+         * instead of editing the document.
+         */
+        fun focusesEditor(id: String, findBarOpen: Boolean): Boolean =
+            id in FOCUS_INDEPENDENT && !(findBarOpen && id in FIND_STEPS)
+
         /** Ids that are no menu commands (typed text arrives through text input). */
         val NOT_COMMANDS: Set<String> = setOf(EditorActionIds.TYPE_TEXT)
     }
@@ -46,7 +58,8 @@ internal data class EditorCommandState(val enabled: Set<String>, val focused: Bo
 /**
  * Registers the editor commands of the window menu (spec §9): every editor action under its `EditorActionIds` id with
  * its `EditorActionTitles` title and the shortcut of the workbench's one [keymap] (decision 15), enabled by
- * [EditorCommandState.allows] for the active editor and forwarded to it (`EditorHandle.execute`).
+ * [EditorCommandState.allows] for the active editor and forwarded to it (`EditorHandle.execute`), after requesting its
+ * focus where [EditorCommandState.focusesEditor] says so.
  */
 internal class EditorCommands(
     private val scope: CoroutineScope,
@@ -79,7 +92,7 @@ internal class EditorCommands(
         val editor = activeEditor.value ?: return
         val current = EditorCommandState(editor.enabledActions.value, editor.isFocused.value)
         if (!current.allows(id)) return
-        if (id in EditorCommandState.FOCUS_INDEPENDENT) editor.requestFocus()
+        if (EditorCommandState.focusesEditor(id, findBarOpen = editor.overlays.findBar.value != null)) editor.requestFocus()
         editor.execute(id)
     }
 }
