@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * stack, and every change to it replaces that top with a new [UndoStep].
  *
  * Refinements of [UndoManager]: a new text is at its save point (the initial text counts as saved); [markSavePoint]
- * ends the coalescing run so the saved state stays reachable (inside a group it is unreachable once the group applies
- * another change); a group whose changes cancel out leaves no step; [undo], [redo] and [clear] must not be called
+ * and [checkpoint] end the coalescing run so the state stays reachable (inside a group it is unreachable once the group
+ * applies another change); a group whose changes cancel out leaves no step; [undo], [redo] and [clear] must not be called
  * inside [group] (they throw [IllegalStateException]). Like the text, it is driven from the single writer thread; its
  * flows may be read from anywhere.
  */
@@ -101,8 +101,16 @@ internal class DefaultUndoManager(
     }
 
     override fun markSavePoint() {
+        markSavePoint(checkpoint())
+    }
+
+    override fun checkpoint(): HistoryState {
         lastKeystroke = null
-        history.markSaved()
+        return HistoryState(history.currentState)
+    }
+
+    override fun markSavePoint(state: HistoryState) {
+        history.markSaved(state.identity)
         publishState()
     }
 

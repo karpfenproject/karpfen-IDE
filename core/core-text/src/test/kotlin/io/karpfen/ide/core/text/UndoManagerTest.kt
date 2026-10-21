@@ -342,6 +342,38 @@ class UndoManagerTest {
     }
 
     @Test
+    fun `a checkpoint becomes the save point although newer changes were applied`() {
+        type("ab")
+        val written = undo.checkpoint()
+        type("c")
+
+        undo.markSavePoint(written)
+
+        assertFalse(undo.isAtSavePoint.value, "the text went on after the checkpoint")
+        undo.undo()
+        assertEquals("ab", current, "the checkpoint ended the typing run")
+        assertTrue(undo.isAtSavePoint.value)
+        undo.redo()
+        assertFalse(undo.isAtSavePoint.value)
+    }
+
+    @Test
+    fun `a checkpoint that can no longer be reached, or of another text, never becomes the save point`() {
+        text.apply(listOf(TextEdit.insert(0, "a")), EditOrigin.Paste)
+        val discarded = undo.checkpoint()
+        undo.undo()
+        text.apply(listOf(TextEdit.insert(0, "a")), EditOrigin.Paste)
+
+        undo.markSavePoint(discarded)
+        assertFalse(undo.isAtSavePoint.value, "same text, but the state lay on a discarded redo branch")
+        undo.undo()
+        assertFalse(undo.isAtSavePoint.value)
+
+        undo.markSavePoint(EditableText("", time).undo.checkpoint())
+        assertFalse(undo.isAtSavePoint.value, "a state of another text")
+    }
+
+    @Test
     fun `invalidateSavePoint leaves no state at the save point until the next markSavePoint`() {
         text.apply(listOf(TextEdit.insert(0, "a")), EditOrigin.Paste)
         undo.markSavePoint()

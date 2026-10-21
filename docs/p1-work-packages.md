@@ -963,6 +963,10 @@ Added by the phase-1 review fixes (core):
     state until the next `markSavePoint`. `ConflictResolution.KEEP_MINE` calls it, because the disk then holds the
     external text or nothing, which no undo state matches: the kept buffer is saved by Save All, guarded by the
     unsaved-changes prompt, and a later change on disk is a conflict instead of a silent reload.
+48. **A save marks the state it wrote**: `UndoManager.checkpoint(): HistoryState` (an opaque state identity; it ends
+    the coalescing run) and `markSavePoint(state)`. The saver takes the checkpoint with the snapshot it writes and
+    marks it after the write, so typing during the write keeps the document dirty, and undoing that typing (not
+    undoing past the save) makes it clean; before, the save point stayed at the previous save.
 
 ## 7. Review findings not adopted
 

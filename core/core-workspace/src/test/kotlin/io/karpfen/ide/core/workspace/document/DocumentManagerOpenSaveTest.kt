@@ -210,6 +210,34 @@ class DocumentManagerOpenSaveTest {
     }
 
     @Test
+    fun `typing during a save makes the written text the save point`() = runTest {
+        val disk = TextFileStore()
+        var duringWrite: () -> Unit = {}
+        val store = object : TextFileStore by disk {
+            override fun write(path: Path, content: String, withBom: Boolean) {
+                duringWrite()
+                disk.write(path, content, withBom)
+            }
+        }
+        val manager = documentManager(this, fileStore = store)
+        val path = file("robot.kmeta", metamodel)
+        val document = manager.openOrFail(path)
+        document.type(0, "// v1\n")
+        duringWrite = { document.type(0, "x") }
+
+        assertIs<SaveResult.Saved>(manager.save(path))
+
+        assertEquals("// v1\n$metamodel", Files.readString(path))
+        assertTrue(document.isDirty.value, "the x typed during the write is not on disk")
+        document.session.text.undo.undo()
+        assertEquals("// v1\n$metamodel", document.currentText)
+        assertFalse(document.isDirty.value, "back at the written text")
+        document.session.text.undo.undo()
+        assertEquals(metamodel, document.currentText)
+        assertTrue(document.isDirty.value, "the disk holds the written text, not the opened one")
+    }
+
+    @Test
     fun `save all saves the dirty documents in opening order`() = runTest {
         val manager = documentManager(this)
         val first = manager.openOrFail(file("b.kmeta", metamodel))

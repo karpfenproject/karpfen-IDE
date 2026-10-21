@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.workspace.document
 
 import io.karpfen.ide.core.document.session.ExternalDiagnosticSources
+import io.karpfen.ide.core.text.HistoryState
 import io.karpfen.ide.core.text.LineSeparators
 import io.karpfen.ide.core.text.TextSnapshot
 import kotlinx.coroutines.CancellationException
@@ -12,8 +13,8 @@ import java.nio.file.Path
 /**
  * Saves open documents (spec §4): the current snapshot is converted back to file form (the document's line separator,
  * its byte order mark) and written atomically through the [fileStore] on [ioDispatcher]; then, on the [writer]:
- * - the save point is marked if the text is still at the written version (typing during the write keeps the document
- *   dirty, because the disk holds the older text);
+ * - the written state becomes the save point (an undo checkpoint taken with the snapshot): typing during the write
+ *   keeps the document dirty, because the disk holds the older text, and undoing that typing makes it clean again;
  * - the written content becomes the document's disk state, so the watch event the write causes is recognized as
  *   self-induced, and a pending conflict is cleared (the disk now holds the buffer);
  * - the FILE findings are cleared for the written snapshot (the file is valid UTF-8 with one separator now).
@@ -28,7 +29,7 @@ internal class DocumentSaver(
 
     /** Saves [document]; never throws (except for cancellation). */
     suspend fun save(document: DefaultOpenDocument): SaveResult {
-        val pending = writer.run { PendingWrite(document.text.snapshot.value, document) }
+        val pending = writer.run { PendingWrite(document.text.snapshot.value, document.text.undo.checkpoint(), document) }
         try {
             withContext(ioDispatcher) { fileStore.write(document.path, pending.content, pending.withBom) }
         } catch (cancellation: CancellationException) {
@@ -38,15 +39,15 @@ internal class DocumentSaver(
             return SaveResult.Failed(document.path, "Cannot save ${describeIoFailure(document.path, e)}")
         }
         writer.run {
-            if (document.text.snapshot.value.version == pending.snapshot.version) document.text.undo.markSavePoint()
+            document.text.undo.markSavePoint(pending.state)
             document.saved(pending.writtenState(document.path))
             document.session.setExternalDiagnostics(ExternalDiagnosticSources.FILE, pending.snapshot, emptyList())
         }
         return SaveResult.Saved(document.path, pending.snapshot.version)
     }
 
-    /** What one save writes: [snapshot] in file form. */
-    private class PendingWrite(val snapshot: TextSnapshot, document: DefaultOpenDocument) {
+    /** What one save writes: [snapshot] in file form; [state] is the undo history's state of [snapshot]. */
+    private class PendingWrite(val snapshot: TextSnapshot, val state: HistoryState, document: DefaultOpenDocument) {
         val withBom: Boolean = document.hasBom
         val content: String = LineSeparators.restore(snapshot.text, document.lineSeparator.value)
 

@@ -20,7 +20,8 @@ internal class UndoHistory {
     /** Identity of the saved state; the initial state is the saved state. */
     private var savedState: Any = baseState
 
-    private val currentState: Any get() = undoSteps.lastOrNull() ?: baseState
+    /** Identity of the current state. */
+    val currentState: Any get() = undoSteps.lastOrNull() ?: baseState
 
     /** True if there is a step to undo. */
     val canUndo: Boolean get() = undoSteps.isNotEmpty()
@@ -64,9 +65,9 @@ internal class UndoHistory {
         undoSteps += redoSteps.removeAt(redoSteps.lastIndex)
     }
 
-    /** Records the current state as the saved state. */
-    fun markSaved() {
-        savedState = currentState
+    /** Records the state with identity [state] (the current or an earlier one) as the saved state. */
+    fun markSaved(state: Any) {
+        savedState = state
     }
 
     /** Makes no state the saved state: a fresh identity that no reachable state has. */

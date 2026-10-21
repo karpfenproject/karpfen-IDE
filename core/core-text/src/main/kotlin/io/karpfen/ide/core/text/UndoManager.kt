@@ -54,8 +54,22 @@ public interface UndoManager {
      */
     public fun breakCoalescing()
 
-    /** Records the current state as the saved state ([isAtSavePoint] becomes true). */
+    /** Records the current state as the saved state ([isAtSavePoint] becomes true); `markSavePoint(checkpoint())`. */
     public fun markSavePoint()
+
+    /**
+     * Ends the coalescing run (so the current state stays reachable through undo and redo) and returns the identity of
+     * the current text state, to be recorded as the saved state later with [markSavePoint] — when the text written by a
+     * save running in the background is the one of this moment, not of the moment the write ends.
+     */
+    public fun checkpoint(): HistoryState
+
+    /**
+     * Records [state], a [checkpoint] of this manager, as the saved state, also if newer changes were applied since:
+     * [isAtSavePoint] is true whenever undo and redo lead back to it, and stays false if it can no longer be reached
+     * (its step lay on a discarded redo branch, or a group amended it). A state of another manager is never reached.
+     */
+    public fun markSavePoint(state: HistoryState)
 
     /**
      * Makes no text state the saved state: [isAtSavePoint] stays false through any edits, undos and redos until the
@@ -70,3 +84,6 @@ public interface UndoManager {
      */
     public fun clear()
 }
+
+/** Opaque identity of one text state of an [UndoManager]'s history, taken with [UndoManager.checkpoint]. */
+public class HistoryState internal constructor(internal val identity: Any)
