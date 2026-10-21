@@ -115,13 +115,35 @@ object Marked {
     }
 }
 
-/** A clipboard in memory. */
-class FakeClipboard(var content: String? = null) : ClipboardPort {
+/**
+ * A clipboard in memory. Setting [content] directly (another application) drops the whole-line mark; while [failing],
+ * writes fail like a system clipboard another application holds.
+ */
+class FakeClipboard(content: String? = null) : ClipboardPort {
+    /** The clipboard text. */
+    var content: String? = content
+        set(value) {
+            field = value
+            wholeLine = false
+        }
+
+    /** Whether the content was put there as a whole line. */
+    var wholeLine: Boolean = false
+        private set
+
+    /** Makes every write fail. */
+    var failing: Boolean = false
+
     override fun getText(): String? = content
 
-    override fun setText(text: String) {
+    override fun setText(text: String, wholeLine: Boolean): Boolean {
+        if (failing) return false
         content = text
+        this.wholeLine = wholeLine
+        return true
     }
+
+    override fun holdsWholeLine(): Boolean = wholeLine
 }
 
 /** Records the UI requests of actions. */

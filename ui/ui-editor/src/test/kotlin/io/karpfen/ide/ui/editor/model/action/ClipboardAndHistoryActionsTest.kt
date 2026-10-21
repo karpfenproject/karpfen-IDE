@@ -60,6 +60,54 @@ class ClipboardAndHistoryActionsTest {
     }
 
     @Test
+    fun `a line cut without selection is pasted as a whole line above the caret's line`() {
+        val editor = TestEditor("aaa\nbb|bbbb\nccc")
+
+        editor.run(EditorActionIds.CUT)
+        assertEquals("aaa\ncc|c", editor.marked())
+        assertTrue(editor.run(EditorActionIds.PASTE))
+
+        assertEquals("aaa\nbbbbbb\ncc|c", editor.marked(), "the line moved back, the caret keeps its column")
+    }
+
+    @Test
+    fun `a line copied without selection is pasted as a whole line above the caret's line`() {
+        val editor = TestEditor("aaa\nbb|bbbb\nccc")
+
+        editor.run(EditorActionIds.COPY)
+        assertTrue(editor.run(EditorActionIds.PASTE))
+
+        assertEquals("aaa\nbbbbbb\nbb|bbbb\nccc", editor.marked(), "the line is duplicated above")
+        editor.run(EditorActionIds.UNDO)
+        assertEquals("aaa\nbb|bbbb\nccc", editor.marked(), "one undo step")
+    }
+
+    @Test
+    fun `a whole line replaces a selection like any text, and a text from elsewhere is pasted at the caret`() {
+        val editor = TestEditor("aaa\nbb|b")
+        editor.run(EditorActionIds.COPY)
+        editor.caret.select(0, 1)
+        editor.run(EditorActionIds.PASTE)
+        assertEquals("bbb\n|aa\nbbb", editor.marked(), "the selection is replaced")
+
+        editor.clipboard.content = "x"
+        editor.caret.moveTo(2)
+        editor.run(EditorActionIds.PASTE)
+        assertEquals("bbx|b\naa\nbbb", editor.marked(), "another application's text carries no line mark")
+    }
+
+    @Test
+    fun `cut keeps the text and copy reports nothing done when the clipboard cannot be written`() {
+        val editor = TestEditor("ab^cd|ef")
+        editor.clipboard.failing = true
+
+        assertFalse(editor.run(EditorActionIds.CUT))
+        assertEquals("ab^cd|ef", editor.marked(), "nothing was lost")
+        assertFalse(editor.run(EditorActionIds.COPY))
+        assertEquals(0L, editor.text.snapshot.value.version)
+    }
+
+    @Test
     fun `paste replaces the selection with normalized text`() {
         val editor = TestEditor("ab^cd|ef")
         editor.clipboard.content = "x\r\ny\rz"
@@ -85,7 +133,8 @@ class ClipboardAndHistoryActionsTest {
         var reads = 0
         val counting = object : ClipboardPort {
             override fun getText(): String? = "x".also { reads++ }
-            override fun setText(text: String) = Unit
+            override fun setText(text: String, wholeLine: Boolean): Boolean = true
+            override fun holdsWholeLine(): Boolean = false.also { reads++ }
         }
         val context = object : EditorActionContext by editor {
             override val clipboard: ClipboardPort = counting

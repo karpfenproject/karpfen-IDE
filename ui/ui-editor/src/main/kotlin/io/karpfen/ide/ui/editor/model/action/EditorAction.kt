@@ -69,13 +69,24 @@ public interface EditorActionContext {
     public val ui: EditorUiPort
 }
 
-/** Clipboard access for copy/cut/paste; the view provides the system clipboard, tests a fake. */
+/**
+ * Clipboard access for copy/cut/paste; the view provides the system clipboard, tests a fake. A text copied or cut
+ * without a selection is put there marked as a *whole line*; paste inserts it above the caret's line while the clipboard
+ * still holds it (the mark belongs to the clipboard's content, so it also holds between editors and disappears when
+ * anything else is copied).
+ */
 public interface ClipboardPort {
     /** The clipboard text, or null if it holds no text. */
     public fun getText(): String?
 
-    /** Puts [text] on the clipboard. */
-    public fun setText(text: String)
+    /**
+     * Puts [text] on the clipboard, marked as a whole line if [wholeLine]. Returns false if the clipboard could not be
+     * written (e.g. another application holds the system clipboard); cut then keeps the text.
+     */
+    public fun setText(text: String, wholeLine: Boolean = false): Boolean
+
+    /** True while the clipboard holds a text put there with `wholeLine` (until anything else is put on the clipboard). */
+    public fun holdsWholeLine(): Boolean
 }
 
 /** UI requests issued by actions; implemented by the editor state. */

@@ -165,12 +165,17 @@ class FakeActionContext(override val text: EditableText, override val caret: Car
     override val pageLines: Int = 10
     override val clipboard: ClipboardPort = object : ClipboardPort {
         private var content: String? = null
+        private var wholeLine = false
 
         override fun getText(): String? = content
 
-        override fun setText(text: String) {
+        override fun setText(text: String, wholeLine: Boolean): Boolean {
             content = text
+            this.wholeLine = wholeLine
+            return true
         }
+
+        override fun holdsWholeLine(): Boolean = wholeLine
     }
     override val ui: EditorUiPort = object : EditorUiPort {
         override fun openFind(replace: Boolean) = Unit
