@@ -80,6 +80,9 @@ public object TreeViewTestTags {
  *
  * @param icon slot rendering a node's icon; null uses [TreeNode.icon].
  * @param contextMenu the context-menu entries of a node (empty: no menu).
+ * @param onClick every primary click on a row (not on its chevron; after [onSelect]), also on the selected row, which
+ *   [onSelect] does not report — for trees whose selection follows something else (the Outline's node at the caret), so
+ *   a click can act although it selects nothing new; keys are no clicks.
  */
 @Composable
 public fun <K> TreeView(
@@ -92,6 +95,7 @@ public fun <K> TreeView(
     modifier: Modifier = Modifier,
     icon: (@Composable (TreeNode<K>) -> Unit)? = null,
     contextMenu: (TreeNode<K>) -> List<ContextMenuAction> = { emptyList() },
+    onClick: (K) -> Unit = {},
 ) {
     val rows = remember(roots, expanded) { TreeRows.flatten(roots, expanded) }
     val selectedIndex = if (selected == null) -1 else rows.indexOfFirst { it.node.key == selected }
@@ -108,6 +112,7 @@ public fun <K> TreeView(
             is TreeIntent.Select -> if (intent.key != selected) onSelect(intent.key)
             is TreeIntent.Toggle -> onToggleExpanded(intent.key)
             is TreeIntent.Open -> onOpen(intent.key)
+            is TreeIntent.Click -> onClick(intent.key)
         }
     }
 

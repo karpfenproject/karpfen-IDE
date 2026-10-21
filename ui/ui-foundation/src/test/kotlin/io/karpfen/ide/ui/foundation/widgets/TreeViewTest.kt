@@ -53,6 +53,7 @@ class TreeViewTest {
         val toggled = mutableListOf<String>()
         val selections = mutableListOf<String>()
         val opened = mutableListOf<String>()
+        val clicks = mutableListOf<String>()
     }
 
     // src (expandable) ─ a (expandable) ─ x.kmeta
@@ -98,6 +99,7 @@ class TreeViewTest {
                     modifier = Modifier.fillMaxSize(),
                     icon = icon,
                     contextMenu = contextMenu,
+                    onClick = { key -> harness.clicks += key },
                 )
             }
         }
@@ -177,6 +179,25 @@ class TreeViewTest {
         waitForIdle()
         assertEquals(listOf("src/b.kstates"), harness.selections, "selecting the selected row again reports nothing")
         assertEquals(emptyList(), harness.opened)
+    }
+
+    @Test
+    fun `every click on a row is reported, also on the selected row, but not keys or chevron clicks`() = runComposeUiTest {
+        val harness = Harness(project, expanded = setOf("src"), selected = "src/b.kstates")
+        tree(harness)
+
+        row("src/b.kstates").performClick()
+        waitForIdle()
+        assertEquals(listOf("src/b.kstates"), harness.clicks, "a click on the selected row")
+        assertEquals(emptyList(), harness.selections, "which changes no selection")
+
+        mainClock.advanceTimeBy(1_000)
+        row("README.md").performClick()
+        press(Key.DirectionUp)
+        clickChevron("src", depth = 0)
+        waitForIdle()
+        assertEquals(listOf("src/b.kstates", "README.md"), harness.clicks)
+        assertEquals(listOf("README.md", "src/empty"), harness.selections)
     }
 
     @Test

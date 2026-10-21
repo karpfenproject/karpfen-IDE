@@ -16,6 +16,9 @@ internal sealed interface TreeIntent<out K> {
 
     /** Open the node [key]. */
     data class Open<K>(val key: K) : TreeIntent<K>
+
+    /** A primary click on the row of [key] (not on its chevron), also when the row is selected already. */
+    data class Click<K>(val key: K) : TreeIntent<K>
 }
 
 /**

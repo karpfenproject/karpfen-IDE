@@ -16,9 +16,12 @@ import io.karpfen.ide.ui.foundation.widgets.TreeView
 import io.karpfen.ide.ui.workbench.outline.OutlineUiState
 
 /**
- * The Outline tool window (spec §8): outline tree; the node containing the caret is highlighted (selected); clicking a
- * node (or Enter / double-click) calls [onNavigate] with `state.locationOf(node)` (versioned, so
- * `WorkbenchState.navigateTo` maps it into the live text). Nodes start expanded; collapsing is view-local state.
+ * The Outline tool window (spec §8): outline tree; the node containing the caret is highlighted (selected); every click
+ * on a node — also on the highlighted one, to get back to it after scrolling the editor away — and Enter (or a
+ * double-click) call [onNavigate] with `state.locationOf(node)` (versioned, so `WorkbenchState.navigateTo` maps it into
+ * the live text). The arrow keys browse: they move the selection without navigating, so the focus stays in the outline;
+ * the browsed node is view-local and gives way to the highlight whenever the caret's node changes. Nodes start
+ * expanded; collapsing is view-local state too.
  */
 @Composable
 internal fun OutlineView(state: OutlineUiState, onNavigate: (Location) -> Unit, modifier: Modifier = Modifier) {
@@ -36,16 +39,19 @@ internal fun OutlineView(state: OutlineUiState, onNavigate: (Location) -> Unit, 
     }
     val nodes = remember(state.nodes) { OutlineTreeNodes(state.nodes) }
     var collapsed by remember(state.path) { mutableStateOf(emptySet<OutlineKey>()) }
+    val highlighted = nodes.keyOf(state.highlighted)
+    var browsed by remember(nodes, highlighted) { mutableStateOf(highlighted) }
     fun navigate(key: OutlineKey) {
         nodes.nodeOf(key)?.let(state::locationOf)?.let(onNavigate)
     }
     TreeView(
         roots = nodes.roots,
         expanded = nodes.expandable - collapsed,
-        selected = nodes.keyOf(state.highlighted),
+        selected = browsed,
         onToggleExpanded = { key -> collapsed = if (key in collapsed) collapsed - key else collapsed + key },
-        onSelect = ::navigate,
+        onSelect = { key -> browsed = key },
         onOpen = ::navigate,
         modifier = modifier.fillMaxSize(),
+        onClick = ::navigate,
     )
 }

@@ -2,8 +2,9 @@ package io.karpfen.ide.ui.foundation.widgets
 
 /**
  * The mouse policy of the rows of a [TreeView] (pure, time from the events): a primary press on an expandable node's chevron
- * toggles it; any other primary press selects the row, and the second press on the same row within the double-click
- * timeout opens it as well (selection happens on the first press, without waiting for a possible second one).
+ * toggles it; any other primary press selects the row and is a click on it, and the second press on the same row within
+ * the double-click timeout opens it as well (selection happens on the first press, without waiting for a possible second
+ * one).
  */
 internal class TreePointerPolicy(private val doubleClickTimeoutMillis: Long) {
     private var lastKey: Any? = null
@@ -24,6 +25,7 @@ internal class TreePointerPolicy(private val doubleClickTimeoutMillis: Long) {
         pressCount = if (isRepeat) pressCount + 1 else 1
         lastKey = key
         lastPressMillis = uptimeMillis
-        return if (pressCount == 2) listOf(TreeIntent.Select(key), TreeIntent.Open(key)) else listOf(TreeIntent.Select(key))
+        val click = listOf(TreeIntent.Select(key), TreeIntent.Click(key))
+        return if (pressCount == 2) click + TreeIntent.Open(key) else click
     }
 }

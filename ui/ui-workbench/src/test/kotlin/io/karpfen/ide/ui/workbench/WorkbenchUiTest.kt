@@ -1,14 +1,20 @@
 package io.karpfen.ide.ui.workbench
 
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.test.rightClick
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
@@ -190,6 +196,32 @@ class WorkbenchUiTest {
         assertEquals(observe.selectionRange.start, editor.caret.primary.position)
         assertEquals("observe", workbench.state.outline.state.value.highlighted.last().name)
     }
+
+    @Test
+    fun `clicking the outline node at the caret moves the caret back to it, and arrow keys keep the focus in the outline`() =
+        workbenchUiTest(dir) {
+            openExamples()
+            openFromTree(machine)
+            val observe = workbench.state.outline.state.value.nodes.single().children.first { it.name == "observe" }
+            val editor = assertNotNull(workbench.state.tabs.editorFor(machine))
+            editor.caret.moveTo(observe.selectionRange.start + "observe".length)
+            settle()
+            assertEquals("observe", workbench.state.outline.state.value.highlighted.last().name)
+
+            test.onNodeWithText("observe").performClick()
+            settle()
+            assertEquals(observe.selectionRange.start, editor.caret.primary.position, "the highlighted node navigates too")
+
+            val outline = test.onNode(
+                hasTestTag(TreeViewTestTags.TREE) and hasAnyAncestor(hasTestTag(WorkbenchTestTags.toolWindow(ToolWindowId.OUTLINE))),
+            )
+            outline.requestFocus()
+            settle()
+            outline.performKeyInput { pressKey(Key.DirectionDown) }
+            settle()
+            assertEquals(observe.selectionRange.start, editor.caret.primary.position, "browsing does not navigate")
+            outline.assertIsFocused()
+        }
 
     @Test
     fun `the status bar shows the caret position, the file's language and the counts`() = workbenchUiTest(dir) {
