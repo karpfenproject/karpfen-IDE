@@ -24,12 +24,30 @@ import kotlin.test.assertTrue
 class StandardOutputGuardTest {
 
     @Test
-    fun `the default streams are the process streams at construction`() {
-        ProcessStreams().use {
+    fun `the default streams write to the process streams at construction`() {
+        ProcessStreams().use { streams ->
+            val guard = StandardOutputGuard()
+            System.setOut(PrintStream(ByteArrayOutputStream()))
+            System.setErr(PrintStream(ByteArrayOutputStream()))
+
+            guard.output.println("report")
+            guard.errorOutput.println("message")
+
+            assertEquals("report\n", streams.stdout())
+            assertEquals("message\n", streams.stderr())
+        }
+    }
+
+    @Test
+    fun `the default streams write UTF-8 whatever the console's encoding, so non-ASCII paths survive LANG=C`() {
+        ProcessStreams(encoding = Charsets.US_ASCII).use { streams ->
             val guard = StandardOutputGuard()
 
-            assertSame(System.out, guard.output)
-            assertSame(System.err, guard.errorOutput)
+            guard.output.println("Übung/größe.kmeta")
+            guard.errorOutput.println("karpfen: not a directory: Übung")
+
+            assertEquals("Übung/größe.kmeta\n", streams.stdout())
+            assertEquals("karpfen: not a directory: Übung\n", streams.stderr())
         }
     }
 

@@ -14,10 +14,14 @@ import java.util.concurrent.atomic.AtomicLong
  *
  * The redirection is process-wide (`System.setOut`/`System.setErr`), so it also catches output of threads other than
  * the caller's (the analysis dispatcher). The discarded bytes are only counted (logged at DEBUG afterwards).
+ *
+ * The default [output] and [errorOutput] encode UTF-8 onto the process streams, whatever the console's encoding
+ * (`stdout.encoding`, US-ASCII under `LANG=C` in containers and minimal CI runners), so paths and messages with
+ * non-ASCII characters keep naming their files instead of turning into `?`.
  */
 public class StandardOutputGuard(
-    public val output: PrintStream = System.out,
-    public val errorOutput: PrintStream = System.err,
+    public val output: PrintStream = utf8(System.out),
+    public val errorOutput: PrintStream = utf8(System.err),
 ) {
     private val active = AtomicBoolean(false)
 
@@ -62,5 +66,8 @@ public class StandardOutputGuard(
 
     private companion object {
         private val log = LoggerFactory.getLogger(StandardOutputGuard::class.java)
+
+        /** A stream encoding UTF-8 onto [stream] (bytes pass a `PrintStream` unchanged, whatever its own encoding). */
+        fun utf8(stream: PrintStream): PrintStream = PrintStream(stream, true, Charsets.UTF_8)
     }
 }

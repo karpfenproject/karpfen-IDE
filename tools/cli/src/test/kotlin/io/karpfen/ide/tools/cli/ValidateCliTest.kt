@@ -157,12 +157,36 @@ class ValidateCliTest {
     }
 
     @Test
+    fun `non-ASCII paths and messages are reported in UTF-8 also when the console encoding is ASCII`() =
+        runTest(timeout = 60.seconds) {
+            val file = Files.createDirectories(dir.resolve("Übung")).resolve("größe.kmeta")
+            Files.writeString(file, "type \"Größe\" \"g\" {\n")
+
+            val json = runCli(testWorkspaceFactory(this), "validate", "--format", "json", dir.toString(), consoleEncoding = Charsets.US_ASCII)
+            val text = runCli(testWorkspaceFactory(this), "validate", dir.toString(), consoleEncoding = Charsets.US_ASCII)
+            val missing = runCli(testWorkspaceFactory(this), "validate", dir.resolve("Übung/fehlt").toString(), consoleEncoding = Charsets.US_ASCII)
+
+            assertEquals(ExitCodes.ERRORS_FOUND, json.status)
+            val problems = Json.parseToJsonElement(json.stdout).jsonObject.getValue("problems").jsonArray
+            assertEquals(listOf("Übung/größe.kmeta"), problems.map { it.jsonObject.getValue("path").jsonPrimitive.content })
+            assertTrue(text.lines.single().startsWith("Übung/größe.kmeta:"), text.stdout)
+            assertEquals("karpfen: not a directory: ${dir.resolve("Übung/fehlt")}\n", missing.stderr)
+        }
+
+    @Test
     fun `a directory that does not exist is a usage error on stderr`() = runTest {
         val missing = dir.resolve("nope")
 
         val run = runCli(testWorkspaceFactory(this), "validate", missing.toString())
 
         assertEquals(CliRun(ExitCodes.USAGE, stdout = "", stderr = "karpfen: not a directory: $missing\n"), run)
+    }
+
+    @Test
+    fun `an empty directory argument is a usage error, not the working directory`() = runTest {
+        val run = runCli(testWorkspaceFactory(this), "validate", "")
+
+        assertEquals(CliRun(ExitCodes.USAGE, stdout = "", stderr = "karpfen: validate needs a directory, not an empty argument\n$USAGE\n"), run)
     }
 
     @Test

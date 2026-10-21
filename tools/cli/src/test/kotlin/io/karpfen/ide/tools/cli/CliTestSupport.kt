@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.nio.charset.Charset
 import kotlin.time.TestTimeSource
 
 /**
@@ -29,17 +30,19 @@ internal fun testWorkspaceFactory(scope: TestScope): WorkspaceFactory {
 
 /**
  * Replaces the process streams `System.out` and `System.err` by captures until [close], so a test sees everything the
- * process would have printed (the CLI's guard, created inside, takes the captures as its original streams).
+ * process would have printed (the CLI's guard, created inside, takes the captures as its original streams). The
+ * captures encode text written to them as [encoding] (the console's, e.g. US-ASCII under `LANG=C`); [stdout] and
+ * [stderr] decode the captured bytes as UTF-8.
  */
-internal class ProcessStreams : AutoCloseable {
+internal class ProcessStreams(encoding: Charset = Charsets.UTF_8) : AutoCloseable {
     private val previousOut: PrintStream = System.out
     private val previousErr: PrintStream = System.err
     private val out = ByteArrayOutputStream()
     private val err = ByteArrayOutputStream()
 
     init {
-        System.setOut(PrintStream(out, true, Charsets.UTF_8))
-        System.setErr(PrintStream(err, true, Charsets.UTF_8))
+        System.setOut(PrintStream(out, true, encoding))
+        System.setErr(PrintStream(err, true, encoding))
     }
 
     /** Everything written to `System.out` so far. */
@@ -60,9 +63,16 @@ internal data class CliRun(val status: Int, val stdout: String, val stderr: Stri
     val lines: List<String> get() = stdout.lines().filter { it.isNotEmpty() }
 }
 
-/** Runs the command line [args] like `main` does, capturing the process streams for the whole run. */
-internal suspend fun runCli(workspaceFactory: WorkspaceFactory, vararg args: String): CliRun =
-    ProcessStreams().use { streams ->
+/**
+ * Runs the command line [args] like `main` does, capturing the process streams (encoding text as [consoleEncoding]) for
+ * the whole run.
+ */
+internal suspend fun runCli(
+    workspaceFactory: WorkspaceFactory,
+    vararg args: String,
+    consoleEncoding: Charset = Charsets.UTF_8,
+): CliRun =
+    ProcessStreams(consoleEncoding).use { streams ->
         val status = KarpfenCli(StandardOutputGuard(), workspaceFactory).execute(args.toList())
         CliRun(status, streams.stdout(), streams.stderr())
     }
