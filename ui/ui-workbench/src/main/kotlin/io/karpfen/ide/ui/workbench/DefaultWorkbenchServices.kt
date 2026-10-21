@@ -6,6 +6,7 @@ import io.karpfen.ide.core.lang.services.defaultLanguageServices
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
 import io.karpfen.ide.core.workspace.files.FileWatcher
+import io.karpfen.ide.ui.editor.model.action.ClipboardPort
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.view.systemClipboard
@@ -25,14 +26,17 @@ import java.time.Clock
 
 /**
  * The production collaborators: JSON settings in [settingsDirectory], the built-in languages, real workspaces, the
- * default language services, editors with the system clipboard and one shared keymap for [platform], desktop file
- * operations, the native folder chooser and the built-in templates. CPU work (tokenizing, parsing, analysis,
- * highlighting, find, completion, hover) runs on [backgroundDispatcher], file I/O on [ioDispatcher]. Wiring only.
+ * default language services, editors sharing one [clipboard] and one keymap for [platform], desktop file operations,
+ * the native folder chooser and the built-in templates. CPU work (tokenizing, parsing, analysis, highlighting, find,
+ * completion, hover) runs on [backgroundDispatcher], file I/O on [ioDispatcher]. Wiring only.
  *
  * Every time-, file-system- and toolkit-dependent collaborator is a parameter with a production default, so end-to-end
  * tests run exactly this wiring with test values: [workspaceOptions] (dispatchers, `timeSource` for undo coalescing,
- * `watch`), [fileWatcher] (a fake instead of the slow macOS `WatchService`), [clock] (settings backups), and
- * [fileOperations] / [folderChooser] (the desktop adapters are headless-safe, but tests usually record calls).
+ * `watch`), [fileWatcher] (a fake instead of the slow macOS `WatchService`), [clock] (settings backups),
+ * [fileOperations] / [folderChooser] (the desktop adapters are headless-safe, but tests usually record calls) and
+ * [clipboard] (the system clipboard, created once: every editor of the workbench gets this one port, so text and the
+ * whole-line mark copied in one tab are pasted in another also where the port is not the global AWT clipboard — its
+ * headless in-memory fallback, a test's fake).
  */
 public fun defaultWorkbenchServices(
     settingsDirectory: Path = SettingsLocations.defaultDirectory(),
@@ -48,6 +52,7 @@ public fun defaultWorkbenchServices(
     clock: Clock = Clock.systemDefaultZone(),
     fileOperations: ProjectFileOperations = desktopProjectFileOperations(),
     folderChooser: FolderChooser = nativeFolderChooser(),
+    clipboard: ClipboardPort = systemClipboard(),
 ): WorkbenchServices {
     return WorkbenchServices(
         settings = SettingsRepository(settingsDirectory, ioDispatcher, clock),
@@ -55,7 +60,7 @@ public fun defaultWorkbenchServices(
         languageServicesFactory = { workspace -> defaultLanguageServices(workspace.analysis) },
         editorStateFactory = { session, languageServices, scope, settings, keymap ->
             CodeEditorState(
-                session, languageServices, scope, systemClipboard(), settings,
+                session, languageServices, scope, clipboard, settings,
                 keymap = keymap,
                 backgroundDispatcher = backgroundDispatcher,
             )

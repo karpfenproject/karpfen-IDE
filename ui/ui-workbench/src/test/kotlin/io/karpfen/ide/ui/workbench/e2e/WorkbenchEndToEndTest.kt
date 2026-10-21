@@ -193,6 +193,19 @@ class WorkbenchEndToEndTest {
         assertEquals(null, state.tabs.tabs.value.single { it.path == machine }.conflict)
     }
 
+    @Test
+    fun `text copied in one editor is pasted in another, through the workbench's one clipboard`() = scenario {
+        val first = openEditor(machine)
+        val second = openEditor(model)
+        first.caret.select(0, "STATEMACHINE".length)
+        assertTrue(first.execute(EditorActionIds.COPY))
+
+        second.caret.moveTo(0)
+        assertTrue(second.execute(EditorActionIds.PASTE))
+
+        assertTrue(textOf(second).startsWith("STATEMACHINEmake object"), textOf(second).take(40))
+    }
+
     private fun textOf(editor: CodeEditorState): String = editor.session.text.snapshot.value.text
 
     private fun ProductionWorkbench.itemsOf(path: Path): List<ProblemItem> =

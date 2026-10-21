@@ -30,7 +30,7 @@ import kotlin.time.TestTimeSource
 
 /**
  * The workbench exactly as the application wires it — `defaultWorkbenchServices(…)` (decision 34 of the work-package
- * plan) with the built-in languages, real workspaces, the default language services, real editors with the (headless,
+ * plan) with the built-in languages, real workspaces, the default language services, real editors sharing the (headless,
  * in-memory) system clipboard, the macOS keymap and the built-in templates — but with test values for everything
  * time-, thread-, file-system- and toolkit-dependent: one test dispatcher on [scheduler] for the mediator, the
  * workspace, the sessions, the editors' background work and the workbench's I/O; a [TestTimeSource] for undo
