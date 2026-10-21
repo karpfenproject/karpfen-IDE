@@ -24,6 +24,19 @@ class KarpfenSyntaxTest {
     }
 
     @Test
+    fun `the KStates block keywords are keyword tokens of the lexer, each of one kind`() {
+        val vocabulary = KstatesLexer.VOCABULARY
+        val keywords = (1..vocabulary.maxTokenType)
+            .filter { KSTATES_TOKEN_KINDS.classifies(it) && KSTATES_TOKEN_KINDS.kindOf(it) == TokenKind.KEYWORD }
+            .map { vocabulary.getSymbolicName(it) }
+            .toSet()
+        val blocks = listOf(KarpfenSyntax.KSTATES_ACTION_BLOCKS, setOf(KarpfenSyntax.KSTATES_CONDITION_BLOCK), KarpfenSyntax.KSTATES_STRUCTURE_BLOCKS)
+
+        assertTrue(keywords.containsAll(blocks.flatten()), "not keywords: ${blocks.flatten() - keywords}")
+        assertEquals(blocks.sumOf { it.size }, blocks.flatten().toSet().size, "a keyword opens one kind of block")
+    }
+
+    @Test
     fun `the identifier characters are the ones that continue a KStates identifier`() {
         for (code in 0x21 until 0x250) {
             val char = code.toChar()

@@ -1,8 +1,10 @@
 package io.karpfen.ide.core.lang.kstates
 
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
+import io.karpfen.ide.core.document.syntax.KstatesBlockKind
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.lang.LanguageDocument
+import io.karpfen.ide.core.lang.context.BlockFrame
 import io.karpfen.ide.core.lang.context.CallContext
 import io.karpfen.ide.core.lang.context.CaretContext
 import io.karpfen.ide.core.lang.context.CaretContextDetector
@@ -148,13 +150,21 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             }
         }
         val statement = context.statement
-        val block = context.innermostBlock?.let(KstatesBlocks::kindOf)
+        val frame = context.innermostBlock
+        val block = frame?.let(KstatesBlocks::kindOf)
         if (block == TRANSITIONS && isTransitionHeader(statement) && statement.lastOrNull()?.kind == TokenKind.STRING) {
             return KstatesSlot.Keywords(KstatesPosition.TRANSITION_HEADER)
         }
         if (statement.isNotEmpty() && statement.last().text != ")") return KstatesSlot.None
-        val position = if (context.blocks.isEmpty()) KstatesPosition.TOP_LEVEL.takeIf { statement.isEmpty() } else POSITIONS[block]
+        val position = if (frame == null) KstatesPosition.TOP_LEVEL.takeIf { statement.isEmpty() } else positionIn(frame, block)
         return position?.let(KstatesSlot::Keywords) ?: KstatesSlot.None
+    }
+
+    /** The keyword position inside [frame], whose introducing keyword is [block]: by its kind, else by the keyword. */
+    private fun positionIn(frame: BlockFrame, block: String?): KstatesPosition? = when (KstatesBlocks.blockKindOf(frame)) {
+        KstatesBlockKind.ACTION -> KstatesPosition.ACTIONS
+        KstatesBlockKind.CONDITION -> KstatesPosition.CONDITION
+        KstatesBlockKind.OTHER -> POSITIONS[block]
     }
 
     /** True if the statement ends with `TRANSITION|SPLIT|JOIN` followed only by state strings, commas and arrows. */
@@ -188,20 +198,18 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         /** The calls whose string arguments are types (TAKES from its second argument on). */
         val TYPE_CALLS: Set<String> = setOf(TAKES, RETURNS, LIST, REFERENCE)
 
-        /** The keyword position inside a block, by the block's introducing keyword ([KstatesBlocks.kindOf]). */
+        /**
+         * The keyword position inside a structural block, by the block's introducing keyword ([KstatesBlocks.kindOf]);
+         * action and condition blocks are positioned by their kind ([KstatesBlocks.blockKindOf]).
+         */
         val POSITIONS: Map<String, KstatesPosition> = mapOf(
             "STATEMACHINE" to KstatesPosition.MACHINE,
             "STATES" to KstatesPosition.STATES,
             "STATE" to KstatesPosition.STATE_BODY,
-            "ENTRY" to KstatesPosition.ACTIONS,
-            "DO" to KstatesPosition.ACTIONS,
-            "IF" to KstatesPosition.ACTIONS,
-            "WITH" to KstatesPosition.ACTIONS,
             TRANSITIONS to KstatesPosition.TRANSITIONS,
             "TRANSITION" to KstatesPosition.TRANSITION_BODY,
             "SPLIT" to KstatesPosition.TRANSITION_BODY,
             "JOIN" to KstatesPosition.TRANSITION_BODY,
-            "CONDITION" to KstatesPosition.CONDITION,
             MACROS to KstatesPosition.MACROS,
             MACRO to KstatesPosition.MACRO_BODY,
             "DEFINITION" to KstatesPosition.DEFINITION,

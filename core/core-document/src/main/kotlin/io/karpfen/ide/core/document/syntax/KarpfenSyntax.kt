@@ -20,6 +20,18 @@ public object KarpfenSyntax {
     /** The KStates operations whose second argument is a relation of the type their first argument (a path) names. */
     public val KSTATES_RELATION_OPERATIONS: Set<String> = setOf("SETOBJ", "APPENDOBJ")
 
+    /** The KStates keywords that open an action block (`EVENT` is an operation there), by their upper-case names. */
+    public val KSTATES_ACTION_BLOCKS: Set<String> = setOf("ENTRY", "DO", "IF", "WITH")
+
+    /** The KStates keyword that opens a condition block (`EVENT` is a condition keyword there). */
+    public const val KSTATES_CONDITION_BLOCK: String = "CONDITION"
+
+    /** The KStates keywords that open every other block (structure, macro definitions, EVAL bodies). */
+    public val KSTATES_STRUCTURE_BLOCKS: Set<String> = setOf(
+        "STATEMACHINE", "STATES", "INITIAL", "STATE", "TRANSITIONS", "TRANSITION", "SPLIT", "JOIN", "MACROS", "MACRO",
+        "DEFINITION", "EVAL",
+    )
+
     /**
      * True for the characters of identifiers and model-path segments, `[A-Za-z0-9_]` (the lexers' identifier rule; a
      * digit only cannot start one).

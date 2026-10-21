@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 class LexicalFactsTest {
 
     @Test
-    fun `the identifier rule, the primitive types and the KStates operations are declared only in KarpfenSyntax`() {
+    fun `the identifier rule, the primitive types, the KStates operations and block keywords are declared only in KarpfenSyntax`() {
         val declarations = FACTS.mapValues { (_, pattern) ->
             KarpfenModules.mainFiles.filter { pattern.containsMatchIn(it.text) }.map { it.name }.sorted()
         }
@@ -28,6 +28,9 @@ class LexicalFactsTest {
             "primitive types" to Regex("""setOf\("number", "string", "boolean"\)"""),
             "KStates operations" to Regex("""setOf\("SET", "APPEND""""),
             "KStates relation operations" to Regex("""setOf\("SETOBJ", "APPENDOBJ"\)"""),
+            // The block rule (decision 60): which keywords open action blocks and structural blocks, quoted or as tokens.
+            "KStates action blocks" to Regex("""(KstatesLexer\.|")ENTRY"?,\s*(KstatesLexer\.|")DO"?,\s*(KstatesLexer\.|")IF\b"""),
+            "KStates structure blocks" to Regex("""(KstatesLexer\.|")STATEMACHINE"?,\s*(KstatesLexer\.|")STATES\b"""),
         )
     }
 }

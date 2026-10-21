@@ -1,5 +1,7 @@
 package io.karpfen.ide.core.lang.kstates
 
+import io.karpfen.ide.core.document.syntax.KstatesBlockHeader
+import io.karpfen.ide.core.document.syntax.KstatesBlockKind
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.lang.context.BlockFrame
 import io.karpfen.ide.core.lang.context.ContextToken
@@ -9,17 +11,12 @@ import io.karpfen.ide.core.text.TextRange
 internal data class KstatesBlock(val kind: String?, val construct: List<ContextToken>, val range: TextRange)
 
 /**
- * The KStates reading of a [BlockFrame] header: the keyword that introduces the block is the last block-introducing
- * keyword outside parentheses (the rule of the tokenizer's block tracker), so earlier actions or directives of the same
- * block in front of it do not count; `MACRO` introduces a block only as a definition (`MACRO "m" {`), not as a call
- * (`WITH MACRO(…) AS "x" {`). Pure functions.
+ * The KStates reading of a [BlockFrame] header: the keyword that introduces the block is the one of core-document's
+ * [KstatesBlockHeader] (the rule the tokenizer classifies `EVENT` by), so earlier actions or directives of the same
+ * block in front of it do not count, keywords inside parentheses never do, and `MACRO` introduces a block only as a
+ * definition (`MACRO "m" {`), not as a call (`WITH MACRO(…) AS "x" {`). Pure functions.
  */
 internal object KstatesBlocks {
-
-    private val INTRODUCERS: Set<String> = setOf(
-        "STATEMACHINE", "STATES", "STATE", "ENTRY", "DO", "IF", "WITH", "TRANSITIONS", "TRANSITION", "SPLIT", "JOIN",
-        "CONDITION", "MACROS", KstatesSlots.MACRO, "DEFINITION", "EVAL",
-    )
 
     /** The introducing keyword of [frame] (upper case: `STATE`, `WITH`, `MACRO`, …), or null if it has none. */
     fun kindOf(frame: BlockFrame): String? = constructOf(frame).firstOrNull()?.text?.uppercase()
@@ -47,23 +44,23 @@ internal object KstatesBlocks {
     /** [frame] read as a KStates block. */
     fun of(frame: BlockFrame): KstatesBlock = constructOf(frame).let { KstatesBlock(it.firstOrNull()?.text?.uppercase(), it, frame.range) }
 
+    /** The kind of block [frame] opens (actions, a condition, anything else), by the same rule. */
+    fun blockKindOf(frame: BlockFrame): KstatesBlockKind = headerOf(frame).kind
+
     /** The header tokens from the introducing keyword on (e.g. `WITH MACRO ( m , a ) AS x`); empty without one. */
     fun constructOf(frame: BlockFrame): List<ContextToken> {
-        val header = frame.header
-        var depth = 0
-        var introducer = -1
-        for ((index, token) in header.withIndex()) {
-            if (token.kind == TokenKind.PUNCTUATION && token.text == "(") depth++
-            if (token.kind == TokenKind.PUNCTUATION && token.text == ")") depth = maxOf(0, depth - 1)
-            if (depth == 0 && token.kind == TokenKind.KEYWORD && token.text.uppercase() in INTRODUCERS && !isMacroCall(header, index)) {
-                introducer = index
-            }
-        }
-        return if (introducer < 0) emptyList() else header.subList(introducer, header.size)
+        val introducer = headerOf(frame).introducerIndex
+        return if (introducer < 0) emptyList() else frame.header.subList(introducer, frame.header.size)
     }
 
-    private fun isMacroCall(header: List<ContextToken>, index: Int): Boolean =
-        header[index].text == KstatesSlots.MACRO && header.getOrNull(index + 1)?.text == "("
+    private fun headerOf(frame: BlockFrame): KstatesBlockHeader = KstatesBlockHeader.of(frame.header.map(::wordOf))
+
+    /** A header token as the block rule reads it: a keyword in upper case, a parenthesis, or null. */
+    private fun wordOf(token: ContextToken): String? = when (token.kind) {
+        TokenKind.KEYWORD -> token.text.uppercase()
+        TokenKind.PUNCTUATION -> token.text.takeIf { it == KstatesBlockHeader.OPEN || it == KstatesBlockHeader.CLOSE }
+        else -> null
+    }
 
     private const val WITH = "WITH"
     private const val AS = "AS"

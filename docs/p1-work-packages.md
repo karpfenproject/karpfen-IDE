@@ -1042,6 +1042,14 @@ Added by the review fixes of the core group (r2):
     `karpfen validate` (its `UnreadablePaths` is gone; the root is reported as `.`) agree. Opening a folder that cannot
     be listed shows "Cannot open folder" and leaves the recent folders, like a missing one (`FolderFlow`).
 
+60. **One KStates block rule** (completes decision 53): `KstatesBlockHeader` in core-document's `syntax` package decides
+    which keyword introduces a brace block (the last block keyword of its header outside parentheses; `MACRO` only as a
+    definition, never as a call `MACRO(`) and the kind it opens (`KstatesBlockKind`: ACTION, CONDITION, OTHER), over
+    the block keywords of `KarpfenSyntax`. The tokenizer's block tracker classifies `EVENT` by it, and core-lang's
+    `KstatesBlocks` reads headers by it and positions action and condition blocks by their kind, so highlighting
+    (`EVENT` as an operation) and completion (action snippets) agree on every block, also in broken text such as
+    `WITH MACRO {` or `IF IN SCOPE(STATE) {`. `LexicalFactsTest` rejects a second list of the block keywords.
+
 ## 7. Review findings not adopted
 
 1. **A core-lang-owned `ProjectKnowledge` port instead of the workspace's `ProjectAnalysis`.** The providers need the
