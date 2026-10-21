@@ -56,6 +56,12 @@ internal class PopupIntents(private val model: EditorPopupModel) {
         model.completion.accept()
     }
 
+    /**
+     * The open completion list cannot be shown (the caret is scrolled out of view): closes the session, so the keys it
+     * would take (Enter, Tab, arrows) reach the editor again.
+     */
+    fun completionHidden() = model.completion.close()
+
     // --- go to line ------------------------------------------------------------------------------------------------
 
     /** Enter or "Go" with a valid query; the model moves the caret, closes the popup and requests focus. */

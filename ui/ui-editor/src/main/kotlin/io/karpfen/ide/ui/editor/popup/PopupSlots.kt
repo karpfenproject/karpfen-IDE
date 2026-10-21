@@ -50,12 +50,20 @@ internal fun FindBarSlot(host: EditorOverlayHost, intents: PopupIntents) {
     )
 }
 
-/** The completion list while a session is open and the caret is on screen (it is anchored at the caret). */
+/**
+ * The completion list while a session is open, anchored at the caret. While the caret is scrolled out of view the list
+ * cannot be shown, and the session is reported as hidden ([PopupIntents.completionHidden]), so a list nobody sees never
+ * takes the keys (Enter, Tab, arrows) of the text area.
+ */
 @Composable
 internal fun CompletionSlot(host: EditorOverlayHost, intents: PopupIntents) {
     val state by host.state.completion.state.collectAsState()
     val open = state ?: return
-    val anchor = host.caretBounds ?: return
+    val anchor = host.caretBounds
+    if (anchor == null) {
+        LaunchedEffect(open) { intents.completionHidden() }
+        return
+    }
     CompletionPopup(open, anchor, host.theme, host.textStyle, intents::selectCompletion, intents::acceptCompletion)
 }
 

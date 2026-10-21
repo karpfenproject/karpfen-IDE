@@ -74,6 +74,16 @@ class PopupIntentsTest {
     }
 
     @Test
+    fun `a completion list that cannot be shown is closed`() = intentsTest("pr", caretAt = 2) { model, intents ->
+        model.completionItems = completionItems(listOf("print", "prop"))
+        model.completion.open()
+
+        intents.completionHidden()
+
+        assertNull(model.completion.state.value)
+    }
+
+    @Test
     fun `go-to-line intents go, cancel with focus return, and dismiss without`() = intentsTest("a\nb\nc") { model, intents ->
         model.overlays.openGoToLine()
         intents.goToLine(GoToLineQuery(3))

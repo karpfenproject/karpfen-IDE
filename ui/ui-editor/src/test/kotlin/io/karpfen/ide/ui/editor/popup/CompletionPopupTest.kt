@@ -192,13 +192,15 @@ class CompletionPopupTest {
     }
 
     @Test
-    fun `nothing is shown while the caret is off screen`() = popupTest("") { harness ->
+    fun `a list that cannot be shown because the caret is off screen is closed`() = popupTest("") { harness ->
         harness.model.completionItems = completionItems(labels(2))
-        runOnIdle { harness.host.caretBounds = null }
         openCompletion(harness)
+        onNodeWithTag(EditorPopupTags.COMPLETION).assertExists()
 
-        runOnIdle { assertNotNull(harness.model.completion.state.value) }
+        runOnIdle { harness.host.caretBounds = null }
+
         onNodeWithTag(EditorPopupTags.COMPLETION).assertDoesNotExist()
+        runOnIdle { assertNull(harness.model.completion.state.value, "a hidden list would take Enter, Tab and the arrows unseen") }
     }
 
     @Test
