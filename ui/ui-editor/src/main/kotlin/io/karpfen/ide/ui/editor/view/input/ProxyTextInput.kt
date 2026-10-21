@@ -14,6 +14,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -43,6 +44,8 @@ import io.karpfen.ide.ui.foundation.keys.compose.toKeyStroke
  *   empty and its undo history cleared, so this has no effect, and the matching menu commands are disabled in that
  *   state anyway; shortcuts the field does not know (Save, Close, …) reach the menu. While the input method composes,
  *   keys belong to it and are not routed.
+ * - Focus never leaves the editor by focus traversal (`focusProperties` cancel `next`/`previous`): Tab and Shift+Tab
+ *   are text keys of the editor (indent, outdent), also when they change nothing and stay unhandled.
  * - A key-typed event following a handled key-down is swallowed ([TypedKeyGate]).
  * - Committed text is moved out of the field synchronously ([CommittedTextForwarder]) and passed to [onTyped]
  *   (`CodeEditorState.type`): when the field changes, and before every routed key so typing and key commands keep their
@@ -89,6 +92,12 @@ internal fun ProxyTextInput(
                 }
             }
             .focusRequester(focusRequester)
+            .focusProperties {
+                // Tab and Shift+Tab are the editor's indent keys: a stroke the editor leaves unhandled (nothing to indent
+                // or outdent) must not move keyboard focus to a neighbouring component.
+                next = FocusRequester.Cancel
+                previous = FocusRequester.Cancel
+            }
             .onFocusChanged { currentOnFocusChanged(it.isFocused) }
             .clearAndSetSemantics { },
         textStyle = textStyle,
