@@ -1044,6 +1044,33 @@ Added by the review fixes of the editor group (r2):
     O(line length + matches) per laid-out line instead of O(matches × line length); segments outside the text area's
     width are not drawn.
 
+Added by the review fixes of the shell group (r2):
+
+62. **Dialogs are modal for the keyboard focus** (refines decision 47): `ModalDialogLayer` covers the workbench content
+    with a focus group the focus cannot enter while a dialog is shown (neither by Tab nor by a focus request) and,
+    when the dialog is gone, gives the focus back to the element that had it when the dialog took it; Tab and
+    Shift+Tab cycle through the dialog's focus stops (`DialogFocusOrder`: the text field or the dialog, then the
+    enabled buttons). Find Next/Previous from the menu request the editor's focus only while its find bar is closed
+    (refines decision 36: typed into the bar, Cmd+G keeps the focus there).
+63. **Tree intents and policy in the state** (CONTRACT `WorkbenchState`, `ProjectTreeState`; spec §1a): the project
+    tree's view only renders and forwards. `ProjectTreeState.menuFor(path)` builds a node's context menu from the tree
+    it owns; `WorkbenchState.openNode(path)` toggles a directory at once (`ProjectTreeState.isDirectory`) or opens a
+    file, and `WorkbenchState.runTreeCommand(command)` runs a `ProjectTreeCommand` through its intent. `TreeView`
+    (ui-foundation) reports every primary click on a row, also on the selected one (`onClick`): the Outline navigates
+    on clicks and on Enter, while the arrow keys only browse (a view-local selection that gives way to the caret's
+    node), so a click on the highlighted node navigates and the keys keep the focus in the Outline (spec §8 "click
+    navigates").
+64. **Shell adapters keep their ports' promises**: `defaultWorkbenchServices(…, clipboard)` creates the system clipboard
+    once and gives it to every editor (decision 55's whole-line mark between editors, headless and with a fake too);
+    `ProjectFileOperations.openExternally` fails with `IOException` only (`NoSuchFileException` for a file deleted
+    since it was shown; the desktop adapter translates `java.awt.Desktop`'s unchecked exceptions), and
+    `FolderChooser.chooseFolder` returns or throws `IOException` in every case — the AWT chooser resumes its caller
+    also when the dialog throws, which left the intent turn held (decision 42) and Save and Exit waiting forever;
+    the folder flow shows "Cannot choose a folder". The Outline anchors its nodes' ranges at the previous projection
+    (`OutlineRanges`, decision 50's remedy), so a keystroke maps each range across one version, not across every edit
+    since the last good parse. `karpfen validate` writes its report and messages in UTF-8 whatever the console's
+    encoding, and rejects an empty directory argument (`Path.of("")` is the working directory).
+
 ## 7. Review findings not adopted
 
 1. **A core-lang-owned `ProjectKnowledge` port instead of the workspace's `ProjectAnalysis`.** The providers need the
