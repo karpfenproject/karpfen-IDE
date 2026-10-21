@@ -49,11 +49,9 @@ public fun defaultWorkbenchServices(
     fileOperations: ProjectFileOperations = desktopProjectFileOperations(),
     folderChooser: FolderChooser = nativeFolderChooser(),
 ): WorkbenchServices {
-    val languages = defaultLanguageRegistry()
     return WorkbenchServices(
         settings = SettingsRepository(settingsDirectory, ioDispatcher, clock),
-        languages = languages,
-        workspaceFactory = WorkspaceFactory(workspaceOptions, fileWatcher, languages),
+        workspaceFactory = WorkspaceFactory(workspaceOptions, fileWatcher, defaultLanguageRegistry()),
         languageServicesFactory = { workspace -> defaultLanguageServices(workspace.analysis) },
         editorStateFactory = { session, languageServices, scope, settings, keymap ->
             CodeEditorState(

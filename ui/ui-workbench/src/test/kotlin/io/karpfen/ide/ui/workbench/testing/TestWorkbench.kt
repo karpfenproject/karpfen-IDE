@@ -76,7 +76,6 @@ class TestWorkbench(
 
     val services = WorkbenchServices(
         settings = settings,
-        languages = languages,
         workspaceFactory = WorkspaceFactory { root, workspaceScope ->
             Workspace(root, workspaceScope, options, languages, fileStore = fileStore, fileWatcher = watcher)
         },

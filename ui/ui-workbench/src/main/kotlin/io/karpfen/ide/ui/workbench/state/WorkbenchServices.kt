@@ -1,6 +1,5 @@
 package io.karpfen.ide.ui.workbench.state
 
-import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.workspace.Workspace
@@ -23,7 +22,9 @@ import kotlinx.coroutines.flow.StateFlow
  * The collaborators of the [WorkbenchState] (constructor injection, spec §1a); tests replace any of them with fakes.
  * A plain holder of services, without value semantics.
  *
- * @property workspaceFactory opens folders (core-workspace's seam, shared with the CLI).
+ * @property workspaceFactory opens folders (core-workspace's seam, shared with the CLI); a workspace's languages come
+ *   from it (`Workspace.languages`), so the services hold no language registry of their own (decision 47 of the
+ *   work-package plan).
  * @property editorKeymap the one editor keymap of the workbench: every editor is created with it
  *   ([EditorStateFactory.create]) and the editor commands of the menu take their shortcuts from it, so the menu and the
  *   editors always bind the same strokes (decision 15 of the work-package plan). Its platform is [platform].
@@ -31,7 +32,6 @@ import kotlinx.coroutines.flow.StateFlow
  */
 public class WorkbenchServices(
     public val settings: SettingsRepository,
-    public val languages: LanguageRegistry,
     public val workspaceFactory: WorkspaceFactory,
     public val languageServicesFactory: LanguageServicesFactory,
     public val editorStateFactory: EditorStateFactory,

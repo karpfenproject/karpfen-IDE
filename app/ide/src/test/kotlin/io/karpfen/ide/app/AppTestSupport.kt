@@ -1,6 +1,5 @@
 package io.karpfen.ide.app
 
-import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
@@ -124,7 +123,6 @@ internal class RecordingServicesFactory(platform: HostPlatform, ioDispatcher: Co
 
     val services = WorkbenchServices(
         settings = UnusedSettings,
-        languages = defaultLanguageRegistry(),
         workspaceFactory = { _, _ -> throw AssertionError("no workspace is opened by the fake state") },
         languageServicesFactory = { throw AssertionError("no language services are created") },
         editorStateFactory = { _, _, _, _, _ -> throw AssertionError("no editor is created") },
