@@ -7,13 +7,16 @@ internal const val APPLICATION_NAME: String = "karpfen IDE"
 
 /**
  * The system properties the desktop integration needs before AWT starts (spec §9): on macOS the window menu bar goes
- * into the native screen menu bar (`apple.laf.useScreenMenuBar`) under the application's name; other platforms need
- * none.
+ * into the native screen menu bar (`apple.laf.useScreenMenuBar`) under the application's name, and Quit (Cmd+Q, the
+ * application menu, logout) closes the windows (`apple.eawt.quitStrategy` = `CLOSE_ALL_WINDOWS`) instead of AWT's
+ * default `System.exit(0)`, so it runs the main window's close request — the unsaved-changes flow and the settings —
+ * like the close button, and Cancel keeps the IDE running; other platforms need none.
  */
 internal fun desktopProperties(platform: HostPlatform): Map<String, String> = when (platform) {
     HostPlatform.MAC_OS -> mapOf(
         "apple.laf.useScreenMenuBar" to "true",
         "apple.awt.application.name" to APPLICATION_NAME,
+        "apple.eawt.quitStrategy" to "CLOSE_ALL_WINDOWS",
     )
     HostPlatform.WINDOWS, HostPlatform.LINUX -> emptyMap()
 }

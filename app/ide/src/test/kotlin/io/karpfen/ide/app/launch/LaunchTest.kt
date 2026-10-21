@@ -98,8 +98,18 @@ class LaunchTest {
 
         applyDesktopProperties(HostPlatform.MAC_OS, existing::get, properties::put)
 
-        assertEquals(mapOf("apple.laf.useScreenMenuBar" to "true"), properties)
+        assertEquals(mapOf("apple.laf.useScreenMenuBar" to "true", "apple.eawt.quitStrategy" to "CLOSE_ALL_WINDOWS"), properties)
         assertEquals(APPLICATION_NAME, desktopProperties(HostPlatform.MAC_OS)["apple.awt.application.name"])
+    }
+
+    @Test
+    fun `on macOS Quit closes the windows instead of exiting, so it runs the close request's unsaved-changes flow`() {
+        // AWT's default quit strategy on macOS calls System.exit(0) for Cmd+Q, skipping the window's close request.
+        assertEquals("CLOSE_ALL_WINDOWS", desktopProperties(HostPlatform.MAC_OS)["apple.eawt.quitStrategy"])
+
+        applyDesktopProperties(HostPlatform.MAC_OS, mapOf("apple.eawt.quitStrategy" to "NORMAL_EXIT")::get, properties::put)
+
+        assertNull(properties["apple.eawt.quitStrategy"], "an explicit -Dapple.eawt.quitStrategy wins")
     }
 
     @Test
