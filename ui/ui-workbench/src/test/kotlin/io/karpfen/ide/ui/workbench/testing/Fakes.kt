@@ -38,19 +38,31 @@ class FakeFileWatcher : FileWatcher {
 /**
  * [ProjectFileOperations] on the real file system that records the platform calls (trash, reveal, open externally)
  * instead of making them; [failNext] makes the next create, rename or delete throw. Creating and renaming are the
- * production adapter's (`DesktopProjectFileOperations`, e.g. its case-only renames), without platform actions.
+ * production adapter's (`DesktopProjectFileOperations`, e.g. its case-only renames), without platform actions; opening
+ * externally is recorded and then made through that adapter on [platform] (none by default).
  */
-class RecordingFileOperations(
-    override val supportsTrash: Boolean = false,
-    override val supportsRevealInFileManager: Boolean = true,
-    override val supportsOpenExternally: Boolean = true,
+class RecordingFileOperations internal constructor(
+    override val supportsTrash: Boolean,
+    override val supportsRevealInFileManager: Boolean,
+    override val supportsOpenExternally: Boolean,
+    platform: DesktopActions,
 ) : ProjectFileOperations {
+
+    constructor(
+        supportsTrash: Boolean = false,
+        supportsRevealInFileManager: Boolean = true,
+        supportsOpenExternally: Boolean = true,
+    ) : this(supportsTrash, supportsRevealInFileManager, supportsOpenExternally, NoDesktopActions)
+
+    /** Recording operations whose opening externally goes through the production adapter on [platform]. */
+    internal constructor(platform: DesktopActions) : this(false, true, true, platform)
+
     val revealed: MutableList<Path> = CopyOnWriteArrayList()
     val openedExternally: MutableList<Path> = CopyOnWriteArrayList()
     val trashed: MutableList<Path> = CopyOnWriteArrayList()
     var failNext: IOException? = null
 
-    private val fileSystem: ProjectFileOperations = DesktopProjectFileOperations(NoDesktopActions)
+    private val fileSystem: ProjectFileOperations = DesktopProjectFileOperations(platform)
 
     override fun createFile(directory: Path, fileName: String, content: String): Path {
         failIfAsked()
@@ -75,6 +87,7 @@ class RecordingFileOperations(
 
     override fun openExternally(path: Path) {
         openedExternally.add(path)
+        fileSystem.openExternally(path)
     }
 
     private fun failIfAsked() {
@@ -93,6 +106,34 @@ class RecordingFileOperations(
         override fun reveal(path: Path) = Unit
 
         override fun open(path: Path) = Unit
+    }
+}
+
+/**
+ * [DesktopActions] failing like `java.awt.Desktop` on a desktop (JDK 21): every action is supported; opening or
+ * revealing a file that does not exist throws `IllegalArgumentException("The file: … doesn't exist.")`, and [failure],
+ * when set, is thrown by every call instead (e.g. a `SecurityException`). Nothing is opened.
+ */
+internal class JdkLikeDesktopActions(var failure: RuntimeException? = null) : DesktopActions {
+    val opened: MutableList<Path> = CopyOnWriteArrayList()
+
+    override fun supports(action: DesktopAction): Boolean = true
+
+    override fun moveToTrash(path: Path): Boolean {
+        checkFile(path)
+        return false
+    }
+
+    override fun reveal(path: Path) = checkFile(path)
+
+    override fun open(path: Path) {
+        checkFile(path)
+        opened.add(path)
+    }
+
+    private fun checkFile(path: Path) {
+        failure?.let { throw it }
+        if (!Files.exists(path)) throw IllegalArgumentException("The file: $path doesn't exist.")
     }
 }
 

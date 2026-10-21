@@ -9,7 +9,11 @@ import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.state.ScrollRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.problems.ProblemItem
+import io.karpfen.ide.ui.workbench.testing.JdkLikeDesktopActions
+import io.karpfen.ide.ui.workbench.testing.RecordingFileOperations
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import kotlinx.coroutines.test.runTest
@@ -35,10 +39,14 @@ class NavigationTest {
     private val machine: Path get() = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kstates")
     private val model: Path get() = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kmodel")
 
-    private fun scenario(prepare: () -> Unit = { Examples.copyTo(root) }, block: suspend TestWorkbench.() -> Unit) =
+    private fun scenario(
+        prepare: () -> Unit = { Examples.copyTo(root) },
+        fileOperations: RecordingFileOperations = RecordingFileOperations(),
+        block: suspend TestWorkbench.() -> Unit,
+    ) =
         runTest(timeout = 60.seconds) {
             prepare()
-            withWorkbench(dir.resolve("settings")) {
+            withWorkbench(dir.resolve("settings"), fileOperations) {
                 open(root)
                 block()
             }
@@ -132,6 +140,24 @@ class NavigationTest {
         assertTrue(state.tabs.tabs.value.isEmpty())
         assertNoDialog()
     }
+
+    @Test
+    fun `navigating to a descriptor deleted since its problem was reported shows Cannot open, not an unexpected error`() =
+        scenario(
+            prepare = { DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE) },
+            fileOperations = RecordingFileOperations(platform = JdkLikeDesktopActions()),
+        ) {
+            val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
+            val problem = problemsOf(descriptor).first()
+            Files.delete(descriptor)
+
+            state.navigateTo(problem.location)
+            val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)
+
+            assertEquals("Cannot open ${descriptor.fileName}", error.title)
+            assertEquals("$descriptor: the file does not exist", error.message)
+            assertNoDialog()
+        }
 
     private fun OutlineNode.flatten(): List<OutlineNode> = listOf(this) + children.flatMap { it.flatten() }
 }

@@ -2,6 +2,7 @@ package io.karpfen.ide.ui.workbench.files.desktop
 
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.files.DeleteOutcome
+import io.karpfen.ide.ui.workbench.testing.JdkLikeDesktopActions
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.io.TempDir
@@ -16,6 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** The desktop adapters: headless-safe in the test JVM, file operations on java.nio, platform actions through the seam. */
@@ -131,5 +133,25 @@ class DesktopFileOperationsTest {
         val refused = Files.writeString(dir.resolve("b.kmeta"), "")
         assertFailsWith<IOException> { DesktopProjectFileOperations(RecordingDesktop(trashWorks = false)).delete(refused) }
         assertTrue(Files.exists(refused))
+    }
+
+    @Test
+    fun `opening externally fails with an IOException whatever java awt Desktop throws, as the port promises`() {
+        val desktop = JdkLikeDesktopActions()
+        val operations = DesktopProjectFileOperations(desktop)
+        val missing = dir.resolve("gone.kenv.json")
+
+        val notThere = assertFailsWith<IOException> { operations.openExternally(missing) }
+        assertTrue(notThere is NoSuchFileException, "$notThere")
+        assertEquals("$missing: the file does not exist", notThere.message)
+
+        val file = Files.writeString(dir.resolve("a.kenv.json"), "{}")
+        operations.openExternally(file)
+        assertEquals(listOf(file), desktop.opened)
+        listOf(SecurityException("denied"), UnsupportedOperationException("no OPEN action")).forEach { failure ->
+            desktop.failure = failure
+            val refused = assertFailsWith<IOException> { operations.openExternally(file) }
+            assertSame(failure, refused.cause)
+        }
     }
 }

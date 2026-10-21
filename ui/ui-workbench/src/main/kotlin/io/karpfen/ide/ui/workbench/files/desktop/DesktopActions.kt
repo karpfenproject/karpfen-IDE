@@ -8,7 +8,11 @@ import java.nio.file.Path
 /** The platform actions the file operations need. */
 internal enum class DesktopAction { MOVE_TO_TRASH, REVEAL, OPEN }
 
-/** The platform side of the file operations (a seam, so the java.nio part is testable with a fake). */
+/**
+ * The platform side of the file operations (a seam, so the java.nio part is testable with a fake). Its calls fail like
+ * `java.awt.Desktop`'s: besides `IOException`, unchecked exceptions (`IllegalArgumentException` for a file that does not
+ * exist, `SecurityException`, `UnsupportedOperationException`); [DesktopProjectFileOperations] translates them.
+ */
 internal interface DesktopActions {
     /** True if [action] is available on this platform (never touches the toolkit when headless). */
     fun supports(action: DesktopAction): Boolean
@@ -19,7 +23,11 @@ internal interface DesktopActions {
     /** Shows [path] in the file manager. */
     fun reveal(path: Path)
 
-    /** Opens [path] in the default application. @throws IOException if the platform fails. */
+    /**
+     * Opens [path] in the default application.
+     * @throws IOException if the platform fails to launch the application.
+     * @throws IllegalArgumentException if [path] does not exist (checked by `java.awt.Desktop`).
+     */
     fun open(path: Path)
 }
 

@@ -33,6 +33,11 @@ public fun nativeFolderChooser(): FolderChooser = AwtFolderChooser()
  * escape the directory. A rename that only changes the case of the name goes through a temporary sibling name: on a
  * case-insensitive file system (the macOS and Windows defaults) the new name denotes the same file, and moving a file
  * onto itself renames nothing.
+ *
+ * [openExternally] keeps the port's promise of failing with an `IOException` only: `java.awt.Desktop` reports a file
+ * that does not exist (deleted since the tree or the problem showing it was updated) with an `IllegalArgumentException`,
+ * which becomes a [NoSuchFileException]; a refusal of the platform (`SecurityException`, `UnsupportedOperationException`)
+ * becomes an `IOException` with it as the cause.
  */
 internal class DesktopProjectFileOperations(private val desktop: DesktopActions) : ProjectFileOperations {
 
@@ -67,7 +72,16 @@ internal class DesktopProjectFileOperations(private val desktop: DesktopActions)
     }
 
     override fun openExternally(path: Path) {
-        if (supportsOpenExternally) desktop.open(path)
+        if (!supportsOpenExternally) return
+        try {
+            desktop.open(path)
+        } catch (e: IllegalArgumentException) {
+            throw NoSuchFileException(path.toString(), null, "the file does not exist").apply { initCause(e) }
+        } catch (e: SecurityException) {
+            throw IOException("Opening $path was refused: ${e.message}", e)
+        } catch (e: UnsupportedOperationException) {
+            throw IOException("Opening $path is not supported: ${e.message}", e)
+        }
     }
 
     private fun isSameFileUnderAnotherName(path: Path, target: Path): Boolean =
