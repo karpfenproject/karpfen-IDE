@@ -27,17 +27,20 @@ import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
 import io.karpfen.ide.ui.workbench.Workbench
 import io.karpfen.ide.ui.workbench.WorkbenchTestTags
+import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.tabs.view.EditorAreaTestTags
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.test.TestDispatcher
 import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -99,6 +102,23 @@ class KeyRoutingEndToEndTest {
         settle(ide)
         assertEquals(original.removePrefix("STATEMACHINE"), text(editor), "in the focused editor Cmd+X cuts")
         assertEquals(listOf(EditorActionIds.CUT), menu.reached, "and the editor consumed that stroke")
+    }
+
+    @Test
+    fun `Cmd+S in the focused editor is not consumed by it and the menu's Save writes the file`() = composedIde { ide, menu, editor ->
+        val original = text(editor)
+        onNodeWithTag(EditorAreaTestTags.EDITOR).requestFocus()
+        onNodeWithTag(EditorAreaTestTags.EDITOR).performTextInput("x")
+        settle(ide)
+        assertTrue(ide.session.state.tabs.tabs.value.single().isDirty)
+
+        onNodeWithTag(EditorAreaTestTags.EDITOR).performKeyInput { withKeyDown(Key.MetaLeft) { pressKey(Key.S) } }
+        settle(ide)
+
+        assertEquals(listOf(WorkbenchCommandIds.SAVE), menu.ran, "the stroke reached the menu accelerator")
+        assertEquals("x$original", Files.readString(machine))
+        assertFalse(ide.session.state.tabs.tabs.value.single().isDirty)
+        assertEquals("x$original", text(editor), "the proxy text field typed nothing")
     }
 
     /**

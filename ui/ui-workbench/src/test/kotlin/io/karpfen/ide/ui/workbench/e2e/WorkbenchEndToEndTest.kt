@@ -115,6 +115,23 @@ class WorkbenchEndToEndTest {
     }
 
     @Test
+    fun `go to definition on the attached type opens the context's metamodel at the type declaration`() = scenario {
+        val editor = openEditor(machine)
+        val attached = textOf(editor).indexOf("ATTACHED TO \"Robot\"") + "ATTACHED TO \"".length
+        editor.caret.moveTo(attached + 2)
+
+        editor.execute(EditorActionIds.GO_TO_DEFINITION)
+        settle()
+
+        val metamodel = robot.resolve("cleaning_robot.kmeta")
+        assertEquals(metamodel, state.tabs.active.value, "the metamodel opened in the active tab")
+        val target = assertNotNull(state.tabs.editorFor(metamodel))
+        val declaration = textOf(target).indexOf("type \"Robot\"") + "type \"".length
+        assertEquals(declaration, target.caret.primary.position, "the caret is at the type's name")
+        assertEquals(attached + 2, editor.caret.primary.position, "the source editor's caret stays")
+    }
+
+    @Test
     fun `typing coalesces on the workspace's time source, save marks the save point and undo leaves it`() = scenario {
         val editor = openEditor(machine)
         val original = Files.readString(machine)
