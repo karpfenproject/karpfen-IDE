@@ -31,6 +31,9 @@ public data class IdeSettings(
     public fun withRecentFolder(folder: String): IdeSettings =
         copy(recentFolders = (listOf(folder) + recentFolders.filter { it != folder }).take(MAX_RECENT_FOLDERS))
 
+    /** These settings without [folder] among the recent folders (e.g. it no longer exists). */
+    public fun withoutRecentFolder(folder: String): IdeSettings = copy(recentFolders = recentFolders - folder)
+
     public companion object {
         /** Maximum number of recent folders (spec §8). */
         public const val MAX_RECENT_FOLDERS: Int = 10

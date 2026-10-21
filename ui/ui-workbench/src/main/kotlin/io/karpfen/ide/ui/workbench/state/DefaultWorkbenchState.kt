@@ -83,7 +83,7 @@ internal class DefaultWorkbenchState(
     private val tabFlows = TabFlows(holder, tabs, lifecycle, unsaved, dialogs)
     private val folders = FolderFlow(
         ownScope, holder, tabs, lifecycle, unsaved, bindings, services.workspaceFactory, services.languageServicesFactory,
-        services.settings, services.folderChooser, dialogs,
+        services.settings, services.folderChooser, dialogs, services.ioDispatcher,
     )
     private val fileOperations = FileOperationFlows(
         holder, tabs, lifecycle, fileOpen, projectTree, dialogs, services.fileOperations, services.templates, services.ioDispatcher,

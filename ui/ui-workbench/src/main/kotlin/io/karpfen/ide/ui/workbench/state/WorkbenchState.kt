@@ -86,7 +86,8 @@ public interface WorkbenchState : AutoCloseable {
 
     /**
      * Opens [path] as the workspace (after the unsaved-changes flow for the current one; no-op if cancelled) and records
-     * it as the most recent folder.
+     * it as the most recent folder. A path that is not a directory (e.g. a recent folder deleted or unmounted since)
+     * changes nothing but the recent folders, which lose it, and shows an error dialog.
      */
     public fun openFolder(path: Path): Job
 

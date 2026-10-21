@@ -87,6 +87,31 @@ class FolderFlowTest {
     }
 
     @Test
+    fun `a recent folder that no longer exists keeps the open folder and leaves the recent folders`() = runTest(timeout = 60.seconds) {
+        Examples.copyTo(root)
+        val stale = Files.createDirectories(dir.resolve("stale")).toAbsolutePath().normalize()
+        val file = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kmeta")
+        withWorkbench(settingsDirectory) {
+            open(stale)
+            open(root)
+            val editor = openEditor(file)
+            editor.session.text.apply(listOf(TextEdit.insert(0, "// x\n")), EditOrigin.Typing)
+            settle()
+            Files.delete(stale) // deleted or unmounted since it was opened
+
+            val job = state.openFolder(stale)
+            val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)
+
+            assertEquals("Cannot open folder", error.title)
+            assertTrue(job.isCompleted)
+            assertSamePath(root, workspace.root)
+            assertNotNull(state.tabs.editorFor(file), "the open folder and its unsaved changes are kept")
+            assertTrue(state.tabs.tabs.value.single().isDirty)
+            assertEquals(listOf(root.toString()), state.settings.value.recentFolders, "the stale entry is removed")
+        }
+    }
+
+    @Test
     fun `choose and open folder uses the folder chooser`() = runTest(timeout = 60.seconds) {
         Examples.copyTo(root)
         withWorkbench(settingsDirectory) {
