@@ -15,6 +15,7 @@ import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
+import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
@@ -99,6 +100,8 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun chooseAndOpenFolder(): Job = unexpected("chooseAndOpenFolder")
     override fun openFile(path: Path): Job = unexpected("openFile")
     override fun navigateTo(location: Location): Job = unexpected("navigateTo")
+    override fun openNode(path: Path): Job = unexpected("openNode")
+    override fun runTreeCommand(command: ProjectTreeCommand): Job = unexpected("runTreeCommand")
     override fun createFile(directory: Path, kind: FileTemplateKind): Job = unexpected("createFile")
     override fun rename(path: Path): Job = unexpected("rename")
     override fun delete(path: Path): Job = unexpected("delete")

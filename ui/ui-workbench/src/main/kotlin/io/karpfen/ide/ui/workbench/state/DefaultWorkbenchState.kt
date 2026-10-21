@@ -10,6 +10,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
+import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeMenu
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
@@ -109,6 +110,19 @@ internal class DefaultWorkbenchState(
     override fun openFile(path: Path): Job = runner.launch("open file") { fileOpen.openFile(path.normalized()) }
 
     override fun navigateTo(location: Location): Job = runner.launch("navigate") { navigationFlow.navigateTo(location) }
+
+    override fun openNode(path: Path): Job {
+        if (!projectTree.isDirectory(path)) return openFile(path)
+        projectTree.toggle(path)
+        return NOTHING_TO_DO
+    }
+
+    override fun runTreeCommand(command: ProjectTreeCommand): Job = when (command) {
+        is ProjectTreeCommand.NewFile -> createFile(command.directory, command.kind)
+        is ProjectTreeCommand.Rename -> rename(command.path)
+        is ProjectTreeCommand.Delete -> delete(command.path)
+        is ProjectTreeCommand.RevealInFileManager -> revealInFileManager(command.path)
+    }
 
     override fun createFile(directory: Path, kind: FileTemplateKind): Job =
         runner.launch("new file") { fileOperations.createFile(directory.normalized(), kind) }

@@ -8,12 +8,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.nio.file.Path
 
 /**
- * State of the Project tool window (spec §8): the workspace tree, expanded directories and the selection. Opening
- * files and the file operations of the context menu are intents of the `WorkbenchState` (`openFile`, `createFile`,
- * `rename`, `delete`, `revealInFileManager`); this class only holds tree state.
+ * State of the Project tool window (spec §8): the workspace tree, expanded directories and the selection, and what the
+ * tree's nodes are ([isDirectory]) and offer ([menuFor]). Opening a node and the commands of the context menu are
+ * intents of the `WorkbenchState` (`openNode` — which toggles a directory here and opens a file —, `runTreeCommand`);
+ * this class holds tree state and decides from it, so the view only renders and forwards.
  *
- * Public: the read flows and the pure UI intents ([toggle], [select], [reveal]). The mediator's coordination operation
- * ([setTree]) is internal, so views cannot bypass the mediator (decision 31 of the work-package plan).
+ * Public: the read flows, the queries and the pure UI intents ([toggle], [select], [reveal]). The mediator's
+ * coordination operation ([setTree]) is internal, so views cannot bypass the mediator (decision 31 of the work-package
+ * plan).
  *
  * Expansion is remembered across tree updates for the directories that still exist; a new tree root (another folder)
  * starts with only the root expanded. The context [menu] is decided Compose-free as well. Used from the UI thread.
@@ -38,6 +40,10 @@ public class ProjectTreeState(
 
     /** True if [path] is a directory of the current tree (opening it toggles it instead of opening a file). */
     public fun isDirectory(path: Path): Boolean = currentTree.value?.find(path) is WorkspaceNode.Directory
+
+    /** The context-menu entries of the node [path] of the current tree ([menu], knowing directories and the root). */
+    public fun menuFor(path: Path): List<ProjectTreeMenuEntry> =
+        menu.entries(path, isDirectory(path), isRoot = path == currentTree.value?.root?.path)
 
     /** Shows [tree] (null clears); expansion and selection of vanished paths are dropped. Mediator only. */
     internal fun setTree(tree: WorkspaceTree?) {

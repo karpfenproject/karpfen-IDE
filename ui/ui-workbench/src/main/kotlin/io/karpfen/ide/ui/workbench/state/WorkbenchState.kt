@@ -10,6 +10,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
+import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
@@ -117,6 +118,18 @@ public interface WorkbenchState : AutoCloseable {
      * `OutlineUiState.locationOf(node)`.
      */
     public fun navigateTo(location: Location): Job
+
+    /**
+     * Opens the project-tree node [path] (double-click, Enter): a directory of the tree is expanded or collapsed at once
+     * (`ProjectTreeState.toggle`; the returned job is complete), anything else is opened with [openFile].
+     */
+    public fun openNode(path: Path): Job
+
+    /**
+     * Runs [command], chosen in the project tree's context menu (`ProjectTreeState.menuFor`), through its intent:
+     * [createFile], [rename], [delete] or [revealInFileManager].
+     */
+    public fun runTreeCommand(command: ProjectTreeCommand): Job
 
     /**
      * New file from a template (project-tree context menu, spec §8): asks for the name ([DialogRequest.NewFile]),

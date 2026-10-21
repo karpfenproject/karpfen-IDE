@@ -31,7 +31,7 @@ class TreeNodeMappingTest {
     private val root: Path = Path.of("/ws").toAbsolutePath()
 
     @Test
-    fun `project nodes keep the tree's order, mark directories and pick icons by file kind`() {
+    fun `project nodes keep the tree's order and pick icons by file kind`() {
         val sub = WorkspaceNode.Directory(
             root.resolve("sub"), "sub",
             listOf(WorkspaceNode.File(root.resolve("sub/EVENTS.kmeta"), "EVENTS.kmeta", FileKind.EVENTS_KMETA)),
@@ -45,9 +45,8 @@ class TreeNodeMappingTest {
         assertEquals(listOf("sub", "a.kenv.json", "b.kstates", "c.txt"), top.children?.map { it.label })
         assertEquals(listOf(KarpfenIcons.Folder, KarpfenIcons.Json, KarpfenIcons.Kstates, KarpfenIcons.File), top.children?.map { it.icon })
         assertEquals(KarpfenIcons.Kmeta, top.children?.first()?.children?.single()?.icon)
-        assertTrue(nodes.isDirectory(root) && nodes.isDirectory(root.resolve("sub")))
-        assertFalse(nodes.isDirectory(root.resolve("b.kstates")))
-        assertEquals(root, nodes.root)
+        assertEquals(emptyList(), top.children?.first()?.children?.single()?.children.orEmpty(), "files are leaves")
+        assertTrue(top.children?.first()?.children != null, "directories are expandable")
     }
 
     @Test

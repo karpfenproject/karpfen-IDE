@@ -84,14 +84,11 @@ private fun ProjectPane(state: WorkbenchState) {
             tree = it,
             expanded = expanded,
             selected = selected,
-            menu = tree.menu,
+            menuFor = tree::menuFor,
             onToggle = tree::toggle,
             onSelect = tree::select,
-            onOpen = { path -> state.openFile(path) },
-            onNewFile = { directory, kind -> state.createFile(directory, kind) },
-            onRename = { path -> state.rename(path) },
-            onDelete = { path -> state.delete(path) },
-            onRevealInFileManager = { path -> state.revealInFileManager(path) },
+            onOpen = { path -> state.openNode(path) },
+            onCommand = { command -> state.runTreeCommand(command) },
             modifier = Modifier.fillMaxSize(),
         )
     }

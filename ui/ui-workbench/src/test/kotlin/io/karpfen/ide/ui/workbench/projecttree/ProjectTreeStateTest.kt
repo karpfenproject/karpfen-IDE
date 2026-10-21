@@ -70,6 +70,18 @@ class ProjectTreeStateTest {
     }
 
     @Test
+    fun `the state builds a node's menu from its tree, knowing directories and the root`() {
+        val state = ProjectTreeState(ProjectTreeMenu(HostPlatform.MAC_OS) { true })
+        state.setTree(tree())
+
+        assertEquals(ProjectTreeCommand.NewFile(deep, FileTemplateKind.KMETA), state.menuFor(file).first().command, "next to a file")
+        assertEquals(ProjectTreeCommand.NewFile(sub, FileTemplateKind.KMETA), state.menuFor(sub).first().command, "inside a directory")
+        assertTrue(state.menuFor(sub).all { it.isEnabled })
+        val forRoot = state.menuFor(root).filter { it.command is ProjectTreeCommand.Rename || it.command is ProjectTreeCommand.Delete }
+        assertEquals(listOf(false, false), forRoot.map { it.isEnabled }, "the root can be neither renamed nor deleted")
+    }
+
+    @Test
     fun `the context menu offers the templates, rename, delete and the file manager`() {
         val menu = ProjectTreeMenu(HostPlatform.MAC_OS) { true }
         val forFile = menu.entries(file, isDirectory = false, isRoot = false)

@@ -4,7 +4,7 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import java.nio.file.Path
 
-/** A command of the project tree's context menu; the view hands it to the matching `WorkbenchState` intent. */
+/** A command of the project tree's context menu; the view hands it to `WorkbenchState.runTreeCommand`. */
 public sealed interface ProjectTreeCommand {
     /** New [kind] file in [directory] (`WorkbenchState.createFile`). */
     public data class NewFile(public val directory: Path, public val kind: FileTemplateKind) : ProjectTreeCommand
