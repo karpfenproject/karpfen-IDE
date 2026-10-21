@@ -50,6 +50,18 @@ class CaretRevealTest {
     }
 
     @Test
+    fun `the caret stays visible in a viewport shorter than the reveal margin`() = editorTest(lines) { harness ->
+        harness.layOut(visibleLines = 3)
+
+        repeat(10) {
+            harness.press(KeyCode.DOWN)
+            harness.applyScrollRequest()
+            assertTrue(harness.isCaretVisible(), "caret line ${harness.caretLine()} visible after Down ${it + 1}")
+        }
+        assertEquals(10, harness.caretLine())
+    }
+
+    @Test
     fun `Page Down at the viewport edge issues a reveal that keeps the caret visible`() = editorTest(lines) { harness ->
         harness.layOut(visibleLines = 10)
         harness.state.caret.moveTo(harness.lineStart(9))

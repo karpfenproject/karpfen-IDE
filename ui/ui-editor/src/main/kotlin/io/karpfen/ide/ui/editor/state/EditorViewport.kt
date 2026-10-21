@@ -34,7 +34,8 @@ public interface EditorViewport {
 
     /**
      * Scrolls minimally so that the rectangle (content coordinates) is visible with a margin of three lines above and
-     * below (spec §7.2), or centres it vertically when [center].
+     * below (spec §7.2), or centres it vertically when [center]. In a viewport too small for the margin the margin
+     * shrinks to what fits around the rectangle, so the rectangle itself is always revealed.
      */
     public fun reveal(left: Float, top: Float, right: Float, bottom: Float, center: Boolean)
 
@@ -113,10 +114,10 @@ internal class DefaultEditorViewport : EditorViewport {
             val y = if (center) {
                 (top + bottom) / 2f - current.viewportHeight / 2f
             } else {
-                val margin = EditorViewport.CARET_MARGIN_LINES * current.lineHeight
+                val margin = fittingMargin(EditorViewport.CARET_MARGIN_LINES * current.lineHeight, current.viewportHeight, bottom - top)
                 revealAxis(current.scrollY, current.viewportHeight, top - margin, bottom + margin)
             }
-            val horizontalMargin = HORIZONTAL_MARGIN_LINES * current.lineHeight
+            val horizontalMargin = fittingMargin(HORIZONTAL_MARGIN_LINES * current.lineHeight, current.viewportWidth, right - left)
             val x = revealAxis(current.scrollX, current.viewportWidth, left - horizontalMargin, right + horizontalMargin)
             current.copy(scrollX = x, scrollY = y).clamped()
         }
@@ -134,6 +135,13 @@ internal class DefaultEditorViewport : EditorViewport {
         if (start < result) result = start
         return result
     }
+
+    /**
+     * The [preferred] margin, reduced so that a rectangle of [extent] with the margin on both sides fits into a viewport
+     * of [size] (never negative).
+     */
+    private fun fittingMargin(preferred: Float, size: Float, extent: Float): Float =
+        minOf(preferred, ((size - extent) / 2f).coerceAtLeast(0f))
 
     private fun ViewportSnapshot.clamped(): ViewportSnapshot =
         copy(scrollX = scrollX.coerceIn(0f, maxScrollX), scrollY = scrollY.coerceIn(0f, maxScrollY))

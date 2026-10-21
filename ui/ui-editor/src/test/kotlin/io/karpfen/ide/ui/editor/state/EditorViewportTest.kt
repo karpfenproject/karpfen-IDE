@@ -46,6 +46,21 @@ class EditorViewportTest {
     }
 
     @Test
+    fun `the reveal margin shrinks to what the viewport can show around the rectangle`() {
+        val viewport = EditorViewport().apply {
+            updateGeometry(viewportWidth = 30f, viewportHeight = 60f, lineHeight = 20f, contentWidth = 1000f, contentHeight = 2000f)
+        }
+
+        viewport.reveal(10f, 200f, 12f, 220f, center = false)
+        assertEquals(180f, viewport.state.value.scrollY, "one line above and below: the margin that fits into three lines")
+        viewport.reveal(10f, 400f, 12f, 420f, center = false)
+        assertEquals(380f, viewport.state.value.scrollY)
+        viewport.reveal(500f, 400f, 502f, 420f, center = false)
+        val x = viewport.state.value.scrollX
+        assertEquals(true, 500f >= x && 502f <= x + 30f, "the caret is inside the narrow viewport horizontally (scrollX $x)")
+    }
+
+    @Test
     fun `reveal centres vertically on request and reveals horizontally`() {
         val viewport = viewport()
 
