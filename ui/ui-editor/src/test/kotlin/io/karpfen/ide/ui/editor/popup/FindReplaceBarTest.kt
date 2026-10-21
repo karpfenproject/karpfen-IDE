@@ -1,5 +1,10 @@
 package io.karpfen.ide.ui.editor.popup
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ComposeUiTest
@@ -213,6 +218,27 @@ class FindReplaceBarTest {
         runOnIdle { assertEquals("qux bar qux baz qux", model.plain) }
         onNodeWithTag(EditorPopupTags.FIND_STATUS).assertTextEquals("0/0")
         onNodeWithContentDescription("Replace All").assertIsNotEnabled()
+    }
+
+    @Test
+    fun `the replacement survives a new composition of the editor, as after switching tabs`() = runComposeUiTest {
+        FakePopupModel("foo bar foo").use { model ->
+            val host = FakeOverlayHost(model)
+            var composition by mutableStateOf(0)
+            setContent {
+                // The workbench composes CodeEditor in key(activePath), so switching tabs disposes the bar's fields.
+                key(composition) { Column { EditorPopups().Header(host) } }
+            }
+            open(model, FindBarMode.REPLACE)
+            onNodeWithTag(EditorPopupTags.FIND_QUERY).performTextInput("foo")
+            onNodeWithTag(EditorPopupTags.REPLACE_FIELD).performTextInput("qux")
+
+            runOnIdle { composition++ }
+
+            onNodeWithTag(EditorPopupTags.REPLACE_FIELD).assertTextEquals("qux")
+            onNodeWithContentDescription("Replace All").performClick()
+            runOnIdle { assertEquals("qux bar qux", model.plain, "the matches were replaced, not deleted") }
+        }
     }
 
     @Test

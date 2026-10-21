@@ -15,8 +15,8 @@ import io.karpfen.ide.ui.editor.overlay.EditorOverlayHost
  */
 
 /**
- * The find/replace bar while `overlays.findBar` is open, rendering the model's query and matches. Its field state lives
- * as long as the editor's composition (the replacement survives closing the bar); every change of
+ * The find/replace bar while `overlays.findBar` is open, rendering the model's query, replacement and matches. Only
+ * the fields' selection and composition live in the editor's composition ([FindBarFields]); every change of
  * `overlays.findFocusRequests` focuses the query field and selects the query ([FindBarFields.takeFocusRequest]).
  */
 @Composable
@@ -24,6 +24,7 @@ internal fun FindBarSlot(host: EditorOverlayHost, intents: PopupIntents) {
     val model = host.state
     val mode by model.overlays.findBar.collectAsState()
     val query by model.find.query.collectAsState()
+    val replacement by model.find.replacement.collectAsState()
     val result by model.find.state.collectAsState()
     val focusRequests by model.overlays.findFocusRequests.collectAsState()
     val fields = remember(model) { FindBarFields(model.overlays.findFocusRequests.value) }
@@ -35,12 +36,14 @@ internal fun FindBarSlot(host: EditorOverlayHost, intents: PopupIntents) {
     FindReplaceBar(
         mode = open,
         query = query,
+        replacement = replacement,
         state = result,
         fields = fields,
         queryFocus = queryFocus,
         theme = host.theme,
         textStyle = host.textStyle,
         onQueryTextChange = intents::findTextChanged,
+        onReplacementChange = intents::replacementChanged,
         onToggle = intents::toggleFindOption,
         onNext = intents::findNext,
         onPrevious = intents::findPrevious,

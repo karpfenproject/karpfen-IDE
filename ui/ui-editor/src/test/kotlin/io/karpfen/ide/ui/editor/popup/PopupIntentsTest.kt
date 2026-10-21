@@ -40,9 +40,12 @@ class PopupIntentsTest {
         intents.findPrevious()
         assertEquals(TextRange(0, 2), model.caret.primary.selection)
 
-        intents.replace("x")
+        intents.replacementChanged("x")
+        assertEquals("x", model.find.replacement.value, "the model keeps the replacement")
+        intents.replace()
         assertEquals("x ab ab", model.plain)
-        intents.replaceAll("y")
+        intents.replacementChanged("y")
+        intents.replaceAll()
         assertEquals("x y y", model.plain)
         assertEquals(0, model.focusRequests)
     }

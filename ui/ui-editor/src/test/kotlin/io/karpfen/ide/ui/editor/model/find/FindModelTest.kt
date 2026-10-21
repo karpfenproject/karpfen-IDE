@@ -256,6 +256,17 @@ class FindModelTest {
     }
 
     @Test
+    fun `the replacement is kept next to the query and survives a new query`() = findTest("|a1 a2") { f ->
+        assertEquals("", f.find.replacement.value)
+        f.find.setReplacement("b")
+        f.find.setQuery(FindQuery("a"))
+        advanceUntilIdle()
+
+        assertEquals("b", f.find.replacement.value)
+        assertEquals("a1 a2", f.editor.plain, "setting the replacement replaces nothing")
+    }
+
+    @Test
     fun `replace current replaces the match and moves to the next one`() = findTest("|a1 a2 a3") { f ->
         f.find.setQuery(FindQuery("a"))
         advanceUntilIdle()

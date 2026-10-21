@@ -75,12 +75,22 @@ public interface FindModel {
     public val state: StateFlow<FindResult>
 
     /**
+     * The replacement text of the find/replace bar, set by [setReplacement]. Like [query] it lives as long as the model
+     * (the editor), so it survives closing the bar and a new composition of the editor, e.g. after switching tabs. The
+     * replace functions take their replacement as an argument; the bar passes this one.
+     */
+    public val replacement: StateFlow<String>
+
+    /**
      * Replaces the query (incremental search): once the matches of the new query are known, the current match is the
      * first match at or after the start of the primary selection (so a match that is already selected stays current)
      * and it is selected through the executor; without matches the selection stays. Typing in the find field calls
      * this for every change. Operations still waiting for the matches of the previous query are dropped.
      */
     public fun setQuery(query: FindQuery)
+
+    /** Replaces [replacement] (typing in the replacement field calls this for every change). */
+    public fun setReplacement(replacement: String)
 
     /**
      * Find next: if the primary selection is not exactly the current match yet, selects the current match; otherwise

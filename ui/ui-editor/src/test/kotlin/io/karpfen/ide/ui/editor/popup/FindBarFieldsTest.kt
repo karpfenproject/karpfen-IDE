@@ -10,7 +10,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The find bar's hoisted field state (selection, composition, replacement) over the model's query; the status and toggles. */
+/** The find bar's hoisted field state (selection, composition) over the model's query and replacement; the status and toggles. */
 class FindBarFieldsTest {
 
     @Test
@@ -53,12 +53,14 @@ class FindBarFieldsTest {
     }
 
     @Test
-    fun `the replacement is kept`() {
+    fun `the replacement field shows the model's replacement and keeps the user's selection while it does`() {
         val fields = FindBarFields(focusRequest = 0)
-        fields.replacementField = TextFieldValue("new")
-        fields.takeFocusRequest(1, "x")
 
-        assertEquals("new", fields.replacementField.text)
+        assertEquals("new", fields.editReplacement(TextFieldValue("new", TextRange(3)), shownText = ""), "a new text to send")
+        fields.takeFocusRequest(1, "x")
+        assertEquals(TextFieldValue("new", TextRange(3)), fields.replacementField("new"), "focusing the query leaves it")
+        assertNull(fields.editReplacement(TextFieldValue("new", TextRange(0, 1)), shownText = "new"), "only the selection changed")
+        assertEquals(TextFieldValue("other", TextRange(0, 5)), fields.replacementField("other"), "a text the model got elsewhere")
     }
 
     @Test

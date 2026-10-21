@@ -30,25 +30,29 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
  * field with Replace / Replace All (Enter in it replaces the current match). Escape anywhere in the bar closes it
  * ([onClose]; the caller returns focus to the editor).
  *
- * Renders [query] (the model's query: field text and toggles), [state] (the model's matches) and the hoisted [fields]
- * (selection and composition of the fields, the replacement); [queryFocus] is attached to the query field so the caller
- * can focus it. A changed query text is reported through [onQueryTextChange], a switched toggle through [onToggle].
+ * Renders [query] (the model's query: field text and toggles), [replacement] (the model's replacement), [state] (the
+ * model's matches) and the hoisted [fields] (selection and composition of both fields); [queryFocus] is attached to the
+ * query field so the caller can focus it. A changed query text is reported through [onQueryTextChange], a changed
+ * replacement through [onReplacementChange], a switched toggle through [onToggle]; [onReplace] and [onReplaceAll]
+ * replace by the model's replacement.
  */
 @Composable
 internal fun FindReplaceBar(
     mode: FindBarMode,
     query: FindQuery,
+    replacement: String,
     state: FindResult,
     fields: FindBarFields,
     queryFocus: FocusRequester,
     theme: EditorTheme,
     textStyle: TextStyle,
     onQueryTextChange: (String) -> Unit,
+    onReplacementChange: (String) -> Unit,
     onToggle: (FindOption) -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
-    onReplace: (String) -> Unit,
-    onReplaceAll: (String) -> Unit,
+    onReplace: () -> Unit,
+    onReplaceAll: () -> Unit,
     onClose: () -> Unit,
 ) {
     val hasMatches = state.total > 0
@@ -87,18 +91,18 @@ internal fun FindReplaceBar(
         if (mode == FindBarMode.REPLACE) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 PopupTextField(
-                    value = fields.replacementField,
-                    onValueChange = { fields.replacementField = it },
+                    value = fields.replacementField(replacement),
+                    onValueChange = { value -> fields.editReplacement(value, replacement)?.let(onReplacementChange) },
                     textStyle = textStyle,
                     theme = theme,
                     placeholder = "Replace",
                     modifier = Modifier
                         .weight(1f)
-                        .onPopupKey(PopupKey.CONFIRM) { onReplace(fields.replacementField.text) }
+                        .onPopupKey(PopupKey.CONFIRM, onReplace)
                         .testTag(EditorPopupTags.REPLACE_FIELD),
                 )
-                BarButton("Replace", "Replace", theme, enabled = hasMatches) { onReplace(fields.replacementField.text) }
-                BarButton("Replace All", "Replace All", theme, enabled = hasMatches) { onReplaceAll(fields.replacementField.text) }
+                BarButton("Replace", "Replace", theme, enabled = hasMatches, onClick = onReplace)
+                BarButton("Replace All", "Replace All", theme, enabled = hasMatches, onClick = onReplaceAll)
             }
         }
     }

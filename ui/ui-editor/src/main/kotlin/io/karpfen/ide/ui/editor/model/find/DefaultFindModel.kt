@@ -64,6 +64,7 @@ internal class DefaultFindModel(
 
     private val search = FindSearch(backgroundDispatcher, searchBudget)
     private val currentQuery = MutableStateFlow(FindQuery())
+    private val currentReplacement = MutableStateFlow("")
     private val result = MutableStateFlow(FindResult(FindQuery(), text.snapshot.value.version, emptyList(), null, null))
     private val pending = ArrayDeque<FindOperation>()
 
@@ -86,12 +87,18 @@ internal class DefaultFindModel(
 
     override val state: StateFlow<FindResult> = result.asStateFlow()
 
+    override val replacement: StateFlow<String> = currentReplacement.asStateFlow()
+
     override fun setQuery(query: FindQuery) {
         pending.clear()
         expanding?.cancel()
         expanding = null
         currentQuery.value = query
         selectCurrentMatch()
+    }
+
+    override fun setReplacement(replacement: String) {
+        currentReplacement.value = replacement
     }
 
     override fun next() = submit(FindOperation.Next)

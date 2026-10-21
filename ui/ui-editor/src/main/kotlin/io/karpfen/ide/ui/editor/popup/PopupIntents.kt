@@ -32,13 +32,14 @@ internal class PopupIntents(private val model: EditorPopupModel) {
     /** Shift+Enter in the query field or the "previous" button. */
     fun findPrevious() = model.find.previous()
 
-    /** Replaces the current match by [replacement] and moves to the next one. */
-    fun replace(replacement: String) = model.find.replaceCurrent(replacement)
+    /** The replacement field's text changed to [text]: the model keeps it. */
+    fun replacementChanged(text: String) = model.find.setReplacement(text)
 
-    /** Replaces every match by [replacement] (one undo step). */
-    fun replaceAll(replacement: String) {
-        model.find.replaceAll(replacement)
-    }
+    /** Enter in the replacement field or "Replace": replaces the current match by the model's replacement, moves on. */
+    fun replace() = model.find.replaceCurrent(model.find.replacement.value)
+
+    /** "Replace All": replaces every match by the model's replacement (one undo step). */
+    fun replaceAll() = model.find.replaceAll(model.find.replacement.value)
 
     /** Escape or the close button: closes the bar (the query stays) and returns focus to the text area. */
     fun closeFind() {
