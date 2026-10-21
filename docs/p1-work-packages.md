@@ -320,8 +320,8 @@ test-only entries, rule 7), `build-logic/**`.
   reads neither clipboard nor tokens, so Paste is always enabled and returns false on an empty clipboard; FIND_NEXT /
   FIND_PREVIOUS forward to `EditorUiPort.findNext`/`findPrevious`), `typeTextAction` (auto-close and over-type of
   *tracked* closers only), `EditorActionRegistry`, `defaultEditorKeymap` (bindings listed on `EditorKeymap`, incl.
-  find next/previous), `FindModel` (matches on the injected background dispatcher, published in its scope, synchronous
-  recomputation when the published state lags; `setQuery` selects the first match at or after the selection start,
+  find next/previous), `FindModel` (matches on the injected background dispatcher, published in its scope; operations
+  wait for the published matches when they lag, decision 47; `setQuery` selects the first match at or after the selection start,
   `next`/`previous` first select the current match if it is not selected yet — every selection through an internal
   select-match `EditorAction` run by the executor, decision 37) and `CompletionSessionModel` (triggers, filtering and
   ranking, close rules, `handleKey`; observes `caret.state` itself; requests the suspending, versioned
@@ -482,7 +482,8 @@ test-only entries, rule 7), `build-logic/**`.
   < 50 ms, reported), §11 item 4 (headless Compose tests: typing incl. `performTextInput`, selection by mouse and keys,
   Cmd/Ctrl+click navigation, hover after 600 ms with diagnostics, scroll-to-caret). Unit tests (Compose-free, virtual
   time) of the input policy: `handleKey` routes to completion first and returns true exactly for handled strokes; the
-  hover appears after `HOVER_DELAY` and is hidden on move/leave; a right-click outside the selection moves the caret,
+  hover appears after `HOVER_DELAY` and is hidden on move/leave (after a grace period, kept while the pointer is on the
+  tooltip, decision 49); a right-click outside the selection moves the caret,
   inside it keeps the selection; Page Down and arrow keys at the viewport edge issue a reveal `scrollRequest`; pointer
   gestures (single, double, triple, Shift and primary-modifier clicks per platform; drag by characters, words and
   lines); focus loss closes completion and the hover and updates `isFocused`; find next to an off-screen match (via
@@ -990,6 +991,29 @@ Added by the phase-1 review fixes (core):
     `LexicalFactsTest` (architecture) rejects a second declaration. Undo coalescing (core-text, below core-document)
     and the quoted-name error locator keep their Unicode word rules: they describe text and quoted names, not
     identifiers.
+
+Added by the review fixes of the editor group (r1):
+
+47. **Find never matches on the UI thread** (spec §1): `FindModel.query` is the query in use, set synchronously by
+    `setQuery`; `state` carries the matches of `FindResult.query` once the background search published them. `next`,
+    `previous`, `replaceCurrent` and `replaceAll` (now `Unit`) wait for the matches of the current text and query, run in
+    call order, and are dropped by a new query; regex replacements are expanded on the background dispatcher. Search and
+    expansion have a time budget (`FindSearch`, 2 s): a catastrophic regular expression ends in the error "Search took
+    too long". This replaces the synchronous recomputation of WP-EDITOR-MODEL. The find bar renders `find.query` (text
+    and toggles); `FindBarFields` keeps only the fields' selection, composition and the replacement, and the editor's
+    find next and selection seeding read `find.query`.
+48. **Clipboard results and whole lines** (CONTRACT `EditorAction.kt`): `ClipboardPort.setText(text, wholeLine = false)`
+    returns false when the clipboard could not be written, and cut then keeps the text; `holdsWholeLine()` tells paste
+    that the clipboard still holds a line copied or cut without a selection, which is inserted above the caret's line
+    (copy + paste duplicates a line, cut + paste moves it). The system port marks such a line with a JVM-local flavor,
+    so the mark follows the clipboard's content between editors and vanishes when anything else is copied.
+49. **Popups agree with the keyboard and the pointer**: `EditorPopupModel.pointerOverTooltip(over)` (CONTRACT) keeps the
+    hover tooltip while the pointer is on it; leaving its range and the tooltip hides it after `HoverController.HIDE_GRACE`
+    (300 ms), typing at once. A completion list that cannot be shown (caret scrolled out of view) is closed
+    (`PopupIntents.completionHidden`), so a hidden session takes no keys; an outdated completion result is requested
+    again only while the caret is still in the word it completes (`CompletionTriggers.stillHolds`), never after a line
+    break or a space. Tab and Shift+Tab never move focus out of the editor, also when they change nothing; the caret
+    reveal's margin shrinks to what fits into a small viewport.
 
 ## 7. Review findings not adopted
 
