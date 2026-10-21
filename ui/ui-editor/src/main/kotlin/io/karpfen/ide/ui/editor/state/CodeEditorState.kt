@@ -194,7 +194,9 @@ public interface EditorViewModel {
      * [CodeEditorState.HOVER_DELAY] of rest (a delay in the editor's scope, so tests use virtual time) the state shows
      * the hover content — the diagnostics at the position, else the language hover, computed on the background
      * dispatcher after waiting (bounded) for a parse of the current version — through `overlays.showHover`; moving to
-     * another offset restarts the delay, and leaving or typing hides the tooltip.
+     * another offset restarts the delay. The tooltip stays while the pointer is on its range or on the tooltip
+     * ([EditorPopupModel.pointerOverTooltip]); after the pointer left both it is hidden after a short grace period (the
+     * way onto the tooltip leaves the text first). Typing hides it at once.
      */
     public fun pointerHover(offset: Int?)
 

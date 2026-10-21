@@ -113,6 +113,14 @@ class PopupIntentsTest {
     }
 
     @Test
+    fun `the pointer on the hover tooltip is reported to the editor`() = intentsTest("ab") { model, intents ->
+        intents.pointerOverTooltip(true)
+        intents.pointerOverTooltip(false)
+
+        assertEquals(listOf(true, false), model.tooltipPointer)
+    }
+
+    @Test
     fun `a context-menu entry closes the menu, runs its action by id and returns focus`() = intentsTest("state A") { model, intents ->
         model.overlays.openContextMenu(ContextMenuRequest(0, 1f, 1f))
 

@@ -56,4 +56,11 @@ public interface EditorPopupModel {
 
     /** Asks the view to focus the text area (e.g. Escape in the find bar); see `CodeEditorState.focusRequested`. */
     public fun requestFocus()
+
+    /**
+     * The pointer moved onto ([over] true) or off the hover tooltip (`overlays.hover`). The tooltip stays while the
+     * pointer is on it, so its content can be scrolled, and is hidden shortly after the pointer left both the tooltip
+     * and the hovered text (see `EditorViewModel.pointerHover`).
+     */
+    public fun pointerOverTooltip(over: Boolean)
 }

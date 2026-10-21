@@ -39,7 +39,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * - [HighlightPipeline] (incl. the semantic carry-over documented on [EditorViewModel.highlights]) and
  *   [BracketTracker] on [backgroundDispatcher];
  * - [SymbolLookup] (bounded wait for a current parse, hover content, definitions) with [HoverController] (the
- *   [CodeEditorState.HOVER_DELAY] in the editor's scope) and [DefinitionNavigator] ([navigationRequests]);
+ *   [CodeEditorState.HOVER_DELAY] and the hide grace in the editor's scope) and [DefinitionNavigator]
+ *   ([navigationRequests]);
  * - [PointerGestures] (click and drag policy) and [ViewRequests] (pending scroll and focus requests).
  *
  * All work runs in a child scope of [parentScope] (its dispatcher is the UI thread, the single writer of the text);
@@ -90,7 +91,7 @@ internal class DefaultCodeEditorState(
         ui = EditorUiRequests(text, caret, find, completion, overlays, navigator::goToDefinition),
     )
     private val enablement = ActionEnablement(actions, context, text, caret, scope)
-    private val hover = HoverController(scope, overlays, CodeEditorState.HOVER_DELAY, lookup::hoverAt)
+    private val hover = HoverController(scope, overlays, CodeEditorState.HOVER_DELAY, HoverController.HIDE_GRACE, lookup::hoverAt)
     private val gestures = PointerGestures(text, caret, keymap.platform, navigator::goToDefinition)
     private val highlightPipeline = HighlightPipeline(session, languageServices, scope, backgroundDispatcher)
     private val brackets = BracketTracker(session, caret, languageServices, scope, backgroundDispatcher)
@@ -146,6 +147,10 @@ internal class DefaultCodeEditorState(
 
     override fun pointerHover(offset: Int?) {
         hover.pointerAt(offset)
+    }
+
+    override fun pointerOverTooltip(over: Boolean) {
+        hover.pointerOnTooltip(over)
     }
 
     override fun openContextMenuAt(offset: Int, x: Float, y: Float) {

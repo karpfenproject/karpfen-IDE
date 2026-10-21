@@ -65,7 +65,7 @@ import kotlin.time.TestTimeSource
  * The fake [EditorPopupModel] of the popup tests (the narrow interface, never `CodeEditorState`): the real
  * Compose-free models — [CaretModel], [FindModel], [CompletionSessionModel] — over a real [EditableText], with an
  * executor running their actions in a fake [EditorActionContext], and a real [EditorOverlayState]. It records what the
- * popups asked the editor for: [executed] action ids, [goToLineQueries] and [focusRequests].
+ * popups asked the editor for: [executed] action ids, [goToLineQueries], [focusRequests] and [tooltipPointer].
  *
  * The models run on an unconfined test dispatcher (their scope and find's background dispatcher), so every model
  * operation has published its state when it returns; [close] cancels them.
@@ -153,6 +153,13 @@ class FakePopupModel(initialText: String, caretAt: Int = 0) : EditorPopupModel, 
 
     override fun requestFocus() {
         focusRequests++
+    }
+
+    /** What [pointerOverTooltip] reported, in order. */
+    val tooltipPointer: MutableList<Boolean> = mutableListOf()
+
+    override fun pointerOverTooltip(over: Boolean) {
+        tooltipPointer += over
     }
 
     override fun close() = job.cancel()

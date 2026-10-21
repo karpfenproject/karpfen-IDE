@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
@@ -31,17 +32,36 @@ import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
 /**
  * The hover tooltip (spec §7.2) below (or above) [anchor]: the diagnostics at the position with severity icons if there
  * are any, otherwise the language hover text in the editor's [textStyle]. Long content scrolls. A click on the tooltip
- * dismisses it ([onDismiss]); otherwise the editor state hides it when the pointer moves on or the user types.
+ * dismisses it ([onDismiss]); the pointer entering and leaving it is reported to [onPointerOver], so the editor state
+ * keeps it while the pointer is on it and hides it when the pointer moves on or the user types.
  */
 @Composable
-internal fun HoverTooltip(content: HoverContent, anchor: Rect, theme: EditorTheme, textStyle: TextStyle, onDismiss: () -> Unit) {
+internal fun HoverTooltip(
+    content: HoverContent,
+    anchor: Rect,
+    theme: EditorTheme,
+    textStyle: TextStyle,
+    onDismiss: () -> Unit,
+    onPointerOver: (Boolean) -> Unit,
+) {
     val dismiss by rememberUpdatedState(onDismiss)
+    val pointerOver by rememberUpdatedState(onPointerOver)
     AnchoredPopupLayout(anchor) {
         PopupSurface(
             theme,
             Modifier
                 .widthIn(max = 560.dp)
                 .pointerInput(Unit) { detectTapGestures { dismiss() } }
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            when (awaitPointerEvent().type) {
+                                PointerEventType.Enter -> pointerOver(true)
+                                PointerEventType.Exit -> pointerOver(false)
+                            }
+                        }
+                    }
+                }
                 .testTag(EditorPopupTags.HOVER),
         ) {
             Column(

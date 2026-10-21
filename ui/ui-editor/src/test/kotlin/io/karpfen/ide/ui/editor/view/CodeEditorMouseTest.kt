@@ -17,6 +17,7 @@ import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.state.CodeEditorState
+import io.karpfen.ide.ui.editor.state.HoverController
 import io.karpfen.ide.ui.editor.state.ContextMenuRequest
 import io.karpfen.ide.ui.editor.state.FakeLanguageServices
 import java.nio.file.Path
@@ -116,7 +117,7 @@ class CodeEditorMouseTest {
 
         assertEquals(listOf("unused"), assertNotNull(ui.state.overlays.hover.value).diagnostics.map { it.message })
         ui.textArea.performMouseInput { moveTo(Offset(ui.centerOf(beta + 1).x, 10_000f)) }
-        mainClock.advanceTimeBy(50)
+        mainClock.advanceTimeBy(HoverController.HIDE_GRACE.inWholeMilliseconds + 50)
         assertNull(ui.state.overlays.hover.value, "the pointer left the text")
     }
 

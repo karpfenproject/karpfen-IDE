@@ -81,6 +81,9 @@ internal class PopupIntents(private val model: EditorPopupModel) {
     /** A click on the tooltip hides it. */
     fun dismissHover() = model.overlays.hideHover()
 
+    /** The pointer moved onto ([over] true) or off the tooltip: the editor keeps it while the pointer is on it. */
+    fun pointerOverTooltip(over: Boolean) = model.pointerOverTooltip(over)
+
     // --- context menu ----------------------------------------------------------------------------------------------
 
     /** Choosing the entry of [actionId]: closes the menu, runs the action by id and returns focus to the text area. */

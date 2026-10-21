@@ -73,7 +73,7 @@ internal fun HoverSlot(host: EditorOverlayHost, intents: PopupIntents) {
     val content by host.state.overlays.hover.collectAsState()
     val shown = content ?: return
     val anchor = host.boundsOf(shown.range.start) ?: return
-    HoverTooltip(shown, anchor, host.theme, host.textStyle, intents::dismissHover)
+    HoverTooltip(shown, anchor, host.theme, host.textStyle, intents::dismissHover, intents::pointerOverTooltip)
 }
 
 /** The go-to-line popup while `overlays.goToLine` is open, with the caret's line and the line count as hint. */

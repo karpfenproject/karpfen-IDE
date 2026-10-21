@@ -15,12 +15,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The hover policy on virtual time (spec §7.2): the tooltip appears after [CodeEditorState.HOVER_DELAY] of rest, shows
- * the diagnostics at the position or else the language hover, and is hidden when the pointer moves away, leaves the
- * text, or the user types.
+ * the diagnostics at the position or else the language hover, stays while the pointer is on its range or on the tooltip,
+ * is hidden [HoverController.HIDE_GRACE] after the pointer left both, and at once when the user types.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HoverPolicyTest {
@@ -44,6 +45,16 @@ class HoverPolicyTest {
 
     private fun TestScope.waitHoverDelay() {
         advanceTimeBy(CodeEditorState.HOVER_DELAY)
+        runCurrent()
+    }
+
+    private fun TestScope.waitHideGrace() {
+        advanceTimeBy(HoverController.HIDE_GRACE)
+        runCurrent()
+    }
+
+    private fun TestScope.wait(duration: Duration) {
+        advanceTimeBy(duration)
         runCurrent()
     }
 
@@ -94,16 +105,67 @@ class HoverPolicyTest {
         rest(harness, at + 1)
         assertNotNull(harness.state.overlays.hover.value, "moving inside the shown range keeps the tooltip")
         rest(harness, harness.offsetOf("busy"))
-        assertNull(harness.state.overlays.hover.value, "moving elsewhere hides it")
-        waitHoverDelay()
+        assertNotNull(harness.state.overlays.hover.value, "not at once: the pointer may be on its way to the tooltip")
+        waitHideGrace()
+        assertNull(harness.state.overlays.hover.value, "moving elsewhere hides it after the grace period")
+        wait(CodeEditorState.HOVER_DELAY - HoverController.HIDE_GRACE)
         assertNotNull(harness.state.overlays.hover.value, "and restarts the delay")
 
         rest(harness, null)
+        waitHideGrace()
         assertNull(harness.state.overlays.hover.value, "leaving the text hides it")
         rest(harness, at)
         waitHoverDelay()
         harness.state.type("x")
         assertNull(harness.state.overlays.hover.value, "typing hides it")
+    }
+
+    @Test
+    fun `the tooltip stays while the pointer is on it and hides after the pointer left it`() = editorTest(
+        text,
+        services = FakeLanguageServices(hovers = { _, offset -> Hover(TextRange(offset, offset + 2), "h") }),
+    ) { harness ->
+        advanceUntilIdle()
+        val at = harness.offsetOf("idle")
+        rest(harness, at)
+        waitHoverDelay()
+        assertNotNull(harness.state.overlays.hover.value)
+
+        rest(harness, null)
+        harness.state.pointerOverTooltip(true)
+        wait(CodeEditorState.HOVER_DELAY * 3)
+        assertNotNull(harness.state.overlays.hover.value, "the way from the text onto the tooltip keeps it")
+
+        harness.state.pointerOverTooltip(false)
+        rest(harness, at + 1)
+        wait(CodeEditorState.HOVER_DELAY * 3)
+        assertNotNull(harness.state.overlays.hover.value, "back on the hovered range in time")
+
+        rest(harness, null)
+        waitHideGrace()
+        assertNull(harness.state.overlays.hover.value, "hidden once the pointer left the range and the tooltip")
+    }
+
+    @Test
+    fun `entering the tooltip before the text reports the pointer leaving keeps it too`() = editorTest(
+        text,
+        services = FakeLanguageServices(hovers = { _, offset -> Hover(TextRange(offset, offset + 2), "h") }),
+    ) { harness ->
+        advanceUntilIdle()
+        rest(harness, harness.offsetOf("idle"))
+        waitHoverDelay()
+
+        harness.state.pointerOverTooltip(true)
+        rest(harness, null)
+        wait(CodeEditorState.HOVER_DELAY * 3)
+        assertNotNull(harness.state.overlays.hover.value)
+
+        harness.state.pointerOverTooltip(false)
+        waitHideGrace()
+        assertNull(harness.state.overlays.hover.value, "leaving the tooltip hides it after the grace period")
+        harness.state.pointerOverTooltip(true)
+        harness.state.type("x")
+        assertNull(harness.state.overlays.hover.value, "typing hides it at once")
     }
 
     @Test
