@@ -8,21 +8,23 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
-import java.nio.file.Path
 
 /**
  * Saves open documents (spec §4): the current snapshot is converted back to file form (the document's line separator,
  * its byte order mark) and written atomically through the [fileStore] on [ioDispatcher]; then, on the [writer]:
  * - the written state becomes the save point (an undo checkpoint taken with the snapshot): typing during the write
  *   keeps the document dirty, because the disk holds the older text, and undoing that typing makes it clean again;
- * - the written content becomes the document's disk state, so the watch event the write causes is recognized as
- *   self-induced, and a pending conflict is cleared (the disk now holds the buffer);
- * - the FILE findings are cleared for the written snapshot (the file is valid UTF-8 with one separator now).
+ * - the disk state the write leaves becomes the document's, so the watch event the write causes is recognized as
+ *   self-induced, and a pending conflict is cleared (the disk now holds the buffer); the state comes from the
+ *   [sourceLoader] (`SourceLoader.loadWritten`), the one loading rule, never from a rule of the saver's own;
+ * - its findings become the FILE findings of the written snapshot (none for the default rule: the file is valid UTF-8
+ *   with one separator now).
  *
  * A failed write changes nothing and is reported as [SaveResult.Failed].
  */
 internal class DocumentSaver(
     private val fileStore: TextFileStore,
+    private val sourceLoader: SourceLoader,
     private val ioDispatcher: CoroutineDispatcher,
     private val writer: SingleWriter,
 ) {
@@ -38,10 +40,13 @@ internal class DocumentSaver(
             logger.warn("Saving {} failed", document.path, e)
             return SaveResult.Failed(document.path, "Cannot save ${describeIoFailure(document.path, e)}")
         }
+        val written = sourceLoader.loadWritten(document.path, pending.content, pending.withBom)
         writer.run {
             document.text.undo.markSavePoint(pending.state)
-            document.saved(pending.writtenState(document.path))
-            document.session.setExternalDiagnostics(ExternalDiagnosticSources.FILE, pending.snapshot, emptyList())
+            document.saved(written)
+            // The findings' ranges refer to the written text, which is the snapshot's unless the write changed it.
+            val findings = written.diagnostics.takeIf { written.text == pending.snapshot.text }.orEmpty()
+            document.session.setExternalDiagnostics(ExternalDiagnosticSources.FILE, pending.snapshot, findings)
         }
         return SaveResult.Saved(document.path, pending.snapshot.version)
     }
@@ -50,12 +55,6 @@ internal class DocumentSaver(
     private class PendingWrite(val snapshot: TextSnapshot, val state: HistoryState, document: DefaultOpenDocument) {
         val withBom: Boolean = document.hasBom
         val content: String = LineSeparators.restore(snapshot.text, document.lineSeparator.value)
-
-        /** The disk state a later read of the written file yields (the loader's view of [content]). */
-        fun writtenState(path: Path): LoadedSource {
-            val normalized = LineSeparators.normalize(content)
-            return LoadedSource(path, normalized.text, normalized.dominant, withBom, diagnostics = emptyList())
-        }
     }
 
     private companion object {

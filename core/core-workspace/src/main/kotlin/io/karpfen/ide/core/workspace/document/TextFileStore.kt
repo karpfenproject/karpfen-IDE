@@ -24,6 +24,13 @@ public interface TextFileStore {
      * @throws java.io.IOException if the file cannot be written; the target is then unchanged.
      */
     public fun write(path: Path, content: String, withBom: Boolean = false)
+
+    /**
+     * What [read] returns for the file [write] leaves with [content] and [withBom], computed without I/O: a save names
+     * the disk state it leaves with it. The default is the UTF-8 rule of the file-system store (a leading U+FEFF of
+     * [content] reads back as a byte order mark, an unpaired surrogate as `?`); a store with other bytes overrides it.
+     */
+    public fun readBack(content: String, withBom: Boolean = false): DecodedText = Utf8Text.decode(Utf8Text.encode(content, withBom))
 }
 
 /** The file-system [TextFileStore]. */

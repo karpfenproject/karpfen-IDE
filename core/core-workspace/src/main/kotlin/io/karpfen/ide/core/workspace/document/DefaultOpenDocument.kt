@@ -31,7 +31,7 @@ internal fun interface ConflictResolver {
  *
  * The disk state is the [LoadedSource] the buffer was last synchronized with (opened, saved, reloaded, or acknowledged
  * with Keep mine), or null when the file is known to be absent; an external change is a disk content that differs from
- * it, which also makes the watch event of the document's own save a no-op (spec §4).
+ * it ([knowsContentOf]), which also makes the watch event of the document's own save a no-op (spec §4).
  *
  * @param scope the document's own scope (parent of the session's scope), cancelled by [close].
  */
@@ -73,6 +73,14 @@ internal class DefaultOpenDocument(
 
     /** The disk state that raised the current [conflict] (null for a deletion). Writer only. */
     private var observedDiskState: LoadedSource? = null
+
+    /**
+     * True if [source] holds the content of the [diskState]: the same text, line separator and byte order mark. Findings
+     * are derived from the content and take no part, so a loader whose findings a save cannot foresee still recognizes
+     * the save's own watch event. Writer only.
+     */
+    fun knowsContentOf(source: LoadedSource): Boolean =
+        diskState?.let { it.text == source.text && it.lineSeparator == source.lineSeparator && it.hasBom == source.hasBom } == true
 
     /** True if the text differs from its save point, read from the undo manager itself (never stale). */
     val isDirtyNow: Boolean get() = !text.undo.isAtSavePoint.value

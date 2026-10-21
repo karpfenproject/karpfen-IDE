@@ -1059,6 +1059,15 @@ Added by the review fixes of the core group (r2):
     `MemberKind.ofKeyword` replaces the keyword maps of `KmetaSlots` and `KmodelSlots`. `LexicalFactsTest` checks
     each fact against its home (`KarpfenSyntax`, `MemberKind` in `TypeCatalog`).
 
+62. **A save takes its disk state from the loading rule** (completes decision 17). CONTRACT additions with defaults:
+    `SourceLoader.loadWritten(path, content, withBom)` (what `load` returns right after that write, without I/O) and
+    `TextFileStore.readBack(content, withBom)` (what `read` returns after that `write`; the UTF-8 rule `Utf8Text`,
+    which the file-system store reads and writes with). `DocumentSaver` names the written disk state and its FILE
+    findings with them instead of predicting them itself, and an open document compares disk states by content (text,
+    separator, byte order mark; `DefaultOpenDocument.knowsContentOf`), not by findings, which derive from it. So the
+    save's own watch event stays a no-op for a loader with findings of its own and for a text starting with U+FEFF,
+    which used to raise a false MODIFIED conflict.
+
 ## 7. Review findings not adopted
 
 1. **A core-lang-owned `ProjectKnowledge` port instead of the workspace's `ProjectAnalysis`.** The providers need the

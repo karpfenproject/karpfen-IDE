@@ -55,7 +55,7 @@ internal class DefaultDocumentManager(
 
     private val writer = SingleWriter(scope)
     private val synchronizer = DiskSynchronizer(sourceLoader, ioDispatcher, writer)
-    private val saver = DocumentSaver(fileStore, ioDispatcher, writer)
+    private val saver = DocumentSaver(fileStore, sourceLoader, ioDispatcher, writer)
     private val factory = OpenDocumentFactory(scope, sessionConfig, timeSource, synchronizer)
     private val documents = MutableStateFlow<List<DefaultOpenDocument>>(emptyList())
 

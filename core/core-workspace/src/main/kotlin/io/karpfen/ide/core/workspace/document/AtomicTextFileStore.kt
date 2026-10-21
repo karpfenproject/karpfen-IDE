@@ -4,9 +4,6 @@ import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
-import java.nio.charset.CharacterCodingException
-import java.nio.charset.CodingErrorAction
-import java.nio.charset.StandardCharsets
 import java.nio.file.AccessDeniedException
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
@@ -18,10 +15,8 @@ import java.nio.file.attribute.PosixFileAttributeView
 import java.util.UUID
 
 /**
- * [TextFileStore] on `java.nio.file`, writing through a temp file and an atomic move.
- *
- * Reading decodes strictly first and, only for invalid UTF-8, again with replacement characters, so a valid file that
- * happens to contain U+FFFD is not flagged. Writing:
+ * [TextFileStore] on `java.nio.file`, writing through a temp file and an atomic move; the bytes are [Utf8Text]'s (so
+ * [readBack] needs no override). Writing:
  * - writes the bytes (byte order mark first if requested) to a new hidden temp file in the target's directory, created
  *   with the default permissions (a `createTempFile` would be owner-only);
  * - copies the POSIX permissions of an existing target to the temp file, so saving never changes them;
@@ -43,18 +38,7 @@ internal class AtomicTextFileStore(
     private val channels: FileChannelOpener = FileChannelOpener { path, options -> FileChannel.open(path, options) },
 ) : TextFileStore {
 
-    override fun read(path: Path): DecodedText {
-        val bytes = Files.readAllBytes(path)
-        val hasBom = bytes.size >= BOM.size && BOM.indices.all { bytes[it] == BOM[it] }
-        val offset = if (hasBom) BOM.size else 0
-        val buffer = ByteBuffer.wrap(bytes, offset, bytes.size - offset)
-        return try {
-            DecodedText(strictDecoder().decode(buffer).toString(), malformed = false, hasBom = hasBom)
-        } catch (e: CharacterCodingException) {
-            buffer.position(offset)
-            DecodedText(replacingDecoder().decode(buffer).toString(), malformed = true, hasBom = hasBom)
-        }
-    }
+    override fun read(path: Path): DecodedText = Utf8Text.decode(Files.readAllBytes(path))
 
     override fun write(path: Path, content: String, withBom: Boolean) {
         val target = if (Files.isSymbolicLink(path)) path.toRealPath() else path.toAbsolutePath().normalize()
@@ -65,10 +49,10 @@ internal class AtomicTextFileStore(
         Files.createDirectories(directory)
         val temp = directory.resolve(".${target.fileName}.${UUID.randomUUID()}.tmp")
         try {
-            val bytes = content.toByteArray(StandardCharsets.UTF_8)
+            val bytes = Utf8Text.encode(content, withBom)
             channels.open(temp, setOf(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)).use { channel ->
                 copyPermissions(from = target, to = temp)
-                val buffer = ByteBuffer.wrap(if (withBom) BOM + bytes else bytes)
+                val buffer = ByteBuffer.wrap(bytes)
                 while (buffer.hasRemaining()) channel.write(buffer)
                 channel.force(true)
             }
@@ -98,20 +82,9 @@ internal class AtomicTextFileStore(
         Files.getFileAttributeView(to, PosixFileAttributeView::class.java)?.setPermissions(source.readAttributes().permissions())
     }
 
-    private fun strictDecoder() = StandardCharsets.UTF_8.newDecoder()
-        .onMalformedInput(CodingErrorAction.REPORT)
-        .onUnmappableCharacter(CodingErrorAction.REPORT)
-
-    private fun replacingDecoder() = StandardCharsets.UTF_8.newDecoder()
-        .onMalformedInput(CodingErrorAction.REPLACE)
-        .onUnmappableCharacter(CodingErrorAction.REPLACE)
-
     private companion object {
         /** The reason of the failure to write a read-only file. */
         const val READ_ONLY: String = "the file is read-only"
-
-        /** The UTF-8 byte order mark. */
-        private val BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
 
         private val logger = LoggerFactory.getLogger(AtomicTextFileStore::class.java)
     }

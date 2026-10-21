@@ -1,12 +1,17 @@
 package io.karpfen.ide.core.workspace.document
 
+import io.karpfen.ide.core.document.Diagnostic
+import io.karpfen.ide.core.document.DiagnosticSource
+import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.LineSeparator
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
@@ -177,6 +182,36 @@ class ExternalChangeTest {
         manager.onFileChanged(path, deleted = false)
 
         assertEquals(ExternalChangeKind.DELETED, document.conflict.value?.kind)
+    }
+
+    /** Saves [path] while typing goes on, then reports the save's own watch event; the document must neither reload nor conflict. */
+    private suspend fun TestScope.ownSaveWhileTyping(manager: DefaultDocumentManager, path: Path, typed: String) {
+        val document = manager.openOrFail(path)
+        document.type(0, typed)
+        assertIs<SaveResult.Saved>(manager.save(path))
+        document.type(document.currentText.length, "// typed after saving\n")
+        val version = document.session.text.snapshot.value.version
+        runCurrent()
+
+        manager.onFileChanged(path, deleted = false)
+        runCurrent()
+
+        assertNull(document.conflict.value, "no conflict")
+        assertEquals(version, document.session.text.snapshot.value.version, "no reload")
+        assertTrue(document.isDirty.value)
+    }
+
+    @Test
+    fun `the own save is recognized with a loader whose findings the saver cannot foresee`() = runTest {
+        val extra = Diagnostic(TextRange.EMPTY, Severity.INFO, "audited", "audit", DiagnosticSource.IDE)
+        val loader = SourceLoader { path -> SourceLoader().load(path).let { it.copy(diagnostics = it.diagnostics + extra) } }
+
+        ownSaveWhileTyping(documentManager(this, sourceLoader = loader), file(), "// saved\n")
+    }
+
+    @Test
+    fun `the own save is recognized when the text starts with a byte order mark character`() = runTest {
+        ownSaveWhileTyping(documentManager(this), file(), "\uFEFF")
     }
 
     @Test

@@ -15,8 +15,8 @@ import java.nio.file.Path
  * and resolves conflicts. Disk content is read through the workspace's [SourceLoader] on [ioDispatcher]; documents are
  * mutated through the [writer] only.
  *
- * Rules for a change of a document's file (compared with its [DefaultOpenDocument.diskState], so a self-induced event
- * of a save, or a touch without content change, is a no-op):
+ * Rules for a change of a document's file (compared with its disk state by content, [DefaultOpenDocument.knowsContentOf],
+ * so a self-induced event of a save, or a touch without content change, is a no-op):
  * - content as known → nothing (a pending conflict is void and cleared);
  * - other content, clean document without conflict → reload as one undoable `External` change, save point marked, line
  *   separator and BOM adopted, FILE findings replaced;
@@ -59,7 +59,7 @@ internal class DiskSynchronizer(
             is DiskContent.Unreadable -> logger.warn("Cannot read changed file {}: {}", document.path, disk.message)
             DiskContent.Absent -> if (document.diskState != null) document.raiseConflict(ExternalChangeKind.DELETED, null)
             is DiskContent.Present -> when {
-                disk.source == document.diskState -> document.clearConflict()
+                document.knowsContentOf(disk.source) -> document.clearConflict()
                 document.conflict.value == null && !document.isDirtyNow -> reload(document, disk.source)
                 else -> document.raiseConflict(ExternalChangeKind.MODIFIED, disk.source)
             }

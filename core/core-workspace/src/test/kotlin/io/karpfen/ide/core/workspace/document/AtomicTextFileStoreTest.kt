@@ -79,6 +79,23 @@ class AtomicTextFileStoreTest {
     }
 
     @Test
+    fun `readBack is what read returns after write, also where the bytes do not round-trip the text`() {
+        val cases = listOf(
+            "plain\n" to false,
+            "with bom\r\n" to true,
+            "\uFEFFa leading U+FEFF reads back as a byte order mark" to false,
+            "an unpaired \uD800 surrogate" to false,
+        )
+        for ((content, withBom) in cases) {
+            val file = dir.resolve("round.kmeta")
+
+            store.write(file, content, withBom)
+
+            assertEquals(store.read(file), store.readBack(content, withBom), content)
+        }
+    }
+
+    @Test
     fun `writing replaces the file and leaves no temp file behind`() {
         val file = dir.resolve("a.kmeta")
         Files.writeString(file, "old content that is longer")

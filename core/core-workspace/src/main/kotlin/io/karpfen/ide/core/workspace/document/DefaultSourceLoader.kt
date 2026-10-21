@@ -15,8 +15,13 @@ import java.nio.file.Path
  */
 internal class DefaultSourceLoader(private val fileStore: TextFileStore) : SourceLoader {
 
-    override fun load(path: Path): LoadedSource {
-        val decoded = fileStore.read(path)
+    override fun load(path: Path): LoadedSource = loaded(path, fileStore.read(path))
+
+    override fun loadWritten(path: Path, content: String, withBom: Boolean): LoadedSource =
+        loaded(path, fileStore.readBack(content, withBom))
+
+    /** The rule itself: [decoded], the text of [path], in editor form with its findings. */
+    private fun loaded(path: Path, decoded: DecodedText): LoadedSource {
         val normalized = LineSeparators.normalize(decoded.content)
         val diagnostics = buildList {
             if (decoded.malformed) malformedEncoding(normalized.text)?.let(::add)

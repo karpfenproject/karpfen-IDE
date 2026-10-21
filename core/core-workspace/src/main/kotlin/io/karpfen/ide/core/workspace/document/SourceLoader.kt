@@ -17,6 +17,15 @@ public fun interface SourceLoader {
      * @throws java.io.IOException if it cannot be read.
      */
     public fun load(path: Path): LoadedSource
+
+    /**
+     * What [load] returns for [path] right after `TextFileStore.write(path, content, withBom)`, computed without I/O
+     * (`TextFileStore.readBack`): the disk state a save leaves, so the save's own watch event is recognized however the
+     * loading rule evolves. The default applies the default rule; a loader with a rule of its own overrides it to agree
+     * with [load] (findings aside: an open document compares disk states by their content, not their findings).
+     */
+    public fun loadWritten(path: Path, content: String, withBom: Boolean): LoadedSource =
+        DefaultSourceLoader(TextFileStore()).loadWritten(path, content, withBom)
 }
 
 /** The default [SourceLoader], reading through [fileStore]. */
