@@ -3,21 +3,34 @@ package io.karpfen.ide.core.lang.environment
 import io.karpfen.ide.core.document.environment.DescriptorKey
 import io.karpfen.ide.core.document.environment.ValueShape
 import io.karpfen.ide.core.document.json.JsonStrings
-import io.karpfen.ide.core.lang.completion.Snippet
 
 /**
- * The text completion inserts for descriptor keys and values, derived from their [ValueShape]s, so a new key arrives
- * with a value of the right kind: a string is `""` with the caret inside, a whole number its first suggestion, an
- * object `{ … }` with its required keys, a list `[ … ]` with one item. The caret marker ([Snippet.CARET]) goes to the
- * first place to fill. Pure.
+ * The JSON text completion proposes for descriptor keys and values, derived from their [ValueShape]s, so a new key
+ * arrives with a value of the right kind: a string is `""` with the caret inside, a whole number its first suggestion,
+ * an object `{ … }` with its required keys, a list `[ … ]` with one item. The caret goes to the first place to fill
+ * ([Template.caret]). Every proposal is JSON as it stands outside a string; [SlotEdit.fit] adapts it to the caret's
+ * place. Pure.
  */
 internal object ValueTemplates {
 
-    /** The value template of [shape], with the caret marker at its first place to fill. */
-    fun of(shape: ValueShape): String = TemplateWriter().apply { value(shape) }.text()
+    /** The value template of [shape], with the caret at its first place to fill. */
+    fun of(shape: ValueShape): Template = TemplateWriter().apply { value(shape) }.template()
 
-    /** `"key": ` followed by the value template of [key]'s shape. */
-    fun member(key: DescriptorKey): String = "\"${JsonStrings.encode(key.name)}\": ${of(key.shape)}"
+    /** `"key": ` followed by the value template of [key]'s shape, with the caret at the value's first place to fill. */
+    fun member(key: DescriptorKey): Template {
+        val name = "${quoted(key.name)}: "
+        val value = of(key.shape)
+        return Template(name + value.text, name.length + value.caret)
+    }
+
+    /** `"key":`, the name of [key] with the colon a key needs in front of its value. */
+    fun nameAndColon(key: DescriptorKey): Template = Template("${quoted(key.name)}:")
+
+    /** `"key"`, the name of [key] alone. */
+    fun name(key: DescriptorKey): Template = Template(quoted(key.name))
+
+    /** [value] as a JSON string with its quotes. */
+    fun string(value: String): Template = Template(quoted(value))
 
     /** The label of a value template in the completion list: `{ … }` for an object, `[ … ]` for a list. */
     fun label(shape: ValueShape): String = when (shape) {
@@ -27,14 +40,15 @@ internal object ValueTemplates {
     }
 
     /** [value] as a JSON string literal with its quotes. */
-    fun quoted(value: String): String = "\"${JsonStrings.encode(value)}\""
+    private fun quoted(value: String): String = "\"${JsonStrings.encode(value)}\""
 
-    /** Writes one template; the first [hole] gets the caret marker. */
+    /** Writes one template; the first [hole] gets the caret. */
     private class TemplateWriter {
         private val out = StringBuilder()
-        private var caretPlaced = false
+        private var caret: Int? = null
 
-        fun text(): String = out.toString()
+        /** The template written so far, the caret at its first hole or at its end. */
+        fun template(): Template = Template(out.toString(), caret ?: out.length)
 
         /** Writes the template of [shape]. */
         fun value(shape: ValueShape) {
@@ -68,17 +82,15 @@ internal object ValueTemplates {
             if (required.isEmpty()) hole()
             required.forEachIndexed { index, key ->
                 if (index > 0) out.append(", ")
-                out.append("\"${JsonStrings.encode(key.name)}\": ")
+                out.append(quoted(key.name)).append(": ")
                 value(key.shape)
             }
             out.append(" }")
         }
 
-        /** The caret marker, at the first place to fill only. */
+        /** Marks the current end as the place of the caret, at the first place to fill only. */
         private fun hole() {
-            if (caretPlaced) return
-            out.append(Snippet.CARET)
-            caretPlaced = true
+            if (caret == null) caret = out.length
         }
     }
 }

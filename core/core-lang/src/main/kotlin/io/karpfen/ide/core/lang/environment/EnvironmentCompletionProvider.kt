@@ -3,30 +3,32 @@ package io.karpfen.ide.core.lang.environment
 import io.karpfen.ide.core.document.environment.DescriptorFileRole
 import io.karpfen.ide.core.document.environment.DescriptorKey
 import io.karpfen.ide.core.document.environment.ValueShape
-import io.karpfen.ide.core.document.json.JsonStrings
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
-import io.karpfen.ide.core.lang.completion.Snippet
 import io.karpfen.ide.core.lang.completion.sortKey
 import io.karpfen.ide.core.lang.feature.CompletionProvider
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 
 /**
  * Completion in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]:
- * - at a key: the keys the object does not have yet, required ones first, each with its documentation; outside quotes
- *   a key arrives with a value template of its shape ([ValueTemplates]), after the last member with the `,` it needs;
+ * - in an empty descriptor: the descriptor object with its required keys;
+ * - at a key: the keys the object does not have yet, required ones first, each with its documentation; a new key, or
+ *   a key string with neither `:` nor value, arrives with a value template of its shape ([ValueTemplates]), a key with
+ *   a value but no `:` gets its `:`, and a key that has both is renamed;
  * - at a file path: the workspace files of the key's role ([DescriptorProject.candidates]: metamodels without
  *   `EVENTS.kmeta`, the event metamodel, models, state machines, bridge configurations), relative to the descriptor's
  *   directory, files next to it first;
- * - at `attachedTo`: the keys of the objects of the descriptor's model, the objects whose type is the `ATTACHED TO` type
- *   of the entry's state machine first;
+ * - at `attachedTo`: the keys of the objects of the descriptor's model, ranked for the entry's state machine by the rule
+ *   the template of new descriptors uses too (`ContextSymbols.attachmentCandidates`);
  * - at an event domain: the domains the descriptor's state machines use;
  * - at a whole number, `true`/`false` or a string with typical values: those values ([ValueShape.WholeNumber],
  *   [ValueShape.Flag], [ValueShape.Text]);
  * - at the value of an object or list key: its template.
  *
- * Strings are inserted with quotes outside a string literal and escaped as JSON in any case. Unfiltered, like every
- * provider (the editor filters by the text before the caret).
+ * Every proposal is JSON as it stands outside a string, escaped as JSON, and the slot's [SlotEdit] fits it to the
+ * caret's place: it drops the quotes a string at the caret keeps, closes a string that has no closing quote, and adds the
+ * `,` a new member or item lacks in front of or behind it, so accepting a proposal keeps the descriptor valid JSON
+ * around it. Unfiltered, like every provider (the editor filters by the text before the caret).
  */
 internal class EnvironmentCompletionProvider(
     private val trees: DescriptorTrees,
@@ -36,7 +38,8 @@ internal class EnvironmentCompletionProvider(
 
     override fun complete(request: FeatureRequest, offset: Int): List<CompletionItem> {
         val text = request.document.text
-        return when (val slot = caret.slotAt(trees.of(text), offset, text.length)) {
+        return when (val slot = caret.slotAt(trees.of(text), text.text, offset)) {
+            is DescriptorSlot.Root -> listOf(template(slot.edit, slot.shape, ROOT_DETAIL))
             is DescriptorSlot.Key -> keys(slot)
             is DescriptorSlot.Value -> values(DescriptorProject(request), slot)
             DescriptorSlot.None -> emptyList()
@@ -46,10 +49,13 @@ internal class EnvironmentCompletionProvider(
     /** The keys the slot's object does not have yet, required ones first. */
     private fun keys(slot: DescriptorSlot.Key): List<CompletionItem> =
         slot.shape?.keys.orEmpty().filter { it.name !in slot.presentKeys }.map { key ->
-            val template = if (slot.inString) JsonStrings.encode(key.name) else slot.separator + ValueTemplates.member(key)
-            Snippet(key.name, template, CompletionKind.PROPERTY, detailOf(key))
-                .item(slot.replaceRange, rank = if (key.isRequired) 0 else 1)
-                .copy(documentation = key.documentation)
+            val proposal = when (slot.part) {
+                KeyPart.NAME -> ValueTemplates.name(key)
+                KeyPart.NAME_AND_COLON -> ValueTemplates.nameAndColon(key)
+                KeyPart.MEMBER -> ValueTemplates.member(key)
+            }
+            val rank = if (key.isRequired) 0 else 1
+            item(slot.edit, proposal, key.name, CompletionKind.PROPERTY, detailOf(key), key.documentation, rank)
         }
 
     /** The proposals for the value of the slot, by its shape. */
@@ -59,55 +65,74 @@ internal class EnvironmentCompletionProvider(
                 string(slot, path, CompletionKind.FILE, shape.role.description, rank = nearness(path))
             }
             ValueShape.ObjectKey -> objectKeys(project, slot)
-            ValueShape.EventDomain -> project.eventDomainsOf(project.filesNamed(DescriptorFileRole.STATE_MACHINE, slot.root, schema))
-                .map { string(slot, it, CompletionKind.EVENT, "event domain") }
+            ValueShape.EventDomain -> {
+                val machines = project.filesNamed(DescriptorFileRole.STATE_MACHINE, slot.root, schema)
+                project.symbols.eventDomainsOf(machines).map { string(slot, it, CompletionKind.EVENT, "event domain") }
+            }
             is ValueShape.Text -> shape.suggestions.map { string(slot, it, CompletionKind.VALUE, detail = null) }
             is ValueShape.WholeNumber -> literals(slot, shape.suggestions.map(Long::toString))
             ValueShape.Flag -> literals(slot, listOf("true", "false"))
-            is ValueShape.Record, is ValueShape.ListOf -> if (slot.inString || slot.node != null) {
-                emptyList()
-            } else {
-                listOf(Snippet(ValueTemplates.label(shape), ValueTemplates.of(shape), CompletionKind.SNIPPET, shape.description).item(slot.replaceRange))
-            }
+            is ValueShape.Record, is ValueShape.ListOf ->
+                if (slot.edit.isOutsideString && slot.node == null) listOf(template(slot.edit, shape, shape.description)) else emptyList()
         }
 
     /**
-     * The keys of the model's objects for an `attachedTo`; the objects whose type is the `ATTACHED TO` type of the state
-     * machine of the same entry rank first.
+     * The keys of the model's objects for an `attachedTo`, the objects that suit the state machine of the same entry
+     * first.
      */
     private fun objectKeys(project: DescriptorProject, slot: DescriptorSlot.Value): List<CompletionItem> {
         val model = project.fileNamed(DescriptorFileRole.MODEL, slot.root, schema) ?: return emptyList()
         val machine = project.fileNamed(DescriptorFileRole.STATE_MACHINE, slot.owner, slot.ownerShape)
-        val type = machine?.let(project::attachedTypeOf)
-        return project.objectsOf(model).distinctBy { it.name }.map { declaration ->
-            val matches = type != null && declaration.typeName == type
-            string(slot, declaration.name, CompletionKind.OBJECT, declaration.typeName, rank = if (matches) 0 else 1)
+        return project.symbols.attachmentCandidates(model, machine).map { candidate ->
+            val modelObject = candidate.modelObject
+            string(slot, modelObject.key, CompletionKind.OBJECT, modelObject.typeName, rank = if (candidate.suitsMachine) 0 else 1)
         }
     }
 
-    /** A string proposal [value]: quoted outside a string literal, JSON-escaped always. */
+    /** A string proposal [value]. */
     private fun string(slot: DescriptorSlot.Value, value: String, kind: CompletionKind, detail: String?, rank: Int = 1): CompletionItem =
-        CompletionItem(
-            label = value,
-            kind = kind,
-            insertText = if (slot.inString) JsonStrings.encode(value) else ValueTemplates.quoted(value),
-            replaceRange = slot.replaceRange,
-            caretOffsetInInsert = null,
-            detail = detail,
-            documentation = slot.key.documentation,
-            sortKey = sortKey(rank, value),
-        )
+        item(slot.edit, ValueTemplates.string(value), value, kind, detail, slot.key.documentation, rank)
 
-    /** Number or literal proposals, only outside a string literal, in the given order. */
+    /** Number or literal proposals, only outside a string, in the given order. */
     private fun literals(slot: DescriptorSlot.Value, values: List<String>): List<CompletionItem> =
-        if (slot.inString) {
-            emptyList()
-        } else {
+        if (slot.edit.isOutsideString) {
             values.mapIndexed { index, value ->
-                Snippet.keyword(value, slot.key.shape.description).item(slot.replaceRange, rank = index)
-                    .copy(kind = CompletionKind.VALUE, documentation = slot.key.documentation)
+                val detail = slot.key.shape.description
+                item(slot.edit, Template(value), value, CompletionKind.VALUE, detail, slot.key.documentation, rank = index)
             }
+        } else {
+            emptyList()
         }
+
+    /** The value template of [shape], labelled `{ … }` or `[ … ]`. */
+    private fun template(edit: SlotEdit, shape: ValueShape, detail: String): CompletionItem =
+        item(edit, ValueTemplates.of(shape), ValueTemplates.label(shape), CompletionKind.SNIPPET, detail, documentation = null)
+
+    /**
+     * The item that writes [proposal] by [edit]; the caret goes to the proposal's place to fill, and the item names no
+     * caret offset when that is the end of the insert.
+     */
+    private fun item(
+        edit: SlotEdit,
+        proposal: Template,
+        label: String,
+        kind: CompletionKind,
+        detail: String?,
+        documentation: String?,
+        rank: Int = 1,
+    ): CompletionItem {
+        val insert = edit.fit(proposal)
+        return CompletionItem(
+            label = label,
+            kind = kind,
+            insertText = insert.text,
+            replaceRange = edit.range,
+            caretOffsetInInsert = insert.caret.takeIf { it != insert.text.length },
+            detail = detail,
+            documentation = documentation,
+            sortKey = sortKey(rank, label),
+        )
+    }
 
     /** The rank of a file [path] as the descriptor names it: next to it first, then below it, then elsewhere. */
     private fun nearness(path: String): Int = when {
@@ -118,4 +143,9 @@ internal class EnvironmentCompletionProvider(
 
     /** The detail of a key in the list: what its value is, and whether it is required. */
     private fun detailOf(key: DescriptorKey): String = if (key.isRequired) "${key.shape.description}, required" else key.shape.description
+
+    private companion object {
+        /** The detail of the descriptor object proposed in an empty descriptor. */
+        const val ROOT_DETAIL = "an environment descriptor"
+    }
 }

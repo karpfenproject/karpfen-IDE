@@ -19,28 +19,45 @@ import io.karpfen.ide.core.text.TextRange
  * - after the `:` of a member without value, up to the next token, the caret is on that member's value, also within a
  *   bare word typed there;
  * - in blank space or a bare word right after `{` or `,` of an object it is on a new key, after `[` or `,` of a list on
- *   a new item; after the last complete member of an object, with nothing but its `}` (or the end of the text) after
- *   the caret, it is on a new key that needs a `,` in front ([DescriptorSlot.Key.separator]), so a key can be added at
- *   the end without typing the comma first;
+ *   a new item;
+ * - after the last complete member of an object or the last item of a list, with nothing but its closing bracket (or
+ *   the end of the text) after the caret, it is on a new key or item that needs a `,` in front ([SlotEdit.leading]), so
+ *   one can be added at the end without typing the comma first;
  * - anywhere else (between a value and the `,` after it, before the root) on nothing.
  *
- * Containers that the text does not close reach as far as their parent does, the root to the end of the text, so the
- * caret at the end of an unfinished descriptor is still inside it. Works on broken text; pure.
+ * In a text of blanks only, which holds no root, the caret is on the [DescriptorSlot.Root]. Containers that the text
+ * does not close reach as far as their parent does, the root to the end of the text, so the caret at the end of an
+ * unfinished descriptor is still inside it. How completion writes at the slot is the business of [SlotEdits]. Works on
+ * broken text; pure.
  */
 internal class DescriptorCaret(private val schema: ValueShape.Record) {
 
-    /** The slot at [offset] of [document], a text of length [textLength]. */
-    fun slotAt(document: JsonDocument, offset: Int, textLength: Int): DescriptorSlot {
-        val root = document.root ?: return DescriptorSlot.None
-        val walk = Walk(document, root, offset)
-        return walk.inValue(root, schema, Place(key = null, owner = null, ownerShape = null), textLength) ?: DescriptorSlot.None
+    /** The slot at [offset] of [text], whose JSON tree is [document]. */
+    fun slotAt(document: JsonDocument, text: String, offset: Int): DescriptorSlot {
+        val edits = SlotEdits(document, text, offset)
+        val root = document.root ?: return if (document.tokens.isEmpty()) {
+            DescriptorSlot.Root(schema, edits.outside(TextRange.empty(offset), container = null))
+        } else {
+            DescriptorSlot.None
+        }
+        val walk = Walk(document, root, offset, edits)
+        val place = Place(key = null, owner = null, ownerShape = null, container = null)
+        return walk.inValue(root, schema, place, text.length) ?: DescriptorSlot.None
     }
 
-    /** Whose value a node is: the [key] it belongs to and the object [owner] (with [ownerShape]) that holds the key. */
-    private data class Place(val key: DescriptorKey?, val owner: JsonNode.ObjectNode?, val ownerShape: ValueShape.Record?)
+    /**
+     * Whose value a node is: the [key] it belongs to and the object [owner] (with [ownerShape]) that holds the key, and
+     * the [container] it is a member value or item of (null for the root).
+     */
+    private data class Place(
+        val key: DescriptorKey?,
+        val owner: JsonNode.ObjectNode?,
+        val ownerShape: ValueShape.Record?,
+        val container: Container?,
+    )
 
-    /** One search for the slot at [offset] in [document], whose root is [root]. */
-    private class Walk(val document: JsonDocument, val root: JsonNode, val offset: Int) {
+    /** One search for the slot at [offset] in [document], whose root is [root]; [edits] works out the slot's edit. */
+    private class Walk(val document: JsonDocument, val root: JsonNode, val offset: Int, val edits: SlotEdits) {
 
         /** The slot in or at [node] (expected to have [shape]), or null if the caret is not there. */
         fun inValue(node: JsonNode, shape: ValueShape?, place: Place, limit: Int): DescriptorSlot? {
@@ -56,10 +73,13 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
                 } else {
                     null
                 }
-                is JsonNode.StringNode ->
-                    if (offset in node.content.start..node.content.end) value(place, shape, node, node.content, inString = true) else null
+                is JsonNode.StringNode -> if (offset in node.content.start..node.content.end) {
+                    value(place, shape, node, edits.inString(node, place.container, continues = false))
+                } else {
+                    null
+                }
                 is JsonNode.NumberNode, is JsonNode.LiteralNode ->
-                    if (node.range.containsInclusive(offset)) value(place, shape, node, node.range, inString = false) else null
+                    if (node.range.containsInclusive(offset)) value(place, shape, node, edits.on(node, place.container)) else null
             }
         }
 
@@ -67,11 +87,9 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
         private fun inObject(node: JsonNode.ObjectNode, shape: ValueShape.Record?, limit: Int): DescriptorSlot {
             for (member in node.members) {
                 val key = member.key
-                if (offset in key.content.start..key.content.end) {
-                    return DescriptorSlot.Key(node, shape, member, key.content, inString = true)
-                }
+                if (offset in key.content.start..key.content.end) return keyOf(node, shape, member)
                 val descriptorKey = shape?.key(key.value)
-                val place = Place(descriptorKey, node, shape)
+                val place = Place(descriptorKey, node, shape, Container.OBJECT)
                 val value = member.value
                 val colon = member.colon
                 if (value != null) {
@@ -80,38 +98,63 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
                     missingValue(colon.end, place, descriptorKey?.shape)?.let { return it }
                 }
             }
-            val word = bareWordAtCaret()
-            val before = document.tokenBefore(word?.range?.start ?: offset)
-            val range = word?.range ?: TextRange.empty(offset)
-            val atKey = before != null && before.range.start >= node.range.start &&
-                (before.kind == JsonTokenKind.BEGIN_OBJECT || before.kind == JsonTokenKind.VALUE_SEPARATOR)
+            val (before, range) = gap()
             return when {
-                atKey -> DescriptorSlot.Key(node, shape, null, range, inString = false)
-                isAfterLastMember(node, before, range.end) -> DescriptorSlot.Key(node, shape, null, range, inString = false, separator = ", ")
+                opens(before, node.range, JsonTokenKind.BEGIN_OBJECT) ->
+                    DescriptorSlot.Key(node, shape, null, edits.outside(range, Container.OBJECT))
+                isAfterLast(node.members.lastOrNull()?.value, node.range, node.isClosed, before, range.end) ->
+                    DescriptorSlot.Key(node, shape, null, edits.outside(range, Container.OBJECT, leading = ", "))
                 else -> DescriptorSlot.None
             }
         }
 
         /**
-         * True if [before], the token before the caret, ends the value of the last member of [node] and nothing but the
-         * object's `}` (or the end of the text) follows [from].
+         * The slot on the key string of [member] of the object [owner] (expected to have [shape]): what completion
+         * writes there ([KeyPart]) decides whether it ends at the key and whether a `,` may be missing behind it.
          */
-        private fun isAfterLastMember(node: JsonNode.ObjectNode, before: JsonToken?, from: Int): Boolean {
-            val lastValue = node.members.lastOrNull()?.value ?: return false
-            if (before == null || before.range.end != lastValue.range.end) return false
-            val next = document.tokens.firstOrNull { it.range.start >= from }
-            return next == null || (node.isClosed && next.range.end == node.range.end)
+        private fun keyOf(owner: JsonNode.ObjectNode, shape: ValueShape.Record?, member: JsonNode.Member): DescriptorSlot.Key {
+            val part = KeyPart.of(member)
+            val container = if (part == KeyPart.MEMBER) Container.OBJECT else null
+            return DescriptorSlot.Key(owner, shape, member, edits.inString(member.key, container, continues = part != KeyPart.NAME))
         }
 
         /** The slot in the list [node] (expected to have [shape]), which is the value of [place]. */
         private fun inList(node: JsonNode.ArrayNode, shape: ValueShape.ListOf?, place: Place, limit: Int): DescriptorSlot {
             val item = shape?.item
-            for (element in node.items) inValue(element, item, place, limit)?.let { return it }
+            val itemPlace = place.copy(container = Container.LIST)
+            for (element in node.items) inValue(element, item, itemPlace, limit)?.let { return it }
+            val (before, range) = gap()
+            return when {
+                opens(before, node.range, JsonTokenKind.BEGIN_ARRAY) ->
+                    value(itemPlace, item, null, edits.outside(range, Container.LIST))
+                isAfterLast(node.items.lastOrNull(), node.range, node.isClosed, before, range.end) ->
+                    value(itemPlace, item, null, edits.outside(range, Container.LIST, leading = ", "))
+                else -> DescriptorSlot.None
+            }
+        }
+
+        /**
+         * The caret's place between the tokens of a container: the token before it, and the range a proposal replaces
+         * there, the bare word at the caret or the empty range at the caret.
+         */
+        private fun gap(): Pair<JsonToken?, TextRange> {
             val word = bareWordAtCaret()
-            val before = document.tokenBefore(word?.range?.start ?: offset)
-            val atItem = before != null && before.range.start >= node.range.start &&
-                (before.kind == JsonTokenKind.BEGIN_ARRAY || before.kind == JsonTokenKind.VALUE_SEPARATOR)
-            return if (atItem) value(place, item, null, word?.range ?: TextRange.empty(offset), inString = false) else DescriptorSlot.None
+            return document.tokenBefore(word?.range?.start ?: offset) to (word?.range ?: TextRange.empty(offset))
+        }
+
+        /** True if [before], the token before the caret, is the [open] bracket of the container at [range] or a `,` in it. */
+        private fun opens(before: JsonToken?, range: TextRange, open: JsonTokenKind): Boolean =
+            before != null && before.range.start >= range.start &&
+                (before.kind == open || before.kind == JsonTokenKind.VALUE_SEPARATOR)
+
+        /**
+         * True if [before], the token before the caret, ends [last], the last member value or item of the container at
+         * [range], and nothing but the container's closing bracket (or the end of the text) follows [from].
+         */
+        private fun isAfterLast(last: JsonNode?, range: TextRange, isClosed: Boolean, before: JsonToken?, from: Int): Boolean {
+            if (last == null || before == null || before.range.end != last.range.end) return false
+            val next = document.tokens.firstOrNull { it.range.start >= from }
+            return next == null || (isClosed && next.range.end == range.end)
         }
 
         /**
@@ -122,18 +165,19 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
             val next = document.tokens.firstOrNull { it.range.start >= colonEnd }
             return when {
                 next != null && next.kind == JsonTokenKind.INVALID && next.range.containsInclusive(offset) ->
-                    value(place, shape, null, next.range, inString = false)
-                next == null || offset <= next.range.start -> value(place, shape, null, TextRange.empty(offset), inString = false)
+                    value(place, shape, null, edits.outside(next.range, place.container))
+                next == null || offset <= next.range.start ->
+                    value(place, shape, null, edits.outside(TextRange.empty(offset), place.container))
                 else -> null
             }
         }
 
         /** The value slot of [place] if everything about it is known, else [DescriptorSlot.None]. */
-        private fun value(place: Place, shape: ValueShape?, node: JsonNode?, range: TextRange, inString: Boolean): DescriptorSlot {
+        private fun value(place: Place, shape: ValueShape?, node: JsonNode?, edit: SlotEdit): DescriptorSlot {
             val key = place.key ?: return DescriptorSlot.None
             val owner = place.owner ?: return DescriptorSlot.None
             val ownerShape = place.ownerShape ?: return DescriptorSlot.None
-            return DescriptorSlot.Value(key, shape ?: return DescriptorSlot.None, node, range, inString, owner, ownerShape, root)
+            return DescriptorSlot.Value(key, shape ?: return DescriptorSlot.None, node, edit, owner, ownerShape, root)
         }
 
         /** The bare word (an INVALID token) containing the caret or ending at it, or null. */

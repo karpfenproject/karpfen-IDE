@@ -21,7 +21,7 @@ internal class EnvironmentNavigationProvider(
 
     override fun definition(request: FeatureRequest, offset: Int): List<Location> {
         val text = request.document.text
-        val slot = caret.slotAt(trees.of(text), offset, text.length) as? DescriptorSlot.Value ?: return emptyList()
+        val slot = caret.slotAt(trees.of(text), text.text, offset) as? DescriptorSlot.Value ?: return emptyList()
         val value = (slot.node as? JsonNode.StringNode)?.value ?: return emptyList()
         val project = DescriptorProject(request)
         val target = when (slot.shape) {

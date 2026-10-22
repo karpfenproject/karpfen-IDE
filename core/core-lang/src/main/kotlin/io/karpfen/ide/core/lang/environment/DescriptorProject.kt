@@ -4,13 +4,12 @@ import io.karpfen.ide.core.document.environment.DescriptorFileRole
 import io.karpfen.ide.core.document.environment.ValueShape
 import io.karpfen.ide.core.document.environment.shapedValues
 import io.karpfen.ide.core.document.json.JsonNode
-import io.karpfen.ide.core.document.parse.ReferenceKind
-import io.karpfen.ide.core.document.parse.SymbolDeclaration
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.analysis.AnalyzedFile
+import io.karpfen.ide.core.workspace.analysis.ContextSymbols
 import io.karpfen.ide.core.workspace.environment.DescriptorPaths
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceNode
@@ -19,13 +18,17 @@ import java.nio.file.Path
 /**
  * What the workspace knows about the files an environment descriptor names, for one request: the request's file tree
  * and latest project analysis, seen from the descriptor's directory. Paths are resolved and written by the workspace's
- * one rule ([DescriptorPaths]); what a file declares comes from the syntax index of its analyzed parse (the editor text
- * of an open file), so it is known even while the descriptor or the model does not convert. Immutable; one per request.
+ * one rule ([DescriptorPaths]); what a file declares comes from the workspace's [ContextSymbols], which read the syntax
+ * index of each analyzed parse (the editor text of an open file), so it is known even while the descriptor or the model
+ * does not convert. Immutable; one per request.
  */
 internal class DescriptorProject(private val request: FeatureRequest) {
 
     /** The descriptor's directory, against which its paths are resolved. */
     private val directory: Path? = request.document.path.parent
+
+    /** What the analyzed files declare and use: objects, `ATTACHED TO` types, event domains. */
+    val symbols: ContextSymbols = ContextSymbols(request.project)
 
     /** The file the descriptor names as [value], absolute and normalized, or null if [value] is no valid path. */
     fun resolve(value: String): Path? = directory?.let { DescriptorPaths.resolve(it, value) }
@@ -61,26 +64,12 @@ internal class DescriptorProject(private val request: FeatureRequest) {
             if (string != null && (value.shape as? ValueShape.FilePath)?.role == role) resolve(string.value) else null
         }
 
-    /** The named objects the model at [model] declares, nested ones included, in document order. */
-    fun objectsOf(model: Path): List<SymbolDeclaration> =
-        analyzed(model)?.parse?.index?.declarationsOf(SymbolKind.OBJECT)?.filter { it.name.isNotBlank() }.orEmpty()
-
     /** The object [key] declared in the model at [model], as a navigation target at its key, or null. */
     fun objectLocation(model: Path, key: String): Location? {
         val file = analyzed(model) ?: return null
         val declaration = file.parse.index.declarations(SymbolKind.OBJECT, key).firstOrNull() ?: return null
         return Location(model, declaration.nameRange, file.snapshot)
     }
-
-    /** The type the state machine at [machine] names after `ATTACHED TO`, or null. */
-    fun attachedTypeOf(machine: Path): String? =
-        analyzed(machine)?.parse?.index?.declarationsOf(SymbolKind.STATEMACHINE)?.firstOrNull()?.typeName
-
-    /** The event domains the state machines at [machines] use in `EVENT("domain", …)`, sorted, without repetitions. */
-    fun eventDomainsOf(machines: List<Path>): List<String> =
-        machines.flatMap { machine ->
-            analyzed(machine)?.parse?.index?.referencesOf(ReferenceKind.EVENT_DOMAIN)?.map { it.name }.orEmpty()
-        }.filter { it.isNotBlank() }.distinct().sorted()
 
     private fun analyzed(path: Path): AnalyzedFile? = request.project.file(path)
 }

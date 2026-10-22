@@ -124,7 +124,9 @@ below, which the `Workspace` factory function creates.
   descriptor from its editor text, so its findings, the contexts and the analysis follow unsaved edits.
 - **Analysis.** The `analysis` package converts every context with dsl-tools: `ProjectAnalyzer` documents the rules,
   `DefaultProjectAnalyzer` implements them, `ProjectAnalysis` is the result, and `AnalysisScheduler` runs the
-  analysis again, debounced and cancellable, when the contexts or the open documents change.
+  analysis again, debounced and cancellable, when the contexts or the open documents change. `ContextSymbols` answers
+  what the analyzed files declare that descriptors refer to (objects, `ATTACHED TO` types, event domains); the
+  descriptor's language services and the template of new descriptors both ask it.
 - **Problems.** The `problems` package applies one rule to every diagnostic of every file: `WorkspaceProblems` and
   `WorkspaceProblemsAggregator`. The Problems view, the status bar and `karpfen validate` all use it unchanged, which
   is why the IDE and the CLI always agree.
@@ -138,7 +140,8 @@ matching, and at `LanguageDocument`, its immutable input, whose KDoc explains ho
 - **Per language.** `LanguageFeatures` (package `feature`) is the family of providers of one language;
   `karpfenLanguageFeatures` lists them. The packages `kmeta`, `kmodel` and `kstates` hold the providers, for example
   `KstatesCompletionProvider`; the package `environment` holds those of descriptors, which find the place of the caret
-  with `DescriptorCaret` and what the named files declare with `DescriptorProject`.
+  with `DescriptorCaret`, how a proposal keeps the JSON valid there (quotes, missing commas) with `SlotEdits`, and what
+  the named files declare with `DescriptorProject`.
 - **Shared mechanics.** `CaretContextDetector` (package `context`) finds out what surrounds the caret, `TypeCatalog`
   (package `symbols`) knows the types of a modeling context, `ModelPathResolver` (package `modelpath`) resolves model
   paths such as `$(boundingBox->position)`, `DefaultHighlightProvider` (package `highlight`) maps tokens and semantic

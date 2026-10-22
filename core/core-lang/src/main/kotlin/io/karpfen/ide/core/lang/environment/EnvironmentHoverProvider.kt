@@ -27,10 +27,10 @@ internal class EnvironmentHoverProvider(
 
     override fun hover(request: FeatureRequest, offset: Int): Hover? {
         val text = request.document.text
-        return when (val slot = caret.slotAt(trees.of(text), offset, text.length)) {
+        return when (val slot = caret.slotAt(trees.of(text), text.text, offset)) {
             is DescriptorSlot.Key -> slot.member?.let { member -> keyText(member.key.value, slot.shape)?.let { Hover(member.key.content, it) } }
             is DescriptorSlot.Value -> valueHover(DescriptorProject(request), slot)
-            DescriptorSlot.None -> null
+            is DescriptorSlot.Root, DescriptorSlot.None -> null
         }
     }
 
@@ -65,9 +65,9 @@ internal class EnvironmentHoverProvider(
     /** The object an `attachedTo` names, with its type. */
     private fun objectText(project: DescriptorProject, slot: DescriptorSlot.Value, key: String): String {
         val model = project.fileNamed(DescriptorFileRole.MODEL, slot.root, schema) ?: return "The descriptor names no model."
-        val declaration = project.objectsOf(model).firstOrNull { it.name == key }
+        val modelObject = project.symbols.objectsOf(model).firstOrNull { it.key == key }
             ?: return "The model ${model.fileName} has no object '$key'."
-        return "object $key: ${declaration.typeName.orEmpty()}"
+        return "object $key: ${modelObject.typeName.orEmpty()}"
     }
 
     /** The documentation of [key]: what its value is, whether it is required, and what it means. */

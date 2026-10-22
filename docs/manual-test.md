@@ -113,7 +113,9 @@ Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, 
    has no comments.
 2. Put the caret after the last value of the outer object (the `}` that closes `"observe"`), press Enter and then
    **Ctrl+M**: completion offers the keys that are not there yet, for example `tickDelayMs` and `eventTtlMs`. Accept
-   `tickDelayMs`: it arrives with the comma it needs and the value `50`.
+   `tickDelayMs`: it arrives with the comma it needs and the value `50`. Press Enter after the comma that ends the
+   `"model"` line, type `"` and accept `eventTtlMs`: the key arrives with its colon, a value and the comma in front
+   of the next key, and the descriptor shows no syntax error.
 3. Put the caret inside the quotes of the `"model"` value, delete the file name and press Ctrl+M: completion offers the
    models of the workspace relative to the descriptor, `cleaning_robot.kmodel` first. Accept it. Delete `turtle` from
    the `"attachedTo"` value and press Ctrl+M: completion offers the model's objects, `turtle` first because it is the

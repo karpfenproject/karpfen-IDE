@@ -67,8 +67,8 @@ class EnvironmentFeaturesTest {
     }
 
     @Test
-    fun `inside a key string only the key is inserted, and nested objects offer their own keys`() {
-        val items = complete("{ \"metamodel\": \"a\", \"ti‸\" }")
+    fun `inside a key string a key with its colon is renamed, and nested objects offer their own keys`() {
+        val items = complete("{ \"metamodel\": \"a\", \"ti‸\": 5 }")
         val tick = items.single { it.label == "tickDelayMs" }
         assertEquals("tickDelayMs", tick.insertText)
         assertEquals(TextRange(21, 23), tick.replaceRange)
