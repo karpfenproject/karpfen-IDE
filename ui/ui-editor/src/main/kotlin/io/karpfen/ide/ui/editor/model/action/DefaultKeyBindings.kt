@@ -14,9 +14,10 @@ internal data class KeyBinding(val shortcut: KeyShortcut, val actionId: String)
  * Linux use Ctrl for words, Ctrl+Home/End, Ctrl+Y, F3 and Ctrl+G.
  *
  * Completion is Ctrl+M on every platform, with the physical Control key on macOS too, and it is the first completion
- * binding, so menus show Ctrl+M everywhere. Windows binds Ctrl+Space as a second completion key, the one Windows users
- * expect. macOS and Linux leave Ctrl+Space unbound for the system: macOS switches input sources with it, and Linux
- * input-method frameworks commonly toggle the input method with it.
+ * binding, so a menu item of completion (the window's Edit ▸ Complete Code) shows Ctrl+M everywhere. Windows binds
+ * Ctrl+Space as a second completion key, the one Windows users expect. macOS and Linux leave Ctrl+Space unbound for
+ * the system: macOS switches input sources with it, and Linux input-method frameworks commonly toggle the input method
+ * with it.
  */
 internal fun defaultKeyBindings(platform: HostPlatform): List<KeyBinding> = buildList {
     val mac = platform == HostPlatform.MAC_OS

@@ -155,7 +155,7 @@ class EditorActionRegistryTest {
     }
 
     @Test
-    fun `menus show Ctrl+M for completion on every platform, in the platform's notation`() {
+    fun `the completion shortcut a menu shows is Ctrl+M on every platform, in the platform's notation`() {
         val shown = HostPlatform.entries.associateWith { platform ->
             val shortcut = assertNotNull(defaultEditorKeymap(platform).shortcutFor(EditorActionIds.COMPLETION), "$platform")
             assertEquals(KeyShortcut(KeyCode.M, ctrl = true), shortcut, "the first binding, Ctrl+M, is the one menus show")

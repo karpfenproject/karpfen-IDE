@@ -51,8 +51,8 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
  * `karpfen validate` report the same problems for the examples plus the shared descriptor examples, before and after
  * opening and closing files (descriptors included), because all three map `Workspace.problems`, the one problems
  * rule. A command-line folder that `main` saw as a directory may be gone (unmounted, deleted) by the time `prepare`
- * opens it. On every platform the registered Complete Code command carries Ctrl+M, so a menu shows it in that
- * platform's notation.
+ * opens it. On every platform the Edit menu resolves Complete Code with the accelerator Ctrl+M, written in that
+ * platform's notation, and the stroke finds that command.
  */
 class IdeEndToEndTest {
 
@@ -89,16 +89,21 @@ class IdeEndToEndTest {
 
     @ParameterizedTest
     @EnumSource(HostPlatform::class)
-    fun `the Complete Code command carries Ctrl+M and shows it in the platform's notation`(platform: HostPlatform) =
+    fun `the Edit menu shows Complete Code with Ctrl+M in the platform's notation`(platform: HostPlatform) =
         scenario(platform) {
             val session = prepare(Files.createDirectories(root))
+            val recent = session.state.settings.value.recentFolders.size
 
-            val completion = assertNotNull(session.commands.find(EditorActionIds.COMPLETION), "registered on $platform")
-            val shortcut = assertNotNull(completion.shortcut, "with a shortcut on $platform")
-            assertEquals(KeyShortcut(KeyCode.M, ctrl = true), shortcut)
-            assertEquals(COMPLETION_SHORTCUT_TEXT.getValue(platform), shortcut.displayText(platform))
-            assertEquals(ComposeKeyShortcut(Key.M, ctrl = true), shortcut.toMenuShortcut(platform), "the menu accelerator")
-            assertSame(completion, session.commands.commandFor(KeyStroke(KeyCode.M, setOf(KeyModifier.CTRL))))
+            val edit = resolveMenus(IdeMenus.specs(recent), session.commands).single { it.title == IdeMenus.EDIT }
+            val completion = edit.entries.filterIsInstance<ResolvedMenuEntry.Item>()
+                .singleOrNull { it.command.id == EditorActionIds.COMPLETION }
+            val item = assertNotNull(completion, "Edit lists Complete Code on $platform")
+            assertEquals("Complete Code", item.title)
+            val accelerator = assertNotNull(item.accelerator, "with an accelerator on $platform")
+            assertEquals(KeyShortcut(KeyCode.M, ctrl = true), accelerator)
+            assertEquals(COMPLETION_SHORTCUT_TEXT.getValue(platform), accelerator.displayText(platform))
+            assertEquals(ComposeKeyShortcut(Key.M, ctrl = true), accelerator.toMenuShortcut(platform), "the native menu's shortcut")
+            assertSame(item.command, session.commands.commandFor(KeyStroke(KeyCode.M, setOf(KeyModifier.CTRL))))
         }
 
     @Test

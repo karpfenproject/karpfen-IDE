@@ -58,17 +58,19 @@ class IdeMenusTest {
     }
 
     @Test
-    fun `Edit has the editing commands including Find Next and Find Previous`() {
+    fun `Edit has the editing commands including Find Next, Find Previous and Complete Code`() {
         assertEquals(
             listOf(
                 EditorActionIds.UNDO, EditorActionIds.REDO,
                 EditorActionIds.CUT, EditorActionIds.COPY, EditorActionIds.PASTE, EditorActionIds.SELECT_ALL,
                 EditorActionIds.FIND, EditorActionIds.REPLACE, EditorActionIds.FIND_NEXT, EditorActionIds.FIND_PREVIOUS,
                 EditorActionIds.TOGGLE_COMMENT, EditorActionIds.DUPLICATE,
+                EditorActionIds.COMPLETION,
             ),
             menu(IdeMenus.EDIT).itemIds(),
         )
         assertEquals("Duplicate Line", EditorActionTitles.of(EditorActionIds.DUPLICATE), "the Edit menu names it Duplicate Line")
+        assertEquals("Complete Code", EditorActionTitles.of(EditorActionIds.COMPLETION), "and completion Complete Code")
     }
 
     @Test

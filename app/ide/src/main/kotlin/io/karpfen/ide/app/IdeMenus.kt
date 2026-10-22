@@ -21,12 +21,14 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 
 /**
  * The window menus: File (Open Folder…, Open Recent, Save, Save All, Close Tab), Edit (Undo, Redo, Cut, Copy, Paste,
- * Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line), View (one toggle per
- * `ToolWindowId.entries` with its `title` and `WorkbenchCommandIds.toggleToolWindow(id)`, Light/Dark theme), Navigate
- * (Go to Line, Go to Definition); items reference `WorkbenchCommandIds` and `EditorActionIds`.
+ * Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line, Complete Code), View (one toggle
+ * per `ToolWindowId.entries` with its `title` and `WorkbenchCommandIds.toggleToolWindow(id)`, Light/Dark theme),
+ * Navigate (Go to Line, Go to Definition); items reference `WorkbenchCommandIds` and `EditorActionIds`.
  *
  * Menus hold command ids only: titles, shortcuts and enablement come from the registered commands (the workbench
  * registers the tool-window toggles with `ToolWindowId.title` and the editor commands with `EditorActionTitles`).
+ * Edit lists Complete Code although the editor handles its keys itself, so that the window shows the completion
+ * shortcut, Ctrl+M, which nobody would guess.
  */
 public object IdeMenus {
     /** Title of the File menu. */
@@ -84,6 +86,8 @@ public object IdeMenus {
             MenuEntry.Separator,
             item(EditorActionIds.TOGGLE_COMMENT),
             item(EditorActionIds.DUPLICATE),
+            MenuEntry.Separator,
+            item(EditorActionIds.COMPLETION),
         ),
     )
 

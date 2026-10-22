@@ -58,8 +58,10 @@ import kotlin.time.Duration.Companion.seconds
  * consumes the stroke, so no menu command runs — and Cmd+X with the focus in the project tree reaches the menu, whose
  * Cut is disabled while the editor is unfocused, so the editor text stays unchanged; shortcuts typed into a dialog
  * reach no command (the dialogs are modal). Completion follows the keymap of each platform: Ctrl+M in the focused
- * editor opens it everywhere, Ctrl+Space only on Windows; on macOS and Linux Ctrl+Space goes on unconsumed and runs no
- * command. (The native macOS menu bar itself is covered by the manual test.)
+ * editor opens it everywhere, and the editor consumes the stroke, so the Edit menu's Complete Code, whose accelerator is
+ * Ctrl+M, never sees it; with the focus in the project tree Ctrl+M reaches that menu item, which is disabled while the
+ * editor is unfocused. Ctrl+Space opens completion only on Windows; on macOS and Linux it goes on unconsumed and runs
+ * no command. (The native macOS menu bar itself is covered by the manual test.)
  */
 @OptIn(ExperimentalTestApi::class)
 class KeyRoutingEndToEndTest {
@@ -167,8 +169,28 @@ class KeyRoutingEndToEndTest {
             val labels = assertNotNull(editor.completion.state.value, "completion opened on $platform").items.map { it.label }
             assertTrue("Robot" in labels, "the domain types are offered: $labels")
             assertEquals(listOf(), menu.unconsumed, "the editor consumed Ctrl+M")
+            assertEquals(listOf(), menu.reached, "so Complete Code in the Edit menu never saw it")
             assertEquals(original, text(editor), "nothing was typed")
         }
+
+    @ParameterizedTest
+    @EnumSource(HostPlatform::class)
+    fun `Ctrl+M with the focus in the project tree reaches the menu's Complete Code, which runs only in a focused editor`(
+        platform: HostPlatform,
+    ) = composedIde(platform) { ide, menu, editor ->
+        val original = text(editor)
+        projectTree().requestFocus()
+        settle(ide)
+        assertFalse(editor.isFocused.value)
+
+        projectTree().performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.M) } }
+        settle(ide)
+
+        assertEquals(listOf(EditorActionIds.COMPLETION), menu.reached, "the tree does not consume Ctrl+M on $platform")
+        assertEquals(listOf(), menu.ran, "Complete Code is disabled while the editor is not focused")
+        assertNull(editor.completion.state.value, "no completion opened")
+        assertEquals(original, text(editor))
+    }
 
     @ParameterizedTest
     @EnumSource(HostPlatform::class)
