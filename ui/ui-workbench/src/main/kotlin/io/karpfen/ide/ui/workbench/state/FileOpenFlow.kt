@@ -10,9 +10,10 @@ import java.io.IOException
 import java.nio.file.Path
 
 /**
- * Opening a file: karpfen sources open in an editor tab (or activate theirs); files the editor cannot open
- * (`OpenResult.Unsupported`, e.g. `*.kenv.json`) open in the system's default application through [fileOperations] on
- * [ioDispatcher], also when the Problems view navigates to them; failures become an error dialog.
+ * Opening a file: files of a karpfen language — the modeling languages and environment descriptors — open in an editor
+ * tab (or activate theirs); files the editor cannot open (`OpenResult.Unsupported`, e.g. a bridge configuration or a
+ * README) open in the system's default application through [fileOperations] on [ioDispatcher], also when the Problems
+ * view navigates to them; failures become an error dialog.
  */
 internal class FileOpenFlow(
     private val lifecycle: EditorLifecycle,

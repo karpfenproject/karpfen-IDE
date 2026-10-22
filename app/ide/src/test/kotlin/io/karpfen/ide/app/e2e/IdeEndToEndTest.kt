@@ -5,6 +5,7 @@ import io.karpfen.ide.app.IdeMenus
 import io.karpfen.ide.app.IdePhase
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
+import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
@@ -48,9 +49,10 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
  * The composition root over the production wiring: `IdeApplication.prepare` opens the folder given on the command line
  * into the real workbench, the menus resolve against its commands, and the Problems view, the status bar and
  * `karpfen validate` report the same problems for the examples plus the shared descriptor examples, before and after
- * opening and closing files, because all three map `Workspace.problems`, the one problems rule. A command-line folder
- * that `main` saw as a directory may be gone (unmounted, deleted) by the time `prepare` opens it. On every platform the
- * registered Complete Code command carries Ctrl+M, so a menu shows it in that platform's notation.
+ * opening and closing files (descriptors included), because all three map `Workspace.problems`, the one problems
+ * rule. A command-line folder that `main` saw as a directory may be gone (unmounted, deleted) by the time `prepare`
+ * opens it. On every platform the registered Complete Code command carries Ctrl+M, so a menu shows it in that
+ * platform's notation.
  */
 class IdeEndToEndTest {
 
@@ -134,7 +136,7 @@ class IdeEndToEndTest {
             assertTrue(
                 codes.containsAll(
                     listOf(
-                        WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID,
+                        DiagnosticCodes.SYNTAX_ERROR,
                         WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE,
                         WorkspaceDiagnosticCodes.DESCRIPTOR_UNKNOWN_KEY,
                         WorkspaceDiagnosticCodes.CONTEXT_MULTIPLE_METAMODELS,
@@ -148,6 +150,8 @@ class IdeEndToEndTest {
                 looseMetamodel,
                 root.resolve("ctx-unknown/cleaning_robot.kstates"),
                 root.resolve("${DescriptorExamples.CONTEXT_DIRECTORY}/cleaning_robot.kmodel"),
+                root.resolve("ctx-unknown/${DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE}"),
+                root.resolve("ctx-invalid/${DescriptorExamples.INVALID_JSON}"),
             )
             opened.forEach { session.state.openFile(it).also { settle() } }
             session.state.workspace.value!!.awaitAnalysis()

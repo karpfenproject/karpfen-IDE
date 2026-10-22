@@ -28,7 +28,7 @@ internal class ProjectTreeNodes(tree: WorkspaceTree) {
             FileKind.KMETA, FileKind.EVENTS_KMETA -> KarpfenIcons.Kmeta
             FileKind.KMODEL -> KarpfenIcons.Kmodel
             FileKind.KSTATES -> KarpfenIcons.Kstates
-            FileKind.ENV_DESCRIPTOR, FileKind.LAYOUT -> KarpfenIcons.Json
+            FileKind.ENV_DESCRIPTOR, FileKind.BRIDGE, FileKind.LAYOUT -> KarpfenIcons.Json
             FileKind.OTHER -> KarpfenIcons.File
         }
     }

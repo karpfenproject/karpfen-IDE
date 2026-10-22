@@ -148,7 +148,7 @@ class WorkbenchUiTest {
     }
 
     @Test
-    fun `double-clicking a problem navigates to it, a descriptor problem opens externally`() = workbenchUiTest(dir) {
+    fun `double-clicking a problem navigates to it, also into a descriptor`() = workbenchUiTest(dir) {
         TestWorkbench.write(root.resolve("broken/broken.kmeta"), "type \"A\" \"a\" {\n    oops\n}\n")
         DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
         workbench.open(root)
@@ -165,7 +165,10 @@ class WorkbenchUiTest {
         val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
         test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(descriptor, 0))).performMouseInput { doubleClick() }
         settle()
-        assertEquals(listOf(descriptor), workbench.fileOperations.openedExternally)
+        assertEquals(descriptor, workbench.state.tabs.active.value)
+        val descriptorEditor = assertNotNull(workbench.state.tabs.editorFor(descriptor))
+        assertEquals(Files.readString(descriptor).indexOf("missing.kmodel"), descriptorEditor.caret.primary.position)
+        assertEquals(emptyList(), workbench.fileOperations.openedExternally)
     }
 
     @Test

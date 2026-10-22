@@ -57,7 +57,7 @@ public fun defaultWorkbenchServices(
     return WorkbenchServices(
         settings = SettingsRepository(settingsDirectory, ioDispatcher, clock),
         workspaceFactory = WorkspaceFactory(workspaceOptions, fileWatcher, defaultLanguageRegistry()),
-        languageServicesFactory = { workspace -> defaultLanguageServices(workspace.analysis) },
+        languageServicesFactory = { workspace -> defaultLanguageServices(workspace.analysis, files = workspace.files) },
         editorStateFactory = { session, languageServices, scope, settings, keymap ->
             CodeEditorState(
                 session, languageServices, scope, clipboard, settings,

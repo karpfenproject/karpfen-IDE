@@ -44,8 +44,8 @@ public interface ProjectFileOperations {
     public fun revealInFileManager(path: Path)
 
     /**
-     * Opens [path] in the system's default application (phase 1: environment descriptors and other files the editor
-     * cannot open); no-op if unsupported.
+     * Opens [path] in the system's default application (the files the editor cannot open, such as bridge
+     * configurations); no-op if unsupported.
      * @throws java.io.IOException if the platform fails to open it, also when it does not exist
      *   (`java.nio.file.NoSuchFileException`); never an unchecked exception of the platform.
      */

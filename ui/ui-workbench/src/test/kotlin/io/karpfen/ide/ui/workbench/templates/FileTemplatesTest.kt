@@ -28,12 +28,11 @@ class FileTemplatesTest {
             FileTemplateKind.KMETA -> KarpfenLanguage.KMETA
             FileTemplateKind.KMODEL -> KarpfenLanguage.KMODEL
             FileTemplateKind.KSTATES -> KarpfenLanguage.KSTATES
-            FileTemplateKind.ENVIRONMENT -> null
+            FileTemplateKind.ENVIRONMENT -> KarpfenLanguage.ENVIRONMENT
         }
-        if (language == null) {
+        if (kind == FileTemplateKind.ENVIRONMENT) {
             val read = EnvironmentDescriptorReader().read(directory.resolve("x.kenv.json"), text)
             assertEquals(emptyList(), read.diagnostics, "$label: $text")
-            return
         }
         val support = languages.support(language)
         val snapshot = TextSnapshot(text, 0)
@@ -113,6 +112,17 @@ class FileTemplatesTest {
             descriptor,
             "attached by type, else to the first object",
         )
+    }
+
+    @Test
+    fun `the environment template observes every object and the event domains of the state machines`() {
+        val descriptor = descriptorOf(
+            templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory, eventDomains = listOf("internal", "public"))),
+        )
+
+        assertEquals(EnvironmentDescriptor.ObserveSpec(EnvironmentTemplate.OBSERVE_ALL, listOf("internal", "public")), descriptor.observe)
+        val text = templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory))
+        assertTrue("observe" !in text && "events" !in text && "null" !in text, "keys left at their defaults are omitted: $text")
     }
 
     @Test

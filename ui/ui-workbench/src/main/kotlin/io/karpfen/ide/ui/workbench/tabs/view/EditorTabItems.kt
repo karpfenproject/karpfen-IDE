@@ -28,4 +28,5 @@ private fun iconOf(language: KarpfenLanguage) = when (language) {
     KarpfenLanguage.KMETA -> KarpfenIcons.Kmeta
     KarpfenLanguage.KMODEL -> KarpfenIcons.Kmodel
     KarpfenLanguage.KSTATES -> KarpfenIcons.Kstates
+    KarpfenLanguage.ENVIRONMENT -> KarpfenIcons.Json
 }

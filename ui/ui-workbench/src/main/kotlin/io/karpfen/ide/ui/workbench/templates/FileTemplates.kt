@@ -37,6 +37,8 @@ public enum class FileTemplateKind(public val suffix: String, public val display
  *   key and type name (`SymbolDeclaration.typeName`); empty if unknown.
  * @property stateMachineTypes the `ATTACHED TO` type (`SymbolDeclaration.typeName` of the STATEMACHINE declaration) of
  *   each state machine of the context, by path; a machine whose type is unknown is absent.
+ * @property eventDomains the event domains the context's state machines use (`EVENT("domain", …)`), sorted, without
+ *   repetitions.
  */
 public data class TemplateContext(
     public val directory: Path,
@@ -44,6 +46,7 @@ public data class TemplateContext(
     public val typeNames: List<String> = emptyList(),
     public val objects: List<TemplateObject> = emptyList(),
     public val stateMachineTypes: Map<Path, String> = emptyMap(),
+    public val eventDomains: List<String> = emptyList(),
 )
 
 /** An object a descriptor can attach a state machine to: its [key] and its [typeName] (null if the text omits it). */
@@ -60,8 +63,9 @@ public data class TemplateObject(public val key: String, public val typeName: St
  *   instead of turning them into loose files. Each state machine is attached to the key of the first object whose type
  *   equals the machine's `ATTACHED TO` type (`stateMachineTypes`), else to the first object's key, else to the
  *   placeholder `"object"` (e.g. single_robot_example: `cleaning_robot.kstates` → `"turtle"`, the Robot, not the root
- *   Room). Without a context, files named after the descriptor (reported as `descriptor-missing-file` until created).
- *   It must read without diagnostics except missing referenced files.
+ *   Room). When the state machines use event domains, it observes every object and those domains. Without a context,
+ *   files named after the descriptor (reported as `descriptor-missing-file` until created). It must read without
+ *   diagnostics except missing referenced files, and it opens in an editor tab like every karpfen file.
  */
 public interface FileTemplates {
 

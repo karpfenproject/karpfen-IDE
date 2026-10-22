@@ -103,9 +103,10 @@ public interface WorkbenchState : AutoCloseable {
     public fun chooseAndOpenFolder(): Job
 
     /**
-     * Opens [path] in an editor tab (or activates its tab). Files the editor cannot open (`OpenResult.Unsupported`,
-     * e.g. `*.kenv.json`) are opened in the system's default application (`ProjectFileOperations.openExternally`), also
-     * when navigating to them from the Problems view; failures become an error dialog.
+     * Opens [path] in an editor tab (or activates its tab): KMeta, KModel and KStates files and environment
+     * descriptors. Files the editor cannot open (`OpenResult.Unsupported`, e.g. a bridge configuration) are opened in
+     * the system's default application (`ProjectFileOperations.openExternally`), also when navigating to them from the
+     * Problems view; failures become an error dialog.
      */
     public fun openFile(path: Path): Job
 
@@ -114,9 +115,8 @@ public interface WorkbenchState : AutoCloseable {
      * document's current text with `EditableText.mapRange(range, version, lineage)` and clamped to the text when that
      * returns null (another lineage, a newer version, evicted history, or no version at all). The caret move,
      * `scrollTo(center = true)` and the focus request are pending state of the editor, so they take effect when a new
-     * tab is composed. Files the editor cannot open are opened externally (Problems navigation to descriptor
-     * diagnostics). The Problems and Outline views call it with `ProblemItem.location` and
-     * `OutlineUiState.locationOf(node)`.
+     * tab is composed. Files the editor cannot open are opened externally. The Problems and Outline views call it
+     * with `ProblemItem.location` and `OutlineUiState.locationOf(node)`.
      */
     public fun navigateTo(location: Location): Job
 

@@ -1,5 +1,6 @@
 package io.karpfen.ide.ui.workbench.state
 
+import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.document.parse.SyntaxIndex
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
@@ -12,8 +13,8 @@ import java.nio.file.Path
  * Builds the [TemplateContext] of a new file from the workspace's contexts and the IDE-owned syntax indexes of its
  * latest analysis — never from converted dsl-tools models, so the mediator never walks them and the context is also
  * known while a metamodel does not convert: the directory's context (its explicit context if a descriptor covers it,
- * else its implicit one), the TYPE declarations of the context's metamodel, the OBJECT declarations of its first model
- * and each state machine's `ATTACHED TO` type. Pure.
+ * else its implicit one), the TYPE declarations of the context's metamodel, the OBJECT declarations of its first model,
+ * each state machine's `ATTACHED TO` type and the event domains the state machines use. Pure.
  */
 internal object TemplateContextBuilder {
 
@@ -29,6 +30,11 @@ internal object TemplateContextBuilder {
         val machineTypes = context.stateMachines.mapNotNull { binding ->
             index(binding.file)?.declarationsOf(SymbolKind.STATEMACHINE)?.firstOrNull()?.typeName?.let { binding.file to it }
         }.toMap()
-        return TemplateContext(directory, context, typeNames, objects, machineTypes)
+        val eventDomains = context.stateMachines
+            .flatMap { binding -> index(binding.file)?.referencesOf(ReferenceKind.EVENT_DOMAIN)?.map { it.name }.orEmpty() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+        return TemplateContext(directory, context, typeNames, objects, machineTypes, eventDomains)
     }
 }

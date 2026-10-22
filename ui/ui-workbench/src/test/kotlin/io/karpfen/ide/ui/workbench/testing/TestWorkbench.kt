@@ -51,7 +51,7 @@ class TestWorkbench(
     val scheduler: TestCoroutineScheduler,
     val settingsDirectory: Path,
     val fileOperations: RecordingFileOperations = RecordingFileOperations(),
-    languageServices: (Workspace) -> LanguageServices = { defaultLanguageServices(it.analysis) },
+    languageServices: (Workspace) -> LanguageServices = { defaultLanguageServices(it.analysis, files = it.files) },
 ) {
     /** The one test dispatcher on [scheduler] that runs all of the workbench's work. */
     val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)

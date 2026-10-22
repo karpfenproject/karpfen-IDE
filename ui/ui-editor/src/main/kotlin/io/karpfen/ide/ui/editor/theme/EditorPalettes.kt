@@ -4,13 +4,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import io.karpfen.ide.core.lang.HighlightStyle
 
 /**
  * The two editor palettes (immutable constants), matching the window colours of the karpfen theme in ui-foundation:
  * neutral backgrounds, blue selection, the foundation's severity colours. Syntax colours map every [HighlightStyle]:
  * karpfen keywords bold, action operations in their own colour, names by semantic kind (types, states, properties,
- * objects, macros, events), embedded Python in muted variants of the same hues, comments italic. Text colours keep a
+ * objects, macros, events), embedded Python in muted variants of the same hues, comments italic; in environment
+ * descriptors file paths underlined like links, numbers and booleans as the lexical numbers and keywords. Text colours keep a
  * contrast of at least 4.5:1 on the editor background (tested).
  */
 internal object EditorPalettes {
@@ -129,6 +131,9 @@ internal object EditorPalettes {
             HighlightStyle.MODEL_PATH, HighlightStyle.PATH_REFERENCE -> SpanStyle(color = modelPath)
             HighlightStyle.DESCRIPTION -> SpanStyle(color = string, fontStyle = FontStyle.Italic)
             HighlightStyle.BINDING_NAME -> SpanStyle(color = objectName, fontStyle = FontStyle.Italic)
+            HighlightStyle.FILE_PATH -> SpanStyle(color = modelPath, textDecoration = TextDecoration.Underline)
+            HighlightStyle.NUMBER_VALUE -> SpanStyle(color = number)
+            HighlightStyle.BOOLEAN_VALUE -> SpanStyle(color = keyword, fontWeight = FontWeight.Bold)
             HighlightStyle.EMBEDDED_CODE -> SpanStyle(color = embedded)
             HighlightStyle.EMBEDDED_KEYWORD -> SpanStyle(color = keyword)
             HighlightStyle.EMBEDDED_COMMENT -> SpanStyle(color = comment, fontStyle = FontStyle.Italic)

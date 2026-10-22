@@ -129,14 +129,31 @@ class NavigationTest {
     }
 
     @Test
-    fun `navigating to a descriptor problem opens the descriptor in the default application`() = scenario(prepare = {
+    fun `navigating to a descriptor problem opens the descriptor in a tab at the problem`() = scenario(prepare = {
         DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
     }) {
         val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
         val problem = problemsOf(descriptor).first()
 
         state.navigateTo(problem.location).joinSettled()
-        assertEquals(listOf(descriptor), fileOperations.openedExternally)
+
+        assertEquals(descriptor, state.tabs.active.value)
+        val editor = assertNotNull(state.tabs.editorFor(descriptor))
+        assertEquals(text(descriptor).indexOf("missing.kmodel"), editor.caret.primary.position)
+        assertEquals(emptyList(), fileOperations.openedExternally)
+        assertNoDialog()
+    }
+
+    @Test
+    fun `a file of no karpfen language, such as a bridge configuration, opens in the default application`() = scenario(prepare = {
+        Examples.copyTo(root)
+        Files.writeString(root.resolve("mqtt.kbridge.json"), "{}")
+    }) {
+        val bridge = root.resolve("mqtt.kbridge.json")
+
+        state.openFile(bridge).joinSettled()
+
+        assertEquals(listOf(bridge), fileOperations.openedExternally)
         assertTrue(state.tabs.tabs.value.isEmpty())
         assertNoDialog()
     }
@@ -155,7 +172,7 @@ class NavigationTest {
             val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)
 
             assertEquals("Cannot open ${descriptor.fileName}", error.title)
-            assertEquals("$descriptor: the file does not exist", error.message)
+            assertEquals("Cannot open ${descriptor.fileName}: the file does not exist", error.message)
             assertNoDialog()
         }
 

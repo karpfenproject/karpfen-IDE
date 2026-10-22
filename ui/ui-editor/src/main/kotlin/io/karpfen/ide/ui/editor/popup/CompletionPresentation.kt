@@ -31,6 +31,8 @@ internal data class KindBadge(val text: String, val description: String, val sty
             CompletionKind.EVENT -> KindBadge("e", "event", HighlightStyle.EVENT_NAME)
             CompletionKind.PATH_SEGMENT -> KindBadge("→", "path segment", HighlightStyle.MODEL_PATH)
             CompletionKind.BINDING -> KindBadge("b", "binding", HighlightStyle.BINDING_NAME)
+            CompletionKind.FILE -> KindBadge("f", "file", HighlightStyle.FILE_PATH)
+            CompletionKind.VALUE -> KindBadge("v", "value", HighlightStyle.NUMBER_VALUE)
         }
     }
 }

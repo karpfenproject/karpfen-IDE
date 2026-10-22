@@ -131,7 +131,7 @@ class ValidateCliTest {
         assertEquals(ExitCodes.ERRORS_FOUND, invalid.status)
         val line = invalid.lines.single()
         assertTrue(line.startsWith("${DescriptorExamples.INVALID_JSON}:"), line)
-        assertTrue(line.endsWith("[${WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID}]"), line)
+        assertEquals("${DescriptorExamples.INVALID_JSON}:3:11: error: Expected a value after ':'. [${DiagnosticCodes.SYNTAX_ERROR}]", line)
         assertEquals(CliRun(ExitCodes.OK, stdout = "", stderr = ""), valid)
     }
 

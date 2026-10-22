@@ -62,11 +62,11 @@ class CreateFileFlowTest {
             assertTrue(state.projectTree.tree.value?.find(created) != null, "the workspace was refreshed")
         }
         assertEquals(
-            listOf("robot.kmeta", "robot.kmodel", "robot.kstates"),
+            listOf("robot.kmeta", "robot.kmodel", "robot.kstates", "robot.kenv.json"),
             state.tabs.tabs.value.map { it.title },
-            "karpfen files open in tabs",
+            "karpfen files and descriptors open in tabs",
         )
-        assertEquals(listOf(empty.resolve("robot.kenv.json")), fileOperations.openedExternally, "descriptors open externally")
+        assertEquals(emptyList(), fileOperations.openedExternally)
 
         workspace.awaitAnalysis()
         settle()
@@ -84,6 +84,8 @@ class CreateFileFlowTest {
         assertEquals("cleaning_robot.kmodel", written.model)
         val attached = EnvironmentDescriptor.StateMachineEntry("cleaning_robot.kstates", DescriptorExamples.ATTACHED_TO)
         assertEquals(listOf(attached), written.stateMachines)
+        assertEquals(EnvironmentDescriptor.ObserveSpec("*", listOf("public")), written.observe, "the domains of the state machine")
+        assertEquals(descriptor, state.tabs.active.value, "the new descriptor opens in the IDE")
 
         val model = create(robot, FileTemplateKind.KMODEL, "second")
         assertTrue(Files.readString(model).contains("\"second\":\"Vector\""), "the context's first domain type")
