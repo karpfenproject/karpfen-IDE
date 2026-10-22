@@ -23,12 +23,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The one problems rule (decision 17, [WorkspaceProblems]) on hand-built analyses. */
+/**
+ * Covers the one problems rule documented on [WorkspaceProblems] on hand-built analyses: open documents, unopened
+ * context and loose files, and other files with project diagnostics.
+ */
 class WorkspaceProblemsAggregatorTest {
 
     private val root = Path.of("/ws").toAbsolutePath()
     private val aggregator = WorkspaceProblemsAggregator()
 
+    /** A one-character diagnostic at [start] whose message is its [code]. */
     private fun diagnostic(start: Int, source: DiagnosticSource, code: String, severity: Severity = Severity.ERROR) =
         Diagnostic(TextRange(start, start + 1), severity, code, code, source)
 
@@ -37,6 +41,7 @@ class WorkspaceProblemsAggregatorTest {
     private val dslTools = diagnostic(1, DiagnosticSource.DSL_TOOLS, DiagnosticCodes.DSL_TOOLS_ERROR)
     private val fileFinding = diagnostic(2, DiagnosticSource.IDE, WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS, Severity.INFO)
 
+    /** An analyzed file [name] with the [syntax] diagnostics in its parse plus one lexical and one file finding. */
     private fun analyzed(name: String, snapshot: TextSnapshot = TextSnapshot("x".repeat(20), 0), vararg syntax: Diagnostic) =
         AnalyzedFile(
             root.resolve(name), FileKind.of(name), snapshot,

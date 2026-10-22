@@ -99,7 +99,7 @@ internal class DefaultWorkspace(
     private val started: Job
 
     init {
-        scheduler.schedule() // "Analyzing…" from the start; served once the first scan is done
+        scheduler.schedule()
         started = scope.launch { start() }
     }
 
@@ -120,9 +120,15 @@ internal class DefaultWorkspace(
         treeRefresher.refresh()
     }
 
+    /**
+     * Waits for the start-up, runs an analysis now and waits until [problems] reflect it. The wait runs in the
+     * workspace's scope, so closing the workspace ends it with a cancellation instead of leaving the caller suspended
+     * forever.
+     *
+     * @throws IllegalStateException if the workspace is closed.
+     */
     override suspend fun awaitAnalysis(): ProjectAnalysis {
         check(!closed.get()) { "the workspace of $root is closed" }
-        // In the workspace's scope, so closing the workspace ends the wait instead of leaving it suspended forever.
         return scope.async {
             started.join()
             val analysis = scheduler.runNow()
@@ -138,17 +144,13 @@ internal class DefaultWorkspace(
         scope.cancel(CancellationException("the workspace of $root was closed"))
     }
 
+    /** Starts the pipelines in the order described on the class; a failing first scan is logged, not thrown. */
     private suspend fun start() {
         val documents = collaborators.documents.openDocuments
         if (options.watch) treeRefresher.watch(scope)
         problemsPublisher.start(scope, scheduler.published, documents)
         diagnosticsPublisher.start(scope, scheduler.analysis, documents)
-        // Subscribed before the first scan; the initial state is covered by the request made in init.
-        scope.launch {
-            combine(contextTracker.state, treeRefresher.revision, openTextVersions()) { _, _, _ -> }
-                .drop(1)
-                .collect { scheduler.schedule() }
-        }
+        launchAnalysisTriggers()
         try {
             treeRefresher.refresh()
         } catch (cancellation: CancellationException) {
@@ -157,6 +159,17 @@ internal class DefaultWorkspace(
             logger.error("The first scan of {} failed", root, e)
         }
         scheduler.start(scope)
+    }
+
+    /**
+     * Schedules an analysis on every change of the contexts, every completed rescan and every text version of an open
+     * document. It subscribes before the first scan and skips the current state, which the request made at
+     * construction already covers.
+     */
+    private fun launchAnalysisTriggers(): Job = scope.launch {
+        combine(contextTracker.state, treeRefresher.revision, openTextVersions()) { _, _, _ -> }
+            .drop(1)
+            .collect { scheduler.schedule() }
     }
 
     /** Emits whenever the set of open documents or the text of one of them changes. */

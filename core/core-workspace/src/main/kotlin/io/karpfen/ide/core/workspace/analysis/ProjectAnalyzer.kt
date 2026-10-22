@@ -10,12 +10,12 @@ import io.karpfen.ide.core.workspace.context.ContextResolution
 import java.nio.file.Path
 
 /**
- * Analyzes every modeling context with dsl-tools (spec §4), through the core-document [DslConverter] adapter only:
+ * Analyzes every modeling context with dsl-tools, through the core-document [DslConverter] adapter only:
  * metamodel via `kmeta`; events via `kmeta` with the metamodel's types as base types; each model via `kmodel`
  * against the metamodel; each state machine via `kstates`. Exceptions become DSL_TOOLS diagnostics on the right file
  * (ranges located through each file's syntax index). No IDE-side validation rules beyond what dsl-tools reports.
  *
- * Syntax first (MUST, decision 44 of the work-package plan): a file is converted only when its
+ * Syntax first (MUST): a file is converted only when its
  * `AnalyzedFile.parse.isSyntaxClean` (dsl-tools would print ANTLR errors to `System.err` and report cryptic messages
  * next to the PARSER errors, see [DslConverter]). A conversion that needs a metamodel which was not converted (missing,
  * not syntax-clean or rejected) is skipped: the events file and the models without a domain metamodel. A skipped
@@ -45,8 +45,8 @@ public fun ProjectAnalyzer(languages: LanguageRegistry, converter: DslConverter)
 /**
  * Supplies the text to analyze: the editor text of open documents (the session's current snapshot, with its lineage,
  * its tokens from `DocumentSession.tokensFor` and its parse when the parse has that version), the disk text otherwise,
- * loaded through the workspace's `SourceLoader` into a fresh `TextSnapshot(text, 0)` (a lineage of its own per load)
- * (spec §4). Implemented by the workspace; tests supply texts from fixtures the same way.
+ * loaded through the workspace's `SourceLoader` into a fresh `TextSnapshot(text, 0)` (a lineage of its own per load).
+ * Implemented by the workspace; tests supply texts from fixtures the same way.
  */
 public fun interface AnalysisSources {
     /**

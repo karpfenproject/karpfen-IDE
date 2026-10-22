@@ -35,8 +35,9 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The [DefaultWorkspace] coordinator with fake collaborators (injected through [WorkspaceCollaborators]): routing of
- * debounced watch batches, analysis triggers and debounce, closing.
+ * Covers the [DefaultWorkspace] coordinator with fake collaborators injected through [WorkspaceCollaborators]: the tree
+ * and contexts from the injected scanner and resolver, the routing of debounced watch batches and overflows to the
+ * open documents, the analysis triggers and their debounce, and closing.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkspaceCoordinationTest {
@@ -86,9 +87,11 @@ class WorkspaceCoordinationTest {
     private lateinit var analyzer: CountingAnalyzer
     private lateinit var watcher: FakeFileWatcher
 
+    /** Writes a small metamodel to [relative] below the root, creating its directories. */
     private fun file(relative: String): Path =
         root.resolve(relative).also { Files.createDirectories(it.parent); Files.writeString(it, "type \"A\" \"a\" {\n}\n") }
 
+    /** A coordinator over fresh fakes on the test's virtual time, watching through [watcher]. */
     private fun TestScope.workspace(): DefaultWorkspace {
         val workspaces = TestWorkspaces(this)
         scanner = FakeScanner(WorkspaceTree(WorkspaceNode.Directory(root, "root", listOf(WorkspaceNode.File(root.resolve("x.kmeta"), "x.kmeta", FileKind.KMETA)))))
@@ -100,6 +103,9 @@ class WorkspaceCoordinationTest {
         )
         return DefaultWorkspace(root, backgroundScope, workspaces.options(watch = true), defaultLanguageRegistry(), collaborators)
     }
+
+    /** Lets the coordinator start and run its first scan. */
+    private fun TestScope.awaitFirstScan() = runCurrent()
 
     @Test
     fun `the tree and the contexts come from the injected scanner and resolver`() = runTest {
@@ -114,7 +120,7 @@ class WorkspaceCoordinationTest {
     @Test
     fun `a debounced batch rescans once and reaches the open documents at or below its paths`() = runTest {
         val workspace = workspace()
-        runCurrent() // the first scan
+        awaitFirstScan()
         val inDirectory = file("a/x.kmeta")
         val deleted = file("b/y.kmeta")
         val untouched = file("c/z.kmeta")
@@ -141,7 +147,7 @@ class WorkspaceCoordinationTest {
     @Test
     fun `an overflow reaches every open document`() = runTest {
         workspace()
-        runCurrent() // the first scan
+        awaitFirstScan()
         val paths = listOf(file("a.kmeta"), file("b/c.kmeta"))
         paths.forEach { documents.open(it) }
         runCurrent()

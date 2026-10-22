@@ -27,7 +27,11 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
-/** End-to-end workspace scenarios on real folders: contexts, analysis and problems (spec §4, §11 item 2). */
+/**
+ * Covers end-to-end workspace scenarios on real folders: contexts, analysis and problems. Every example context
+ * analyzes without findings; descriptors, unreadable files and directories, several metamodels in one directory,
+ * broken metamodels and refreshes produce the findings the workspace documents.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkspaceAnalysisTest {
 

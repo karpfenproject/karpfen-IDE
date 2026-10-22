@@ -12,7 +12,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** [SourceLoader]: the one loading rule (spec §1, Line separators and Encoding). */
+/**
+ * Covers [SourceLoader], the one loading rule: line separators normalized to `\n` with the dominant one remembered,
+ * one INFO for mixed separators, a WARNING for malformed UTF-8, and byte order marks removed and remembered.
+ */
 class DefaultSourceLoaderTest {
 
     @TempDir
@@ -20,8 +23,10 @@ class DefaultSourceLoaderTest {
 
     private val loader = SourceLoader()
 
+    /** Writes [bytes] to the test file and returns its path. */
     private fun file(bytes: ByteArray): Path = dir.resolve("a.kmeta").also { Files.write(it, bytes) }
 
+    /** Writes [text] as UTF-8 to the test file and returns its path. */
     private fun file(text: String): Path = file(text.toByteArray())
 
     @Test
@@ -44,9 +49,12 @@ class DefaultSourceLoaderTest {
         assertEquals(emptyList(), cr.diagnostics)
     }
 
+    /**
+     * The lines are `a` CRLF `bb` CRLF `c` LF `d` CR `e` CRLF: CRLF dominates, and the first minority line break is the
+     * LF after `c`.
+     */
     @Test
     fun `mixed separators are reported once, on the first minority line break of the normalized text`() {
-        // Lines: "a" CRLF "bb" CRLF "c" LF "d" CR "e" CRLF; dominant CRLF, first minority the LF after "c".
         val loaded = loader.load(file("a\r\nbb\r\nc\nd\re\r\n"))
 
         assertEquals("a\nbb\nc\nd\ne\n", loaded.text)

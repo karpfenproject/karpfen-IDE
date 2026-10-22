@@ -8,7 +8,7 @@ import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.encoding.CompositeDecoder
 
 /**
- * The best-effort range (spec §4) of a kotlinx.serialization decoding error in a descriptor [text] with its position
+ * The best-effort range of a kotlinx.serialization decoding error in a descriptor [text] with its position
  * [tree] (null if the scanner could not read the text): the offset the error message names, else the end of a
  * truncated document, else the value at the JSON path it names, else the first character of the document.
  *
@@ -31,12 +31,14 @@ internal class DecodingErrorLocator(
     private fun endOfInput(message: String): TextRange? =
         if (END_OF_INPUT in message) TextRange.empty(text.trimEnd().length) else null
 
+    /** The character at the offset [message] names (clamped to the text), or null if it names none. */
     private fun offsetIn(message: String): TextRange? {
         val offset = OFFSET.find(message)?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it >= 0 } ?: return null
         val start = offset.coerceAtMost(text.length)
         return TextRange(start, (start + 1).coerceAtMost(text.length))
     }
 
+    /** The value at the JSON path [message] names, resolved as the class documentation describes, or null. */
     private fun pathIn(message: String): TextRange? {
         val root = tree ?: return null
         val path = PATH.find(message)?.groupValues?.get(1) ?: return null
@@ -47,6 +49,7 @@ internal class DecodingErrorLocator(
         return (candidates.firstOrNull { !fits(it) } ?: candidates.firstOrNull())?.node?.range
     }
 
+    /** The first character of the document, or the empty range of a blank one. */
     private fun documentStart(): TextRange {
         val start = tree?.range?.start ?: text.indexOfFirst { !it.isWhitespace() }
         return if (start < 0) TextRange.EMPTY else TextRange.ofLength(start, 1)
@@ -66,12 +69,14 @@ internal class DecodingErrorLocator(
         }
     }
 
+    /** The descriptor of the member [key] of a class or map, or null if unknown. */
     private fun SerialDescriptor.memberDescriptor(key: String): SerialDescriptor? = when (kind) {
         StructureKind.CLASS -> getElementIndex(key).takeIf { it != CompositeDecoder.UNKNOWN_NAME }?.let(::getElementDescriptor)
         StructureKind.MAP -> getElementDescriptor(1)
         else -> null
     }
 
+    /** The descriptor of a list's items, or null for anything else. */
     private fun SerialDescriptor.itemDescriptor(): SerialDescriptor? = if (kind == StructureKind.LIST) getElementDescriptor(0) else null
 
     /** True if the JSON kind of the value fits the kind its descriptor expects (or nothing is known about it). */
@@ -92,8 +97,13 @@ internal class DecodingErrorLocator(
     private class LocatedValue(val path: List<String>, val node: JsonNode, val descriptor: SerialDescriptor?)
 
     private companion object {
+        /** The phrase of a message about a truncated document. */
         const val END_OF_INPUT = "end of the input"
+
+        /** The offset a message names. */
         val OFFSET = Regex("""at offset (-?\d+)""")
+
+        /** The JSON path a message names. */
         val PATH = Regex("""at path:? (\$\S*)""")
 
         /** A path segment: `.key` (group 1) or `[index]` (group 2); the tree decoder writes array items as `.0`. */

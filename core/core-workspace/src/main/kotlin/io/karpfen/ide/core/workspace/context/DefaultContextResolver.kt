@@ -10,7 +10,7 @@ import java.nio.file.Path
 /**
  * Implements the rules documented on [ContextResolver]: explicit contexts from [DescriptorContexts], implicit ones from
  * [DirectoryContexts] over the files no explicit context contains, the loose files — every karpfen source of the
- * tree that is in no context (decision 29) — and an `unreadable` ERROR on each directory the scan could not list.
+ * tree that is in no context — and an `unreadable` ERROR on each directory the scan could not list.
  */
 internal class DefaultContextResolver : ContextResolver {
 
@@ -25,6 +25,7 @@ internal class DefaultContextResolver : ContextResolver {
         return ContextResolution(contexts, diagnostics.build(), looseFiles)
     }
 
+    /** [directory] and every directory below it that the scan could not list. */
     private fun unreadableDirectories(directory: WorkspaceNode.Directory): List<Path> =
         listOfNotNull(directory.path.takeUnless { directory.isReadable }) +
             directory.children.filterIsInstance<WorkspaceNode.Directory>().flatMap(::unreadableDirectories)

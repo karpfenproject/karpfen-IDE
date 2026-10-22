@@ -8,8 +8,8 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
 /**
- * Every diagnostic of every file of a workspace, under one rule (spec §4, §8, §9). The Problems view, the status-bar
- * counts and `karpfen validate` consume it unchanged (they only map and filter), so the IDE and the CLI always agree.
+ * Every diagnostic of every file of a workspace, under one rule. The Problems view, the status-bar counts and
+ * `karpfen validate` consume it unchanged (they only map and filter), so the IDE and the CLI always agree.
  *
  * The rule, per file:
  * - an open document: its session's merged diagnostics (`DocumentSession.diagnostics`: lexer, parser and the external

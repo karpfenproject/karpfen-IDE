@@ -10,7 +10,6 @@ import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.context.StateMachineBinding
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.TestReporter
-import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -19,8 +18,8 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * The analyzer never throws on mutated contexts (fixed seeds), converts only syntax-clean files (so dsl-tools writes
- * nothing to `System.err`) and keeps every diagnostic inside its file's text.
+ * Covers the robustness of the analyzer: it never throws on mutated contexts (fixed seeds), converts only syntax-clean
+ * files (so dsl-tools writes nothing to `System.err`) and keeps every diagnostic inside its file's text.
  */
 class ProjectAnalyzerRobustnessTest {
 
@@ -40,7 +39,6 @@ class ProjectAnalyzerRobustnessTest {
     @Test
     fun `mutated contexts analyze without exceptions, stderr output or DSL_TOOLS findings on broken files`(reporter: TestReporter) =
         runTest(timeout = 300.seconds) {
-            LoggerFactory.getLogger(javaClass) // initialize SLF4J before capturing (its "no provider" notice goes to stderr)
             val analyzer = analyzer()
             val mark = TimeSource.Monotonic.markNow()
             var runs = 0
@@ -59,6 +57,7 @@ class ProjectAnalyzerRobustnessTest {
             assertEquals("", stderr)
         }
 
+    /** Asserts the invariants of the class documentation on the single context of [analysis]. */
     private fun assertWellFormed(analysis: ProjectAnalysis, label: String) {
         val result = analysis.contexts.single()
         for ((path, file) in result.files) {
@@ -72,6 +71,7 @@ class ProjectAnalyzerRobustnessTest {
     }
 
     private companion object {
+        /** Mutations of each file of the example context. */
         const val MUTATIONS_PER_FILE = 150
     }
 }

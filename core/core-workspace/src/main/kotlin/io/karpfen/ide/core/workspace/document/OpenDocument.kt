@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * A karpfen file opened for editing (spec §4): its [session] plus the file-level state the workbench needs (dirty
+ * A karpfen file opened for editing: its [session] plus the file-level state the workbench needs (dirty
  * flag, line separator, external-change conflict). Created and closed by the [DocumentManager].
  */
 public interface OpenDocument {
@@ -39,7 +39,7 @@ public interface OpenDocument {
     public val conflict: StateFlow<ExternalChange?>
 
     /**
-     * Resolves the current [conflict] and reports what happened; never throws (I/O errors are values, decision 12).
+     * Resolves the current [conflict] and reports what happened; never throws (I/O errors are values).
      * [ConflictResolution.RELOAD] takes the disk state: it replaces the text with the disk content as one undoable
      * `External` change, marks the save point and replaces the FILE findings (see [DocumentManager]) →
      * [ConflictResult.Reloaded]; for a file that no longer exists on disk it changes nothing and returns

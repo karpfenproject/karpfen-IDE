@@ -4,7 +4,7 @@ import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.workspace.environment.DescriptorFileRole
 
 /**
- * The language a file in this role is written in (spec §4): the metamodel and the events are KMeta, the model is KModel,
+ * The language a file in this role is written in: the metamodel and the events are KMeta, the model is KModel,
  * a state machine is KStates; null for a bridge, which may be any file. The one rule for the resolver's check of a
  * descriptor and for the converter, which converts a context's file only in the language of its role.
  */

@@ -32,10 +32,12 @@ internal object Utf8Text {
         }
     }
 
+    /** A decoder that fails on invalid UTF-8. */
     private fun strictDecoder() = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPORT)
         .onUnmappableCharacter(CodingErrorAction.REPORT)
 
+    /** A decoder that replaces invalid UTF-8 with U+FFFD. */
     private fun replacingDecoder() = StandardCharsets.UTF_8.newDecoder()
         .onMalformedInput(CodingErrorAction.REPLACE)
         .onUnmappableCharacter(CodingErrorAction.REPLACE)

@@ -61,6 +61,10 @@ internal class DefaultDocumentManager(
 
     override val openDocuments: StateFlow<List<OpenDocument>> = documents.asStateFlow()
 
+    /**
+     * Loads the file on the IO dispatcher and registers its document on the single writer. When another open of the same
+     * file completed while this one was loading, that document is returned and the second load is dropped.
+     */
     override suspend fun open(path: Path): OpenResult {
         val normalized = path.toAbsolutePath().normalize()
         find(normalized)?.let { return OpenResult.Opened(it) }
@@ -77,7 +81,6 @@ internal class DefaultDocumentManager(
             return OpenResult.Failed(normalized, "Cannot open ${describeIoFailure(normalized, e)}")
         }
         return writer.run {
-            // Another open of the same file may have completed while this one was loading.
             val document = find(normalized) ?: factory.create(loaded, kind, support).also { created ->
                 documents.update { it + created }
             }
@@ -114,6 +117,7 @@ internal class DefaultDocumentManager(
         documents.getAndUpdate { emptyList() }.forEach { it.close() }
     }
 
+    /** The open document at the [normalized] path, or null. */
     private fun find(normalized: Path): DefaultOpenDocument? = documents.value.firstOrNull { it.path == normalized }
 
     private companion object {

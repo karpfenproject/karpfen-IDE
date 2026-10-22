@@ -3,8 +3,9 @@ package io.karpfen.ide.core.workspace.environment
 import kotlinx.serialization.Serializable
 
 /**
- * An environment descriptor `*.kenv.json` (architecture proposal §5.2, spec §4): which files form one runnable
- * modeling context and how the runtime runs them. File paths are relative to the descriptor's directory.
+ * An environment descriptor `*.kenv.json`: which files form one runnable modeling context and how the runtime runs
+ * them. File paths are relative to the descriptor's directory. The class is the one source of the descriptor's shape:
+ * the reader checks keys against its serial descriptor and decodes values with it.
  *
  * ```json
  * {
@@ -27,7 +28,7 @@ import kotlinx.serialization.Serializable
  * @property eventTtlMs event time-to-live in milliseconds.
  * @property observe what the IDE observes while running.
  * @property runtime runtime image and extra Python packages.
- * @property bridges bridge configuration files (`*.kbridge.json`), not interpreted in phase 1.
+ * @property bridges bridge configuration files (`*.kbridge.json`), not interpreted by the IDE yet.
  */
 @Serializable
 public data class EnvironmentDescriptor(

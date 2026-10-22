@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Pushes the project diagnostics of the latest analysis into the open documents' sessions as external source
- * `ExternalDiagnosticSources.PROJECT` (spec §4), whenever an analysis completes or documents are opened.
+ * `ExternalDiagnosticSources.PROJECT`, whenever an analysis completes or documents are opened.
  *
  * Each document receives `ProjectAnalysis.diagnosticsFor(path)` for the snapshot the analysis used:
  * - `AnalyzedFile.snapshot` when it is a version of the document's text (same lineage); the session ignores a

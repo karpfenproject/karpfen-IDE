@@ -21,7 +21,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** Loading descriptors through the source loader and publishing contexts with their descriptor texts. */
+/**
+ * Covers the context tracker: descriptors are loaded through the source loader (normalized text, loading findings),
+ * published with the contexts, and an unreadable descriptor is an error that defines no context.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ContextTrackerTest {
 
@@ -31,6 +34,7 @@ class ContextTrackerTest {
     private val root: Path get() = dir.toAbsolutePath().normalize()
     private val scanner = WorkspaceScanner(WorkspaceOptions.DEFAULT_IGNORED_DIRECTORIES)
 
+    /** A tracker loading through [loader] on the test's virtual time. */
     private fun TestScope.tracker(loader: SourceLoader = SourceLoader()) =
         ContextTracker(loader, EnvironmentDescriptorReader(), ContextResolver(), StandardTestDispatcher(testScheduler))
 

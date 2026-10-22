@@ -28,7 +28,11 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TestTimeSource
 
-/** Opening, saving and closing documents (spec §4, `DocumentManager`). */
+/**
+ * Covers opening, saving and closing documents through the [DocumentManager]: one document per normalized path,
+ * syntax-only sessions, FILE findings from loading until a save or reload, the dirty flag and the injected clock,
+ * saving that restores separators and byte order marks and marks the written state, failed saves, and closing.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DocumentManagerOpenSaveTest {
 
@@ -37,8 +41,15 @@ class DocumentManagerOpenSaveTest {
 
     private val metamodel = "type \"Robot\" \"A robot\" {\n    prop(\"speed\", \"number\")\n}\n"
 
+    /**
+     * A metamodel that converts with a dsl-tools error on its own: the relation target type `Arm` does not exist.
+     */
+    private val metamodelWithUnknownTarget = "type \"Robot\" \"A robot\" {\n    has(\"arm\", \"Arm\")\n}\n"
+
+    /** Writes [content] to [name] in the test directory. */
     private fun file(name: String, content: String): Path = dir.resolve(name).also { Files.writeString(it, content) }
 
+    /** Writes the bytes [content] to [name] in the test directory. */
     private fun bytes(name: String, content: ByteArray): Path = dir.resolve(name).also { Files.write(it, content) }
 
     @Test
@@ -74,8 +85,7 @@ class DocumentManagerOpenSaveTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val config = DocumentSessionConfig(semanticMode = SemanticMode.STANDALONE, tokenizeDispatcher = dispatcher, parseDispatcher = dispatcher)
         val manager = documentManager(this, sessionConfig = config)
-        // Converts with a dsl-tools error on its own: the relation target type does not exist.
-        val path = file("broken.kmeta", "type \"Robot\" \"A robot\" {\n    has(\"arm\", \"Arm\")\n}\n")
+        val path = file("broken.kmeta", metamodelWithUnknownTarget)
 
         val document = manager.openOrFail(path)
         settle()
@@ -287,6 +297,7 @@ class DocumentManagerOpenSaveTest {
         assertEquals("// 2\n$metamodel", Files.readString(second.path))
     }
 
+    /** Closing a document that is no longer open is a no-op. */
     @Test
     fun `closing removes the document and stops its session`() = runTest {
         val manager = documentManager(this)
@@ -302,7 +313,7 @@ class DocumentManagerOpenSaveTest {
         assertNull(manager.get(path))
         assertEquals(emptyList(), manager.openDocuments.value)
         assertSame(parsed, document.session.parse.value, "a closed session no longer parses")
-        manager.close(path) // no-op
+        manager.close(path)
     }
 
     @Test

@@ -42,9 +42,14 @@ internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
         return DescriptorReadResult(descriptor, keyFindings.sortedWith(Diagnostic.ORDER), references(tree))
     }
 
+    /** The result of a descriptor that could not be decoded: no descriptor, no references, only [diagnostics]. */
     private fun invalid(diagnostics: List<Diagnostic>): DescriptorReadResult =
         DescriptorReadResult(null, diagnostics.sortedWith(Diagnostic.ORDER), emptyList())
 
+    /**
+     * The ERROR `descriptor-invalid` for a kotlinx.serialization [failure], with the first line of its message as the
+     * reason and the range [DecodingErrorLocator] finds in [text].
+     */
     private fun invalidDescriptor(failure: Exception, text: String, tree: JsonNode?): Diagnostic {
         val reason = failure.message?.lineSequence()?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() }
             ?: failure.javaClass.simpleName

@@ -31,7 +31,7 @@ internal fun interface ConflictResolver {
  *
  * The disk state is the [LoadedSource] the buffer was last synchronized with (opened, saved, reloaded, or acknowledged
  * with Keep mine), or null when the file is known to be absent; an external change is a disk content that differs from
- * it ([knowsContentOf]), which also makes the watch event of the document's own save a no-op (spec §4).
+ * it ([knowsContentOf]), which also makes the watch event of the document's own save a no-op.
  *
  * @param scope the document's own scope (parent of the session's scope), cancelled by [close].
  */

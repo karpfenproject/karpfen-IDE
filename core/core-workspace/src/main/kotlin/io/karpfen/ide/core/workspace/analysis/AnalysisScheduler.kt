@@ -31,7 +31,7 @@ internal data class PublishedAnalysis(val analysis: ProjectAnalysis, val descrip
 }
 
 /**
- * Runs the project analysis of a workspace (spec §4): debounced by [debounce] after the last [schedule] call,
+ * Runs the project analysis of a workspace: debounced by [debounce] after the last [schedule] call,
  * cancellable (a newer request cancels a pending or running analysis, latest wins; a cancelled run publishes nothing),
  * immediate for [runNow]. Each run analyzes the [contexts] current at its start with the [analyzer] on [dispatcher],
  * reading texts through [sources], and publishes its result to [analysis] and [published] (in that order; consumers
@@ -95,6 +95,7 @@ internal class AnalysisScheduler(
         }
     }
 
+    /** Analyzes the contexts current now as the next generation and publishes the result. */
     private suspend fun analyze(): ProjectAnalysis {
         val state = contexts.value
         val number = ++generation
@@ -104,6 +105,7 @@ internal class AnalysisScheduler(
         return result
     }
 
+    /** The result of [block]; a failure other than a cancellation is logged and returned as a failed result. */
     private inline fun runCatchingFailures(block: () -> ProjectAnalysis): Result<ProjectAnalysis> =
         try {
             Result.success(block())

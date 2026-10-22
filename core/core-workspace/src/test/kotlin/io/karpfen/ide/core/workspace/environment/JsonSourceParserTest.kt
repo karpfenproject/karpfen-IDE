@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 
-/** The position-recording JSON scanner behind the descriptor diagnostics. */
+/** Covers the position-recording JSON scanner behind the descriptor diagnostics. */
 class JsonSourceParserTest {
 
     @Test

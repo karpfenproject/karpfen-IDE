@@ -13,15 +13,16 @@ import states.StateMachine
 import java.nio.file.Path
 
 /**
- * Converts the files of one [ModelingContext] with dsl-tools, through the [converter] adapter only (spec §4,
- * decision 44), in dependency order: the domain metamodel; the events with the metamodel's types as base types; each
- * model against the metamodel; each state machine on its own.
+ * Converts the files of one [ModelingContext] with dsl-tools, through the [converter] adapter only (core-workspace
+ * never calls dsl-tools directly), in dependency order: the domain metamodel; the events with the metamodel's types as
+ * base types; each model against the metamodel; each state machine on its own.
  *
  * A file is converted only if it is syntax-clean and written in the language of its role
  * ([DescriptorFileRole.language]; a descriptor naming a `.kstates` file as metamodel converts nothing, which the
  * resolver reports on the descriptor; dsl-tools would print ANTLR errors for a foreign grammar). A conversion that
- * needs an unconverted metamodel (events, models) is skipped and reports nothing of its own. DSL_TOOLS diagnostics go
- * to [problems] under the converted file's path. Checks for cancellation between conversions.
+ * needs an unconverted metamodel (events, models) is skipped and reports nothing of its own: the broken metamodel's
+ * syntax errors already explain it. DSL_TOOLS diagnostics go to [problems] under the converted file's path. Checks for
+ * cancellation between conversions.
  */
 internal class ContextConverter(private val converter: DslConverter, private val problems: DiagnosticsByFile) {
 
@@ -58,6 +59,7 @@ internal class ContextConverter(private val converter: DslConverter, private val
         return files[path]?.takeIf { it.parse.isSyntaxClean && it.parse.language == role.language }
     }
 
+    /** Records the diagnostics of [conversion] on [file] and returns its value, null when the conversion failed. */
     private fun <T : Any> record(file: AnalyzedFile, conversion: Conversion<T>): T? {
         problems.add(file.path, conversion.diagnostics)
         return conversion.value

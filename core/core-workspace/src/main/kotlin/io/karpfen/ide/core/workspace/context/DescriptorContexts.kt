@@ -43,6 +43,7 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
         }
     }
 
+    /** The context of the descriptor at [path]; references that are not valid paths are left out. */
     private fun contextOf(path: Path, directory: Path, descriptor: EnvironmentDescriptor): ModelingContext =
         ModelingContext(
             directory = directory,
@@ -66,6 +67,7 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
         }
     }
 
+    /** [value] resolved against [directory], absolute and normalized, or null if it is not a valid path. */
     private fun resolve(directory: Path, value: String): Path? =
         try {
             directory.resolve(value).toAbsolutePath().normalize()
@@ -73,6 +75,7 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
             null
         }
 
+    /** The ERROR `descriptor-missing-file` at [reference]. */
     private fun missingFile(reference: DescriptorFileReference): Diagnostic =
         Diagnostic(
             range = reference.range,
@@ -82,6 +85,7 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
             source = DiagnosticSource.IDE,
         )
 
+    /** The ERROR `descriptor-invalid` at [reference], which names a file that is not written in [language]. */
     private fun wrongLanguage(reference: DescriptorFileReference, language: KarpfenLanguage): Diagnostic =
         Diagnostic(
             range = reference.range,

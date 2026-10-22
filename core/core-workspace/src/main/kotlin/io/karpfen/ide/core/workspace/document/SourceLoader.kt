@@ -5,8 +5,9 @@ import io.karpfen.ide.core.text.LineSeparator
 import java.nio.file.Path
 
 /**
- * Loads a file into editor form (spec §1, Line separators and Encoding): reads it through a [TextFileStore],
- * normalizes line separators to `\n` (`LineSeparators.normalize`) and reports the loading findings. The one loading
+ * Loads a file into editor form: reads it as UTF-8 through a [TextFileStore] (malformed bytes replaced, never
+ * rejected), normalizes line separators to `\n` (`LineSeparators.normalize`, remembering the dominant one for saving)
+ * and reports the loading findings. The one loading
  * rule of the workspace: the [DocumentManager] (open, reload), the project analysis (files that are not open) and the
  * descriptor reading all load through it, so every consumer sees the same text and the same findings. Blocking; called
  * on an IO dispatcher.

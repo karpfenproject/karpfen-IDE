@@ -25,7 +25,7 @@ import java.nio.file.Path
 import kotlin.time.Duration
 
 /**
- * The file side of a workspace (spec §4): scans the folder into [files], keeps the contexts in step through the
+ * The file side of a workspace: scans the folder into [files], keeps the contexts in step through the
  * [contexts] tracker, and routes changes on disk to the open documents ([WorkspaceDocuments.onFileChanged], which
  * decides between reload, conflict and nothing).
  *
@@ -73,16 +73,14 @@ internal class TreeRefresher(
         logger.warn("Watching {} ended; changes on disk are picked up by an explicit refresh only", root)
     }
 
+    /** Rescans and checks the open documents a [batch] concerns; a failure is logged and the watching goes on. */
     private suspend fun applyBatch(batch: List<FileChange>) {
         try {
             rescan()
             val overflow = batch.any { it.kind == FileChangeKind.OVERFLOW }
             for (document in documents.openDocuments.value.map { it.path }) {
                 if (overflow || batch.any { change -> document.startsWith(change.path) }) {
-                    // Only a deletion of the file itself is known for sure; anything else is read (a deleted
-                    // directory or a lost event shows up as a missing file there).
-                    val deleted = batch.lastOrNull { it.path == document }?.kind == FileChangeKind.DELETED
-                    documents.onFileChanged(document, deleted)
+                    documents.onFileChanged(document, deleted = isDeletedIn(batch, document))
                 }
             }
         } catch (cancellation: CancellationException) {
@@ -92,6 +90,15 @@ internal class TreeRefresher(
         }
     }
 
+    /**
+     * Whether the last change of [document] itself in [batch] is its deletion. Only such a deletion is known for sure;
+     * in every other case the document side reads the file, so a deleted directory or a lost event shows up there as a
+     * missing file.
+     */
+    private fun isDeletedIn(batch: List<FileChange>, document: Path): Boolean =
+        batch.lastOrNull { it.path == document }?.kind == FileChangeKind.DELETED
+
+    /** Scans the folder (one scan at a time), publishes the tree, updates the contexts and counts the scan. */
     private suspend fun rescan() {
         scanning.withLock {
             val scanned = withContext(ioDispatcher) { scanner.scan(root) }

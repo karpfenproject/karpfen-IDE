@@ -26,7 +26,6 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.io.TempDir
-import org.slf4j.LoggerFactory
 import java.nio.file.AccessDeniedException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -39,7 +38,12 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
-/** The project analysis (spec §4, §11 item 2, decision 44) on real example folders. */
+/**
+ * Covers the project analysis on real example folders: every example context converts without findings, broken files
+ * are never converted and block the conversions that depend on them, semantic errors land on the right file, editor
+ * text replaces disk text, loose files stay syntax-only, and unreadable, failing or vanished files are reported or
+ * skipped. The analysis is cancellable between files.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultProjectAnalyzerTest {
 
@@ -48,11 +52,19 @@ class DefaultProjectAnalyzerTest {
 
     private val root: Path get() = dir.toAbsolutePath().normalize()
 
+    /** Runs one analysis of [resolution] whose time is not reported, so class loading does not count. */
+    private suspend fun warmUp(resolution: ContextResolution) {
+        analyzer().analyze(resolution, DiskSources(), generation = 1)
+    }
+
+    /** [text] without its last closing brace, a syntax error at the end of the file. */
+    private fun withoutClosingBrace(text: String): String = text.trimEnd().removeSuffix("}")
+
     @Test
     fun `every example context analyzes with zero DSL_TOOLS errors and converts every file`(reporter: TestReporter) = runTest(timeout = 120.seconds) {
         Examples.copyTo(root)
         val resolution = resolve(root)
-        analyzer().analyze(resolution, DiskSources(), generation = 1) // warm-up
+        warmUp(resolution)
 
         val mark = TimeSource.Monotonic.markNow()
         val analysis = analyzer().analyze(resolution, DiskSources(), generation = 2)
@@ -101,14 +113,12 @@ class DefaultProjectAnalyzerTest {
         Files.createDirectories(context)
         Examples.files().filter { it.directory == DescriptorExamples.CONTEXT_DIRECTORY }.forEach { file ->
             val text = when (file.fileName) {
-                "cleaning_robot.kmeta" -> file.text.trimEnd().removeSuffix("}") // missing closing brace
+                "cleaning_robot.kmeta" -> withoutClosingBrace(file.text)
                 "cleaning_robot.kmodel" -> file.text.replaceFirst("has(\"robot\") ->", "has(\"robot\") -> ->")
                 else -> file.text
             }
             Files.writeString(context.resolve(file.fileName), text)
         }
-        LoggerFactory.getLogger(javaClass) // initialize SLF4J (its one-time "no provider" notice goes to stderr)
-
         lateinit var analysis: ProjectAnalysis
         val stderr = capturingStandardError {
             analysis = analyzer().analyze(resolve(root), DiskSources(), generation = 1)
@@ -250,7 +260,6 @@ class DefaultProjectAnalyzerTest {
         val context = ModelingContext(root, root.resolve("x.kenv.json"), machine, null, listOf(machine), emptyList())
 
         lateinit var analysis: ProjectAnalysis
-        LoggerFactory.getLogger(javaClass)
         val stderr = capturingStandardError { analysis = analyzer().analyze(ContextResolution(listOf(context), emptyMap()), DiskSources(), 1) }
 
         assertEquals("", stderr)

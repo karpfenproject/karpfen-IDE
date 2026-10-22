@@ -30,7 +30,11 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Contract test of the complete core-workspace values (no phase-1 implementation code is executed). */
+/**
+ * Covers the complete values of core-workspace on their own: file kinds, tree order and lookup, context membership,
+ * option validation, the per-file diagnostic merge of analyzed files, the file order of analyses, and that workspace and
+ * document diagnostic codes are distinct. No workspace implementation code runs.
+ */
 class WorkspaceContractTest {
 
     private val root: Path = Path.of("/ws").toAbsolutePath()

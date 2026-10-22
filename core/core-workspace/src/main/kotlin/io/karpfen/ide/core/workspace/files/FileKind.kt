@@ -3,7 +3,7 @@ package io.karpfen.ide.core.workspace.files
 import io.karpfen.ide.core.document.KarpfenLanguage
 
 /**
- * Role of a file in a workspace (spec §4), derived from its name only.
+ * Role of a file in a workspace, derived from its name only.
  *
  * @property language the karpfen language of the file, or null for non-karpfen files.
  */

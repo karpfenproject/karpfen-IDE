@@ -32,7 +32,7 @@ internal data class ContextState(val resolution: ContextResolution, val descript
 }
 
 /**
- * Keeps the modeling contexts of a workspace up to date (spec §4): for a scanned tree it loads every descriptor through
+ * Keeps the modeling contexts of a workspace up to date: for a scanned tree it loads every descriptor through
  * the workspace's [SourceLoader] (the one loading rule, so ranges refer to the normalized text and loading findings
  * such as malformed UTF-8 are reported on the descriptor), reads it with the [descriptorReader] and resolves the
  * contexts with the [resolver]. Loading and reading run on [ioDispatcher]; a descriptor that cannot be read is an ERROR
@@ -64,6 +64,10 @@ internal class ContextTracker(
         resolutionFlow.value = resolution
     }
 
+    /**
+     * Loads and reads the descriptor at [path], its loading findings merged into the reader's; a descriptor that cannot
+     * be loaded yields only an `unreadable` finding and no text.
+     */
     private fun read(path: Path): ReadDescriptor =
         try {
             val loaded = sourceLoader.load(path)
@@ -77,6 +81,7 @@ internal class ContextTracker(
             ReadDescriptor(DescriptorReadResult(null, listOf(UnreadableFindings.file(ioFailureReason(e))), emptyList()), text = null)
         }
 
+    /** The read [result] of a descriptor and its normalized [text], null when it could not be loaded. */
     private class ReadDescriptor(val result: DescriptorReadResult, val text: TextSnapshot?)
 
     private companion object {

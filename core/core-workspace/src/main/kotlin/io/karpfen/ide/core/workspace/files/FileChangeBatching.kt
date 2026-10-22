@@ -13,7 +13,7 @@ import kotlinx.coroutines.selects.select
 import kotlin.time.Duration
 
 /**
- * Debounces raw file changes into batches (spec §4, watch debounce): a batch starts with the first change after a
+ * Debounces raw file changes into batches, the workspace's watch debounce: a batch starts with the first change after a
  * quiet period and collects every further change until no change arrived for [quiet]; it is then emitted with all of
  * its changes in arrival order (unlike `debounce`, which would keep only the last one). When the upstream completes,
  * a pending batch is emitted at once. Works on virtual time in tests.

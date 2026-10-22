@@ -7,7 +7,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** [FileKind.of] (spec §4): the role of a file from its name only. */
+/** Covers [FileKind.of], the role of a file derived from its name only. */
 class FileKindTest {
 
     @Test

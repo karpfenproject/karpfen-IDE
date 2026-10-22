@@ -11,12 +11,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The rules of [ContextResolver] (spec §4, decisions 13 and 29) on hand-built trees. */
+/**
+ * Covers the rules of [ContextResolver] on hand-built trees: explicit contexts from descriptors with their findings,
+ * implicit contexts of directories, the coverage of files named by descriptors, loose files, and unreadable
+ * directories.
+ */
 class DefaultContextResolverTest {
 
     private val resolver = ContextResolver()
     private val robotFiles = arrayOf("ctx/EVENTS.kmeta", "ctx/cleaning_robot.kmeta", "ctx/cleaning_robot.kmodel", "ctx/cleaning_robot.kstates")
 
+    /** The range of [quoted] inside its quotes in [text]. */
     private fun rangeIn(text: String, quoted: String): TextRange =
         TextRange.ofLength(text.indexOf("\"$quoted\"") + 1, quoted.length)
 
@@ -87,8 +92,11 @@ class DefaultContextResolverTest {
         assertEquals(listOf(ws("env/models/robot.kmodel")), explicit.models)
         assertEquals(listOf(ws("env/machines/robot.kstates")), explicit.stateMachines.map { it.file })
         assertNull(resolution.diagnostics[ws("env/robot.kenv.json")], "every reference exists")
-        // Every file of the sub-directories is in the descriptor's context, so none of them forms an implicit one.
-        assertEquals(listOf(ws("env")), resolution.contexts.map { it.directory })
+        assertEquals(
+            listOf(ws("env")),
+            resolution.contexts.map { it.directory },
+            "every file of the sub-directories is in the descriptor's context, so none of them forms an implicit one",
+        )
     }
 
     @Test

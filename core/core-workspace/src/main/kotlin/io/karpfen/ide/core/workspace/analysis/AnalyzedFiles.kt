@@ -38,6 +38,7 @@ internal class AnalyzedFiles(
     suspend fun get(path: Path): AnalyzedFile? =
         if (path in loaded) loaded[path] else analyze(path).also { loaded[path] = it }
 
+    /** Loads, tokenizes and parses [path]; failures become findings in [problems] and yield null. */
     private suspend fun analyze(path: Path): AnalyzedFile? {
         currentCoroutineContext().ensureActive()
         val name = path.fileName?.toString() ?: return null
@@ -60,6 +61,7 @@ internal class AnalyzedFiles(
         }
     }
 
+    /** The ERROR `internal-error` at the start of a file whose analysis failed with [failure]. */
     private fun internalError(failure: Exception): Diagnostic =
         Diagnostic(
             range = TextRange.EMPTY,

@@ -46,6 +46,7 @@ internal class WorkspaceProblemsAggregator {
         return WorkspaceProblems(analysis.generation, byPath.values.filterNotNull().sortedBy { it.path })
     }
 
+    /** The problems of one file, or null if it has no [diagnostics]. */
     private fun problemsOf(
         path: Path,
         kind: FileKind,

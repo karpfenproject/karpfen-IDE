@@ -11,8 +11,8 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
 /**
- * Keeps open documents in line with their files (spec §4, External change; decision 43): reacts to changes on disk
- * and resolves conflicts. Disk content is read through the workspace's [SourceLoader] on [ioDispatcher]; documents are
+ * Keeps open documents in line with their files: reacts to changes on disk and resolves conflicts, reporting every
+ * outcome as a [ConflictResult] instead of throwing. Disk content is read through the workspace's [SourceLoader] on [ioDispatcher]; documents are
  * mutated through the [writer] only.
  *
  * Rules for a change of a document's file (compared with its disk state by content, [DefaultOpenDocument.knowsContentOf],
@@ -54,6 +54,7 @@ internal class DiskSynchronizer(
         }
     }
 
+    /** Applies the rules of the class to [document] for the [disk] content just read. Writer only. */
     private fun follow(document: DefaultOpenDocument, disk: DiskContent) {
         when (disk) {
             is DiskContent.Unreadable -> logger.warn("Cannot read changed file {}: {}", document.path, disk.message)
@@ -74,6 +75,10 @@ internal class DiskSynchronizer(
         document.session.setExternalDiagnostics(ExternalDiagnosticSources.FILE, document.text.snapshot.value, source.diagnostics)
     }
 
+    /**
+     * Reads [path] through the loader; a file that cannot be read but no longer exists counts as absent, so a deletion
+     * racing with the read is no read failure.
+     */
     private suspend fun read(path: Path): DiskContent = withContext(ioDispatcher) {
         try {
             DiskContent.Present(sourceLoader.load(path))
@@ -88,10 +93,13 @@ internal class DiskSynchronizer(
 
     /** What a read of a document's file found. */
     private sealed interface DiskContent {
+        /** The file exists and loaded as [source]. */
         data class Present(val source: LoadedSource) : DiskContent
 
+        /** The file does not exist. */
         data object Absent : DiskContent
 
+        /** The file exists but cannot be read; [message] is user-readable. */
         data class Unreadable(val message: String) : DiskContent
     }
 

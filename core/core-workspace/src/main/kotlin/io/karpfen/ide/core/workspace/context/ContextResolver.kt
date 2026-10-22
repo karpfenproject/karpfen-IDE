@@ -5,7 +5,7 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import java.nio.file.Path
 
 /**
- * Derives the [ModelingContext]s of a workspace (spec §4). Pure: works on the scanned tree and the already-read
+ * Derives the [ModelingContext]s of a workspace. Pure: works on the scanned tree and the already-read
  * descriptors, so it is unit-testable without a file system.
  *
  * Rules (MUST):

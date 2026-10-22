@@ -31,8 +31,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Open documents in a workspace: the problems rule, editor text in the analysis, project diagnostics in sessions
- * (spec §4, decisions 17, 28 and 29).
+ * Covers open documents in a workspace: the one problems rule for open, unopened, loose and descriptor files, that
+ * opening and closing changes no finding, the editor text and its debounce in the analysis, and project diagnostics in
+ * sessions, including that an analysis started before a close and reopen never reaches the reopened document.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkspaceDocumentsTest {
@@ -158,6 +159,10 @@ class WorkspaceDocumentsTest {
         assertTrue(name.isNotEmpty())
     }
 
+    /**
+     * The gated analyzer holds the analysis of the edited text until the document was closed and reopened, then lets it
+     * publish.
+     */
     @Test
     fun `an analysis that started before a close and reopen never reaches the reopened document`() = runTest(timeout = 60.seconds) {
         writeProject()
@@ -175,7 +180,7 @@ class WorkspaceDocumentsTest {
 
         holding = true
         before.session.text.apply(listOf(TextEdit.insert(validModel.indexOf("}\n"), semanticError)), EditOrigin.Typing)
-        settle(1.seconds) // the analysis of the edited text is computed and held
+        settle(1.seconds)
         workspace.documents.close(model)
         val reopened = workspace.openDocument(model)
         val seen = ArrayList<VersionedDiagnostics>()

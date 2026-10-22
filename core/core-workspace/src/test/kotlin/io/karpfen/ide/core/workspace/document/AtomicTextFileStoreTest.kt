@@ -21,7 +21,10 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** [TextFileStore]: UTF-8 with replacement, byte order marks, atomic writes. */
+/**
+ * Covers the file-system [TextFileStore]: UTF-8 with replacement, byte order marks, the read-back rule, and atomic,
+ * durable writes that keep permissions, follow symbolic links and never replace a read-only file.
+ */
 class AtomicTextFileStoreTest {
 
     @TempDir

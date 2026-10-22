@@ -6,8 +6,8 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
 /**
- * A user-readable message for a failure to read or write [path] (I/O errors are values, decision 12): the file name
- * and the reason ([ioFailureReason]).
+ * A user-readable message for a failure to read or write [path], for the results that carry I/O errors as values
+ * instead of throwing them: the file name and the reason ([ioFailureReason]).
  */
 internal fun describeIoFailure(path: Path, failure: Exception): String {
     val name = path.fileName?.toString() ?: path.toString()

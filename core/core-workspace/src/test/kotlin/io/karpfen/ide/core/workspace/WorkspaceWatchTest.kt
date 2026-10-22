@@ -24,7 +24,10 @@ import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-/** Watching with a fake watcher (spec §4: 200 ms debounce, reload or conflict, self-induced events ignored). */
+/**
+ * Covers watching through a fake watcher: the 200 ms debounce, the reload of clean documents and the conflicts of dirty
+ * or deleted ones, the ignored watch event of a save, overflows, ignored directories, and refresh without watching.
+ */
 @OptIn(ExperimentalCoroutinesApi::class, ExperimentalPathApi::class)
 class WorkspaceWatchTest {
 
@@ -35,6 +38,7 @@ class WorkspaceWatchTest {
     private val original = "type \"Robot\" \"A robot\" {\n}\n"
     private val changed = "type \"Robot\" \"Changed on disk\" {\n}\n"
 
+    /** Writes [content] to [relative] below the root, creating its directories. */
     private fun file(relative: String, content: String = original): Path =
         root.resolve(relative).also { Files.createDirectories(it.parent); Files.writeString(it, content) }
 
@@ -145,6 +149,7 @@ class WorkspaceWatchTest {
         assertFalse(document.isDirty.value)
     }
 
+    /** Types [text] at the start of the document. */
     private fun OpenDocument.type(text: String) {
         session.text.apply(listOf(TextEdit.insert(0, text)), EditOrigin.Typing)
     }

@@ -10,7 +10,7 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
 /**
- * The [AnalysisSources] of a workspace (spec §4: editor text over disk text): an open document is analyzed with its
+ * The [AnalysisSources] of a workspace, preferring the editor text over the disk text: an open document is analyzed with its
  * session's current snapshot, its tokens from `DocumentSession.tokensFor` and its parse when the parse has that
  * version; any other file is loaded through the workspace's [sourceLoader] on [ioDispatcher] into a fresh snapshot at
  * version 0 (a lineage of its own) with the loading findings. A file that vanished since the scan is null (a rescan

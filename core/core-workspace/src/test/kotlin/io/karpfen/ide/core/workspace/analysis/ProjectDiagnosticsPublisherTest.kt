@@ -24,7 +24,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Pushing project diagnostics into open sessions (spec §4; decision 26: lineages). */
+/**
+ * Covers pushing project diagnostics into open sessions: diagnostics of a version of the document's text are mapped
+ * forward, those of the identical disk text reach a document opened later, and those of another text or of another
+ * lineage of the text (a document closed and reopened since) are never pushed.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProjectDiagnosticsPublisherTest {
 
@@ -34,18 +38,22 @@ class ProjectDiagnosticsPublisherTest {
     private val text = "type \"Robot\" \"A robot\" {\n    has(\"arm\", \"Arm\")\n}\n"
     private val publisher = ProjectDiagnosticsPublisher()
 
+    /** A DSL_TOOLS error at [range], by default on the unknown type `Arm`. */
     private fun projectDiagnostic(range: TextRange = TextRange.ofLength(text.indexOf("Arm\""), 3)) =
         Diagnostic(range, Severity.ERROR, "Unknown target class type 'Arm'", DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
 
+    /** An analysis of generation [generation] that analyzed [path] as [snapshot] with the project [diagnostics]. */
     private fun analysisOf(path: Path, snapshot: TextSnapshot, vararg diagnostics: Diagnostic, generation: Long = 1): ProjectAnalysis {
         val parse = defaultLanguageRegistry().support(KarpfenLanguage.KMETA).parser.parse(snapshot)
         val file = AnalyzedFile(path, FileKind.KMETA, snapshot, parse)
         return ProjectAnalysis(generation, emptyList(), mapOf(path to diagnostics.toList()), mapOf(path to file))
     }
 
+    /** The DSL_TOOLS diagnostics of the document's session. */
     private fun OpenDocument.projectFindings(): List<Diagnostic> =
         session.diagnostics.value.diagnostics.filter { it.source == DiagnosticSource.DSL_TOOLS }
 
+    /** Writes the metamodel to `robot.kmeta` and returns its path. */
     private fun file(): Path = dir.resolve("robot.kmeta").toAbsolutePath().normalize().also { Files.writeString(it, text) }
 
     @Test
@@ -85,19 +93,23 @@ class ProjectDiagnosticsPublisherTest {
         assertEquals(emptyList(), document.projectFindings())
     }
 
+    /**
+     * The analysis starts with the edited text of a document that is closed and reopened before it publishes. Neither the
+     * publisher nor a naive push of the analyzed snapshot straight into the session reaches the reopened document.
+     */
     @Test
     fun `a PROJECT push of an analysis started before a close and reopen is ignored`() = runTest {
         val manager = documentManager(this)
         val path = file()
         val before = manager.openOrFail(path)
         before.type(0, "// unsaved\n")
-        val analyzed = before.session.text.snapshot.value // the analysis starts with the edited text
+        val analyzed = before.session.text.snapshot.value
         manager.close(path)
         val reopened = manager.openOrFail(path)
 
         val stale = analysisOf(path, analyzed, projectDiagnostic(TextRange.ofLength(0, 10)))
         publisher.push(stale, reopened)
-        reopened.session.setExternalDiagnostics("project", analyzed, stale.diagnosticsFor(path)) // what a naive push would do
+        reopened.session.setExternalDiagnostics("project", analyzed, stale.diagnosticsFor(path))
         runCurrent()
 
         assertEquals(emptyList(), reopened.projectFindings(), "a snapshot of the closed document's lineage is ignored")

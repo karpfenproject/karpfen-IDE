@@ -76,6 +76,7 @@ internal class AtomicTextFileStore(
         }
     }
 
+    /** Gives [to] the POSIX permissions of an existing [from]; a no-op without [from] or without POSIX attributes. */
     private fun copyPermissions(from: Path, to: Path) {
         if (!Files.exists(from)) return
         val source = Files.getFileAttributeView(from, PosixFileAttributeView::class.java) ?: return

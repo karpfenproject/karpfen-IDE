@@ -23,7 +23,10 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
-/** Debounce, cancellation and immediate runs of the project analysis (spec §4: 300 ms, cancellable). */
+/**
+ * Covers the scheduling of the project analysis: the 300 ms debounce, cancellation of a running analysis by a newer
+ * request, immediate runs, the contexts and descriptor texts each run uses, failing analyzers and closing.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnalysisSchedulerTest {
 
@@ -46,6 +49,7 @@ class AnalysisSchedulerTest {
     private val noSources = AnalysisSources { null }
     private val contexts = MutableStateFlow(ContextState.EMPTY)
 
+    /** A started scheduler over [analyzer] with a 300 ms debounce on the test's virtual time. */
     private fun TestScope.scheduler(analyzer: ProjectAnalyzer): AnalysisScheduler =
         AnalysisScheduler(analyzer, noSources, contexts, StandardTestDispatcher(testScheduler), 300.milliseconds)
             .also { it.start(backgroundScope) }

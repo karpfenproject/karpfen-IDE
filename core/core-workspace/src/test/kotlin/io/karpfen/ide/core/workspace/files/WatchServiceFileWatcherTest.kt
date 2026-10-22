@@ -20,8 +20,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The one test of the real `WatchService` watcher (the work-package plan allows at most one): the JDK's macOS watch
- * service polls every few seconds, so it runs with generous timeouts on real time. Every other watch test uses a fake
+ * Covers the real `WatchService` watcher in the only test that uses it: the JDK's macOS watch service polls every few
+ * seconds, so the test runs with generous timeouts on real time. Every other watch test uses a fake
  * (`WatchRegistryTest` covers what is registered and how events map, with fake keys).
  */
 @Tag("slow-tolerant")
@@ -30,6 +30,11 @@ class WatchServiceFileWatcherTest {
     @TempDir
     lateinit var dir: Path
 
+    /**
+     * The folder is opened through a link and holds a linked directory and a linked file whose targets lie outside it.
+     * A new directory is registered only when its creation is reported, so the test keeps writing until every expected
+     * file event arrived.
+     */
     @Test
     @Timeout(value = 90, unit = TimeUnit.SECONDS)
     fun `changes in new sub-directories and behind symbolic links are reported and ignored directories are not`() = runBlocking {
@@ -38,7 +43,6 @@ class WatchServiceFileWatcherTest {
         Files.createDirectories(real.resolve("build"))
         val shared = Files.createDirectories(base.resolve("shared"))
         val outside = Files.writeString(Files.createDirectories(base.resolve("outside")).resolve("m.kstates"), "STATEMACHINE")
-        // The folder is opened through a link, holds a linked directory and a linked file whose targets lie outside it.
         val root = Files.createSymbolicLink(base.resolve("project"), real)
         Files.createSymbolicLink(real.resolve("linked"), shared)
         Files.createSymbolicLink(real.resolve("m.kstates"), outside)
@@ -54,10 +58,9 @@ class WatchServiceFileWatcherTest {
                     .first { targets.all { target -> events.any { it.path == target } } }
             }
         }
-        delay(500.milliseconds) // let the watcher register the existing directories
+        awaitRegistration()
         Files.writeString(root.resolve("build/ignored.kmeta"), "ignored")
         Files.createDirectories(root.resolve("sub"))
-        // The new directory is registered when its creation is reported; keep writing until every file event arrived.
         while (!reported.isCompleted) {
             val text = "type \"A\" \"a\" { }\n${System.nanoTime()}"
             listOf(real.resolve("sub/robot.kmeta"), shared.resolve("robot.kmeta"), outside).forEach { Files.writeString(it, text) }
@@ -67,5 +70,10 @@ class WatchServiceFileWatcherTest {
         reported.await()
         assertTrue(events.none { it.path.startsWith(root.resolve("build")) }, "events below an ignored directory: $events")
         assertTrue(events.all { it.path.startsWith(root) }, "every change is reported under the opened folder's path: $events")
+    }
+
+    /** Gives the watcher time to register the existing directories. */
+    private suspend fun awaitRegistration() {
+        delay(500.milliseconds)
     }
 }

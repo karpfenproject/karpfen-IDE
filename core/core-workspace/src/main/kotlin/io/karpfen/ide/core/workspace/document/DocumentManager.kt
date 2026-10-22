@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * Opens, saves and closes the documents of one workspace (spec §4). Owned by the `Workspace`; all suspend functions
+ * Opens, saves and closes the documents of one workspace. Owned by the `Workspace`; all suspend functions
  * do their file I/O on the workspace's IO dispatcher and are safe to call from the UI thread.
  *
  * Loading goes through the workspace's `SourceLoader` (UTF-8 with replacement characters + a WARNING, byte order mark
@@ -23,8 +23,8 @@ import java.nio.file.Path
  * `WorkspaceOptions.sessionConfig` with that mode), whatever the file's role. In a workspace the project analysis is the
  * only place that converts files (context files through `DslConverter`, loose files never), and its DSL_TOOLS
  * diagnostics reach open documents as `ExternalDiagnosticSources.PROJECT`; so opening, closing or re-classifying a file
- * (e.g. it becomes loose when a descriptor appears) never changes what is reported (decisions 4, 17, 28 and 29 of the
- * work-package plan).
+ * (e.g. it becomes loose when a descriptor appears) never changes what is reported, and the IDE and the CLI report the
+ * same.
  *
  * Threading: called from the workspace's scope dispatcher (see `Workspace`, Threading); texts are only mutated there.
  */
@@ -58,8 +58,8 @@ public sealed interface OpenResult {
     public data class Opened(public val document: OpenDocument) : OpenResult
 
     /**
-     * The file is not a karpfen source (e.g. `*.kenv.json`); the editor cannot open it in phase 1, so the workbench
-     * opens it in the system's default application (decision 14 of the work-package plan).
+     * The file is not a karpfen source (e.g. `*.kenv.json`); the editor cannot open it, so the workbench opens it in the
+     * system's default application.
      */
     public data class Unsupported(public val path: Path) : OpenResult
 

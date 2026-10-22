@@ -1,12 +1,13 @@
 plugins {
-    // Environment descriptors (*.kenv.json) are read with kotlinx.serialization (spec §4).
+    /** Environment descriptors (`*.kenv.json`) are read with kotlinx.serialization. */
     id("karpfen.kotlin-serialization")
 }
 
 dependencies {
-    // The workspace hands out documents, sessions, diagnostics and the dsl-tools models of the project analysis.
+    /** The workspace hands out documents, sessions, diagnostics and the dsl-tools models of the project analysis. */
     api(project(":core:core-document"))
-    // EnvironmentDescriptor is @Serializable public API (its shape is the contract, spec §4).
+
+    /** `EnvironmentDescriptor` is `@Serializable` public API: its JSON shape is the contract with the runtime. */
     api(libs.kotlinx.serialization.json)
     implementation(libs.slf4j.api)
 

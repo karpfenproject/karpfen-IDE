@@ -12,7 +12,7 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import java.nio.file.Path
 
 /**
- * The implicit contexts of a workspace (spec §4, rules on [ContextResolver]): every directory of [tree] without a
+ * The implicit contexts of a workspace (rules on [ContextResolver]): every directory of [tree] without a
  * descriptor (a directory containing a `*.kenv.json`, readable or not, is covered by it) forms one of its karpfen files
  * directly inside that are not [covered] by an explicit context, if any are left; in directory path order. So a file
  * named by a descriptor in another directory is analyzed once, in the descriptor's context, and never reported as a
@@ -32,6 +32,7 @@ internal class DirectoryContexts(private val tree: WorkspaceTree, private val co
             .mapNotNull { directory -> contextOf(directory, diagnostics) }
             .sortedBy { it.directory }
 
+    /** The implicit context of [directory], or null if no uncovered karpfen file lies directly inside it. */
     private fun contextOf(directory: WorkspaceNode.Directory, diagnostics: DiagnosticsByFile): ModelingContext? {
         val files = directory.children.filterIsInstance<WorkspaceNode.File>().filter { it.kind.isKarpfenSource && it.path !in covered }
         if (files.isEmpty()) return null
@@ -70,9 +71,11 @@ internal class DirectoryContexts(private val tree: WorkspaceTree, private val co
         )
     }
 
+    /** An INFO of the IDE at the start of the file. */
     private fun info(code: String, message: String): Diagnostic =
         Diagnostic(TextRange.EMPTY, Severity.INFO, message, code, DiagnosticSource.IDE)
 
+    /** [directory] and every directory below it. */
     private fun directories(directory: WorkspaceNode.Directory): List<WorkspaceNode.Directory> =
         listOf(directory) + directory.children.filterIsInstance<WorkspaceNode.Directory>().flatMap(::directories)
 }

@@ -18,6 +18,7 @@ internal object UnreadableFindings {
     /** A directory that cannot be listed. */
     fun directory(): Diagnostic = error("Cannot read this directory, so its files were not analyzed.")
 
+    /** The ERROR `unreadable` with [message] at the start of the file. */
     private fun error(message: String): Diagnostic =
         Diagnostic(TextRange.EMPTY, Severity.ERROR, message, WorkspaceDiagnosticCodes.UNREADABLE, DiagnosticSource.IDE)
 }

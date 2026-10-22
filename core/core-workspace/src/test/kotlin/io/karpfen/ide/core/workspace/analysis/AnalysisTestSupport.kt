@@ -10,6 +10,7 @@ import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ContextResolver
 import io.karpfen.ide.core.workspace.document.SourceLoader
 import io.karpfen.ide.core.workspace.files.WorkspaceScanner
+import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Path
@@ -20,6 +21,7 @@ internal fun analyzer(): ProjectAnalyzer = ProjectAnalyzer(defaultLanguageRegist
 
 /** Sources reading every file from disk like the workspace does for unopened files; counts the loads. */
 internal class DiskSources : AnalysisSources {
+    /** The number of [load] calls so far. */
     val loads = AtomicInteger()
     private val loader = SourceLoader()
 
@@ -41,8 +43,12 @@ internal fun resolve(root: Path): ContextResolution {
 internal fun dslToolsDiagnostics(analysis: ProjectAnalysis): Map<Path, List<Diagnostic>> =
     analysis.diagnostics.mapValues { (_, list) -> list.filter { it.source == DiagnosticSource.DSL_TOOLS } }.filterValues { it.isNotEmpty() }
 
-/** Runs [block] with `System.err` captured and returns what was written to it. */
+/**
+ * Runs [block] with `System.err` captured and returns what was written to it. SLF4J is initialized first, so its
+ * one-time "no provider" notice goes to the real `System.err` and never into the capture.
+ */
 internal inline fun capturingStandardError(block: () -> Unit): String {
+    LoggerFactory.getLogger(DiskSources::class.java)
     val original = System.err
     val captured = ByteArrayOutputStream()
     System.setErr(PrintStream(captured, true, Charsets.UTF_8))

@@ -25,7 +25,11 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** External changes and the conflict protocol (spec §4, decision 43). */
+/**
+ * Covers external changes and the conflict protocol: clean documents reload as one undoable change, dirty or deleted
+ * ones get a conflict, RELOAD and KEEP_MINE resolve it with a result instead of an exception, the watch event of a
+ * document's own save is ignored, and every reload replaces the FILE findings.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ExternalChangeTest {
 
@@ -35,6 +39,7 @@ class ExternalChangeTest {
     private val original = "type \"Robot\" \"A robot\" {\n}\n"
     private val changed = "type \"Robot\" \"Changed on disk\" {\n}\n"
 
+    /** Writes [content] to [name] in the test directory. */
     private fun file(name: String = "robot.kmeta", content: String = original): Path =
         dir.resolve(name).also { Files.writeString(it, content) }
 

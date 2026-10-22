@@ -51,6 +51,7 @@ internal class JsonSourceParser(private val text: String) {
             null
         }
 
+    /** The value at the current position, nested [depth] levels deep. */
     private fun value(depth: Int): JsonNode {
         if (depth > MAX_DEPTH) throw UnreadableJson()
         return when (peek()) {
@@ -61,6 +62,7 @@ internal class JsonSourceParser(private val text: String) {
         }
     }
 
+    /** The object starting at the current `{`. */
     private fun objectNode(depth: Int): JsonNode.ObjectNode {
         val start = position++
         val members = ArrayList<JsonNode.Member>()
@@ -82,6 +84,7 @@ internal class JsonSourceParser(private val text: String) {
         }
     }
 
+    /** The array starting at the current `[`. */
     private fun arrayNode(depth: Int): JsonNode.ArrayNode {
         val start = position++
         val items = ArrayList<JsonNode>()
@@ -99,6 +102,7 @@ internal class JsonSourceParser(private val text: String) {
         }
     }
 
+    /** The string starting at the current quote, with its escapes decoded. */
     private fun stringNode(): JsonNode.StringNode {
         val start = position
         expect('"')
@@ -112,6 +116,10 @@ internal class JsonSourceParser(private val text: String) {
         }
     }
 
+    /**
+     * The character of the escape sequence after a backslash; a `u` escape with four hex digits yields one UTF-16 code
+     * unit.
+     */
     private fun escape(): Char = when (val char = next()) {
         'b' -> '\b'
         'f' -> '\u000C'
@@ -127,6 +135,10 @@ internal class JsonSourceParser(private val text: String) {
         else -> char
     }
 
+    /**
+     * The number or literal at the current position: every character up to a terminator, unchecked, because
+     * kotlinx.serialization has validated the syntax already.
+     */
     private fun scalarNode(): JsonNode.ScalarNode {
         val start = position
         while (position < text.length && text[position] !in SCALAR_TERMINATORS) position++
@@ -138,10 +150,12 @@ internal class JsonSourceParser(private val text: String) {
         while (position < text.length && text[position] in WHITESPACE) position++
     }
 
+    /** The current character; the end of the text is unreadable JSON. */
     private fun peek(): Char = if (position < text.length) text[position] else throw UnreadableJson()
 
     private fun next(): Char = peek().also { position++ }
 
+    /** Consumes [char] or fails as unreadable JSON. */
     private fun expect(char: Char) {
         if (next() != char) throw UnreadableJson()
     }
@@ -152,7 +166,10 @@ internal class JsonSourceParser(private val text: String) {
     private companion object {
         /** Deeper nesting is not a descriptor; also keeps the recursion far from the stack limit. */
         private const val MAX_DEPTH = 200
+        /** The whitespace characters of JSON. */
         private const val WHITESPACE = " \t\n\r"
+
+        /** The characters that end a number or literal. */
         private const val SCALAR_TERMINATORS = " \t\n\r,:]}[{\""
     }
 }

@@ -78,6 +78,7 @@ internal class DefaultSourceLoader(private val fileStore: TextFileStore) : Sourc
         return null
     }
 
+    /** The line separator starting at [offset] of [raw], or null if no line break starts there. */
     private fun separatorAt(raw: String, offset: Int): LineSeparator? = when {
         raw[offset] == '\n' -> LineSeparator.LF
         raw[offset] != '\r' -> null

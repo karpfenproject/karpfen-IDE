@@ -44,6 +44,7 @@ internal class ProblemsPublisher(
             }.flowOn(dispatcher).collect { state.value = it }
         }
 
+    /** The current diagnostics of every open document, re-emitted whenever the set or one document's diagnostics change. */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun openDiagnostics(documents: StateFlow<List<OpenDocument>>): Flow<List<OpenDocumentDiagnostics>> =
         documents.flatMapLatest { open ->

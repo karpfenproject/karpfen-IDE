@@ -13,7 +13,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
-/** Tree order and ignore rules of the file-system scanner (spec §4). */
+/**
+ * Covers the file-system scanner: the tree order (directories first, case-insensitive names), the ignore rules for
+ * directories, symbolic links and cycles, and directories that cannot be listed.
+ */
 class FileSystemWorkspaceScannerTest {
 
     @TempDir
@@ -21,6 +24,7 @@ class FileSystemWorkspaceScannerTest {
 
     private val scanner = WorkspaceScanner(WorkspaceOptions.DEFAULT_IGNORED_DIRECTORIES)
 
+    /** Writes [text] to [relative] below the test directory, creating its directories. */
     private fun write(relative: String, text: String = "") {
         val path = dir.resolve(relative)
         Files.createDirectories(path.parent)

@@ -12,8 +12,8 @@ import states.StateMachine
 import java.nio.file.Path
 
 /**
- * Result of analyzing every modeling context of a workspace with dsl-tools (spec §4). Immutable snapshot; the
- * dsl-tools model objects inside are never mutated (D1).
+ * Result of analyzing every modeling context of a workspace with dsl-tools. Immutable snapshot; the dsl-tools model
+ * objects inside are never mutated: they are derived from the text files, which stay the single source of truth.
  *
  * Conventions of the analyzer (MUST; consumers such as core-lang and tests building analyses by hand rely on them):
  * - every path is absolute and normalized (`Path.toAbsolutePath().normalize()`), like `DocumentId`;
@@ -32,7 +32,7 @@ import java.nio.file.Path
  *   A file's own diagnostics are not repeated here (see [AnalyzedFile.ownDiagnostics]); these lists are what the
  *   workspace pushes into open sessions as external source `ExternalDiagnosticSources.PROJECT`.
  * @property looseFiles the karpfen sources of the tree that belong to no context (`ContextResolution.looseFiles`),
- *   analyzed syntax-only (decision 13 of the work-package plan: they still get syntax diagnostics).
+ *   analyzed syntax-only: they are never converted, but their syntax errors still appear in the problems.
  */
 public data class ProjectAnalysis(
     public val generation: Long,

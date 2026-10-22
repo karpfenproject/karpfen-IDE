@@ -66,6 +66,7 @@ internal class WatchServiceFileWatcher(
         }
     }
 
+    /** Logs why watching [root] stopped and ends the flow with one overflow change of [root]. */
     private suspend fun FlowCollector<FileChange>.endWithOverflow(root: Path, cause: String) {
         logger.warn("Watching {} stopped: {}", root, cause)
         emit(FileChange(root, FileChangeKind.OVERFLOW))

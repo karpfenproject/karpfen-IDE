@@ -3,11 +3,13 @@ package io.karpfen.ide.core.workspace.context
 import java.nio.file.Path
 
 /**
- * A set of files analyzed together (spec §4): one domain metamodel, an optional event metamodel, models and state
- * machines. All paths are absolute and normalized; referenced files may be missing on disk (reported by the resolver).
+ * A set of files analyzed together: one domain metamodel, an optional event metamodel, models and state machines. All
+ * paths are absolute and normalized; referenced files may be missing on disk (reported by the resolver).
  *
  * @property directory the directory the context belongs to.
  * @property descriptor the `*.kenv.json` defining the context, or null for an implicit (directory) context.
+ * @property metamodel the domain metamodel, or null if the context has none.
+ * @property events the event metamodel (`EVENTS.kmeta` in an implicit context), or null.
  */
 public data class ModelingContext(
     public val directory: Path,

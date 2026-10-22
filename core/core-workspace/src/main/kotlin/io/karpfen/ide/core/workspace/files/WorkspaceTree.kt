@@ -3,7 +3,7 @@ package io.karpfen.ide.core.workspace.files
 import java.nio.file.Path
 
 /**
- * The files of a workspace as a tree (spec §4): ignored and hidden directories are absent; every directory lists
+ * The files of a workspace as a tree: ignored and hidden directories are absent; every directory lists
  * its sub-directories first, then its files, each in case-insensitive name order ([WorkspaceNode.ORDER]).
  */
 public data class WorkspaceTree(public val root: WorkspaceNode.Directory) {

@@ -24,9 +24,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Facade over one opened folder (spec §1a, §4): file tree and watching, documents, modeling contexts, project
- * analysis and problems. It coordinates its collaborators (scanner, watcher, [DocumentManager], [SourceLoader],
- * descriptor reader, context resolver, project analyzer, problems aggregator) and implements no domain logic itself.
+ * Facade over one opened folder: file tree and watching, documents, modeling contexts, project analysis and problems.
+ * It coordinates its collaborators (scanner, watcher, [DocumentManager], [SourceLoader], descriptor reader, context
+ * resolver, project analyzer, problems aggregator) and implements no domain logic itself.
  *
  * Pipelines (all in a child scope of the factory's scope, cancelled by [close]):
  * - scan → [files]; watch events are debounced (`WorkspaceOptions.watchDebounce`) and trigger a rescan plus reload or
@@ -40,9 +40,9 @@ import java.nio.file.Path
  *
  * Threading (MUST): the workspace and its [DocumentManager] are used from the dispatcher of the scope given to the
  * factory (the UI thread in the app, the test thread in tests). Every mutation of an open document's `EditableText`
- * (reload as an `External` change, conflict RELOAD, `markSavePoint` after a save) runs on that dispatcher, because
- * `EditableText` has a single writer (spec §1); `WorkspaceOptions.ioDispatcher` and `analysisDispatcher` only do file
- * I/O and read snapshots.
+ * (reload as an `External` change, conflict RELOAD, `markSavePoint` after a save) runs on that dispatcher, because an
+ * `EditableText` is mutated from one thread only; `WorkspaceOptions.ioDispatcher` and `analysisDispatcher` only do
+ * file I/O and read the immutable snapshots.
  */
 public interface Workspace : AutoCloseable {
 
@@ -88,7 +88,9 @@ public interface Workspace : AutoCloseable {
 
 /**
  * Opens the folder [root] as a workspace and starts scanning (and watching, unless disabled in [options]). Every
- * collaborator is injectable; the defaults are the production implementations.
+ * collaborator is injectable; the defaults are the production implementations. The factory creates the workspace's own
+ * scope (a supervisor child of [scope]) and the [DocumentManager] in it, and hands every collaborator to the workspace,
+ * which never creates one itself.
  *
  * @param root an existing directory.
  * @param scope parent scope of all workspace work; its dispatcher is the single writer of the documents' texts (see

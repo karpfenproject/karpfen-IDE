@@ -68,7 +68,7 @@ internal class WatchRegistry(
                     return FileVisitResult.CONTINUE
                 }
 
-                // A link cycle or a directory that cannot be listed: not watched, the walk goes on.
+                /** A link cycle or a directory that cannot be listed is not watched; the walk goes on. */
                 override fun visitFileFailed(file: Path, exc: IOException): FileVisitResult = FileVisitResult.CONTINUE
             },
         )
@@ -87,6 +87,10 @@ internal class WatchRegistry(
         return target.path
     }
 
+    /**
+     * The changes one [event] of the key watching [target] stands for: the tree path of the entry and the links to it;
+     * an overflow stands for everything the key watches.
+     */
     private fun changesOf(target: Watched, event: WatchEvent<*>): List<FileChange> {
         if (event.kind() == OVERFLOW) {
             return (listOfNotNull(target.path) + target.links.values.flatten()).map { FileChange(it, FileChangeKind.OVERFLOW) }
@@ -103,6 +107,10 @@ internal class WatchRegistry(
         return (listOfNotNull(inTree) + links).map { FileChange(it, kind) }
     }
 
+    /**
+     * Watches the created directory tree or link at [path]. A path that vanished again before it could be registered is
+     * skipped: its parent's key reports the deletion.
+     */
     private fun registerCreated(path: Path) {
         try {
             when {
@@ -110,7 +118,6 @@ internal class WatchRegistry(
                 Files.isSymbolicLink(path) -> registerLinkTarget(path)
             }
         } catch (e: IOException) {
-            // It vanished again; its deletion is reported by its parent.
             logger.debug("Cannot watch new {}: {}", path, e.toString())
         }
     }
@@ -144,6 +151,7 @@ internal class WatchRegistry(
         return key
     }
 
+    /** The real path of [path], or its normalized absolute path if it cannot be resolved. */
     private fun realPathOf(path: Path): Path =
         try {
             path.toRealPath()

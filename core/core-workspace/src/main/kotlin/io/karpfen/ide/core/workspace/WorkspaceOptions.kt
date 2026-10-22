@@ -12,15 +12,16 @@ import kotlin.time.TimeSource
  * [watch].
  *
  * @property watch whether to watch the file system (the CLI and most tests pass false and call `refresh()`).
- * @property watchDebounce quiet time after the last file event before rescanning (spec §4: 200 ms).
- * @property analysisDebounce quiet time after the last change before re-analysis (spec §4: 300 ms).
+ * @property watchDebounce quiet time after the last file event before rescanning (200 ms by default).
+ * @property analysisDebounce quiet time after the last change before re-analysis (300 ms by default).
  * @property ignoredDirectoryNames directory names never scanned or watched; hidden directories (name starting with
  *   `.`) are always ignored as well.
  * @property ioDispatcher file I/O (scan, read, write).
  * @property analysisDispatcher project analysis (CPU).
  * @property sessionConfig base configuration of the document sessions of opened files (dispatchers, debounce); the
  *   `DocumentManager` always uses it with `SemanticMode.SYNTAX_ONLY` (see `DocumentManager`, Semantic mode).
- * @property timeSource clock of the opened documents' `EditableText`s (undo coalescing, spec §2).
+ * @property timeSource clock of the opened documents' `EditableText`s, which merge typing within one second into one
+ *   undo step.
  */
 public data class WorkspaceOptions(
     public val watch: Boolean = true,
@@ -37,7 +38,7 @@ public data class WorkspaceOptions(
     }
 
     public companion object {
-        /** Directories ignored by default (spec §4). */
+        /** Directories ignored by default: version control, build output, IDE settings and package caches. */
         public val DEFAULT_IGNORED_DIRECTORIES: Set<String> =
             setOf(".git", ".gradle", "build", "out", ".idea", ".kotlin", "node_modules")
     }

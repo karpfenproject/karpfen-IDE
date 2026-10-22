@@ -14,9 +14,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlin.time.TimeSource
 
 /**
- * Creates the [DefaultOpenDocument] of a loaded file (spec §4, decisions 21 and 28): an `EditableText` on
- * [timeSource], a `SemanticMode.SYNTAX_ONLY` session (whatever [sessionConfig] says) in a child scope of [scope], and
- * the loading findings as external source `ExternalDiagnosticSources.FILE` of the initial snapshot.
+ * Creates the [DefaultOpenDocument] of a loaded file: an `EditableText` on the injected [timeSource], a
+ * `SemanticMode.SYNTAX_ONLY` session (whatever [sessionConfig] says) in a child scope of [scope], and the loading
+ * findings as external source `ExternalDiagnosticSources.FILE` of the initial snapshot.
+ *
+ * Sessions never convert with dsl-tools: the project analysis is the only place that converts files, so each file is
+ * converted once, open or not, and opening a file never changes what is reported.
  */
 internal class OpenDocumentFactory(
     private val scope: CoroutineScope,

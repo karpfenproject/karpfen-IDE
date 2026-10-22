@@ -23,10 +23,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.milliseconds
 
-/** [batchedBy]: the watch debounce (spec §4, 200 ms) collects every change of a burst, on virtual time. */
+/** Covers [batchedBy], the 200 ms watch debounce that collects every change of a burst, on virtual time. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FileChangeBatchingTest {
 
+    /** A change of [name] below `/ws`. */
     private fun change(name: String, kind: FileChangeKind = FileChangeKind.MODIFIED) =
         FileChange(Path.of("/ws", name).toAbsolutePath(), kind)
 

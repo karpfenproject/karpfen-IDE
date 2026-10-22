@@ -15,12 +15,16 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Reading environment descriptors (spec §4): the shared examples, test-local rules (plan §2 rule 8) and robustness. */
+/**
+ * Covers reading environment descriptors: the shared examples, test-local edge cases (missing, unknown, nested and
+ * repeated keys, values of the wrong type, references) and robustness on mutated and truncated examples.
+ */
 class EnvironmentDescriptorReaderTest {
 
     private val reader = EnvironmentDescriptorReader()
     private val path = Path.of("/ws/robot.kenv.json").toAbsolutePath()
 
+    /** The range of [quoted] inside its quotes in [text]. */
     private fun rangeOf(text: String, quoted: String): TextRange {
         val start = text.indexOf("\"$quoted\"").also { require(it >= 0) { "\"$quoted\" not in text" } } + 1
         return TextRange.ofLength(start, quoted.length)
@@ -205,6 +209,7 @@ class EnvironmentDescriptorReaderTest {
         reporter.publishEntry("descriptor reader robustness", "$count mutated or truncated descriptors read without exception")
     }
 
+    /** Asserts sorted diagnostics, ranges inside [text], an error for every missing descriptor and ordered references. */
     private fun assertWellFormed(text: String, result: DescriptorReadResult) {
         assertEquals(result.diagnostics.sortedWith(Diagnostic.ORDER), result.diagnostics, text)
         (result.diagnostics.map { it.range } + result.references.map { it.range }).forEach { range ->

@@ -17,9 +17,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * What the watcher registers and how it maps events, on real trees with symbolic links and fake keys (the real watch
- * service is too slow on macOS for more than one test): every directory the scan lists is watched under its path in
- * the tree, and changes below links are reported under the links' paths.
+ * Covers what the watcher registers and how it maps events, on real trees with symbolic links and fake keys (the real
+ * watch service is too slow on macOS for more than one test): every directory the scan lists is watched under its path
+ * in the tree, and changes below links are reported under the links' paths.
  */
 class WatchRegistryTest {
 
@@ -37,6 +37,7 @@ class WatchRegistryTest {
         override fun watchable(): Watchable = directory
     }
 
+    /** A watch event of [kind] for the entry [name]. */
     private class Event(private val kind: WatchEvent.Kind<Path>, private val name: String) : WatchEvent<Path> {
         override fun kind(): WatchEvent.Kind<Path> = kind
         override fun count(): Int = 1
@@ -45,15 +46,19 @@ class WatchRegistryTest {
 
     private val keys = ArrayList<FakeKey>()
 
+    /** A registry for [root] that ignores like a scanner with [ignored] and records its keys in [keys]. */
     private fun registry(root: Path, ignored: Set<String> = emptySet()): WatchRegistry {
         val scanner = WorkspaceScanner(ignored)
         return WatchRegistry({ scanner.isIgnored(root, it) }) { directory -> FakeKey(directory).also { keys += it } }
     }
 
+    /** The paths registered so far, in registration order. */
     private fun registered(): List<Path> = keys.map { it.directory }
 
+    /** The key registered under [directory]. */
     private fun keyOf(directory: Path): FakeKey = keys.single { it.directory == directory }
 
+    /** Writes [text] to [path], creating its directories. */
     private fun write(path: Path, text: String = "x"): Path {
         Files.createDirectories(path.parent)
         return Files.writeString(path, text)

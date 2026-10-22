@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import java.nio.file.Path
 
 /**
- * Observes file-system changes below a directory (spec §4). The default implementation uses
+ * Observes file-system changes below a directory. The default implementation uses
  * `java.nio.file.WatchService` with recursive registration (new directories are registered as they appear). Tests
  * use a fake that emits changes on demand, because the JDK's macOS watch service polls with multi-second delays.
  */

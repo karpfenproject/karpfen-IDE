@@ -22,6 +22,8 @@ import kotlin.time.TestTimeSource
 /** A [FileWatcher] that emits the changes a test hands it (the real watch service polls slowly on macOS). */
 internal class FakeFileWatcher : FileWatcher {
     private val changes = MutableSharedFlow<FileChange>(extraBufferCapacity = 1024)
+
+    /** The root of the latest [watch] call, null before the first one. */
     var watchedRoot: Path? = null
         private set
 
@@ -38,9 +40,13 @@ internal class FakeFileWatcher : FileWatcher {
 
 /** Workspaces on the virtual time of [scope]: every dispatcher is a test dispatcher, the clock a [TestTimeSource]. */
 internal class TestWorkspaces(private val scope: TestScope) {
+    /** The one test dispatcher every workspace of the test runs its I/O, analysis and sessions on. */
     val dispatcher = StandardTestDispatcher(scope.testScheduler)
+
+    /** The fake watcher of every workspace of the test. */
     val watcher = FakeFileWatcher()
 
+    /** Options on [dispatcher] and a fresh [TestTimeSource], watching only if [watch]. */
     fun options(watch: Boolean = false): WorkspaceOptions = WorkspaceOptions(
         watch = watch,
         ioDispatcher = dispatcher,
