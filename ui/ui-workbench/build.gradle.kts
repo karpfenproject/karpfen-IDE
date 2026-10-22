@@ -1,4 +1,4 @@
-/** Compose for the views, and kotlinx.serialization for the [IdeSettings], which are stored as JSON. */
+/** Compose for the views, and kotlinx.serialization for the `IdeSettings`, which are stored as JSON. */
 plugins {
     id("karpfen.compose")
     id("karpfen.kotlin-serialization")
