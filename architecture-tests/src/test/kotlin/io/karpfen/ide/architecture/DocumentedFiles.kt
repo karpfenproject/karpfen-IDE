@@ -40,6 +40,7 @@ internal object DocumentedFiles {
     private fun isDocumented(relativePath: String): Boolean {
         val isGradleScript = relativePath.endsWith(".gradle.kts")
         val isKotlinFile = relativePath.endsWith(".kt") || relativePath.endsWith(".kts")
-        return isGradleScript || isKotlinFile && "src" in relativePath.split('/').dropLast(1)
+        val isInSourceDirectory = "src" in relativePath.split('/').dropLast(1)
+        return isGradleScript || (isKotlinFile && isInSourceDirectory)
     }
 }
