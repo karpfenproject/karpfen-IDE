@@ -65,7 +65,7 @@ carry the JUnit tag `budget` and are never run, as the
 [testing conventions](docs/codebase-guide.md#testing) of the codebase guide describe the fixtures, the end-to-end tests
 and how to test on virtual time.
 
-Before a release, run the [manual smoke test](docs/manual-test.md): about 10 minutes at a real machine with a German
+Before a release, run the [manual smoke test](docs/manual-test.md): about 12 minutes at a real machine with a German
 keyboard layout. It covers what headless tests cannot: the native menu bar, typing on a real keyboard layout, focus and
 mouse handling, changes on disk and quitting.
 
