@@ -16,10 +16,11 @@ internal data class FunctionSource(val name: String, val text: String)
  *
  * - it calls an assertion, a function whose name starts with `assert`, `check` or `require` (the assertions of
  *   kotlin.test and JUnit, the preconditions of the standard library and helpers named like them), with an argument
- *   or a trailing lambda that mentions a measured value ([MeasuredValues]), whatever the limit is compared with: a
- *   named budget, a literal duration or another measurement;
- * - it calls one of JUnit's timeout assertions, whose names start with `assertTimeout`, which measure the wall clock
- *   themselves; or
+ *   that holds a measurement ([MeasuredValues]), whatever the measurement is compared with: a named budget, a literal
+ *   duration or another measurement. The trailing lambda of an assertion counts as an argument, as the condition of
+ *   kotlin.test's `assertTrue { … }`, while that of a precondition is its lazy message and does not;
+ * - it fails, by `fail(…)`, `error(…)` or `throw`, in the branch of an `if` whose condition holds a measurement;
+ * - it calls one of JUnit's timeout assertions or runs a coroutine test with a tight literal limit ([TimeLimits]); or
  * - it calls another function of the file that asserts on a wall-clock measurement, such as a helper that measures a
  *   block and asserts on the result.
  *
@@ -27,22 +28,24 @@ internal data class FunctionSource(val name: String, val text: String)
  * statement or its expression body, makes every call of it a measurement, as a helper that averages the duration of a
  * block does. Both sets of functions are grown until they no longer change.
  *
- * A wait for an event with a time limit, such as a loop that polls until a deadline, compares the wall clock but asserts
- * nothing on it, and a test that only reports a measured duration asserts nothing either, so neither is recognized: a
- * functional test with a generous time limit keeps running. Assertions in helpers of another file are not followed.
+ * The code is read without its string literals ([KotlinLexer.codeOutsideStrings]), so a duration written into an
+ * assertion message or a report is no measurement. A timestamp is none either: a test that compares a stored instant,
+ * or waits for an event until a deadline, with a loop that compares the clock with the deadline or checks
+ * `hasNotPassedNow()`, asserts nothing on a duration, and neither does a test that only reports a measured duration, so
+ * a functional test with a generous time limit keeps running. Assertions in helpers of another file are not followed.
  *
  * @param functions all functions of the file, those nested in classes and declared locally included.
  */
 internal class WallClockAssertions(private val functions: List<FunctionSource>) {
 
-    /** The code of each function, comments and literal text blanked. */
-    private val codes: Map<FunctionSource, String> = functions.associateWith { KotlinLexer.code(it.text) }
+    /** The code of each function, comments and string literals blanked. */
+    private val codes: Map<FunctionSource, String> = functions.associateWith { KotlinLexer.codeOutsideStrings(it.text) }
 
     /** The names of the functions whose result is a wall-clock measurement. */
     private val measuringFunctions: Set<String> = grow(::returnsMeasurement).map { it.name }.toSet()
 
-    /** The functions that call an assertion on a measured value themselves. */
-    private val assertingThemselves: Set<FunctionSource> = functions.filter(::assertsOnMeasurement).toSet()
+    /** The functions that assert on a measured value themselves. */
+    private val assertingThemselves: Set<FunctionSource> = functions.filter(::assertsThemselves).toSet()
 
     /** The functions that assert on a wall-clock measurement, themselves or through the functions they call. */
     private val asserting: Set<FunctionSource> =
@@ -57,19 +60,44 @@ internal class WallClockAssertions(private val functions: List<FunctionSource>) 
         val values = MeasuredValues(code, known.map { it.name })
         val results = RETURN.findAll(code).map { CodeRegions.statementFrom(code, it.range.last + 1) } +
             listOfNotNull(CodeRegions.expressionBody(code))
-        return results.any { values.areMentionedIn(it) }
+        return results.any(values::areMentionedIn)
     }
 
-    /** True if [function] calls an assertion on a measured value or a timeout assertion. */
-    private fun assertsOnMeasurement(function: FunctionSource): Boolean {
+    /**
+     * True if [function] asserts on a measured value itself, by an assertion call or a failing branch, or has a tight
+     * timeout.
+     */
+    private fun assertsThemselves(function: FunctionSource): Boolean {
         val code = codes.getValue(function)
-        val calls = ASSERTION.findAll(code).filterNot { CodeRegions.isDeclaredAt(code, it.range.first) }.toList()
-        if (calls.isEmpty()) return false
+        if (TimeLimits.hasTightTimeoutIn(code)) return true
+        val asserted = assertionArguments(code) + failingConditions(code)
+        if (asserted.isEmpty()) return false
         val values = MeasuredValues(code, measuringFunctions)
-        return calls.any { call ->
-            call.value.startsWith(TIMEOUT_ASSERTION) || values.areMentionedIn(CodeRegions.callArguments(code, call.range.last + 1))
-        }
+        return asserted.any(values::areMentionedIn)
     }
+
+    /**
+     * The arguments of the assertion calls in [code]: the argument list and the trailing lambda of an assertion, which
+     * may be its condition, and the argument list only of a precondition, whose trailing lambda is its lazy message.
+     */
+    private fun assertionArguments(code: String): List<IntRange> =
+        ASSERTION.findAll(code)
+            .filterNot { CodeRegions.isDeclaredAt(code, it.range.first) }
+            .map { call ->
+                val nameEnd = call.range.last + 1
+                if (PRECONDITION.matches(call.value)) CodeRegions.argumentList(code, nameEnd) else CodeRegions.callArguments(code, nameEnd)
+            }
+            .toList()
+
+    /** The conditions of the `if` expressions in [code] whose branch fails. */
+    private fun failingConditions(code: String): List<IntRange> =
+        IF.findAll(code)
+            .map { CodeRegions.argumentList(code, it.range.last + 1) }
+            .filter { condition -> !condition.isEmpty() && fails(code, CodeRegions.statementFrom(code, condition.last + 1)) }
+            .toList()
+
+    /** True if [branch], a region of [code], fails. */
+    private fun fails(code: String, branch: IntRange): Boolean = FAILURE.matchesIn(code, branch).any()
 
     /** True if [function] calls one of the functions [known] to assert on a measurement, other than itself. */
     private fun callsAny(function: FunctionSource, known: Set<FunctionSource>): Boolean =
@@ -95,7 +123,13 @@ internal class WallClockAssertions(private val functions: List<FunctionSource>) 
         /** The name of an assertion, followed by its argument list or a trailing lambda. */
         val ASSERTION = Regex("""\b(?:assert|check|require)\w*(?=[ \t]*[({])""")
 
-        /** The start of the names of JUnit's timeout assertions. */
-        const val TIMEOUT_ASSERTION = "assertTimeout"
+        /** The name of a precondition of the standard library or of a helper named like one. */
+        val PRECONDITION = Regex("""(?:check|require)\w*""")
+
+        /** The keyword `if`, followed by its condition in parentheses. */
+        val IF = Regex("""\bif(?=[ \t]*\()""")
+
+        /** A failure: a call of `fail` or `error`, not as the member of another value, or the keyword `throw`. */
+        val FAILURE = Regex("""(?<![\w.])(?:fail|error)(?=[ \t]*\()|\bthrow\b""")
     }
 }

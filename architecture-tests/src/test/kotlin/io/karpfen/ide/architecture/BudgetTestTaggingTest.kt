@@ -10,20 +10,51 @@ import kotlin.test.assertTrue
 
 /**
  * Time-budget tests are never run: a test that asserts on a wall-clock measurement must carry the JUnit tag `budget`,
- * which every test task excludes, because machine load and sleep/wake cycles make the wall clock unreliable.
+ * and every test task excludes that tag, because machine load and sleep/wake cycles make the wall clock unreliable.
  * build-logic's `TestTags.BUDGET` declares the tag and explains the rule.
  *
- * The rule is a tripwire, not a proof. [TimingTests] judges every test function of every test source file:
- * [WallClockAssertions] decides whether it asserts on a wall-clock measurement, whatever the limit is compared with,
- * and the tag counts on the function or on a class around it, so an untagged timing test is caught even in a file
- * whose other tests carry the tag. Functional tests that wait for an event with a generous time limit, or only report
- * a measured duration, assert nothing on the wall clock and keep running.
+ * The rule is a tripwire, not a proof. [TimingTests] judges every test function of every test source file, those of
+ * build-logic included: [WallClockAssertions] decides whether it asserts on a wall-clock measurement, whatever the
+ * limit is compared with, and the tag counts on the function or on a class around it, so an untagged timing test is
+ * caught even in a file whose other tests carry the tag. Functional tests that wait for an event with a generous time
+ * limit, or only report a measured duration, assert nothing on the wall clock and keep running.
+ *
+ * The test tasks are read from the Gradle scripts: every call of `useJUnitPlatform` must exclude the tag, by the
+ * constant `TestTags.BUDGET` or by its value, which is checked against the declaration of the constant.
  */
 class BudgetTestTaggingTest {
 
-    /** The verdicts on the tests of the test and test-fixture source files of all modules. */
+    /** The verdicts on the tests of the test and test-fixture source files of all modules and of build-logic. */
     private val verdicts: List<TimingVerdict> by lazy {
-        KarpfenModules.moduleFiles.filter { it.sourceSetName != "main" }.flatMap(TimingTests::verdicts)
+        (KarpfenModules.moduleFiles.filter { it.sourceSetName != "main" } + KarpfenModules.buildToolingTestFiles)
+            .flatMap(TimingTests::verdicts)
+    }
+
+    @Test
+    fun `the tests of build-logic are judged like those of the modules`() {
+        assertTrue(verdicts.any { BUILD_LOGIC_TESTS in it.file.replace('\\', '/') }, "No test of build-logic was judged")
+    }
+
+    @Test
+    fun `every test task excludes the budget tag`() {
+        val declaration = DocumentedFiles.all.single { it.relativePath.endsWith("/buildlogic/TestTags.kt") }
+        assertTrue(BUDGET_DECLARATION.containsMatchIn(declaration.text), "TestTags.BUDGET is no longer \"${TimingTests.BUDGET_TAG}\"")
+
+        val platforms = DocumentedFiles.all.filter { it.relativePath.endsWith(".gradle.kts") }.flatMap { script ->
+            val code = KotlinLexer.code(script.text)
+            JUNIT_PLATFORM.findAll(code).map { call ->
+                script.relativePath to script.text.textOf(CodeRegions.callArguments(code, call.range.last + 1))
+            }
+        }
+        assertTrue(
+            platforms.map { it.first }.containsAll(TEST_TASK_SCRIPTS),
+            "The test tasks of build-logic or of the modules are no longer configured where expected; this check would be vacuous",
+        )
+        assertEquals(
+            emptyList(),
+            platforms.filterNot { (_, configuration) -> BUDGET_EXCLUSION.containsMatchIn(configuration) }.map { it.first },
+            "These scripts run tests on the JUnit Platform without excluding the budget tag: write useJUnitPlatform { excludeTags(...) }",
+        )
     }
 
     @Test
@@ -32,8 +63,9 @@ class BudgetTestTaggingTest {
         assertEquals(
             emptyList(),
             verdicts.filter { it.assertsOnWallClock && !it.isTaggedBudget }.map { it.toString() },
-            "These tests assert on wall-clock time but are not tagged budget, so every build would run them: " +
-                "annotate the test function or its class with @Tag(\"budget\"), or remove the timing assertion",
+            "These tests assert on wall-clock time but are not tagged budget, so every build would run them. A time-budget " +
+                "test gets @Tag(\"budget\") on the test function or its class; a functional test that waits for an event " +
+                "writes the wait as a deadline or a generous timeout instead (WallClockAssertions lists what counts)",
         )
     }
 
@@ -50,7 +82,9 @@ class BudgetTestTaggingTest {
     }
 
     @Test
-    fun `an untagged timing test is caught in a file whose other tests are tagged`(@TempDir directory: Path) {
+    fun `an untagged timing test is caught in a file whose other tests are tagged, whichever way they are tagged`(
+        @TempDir directory: Path,
+    ) {
         Files.writeString(directory.resolve("PlantedTimingTest.kt"), PLANTED_TESTS)
         val file = Konsist.scopeFromExternalDirectory(directory.toString()).files.single()
 
@@ -60,6 +94,10 @@ class BudgetTestTaggingTest {
                 Triple("functional", false, false),
                 Triple("tagged itself", true, true),
                 Triple("untagged with a literal limit", false, true),
+                Triple("tagged by a named argument", true, true),
+                Triple("tagged by the qualified annotation", true, true),
+                Triple("tagged inside the container", true, true),
+                Triple("untagged with a tight timeout", false, true),
             ),
             TimingTests.verdicts(file).map { Triple(it.test, it.isTaggedBudget, it.assertsOnWallClock) },
         )
@@ -69,11 +107,32 @@ class BudgetTestTaggingTest {
         /** The number of time-budget test functions written in phase 1, all of which the tripwire must recognize. */
         const val PHASE_ONE_BUDGET_TESTS = 14
 
-        /** A test source file with a tagged class, and a class that mixes a functional, a tagged and an untagged test. */
+        /** The Gradle scripts that configure the test tasks of build-logic and of the modules. */
+        val TEST_TASK_SCRIPTS = listOf("build-logic/build.gradle.kts", "build-logic/src/main/kotlin/karpfen.kotlin-jvm.gradle.kts")
+
+        /** The directory of the test sources of build-logic. */
+        const val BUILD_LOGIC_TESTS = "/build-logic/src/test/"
+
+        /** The declaration of the budget tag in build-logic's `TestTags`, with the value the tripwire looks for. */
+        val BUDGET_DECLARATION = Regex("""\bconst\s+val\s+BUDGET\s*:\s*String\s*=\s*"${TimingTests.BUDGET_TAG}"""")
+
+        /** A call of `useJUnitPlatform` in a Gradle script, followed by its arguments or configuration block. */
+        val JUNIT_PLATFORM = Regex("""\buseJUnitPlatform\b""")
+
+        /** The exclusion of the budget tag, by the constant of build-logic or by its value. */
+        val BUDGET_EXCLUSION = Regex("""\bexcludeTags\(\s*(?:TestTags\.BUDGET|"${TimingTests.BUDGET_TAG}")\s*\)""")
+
+        /**
+         * A test source file with a tagged class, and a class with a generous timeout that mixes a functional test,
+         * tests tagged in each way JUnit reads the tag, and untagged timing tests, one of them by a tight timeout.
+         */
         const val PLANTED_TESTS = """
             package planted
 
             import org.junit.jupiter.api.Tag
+            import org.junit.jupiter.api.Tags
+            import org.junit.jupiter.api.Timeout
+            import java.util.concurrent.TimeUnit
             import kotlin.test.Test
             import kotlin.test.assertTrue
             import kotlin.time.Duration.Companion.milliseconds
@@ -87,6 +146,7 @@ class BudgetTestTaggingTest {
                 }
             }
 
+            @Timeout(value = 90, unit = TimeUnit.SECONDS)
             class MixedTimingTest {
                 @Test
                 fun `functional`() {
@@ -104,6 +164,30 @@ class BudgetTestTaggingTest {
                 fun `untagged with a literal limit`() {
                     val elapsed = measureTime { work() }
                     assertTrue(elapsed < 200.milliseconds)
+                }
+
+                @Test
+                @Tag(value = "budget")
+                fun `tagged by a named argument`() {
+                    measureTime { work() }.let { assertTrue(it < 200.milliseconds) }
+                }
+
+                @Test
+                @org.junit.jupiter.api.Tag("budget")
+                fun `tagged by the qualified annotation`() {
+                    assertTrue(measureTime { work() } < 200.milliseconds)
+                }
+
+                @Test
+                @Tags(Tag("budget"), Tag("slow"))
+                fun `tagged inside the container`() {
+                    assertTrue(measureTime { work() } < 200.milliseconds)
+                }
+
+                @Test
+                @Timeout(100, unit = TimeUnit.MILLISECONDS)
+                fun `untagged with a tight timeout`() {
+                    assertTrue(work() == 1)
                 }
             }
 

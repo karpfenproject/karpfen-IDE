@@ -18,12 +18,17 @@ dependencies {
 }
 
 /**
- * Runs the tests on the JUnit Platform. `VerifyModuleDependenciesFunctionalTest` builds a fixture with TestKit that
- * reads the shared version catalog relative to the working directory (this project's directory), so the catalog is a
- * declared input and a change to it reruns the tests.
+ * Runs the tests on the JUnit Platform without the time-budget tests, like every test task of the modules. The tag is
+ * written out here because a build script cannot use the classes of its own build; it is the value of
+ * `TestTags.BUDGET`, and the architecture test `BudgetTestTaggingTest` checks that every test task of the repository
+ * excludes that tag. `VerifyModuleDependenciesFunctionalTest` builds a fixture with TestKit that reads the shared
+ * version catalog relative to the working directory (this project's directory), so the catalog is a declared input and
+ * a change to it reruns the tests.
  */
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("budget")
+    }
     inputs.file(layout.projectDirectory.file("../gradle/libs.versions.toml"))
         .withPathSensitivity(PathSensitivity.NONE)
         .withPropertyName("versionCatalog")

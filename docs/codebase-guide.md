@@ -250,7 +250,9 @@ is carried out.
   ids, which it also looks for in the markdown documents, the CI workflows and the XML resources. `KotlinLexer` is the
   one lexer behind all text-reading rules: it tells comments and literal text from code for `KotlinComments`, for
   `SourceReferences` (the fully qualified names the layer rules check) and for `WallClockAssertions`, which
-  `BudgetTestTaggingTest` asks whether a test asserts on the wall clock.
+  `BudgetTestTaggingTest` asks whether a test asserts on the wall clock; behind it, `MeasuredValues` and `Lambdas`
+  follow a measurement through the code of a test and `TimeLimits` judges the limits of timeouts. `BuildOutput` is the
+  one rule that tells build output from sources; the `.gitignore` follows it.
 
 Typical changes and where they start:
 

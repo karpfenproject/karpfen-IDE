@@ -12,8 +12,9 @@ import com.lemonappdev.konsist.api.provider.KoContainingDeclarationProvider
  *
  * @property file the path of the test source file.
  * @property test the name of the test function.
- * @property isTaggedBudget true if the function, or a class it is declared in, carries `@Tag("budget")`.
- * @property assertsOnWallClock true if the function asserts on a wall-clock measurement ([WallClockAssertions]).
+ * @property isTaggedBudget true if the function, or a class it is declared in, carries the JUnit tag `budget`.
+ * @property assertsOnWallClock true if the function asserts on a wall-clock measurement ([WallClockAssertions]) or runs
+ *   under a tight JUnit `@Timeout` ([TimeLimits]).
  */
 internal data class TimingVerdict(val file: String, val test: String, val isTaggedBudget: Boolean, val assertsOnWallClock: Boolean) {
     override fun toString(): String = "$file: $test"
@@ -23,23 +24,31 @@ internal data class TimingVerdict(val file: String, val test: String, val isTagg
  * Reads the test functions of a test source file for the budget tripwire. Konsist supplies the declarations: every
  * function of the file, nested and local ones included, goes to [WallClockAssertions], which follows measurements and
  * assertions through the helpers of the file, and every test function, a function annotated as a JUnit test, gets a
- * [TimingVerdict]. The tag is looked up per test, on the function itself and on the classes around it, so a file that
- * mixes tagged and untagged tests is judged test by test.
+ * [TimingVerdict].
+ *
+ * The annotations are looked up per test, on the function itself and on the classes around it, so a file that mixes
+ * tagged and untagged tests is judged test by test. They are read by their simple name and their arguments, so the
+ * tag counts as `@Tag("budget")`, `@Tag(value = "budget")`, fully qualified or inside JUnit's container `@Tags`, and
+ * JUnit's `@Timeout` counts with its value and unit.
  */
 internal object TimingTests {
+
+    /** The JUnit tag of time-budget tests, the value of `TestTags.BUDGET` in build-logic. */
+    const val BUDGET_TAG = "budget"
 
     /** The simple names of the JUnit annotations that make a function a test. */
     private val TEST_ANNOTATIONS = setOf("Test", "ParameterizedTest", "RepeatedTest", "TestFactory", "TestTemplate")
 
-    /** The text of the tag annotation with the budget tag, `@Tag("budget")`, blanks allowed inside the parentheses. */
-    private val BUDGET_TAG = Regex("""^@Tag\(\s*"budget"\s*\)$""")
+    /** A tag annotation with the budget tag as an argument of JUnit's container `@Tags`. */
+    private val NESTED_BUDGET_TAG = Regex("""^(?:[\w.]+\.)?Tag\(\s*(?:value\s*=\s*)?"$BUDGET_TAG"\s*\)$""")
 
     /** The verdicts on the test functions of [file], in the order of their declarations. */
     fun verdicts(file: KoFileDeclaration): List<TimingVerdict> {
         val functions = file.functions(includeNested = true, includeLocal = true)
         val assertions = WallClockAssertions(functions.map { it.source })
         return functions.filter { it.isTest }.map { function ->
-            TimingVerdict(file.path, function.name, function.isTaggedBudget, assertions.assertsOnWallClock(function.source))
+            val assertsOnWallClock = assertions.assertsOnWallClock(function.source) || function.carries(::isTightTimeout)
+            TimingVerdict(file.path, function.name, function.carries(::isBudgetTag), assertsOnWallClock)
         }
     }
 
@@ -49,12 +58,28 @@ internal object TimingTests {
     /** True if the function carries one of the [TEST_ANNOTATIONS]. */
     private val KoFunctionDeclaration.isTest: Boolean get() = annotations.any { it.name in TEST_ANNOTATIONS }
 
-    /** True if the function or one of the declarations around it, up to the file, carries the budget tag. */
-    private val KoFunctionDeclaration.isTaggedBudget: Boolean
-        get() = generateSequence<KoBaseDeclaration>(this) { (it as? KoContainingDeclarationProvider)?.containingDeclaration }
+    /** True if the function or one of the declarations around it, up to the file, carries an annotation that [matches]. */
+    private fun KoFunctionDeclaration.carries(matches: (KoAnnotationDeclaration) -> Boolean): Boolean =
+        generateSequence<KoBaseDeclaration>(this) { (it as? KoContainingDeclarationProvider)?.containingDeclaration }
             .takeWhile { it !is KoFileDeclaration }
-            .any { declaration -> (declaration as? KoAnnotationProvider)?.annotations?.any(::isBudgetTag) == true }
+            .any { declaration -> (declaration as? KoAnnotationProvider)?.annotations?.any(matches) == true }
 
-    /** True if [annotation] is the tag annotation with the budget tag. */
-    private fun isBudgetTag(annotation: KoAnnotationDeclaration): Boolean = BUDGET_TAG.matches(annotation.text.trim())
+    /** True if [annotation] is JUnit's tag annotation with the budget tag, alone or inside the container `@Tags`. */
+    private fun isBudgetTag(annotation: KoAnnotationDeclaration): Boolean = when (annotation.name) {
+        "Tag" -> annotation.arguments.any { it.value == BUDGET_TAG }
+        "Tags" -> annotation.arguments.any { NESTED_BUDGET_TAG.matches(it.value?.trim().orEmpty()) }
+        else -> false
+    }
+
+    /**
+     * True if [annotation] is JUnit's `@Timeout` with a tight limit. Its value is the argument named `value` or the
+     * first one, its unit the argument named `unit` or the second one.
+     */
+    private fun isTightTimeout(annotation: KoAnnotationDeclaration): Boolean {
+        if (annotation.name != "Timeout") return false
+        val arguments = annotation.arguments
+        val value = arguments.firstOrNull { it.name == "value" } ?: arguments.firstOrNull { it.name.isEmpty() }
+        val unit = arguments.firstOrNull { it.name == "unit" } ?: arguments.filter { it.name.isEmpty() }.getOrNull(1)
+        return TimeLimits.isTightJUnitTimeout(value?.value ?: return false, unit?.value)
+    }
 }

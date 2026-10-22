@@ -56,6 +56,15 @@ class KotlinLexerTest {
     }
 
     @Test
+    fun `the code outside strings blanks whole string literals, their template expressions included`() {
+        val source = "assertEquals(1, result, \"after \${mark.elapsedNow()} and \${f(\"x\")}\") // \${y}"
+        val code = KotlinLexer.codeOutsideStrings(source)
+
+        assertEquals(source.length, code.length)
+        assertEquals(listOf("assertEquals(1,", "result,", ")"), code.split(Regex("\\s+")).filter { it.isNotEmpty() })
+    }
+
+    @Test
     fun `a multi-dollar string opens a template only on as many dollar signs as its prefix has`() {
         assertEquals(listOf(STRING to "\$\$\"literal \${ x }\""), spansIn("\$\$\"literal \${ x }\""))
         assertEquals(listOf(STRING to "\$\$\"a \$\${", STRING to "} b\""), spansIn("\$\$\"a \$\${ x } b\""))

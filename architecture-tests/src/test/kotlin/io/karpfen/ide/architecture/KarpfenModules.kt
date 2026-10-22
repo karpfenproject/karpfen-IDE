@@ -59,16 +59,24 @@ internal object KarpfenModules {
     private val nonProductModules = setOf("build-logic")
 
     /**
-     * Every Kotlin source file (`src/<sourceSet>/...kt`) in the repository except build tooling.
-     * Konsist already skips hidden directories and build output; build scripts (`*.gradle.kts`) and
-     * build-logic/ are filtered out here.
+     * Every Kotlin source file (`src/<sourceSet>/...kt`) in the repository, build tooling included. Konsist already
+     * skips hidden directories and build output; build scripts (`*.gradle.kts`) are filtered out here.
      */
+    private val allSourceFiles: List<KoFileDeclaration> by lazy {
+        Konsist.scopeFromProject().files.filter { file -> file.path.endsWith(".kt") && "/src/" in file.projectPath.replace('\\', '/') }
+    }
+
+    /** Every Kotlin source file in the repository except build tooling, which the rules on product code leave out. */
     val sourceFiles: List<KoFileDeclaration> by lazy {
-        Konsist.scopeFromProject().files.filter { file ->
-            file.path.endsWith(".kt") &&
-                "/src/" in file.projectPath.replace('\\', '/') &&
-                file.moduleName.replace('\\', '/') !in nonProductModules
-        }
+        allSourceFiles.filter { it.moduleDir !in nonProductModules }
+    }
+
+    /**
+     * The Kotlin files of the test source sets of build-logic: build tooling, left out of the rules on product code,
+     * but tests like those of the modules, so the rules on tests judge them too.
+     */
+    val buildToolingTestFiles: List<KoFileDeclaration> by lazy {
+        allSourceFiles.filter { it.moduleDir in nonProductModules && it.sourceSetName != "main" }
     }
 
     /** Kotlin files of the karpfen modules listed in [packagePrefixes] (main and test source sets). */

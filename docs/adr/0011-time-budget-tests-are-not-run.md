@@ -13,13 +13,16 @@ and one of these tests failed under load although the code had not changed.
 
 ## Decision
 
-- Tests that compare a wall-clock duration with a limit carry the JUnit tag `budget`, and no build, check or CI run
-  executes them. There is no opt-in switch: enabling them is part of the later performance work.
+- Tests that compare a wall-clock duration with a limit carry the JUnit tag `budget`, and every test task excludes
+  it, those of build-logic included, so no build, check or CI run executes them. There is no opt-in switch: enabling
+  them is part of the later performance work.
 - Functional assertions that lived inside a budget test move to untagged tests, which keep running.
-- An architecture test catches a timing test without the tag.
+- An architecture test catches a timing test without the tag, in the modules and in build-logic, and a test task that
+  does not exclude it.
 
 The KDoc of `TestTags.BUDGET` in build-logic explains the rule, its reasons and what it leaves undetected; the KDoc of
-`BudgetTestTaggingTest` and `WallClockAssertions` in architecture-tests says what counts as a timing test.
+`BudgetTestTaggingTest`, `WallClockAssertions`, `MeasuredValues` and `TimeLimits` in architecture-tests says what
+counts as a timing test.
 
 ## Consequences
 

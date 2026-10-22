@@ -42,8 +42,9 @@ internal data class LexicalSpan(val kind: SpanKind, val start: Int, val end: Int
 
 /**
  * The one lexer of the architecture tests: it splits Kotlin source text, of `.kt` files and Gradle's `.kts` scripts
- * alike, into code and the spans that are no code. [KotlinComments] reads the comments from it, while [SourceReferences]
- * and the budget tripwire ([WallClockAssertions]) read the code that remains when the spans are blanked.
+ * alike, into code and the spans that are no code. [KotlinComments] reads the comments from it, [SourceReferences] the
+ * code that remains when the spans are blanked, and the budget tripwire ([WallClockAssertions]) the code that remains
+ * when whole string literals are blanked as well.
  *
  * Only a lexer can tell code from text that merely looks like it, such as a URL in a string or a package name in a
  * test name, so this object follows the lexical rules of Kotlin as far as the architecture tests depend on them:
@@ -82,9 +83,23 @@ internal object KotlinLexer {
      *
      * @param lexed the spans of [source], for a caller that already has them, so the text is not lexed twice.
      */
-    fun code(source: String, lexed: List<LexicalSpan> = spans(source)): String {
+    fun code(source: String, lexed: List<LexicalSpan> = spans(source)): String = blanked(source, lexed)
+
+    /**
+     * The code of [source] outside its string literals: like [code], but every string literal is blanked as a whole,
+     * its template expressions included. It serves a reader to whom text built from values is text, such as the budget
+     * tripwire, for which a duration written into an assertion message is no measurement.
+     */
+    fun codeOutsideStrings(source: String): String {
+        val scan = Scan(source)
+        val spans = scan.spans()
+        return blanked(source, spans + scan.stringLiterals)
+    }
+
+    /** [source] with every character of [spans] replaced by a space, line breaks excepted. */
+    private fun blanked(source: String, spans: List<LexicalSpan>): String {
         val code = StringBuilder(source)
-        for (span in lexed) {
+        for (span in spans) {
             for (offset in span.start until span.end) {
                 if (code[offset] != '\n') code.setCharAt(offset, ' ')
             }
@@ -101,10 +116,13 @@ internal object KotlinLexer {
         /** The spans found so far, in the order of their offsets. */
         private val found = mutableListOf<LexicalSpan>()
 
+        /** Every string literal found so far as one span, from its dollar prefix or opening quote to its closing quote. */
+        val stringLiterals = mutableListOf<LexicalSpan>()
+
         /** The offset of the next character to read. */
         private var position = 0
 
-        /** Scans all of [source] as code and returns the spans it found. */
+        /** Scans all of [source] as code and returns the spans it found; [stringLiterals] then holds its string literals. */
         fun spans(): List<LexicalSpan> {
             scanCode(insideTemplate = false)
             return found
@@ -183,6 +201,7 @@ internal object KotlinLexer {
             }
             position = minOf(position, source.length)
             record(LiteralKind.STRING, pieceStart, position)
+            stringLiterals += LexicalSpan(LiteralKind.STRING, start, position)
         }
 
         /**
