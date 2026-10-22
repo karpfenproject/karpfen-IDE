@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/** The visible rows of [TreeRows.flatten]: pre-order, hidden children of collapsed ancestors, depths and parents. */
 class TreeRowsTest {
 
     private val tree = listOf(

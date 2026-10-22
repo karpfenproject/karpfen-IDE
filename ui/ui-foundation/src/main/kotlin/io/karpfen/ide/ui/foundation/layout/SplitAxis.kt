@@ -12,15 +12,20 @@ import androidx.compose.ui.unit.Constraints
 internal class SplitAxis(orientation: SplitOrientation) {
     private val horizontal = orientation == SplitOrientation.HORIZONTAL
 
+    /** Whether [constraints] bound the main axis (an unbounded one makes the split take its natural size). */
     fun hasBoundedMain(constraints: Constraints): Boolean =
         if (horizontal) constraints.hasBoundedWidth else constraints.hasBoundedHeight
 
+    /** The largest main-axis size [constraints] allow. */
     fun mainMax(constraints: Constraints): Int = if (horizontal) constraints.maxWidth else constraints.maxHeight
 
+    /** The smallest cross-axis size [constraints] allow. */
     fun crossMin(constraints: Constraints): Int = if (horizontal) constraints.minHeight else constraints.minWidth
 
+    /** The largest cross-axis size [constraints] allow. */
     fun crossMax(constraints: Constraints): Int = if (horizontal) constraints.maxHeight else constraints.maxWidth
 
+    /** The measured cross-axis size of [placeable]. */
     fun cross(placeable: Placeable): Int = if (horizontal) placeable.height else placeable.width
 
     /** Constraints with an exact [main] size and the cross range [crossMin]..[crossMax]. */
@@ -31,9 +36,11 @@ internal class SplitAxis(orientation: SplitOrientation) {
             Constraints(minWidth = crossMin, maxWidth = crossMax, minHeight = main, maxHeight = main)
         }
 
+    /** The layout of [scope] with a [main] by [cross] size, placing the children with [placement]. */
     fun layout(scope: MeasureScope, main: Int, cross: Int, placement: Placeable.PlacementScope.() -> Unit): MeasureResult =
         if (horizontal) scope.layout(main, cross, placementBlock = placement) else scope.layout(cross, main, placementBlock = placement)
 
+    /** Places [placeable] at [mainOffset] along the main axis and at the start of the cross axis. */
     fun place(scope: Placeable.PlacementScope, placeable: Placeable, mainOffset: Int) {
         with(scope) { if (horizontal) placeable.place(mainOffset, 0) else placeable.place(0, mainOffset) }
     }

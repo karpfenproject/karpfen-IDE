@@ -1,11 +1,11 @@
 package io.karpfen.ide.ui.foundation.keys
 
 /**
- * The layout-aware punctuation rule of the key adapter (decision 41 of the work-package plan), Compose-free so it is
- * unit-testable without key events: a key press that produced one of the punctuation characters of [KeyCode] is
- * reported as that character's code; Shift is dropped when the layout needed it for the character, i.e. when the
- * physical key is not the character's own key (German Shift+7 produces `/` → [KeyCode.SLASH] without Shift). Every
- * other press is reported as its physical key with its modifiers (US Shift+/ produces `?` → SLASH + Shift).
+ * The layout-aware punctuation rule of the key adapter, Compose-free so it is unit-testable without key events: a key
+ * press that produced one of the punctuation characters of [KeyCode] is reported as that character's code; Shift is
+ * dropped when the layout needed it for the character, i.e. when the physical key is not the character's own key
+ * (German Shift+7 produces `/` → [KeyCode.SLASH] without Shift). Every other press is reported as its physical key with
+ * its modifiers (US Shift+/ produces `?` → SLASH + Shift).
  */
 internal object LayoutAwareStrokes {
 

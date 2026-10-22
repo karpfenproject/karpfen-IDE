@@ -6,12 +6,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * A user-invocable command (Command pattern, spec §6): menus, shortcuts and context menus reference it by [id].
+ * A user-invocable command (Command pattern): menus, shortcuts and context menus reference it by [id].
  * Editor commands use the editor's action ids, so menu and keyboard reach the same `EditorAction`.
  *
  * A command object, not a value: it holds behaviour ([action]) and live state ([isEnabled]), so it has identity
  * equality (no `copy`, no structural `equals`); the registry identifies commands by [id].
  *
+ * @property id the identifier menus and the registry know the command by.
  * @property title menu label.
  * @property shortcut default shortcut, or null.
  * @property isEnabled whether the command can run now (menus grey it out when false).
@@ -33,7 +34,10 @@ public class Command(
 }
 
 /**
- * Data from which the application builds its window menu bar (spec §6, §9): a top-level menu with its entries.
+ * Data from which the application builds its window menu bar: a top-level menu with its entries.
+ *
+ * @property title the menu's label in the menu bar.
+ * @property entries the menu's items, separators and submenus in display order.
  */
 public data class MenuSpec(public val title: String, public val entries: List<MenuEntry>)
 

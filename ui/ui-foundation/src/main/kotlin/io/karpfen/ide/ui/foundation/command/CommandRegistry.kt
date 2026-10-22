@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The application's commands (spec §6). Compose-free: lookups take [KeyStroke]s (convert Compose events with
+ * The application's commands. Compose-free: lookups take [KeyStroke]s (convert Compose events with
  * `KeyEvent.toKeyStroke()`); the window menu bar is built from [MenuSpec]s whose items reference command ids.
  * Used from the UI thread only.
  */
@@ -73,8 +73,12 @@ internal class DefaultCommandRegistry(override val platform: HostPlatform) : Com
         return true
     }
 
+    /**
+     * Publishes [next] as the registered commands and rebuilds [byStroke] from it. `toMap` keeps the last pair of a
+     * key and [next] lists the commands in registration order, so the most recently registered command owns a stroke
+     * that several shortcuts share.
+     */
     private fun publish(next: Map<String, Command>) {
-        // Later entries win in associate: the most recently registered command owns a shared stroke.
         byStroke = next.values
             .mapNotNull { command -> command.shortcut?.let { shortcut -> shortcut.strokeFor(platform) to command } }
             .toMap()

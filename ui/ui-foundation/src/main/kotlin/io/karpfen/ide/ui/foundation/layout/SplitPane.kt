@@ -54,13 +54,13 @@ public object SplitPaneTestTags {
 }
 
 /**
- * Two panes with a draggable divider (spec §6). Stateless, size-based (decision 46 of the work-package plan; the spec
- * sketch hoisted a fraction): the [fixedSide] pane has the hoisted size [fixedSize] — its width for
- * [SplitOrientation.HORIZONTAL], its height for [SplitOrientation.VERTICAL] — and the other pane takes the rest, so an
- * IDE tool window keeps its size when the window is resized. Every drag frame reports the new size through
- * [onFixedSizeChange], clamped so that neither pane shrinks below [minFirst] / [minSecond]; when the container is too
- * small for [fixedSize], the fixed pane is laid out smaller (down to its minimum) without reporting a change, so the
- * caller's size is restored when the container grows again. The composable needs no conversion by its caller.
+ * Two panes with a draggable divider. Stateless and size-based: the [fixedSide] pane has the hoisted size [fixedSize] —
+ * its width for [SplitOrientation.HORIZONTAL], its height for [SplitOrientation.VERTICAL] — and the other pane takes
+ * the rest, so an IDE tool window keeps its size when the window is resized. Every drag frame reports the new size
+ * through [onFixedSizeChange], clamped so that neither pane shrinks below [minFirst] / [minSecond]; when the container
+ * is too small for [fixedSize], the fixed pane is laid out smaller (down to its minimum) without reporting a change, so
+ * the caller's size is restored when the container grows again. The size is in dp, like the tool-window sizes the
+ * workbench persists, so callers convert nothing (a hoisted fraction would need a conversion in every caller).
  *
  * The divider is a 1 dp line in the palette's border colour between the panes; its drag handle is a few dp wider and
  * follows the pointer from the press on (no touch slop). On an unbounded main axis the split takes the fixed pane's
@@ -118,7 +118,7 @@ public fun SplitPane(
     }
 }
 
-/** A tool window (spec §6): a header with [title] and optional [actions], above [content]. Needs [KarpfenTheme]. */
+/** A tool window: a header with [title] and optional [actions], above [content]. Needs [KarpfenTheme]. */
 @Composable
 public fun ToolWindow(
     title: String,
@@ -162,8 +162,15 @@ internal object ToolWindowDefaults {
     val HeaderHeight: Dp = 28.dp
 }
 
+/** The three children of a [SplitPane] layout: both panes and the divider's drag handle. */
 private class SplitMeasurables(val first: Measurable, val second: Measurable, val divider: Measurable)
 
+/**
+ * Measures and places the children of a [SplitPane]: the pane sizes come from [geometry] for the requested [fixedPx]
+ * (in a container of the natural size when the main axis is unbounded) and are reported to [tracker], so a drag starts
+ * from what is shown. The cross size is the largest allowed, or the larger pane's when the cross axis is unbounded. The
+ * drag handle of [handlePx] is centred on the divider line and overlaps the panes' edges.
+ */
 private fun MeasureScope.measureSplit(
     axis: SplitAxis,
     constraints: Constraints,

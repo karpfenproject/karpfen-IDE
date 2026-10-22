@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+/** The minimal scrolling of [ScrollReveal] for visible, earlier, later and oversized items. */
 class ScrollRevealTest {
 
     @Test

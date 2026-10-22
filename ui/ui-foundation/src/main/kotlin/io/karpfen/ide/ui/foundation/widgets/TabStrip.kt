@@ -32,7 +32,14 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 
-/** One tab of a [TabStrip]. [id] is stable across recompositions (e.g. the document path). */
+/**
+ * One tab of a [TabStrip]. [id] is stable across recompositions (e.g. the document path).
+ *
+ * @property title the tab's label.
+ * @property tooltip shown while the pointer rests on the tab, or null for none.
+ * @property isDirty whether the tab shows the dot of unsaved changes.
+ * @property icon drawn untinted before the title, or null for none.
+ */
 @Immutable
 public data class TabItem(
     public val id: String,
@@ -58,7 +65,7 @@ public object TabStripTestTags {
 }
 
 /**
- * A horizontal strip of tabs (spec §6): title, tooltip, dirty dot, close button, middle-click closes, horizontal
+ * A horizontal strip of tabs: title, tooltip, dirty dot, close button, middle-click closes, horizontal
  * scrolling when the tabs overflow; the selected tab is scrolled into view. Stateless.
  *
  * A primary click selects a tab ([onSelect]), its close button or a middle click closes it ([onClose], without
@@ -84,9 +91,7 @@ public fun TabStrip(
             Modifier
                 .fillMaxHeight()
                 .testTag(TabStripTestTags.STRIP)
-                // The vertical wheel scrolls the strip too: wheel down moves towards the last tab, reversed like the
-                // scrollable of verticalScroll (mouse drags never scroll on desktop).
-                .scrollable(scroll, Orientation.Vertical, reverseDirection = true)
+                .verticalWheelScroll(scroll)
                 .horizontalScroll(scroll),
         ) {
             tabs.forEach { tab ->
@@ -113,8 +118,16 @@ internal data class TabExtent(val start: Int, val end: Int)
 
 /** Fixed measures of [TabStrip]. */
 internal object TabStripDefaults {
+    /** Height of the strip. */
     val Height = 30.dp
 }
+
+/**
+ * Lets the vertical mouse wheel scroll the strip too: wheel down moves towards the last tab, reversed like the
+ * scrollable of `verticalScroll`. Mouse drags never scroll on desktop, so this adds no drag gesture.
+ */
+private fun Modifier.verticalWheelScroll(scroll: ScrollState): Modifier =
+    scrollable(scroll, Orientation.Vertical, reverseDirection = true)
 
 /**
  * Scrolls minimally so the tab [selectedId] is visible whenever [selectedId] changes; waits until the tab is placed

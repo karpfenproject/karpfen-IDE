@@ -40,7 +40,7 @@ import kotlin.test.assertTrue
 
 /**
  * Headless UI tests of [TreeView]: expand/collapse, selection, keyboard and mouse navigation, the context menu and the
- * icon slot, and the MUST rule that every change of `selected` scrolls the selected row into view.
+ * icon slot, and the rule that every change of `selected` scrolls the selected row into view.
  */
 @OptIn(ExperimentalTestApi::class)
 class TreeViewTest {
@@ -56,10 +56,15 @@ class TreeViewTest {
         val clicks = mutableListOf<String>()
     }
 
-    // src (expandable) ─ a (expandable) ─ x.kmeta
-    //                  ├ b.kstates
-    //                  └ empty (expandable, no children)
-    // README.md
+    /**
+     * A small project tree:
+     * ```
+     * src (expandable) ─ a (expandable) ─ x.kmeta
+     *                  ├ b.kstates
+     *                  └ empty (expandable, no children)
+     * README.md
+     * ```
+     */
     private val project = listOf(
         TreeNode(
             "src",

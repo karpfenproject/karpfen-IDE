@@ -26,6 +26,12 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 /**
  * A segment of the [StatusBar]; clickable when [onClick] is set. Holds behaviour, so it is a plain class with identity
  * equality (not a data class).
+ *
+ * @property id identifies the segment in test tags.
+ * @property text the segment's label.
+ * @property tooltip shown while the pointer rests on the segment, or null for none.
+ * @property icon drawn untinted before the text (e.g. a severity icon), or null for none.
+ * @property onClick runs when the segment is clicked, or null for a segment that is no button.
  */
 @Immutable
 public class StatusBarItem(
@@ -46,7 +52,7 @@ public object StatusBarTestTags {
 }
 
 /**
- * The window status bar (spec §6): [left] items aligned left, [right] items aligned right. Stateless.
+ * The window status bar: [left] items aligned left, [right] items aligned right. Stateless.
  *
  * Each item shows its icon (untinted, e.g. a severity icon) and text in the small UI style; it has a tooltip when
  * [StatusBarItem.tooltip] is set and is a button when [StatusBarItem.onClick] is set. Needs `KarpfenTheme`.
@@ -70,9 +76,11 @@ public fun StatusBar(
 
 /** Fixed measures of [StatusBar]. */
 internal object StatusBarDefaults {
+    /** Height of the bar. */
     val Height = 24.dp
 }
 
+/** One [item] of the bar: icon and text, with its tooltip, and a button when it has a click action. */
 @Composable
 private fun StatusBarSegment(item: StatusBarItem) {
     val onClick = item.onClick

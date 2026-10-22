@@ -1,15 +1,16 @@
 package io.karpfen.ide.ui.foundation.keys
 
 /**
- * Toolkit-neutral keys for shortcuts. Compose-free on purpose: the editor's keymap and command lookups live in
- * Compose-free model code (spec §1a, §7.1); `ComposeKeys.kt` converts Compose key events.
+ * Toolkit-neutral keys for shortcuts. Compose-free on purpose: the editor's keymap and the command lookups live in
+ * model code that is unit-tested without Compose; `ComposeKeys.kt` converts Compose key events.
  *
  * Letters, digits, function and navigation keys denote physical keys. The punctuation codes ([SLASH] … [RIGHT_BRACKET])
  * denote the *character* (slash, backslash, minus, equals, comma, period, semicolon, apostrophe, grave accent,
- * brackets) on the current keyboard layout (decision 41 of the work-package plan): the key adapter reports the code of
- * the character a key produced, without the Shift the layout needed for it. On a German layout Shift+7 produces `/`,
- * so Cmd+Shift+7 arrives as `KeyStroke(SLASH, {META})` and matches the binding primary+/ (toggle comment) like on a US
- * layout.
+ * brackets) on the current keyboard layout: the key adapter reports the code of the character a key produced, without
+ * the Shift the layout needed for it. On a German layout Shift+7 produces `/`, so Cmd+Shift+7 arrives as
+ * `KeyStroke(SLASH, {META})` and matches the binding primary+/ (toggle comment) like on a US layout. One binding per
+ * shortcut thus works on every layout, without a character field on [KeyStroke] and without layout-specific second
+ * bindings.
  */
 public enum class KeyCode {
     A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
@@ -35,7 +36,12 @@ public enum class KeyModifier {
     META,
 }
 
-/** A key press with the exact set of physical modifiers held (what a key event reports). */
+/**
+ * A key press with the exact set of physical modifiers held (what a key event reports).
+ *
+ * @property key the pressed key, or the produced punctuation character as described on [KeyCode].
+ * @property modifiers the physical modifiers held during the press.
+ */
 public data class KeyStroke(public val key: KeyCode, public val modifiers: Set<KeyModifier> = emptySet()) {
     override fun toString(): String = (modifiers.sorted().map { it.name } + key.name).joinToString("+")
 }
@@ -55,6 +61,7 @@ public enum class HostPlatform {
     /** The primary shortcut modifier: [KeyModifier.META] on macOS, [KeyModifier.CTRL] elsewhere. */
     public val primaryModifier: KeyModifier get() = if (this == MAC_OS) KeyModifier.META else KeyModifier.CTRL
 
+    /** Detection of the platform from the JVM's `os.name`. */
     public companion object {
         /** The platform of this JVM, from the `os.name` system property. */
         public fun current(): HostPlatform = fromOsName(System.getProperty("os.name").orEmpty())
@@ -72,8 +79,12 @@ public enum class HostPlatform {
 }
 
 /**
- * A platform-independent shortcut: [primary] means Cmd on macOS and Ctrl elsewhere (spec §6). [ctrl] requests the
- * physical Ctrl key in addition (only meaningful on macOS, where it differs from the primary modifier).
+ * A platform-independent shortcut: [primary] means Cmd on macOS and Ctrl elsewhere. [ctrl] requests the physical
+ * Ctrl key in addition (only meaningful on macOS, where it differs from the primary modifier).
+ *
+ * @property key the key, a physical key or a punctuation character as described on [KeyCode].
+ * @property shift whether Shift is held.
+ * @property alt whether Alt (Option on macOS) is held.
  */
 public data class KeyShortcut(
     public val key: KeyCode,

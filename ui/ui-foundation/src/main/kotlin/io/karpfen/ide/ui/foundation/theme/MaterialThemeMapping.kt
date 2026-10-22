@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
  */
 internal object MaterialThemeMapping {
 
+    /** The Material colour scheme of [colors]; [darkTheme] picks the base scheme and the container colour. */
     fun colorScheme(colors: KarpfenColors, darkTheme: Boolean): ColorScheme {
         val container = if (darkTheme) colors.panel else colors.window
         val base = if (darkTheme) darkColorScheme() else lightColorScheme()
@@ -59,6 +60,7 @@ internal object MaterialThemeMapping {
         )
     }
 
+    /** The Material typography of [typography]: medium-weight titles, bodies and labels in the UI styles. */
     fun typography(typography: KarpfenTypography): Typography {
         val title = typography.ui.copy(fontWeight = FontWeight.Medium)
         return Typography(
@@ -74,6 +76,7 @@ internal object MaterialThemeMapping {
         )
     }
 
+    /** Rounded 8 dp desktop scrollbars in translucent text colour, darker while hovered. */
     fun scrollbarStyle(colors: KarpfenColors): ScrollbarStyle = ScrollbarStyle(
         minimalHeight = 16.dp,
         thickness = 8.dp,

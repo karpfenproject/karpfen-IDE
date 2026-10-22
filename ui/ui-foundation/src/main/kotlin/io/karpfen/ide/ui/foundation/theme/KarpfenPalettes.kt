@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
  */
 internal object KarpfenPalettes {
 
+    /** The light palette: white window, light grey panels, dark text. */
     val light: KarpfenColors = KarpfenColors(
         window = Color(0xFFFFFFFF),
         panel = Color(0xFFF7F8FA),
@@ -27,6 +28,7 @@ internal object KarpfenPalettes {
         info = Color(0xFF2F6FD6),
     )
 
+    /** The dark palette: near-black window, dark grey panels, light text. */
     val dark: KarpfenColors = KarpfenColors(
         window = Color(0xFF1E1F22),
         panel = Color(0xFF2B2D30),

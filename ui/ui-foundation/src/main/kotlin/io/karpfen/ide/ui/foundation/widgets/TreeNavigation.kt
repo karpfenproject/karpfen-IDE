@@ -77,6 +77,7 @@ internal object TreeNavigation {
         }
     }
 
+    /** Selects the row [target], or null when it is the selected row already (the key then does nothing). */
     private fun <K> selectOther(rows: List<TreeRow<K>>, selectedIndex: Int, target: Int): TreeIntent<K>? =
         if (target == selectedIndex) null else TreeIntent.Select(rows[target].node.key)
 }

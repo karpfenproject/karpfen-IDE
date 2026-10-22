@@ -10,7 +10,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The light and dark palettes and the typography (spec §6): distinct, legible, stable values. */
+/** The light and dark palettes and the typography: distinct, legible, stable values. */
 class KarpfenPalettesTest {
 
     private val palettes = mapOf("light" to lightKarpfenColors(), "dark" to darkKarpfenColors())

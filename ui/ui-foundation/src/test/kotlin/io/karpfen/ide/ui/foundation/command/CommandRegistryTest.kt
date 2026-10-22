@@ -13,6 +13,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+/**
+ * The default [CommandRegistry]: registration, replacement and removal, lookup by stroke per platform, the owner of a
+ * shared shortcut, execution of enabled commands only, and the published command flow.
+ */
 class CommandRegistryTest {
 
     private val save = KeyShortcut(KeyCode.S, primary = true)

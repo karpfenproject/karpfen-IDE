@@ -3,6 +3,10 @@ package io.karpfen.ide.ui.foundation.keys
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * The display text of shortcuts and strokes per platform: macOS symbols in Apple's order, spelled-out modifiers joined
+ * by plus elsewhere, punctuation characters, digits and the names of navigation, editing and meta keys.
+ */
 class KeyShortcutTextTest {
 
     @Test

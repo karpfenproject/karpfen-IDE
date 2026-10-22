@@ -12,10 +12,12 @@ internal data class TreeRow<K>(val node: TreeNode<K>, val depth: Int, val parent
 /** The rows a [TreeView] shows: the pre-order of the nodes whose ancestors are all expanded (pure). */
 internal object TreeRows {
 
-    /** The visible rows of [roots] when the nodes with the keys in [expanded] are expanded. */
+    /**
+     * The visible rows of [roots] when the nodes with the keys in [expanded] are expanded. The pre-order traversal is
+     * iterative (an explicit stack of pending rows), so deep trees cannot overflow the call stack.
+     */
     fun <K> flatten(roots: List<TreeNode<K>>, expanded: Set<K>): List<TreeRow<K>> {
         val rows = ArrayList<TreeRow<K>>()
-        // Iterative pre-order traversal, so deep trees cannot overflow the stack.
         val pending = ArrayDeque<TreeRow<K>>()
         roots.asReversed().forEach { pending.addFirst(TreeRow(it, depth = 0, parentIndex = -1)) }
         while (pending.isNotEmpty()) {

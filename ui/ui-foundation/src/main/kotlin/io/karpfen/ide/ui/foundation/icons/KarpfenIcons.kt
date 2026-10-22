@@ -3,8 +3,8 @@ package io.karpfen.ide.ui.foundation.icons
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
- * Small vector icons drawn with `ImageVector.Builder` (spec §6; no material-icons-extended). Constants: each icon is
- * built once on first access.
+ * Small vector icons drawn with `ImageVector.Builder`, so the IDE needs no material-icons-extended dependency.
+ * Constants: each icon is built once on first access.
  *
  * All icons are 16 × 16 dp. File-type icons ([Folder], [File], [Kmeta], [Kmodel], [Kstates], [Json]) and severity icons
  * ([Error], [Warning], [Info]) carry their own colours: render them untinted (`Image`, or `Icon` with

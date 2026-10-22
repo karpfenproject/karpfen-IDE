@@ -4,6 +4,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+/**
+ * The size rules of [SplitGeometry] for either fixed side: requested sizes, both minimums, too small and unbounded
+ * containers, divider drags, and the [SplitDragTracker] that follows the pointer from the press.
+ */
 class SplitGeometryTest {
 
     private val first = SplitGeometry(SplitSide.FIRST, minFirst = 80f, minSecond = 100f, divider = 1f)

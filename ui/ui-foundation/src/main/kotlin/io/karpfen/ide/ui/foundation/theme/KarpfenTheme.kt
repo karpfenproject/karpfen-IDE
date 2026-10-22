@@ -14,7 +14,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 
-/** The IDE colour palette (spec §6), provided through [LocalKarpfenColors]. */
+/** The IDE colour palette, provided through [LocalKarpfenColors]. */
 @Immutable
 public data class KarpfenColors(
     /** Window background. */
@@ -41,7 +41,7 @@ public data class KarpfenColors(
     public val info: Color,
 )
 
-/** UI and monospace text styles (spec §6), provided through [LocalKarpfenTypography]. */
+/** UI and monospace text styles, provided through [LocalKarpfenTypography]. */
 @Immutable
 public data class KarpfenTypography(
     /** Default UI text. */
@@ -83,7 +83,7 @@ public object KarpfenTheme {
 }
 
 /**
- * Applies the karpfen theme (spec §6): provides [LocalKarpfenColors] (light or dark palette) and
+ * Applies the karpfen theme: provides [LocalKarpfenColors] (light or dark palette) and
  * [LocalKarpfenTypography], and configures the Material 3 theme used by basic widgets to match. Inside [content],
  * Material's content colour is the palette's text colour, its default text style the UI style, and the desktop
  * scrollbars are styled from the palette.

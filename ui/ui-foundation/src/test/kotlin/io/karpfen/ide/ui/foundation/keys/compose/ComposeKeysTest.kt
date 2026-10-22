@@ -117,9 +117,9 @@ class ComposeKeysTest {
         assertEquals(KeyStroke(KeyCode.SLASH, setOf(KeyModifier.META)), stroke)
     }
 
+    /** On Windows, Ctrl+/ reports the control character 0x1F as key char; the key code still names the slash key. */
     @Test
     fun `the native key code is used when Ctrl turns the key char into a control character`() {
-        // Windows: Ctrl+/ reports the control character 0x1F; the key code still names the slash key.
         val native = awtPressed(AwtKeyEvent.VK_SLASH, '\u001f', AwtKeyEvent.CTRL_DOWN_MASK)
 
         val stroke = down(Key.Slash, char = '\u001f', ctrl = true, native = native).toKeyStroke()
@@ -136,9 +136,9 @@ class ComposeKeysTest {
         assertEquals(KeyStroke(KeyCode.MINUS, setOf(KeyModifier.CTRL)), stroke)
     }
 
+    /** For a layout key without a VK constant, AWT reports 0x01000000 plus the key's unshifted character. */
     @Test
     fun `extended key codes name a VK punctuation key or a Unicode key's character`() {
-        // A layout whose key has no VK constant: AWT reports 0x01000000 + the key's unshifted character.
         assertEquals('-', ProducedCharacter.ofExtendedKeyCode(0x01000000 + '-'.code))
         assertEquals('/', ProducedCharacter.ofExtendedKeyCode(AwtKeyEvent.VK_SLASH))
         assertEquals('[', ProducedCharacter.ofExtendedKeyCode(AwtKeyEvent.VK_OPEN_BRACKET))
@@ -147,9 +147,12 @@ class ComposeKeysTest {
         assertNull(ProducedCharacter.ofExtendedKeyCode(AwtKeyEvent.VK_UNDEFINED))
     }
 
+    /**
+     * Ctrl+Shift+7 on a German Windows layout carries no key char, and the key's own character is `7`; the manual test
+     * lists this limitation.
+     */
     @Test
     fun `a native event without any character falls back to the physical key`() {
-        // Windows German Ctrl+Shift+7: no key char, and the key's own character is '7' (a manual-test limitation).
         val native = awtPressed(AwtKeyEvent.VK_7, AwtKeyEvent.CHAR_UNDEFINED, AwtKeyEvent.CTRL_DOWN_MASK or AwtKeyEvent.SHIFT_DOWN_MASK)
 
         val stroke = down(Key.Seven, ctrl = true, shift = true, native = native).toKeyStroke()

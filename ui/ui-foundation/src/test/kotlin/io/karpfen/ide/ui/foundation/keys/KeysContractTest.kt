@@ -3,7 +3,7 @@ package io.karpfen.ide.ui.foundation.keys
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Contract test of the complete key values (no phase-1 implementation code). */
+/** The key values: platform detection from `os.name` and the physical stroke of a shortcut on each platform. */
 class KeysContractTest {
 
     @Test

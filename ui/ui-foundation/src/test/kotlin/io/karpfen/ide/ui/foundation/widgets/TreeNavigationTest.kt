@@ -7,12 +7,18 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+/** The keyboard policy of [TreeNavigation]: which strokes are tree keys and what each key does on a given tree. */
 class TreeNavigationTest {
 
-    // root (expanded) ─ dir (collapsed, has children) ─ (hidden)
-    //                 ├ file
-    //                 └ empty (expanded, no children)
-    // other
+    /**
+     * The tree of the tests, with `root` and `empty` expanded:
+     * ```
+     * root (expanded) ─ dir (collapsed, has children) ─ (hidden)
+     *                 ├ file
+     *                 └ empty (expanded, no children)
+     * other
+     * ```
+     */
     private val tree = listOf(
         TreeNode(
             "root",

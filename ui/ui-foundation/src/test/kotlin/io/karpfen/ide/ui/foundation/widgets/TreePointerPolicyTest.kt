@@ -3,6 +3,7 @@ package io.karpfen.ide.ui.foundation.widgets
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/** The mouse policy of [TreePointerPolicy]: single and double clicks by row and timeout, and chevron toggles. */
 class TreePointerPolicyTest {
 
     private val rows = TreeRows.flatten(

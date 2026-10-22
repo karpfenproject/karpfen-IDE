@@ -31,11 +31,13 @@ internal object IconShapes {
     private val ON_COLOR = Color.White
     private val ON_WARNING = Color(0xFF2B2D30)
 
+    /** Folder: a darker tab above a rounded amber body. */
     fun folder(): ImageVector = icon("Folder") {
         filled(FOLDER_TAB) { polyline(1.5f, 4.5f, 1.5f, 3f, 6f, 3f, 7.5f, 4.5f); close() }
         filled(FOLDER) { roundedRect(1.5f, 4.5f, 14.5f, 13f, 1f) }
     }
 
+    /** File: a grey sheet with a folded top-right corner. */
     fun file(): ImageVector = icon("File") {
         filled(FILE) { polyline(3f, 1.5f, 9.5f, 1.5f, 13f, 5f, 13f, 14.5f, 3f, 14.5f); close() }
         filled(FILE_FOLD) { polyline(9.5f, 1.5f, 9.5f, 5f, 13f, 5f); close() }
@@ -105,6 +107,7 @@ internal object IconShapes {
         stroked(ON_COLOR, width = 1.6f) { polyline(8f, 7.4f, 8f, 11.6f) }
     }
 
+    /** Close: a tintable cross. */
     fun close(): ImageVector = icon("Close") {
         stroked(TINTABLE) {
             polyline(4.5f, 4.5f, 11.5f, 11.5f)
@@ -112,14 +115,17 @@ internal object IconShapes {
         }
     }
 
+    /** Chevron right: a tintable arrow head pointing right (a collapsed tree node). */
     fun chevronRight(): ImageVector = icon("ChevronRight") {
         stroked(TINTABLE) { polyline(6f, 4f, 10f, 8f, 6f, 12f) }
     }
 
+    /** Chevron down: a tintable arrow head pointing down (an expanded tree node). */
     fun chevronDown(): ImageVector = icon("ChevronDown") {
         stroked(TINTABLE) { polyline(4f, 6f, 8f, 10f, 12f, 6f) }
     }
 
+    /** Search: a tintable magnifying glass. */
     fun search(): ImageVector = icon("Search") {
         stroked(TINTABLE) { circle(7f, 7f, 4.25f) }
         stroked(TINTABLE, width = 1.75f) { polyline(10.2f, 10.2f, 13.75f, 13.75f) }
@@ -128,6 +134,7 @@ internal object IconShapes {
     /** The rounded tile behind the file-type glyphs. */
     private fun PathBuilder.tile() = roundedRect(1.5f, 1.5f, 14.5f, 14.5f, 3f)
 
+    /** An exclamation mark in [color]: a bar from [top] to [bottom] and a dot centred at [dotY]. */
     private fun ImageVector.Builder.exclamationMark(color: Color, top: Float, bottom: Float, dotY: Float) {
         stroked(color, width = 1.7f) { polyline(8f, top, 8f, bottom) }
         filled(color) { circle(8f, dotY, 1f) }

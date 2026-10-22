@@ -27,7 +27,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Headless UI tests of the size-based [SplitPane] (decision 46): layout, divider drag, minimums, container resizes. */
+/** Headless UI tests of the size-based [SplitPane]: layout, divider drag, minimums, container resizes. */
 @OptIn(ExperimentalTestApi::class)
 class SplitPaneTest {
 

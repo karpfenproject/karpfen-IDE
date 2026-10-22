@@ -25,6 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/** Headless UI test of [ToolWindow]: the title as a heading, the header actions and the content below the header. */
 @OptIn(ExperimentalTestApi::class)
 class ToolWindowTest {
 

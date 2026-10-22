@@ -43,15 +43,28 @@ internal sealed interface TreeRowPress {
     data class Secondary(val position: Offset) : TreeRowPress
 }
 
-/** An open context menu of a tree row: its [actions] at [offset] from the row's bottom-left corner. */
+/**
+ * An open context menu of a tree row: its [actions] at [offset] from the row's bottom-left corner.
+ *
+ * @property key the key of the node whose row shows the menu.
+ */
 internal class TreeRowMenu<K>(val key: K, val actions: List<ContextMenuAction>, val offset: DpOffset)
 
 /** Fixed measures of [TreeView]. */
 internal object TreeViewDefaults {
+    /** Height of every row; fixed, so scroll offsets of rows that are not composed are exact. */
     val RowHeight: Dp = 22.dp
+
+    /** Indentation per nesting level. */
     val Indent: Dp = 16.dp
+
+    /** Space before the chevron of a root row. */
     val StartPadding: Dp = 4.dp
+
+    /** Width of the chevron area, which toggles an expandable node when pressed. */
     val ChevronWidth: Dp = 16.dp
+
+    /** Size of a node's icon. */
     val IconSize: Dp = 16.dp
 
     /** Where the chevron of a row at [depth] starts. */

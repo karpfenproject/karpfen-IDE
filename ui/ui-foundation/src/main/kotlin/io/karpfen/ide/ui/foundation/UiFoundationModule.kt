@@ -1,9 +1,10 @@
 package io.karpfen.ide.ui.foundation
 
 /**
- * Phase-0 stub of the `ui-foundation` module: theme, split/dock layout, command registry, keymap and common widgets.
- * See docs/architecture-proposal.md §4 for the module map.
+ * Identity of the `ui-foundation` module, which holds the theme, the split and tool-window layout, the command
+ * registry, the toolkit-neutral key model and the common widgets of the IDE.
  */
 public object UiFoundationModule {
+    /** The module's name as the build and the module dependency checks know it. */
     public const val ID: String = "ui-foundation"
 }

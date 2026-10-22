@@ -23,6 +23,7 @@ internal class KeyStrokeFormat private constructor(
     private val keyNames: Map<KeyCode, String>,
 ) {
 
+    /** Formats [stroke]: the held modifiers in this platform's order, then the key's name, joined by the separator. */
     fun format(stroke: KeyStroke): String {
         val modifiers = modifierNames.filter { (modifier, _) -> modifier in stroke.modifiers }.map { it.second }
         return (modifiers + keyName(stroke.key)).joinToString(separator)

@@ -23,6 +23,10 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+/**
+ * The [KarpfenIcons]: every icon exists once as a named 16 dp vector, glyphs are tintable black while file and severity
+ * icons carry colours, every icon renders visible pixels headless, and material-icons-extended stays off the classpath.
+ */
 @OptIn(ExperimentalTestApi::class)
 class KarpfenIconsTest {
 
@@ -54,7 +58,7 @@ class KarpfenIconsTest {
         paths(root).flatMap { listOfNotNull(it.fill, it.stroke) }.map { (it as SolidColor).value }.toSet()
 
     @Test
-    fun `every spec icon exists as a named 16 dp vector`() {
+    fun `every icon of the IDE exists as a named 16 dp vector`() {
         assertEquals(13, all.size)
         all.forEach { (name, icon) ->
             assertEquals(name, icon.name)

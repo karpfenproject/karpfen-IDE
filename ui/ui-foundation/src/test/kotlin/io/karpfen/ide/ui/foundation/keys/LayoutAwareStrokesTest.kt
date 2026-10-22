@@ -6,6 +6,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * The layout-aware punctuation rule of [LayoutAwareStrokes] on German and US layouts: when Shift is dropped and when it
+ * is kept, which keys stay physical, and which characters count as printable.
+ */
 class LayoutAwareStrokesTest {
 
     private val shift = KeyModifier.SHIFT

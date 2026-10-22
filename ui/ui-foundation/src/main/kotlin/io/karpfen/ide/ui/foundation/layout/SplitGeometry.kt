@@ -8,6 +8,11 @@ internal data class SplitSizes(val first: Float, val second: Float)
  * keeps its requested size, clamped so that neither pane shrinks below its minimum and both fit next to the divider
  * of [divider] px; the other pane takes the rest. When the container cannot hold both minimums, the fixed pane keeps
  * its minimum as long as it fits into the container and the other pane shrinks.
+ *
+ * @property fixedSide the pane whose size is hoisted.
+ * @property minFirst the minimum size of the first pane.
+ * @property minSecond the minimum size of the second pane.
+ * @property divider the space the divider line takes between the panes.
  */
 internal data class SplitGeometry(
     val fixedSide: SplitSide,
