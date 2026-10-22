@@ -10,13 +10,15 @@ internal sealed interface DescriptorSlot {
 
     /**
      * A place for a key of the object [owner]: inside a key string, or in blank space or a bare word right after the
-     * object's `{` or a `,`.
+     * object's `{` or a `,`, or after its last member when nothing but the closing `}` follows.
      *
      * @property shape what the schema expects of [owner], or null where it knows nothing (below an unknown key).
      * @property member the member whose key string holds the caret, null in blank space.
      * @property replaceRange what completion replaces: the key's content, the bare word at the caret, or the empty range
      *   at the caret.
      * @property inString true inside the key's quotes.
+     * @property separator what a new member needs in front of it: `, ` after the last member, which has no comma yet,
+     *   empty everywhere else.
      */
     data class Key(
         val owner: JsonNode.ObjectNode,
@@ -24,6 +26,7 @@ internal sealed interface DescriptorSlot {
         val member: JsonNode.Member?,
         val replaceRange: TextRange,
         val inString: Boolean,
+        val separator: String = "",
     ) : DescriptorSlot {
         /** The keys [owner] has already, without the one under the caret. */
         val presentKeys: Set<String> get() = owner.members.filter { it !== member }.mapTo(HashSet()) { it.key.value }

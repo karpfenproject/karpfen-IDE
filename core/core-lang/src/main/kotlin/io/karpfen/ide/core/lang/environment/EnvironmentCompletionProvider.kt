@@ -14,7 +14,7 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 /**
  * Completion in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]:
  * - at a key: the keys the object does not have yet, required ones first, each with its documentation; outside quotes
- *   a key arrives with a value template of its shape ([ValueTemplates]);
+ *   a key arrives with a value template of its shape ([ValueTemplates]), after the last member with the `,` it needs;
  * - at a file path: the workspace files of the key's role ([DescriptorProject.candidates]: metamodels without
  *   `EVENTS.kmeta`, the event metamodel, models, state machines, bridge configurations), relative to the descriptor's
  *   directory, files next to it first;
@@ -46,7 +46,7 @@ internal class EnvironmentCompletionProvider(
     /** The keys the slot's object does not have yet, required ones first. */
     private fun keys(slot: DescriptorSlot.Key): List<CompletionItem> =
         slot.shape?.keys.orEmpty().filter { it.name !in slot.presentKeys }.map { key ->
-            val template = if (slot.inString) JsonStrings.encode(key.name) else ValueTemplates.member(key)
+            val template = if (slot.inString) JsonStrings.encode(key.name) else slot.separator + ValueTemplates.member(key)
             Snippet(key.name, template, CompletionKind.PROPERTY, detailOf(key))
                 .item(slot.replaceRange, rank = if (key.isRequired) 0 else 1)
                 .copy(documentation = key.documentation)

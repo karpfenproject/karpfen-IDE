@@ -81,6 +81,19 @@ class EnvironmentFeaturesTest {
     }
 
     @Test
+    fun `after the last member a key comes with the comma it needs, before another member none is offered`() {
+        val items = complete("{\n  \"metamodel\": \"a.kmeta\"\n  ‸\n}")
+
+        val model = items.first()
+        assertEquals("model" to ", \"model\": \"\"", model.label to model.insertText)
+        assertEquals(", \"model\": \"".length, model.caretOffsetInInsert)
+        assertEquals(listOf("file"), complete("{ \"stateMachines\": [ { \"attachedTo\": \"x\" ‸ } ] }").map { it.label })
+        assertEquals(", \"file\": \"\"", complete("{ \"stateMachines\": [ { \"attachedTo\": \"x\" ‸ } ] }").single().insertText)
+        assertEquals(emptyList(), complete("{ \"metamodel\": \"a.kmeta\" ‸ \"model\": \"b\" }"), "a comma before the next member is the user's")
+        assertEquals(emptyList(), complete("{ \"metamodel\": ‸ }").filter { it.kind == CompletionKind.PROPERTY }, "a value goes here")
+    }
+
+    @Test
     fun `a bare word typed where a key goes is replaced by the quoted key`() {
         val (document, offset) = DescriptorFixture.at("{ meta‸ }")
 

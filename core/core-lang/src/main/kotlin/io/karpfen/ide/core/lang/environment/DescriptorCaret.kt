@@ -19,7 +19,9 @@ import io.karpfen.ide.core.text.TextRange
  * - after the `:` of a member without value, up to the next token, the caret is on that member's value, also within a
  *   bare word typed there;
  * - in blank space or a bare word right after `{` or `,` of an object it is on a new key, after `[` or `,` of a list on
- *   a new item;
+ *   a new item; after the last complete member of an object, with nothing but its `}` (or the end of the text) after
+ *   the caret, it is on a new key that needs a `,` in front ([DescriptorSlot.Key.separator]), so a key can be added at
+ *   the end without typing the comma first;
  * - anywhere else (between a value and the `,` after it, before the root) on nothing.
  *
  * Containers that the text does not close reach as far as their parent does, the root to the end of the text, so the
@@ -80,9 +82,25 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
             }
             val word = bareWordAtCaret()
             val before = document.tokenBefore(word?.range?.start ?: offset)
+            val range = word?.range ?: TextRange.empty(offset)
             val atKey = before != null && before.range.start >= node.range.start &&
                 (before.kind == JsonTokenKind.BEGIN_OBJECT || before.kind == JsonTokenKind.VALUE_SEPARATOR)
-            return if (atKey) DescriptorSlot.Key(node, shape, null, word?.range ?: TextRange.empty(offset), inString = false) else DescriptorSlot.None
+            return when {
+                atKey -> DescriptorSlot.Key(node, shape, null, range, inString = false)
+                isAfterLastMember(node, before, range.end) -> DescriptorSlot.Key(node, shape, null, range, inString = false, separator = ", ")
+                else -> DescriptorSlot.None
+            }
+        }
+
+        /**
+         * True if [before], the token before the caret, ends the value of the last member of [node] and nothing but the
+         * object's `}` (or the end of the text) follows [from].
+         */
+        private fun isAfterLastMember(node: JsonNode.ObjectNode, before: JsonToken?, from: Int): Boolean {
+            val lastValue = node.members.lastOrNull()?.value ?: return false
+            if (before == null || before.range.end != lastValue.range.end) return false
+            val next = document.tokens.firstOrNull { it.range.start >= from }
+            return next == null || (node.isClosed && next.range.end == node.range.end)
         }
 
         /** The slot in the list [node] (expected to have [shape]), which is the value of [place]. */
