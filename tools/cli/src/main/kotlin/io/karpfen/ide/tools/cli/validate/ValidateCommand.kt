@@ -9,7 +9,7 @@ import kotlinx.coroutines.job
 import java.nio.file.Path
 
 /**
- * `karpfen validate <dir>`: opens a `Workspace` of [directory] through [workspaceFactory] (no watching), runs
+ * `karpfen validate <dir>`: [run] opens a `Workspace` of the directory through [workspaceFactory] (no watching), runs
  * `refresh()` and `awaitAnalysis()`, and reports `Workspace.problems`: the same single rule as the IDE's Problems view
  * (every karpfen file's own LEXER/PARSER/IDE diagnostics, loose files included, plus the project's DSL_TOOLS and
  * descriptor/context diagnostics), so the CLI and the IDE never disagree. Positions come from

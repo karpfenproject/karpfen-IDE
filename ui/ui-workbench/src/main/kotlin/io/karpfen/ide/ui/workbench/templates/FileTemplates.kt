@@ -80,9 +80,9 @@ public interface FileTemplates {
 public fun FileTemplates(): FileTemplates = DefaultFileTemplates()
 
 /**
- * The built-in templates: the file name rule here, the content per kind in [KarpfenSourceTemplates] (KMeta, KModel,
- * KStates) and [EnvironmentTemplate] (descriptor). A [baseName] that already ends with the kind's suffix is used without
- * it, so "robot" and "robot.kmeta" create the same file.
+ * The built-in templates: the file name rule in [fileName], the content per kind in [KarpfenSourceTemplates] (KMeta,
+ * KModel, KStates) and [EnvironmentTemplate] (descriptor). [fileName] does not add the kind's suffix to a `baseName`
+ * that already ends with it, so "robot" and "robot.kmeta" create the same file.
  */
 internal class DefaultFileTemplates : FileTemplates {
 

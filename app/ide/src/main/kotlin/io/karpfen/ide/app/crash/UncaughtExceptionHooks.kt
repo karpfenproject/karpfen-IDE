@@ -8,12 +8,15 @@ internal fun interface UncaughtExceptionHooks {
     fun install(handler: Thread.UncaughtExceptionHandler)
 }
 
-/**
- * The JVM's hooks: the default uncaught-exception handler (every thread without its own, worker threads included) and
- * the AWT event-dispatch thread's own handler (set on that thread, so exceptions thrown by event handlers reach
- * [handler] even if a library installed a thread-specific one; the EDT keeps running after reporting them).
- */
+/** The JVM's hooks: the default uncaught-exception handler and the AWT event-dispatch thread's own handler. */
 internal class JvmUncaughtExceptionHooks : UncaughtExceptionHooks {
+
+    /**
+     * Makes [handler] the default uncaught-exception handler, which every thread without its own uses (worker threads
+     * included), and the event-dispatch thread's own handler. The latter is set on that thread, so exceptions thrown by
+     * event handlers reach [handler] even if a library installed a thread-specific one; the event-dispatch thread keeps
+     * running after reporting them.
+     */
     override fun install(handler: Thread.UncaughtExceptionHandler) {
         Thread.setDefaultUncaughtExceptionHandler(handler)
         EventQueue.invokeLater { Thread.currentThread().uncaughtExceptionHandler = handler }
