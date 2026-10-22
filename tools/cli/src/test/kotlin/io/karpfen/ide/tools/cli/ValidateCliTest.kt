@@ -48,27 +48,27 @@ class ValidateCliTest {
     }
 
     /**
-     * Proves that a clean output is the guard's doing and not only a quiet dsl-tools: with its loggers at DEBUG,
-     * dsl-tools logs while it converts the examples, which reaches the console without the guard and stays out of the
-     * output of `karpfen validate`.
+     * Proves that nothing prints to standard output while a workspace analyzes the examples, so the report needs no
+     * guard around the analysis: with its loggers at DEBUG, dsl-tools logs what it converts, and all of it reaches
+     * standard error through the logging backend, nothing standard output.
      */
     @Test
-    fun `what dsl-tools logs while converting the examples reaches the console only without the guard`() =
+    fun `analyzing the examples writes nothing to standard output, even with dsl-tools logging everything`() =
         runTest(timeout = 120.seconds) {
             val root = Examples.copyTo(dir)
 
-            withDslToolsLoggingAt(Level.DEBUG) {
-                val unguarded = ProcessStreams().use { streams ->
+            val (stdout, stderr) = withDslToolsLoggingAt(Level.DEBUG) {
+                ProcessStreams().use { streams ->
                     val workspace = testWorkspaceFactory(this).open(root, backgroundScope)
+                    workspace.refresh()
                     workspace.awaitAnalysis()
                     workspace.close()
-                    streams.stdout() + streams.stderr()
+                    streams.stdout() to streams.stderr()
                 }
-                val guarded = runCli(testWorkspaceFactory(this), "validate", root.toString())
-
-                assertTrue(unguarded.isNotEmpty(), "dsl-tools' converters log while converting the examples")
-                assertEquals(CliRun(ExitCodes.OK, stdout = "", stderr = ""), guarded)
             }
+
+            assertEquals("", stdout)
+            assertTrue("KmetaDSLConverter" in stderr, "dsl-tools logged while converting the examples: $stderr")
         }
 
     @Test
