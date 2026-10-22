@@ -1,60 +1,121 @@
 # karpfen IDE
 
 karpfen IDE is a desktop IDE for the karpfen DSL ecosystem: KMeta metamodels (`.kmeta`), KModel instances
-(`.kmodel`) and KStates hierarchical statecharts (`.kstates`). It aims at textual editing with full language
-support, blended textual/graphical notations, deploying to and experimenting with a local karpfen runtime,
-bridges to MQTT/ROS, and live visualization of state machines and models. It is written in Kotlin on the JVM with
-Compose Multiplatform for Desktop and builds on [karpfen-dsl-tools](https://github.com/karpfenproject/karpfen-dsl-tools)
-as its language core.
+(`.kmodel`) and KStates hierarchical statecharts (`.kstates`) with embedded Python in their `EVAL` blocks;
+environment descriptors (`*.kenv.json`) tie them together. It aims at textual editing with full language support,
+blended textual and graphical notations, deploying to and experimenting with a local karpfen runtime, bridges to MQTT
+and ROS, and live visualization of state machines and models. It is written in Kotlin on the JVM with Compose
+Multiplatform for Desktop and builds on [karpfen-dsl-tools](https://github.com/karpfenproject/karpfen-dsl-tools) as its
+language core.
 
-The accepted architecture is described in [docs/architecture-proposal.md](docs/architecture-proposal.md); the
-individual decisions are recorded as ADRs in [docs/adr/](docs/adr/README.md).
-
-Status: **phase 1 (text editing) complete**. The IDE opens a folder of karpfen files and edits them with syntax and
-semantic highlighting (including the Python of `EVAL` bodies), live syntax diagnostics, the diagnostics of a
+**Status: the text editor (phase 1) is complete.** The IDE opens a folder of karpfen files and edits them with syntax
+and semantic highlighting (including the Python of `EVAL` bodies), live syntax diagnostics, the diagnostics of a
 karpfen-dsl-tools analysis of each modeling context, completion, go to definition, hover, outline, problems, find and
-replace, and a project tree with file templates; `karpfen validate` checks a folder from the command line. The phase's
-contract is [docs/history/phase-1/p1-text-editing-spec.md](docs/history/phase-1/p1-text-editing-spec.md) (work packages in
-[docs/history/phase-1/p1-work-packages.md](docs/history/phase-1/p1-work-packages.md), manual smoke test in
-[docs/manual-test.md](docs/manual-test.md)). Diagrams, the runtime and the bridges (later phases) are stubs.
+replace, and a project tree with file templates; `karpfen validate` checks a folder from the command line. The work
+continues in the [increments after phase 1](docs/plans/increments-after-phase-1.md); diagrams, the runtime and the
+bridges are stubs so far.
 
-## Modules
+## Documentation
 
-| Module | Purpose | Status |
-|---|---|---|
-| `core/core-text` | Text buffer, `TextEdit`, offset/line-column mapping, line index, undo/redo with typing coalescing | P1 |
-| `core/core-document` | Parse pipeline on top of karpfen-dsl-tools (tokenizers, ANTLR adapter, outline, symbols), document sessions, diagnostics, text patcher | P1 (no patcher yet) |
-| `core/core-workspace` | Project model (scan, watch, open documents, save), environment descriptor, modeling contexts, project analysis, problems, element identities, snapshot diff | P1 (no identities/diff yet) |
-| `core/core-lang` | Language services: highlighting, completion, hover, go-to, references, bracket matching, rename, folding | P1 (no rename or folding yet) |
-| `runtime/runtime-protocol` | Typed HTTP/WebSocket client for the karpfen runtime, environment lifecycle | stub |
-| `runtime/runtime-session` | Deploy pipeline, live model mirror, event injector, trace stream | stub |
-| `runtime/runtime-host` | `RuntimeHost` with the IDE-owned Docker runtime (default), attach and process hosts | stub |
-| `notation/notation-diagram` | UI-agnostic diagram model, layout sidecar, ELK auto-layout adapter | stub |
-| `notation/notation-sync` | Blended synchronizer text ⇄ model ⇄ diagram, runtime overlay | stub |
-| `bridges/bridge-api` | Bridge lifecycle, sources/sinks, codecs, mapping SPI | stub |
-| `bridges/bridge-mapping` | Declarative mapping engine | stub |
-| `bridges/bridge-mqtt` | MQTT bridge (HiveMQ MQTT client) | stub |
-| `bridges/bridge-ros` | ROS bridge over the rosbridge protocol (JSON over WebSocket) | stub |
-| `bridges/bridge-runner` | Headless bridge runner (CLI) | stub |
-| `ui/ui-foundation` | Theme, dock/split layout, command registry, keymap, common widgets | P1 |
-| `ui/ui-editor` | Custom code editor component (Compose-free model, Compose view, completion/find/hover popups) | P1 |
-| `ui/ui-diagram` | Diagram canvas and interaction | stub |
-| `ui/ui-workbench` | Project tree, editor tabs, problems, outline, status bar, settings, runtime/bridge tool windows, log console | P1 (no runtime/bridge windows yet) |
-| `app/ide` | Desktop application entry point, wiring, menus, crash handling, logging, packaging | P1 |
-| `tools/cli` | `validate` / `format` / `deploy` / `export-layout` for CI | P1 (`validate`) |
-| `architecture-tests` | Konsist rules enforcing the module boundaries, and the documentation style rules | active |
+- The [codebase guide](docs/codebase-guide.md) is the map of the code: where each feature lives, which types to read
+  first, and the conventions for design, documentation and tests. Technical detail lives in the KDoc of the code.
+- The [architecture decision records](docs/adr/README.md) record each architectural decision on its own.
+- The [architecture proposal](docs/architecture-proposal.md) is the accepted design record the decisions came from.
+- The [plan of the increments after phase 1](docs/plans/increments-after-phase-1.md) describes the current work.
+- The [manual smoke test](docs/manual-test.md) covers what the automated tests cannot.
+- The [phase-1 records](docs/history/phase-1/README.md) keep the planning and status documents of phase 1 for
+  reference.
 
-`build-logic/` holds the convention plugins (`karpfen.kotlin-jvm`, `karpfen.kotlin-serialization`,
-`karpfen.compose`, `karpfen.application`); all versions live in `gradle/libs.versions.toml`.
+## Build, run and test
 
-Module boundaries are enforced twice during `./gradlew build`:
+### Requirements
 
-- `verifyModuleDependencies` (every module, part of `check`) rejects project dependencies that violate the
-  dependency matrix in `build-logic/src/main/kotlin/io/karpfen/ide/buildlogic/ModuleDependencyRules.kt`. It checks
-  the declarations of every configuration and the project dependencies the classpaths actually resolve to.
-- `architecture-tests` (Konsist) rejects forbidden imports and fully qualified references, e.g. Compose, Ktor or
-  Docker in `core/*`, or AWT/Swing outside `ui/*` and `app/`. All modules are Kotlin-only: Konsist reads Kotlin
-  files, so Java sources under `src/` are rejected as well.
+- A JDK 17 or newer to run Gradle; JDK 21 is recommended. Compiling, tests, the `run` tasks and packaging use the JDK
+  21 toolchain, which Gradle takes from the local installations or downloads through the foojay resolver. The desktop
+  application is pinned to that toolchain too, so the IDE and its packaged runtime are JDK 21 even when Gradle runs on
+  an older JDK.
+- Network access to the Gradle Plugin Portal, Maven Central and Google Maven, and, for downloading a JDK, to the
+  foojay discovery API (`api.foojay.io`) and the JDK vendor's download host.
+- karpfen-dsl-tools, either as a checkout next to this repository or in your local Maven repository; see
+  [karpfen-dsl-tools resolution](#karpfen-dsl-tools-resolution) below.
+
+### Gradle tasks
+
+| Command | What it does |
+|---|---|
+| `./gradlew build` | Compiles every module and runs the unit tests, the architecture tests and the module dependency check. |
+| `./gradlew :core:core-lang:test` | Runs the tests of one module, the quick loop while working on it. |
+| `./gradlew :app:ide:run` | Starts the IDE with an empty state that offers Open Folder… and the recent folders. |
+| `./gradlew :app:ide:run --args=<folder>` | Starts the IDE on a folder of karpfen files. |
+| `./gradlew :tools:cli:installDist` | Builds the command-line tool's start script, `tools/cli/build/install/karpfen/bin/karpfen`. |
+| `./gradlew :tools:cli:run` | Runs the command-line tool, which prints its usage. |
+| `./gradlew :bridges:bridge-runner:installDist` | Builds the start script of the headless bridge runner, a stub that prints its usage. |
+| `./gradlew :app:ide:packageDistributionForCurrentOS` | Builds the native installer for the current system: dmg, msi or deb. |
+
+The packaging setup, including why the macOS app image and dmg carry the version 1.0.0 while the other installers
+carry 0.1.0, is documented in `app/ide/build.gradle.kts`. The dmg is written to
+`app/ide/build/compose/binaries/main/dmg/`.
+
+### Tests
+
+`./gradlew build` runs every automated test. Each module's test report is written to
+`<module>/build/reports/tests/test/index.html`. Time-budget tests, which compare wall-clock durations with a limit,
+carry the JUnit tag `budget` and are never run, as the
+[decision that time-budget tests are not run](docs/adr/0011-time-budget-tests-are-not-run.md) records. The
+[testing conventions](docs/codebase-guide.md#testing) of the codebase guide describe the fixtures, the end-to-end tests
+and how to test on virtual time.
+
+Before a release, run the [manual smoke test](docs/manual-test.md): about 10 minutes at a real machine with a German
+keyboard layout. It covers what headless tests cannot: the native menu bar, typing on a real keyboard layout, focus and
+mouse handling, changes on disk and quitting.
+
+### Running the IDE
+
+`./gradlew :app:ide:run --args=<folder>` opens a folder of karpfen files. To try it on the example files of the karpfen
+repositories, work on a copy:
+
+```bash
+cp -R core/core-document/src/testFixtures/resources/examples /tmp/karpfen-examples
+./gradlew :app:ide:run --args=/tmp/karpfen-examples
+```
+
+Every directory with karpfen files forms a modeling context of its `.kmeta` metamodel, `EVENTS.kmeta`, `.kmodel`
+models and `.kstates` state machines, unless an environment descriptor (`*.kenv.json`) names the files of a context
+explicitly. Text files on disk are the single source of truth, and changes made by other tools are picked up; on macOS
+the JDK's file watcher polls, so this takes up to about 10 seconds.
+
+Settings (`settings.json`: recent folders, theme, font size, window bounds, tool-window sizes) and the log
+(`logs/ide.log`) live in `~/.karpfen-ide`. The environment variable `KARPFEN_IDE_HOME=<dir>` moves both, for example for
+a throw-away run.
+
+For a launch smoke test, `KARPFEN_IDE_EXIT_AFTER_MS=<ms>` makes the IDE close itself after that many milliseconds and
+exit with status 0. After this run, the log contains no `ERROR` line:
+
+```bash
+KARPFEN_IDE_HOME=/tmp/karpfen-home KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app:ide:run --args=/tmp/karpfen-examples
+grep ERROR /tmp/karpfen-home/logs/ide.log
+```
+
+### Command-line tool
+
+`karpfen validate` checks a folder like the IDE does: the syntax of every file, the dsl-tools analysis of every
+modeling context and the environment descriptors. It prints one line per problem, with one-based positions and paths
+relative to the folder, and only the report: what dsl-tools prints while it analyzes is kept out of it.
+
+```bash
+./gradlew :tools:cli:installDist
+tools/cli/build/install/karpfen/bin/karpfen validate <folder> [--format text|json]
+```
+
+A problem looks like this:
+
+```text
+karpfen-runtime/single_robot_example/cleaning_robot.kstates:8:13: error: extraneous input 'ENTRY' expecting '{' [syntax-error]
+```
+
+The exit status is 0 without errors (warnings and infos are printed but allowed), 1 if an error was found, 2 for an
+invalid command line or a missing folder, and 3 if the validation itself failed. `ExitCodes` documents the statuses and
+`ReportFormatter` the text and JSON formats.
 
 The same build enforces the documentation style: `DocumentationStyleTest` in `architecture-tests` rejects line
 comments, block comments other than KDoc, and reference ids to other documents in every Kotlin source file and Gradle
@@ -62,26 +123,23 @@ script. The KDoc of `DocumentationStyleTest`, `KotlinComments` and `ReferenceIds
 
 ## karpfen-dsl-tools resolution
 
-The IDE depends on `io.karpfen:karpfen-dsl-tools`. The build resolves it in one of two modes
-([ADR 0010](docs/adr/0010-dsl-tools-resolution-modes.md)):
+The IDE depends on `io.karpfen:karpfen-dsl-tools` and resolves it in one of two modes, as the
+[decision on how dsl-tools is resolved](docs/adr/0010-dsl-tools-resolution-modes.md) records; the KDoc in
+`settings.gradle.kts` documents the rules.
 
-1. **Composite build** (for working on both repositories at once). The path to a dsl-tools checkout is taken from
-   - the Gradle property `-PdslToolsPath=<path>`, else
-   - `dslToolsPath=<path>` in a git-ignored `local.properties` in the repository root, else
-   - the default `../karpfen-dsl-tools` (a sibling checkout).
+1. **Composite build**, for working on both repositories at once. The build looks for a dsl-tools checkout at the path
+   given with `-PdslToolsPath=<path>`, else at `dslToolsPath=<path>` in a git-ignored `local.properties` in the
+   repository root, else at the sibling directory `../karpfen-dsl-tools`. If that directory holds a Gradle build, it
+   is included and replaces the artifact; the build log shows `karpfen-dsl-tools: composite build from <path>`. On
+   Windows, write the path in `local.properties` with forward slashes (`dslToolsPath=C:/work/karpfen-dsl-tools`). Where
+   dsl-tools lives inside the runtime repository, point at its initialized submodule, for example
+   `dslToolsPath=../karpfen-runtime/karpfen-dsl-tools`. Note that the dsl-tools build regenerates its ANTLR sources
+   into its own `src/main/java`.
 
-   `local.properties` is read as a Java properties file, where `\` is an escape character: on Windows write
-   `dslToolsPath=C:/work/karpfen-dsl-tools` (or double every backslash).
-
-   If that directory contains a Gradle build, it is included and substitutes the artifact. The build log shows
-   `karpfen-dsl-tools: composite build from <path>`. On a machine where dsl-tools lives inside the runtime
-   repository, point at the initialized submodule, e.g. `dslToolsPath=../karpfen-runtime/karpfen-dsl-tools`.
-   Note that the dsl-tools build regenerates its ANTLR sources into its own `src/main/java`.
-
-2. **Artifact** (no checkout found, or `-PdslToolsPath=` with an empty value). The version from the catalog is
-   resolved from the repositories; until dsl-tools is published, that means your local Maven repository. The build
-   log shows `karpfen-dsl-tools: resolving io.karpfen:karpfen-dsl-tools:<version> from repositories`.
-   dsl-tools does not apply `maven-publish` yet; to publish it to `~/.m2` once, run this from the dsl-tools checkout:
+2. **Artifact**, when no checkout is found or `-PdslToolsPath=` is given an empty value. The version from the version
+   catalog is resolved from the repositories, which until dsl-tools is published means your local Maven repository; the
+   build log shows `karpfen-dsl-tools: resolving io.karpfen:karpfen-dsl-tools:<version> from repositories`. dsl-tools
+   does not publish itself yet; to put it into `~/.m2` once, run this from the dsl-tools checkout:
 
    ```bash
    cat > /tmp/publish-dsl-tools.gradle <<'EOF'
@@ -104,88 +162,76 @@ The IDE depends on `io.karpfen:karpfen-dsl-tools`. The build resolves it in one 
    ./gradlew --init-script /tmp/publish-dsl-tools.gradle publishToMavenLocal
    ```
 
-The mode line is printed while the settings are evaluated, so a build that reuses the configuration cache does not
-repeat it. To see the active mode, run with `--no-configuration-cache` or use
-`./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools --configuration compileClasspath`.
+The configuration cache is enabled in `gradle.properties`, so a build that reuses a cache entry does not print the mode
+line again. To see the active mode, run with `--no-configuration-cache` or ask
+`./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools --configuration compileClasspath`. The
+dsl-tools build is not compatible with the configuration cache yet: in composite mode, builds that compile the IDE store
+no cache entry, and dsl-tools tasks invoked directly (for example `./gradlew :karpfen-dsl-tools:jar`) need
+`--no-configuration-cache`.
 
-The configuration cache is enabled (`gradle.properties`). In composite mode, the dsl-tools build script is not
-configuration-cache compatible yet, so builds that compile the IDE run without storing a cache entry (Gradle reports
-"Configuration cache entry discarded because incompatible task was found"); artifact-mode builds use the cache
-normally. Invoking dsl-tools tasks directly in composite mode (e.g. `./gradlew :karpfen-dsl-tools:jar`) fails under
-the configuration cache; add `--no-configuration-cache` for those until dsl-tools stops rewriting its generated
-sources (architecture proposal §5.1, item 6).
+CI (`.github/workflows/build.yml`) builds on Linux and macOS in composite mode, with dsl-tools pinned to the commit in
+`DSL_TOOLS_REF` until dsl-tools publishes artifacts. The workflow file explains the pin and its choice of Gradle cache.
 
-CI clones dsl-tools at a pinned commit (`DSL_TOOLS_REF` in `.github/workflows/build.yml`) and builds in composite
-mode until dsl-tools publishes artifacts (ADR 0010). CI caches the Gradle User Home with the MIT-licensed basic
-provider of `gradle/actions/setup-gradle` (`cache-provider: basic`); its default, enhanced caching, is a proprietary
-component under the Gradle Technologies Terms of Use and has not been chosen.
+## Modules
 
-## Build and run
+Every module keeps its code below the package prefix `io.karpfen.ide`, followed by its layer and name; the
+[codebase guide](docs/codebase-guide.md) walks through them feature by feature.
 
-Requirements:
+**Core**, free of any UI:
 
-- A JDK 17 or newer to run Gradle (JDK 21 recommended). Everything else uses the JDK 21 toolchain, which is taken from
-  the local installations or provisioned automatically through the foojay resolver: compiling, tests, the `run` tasks
-  and packaging. For `app/ide`, the Compose `javaHome` is pinned to that toolchain, so `:app:ide:run`, jlink/jpackage
-  and the runtime bundled into the app image are JDK 21 even when Gradle runs on an older JDK.
-- Network access to the Gradle Plugin Portal, Maven Central and Google Maven; for automatic JDK provisioning also to
-  the foojay discovery API (`api.foojay.io`) and the JDK vendor's download host.
+- **core/core-text**: the text of one document, with atomic edits, immutable snapshots, line and column positions,
+  undo and redo with typing coalescing, and the mapping of positions between versions. Start at `EditableText` and
+  `TextSnapshot`.
+- **core/core-document**: tokens, parse outcomes and diagnostics of a document on top of karpfen-dsl-tools, kept up to
+  date by a document session. Start at `DocumentSession` (package `session`) and `LanguageSupport` (package
+  `language`).
+- **core/core-workspace**: an opened folder, with its file tree and watcher, open documents and saving, environment
+  descriptors, modeling contexts, the dsl-tools analysis of every context, and the problems of every file. Start at
+  `Workspace`.
+- **core/core-lang**: the language services for highlighting, completion, go to definition, references, hover and
+  bracket matching in the three languages. Start at `LanguageServices` and `LanguageFeatures` (package `feature`).
 
-```bash
-./gradlew build                      # compile, unit tests, architecture tests, module dependency checks
-                                     # (time-budget tests, tag `budget`, are never run: docs/adr/0011)
-./gradlew :app:ide:run               # start the IDE (empty state: Open Folder… or a recent folder)
-./gradlew :app:ide:run --args=/path/to/folder   # start the IDE on a folder of karpfen files
-./gradlew :tools:cli:run             # command-line tool (prints usage)
-./gradlew :bridges:bridge-runner:run # headless bridge runner (prints usage)
-./gradlew :tools:cli:installDist     # start script: tools/cli/build/install/karpfen/bin/karpfen
-./gradlew :bridges:bridge-runner:installDist  # .../install/karpfen-bridge-runner/bin/karpfen-bridge-runner
-./gradlew :app:ide:packageDistributionForCurrentOS   # native installer (dmg / msi / deb)
-```
+**UI**, built with Compose Multiplatform for Desktop:
 
-The installer version is `0.1.0` for Msi and Deb. jpackage on macOS rejects an app version whose first number is 0,
-so the macOS app image and dmg are versioned `1.0.0` (override in `app/ide/build.gradle.kts`) until the product reaches
-1.x. The dmg is written to `app/ide/build/compose/binaries/main/dmg/`.
+- **ui/ui-foundation**: theme, icons and common widgets (tree view, tabs, split panes, tooltip, status bar), the
+  command registry and the toolkit-neutral key model. Start at `CommandRegistry` (package `command`) and `KeyStroke`
+  (package `keys`).
+- **ui/ui-editor**: the custom code editor, made of a Compose-free model of actions, carets, completion and find, a
+  state holder, the Compose view and its popups. Start at `CodeEditorState` (package `state`) and `CodeEditor`
+  (package `view`).
+- **ui/ui-workbench**: the window content, with project tree, editor tabs, outline, problems, status bar, dialogs,
+  settings and file templates, coordinated by one mediator. Start at `WorkbenchState` (package `state`) and the
+  `Workbench` composable.
 
-### Running the IDE
+**Application and tools:**
 
-`./gradlew :app:ide:run --args=<folder>` opens the folder (try a copy of the examples:
-`cp -R core/core-document/src/testFixtures/resources/examples /tmp/karpfen-examples`). Without a folder the IDE shows
-an empty state with "Open Folder…" and the recent folders. Every directory with karpfen files forms a modeling
-context (its `.kmeta` metamodel, `EVENTS.kmeta`, its `.kmodel` models and `.kstates` state machines) unless an
-environment descriptor (`*.kenv.json`) names the files of a context explicitly. Text files on disk are the single
-source of truth; changes made by other tools are picked up (on macOS the JDK's file watcher polls, so this takes up to
-about 10 seconds).
+- **app/ide**: the desktop application, with entry point, composition root, menus, crash handling, logging and
+  packaging. Start at `IdeApplication`.
+- **tools/cli**: the `karpfen` command-line tool, whose `validate` command checks a folder like the IDE does. Start at
+  `KarpfenCli` and `ValidateCommand` (package `validate`).
 
-Settings (`settings.json`: recent folders, theme, font size, window bounds, tool-window sizes) and the log
-(`logs/ide.log`) live in `~/.karpfen-ide`; the environment variable `KARPFEN_IDE_HOME=<dir>` moves both, e.g. for a
-throw-away run. Launch smoke test: with `KARPFEN_IDE_EXIT_AFTER_MS=<ms>` set, the IDE closes itself after that many
-milliseconds and exits with status 0, e.g.
+**Build and architecture:**
 
-```bash
-KARPFEN_IDE_HOME=/tmp/karpfen-home KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app:ide:run --args=/tmp/karpfen-examples
-grep ERROR /tmp/karpfen-home/logs/ide.log   # prints nothing
-```
+- **build-logic**: the convention plugins `karpfen.kotlin-jvm`, `karpfen.kotlin-serialization`, `karpfen.compose` and
+  `karpfen.application`, and the module dependency matrix `ModuleDependencyRules`, which `verifyModuleDependencies`
+  checks as part of every module's `check`. All versions live in `gradle/libs.versions.toml`.
+- **architecture-tests**: Konsist rules that keep the layers, the adapters of foreign APIs and the UI state holders
+  apart, for example `LayerImportRulesTest` and `ComposeFreeStateTest`.
 
-Before a release, run the 10-minute manual smoke test in [docs/manual-test.md](docs/manual-test.md) (German
-keyboard layout, completion, navigation, save/undo, external changes, quit).
+Together they enforce the module boundaries on every build, as the
+[decision that module boundaries are enforced by the build](docs/adr/0008-module-boundaries-enforced-by-the-build.md)
+records.
 
-### Command-line tool
+**Later increments**, stubs so far:
 
-`karpfen validate` checks a folder like the IDE does (syntax of every file plus the dsl-tools analysis of every
-modeling context and the environment descriptors) and prints one line per problem, with one-based positions relative
-to the folder:
-
-```bash
-./gradlew :tools:cli:installDist
-tools/cli/build/install/karpfen/bin/karpfen validate <folder> [--format text|json]
-# karpfen-runtime/single_robot_example/cleaning_robot.kstates:8:13: error: extraneous input 'ENTRY' expecting '{' [syntax-error]
-```
-
-Exit status: 0 without errors (warnings and infos are printed but allowed), 1 if any error was found, 2 for an invalid
-command line or a missing folder, 3 if the validation itself failed (a defect; see the message). `--format json`
-prints `{root, errorCount, warningCount, problems: [{path, line, column, severity, message, code}]}`. The output
-contains only the report: what dsl-tools prints while it analyzes is suppressed.
+- **runtime/runtime-protocol**, **runtime/runtime-session** and **runtime/runtime-host**: the typed client of the
+  karpfen runtime, deployment with a live mirror of the model, and hosting the runtime, by default in an IDE-owned
+  Docker container.
+- **notation/notation-diagram** and **notation/notation-sync**: the UI-agnostic diagram model with its layout, and the
+  synchronization of text, model and diagram.
+- **bridges/bridge-api**, **bridges/bridge-mapping**, **bridges/bridge-mqtt**, **bridges/bridge-ros** and
+  **bridges/bridge-runner**: bridges to MQTT and ROS with declarative message mapping, and their headless runner.
+- **ui/ui-diagram**: the diagram canvas and its interaction.
 
 ## License
 
