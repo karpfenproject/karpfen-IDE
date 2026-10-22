@@ -52,10 +52,16 @@ public enum class Severity {
 
 /** Which stage produced a [Diagnostic]. */
 public enum class DiagnosticSource {
-    /** The dsl-tools ANTLR lexer, run with an IDE error listener. */
+    /**
+     * The lexer of the document's language: the dsl-tools ANTLR lexer, run with an IDE error listener, for the modeling
+     * languages, and the IDE's own JSON lexer for environment descriptors.
+     */
     LEXER,
 
-    /** The dsl-tools ANTLR parser, run with an IDE error listener. */
+    /**
+     * The parser of the document's language: the dsl-tools ANTLR parser, run with an IDE error listener, for the
+     * modeling languages, and the IDE's own JSON tree builder for environment descriptors.
+     */
     PARSER,
 
     /** An exception from a dsl-tools converter (semantic model construction). */

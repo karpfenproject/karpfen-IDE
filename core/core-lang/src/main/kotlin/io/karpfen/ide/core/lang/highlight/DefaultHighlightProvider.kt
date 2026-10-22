@@ -63,8 +63,6 @@ internal class DefaultHighlightProvider : HighlightProvider {
             SemanticKind.DESCRIPTION -> HighlightStyle.DESCRIPTION
             SemanticKind.BINDING_NAME -> HighlightStyle.BINDING_NAME
             SemanticKind.FILE_PATH -> HighlightStyle.FILE_PATH
-            SemanticKind.NUMBER_VALUE -> HighlightStyle.NUMBER_VALUE
-            SemanticKind.BOOLEAN_VALUE -> HighlightStyle.BOOLEAN_VALUE
         }
     }
 }

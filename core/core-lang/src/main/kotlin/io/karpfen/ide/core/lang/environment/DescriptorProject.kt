@@ -43,15 +43,19 @@ internal class DescriptorProject(private val request: FeatureRequest) {
     }
 
     /**
-     * The workspace files a key of [role] can name ([FileKind.of] the role), as the descriptor names them: relative to
-     * its directory with `/`. From the file tree, or from the analyzed files where no tree is known.
+     * The workspace files a key of [role] can name, as the descriptor names them (relative to its directory with `/`),
+     * from the file tree, or from the analyzed files where no tree is known. These are the files that fit the role by
+     * the rule the workspace checks a descriptor with ([FileKind.fits]), each marked as the usual choice or not
+     * ([FileKind.isUsualFor]). For a role that accepts any file, a bridge configuration, only the usual files are
+     * offered, because a list of every file of the workspace would help nobody.
      */
-    fun candidates(role: DescriptorFileRole): List<String> {
-        val kind = FileKind.of(role)
+    fun candidates(role: DescriptorFileRole): List<FileCandidate> {
         val base = directory ?: return emptyList()
-        val paths = request.files?.files(kind)?.map { it.path }
-            ?: request.project.files.keys.filter { FileKind.of(it.fileName?.toString().orEmpty()) == kind }
-        return paths.map { DescriptorPaths.relative(base, it) }
+        val files = request.files?.files()?.map { it.path to it.kind }
+            ?: request.project.files.keys.map { it to FileKind.of(it.fileName?.toString().orEmpty()) }
+        return files
+            .filter { (_, kind) -> kind.fits(role) && (role.language != null || kind.isUsualFor(role)) }
+            .map { (path, kind) -> FileCandidate(DescriptorPaths.relative(base, path), kind.isUsualFor(role)) }
     }
 
     /** The first file of [role] named below [node] (expected to have [shape]), resolved, or null. */
@@ -73,3 +77,11 @@ internal class DescriptorProject(private val request: FeatureRequest) {
 
     private fun analyzed(path: Path): AnalyzedFile? = request.project.file(path)
 }
+
+/**
+ * A file a descriptor key can name.
+ *
+ * @property path the file as the descriptor names it, relative to its directory with `/`.
+ * @property isUsual true if the file is the usual choice for the key's role, which completion offers first.
+ */
+internal data class FileCandidate(val path: String, val isUsual: Boolean)

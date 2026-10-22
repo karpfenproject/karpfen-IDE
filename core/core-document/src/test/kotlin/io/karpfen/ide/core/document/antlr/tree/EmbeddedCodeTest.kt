@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.document.antlr.tree
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.antlr.EmbeddedKind
 import io.karpfen.ide.core.document.antlr.EvalBodies
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
@@ -12,10 +13,10 @@ import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
-import kstates.KstatesParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kstates.KstatesParser
 
 /**
  * Covers that EVAL references and folding come from the same lexical scanner the tokenizer uses: every MODEL_PATH or
@@ -67,7 +68,7 @@ class EmbeddedCodeTest {
         val text = "STATEMACHINE ATTACHED TO \"T\" {\n STATES { }\n TRANSITIONS { }\n MACROS {\n  MACRO \"m\" {\n" +
             "   TAKES(\"a\", \"Vector\")\nEVAL {   TAKES(\"b\", \"Vector\")\n   RETURNS(\"number\")\n" +
             "   DEFINITION { EVAL { return 1 } }\n  }\n }\n}"
-        val tree = TreeParser(KarpfenLanguage.KSTATES, ::KstatesParser, KstatesParser::kstates_file).parse(TextSnapshot(text, 0))
+        val tree = TreeParser(DslGrammar.KSTATES, ::KstatesParser, KstatesParser::kstates_file).parse(TextSnapshot(text, 0))
         val unguarded = SyntaxCollector().also { KstatesTreeWalker(tree, it).walk(tree.root) }.index()
         assertEquals(listOf("a", "b"), unguarded.declarationsOf(SymbolKind.MACRO_PARAMETER).map { it.name }, "premise: recovery parses `b`")
 
@@ -80,7 +81,7 @@ class EmbeddedCodeTest {
     }
 
     private fun checkAgainstTokenizer(text: String) {
-        val lexed = KarpfenLexers.lex(KarpfenLanguage.KSTATES, text)
+        val lexed = KarpfenLexers.lex(DslGrammar.KSTATES, text)
         val scanned = EvalBodies.scanAll(text, lexed.tokens, lexed.offsets)
         val pieces = scanned.flatMap { it.second }.mapNotNull { piece ->
             when (piece.kind) {

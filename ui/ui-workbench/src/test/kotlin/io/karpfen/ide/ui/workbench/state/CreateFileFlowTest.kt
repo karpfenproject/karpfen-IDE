@@ -4,7 +4,7 @@ import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
-import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptor
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind

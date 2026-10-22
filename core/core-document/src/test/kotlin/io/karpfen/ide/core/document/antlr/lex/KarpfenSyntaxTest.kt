@@ -1,14 +1,15 @@
 package io.karpfen.ide.core.document.antlr.lex
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenKind
-import kstates.KstatesLexer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kstates.KstatesLexer
 
 /** [KarpfenSyntax], the one home of the lexical facts other layers read, checked against the generated lexers. */
 class KarpfenSyntaxTest {
@@ -57,7 +58,7 @@ class KarpfenSyntaxTest {
     fun `the identifier characters are the ones that continue a KStates identifier`() {
         for (code in 0x21 until 0x250) {
             val char = code.toChar()
-            val tokens = KarpfenLexers.lex(KarpfenLanguage.KSTATES, "q$char").tokens
+            val tokens = KarpfenLexers.lex(DslGrammar.KSTATES, "q$char").tokens
             val continues = tokens.size == 1 && tokens.single().type == KstatesLexer.IDENT
 
             assertEquals(continues, KarpfenSyntax.isIdentifierChar(char), "'$char' (U+${code.toString(16).padStart(4, '0')})")

@@ -1,6 +1,6 @@
 package io.karpfen.ide.core.document.antlr.lex
 
-import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
 import io.karpfen.ide.core.document.antlr.LexerGaps
 import io.karpfen.ide.core.document.syntax.TokenKind
@@ -29,13 +29,13 @@ import io.karpfen.ide.core.text.TextSnapshot
  * Stateless and thread-safe; the language tokenizers wrap it in a [FailSafeTokenizer].
  */
 internal class GapRecoveringTokenizer(
-    private val language: KarpfenLanguage,
+    private val grammar: DslGrammar,
     private val kinds: TokenKindTable,
 ) : Tokenizer {
 
     override fun tokenize(snapshot: TextSnapshot): TokenizeResult {
         val text = snapshot.text
-        val lexed = KarpfenLexers.lex(language, text)
+        val lexed = KarpfenLexers.lex(grammar, text)
         val lexemes = lexed.tokens.mapNotNull { token -> lexed.rangeOf(token)?.let { range -> range to kinds.kindOf(token.type) } }
         val gaps = LexerGaps.scan(text, lexemes.map { (range, _) -> range })
         val lexerErrors = RangeOverlapIndex(lexed.diagnostics.map { it.range })

@@ -1,7 +1,6 @@
 package io.karpfen.ide.core.lang.environment
 
-import io.karpfen.ide.core.document.environment.DescriptorKey
-import io.karpfen.ide.core.document.environment.ValueShape
+import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
@@ -107,7 +106,8 @@ class EnvironmentFeaturesTest {
     fun `file paths are the files of the key's role, next to the descriptor first`() {
         assertEquals(listOf("cleaning_robot.kmeta"), firstRanked(complete("{ \"metamodel\": \"‸\" }")))
         val metamodels = complete("{ \"metamodel\": \"‸\" }").map { it.label }
-        assertTrue("EVENTS.kmeta" !in metamodels && "../delivery_drone_example/delivery_drone.kmeta" in metamodels, "$metamodels")
+        assertTrue("../delivery_drone_example/delivery_drone.kmeta" in metamodels, "$metamodels")
+        assertTrue(metamodels.indexOf("EVENTS.kmeta") > metamodels.indexOf("../delivery_drone_example/delivery_drone.kmeta"), "$metamodels")
         assertTrue("../../karpfen-dsl-tools/metamodel_dsl_example.kmeta" in metamodels)
         assertEquals(listOf("EVENTS.kmeta"), firstRanked(complete("{ \"events\": \"‸\" }")))
         assertEquals(listOf("cleaning_robot.kmodel"), firstRanked(complete("{ \"model\": \"‸\" }")))
@@ -118,6 +118,20 @@ class EnvironmentFeaturesTest {
         assertEquals("\"cleaning_robot.kmodel\"", outside.insertText, "quoted outside a string")
         assertEquals(CompletionKind.FILE, outside.kind)
         assertEquals("the model", outside.detail)
+    }
+
+    @Test
+    fun `an event metamodel of another name is offered for the events, as the workspace accepts it there`() {
+        val eventsFile = DescriptorFixture.PATH.resolveSibling("robot_events.kmeta")
+        val features = EnvironmentLanguageFeatures(DefaultHighlightProvider(), EnvironmentSchema.ROOT)
+        val (document, offset) = DescriptorFixture.at("{ \"events\": \"‸\" }")
+        val request = FeatureRequest(document, ExampleProject.analysis, null, DescriptorFixture.treeWith(eventsFile))
+
+        val labels = features.completion.complete(request, offset).sortedWith(compareBy({ it.sortKey }, { it.label })).map { it.label }
+
+        assertEquals("EVENTS.kmeta", labels.first())
+        assertTrue("robot_events.kmeta" in labels, "$labels")
+        assertTrue(labels.indexOf("robot_events.kmeta") > labels.indexOf("../delivery_drone_example/EVENTS.kmeta"), "usual files first: $labels")
     }
 
     @Test
@@ -153,21 +167,6 @@ class EnvironmentFeaturesTest {
         val template = complete("{ \"observe\": ‸ }").single()
         assertEquals("{ … }" to "{ \"objects\": \"\" }", template.label to template.insertText)
         assertEquals("{ \"objects\": \"".length, template.caretOffsetInInsert)
-    }
-
-    @Test
-    fun `booleans offer true and false`() {
-        val schema = ValueShape.Record(listOf(DescriptorKey("enabled", ValueShape.Flag, isRequired = false, isNullable = false, "on or off")))
-        val features = EnvironmentLanguageFeatures(DefaultHighlightProvider(), schema)
-        val (document, offset) = DescriptorFixture.at("{ \"enabled\": ‸ }")
-
-        val items = features.completion.complete(FeatureRequest(document, ExampleProject.analysis, null, DescriptorFixture.tree), offset)
-
-        assertEquals(listOf("true", "false"), items.sortedBy { it.sortKey }.map { it.label })
-        assertEquals("\"enabled\": true", features.completion.complete(
-            FeatureRequest(DescriptorFixture.at("{ ‸ }").first, ExampleProject.analysis, null),
-            2,
-        ).single().insertText)
     }
 
     @Test
@@ -229,7 +228,7 @@ class EnvironmentFeaturesTest {
     }
 
     @Test
-    fun `file paths, object keys and numbers are highlighted by their role`() {
+    fun `file paths and object keys are highlighted by their role, numbers by their token`() {
         val document = DescriptorFixture.document(valid, version = 1)
 
         val spans = services.highlight(document).associate { valid.substring(it.range.start, it.range.end) to it.style }
@@ -237,7 +236,7 @@ class EnvironmentFeaturesTest {
         assertEquals(HighlightStyle.FILE_PATH, spans["cleaning_robot.kmeta"])
         assertEquals(HighlightStyle.OBJECT_NAME, spans["turtle"])
         assertEquals(HighlightStyle.PROPERTY_NAME, spans["metamodel"])
-        assertEquals(HighlightStyle.NUMBER_VALUE, spans["3000"])
+        assertEquals(HighlightStyle.NUMBER, spans["3000"])
         assertEquals(HighlightStyle.EVENT_DOMAIN, spans["public"])
         assertEquals(HighlightStyle.PUNCTUATION, spans["{"])
     }

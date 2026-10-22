@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.document.antlr.tree
 
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.DiagnosticSource
-import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import kmeta.KmetaParser
@@ -16,8 +16,8 @@ import kotlin.test.assertTrue
 /** [TreeParser] and the range arithmetic of [ParsedTree] on complete, broken and non-BMP input. */
 class TreeParserTest {
 
-    private val kmeta = TreeParser(KarpfenLanguage.KMETA, ::KmetaParser, KmetaParser::kmeta_file)
-    private val kstates = TreeParser(KarpfenLanguage.KSTATES, ::KstatesParser, KstatesParser::kstates_file)
+    private val kmeta = TreeParser(DslGrammar.KMETA, ::KmetaParser, KmetaParser::kmeta_file)
+    private val kstates = TreeParser(DslGrammar.KSTATES, ::KstatesParser, KstatesParser::kstates_file)
 
     @Test
     fun `lexer and parser errors are collected, nothing is printed`() {

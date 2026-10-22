@@ -11,18 +11,30 @@ public sealed interface JsonNode {
     /** The whole value in the source text: for strings including the quotes, for containers from bracket to bracket. */
     public val range: TextRange
 
+    /** An object or an array: a value that holds other values between its brackets. */
+    public sealed interface Container : JsonNode {
+        /**
+         * False if the text ends or a bracket of an enclosing container follows before the closing bracket; the
+         * container then ends after the last value it holds.
+         */
+        public val isClosed: Boolean
+
+        /** The values directly inside, in document order: the values of an object's members, an array's items. */
+        public val children: List<JsonNode>
+    }
+
     /**
      * An object.
      *
      * @property members the members in document order; a repeated key is kept as often as it occurs.
-     * @property isClosed false if the text ends or a bracket of an enclosing container follows before the `}`; the
-     *   object then ends after its last member.
      */
     public data class ObjectNode(
         override val range: TextRange,
         public val members: List<Member>,
-        public val isClosed: Boolean,
-    ) : JsonNode {
+        override val isClosed: Boolean,
+    ) : Container {
+        override val children: List<JsonNode> get() = members.mapNotNull { it.value }
+
         /** The last member named [key] (a JSON reader decodes the last of repeated keys), or null. */
         public fun member(key: String): Member? = members.lastOrNull { it.key.value == key }
     }
@@ -31,13 +43,14 @@ public sealed interface JsonNode {
      * An array.
      *
      * @property items the items in document order.
-     * @property isClosed false if the text ends or a bracket of an enclosing container follows before the `]`.
      */
     public data class ArrayNode(
         override val range: TextRange,
         public val items: List<JsonNode>,
-        public val isClosed: Boolean,
-    ) : JsonNode
+        override val isClosed: Boolean,
+    ) : Container {
+        override val children: List<JsonNode> get() = items
+    }
 
     /**
      * A string.
@@ -82,6 +95,20 @@ public sealed interface JsonNode {
         /** From the key to the end of the value, or of the colon or the key when they are the last parts present. */
         public val range: TextRange get() = TextRange(key.range.start, (value?.range ?: colon ?: key.range).end)
     }
+}
+
+/**
+ * Every container at or below [this] value in document order, a container before the ones it holds: the structure that
+ * bracket matching and folding read, whatever the values mean.
+ */
+public fun JsonNode.containers(): List<JsonNode.Container> =
+    ArrayList<JsonNode.Container>().also { collectContainers(this, it) }
+
+/** Adds [node], if it is a container, and every container below it to [into]. */
+private fun collectContainers(node: JsonNode, into: MutableList<JsonNode.Container>) {
+    if (node !is JsonNode.Container) return
+    into += node
+    node.children.forEach { collectContainers(it, into) }
 }
 
 /** The literals of JSON. */

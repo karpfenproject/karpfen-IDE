@@ -4,8 +4,10 @@ import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.antlr.EvalBodies
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
+import io.karpfen.ide.core.document.antlr.grammarOf
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.document.syntax.Tokenizer
@@ -17,14 +19,13 @@ import kotlin.test.fail
 /**
  * The tokenizer of the modeling language [language] as the registry wires it (the classes of this package).
  *
- * @throws IllegalArgumentException for environment descriptors, whose JSON tokenizer the tests of the `json` package
+ * @throws NoSuchElementException for environment descriptors, whose JSON tokenizer the tests of the `json` package
  *   cover.
  */
-internal fun tokenizerOf(language: KarpfenLanguage): Tokenizer = when (language) {
-    KarpfenLanguage.KMETA -> KmetaTokenizer()
-    KarpfenLanguage.KMODEL -> KmodelTokenizer()
-    KarpfenLanguage.KSTATES -> KstatesTokenizer()
-    KarpfenLanguage.ENVIRONMENT -> throw IllegalArgumentException("environment descriptors are no ANTLR language")
+internal fun tokenizerOf(language: KarpfenLanguage): Tokenizer = when (grammarOf(language)) {
+    DslGrammar.KMETA -> KmetaTokenizer()
+    DslGrammar.KMODEL -> KmodelTokenizer()
+    DslGrammar.KSTATES -> KstatesTokenizer()
 }
 
 /** The whitespace of the karpfen grammars (`[ \t\r\n]`); every other character must be in a token. */
@@ -102,7 +103,7 @@ private fun assertLexerErrorsMatchErrorTokens(result: TokenizeResult, lexerError
  * in one of them.
  */
 private fun assertEmbeddedRegions(text: String, result: TokenizeResult, label: String) {
-    val lexed = KarpfenLexers.lex(KarpfenLanguage.KSTATES, text)
+    val lexed = KarpfenLexers.lex(DslGrammar.KSTATES, text)
     val expected = EvalBodies.find(lexed.tokens, lexed.offsets).map { it.content }
     assertEquals(expected, result.embeddedRegions, "embedded regions of $label")
     for (token in result.tokens.filter { it.kind.isEmbedded }) {

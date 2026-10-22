@@ -3,6 +3,7 @@ package io.karpfen.ide.core.document.antlr.lex
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.EvalBodies
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenKind
@@ -44,7 +45,7 @@ internal class KstatesTokenizer : Tokenizer {
      */
     private fun tokenizeUnguarded(snapshot: TextSnapshot): TokenizeResult {
         val text = snapshot.text
-        val lexed = KarpfenLexers.lex(KarpfenLanguage.KSTATES, text)
+        val lexed = KarpfenLexers.lex(DslGrammar.KSTATES, text)
         val bodies = EvalBodies.find(lexed.tokens, lexed.offsets)
         val tokens = TokenSequence()
         val diagnostics = ArrayList<Diagnostic>(lexed.diagnostics)

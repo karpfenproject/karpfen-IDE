@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.document.antlr.tree
 
-import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.CodePointOffsets
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.antlr.IdeErrorListener
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
 import io.karpfen.ide.core.text.TextSnapshot
@@ -19,12 +19,12 @@ import org.antlr.v4.runtime.TokenStream
  * Stateless and thread-safe (every call creates its own lexer, stream and parser; the generated parsers share only
  * ANTLR's thread-safe prediction caches).
  *
- * @param language selects the generated lexer.
+ * @param grammar selects the generated lexer.
  * @param newParser creates the generated parser over a token stream, e.g. `::KmetaParser`.
  * @param entryRule invokes the grammar's entry rule, e.g. `KmetaParser::kmeta_file`.
  */
 internal class TreeParser<P : Parser, T : ParserRuleContext>(
-    private val language: KarpfenLanguage,
+    private val grammar: DslGrammar,
     private val newParser: (TokenStream) -> P,
     private val entryRule: (P) -> T,
 ) {
@@ -36,7 +36,7 @@ internal class TreeParser<P : Parser, T : ParserRuleContext>(
     fun parse(snapshot: TextSnapshot): ParsedTree<T> {
         val offsets = CodePointOffsets.of(snapshot.text)
         val listener = IdeErrorListener(offsets)
-        val stream = CommonTokenStream(KarpfenLexers.create(language, CharStreams.fromString(snapshot.text), listener))
+        val stream = CommonTokenStream(KarpfenLexers.create(grammar, CharStreams.fromString(snapshot.text), listener))
         val root = entryRule(listener.attachTo(newParser(stream)))
         stream.fill()
         return ParsedTree(snapshot, offsets, stream.tokens.toList(), root, listener.diagnostics)

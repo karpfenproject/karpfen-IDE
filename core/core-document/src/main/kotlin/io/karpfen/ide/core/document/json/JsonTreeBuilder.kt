@@ -20,7 +20,10 @@ import io.karpfen.ide.core.text.TextRange
  * - a closing bracket of an enclosing container ends every container opened since, each one reported once as not
  *   closed; a closing bracket that closes nothing is reported and skipped;
  * - the end of the text ends every open container and missing part with one error at the end of the last token;
- * - content after the root value is one error, and the root must be a value;
+ * - tokens before the root value are skipped, so one stray keystroke at the top of a file keeps the tree: an INVALID
+ *   token silently, any other one reported once as standing before the value; a text without any value is one error,
+ *   at its first stray token or, for an empty text, at its end;
+ * - content after the root value is one error;
  * - containers nested deeper than [MAX_DEPTH] are skipped as one error, so the recursion stays far from the stack limit.
  *
  * Errors are PARSER diagnostics with the code `syntax-error`.
@@ -42,16 +45,33 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
 
     /** The root value, or null if the text holds none. */
     fun document(): JsonNode? {
-        val first = peek()
-        val root = when {
-            first == null -> null.also { atEnd("Expected a JSON value.") }
-            first.kind.isValueStart -> value(depth = 0, closers = emptySet())
-            else -> null.also { if (first.kind != JsonTokenKind.INVALID) report(first.range, "Expected a JSON value.") }
+        val strays = skipToRoot()
+        if (peek() == null) {
+            reportMissingRoot(strays.firstOrNull())
+        } else {
+            strays.forEach { report(it.range, "Unexpected '${textOf(it)}' before the JSON value.") }
         }
-        tokens.drop(index).firstOrNull { it.kind != JsonTokenKind.INVALID && it !== first }?.let { extra ->
+        val root = peek()?.let { value(depth = 0, closers = emptySet()) }
+        tokens.drop(index).firstOrNull { it.kind != JsonTokenKind.INVALID }?.let { extra ->
             report(extra.range, "Unexpected '${textOf(extra)}' after the end of the JSON value.")
         }
         return root
+    }
+
+    /** Consumes the tokens before the first one that starts a value and returns those the lexer accepted. */
+    private fun skipToRoot(): List<JsonToken> = buildList {
+        while (peek()?.kind?.isValueStart == false) next().takeIf { it.kind != JsonTokenKind.INVALID }?.let { add(it) }
+    }
+
+    /**
+     * Reports that the text holds no value: at [firstStray], the first token that is no value, or at the end of an
+     * empty text. A text of INVALID tokens only gets no error of its own, because the lexer reported each of them.
+     */
+    private fun reportMissingRoot(firstStray: JsonToken?) {
+        when {
+            firstStray != null -> report(firstStray.range, "Expected a JSON value.")
+            tokens.isEmpty() -> atEnd("Expected a JSON value.")
+        }
     }
 
     /** The value starting at the current token, which must start one. */

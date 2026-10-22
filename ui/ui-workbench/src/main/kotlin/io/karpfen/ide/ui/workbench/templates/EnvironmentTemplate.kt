@@ -3,7 +3,7 @@ package io.karpfen.ide.ui.workbench.templates
 import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.workspace.analysis.AttachmentCandidate
 import io.karpfen.ide.core.workspace.environment.DescriptorPaths
-import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptor
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 
@@ -15,8 +15,9 @@ import java.nio.file.Path
  * section that watches every object ([EnvironmentSchema.EVERY_OBJECT]) and those domains. Without a context the
  * descriptor names files after itself.
  *
- * The descriptor is the typed `EnvironmentDescriptor` encoded with kotlinx.serialization, so its keys are the ones of
- * the environment schema, every name is a correctly escaped JSON string, and keys left at their defaults are omitted.
+ * The descriptor is the typed `EnvironmentDescriptor` encoded with kotlinx.serialization, the class the environment
+ * schema is derived from, so its keys are the schema's, every name is a correctly escaped JSON string, and keys left
+ * at their defaults are omitted.
  * Pure.
  */
 internal object EnvironmentTemplate {

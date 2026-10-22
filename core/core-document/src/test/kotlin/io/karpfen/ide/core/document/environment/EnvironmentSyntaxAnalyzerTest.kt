@@ -57,6 +57,31 @@ class EnvironmentSyntaxAnalyzerTest {
     }
 
     @Test
+    fun `a state machine entry is named by its file whatever the order of its keys`() {
+        val text = "{\"stateMachines\": [ { \"attachedTo\": \"t\", \"file\": \"x.kstates\" } ]}"
+
+        val entry = analyze(text).outline.single().children.single()
+
+        assertEquals("x.kstates", entry.name)
+        assertEquals("x.kstates", text.substring(entry.selectionRange.start, entry.selectionRange.end))
+    }
+
+    @Test
+    fun `a stray token before the root keeps the outline, the folding and the spans`() {
+        listOf("x ", "}").forEach { stray ->
+            val text = stray + valid
+
+            val analysis = analyze(text)
+
+            assertEquals(analyze(valid).outline.map { it.name }, analysis.outline.map { it.name }, "'$stray'")
+            assertEquals(2, analysis.folding.size, "'$stray'")
+            assertEquals(analyze(valid).semanticSpans.size, analysis.semanticSpans.size, "'$stray'")
+            assertEquals(1, analysis.syntaxDiagnostics.size, "one error at the stray token: ${analysis.syntaxDiagnostics}")
+            assertEquals(0, analysis.syntaxDiagnostics.single().range.start)
+        }
+    }
+
+    @Test
     fun `entries without a string are named by their position`() {
         val outline = analyze("{\"x\": [1, {\"a\": 2}, \"\"]}").outline
 
@@ -64,7 +89,7 @@ class EnvironmentSyntaxAnalyzerTest {
     }
 
     @Test
-    fun `semantic spans mark keys, file paths, object keys, event domains and numbers`() {
+    fun `semantic spans mark keys, file paths, object keys and event domains`() {
         val spans = analyze(valid).semanticSpans.map { it.kind to valid.substring(it.range.start, it.range.end) }
 
         val keys = spans.filter { it.first == SemanticKind.PROPERTY_NAME }.map { it.second }
@@ -79,22 +104,11 @@ class EnvironmentSyntaxAnalyzerTest {
             listOf(
                 SemanticKind.FILE_PATH to "cleaning_robot.kmeta", SemanticKind.FILE_PATH to "EVENTS.kmeta",
                 SemanticKind.FILE_PATH to "cleaning_robot.kmodel", SemanticKind.FILE_PATH to "cleaning_robot.kstates",
-                SemanticKind.OBJECT_NAME to "turtle", SemanticKind.NUMBER_VALUE to "50", SemanticKind.NUMBER_VALUE to "3000",
-                SemanticKind.EVENT_DOMAIN to "public",
+                SemanticKind.OBJECT_NAME to "turtle", SemanticKind.EVENT_DOMAIN to "public",
             ),
             spans.filter { it.first != SemanticKind.PROPERTY_NAME },
-            "the pattern \"*\" and the package \"numpy\" keep the string style",
+            "the numbers, the pattern \"*\" and the package \"numpy\" keep their lexical style",
         )
-    }
-
-    @Test
-    fun `booleans are marked, null is not`() {
-        val schema = ValueShape.Record(listOf(DescriptorKey("enabled", ValueShape.Flag, isRequired = false, isNullable = true, "on")))
-        val text = "{\"enabled\": true, \"other\": false, \"none\": null}"
-
-        val spans = EnvironmentSyntaxAnalyzer(schema).analyze(TextSnapshot(text, 0)).semanticSpans
-
-        assertEquals(listOf("true", "false"), spans.filter { it.kind == SemanticKind.BOOLEAN_VALUE }.map { text.substring(it.range.start, it.range.end) })
     }
 
     @Test

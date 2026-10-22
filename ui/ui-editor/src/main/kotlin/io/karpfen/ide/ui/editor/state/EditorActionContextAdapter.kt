@@ -1,7 +1,6 @@
 package io.karpfen.ide.ui.editor.state
 
 import io.karpfen.ide.core.document.session.DocumentSession
-import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.ui.editor.model.action.AutoClosedPairs
@@ -16,7 +15,7 @@ import io.karpfen.ide.ui.editor.model.caret.CaretModel
  * [tokens] is read lazily as `session.tokensFor(text.snapshot.value)` on every access: the tokens of exactly the
  * current text, tokenized synchronously when the session's pipeline lags (e.g. toggle comment right after Enter), so an
  * action never compares offsets of the current text with EVAL regions of an older version. [pageLines] is the number of
- * fully visible lines of [viewport], [lineComment] the line comment of the session's language.
+ * fully visible lines of [viewport], [lineComment] the line comment of the session's language support.
  */
 internal class EditorActionContextAdapter(
     private val session: DocumentSession,
@@ -33,5 +32,5 @@ internal class EditorActionContextAdapter(
 
     override val pageLines: Int get() = viewport.state.value.fullyVisibleLines()
 
-    override val lineComment: String? get() = KarpfenSyntax.lineCommentOf(session.language)
+    override val lineComment: String? get() = session.support.lineComment
 }

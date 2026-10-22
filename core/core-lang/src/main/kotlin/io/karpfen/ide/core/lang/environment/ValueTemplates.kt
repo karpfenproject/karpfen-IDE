@@ -68,10 +68,6 @@ internal object ValueTemplates {
                     out.append(shape.suggestions.firstOrNull() ?: 0)
                     hole()
                 }
-                ValueShape.Flag -> {
-                    out.append("true")
-                    hole()
-                }
             }
         }
 

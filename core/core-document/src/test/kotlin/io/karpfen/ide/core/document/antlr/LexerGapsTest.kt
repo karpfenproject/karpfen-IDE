@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 class LexerGapsTest {
 
     private fun gaps(language: KarpfenLanguage, text: String): List<Pair<GapKind, String>> {
-        val lexed = KarpfenLexers.lex(language, text)
+        val lexed = KarpfenLexers.lex(grammarOf(language), text)
         return LexerGaps.scan(text, lexed.tokens.mapNotNull(lexed::rangeOf))
             .map { it.kind to text.substring(it.range.start, it.range.end) }
     }
@@ -52,7 +52,7 @@ class LexerGapsTest {
      * lexer reported everything it skipped without a comment rule.
      */
     private fun assertCoverage(language: KarpfenLanguage, text: String, label: String) {
-        val lexed = KarpfenLexers.lex(language, text)
+        val lexed = KarpfenLexers.lex(grammarOf(language), text)
         val tokens = lexed.tokens.mapNotNull(lexed::rangeOf)
         val pieces = LexerGaps.scan(text, tokens)
         val all = (tokens + pieces.map { it.range }).sortedBy { it.start }

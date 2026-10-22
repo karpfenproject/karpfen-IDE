@@ -1,14 +1,12 @@
 package io.karpfen.ide.core.document.syntax
 
-import io.karpfen.ide.core.document.KarpfenLanguage
-
 /**
  * The lexical facts of the karpfen languages that several layers rely on, declared once (one source per fact): the
  * tokenizers, tree walkers and EVAL scanner of this module, the language services (core-lang) and the editor
  * (ui-editor) read them here, so e.g. the completion's replace range and the editor's word rule always agree.
  * `KarpfenSyntaxTest` checks them against the generated lexers, and the architecture test `LexicalFactsTest` rejects a
- * second declaration of any of them elsewhere. Undo coalescing and the quoted-name error locator keep their own Unicode
- * word rules on purpose: they describe text and quoted names, not identifiers.
+ * second declaration of any of them elsewhere, the comment markers included. Undo coalescing and the quoted-name error
+ * locator keep their own Unicode word rules on purpose: they describe text and quoted names, not identifiers.
  */
 public object KarpfenSyntax {
 
@@ -29,12 +27,12 @@ public object KarpfenSyntax {
 
     /**
      * The line comment of the modeling languages; inside EVAL bodies it is still a karpfen comment, which the Python
-     * code never sees.
+     * code never sees. The language supports of the modeling languages hand it out as their `lineComment`.
      */
     public const val LINE_COMMENT: String = "//"
 
-    /** The line comment marker of [language], or null for environment descriptors, because JSON has no comments. */
-    public fun lineCommentOf(language: KarpfenLanguage): String? = LINE_COMMENT.takeIf { language.isModelingLanguage }
+    /** The line comment of the Python code in KStates EVAL bodies, which comments only inside such a body. */
+    public const val PYTHON_LINE_COMMENT: String = "#"
 
     /** The separator of model-path segments (`self -> room -> robot`). */
     public const val MODEL_PATH_SEPARATOR: String = "->"

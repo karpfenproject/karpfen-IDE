@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.document.antlr.tree
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.parse.SyntaxAnalysis
 import io.karpfen.ide.core.document.parse.SyntaxAnalyzer
 import io.karpfen.ide.core.text.TextSnapshot
@@ -19,7 +20,7 @@ import kmodel.KmodelParser
 internal class KmodelSyntaxAnalyzer : SyntaxAnalyzer {
     override val language: KarpfenLanguage = KarpfenLanguage.KMODEL
 
-    private val parser = TreeParser(language, ::KmodelParser, KmodelParser::kmodel_file)
+    private val parser = TreeParser(DslGrammar.KMODEL, ::KmodelParser, KmodelParser::kmodel_file)
 
     override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis {
         val tree = parser.parse(snapshot)

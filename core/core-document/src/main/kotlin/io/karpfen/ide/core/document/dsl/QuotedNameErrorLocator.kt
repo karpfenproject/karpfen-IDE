@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.document.dsl
 
 import io.karpfen.ide.core.document.parse.SyntaxIndex
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
@@ -25,7 +26,7 @@ internal class QuotedNameErrorLocator : DslErrorLocator {
         while (i < text.length) {
             when {
                 text[i].isWhitespace() -> i++
-                text.startsWith("//", i) -> while (i < text.length && text[i] != '\n' && text[i] != '\r') i++
+                text.startsWith(KarpfenSyntax.LINE_COMMENT, i) -> while (i < text.length && text[i] != '\n' && text[i] != '\r') i++
                 else -> return TextRange(i, wordEnd(text, i))
             }
         }

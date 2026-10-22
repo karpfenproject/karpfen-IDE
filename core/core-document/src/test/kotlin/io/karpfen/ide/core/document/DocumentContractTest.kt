@@ -148,7 +148,7 @@ class DocumentContractTest {
         val parser = object : DocumentParser {
             override fun parse(snapshot: TextSnapshot, mode: SemanticMode): ParseOutcome = error("not used")
         }
-        val kmeta = LanguageSupport(KarpfenLanguage.KMETA, tokenizer, parser)
+        val kmeta = LanguageSupport(KarpfenLanguage.KMETA, tokenizer, parser, lineComment = "//")
         val registry = LanguageRegistry(listOf(kmeta))
 
         assertSame(kmeta, registry.supportFor("a.kmeta"))
@@ -166,6 +166,14 @@ class DocumentContractTest {
         assertEquals(KarpfenLanguage.KMODEL, registry.languageOf("model.kmodel"))
         assertEquals(KarpfenLanguage.ENVIRONMENT, registry.languageOf("robot.kenv.json"))
         assertEquals(listOf(KarpfenLanguage.ENVIRONMENT), KarpfenLanguage.entries.filterNot { it.isModelingLanguage })
+        assertEquals(
+            mapOf(
+                KarpfenLanguage.KMETA to "//", KarpfenLanguage.KMODEL to "//", KarpfenLanguage.KSTATES to "//",
+                KarpfenLanguage.ENVIRONMENT to null,
+            ),
+            KarpfenLanguage.entries.associateWith { registry.support(it).lineComment },
+            "JSON has no comments",
+        )
     }
 
     @Test

@@ -5,13 +5,13 @@ import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.fixtures.Mutations
 import io.karpfen.ide.core.document.fixtures.SyntheticKstates
 import io.karpfen.ide.core.text.TextRange
-import org.antlr.v4.runtime.CharStreams
-import org.antlr.v4.runtime.CommonTokenStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.antlr.v4.runtime.CharStreams
+import org.antlr.v4.runtime.CommonTokenStream
 
 /**
  * Covers [EvalBodies], the one lexical scanner of embedded Python: finding bodies with braces balanced like the
@@ -21,7 +21,7 @@ import kotlin.test.assertTrue
 class EvalBodiesTest {
 
     private fun scanAll(text: String): List<Pair<EvalBody, List<EmbeddedPiece>>> {
-        val lexed = KarpfenLexers.lex(KarpfenLanguage.KSTATES, text)
+        val lexed = KarpfenLexers.lex(DslGrammar.KSTATES, text)
         return EvalBodies.scanAll(text, lexed.tokens, lexed.offsets)
     }
 
@@ -126,9 +126,9 @@ class EvalBodiesTest {
     @Test
     fun `tokenizer and parser token streams yield the same bodies`() {
         val text = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text
-        val lexed = KarpfenLexers.lex(KarpfenLanguage.KSTATES, text)
+        val lexed = KarpfenLexers.lex(DslGrammar.KSTATES, text)
         val listener = IdeErrorListener(lexed.offsets)
-        val stream = CommonTokenStream(KarpfenLexers.create(KarpfenLanguage.KSTATES, CharStreams.fromString(text), listener))
+        val stream = CommonTokenStream(KarpfenLexers.create(DslGrammar.KSTATES, CharStreams.fromString(text), listener))
         stream.fill()
 
         val fromLexer = EvalBodies.find(lexed.tokens, lexed.offsets)

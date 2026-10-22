@@ -1,11 +1,7 @@
 package io.karpfen.ide.core.document.antlr
 
 import io.karpfen.ide.core.document.Diagnostic
-import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.text.TextRange
-import kmeta.KmetaLexer
-import kmodel.KmodelLexer
-import kstates.KstatesLexer
 import org.antlr.v4.runtime.CharStream
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.Lexer
@@ -13,33 +9,19 @@ import org.antlr.v4.runtime.Token
 
 /**
  * Creates the dsl-tools lexers the IDE way: ANTLR's console listener removed, an [IdeErrorListener] attached, so lexer
- * errors become diagnostics instead of console output. The only place that maps a [KarpfenLanguage] to its generated
- * lexer class (a fourth language adds its entry here). The tokenizers lex with [lex]; the tree walkers build their
+ * errors become diagnostics instead of console output. The tokenizers lex with [lex]; the tree walkers build their
  * `CommonTokenStream` on [create].
  */
 internal object KarpfenLexers {
 
-    /**
-     * The generated lexer of [language] over [input], with every error listener replaced by [listener].
-     *
-     * @throws IllegalArgumentException for environment descriptors, which have no ANTLR grammar: the JSON tokenizer of
-     *   the `json` package reads them.
-     */
-    fun create(language: KarpfenLanguage, input: CharStream, listener: IdeErrorListener): Lexer {
-        val lexer: Lexer = when (language) {
-            KarpfenLanguage.KMETA -> KmetaLexer(input)
-            KarpfenLanguage.KMODEL -> KmodelLexer(input)
-            KarpfenLanguage.KSTATES -> KstatesLexer(input)
-            KarpfenLanguage.ENVIRONMENT -> throw IllegalArgumentException("environment descriptors have no ANTLR lexer")
-        }
-        return listener.attachTo(lexer)
-    }
+    /** The generated lexer of [grammar] over [input], with every error listener replaced by [listener]. */
+    fun create(grammar: DslGrammar, input: CharStream, listener: IdeErrorListener): Lexer = listener.attachTo(grammar.lexer(input))
 
-    /** Lexes all of [text] as [language]; never throws (lexer errors become [LexedText.diagnostics]). */
-    fun lex(language: KarpfenLanguage, text: String): LexedText {
+    /** Lexes all of [text] with [grammar]; never throws (lexer errors become [LexedText.diagnostics]). */
+    fun lex(grammar: DslGrammar, text: String): LexedText {
         val offsets = CodePointOffsets.of(text)
         val listener = IdeErrorListener(offsets)
-        val tokens = create(language, CharStreams.fromString(text), listener).allTokens.toList()
+        val tokens = create(grammar, CharStreams.fromString(text), listener).allTokens.toList()
         return LexedText(text, offsets, tokens, listener.diagnostics)
     }
 }

@@ -1,6 +1,5 @@
 package io.karpfen.ide.core.document.environment
 
-import io.karpfen.ide.core.document.json.JsonLiteral
 import io.karpfen.ide.core.document.json.JsonNode
 import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SemanticSpan
@@ -9,10 +8,9 @@ import io.karpfen.ide.core.text.TextRange
 /**
  * The semantic spans of a descriptor, from its [shapedValues]: every key ([SemanticKind.PROPERTY_NAME], inside its
  * quotes), the strings the schema gives a role (file paths [SemanticKind.FILE_PATH], object keys
- * [SemanticKind.OBJECT_NAME], event domains [SemanticKind.EVENT_DOMAIN], inside their quotes), every number
- * ([SemanticKind.NUMBER_VALUE]) and every `true` and `false` ([SemanticKind.BOOLEAN_VALUE]). Other strings keep their
- * lexical style. The spans are sorted and disjoint, because keys and values are disjoint tokens; empty ones are left
- * out. Pure.
+ * [SemanticKind.OBJECT_NAME], event domains [SemanticKind.EVENT_DOMAIN], inside their quotes). Other strings, the
+ * numbers and the literals keep their lexical style, which already tells them apart. The spans are sorted and
+ * disjoint, because keys and values are disjoint tokens; empty ones are left out. Pure.
  */
 internal object DescriptorSpans {
 
@@ -22,12 +20,7 @@ internal object DescriptorSpans {
         for (value in values) {
             val node = value.node
             if (node is JsonNode.ObjectNode) node.members.forEach { spans.add(it.key.content, SemanticKind.PROPERTY_NAME) }
-            when (node) {
-                is JsonNode.StringNode -> roleOf(value.shape)?.let { spans.add(node.content, it) }
-                is JsonNode.NumberNode -> spans.add(node.range, SemanticKind.NUMBER_VALUE)
-                is JsonNode.LiteralNode -> if (node.literal != JsonLiteral.NULL) spans.add(node.range, SemanticKind.BOOLEAN_VALUE)
-                is JsonNode.ObjectNode, is JsonNode.ArrayNode -> Unit
-            }
+            if (node is JsonNode.StringNode) roleOf(value.shape)?.let { spans.add(node.content, it) }
         }
         return spans.sortedBy { it.range.start }
     }

@@ -1,16 +1,16 @@
 package io.karpfen.ide.core.lang.environment
 
-import io.karpfen.ide.core.document.environment.shapedValues
-import io.karpfen.ide.core.document.json.JsonNode
 import io.karpfen.ide.core.document.json.JsonTokenKind
+import io.karpfen.ide.core.document.json.containers
 import io.karpfen.ide.core.lang.BracketMatch
 import io.karpfen.ide.core.lang.feature.BracketMatcher
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Bracket matching in JSON: `{}` and `[]` pair as the parser closed them, so brackets inside strings never pair and a
- * bracket the text does not close has no match. The bracket right of the offset is preferred, then the one left of it.
+ * Bracket matching in JSON: `{}` and `[]` pair as the parser closed them ([containers], the structure of the tree
+ * whatever its values mean), so brackets inside strings never pair and a bracket the text does not close has no match.
+ * The bracket right of the offset is preferred, then the one left of it.
  */
 internal class JsonBracketMatcher(private val trees: DescriptorTrees) : BracketMatcher {
 
@@ -20,7 +20,7 @@ internal class JsonBracketMatcher(private val trees: DescriptorTrees) : BracketM
         val candidates = listOfNotNull(document.tokenAt(offset), document.tokenBefore(offset)?.takeIf { it.range.end == offset })
             .filter { it.kind in BRACKETS }
         if (candidates.isEmpty()) return null
-        val containers = shapedValues(root).map { it.node }.filter(::isClosedContainer)
+        val containers = root.containers().filter { it.isClosed }
         for (bracket in candidates) {
             val container = containers.firstOrNull { it.range.start == bracket.range.start || it.range.end == bracket.range.end }
             if (container != null) {
@@ -29,9 +29,6 @@ internal class JsonBracketMatcher(private val trees: DescriptorTrees) : BracketM
         }
         return null
     }
-
-    private fun isClosedContainer(node: JsonNode): Boolean =
-        (node is JsonNode.ObjectNode && node.isClosed) || (node is JsonNode.ArrayNode && node.isClosed)
 
     private companion object {
         /** The bracket tokens of JSON. */

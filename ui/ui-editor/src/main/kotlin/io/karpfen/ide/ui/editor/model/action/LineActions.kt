@@ -1,5 +1,7 @@
 package io.karpfen.ide.ui.editor.model.action
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
+
 /**
  * Kinds of [LineAction].
  *
@@ -63,15 +65,9 @@ internal class ToggleCommentAction : EditorAction {
         val tokens = context.tokens
         val markers = CommentMarkers { offset, blockStart ->
             val body = tokens.embeddedRegionAt(offset)
-            if (body != null && body.start <= blockStart) PYTHON_COMMENT else lineComment
+            if (body != null && body.start <= blockStart) KarpfenSyntax.PYTHON_LINE_COMMENT else lineComment
         }
         return LineComments(markers, EditorActionTitles.of(id)).execute(context)
-    }
-
-    /** The comment marker of the Python a KStates file embeds. */
-    private companion object {
-        /** A Python line comment, which comments only inside an EVAL body. */
-        const val PYTHON_COMMENT = "#"
     }
 }
 

@@ -1,6 +1,5 @@
 package io.karpfen.ide.ui.editor.model.action
 
-import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
@@ -65,10 +64,11 @@ public interface EditorActionContext {
 
     /**
      * The line comment marker of the edited language, which toggle comment inserts outside EVAL bodies; null for a
-     * language without comments (environment descriptors are JSON), where toggle comment does nothing. The karpfen
-     * marker unless a context knows better.
+     * language without comments (environment descriptors are JSON), where toggle comment does nothing. Every context
+     * states it, taken from the language support of the edited document, so no language is commented with the marker
+     * of another.
      */
-    public val lineComment: String? get() = KarpfenSyntax.LINE_COMMENT
+    public val lineComment: String?
 
     /** System clipboard access. */
     public val clipboard: ClipboardPort

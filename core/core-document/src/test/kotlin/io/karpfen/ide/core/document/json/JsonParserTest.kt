@@ -145,6 +145,19 @@ class JsonParserTest {
     }
 
     @Test
+    fun `a stray token before the root is reported once and the root is still read`() {
+        val word = "x {\"metamodel\": \"a.kmeta\",\n \"model\": \"b\"}"
+        val wordDocument = JsonParser.parse(word)
+        assertEquals(listOf("x" to DiagnosticSource.LEXER), wordDocument.diagnostics.map { word.at(it.range) to it.source })
+        assertEquals(listOf("metamodel", "model"), assertIs<JsonNode.ObjectNode>(wordDocument.root).members.map { it.key.value })
+
+        val closer = "}{\"metamodel\": \"a.kmeta\"}"
+        assertEquals(listOf("}" to "Unexpected '}' before the JSON value."), syntaxErrorsOf(closer))
+        assertEquals(listOf("metamodel"), rootOf(closer).members.map { it.key.value })
+        assertEquals(listOf("]" to "Unexpected ']' before the JSON value.", ":" to "Unexpected ':' before the JSON value."), syntaxErrorsOf("] : [1]"))
+    }
+
+    @Test
     fun `texts without a value are one error and no root`() {
         listOf("", "   \n").forEach { text ->
             val document = JsonParser.parse(text)
@@ -153,6 +166,8 @@ class JsonParserTest {
         }
         assertNull(JsonParser.parse("}").root)
         assertEquals(listOf("}" to "Expected a JSON value."), syntaxErrorsOf("}"))
+        assertEquals(listOf("]" to "Expected a JSON value."), syntaxErrorsOf("] }"), "one error for the whole text")
+        assertEquals(listOf(DiagnosticSource.LEXER), JsonParser.parse("x").diagnostics.map { it.source }, "the lexer's error only")
     }
 
     @Test

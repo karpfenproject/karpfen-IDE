@@ -6,19 +6,20 @@ import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.environment.DescriptorFileRole
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Mutations
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
-import org.junit.jupiter.api.TestReporter
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.TestReporter
 
 /**
  * Covers reading environment descriptors: the shared examples, test-local edge cases (missing, unknown, nested and

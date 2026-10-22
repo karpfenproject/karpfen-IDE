@@ -41,6 +41,26 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
      */
     public val isKarpfenSource: Boolean get() = language?.isModelingLanguage == true
 
+    /**
+     * True if a descriptor key of [role] may name a file of this kind: a file in the role's language
+     * ([DescriptorFileRole.language]) or, for a role without one, any file. The workspace checks a descriptor's
+     * references by this rule, and completion offers the files it accepts.
+     */
+    public fun fits(role: DescriptorFileRole): Boolean = role.language == null || language == role.language
+
+    /**
+     * True if a file of this kind is the usual choice for [role], which completion offers before the other fitting
+     * files: the event metamodel `EVENTS.kmeta` for the events, any other metamodel for the domain metamodel, a bridge
+     * configuration for a bridge, and every fitting file for the model and the state machines. Other names are allowed;
+     * the runtime only conventionally names the event metamodel `EVENTS.kmeta`.
+     */
+    public fun isUsualFor(role: DescriptorFileRole): Boolean = when (role) {
+        DescriptorFileRole.METAMODEL -> this == KMETA
+        DescriptorFileRole.EVENTS -> this == EVENTS_KMETA
+        DescriptorFileRole.BRIDGE -> this == BRIDGE
+        DescriptorFileRole.MODEL, DescriptorFileRole.STATE_MACHINE -> fits(role)
+    }
+
     public companion object {
         /** File-name suffix of environment descriptors. */
         public val DESCRIPTOR_SUFFIX: String = ".${KarpfenLanguage.ENVIRONMENT.extension}"
@@ -69,18 +89,6 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
                 KarpfenLanguage.ENVIRONMENT -> ENV_DESCRIPTOR
                 null -> OTHER
             }
-        }
-
-        /**
-         * The kind of file a descriptor names in [role]: a domain metamodel, the event metamodel, a model, a state
-         * machine or a bridge configuration. Completion offers the files of this kind for a descriptor key.
-         */
-        public fun of(role: DescriptorFileRole): FileKind = when (role) {
-            DescriptorFileRole.METAMODEL -> KMETA
-            DescriptorFileRole.EVENTS -> EVENTS_KMETA
-            DescriptorFileRole.MODEL -> KMODEL
-            DescriptorFileRole.STATE_MACHINE -> KSTATES
-            DescriptorFileRole.BRIDGE -> BRIDGE
         }
     }
 }

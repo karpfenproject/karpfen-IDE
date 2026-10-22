@@ -7,6 +7,7 @@ import io.karpfen.ide.core.document.json.JsonParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -32,9 +33,9 @@ class EnvironmentSchemaTest {
     fun `the root object requires the metamodel and the model and documents every key`() {
         val root = EnvironmentSchema.ROOT
 
-        assertEquals(listOf(EnvironmentSchema.METAMODEL, EnvironmentSchema.MODEL), root.keys.filter { it.isRequired }.map { it.name })
+        assertEquals(listOf("metamodel", "model"), root.keys.filter { it.isRequired }.map { it.name })
         assertTrue(root.keys.all { it.documentation.isNotBlank() })
-        assertEquals(ValueShape.FilePath(DescriptorFileRole.EVENTS), root.key(EnvironmentSchema.EVENTS)?.shape)
+        assertEquals(ValueShape.FilePath(DescriptorFileRole.EVENTS), root.key("events")?.shape)
         assertNull(root.key("tickDelay"))
         assertEquals(
             listOf(KarpfenLanguage.KMETA, KarpfenLanguage.KMETA, KarpfenLanguage.KMODEL, KarpfenLanguage.KSTATES, null),
@@ -43,6 +44,41 @@ class EnvironmentSchemaTest {
         assertFailsWith<IllegalArgumentException> {
             ValueShape.Record(listOf(root.keys[0], root.keys[0]))
         }
+    }
+
+    @Test
+    fun `the schema is derived from the typed descriptor, keys, nesting and annotations included`() {
+        val root = EnvironmentSchema.ROOT
+
+        assertEquals(
+            listOf("metamodel", "events", "model", "stateMachines", "tickDelayMs", "eventTtlMs", "observe", "runtime", "bridges"),
+            root.keys.map { it.name },
+        )
+        assertEquals(listOf("events", "tickDelayMs", "eventTtlMs", "observe", "runtime"), root.keys.filter { it.isNullable }.map { it.name })
+        assertEquals(ValueShape.WholeNumber(listOf(50, 100, 500)), root.key("tickDelayMs")?.shape)
+        assertEquals(ValueShape.ListOf(ValueShape.FilePath(DescriptorFileRole.BRIDGE)), root.key("bridges")?.shape)
+
+        val entry = assertIs<ValueShape.Record>(assertIs<ValueShape.ListOf>(root.key("stateMachines")?.shape).item)
+        assertEquals(
+            listOf(
+                DescriptorKey(
+                    "file", ValueShape.FilePath(DescriptorFileRole.STATE_MACHINE), isRequired = true, isNullable = false,
+                    "The state machine: a .kstates file, relative to this descriptor.",
+                ),
+                DescriptorKey(
+                    "attachedTo", ValueShape.ObjectKey, isRequired = true, isNullable = false,
+                    "The key of the model object the state machine runs attached to; its type should be the type the state " +
+                        "machine names after ATTACHED TO.",
+                ),
+            ),
+            entry.keys,
+        )
+        val observe = assertIs<ValueShape.Record>(root.key("observe")?.shape)
+        assertEquals(ValueShape.Text(listOf("*")), observe.key("objects")?.shape)
+        assertEquals(ValueShape.ListOf(ValueShape.EventDomain), observe.key("domains")?.shape)
+        val runtime = assertIs<ValueShape.Record>(root.key("runtime")?.shape)
+        assertEquals(ValueShape.Text(), runtime.key("image")?.shape)
+        assertEquals(ValueShape.ListOf(ValueShape.Text(listOf("numpy"))), runtime.key("pythonPackages")?.shape)
     }
 
     @Test
@@ -64,7 +100,7 @@ class EnvironmentSchemaTest {
         assertEquals(ValueShape.ObjectKey, byLocation.getValue("stateMachines[0].attachedTo").shape)
         assertEquals(ValueShape.EventDomain, byLocation.getValue("observe.domains[0]").shape)
         assertTrue(byLocation.getValue("observe.domains[0]").isListItem)
-        assertEquals(EnvironmentSchema.DOMAINS, byLocation.getValue("observe.domains[0]").key?.name)
+        assertEquals("domains", byLocation.getValue("observe.domains[0]").key?.name)
         assertNull(byLocation.getValue("").key)
     }
 

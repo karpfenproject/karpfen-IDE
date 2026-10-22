@@ -3,6 +3,7 @@ package io.karpfen.ide.core.workspace.environment
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.document.environment.ValueShape
 import io.karpfen.ide.core.document.environment.shapedValues
@@ -10,9 +11,9 @@ import io.karpfen.ide.core.document.json.JsonNode
 import io.karpfen.ide.core.document.json.JsonParser
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
+import java.nio.file.Path
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import java.nio.file.Path
 
 /**
  * The [EnvironmentDescriptorReader] in three steps, each only when the one before found no error:
@@ -20,9 +21,9 @@ import java.nio.file.Path
  *    and ranges as in the editor;
  * 2. [DescriptorValidator] checks the tree against `EnvironmentSchema.ROOT`;
  * 3. kotlinx.serialization decodes the text into [EnvironmentDescriptor] (ignoring the unknown keys the validator
- *    warned about). The validator accepts only trees this decoding accepts, so its failure would be a disagreement
- *    of schema and class (which a test rules out); it is still reported as an ERROR `descriptor-invalid` at the start
- *    of the descriptor instead of escaping.
+ *    warned about). The schema is derived from that class, so the validator accepts only trees this decoding
+ *    accepts; a decoding failure is still reported as an ERROR `descriptor-invalid` at the start of the descriptor
+ *    instead of escaping.
  *
  * File references are the strings the schema gives a file role ([shapedValues]), in document order.
  */

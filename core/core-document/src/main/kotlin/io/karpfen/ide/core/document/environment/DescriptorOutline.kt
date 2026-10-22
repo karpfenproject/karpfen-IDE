@@ -8,13 +8,15 @@ import io.karpfen.ide.core.text.TextRange
 /**
  * The outline of a descriptor's JSON tree: every member is a [SymbolKind.KEY] node named by its key (detail: its value
  * when that is a string, a number or a literal; selection: the key), every list item an [SymbolKind.ENTRY] node, and
- * objects and lists nest their members and items. An entry is named by its first string, which for a state machine
- * entry is its file, or by its position (`[0]`) when it has none. Pure.
+ * objects and lists nest their members and items.
+ *
+ * An entry is named by the file it names: the first of its strings that the schema expects to be a file path, so a
+ * state machine entry is named by its file whatever the order of its keys. An entry that names no file is named by its
+ * first string, or by its position (`[0]`) when it has none. Pure; one instance per tree.
+ *
+ * @param filePaths the ranges of the strings the schema expects to be file paths.
  */
-internal object DescriptorOutline {
-
-    /** The top-level outline nodes of the tree [root]. */
-    fun of(root: JsonNode): List<OutlineNode> = childrenOf(root)
+internal class DescriptorOutline private constructor(private val filePaths: Set<TextRange>) {
 
     /** The nodes of the members or items of [value]; none for a string, number or literal. */
     private fun childrenOf(value: JsonNode?): List<OutlineNode> = when (value) {
@@ -47,10 +49,13 @@ internal object DescriptorOutline {
         )
     }
 
-    /** The string that names an entry: the item itself, or the first string value of an object item. */
+    /** The string that names an entry: the item itself, or the file path or else the first string of an object item. */
     private fun labelOf(item: JsonNode): JsonNode.StringNode? = when (item) {
         is JsonNode.StringNode -> item
-        is JsonNode.ObjectNode -> item.members.firstNotNullOfOrNull { it.value as? JsonNode.StringNode }
+        is JsonNode.ObjectNode -> {
+            val strings = item.members.mapNotNull { it.value as? JsonNode.StringNode }
+            strings.firstOrNull { it.range in filePaths } ?: strings.firstOrNull()
+        }
         else -> null
     }
 
@@ -60,5 +65,14 @@ internal object DescriptorOutline {
         is JsonNode.NumberNode -> value.text
         is JsonNode.LiteralNode -> value.literal.text
         is JsonNode.ObjectNode, is JsonNode.ArrayNode -> null
+    }
+
+    companion object {
+        /** The top-level outline nodes of the tree whose [shapedValues] are [values], the root first; none without a root. */
+        fun of(values: List<ShapedValue>): List<OutlineNode> {
+            val root = values.firstOrNull()?.node ?: return emptyList()
+            val filePaths = values.filter { it.shape is ValueShape.FilePath }.mapTo(HashSet()) { it.node.range }
+            return DescriptorOutline(filePaths).childrenOf(root)
+        }
     }
 }

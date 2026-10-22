@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.document.antlr.tree
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.parse.SyntaxAnalysis
 import io.karpfen.ide.core.document.parse.SyntaxAnalyzer
 import io.karpfen.ide.core.text.TextSnapshot
@@ -19,7 +20,7 @@ import kmeta.KmetaParser
 internal class KmetaSyntaxAnalyzer : SyntaxAnalyzer {
     override val language: KarpfenLanguage = KarpfenLanguage.KMETA
 
-    private val parser = TreeParser(language, ::KmetaParser, KmetaParser::kmeta_file)
+    private val parser = TreeParser(DslGrammar.KMETA, ::KmetaParser, KmetaParser::kmeta_file)
 
     override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis {
         val tree = parser.parse(snapshot)

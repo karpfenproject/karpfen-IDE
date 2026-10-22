@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.document.antlr.lex
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.document.syntax.Tokenizer
@@ -21,7 +22,7 @@ import kmeta.KmetaLexer
 internal class KmetaTokenizer : Tokenizer {
 
     private val tokenizer: Tokenizer =
-        FailSafeTokenizer(KarpfenLanguage.KMETA, GapRecoveringTokenizer(KarpfenLanguage.KMETA, KMETA_TOKEN_KINDS))
+        FailSafeTokenizer(KarpfenLanguage.KMETA, GapRecoveringTokenizer(DslGrammar.KMETA, KMETA_TOKEN_KINDS))
 
     override fun tokenize(snapshot: TextSnapshot): TokenizeResult = tokenizer.tokenize(snapshot)
 }

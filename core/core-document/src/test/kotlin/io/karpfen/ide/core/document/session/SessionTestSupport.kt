@@ -112,7 +112,7 @@ internal fun TestScope.session(
     config: DocumentSessionConfig = testConfig(),
 ): DocumentSession = DocumentSession(
     id = DocumentId.of(Path.of("robot.kstates")),
-    support = LanguageSupport(KarpfenLanguage.KSTATES, tokenizer, parser),
+    support = LanguageSupport(KarpfenLanguage.KSTATES, tokenizer, parser, lineComment = "//"),
     text = text,
     scope = backgroundScope,
     config = config,

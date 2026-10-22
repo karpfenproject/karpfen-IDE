@@ -228,7 +228,8 @@ class ToggleCommentTest {
         assertEquals(false, editor.registry.get(EditorActionIds.TOGGLE_COMMENT)?.isEnabled(editor), "greyed out in menus")
         assertEquals(false, editor.run(EditorActionIds.TOGGLE_COMMENT))
         assertEquals("{\n    \"model\": \"a.kmodel\"|\n}", editor.marked())
-        assertEquals(null, KarpfenSyntax.lineCommentOf(KarpfenLanguage.ENVIRONMENT))
-        assertEquals(KarpfenSyntax.LINE_COMMENT, KarpfenSyntax.lineCommentOf(KarpfenLanguage.KSTATES))
+        val registry = defaultLanguageRegistry()
+        assertEquals(null, registry.support(KarpfenLanguage.ENVIRONMENT).lineComment, "the descriptors' support has none")
+        assertEquals(KarpfenSyntax.LINE_COMMENT, registry.support(KarpfenLanguage.KSTATES).lineComment)
     }
 }

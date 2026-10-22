@@ -158,7 +158,7 @@ internal object EvalBodies {
                     pieces += EmbeddedPiece(clip(range, limit), EmbeddedKind.KARPFEN_COMMENT)
                     k++
                 }
-                token.type == KstatesLexer.SYMBOL && token.text == "#" -> {
+                token.type == KstatesLexer.SYMBOL && token.text == KarpfenSyntax.PYTHON_LINE_COMMENT -> {
                     val lineEnd = lineEnd(text, range.start, limit)
                     val (nextIndex, swallowedEnd) = swallow(tokens, offsets, k + 1, end, trimEnd(text, range.start, lineEnd))
                     pieces += EmbeddedPiece(TextRange(range.start, minOf(swallowedEnd, limit)), EmbeddedKind.COMMENT)

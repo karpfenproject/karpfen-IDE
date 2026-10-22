@@ -7,7 +7,7 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.analysis.ModelObject
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.context.StateMachineBinding
-import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptor
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
 import kotlinx.serialization.json.Json
 import java.nio.file.Path

@@ -1,34 +1,33 @@
+/**
+ * Kotlin/JVM with kotlinx.serialization, because `EnvironmentDescriptor` is serializable, and shared test fixtures: the
+ * example files, mutations and synthetic documents, which the tests of this module use and the tests of downstream
+ * modules reach through `testFixtures(project(":core:core-document"))`.
+ */
 plugins {
-    id("karpfen.kotlin-jvm")
-
-    /**
-     * Shared test fixtures: the example files, mutations and synthetic documents. The tests of this module use them,
-     * and so do the tests of downstream modules through `testFixtures(project(":core:core-document"))`.
-     */
+    id("karpfen.kotlin-serialization")
     `java-test-fixtures`
 }
 
+/**
+ * The public API holds `TextSnapshot` and `EditableText` of core-text, the dsl-tools semantic model types (`meta.*`,
+ * `instance.*`, `states.*`) in `DslModel`, `DslConverter` and, downstream, the project analysis, and the serializable
+ * `EnvironmentDescriptor`, whose JSON shape is the contract with the runtime. karpfen-dsl-tools is the language core of
+ * the IDE; the IDE adds only editor concerns and has no parser of its own for the modeling languages. dsl-tools leaks
+ * the ANTLR tool (antlr4 with ST4 and ICU4J) into its API through the Gradle antlr plugin, so the tool is excluded: the
+ * generated parsers need only the ANTLR runtime.
+ *
+ * The ANTLR runtime is an implementation dependency, not an API one: only the internal adapter package
+ * `io.karpfen.ide.core.document.antlr` may use ANTLR or the generated parsers (the architecture tests enforce it), so no
+ * public signature exposes ANTLR types and downstream modules compile without it. It stays on their runtime classpath,
+ * which the dsl-tools parsers need.
+ */
 dependencies {
-    /**
-     * Public API: `TextSnapshot` and `EditableText` of core-text, and the dsl-tools semantic model types (`meta.*`,
-     * `instance.*`, `states.*`) in `DslModel`, `DslConverter` and, downstream, the project analysis. karpfen-dsl-tools
-     * is the language core of the IDE; the IDE adds only editor concerns and has no parser of its own.
-     */
     api(project(":core:core-text"))
     api(libs.karpfen.dsl.tools) {
-        /**
-         * dsl-tools leaks the ANTLR tool (antlr4 with ST4 and ICU4J) into its API through the Gradle antlr plugin;
-         * the generated parsers only need the runtime, which is pinned below.
-         */
         exclude(group = "org.antlr", module = "antlr4")
     }
+    api(libs.kotlinx.serialization.json)
 
-    /**
-     * An implementation dependency, not an API one: only the internal adapter package
-     * `io.karpfen.ide.core.document.antlr` may use ANTLR or the generated parsers (the architecture tests enforce it),
-     * so no public signature exposes ANTLR types and downstream modules compile without it. It stays on their runtime
-     * classpath, which the dsl-tools parsers need.
-     */
     implementation(libs.antlr4.runtime)
     implementation(libs.slf4j.api)
 

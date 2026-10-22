@@ -8,7 +8,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Covers [FileKind.of], the role of a file derived from its name only. */
+/** Covers [FileKind.of], the role of a file derived from its name only, and which files fit a descriptor role. */
 class FileKindTest {
 
     @Test
@@ -53,11 +53,31 @@ class FileKindTest {
     }
 
     @Test
-    fun `every file role of a descriptor has the kind of file completion offers for it`() {
+    fun `a file fits a descriptor role by its language, and any file fits a role without one`() {
         assertEquals(
-            listOf(FileKind.KMETA, FileKind.EVENTS_KMETA, FileKind.KMODEL, FileKind.KSTATES, FileKind.BRIDGE),
-            DescriptorFileRole.entries.map { FileKind.of(it) },
+            mapOf(
+                DescriptorFileRole.METAMODEL to listOf(FileKind.KMETA, FileKind.EVENTS_KMETA),
+                DescriptorFileRole.EVENTS to listOf(FileKind.KMETA, FileKind.EVENTS_KMETA),
+                DescriptorFileRole.MODEL to listOf(FileKind.KMODEL),
+                DescriptorFileRole.STATE_MACHINE to listOf(FileKind.KSTATES),
+                DescriptorFileRole.BRIDGE to FileKind.entries,
+            ),
+            DescriptorFileRole.entries.associateWith { role -> FileKind.entries.filter { it.fits(role) } },
         )
-        DescriptorFileRole.entries.forEach { role -> assertEquals(role.language, FileKind.of(role).language, "$role") }
+    }
+
+    @Test
+    fun `the usual file of a role is one that fits it, EVENTS kmeta for the events and the others for the metamodel`() {
+        assertEquals(
+            mapOf(
+                DescriptorFileRole.METAMODEL to listOf(FileKind.KMETA),
+                DescriptorFileRole.EVENTS to listOf(FileKind.EVENTS_KMETA),
+                DescriptorFileRole.MODEL to listOf(FileKind.KMODEL),
+                DescriptorFileRole.STATE_MACHINE to listOf(FileKind.KSTATES),
+                DescriptorFileRole.BRIDGE to listOf(FileKind.BRIDGE),
+            ),
+            DescriptorFileRole.entries.associateWith { role -> FileKind.entries.filter { it.isUsualFor(role) } },
+        )
+        assertTrue(FileKind.entries.all { kind -> DescriptorFileRole.entries.all { !kind.isUsualFor(it) || kind.fits(it) } })
     }
 }

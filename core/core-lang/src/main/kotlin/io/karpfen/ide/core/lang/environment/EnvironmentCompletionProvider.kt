@@ -11,18 +11,15 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 
 /**
  * Completion in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]:
- * - in an empty descriptor: the descriptor object with its required keys;
- * - at a key: the keys the object does not have yet, required ones first, each with its documentation; a new key, or
- *   a key string with neither `:` nor value, arrives with a value template of its shape ([ValueTemplates]), a key with
- *   a value but no `:` gets its `:`, and a key that has both is renamed;
- * - at a file path: the workspace files of the key's role ([DescriptorProject.candidates]: metamodels without
- *   `EVENTS.kmeta`, the event metamodel, models, state machines, bridge configurations), relative to the descriptor's
- *   directory, files next to it first;
- * - at `attachedTo`: the keys of the objects of the descriptor's model, ranked for the entry's state machine by the rule
- *   the template of new descriptors uses too (`ContextSymbols.attachmentCandidates`);
+ * - at a key: the keys the object does not have yet, required ones first, each with its documentation; outside quotes
+ *   a key arrives with a value template of its shape ([ValueTemplates]), after the last member with the `,` it needs;
+ * - at a file path: the workspace files that fit the key's role ([DescriptorProject.candidates]), relative to the
+ *   descriptor's directory, the usual files of the role first (`EVENTS.kmeta` for the event metamodel, the other
+ *   metamodels for the domain metamodel), and within those the files next to the descriptor first;
+ * - at `attachedTo`: the keys of the objects of the descriptor's model, the objects whose type is the `ATTACHED TO` type
+ *   of the entry's state machine first;
  * - at an event domain: the domains the descriptor's state machines use;
- * - at a whole number, `true`/`false` or a string with typical values: those values ([ValueShape.WholeNumber],
- *   [ValueShape.Flag], [ValueShape.Text]);
+ * - at a whole number or a string with typical values: those values ([ValueShape.WholeNumber], [ValueShape.Text]);
  * - at the value of an object or list key: its template.
  *
  * Every proposal is JSON as it stands outside a string, escaped as JSON, and the slot's [SlotEdit] fits it to the
@@ -61,8 +58,8 @@ internal class EnvironmentCompletionProvider(
     /** The proposals for the value of the slot, by its shape. */
     private fun values(project: DescriptorProject, slot: DescriptorSlot.Value): List<CompletionItem> =
         when (val shape = slot.shape) {
-            is ValueShape.FilePath -> project.candidates(shape.role).map { path ->
-                string(slot, path, CompletionKind.FILE, shape.role.description, rank = nearness(path))
+            is ValueShape.FilePath -> project.candidates(shape.role).map { file ->
+                string(slot, file.path, CompletionKind.FILE, shape.role.description, rank = rankOf(file))
             }
             ValueShape.ObjectKey -> objectKeys(project, slot)
             ValueShape.EventDomain -> {
@@ -71,9 +68,11 @@ internal class EnvironmentCompletionProvider(
             }
             is ValueShape.Text -> shape.suggestions.map { string(slot, it, CompletionKind.VALUE, detail = null) }
             is ValueShape.WholeNumber -> literals(slot, shape.suggestions.map(Long::toString))
-            ValueShape.Flag -> literals(slot, listOf("true", "false"))
-            is ValueShape.Record, is ValueShape.ListOf ->
-                if (slot.edit.isOutsideString && slot.node == null) listOf(template(slot.edit, shape, shape.description)) else emptyList()
+            is ValueShape.Record, is ValueShape.ListOf -> if (slot.inString || slot.node != null) {
+                emptyList()
+            } else {
+                listOf(Snippet(ValueTemplates.label(shape), ValueTemplates.of(shape), CompletionKind.SNIPPET, shape.description).item(slot.replaceRange))
+            }
         }
 
     /**
@@ -104,48 +103,24 @@ internal class EnvironmentCompletionProvider(
             emptyList()
         }
 
-    /** The value template of [shape], labelled `{ … }` or `[ … ]`. */
-    private fun template(edit: SlotEdit, shape: ValueShape, detail: String): CompletionItem =
-        item(edit, ValueTemplates.of(shape), ValueTemplates.label(shape), CompletionKind.SNIPPET, detail, documentation = null)
-
     /**
-     * The item that writes [proposal] by [edit]; the caret goes to the proposal's place to fill, and the item names no
-     * caret offset when that is the end of the insert.
+     * The rank of a [file] the descriptor can name: the usual files of the role before the others, and within each
+     * group the files next to the descriptor first, then those below it, then those elsewhere.
      */
-    private fun item(
-        edit: SlotEdit,
-        proposal: Template,
-        label: String,
-        kind: CompletionKind,
-        detail: String?,
-        documentation: String?,
-        rank: Int = 1,
-    ): CompletionItem {
-        val insert = edit.fit(proposal)
-        return CompletionItem(
-            label = label,
-            kind = kind,
-            insertText = insert.text,
-            replaceRange = edit.range,
-            caretOffsetInInsert = insert.caret.takeIf { it != insert.text.length },
-            detail = detail,
-            documentation = documentation,
-            sortKey = sortKey(rank, label),
-        )
-    }
-
-    /** The rank of a file [path] as the descriptor names it: next to it first, then below it, then elsewhere. */
-    private fun nearness(path: String): Int = when {
-        '/' !in path -> 0
-        !path.startsWith("..") -> 1
-        else -> 2
+    private fun rankOf(file: FileCandidate): Int {
+        val nearness = when {
+            '/' !in file.path -> 0
+            !file.path.startsWith("..") -> 1
+            else -> 2
+        }
+        return if (file.isUsual) nearness else NEARNESS_RANKS + nearness
     }
 
     /** The detail of a key in the list: what its value is, and whether it is required. */
     private fun detailOf(key: DescriptorKey): String = if (key.isRequired) "${key.shape.description}, required" else key.shape.description
 
     private companion object {
-        /** The detail of the descriptor object proposed in an empty descriptor. */
-        const val ROOT_DETAIL = "an environment descriptor"
+        /** The number of nearness ranks of a file, so the files that are not usual rank after all usual ones. */
+        const val NEARNESS_RANKS = 3
     }
 }

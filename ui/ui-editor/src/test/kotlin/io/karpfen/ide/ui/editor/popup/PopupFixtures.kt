@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
@@ -53,13 +54,13 @@ import io.karpfen.ide.ui.editor.overlay.EditorOverlayHost
 import io.karpfen.ide.ui.editor.state.EditorOverlayState
 import io.karpfen.ide.ui.editor.state.EditorPopupModel
 import io.karpfen.ide.ui.editor.theme.EditorTheme
+import kotlin.time.TestTimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlin.time.TestTimeSource
 
 /**
  * The fake [EditorPopupModel] of the popup tests (the narrow interface, never `CodeEditorState`): the real
@@ -170,6 +171,7 @@ class FakeActionContext(override val text: EditableText, override val caret: Car
     override val autoPairs: AutoClosedPairs = AutoClosedPairs(text)
     override val tokens: TokenizeResult get() = TokenizeResult.empty(text.snapshot.value.version)
     override val pageLines: Int = 10
+    override val lineComment: String = KarpfenSyntax.LINE_COMMENT
     override val clipboard: ClipboardPort = object : ClipboardPort {
         private var content: String? = null
         private var wholeLine = false

@@ -1,12 +1,12 @@
 package io.karpfen.ide.core.document.environment
 
-import io.karpfen.ide.core.document.json.JsonLiteral
 import io.karpfen.ide.core.document.json.JsonNode
 
 /**
  * What the value of a descriptor key looks like: its JSON kind and, for strings, what they name. The shapes of
  * [EnvironmentSchema] drive the descriptor's checks in the workspace, its semantic highlighting and its completion and
- * hover, so all of them agree on every key.
+ * hover, so all of them agree on every key. There is a shape for each kind of value a key of [EnvironmentDescriptor]
+ * has, and no other: a kind such as a boolean gets its shape together with the first key that needs it.
  */
 public sealed interface ValueShape {
 
@@ -77,13 +77,6 @@ public sealed interface ValueShape {
         override val description: String get() = "a whole number"
 
         override fun accepts(node: JsonNode): Boolean = node is JsonNode.NumberNode && node.wholeNumber != null
-    }
-
-    /** `true` or `false`. */
-    public data object Flag : ValueShape {
-        override val description: String get() = "true or false"
-
-        override fun accepts(node: JsonNode): Boolean = node is JsonNode.LiteralNode && node.literal != JsonLiteral.NULL
     }
 }
 

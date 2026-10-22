@@ -1,6 +1,6 @@
 package io.karpfen.ide.core.document.antlr.tree
 
-import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.parse.FoldingKind
 import io.karpfen.ide.core.document.parse.FoldingRange
 import io.karpfen.ide.core.text.TextRange
@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
  */
 class FoldingTest {
 
-    private val kmodel = TreeParser(KarpfenLanguage.KMODEL, ::KmodelParser, KmodelParser::kmodel_file)
+    private val kmodel = TreeParser(DslGrammar.KMODEL, ::KmodelParser, KmodelParser::kmodel_file)
 
     private fun blocks(text: String, skip: (Int) -> Boolean = { false }): List<TextRange> =
         BlockFolding.of(kmodel.parse(TextSnapshot(text, 0)), KmodelParser.LBRACE, KmodelParser.RBRACE, skip).map { it.range }

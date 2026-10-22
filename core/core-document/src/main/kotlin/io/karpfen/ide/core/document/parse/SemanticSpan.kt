@@ -39,12 +39,6 @@ public enum class SemanticKind {
 
     /** A file path in an environment descriptor, relative to the descriptor's directory. */
     FILE_PATH,
-
-    /** A number given as the value of an environment descriptor key. */
-    NUMBER_VALUE,
-
-    /** `true` or `false` given as the value of an environment descriptor key. */
-    BOOLEAN_VALUE,
 }
 
 /**

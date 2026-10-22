@@ -33,9 +33,12 @@ internal object DescriptorFixture {
     val VALID: String = DescriptorExamples.text(DescriptorExamples.VALID)
 
     /** The file tree: every example file, [PATH] and [BRIDGE]. */
-    val tree: WorkspaceTree by lazy {
-        val files = Examples.files().map { ExampleProject.pathOf(it.path) } + listOf(PATH, BRIDGE)
-        WorkspaceTree(directory(ExampleProject.ROOT, files))
+    val tree: WorkspaceTree by lazy { treeWith() }
+
+    /** The file tree of every example file, [PATH], [BRIDGE] and the [extra] files. */
+    fun treeWith(vararg extra: Path): WorkspaceTree {
+        val files = Examples.files().map { ExampleProject.pathOf(it.path) } + listOf(PATH, BRIDGE) + extra
+        return WorkspaceTree(directory(ExampleProject.ROOT, files))
     }
 
     /** The default services over the examples' analysis and [tree]; [failures] collects every provider failure. */

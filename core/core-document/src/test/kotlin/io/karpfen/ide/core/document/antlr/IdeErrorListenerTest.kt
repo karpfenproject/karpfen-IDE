@@ -7,13 +7,13 @@ import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.fixtures.Mutations
 import io.karpfen.ide.core.text.TextRange
 import kmeta.KmetaParser
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kstates.KstatesLexer
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.Token
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Covers [IdeErrorListener]: located LEXER and PARSER diagnostics instead of console output, error-free examples, and
@@ -25,7 +25,7 @@ class IdeErrorListenerTest {
     fun `lexer errors become located LEXER diagnostics`() {
         val text = "// 😀\ntype \"A\" \"d\" { @ }"
 
-        val lexed = KarpfenLexers.lex(KarpfenLanguage.KMETA, text)
+        val lexed = KarpfenLexers.lex(DslGrammar.KMETA, text)
 
         val diagnostic = lexed.diagnostics.single()
         assertEquals(DiagnosticSource.LEXER, diagnostic.source)
@@ -53,13 +53,13 @@ class IdeErrorListenerTest {
     @Test
     fun `examples lex without errors and the KStates lexer never reports any`() {
         Examples.files().forEach { file ->
-            assertEquals(emptyList(), KarpfenLexers.lex(file.language, file.text).diagnostics, "lexer errors in $file")
+            assertEquals(emptyList(), KarpfenLexers.lex(grammarOf(file.language), file.text).diagnostics, "lexer errors in $file")
         }
         val machine = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text
         Mutations.random(machine, seed = 11, count = 500).forEach { mutation ->
-            assertEquals(emptyList(), KarpfenLexers.lex(KarpfenLanguage.KSTATES, mutation.text).diagnostics, "$mutation")
+            assertEquals(emptyList(), KarpfenLexers.lex(DslGrammar.KSTATES, mutation.text).diagnostics, "$mutation")
         }
-        val hidden = KarpfenLexers.lex(KarpfenLanguage.KSTATES, "STATE // c\n").tokens.filter { it.channel == Token.HIDDEN_CHANNEL }
+        val hidden = KarpfenLexers.lex(DslGrammar.KSTATES, "STATE // c\n").tokens.filter { it.channel == Token.HIDDEN_CHANNEL }
         assertEquals(listOf(KstatesLexer.WS, KstatesLexer.LINE_COMMENT, KstatesLexer.WS), hidden.map { it.type })
     }
 
@@ -68,7 +68,7 @@ class IdeErrorListenerTest {
         for (language in listOf(KarpfenLanguage.KMETA, KarpfenLanguage.KMODEL)) {
             val source = Examples.files(language).first().text
             Mutations.random(source, seed = 5, count = 500).forEach { mutation ->
-                KarpfenLexers.lex(language, mutation.text).diagnostics.forEach { diagnostic ->
+                KarpfenLexers.lex(grammarOf(language), mutation.text).diagnostics.forEach { diagnostic ->
                     assertTrue(diagnostic.range.end <= mutation.text.length, "$diagnostic outside the text of $mutation")
                 }
             }
@@ -78,7 +78,7 @@ class IdeErrorListenerTest {
     private fun parseKmeta(text: String): List<io.karpfen.ide.core.document.Diagnostic> {
         val offsets = CodePointOffsets.of(text)
         val listener = IdeErrorListener(offsets)
-        val tokens = CommonTokenStream(KarpfenLexers.create(KarpfenLanguage.KMETA, CharStreams.fromString(text), listener))
+        val tokens = CommonTokenStream(KarpfenLexers.create(DslGrammar.KMETA, CharStreams.fromString(text), listener))
         listener.attachTo(KmetaParser(tokens)).kmeta_file()
         return listener.diagnostics.filter { it.source == DiagnosticSource.PARSER }
     }

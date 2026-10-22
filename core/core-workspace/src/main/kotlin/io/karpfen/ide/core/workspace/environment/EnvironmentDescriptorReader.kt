@@ -2,6 +2,7 @@ package io.karpfen.ide.core.workspace.environment
 
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.environment.DescriptorFileRole
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.text.TextRange
 import java.nio.file.Path
 

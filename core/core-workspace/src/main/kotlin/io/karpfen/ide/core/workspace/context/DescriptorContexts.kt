@@ -11,7 +11,7 @@ import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.environment.DescriptorFileReference
 import io.karpfen.ide.core.workspace.environment.DescriptorPaths
 import io.karpfen.ide.core.workspace.environment.DescriptorReadResult
-import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptor
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
@@ -20,12 +20,12 @@ import java.nio.file.Path
 /**
  * The explicit contexts of a workspace (rules on [ContextResolver]): one per successfully read descriptor, in path
  * order, with paths resolved against the descriptor's directory by [DescriptorPaths.resolve] (sub-directories and `..`
- * allowed; the result is normalized). Every reference that names no file of the tree — missing, in an ignored directory, outside the
- * workspace, a directory, or not a valid path — is an ERROR `descriptor-missing-file` on the descriptor at the
- * reference's range; bridges are references too. A reference to a file of another language than its role's
- * ([DescriptorFileRole.language], e.g. a `.kstates` file as metamodel) is an ERROR `descriptor-invalid` there: the
- * analysis converts nothing that depends on it, which would otherwise pass without a finding. The descriptors' read
- * findings are reported as they are.
+ * allowed; the result is normalized). Every reference that names no file of the tree — missing, in an ignored
+ * directory, outside the workspace, a directory, or not a valid path — is an ERROR `descriptor-missing-file` on the
+ * descriptor at the reference's range; bridges are references too. A reference to a file that does not fit its role
+ * ([FileKind.fits]: a file of another language than the role's, e.g. a `.kstates` file as metamodel) is an ERROR
+ * `descriptor-invalid` there: the analysis converts nothing that depends on it, which would otherwise pass without a
+ * finding. The descriptors' read findings are reported as they are.
  */
 internal class DescriptorContexts(private val tree: WorkspaceTree, private val descriptors: Map<Path, DescriptorReadResult>) {
 
@@ -63,7 +63,7 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
         val language = reference.role.language
         return when {
             file == null -> missingFile(reference)
-            language != null && file.kind.language != language -> wrongLanguage(reference, language)
+            language != null && !file.kind.fits(reference.role) -> wrongLanguage(reference, language)
             else -> null
         }
     }
