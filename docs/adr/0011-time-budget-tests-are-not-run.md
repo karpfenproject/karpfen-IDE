@@ -21,8 +21,8 @@ make the clock unreliable. One of them failed under load although the code had n
   them. There is no opt-in switch: enabling them is part of the later performance task.
 - Functional assertions that used to live inside a budget test move to untagged tests (e.g. the tree view's laziness,
   the synthetic document parsing without syntax errors).
-- `BudgetTestTaggingTest` (architecture-tests) is a tripwire: test code that reads the wall clock and names a budget,
-  slack or guard limit must carry the tag.
+- `BudgetTestTaggingTest` (architecture-tests) is a tripwire: a test function that asserts on a wall-clock measurement
+  must carry the tag, on itself or on its class; its KDoc and that of `WallClockAssertions` say what it recognizes.
 
 ## Consequences
 

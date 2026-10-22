@@ -1,81 +1,113 @@
 package io.karpfen.ide.architecture
 
-import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
+import com.lemonappdev.konsist.api.Konsist
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Time-budget tests are never run: a test that compares a wall-clock duration with a limit must carry the JUnit tag
- * `budget`, which every test task excludes, because machine load and sleep/wake cycles make the wall clock unreliable.
+ * Time-budget tests are never run: a test that asserts on a wall-clock measurement must carry the JUnit tag `budget`,
+ * which every test task excludes, because machine load and sleep/wake cycles make the wall clock unreliable.
  * build-logic's `TestTags.BUDGET` declares the tag and explains the rule.
  *
- * The rule is a tripwire, not a proof: a test source file whose code reads the wall clock ([WALL_CLOCK]) and names a
- * limit ([LIMIT_NAME]: an identifier containing budget, slack or guard) must declare `@Tag("budget")` on the class or
- * on a test function. Comments, string literals and backtick test names are ignored, so a functional test that merely
- * talks about a production time limit (e.g. a search that gives up after its budget) is not caught.
+ * The rule is a tripwire, not a proof. [TimingTests] judges every test function of every test source file:
+ * [WallClockAssertions] decides whether it asserts on a wall-clock measurement, whatever the limit is compared with,
+ * and the tag counts on the function or on a class around it, so an untagged timing test is caught even in a file
+ * whose other tests carry the tag. Functional tests that wait for an event with a generous time limit, or only report
+ * a measured duration, assert nothing on the wall clock and keep running.
  */
 class BudgetTestTaggingTest {
 
-    private companion object {
-        /** A read of the wall clock: a monotonic time mark, a measuring function or the system clock. */
-        val WALL_CLOCK = Regex("""\b(TimeSource\.Monotonic|measureTimedValue|measureTime|measureNanoTime|measureTimeMillis|System\.nanoTime|System\.currentTimeMillis)\b""")
-
-        /** An identifier that names a time limit: it contains budget, slack or guard, in any case. */
-        val LIMIT_NAME = Regex("""\b\w*(budget|slack|guard)\w*\b""", RegexOption.IGNORE_CASE)
-
-        /** A backtick identifier, such as a test name, which may talk about budgets without measuring anything. */
-        val BACKTICK_NAME = Regex("""`[^`\n]*`""")
-
-        /** The annotation itself, at the start of a line (so documentation that mentions it does not count). */
-        val BUDGET_TAG = Regex("""(?m)^\s*@Tag\("budget"\)""")
-
-        /**
-         * True if the code of [source], without comments, literals and backtick identifiers, both reads the wall clock
-         * and names a limit.
-         */
-        fun comparesWallClockWithLimit(source: String): Boolean {
-            val code = KotlinLexer.code(source).replace(BACKTICK_NAME, " ")
-            return WALL_CLOCK.containsMatchIn(code) && LIMIT_NAME.containsMatchIn(code)
-        }
+    /** The verdicts on the tests of the test and test-fixture source files of all modules. */
+    private val verdicts: List<TimingVerdict> by lazy {
+        KarpfenModules.moduleFiles.filter { it.sourceSetName != "main" }.flatMap(TimingTests::verdicts)
     }
 
-    /** The test and test-fixture source files of all modules. */
-    private val testFiles: List<KoFileDeclaration> by lazy { KarpfenModules.moduleFiles.filter { it.sourceSetName != "main" } }
-
     @Test
-    fun `tests that compare wall-clock time with a limit are tagged budget`() {
-        assertTrue(testFiles.isNotEmpty(), "No test files found; is the Konsist scope broken?")
-        val untagged = testFiles.filter { comparesWallClockWithLimit(it.text) && !BUDGET_TAG.containsMatchIn(it.text) }
+    fun `tests that assert on wall-clock time are tagged budget`() {
+        assertTrue(verdicts.isNotEmpty(), "No test functions found; is the Konsist scope broken?")
         assertEquals(
             emptyList(),
-            untagged.map { it.path },
-            "These tests compare wall-clock time with a limit but are not tagged budget, so every build would run them: " +
-                "annotate the class or the test functions with @Tag(\"budget\"), or remove the timing assertion",
+            verdicts.filter { it.assertsOnWallClock && !it.isTaggedBudget }.map { it.toString() },
+            "These tests assert on wall-clock time but are not tagged budget, so every build would run them: " +
+                "annotate the test function or its class with @Tag(\"budget\"), or remove the timing assertion",
         )
     }
 
     @Test
-    fun `the rule sees the existing budget tests`() {
-        val tagged = testFiles.filter { BUDGET_TAG.containsMatchIn(it.text) }
-        assertTrue(tagged.size >= 8, "expected the 8 budget test classes of phase 1, found ${tagged.map { it.name }}")
-        assertEquals(emptyList(), tagged.filterNot { comparesWallClockWithLimit(it.text) }.map { it.name }, "tagged files the tripwire does not recognize")
+    fun `every test tagged budget is a timing test the tripwire recognizes`() {
+        val tagged = verdicts.filter { it.isTaggedBudget }
+        assertTrue(tagged.size >= PHASE_ONE_BUDGET_TESTS, "expected the budget tests of phase 1, found $tagged")
+        assertEquals(
+            emptyList(),
+            tagged.filterNot { it.assertsOnWallClock }.map { it.toString() },
+            "These tests are tagged budget, so no build runs them, but the tripwire sees no timing assertion in them: " +
+                "move a functional test out of the budget tag, or teach the tripwire the new shape of timing assertion",
+        )
     }
 
     @Test
-    fun `the tripwire separates timing assertions from functional tests that mention a time limit`() {
-        val timing = """
-            val elapsed = TimeSource.Monotonic.markNow().elapsedNow()
-            assertTrue(elapsed < BUDGET * SLACK)
-        """
-        val functional = """
-            // the search stops at its budget
-            fun `a search that exceeds its budget ends`() {
-                val deadline = System.nanoTime() + 10_000
-                assertEquals(TOO_SLOW, error, "stopped at its budget")
+    fun `an untagged timing test is caught in a file whose other tests are tagged`(@TempDir directory: Path) {
+        Files.writeString(directory.resolve("PlantedTimingTest.kt"), PLANTED_TESTS)
+        val file = Konsist.scopeFromExternalDirectory(directory.toString()).files.single()
+
+        assertEquals(
+            listOf(
+                Triple("tagged by its class", true, true),
+                Triple("functional", false, false),
+                Triple("tagged itself", true, true),
+                Triple("untagged with a literal limit", false, true),
+            ),
+            TimingTests.verdicts(file).map { Triple(it.test, it.isTaggedBudget, it.assertsOnWallClock) },
+        )
+    }
+
+    private companion object {
+        /** The number of time-budget test functions written in phase 1, all of which the tripwire must recognize. */
+        const val PHASE_ONE_BUDGET_TESTS = 14
+
+        /** A test source file with a tagged class, and a class that mixes a functional, a tagged and an untagged test. */
+        const val PLANTED_TESTS = """
+            package planted
+
+            import org.junit.jupiter.api.Tag
+            import kotlin.test.Test
+            import kotlin.test.assertTrue
+            import kotlin.time.Duration.Companion.milliseconds
+            import kotlin.time.measureTime
+
+            @Tag("budget")
+            class TaggedTimingTest {
+                @Test
+                fun `tagged by its class`() {
+                    assertTrue(measureTime { work() } < 200.milliseconds)
+                }
             }
+
+            class MixedTimingTest {
+                @Test
+                fun `functional`() {
+                    assertTrue(work() == 1)
+                }
+
+                @Test
+                @Tag("budget")
+                fun `tagged itself`() {
+                    val elapsed = measureTime { work() }
+                    assertTrue(elapsed < 200.milliseconds)
+                }
+
+                @Test
+                fun `untagged with a literal limit`() {
+                    val elapsed = measureTime { work() }
+                    assertTrue(elapsed < 200.milliseconds)
+                }
+            }
+
+            fun work(): Int = 1
         """
-        assertTrue(comparesWallClockWithLimit(timing))
-        assertTrue(!comparesWallClockWithLimit(functional))
     }
 }

@@ -221,7 +221,7 @@ and reports `Workspace.problems`. `ValidationReport` and `ReportFormatter` turn 
   every Kotlin source file and Gradle script, with `KotlinComments` to find the comments and `ReferenceIds` to find
   reference ids in them. `KotlinLexer` is the one lexer behind all text-reading rules: it tells comments and literal
   text from code for `KotlinComments`, for `SourceReferences` (the fully qualified names the layer rules check) and for
-  `BudgetTestTaggingTest`.
+  `WallClockAssertions`, which `BudgetTestTaggingTest` asks whether a test asserts on the wall clock.
 
 Typical changes and where they start:
 
