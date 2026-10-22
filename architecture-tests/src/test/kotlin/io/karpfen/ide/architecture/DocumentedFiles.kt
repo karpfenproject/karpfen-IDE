@@ -16,10 +16,9 @@ internal class RepositoryFile(val relativePath: String, val text: String)
  * The files whose documentation the documentation style rules check, read from disk, because Konsist's project scope
  * holds no Gradle scripts and no other text files.
  *
- * Build output and hidden directories are skipped, as Konsist skips them, so generated sources are not part of it. Build
- * output is a `build` directory outside the source directories (no `src` segment before it, [isBuildOutput]), so a
- * source package named `build` is guarded like any other. The CI workflows below `.github` are the one hidden
- * directory that is read, for the reference-id rule only.
+ * Build output ([BuildOutput]) and hidden directories are skipped, as Konsist skips them, so generated sources are not
+ * part of it, while a source package named `build` is guarded like any other. The CI workflows below `.github` are the
+ * one hidden directory that is read, for the reference-id rule only.
  */
 internal object DocumentedFiles {
 
@@ -39,15 +38,6 @@ internal object DocumentedFiles {
      */
     val documents: List<RepositoryFile> by lazy { read(::isTextDocument) }
 
-    /**
-     * True for a directory at [relativePath] that holds build output: a `build` directory with no `src` segment before
-     * it, such as `core/core-text/build`, but not `x/src/main/kotlin/a/build`.
-     */
-    fun isBuildOutput(relativePath: String): Boolean {
-        val segments = relativePath.split('/')
-        return segments.last() == "build" && "src" !in segments.dropLast(1)
-    }
-
     /** The files below the repository root whose relative path [accepts], skipping build output and hidden directories. */
     private fun read(accepts: (String) -> Boolean): List<RepositoryFile> {
         val root = File(Konsist.projectRootPath)
@@ -64,7 +54,8 @@ internal object DocumentedFiles {
     /** True for a directory that is read: no build output, and not hidden unless it holds the CI workflows. */
     private fun isReadDirectory(relativePath: String): Boolean {
         val name = relativePath.substringAfterLast('/')
-        return !isBuildOutput(relativePath) && (!name.startsWith(".") || relativePath == ".github" || relativePath.startsWith(".github/"))
+        val isWorkflows = relativePath == ".github" || relativePath.startsWith(".github/")
+        return !BuildOutput.isBuildDirectory(relativePath) && (!name.startsWith(".") || isWorkflows)
     }
 
     /** True for a Gradle script outside `.github` and for a Kotlin file of any kind inside a source directory. */

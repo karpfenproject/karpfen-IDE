@@ -2,7 +2,6 @@ package io.karpfen.ide.architecture
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -48,17 +47,10 @@ class DocumentationStyleTest {
         )
         assertTrue(paths.any { it.startsWith("build-logic/src/test/") }, "the tests of build-logic are missing from the guarded files")
         assertTrue(paths.any { "/src/testFixtures/" in it }, "the test fixtures are missing from the guarded files")
-        val outsideSources = paths.filter { path -> path.split('/').takeWhile { it != "src" }.any { it == "build" || it.startsWith(".") } }
+        val outsideSources = paths.filter { path ->
+            BuildOutput.contains(path) || path.split('/').takeWhile { it != "src" }.any { it.startsWith(".") }
+        }
         assertEquals(emptyList(), outsideSources, "build output or hidden files are guarded")
-    }
-
-    @Test
-    fun `build output is skipped, a source package named build is not`() {
-        assertTrue(DocumentedFiles.isBuildOutput("core/core-text/build"))
-        assertTrue(DocumentedFiles.isBuildOutput("build-logic/build"))
-        assertTrue(DocumentedFiles.isBuildOutput("build"))
-        assertFalse(DocumentedFiles.isBuildOutput("x/src/main/kotlin/a/build"))
-        assertFalse(DocumentedFiles.isBuildOutput("core/core-text/builds"))
     }
 
     @Test

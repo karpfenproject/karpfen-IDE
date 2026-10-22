@@ -29,9 +29,12 @@ replay_pid*
 # Gradle wrapper (must be committed despite *.jar above)
 !gradle/wrapper/gradle-wrapper.jar
 
-# Gradle / build output
+# Gradle / build output: the build directories of the root, of build-logic and of the modules, anchored at the root,
+# so that a source package named build stays in git (see BuildOutput in architecture-tests)
 .gradle/
-build/
+/build/
+/*/build/
+/*/*/build/
 out/
 
 # IDEs

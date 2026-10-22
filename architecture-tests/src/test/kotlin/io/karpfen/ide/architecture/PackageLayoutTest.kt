@@ -4,12 +4,16 @@ import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.verify.assertTrue
 import java.io.File
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue as kotlinAssertTrue
 
 /**
  * Covers the package layout that every other architecture rule relies on: production code lives only in the modules of
  * [KarpfenModules.packagePrefixes] and within the package prefix of its module, no module contains Java sources, and
- * the scope of the rules holds the production code of every module but neither build-logic nor build output.
+ * the scope of the rules holds the production code of every module but neither build-logic nor build output. Build
+ * output is told from sources by one rule, [BuildOutput], here, in the documentation style rules and in the
+ * `.gitignore`, so a source package named `build` is sources everywhere.
  */
 class PackageLayoutTest {
 
@@ -46,7 +50,7 @@ class PackageLayoutTest {
     fun `modules contain no Java sources`() {
         val root = File(Konsist.projectRootPath)
         val sourceFiles = root.walkTopDown()
-            .onEnter { dir -> dir == root || !(dir.name.startsWith(".") || dir.name == "build" || dir.isNestedBuild()) }
+            .onEnter { dir -> dir == root || !(dir.name.startsWith(".") || dir.isBuildOutputBelow(root) || dir.isNestedBuild()) }
             .filter { it.isFile && "src" in it.relativeTo(root).invariantSeparatorsPath.split('/').dropLast(1) }
             .toList()
         kotlinAssertTrue(sourceFiles.any { it.extension == "kt" }, "No Kotlin sources found under $root; this check would be vacuous")
@@ -56,6 +60,9 @@ class PackageLayoutTest {
             "Java sources are not allowed (the architecture tests only check Kotlin; write Kotlin instead): $javaFiles",
         )
     }
+
+    /** True if this directory below [root] holds build output ([BuildOutput]). */
+    private fun File.isBuildOutputBelow(root: File): Boolean = BuildOutput.isBuildDirectory(relativeTo(root).invariantSeparatorsPath)
 
     /** A directory below the root with its own settings file, e.g. build-logic/, is a separate build, not a module. */
     private fun File.isNestedBuild(): Boolean =
@@ -79,7 +86,41 @@ class PackageLayoutTest {
 
         val generatedSources = File(Konsist.projectRootPath, "build-logic/build").walkTopDown().filter { it.extension == "kt" }
         kotlinAssertTrue(generatedSources.any(), "No generated Kotlin sources under build-logic/build; this check would be vacuous")
-        val buildOutputInRawScope = rawScope.filter { "/build/" in it }
+        val buildOutputInRawScope = rawScope.filter(BuildOutput::contains)
         kotlinAssertTrue(buildOutputInRawScope.isEmpty(), "Build output is part of the Konsist scope: $buildOutputInRawScope")
+    }
+
+    @Test
+    fun `a source package named build is sources, a build directory outside the sources is build output`() {
+        listOf("build", "build-logic/build", "core/core-text/build").forEach { kotlinAssertTrue(BuildOutput.isBuildDirectory(it), it) }
+        listOf("core/core-text/src/main/kotlin/io/karpfen/ide/core/text/build", "core/core-text/builds").forEach {
+            assertFalse(BuildOutput.isBuildDirectory(it), it)
+        }
+        kotlinAssertTrue(BuildOutput.contains("/build-logic/build/generated-sources/Accessors.kt"))
+        kotlinAssertTrue(BuildOutput.contains("core/core-text/build/tmp/src/Generated.kt"))
+        assertFalse(BuildOutput.contains("/core/core-text/src/main/kotlin/io/karpfen/ide/core/text/build/Planted.kt"))
+    }
+
+    /**
+     * Git ignores build output only where Gradle writes it: every pattern of the `.gitignore` that names a `build`
+     * directory is anchored at the root, because an unanchored one would also ignore a source package named `build`.
+     */
+    @Test
+    fun `git ignores only the build directories that Gradle writes`() {
+        val patterns = File(Konsist.projectRootPath, ".gitignore").readLines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+        val buildPatterns = patterns.filter { BUILD_DIRECTORY in it.split('/') }
+        kotlinAssertTrue(buildPatterns.isNotEmpty(), "The .gitignore ignores no build directory; this check would be vacuous")
+        assertEquals(
+            emptyList(),
+            buildPatterns.filterNot { it.startsWith("/") },
+            "These .gitignore patterns are not anchored at the root, so they would also ignore a source package named build",
+        )
+    }
+
+    private companion object {
+        /** The name of the directories that hold build output. */
+        const val BUILD_DIRECTORY = "build"
     }
 }
