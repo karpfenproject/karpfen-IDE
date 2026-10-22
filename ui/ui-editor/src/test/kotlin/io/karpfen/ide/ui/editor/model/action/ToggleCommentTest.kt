@@ -3,6 +3,7 @@ package io.karpfen.ide.ui.editor.model.action
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.TextRange
 import kotlin.test.Test
@@ -11,7 +12,7 @@ import kotlin.test.assertTrue
 
 /**
  * Toggle comment: `//`, and `#` per line inside EVAL bodies (by `embeddedRegionAt`) whose `EVAL {` line lies above the
- * toggled block; EVAL bodies come from the real KStates tokenizer.
+ * toggled block; EVAL bodies come from the real KStates tokenizer. Nothing in a language without comments.
  */
 class ToggleCommentTest {
 
@@ -218,5 +219,16 @@ class ToggleCommentTest {
         editor.run(EditorActionIds.TOGGLE_COMMENT)
         editor.run(EditorActionIds.UNDO)
         assertEquals(before, editor.marked())
+    }
+
+    @Test
+    fun `in a language without comments toggle comment does nothing`() {
+        val editor = TestEditor("{\n    \"model\": \"a.kmodel\"|\n}", lineComment = null)
+
+        assertEquals(false, editor.registry.get(EditorActionIds.TOGGLE_COMMENT)?.isEnabled(editor), "greyed out in menus")
+        assertEquals(false, editor.run(EditorActionIds.TOGGLE_COMMENT))
+        assertEquals("{\n    \"model\": \"a.kmodel\"|\n}", editor.marked())
+        assertEquals(null, KarpfenSyntax.lineCommentOf(KarpfenLanguage.ENVIRONMENT))
+        assertEquals(KarpfenSyntax.LINE_COMMENT, KarpfenSyntax.lineCommentOf(KarpfenLanguage.KSTATES))
     }
 }

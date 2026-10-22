@@ -1,5 +1,7 @@
 package io.karpfen.ide.core.document.syntax
 
+import io.karpfen.ide.core.document.KarpfenLanguage
+
 /**
  * The lexical facts of the karpfen languages that several layers rely on, declared once (one source per fact): the
  * tokenizers, tree walkers and EVAL scanner of this module, the language services (core-lang) and the editor
@@ -24,6 +26,15 @@ public object KarpfenSyntax {
 
     /** The KStates operations that take a path only (`DROPLIST("p")`); the others take a value after their path. */
     public val KSTATES_UNARY_OPERATIONS: Set<String> = setOf("DROPLIST", "DROPOBJ")
+
+    /**
+     * The line comment of the modeling languages; inside EVAL bodies it is still a karpfen comment, which the Python
+     * code never sees.
+     */
+    public const val LINE_COMMENT: String = "//"
+
+    /** The line comment marker of [language], or null for environment descriptors, because JSON has no comments. */
+    public fun lineCommentOf(language: KarpfenLanguage): String? = LINE_COMMENT.takeIf { language.isModelingLanguage }
 
     /** The separator of model-path segments (`self -> room -> robot`). */
     public const val MODEL_PATH_SEPARATOR: String = "->"

@@ -46,25 +46,30 @@ internal class LineAction(private val operation: LineOperation) : EditorAction {
  * markers on the commented text, which makes toggling twice restore the block.
  *
  * The edits themselves are [LineComments]: uncomment when every non-blank line of the block starts with its marker,
- * comment otherwise.
+ * comment otherwise. The marker outside EVAL bodies is the language's (`EditorActionContext.lineComment`); in a language
+ * without comments, an environment descriptor, the action does nothing.
  */
 internal class ToggleCommentAction : EditorAction {
     override val id: String = EditorActionIds.TOGGLE_COMMENT
 
+    /**
+     * Enabled in a language with line comments; the marker is fixed for an editor, so this never goes stale and menus
+     * grey the action out in environment descriptors.
+     */
+    override fun isEnabled(context: EditorActionContext): Boolean = context.lineComment != null
+
     override fun execute(context: EditorActionContext): Boolean {
+        val lineComment = context.lineComment ?: return false
         val tokens = context.tokens
         val markers = CommentMarkers { offset, blockStart ->
             val body = tokens.embeddedRegionAt(offset)
-            if (body != null && body.start <= blockStart) PYTHON_COMMENT else KARPFEN_COMMENT
+            if (body != null && body.start <= blockStart) PYTHON_COMMENT else lineComment
         }
         return LineComments(markers, EditorActionTitles.of(id)).execute(context)
     }
 
-    /** The comment markers of the two languages a KStates file mixes. */
+    /** The comment marker of the Python a KStates file embeds. */
     private companion object {
-        /** A karpfen line comment, also inside an EVAL body, where it drops the rest of the line. */
-        const val KARPFEN_COMMENT = "//"
-
         /** A Python line comment, which comments only inside an EVAL body. */
         const val PYTHON_COMMENT = "#"
     }

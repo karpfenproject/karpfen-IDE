@@ -1,5 +1,6 @@
 package io.karpfen.ide.ui.editor.model.action
 
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
@@ -61,6 +62,13 @@ public interface EditorActionContext {
 
     /** Number of fully visible lines (page size for Page Up/Down). */
     public val pageLines: Int
+
+    /**
+     * The line comment marker of the edited language, which toggle comment inserts outside EVAL bodies; null for a
+     * language without comments (environment descriptors are JSON), where toggle comment does nothing. The karpfen
+     * marker unless a context knows better.
+     */
+    public val lineComment: String? get() = KarpfenSyntax.LINE_COMMENT
 
     /** System clipboard access. */
     public val clipboard: ClipboardPort

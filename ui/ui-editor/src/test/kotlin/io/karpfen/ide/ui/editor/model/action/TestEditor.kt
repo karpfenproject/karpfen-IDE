@@ -2,6 +2,7 @@ package io.karpfen.ide.ui.editor.model.action
 
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
+import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextSnapshot
@@ -20,6 +21,7 @@ import kotlin.time.TestTimeSource
  *
  * @param scope where the caret model follows the text; unconfined by default (no virtual time needed).
  * @param tokensOf the tokens of a snapshot (default: none, i.e. no EVAL bodies).
+ * @param lineComment the line comment of the edited language (default: the karpfen one).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestEditor(
@@ -27,6 +29,7 @@ class TestEditor(
     scope: CoroutineScope = CoroutineScope(UnconfinedTestDispatcher() + Job()),
     tabWidth: Int = 4,
     private val tokensOf: (TextSnapshot) -> TokenizeResult = { TokenizeResult.empty(it.version) },
+    override val lineComment: String? = KarpfenSyntax.LINE_COMMENT,
 ) : EditorActionContext {
 
     /** The clock of the text's undo coalescing. */
