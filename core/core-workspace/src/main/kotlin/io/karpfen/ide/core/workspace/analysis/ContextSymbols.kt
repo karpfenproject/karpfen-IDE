@@ -69,7 +69,7 @@ public data class ModelObject(public val key: String, public val typeName: Strin
 /**
  * An object proposed for a state machine to run attached to, the `attachedTo` of a state machine entry of a descriptor.
  *
- * @property modelObject the object.
+ * @property modelObject the proposed object; its key is the value `attachedTo` takes.
  * @property suitsMachine true if the object's type is the type the state machine names after `ATTACHED TO`.
  */
 public data class AttachmentCandidate(public val modelObject: ModelObject, public val suitsMachine: Boolean) {

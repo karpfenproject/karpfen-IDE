@@ -94,7 +94,7 @@ public interface DocumentSession : AutoCloseable {
 /**
  * Creates a [DocumentSession] for [text] and starts its pipelines in a child scope of [scope].
  *
- * @param id the document identity.
+ * @param id the document's identity, its absolute path; the session publishes it as [DocumentSession.id].
  * @param support tokenizer and parser to use.
  * @param text the document text; the session never edits it.
  */

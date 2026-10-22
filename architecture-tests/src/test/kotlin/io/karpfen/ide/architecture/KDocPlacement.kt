@@ -3,7 +3,6 @@ package io.karpfen.ide.architecture
 /**
  * A KDoc comment that documents nothing a reader of the API documentation sees.
  *
- * @property comment the comment.
  * @property reason why its place is wrong, for failure messages.
  */
 internal data class MisplacedKDoc(val comment: SourceComment, val reason: String)

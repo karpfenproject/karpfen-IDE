@@ -22,7 +22,6 @@ internal data class SourceComment(val kind: CommentKind, val line: Int, val text
 /**
  * A comment with its place in the source text.
  *
- * @property comment the comment.
  * @property offset the offset of its first character in the source text.
  * @property block the kind of brace block it stands in.
  * @property parenDepth the number of parentheses open around it in that block.

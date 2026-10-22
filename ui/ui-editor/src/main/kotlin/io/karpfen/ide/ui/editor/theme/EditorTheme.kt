@@ -17,7 +17,7 @@ import io.karpfen.ide.core.lang.HighlightStyle
  * @property gutterForeground the line numbers.
  * @property currentLine the background of the caret's line.
  * @property selection the background of selected text.
- * @property caret the caret.
+ * @property caret the vertical bar of every caret.
  * @property matchingBracket the boxes around a matching bracket pair.
  * @property findMatch the background of find matches.
  * @property findMatchCurrent the background of the current find match.

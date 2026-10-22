@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory
  * The [diagnostics] an external source reported for [snapshot] (immutable).
  *
  * @property snapshot the text the ranges of [diagnostics] refer to.
- * @property diagnostics the reported diagnostics.
  */
 internal data class ExternalDiagnosticSet(val snapshot: TextSnapshot, val diagnostics: List<Diagnostic>)
 

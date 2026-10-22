@@ -5,7 +5,7 @@ import io.karpfen.ide.core.document.json.JsonNode
 /**
  * A value of a descriptor's JSON tree together with what the schema expects there.
  *
- * @property node the value.
+ * @property node the value in the JSON tree, with its range in the descriptor's text.
  * @property shape the shape the schema expects, or null where the schema knows nothing (below an unknown key, or below
  *   a value whose JSON kind does not fit its shape).
  * @property key the key whose value this is or whose list holds it; null for the root.

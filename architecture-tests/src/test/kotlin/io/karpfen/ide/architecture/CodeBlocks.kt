@@ -33,7 +33,7 @@ internal class CodeBlocks {
     /**
      * One open brace block.
      *
-     * @property kind the kind of the block.
+     * @property kind what the block holds, which decides whether KDoc may stand in it.
      * @property outerHeaders the header levels of the enclosing block when this one opened, restored when it closes.
      */
     private class Frame(val kind: BlockKind, val outerHeaders: ArrayDeque<HeaderLevel>)

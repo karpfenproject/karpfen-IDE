@@ -3,7 +3,6 @@ package io.karpfen.ide.core.lang.environment
 /**
  * Text that descriptor completion writes, with the place the caret goes to after writing it.
  *
- * @property text the text.
  * @property caret the caret's offset in [text]: the first place to fill, or the end of the text.
  * @throws IllegalArgumentException if [caret] lies outside [text].
  */
