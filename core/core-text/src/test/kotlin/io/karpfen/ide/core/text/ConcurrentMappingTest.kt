@@ -22,6 +22,7 @@ class ConcurrentMappingTest {
 
     /** One lookup made by a reader: the arguments and the answer it got. */
     private sealed interface Lookup {
+        /** An offset mapped from version [from] to version [to]. */
         data class Point(val offset: Int, val from: Long, val to: Long, val bias: Bias, val answer: Int?) : Lookup
 
         /** A range mapped to "the current version"; [lowest]..[highest] bound the versions current during the call. */

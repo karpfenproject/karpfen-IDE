@@ -34,11 +34,13 @@ class ComposedDocumentParserTest {
     )
     private val syntaxError = Diagnostic(TextRange(13, 14), Severity.ERROR, "missing", DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
 
+    /** A syntax analyzer that returns what [result] gives. */
     private class FakeSyntax(private val result: () -> SyntaxAnalysis) : SyntaxAnalyzer {
         override val language: KarpfenLanguage = KarpfenLanguage.KMETA
         override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis = result()
     }
 
+    /** A conversion that returns what [result] gives and records the arguments of every call in [calls]. */
     private class RecordingSemantics(private val result: () -> StandaloneResult) : StandaloneSemantics {
         val calls = ArrayList<Pair<TextSnapshot, SyntaxIndex>>()
         override fun convert(snapshot: TextSnapshot, index: SyntaxIndex): StandaloneResult {

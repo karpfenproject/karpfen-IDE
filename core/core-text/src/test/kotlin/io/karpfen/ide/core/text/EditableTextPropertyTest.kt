@@ -19,6 +19,7 @@ import kotlin.time.TestTimeSource
  */
 class EditableTextPropertyTest {
 
+    /** One run of random operations from [seed]: the text under test, its reference and the state of the run. */
     private class Session(seed: Long) {
         val random = Random(seed)
         val edits = RandomEdits(random)

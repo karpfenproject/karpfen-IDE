@@ -41,6 +41,7 @@ public fun LanguageSupport(
     lineComment: String?,
 ): LanguageSupport = SimpleLanguageSupport(language, tokenizer, parser, lineComment)
 
+/** The [LanguageSupport] made of its given parts, behind the factory function of the same name. */
 private data class SimpleLanguageSupport(
     override val language: KarpfenLanguage,
     override val tokenizer: Tokenizer,

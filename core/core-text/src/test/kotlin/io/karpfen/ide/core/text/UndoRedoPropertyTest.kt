@@ -16,6 +16,7 @@ class UndoRedoPropertyTest {
 
     /** The reference: stacks of whole texts with state identities, carets per step. */
     private class ReferenceHistory(initial: String) {
+        /** One undo step: the texts and carets before and after it, and the identity of the state it leads to. */
         class Step(val id: Int, val before: String, val after: String, val caretsBefore: List<CaretMemento>?, val caretsAfter: List<CaretMemento>?)
 
         private val undoSteps = ArrayList<Step>()
