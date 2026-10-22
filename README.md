@@ -102,7 +102,7 @@ grep ERROR /tmp/karpfen-home/logs/ide.log
 
 `karpfen validate` checks a folder like the IDE does: the syntax of every file, the dsl-tools analysis of every
 modeling context and the environment descriptors. It prints one line per problem, with one-based positions and paths
-relative to the folder, and only the report. What dsl-tools prints while it analyzes is discarded for now; the
+relative to the folder, and only the report. What dsl-tools logs while it analyzes is discarded for now; the
 [decision that dsl-tools output stays off the primary console](docs/adr/0014-dsl-tools-output-stays-off-the-primary-console.md)
 keeps it out of the report but wants it available on demand, which the second increment after phase 1 builds.
 
@@ -129,34 +129,18 @@ The IDE depends on `io.karpfen:karpfen-dsl-tools` and resolves it in one of two 
    (`../karpfen-dsl-tools`), or at the path that `dslToolsPath` names in a git-ignored `local.properties`, is included
    in the build and replaces the artifact.
 2. **Artifact**, when there is no checkout: the version of the version catalog is resolved from your local Maven
-   repository until dsl-tools is published. dsl-tools does not publish itself yet; to put it into `~/.m2` once, run
-   this from the dsl-tools checkout:
+   repository, because the build reads no remote repository for dsl-tools yet. dsl-tools publishes itself there; run
+   this once in the dsl-tools checkout, and again whenever it changes:
 
    ```bash
-   cat > /tmp/publish-dsl-tools.gradle <<'EOF'
-   allprojects {
-       apply plugin: 'maven-publish'
-       afterEvaluate {
-           publishing {
-               publications {
-                   dslTools(MavenPublication) {
-                       from components.java
-                       groupId = 'io.karpfen'
-                       artifactId = 'karpfen-dsl-tools'
-                       version = '1.0-SNAPSHOT'
-                   }
-               }
-           }
-       }
-   }
-   EOF
-   ./gradlew --init-script /tmp/publish-dsl-tools.gradle publishToMavenLocal
+   ./gradlew publishToMavenLocal
    ```
 
-The build log names the active mode, except when the configuration cache is reused; `--no-configuration-cache` shows
-it then. The KDoc of the resolution block in `settings.gradle.kts` documents how the path is found and written, and
-the KDoc at the end of `core/core-document/build.gradle.kts` how the composite build meets the configuration cache. CI
-builds in composite mode with a pinned dsl-tools commit, which `.github/workflows/build.yml` explains.
+Either way the IDE needs dsl-tools 2.0 or newer, whose packages lie below `io.karpfen.dsl`. Both modes keep the
+configuration cache, since dsl-tools generates its parsers at build time. The build log names the active mode, except
+when the configuration cache is reused; `--no-configuration-cache` shows it then. The KDoc of the resolution block in
+`settings.gradle.kts` documents how the path is found and written. CI builds in composite mode with a pinned dsl-tools
+commit, which `.github/workflows/build.yml` explains.
 
 ## Modules
 

@@ -172,5 +172,4 @@ The JDK's file watcher on macOS polls, so a change on disk shows up after **up t
 
 For every deviation, note the section and the step, what you did and what happened, and attach
 `/tmp/karpfen-smoke-home/logs/ide.log`. After a run without failures the log contains no `ERROR` line
-(`grep ERROR /tmp/karpfen-smoke-home/logs/ide.log` prints nothing). While it analyzes, dsl-tools still prints its
-models to the terminal that runs Gradle; that output is expected for now and is not an error.
+(`grep ERROR /tmp/karpfen-smoke-home/logs/ide.log` prints nothing).

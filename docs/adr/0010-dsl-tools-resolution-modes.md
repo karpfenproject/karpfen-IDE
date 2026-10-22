@@ -24,15 +24,18 @@ dsl-tools is not published to a remote repository yet.
 - **CI, a temporary deviation from the language core decision**: CI clones dsl-tools at a pinned commit, as the
   proposal's risk list advises, and builds in composite mode until dsl-tools publishes versioned artifacts.
 
-The KDoc of the resolution block in `settings.gradle.kts` documents how the checkout is found, what happens when a
-configured path holds no build and how to see the active mode; the KDoc at the end of
-`core/core-document/build.gradle.kts` documents how the composite build meets the configuration cache; the CI workflow
-`.github/workflows/build.yml` holds the pinned commit.
+The KDoc of the resolution block in `settings.gradle.kts` documents how the checkout is found, which version of
+dsl-tools it must hold, what happens when a configured path holds no build and how to see the active mode; the CI
+workflow `.github/workflows/build.yml` holds the pinned commit.
 
 ## Consequences
 
 - Cross-repository changes are a single local iteration.
 - CI builds against a known dsl-tools commit, which is raised on purpose when the IDE needs a newer one.
-- Composite builds give up the configuration cache until dsl-tools generates its ANTLR sources at build time, part of
-  the housekeeping the proposal asks of it under
+- Composite builds gave up the configuration cache as long as dsl-tools rewrote its committed ANTLR sources, a
+  housekeeping task the proposal asks of dsl-tools under
   [what dsl-tools must provide](../architecture-proposal.md#language-core-what-dsl-tools-must-provide-what-the-ide-adds).
+  dsl-tools 2.0 generates its parsers at build time, so both modes now keep the configuration cache.
+- dsl-tools 2.0 also moved its packages below `io.karpfen.dsl`, and the IDE builds against that version, so a checkout
+  used for the composite build must hold dsl-tools 2.0 or newer; an older one, such as a submodule that still pins
+  version 1.0, no longer compiles with the IDE.

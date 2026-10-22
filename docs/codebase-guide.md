@@ -230,7 +230,7 @@ shortcuts from the same `EditorKeymap`, so they always agree.
 `main` hands the arguments to `KarpfenCli`, which parses them with `CliArguments` and returns an exit status from
 `ExitCodes`. `ValidateCommand` in the `validate` package opens a `Workspace` without watching, waits for the analysis
 and reports `Workspace.problems`. `ValidationReport` and `ReportFormatter` turn the problems into text or JSON, and
-`StandardOutputGuard` keeps what dsl-tools prints out of the report. For now it discards that output, a stopgap until
+`StandardOutputGuard` keeps what dsl-tools logs out of the report. For now it discards that output, a stopgap until
 the [decision that dsl-tools output stays off the primary console](adr/0014-dsl-tools-output-stays-off-the-primary-console.md)
 is carried out.
 
