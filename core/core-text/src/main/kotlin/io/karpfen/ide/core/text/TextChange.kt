@@ -5,6 +5,11 @@ package io.karpfen.ide.core.text
  *
  * Invariants: `after.version == before.version + 1`; [edits] are non-empty, non-overlapping, sorted by range start
  * (insertions at the same offset keep their original relative order) and expressed in [before] coordinates.
+ *
+ * @property before the text before the change.
+ * @property after the text the change produced.
+ * @property edits what the change did, in the coordinates of [before].
+ * @property origin why the change was made.
  */
 public data class TextChange(
     public val before: TextSnapshot,

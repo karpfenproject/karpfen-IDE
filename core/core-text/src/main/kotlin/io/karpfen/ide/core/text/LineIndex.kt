@@ -101,6 +101,7 @@ public class LineIndex(private val text: String) {
     }
 
     private companion object {
+        /** The start offset of every line of [text], in two passes (count the lines, then fill the array). */
         fun computeLineStarts(text: String): IntArray {
             var newlines = 0
             for (char in text) if (char == '\n') newlines++
