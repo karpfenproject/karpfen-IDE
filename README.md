@@ -66,9 +66,9 @@ carry the JUnit tag `budget` and are never run, as the
 [testing conventions](docs/codebase-guide.md#testing) of the codebase guide describe the fixtures, the end-to-end tests
 and how to test on virtual time.
 
-Before a release, run the [manual smoke test](docs/manual-test.md): about 12 minutes at a real machine with a German
-keyboard layout. It covers what headless tests cannot: the native menu bar, typing on a real keyboard layout, focus and
-mouse handling, changes on disk and quitting.
+Before a release, run the [manual smoke test](docs/manual-test.md) at a real machine with a German keyboard layout. It
+covers what headless tests cannot: the native menu bar, typing on a real keyboard layout, focus and mouse handling,
+changes on disk and quitting.
 
 ### Running the IDE
 
@@ -114,29 +114,20 @@ A problem looks like this:
 karpfen-runtime/single_robot_example/cleaning_robot.kstates:8:13: error: extraneous input 'ENTRY' expecting '{' [syntax-error]
 ```
 
-The exit status is 0 without errors (warnings and infos are printed but allowed), 1 if an error was found, 2 for an
-invalid command line or a missing folder, and 3 if the validation itself failed. `ExitCodes` documents the statuses and
-`ReportFormatter` the text and JSON formats.
+The exit status tells whether errors were found; `ExitCodes` documents the statuses and `ReportFormatter` the text and
+JSON formats.
 
 ## karpfen-dsl-tools resolution
 
 The IDE depends on `io.karpfen:karpfen-dsl-tools` and resolves it in one of two modes, as the
-[decision on how dsl-tools is resolved](docs/adr/0010-dsl-tools-resolution-modes.md) records; the KDoc in
-`settings.gradle.kts` documents the rules.
+[decision on how dsl-tools is resolved](docs/adr/0010-dsl-tools-resolution-modes.md) records:
 
-1. **Composite build**, for working on both repositories at once. The build looks for a dsl-tools checkout at the path
-   given with `-PdslToolsPath=<path>`, else at `dslToolsPath=<path>` in a git-ignored `local.properties` in the
-   repository root, else at the sibling directory `../karpfen-dsl-tools`. If that directory holds a Gradle build, it
-   is included and replaces the artifact; the build log shows `karpfen-dsl-tools: composite build from <path>`. On
-   Windows, write the path in `local.properties` with forward slashes (`dslToolsPath=C:/work/karpfen-dsl-tools`). Where
-   dsl-tools lives inside the runtime repository, point at its initialized submodule, for example
-   `dslToolsPath=../karpfen-runtime/karpfen-dsl-tools`. Note that the dsl-tools build regenerates its ANTLR sources
-   into its own `src/main/java`.
-
-2. **Artifact**, when no checkout is found or `-PdslToolsPath=` is given an empty value. The version from the version
-   catalog is resolved from the repositories, which until dsl-tools is published means your local Maven repository; the
-   build log shows `karpfen-dsl-tools: resolving io.karpfen:karpfen-dsl-tools:<version> from repositories`. dsl-tools
-   does not publish itself yet; to put it into `~/.m2` once, run this from the dsl-tools checkout:
+1. **Composite build**, for working on both repositories at once: a dsl-tools checkout next to this repository
+   (`../karpfen-dsl-tools`), or at the path that `dslToolsPath` names in a git-ignored `local.properties`, is included
+   in the build and replaces the artifact.
+2. **Artifact**, when there is no checkout: the version of the version catalog is resolved from your local Maven
+   repository until dsl-tools is published. dsl-tools does not publish itself yet; to put it into `~/.m2` once, run
+   this from the dsl-tools checkout:
 
    ```bash
    cat > /tmp/publish-dsl-tools.gradle <<'EOF'
@@ -159,20 +150,18 @@ The IDE depends on `io.karpfen:karpfen-dsl-tools` and resolves it in one of two 
    ./gradlew --init-script /tmp/publish-dsl-tools.gradle publishToMavenLocal
    ```
 
-The configuration cache is enabled in `gradle.properties`, so a build that reuses a cache entry does not print the mode
-line again. To see the active mode, run with `--no-configuration-cache` or ask
-`./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools --configuration compileClasspath`. The
-dsl-tools build is not compatible with the configuration cache yet: in composite mode, builds that compile the IDE store
-no cache entry, and dsl-tools tasks invoked directly (for example `./gradlew :karpfen-dsl-tools:jar`) need
-`--no-configuration-cache`.
-
-CI (`.github/workflows/build.yml`) builds on Linux and macOS in composite mode, with dsl-tools pinned to the commit in
-`DSL_TOOLS_REF` until dsl-tools publishes artifacts. The workflow file explains the pin and its choice of Gradle cache.
+The build log names the active mode, except when the configuration cache is reused; `--no-configuration-cache` shows
+it then. The KDoc of the resolution block in `settings.gradle.kts` documents how the path is found and written, and
+the KDoc at the end of `core/core-document/build.gradle.kts` how the composite build meets the configuration cache. CI
+builds in composite mode with a pinned dsl-tools commit, which `.github/workflows/build.yml` explains.
 
 ## Modules
 
-Every module keeps its code below the package prefix `io.karpfen.ide`, followed by its layer and name; the
-[codebase guide](docs/codebase-guide.md) walks through them feature by feature.
+Every module keeps its code below one package prefix, `io.karpfen.ide` followed by its layer and the rest of its name
+(`io.karpfen.ide.core.document` for core/core-document); app/ide, architecture-tests and build-logic use the shorter
+`io.karpfen.ide.app`, `io.karpfen.ide.architecture` and `io.karpfen.ide.buildlogic`. `KarpfenModules` in the
+architecture tests lists every prefix, and the [codebase guide](docs/codebase-guide.md) walks through the modules
+feature by feature.
 
 **Core**, free of any UI:
 
@@ -182,7 +171,7 @@ Every module keeps its code below the package prefix `io.karpfen.ide`, followed 
 - **core/core-document**: tokens, parse outcomes and diagnostics of a document on top of karpfen-dsl-tools, and of
   environment descriptors on top of the IDE's own JSON parser, kept up to date by a document session. Start at
   `DocumentSession` (package `session`), `LanguageSupport` (package `language`) and, for descriptors,
-  `EnvironmentSchema` (package `environment`).
+  `EnvironmentDescriptor` and `EnvironmentSchema` (package `environment`).
 - **core/core-workspace**: an opened folder, with its file tree and watcher, open documents and saving, environment
   descriptors, modeling contexts, the dsl-tools analysis of every context, and the problems of every file. Start at
   `Workspace`.
@@ -221,8 +210,9 @@ Every module keeps its code below the package prefix `io.karpfen.ide`, followed 
 Together they enforce the module boundaries on every build, as the
 [decision that module boundaries are enforced by the build](docs/adr/0008-module-boundaries-enforced-by-the-build.md)
 records. The same build enforces the documentation style: `DocumentationStyleTest` rejects line comments, block
-comments other than KDoc, and reference ids to other documents in every Kotlin source file and Gradle script. The KDoc
-of `DocumentationStyleTest`, `KotlinComments` and `ReferenceIds` explains the rules.
+comments other than KDoc and KDoc that documents no declaration in every Kotlin source file and Gradle script, and
+reference ids to other documents there and in the markdown documents, the CI workflows and the XML resources. The KDoc
+of `DocumentationStyleTest`, `KDocPlacement` and `ReferenceIds` explains the rules.
 
 **Later increments**, stubs so far:
 

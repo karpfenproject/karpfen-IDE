@@ -1,6 +1,7 @@
 # 1. Record architecture decisions
 
-- Status: Accepted
+- Status: Accepted; the consequence on code comments is superseded by
+  [Documentation lives in KDoc; markdown documents are maps](0012-documentation-lives-in-kdoc.md)
 - Date: 2026-10-20
 
 ## Context

@@ -1,6 +1,6 @@
 # Manual smoke test
 
-About 12 minutes at a Mac. The automated tests run the editor, the workbench and the command-line tool headless
+About 15 minutes at a Mac. The automated tests run the editor, the workbench and the command-line tool headless
 (`./gradlew build`); this checklist covers what only a person at a real machine can check: the native menu bar, typing
 on a German keyboard layout (Option combinations, dead keys, the press-and-hold accent menu), real focus and mouse
 handling, the file watcher and quitting. Every step says what you should see. Note the section and the step of anything
@@ -108,20 +108,18 @@ Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, 
 
 1. Right-click `robot/` in the Project tree and choose **New Environment File**, named `robot`. `robot.kenv.json`
    opens in an editor tab, not in another application. It names the four files of the folder, attaches the state
-   machine to `turtle` and observes the event domain `public`. Keys, file paths (underlined), the object key and
-   numbers have their own colours, and the Outline lists the keys. Edit ▸ Toggle Comment is greyed out, because JSON
-   has no comments.
+   machine to `turtle` and observes the event domain `public`. Keys, file paths (underlined) and the object key have
+   their own colours, and the Outline lists the keys. Edit ▸ Toggle Comment is greyed out, because JSON has no
+   comments.
 2. Put the caret after the last value of the outer object (the `}` that closes `"observe"`), press Enter and then
    **Ctrl+M**: completion offers the keys that are not there yet, for example `tickDelayMs` and `eventTtlMs`. Accept
-   `tickDelayMs`: it arrives with the comma it needs and the value `50`. Press Enter after the comma that ends the
-   `"model"` line, type `"` and accept `eventTtlMs`: the key arrives with its colon, a value and the comma in front
-   of the next key, and the descriptor shows no syntax error.
+   `tickDelayMs`: it arrives with the comma it needs and the value `50`, which has the colour of numbers.
 3. Put the caret inside the quotes of the `"model"` value, delete the file name and press Ctrl+M: completion offers the
    models of the workspace relative to the descriptor, `cleaning_robot.kmodel` first. Accept it. Delete `turtle` from
    the `"attachedTo"` value and press Ctrl+M: completion offers the model's objects, `turtle` first because it is the
    `Robot` the state machine is attached to.
 4. Change the `"model"` value to `missing.kmodel` without saving. Within a second an error underline appears at the
-   file name and Problems lists it under `robot.kenv.json`. Rename the key `tickDelayMs` to `tickDelay`: a warning for
+   file name and Problems lists it under `robot/robot.kenv.json`. Rename the key `tickDelayMs` to `tickDelay`: a warning for
    the unknown key appears at the key. Rest the mouse on a key: a tooltip explains it. Undo both changes with Cmd+Z
    until the underlines are gone.
 5. Rest the mouse on `turtle`: the tooltip shows `object turtle: Robot`. Cmd+click `cleaning_robot.kstates`, or put the

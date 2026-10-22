@@ -39,7 +39,9 @@ rootProject.name = "karpfen-ide"
  *
  * - Composite build: if `dslToolsPath` names a directory that holds a Gradle build (`settings.gradle` or
  *   `settings.gradle.kts`), that build is included and substitutes the module `io.karpfen:karpfen-dsl-tools`, so a
- *   change that spans both repositories is a single local iteration. The included build is always named
+ *   change that spans both repositories is a single local iteration. The checkout may also be the initialized
+ *   submodule of the runtime repository (`../karpfen-runtime/karpfen-dsl-tools`); the dsl-tools build regenerates its
+ *   ANTLR sources into its own `src/main/java`. The included build is always named
  *   `karpfen-dsl-tools`, whatever its checkout directory is called, because the build script of core-document looks it
  *   up by that name.
  * - Artifact: otherwise the version declared in the version catalog is resolved from the repositories above, the local
@@ -52,8 +54,10 @@ rootProject.name = "karpfen-ide"
  * `java.util.Properties`, where a backslash is an escape character, so Windows paths are written with forward slashes
  * (`C:/work/karpfen-dsl-tools`) or with doubled backslashes.
  *
- * The settings log the active mode, though not on a configuration-cache hit, where `--no-configuration-cache` or
- * `dependencyInsight` shows it. CI clones dsl-tools at a pinned commit into the default path and builds in composite
+ * The settings log the active mode (`karpfen-dsl-tools: composite build from <path>` or `karpfen-dsl-tools: resolving
+ * <module> from repositories`), though not on a configuration-cache hit, where `--no-configuration-cache` or
+ * `./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools --configuration compileClasspath`
+ * shows it. CI clones dsl-tools at a pinned commit into the default path and builds in composite
  * mode until dsl-tools publishes versioned artifacts.
  */
 run {

@@ -38,8 +38,9 @@ dependencies {
  * In composite mode, where the settings include a local checkout of karpfen-dsl-tools as a build, its build script is
  * not configuration-cache compatible yet: its `fixKmodelPackages` and `fixKstatesPackages` tasks read `projectDir` at
  * execution time. Marking the compilation that consumes it as incompatible lets Gradle degrade gracefully (that run
- * executes without storing a cache entry) instead of failing. Artifact mode keeps the configuration cache. Remove this
- * once dsl-tools generates its ANTLR sources at build time instead of rewriting committed ones.
+ * executes without storing a cache entry) instead of failing. Artifact mode keeps the configuration cache. dsl-tools
+ * tasks invoked directly, such as `./gradlew :karpfen-dsl-tools:jar`, need `--no-configuration-cache`. Remove this once
+ * dsl-tools generates its ANTLR sources at build time instead of rewriting committed ones.
  */
 if (gradle.includedBuilds.any { it.name == "karpfen-dsl-tools" }) {
     tasks.named("compileKotlin") {

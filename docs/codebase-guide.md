@@ -7,8 +7,10 @@ the code. How to build, run and test is in the [README](../README.md); why the a
 the [architecture decision records](adr/README.md).
 
 Package names below are relative to their module. Every module keeps its code below one package prefix, made of
-`io.karpfen.ide`, the layer and the module name, so "the `session` package of core-document" is
-`io.karpfen.ide.core.document.session`.
+`io.karpfen.ide`, the layer and the rest of the module's name, so "the `session` package of core-document" is
+`io.karpfen.ide.core.document.session`. Three modules have shorter prefixes: app/ide uses `io.karpfen.ide.app`,
+architecture-tests `io.karpfen.ide.architecture` and build-logic `io.karpfen.ide.buildlogic`. `KarpfenModules` of the
+architecture tests lists the prefix of every module.
 
 ## The big picture
 
@@ -97,10 +99,12 @@ tells which text a version belongs to. `DefaultEditableText` is the implementati
 - **JSON.** The `json` package reads JSON the way the editor needs it, written for the IDE rather than taken from a
   library: `JsonLexer` and `JsonTokenizer` split it into tokens, `JsonParser` builds a `JsonDocument` whose `JsonNode`
   tree keeps every range and survives broken text (`JsonTreeBuilder` documents how it recovers).
-- **Environment descriptors.** The `environment` package is the descriptor language. `EnvironmentSchema` is the one
-  home of the descriptor keys: their nesting and value shapes (`ValueShape`, `DescriptorKey`), which are required and
-  what role a named file plays (`DescriptorFileRole`). `shapedValues` walks a descriptor along the schema, and
-  `EnvironmentSyntaxAnalyzer` turns a descriptor into outline, folding, semantic spans and syntax diagnostics.
+- **Environment descriptors.** The `environment` package is the descriptor language. The typed
+  `EnvironmentDescriptor` is the one declaration of the descriptor's shape, and `EnvironmentSchema` derives the
+  schema every other reader uses from it: the keys with their nesting and value shapes (`ValueShape`,
+  `DescriptorKey`), which are required, and what role a named file plays (`DescriptorFileRole`). `shapedValues` walks a
+  descriptor along the schema, and `EnvironmentSyntaxAnalyzer` turns a descriptor into outline, folding, semantic
+  spans and syntax diagnostics. The `json` package holds the IDE's own JSON parser (`JsonParser`).
 - **Diagnostics.** `Diagnostic` and `DiagnosticCodes` in the root package describe a problem; `mergeDiagnostics` in
   the `session` package is the one rule that combines the diagnostic sources of a document.
 
@@ -117,8 +121,8 @@ below, which the `Workspace` factory function creates.
   outside the IDE and the conflicts they cause.
 - **Environment descriptors.** The `environment` package reads `*.kenv.json` files: `JsonEnvironmentDescriptorReader`
   parses them with core-document's JSON parser, checks them against `EnvironmentSchema` with `DescriptorValidator`
-  and decodes them into the typed `EnvironmentDescriptor`, whose keys are the schema's (`EnvironmentSchemaAgreementTest`
-  keeps the two in step). `DescriptorPaths` is how a descriptor names files.
+  and decodes them into core-document's typed `EnvironmentDescriptor`. `DescriptorPaths` is how a descriptor names
+  files, and `FileKind.fits` which files fit the role of a key.
 - **Modeling contexts.** The `context` package decides which files are analyzed together: `ModelingContext`, and
   `ContextResolver` with the rules for descriptors, directories and loose files. `ContextTracker` reads an open
   descriptor from its editor text, so its findings, the contexts and the analysis follow unsaved edits.
@@ -221,10 +225,9 @@ and reports `Workspace.problems`. `ValidationReport` and `ReportFormatter` turn 
   `ComposeFreeStateTest` and `UiLayeringTest` (state holders without Compose, views on top), `PackageCycleTest`,
   `PackageLayoutTest`, `LexicalFactsTest` (one declaration per lexical fact) and `BudgetTestTaggingTest`.
   `KarpfenModules` is the module table these tests share. `DocumentationStyleTest` guards the documentation style in
-  every Kotlin source file and Gradle script, with `KotlinComments` to find the comments and `ReferenceIds` to find
-  reference ids in them. `KotlinLexer` is the one lexer behind all text-reading rules: it tells comments and literal
-  text from code for `KotlinComments`, for `SourceReferences` (the fully qualified names the layer rules check) and for
-  `WallClockAssertions`, which `BudgetTestTaggingTest` asks whether a test asserts on the wall clock.
+  every Kotlin source file and Gradle script, with `KotlinComments` to find the comments, `KDocPlacement` to check
+  that KDoc documents a declaration, and `ReferenceIds` to find reference ids, which it also looks for in the markdown
+  documents, the CI workflows and the XML resources.
 
 Typical changes and where they start:
 
@@ -232,8 +235,8 @@ Typical changes and where they start:
   in `EditorActionIds`, its title in `EditorActionTitles` and its shortcut in `defaultKeyBindings`; the workbench
   registers it as a command (`EditorCommands`), and `IdeMenus` places it in a menu;
 - a new language feature: the provider in the language's package of core-lang, registered in its `LanguageFeatures`;
-- a new descriptor key: `EnvironmentSchema` in core-document and the typed `EnvironmentDescriptor` in core-workspace;
-  checks, highlighting, completion and hover follow the schema;
+- a new descriptor key: a property of the typed `EnvironmentDescriptor` in core-document with its annotations; the
+  schema is derived from it, and checks, highlighting, completion and hover follow the schema;
 - a new module: `settings.gradle.kts`, a rule in `ModuleDependencyRules` and an entry in `KarpfenModules`.
 
 ## Conventions
@@ -250,7 +253,7 @@ Typical changes and where they start:
 - Packages are organized by feature and form no cycles.
 - Foreign APIs stay behind adapters: ANTLR and dsl-tools in core-document's `antlr` and `dsl` packages, the desktop's
   file operations and folder chooser in the workbench's `files.desktop` package.
-- One source per fact: for example `KarpfenSyntax` for lexical facts, `EnvironmentSchema` for descriptor keys,
+- One source per fact: for example `KarpfenSyntax` for lexical facts, `EnvironmentDescriptor` for descriptor keys,
   `mergeDiagnostics` for merging diagnostics and `EditableText.mapRange` for mapping ranges between versions.
 
 The architecture tests check many of these rules on every build.
@@ -268,8 +271,10 @@ The architecture tests check many of these rules on every build.
 - Documents are written for a human reader: they name other documents, sections and decisions in words, with a
   descriptive link where it helps, never by an id or a section number.
 
-`DocumentationStyleTest` checks the rules on comments and reference ids in Kotlin sources and Gradle scripts on every
-build.
+`DocumentationStyleTest` checks these rules on every build: the comments, where KDoc stands, and reference ids in
+Kotlin sources and Gradle scripts, and reference ids in the markdown documents, the CI workflows and the XML
+resources. The [decision that documentation lives in KDoc](adr/0012-documentation-lives-in-kdoc.md) records the
+style.
 
 ### Testing
 
@@ -280,11 +285,14 @@ build.
   `DocumentContractTest`, `LanguageContractTest`, `EditorContractTest` and `WorkbenchContractTest`.
 - Shared fixtures are in the test fixtures of core-document: `Examples` loads the example files copied from the karpfen
   repositories, `DescriptorExamples` the environment descriptors written for the IDE's tests (`DescriptorFixture` of
-  core-lang puts them into the example workspace), `SyntheticKstates`
-  generates large KStates documents for the benchmarks, and `Mutations` generates the deterministic random mutations
-  that the robustness tests (for example `TokenizerRobustnessTest`) feed through tokenizers, parsers and language
-  services.
-- `IdeEndToEndTest` and `KeyRoutingEndToEndTest` in app/ide run the whole application wiring headless.
+  core-lang puts them into the example workspace), `SyntheticKstates` generates large KStates documents for the
+  benchmarks, and `Mutations` generates the deterministic random mutations that the robustness tests (for example
+  `TokenizerRobustnessTest`) feed through tokenizers, parsers and language services.
+- The end-to-end tests run headless in the `e2e` test packages of three modules. In app/ide, `IdeEndToEndTest` and
+  `KeyRoutingEndToEndTest` run the whole application wiring. In ui-workbench, `WorkbenchEndToEndTest` runs the
+  workbench over its production wiring, and `DescriptorEditingEndToEndTest` edits an environment descriptor as a user
+  does. In ui-editor, `EditorWithPopupsTest`, `HiddenCompletionTest` and `HoverTooltipPointerTest` run an editor with
+  its popups.
 - Time-budget tests, which compare a wall-clock duration with a limit, carry `@Tag("budget")` and are excluded from
   every test run; `TestTags.BUDGET` explains why, `BudgetTestTaggingTest` catches a missing tag, and the
   [decision that time-budget tests are not run](adr/0011-time-budget-tests-are-not-run.md) records it. A wall-clock
