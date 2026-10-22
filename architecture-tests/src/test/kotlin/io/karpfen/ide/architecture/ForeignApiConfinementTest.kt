@@ -30,8 +30,8 @@ class ForeignApiConfinementTest {
         val ANTLR_PACKAGES = listOf(ANTLR_RUNTIME, GENERATED_PARSERS)
 
         /**
-         * The dsl-tools packages that only the dsl adapter package may use: the readers, the diagnostics they report and
-         * the source positions and maps of `io.karpfen.dsl.source`, the converters and builders below
+         * The dsl-tools packages that only the dsl adapter package may use: the readers, the diagnostics they report
+         * and the source positions and maps of `io.karpfen.dsl.source`, the converters and builders below
          * `io.karpfen.dsl.dsl`, and the file parsers of `io.karpfen.dsl.parser`.
          */
         val DSL_TOOLS_ADAPTED_PACKAGES = listOf(

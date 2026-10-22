@@ -28,8 +28,8 @@ internal object ReadResults {
         ReadResult(parse.model, parse.diagnostics.map { diagnosticOf(it, source.length) }.sortedWith(Diagnostic.ORDER))
 
     /**
-     * The result of a read that failed with [failure]: no model and one `reader.failure` error at the start of the text,
-     * worded like the failures the readers report themselves.
+     * The result of a read that failed with [failure]: no model and one `reader.failure` error at the start of the
+     * text, worded like the failures the readers report themselves.
      */
     fun failure(failure: Throwable): ReadResult<Nothing> =
         ReadResult(

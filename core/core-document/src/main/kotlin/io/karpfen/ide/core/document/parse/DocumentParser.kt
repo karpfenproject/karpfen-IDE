@@ -26,9 +26,9 @@ public interface DocumentParser {
 public enum class SemanticMode {
     /**
      * Read KMeta and KStates files with dsl-tools when there are no syntax diagnostics. Opt-in: no product path uses
-     * it, because in a workspace the project analysis is the only place that reads files with dsl-tools, so each file is
-     * read once and opening a file never changes what is reported. Documents edited on their own and the tests of the
-     * standalone semantics use it. Not for `EVENTS.kmeta`: event payloads may reference domain types and only read
+     * it, because in a workspace the project analysis is the only place that reads files with dsl-tools, so each file
+     * is read once and opening a file never changes what is reported. Documents edited on their own and the tests of
+     * the standalone semantics use it. Not for `EVENTS.kmeta`: event payloads may reference domain types and only read
      * without errors with the domain metamodel as base types, which core-workspace does.
      */
     STANDALONE,

@@ -33,8 +33,8 @@ internal data class SyntaxAnalysis(
 )
 
 /**
- * Reads a syntactically clean file with a dsl-tools reader. Implemented in `dsl`; one of the two module-internal seams a
- * [ComposedDocumentParser] is made of. Never throws.
+ * Reads a syntactically clean file with a dsl-tools reader. Implemented in `dsl`; one of the two module-internal seams
+ * a [ComposedDocumentParser] is made of. Never throws.
  */
 internal fun interface StandaloneSemantics {
     /** Reads [snapshot] into its model and the DSL_TOOLS diagnostics at the places the reader reports. */

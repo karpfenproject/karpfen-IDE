@@ -179,8 +179,8 @@ class IdeEndToEndTest {
         }
 
     /**
-     * The readers of dsl-tools log nothing while the IDE analyzes, so the logger of a dsl-tools converter logs after the
-     * analysis, while the routing is attached, standing in for what dsl-tools logs.
+     * The readers of dsl-tools log nothing while the IDE analyzes, so the logger of a dsl-tools converter logs after
+     * the analysis, while the routing is attached, standing in for what dsl-tools logs.
      */
     @Test
     fun `what dsl-tools logs is shown in the Language Tools Output, which the View menu opens`() =

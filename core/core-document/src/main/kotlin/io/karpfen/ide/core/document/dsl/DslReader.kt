@@ -20,9 +20,9 @@ import io.karpfen.ide.core.text.TextSnapshot
  *
  * Contract (MUST):
  * - Callers read only syntax-clean text (`ParseOutcome.isSyntaxClean` of the same snapshot). The IDE's own parser
- *   already reports the syntax errors, which a reader would report a second time, and the partial model of broken text
- *   rests on the guesses of the parser's error recovery. `ComposedDocumentParser` (standalone semantics) and the project
- *   analysis of core-workspace follow this rule; the adapter itself does not re-parse to check it.
+ *   already reports the syntax errors, which a reader would report a second time, and the partial model of broken
+ *   text rests on the guesses of the parser's error recovery. `ComposedDocumentParser` (standalone semantics) and the
+ *   project analysis of core-workspace follow this rule; the adapter itself does not re-parse to check it.
  * - Every finding becomes one [Diagnostic] of source [io.karpfen.ide.core.document.DiagnosticSource.DSL_TOOLS] at the
  *   range the reader reports, in the coordinates of the read snapshot; its code is the stable id of the dsl-tools
  *   diagnostic code, such as `kmodel.unknown-property`.
@@ -54,9 +54,9 @@ public fun DslReader(): DslReader = DefaultDslReader()
 /**
  * What a [DslReader] read from one snapshot.
  *
- * @property model the model read: complete if [hasErrors] is false, partial otherwise, leaving out what the reader could
- *   not build (an object of an unknown type, a property of an unknown type, a rule with the wrong number of operands);
- *   null only if the text yields no model, such as a KMeta text without a type.
+ * @property model the model read: complete if [hasErrors] is false, partial otherwise, leaving out what the reader
+ *   could not build (an object of an unknown type, a property of an unknown type, a rule with the wrong number of
+ *   operands); null only if the text yields no model, such as a KMeta text without a type.
  * @property diagnostics DSL_TOOLS diagnostics in the coordinates of the read snapshot, sorted with [Diagnostic.ORDER].
  */
 public data class ReadResult<out T : Any>(public val model: T?, public val diagnostics: List<Diagnostic>) {

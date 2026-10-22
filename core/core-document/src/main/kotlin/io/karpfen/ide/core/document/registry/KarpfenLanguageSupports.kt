@@ -42,7 +42,9 @@ internal class KmodelLanguageSupport : LanguageSupport {
     override val lineComment: String = KarpfenSyntax.LINE_COMMENT
 }
 
-/** KStates: tokenizer with EVAL scanning, syntax analyzer, standalone semantics with the KStates reader of dsl-tools. */
+/**
+ * KStates: tokenizer with EVAL scanning, syntax analyzer, standalone semantics with the KStates reader of dsl-tools.
+ */
 internal class KstatesLanguageSupport(reader: DslReader) : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.KSTATES
     override val tokenizer: Tokenizer = KstatesTokenizer()

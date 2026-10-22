@@ -12,9 +12,9 @@ import java.nio.file.Path
 /**
  * Analyzes every modeling context with dsl-tools, through the core-document [DslReader] adapter only: metamodel via
  * `kmeta`; events via `kmeta` with the metamodel's types as base types; each model via `kmodel` against the metamodel;
- * each state machine via `kstates`. What the dsl-tools readers find becomes DSL_TOOLS diagnostics on the file they read,
- * at the ranges they report, and the models they read, partial ones included, become the [ContextAnalysis]. No IDE-side
- * validation rules beyond what dsl-tools reports.
+ * each state machine via `kstates`. What the dsl-tools readers find becomes DSL_TOOLS diagnostics on the file they
+ * read, at the ranges they report, and the models they read, partial ones included, become the [ContextAnalysis]. No
+ * IDE-side validation rules beyond what dsl-tools reports.
  *
  * Syntax first (MUST): a file is read only when its `AnalyzedFile.parse.isSyntaxClean` (a reader would report the
  * PARSER errors a second time, see [DslReader]). A read that needs a metamodel which was not read without errors
