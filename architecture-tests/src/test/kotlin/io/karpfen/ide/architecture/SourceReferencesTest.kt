@@ -4,8 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers [SourceReferences], the fully-qualified-reference scanner used by the layer rules: it finds real uses in code
- * and ignores directives, comments, literals and backtick identifiers.
+ * Covers [SourceReferences], the fully-qualified-reference scanner used by the layer rules: it finds real uses in code,
+ * template expressions included, and ignores directives, comments, literals and backtick identifiers.
  */
 class SourceReferencesTest {
 
@@ -42,6 +42,13 @@ class SourceReferencesTest {
             internal fun `java.awt is mentioned in a test name`() = Unit
         """.trimIndent()
         assertEquals(emptyList(), namesIn(source))
+    }
+
+    @Test
+    fun `references in template expressions and after them are code`() {
+        assertEquals(listOf("java.awt.Toolkit.getDefaultToolkit"), namesIn("val size = \"\${java.awt.Toolkit.getDefaultToolkit().screenSize}\""))
+        assertEquals(listOf("java.awt.Toolkit.getDefaultToolkit"), namesIn("val s = \"\${'\"'}\" + java.awt.Toolkit.getDefaultToolkit()"))
+        assertEquals(listOf("java.awt.Toolkit.getDefaultToolkit"), namesIn("val s = \"\${x /* c */ + java.awt.Toolkit.getDefaultToolkit()}\""))
     }
 
     @Test

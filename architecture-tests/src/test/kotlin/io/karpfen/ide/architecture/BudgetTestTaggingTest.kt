@@ -35,7 +35,7 @@ class BudgetTestTaggingTest {
          * and names a limit.
          */
         fun comparesWallClockWithLimit(source: String): Boolean {
-            val code = SourceReferences.blankCommentsAndLiterals(source).replace(BACKTICK_NAME, " ")
+            val code = KotlinLexer.code(source).replace(BACKTICK_NAME, " ")
             return WALL_CLOCK.containsMatchIn(code) && LIMIT_NAME.containsMatchIn(code)
         }
     }

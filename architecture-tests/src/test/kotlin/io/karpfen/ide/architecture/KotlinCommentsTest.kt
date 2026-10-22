@@ -9,7 +9,8 @@ import kotlin.test.assertEquals
 /**
  * Covers [KotlinComments], the comment scanner behind the documentation style rules, with the inputs that a scanner
  * without a lexer gets wrong: comment delimiters and URLs inside strings, raw strings, character literals, backtick
- * names, string templates and KDoc, nested block comments and unterminated literals.
+ * names, string templates with and without a multi-dollar prefix, KDoc, nested block comments and unterminated
+ * literals.
  *
  * The inputs are regular string literals, so a raw-string delimiter is written as the template [RAW] and a dollar
  * sign as an escape. This file is itself checked by the documentation style rules, which makes it a test of the
@@ -89,6 +90,18 @@ class KotlinCommentsTest {
         assertEquals(emptyList(), commentsIn("val a = \"\\\${ // text\""))
         assertEquals(emptyList(), commentsIn("val b = $RAW\${'$'}{ // text$RAW"))
         assertEquals(emptyList(), commentsIn("val c = \"\$name// text\""))
+    }
+
+    @Test
+    fun `in multi-dollar strings a template opens only on the prefix's number of dollar signs`() {
+        assertEquals(emptyList(), commentsIn("val a = \$\$\"literal \${ // not a comment\""))
+        assertEquals(emptyList(), commentsIn("val b = \$\$$RAW{ \"pattern\": \"\${ */ /* x\" }$RAW"))
+        assertEquals(listOf(BLOCK to "/* c */"), commentsIn("val c = \$\$\"\$\${ x /* c */ }\""))
+        assertEquals(listOf(BLOCK to "/* d */"), commentsIn("val d = \$\$$RAW\$\${ x /* d */ }$RAW"))
+        assertEquals(
+            listOf(SourceComment(LINE, 2, "// a real line comment")),
+            KotlinComments.scan("val e = \$\$$RAW\${$RAW\n// a real line comment\nval f = ${RAW}x$RAW"),
+        )
     }
 
     @Test
