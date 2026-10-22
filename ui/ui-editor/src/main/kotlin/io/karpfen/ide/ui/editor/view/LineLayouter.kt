@@ -13,10 +13,10 @@ import io.karpfen.ide.ui.editor.view.geometry.DisplayLine
 internal data class LineSpan(val startColumn: Int, val endColumn: Int, val style: HighlightStyle)
 
 /**
- * Lays out single lines for drawing: the line's display text (tabs expanded, [DisplayLine]) with the
- * [EditorTheme] style of each [LineSpan], measured with [measurer] on one unwrapped line and kept in [cache] (keyed by
- * line text + spans + font settings), so only lines that changed or scrolled in are measured. A cached layout is used
- * only if it was measured for exactly the same styled text and style (a hash collision of the spans re-measures).
+ * Lays out single lines for drawing: the line's display text (tabs expanded, [DisplayLine]) with the [EditorTheme]
+ * style of each [LineSpan], measured with [measurer] on one unwrapped line and kept in [cache] (keyed by line text +
+ * spans + font settings), so only lines that changed or scrolled in are measured. A cached layout is used only if it
+ * was measured for exactly the same styled text and style (a hash collision of the spans re-measures).
  */
 internal class LineLayouter(private val measurer: TextMeasurer, private val cache: LineLayoutCache) {
 

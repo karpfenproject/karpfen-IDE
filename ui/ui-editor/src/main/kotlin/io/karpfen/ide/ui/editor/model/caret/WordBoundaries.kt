@@ -4,13 +4,13 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The word rule of the editor: every character belongs to one [CharClass], and a *word* is a maximal run
- * of one class — identifier runs `[A-Za-z0-9_]+`, punctuation runs and whitespace runs, as documented on
- * [CaretMovement.WORD_LEFT]. A line break is a run of its own, so word movement and word deletion stop at every line
- * boundary and a double-click never selects across lines.
+ * The word rule of the editor: every character belongs to one [CharClass], and a *word* is a maximal run of one class —
+ * identifier runs `[A-Za-z0-9_]+`, punctuation runs and whitespace runs, as documented on [CaretMovement.WORD_LEFT]. A
+ * line break is a run of its own, so word movement and word deletion stop at every line boundary and a double-click
+ * never selects across lines.
  *
- * The one word rule of the editor model: word movement ([CaretModel]), word selection, word deletion and the
- * completion auto-trigger ("identifier character") all use it. Pure functions without state.
+ * The one word rule of the editor model: word movement ([CaretModel]), word selection, word deletion and the completion
+ * auto-trigger ("identifier character") all use it. Pure functions without state.
  */
 internal object WordBoundaries {
 

@@ -76,8 +76,8 @@ public data class CompletionUiState(
     /** Constants of [CompletionUiState]. */
     public companion object {
         /**
-         * The most rows the completion list shows at once: the popup's height, and the rows Page Up/Down
-         * move the selection by, so keyboard paging matches what the user sees.
+         * The most rows the completion list shows at once: the popup's height, and the rows Page Up/Down move the
+         * selection by, so keyboard paging matches what the user sees.
          */
         public const val MAX_VISIBLE_ROWS: Int = 12
     }
@@ -225,9 +225,9 @@ internal class DefaultCompletionSessionModel(
     }
 
     /**
-     * Asks the source for the items at the primary caret of the current text; a newer request cancels this one. The
-     * job starts only after it was assigned to [request], so an eager dispatcher that completes the request at once
-     * (and may start a newer one from [receive]) never leaves a finished job in [request].
+     * Asks the source for the items at the primary caret of the current text; a newer request cancels this one. The job
+     * starts only after it was assigned to [request], so an eager dispatcher that completes the request at once (and
+     * may start a newer one from [receive]) never leaves a finished job in [request].
      */
     private fun request(trigger: CompletionTrigger) {
         request?.cancel()

@@ -255,7 +255,7 @@ class EditorWithPopupsTest {
 
     /** The texts of the tests. */
     private companion object {
-        /** The cleaning robot of the runtime's examples, a real KStates file with states, transitions and EVAL bodies. */
+        /** The cleaning robot of the runtime's examples: a real KStates file with transitions and EVAL bodies. */
         val MACHINE: String = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text
 
         /** A state machine whose initial state has an empty body line ([EMPTY_BODY_LINE]). */

@@ -5,9 +5,9 @@ import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 
 /**
- * An editing or navigation operation (Command pattern). Key-bound and menu actions are registered by
- * [id] in an [EditorActionRegistry]; parameterized commands (typing text, accepting a completion) are created per
- * use, e.g. with [typeTextAction].
+ * An editing or navigation operation (Command pattern). Key-bound and menu actions are registered by [id] in an
+ * [EditorActionRegistry]; parameterized commands (typing text, accepting a completion) are created per use, e.g. with
+ * [typeTextAction].
  *
  * Every action that changes text is exactly one undo step and records the carets before and after (Memento). Actions
  * never scroll: the editor state reveals the primary caret after every executed action and typed text (see

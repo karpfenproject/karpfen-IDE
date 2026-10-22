@@ -8,9 +8,9 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 /**
- * Scroll position and geometry of the editor, in pixels. Compose-free: the view reports measured geometry
- * and renders from [state]; the scrollbar adapters and mouse wheel scroll through it. Scroll offsets are always clamped
- * to `0..max`.
+ * Scroll position and geometry of the editor, in pixels. Compose-free: the view reports measured geometry and renders
+ * from [state]; the scrollbar adapters and mouse wheel scroll through it. Scroll offsets are always clamped to
+ * `0..max`.
  */
 public interface EditorViewport {
 
@@ -34,8 +34,8 @@ public interface EditorViewport {
 
     /**
      * Scrolls minimally so that the rectangle (content coordinates) is visible with a margin of three lines above and
-     * below, or centres it vertically when [center]. In a viewport too small for the margin the margin
-     * shrinks to what fits around the rectangle, so the rectangle itself is always revealed.
+     * below, or centres it vertically when [center]. In a viewport too small for the margin the margin shrinks to what
+     * fits around the rectangle, so the rectangle itself is always revealed.
      */
     public fun reveal(left: Float, top: Float, right: Float, bottom: Float, center: Boolean)
 

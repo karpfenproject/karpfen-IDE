@@ -8,14 +8,14 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Types [text]: replaces selections; auto-closes `"`, `(`, `{` when the next character is whitespace,
- * end of line or a closing bracket, and over-types an auto-inserted closer. Origin `Typing`, one undo step.
+ * Types [text]: replaces selections; auto-closes `"`, `(`, `{` when the next character is whitespace, end of line or a
+ * closing bracket, and over-types an auto-inserted closer. Origin `Typing`, one undo step.
  *
  * Details: separators in [text] are normalized to `\n`, and a typed `\n` is Enter ([EnterAction], auto-indent).
- * Over-typing moves the caret over a closer that [AutoClosedPairs] tracks (closers the user typed are never tracked,
- * so typing `)` before one inserts a new `)`). A `"` auto-closes only outside a string of its line ([StringLiterals]),
- * so typing the closing quote of a string never inserts a pair. Auto-close and over-type apply to a single typed
- * character without selection; anything else is inserted as is.
+ * Over-typing moves the caret over a closer that [AutoClosedPairs] tracks (closers the user typed are never tracked, so
+ * typing `)` before one inserts a new `)`). A `"` auto-closes only outside a string of its line ([StringLiterals]), so
+ * typing the closing quote of a string never inserts a pair. Auto-close and over-type apply to a single typed character
+ * without selection; anything else is inserted as is.
  */
 internal class TypeTextAction(private val text: String) : EditorAction {
     override val id: String = EditorActionIds.TYPE_TEXT
@@ -74,8 +74,8 @@ internal class TypeTextAction(private val text: String) : EditorAction {
 }
 
 /**
- * Enter: new line with the indentation of the current line, +4 spaces after a line ending in `{`; between
- * `{` and `}` the `}` moves to its own line.
+ * Enter: new line with the indentation of the current line, +4 spaces after a line ending in `{`; between `{` and `}`
+ * the `}` moves to its own line.
  *
  * Details: replaces a selection; the indentation is the leading whitespace of the caret's line up to the caret (the
  * text before the caret, trimmed, decides "ends in `{`"); between `{` and `}` (whitespace around the caret allowed) the
@@ -119,8 +119,8 @@ internal enum class DeletionKind(val actionId: String) {
 }
 
 /**
- * Deletion: selection first; Backspace smart-unindents to the previous 4-column stop inside leading
- * whitespace and deletes an auto-inserted pair; word and line deletion.
+ * Deletion: selection first; Backspace smart-unindents to the previous 4-column stop inside leading whitespace and
+ * deletes an auto-inserted pair; word and line deletion.
  *
  * Details: Backspace and Delete remove one character (a surrogate pair as a whole) with origin `Typing`, so runs of
  * them coalesce into one undo step; Backspace between a tracked pair (`(|)`, [AutoClosedPairs]) removes both. Word

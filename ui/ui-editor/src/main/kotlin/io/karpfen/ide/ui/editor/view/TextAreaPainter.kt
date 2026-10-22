@@ -50,11 +50,11 @@ internal class TextAreaContent(
 )
 
 /**
- * Paints the text area from a [TextAreaContent], virtualized: only the laid-out lines (visible lines plus
- * overscan) are measured — through the [LineLayouter] and its cache — and drawn. Order: current line, find matches,
- * selection, matching brackets, text, diagnostic underlines, caret. Every range of an older version (highlight spans,
- * find matches, diagnostics, bracket matches) is mapped with `EditableText.mapRange`, the one range-mapping rule (never
- * by mapping the two bounds separately); a range that does not map is not drawn.
+ * Paints the text area from a [TextAreaContent], virtualized: only the laid-out lines (visible lines plus overscan) are
+ * measured — through the [LineLayouter] and its cache — and drawn. Order: current line, find matches, selection,
+ * matching brackets, text, diagnostic underlines, caret. Every range of an older version (highlight spans, find
+ * matches, diagnostics, bracket matches) is mapped with `EditableText.mapRange`, the one range-mapping rule (never by
+ * mapping the two bounds separately); a range that does not map is not drawn.
  */
 internal class TextAreaPainter(private val layouter: LineLayouter, private val metrics: PainterMetrics) {
 

@@ -31,8 +31,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * The mouse input of the text area: hit-testing plus the drag auto-scroll timer only, everything else is a
- * Compose-free intent of [model], with positions in text-area coordinates (the `EditorOverlayHost` space):
+ * The mouse input of the text area: hit-testing plus the drag auto-scroll timer only, everything else is a Compose-free
+ * intent of [model], with positions in text-area coordinates (the `EditorOverlayHost` space):
  * - primary press → `pointerPressed(offset, clickCount, modifiers)` (clicks counted by [ClickCounter]), drag →
  *   `pointerDragged(offset)` with auto-scroll while the pointer is outside the area, release → `pointerReleased()`;
  * - secondary press → `openContextMenuAt(offset, x, y)`;

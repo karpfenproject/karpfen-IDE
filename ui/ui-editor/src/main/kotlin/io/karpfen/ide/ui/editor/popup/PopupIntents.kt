@@ -4,10 +4,10 @@ import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
 import io.karpfen.ide.ui.editor.state.EditorPopupModel
 
 /**
- * What the popups' gestures do to the editor (composables contain no logic): each intent translates one
- * gesture into calls on the host's [EditorPopupModel] and decides where keyboard focus goes afterwards — popups that
- * own focus (find bar, go-to-line, context menu) hand it back to the text area with [EditorPopupModel.requestFocus] when
- * they are closed by the user. Compose-free and stateless; one instance per editor.
+ * What the popups' gestures do to the editor (composables contain no logic): each intent translates one gesture into
+ * calls on the host's [EditorPopupModel] and decides where keyboard focus goes afterwards — popups that own focus (find
+ * bar, go-to-line, context menu) hand it back to the text area with [EditorPopupModel.requestFocus] when they are
+ * closed by the user. Compose-free and stateless; one instance per editor.
  *
  * Editing never happens here: find, replace and completion acceptance are the models' operations, which run their
  * `EditorAction`s through the editor's executor (so the editor reveals the caret afterwards); context-menu entries run

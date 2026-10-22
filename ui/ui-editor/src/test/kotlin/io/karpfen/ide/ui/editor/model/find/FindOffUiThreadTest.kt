@@ -18,10 +18,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Find never matches on the UI thread: long-running work runs on `Dispatchers.Default` and is cancellable, so the UI
- * never waits for a search. Real threads: a single-thread "UI" dispatcher runs the
- * editor's scope and `Dispatchers.Default` the background search, as in the app. The query is a catastrophic-backtracking
- * regular expression whose search takes seconds on this short text, so the background result is not published yet when
- * the find bar's Enter, Replace or Replace All arrive; the search gives up at its time budget.
+ * never waits for a search. Real threads: a single-thread "UI" dispatcher runs the editor's scope and
+ * `Dispatchers.Default` the background search, as in the app. The query is a catastrophic-backtracking regular
+ * expression whose search takes seconds on this short text, so the background result is not published yet when the find
+ * bar's Enter, Replace or Replace All arrive; the search gives up at its time budget.
  */
 class FindOffUiThreadTest {
 

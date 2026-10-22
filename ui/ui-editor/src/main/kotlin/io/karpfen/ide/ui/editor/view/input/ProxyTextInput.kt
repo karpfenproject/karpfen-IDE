@@ -29,21 +29,19 @@ import io.karpfen.ide.ui.foundation.keys.compose.toKeyStroke
 /**
  * The editor's keyboard input: a focused, visually hidden proxy `BasicTextField` placed at the caret.
  *
- * Chosen approach: Compose's platform text-input API on desktop
- * (`PlatformTextInputModifierNode` / `establishTextInputSession`) requires implementing the desktop
- * `PlatformTextInputMethodRequest`, whose members are all `@ExperimentalComposeUiApi` in this Compose version and which
- * carries two parallel editing models (`EditCommand`s and `TextEditingScope`), while typed characters still arrive as
- * AWT key-typed events the component must handle itself. The proxy field instead uses Compose's own, maintained text
- * input — key-typed characters, macOS Option combinations (German layout: Option+8 = `{`, Option+L = `@`), dead keys and
- * input methods with their pre-edit — exactly like every other text field of the IDE, and the editor only receives the
- * committed text:
+ * Chosen approach: Compose's platform text-input API on desktop (`PlatformTextInputModifierNode` /
+ * `establishTextInputSession`) requires implementing the desktop `PlatformTextInputMethodRequest`, whose members are
+ * all `@ExperimentalComposeUiApi` in this Compose version and which carries two parallel editing models (`EditCommand`s
+ * and `TextEditingScope`), while typed characters still arrive as AWT key-typed events the component must handle
+ * itself. The proxy field instead uses Compose's own, maintained text input — key-typed characters, macOS Option
+ * combinations (German layout: Option+8 = `{`, Option+L = `@`), dead keys and input methods with their pre-edit —
+ * exactly like every other text field of the IDE, and the editor only receives the committed text:
  * - Key-downs go to [onKeyStroke] first (`CodeEditorState.handleKey`: completion, then the keymap) and the editor
- *   consumes exactly those for which it returns true; unhandled strokes continue
- *   to the field and the window (menu accelerators). Limitation: the field itself still consumes the few text-editing
- *   strokes it knows (undo, clipboard, caret keys) when the editor's action for them did nothing — its text is always
- *   empty and its undo history cleared, so this has no effect, and the matching menu commands are disabled in that
- *   state anyway; shortcuts the field does not know (Save, Close, …) reach the menu. While the input method composes,
- *   keys belong to it and are not routed.
+ *   consumes exactly those for which it returns true; unhandled strokes continue to the field and the window (menu
+ *   accelerators). Limitation: the field itself still consumes the few text-editing strokes it knows (undo, clipboard,
+ *   caret keys) when the editor's action for them did nothing — its text is always empty and its undo history cleared,
+ *   so this has no effect, and the matching menu commands are disabled in that state anyway; shortcuts the field does
+ *   not know (Save, Close, …) reach the menu. While the input method composes, keys belong to it and are not routed.
  * - Focus never leaves the editor by focus traversal ([withoutFocusTraversal]): Tab and Shift+Tab are text keys of the
  *   editor (indent, outdent), also when they change nothing and stay unhandled.
  * - A key-typed event following a handled key-down is swallowed ([TypedKeyGate]).

@@ -11,9 +11,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The hover tooltip policy ([EditorViewModel.pointerHover], [EditorPopupModel.pointerOverTooltip]),
- * Compose-free and on the editor's clock: after the pointer rested on one offset for [delay] (a coroutine delay in
- * [scope], so tests use virtual time), the content from [contentAt] is shown through [overlays].
+ * The hover tooltip policy ([EditorViewModel.pointerHover], [EditorPopupModel.pointerOverTooltip]), Compose-free and on
+ * the editor's clock: after the pointer rested on one offset for [delay] (a coroutine delay in [scope], so tests use
+ * virtual time), the content from [contentAt] is shown through [overlays].
  *
  * The tooltip stays while the pointer is on its range or on the tooltip itself, so its long content can be scrolled.
  * Once the pointer left both — to another offset, out of the text, off the tooltip — the tooltip is hidden after
@@ -22,9 +22,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * loss) hides it at once. Nothing is shown while the context menu is open. Used from the UI thread.
  *
  * The tooltip follows the [text]: its range and content describe the text they were computed for, so every change of
- * the text — typing, commands from menus, find and replace, completion accepted by mouse, external reloads — hides
- * it and drops a lookup in progress, like [hide]; the pointer rests again to see the new text's content. A change is
- * every snapshot other than the one current at construction: snapshots are never reused, so identity tells them apart.
+ * the text — typing, commands from menus, find and replace, completion accepted by mouse, external reloads — hides it
+ * and drops a lookup in progress, like [hide]; the pointer rests again to see the new text's content. A change is every
+ * snapshot other than the one current at construction: snapshots are never reused, so identity tells them apart.
  */
 internal class HoverController(
     private val scope: CoroutineScope,

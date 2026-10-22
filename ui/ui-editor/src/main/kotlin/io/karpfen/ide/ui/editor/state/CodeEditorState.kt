@@ -121,12 +121,12 @@ public interface EditorViewModel {
     public val viewport: EditorViewport
 
     /**
-     * Highlight spans, computed on the background dispatcher from the session's tokens and parse:
-     * when the latest parse has the tokens' version, `LanguageServices.highlight` (lexical styles overlaid with the
-     * semantic ones); while the parse lags the tokens (every keystroke until the debounced parse arrives), the fresh
-     * lexical spans overlaid (`overlayHighlights` of core-lang) with the semantic-style spans (`HighlightStyle.isSemantic`)
-     * of the previous snapshot mapped to the tokens' version with `EditableText.mapRange` (null or empty results
-     * dropped), so semantic colours of untouched names do not flicker while typing.
+     * Highlight spans, computed on the background dispatcher from the session's tokens and parse: when the latest parse
+     * has the tokens' version, `LanguageServices.highlight` (lexical styles overlaid with the semantic ones); while the
+     * parse lags the tokens (every keystroke until the debounced parse arrives), the fresh lexical spans overlaid
+     * (`overlayHighlights` of core-lang) with the semantic-style spans (`HighlightStyle.isSemantic`) of the previous
+     * snapshot mapped to the tokens' version with `EditableText.mapRange` (null or empty results dropped), so semantic
+     * colours of untouched names do not flicker while typing.
      */
     public val highlights: StateFlow<HighlightSnapshot>
 
@@ -150,8 +150,7 @@ public interface EditorViewModel {
 
     /**
      * The text area gained or lost keyboard focus (updates [EditorHandle.isFocused]). On focus loss the state closes
-     * completion and hides the hover tooltip; the context menu and the find bar are popups of their own and
-     * stay open.
+     * completion and hides the hover tooltip; the context menu and the find bar are popups of their own and stay open.
      */
     public fun onFocusChanged(focused: Boolean)
 
@@ -210,12 +209,12 @@ public interface EditorViewModel {
 }
 
 /**
- * The state holder of one code editor: bundles the document session, language services, the Compose-free
- * models and the overlay/viewport state. Plain Kotlin (no Compose), unit-testable; `CodeEditor` renders it and sends
- * intents to it. One instance per open editor tab; [close] cancels its background work.
+ * The state holder of one code editor: bundles the document session, language services, the Compose-free models and the
+ * overlay/viewport state. Plain Kotlin (no Compose), unit-testable; `CodeEditor` renders it and sends intents to it.
+ * One instance per open editor tab; [close] cancels its background work.
  *
- * It plays three roles: [EditorViewModel] for `CodeEditor`, [EditorPopupModel] for the popups, [EditorHandle] for
- * the workbench; each consumer depends on its role only.
+ * It plays three roles: [EditorViewModel] for `CodeEditor`, [EditorPopupModel] for the popups, [EditorHandle] for the
+ * workbench; each consumer depends on its role only.
  *
  * For low coupling it depends on the `DocumentSession`, not on the workspace's `OpenDocument`: the editor needs no
  * file-level state, which the workbench keeps (dirty flag, conflicts).
@@ -224,13 +223,13 @@ public interface EditorViewModel {
  * the pointer gestures, the hover delay, the context-menu caret rule and the focus rules are Compose-free intents of
  * [EditorViewModel], unit-testable on virtual time.
  *
- * Caret reveal: after every [execute] and [type] that changed the carets or the text, the state sets a
- * [scrollRequest] for the primary caret (3-line margin; centred when the caret was off-screen); actions never scroll
- * themselves. Find navigation (`FindModel.next`/`previous` and the selection of `setQuery`) selects matches through
- * the editor's executor, so it is revealed by the same rule.
+ * Caret reveal: after every [execute] and [type] that changed the carets or the text, the state sets a [scrollRequest]
+ * for the primary caret (3-line margin; centred when the caret was off-screen); actions never scroll themselves. Find
+ * navigation (`FindModel.next`/`previous` and the selection of `setQuery`) selects matches through the editor's
+ * executor, so it is revealed by the same rule.
  *
- * Requests to the view are *state*, not events: a scroll or focus request stays pending until the view consumes it,
- * so requests made before `CodeEditor` is composed (e.g. `navigateTo` into a newly opened tab) are not lost.
+ * Requests to the view are *state*, not events: a scroll or focus request stays pending until the view consumes it, so
+ * requests made before `CodeEditor` is composed (e.g. `navigateTo` into a newly opened tab) are not lost.
  */
 public interface CodeEditorState : EditorViewModel, EditorPopupModel, EditorHandle {
 

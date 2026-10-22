@@ -9,9 +9,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 /**
- * Go to definition ([CodeEditorState.goToDefinition]): looks the target up with [definitionsAt] in [scope] and emits the
- * first location on [navigationRequests] (no replay: its owner collects it for the editor's whole life, so no lookup
- * is lost on a tab switch); no-op if there is none. A newer request cancels a running one.
+ * Go to definition ([CodeEditorState.goToDefinition]): looks the target up with [definitionsAt] in [scope] and emits
+ * the first location on [navigationRequests] (no replay: its owner collects it for the editor's whole life, so no
+ * lookup is lost on a tab switch); no-op if there is none. A newer request cancels a running one.
  */
 internal class DefinitionNavigator(
     private val scope: CoroutineScope,

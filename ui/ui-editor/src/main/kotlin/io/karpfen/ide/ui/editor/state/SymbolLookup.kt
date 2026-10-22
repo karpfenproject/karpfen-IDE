@@ -38,8 +38,8 @@ internal class SymbolLookup(
     }
 
     /**
-     * What the hover tooltip shows at [offset] of the current text: the diagnostics there if there are any
-     * (no parse wait needed), otherwise the language hover; null if there is neither.
+     * What the hover tooltip shows at [offset] of the current text: the diagnostics there if there are any (no parse
+     * wait needed), otherwise the language hover; null if there is neither.
      */
     suspend fun hoverAt(offset: Int): HoverContent? {
         val snapshot = session.text.snapshot.value

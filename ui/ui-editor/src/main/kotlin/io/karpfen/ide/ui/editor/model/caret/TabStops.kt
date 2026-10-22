@@ -7,11 +7,11 @@ public const val DEFAULT_TAB_WIDTH: Int = 4
  * Display columns with tab stops (a tab advances to the next multiple of [tabWidth]): the one conversion between a
  * column of a line (UTF-16 code units from the line start, as in `TextPosition`) and the column the user sees. The
  * caret model (preferred column for Up/Down), the editor view (rendering, hit-testing, caret x) and the status bar
- * ("Col y") all use it, so a remembered column means the same everywhere. It lives in the editor module because
- * display columns are a UI concern; the text model counts code units only.
+ * ("Col y") all use it, so a remembered column means the same everywhere. It lives in the editor module because display
+ * columns are a UI concern; the text model counts code units only.
  *
- * Every character but a tab advances one display column; a surrogate pair counts as one (it renders as one glyph);
- * a tab advances to the next multiple of [tabWidth].
+ * Every character but a tab advances one display column; a surrogate pair counts as one (it renders as one glyph); a
+ * tab advances to the next multiple of [tabWidth].
  */
 public data class TabStops(public val tabWidth: Int = DEFAULT_TAB_WIDTH) {
 

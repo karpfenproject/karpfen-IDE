@@ -1,9 +1,9 @@
 package io.karpfen.ide.ui.editor.view.input
 
 /**
- * The drag auto-scroll step (dragging a selection beyond the text area scrolls): per timer tick, the
- * distance by which the pointer is outside the area of [width] x [height] on each axis, at most [maxStep] pixels, with
- * the sign of the side it left on; (0, 0) while it is inside.
+ * The drag auto-scroll step (dragging a selection beyond the text area scrolls): per timer tick, the distance by which
+ * the pointer is outside the area of [width] x [height] on each axis, at most [maxStep] pixels, with the sign of the
+ * side it left on; (0, 0) while it is inside.
  */
 internal object AutoScroll {
 

@@ -9,9 +9,9 @@ import kotlin.math.roundToInt
 /**
  * Where the characters of one text snapshot are, in content coordinates (pixels, before scrolling): line `n` occupies
  * `n * lineHeight until (n + 1) * lineHeight`; the text of a line starts at [textLeft] and every display column is one
- * monospace cell of [charWidth] (tabs advance to the next stop of [tabStops], the one tab rule of the editor).
- * Caret x, hit-testing and decoration rectangles all come from here, so they agree with each other and with the drawn
- * text. Pure and immutable (no Compose), so it is unit-tested directly.
+ * monospace cell of [charWidth] (tabs advance to the next stop of [tabStops], the one tab rule of the editor). Caret x,
+ * hit-testing and decoration rectangles all come from here, so they agree with each other and with the drawn text. Pure
+ * and immutable (no Compose), so it is unit-tested directly.
  *
  * Characters wider than one cell (CJK, emoji) are drawn wider than their cell; positions after them on the same line
  * are then slightly off, the usual limitation of a cell-based editor.

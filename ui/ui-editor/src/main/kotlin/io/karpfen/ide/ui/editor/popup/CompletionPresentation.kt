@@ -10,8 +10,8 @@ import io.karpfen.ide.core.lang.HighlightStyle
 import io.karpfen.ide.ui.editor.model.completion.CompletionUiState
 
 /**
- * The kind badge of a completion row: a short [text], an accessible [description], and the highlight
- * [style] whose colour the badge takes from the editor theme, so a badge matches how such names look in the text.
+ * The kind badge of a completion row: a short [text], an accessible [description], and the highlight [style] whose
+ * colour the badge takes from the editor theme, so a badge matches how such names look in the text.
  */
 internal data class KindBadge(val text: String, val description: String, val style: HighlightStyle) {
 
@@ -56,8 +56,8 @@ internal object CompletionText {
 
 /**
  * Measures of the completion list in px (pure): rows of [rowHeight], monospace characters [charWidth] wide. The list
- * shows at most [CompletionUiState.MAX_VISIBLE_ROWS] rows (the model pages by as many) and is as wide as
- * its longest row (badge, label, detail), within [minWidth] and [maxWidth].
+ * shows at most [CompletionUiState.MAX_VISIBLE_ROWS] rows (the model pages by as many) and is as wide as its longest
+ * row (badge, label, detail), within [minWidth] and [maxWidth].
  */
 internal data class CompletionListMetrics(
     val rowHeight: Int,

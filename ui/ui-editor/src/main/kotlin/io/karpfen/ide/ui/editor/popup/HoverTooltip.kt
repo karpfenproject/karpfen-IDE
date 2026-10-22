@@ -30,10 +30,10 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
 import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
 
 /**
- * The hover tooltip below (or above) [anchor]: the diagnostics at the position with severity icons if there
- * are any, otherwise the language hover text in the editor's [textStyle]. Long content scrolls. A click on the tooltip
- * dismisses it ([onDismiss]); the pointer entering and leaving it is reported to [onPointerOver], so the editor state
- * keeps it while the pointer is on it and hides it when the pointer moves on or the user types.
+ * The hover tooltip below (or above) [anchor]: the diagnostics at the position with severity icons if there are any,
+ * otherwise the language hover text in the editor's [textStyle]. Long content scrolls. A click on the tooltip dismisses
+ * it ([onDismiss]); the pointer entering and leaving it is reported to [onPointerOver], so the editor state keeps it
+ * while the pointer is on it and hides it when the pointer moves on or the user types.
  */
 @Composable
 internal fun HoverTooltip(

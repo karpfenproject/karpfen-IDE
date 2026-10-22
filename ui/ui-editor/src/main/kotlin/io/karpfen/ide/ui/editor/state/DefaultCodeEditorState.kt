@@ -29,17 +29,17 @@ import kotlinx.coroutines.flow.asStateFlow
  * Default [CodeEditorState]. A coordinator only (no god class of more than about 300 lines): it creates the models
  * (`CaretModel` with the settings' tab width, `AutoClosedPairs`, `FindModel` with [backgroundDispatcher] and
  * `CompletionSessionModel`, both with [ActionRunner] as their executor) and delegates to internal collaborators, each
- * with one responsibility. The per-editor models are created here rather than injected: they are bound to this
- * editor's text, caret and executor, Compose-free and deterministic (time and threads come from the injected scope and
+ * with one responsibility. The per-editor models are created here rather than injected: they are bound to this editor's
+ * text, caret and executor, Compose-free and deterministic (time and threads come from the injected scope and
  * background dispatcher), so the editor's tests use the real ones and a models factory would only add a parameter
  * nobody fakes. The collaborators:
- * - [EditorActionContextAdapter] (the actions' `EditorActionContext`, tokens read lazily through
- *   `session.tokensFor`) with [EditorUiRequests] (its `EditorUiPort`: find bar seeding, find next/previous through the
- *   `FindModel`, go to line, completion, go to definition);
+ * - [EditorActionContextAdapter] (the actions' `EditorActionContext`, tokens read lazily through `session.tokensFor`)
+ *   with [EditorUiRequests] (its `EditorUiPort`: find bar seeding, find next/previous through the `FindModel`, go to
+ *   line, completion, go to definition);
  * - [ActionRunner] (the executor of every action, followed by the [CaretReveal] and the [ActionEnablement] refresh);
  * - [EditorCompletionSource] (the suspending completion source on [backgroundDispatcher]);
- * - [HighlightPipeline] (incl. the semantic carry-over documented on [EditorViewModel.highlights]) and
- *   [BracketTracker] on [backgroundDispatcher];
+ * - [HighlightPipeline] (incl. the semantic carry-over documented on [EditorViewModel.highlights]) and [BracketTracker]
+ *   on [backgroundDispatcher];
  * - [SymbolLookup] (bounded wait for a current parse, hover content, definitions) with [HoverController] (the
  *   [CodeEditorState.HOVER_DELAY] and the hide grace in the editor's scope) and [DefinitionNavigator]
  *   ([navigationRequests]);

@@ -25,13 +25,13 @@ public fun EditorActionRegistry(actions: Collection<EditorAction> = defaultEdito
     DefaultEditorActionRegistry(actions)
 
 /**
- * Maps key strokes to action ids for one platform. Includes at least: caret movement with and without
- * Shift, word movement (Alt on macOS, Ctrl elsewhere), smart Home/End, Page Up/Down, document start/end, Select All,
- * Enter, Backspace, Delete, delete word, delete line (primary+Backspace on macOS, Ctrl+Y elsewhere), duplicate
- * (primary+D), move line (Alt+Shift+Up/Down), Tab/Shift+Tab, toggle comment (primary+/), copy/cut/paste, undo
- * (primary+Z), redo (primary+Shift+Z), find (primary+F), replace (primary+R), find next / previous (Cmd+G /
- * Shift+Cmd+G on macOS, F3 / Shift+F3 elsewhere), go to line (Cmd+L on macOS, Ctrl+G elsewhere), completion
- * (Ctrl+Space), go to definition (primary+B).
+ * Maps key strokes to action ids for one platform. Includes at least: caret movement with and without Shift, word
+ * movement (Alt on macOS, Ctrl elsewhere), smart Home/End, Page Up/Down, document start/end, Select All, Enter,
+ * Backspace, Delete, delete word, delete line (primary+Backspace on macOS, Ctrl+Y elsewhere), duplicate (primary+D),
+ * move line (Alt+Shift+Up/Down), Tab/Shift+Tab, toggle comment (primary+/), copy/cut/paste, undo (primary+Z), redo
+ * (primary+Shift+Z), find (primary+F), replace (primary+R), find next / previous (Cmd+G / Shift+Cmd+G on macOS, F3 /
+ * Shift+F3 elsewhere), go to line (Cmd+L on macOS, Ctrl+G elsewhere), completion (Ctrl+Space), go to definition
+ * (primary+B).
  *
  * Bindings are key strokes (`KeyStroke` equality per platform). Punctuation bindings such as primary+/ work on every
  * keyboard layout because the key adapter reports punctuation by the character it produces (`KeyCode` documents the

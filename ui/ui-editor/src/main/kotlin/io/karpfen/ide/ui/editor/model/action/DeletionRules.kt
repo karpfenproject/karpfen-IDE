@@ -5,8 +5,8 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.caret.WordBoundaries
 
 /**
- * What a deletion key removes at a caret without selection, as a range of the current text, or null when
- * there is nothing to delete. Pure functions without state; [DeletionAction] applies the result.
+ * What a deletion key removes at a caret without selection, as a range of the current text, or null when there is
+ * nothing to delete. Pure functions without state; [DeletionAction] applies the result.
  */
 internal object DeletionRules {
 

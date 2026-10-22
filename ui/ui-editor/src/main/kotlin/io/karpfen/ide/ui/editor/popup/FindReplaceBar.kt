@@ -25,10 +25,10 @@ import io.karpfen.ide.ui.editor.state.FindBarMode
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The find/replace bar: query field with toggles Aa (case), W (whole word), .* (regex), an "n/m" counter,
- * an error hint for invalid regexes, Enter/Shift+Enter for next/previous, and in [FindBarMode.REPLACE] a replace
- * field with Replace / Replace All (Enter in it replaces the current match). Escape anywhere in the bar closes it
- * ([onClose]; the caller returns focus to the editor).
+ * The find/replace bar: query field with toggles Aa (case), W (whole word), .* (regex), an "n/m" counter, an error hint
+ * for invalid regexes, Enter/Shift+Enter for next/previous, and in [FindBarMode.REPLACE] a replace field with Replace /
+ * Replace All (Enter in it replaces the current match). Escape anywhere in the bar closes it ([onClose]; the caller
+ * returns focus to the editor).
  *
  * Renders [query] (the model's query: field text and toggles), [replacement] (the model's replacement), [state] (the
  * model's matches) and the hoisted [fields] (selection and composition of both fields); [queryFocus] is attached to the

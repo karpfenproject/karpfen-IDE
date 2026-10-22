@@ -13,11 +13,10 @@ import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
 
 /**
- * The system clipboard as a [ClipboardPort]: the AWT `Toolkit`
- * clipboard, resolved lazily on first use, so creating the port never touches the toolkit. When the JVM is headless
- * (tests, CI) — decided by [headless] at first use — it degrades to an [InMemoryClipboard] and never throws
- * `HeadlessException`. Failures of the platform clipboard (busy, no text flavor) are logged; a failed read is "no text",
- * a failed write is reported as `false`. Used from the UI thread.
+ * The system clipboard as a [ClipboardPort]: the AWT `Toolkit` clipboard, resolved lazily on first use, so creating the
+ * port never touches the toolkit. When the JVM is headless (tests, CI) — decided by [headless] at first use — it
+ * degrades to an [InMemoryClipboard] and never throws `HeadlessException`. Failures of the platform clipboard (busy, no
+ * text flavor) are logged; a failed read is "no text", a failed write is reported as `false`. Used from the UI thread.
  */
 internal class LazySystemClipboard(
     private val headless: () -> Boolean = GraphicsEnvironment::isHeadless,

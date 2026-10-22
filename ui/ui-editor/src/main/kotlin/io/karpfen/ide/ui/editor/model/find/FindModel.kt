@@ -55,21 +55,21 @@ public data class FindResult(
 }
 
 /**
- * Find and replace in one editor. Compose-free state holder used from the UI thread. [query] is the query
- * the model searches for, set synchronously by [setQuery]; the matches follow the text and the query: computed for every
- * new version and query on the factory's background dispatcher (latest wins, cancellable, with a time budget — a
- * regular expression that takes too long ends in an error state) and published as [state] in its scope. Invalid
- * regular expressions put the model into an error state; nothing throws.
+ * Find and replace in one editor. Compose-free state holder used from the UI thread. [query] is the query the model
+ * searches for, set synchronously by [setQuery]; the matches follow the text and the query: computed for every new
+ * version and query on the factory's background dispatcher (latest wins, cancellable, with a time budget — a regular
+ * expression that takes too long ends in an error state) and published as [state] in its scope. Invalid regular
+ * expressions put the model into an error state; nothing throws.
  *
- * Nothing matches on the UI thread: [next], [previous] and the replace functions act on the matches of the current
- * text and query. When the published matches lag behind (right after an edit or a new query), the operation waits and
- * runs, in call order, once they are published; a new query drops operations still waiting for the old one. Regex
+ * Nothing matches on the UI thread: [next], [previous] and the replace functions act on the matches of the current text
+ * and query. When the published matches lag behind (right after an edit or a new query), the operation waits and runs,
+ * in call order, once they are published; a new query drops operations still waiting for the old one. Regex
  * replacements are expanded on the background dispatcher, too.
  *
- * Every selection and edit goes through the factory's [EditorActionExecutor] (Command pattern): selecting a
- * match runs an internal select-match `EditorAction` (caret only, no undo step), replacing runs a replace action
- * (origin `Command`, caret mementos, one undo step). Because the editor state reveals the caret after every executed
- * action, a selected match is always scrolled into view, whoever asked for it (find bar, FIND_NEXT key, menu).
+ * Every selection and edit goes through the factory's [EditorActionExecutor] (Command pattern): selecting a match runs
+ * an internal select-match `EditorAction` (caret only, no undo step), replacing runs a replace action (origin
+ * `Command`, caret mementos, one undo step). Because the editor state reveals the caret after every executed action, a
+ * selected match is always scrolled into view, whoever asked for it (find bar, FIND_NEXT key, menu).
  */
 public interface FindModel {
 

@@ -4,9 +4,9 @@ import io.karpfen.ide.core.text.CaretMemento
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A caret with its selection: [position] is where the caret blinks, [anchor] the fixed end of the
- * selection (`anchor == position`: no selection). [preferredColumn] is the column vertical movement tries to keep
- * (display column, tabs expanded), or null when the next vertical move should take it from [position].
+ * A caret with its selection: [position] is where the caret blinks, [anchor] the fixed end of the selection (`anchor ==
+ * position`: no selection). [preferredColumn] is the column vertical movement tries to keep (display column, tabs
+ * expanded), or null when the next vertical move should take it from [position].
  */
 public data class Caret(public val anchor: Int, public val position: Int, public val preferredColumn: Int? = null) {
     init {
@@ -33,8 +33,8 @@ public data class Caret(public val anchor: Int, public val position: Int, public
 }
 
 /**
- * The carets of an editor at one text [version] (one caret for now; the list is ready for multiple carets).
- * [carets] is non-empty; the first caret is the primary one.
+ * The carets of an editor at one text [version] (one caret for now; the list is ready for multiple carets). [carets] is
+ * non-empty; the first caret is the primary one.
  */
 public data class CaretSnapshot(public val version: Long, public val carets: List<Caret>) {
     init {

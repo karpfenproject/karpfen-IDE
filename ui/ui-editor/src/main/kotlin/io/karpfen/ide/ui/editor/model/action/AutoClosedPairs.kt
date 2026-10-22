@@ -6,14 +6,14 @@ import io.karpfen.ide.core.text.TextSnapshot
 
 /**
  * The closers an editor inserted automatically (typing a closer directly before an *auto-inserted* closer moves over
- * it; Backspace between an *auto-inserted* pair deletes both). Per-editor state, Compose-free, used from the
- * UI thread; the editor state creates one per editor and hands it to the actions through
- * [EditorActionContext.autoPairs]. Closers the user typed are never tracked, so they are never over-typed.
+ * it; Backspace between an *auto-inserted* pair deletes both). Per-editor state, Compose-free, used from the UI thread;
+ * the editor state creates one per editor and hands it to the actions through [EditorActionContext.autoPairs]. Closers
+ * the user typed are never tracked, so they are never over-typed.
  *
  * Offsets refer to the current text version. A pair is stamped with the version it was recorded in and mapped to the
- * current version (`EditableText.mapOffset`) when queried, so the tracker needs no subscription; a pair is dropped
- * when the mapping fails or the characters at the mapped offsets are no longer the recorded opener and closer (an
- * edit touched them, an undo removed them, a reload replaced them).
+ * current version (`EditableText.mapOffset`) when queried, so the tracker needs no subscription; a pair is dropped when
+ * the mapping fails or the characters at the mapped offsets are no longer the recorded opener and closer (an edit
+ * touched them, an undo removed them, a reload replaced them).
  */
 public interface AutoClosedPairs {
 

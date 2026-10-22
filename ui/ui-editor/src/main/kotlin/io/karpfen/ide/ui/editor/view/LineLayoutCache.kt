@@ -3,9 +3,9 @@ package io.karpfen.ide.ui.editor.view
 import androidx.compose.ui.text.TextLayoutResult
 
 /**
- * LRU cache of per-line `TextLayoutResult`s keyed by line text + highlight spans + font settings, so
- * scrolling and caret blinking do not re-measure unchanged lines. Holds at most [capacity] layouts; a lookup marks the
- * entry as most recently used. Used from the UI thread (composition and drawing).
+ * LRU cache of per-line `TextLayoutResult`s keyed by line text + highlight spans + font settings, so scrolling and
+ * caret blinking do not re-measure unchanged lines. Holds at most [capacity] layouts; a lookup marks the entry as most
+ * recently used. Used from the UI thread (composition and drawing).
  */
 internal class LineLayoutCache(private val capacity: Int) {
 

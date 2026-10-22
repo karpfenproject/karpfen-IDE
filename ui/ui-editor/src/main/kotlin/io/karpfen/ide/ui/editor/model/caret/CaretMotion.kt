@@ -3,8 +3,8 @@ package io.karpfen.ide.ui.editor.model.caret
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Where a [Caret] goes for a [CaretMovement]: pure geometry over one [TextSnapshot], without state. The
- * [CaretModel] applies the result.
+ * Where a [Caret] goes for a [CaretMovement]: pure geometry over one [TextSnapshot], without state. The [CaretModel]
+ * applies the result.
  *
  * - LEFT/RIGHT step one character (a surrogate pair is one character); without Shift a selection collapses to its
  *   start/end instead.

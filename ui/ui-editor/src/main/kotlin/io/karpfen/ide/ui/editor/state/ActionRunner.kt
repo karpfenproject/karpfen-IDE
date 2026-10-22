@@ -7,10 +7,10 @@ import io.karpfen.ide.ui.editor.model.action.EditorActionExecutor
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 
 /**
- * The editor's [EditorActionExecutor] (Command pattern): runs an action in the editor's context if it is
- * enabled, then calls [onCaretsOrTextChanged] when the action changed the text or the carets (the caret reveal: actions
- * never scroll themselves) and [afterRun] after every run (enablement refresh). Every edit of the editor — key-bound
- * actions, typing, completion accept, find selections and replacements — passes here. Used from the UI thread.
+ * The editor's [EditorActionExecutor] (Command pattern): runs an action in the editor's context if it is enabled, then
+ * calls [onCaretsOrTextChanged] when the action changed the text or the carets (the caret reveal: actions never scroll
+ * themselves) and [afterRun] after every run (enablement refresh). Every edit of the editor — key-bound actions,
+ * typing, completion accept, find selections and replacements — passes here. Used from the UI thread.
  *
  * @param context the action context; read on every run (the context is created after the models that need this
  *   executor, so it is provided lazily).

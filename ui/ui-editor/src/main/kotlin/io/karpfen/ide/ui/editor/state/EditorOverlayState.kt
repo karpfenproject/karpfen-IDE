@@ -17,8 +17,8 @@ public enum class FindBarMode {
 }
 
 /**
- * What the hover tooltip shows for [range]: the [diagnostics] at the position if there are any, otherwise
- * the language [hover]. At least one of them is present.
+ * What the hover tooltip shows for [range]: the [diagnostics] at the position if there are any, otherwise the language
+ * [hover]. At least one of them is present.
  */
 public data class HoverContent(public val range: TextRange, public val diagnostics: List<Diagnostic>, public val hover: Hover?) {
     init {

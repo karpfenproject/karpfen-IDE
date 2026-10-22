@@ -10,9 +10,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
 
 /**
- * Find on a large document stays interactive: matching and expanding replacements over a 5,000-line KStates text.
- * These are the model's own targets (incremental search recomputes on every keystroke in the find field), asserted
- * with 5x slack and reported through [TestReporter].
+ * Find on a large document stays interactive: matching and expanding replacements over a 5,000-line KStates text. These
+ * are the model's own targets (incremental search recomputes on every keystroke in the find field), asserted with 5x
+ * slack and reported through [TestReporter].
  *
  * Tagged `budget`: excluded from every test run, because machine load and sleep cycles make wall-clock limits
  * unreliable; kept for later performance work.

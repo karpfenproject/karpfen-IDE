@@ -19,14 +19,14 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
 import kotlin.math.roundToInt
 
 /**
- * The editor context menu at the request position; each entry runs its editor action by id ([onAction])
- * and is disabled — greyed out — when the action is disabled ([isEnabled]).
+ * The editor context menu at the request position; each entry runs its editor action by id ([onAction]) and is disabled
+ * — greyed out — when the action is disabled ([isEnabled]).
  *
  * The menu is a focusable desktop popup anchored at a zero-size point at ([ContextMenuRequest.x],
  * [ContextMenuRequest.y]) of the overlay area (the `EditorOverlayHost` space), so it opens there and, like every menu,
  * flips or shifts when the window has no room; Escape and clicks outside report [onDismiss], arrow keys move between
- * the entries. Escape is handled by the menu itself while one of its entries has focus (keyboard navigation) and by
- * the platform popup otherwise; either way [onDismiss] is reported once.
+ * the entries. Escape is handled by the menu itself while one of its entries has focus (keyboard navigation) and by the
+ * platform popup otherwise; either way [onDismiss] is reported once.
  */
 @Composable
 internal fun EditorContextMenu(

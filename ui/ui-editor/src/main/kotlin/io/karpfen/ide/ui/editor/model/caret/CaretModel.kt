@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 /**
  * The carets of one editor over an [EditableText]. Compose-free state holder, used from the UI thread.
  *
- * Mapping through changes: carets are stamped with the text version they refer to ([CaretSnapshot.version]).
- * Every member first catches up synchronously when the carets are older than the text (lazy mapping with
+ * Mapping through changes: carets are stamped with the text version they refer to ([CaretSnapshot.version]). Every
+ * member first catches up synchronously when the carets are older than the text (lazy mapping with
  * `EditableText.mapOffset`, like `AutoClosedPairs`), so [current], [primary], [mementos] and every movement always act
  * on the current text, also when a change (a reload, an edit by another component) arrived and the collector in the
  * model's scope has not run yet — the scope's dispatcher does not matter. [state] follows the changes for observers
@@ -25,8 +25,8 @@ import kotlinx.coroutines.launch
  * calls `text.undo.breakCoalescing()`, so typing at another place starts a new undo step; [restore] and the mapping
  * through changes do not.
  *
- * Preferred column: [Caret.preferredColumn] is a display column computed with [TabStops] of the factory's
- * `tabWidth()` (the editor passes `EditorSettings.tabDisplayWidth`), the conversion the view and the status bar use too.
+ * Preferred column: [Caret.preferredColumn] is a display column computed with [TabStops] of the factory's `tabWidth()`
+ * (the editor passes `EditorSettings.tabDisplayWidth`), the conversion the view and the status bar use too.
  */
 public interface CaretModel {
 
