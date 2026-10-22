@@ -42,7 +42,7 @@ contract is [docs/p1-text-editing-spec.md](docs/p1-text-editing-spec.md) (work p
 | `ui/ui-workbench` | Project tree, editor tabs, problems, outline, status bar, settings, runtime/bridge tool windows, log console | P1 (no runtime/bridge windows yet) |
 | `app/ide` | Desktop application entry point, wiring, menus, crash handling, logging, packaging | P1 |
 | `tools/cli` | `validate` / `format` / `deploy` / `export-layout` for CI | P1 (`validate`) |
-| `architecture-tests` | Konsist rules enforcing the module boundaries | active |
+| `architecture-tests` | Konsist rules enforcing the module boundaries, and the documentation style rules | active |
 
 `build-logic/` holds the convention plugins (`karpfen.kotlin-jvm`, `karpfen.kotlin-serialization`,
 `karpfen.compose`, `karpfen.application`); all versions live in `gradle/libs.versions.toml`.
@@ -55,6 +55,10 @@ Module boundaries are enforced twice during `./gradlew build`:
 - `architecture-tests` (Konsist) rejects forbidden imports and fully qualified references, e.g. Compose, Ktor or
   Docker in `core/*`, or AWT/Swing outside `ui/*` and `app/`. All modules are Kotlin-only: Konsist reads Kotlin
   files, so Java sources under `src/` are rejected as well.
+
+The same build enforces the documentation style: `DocumentationStyleTest` in `architecture-tests` rejects line
+comments, block comments other than KDoc, and reference ids to other documents in every Kotlin source file and Gradle
+script. The KDoc of `DocumentationStyleTest`, `KotlinComments` and `ReferenceIds` explains the rules.
 
 ## karpfen-dsl-tools resolution
 
