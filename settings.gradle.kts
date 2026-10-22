@@ -39,11 +39,11 @@ rootProject.name = "karpfen-ide"
  *
  * - Composite build: if `dslToolsPath` names a directory that holds a Gradle build (`settings.gradle` or
  *   `settings.gradle.kts`), that build is included and substitutes the module `io.karpfen:karpfen-dsl-tools`, so a
- *   change that spans both repositories is a single local iteration. The checkout may also be the initialized
- *   submodule of the runtime repository (`../karpfen-runtime/karpfen-dsl-tools`); the dsl-tools build regenerates its
- *   ANTLR sources into its own `src/main/java`. The included build is always named
- *   `karpfen-dsl-tools`, whatever its checkout directory is called, because the build script of core-document looks it
- *   up by that name.
+ *   change that spans both repositories is a single local iteration. The checkout must be dsl-tools 2.0 or newer, whose
+ *   packages lie below `io.karpfen.dsl` and whose build generates its ANTLR parsers into its own build directory; the
+ *   initialized submodule of the runtime repository (`../karpfen-runtime/karpfen-dsl-tools`) qualifies once the
+ *   runtime has moved to that version. The included build is always named `karpfen-dsl-tools`, whatever its checkout
+ *   directory is called, so its tasks keep one path, such as `:karpfen-dsl-tools:test`.
  * - Artifact: otherwise the version declared in the version catalog is resolved from the repositories above, the local
  *   Maven repository for now and a published repository later. An explicitly configured path that holds no Gradle
  *   build falls back to the artifact with a warning.
