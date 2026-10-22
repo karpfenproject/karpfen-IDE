@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Logging of the karpfen IDE (spec §9, work-package plan §2 rule 10): WARN and above on the console, INFO and above in
+  Logging of the karpfen IDE, its only logging configuration: WARN and above on the console, INFO and above in
   the rolling file <IDE home>/logs/ide.log. The IDE home is the system property karpfen.ide.home, which the app's main
   sets from KARPFEN_IDE_HOME before the first logger exists, else ~/.karpfen-ide; SettingsLocations reads the same
   property, so settings and log always move together (launch smoke tests use a temporary home).

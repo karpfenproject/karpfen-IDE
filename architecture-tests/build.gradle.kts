@@ -8,16 +8,22 @@ dependencies {
 
 /**
  * The architecture tests read files of the whole repository from disk: Konsist reads the Kotlin sources of all
- * modules, `DocumentationStyleTest` every Kotlin source file and Gradle script, build-logic's included, and
- * `PackageLayoutTest` looks for Java sources. All of these files are declared as inputs, so the architecture tests
- * rerun, and are never served stale from the build cache, when any of them changes. Build output and hidden
- * directories are left out, as the tests skip them.
+ * modules, `DocumentationStyleTest` every Kotlin source file and Gradle script, build-logic's included, and the
+ * markdown documents, CI workflows, XML resources and version catalog, and `PackageLayoutTest` looks for Java sources.
+ * All of these files are declared as inputs, so the architecture tests rerun, and are never served stale from the
+ * build cache, when any of them changes. Build output, the `build` directories of the root, of build-logic and of the
+ * modules, and hidden directories other than `.github` are left out, as the tests skip them; a source package named
+ * `build` is an input like any other.
  */
 tasks.test {
     inputs.files(
         fileTree(layout.settingsDirectory) {
-            include("**/src/**/*.kt", "**/src/**/*.kts", "**/src/**/*.java", "**/*.gradle.kts")
-            exclude("**/build/**", "**/.*/**")
+            include(
+                "**/src/**/*.kt", "**/src/**/*.kts", "**/src/**/*.java", "**/*.gradle.kts", "**/*.md",
+                "**/src/**/resources/**/*.xml", "gradle/*.toml",
+            )
+            exclude("build/**", "*/build/**", "*/*/build/**", "**/.*/**")
         },
+        fileTree(layout.settingsDirectory.dir(".github")),
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("moduleSources")
 }

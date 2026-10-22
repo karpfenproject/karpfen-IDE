@@ -2,25 +2,32 @@ package io.karpfen.ide.architecture
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Guards the documentation style of the project in every Kotlin source file and Gradle script ([DocumentedFiles]).
+ * Guards the documentation style of the project in every Kotlin source file and Gradle script ([DocumentedFiles.all])
+ * and, for reference ids, in the other text documents ([DocumentedFiles.documents]).
  *
  * Documentation lives in KDoc on declarations. A line comment or a plain block comment is not allowed anywhere, not
  * even as a trailing comment or a commented-out statement: code that needs an explanation gets a well-named function
  * or value with KDoc, or the explanation goes into the KDoc of the enclosing declaration. [KotlinComments] finds the
  * comments, so a URL or a comment delimiter inside a string, a character literal, a backtick name or KDoc is no
- * violation.
+ * violation. KDoc itself must stand where it documents a declaration ([KDocPlacement]), so it cannot stand in for a
+ * trailing comment or a comment between statements.
  *
  * Documentation is written for a human reader and names what it refers to in words instead of by an id that has to be
  * looked up in another document. [ReferenceIds] lists the ids that are rejected; they are searched in the text of every
- * comment.
+ * comment and in the whole text of the markdown documents, the CI workflows, the XML resources and the version
+ * catalog.
  */
 class DocumentationStyleTest {
 
-    /** The files under guard, read once for all tests of this class. */
+    /** The Kotlin sources and Gradle scripts under guard, read once for all tests of this class. */
     private val files: List<RepositoryFile> by lazy { DocumentedFiles.all }
+
+    /** The other text documents under guard, read once for all tests of this class. */
+    private val documents: List<RepositoryFile> by lazy { DocumentedFiles.documents }
 
     @Test
     fun `the guarded files are the Kotlin sources and Gradle scripts of every module and of build-logic`() {
@@ -41,11 +48,28 @@ class DocumentationStyleTest {
         )
         assertTrue(paths.any { it.startsWith("build-logic/src/test/") }, "the tests of build-logic are missing from the guarded files")
         assertTrue(paths.any { "/src/testFixtures/" in it }, "the test fixtures are missing from the guarded files")
-        assertEquals(
-            emptyList(),
-            paths.filter { path -> path.split('/').any { it == "build" || it.startsWith(".") } },
-            "build output or hidden files are guarded",
-        )
+        val outsideSources = paths.filter { path -> path.split('/').takeWhile { it != "src" }.any { it == "build" || it.startsWith(".") } }
+        assertEquals(emptyList(), outsideSources, "build output or hidden files are guarded")
+    }
+
+    @Test
+    fun `build output is skipped, a source package named build is not`() {
+        assertTrue(DocumentedFiles.isBuildOutput("core/core-text/build"))
+        assertTrue(DocumentedFiles.isBuildOutput("build-logic/build"))
+        assertTrue(DocumentedFiles.isBuildOutput("build"))
+        assertFalse(DocumentedFiles.isBuildOutput("x/src/main/kotlin/a/build"))
+        assertFalse(DocumentedFiles.isBuildOutput("core/core-text/builds"))
+    }
+
+    @Test
+    fun `the guarded documents are the maps, workflows, resources and catalog, not the archived records`() {
+        val paths = documents.map { it.relativePath }.toSet()
+
+        listOf(
+            "README.md", "docs/codebase-guide.md", "docs/adr/README.md", "docs/plans/increments-after-phase-1.md",
+            ".github/workflows/build.yml", "app/ide/src/main/resources/logback.xml", "gradle/libs.versions.toml",
+        ).forEach { assertTrue(it in paths, "$it is missing from the guarded documents") }
+        assertEquals(emptyList(), paths.filter { it.startsWith("docs/history/") }, "the archived records keep their ids")
     }
 
     @Test
@@ -63,16 +87,38 @@ class DocumentationStyleTest {
     }
 
     @Test
-    fun `documentation names what it refers to instead of using reference ids`() {
+    fun `KDoc stands on its own line before the declaration it documents`() {
         val violations = files.flatMap { file ->
+            KDocPlacement.check(file.text, isScript = file.relativePath.endsWith(".kts")).map { misplaced ->
+                "${file.relativePath}:${misplaced.comment.line}  ${misplaced.reason}: ${misplaced.comment.excerpt()}"
+            }
+        }
+        assertTrue(
+            violations.isEmpty(),
+            "KDoc documents a declaration (or, in a script, a top-level statement). Move the explanation into the KDoc " +
+                "of the enclosing declaration, or extract a well-named function or value and document that:\n" +
+                violations.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `documentation names what it refers to instead of using reference ids`() {
+        val inComments = files.flatMap { file ->
             KotlinComments.scan(file.text).flatMap { comment ->
                 ReferenceIds.findIn(comment.text).map { id -> "${file.relativePath}:${comment.lineAt(id.offset)}  ${id.text}" }
             }
         }
+        val inDocuments = documents.flatMap { file ->
+            ReferenceIds.findIn(file.text).map { id -> "${file.relativePath}:${lineOf(file.text, id.offset)}  ${id.text}" }
+        }
+        val violations = inComments + inDocuments
         assertTrue(
             violations.isEmpty(),
             "Documentation must not refer to documents, sections or decisions by id. Name the thing in words, for " +
                 "example \"the parse budget of the phase-1 specification\":\n" + violations.joinToString("\n"),
         )
     }
+
+    /** The 1-based line of the character at [offset] of [text]. */
+    private fun lineOf(text: String, offset: Int): Int = text.substring(0, offset).count { it == '\n' } + 1
 }

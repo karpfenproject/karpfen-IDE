@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Logging of the karpfen command-line tool (spec §9, work-package plan §2 rule 10): console only, WARN and above, on
+  Logging of the karpfen command-line tool, its only logging configuration: console only, WARN and above, on
   standard error. Standard output carries nothing but the report, so it stays machine-readable (JSON format).
   While a workspace is validated, both process streams are silenced by StandardOutputGuard, so log lines of that phase
   are dropped like dsl-tools' console output; the tool's own failures are logged afterwards.

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Test logging of app/ide (CONTRACT, work-package plan §2 rule 10): console only, so no test ever writes into a real
+  Test logging of app/ide: console only, so no test ever writes into a real
   log directory. Takes precedence over src/main/resources/logback.xml on the test classpath.
 -->
 <configuration>

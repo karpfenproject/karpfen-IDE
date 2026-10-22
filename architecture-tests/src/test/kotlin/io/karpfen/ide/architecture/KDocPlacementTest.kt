@@ -1,0 +1,138 @@
+package io.karpfen.ide.architecture
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+/**
+ * Covers [KDocPlacement] and the block tracking of [CodeBlocks] behind it: KDoc on every kind of declaration passes,
+ * KDoc in the place of a trailing comment or a comment between statements does not, in Kotlin files and scripts.
+ */
+class KDocPlacementTest {
+
+    /** The lines and reasons of the misplaced KDoc in [source]. */
+    private fun misplaced(source: String, isScript: Boolean = false): List<Pair<Int, String>> =
+        KDocPlacement.check(source, isScript).map { it.comment.line to it.reason }
+
+    @Test
+    fun `KDoc on top-level declarations, members, enum entries and constructor properties is in place`() {
+        val source = """
+            /** A class. */
+            @Suppress("x (y)")
+            public data class A(
+                /** A property. */
+                private val a: Int,
+            ) {
+                /** A member. */
+                override fun toString(): String = "a"
+
+                /** An object. */
+                companion object {
+                    /** A constant. */
+                    const val B = 1
+                }
+            }
+
+            /** An enum. */
+            enum class E(val label: String) {
+                /** An entry. */
+                FIRST("1"),
+
+                /** Another. */
+                @Deprecated("no")
+                SECOND("2"),
+                ;
+
+                /** A member after the entries. */
+                val upper: String get() = label.uppercase()
+            }
+
+            /** A class with a private constructor. */
+            internal class C private constructor(val c: Int) {
+                /** A secondary constructor. */
+                constructor() : this(0)
+
+                /** A member of an anonymous object. */
+                val listener = object : Runnable {
+                    /** Runs. */
+                    override fun run() = Unit
+                }
+            }
+
+            /** A function. */
+            fun f(x: KClass<*> = String::class) = listOf(1).map { it }
+
+            /** An alias. */
+            typealias T = Int
+        """.trimIndent()
+
+        assertEquals(emptyList(), misplaced(source))
+    }
+
+    @Test
+    fun `KDoc after code on the same line is a trailing comment`() {
+        assertEquals(listOf(1 to "follows code on its line"), misplaced("val a = 1 /** note */\nval b = 2"))
+    }
+
+    @Test
+    fun `KDoc between statements or on a local declaration stands inside a function body`() {
+        val source = """
+            fun f() {
+                val a = 1
+                /** Between statements. */
+                println(a)
+                listOf(a).forEach {
+                    /** A local function in a lambda. */
+                    fun g() = it
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(3 to "stands inside a function body or lambda", 6 to "stands inside a function body or lambda"),
+            misplaced(source),
+        )
+    }
+
+    @Test
+    fun `KDoc that documents nothing is misplaced`() {
+        assertEquals(
+            listOf(1 to "documents nothing: another comment or the end follows", 4 to "documents nothing: another comment or the end follows"),
+            misplaced("/** One. */\n/** Two. */\nval a = 1\n/** Last. */"),
+        )
+        assertEquals(listOf(1 to "is not followed by a declaration"), misplaced("/** A package. */\npackage a.b\n"))
+    }
+
+    @Test
+    fun `in a script KDoc documents top-level statements and blocks, but not the statements inside them`() {
+        val script = """
+            /** The plugins. */
+            plugins {
+                id("a")
+            }
+
+            /** The dependencies. */
+            dependencies {
+                api(project(":a"))
+                /** Between two dependencies. */
+                api(project(":b")) {
+                    /** Inside a lambda. */
+                    exclude(group = "x")
+                }
+            }
+        """.trimIndent()
+
+        assertEquals(
+            listOf(9 to "stands inside a function body or lambda", 11 to "stands inside a function body or lambda"),
+            misplaced(script, isScript = true),
+        )
+    }
+
+    @Test
+    fun `blocks are told apart by the keyword before their brace`() {
+        val blocks = KotlinComments.scanPlaced(
+            "class A(val f: () -> Unit = { /**/ }) { /**/ init { /**/ } }\nenum class E { /**/ }\nval x = run { /**/ }",
+        ).map { it.block }
+
+        assertEquals(listOf(BlockKind.CODE, BlockKind.DECLARATIONS, BlockKind.CODE, BlockKind.ENUM_BODY, BlockKind.CODE), blocks)
+    }
+}

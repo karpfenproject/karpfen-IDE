@@ -22,17 +22,6 @@ internal data class KeyBinding(val shortcut: KeyShortcut, val actionId: String)
 internal fun defaultKeyBindings(platform: HostPlatform): List<KeyBinding> = buildList {
     val mac = platform == HostPlatform.MAC_OS
     val windows = platform == HostPlatform.WINDOWS
-
-    fun bind(actionId: String, key: KeyCode, primary: Boolean = false, shift: Boolean = false, alt: Boolean = false, ctrl: Boolean = false) {
-        add(KeyBinding(KeyShortcut(key, primary = primary, shift = shift, alt = alt, ctrl = ctrl), actionId))
-    }
-
-    /** A movement and its selecting variant (the same keys with Shift). */
-    fun movement(moveId: String, selectId: String, key: KeyCode, primary: Boolean = false, alt: Boolean = false) {
-        bind(moveId, key, primary = primary, alt = alt)
-        bind(selectId, key, primary = primary, alt = alt, shift = true)
-    }
-
     movement(EditorActionIds.CARET_LEFT, EditorActionIds.SELECT_LEFT, KeyCode.LEFT)
     movement(EditorActionIds.CARET_RIGHT, EditorActionIds.SELECT_RIGHT, KeyCode.RIGHT)
     movement(EditorActionIds.CARET_UP, EditorActionIds.SELECT_UP, KeyCode.UP)
@@ -89,4 +78,28 @@ internal fun defaultKeyBindings(platform: HostPlatform): List<KeyBinding> = buil
     bind(EditorActionIds.COMPLETION, KeyCode.M, ctrl = true)
     if (windows) bind(EditorActionIds.COMPLETION, KeyCode.SPACE, ctrl = true)
     bind(EditorActionIds.GO_TO_DEFINITION, KeyCode.B, primary = true)
+}
+
+/** Adds the binding of [key] with the given modifiers to the editor action [actionId]. */
+private fun MutableList<KeyBinding>.bind(
+    actionId: String,
+    key: KeyCode,
+    primary: Boolean = false,
+    shift: Boolean = false,
+    alt: Boolean = false,
+    ctrl: Boolean = false,
+) {
+    add(KeyBinding(KeyShortcut(key, primary = primary, shift = shift, alt = alt, ctrl = ctrl), actionId))
+}
+
+/** Adds the movement [moveId] on [key] and its selecting variant [selectId], which uses the same keys with Shift. */
+private fun MutableList<KeyBinding>.movement(
+    moveId: String,
+    selectId: String,
+    key: KeyCode,
+    primary: Boolean = false,
+    alt: Boolean = false,
+) {
+    bind(moveId, key, primary = primary, alt = alt)
+    bind(selectId, key, primary = primary, alt = alt, shift = true)
 }

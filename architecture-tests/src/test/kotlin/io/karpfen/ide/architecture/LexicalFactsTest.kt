@@ -8,13 +8,15 @@ import kotlin.test.assertEquals
  * editor must agree on are declared only in core-document's `KarpfenSyntax`, the member keywords only in core-lang's
  * `MemberKind` (declared in `TypeCatalog`). `KarpfenSyntax` holds the identifier characters, the primitive types, the
  * KStates operations with the subsets that take a relation or no value, the block keywords that open action and
- * structural blocks, and the model-path syntax (the separator and the blanks a path may hold). A second declaration
- * could drift unnoticed, for example the completion's replace range against the editor's word rule, or a path the
- * walker names differently than the resolver reads it.
+ * structural blocks, the model-path syntax (the separator and the blanks a path may hold), and the line comment markers
+ * of the modeling languages and of the Python in EVAL bodies. A second declaration could drift unnoticed, for example
+ * the completion's replace range against the editor's word rule, or a path the walker names differently than the
+ * resolver reads it.
  *
  * Each fact is recognized by the shape of its declarations in production code. Some facts have several shapes: the
  * KStates operations count as a set or written out as completion snippets (`"SET(\"…`); the block keywords count
- * quoted or as lexer tokens; the model-path separator counts as a constant or as a character-by-character scan.
+ * quoted or as lexer tokens; the model-path separator counts as a constant or as a character-by-character scan; a
+ * comment marker counts as its string literal.
  */
 class LexicalFactsTest {
 
@@ -45,6 +47,8 @@ class LexicalFactsTest {
             "KStates structure blocks" to Fact(Regex("""(KstatesLexer\.|")STATEMACHINE"?,\s*(KstatesLexer\.|")STATES\b""")),
             "model-path separator" to Fact(Regex("""SEPARATOR\w*(: String)? = "->"|'-'[^\n]{0,40}'>'""")),
             "model-path blanks" to Fact(Regex("""(fun \w*[Bb]lank\w*\(\w+: Char\)|filterNot \{)[^\n]*== ' ' \|\| \w+ == '\\t'""")),
+            "karpfen line comment" to Fact(Regex(""""//"""")),
+            "Python line comment" to Fact(Regex(""""#"""")),
             "member keywords" to Fact(Regex("""PROPERTY\("prop"\)|(\bPROP|"prop") to MemberKind\."""), home = "TypeCatalog"),
         )
     }

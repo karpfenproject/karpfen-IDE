@@ -39,8 +39,10 @@ jobs:
 
       # karpfen-dsl-tools is not published to a Maven repository yet. Cloning it next to this checkout
       # makes settings.gradle.kts include it as a composite build (default dslToolsPath ../karpfen-dsl-tools).
-      # This is a temporary deviation from D2/§5.1 ("CI uses published artifacts"), see ADR 0010. The clone is
-      # pinned (proposal §8) so that an upstream push cannot break this build; bump the ref deliberately.
+      # This is a temporary deviation from the language core decision, which has CI use published artifacts;
+      # the decision record on the dsl-tools resolution modes explains it. The clone is pinned, as the risks of
+      # the architecture proposal advise, so that an upstream push cannot break this build; bump the ref
+      # deliberately.
       - name: Check out karpfen-dsl-tools (composite build)
         env:
           DSL_TOOLS_REF: 859a95da0541e6c403994d22d38f8c8510720324
