@@ -12,11 +12,11 @@ import java.io.IOException
 import java.nio.file.Path
 
 /**
- * Renaming a file or a directory from the project tree (spec §8, decision 42 of the work-package plan): asks for the
- * name, runs the unsaved-changes dialog over the affected open documents (the file, or every open document below the
- * directory; Cancel aborts), closes them, renames on [ioDispatcher], refreshes the workspace and reopens each document
- * under its new path in its former tab position, keeping the active tab active. When the rename fails, an error dialog
- * says why and the documents are reopened under their old paths. The opened folder itself is not renamed here.
+ * Renaming a file or a directory from the project tree: asks for the name, runs the unsaved-changes dialog over the
+ * affected open documents (the file, or every open document below the directory; Cancel aborts), closes them, renames
+ * on [ioDispatcher], refreshes the workspace and reopens each document under its new path in its former tab position,
+ * keeping the active tab active. When the rename fails, an error dialog says why and the documents are reopened under
+ * their old paths. The opened folder itself is not renamed here.
  */
 internal class RenameFlow(
     private val holder: WorkspaceHolder,
@@ -29,8 +29,9 @@ internal class RenameFlow(
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 
+    /** Renames [path] as described on the class; nothing happens for the opened folder itself. */
     suspend fun rename(path: Path) {
-        val workspace = holder.workspace.value?.takeIf { it.root != path } ?: return // the open folder itself stays
+        val workspace = holder.workspace.value?.takeIf { it.root != path } ?: return
         val answer = dialogs.ask(DialogRequest.Rename(path))
         val newName = (answer as? DialogResponse.Text)?.value?.trim()?.takeIf { it.isNotEmpty() } ?: return
         if (newName == path.fileName?.toString()) return

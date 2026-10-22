@@ -48,6 +48,7 @@ class RecordingFileOperations internal constructor(
     platform: DesktopActions,
 ) : ProjectFileOperations {
 
+    /** Recording operations with the given platform support and no platform actions at all. */
     constructor(
         supportsTrash: Boolean = false,
         supportsRevealInFileManager: Boolean = true,
@@ -57,11 +58,19 @@ class RecordingFileOperations internal constructor(
     /** Recording operations whose opening externally goes through the production adapter on [platform]. */
     internal constructor(platform: DesktopActions) : this(false, true, true, platform)
 
+    /** The paths revealed in the file manager, in call order. */
     val revealed: MutableList<Path> = CopyOnWriteArrayList()
+
+    /** The paths opened in the default application, in call order. */
     val openedExternally: MutableList<Path> = CopyOnWriteArrayList()
+
+    /** The paths deleted while the trash is supported, in call order. */
     val trashed: MutableList<Path> = CopyOnWriteArrayList()
+
+    /** Thrown by the next create, rename or delete, then cleared. */
     var failNext: IOException? = null
 
+    /** The production adapter that creates and renames on the file system. */
     private val fileSystem: ProjectFileOperations = DesktopProjectFileOperations(platform)
 
     override fun createFile(directory: Path, fileName: String, content: String): Path {
@@ -90,6 +99,7 @@ class RecordingFileOperations internal constructor(
         fileSystem.openExternally(path)
     }
 
+    /** Throws and clears [failNext] if it is set. */
     private fun failIfAsked() {
         failNext?.let {
             failNext = null
@@ -115,6 +125,7 @@ class RecordingFileOperations internal constructor(
  * when set, is thrown by every call instead (e.g. a `SecurityException`). Nothing is opened.
  */
 internal class JdkLikeDesktopActions(var failure: RuntimeException? = null) : DesktopActions {
+    /** The paths opened, in call order. */
     val opened: MutableList<Path> = CopyOnWriteArrayList()
 
     override fun supports(action: DesktopAction): Boolean = true
@@ -131,6 +142,7 @@ internal class JdkLikeDesktopActions(var failure: RuntimeException? = null) : De
         opened.add(path)
     }
 
+    /** Throws [failure] if set, else `IllegalArgumentException` for a [path] that does not exist, like the JDK. */
     private fun checkFile(path: Path) {
         failure?.let { throw it }
         if (!Files.exists(path)) throw IllegalArgumentException("The file: $path doesn't exist.")
@@ -139,6 +151,7 @@ internal class JdkLikeDesktopActions(var failure: RuntimeException? = null) : De
 
 /** A [FolderChooser] answering [answer] (or failing with [failure]) and recording its calls. */
 class FakeFolderChooser(var answer: Path? = null, var failure: IOException? = null) : FolderChooser {
+    /** The calls as title and initial directory, in call order. */
     val calls: MutableList<Pair<String, Path?>> = CopyOnWriteArrayList()
 
     override suspend fun chooseFolder(title: String, initialDirectory: Path?): Path? {
@@ -150,6 +163,7 @@ class FakeFolderChooser(var answer: Path? = null, var failure: IOException? = nu
 
 /** A [SettingsRepository] decorator counting the writes ([update] calls). */
 class CountingSettingsRepository(private val delegate: SettingsRepository) : SettingsRepository {
+    /** The number of [update] calls so far. */
     @Volatile
     var updates: Int = 0
         private set
@@ -181,7 +195,10 @@ class TestClipboard(var content: String? = null) : ClipboardPort {
 
 /** The real [TextFileStore] that fails reads of [failingReads] and writes of [failingWrites] on demand. */
 class ControllableFileStore(private val delegate: TextFileStore = TextFileStore()) : TextFileStore {
+    /** Normalized paths whose reads fail with an `IOException`. */
     val failingReads: MutableSet<Path> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /** Normalized paths whose writes fail with an `IOException` ("disk full"). */
     val failingWrites: MutableSet<Path> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     override fun read(path: Path): DecodedText {

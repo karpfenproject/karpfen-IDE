@@ -27,14 +27,14 @@ import io.karpfen.ide.ui.workbench.welcome.view.WelcomeView
 import java.nio.file.Path
 
 /**
- * The workbench window content (spec §8): Project tree (left), editor tabs with `CodeEditor` and the popups (centre),
- * Outline (right), Problems (bottom), status bar, dialogs; the empty state with "Open Folder…" and recent folders when
- * no folder is open. Provides the light/dark `KarpfenTheme` and `LocalEditorTheme` from `state.layout` (theme) and
- * lays out the tool windows from it with size-based `SplitPane`s (`fixedSize = toolWindow.size.dp`,
+ * The workbench window content: Project tree (left), editor tabs with `CodeEditor` and the popups (centre), Outline
+ * (right), Problems (bottom), status bar, dialogs; the empty state with "Open Folder…" and recent folders when no
+ * folder is open. Provides the light/dark `KarpfenTheme` and `LocalEditorTheme` from `state.layout` (theme) and lays
+ * out the tool windows from it with size-based `SplitPane`s (`fixedSize = toolWindow.size.dp`,
  * `onFixedSizeChange = { layout.resizeToolWindow(id, it.value) }`; PROJECT is the FIRST pane, OUTLINE and PROBLEMS the
  * SECOND). Renders [state]'s sub-states (each feature's view from its `view` package) and calls its non-suspending
- * intents and the sub-states' public UI intents; contains no business logic and launches no coroutines for intents.
- * The pending dialog is modal for the pointer and the keyboard ([ModalDialogLayer]).
+ * intents and the sub-states' public UI intents; contains no business logic and launches no coroutines for intents. The
+ * pending dialog is modal for the pointer and the keyboard ([ModalDialogLayer]).
  */
 @Composable
 public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
@@ -73,6 +73,7 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
     }
 }
 
+/** The Project tool window over [state]'s project tree; empty while no tree is loaded. */
 @Composable
 private fun ProjectPane(state: WorkbenchState) {
     val tree = state.projectTree
@@ -94,6 +95,7 @@ private fun ProjectPane(state: WorkbenchState) {
     }
 }
 
+/** The editor area with [state]'s tabs and active editor. */
 @Composable
 private fun EditorPane(state: WorkbenchState) {
     val tabs by state.tabs.tabs.collectAsState()
@@ -109,12 +111,14 @@ private fun EditorPane(state: WorkbenchState) {
     )
 }
 
+/** The Outline tool window of [state]'s active document. */
 @Composable
 private fun OutlinePane(state: WorkbenchState) {
     val outline by state.outline.state.collectAsState()
     OutlineView(outline, onNavigate = { state.navigateTo(it) })
 }
 
+/** The Problems tool window of [state]'s workspace. */
 @Composable
 private fun ProblemsPane(state: WorkbenchState) {
     val problems by state.problems.state.collectAsState()

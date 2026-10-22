@@ -23,7 +23,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-/** New files from templates (spec §8, decision 45): names, contents per context, reveal, open, failures. */
+/** New files from templates: names, contents per template context, reveal, open, failures. */
 class CreateFileFlowTest {
 
     @TempDir

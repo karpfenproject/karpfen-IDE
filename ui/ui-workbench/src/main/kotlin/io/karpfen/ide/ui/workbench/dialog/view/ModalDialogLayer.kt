@@ -19,6 +19,9 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
  * pointer: while [request] is shown, the focus cannot enter [content] — neither by Tab nor by a focus request — so no key
  * reaches the workbench behind the dialog (the dialog itself cycles Tab through its controls); when it is answered, the
  * element of [content] that had the focus before the dialog took it gets it back (the editor after Cmd+W → Cancel).
+ *
+ * The covered focus is saved in a [DisposableEffect], which is applied before the dialog's own effect requests the
+ * dialog's focus, so it still sees the element that had the focus before the dialog appeared.
  */
 @Composable
 internal fun ModalDialogLayer(
@@ -39,7 +42,6 @@ internal fun ModalDialogLayer(
         ) { content() }
         WorkbenchDialogs(request, onRespond)
     }
-    // Applied before the dialog's effect requests its focus, so the element that has the focus now is remembered.
     DisposableEffect(modal) {
         if (modal) covered.save()
         onDispose { }

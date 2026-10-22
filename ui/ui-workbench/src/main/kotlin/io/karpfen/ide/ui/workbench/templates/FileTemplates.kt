@@ -4,10 +4,11 @@ import io.karpfen.ide.core.workspace.context.ModelingContext
 import java.nio.file.Path
 
 /**
- * Kinds of files the project tree can create (spec §8, "New KMeta/KModel/KStates/Environment file").
+ * Kinds of files the project tree can create (its context menu's "New KMeta/KModel/KStates/Environment file").
  *
  * @property suffix the file-name suffix including its dot (`.kmeta`, `.kenv.json`); unlike `KarpfenLanguage.extension`
  *   (`kmeta`, without the dot) it may span several dots.
+ * @property displayName the kind's name in menus and dialogs.
  */
 public enum class FileTemplateKind(public val suffix: String, public val displayName: String) {
     /** A metamodel with one example type. */
@@ -26,7 +27,7 @@ public enum class FileTemplateKind(public val suffix: String, public val display
 /**
  * What a template knows about where the new file goes; built by `WorkbenchState.createFile` from `Workspace.contexts`
  * and the IDE-owned syntax indexes (`AnalyzedFile.parse.index`) of `Workspace.analysis` — never from the converted
- * dsl-tools models, so it is also known while a metamodel does not convert (decision 45 of the work-package plan).
+ * dsl-tools models, so it is also known while a metamodel does not convert.
  *
  * @property directory the target directory.
  * @property context the modeling context the directory forms or is covered by before the file is created (an implicit
@@ -49,7 +50,7 @@ public data class TemplateContext(
 public data class TemplateObject(public val key: String, public val typeName: String?)
 
 /**
- * Content of new files (spec §8). Generated karpfen sources must tokenize and parse without diagnostics and, where the
+ * Content of new files. Generated karpfen sources must tokenize and parse without diagnostics and, where the
  * [TemplateContext] allows, convert in their context:
  * - KMeta: one example type named after the file;
  * - KModel: one root object of the context's first domain type (`TemplateContext.typeNames`) when known;

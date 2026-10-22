@@ -9,10 +9,11 @@ import java.io.IOException
 import java.nio.file.Path
 
 /**
- * The native [FolderChooser]: shows the modal [dialog] ([FolderDialog.of] the platform) on the AWT event dispatch thread
- * while the caller suspends. The caller is resumed in every case: with the answer, or with an `IOException` for
+ * The native [FolderChooser]: shows the modal [dialog] ([FolderDialog.of] the platform) on the AWT event dispatch
+ * thread while the caller suspends. The caller is resumed in every case: with the answer, or with an `IOException` for
  * whatever the dialog threw (e.g. the JDK's shell-folder errors for network folders on Windows), so a failing dialog
- * can never leave the intent that asked waiting forever (it holds the workbench's intent turn, decision 42).
+ * can never leave the intent that asked waiting forever. That intent holds the workbench's intent turn (the workbench
+ * runs its intents one at a time), so a caller left suspended would also keep Save and Exit waiting forever.
  * Headless-safe: returns null without touching the toolkit when [headless].
  */
 internal class AwtFolderChooser(
@@ -30,10 +31,13 @@ internal class AwtFolderChooser(
         }
     }
 
+    /**
+     * Shows the dialog and captures everything it throws as an `IOException`, `Error`s included, because the JDK's
+     * shell-folder bugs surface as `InternalError`.
+     */
     private fun show(title: String, initialDirectory: Path?): Result<Path?> = try {
         Result.success(dialog.show(title, initialDirectory))
     } catch (e: Throwable) {
-        // Everything, Errors included: the JDK's shell-folder bugs surface as InternalError.
         Result.failure(IOException("The folder dialog failed: ${e.message ?: e}", e))
     }
 }

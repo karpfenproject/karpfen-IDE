@@ -11,7 +11,7 @@ import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeMenuEntry
 import java.nio.file.Path
 
 /**
- * The Project tool window (spec §8): `TreeView` of [tree] with file-kind icons; double-click/Enter reports [onOpen]
+ * The Project tool window: `TreeView` of [tree] with file-kind icons; double-click/Enter reports [onOpen]
  * (`WorkbenchState.openNode`: toggles a directory, opens a file); the context menu shows [menuFor] (New
  * KMeta/KModel/KStates/Environment file, Rename, Delete, Reveal in Finder/Explorer, decided by `ProjectTreeState`) and
  * hands the chosen command to [onCommand]. Renders and forwards only: the callbacks are the non-suspending

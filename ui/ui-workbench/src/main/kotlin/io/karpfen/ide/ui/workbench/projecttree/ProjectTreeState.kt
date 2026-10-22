@@ -8,14 +8,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.nio.file.Path
 
 /**
- * State of the Project tool window (spec §8): the workspace tree, expanded directories and the selection, and what the
- * tree's nodes are ([isDirectory]) and offer ([menuFor]). Opening a node and the commands of the context menu are
- * intents of the `WorkbenchState` (`openNode` — which toggles a directory here and opens a file —, `runTreeCommand`);
- * this class holds tree state and decides from it, so the view only renders and forwards.
+ * State of the Project tool window: the workspace tree, expanded directories and the selection, and what the tree's
+ * nodes are ([isDirectory]) and offer ([menuFor]). Opening a node and the commands of the context menu are intents of
+ * the `WorkbenchState` (`openNode` — which toggles a directory here and opens a file —, `runTreeCommand`); this class
+ * holds tree state and decides from it, so the view only renders and forwards.
  *
  * Public: the read flows, the queries and the pure UI intents ([toggle], [select], [reveal]). The mediator's
- * coordination operation ([setTree]) is internal, so views cannot bypass the mediator (decision 31 of the work-package
- * plan).
+ * coordination operation ([setTree]) is internal, so views cannot bypass the mediator's coordinated flows.
  *
  * Expansion is remembered across tree updates for the directories that still exist; a new tree root (another folder)
  * starts with only the root expanded. The context [menu] is decided Compose-free as well. Used from the UI thread.
@@ -64,8 +63,7 @@ public class ProjectTreeState(
 
     /** Expands or collapses the directory [path]. */
     public fun toggle(path: Path) {
-        // minusElement/plusElement: a Path is an Iterable<Path> of its names, so `set - path` would remove the names.
-        expandedPaths.value = expandedPaths.value.let { if (path in it) it.minusElement(path) else it.plusElement(path) }
+        expandedPaths.value = toggled(expandedPaths.value, path)
     }
 
     /** Selects [path]. */
@@ -82,4 +80,11 @@ public class ProjectTreeState(
         }
         selection.value = path
     }
+
+    /**
+     * [paths] with [path] removed if present, else added. Uses `minusElement`/`plusElement` because a [Path] is an
+     * `Iterable<Path>` of its names, so `paths - path` would remove the path's names instead of the path.
+     */
+    private fun toggled(paths: Set<Path>, path: Path): Set<Path> =
+        if (path in paths) paths.minusElement(path) else paths.plusElement(path)
 }

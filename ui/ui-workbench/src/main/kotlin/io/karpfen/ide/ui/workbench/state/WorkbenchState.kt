@@ -22,21 +22,22 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * The workbench coordinator (Mediator, spec §8): owns the current [Workspace] and its [LanguageServices] and
- * coordinates the cohesive sub-states, each a plain Compose-free class in its feature package with its own tests.
- * Composables render the sub-states' UI state and call the intents below and the sub-states' public UI intents;
- * the sub-states' coordination operations (binding, opening and removing tabs, setting the tree) are internal to the
- * module, so only the mediator reaches them (decision 31 of the work-package plan). Cross-cutting flows (open folder,
- * open/navigate, file operations of the project tree, external-change conflicts, close with unsaved changes, exit) live
- * here, because they span several sub-states, the [Workspace] and the dialogs.
+ * The workbench coordinator (Mediator): owns the current [Workspace] and its [LanguageServices] and coordinates the
+ * cohesive sub-states, each a plain Compose-free class in its feature package with its own tests. Composables render
+ * the sub-states' UI state and call the intents below and the sub-states' public UI intents; the sub-states'
+ * coordination operations (binding, opening and removing tabs, setting the tree) are internal to the module, so only
+ * the mediator reaches them and no view can bypass a coordinated flow (e.g. close a tab without the unsaved-changes
+ * dialog). Cross-cutting flows (open folder, open/navigate, file operations of the project tree, external-change
+ * conflicts, close with unsaved changes, exit) live here, because they span several sub-states, the [Workspace] and the
+ * dialogs.
  *
- * Intents own their lifetime (decision 42 of the work-package plan): the UI intents are plain functions that launch
- * their flow in the mediator's scope and return its [Job] (tests `join()` it), so a flow survives the composable that
- * started it (a tree row disappearing after a rename, a tab closing) and views never launch coroutines for intents.
- * Flows run one at a time in call order (a later intent waits until the earlier flow finished), and a repeated close
- * request for a tab returns the running one (a second click on a tab's close button or a second Close Tab cannot open
- * a second unsaved-changes dialog, whatever the first one is answered; decision 47); [registerCommands]' commands call
- * the same intents. Only [start] and [requestExit], called by the composition root, suspend.
+ * Intents own their lifetime: the UI intents are plain functions that launch their flow in the mediator's scope and
+ * return its [Job] (tests `join()` it), so a flow survives the composable that started it (a tree row disappearing
+ * after a rename, a tab closing) and views never launch coroutines for intents. Flows run one at a time in call order
+ * (a later intent waits until the earlier flow finished), and a repeated close request for a tab returns the running
+ * one (a second click on a tab's close button or a second Close Tab cannot open a second unsaved-changes dialog,
+ * whatever the first one is answered); [registerCommands]' commands call the same intents. Only [start] and
+ * [requestExit], called by the composition root, suspend.
  *
  * Saving never silently writes over a change made on disk: Save, Save All and Save in the unsaved-changes dialog
  * (tab close, folder switch, rename, exit) ask before overwriting a document whose external-change conflict is
@@ -85,7 +86,7 @@ public interface WorkbenchState : AutoCloseable {
     /** The persisted IDE settings (recent folders, font size; the layout as last persisted). */
     public val settings: StateFlow<IdeSettings>
 
-    /** `<folder> — karpfen IDE`, or `karpfen IDE` without a folder (spec §9). */
+    /** `<folder> — karpfen IDE`, or `karpfen IDE` without a folder. */
     public val windowTitle: StateFlow<String>
 
     /** Loads the settings and restores the [layout]; call once before showing the window. */
@@ -102,18 +103,18 @@ public interface WorkbenchState : AutoCloseable {
     public fun chooseAndOpenFolder(): Job
 
     /**
-     * Opens [path] in an editor tab (or activates its tab). Files the editor cannot open (`OpenResult.Unsupported`, e.g.
-     * `*.kenv.json`) are opened in the system's default application (`ProjectFileOperations.openExternally`, decision 14
-     * of the work-package plan); failures become an error dialog.
+     * Opens [path] in an editor tab (or activates its tab). Files the editor cannot open (`OpenResult.Unsupported`,
+     * e.g. `*.kenv.json`) are opened in the system's default application (`ProjectFileOperations.openExternally`), also
+     * when navigating to them from the Problems view; failures become an error dialog.
      */
     public fun openFile(path: Path): Job
 
     /**
-     * Opens the file of [location] and moves the caret to its range start, centred (spec §8, navigateTo): the range is
-     * mapped into the document's current text with `EditableText.mapRange(range, version, lineage)` and clamped to the
-     * text when that returns null (another lineage, a newer version, evicted history, or no version at all). The caret
-     * move, `scrollTo(center = true)` and the focus request are pending state of the editor, so they take effect when a
-     * new tab is composed. Files the editor cannot open are opened externally (Problems navigation to descriptor
+     * Opens the file of [location] and moves the caret to its range start, centred: the range is mapped into the
+     * document's current text with `EditableText.mapRange(range, version, lineage)` and clamped to the text when that
+     * returns null (another lineage, a newer version, evicted history, or no version at all). The caret move,
+     * `scrollTo(center = true)` and the focus request are pending state of the editor, so they take effect when a new
+     * tab is composed. Files the editor cannot open are opened externally (Problems navigation to descriptor
      * diagnostics). The Problems and Outline views call it with `ProblemItem.location` and
      * `OutlineUiState.locationOf(node)`.
      */
@@ -132,12 +133,12 @@ public interface WorkbenchState : AutoCloseable {
     public fun runTreeCommand(command: ProjectTreeCommand): Job
 
     /**
-     * New file from a template (project-tree context menu, spec §8): asks for the name ([DialogRequest.NewFile]),
-     * creates `FileTemplates.fileName(kind, name)` with `FileTemplates.content(kind, name, templateContext)` in
-     * [directory] through `ProjectFileOperations.createFile` (the `TemplateContext` built as documented on it, from the
-     * directory's current context and the syntax indexes of the latest analysis), refreshes the workspace, reveals the
-     * new file in the project tree and opens it ([openFile]). Cancel does nothing; failures (e.g. the file exists)
-     * become an error dialog.
+     * New file from a template (project-tree context menu): asks for the name ([DialogRequest.NewFile]), creates
+     * `FileTemplates.fileName(kind, name)` with `FileTemplates.content(kind, name, templateContext)` in [directory]
+     * through `ProjectFileOperations.createFile` (the `TemplateContext` built as documented on it, from the directory's
+     * current context and the syntax indexes of the latest analysis), refreshes the workspace, reveals the new file in
+     * the project tree and opens it ([openFile]). Cancel does nothing; failures (e.g. the file exists) become an error
+     * dialog.
      */
     public fun createFile(directory: Path, kind: FileTemplateKind): Job
 
@@ -164,8 +165,8 @@ public interface WorkbenchState : AutoCloseable {
 
     /**
      * Resolves the external-change conflict of the open document [path] (the editor area's banner, chosen from
-     * `EditorTab.conflict`; spec §4, §8) through `OpenDocument.resolveConflict`. For a file changed on disk the banner
-     * offers Reload ([ConflictResolution.RELOAD]) / Keep mine; for a file deleted on disk it offers Close
+     * `EditorTab.conflict`) through `OpenDocument.resolveConflict`. For a file changed on disk the banner offers Reload
+     * ([ConflictResolution.RELOAD]) / Keep mine; for a file deleted on disk it offers Close
      * ([ConflictResolution.RELOAD], answered with `ConflictResult.DeletedOnDisk`, on which the mediator closes the tab
      * without saving) / Keep mine. `ConflictResult.Failed` becomes an error dialog. No-op without a conflict.
      */
@@ -193,11 +194,11 @@ public interface WorkbenchState : AutoCloseable {
     public suspend fun requestExit(): Boolean
 
     /**
-     * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder and
-     * one toggle per `ToolWindowId`; the View commands drive [layout]) and the editor commands in [registry]; keeps
+     * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder
+     * and one toggle per `ToolWindowId`; the View commands drive [layout]) and the editor commands in [registry]; keeps
      * enablement and the recent-folder commands up to date. Commands call the non-suspending intents above. The
      * [dialogs] are modal: while one is shown, every command is disabled and does nothing when run, so a shortcut typed
-     * into a dialog never acts on the workbench behind it (decision 47).
+     * into a dialog never acts on the workbench behind it.
      *
      * Editor commands are registered under their `EditorActionIds` with their `EditorActionTitles` (the titles the
      * editor context menu shows too), forwarded to the active editor (`EditorHandle.execute(id)`), and carry
@@ -207,9 +208,9 @@ public interface WorkbenchState : AutoCloseable {
      * navigate and first request focus for the editor (FIND_NEXT and FIND_PREVIOUS only while its find bar is closed:
      * typed into the bar, they keep the focus there) — the active editor `isFocused`. So Cut, Paste, Undo, Duplicate,
      * Toggle Comment … from the menu never act on an editor while the Project tree, Outline, Problems or a text field
-     * has focus (decision 36 of the work-package plan). Key routing (decision 15): the focused component handles and
-     * consumes its keys first (the editor through `CodeEditorState.handleKey`, text fields natively), so a menu
-     * accelerator only fires for strokes nobody consumed; one key press runs an action once.
+     * has focus. Key routing: the focused component handles and consumes its keys first (the editor through
+     * `CodeEditorState.handleKey`, text fields natively), so a menu accelerator only fires for strokes nobody consumed;
+     * one key press runs an action once.
      */
     public fun registerCommands(registry: CommandRegistry)
 

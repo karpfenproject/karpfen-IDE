@@ -25,7 +25,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-/** Layout persistence (decision 31) and the exit flow (spec §8, §9). */
+/**
+ * Layout persistence (restored on start, written debounced and on exit by the mediator) and the exit flow (unsaved
+ * changes, waiting for a running intent).
+ */
 class LayoutAndExitTest {
 
     @TempDir

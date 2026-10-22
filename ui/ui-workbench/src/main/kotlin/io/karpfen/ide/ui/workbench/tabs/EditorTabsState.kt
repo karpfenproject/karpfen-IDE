@@ -34,14 +34,14 @@ public data class EditorTab(
 }
 
 /**
- * The open editor tabs (spec §8): order, active tab, and the [CodeEditorState] of each tab (kept across tab switches,
- * closed with the tab). Tab UI state follows the documents' dirty and conflict flows (collected in [scope]).
+ * The open editor tabs: order, active tab, and the [CodeEditorState] of each tab (kept across tab switches, closed with
+ * the tab). Tab UI state follows the documents' dirty and conflict flows (collected in [scope]).
  *
- * Public: the read flows and the pure UI intents ([activate], [move]). Opening and removing tabs and the documents
- * are coordination concerns of the mediator (unsaved-changes dialog, closing the `OpenDocument`, conflicts, collecting
- * the editor's navigation requests), so [open], [remove] and [documentFor] are internal; views close tabs through
- * `WorkbenchState.closeTab` (decision 31 of the work-package plan). The editor states are the full `CodeEditorState`
- * because the editor area renders them; everything else in the workbench uses them as `EditorHandle`.
+ * Public: the read flows and the pure UI intents ([activate], [move]). Opening and removing tabs and the documents are
+ * coordination concerns of the mediator (unsaved-changes dialog, closing the `OpenDocument`, conflicts, collecting the
+ * editor's navigation requests), so [open], [remove] and [documentFor] are internal; views close tabs through
+ * `WorkbenchState.closeTab`. The editor states are the full `CodeEditorState` because the editor area renders them;
+ * everything else in the workbench uses them as `EditorHandle`.
  *
  * Used from the UI thread (the dispatcher of [scope]).
  */
@@ -66,7 +66,7 @@ public class EditorTabsState(private val scope: CoroutineScope) {
 
     /**
      * The open document of the tab of [path], or null. Mediator only: views see the document's state through
-     * [EditorTab] and change it through the `WorkbenchState` intents (decision 43 of the work-package plan).
+     * [EditorTab] and change it through the `WorkbenchState` intents.
      */
     internal fun documentFor(path: Path): OpenDocument? = entryOf(path)?.document
 
@@ -127,6 +127,7 @@ public class EditorTabsState(private val scope: CoroutineScope) {
         activeEditorState.value = null
     }
 
+    /** Keeps [entry]'s tab state in step with its document's dirty flag and conflict. */
     private suspend fun follow(entry: TabEntry) {
         combine(entry.document.isDirty, entry.document.conflict) { dirty, conflict -> dirty to conflict?.kind }
             .collect { (dirty, conflict) ->
@@ -135,12 +136,14 @@ public class EditorTabsState(private val scope: CoroutineScope) {
             }
     }
 
+    /** Publishes the tabs' UI states in display order. */
     private fun publish() {
         tabList.value = entries.map { it.tab }
     }
 
     private fun entryOf(path: Path): TabEntry? = entries.firstOrNull { it.path == path }
 
+    /** The first UI state of [document]'s tab; the tooltip is the path relative to [workspaceRoot] where possible. */
     private fun initialTab(document: OpenDocument, workspaceRoot: Path): EditorTab {
         val path = document.path
         val tooltip = if (path.startsWith(workspaceRoot) && path != workspaceRoot) {
@@ -160,7 +163,10 @@ public class EditorTabsState(private val scope: CoroutineScope) {
 
     /** One tab: its document, editor, current UI state and the job following the document's flows. */
     private class TabEntry(val document: OpenDocument, val editor: CodeEditorState, var tab: EditorTab) {
+        /** The document's path, the tab's identity. */
         val path: Path get() = document.path
+
+        /** The job following the document's dirty and conflict flows; cancelled when the tab is removed. */
         var watcher: Job? = null
     }
 }

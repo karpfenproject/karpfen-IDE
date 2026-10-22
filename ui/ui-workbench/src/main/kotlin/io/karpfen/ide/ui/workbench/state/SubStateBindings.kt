@@ -12,7 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Binds the read-only sub-states to what they follow (spec §8): the project tree to `Workspace.files`, Problems and the
+ * Binds the read-only sub-states to what they follow: the project tree to `Workspace.files`, Problems and the
  * status-bar counts to the workspace ([bindWorkspace], called by the folder flow), the Outline and the status bar's
  * caret part to the active tab's editor (followed from [EditorTabsState.activeEditor] once [start]ed, since views
  * switch tabs directly). Collected in [scope].

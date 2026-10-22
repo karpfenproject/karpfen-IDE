@@ -8,12 +8,12 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.nio.file.Path
 
 /**
- * Projects the parse outcomes of one document onto what the Outline shows (spec §8): the latest parse while it is free
- * of syntax diagnostics, otherwise the last good parse (or the broken parse when there never was a good one), and the
- * chain of nodes containing the caret. The nodes keep the ranges of the parse they come from (navigation maps them,
- * see [OutlineUiState.locationOf]); for the highlight they are taken in the caret's text from [OutlineRanges], which
- * keeps them anchored at the previous projection, so a projection's cost does not grow with the edits since the last
- * good parse. One per binding (the anchors are its state); used by the binding's collector only.
+ * Projects the parse outcomes of one document onto what the Outline shows: the latest parse while it is free of syntax
+ * diagnostics, otherwise the last good parse (or the broken parse when there never was a good one), and the chain of
+ * nodes containing the caret. The nodes keep the ranges of the parse they come from (navigation maps them, see
+ * [OutlineUiState.locationOf]); for the highlight they are taken in the caret's text from [OutlineRanges], which keeps
+ * them anchored at the previous projection, so a projection's cost does not grow with the edits since the last good
+ * parse. One per binding (the anchors are its state); used by the binding's collector only.
  */
 internal class OutlineProjection(private val path: Path, text: EditableText) {
 
@@ -33,6 +33,7 @@ internal class OutlineProjection(private val path: Path, text: EditableText) {
         )
     }
 
+    /** The latest [parse] while it is free of syntax diagnostics, else [lastGoodParse], else the broken [parse]. */
     private fun chooseOutcome(parse: ParseOutcome?, lastGoodParse: ParseOutcome?): ParseOutcome? =
         if (parse != null && parse.syntaxDiagnostics.isEmpty()) parse else lastGoodParse ?: parse
 

@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.file.Path
 
-/** Which severities the Problems view shows (spec §8: error/warning filter). */
+/** Which severities the Problems view shows (its error, warning and info filter). */
 public data class ProblemFilter(
     public val showErrors: Boolean = true,
     public val showWarnings: Boolean = true,
@@ -55,10 +55,10 @@ public data class ProblemsUiState(
 )
 
 /**
- * Problems of the workspace grouped by file (spec §8): maps `Workspace.problems` (the single rule of core-workspace,
- * shared with the status bar and `karpfen validate`) into groups and items with one-based `line:col`
- * (`FileProblems.positionOf`) and the snapshot's version and lineage; it never merges diagnostics itself (collected in
- * [scope]). The binding is a mediator operation and internal (decision 31 of the work-package plan). The mapping is
+ * Problems of the workspace grouped by file: maps `Workspace.problems` (the single rule of core-workspace, shared with
+ * the status bar and `karpfen validate`) into groups and items with one-based `line:col` (`FileProblems.positionOf`)
+ * and the snapshot's version and lineage; it never merges diagnostics itself (collected in [scope]). The binding is a
+ * mediator operation and internal, so no view can bypass the workbench's coordinated flows. The mapping is
  * [ProblemsMapping]'s.
  */
 public class ProblemsState(private val scope: CoroutineScope) {
@@ -86,6 +86,7 @@ public class ProblemsState(private val scope: CoroutineScope) {
         refresh()
     }
 
+    /** Maps the bound workspace's current problems under the current filter (nothing without a workspace). */
     private fun refresh() {
         val filter = problems.value.filter
         problems.value = workspace?.let { ProblemsMapping.map(it.problems.value, it.root, filter) } ?: ProblemsUiState(filter = filter)

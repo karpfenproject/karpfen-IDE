@@ -9,14 +9,15 @@ import io.karpfen.ide.ui.workbench.templates.TemplateObject
 import java.nio.file.Path
 
 /**
- * Builds the [TemplateContext] of a new file (decision 45 of the work-package plan) from the workspace's contexts and
- * the IDE-owned syntax indexes of its latest analysis — never from converted dsl-tools models, so it is also known
- * while a metamodel does not convert: the directory's context (its explicit context if a descriptor covers it, else its
- * implicit one), the TYPE declarations of the context's metamodel, the OBJECT declarations of its first model and each
- * state machine's `ATTACHED TO` type. Pure.
+ * Builds the [TemplateContext] of a new file from the workspace's contexts and the IDE-owned syntax indexes of its
+ * latest analysis — never from converted dsl-tools models, so the mediator never walks them and the context is also
+ * known while a metamodel does not convert: the directory's context (its explicit context if a descriptor covers it,
+ * else its implicit one), the TYPE declarations of the context's metamodel, the OBJECT declarations of its first model
+ * and each state machine's `ATTACHED TO` type. Pure.
  */
 internal object TemplateContextBuilder {
 
+    /** The template context of a new file in [directory]; without a context there, only the directory is known. */
     fun build(directory: Path, resolution: ContextResolution, analysis: ProjectAnalysis): TemplateContext {
         val context = resolution.contexts.firstOrNull { it.directory == directory } ?: return TemplateContext(directory)
         fun index(path: Path?): SyntaxIndex? = path?.let { analysis.file(it)?.parse?.index }

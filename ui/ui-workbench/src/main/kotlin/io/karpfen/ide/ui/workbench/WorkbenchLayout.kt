@@ -14,10 +14,10 @@ import io.karpfen.ide.ui.workbench.layout.LayoutUiState
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 
 /**
- * The tool windows around the editor area (spec §8): Project left (the FIRST pane), Outline right and Problems at the
- * bottom (SECOND panes), each in a size-based `SplitPane` whose fixed size is the tool window's persisted size in dp
- * (decision 46 of the work-package plan: `fixedSize = size.dp`, `onFixedSizeChange = { resizeToolWindow(id, it.value) }`).
- * A hidden tool window takes no space.
+ * The tool windows around the editor area: Project left (the FIRST pane), Outline right and Problems at the bottom
+ * (SECOND panes), each in a size-based `SplitPane` whose fixed size is the tool window's persisted size in dp
+ * (`fixedSize = size.dp`, `onFixedSizeChange = { resizeToolWindow(id, it.value) }`), so the workbench never converts
+ * between split fractions and the persisted sizes. A hidden tool window takes no space.
  */
 @Composable
 internal fun WorkbenchLayout(

@@ -10,7 +10,7 @@ import kotlinx.coroutines.sync.withLock
 import java.nio.file.Path
 
 /**
- * A dialog the workbench needs answered (spec §8). The type parameter [R] is the set of answers the dialog accepts, so
+ * A dialog the workbench needs answered. The type parameter [R] is the set of answers the dialog accepts, so
  * `DialogState.ask` returns only answers its caller has to handle (e.g. no `Save` for a rename).
  */
 public sealed interface DialogRequest<out R : DialogResponse> {
@@ -30,8 +30,9 @@ public sealed interface DialogRequest<out R : DialogResponse> {
 
     /**
      * Confirm saving [paths] over their versions on disk: each was changed or deleted on disk while it had unsaved
-     * changes, and the external-change conflict is not resolved yet (spec §4; decision 47 of the work-package plan).
-     * Confirm overwrites, Cancel keeps the disk versions and the conflicts.
+     * changes, and the external-change conflict is not resolved yet. Saving never silently writes over an external
+     * change, so Save, Save All and Save in the unsaved-changes dialog ask this first. Confirm overwrites, Cancel keeps
+     * the disk versions and the conflicts.
      */
     public data class ConfirmOverwrite(public val paths: List<Path>) : DialogRequest<ConfirmAnswer> {
         override fun accepts(response: DialogResponse): Boolean = response is ConfirmAnswer
@@ -81,7 +82,7 @@ public sealed interface ConfirmAnswer : DialogResponse
 public sealed interface TextAnswer : DialogResponse
 
 /**
- * The pending dialog (spec §8). The mediator (and WP-APP's crash handling) suspends in [ask] until the composable
+ * The pending dialog. The mediator (and the application's crash handling) suspends in [ask] until the composable
  * answers through [respond]; one dialog at a time (further requests wait).
  *
  * Requests wait in call order (a fair mutex); cancelling a waiting or a shown request removes it, so a cancelled flow
@@ -96,13 +97,16 @@ public class DialogState {
     /** The dialog to show, or null. */
     public val current: StateFlow<DialogRequest<*>?> get() = currentRequest.asStateFlow()
 
-    /** Shows [request] and suspends until it is answered (cancellation of the caller cancels the dialog). */
+    /**
+     * Shows [request] and suspends until it is answered (cancellation of the caller cancels the dialog). The answer is
+     * cast to [R] unchecked, which is safe because [respond] accepts only the request's answers
+     * ([DialogRequest.accepts]).
+     */
     public suspend fun <R : DialogResponse> ask(request: DialogRequest<R>): R = queue.withLock {
         val pending = Pending(request, CompletableDeferred())
         shown.value = pending
         currentRequest.value = request
         try {
-            // respond() accepts only the request's answers (DialogRequest.accepts), so the cast is safe.
             @Suppress("UNCHECKED_CAST")
             pending.answer.await() as R
         } finally {
@@ -121,5 +125,6 @@ public class DialogState {
         pending.answer.complete(response)
     }
 
+    /** The shown [request] and the [answer] its caller awaits. */
     private class Pending(val request: DialogRequest<*>, val answer: CompletableDeferred<DialogResponse>)
 }

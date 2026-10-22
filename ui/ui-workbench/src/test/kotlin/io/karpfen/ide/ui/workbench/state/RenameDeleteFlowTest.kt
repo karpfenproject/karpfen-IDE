@@ -21,7 +21,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-/** Rename and delete from the project tree (spec §8, decision 42): open, dirty and directory cases. */
+/**
+ * Rename and delete from the project tree: open, dirty and directory cases; a rename reopens the affected documents
+ * under their new paths in their tab positions. A double-click in the tree is simulated by `openFile` on the tree's
+ * path.
+ */
 class RenameDeleteFlowTest {
 
     @TempDir
@@ -85,7 +89,7 @@ class RenameDeleteFlowTest {
         ).path
         assertEquals(renamed, treePath, "the tree lists the new name")
 
-        state.openFile(treePath).joinSettled() // double-click in the tree
+        state.openFile(treePath).joinSettled()
         assertEquals(listOf(renamed), state.tabs.tabs.value.map { it.path }, "one tab per file")
         assertEquals(listOf(renamed), workspace.documents.openDocuments.value.map { it.path }, "one document per file")
     }

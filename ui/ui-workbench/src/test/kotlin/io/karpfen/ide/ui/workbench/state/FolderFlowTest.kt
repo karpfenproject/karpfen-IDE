@@ -23,7 +23,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-/** Opening folders (spec §8): workspace, tree, problems, recent folders, window title and the unsaved-changes flow. */
+/** Opening folders: workspace, tree, problems, recent folders, window title and the unsaved-changes flow. */
 class FolderFlowTest {
 
     @TempDir
@@ -101,7 +101,7 @@ class FolderFlowTest {
             val editor = openEditor(file)
             editor.session.text.apply(listOf(TextEdit.insert(0, "// x\n")), EditOrigin.Typing)
             settle()
-            Files.delete(stale) // deleted or unmounted since it was opened
+            Files.delete(stale)
 
             val job = state.openFolder(stale)
             val error = answer(DialogRequest.Error::class, DialogResponse.Confirm)

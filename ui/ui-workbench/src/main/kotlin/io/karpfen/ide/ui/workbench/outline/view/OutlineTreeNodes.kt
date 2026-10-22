@@ -7,8 +7,8 @@ import io.karpfen.ide.ui.foundation.widgets.TreeNode
 internal data class OutlineKey(val indices: List<Int>)
 
 /**
- * The `TreeView` nodes of an outline (spec §8): labels `name : detail`, keyed by index path, and the lookups between
- * keys and [OutlineNode]s the view needs (navigation by key, the highlighted node's key).
+ * The `TreeView` nodes of an outline: labels `name : detail`, keyed by index path, and the lookups between keys and
+ * [OutlineNode]s the view needs (navigation by key, the highlighted node's key).
  */
 internal class OutlineTreeNodes(private val nodes: List<OutlineNode>) {
 

@@ -22,7 +22,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** The collaborators of the workbench: one source per fact (decisions 46 and 47 of the work-package plan). */
+/**
+ * The collaborators of the workbench keep one source per fact: a workspace's languages come from the workspace factory,
+ * and every editor gets the one clipboard the services are given.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkbenchServicesTest {
 

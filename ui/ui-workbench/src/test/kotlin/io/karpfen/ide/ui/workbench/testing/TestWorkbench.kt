@@ -44,8 +44,7 @@ import kotlin.time.TestTimeSource
  * dispatcher (the mediator's scope, the workspace's I/O and analysis, the sessions', the editors' background work, the
  * workbench's I/O) is one test dispatcher, so [settle] runs everything due; a [FakeFileWatcher], a
  * [ControllableFileStore], a [RecordingFileOperations], a [FakeFolderChooser], JSON settings in [settingsDirectory]
- * (counted by [settings]) with a
- * fixed clock, real workspaces, language services and editors (macOS keymap).
+ * (counted by [settings]) with a fixed clock, real workspaces, language services and editors (macOS keymap).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestWorkbench(
@@ -54,16 +53,34 @@ class TestWorkbench(
     val fileOperations: RecordingFileOperations = RecordingFileOperations(),
     languageServices: (Workspace) -> LanguageServices = { defaultLanguageServices(it.analysis) },
 ) {
+    /** The one test dispatcher on [scheduler] that runs all of the workbench's work. */
     val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
+
+    /** The scope of the workbench state. */
     val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
+
+    /** The file watcher; tests deliver external changes through it. */
     val watcher = FakeFileWatcher()
+
+    /** Answers the folder dialog. */
     val folderChooser = FakeFolderChooser()
+
+    /** The workspaces' file store, which fails reads and writes on demand. */
     val fileStore = ControllableFileStore()
+
+    /** The clipboard every editor shares. */
     val clipboard = TestClipboard()
+
+    /** The time source of the documents' undo coalescing. */
     val time = TestTimeSource()
+
+    /** The JSON settings in [settingsDirectory], counting their writes. */
     val settings = CountingSettingsRepository(SettingsRepository(settingsDirectory, dispatcher, FIXED_CLOCK))
+
+    /** The one editor keymap of the workbench. */
     val keymap = defaultEditorKeymap(HostPlatform.MAC_OS)
 
+    /** The options of every workspace: watching, on [dispatcher], coalescing on [time]. */
     val options = WorkspaceOptions(
         watch = true,
         ioDispatcher = dispatcher,
@@ -72,8 +89,10 @@ class TestWorkbench(
         timeSource = time,
     )
 
+    /** The built-in languages. */
     val languages = defaultLanguageRegistry()
 
+    /** The workbench services wired from the test values above. */
     val services = WorkbenchServices(
         settings = settings,
         workspaceFactory = WorkspaceFactory { root, workspaceScope ->
@@ -90,6 +109,7 @@ class TestWorkbench(
         ioDispatcher = dispatcher,
     )
 
+    /** The workbench state under test. */
     val state: WorkbenchState = WorkbenchState(scope, services)
 
     /** The current workspace (fails without one). */

@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 
-/** The empty state (spec §8): "Open Folder…" and the recent folders. */
+/** The empty state shown without an open folder: "Open Folder…" and the recent folders. */
 @Composable
 internal fun WelcomeView(
     recentFolders: List<String>,

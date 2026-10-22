@@ -7,9 +7,9 @@ import io.karpfen.ide.core.workspace.document.ExternalChangeKind
 internal data class ConflictBannerAction(val label: String, val resolution: ConflictResolution)
 
 /**
- * The external-change banner of a tab (spec §4, §8; decision 43 of the work-package plan), chosen from
- * [EditorTab.conflict]: a file changed on disk offers Reload / Keep mine, a file deleted on disk Close / Keep mine; both
- * Reload and Close report [ConflictResolution.RELOAD] ("take the disk state").
+ * The external-change banner of a tab, chosen from [EditorTab.conflict]: a file changed on disk offers Reload / Keep
+ * mine, a file deleted on disk Close / Keep mine; both Reload and Close report [ConflictResolution.RELOAD] ("take the
+ * disk state"), which for a deleted file the workbench turns into closing the tab.
  */
 internal data class ConflictBanner(val message: String, val actions: List<ConflictBannerAction>) {
 

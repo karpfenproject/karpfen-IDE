@@ -44,9 +44,9 @@ public data class OutlineUiState(
 }
 
 /**
- * Outline of the active document (spec §8); follows the bound editor's parse and caret (collected in [scope]). The
- * binding is a mediator operation and internal (decision 31 of the work-package plan). The projection of a parse onto
- * [OutlineUiState] is [OutlineProjection]'s, one per binding.
+ * Outline of the active document; follows the bound editor's parse and caret (collected in [scope]). The binding is a
+ * mediator operation and internal, so no view can bypass the workbench's coordinated flows. The projection of a parse
+ * onto [OutlineUiState] is [OutlineProjection]'s, one per binding.
  */
 public class OutlineState(private val scope: CoroutineScope) {
 

@@ -33,11 +33,11 @@ public data class ProjectTreeMenuEntry(
 )
 
 /**
- * The project tree's context menu (spec §8): New KMeta/KModel/KStates/Environment file (in the node's directory, or
- * the file's parent directory), Rename…, Delete… (both disabled for the workspace root) and Reveal in Finder / Show in
- * Explorer / Show in File Manager (by [platform]; disabled unless [canRevealInFileManager] answers true — asked when a
- * menu is built, so creating the menu never touches a platform toolkit). Compose-free, so the menu is decided here and
- * the view only renders it.
+ * The project tree's context menu: New KMeta/KModel/KStates/Environment file (in the node's directory, or the file's
+ * parent directory), Rename…, Delete… (both disabled for the workspace root) and Reveal in Finder / Show in Explorer /
+ * Show in File Manager (by [platform]; disabled unless [canRevealInFileManager] answers true — asked when a menu is
+ * built, so creating the menu never touches a platform toolkit). Compose-free, so the menu is decided here and the view
+ * only renders it.
  */
 public class ProjectTreeMenu(
     private val platform: HostPlatform = HostPlatform.current(),

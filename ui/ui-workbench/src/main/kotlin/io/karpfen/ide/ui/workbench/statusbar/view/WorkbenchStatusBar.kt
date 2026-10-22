@@ -11,8 +11,8 @@ import io.karpfen.ide.ui.workbench.statusbar.StatusSegment
 import io.karpfen.ide.ui.workbench.statusbar.StatusSegmentKind
 
 /**
- * The status bar content (spec §8): `Ln x, Col y`, selection length, language, line separator, `UTF-8`, error and
- * warning counts, "Analyzing…". The texts come from [StatusBarSegments]; each item's id is its segment's id
+ * The status bar content: `Ln x, Col y`, selection length, language, line separator, `UTF-8`, error and warning counts,
+ * "Analyzing…". The texts come from [StatusBarSegments]; each item's id is its segment's id
  * (`StatusBarTestTags.item(id)`).
  */
 @Composable
@@ -24,6 +24,7 @@ internal fun WorkbenchStatusBar(state: StatusBarUiState, modifier: Modifier = Mo
     )
 }
 
+/** The status-bar item of [segment]; the error and warning counts carry their severity icon. */
 private fun item(segment: StatusSegment): StatusBarItem = StatusBarItem(
     id = segment.id,
     text = segment.text,

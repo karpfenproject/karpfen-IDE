@@ -23,6 +23,7 @@ internal fun tabItemOf(tab: EditorTab): TabItem {
     )
 }
 
+/** The file icon of [language]. */
 private fun iconOf(language: KarpfenLanguage) = when (language) {
     KarpfenLanguage.KMETA -> KarpfenIcons.Kmeta
     KarpfenLanguage.KMODEL -> KarpfenIcons.Kmodel

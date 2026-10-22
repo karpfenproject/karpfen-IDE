@@ -17,8 +17,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /**
- * What the active editor allows the menu to run (decisions 15 and 36 of the work-package plan): the ids of its enabled
- * actions and whether it has keyboard focus.
+ * What the active editor allows the menu to run: the ids of its enabled actions and whether it has keyboard focus.
+ * Text-editing commands from the menu act only on a focused editor, so Cut or Undo chosen while the Project tree has
+ * the focus never changes the editor's text.
  */
 internal data class EditorCommandState(val enabled: Set<String>, val focused: Boolean) {
 
@@ -56,10 +57,11 @@ internal data class EditorCommandState(val enabled: Set<String>, val focused: Bo
 }
 
 /**
- * Registers the editor commands of the window menu (spec §9): every editor action under its `EditorActionIds` id with
- * its `EditorActionTitles` title and the shortcut of the workbench's one [keymap] (decision 15), enabled by
- * [EditorCommandState.allows] for the active editor and forwarded to it (`EditorHandle.execute`), after requesting its
- * focus where [EditorCommandState.focusesEditor] says so.
+ * Registers the editor commands of the window menu: every editor action under its `EditorActionIds` id with its
+ * `EditorActionTitles` title and the shortcut of the workbench's one [keymap] (the keymap every editor is created with,
+ * so the menu and the editors bind the same strokes), enabled by [EditorCommandState.allows] for the active editor and
+ * forwarded to it (`EditorHandle.execute`), after requesting its focus where [EditorCommandState.focusesEditor] says
+ * so.
  */
 internal class EditorCommands(
     private val scope: CoroutineScope,
@@ -67,6 +69,7 @@ internal class EditorCommands(
     private val keymap: EditorKeymap,
 ) {
 
+    /** The command state of whichever editor is active. */
     @OptIn(ExperimentalCoroutinesApi::class)
     private val state: StateFlow<EditorCommandState> = activeEditor
         .flatMapLatest { editor ->
@@ -74,6 +77,7 @@ internal class EditorCommands(
         }
         .stateIn(scope, SharingStarted.Eagerly, EditorCommandState.NONE)
 
+    /** Registers one command per editor action in [registry], except typed text, which is no menu command. */
     fun register(registry: CommandRegistry) {
         EditorActionTitles.titles.keys.filterNot { it in EditorCommandState.NOT_COMMANDS }.forEach { id ->
             registry.register(
@@ -88,6 +92,7 @@ internal class EditorCommands(
         }
     }
 
+    /** Runs [id] on the active editor if it still allows it, first requesting the editor's focus where that is due. */
     private fun run(id: String) {
         val editor = activeEditor.value ?: return
         val current = EditorCommandState(editor.enabledActions.value, editor.isFocused.value)

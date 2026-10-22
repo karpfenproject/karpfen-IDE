@@ -5,9 +5,9 @@ import io.karpfen.ide.ui.editor.model.caret.Caret
 import io.karpfen.ide.ui.editor.model.caret.TabStops
 
 /**
- * The caret part of the status bar (spec §8): one-based [line] and [column], where the column is the display column
- * with tabs expanded by `TabStops` — the one conversion between line and display columns (decision 40 of the
- * work-package plan) — so `Col y` matches what the user sees; [selectionLength] in characters (UTF-16 code units).
+ * The caret part of the status bar: one-based [line] and [column], where the column is the display column with tabs
+ * expanded by `TabStops` — the one conversion between line and display columns, which the caret model and the editor
+ * view use too — so `Col y` matches what the user sees; [selectionLength] in characters (UTF-16 code units).
  */
 internal data class CaretPositionText(val line: Int, val column: Int, val selectionLength: Int) {
 

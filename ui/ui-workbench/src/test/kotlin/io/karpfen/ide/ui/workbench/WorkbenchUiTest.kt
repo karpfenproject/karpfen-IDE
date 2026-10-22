@@ -40,8 +40,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Headless UI tests of the composed workbench over a temp-dir copy of the examples (spec §8): empty state, layout, tree,
- * editing with the dirty marker and saving, closing a dirty tab, Problems and Outline navigation, the status bar and the
+ * Headless UI tests of the composed workbench over a temp-dir copy of the examples: empty state, layout, tree, editing
+ * with the dirty marker and saving, closing a dirty tab, Problems and Outline navigation, the status bar and the
  * external-change banner.
  */
 @OptIn(ExperimentalTestApi::class)

@@ -31,8 +31,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * [OutlineView] headless (spec §8): every click navigates, also on the highlighted node (the one containing the caret);
- * the arrow keys browse the outline without navigating, Enter navigates to the browsed node.
+ * [OutlineView] headless: every click navigates, also on the highlighted node (the one containing the caret); the arrow
+ * keys browse the outline without navigating, Enter navigates to the browsed node.
  */
 @OptIn(ExperimentalTestApi::class)
 class OutlineViewUiTest {
@@ -45,7 +45,11 @@ class OutlineViewUiTest {
     private fun node(name: String, range: TextRange, selection: TextRange) =
         OutlineNode(SymbolKind.STATE, name, null, range, selection, emptyList())
 
-    /** Shows the outline of [nodes] with the caret in [highlighted] and returns the ranges [OutlineView] navigates to. */
+    /**
+     * Shows the outline of [nodes] with the caret in [highlighted] and returns the ranges [OutlineView] navigates to.
+     * Like the workbench, a navigation moves the caret to the node, which then contains it and becomes the highlighted
+     * one.
+     */
     private fun ComposeUiTest.outline(highlighted: OutlineNode): MutableList<TextRange> {
         val navigations = mutableListOf<TextRange>()
         var state by mutableStateOf(OutlineUiState(path, version = 0, nodes = nodes, highlighted = listOf(highlighted)))
@@ -54,7 +58,6 @@ class OutlineViewUiTest {
                 Box(Modifier.size(300.dp, 400.dp)) {
                     OutlineView(state, onNavigate = { location: Location ->
                         navigations += location.range
-                        // Navigation moves the caret to the node, which then contains it.
                         state = state.copy(highlighted = nodes.filter { location.range in it.range })
                     })
                 }

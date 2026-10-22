@@ -17,8 +17,8 @@ internal sealed interface ProblemKey {
 }
 
 /**
- * The `TreeView` nodes of the Problems view (spec §8): one node per file (`displayPath (n)`) with one child per problem
- * (severity icon, `message (line:col)`), and the item behind each key for navigation.
+ * The `TreeView` nodes of the Problems view: one node per file (`displayPath (n)`) with one child per problem (severity
+ * icon, `message (line:col)`), and the item behind each key for navigation.
  */
 internal class ProblemsTreeNodes(state: ProblemsUiState) {
 

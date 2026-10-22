@@ -13,7 +13,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** [ModalCommandRegistry]: commands are disabled and inert while a dialog is shown, and otherwise unchanged. */
+/**
+ * [ModalCommandRegistry]: commands are disabled and inert while a dialog is shown, and otherwise unchanged. A menu that
+ * runs a disabled command anyway is simulated by calling the registered command's action directly.
+ */
 class ModalCommandRegistryTest {
 
     private val dialog = MutableStateFlow<DialogRequest<*>?>(null)
@@ -38,7 +41,7 @@ class ModalCommandRegistryTest {
         runCurrent()
         assertFalse(registry.find("save")!!.isEnabled.value)
         assertFalse(registry.execute("save"))
-        registry.find("save")!!.action() // a menu that ran it anyway
+        registry.find("save")!!.action()
         assertEquals(1, runs, "nothing runs behind a dialog")
 
         dialog.value = null

@@ -28,8 +28,8 @@ import kotlinx.coroutines.flow.stateIn
 import java.nio.file.Path
 
 /**
- * Default [WorkbenchState]: creates the sub-states and coordinates them (Mediator). A coordinator only (spec §1a, no
- * god class, ≤ ~300 lines): the flows are internal collaborators of this package with one responsibility each, e.g. an
+ * Default [WorkbenchState]: creates the sub-states and coordinates them (Mediator). A coordinator only (no god class,
+ * at most about 300 lines): the flows are internal collaborators of this package with one responsibility each, e.g. an
  * intent runner (launches each intent's flow in [scope], one at a time in call order, and returns its `Job`; the flows
  * themselves are internal suspend functions the tests may also call), a command registrar (commands, enablement incl.
  * the focus rule, recent folders, tool-window toggles, editor commands with `EditorActionTitles` and
@@ -163,6 +163,7 @@ internal class DefaultWorkbenchState(
         ownScope.cancel()
     }
 
+    /** The absolute, normalized form of this path, the one form in which the flows and sub-states compare paths. */
     private fun Path.normalized(): Path = toAbsolutePath().normalize()
 
     /** The [IntentRunner.launchOnce] key of closing the tab of [path]. */

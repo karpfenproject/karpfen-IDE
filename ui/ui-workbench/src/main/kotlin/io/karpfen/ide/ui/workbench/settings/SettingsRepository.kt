@@ -7,10 +7,10 @@ import java.nio.file.Path
 import java.time.Clock
 
 /**
- * Loads and stores [IdeSettings] (Repository pattern, spec §8) as `settings.json` in an injectable directory. A
- * corrupt file (also one that is not UTF-8) is backed up (`settings.json.corrupt-<yyyyMMdd-HHmmss>`, the time taken
- * from the injected clock, with `-2`, `-3`, … appended if that name exists) and replaced by defaults; a file that exists
- * but cannot be read is left as it is (the defaults are used and not written over it). I/O errors are logged and never
+ * Loads and stores [IdeSettings] (Repository pattern) as `settings.json` in an injectable directory. A corrupt file
+ * (also one that is not UTF-8) is backed up (`settings.json.corrupt-<yyyyMMdd-HHmmss>`, the time taken from the
+ * injected clock, with `-2`, `-3`, … appended if that name exists) and replaced by defaults; a file that exists but
+ * cannot be read is left as it is (the defaults are used and not written over it). I/O errors are logged and never
  * thrown to the UI.
  */
 public interface SettingsRepository {
@@ -35,7 +35,7 @@ public fun SettingsRepository(
     clock: Clock = Clock.systemDefaultZone(),
 ): SettingsRepository = JsonSettingsRepository(directory, ioDispatcher, clock)
 
-/** Where the IDE keeps its per-user files (spec §8, §9). Pure functions over system properties. */
+/** Where the IDE keeps its per-user files (settings and logs). Pure functions over system properties. */
 public object SettingsLocations {
     /** Name of the settings file. */
     public const val SETTINGS_FILE_NAME: String = "settings.json"

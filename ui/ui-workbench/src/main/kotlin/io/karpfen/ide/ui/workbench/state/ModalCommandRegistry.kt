@@ -13,11 +13,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * Makes the workbench dialogs modal for commands (Decorator of [delegate]; decision 47 of the work-package plan): every
- * command registered through it is disabled while a dialog is shown ([dialog] not null) and does nothing if it is run
- * anyway. The dialogs are overlays inside the window, so the menu bar and its accelerators stay live; without this a
- * shortcut typed into a dialog's text field would act on the workbench behind it (Cmd+F moving the focus into an
- * editor's find bar, Cmd+W queueing a Close Tab that runs once the dialog is answered).
+ * Makes the workbench dialogs modal for commands (Decorator of [delegate]): every command registered through it is
+ * disabled while a dialog is shown ([dialog] not null) and does nothing if it is run anyway. The dialogs are overlays
+ * inside the window, so the menu bar and its accelerators stay live; without this a shortcut typed into a dialog's text
+ * field would act on the workbench behind it (Cmd+F moving the focus into an editor's find bar, Cmd+W queueing a Close
+ * Tab that runs once the dialog is answered).
  *
  * Each command's enablement follows its own `isEnabled` and [dialog] in [scope] (re-registering or unregistering an id
  * stops following the replaced command). Used from the UI thread, like the registry.

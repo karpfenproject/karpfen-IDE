@@ -20,9 +20,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * What the status bar shows (spec §8): `Ln x, Col y` (one-based; [column] is the display column with tabs expanded by
- * `TabStops` of the editor's `tabDisplayWidth`, so it matches what the user sees), selection length, language, line
- * separator, encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), and
+ * What the status bar shows: `Ln x, Col y` (one-based; [column] is the display column with tabs expanded by `TabStops`
+ * of the editor's `tabDisplayWidth`, so it matches what the user sees), selection length, language, line separator,
+ * encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), and
  * "Analyzing…".
  */
 public data class StatusBarUiState(
@@ -39,7 +39,7 @@ public data class StatusBarUiState(
 
 /**
  * Status bar state; follows the active editor and the workspace (collected in [scope]). The bindings are mediator
- * operations and internal (decision 31 of the work-package plan). The caret position is [CaretPositionText]'s.
+ * operations and internal, so no view can bypass the mediator. The caret position is [CaretPositionText]'s.
  */
 public class StatusBarState(private val scope: CoroutineScope) {
 
@@ -94,6 +94,7 @@ public class StatusBarState(private val scope: CoroutineScope) {
         }
     }
 
+    /** This state without the editor's part (caret, selection, language, line separator). */
     private fun StatusBarUiState.withoutEditor(): StatusBarUiState =
         copy(line = null, column = null, selectionLength = 0, language = null, lineSeparator = null)
 }

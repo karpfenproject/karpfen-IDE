@@ -48,7 +48,8 @@ class StatusBarStateTest {
             status.state.value,
         )
 
-        editor.caret.select(anchor = 6, position = 10) // line 2 after "\tab\t"
+        val secondLineStart = "STATE\n".length
+        editor.caret.select(anchor = secondLineStart, position = secondLineStart + "\tab\t".length)
         advanceUntilIdle()
         assertEquals(2, status.state.value.line)
         assertEquals(9, status.state.value.column, "display column: tab to 4, 'ab', tab to 8 → column 9")

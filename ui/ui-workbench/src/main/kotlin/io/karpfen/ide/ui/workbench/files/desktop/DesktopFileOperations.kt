@@ -84,6 +84,7 @@ internal class DesktopProjectFileOperations(private val desktop: DesktopActions)
         }
     }
 
+    /** True if [target] is another spelling of [path]'s file (a case-only change on a case-insensitive file system). */
     private fun isSameFileUnderAnotherName(path: Path, target: Path): Boolean =
         path.fileName != target.fileName &&
             Files.exists(target, LinkOption.NOFOLLOW_LINKS) &&
@@ -104,6 +105,10 @@ internal class DesktopProjectFileOperations(private val desktop: DesktopActions)
         }
     }
 
+    /**
+     * [name] if it is a plain file name (not blank, not `.` or `..`, no path separator or NUL character).
+     * @throws IOException otherwise.
+     */
     private fun checkedName(name: String): String {
         if (name.isBlank() || name == "." || name == ".." || name.any { it == '/' || it == '\\' || it == '\u0000' }) {
             throw IOException("'$name' is not a valid file name")

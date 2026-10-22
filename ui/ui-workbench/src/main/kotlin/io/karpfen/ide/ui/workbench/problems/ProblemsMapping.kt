@@ -7,13 +7,15 @@ import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import java.nio.file.Path
 
 /**
- * Maps `Workspace.problems` onto the Problems view's [ProblemsUiState] (spec §8): one group per file in the order of
+ * Maps `Workspace.problems` onto the Problems view's [ProblemsUiState]: one group per file in the order of
  * [WorkspaceProblems.files], items in diagnostic order with one-based `line:col` from `FileProblems.positionOf` and the
- * snapshot's version and lineage, filtered by severity; the counts are the workspace's, before filtering. Only maps
- * and filters — the diagnostics are combined by the one problems rule of core-workspace (decision 17). Pure.
+ * snapshot's version and lineage, filtered by severity; the counts are the workspace's, before filtering. Only maps and
+ * filters: the diagnostics are combined by `Workspace.problems`, the one problems rule of core-workspace that the
+ * Problems view, the status bar and `karpfen validate` share, so they always agree. Pure.
  */
 internal object ProblemsMapping {
 
+    /** The Problems view of [problems] under [filter], with file paths shown relative to the workspace [root]. */
     fun map(problems: WorkspaceProblems, root: Path, filter: ProblemFilter): ProblemsUiState = ProblemsUiState(
         groups = problems.files.mapNotNull { group(it, root, filter) },
         filter = filter,
@@ -45,6 +47,7 @@ internal object ProblemsMapping {
         )
     }
 
+    /** [path] relative to [root] with `/` separators, or the whole path for the root itself and paths outside it. */
     private fun displayPath(path: Path, root: Path): String =
         if (path.startsWith(root) && path != root) root.relativize(path).joinToString("/") else path.toString()
 }

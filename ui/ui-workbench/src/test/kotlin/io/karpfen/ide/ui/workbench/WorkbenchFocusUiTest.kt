@@ -41,6 +41,10 @@ import kotlin.test.assertTrue
 /**
  * Keyboard focus of the composed workbench: modal dialogs keep the focus (Tab cycles inside them, no key reaches the
  * workbench behind them) and give it back when they are answered; the find bar keeps it on Find Next.
+ *
+ * Menu shortcuts are simulated by what they run: Cmd+W by the Close Tab command's intent on the active tab, and Cmd+G
+ * typed into the find bar's query field by Find Next run through the command registry, which is where a menu
+ * accelerator ends up.
  */
 @OptIn(ExperimentalTestApi::class)
 class WorkbenchFocusUiTest {
@@ -110,7 +114,7 @@ class WorkbenchFocusUiTest {
         val editor = editMachine("x")
         assertTrue(editor.isFocused.value)
 
-        workbench.state.closeActiveTab() // what Cmd+W runs
+        workbench.state.closeActiveTab()
         settle()
         test.onNode(isFocused() and inDialog).assertExists()
         assertFalse(editor.isFocused.value)
@@ -134,10 +138,8 @@ class WorkbenchFocusUiTest {
         workbench.state.rename(machine)
         settle()
         tagged(WorkbenchDialogTestTags.INPUT).assertIsFocused()
-        press(Key.Tab)
-        press(Key.Tab)
-        press(Key.Tab)
-        tagged(WorkbenchDialogTestTags.INPUT).assertIsFocused() // field → Rename → Cancel → field
+        repeat(RENAME_FOCUS_STOPS) { press(Key.Tab) }
+        tagged(WorkbenchDialogTestTags.INPUT).assertIsFocused()
         press(Key.Escape)
 
         assertNull(workbench.state.dialogs.current.value)
@@ -158,7 +160,7 @@ class WorkbenchFocusUiTest {
         settle()
         val before = text()
 
-        assertTrue(registry.execute(EditorActionIds.FIND_NEXT)) // Cmd+G typed into the query field reaches the menu
+        assertTrue(registry.execute(EditorActionIds.FIND_NEXT))
         settle()
 
         tagged(EditorPopupTags.FIND_QUERY).assertIsFocused()
@@ -172,5 +174,8 @@ class WorkbenchFocusUiTest {
     private companion object {
         /** The focus stops of the unsaved-changes dialog: the dialog itself and its three buttons. */
         const val DIALOG_FOCUS_STOPS = 4
+
+        /** The focus stops of the rename dialog, so Tab cycles field → Rename → Cancel → field. */
+        const val RENAME_FOCUS_STOPS = 3
     }
 }

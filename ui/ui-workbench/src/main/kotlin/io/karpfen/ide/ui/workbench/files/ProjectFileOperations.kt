@@ -3,12 +3,12 @@ package io.karpfen.ide.ui.workbench.files
 import java.nio.file.Path
 
 /**
- * File operations of the project tree (spec §8): create, rename (files and directories), delete (to the trash when the
- * platform supports it), reveal in Finder/Explorer and opening files the editor does not support in the system's
- * default application. A port (Compose- and AWT-free); the desktop adapter lives in `files.desktop`. Blocking: the
- * workbench calls it on `WorkbenchServices.ioDispatcher`. The workspace notices the changes through its watcher or an
- * explicit refresh. Naming (decision 32): "reveal" alone means "make visible in this component"; the file manager is
- * always named.
+ * File operations of the project tree: create, rename (files and directories), delete (to the trash when the platform
+ * supports it), reveal in Finder/Explorer and opening files the editor does not support in the system's default
+ * application. A port (Compose- and AWT-free); the desktop adapter lives in `files.desktop`. Blocking: the workbench
+ * calls it on `WorkbenchServices.ioDispatcher`. The workspace notices the changes through its watcher or an explicit
+ * refresh. Naming: "reveal" alone means "make visible in this component" throughout the UI modules; showing a file in
+ * the file manager always names the file manager.
  */
 public interface ProjectFileOperations {
 

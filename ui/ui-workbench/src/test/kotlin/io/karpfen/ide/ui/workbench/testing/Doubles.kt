@@ -69,6 +69,8 @@ class FakeOpenDocument(
     override val isDirty = MutableStateFlow(false)
     override val lineSeparator = MutableStateFlow(LineSeparator.LF)
     override val conflict = MutableStateFlow<ExternalChange?>(null)
+
+    /** The resolutions asked for, in call order; each is answered with `ConflictResult.Kept`. */
     val resolutions = mutableListOf<ConflictResolution>()
 
     override suspend fun resolveConflict(resolution: ConflictResolution): ConflictResult {
@@ -79,6 +81,7 @@ class FakeOpenDocument(
 
 /** A [CodeEditorState] that records whether it was closed. */
 class ClosingSpyEditor(private val delegate: CodeEditorState) : CodeEditorState by delegate {
+    /** True once [close] was called. */
     var closed: Boolean = false
         private set
 

@@ -1,10 +1,10 @@
 package io.karpfen.ide.ui.workbench.templates
 
 /**
- * Contents of new KMeta, KModel and KStates files (spec §8, documented on [FileTemplates]); each tokenizes and parses
- * without diagnostics. Names come from the file's base name: the example type of a metamodel is the base name in
- * PascalCase ([typeName]), which is also the type a model or state machine falls back to when the context knows no
- * domain type — so `robot.kmeta`, `robot.kmodel` and `robot.kstates` created in an empty directory fit together. Pure.
+ * Contents of new KMeta, KModel and KStates files (documented on [FileTemplates]); each tokenizes and parses without
+ * diagnostics. Names come from the file's base name: the example type of a metamodel is the base name in PascalCase
+ * ([typeName]), which is also the type a model or state machine falls back to when the context knows no domain type —
+ * so `robot.kmeta`, `robot.kmodel` and `robot.kstates` created in an empty directory fit together. Pure.
  */
 internal object KarpfenSourceTemplates {
 

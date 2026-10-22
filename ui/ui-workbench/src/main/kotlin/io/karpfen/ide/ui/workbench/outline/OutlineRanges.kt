@@ -9,14 +9,13 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.util.IdentityHashMap
 
 /**
- * The ranges of an outline's nodes in the current text, anchored at the latest projected version (like the session's
- * external diagnostics, decision 50 of the work-package plan): when the outlined parse changes, every node's range is
- * mapped once from the parse's version; for each later text version the anchored ranges are mapped on from the
- * previous one only, with [EditableText.mapRange] (the one range-mapping rule, decision 35). So a projection maps
- * across the versions since the previous projection — one keystroke, usually — instead of across every edit since the
- * last good parse, which made each keystroke of a document with a syntax error more expensive than the one before and
- * lost the highlight once the text no longer retained those edits. A range that cannot be mapped is dropped until the
- * parse changes.
+ * The ranges of an outline's nodes in the current text, anchored at the latest projected version (the way a document
+ * session anchors its external diagnostics): when the outlined parse changes, every node's range is mapped once from
+ * the parse's version; for each later text version the anchored ranges are mapped on from the previous one only, with
+ * [EditableText.mapRange], the one rule for mapping ranges between versions. So a projection maps across the versions
+ * since the previous projection — one keystroke, usually — instead of across every edit since the last good parse,
+ * which made each keystroke of a document with a syntax error more expensive than the one before and lost the highlight
+ * once the text no longer retained those edits. A range that cannot be mapped is dropped until the parse changes.
  *
  * Mutable, for one binding: used by its collector only.
  */
@@ -28,10 +27,14 @@ internal class OutlineRanges(private val text: EditableText) {
     /** The node ranges at [version]; null while that is the source's own version (its ranges as parsed). */
     private var anchored: Map<OutlineNode, TextRange>? = null
 
-    /** Each node's range of [source]'s outline in the text of [snapshot]; null for a node that cannot be mapped there. */
+    /**
+     * Each node's range of [source]'s outline in the text of [snapshot]; null for a node that cannot be mapped there. A
+     * parse ahead of the text it is projected onto ([snapshot] older than [source]) maps nothing back: every node
+     * answers null, and the ranges are anchored afresh on the next call.
+     */
     fun at(source: ParseOutcome, snapshot: TextSnapshot): (OutlineNode) -> TextRange? {
         if (snapshot.version < source.version) {
-            this.source = null // a parse ahead of the text it is projected onto: nothing maps back, anchor later
+            this.source = null
             return { null }
         }
         when {
@@ -42,6 +45,7 @@ internal class OutlineRanges(private val text: EditableText) {
         return { node -> ranges[node] }
     }
 
+    /** Maps every node's range from [source]'s version into [snapshot] (as parsed when the versions agree). */
     private fun anchor(source: ParseOutcome, snapshot: TextSnapshot) {
         anchored = if (source.version == snapshot.version) {
             null
@@ -51,6 +55,7 @@ internal class OutlineRanges(private val text: EditableText) {
         remember(source, snapshot)
     }
 
+    /** Maps the anchored ranges on from the previously projected version into [snapshot]. */
     private fun advance(source: ParseOutcome, snapshot: TextSnapshot) {
         val previous = anchored
         val from = version
@@ -61,6 +66,7 @@ internal class OutlineRanges(private val text: EditableText) {
         remember(source, snapshot)
     }
 
+    /** Makes [source] and the lineage and version of [snapshot] the anchor of the next projection. */
     private fun remember(source: ParseOutcome, snapshot: TextSnapshot) {
         this.source = source
         lineage = snapshot.lineage

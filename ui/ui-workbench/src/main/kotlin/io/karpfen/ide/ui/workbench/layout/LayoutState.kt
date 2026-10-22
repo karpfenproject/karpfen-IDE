@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * The tool windows around the editor area (spec §8), with their [title] (tool-window header and View menu) and default
- * size in dp (width for side windows, height for bottom ones). A new tool window is a new entry here: the persisted
- * form is a map by [name] (no schema change), the toggle command id is `WorkbenchCommandIds.toggleToolWindow(id)` and
- * the View menu iterates the entries.
+ * The tool windows around the editor area, with their [title] (tool-window header and View menu) and default size in dp
+ * (width for side windows, height for bottom ones). A new tool window is a new entry here: the persisted form is a map
+ * by [name] (no schema change), the toggle command id is `WorkbenchCommandIds.toggleToolWindow(id)` and the View menu
+ * iterates the entries.
  */
 public enum class ToolWindowId(public val title: String, public val defaultSize: Float) {
     /** Project tree (left). */
@@ -31,7 +31,7 @@ public enum class ToolWindowId(public val title: String, public val defaultSize:
 }
 
 /**
- * The live window layout (spec §8): tool-window visibility and sizes, the theme and the main window's bounds.
+ * The live window layout: tool-window visibility and sizes, the theme and the main window's bounds.
  *
  * @property toolWindows the layout of every [ToolWindowId].
  */
@@ -61,10 +61,10 @@ public data class LayoutUiState(
 }
 
 /**
- * The window layout as live UI state (spec §8): a Compose-free sub-state of the workbench. Its intents change only
- * this state, at any rate (e.g. every frame of a split-pane drag); persistence is the mediator's job: it writes
- * [state] into the settings through the `SettingsRepository` debounced and once more in `requestExit`, and restores
- * it after loading the settings ([restore]).
+ * The window layout as live UI state: a Compose-free sub-state of the workbench. Its intents change only this state, at
+ * any rate (e.g. every frame of a split-pane drag); persistence is the mediator's job: it writes [state] into the
+ * settings through the `SettingsRepository` debounced and once more in `requestExit`, and restores it after loading the
+ * settings ([restore]).
  */
 public class LayoutState {
 

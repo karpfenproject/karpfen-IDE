@@ -14,10 +14,10 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Opening and closing folders (spec §8): the unsaved-changes flow over every open document, closing the tabs and the
- * old workspace, opening the new one through the [WorkspaceFactory] in [scope] (its dispatcher is the documents'
- * single writer), binding the sub-states and recording the folder as the most recent one. The tree is scanned before
- * the flow ends, so the project tree is filled when the intent's job completes.
+ * Opening and closing folders: the unsaved-changes flow over every open document, closing the tabs and the old
+ * workspace, opening the new one through the [WorkspaceFactory] in [scope] (its dispatcher is the documents' single
+ * writer), binding the sub-states and recording the folder as the most recent one. The tree is scanned before the flow
+ * ends, so the project tree is filled when the intent's job completes.
  *
  * A folder that is no longer a directory (a stale recent folder: deleted, moved, its volume unmounted) or that cannot
  * be listed (permissions, a protected folder) is checked on [ioDispatcher] before anything is closed: the open
@@ -39,6 +39,11 @@ internal class FolderFlow(
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 
+    /**
+     * Opens [path] as the workspace unless it is open already, and records it as the most recent folder. A folder that
+     * passes the check but vanishes before the [WorkspaceFactory] opens it (which rejects it with an
+     * `IllegalArgumentException`) cannot be opened either.
+     */
     suspend fun openFolder(path: Path) {
         val root = path.toAbsolutePath().normalize()
         if (holder.workspace.value?.root != root) {
@@ -48,7 +53,7 @@ internal class FolderFlow(
             val workspace = try {
                 workspaces.open(root, scope)
             } catch (e: IllegalArgumentException) {
-                return cannotOpen(root, e.message ?: notAFolder(root)) // vanished since the check
+                return cannotOpen(root, e.message ?: notAFolder(root))
             }
             holder.set(workspace, languageServices.create(workspace))
             bindings.bindWorkspace(workspace)
@@ -66,6 +71,7 @@ internal class FolderFlow(
         }
     }
 
+    /** True if the entries of [root] can be listed. */
     private fun canList(root: Path): Boolean =
         try {
             Files.newDirectoryStream(root).close()
@@ -74,8 +80,10 @@ internal class FolderFlow(
             false
         }
 
+    /** The reason shown for a [root] that is not an existing directory. */
     private fun notAFolder(root: Path): String = "$root does not exist or is not a folder."
 
+    /** Drops [root] from the recent folders and shows [reason] in an error dialog. */
     private suspend fun cannotOpen(root: Path, reason: String) {
         settings.update { it.withoutRecentFolder(root.toString()) }
         dialogs.showError("Cannot open folder", reason)

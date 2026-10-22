@@ -6,8 +6,8 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 
 /**
- * The unsaved-changes dialog before closing documents (tab close, folder switch, rename, exit; spec §8): asks about the
- * dirty ones among them (no dialog when none is dirty) and answers whether the caller may go on — Save saves them first
+ * The unsaved-changes dialog before closing documents (tab close, folder switch, rename, exit): asks about the dirty
+ * ones among them (no dialog when none is dirty) and answers whether the caller may go on — Save saves them first
  * through [saving] (a failed save, or a declined overwrite of an external change, stops), Discard goes on without
  * saving, Cancel stops.
  */

@@ -28,6 +28,7 @@ class EditorTabsStateTest {
 
     private val root: Path = Path.of("/ws").toAbsolutePath()
 
+    /** An [EditorTabsState] on the test's scheduler with the fake documents and spy editors of the tabs it opened. */
     private class Fixture(test: TestScope, val root: Path) {
         val dispatcher = StandardTestDispatcher(test.testScheduler)
         val scope = CoroutineScope(dispatcher + SupervisorJob())
@@ -35,6 +36,7 @@ class EditorTabsStateTest {
         val documents = LinkedHashMap<String, FakeOpenDocument>()
         val editors = LinkedHashMap<String, ClosingSpyEditor>()
 
+        /** Opens a tab for an empty document [name] below [root], at [index] if given. */
         fun open(name: String, index: Int? = null): FakeOpenDocument {
             val document = FakeOpenDocument(root.resolve(name), "", scope, dispatcher)
             val editor = editorOf(document, scope, dispatcher)
@@ -44,9 +46,11 @@ class EditorTabsStateTest {
             return document
         }
 
+        /** The tab titles in display order. */
         fun titles(): List<String> = tabs.tabs.value.map { it.title }
     }
 
+    /** Runs [block] with a fresh [Fixture] and cancels its scope afterwards. */
     private fun fixture(block: suspend TestScope.(Fixture) -> Unit) = runTest {
         val fixture = Fixture(this, root)
         try {
@@ -97,7 +101,7 @@ class EditorTabsStateTest {
         assertNull(f.tabs.active.value)
         assertNull(f.tabs.activeEditor.value)
 
-        f.tabs.remove(root.resolve("a.kmeta")) // no-op
+        f.tabs.remove(root.resolve("a.kmeta"))
         assertTrue(f.tabs.tabs.value.isEmpty())
     }
 

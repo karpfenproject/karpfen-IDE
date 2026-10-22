@@ -12,9 +12,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Persists the live [LayoutState] into the settings (decision 31 of the work-package plan): debounced ([DEBOUNCE]
- * after the last change, so dragging a divider writes once) and only when it differs from what the settings hold, and
- * once more on exit ([persistNow]). Restoring happens in the mediator's `start` before [start].
+ * Persists the live [LayoutState] into the settings, so the sub-state itself stays a plain holder without I/O:
+ * debounced ([DEBOUNCE] after the last change, so dragging a divider writes once) and only when it differs from what
+ * the settings hold, and once more on exit ([persistNow]). Restoring happens in the mediator's `start` before [start].
  */
 internal class LayoutPersister(
     private val scope: CoroutineScope,

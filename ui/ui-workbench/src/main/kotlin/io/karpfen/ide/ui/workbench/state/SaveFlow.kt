@@ -8,11 +8,11 @@ import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 
 /**
- * Saving open documents (Save, Save All, and Save in the unsaved-changes dialog; spec §4, §8) without silently writing
- * over a change made on disk: a document whose external-change conflict is unresolved (`OpenDocument.conflict`, the
- * banner's Reload / Keep mine) is only saved once the user confirmed overwriting ([DialogRequest.ConfirmOverwrite], one
- * dialog for all of them; decision 47 of the work-package plan). On Cancel they stay unsaved and in conflict, and the
- * first of them becomes the active tab, so its banner shows; the others are saved. A failed save becomes an error dialog.
+ * Saving open documents (Save, Save All, and Save in the unsaved-changes dialog) without silently writing over a change
+ * made on disk: a document whose external-change conflict is unresolved (`OpenDocument.conflict`, the banner's Reload /
+ * Keep mine) is only saved once the user confirmed overwriting ([DialogRequest.ConfirmOverwrite], one dialog for all of
+ * them). On Cancel they stay unsaved and in conflict, and the first of them becomes the active tab, so its banner
+ * shows; the others are saved. A failed save becomes an error dialog.
  */
 internal class SaveFlow(
     private val holder: WorkspaceHolder,
@@ -33,6 +33,7 @@ internal class SaveFlow(
         return overwrite && failures.isEmpty()
     }
 
+    /** The error dialog's title: names the file when a single save failed. */
     private fun failureTitle(failures: List<SaveResult.Failed>): String =
         failures.singleOrNull()?.let { "Could not save ${it.path.fileName}" } ?: "Could not save"
 }

@@ -28,7 +28,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-/** `registerCommands` (spec §9; decisions 15 and 36): workbench commands, recent folders, view toggles, editor commands. */
+/**
+ * `registerCommands`: workbench commands, recent folders, view toggles, and editor commands with the shortcuts of the
+ * one editor keymap, which act only on a focused editor except for find and go-to. The find bar's query field taking
+ * the focus is simulated by consuming the editor's focus request.
+ */
 class CommandsTest {
 
     @TempDir
@@ -155,7 +159,7 @@ class CommandsTest {
         assertTrue(registry.execute(EditorActionIds.FIND))
         editor.find.setQuery(FindQuery("STATE"))
         settle()
-        editor.consumeFocusRequest() // the find bar's query field has the focus
+        editor.consumeFocusRequest()
         val matches = editor.find.state.value.matches
         assertTrue(matches.size > 2)
 

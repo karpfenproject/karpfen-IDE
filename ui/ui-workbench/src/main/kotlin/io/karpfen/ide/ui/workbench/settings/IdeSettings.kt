@@ -3,8 +3,8 @@ package io.karpfen.ide.ui.workbench.settings
 import kotlinx.serialization.Serializable
 
 /**
- * Persistent IDE settings (spec §8), stored as JSON by the [SettingsRepository]. Unknown JSON keys are ignored and
- * missing keys take the defaults, so older and newer files load.
+ * Persistent IDE settings, stored as JSON by the [SettingsRepository]. Unknown JSON keys are ignored and missing keys
+ * take the defaults, so older and newer files load.
  *
  * @property recentFolders absolute paths of recently opened folders, most recent first, at most [MAX_RECENT_FOLDERS].
  * @property theme light, dark or following the system.
@@ -35,7 +35,7 @@ public data class IdeSettings(
     public fun withoutRecentFolder(folder: String): IdeSettings = copy(recentFolders = recentFolders - folder)
 
     public companion object {
-        /** Maximum number of recent folders (spec §8). */
+        /** Maximum number of recent folders. */
         public const val MAX_RECENT_FOLDERS: Int = 10
     }
 }

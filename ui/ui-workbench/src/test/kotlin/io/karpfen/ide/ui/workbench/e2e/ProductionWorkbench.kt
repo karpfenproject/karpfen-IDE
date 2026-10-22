@@ -29,23 +29,35 @@ import kotlin.test.assertTrue
 import kotlin.time.TestTimeSource
 
 /**
- * The workbench exactly as the application wires it — `defaultWorkbenchServices(…)` (decision 34 of the work-package
- * plan) with the built-in languages, real workspaces, the default language services, real editors sharing the (headless,
- * in-memory) system clipboard, the macOS keymap and the built-in templates — but with test values for everything
- * time-, thread-, file-system- and toolkit-dependent: one test dispatcher on [scheduler] for the mediator, the
- * workspace, the sessions, the editors' background work and the workbench's I/O; a [TestTimeSource] for undo
- * coalescing; a [FakeFileWatcher]; a fixed clock; recording file operations and a fake folder chooser; settings in
- * [settingsDirectory].
+ * The workbench exactly as the application wires it — `defaultWorkbenchServices(…)`, whose time-, file-system- and
+ * toolkit-dependent parameters are its test seams — with the built-in languages, real workspaces, the default language
+ * services, real editors sharing the (headless, in-memory) system clipboard, the macOS keymap and the built-in
+ * templates — but with test values for everything time-, thread-, file-system- and toolkit-dependent: one test
+ * dispatcher on [scheduler] for the mediator, the workspace, the sessions, the editors' background work and the
+ * workbench's I/O; a [TestTimeSource] for undo coalescing; a [FakeFileWatcher]; a fixed clock; recording file
+ * operations and a fake folder chooser; settings in [settingsDirectory].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProductionWorkbench(val scheduler: TestCoroutineScheduler, settingsDirectory: Path) : AutoCloseable {
+    /** The one test dispatcher on [scheduler] that runs all of the workbench's work. */
     val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
+
+    /** The scope of the workbench state. */
     val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
+
+    /** The file watcher; tests deliver external changes through it. */
     val watcher = FakeFileWatcher()
+
+    /** Records the desktop file operations instead of running them. */
     val fileOperations = RecordingFileOperations()
+
+    /** Answers the folder dialog. */
     val folderChooser = FakeFolderChooser()
+
+    /** The time source of the documents' undo coalescing. */
     val time = TestTimeSource()
 
+    /** The production wiring with the test values above. */
     val services: WorkbenchServices = defaultWorkbenchServices(
         settingsDirectory = settingsDirectory,
         platform = HostPlatform.MAC_OS,
@@ -63,6 +75,7 @@ class ProductionWorkbench(val scheduler: TestCoroutineScheduler, settingsDirecto
         folderChooser = folderChooser,
     )
 
+    /** The workbench state under test. */
     val state: WorkbenchState = WorkbenchState(scope, services)
 
     /** The current workspace (fails without one). */

@@ -80,7 +80,7 @@ class JsonSettingsRepositoryTest {
         assertEquals("{ not json", Files.readString(dir.resolve("settings.json.corrupt-20261021-083005")))
         assertEquals(IdeSettings(), Json.decodeFromString(IdeSettings.serializer(), Files.readString(file)), "the defaults are written")
 
-        Files.writeString(file, """{ "editorFontSize": -1 }""") // violates an IdeSettings invariant
+        Files.writeString(file, NEGATIVE_FONT_SIZE)
         assertEquals(IdeSettings(), repository().load())
         Files.writeString(file, """{ "recentFolders": "not a list" }""")
         assertEquals(IdeSettings(), repository().load())
@@ -92,8 +92,7 @@ class JsonSettingsRepositoryTest {
 
     @Test
     fun `a file that is not UTF-8 is corrupt too - backed up, then reset, never silently overwritten`() = runTest {
-        // Hand-edited and saved as Latin-1: the é is the single byte 0xE9, which is no UTF-8.
-        val latin1 = """{"recentFolders": ["/Users/x/Café"], "editorFontSize": 18.0}""".toByteArray(Charsets.ISO_8859_1)
+        val latin1 = LATIN1_SETTINGS
         Files.write(file, latin1)
         val settings = repository()
 
@@ -153,5 +152,14 @@ class JsonSettingsRepositoryTest {
                 System.setProperty(SettingsLocations.HOME_PROPERTY, previous)
             }
         }
+    }
+
+    private companion object {
+        /** Valid JSON whose font size violates an [IdeSettings] invariant. */
+        const val NEGATIVE_FONT_SIZE = """{ "editorFontSize": -1 }"""
+
+        /** Settings hand-edited and saved as Latin-1: the é is the single byte 0xE9, which is no UTF-8. */
+        val LATIN1_SETTINGS: ByteArray
+            get() = """{"recentFolders": ["/Users/x/Café"], "editorFontSize": 18.0}""".toByteArray(Charsets.ISO_8859_1)
     }
 }

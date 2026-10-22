@@ -10,9 +10,9 @@ import java.io.IOException
 import java.nio.file.Path
 
 /**
- * Opening a file (spec §8, decision 14 of the work-package plan): karpfen sources open in an editor tab (or activate
- * theirs); files the editor cannot open (`OpenResult.Unsupported`, e.g. `*.kenv.json`) open in the system's default
- * application through [fileOperations] on [ioDispatcher]; failures become an error dialog.
+ * Opening a file: karpfen sources open in an editor tab (or activate theirs); files the editor cannot open
+ * (`OpenResult.Unsupported`, e.g. `*.kenv.json`) open in the system's default application through [fileOperations] on
+ * [ioDispatcher], also when the Problems view navigates to them; failures become an error dialog.
  */
 internal class FileOpenFlow(
     private val lifecycle: EditorLifecycle,
@@ -38,6 +38,7 @@ internal class FileOpenFlow(
         }
     }
 
+    /** Opens [path] in the system's default application; a failure becomes an error dialog. */
     private suspend fun openExternally(path: Path) {
         if (!fileOperations.supportsOpenExternally) {
             logger.info("Opening {} in the default application is not supported on this platform", path)

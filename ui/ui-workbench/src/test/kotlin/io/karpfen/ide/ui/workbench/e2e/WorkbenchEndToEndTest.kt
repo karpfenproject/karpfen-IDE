@@ -24,9 +24,9 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The workbench over the production wiring (`defaultWorkbenchServices` with test values, see [ProductionWorkbench]) on
- * a copy of the examples, as a user drives it (INTEGRATION, plan §4): open the folder, edit, see syntax and dsl-tools
- * diagnostics in the session, the Problems view and the status bar, complete with the project's types, save and undo
- * with coalescing on the test time source, and external changes through the fake watcher.
+ * a copy of the examples, as a user drives it: open the folder, edit, see syntax and dsl-tools diagnostics in the
+ * session, the Problems view and the status bar, complete with the project's types, save and undo with coalescing on
+ * the test time source, and external changes through the fake watcher.
  */
 class WorkbenchEndToEndTest {
 

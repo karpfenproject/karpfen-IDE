@@ -10,9 +10,9 @@ internal data class StatusSegment(val kind: StatusSegmentKind, val text: String,
 }
 
 /**
- * The texts of the status bar (spec §8), presentation only, so the composable just renders them: the left side shows
- * "Analyzing…" while an analysis runs; the right side `Ln x, Col y`, the selection length (when text is selected),
- * language, line separator and encoding of the active editor, then the workspace's error and warning counts.
+ * The texts of the status bar, presentation only, so the composable just renders them: the left side shows "Analyzing…"
+ * while an analysis runs; the right side `Ln x, Col y`, the selection length (when text is selected), language, line
+ * separator and encoding of the active editor, then the workspace's error and warning counts.
  */
 internal object StatusBarSegments {
 

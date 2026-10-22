@@ -8,6 +8,7 @@ import javax.swing.JFileChooser
 
 /** A modal native folder dialog; called on the AWT event dispatch thread, returns the chosen folder or null if cancelled. */
 internal fun interface FolderDialog {
+    /** Shows the dialog with [title], starting in [initialDirectory]; the chosen folder, or null if cancelled. */
     fun show(title: String, initialDirectory: Path?): Path?
 
     companion object {

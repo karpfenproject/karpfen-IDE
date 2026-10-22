@@ -34,8 +34,11 @@ internal class JsonSettingsRepository(
     private val current = MutableStateFlow(IdeSettings())
     private val writes = Mutex()
 
-    /** True while the existing file could not be read: it holds settings we do not know, so it is not replaced. */
-    private var keepUnreadableFile = false // guarded by [writes]
+    /**
+     * True while the existing file could not be read: it holds settings we do not know, so it is not replaced. Guarded
+     * by [writes].
+     */
+    private var keepUnreadableFile = false
 
     override val settings: StateFlow<IdeSettings>
         get() = current.asStateFlow()
@@ -53,12 +56,17 @@ internal class JsonSettingsRepository(
         updated
     }
 
+    /**
+     * Reads and decodes the file; the defaults if it does not exist. A file that was read but is not UTF-8 (e.g.
+     * hand-edited and saved as Latin-1) is corrupt like invalid JSON. Decoding failures are caught as
+     * `IllegalArgumentException`, which covers kotlinx.serialization's `SerializationException` and the [IdeSettings]
+     * invariants alike. A file that cannot be read sets [keepUnreadableFile].
+     */
     private fun read(): IdeSettings {
         keepUnreadableFile = false
         val text = try {
             file.read() ?: return IdeSettings()
         } catch (e: CharacterCodingException) {
-            // Read, but not UTF-8 (e.g. hand-edited and saved as Latin-1): corrupt like invalid JSON.
             return recoverFromCorruptFile(e)
         } catch (e: IOException) {
             logger.warn("Could not read the settings {}; using the defaults and leaving the file as it is", file.path, e)
@@ -68,11 +76,11 @@ internal class JsonSettingsRepository(
         return try {
             json.decodeFromString(IdeSettings.serializer(), text)
         } catch (e: IllegalArgumentException) {
-            // SerializationException is an IllegalArgumentException, like the IdeSettings invariants.
             recoverFromCorruptFile(e)
         }
     }
 
+    /** Moves the corrupt file aside (logging [cause]) and writes and returns the defaults. */
     private fun recoverFromCorruptFile(cause: Exception): IdeSettings {
         try {
             val backup = file.backUpCorruptFile()
@@ -83,6 +91,7 @@ internal class JsonSettingsRepository(
         return IdeSettings().also(::write)
     }
 
+    /** Writes [settings] unless an unreadable file is kept; failures are logged. */
     private fun write(settings: IdeSettings) {
         if (keepUnreadableFile) {
             logger.debug("Not writing the settings over the unreadable {}", file.path)

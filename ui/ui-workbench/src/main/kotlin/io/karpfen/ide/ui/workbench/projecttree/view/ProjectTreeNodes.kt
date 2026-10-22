@@ -9,8 +9,8 @@ import io.karpfen.ide.ui.foundation.widgets.TreeNode
 import java.nio.file.Path
 
 /**
- * The `TreeView` nodes of a [WorkspaceTree] (spec §8): one root node for the folder, children in the tree's order,
- * keyed by path, with file-kind icons. What a node is and offers is the `ProjectTreeState`'s.
+ * The `TreeView` nodes of a [WorkspaceTree]: one root node for the folder, children in the tree's order, keyed by path,
+ * with file-kind icons. What a node is and offers is the `ProjectTreeState`'s.
  */
 internal class ProjectTreeNodes(tree: WorkspaceTree) {
 

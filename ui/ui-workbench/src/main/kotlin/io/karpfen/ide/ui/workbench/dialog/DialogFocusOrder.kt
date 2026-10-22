@@ -22,6 +22,7 @@ internal class DialogFocusOrder(private val focusable: List<Boolean>) {
     /** The stop Shift+Tab moves to from [stop]. */
     fun previous(stop: Int): Int = step(stop, -1)
 
+    /** The first focusable stop after [stop] in [direction], wrapping around (the first stop always qualifies). */
     private fun step(stop: Int, direction: Int): Int =
         (1..size).map { Math.floorMod(stop + direction * it, size) }.first { focusable[it] }
 

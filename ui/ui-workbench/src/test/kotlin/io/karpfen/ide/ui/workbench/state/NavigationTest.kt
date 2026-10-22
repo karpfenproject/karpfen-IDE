@@ -27,7 +27,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `navigateTo` (spec §8; decisions 26 and 35): opening the target, versioned ranges mapped into the live text, clamping,
+ * `navigateTo`: opening the target, versioned ranges mapped into the live text with `EditableText.mapRange`, clamping,
  * files the editor cannot open, and navigation requests of editors collected for their whole life.
  */
 class NavigationTest {
@@ -121,7 +121,7 @@ class NavigationTest {
         val editor = openEditor(machine)
         val reference = text(machine).indexOf("TRANSITION \"ready\" -> \"observe\"") + "TRANSITION \"ready\" -> \"".length + 2
         editor.goToDefinition(reference)
-        state.openFile(model) // switches the tab before the lookup is done
+        state.openFile(model)
         settle()
 
         assertEquals(machine, state.tabs.active.value, "the navigation request was collected while the tab was in the background")

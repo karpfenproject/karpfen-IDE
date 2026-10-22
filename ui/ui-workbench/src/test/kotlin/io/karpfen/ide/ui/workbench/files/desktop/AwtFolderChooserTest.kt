@@ -20,6 +20,13 @@ class AwtFolderChooserTest {
 
     private val folder: Path = Path.of("/ws/robot").toAbsolutePath()
 
+    /**
+     * True if [failure] is [original] or caused by it: coroutines may recover an exception as a copy with the original
+     * as its cause.
+     */
+    private fun causedBy(failure: Throwable, original: Throwable): Boolean =
+        generateSequence(failure) { it.cause }.any { it === original }
+
     @Test
     fun `the dialog runs on the event dispatch thread and its answer is returned`() = runBlocking {
         var onEdt = false
@@ -45,8 +52,7 @@ class AwtFolderChooserTest {
 
         val failure = withTimeout(10.seconds) { assertFailsWith<IOException> { chooser.chooseFolder("Open Folder", null) } }
 
-        // (Coroutines may recover the exception as a copy with the original as its cause.)
-        assertTrue(generateSequence<Throwable>(failure) { it.cause }.any { it === shellFolderBug }, "$failure")
+        assertTrue(causedBy(failure, shellFolderBug), "$failure")
         assertEquals("The folder dialog failed: Could not get shell folder ID list", failure.message)
     }
 

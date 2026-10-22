@@ -18,7 +18,7 @@ import java.nio.file.Path
 
 /**
  * The project tree's file operations except rename ([RenameFlow]): new file from a template, delete and reveal in the
- * file manager (spec §8). Blocking file work runs on [ioDispatcher]; failures become error dialogs.
+ * file manager. Blocking file work runs on [ioDispatcher]; failures become error dialogs.
  */
 internal class FileOperationFlows(
     private val holder: WorkspaceHolder,

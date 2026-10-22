@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The current [Workspace] of the workbench with its [LanguageServices] and the window title derived from it (spec §9:
- * `<folder> — karpfen IDE`). A plain holder; opening and closing workspaces is the folder flow's job.
+ * The current [Workspace] of the workbench with its [LanguageServices] and the window title derived from it
+ * (`<folder> — karpfen IDE`). A plain holder; opening and closing workspaces is the folder flow's job.
  */
 internal class WorkspaceHolder {
 

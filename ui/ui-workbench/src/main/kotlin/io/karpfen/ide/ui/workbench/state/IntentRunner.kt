@@ -11,13 +11,13 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Runs the workbench's intent flows (decision 42 of the work-package plan): each [launch] starts its flow in [scope]
- * and returns the flow's [Job]; flows run one at a time, in call order (a fair mutex, entered before the call
- * returns), so a second click cannot open a second dialog while the first flow waits for an answer. [launchOnce]
- * coalesces repeated requests of one thing (closing one tab: a second request while the first is queued or asking
- * returns the first's job instead of asking again after a Cancel; decision 47). A flow that fails with an unexpected
- * exception is logged and reported through [onFailure] (still holding the turn), never cancelling [scope].
- * [exclusive] runs a suspending block in the same order (exit waits for a running flow).
+ * Runs the workbench's intent flows: each [launch] starts its flow in [scope] and returns the flow's [Job]; flows run
+ * one at a time, in call order (a fair mutex, entered before the call returns), so a second click cannot open a second
+ * dialog while the first flow waits for an answer. [launchOnce] coalesces repeated requests of one thing (closing one
+ * tab: a second request while the first is queued or asking returns the first's job instead of asking again after a
+ * Cancel). A flow that fails with an unexpected exception is logged and reported through [onFailure] (still holding the
+ * turn), never cancelling [scope]. [exclusive] runs a suspending block in the same order (exit waits for a running
+ * flow).
  */
 internal class IntentRunner(
     private val scope: CoroutineScope,
@@ -26,9 +26,11 @@ internal class IntentRunner(
     private val turn = Mutex()
     private val unfinished = ConcurrentHashMap<Any, Job>()
 
-    /** Launches the flow [intent] (a name for logs) and returns its job. */
+    /**
+     * Launches the flow [intent] (a name for logs) and returns its job. The coroutine starts undispatched, so it queues
+     * for the turn's mutex before [launch] returns and call order is turn order.
+     */
     fun launch(intent: String, flow: suspend () -> Unit): Job =
-        // UNDISPATCHED: the coroutine queues for the mutex before launch returns, so call order is turn order.
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             turn.withLock {
                 try {
