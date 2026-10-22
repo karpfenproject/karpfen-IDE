@@ -18,7 +18,10 @@ class ReferenceIdsTest {
         val text = "See §3.4, § 7, decision 53, Decisions #12, WP-PARSE, ADR 0003, ADR-7, " +
             "spec section 3.1 and Specification Section 4."
         assertEquals(
-            listOf("§3.4", "§ 7", "decision 53", "Decisions #12", "WP-PARSE", "ADR 0003", "ADR-7", "spec section 3.1", "Specification Section 4"),
+            listOf(
+                "§3.4", "§ 7", "decision 53", "Decisions #12", "WP-PARSE", "ADR 0003", "ADR-7", "spec section 3.1",
+                "Specification Section 4",
+            ),
             idsIn(text),
         )
     }
@@ -36,7 +39,10 @@ class ReferenceIdsTest {
             listOf("review round 2, \"hidden-completion-close-ignores-reveal\""),
             idsIn("(review round 2, \"hidden-completion-close-ignores-reveal\")"),
         )
-        assertEquals(listOf("review finding \"hidden-completion-captures-keys\""), idsIn("the review finding \"hidden-completion-captures-keys\""))
+        assertEquals(
+            listOf("review finding \"hidden-completion-captures-keys\""),
+            idsIn("the review finding \"hidden-completion-captures-keys\""),
+        )
         assertEquals(listOf("review finding find-regex-on-ui-thread"), idsIn("fixes the review finding find-regex-on-ui-thread"))
         assertEquals(listOf("review: `shift-tab-moves-focus-out`"), idsIn("(review: `shift-tab-moves-focus-out`)"))
         assertEquals(listOf("Review round 3"), idsIn("Review round 3 found nothing."))
@@ -48,6 +54,19 @@ class ReferenceIdsTest {
         assertEquals(listOf("key D9 and D12"), idsIn("the decision key D9 and D12"))
         assertEquals(listOf("Decisions D1, D2 or D3"), idsIn("Decisions D1, D2 or D3 hold."))
         assertEquals(listOf("(D2)", "(P1, P2)", "D8"), idsIn("as decided (D2), done in (P1, P2); D8: the editor"))
+    }
+
+    @Test
+    fun `finds the phrasings of the phase-1 comments and their variants`() {
+        assertEquals(listOf("rule 7 of the work-package plan"), idsIn("(rule 7 of the work-package plan)"))
+        assertEquals(listOf("steps 3–4 of the phase-1 specification"), idsIn("as steps 3–4 of the phase-1 specification say"))
+        assertEquals(listOf("proposal's item 6"), idsIn("the proposal's item 6"))
+        assertEquals(listOf("INTEGRATION's"), idsIn("(INTEGRATION's e2e)"))
+        assertEquals(listOf("INTEGRATION's"), idsIn("(INTEGRATION's `ui.editor.e2e`, the editor tests)"))
+        assertEquals(listOf("D4 decision", "P1 and P2 phases"), idsIn("the D4 decision of the P1 and P2 phases"))
+        assertEquals(listOf("sec. 3.4", "Sect. 2"), idsIn("see sec. 3.4 of the spec and Sect. 2"))
+        assertEquals(listOf("record 0010", "decision record 10"), idsIn("as record 0010 explains, and decision record 10"))
+        assertEquals(listOf("WP3", "WP-4"), idsIn("WP3 adds what WP-4 needs"))
     }
 
     @Test
@@ -64,6 +83,9 @@ class ReferenceIdsTest {
             "the work package that adds find, the work-package plan",
             "the diagnostics `descriptor-missing-file` and \"context-no-metamodel\" are findings",
             "after the review, follow-up work; the reviewed code",
+            "One refinement of step 2: a comment piece; the steps 1 to 3 of the algorithm",
+            "ANTLR's conjured tokens (ANTLR's console listener), the enclosing TRANSITION's clause, the CLI's report",
+            "the format (TEXT), the parser records 3 errors, a record of 2 entries, 5 sec timeout",
         ).forEach { prose -> assertEquals(emptyList(), idsIn(prose), prose) }
     }
 
