@@ -29,7 +29,11 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
-/** Contract test of the complete core-document values and wiring (no phase-1 implementation code is executed). */
+/**
+ * Contract test of the core-document values and wiring: languages by file name, diagnostic order, token and embedded
+ * region lookups, the one merge rule, the syntax index, outline paths, registries and document ids. It never tokenizes
+ * or parses.
+ */
 class DocumentContractTest {
 
     @Test
