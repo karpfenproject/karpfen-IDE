@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.workspace.analysis
 
-import instance.Model
+import io.karpfen.dsl.instance.Model
+import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.dsl.Conversion
 import io.karpfen.ide.core.document.dsl.DslConverter
 import io.karpfen.ide.core.document.environment.DescriptorFileRole
@@ -8,7 +9,6 @@ import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.diagnostics.DiagnosticsByFile
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import states.StateMachine
 import java.nio.file.Path
 
 /**
@@ -18,7 +18,7 @@ import java.nio.file.Path
  *
  * A file is converted only if it is syntax-clean and written in the language of its role
  * ([DescriptorFileRole.language]; a descriptor naming a `.kstates` file as metamodel converts nothing, which the
- * resolver reports on the descriptor; dsl-tools would print ANTLR errors for a foreign grammar). A conversion that
+ * resolver reports on the descriptor; dsl-tools would log ANTLR syntax errors for a foreign grammar). A conversion that
  * needs an unconverted metamodel (events, models) is skipped and reports nothing of its own: the broken metamodel's
  * syntax errors already explain it. DSL_TOOLS diagnostics go to [problems] under the converted file's path. Checks for
  * cancellation between conversions.

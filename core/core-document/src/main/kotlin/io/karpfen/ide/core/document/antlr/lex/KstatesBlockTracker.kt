@@ -1,9 +1,9 @@
 package io.karpfen.ide.core.document.antlr.lex
 
+import io.karpfen.dsl.grammar.kstates.KstatesLexer
 import io.karpfen.ide.core.document.syntax.KstatesBlockHeader
 import io.karpfen.ide.core.document.syntax.KstatesBlockKind
 import io.karpfen.ide.core.document.syntax.TokenKind
-import kstates.KstatesLexer
 
 /**
  * Follows the block structure of a KStates document on its brace tokens to classify `EVENT`: an action

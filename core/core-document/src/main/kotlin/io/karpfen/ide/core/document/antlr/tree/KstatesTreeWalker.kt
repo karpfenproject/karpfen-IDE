@@ -1,9 +1,9 @@
 package io.karpfen.ide.core.document.antlr.tree
 
+import io.karpfen.dsl.grammar.kstates.KstatesParser
 import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
-import kstates.KstatesParser
 
 /**
  * Walks a KStates tree into one STATEMACHINE outline node whose children are the states, the transitions

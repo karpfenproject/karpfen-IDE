@@ -1,12 +1,12 @@
 package io.karpfen.ide.core.document.antlr.tree
 
+import io.karpfen.dsl.grammar.kmeta.KmetaParser
+import io.karpfen.dsl.grammar.kstates.KstatesLexer
+import io.karpfen.dsl.grammar.kstates.KstatesParser
 import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
-import kmeta.KmetaParser
-import kstates.KstatesLexer
-import kstates.KstatesParser
 import org.antlr.v4.runtime.Token
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,16 +1,16 @@
 package io.karpfen.ide.core.document.antlr
 
+import io.karpfen.dsl.grammar.kmeta.KmetaParser
+import io.karpfen.dsl.grammar.kstates.KstatesLexer
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.fixtures.Mutations
 import io.karpfen.ide.core.text.TextRange
-import kmeta.KmetaParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kstates.KstatesLexer
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import org.antlr.v4.runtime.Token

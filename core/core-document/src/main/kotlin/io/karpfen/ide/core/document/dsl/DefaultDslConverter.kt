@@ -1,18 +1,18 @@
 package io.karpfen.ide.core.document.dsl
 
-import dsl.textual.KmetaDSLConverter
-import dsl.textual.KmodelDSLConverter
-import dsl.textual.KstatesDSLConverter
-import instance.Model
+import io.karpfen.dsl.dsl.textual.KmetaDSLConverter
+import io.karpfen.dsl.dsl.textual.KmodelDSLConverter
+import io.karpfen.dsl.dsl.textual.KstatesDSLConverter
+import io.karpfen.dsl.instance.Model
+import io.karpfen.dsl.meta.ClassType
+import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.parse.SyntaxIndex
 import io.karpfen.ide.core.text.TextSnapshot
-import meta.ClassType
-import meta.Metamodel
-import states.StateMachine
 
 /**
  * Calls the dsl-tools converters and turns their exceptions into located diagnostics (see [DslConverter] for the

@@ -1,6 +1,9 @@
 package io.karpfen.ide.core.document.dsl
 
-import instance.Model
+import io.karpfen.dsl.instance.Model
+import io.karpfen.dsl.meta.ClassType
+import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
@@ -10,9 +13,6 @@ import io.karpfen.ide.core.document.parse.DslModel
 import io.karpfen.ide.core.document.parse.SyntaxIndex
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
-import meta.ClassType
-import meta.Metamodel
-import states.StateMachine
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

@@ -1,8 +1,8 @@
 package io.karpfen.ide.core.document.dsl
 
-import dsl.textual.KmetaDSLConverter
-import dsl.textual.KmodelDSLConverter
-import dsl.textual.KstatesDSLConverter
+import io.karpfen.dsl.dsl.textual.KmetaDSLConverter
+import io.karpfen.dsl.dsl.textual.KmodelDSLConverter
+import io.karpfen.dsl.dsl.textual.KstatesDSLConverter
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.fixtures.SyntheticKstates
 import kotlin.test.Test

@@ -1,11 +1,11 @@
 package io.karpfen.ide.core.document.antlr.tree
 
+import io.karpfen.dsl.grammar.kmodel.KmodelParser
 import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.parse.FoldingKind
 import io.karpfen.ide.core.document.parse.FoldingRange
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
-import kmodel.KmodelParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

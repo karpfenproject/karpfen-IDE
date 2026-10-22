@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.document.antlr.lex
 
+import io.karpfen.dsl.grammar.kstates.KstatesLexer
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.antlr.KarpfenLexers
@@ -9,7 +10,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kstates.KstatesLexer
 
 /** [KarpfenSyntax], the one home of the lexical facts other layers read, checked against the generated lexers. */
 class KarpfenSyntaxTest {

@@ -1,12 +1,12 @@
 package io.karpfen.ide.core.document.antlr.lex
 
+import io.karpfen.dsl.grammar.kmeta.KmetaLexer
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextSnapshot
-import kmeta.KmetaLexer
 
 /**
  * [Tokenizer] for KMeta on the shared ANTLR mechanics of the `antlr` package: lexes with

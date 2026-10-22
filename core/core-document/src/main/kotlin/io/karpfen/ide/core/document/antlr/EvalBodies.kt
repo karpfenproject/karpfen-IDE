@@ -1,8 +1,8 @@
 package io.karpfen.ide.core.document.antlr
 
+import io.karpfen.dsl.grammar.kstates.KstatesLexer
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
-import kstates.KstatesLexer
 import org.antlr.v4.runtime.Token
 
 /**

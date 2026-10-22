@@ -1,9 +1,9 @@
 package io.karpfen.ide.core.document.antlr.tree
 
+import io.karpfen.dsl.grammar.kstates.KstatesParser
 import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolKind
-import kstates.KstatesParser
 
 /**
  * Walks the `MACROS { … }` block of a KStates tree:

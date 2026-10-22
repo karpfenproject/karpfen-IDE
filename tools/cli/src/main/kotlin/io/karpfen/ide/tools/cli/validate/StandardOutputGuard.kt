@@ -7,10 +7,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Keeps the CLI's own output clean while dsl-tools prints: [silenced] redirects `System.out` and `System.err` to a sink
- * for the duration of a block (dsl-tools `println`s while converting, and its ANTLR console listener writes syntax
- * errors to `System.err`, see `DslConverter`); the CLI prints its report through [output] and its own error messages
- * through [errorOutput], the original streams captured at construction.
+ * Keeps the CLI's own output clean while dsl-tools works: [silenced] redirects `System.out` and `System.err` to a sink
+ * for the duration of a block (dsl-tools logs through SLF4J, which the CLI's logging configuration writes to
+ * `System.err`, see `DslConverter`); the CLI prints its report through [output] and its own error messages through
+ * [errorOutput], the original streams captured at construction.
  *
  * The redirection is process-wide (`System.setOut`/`System.setErr`), so it also catches output of threads other than
  * the caller's (the analysis dispatcher). The discarded bytes are only counted (logged at DEBUG afterwards).
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicLong
  * Discarding the output is a stopgap, not the design. The decision that dsl-tools output stays off the primary console,
  * recorded with the architecture decisions under that title, keeps it out of the report but wants it available on
  * demand, with the errors among it forwarded to where the user sees problems, because it can explain a failure. The
- * second increment after phase 1, in which dsl-tools logs through SLF4J instead of printing, replaces this guard.
+ * second increment after phase 1, which makes the output of dsl-tools available on demand, replaces this guard.
  *
  * The default [output] and [errorOutput] encode UTF-8 onto the process streams, whatever the console's encoding
  * (`stdout.encoding`, US-ASCII under `LANG=C` in containers and minimal CI runners), so paths and messages with

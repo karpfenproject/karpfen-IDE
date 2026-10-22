@@ -16,8 +16,8 @@ import java.nio.file.Path
  * (ranges located through each file's syntax index). No IDE-side validation rules beyond what dsl-tools reports.
  *
  * Syntax first (MUST): a file is converted only when its
- * `AnalyzedFile.parse.isSyntaxClean` (dsl-tools would print ANTLR errors to `System.err` and report cryptic messages
- * next to the PARSER errors, see [DslConverter]). A conversion that needs a metamodel which was not converted (missing,
+ * `AnalyzedFile.parse.isSyntaxClean` (dsl-tools would log ANTLR syntax errors and report cryptic messages next to the
+ * PARSER errors, see [DslConverter]). A conversion that needs a metamodel which was not converted (missing,
  * not syntax-clean or rejected) is skipped: the events file and the models without a domain metamodel. A skipped
  * conversion reports nothing of its own — the broken file reports its syntax errors — so while the user types, Problems
  * shows PARSER errors only, and DSL_TOOLS errors return once the syntax is clean.

@@ -1,9 +1,9 @@
 package io.karpfen.ide.core.document.antlr
 
+import io.karpfen.dsl.grammar.kmeta.KmetaLexer
+import io.karpfen.dsl.grammar.kmodel.KmodelLexer
+import io.karpfen.dsl.grammar.kstates.KstatesLexer
 import io.karpfen.ide.core.document.KarpfenLanguage
-import kmeta.KmetaLexer
-import kmodel.KmodelLexer
-import kstates.KstatesLexer
 import org.antlr.v4.runtime.CharStream
 import org.antlr.v4.runtime.Lexer
 
@@ -16,13 +16,13 @@ import org.antlr.v4.runtime.Lexer
  * @param newLexer creates the generated lexer over a character stream.
  */
 internal enum class DslGrammar(val language: KarpfenLanguage, private val newLexer: (CharStream) -> Lexer) {
-    /** KMeta, lexed by `kmeta.KmetaLexer`. */
+    /** KMeta, lexed by the generated [KmetaLexer]. */
     KMETA(KarpfenLanguage.KMETA, ::KmetaLexer),
 
-    /** KModel, lexed by `kmodel.KmodelLexer`. */
+    /** KModel, lexed by the generated [KmodelLexer]. */
     KMODEL(KarpfenLanguage.KMODEL, ::KmodelLexer),
 
-    /** KStates, lexed by `kstates.KstatesLexer`. */
+    /** KStates, lexed by the generated [KstatesLexer]. */
     KSTATES(KarpfenLanguage.KSTATES, ::KstatesLexer),
     ;
 

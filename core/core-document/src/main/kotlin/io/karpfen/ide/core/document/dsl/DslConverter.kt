@@ -1,32 +1,32 @@
 package io.karpfen.ide.core.document.dsl
 
-import instance.Model
+import io.karpfen.dsl.instance.Model
+import io.karpfen.dsl.meta.ClassType
+import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.parse.SyntaxIndex
 import io.karpfen.ide.core.text.TextSnapshot
-import meta.ClassType
-import meta.Metamodel
-import states.StateMachine
 
 /**
- * Adapter over the dsl-tools converters (`dsl.textual.KmetaDSLConverter`, `KmodelDSLConverter`,
- * `KstatesDSLConverter`), the only way IDE code reaches them: foreign APIs stay behind adapters, and the architecture
- * tests allow the dsl-tools converter packages only in this package. Used for standalone semantics in core-document
- * and for the project analysis in core-workspace.
+ * Adapter over the dsl-tools converters (`KmetaDSLConverter`, `KmodelDSLConverter` and `KstatesDSLConverter` of the
+ * package `io.karpfen.dsl.dsl.textual`), the only way IDE code reaches them: foreign APIs stay behind adapters, and the
+ * architecture tests allow the dsl-tools converter packages only in this package. Used for standalone semantics in
+ * core-document and for the project analysis in core-workspace.
  *
  * Contract (MUST):
  * - Callers convert only syntax-clean text (`ParseOutcome.isSyntaxClean` of the same snapshot): dsl-tools' own file
- *   parsers keep ANTLR's console error listener and their visitors read missing or conjured tokens, so broken text
- *   yields `System.err` output and cryptic messages. `ComposedDocumentParser` (standalone semantics) and the project
- *   analyzer of core-workspace follow this rule; the adapter itself does not re-parse to check it.
+ *   parsers only log syntax errors, and their visitors read missing or conjured tokens, so broken text yields logged
+ *   warnings and cryptic messages. `ComposedDocumentParser` (standalone semantics) and the project analyzer of
+ *   core-workspace follow this rule; the adapter itself does not re-parse to check it.
  * - Never throws for any input: every exception raised by dsl-tools becomes one DSL_TOOLS ERROR [Diagnostic] (code
  *   [io.karpfen.ide.core.document.DiagnosticCodes.DSL_TOOLS_ERROR]) whose range is located by a [DslErrorLocator].
- * - Thread-safe; the converters keep no state between calls. dsl-tools writes to `System.out` (`println` while
- *   converting) and, for syntax errors, to `System.err` (ANTLR's console listener); the adapter redirects neither. For
- *   now the CLI discards both around its whole workspace run (`StandardOutputGuard`), while the IDE application lets
- *   the converters' output reach its console. Both are interim: the decision that dsl-tools output stays off the
- *   primary console wants it off both consoles, available on demand and with its errors forwarded, which the second
- *   increment after phase 1 builds once dsl-tools logs through SLF4J.
+ * - Thread-safe; the converters keep no state between calls. dsl-tools logs through SLF4J, the converters what they
+ *   convert at DEBUG and the file parsers syntax errors as warnings, and the adapter leaves that logging to the
+ *   application's configuration: for now the CLI discards everything written to the console around its whole
+ *   workspace run (`StandardOutputGuard`), while the IDE application keeps INFO and above in its log file and shows
+ *   warnings also on its console. Both are interim: the decision that dsl-tools output stays off the primary console wants it off both
+ *   consoles, available on demand and with its errors forwarded, which the second increment after phase 1 builds.
  * - The source text is passed unchanged (the converters apply `trimIndent()` themselves; ranges never come from them).
  */
 public interface DslConverter {

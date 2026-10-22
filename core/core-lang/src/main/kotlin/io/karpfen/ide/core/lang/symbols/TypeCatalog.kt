@@ -8,8 +8,8 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 /**
  * The shared mechanic of the types of a modeling context, one collaborator for all languages instead of a copy per
  * language: the types visible from a document with their members and declaration [Location]s, as IDE-owned values, so
- * the dsl-tools `meta.*` model stays behind this interface. Used by completion, navigation and hover of all three
- * languages and by the `ModelPathResolver`.
+ * the dsl-tools metamodel (`io.karpfen.dsl.meta`) stays behind this interface. Used by completion, navigation and hover
+ * of all three languages and by the `ModelPathResolver`.
  *
  * Implementations are thread-safe and convert the dsl-tools metamodels of a context into [TypeInfo]s once per analysis
  * (memoized by `ContextAnalysis` identity, which changes with every analysis generation, keeping only the latest), so a

@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.document.antlr.tree
 
+import io.karpfen.dsl.grammar.kstates.KstatesParser
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.DslGrammar
 import io.karpfen.ide.core.document.antlr.EmbeddedKind
@@ -16,7 +17,6 @@ import io.karpfen.ide.core.text.TextSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import kstates.KstatesParser
 
 /**
  * Covers that EVAL references and folding come from the same lexical scanner the tokenizer uses: every MODEL_PATH or

@@ -1,5 +1,8 @@
 package io.karpfen.ide.core.document.antlr.lex
 
+import io.karpfen.dsl.grammar.kmeta.KmetaLexer
+import io.karpfen.dsl.grammar.kmodel.KmodelLexer
+import io.karpfen.dsl.grammar.kstates.KstatesLexer
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
@@ -11,9 +14,6 @@ import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
-import kmeta.KmetaLexer
-import kmodel.KmodelLexer
-import kstates.KstatesLexer
 import org.antlr.v4.runtime.Vocabulary
 import kotlin.test.Test
 import kotlin.test.assertEquals

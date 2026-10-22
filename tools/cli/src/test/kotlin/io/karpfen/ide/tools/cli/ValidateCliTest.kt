@@ -1,5 +1,7 @@
 package io.karpfen.ide.tools.cli
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
@@ -14,11 +16,13 @@ import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.io.TempDir
+import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -43,19 +47,28 @@ class ValidateCliTest {
         assertEquals(CliRun(ExitCodes.OK, stdout = "", stderr = ""), run)
     }
 
+    /**
+     * Proves that a clean output is the guard's doing and not only a quiet dsl-tools: with its loggers at DEBUG,
+     * dsl-tools logs while it converts the examples, which reaches the console without the guard and stays out of the
+     * output of `karpfen validate`.
+     */
     @Test
-    fun `the examples without the guard make dsl-tools print, so the clean output above is the guard's doing`() =
+    fun `what dsl-tools logs while converting the examples reaches the console only without the guard`() =
         runTest(timeout = 120.seconds) {
             val root = Examples.copyTo(dir)
 
-            val printed = ProcessStreams().use { streams ->
-                val workspace = testWorkspaceFactory(this).open(root, backgroundScope)
-                workspace.awaitAnalysis()
-                workspace.close()
-                streams.stdout() + streams.stderr()
-            }
+            withDslToolsLoggingAt(Level.DEBUG) {
+                val unguarded = ProcessStreams().use { streams ->
+                    val workspace = testWorkspaceFactory(this).open(root, backgroundScope)
+                    workspace.awaitAnalysis()
+                    workspace.close()
+                    streams.stdout() + streams.stderr()
+                }
+                val guarded = runCli(testWorkspaceFactory(this), "validate", root.toString())
 
-            assertTrue(printed.isNotEmpty(), "dsl-tools' converters print while converting the examples")
+                assertTrue(unguarded.isNotEmpty(), "dsl-tools' converters log while converting the examples")
+                assertEquals(CliRun(ExitCodes.OK, stdout = "", stderr = ""), guarded)
+            }
         }
 
     @Test
@@ -234,6 +247,18 @@ class ValidateCliTest {
         assertTrue("karpfen: validation of $dir failed: disk on fire\n" in run.stderr, run.stderr)
     }
 
+    /** Runs [block] with the loggers of dsl-tools at [level] and restores their level afterwards. */
+    private inline fun <T> withDslToolsLoggingAt(level: Level, block: () -> T): T {
+        val logger = assertIs<Logger>(LoggerFactory.getLogger(DSL_TOOLS_LOGGER))
+        val previous = logger.level
+        logger.level = level
+        try {
+            return block()
+        } finally {
+            logger.level = previous
+        }
+    }
+
     /** One-based `line:col` of the first occurrence of [needle] in [text]. */
     private fun positionOf(text: String, needle: String): String {
         val line = text.lines().indexOfFirst { needle in it }
@@ -251,6 +276,9 @@ class ValidateCliTest {
     private fun String.withoutMessageOf(code: String): String = if (endsWith("[$code]")) withoutMessage() else this
 
     private companion object {
+        /** The parent logger of every logger of dsl-tools, whose loggers are named after its classes. */
+        const val DSL_TOOLS_LOGGER = "io.karpfen.dsl"
+
         /** A property declaration of the example metamodel. */
         const val VALID_PROPERTY = "prop(\"y\", \"number\")"
 

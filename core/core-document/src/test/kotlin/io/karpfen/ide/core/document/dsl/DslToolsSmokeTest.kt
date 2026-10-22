@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.document.dsl
 
-import dsl.textual.KmetaDSLConverter
-import meta.AssociationType
+import io.karpfen.dsl.dsl.textual.KmetaDSLConverter
+import io.karpfen.dsl.meta.AssociationType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

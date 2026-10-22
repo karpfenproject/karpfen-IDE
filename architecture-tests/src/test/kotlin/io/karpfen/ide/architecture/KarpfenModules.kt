@@ -35,17 +35,18 @@ internal object KarpfenModules {
     )
 
     /**
-     * The only package (with its sub-packages) that may use ANTLR and the ANTLR-generated lexers and parsers that ship
-     * inside dsl-tools (`kmeta`, `kmodel`, `kstates`). The IDE takes source positions from their parse trees; keeping
-     * every use in one internal package lets a later source-map API of dsl-tools replace it without touching the rest
-     * of the IDE.
+     * The only package (with its sub-packages) that may use ANTLR and the lexers and parsers that dsl-tools generates
+     * from its grammars (`io.karpfen.dsl.grammar.kmeta`, `.kmodel` and `.kstates`). The IDE takes source positions from
+     * their parse trees; keeping every use in one internal package lets a later source-map API of dsl-tools replace it
+     * without touching the rest of the IDE.
      */
     const val ANTLR_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.antlr"
 
     /**
-     * The only package (with its sub-packages) that may use the dsl-tools converters (`dsl.textual`), builders
-     * (`dsl.functional`) and hand-written parsers (`parser`): adapters isolate foreign APIs. core-workspace reaches
-     * them through this package's public `DslConverter` adapter, so it needs no adapter package of its own.
+     * The only package (with its sub-packages) that may use the dsl-tools converters (`io.karpfen.dsl.dsl.textual`),
+     * builders (`io.karpfen.dsl.dsl.functional`) and file parsers (`io.karpfen.dsl.parser`): adapters isolate foreign
+     * APIs. core-workspace reaches them through this package's public `DslConverter` adapter, so it needs no adapter
+     * package of its own.
      */
     const val DSL_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.dsl"
 

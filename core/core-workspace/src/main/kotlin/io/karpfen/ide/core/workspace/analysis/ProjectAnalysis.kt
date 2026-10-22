@@ -1,14 +1,14 @@
 package io.karpfen.ide.core.workspace.analysis
 
-import instance.Model
+import io.karpfen.dsl.instance.Model
+import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.parse.ParseOutcome
 import io.karpfen.ide.core.document.session.mergeDiagnostics
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.files.FileKind
-import meta.Metamodel
-import states.StateMachine
 import java.nio.file.Path
 
 /**

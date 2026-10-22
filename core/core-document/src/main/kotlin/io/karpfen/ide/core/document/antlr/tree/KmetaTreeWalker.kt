@@ -1,9 +1,9 @@
 package io.karpfen.ide.core.document.antlr.tree
 
+import io.karpfen.dsl.grammar.kmeta.KmetaParser
 import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolKind
-import kmeta.KmetaParser
 
 /**
  * Walks a KMeta tree: `type "N" "D" { … }` → TYPE declaration (outline detail: the description) with a

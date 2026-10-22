@@ -1,11 +1,11 @@
 package io.karpfen.ide.core.document.dsl
 
+import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.ide.core.document.antlr.tree.KmetaSyntaxAnalyzer
 import io.karpfen.ide.core.document.antlr.tree.KmodelSyntaxAnalyzer
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
-import meta.Metamodel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

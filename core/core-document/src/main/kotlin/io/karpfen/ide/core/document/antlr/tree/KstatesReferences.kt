@@ -1,9 +1,9 @@
 package io.karpfen.ide.core.document.antlr.tree
 
+import io.karpfen.dsl.grammar.kstates.KstatesParser
 import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
-import kstates.KstatesParser
 
 /**
  * The KStates reference rules shared by the action, transition and condition walkers, so each construct is

@@ -1,5 +1,7 @@
 package io.karpfen.ide.core.document.parse
 
+import io.karpfen.dsl.meta.ClassType
+import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
@@ -49,7 +51,7 @@ class ComposedDocumentParserTest {
         }
     }
 
-    private val model = DslModel.Kmeta(meta.Metamodel(mutableListOf(), meta.ClassType("Root", "", mutableListOf(), mutableListOf())))
+    private val model = DslModel.Kmeta(Metamodel(mutableListOf(), ClassType("Root", "", mutableListOf(), mutableListOf())))
     private val dslError = Diagnostic(TextRange(6, 7), Severity.ERROR, "bad 'A'", DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
 
     @Test

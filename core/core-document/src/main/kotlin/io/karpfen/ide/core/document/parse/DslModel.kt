@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.document.parse
 
-import meta.Metamodel
-import states.StateMachine
+import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.StateMachine
 
 /**
  * A semantic model built by a dsl-tools converter from one file alone (the "standalone semantics" of a document).

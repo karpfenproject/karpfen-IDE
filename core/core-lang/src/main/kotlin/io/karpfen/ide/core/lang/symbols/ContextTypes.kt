@@ -1,12 +1,12 @@
 package io.karpfen.ide.core.lang.symbols
 
+import io.karpfen.dsl.meta.AssociationType
+import io.karpfen.dsl.meta.ClassType
+import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.workspace.analysis.AnalyzedFile
 import io.karpfen.ide.core.workspace.analysis.ContextAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
-import meta.AssociationType
-import meta.ClassType
-import meta.Metamodel
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
