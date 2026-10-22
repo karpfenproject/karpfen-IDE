@@ -14,11 +14,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
-/** The tokenizer of [language] as the registry wires it (the classes of this package). */
+/**
+ * The tokenizer of the modeling language [language] as the registry wires it (the classes of this package).
+ *
+ * @throws IllegalArgumentException for environment descriptors, whose JSON tokenizer the tests of the `json` package
+ *   cover.
+ */
 internal fun tokenizerOf(language: KarpfenLanguage): Tokenizer = when (language) {
     KarpfenLanguage.KMETA -> KmetaTokenizer()
     KarpfenLanguage.KMODEL -> KmodelTokenizer()
     KarpfenLanguage.KSTATES -> KstatesTokenizer()
+    KarpfenLanguage.ENVIRONMENT -> throw IllegalArgumentException("environment descriptors are no ANTLR language")
 }
 
 /** The whitespace of the karpfen grammars (`[ \t\r\n]`); every other character must be in a token. */

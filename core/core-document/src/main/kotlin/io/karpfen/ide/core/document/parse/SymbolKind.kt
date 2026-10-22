@@ -55,6 +55,12 @@ public enum class SymbolKind {
 
     /** KStates `WITH MACRO(…) AS "x" { … }`. */
     BINDING,
+
+    /** An environment descriptor key with its value, `"model": "robot.kmodel"`. */
+    KEY,
+
+    /** An entry of a list in an environment descriptor, such as one state machine of `stateMachines`. */
+    ENTRY,
 }
 
 /** What a [SymbolReference] refers to. */

@@ -6,7 +6,8 @@ import io.karpfen.ide.core.document.syntax.Tokenizer
 
 /**
  * Everything core-document knows about one language, the product family of an Abstract Factory per language: its
- * [tokenizer] and its [parser]. Adding a fourth language adds a support and edits no existing language class. The product family is split by layer: the editor features of a language live in core-lang
+ * [tokenizer] and its [parser]. Adding a language adds a support and edits no existing language class. The product
+ * family is split by layer: the editor features of a language live in core-lang
  * (`LanguageFeatures`, registered by `karpfenLanguageFeatures()`), so core-document stays free of project knowledge;
  * a test in core-lang checks that every registered language has features.
  */

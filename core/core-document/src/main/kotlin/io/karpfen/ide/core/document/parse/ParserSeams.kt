@@ -11,7 +11,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * Parses one language with the dsl-tools ANTLR parser and walks the tree. Implemented in `antlr.tree`; one of the two
+ * Parses one language and walks the tree: the modeling languages with the dsl-tools ANTLR parsers (implemented in
+ * `antlr.tree`), environment descriptors with the IDE's JSON parser (implemented in `environment`). One of the two
  * module-internal seams a [ComposedDocumentParser] is made of.
  */
 internal interface SyntaxAnalyzer {
@@ -49,9 +50,9 @@ internal fun interface StandaloneSemantics {
 internal data class StandaloneResult(val model: DslModel?, val diagnostics: List<Diagnostic>)
 
 /**
- * The [DocumentParser] of every language, composed (Strategy) of a syntax analyzer (the ANTLR adapter in `antlr.tree`)
- * and optional standalone semantics (the dsl-tools adapter in `dsl`), so neither adapter knows the other and the
- * composition rule lives in this one class.
+ * The [DocumentParser] of every language, composed (Strategy) of a syntax analyzer (the ANTLR adapter in `antlr.tree`,
+ * or the environment analyzer for descriptors) and optional standalone semantics (the dsl-tools adapter in `dsl`), so
+ * neither part knows the other and the composition rule lives in this one class.
  *
  * It runs [syntax]; if the outcome has no syntax diagnostics, the mode is [SemanticMode.STANDALONE] and [semantics] is
  * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Any exception from a collaborator (and a `StackOverflowError`, which pathologically deep nesting causes in the recursive

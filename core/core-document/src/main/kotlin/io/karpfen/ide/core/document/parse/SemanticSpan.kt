@@ -10,7 +10,7 @@ public enum class SemanticKind {
     /** `number`, `string`, `boolean`. */
     PRIMITIVE_TYPE,
 
-    /** A property or relation key. */
+    /** A property or relation key, or a key of an environment descriptor. */
     PROPERTY_NAME,
 
     /** A KModel object key. */
@@ -36,6 +36,15 @@ public enum class SemanticKind {
 
     /** The name of a `WITH … AS "x"` binding. */
     BINDING_NAME,
+
+    /** A file path in an environment descriptor, relative to the descriptor's directory. */
+    FILE_PATH,
+
+    /** A number given as the value of an environment descriptor key. */
+    NUMBER_VALUE,
+
+    /** `true` or `false` given as the value of an environment descriptor key. */
+    BOOLEAN_VALUE,
 }
 
 /**

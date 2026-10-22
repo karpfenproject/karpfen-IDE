@@ -19,12 +19,18 @@ import org.antlr.v4.runtime.Token
  */
 internal object KarpfenLexers {
 
-    /** The generated lexer of [language] over [input], with every error listener replaced by [listener]. */
+    /**
+     * The generated lexer of [language] over [input], with every error listener replaced by [listener].
+     *
+     * @throws IllegalArgumentException for environment descriptors, which have no ANTLR grammar: the JSON tokenizer of
+     *   the `json` package reads them.
+     */
     fun create(language: KarpfenLanguage, input: CharStream, listener: IdeErrorListener): Lexer {
         val lexer: Lexer = when (language) {
             KarpfenLanguage.KMETA -> KmetaLexer(input)
             KarpfenLanguage.KMODEL -> KmodelLexer(input)
             KarpfenLanguage.KSTATES -> KstatesLexer(input)
+            KarpfenLanguage.ENVIRONMENT -> throw IllegalArgumentException("environment descriptors have no ANTLR lexer")
         }
         return listener.attachTo(lexer)
     }

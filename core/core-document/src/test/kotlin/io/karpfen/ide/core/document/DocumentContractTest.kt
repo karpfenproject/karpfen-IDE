@@ -40,7 +40,9 @@ class DocumentContractTest {
     fun `languages are recognized by extension ignoring case`() {
         assertEquals(KarpfenLanguage.KMETA, KarpfenLanguage.fromFileName("EVENTS.kmeta"))
         assertEquals(KarpfenLanguage.KSTATES, KarpfenLanguage.fromFileName("Robot.KSTATES"))
-        assertNull(KarpfenLanguage.fromFileName("descriptor.kenv.json"))
+        assertEquals(KarpfenLanguage.ENVIRONMENT, KarpfenLanguage.fromFileName("descriptor.KENV.json"))
+        assertNull(KarpfenLanguage.fromFileName("descriptor.json"))
+        assertNull(KarpfenLanguage.fromFileName("kenv.json"))
         assertNull(KarpfenLanguage.fromFileName("kmeta"))
         assertNull(KarpfenLanguage.fromFileName("file."))
     }
@@ -156,12 +158,14 @@ class DocumentContractTest {
     }
 
     @Test
-    fun `the default registry wires the three built-in languages without parsing`() {
+    fun `the default registry wires every built-in language without parsing`() {
         val registry = defaultLanguageRegistry()
 
         assertEquals(KarpfenLanguage.entries.toSet(), registry.languages)
         KarpfenLanguage.entries.forEach { assertEquals(it, registry.support(it).language) }
         assertEquals(KarpfenLanguage.KMODEL, registry.languageOf("model.kmodel"))
+        assertEquals(KarpfenLanguage.ENVIRONMENT, registry.languageOf("robot.kenv.json"))
+        assertEquals(listOf(KarpfenLanguage.ENVIRONMENT), KarpfenLanguage.entries.filterNot { it.isModelingLanguage })
     }
 
     @Test

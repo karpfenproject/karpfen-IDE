@@ -12,7 +12,8 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Covers the robustness of the parser, outline and index: the analyzers never throw on 10,000 deterministic mutations of
+ * Covers the robustness of the parser, outline and index of the modeling languages (environment descriptors have tests
+ * of their own in the `environment` package): the analyzers never throw on 10,000 deterministic mutations of
  * each language's examples (spread over its files) and on every prefix of a KStates example, and every outcome keeps
  * the documented invariants (ranges inside the text, outline nesting, sorted non-overlapping spans, multi-line folds,
  * names inside their quotes).
@@ -20,7 +21,7 @@ import kotlin.test.fail
 class SyntaxRobustnessTest {
 
     @ParameterizedTest
-    @EnumSource(KarpfenLanguage::class)
+    @EnumSource(KarpfenLanguage::class, names = ["KMETA", "KMODEL", "KSTATES"])
     fun `never throws on 10000 mutations of the examples`(language: KarpfenLanguage, reporter: TestReporter) {
         val files = Examples.files(language)
         val perFile = (MUTATIONS + files.size - 1) / files.size

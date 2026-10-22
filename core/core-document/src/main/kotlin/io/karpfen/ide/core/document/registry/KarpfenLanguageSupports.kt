@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.document.registry
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.antlr.lex.FailSafeTokenizer
 import io.karpfen.ide.core.document.antlr.lex.KmetaTokenizer
 import io.karpfen.ide.core.document.antlr.lex.KmodelTokenizer
 import io.karpfen.ide.core.document.antlr.lex.KstatesTokenizer
@@ -10,6 +11,8 @@ import io.karpfen.ide.core.document.antlr.tree.KstatesSyntaxAnalyzer
 import io.karpfen.ide.core.document.dsl.DslConverter
 import io.karpfen.ide.core.document.dsl.KmetaStandaloneSemantics
 import io.karpfen.ide.core.document.dsl.KstatesStandaloneSemantics
+import io.karpfen.ide.core.document.environment.EnvironmentSyntaxAnalyzer
+import io.karpfen.ide.core.document.json.JsonTokenizer
 import io.karpfen.ide.core.document.language.LanguageSupport
 import io.karpfen.ide.core.document.parse.ComposedDocumentParser
 import io.karpfen.ide.core.document.parse.DocumentParser
@@ -42,4 +45,16 @@ internal class KstatesLanguageSupport(converter: DslConverter) : LanguageSupport
     override val tokenizer: Tokenizer = KstatesTokenizer()
     override val parser: DocumentParser =
         ComposedDocumentParser(language, KstatesSyntaxAnalyzer(), KstatesStandaloneSemantics(converter))
+}
+
+/**
+ * Environment descriptors: the JSON tokenizer and the environment syntax analyzer, both written in this project rather
+ * than taken from a JSON library, because the editor needs every token and value with its range, also in broken text.
+ * The tokenizer is guarded like the ANTLR-based ones; there are no standalone semantics, because what a descriptor
+ * names is checked by the workspace against the files of the folder.
+ */
+internal class EnvironmentLanguageSupport : LanguageSupport {
+    override val language: KarpfenLanguage = KarpfenLanguage.ENVIRONMENT
+    override val tokenizer: Tokenizer = FailSafeTokenizer(language, JsonTokenizer())
+    override val parser: DocumentParser = ComposedDocumentParser(language, EnvironmentSyntaxAnalyzer(), semantics = null)
 }
