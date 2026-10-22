@@ -11,9 +11,13 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -33,18 +37,12 @@ internal data class ContextState(val resolution: ContextResolution, val descript
     }
 }
 
-/** The current editor text of an open document; how the workspace's context tracking sees unsaved edits. */
-internal fun interface EditorTexts {
-    /** The current text of the open document at [path], or null if no document of that path is open. */
-    fun of(path: Path): TextSnapshot?
-}
-
 /**
  * Keeps the modeling contexts of a workspace up to date: it reads every descriptor of the scanned tree with the
  * [descriptorReader] and resolves the contexts with the [resolver].
  *
- * A descriptor open in an editor is read from its editor text ([editorTexts]), so unsaved edits count: its findings, the
- * contexts and the analysis follow every edit, and closing it without saving falls back to the disk. Every other
+ * A descriptor open in an editor is read from its editor text ([openDescriptors]), so unsaved edits count: its findings,
+ * the contexts and the analysis follow every edit, and closing it without saving falls back to the disk. Every other
  * descriptor is loaded through the workspace's [SourceLoader] (the one loading rule, so ranges refer to the normalized
  * text and loading findings such as malformed UTF-8 are reported on the descriptor); a descriptor that cannot be read
  * is an ERROR `unreadable`, like every file the workspace cannot read, and defines no context.
@@ -52,26 +50,30 @@ internal fun interface EditorTexts {
  * The descriptor's findings (schema and named files) go into the resolution and become its project diagnostics; the
  * syntax errors and loading findings belong to its text ([DescriptorSource]), as a karpfen file's own diagnostics do.
  *
- * [update] reads everything after a scan; [refreshEdits] re-reads only the open descriptors and reuses what the last
- * scan loaded from disk, so following the edits costs no file I/O. Both are serialized; loading and reading run on
- * [ioDispatcher].
+ * [update] reads everything after a scan. Once [start]ed, the tracker follows the open descriptors itself: whenever one
+ * is opened, edited or closed, it reads the open ones again and reuses what the last scan loaded from disk, so following
+ * the edits costs no file I/O (a descriptor closed since is loaded again). Updates and the readings that follow the
+ * edits are serialized; loading and reading run on [ioDispatcher].
  */
 internal class ContextTracker(
     private val sourceLoader: SourceLoader,
     private val descriptorReader: EnvironmentDescriptorReader,
     private val resolver: ContextResolver,
     private val ioDispatcher: CoroutineDispatcher,
-    private val editorTexts: EditorTexts,
+    private val openDescriptors: OpenDescriptors,
 ) {
 
     private val stateFlow = MutableStateFlow(ContextState.EMPTY)
     private val resolutionFlow = MutableStateFlow(ContextResolution.EMPTY)
 
-    /** Serializes [update] and [refreshEdits]; guards [tree] and [diskReads]. */
+    /** Serializes [update] and the readings that follow the edits; guards [tree], [editorTexts] and [diskReads]. */
     private val reading = Mutex()
 
     /** The last scanned tree, or null before the first scan. */
     private var tree: WorkspaceTree? = null
+
+    /** The editor texts of the open descriptors by path, as [openDescriptors] last emitted them. */
+    private var editorTexts: Map<Path, TextSnapshot> = emptyMap()
 
     /** The descriptors read from disk since the last scan, by path; open descriptors are never kept here. */
     private val diskReads = HashMap<Path, ReadDescriptor>()
@@ -92,12 +94,16 @@ internal class ContextTracker(
     }
 
     /**
-     * Re-reads the open descriptors from their editor texts and publishes the contexts; a descriptor closed since is read
-     * from disk again. Before the first scan there is nothing to resolve.
+     * Follows the open descriptors in [scope] until it ends: every emission of [openDescriptors] becomes the editor texts
+     * the descriptors are read from, and the contexts are resolved again (before the first scan there is nothing to
+     * resolve). A newer emission supersedes a reading still running.
      */
-    suspend fun refreshEdits() {
-        reading.withLock {
-            tree?.let { resolve(it) }
+    fun start(scope: CoroutineScope): Job = scope.launch {
+        openDescriptors.texts().collectLatest { texts ->
+            reading.withLock {
+                editorTexts = texts
+                tree?.let { resolve(it) }
+            }
         }
     }
 
@@ -113,7 +119,7 @@ internal class ContextTracker(
 
     /** The descriptor at [path] from its editor text if it is open, else from disk (once per scan). */
     private fun read(path: Path): ReadDescriptor {
-        val edited = editorTexts.of(path)
+        val edited = editorTexts[path]
         if (edited != null) {
             diskReads.remove(path)
             val result = descriptorReader.read(path, edited.text)

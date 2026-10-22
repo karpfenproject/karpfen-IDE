@@ -10,8 +10,10 @@ import io.karpfen.ide.core.workspace.document.SourceLoader
 import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
 import io.karpfen.ide.core.workspace.files.WorkspaceScanner
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.io.IOException
@@ -27,7 +29,8 @@ import kotlin.test.assertTrue
  * Covers the context tracker: descriptors are loaded through the source loader (normalized text, loading findings),
  * published with the contexts, and an unreadable descriptor is an error that defines no context. Syntax errors and
  * loading findings belong to the descriptor's text, never to the resolution. An open descriptor is read from its editor
- * text, so unsaved edits change findings and contexts, and closing it falls back to the disk.
+ * text, which the started tracker follows by itself, so unsaved edits change findings and contexts, and closing it
+ * falls back to the disk.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ContextTrackerTest {
@@ -38,9 +41,14 @@ class ContextTrackerTest {
     private val root: Path get() = dir.toAbsolutePath().normalize()
     private val scanner = WorkspaceScanner(WorkspaceOptions.DEFAULT_IGNORED_DIRECTORIES)
 
-    /** A tracker loading through [loader] on the test's virtual time. */
-    private fun TestScope.tracker(loader: SourceLoader = SourceLoader()) =
-        ContextTracker(loader, EnvironmentDescriptorReader(), ContextResolver(), StandardTestDispatcher(testScheduler), EditorTexts { null })
+    /** A tracker loading through [loader] on the test's virtual time, with the open descriptors of [editor]. */
+    private fun TestScope.tracker(
+        loader: SourceLoader = SourceLoader(),
+        editor: MutableStateFlow<Map<Path, TextSnapshot>> = MutableStateFlow(emptyMap()),
+    ): ContextTracker {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        return ContextTracker(loader, EnvironmentDescriptorReader(), ContextResolver(), dispatcher, OpenDescriptors { editor })
+    }
 
     @Test
     fun `descriptors are read from their normalized text, which is published with the contexts`() = runTest {
@@ -96,24 +104,23 @@ class ContextTrackerTest {
     }
 
     @Test
-    fun `an open descriptor is read from its editor text and closing it falls back to the disk`() = runTest {
+    fun `once started, it follows an open descriptor's editor text by itself, and its closing falls back to the disk`() = runTest {
         val descriptor = DescriptorExamples.copyExplicitContext(root).toAbsolutePath().normalize()
-        val editor = HashMap<Path, TextSnapshot>()
+        val editor = MutableStateFlow<Map<Path, TextSnapshot>>(emptyMap())
         var loads = 0
-        val tracker = ContextTracker(
-            SourceLoader { path ->
-                loads++
-                SourceLoader().load(path)
-            },
-            EnvironmentDescriptorReader(), ContextResolver(), StandardTestDispatcher(testScheduler), EditorTexts { editor[it] },
-        )
+        val loader = SourceLoader { path ->
+            loads++
+            SourceLoader().load(path)
+        }
+        val tracker = tracker(loader, editor)
+        tracker.start(backgroundScope)
         tracker.update(scanner.scan(root))
         assertEquals(null, tracker.resolution.value.diagnostics[descriptor])
         val loadsAfterScan = loads
 
         val edited = TextSnapshot(Files.readString(descriptor).replace("cleaning_robot.kmodel", "missing.kmodel"), 3)
-        editor[descriptor] = edited
-        tracker.refreshEdits()
+        editor.value = mapOf(descriptor to edited)
+        runCurrent()
 
         val missing = tracker.resolution.value.diagnostics.getValue(descriptor).single()
         assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE, missing.code)
@@ -122,8 +129,8 @@ class ContextTrackerTest {
         val context = tracker.resolution.value.contexts.single()
         assertEquals(emptyList(), context.models, "the context follows the edit and leaves out the missing model")
 
-        editor.remove(descriptor)
-        tracker.refreshEdits()
+        editor.value = emptyMap()
+        runCurrent()
 
         assertEquals(null, tracker.resolution.value.diagnostics[descriptor], "closed without saving: the disk counts again")
         assertEquals(Files.readString(descriptor), tracker.state.value.descriptors.getValue(descriptor).snapshot.text)

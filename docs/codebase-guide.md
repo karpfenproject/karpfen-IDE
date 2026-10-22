@@ -126,8 +126,9 @@ below, which the `Workspace` factory function creates.
   files, `FileKind.fits` which files fit the role of a key, and `DescriptorFiles` whether a named file is there: the
   one rule that the contexts and the editor's hover, go to definition and completion of descriptors share.
 - **Modeling contexts.** The `context` package decides which files are analyzed together: `ModelingContext`, and
-  `ContextResolver` with the rules for descriptors, directories and loose files. `ContextTracker` reads an open
-  descriptor from its editor text, so its findings, the contexts and the analysis follow unsaved edits.
+  `ContextResolver` with the rules for descriptors, directories and loose files. `ContextTracker` follows the
+  descriptors open in editors (`OpenDescriptors`) and reads them from their editor texts, so their findings, the
+  contexts and the analysis follow unsaved edits.
 - **Analysis.** The `analysis` package converts every context with dsl-tools: `ProjectAnalyzer` documents the rules,
   `DefaultProjectAnalyzer` implements them, `ProjectAnalysis` is the result, and `AnalysisScheduler` runs the
   analysis again, debounced and cancellable, when the contexts or the open documents change. `ContextSymbols` answers
