@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
 import kotlin.time.TimeSource
 
 /**
- * Spec §11 item 3 for highlight, completion, definition and hover (references and bracket matching included): the
+ * Covers the robustness of highlight, completion, definition and hover (references and bracket matching included): the
  * services never throw — and no provider fails behind the facade's catch-all — on 10,000 deterministic mutations of
  * each language's examples (spread over its files, in their modeling contexts) and on every prefix of a KStates
  * example; every result keeps the documented invariants (ranges inside the text, highlight spans sorted and disjoint).
@@ -67,6 +67,7 @@ class LanguageServicesRobustnessTest {
         reporter.publishEntry("KStates prefixes", "$count prefixes, typing position and one random offset each, ${mark.elapsedNow()}")
     }
 
+    /** Runs every feature on [document] at [offsets] and checks the invariants of the results; [label] names the case. */
     private fun exercise(document: LanguageDocument, offsets: List<Int>, label: String) {
         val length = document.text.length
         val spans = services.highlight(document)

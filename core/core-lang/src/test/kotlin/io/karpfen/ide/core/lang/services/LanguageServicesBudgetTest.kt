@@ -13,14 +13,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * Latency of the language services on a 5,000-line KStates document (`SyntheticKstates.withMinLines(5000)`, in the
- * single-robot context): highlight, completion at a model path and among keywords, hover and definition at the end of
- * the document. The spec sets no core-lang budget; the measured values are reported through [TestReporter] and guarded
- * by the tokenize budget of the same document size (30 ms, spec §3.4) with 5x slack, so an accidental quadratic
- * algorithm fails the build.
+ * Covers the latency of the language services on a 5,000-line KStates document (`SyntheticKstates.withMinLines(5000)`,
+ * in the single-robot context): highlight, completion at a model path and among keywords, hover and definition at the
+ * end of the document. There is no target of its own for core-lang; the measured values are reported through
+ * [TestReporter] and guarded by the tokenizer's target for the same document size (30 ms) with 5x slack, so an
+ * accidental quadratic algorithm would show.
  *
- * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
- * performance work.
+ * Tagged `budget`: excluded from every test run, because load and sleep/wake cycles make the wall clock unreliable; kept
+ * for later performance work.
  */
 @Tag("budget")
 class LanguageServicesBudgetTest {
@@ -51,6 +51,7 @@ class LanguageServicesBudgetTest {
         assertTrue(probe.complete(document, keywords).isNotEmpty() && probe.complete(document, transition).isNotEmpty())
     }
 
+    /** The mean duration of [call] over the measured runs after the warm-up runs. */
     private fun measure(call: () -> Any?): Duration {
         repeat(WARM_UP) { call() }
         val mark = TimeSource.Monotonic.markNow()

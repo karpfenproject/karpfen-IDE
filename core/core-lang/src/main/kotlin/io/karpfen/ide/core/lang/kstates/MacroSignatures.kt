@@ -22,6 +22,7 @@ internal class MacroSignatures(private val indexes: List<SyntaxIndex>) {
                 .takeIf { it.isNotEmpty() }
         }.orEmpty().map { it.name to pathTypeOf(it.typeName) }
 
+    /** The path type of a type as written in TAKES or RETURNS. */
     private fun pathTypeOf(written: String?): PathType =
         TypeExpression.parse(written).let { PathType(it.name, it.isList, it.isPrimitive) }
 }

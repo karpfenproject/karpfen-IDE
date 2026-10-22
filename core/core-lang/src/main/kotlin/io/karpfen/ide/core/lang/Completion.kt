@@ -3,7 +3,8 @@ package io.karpfen.ide.core.lang
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * One completion proposal (spec §5).
+ * One completion proposal. Providers do not filter by prefix: the editor filters by the text between
+ * `replaceRange.start` and the caret, so [replaceRange] covers the whole identifier or string content under the caret.
  *
  * @property label text shown in the list and used for filtering.
  * @property insertText text that replaces [replaceRange] on accept.

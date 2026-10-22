@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.lang.kstates
 
+import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.document.parse.pathAt
@@ -19,7 +20,7 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The model-path scope at an offset of a KStates document (spec §5): one collaborator shared by KStates completion,
+ * The model-path scope at an offset of a KStates document: one collaborator shared by KStates completion,
  * hover and navigation instead of three copies.
  *
  * - `types`: `TypeCatalog.contextTypes(request)` (domain and event types);
@@ -83,14 +84,24 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
             eventName = transition?.let { node ->
                 index.referencesOf(ReferenceKind.EVENT_NAME).firstOrNull { it.range in node.range }?.name
             },
-            // A binding is in scope in its block, after its `AS "x"` (not in its own macro arguments).
-            bindings = path.filter { it.kind == SymbolKind.BINDING && offset > it.selectionRange.end }
-                .map { BindingFact(it.name, it.detail, source.location(it.selectionRange)) },
+            bindings = bindingsAt(path, offset, source),
             macro = path.lastOrNull { it.kind == SymbolKind.MACRO }?.name,
         )
         return build(request, facts, MacroSignatures(listOf(index)))
     }
 
+    /**
+     * The `WITH … AS "x"` bindings among the outline nodes [path] around [offset] of [source]: a binding is in scope in
+     * its block after its `AS "x"`, not in its own macro arguments.
+     */
+    private fun bindingsAt(path: List<OutlineNode>, offset: Int, source: LocatedOutcome): List<BindingFact> =
+        path.filter { it.kind == SymbolKind.BINDING && offset > it.selectionRange.end }
+            .map { BindingFact(it.name, it.detail, source.location(it.selectionRange)) }
+
+    /**
+     * The scope of [facts]: the context's types, the macro's parameters and then the `WITH` bindings typed by
+     * [signatures] (a later binding of the same name wins), and the event type if the events file declares it.
+     */
     private fun build(request: FeatureRequest, facts: ScopeFacts, signatures: MacroSignatures): KstatesScope {
         val visible = types.contextTypes(request)
         val bindings = LinkedHashMap<String, PathType>()
@@ -121,8 +132,13 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
     }
 
     private companion object {
+        /** The keyword of the state machine block. */
         const val MACHINE = "STATEMACHINE"
+
+        /** The keyword of a binding block. */
         const val WITH = "WITH"
+
+        /** The outline kinds of transitions, whose `EVENT(…)` clause names the event type. */
         val TRANSITION_KINDS = setOf(SymbolKind.TRANSITION, SymbolKind.SPLIT, SymbolKind.JOIN)
 
         /** The type of a binding whose macro or RETURNS is unknown: resolution ends there. */

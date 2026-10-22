@@ -8,10 +8,9 @@ import io.karpfen.ide.core.lang.symbols.TypeInfo
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
 /**
- * Shared mechanic "model-path resolution" (spec §5): resolves `->`-separated paths segment by segment over the
- * members (props/has/knows) of the types of a [PathScope]. Built on the IDE-owned `TypeInfo` values of the
- * `TypeCatalog`, not on dsl-tools classes. Used by KStates completion, hover and navigation. Owned by WP-LANG, which
- * may refine these types.
+ * The shared mechanic of model-path resolution: resolves `->`-separated paths segment by segment over the members
+ * (props/has/knows) of the types of a [PathScope]. Built on the IDE-owned `TypeInfo` values of the `TypeCatalog`, not
+ * on dsl-tools classes, so no dsl-tools type appears in the API. Used by KStates completion, hover and navigation.
  *
  * Resolution rules: the first segment is looked up in [PathScope.bindings] (WITH bindings, macro parameters), then
  * `self` (the root type itself), then `event` (the event type, or the union of all event types' members when it is not
@@ -157,6 +156,7 @@ internal class TypePathResolver : ModelPathResolver {
         return (bindings + self + event + members).distinctBy { it.name }
     }
 
+    /** The first segment [name], looked up in the order of the class documentation's resolution rules. */
     private fun first(name: String, scope: PathScope): ResolvedSegment? {
         scope.bindings[name]?.let { return ResolvedSegment(name, PathMember(name, PathOrigin.BINDING, it)) }
         if (name == SELF) selfOf(scope)?.let { return ResolvedSegment(name, it) }
@@ -164,6 +164,7 @@ internal class TypePathResolver : ModelPathResolver {
         return scope.rootType?.let(scope::type)?.let { member(name, listOf(it)) }
     }
 
+    /** The member [name] of the first of [owners] that has one, or null. */
     private fun member(name: String, owners: List<TypeInfo>): ResolvedSegment? {
         for (owner in owners) {
             owner.member(name)?.let { return ResolvedSegment(name, PathMember.of(it), owner) }
@@ -178,9 +179,14 @@ internal class TypePathResolver : ModelPathResolver {
         return scope.type(member.type.name)?.let(::listOf)
     }
 
+    /** The `self` root, of the root type; null if the root type is unknown. */
     private fun selfOf(scope: PathScope): PathMember? =
         scope.rootType?.let { PathMember(SELF, PathOrigin.ROOT, PathType(it, isList = false, isPrimitive = false)) }
 
+    /**
+     * The `event` root: of the determined event type, else of the pseudo type `event` standing for every event type;
+     * null without event types.
+     */
     private fun eventOf(scope: PathScope): PathMember? = when {
         scope.eventType != null -> PathMember(EVENT, PathOrigin.ROOT, PathType(scope.eventType, isList = false, isPrimitive = false))
         scope.eventTypes.isNotEmpty() -> PathMember(EVENT, PathOrigin.ROOT, PathType(EVENT, isList = false, isPrimitive = false))

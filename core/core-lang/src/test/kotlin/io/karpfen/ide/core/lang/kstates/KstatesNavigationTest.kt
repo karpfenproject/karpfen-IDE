@@ -19,7 +19,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** KStates go to definition and find references (spec §5) at concrete carets of the examples. */
+/** Covers KStates go to definition and find references at concrete carets of the examples. */
 class KstatesNavigationTest {
 
     private val probe = ServicesProbe()

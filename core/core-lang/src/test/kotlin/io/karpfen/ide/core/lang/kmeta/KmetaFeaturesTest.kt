@@ -17,7 +17,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** KMeta completion, navigation and hover at concrete carets of the examples (spec §5). */
+/** Covers KMeta completion, navigation and hover at concrete carets of the examples. */
 class KmetaFeaturesTest {
 
     private val probe = ServicesProbe()

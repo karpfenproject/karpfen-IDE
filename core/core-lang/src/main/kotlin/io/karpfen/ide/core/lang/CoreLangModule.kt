@@ -1,10 +1,11 @@
 package io.karpfen.ide.core.lang
 
 /**
- * Phase-0 stub of the `core-lang` module: language services (completion, hover, rename, folding, outline, go-to)
- * over the dsl-tools analysis API.
- * See docs/architecture-proposal.md §4 for the module map.
+ * Identity of the `core-lang` module, kept from the phase-0 skeleton: the language services (highlighting, completion,
+ * navigation, hover, bracket matching) over the documents and the workspace's project analysis. The module map of the
+ * architecture proposal (`docs/architecture-proposal.md`) shows where the module sits among the others.
  */
 public object CoreLangModule {
+    /** The module's name in the module map. */
     public const val ID: String = "core-lang"
 }

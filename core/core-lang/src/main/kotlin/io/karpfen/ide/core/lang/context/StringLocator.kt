@@ -12,8 +12,10 @@ import io.karpfen.ide.core.text.TextRange
  */
 internal object StringLocator {
 
+    /** The characters that open a string literal. */
     private const val QUOTES = "\"'"
 
+    /** The string around [caret], or null if the caret is in none. */
     fun locate(view: TokenView, tokens: TokenizeResult, caret: Int): StringContext? {
         val before = tokens.tokenBefore(caret)
         if (before != null && before.kind == TokenKind.STRING && caret < before.range.end) {

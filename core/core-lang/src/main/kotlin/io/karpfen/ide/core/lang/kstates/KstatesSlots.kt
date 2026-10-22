@@ -12,7 +12,7 @@ import io.karpfen.ide.core.lang.context.ContextToken
 import io.karpfen.ide.core.lang.context.EmbeddedContext
 import io.karpfen.ide.core.text.TextRange
 
-/** What the caret is on or in, in a KStates document (spec §5); the one classification of completion, hover, navigation. */
+/** What the caret is on or in, in a KStates document; the one classification of completion, hover and navigation. */
 internal sealed interface KstatesSlot {
     /** Between constructs: the structural keywords of [position]. */
     data class Keywords(val position: KstatesPosition) : KstatesSlot
@@ -58,10 +58,46 @@ internal sealed interface KstatesSlot {
     data object None : KstatesSlot
 }
 
-/** Where structural keywords are completed (spec §5, "structural keywords by position"). */
+/** Where structural keywords are completed: each position offers the keywords that may start a construct there. */
 internal enum class KstatesPosition {
-    TOP_LEVEL, MACHINE, STATES, STATE_BODY, ACTIONS, TRANSITIONS, TRANSITION_HEADER, TRANSITION_BODY, CONDITION, MACROS,
-    MACRO_BODY, DEFINITION, RIGHT_SIDE,
+    /** Outside every block: the state machine. */
+    TOP_LEVEL,
+
+    /** In the state machine block: the states, transitions and macros blocks. */
+    MACHINE,
+
+    /** In the states block: states. */
+    STATES,
+
+    /** In a state: entry and do blocks and nested states. */
+    STATE_BODY,
+
+    /** In an action block (entry, do, a scope guard or a binding): the operations, events, guards and bindings. */
+    ACTIONS,
+
+    /** In the transitions block: transitions, splits and joins. */
+    TRANSITIONS,
+
+    /** After the states of a transition header: `NOT LOOPING`. */
+    TRANSITION_HEADER,
+
+    /** In a transition: its condition. */
+    TRANSITION_BODY,
+
+    /** In a condition: event clauses, Python guards and boolean path guards. */
+    CONDITION,
+
+    /** In the macros block: macro definitions. */
+    MACROS,
+
+    /** In a macro definition: parameters, the return type and the definition. */
+    MACRO_BODY,
+
+    /** In a macro's definition block: its EVAL body. */
+    DEFINITION,
+
+    /** At the value argument of an operation: a macro call or an EVAL body. */
+    RIGHT_SIDE,
 }
 
 /** Classifies the caret of a KStates document from its [CaretContext]. Stateless. */
@@ -73,6 +109,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         return context to classify(document, context)
     }
 
+    /** The slot of [context]: embedded references, call arguments, header strings, else keyword positions. */
     private fun classify(document: LanguageDocument, context: CaretContext): KstatesSlot {
         if (context.inComment) return KstatesSlot.None
         context.embedded?.let { return embedded(document, context, it) }
@@ -83,6 +120,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         return callArgument(call, name, range)
     }
 
+    /** Inside an EVAL body: the path of a `$( … )` reference or the macro name of an `@m` reference, else nothing. */
     private fun embedded(document: LanguageDocument, context: CaretContext, embedded: EmbeddedContext): KstatesSlot {
         val tokens = document.tokens
         val candidates = listOfNotNull(tokens.tokenAt(context.offset), tokens.tokenBefore(context.offset))
@@ -134,6 +172,11 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         }
     }
 
+    /**
+     * Outside strings: the right side of an operation, the type arguments of TAKES and RETURNS before their quotes, the
+     * `NOT LOOPING` position after a transition header, or the keyword position of the enclosing block where no
+     * statement is in progress.
+     */
     private fun outsideStrings(context: CaretContext): KstatesSlot {
         val call = context.call
         if (call != null) {
@@ -174,6 +217,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             statement.subList(start + 1, statement.size).all { it.kind == TokenKind.STRING || it.text == "," || it.text == "->" }
     }
 
+    /** True if this token is the keyword [text]. */
     private fun ContextToken.isKeyword(text: String): Boolean = kind == TokenKind.KEYWORD && this.text == text
 
     internal companion object {

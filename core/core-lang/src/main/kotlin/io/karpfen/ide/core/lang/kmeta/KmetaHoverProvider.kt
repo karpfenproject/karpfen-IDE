@@ -6,7 +6,7 @@ import io.karpfen.ide.core.lang.feature.HoverProvider
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
- * KMeta hover (spec §5): type → `TypeInfo.hoverText`; property/relation → `MemberInfo.signature` (`prop x: number`,
+ * KMeta hover: type → `TypeInfo.hoverText`; property/relation → `MemberInfo.signature` (`prop x: number`,
  * `has position: Vector`, `knows obstacles: list(Obstacle)`), both looked up in [types].
  */
 internal class KmetaHoverProvider(private val slots: KmetaSlots, private val types: TypeCatalog) : HoverProvider {

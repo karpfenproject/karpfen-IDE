@@ -4,16 +4,21 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.completion.Snippet
 
 /**
- * The structural keywords of KStates by position (spec §5): the snippets offered at each [KstatesPosition]. The
+ * The structural keywords of KStates by position: the snippets offered at each [KstatesPosition]. The
  * vocabulary is the grammar's, the action operations are [KarpfenSyntax]'s (one snippet per operation, shaped by its
  * arguments); a template's `$0` is where the caret goes. Constant data.
  */
 internal object KstatesKeywords {
 
+    /** A state. */
     private val STATE = Snippet("STATE \"…\" { }", "STATE \"\$0\" { }", detail = "state")
+    /** The initial state of a states block. */
     private val INITIAL_STATE = Snippet("INITIAL STATE \"…\" { }", "INITIAL STATE \"\$0\" { }", detail = "initial state")
+    /** An event, emitted as an action or awaited in a condition. */
     private val EVENT = Snippet("EVENT(\"…\", \"…\")", "EVENT(\"\$0\", \"\")", detail = "event")
+    /** An embedded Python body. */
     private val EVAL = Snippet("EVAL { }", "EVAL { \$0 }", detail = "embedded Python")
+    /** A call of a macro as the value of an action. */
     private val MACRO_CALL = Snippet("MACRO(\"…\")", "MACRO(\"\$0\")", detail = "macro call")
 
     /** What each operation does, for the completion list (an operation without an entry is offered without one). */
@@ -27,12 +32,14 @@ internal object KstatesKeywords {
         "DROPOBJ" to "remove an object",
     )
 
+    /** The snippets of an action block: every operation, an emitted event, the scope guard and the macro binding. */
     private val ACTIONS = KarpfenSyntax.KSTATES_OPERATIONS.map(::operation) + listOf(
         EVENT.copy(detail = "emit an event"),
         Snippet("IF IN SCOPE(\"…\") { }", "IF IN SCOPE(\"\$0\") { }", detail = "guard on paths in scope"),
         Snippet("WITH … AS \"…\" { }", "WITH MACRO(\"\$0\") AS \"\" { }", detail = "bind a macro result"),
     )
 
+    /** The snippets of each position. */
     private val BY_POSITION: Map<KstatesPosition, List<Snippet>> = mapOf(
         KstatesPosition.TOP_LEVEL to listOf(
             Snippet("STATEMACHINE ATTACHED TO \"…\" { }", "STATEMACHINE ATTACHED TO \"\$0\" { }", detail = "state machine"),

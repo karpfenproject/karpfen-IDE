@@ -8,6 +8,7 @@ import io.karpfen.ide.core.text.TextRange
  */
 internal object BlockLocator {
 
+    /** The blocks of [view] that contain [caret], outermost first; an unclosed block runs to the end of the text. */
     fun locate(view: TokenView, caret: Int): List<BlockFrame> {
         val tokens = view.tokens
         val open = ArrayList<Int>()

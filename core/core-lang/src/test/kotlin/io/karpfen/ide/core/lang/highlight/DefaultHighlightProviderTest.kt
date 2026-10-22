@@ -12,7 +12,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Lexical highlighting overlaid with the semantic spans of a parse of the tokens' version (spec §5, decision 39). */
+/**
+ * Covers lexical highlighting overlaid with the semantic spans of a parse of the tokens' version: the style of every
+ * kind, the split of strings around names, outcomes of other versions, embedded Python, and well-formed spans for every
+ * example.
+ */
 class DefaultHighlightProviderTest {
 
     private val provider = DefaultHighlightProvider()

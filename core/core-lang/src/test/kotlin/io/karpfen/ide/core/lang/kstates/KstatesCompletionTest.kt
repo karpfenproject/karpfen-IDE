@@ -12,7 +12,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** KStates completion by context (spec §5) at concrete carets of the examples and of small documents. */
+/** Covers KStates completion by context at concrete carets of the examples and of small documents. */
 class KstatesCompletionTest {
 
     private val probe = ServicesProbe()

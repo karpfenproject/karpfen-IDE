@@ -31,7 +31,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The facade (spec §5, decision 19): delegation per language, guarded preconditions, observable provider failures. */
+/**
+ * Covers the language services facade: delegation per language with the project and context analysis, guarded
+ * preconditions, and provider failures that are caught, logged and reported.
+ */
 class DefaultLanguageServicesTest {
 
     private val span = HighlightSpan(TextRange(0, 1), HighlightStyle.KEYWORD)

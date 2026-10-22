@@ -14,7 +14,7 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
 /**
- * KStates navigation (spec §5): state references ↔ state declarations; macro references ↔ macro declarations;
+ * KStates navigation: state references ↔ state declarations; macro references ↔ macro declarations;
  * `ATTACHED TO` and TAKES/RETURNS types → TYPE declaration in the context's metamodel ([types]); event names → the event
  * type; model-path segments → member declarations in the metamodel ([paths], `PathMember.declaration`), WITH bindings
  * and macro parameters → their declarations, `self`/`event` → the type. Declarations known only from the last good
@@ -59,6 +59,7 @@ internal class KstatesNavigationProvider(
         return found.distinct()
     }
 
+    /** The navigation target of the symbol at [offset], or null if the caret is on no named symbol. */
     private fun targetAt(request: FeatureRequest, offset: Int): Target? {
         val (context, slot) = slots.at(request.document, offset)
         val target = when (slot) {
@@ -80,6 +81,10 @@ internal class KstatesNavigationProvider(
         return target?.takeIf { nameOf(it).isNotBlank() }
     }
 
+    /**
+     * The target of the path segment under the caret: a member of the type so far, the type of a root (none for an
+     * `event` root of undeterminable type), or a binding.
+     */
     private fun pathTarget(request: FeatureRequest, context: CaretContext, slot: KstatesSlot.ModelPath): Target? {
         val hit = paths.segmentAt(request, context, slot.range) ?: return null
         val member = hit.member ?: return null
@@ -90,6 +95,7 @@ internal class KstatesNavigationProvider(
         }
     }
 
+    /** The type [name] of the modeling context with its declaration, if known. */
     private fun typeTarget(request: FeatureRequest, name: String): Target =
         Target.Shared(ContextSymbol.Type(name), types.type(request, name)?.declaration)
 
@@ -101,6 +107,7 @@ internal class KstatesNavigationProvider(
                 .firstOrNull { it.declaration.name == name && it.declaration.container == hit.scope.facts.macro }?.location
     }
 
+    /** The name a target is about. */
     private fun nameOf(target: Target): String = when (target) {
         is Target.Local -> target.name
         is Target.Binding -> target.name

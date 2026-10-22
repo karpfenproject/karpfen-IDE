@@ -12,14 +12,15 @@ import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.files.FileKind
 
 /**
- * The editor features of one language (Strategy + Abstract Factory, spec §1a, §5). `DefaultLanguageServices`
- * delegates every request to the features of the document's language. Implementations must honour the
+ * The editor features of one language, a product family of strategies (Strategy + Abstract Factory), so adding a
+ * language adds one implementation and changes no existing language class. `DefaultLanguageServices` delegates every
+ * request to the features of the document's language. Implementations must honour the
  * `LanguageServices` contract (never throw is enforced by the facade as a last resort, but providers should not rely
  * on it).
  *
  * The product family of a language is split by layer: tokenizer and parser in core-document (`LanguageSupport`), the
- * features here; `karpfenLanguageFeatures()` must cover every language of `defaultLanguageRegistry()` (checked by a
- * contract test).
+ * features here; `karpfenLanguageFeatures()` must cover every language of `defaultLanguageRegistry()` (checked by
+ * `LanguageContractTest`).
  */
 public interface LanguageFeatures {
     /** The language these features serve. */
@@ -55,7 +56,7 @@ public data class FeatureRequest(
 ) {
     /**
      * True if the document is an event metamodel: the events file of its modeling context, or — outside a context —
-     * a file named `EVENTS.kmeta` (spec §4).
+     * a file named `EVENTS.kmeta`, compared ignoring case.
      */
     public val isEventsDocument: Boolean
         get() = document.language == KarpfenLanguage.KMETA &&

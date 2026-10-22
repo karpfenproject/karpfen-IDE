@@ -9,7 +9,7 @@ import io.karpfen.ide.core.lang.context.ContextToken
 import io.karpfen.ide.core.lang.symbols.MemberKind
 import io.karpfen.ide.core.text.TextRange
 
-/** What the caret is on or in, in a KMeta document (spec §5); the one classification of completion, hover, navigation. */
+/** What the caret is on or in, in a KMeta document; the one classification of completion, hover and navigation. */
 internal sealed interface KmetaSlot {
     /** Between types: the `type` snippet. */
     data object TopLevel : KmetaSlot
@@ -25,7 +25,8 @@ internal sealed interface KmetaSlot {
 
     /**
      * A type argument: [primitive] for `prop(…, "…")` (also inside `list(`), else a type reference of `has`/`knows`.
-     * [inString] is false when the caret is at the argument but not inside quotes yet ([name] is then empty).
+     * [inString] is false when the caret is at the argument but not inside quotes yet ([name] is then empty);
+     * [listAllowed] is false inside `list(` itself, where no further `list("…")` is offered.
      */
     data class TypeArgument(
         val primitive: Boolean,
@@ -48,6 +49,7 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
         return context to classify(document, context)
     }
 
+    /** The slot of [context]: names in strings by the call or keyword before them, else the block the caret is in. */
     private fun classify(document: LanguageDocument, context: CaretContext): KmetaSlot {
         if (context.inComment) return KmetaSlot.None
         val owner = context.blocks.asReversed().firstNotNullOfOrNull { typeNameOf(it.header) }
@@ -73,16 +75,24 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
         }
     }
 
+    /** The type argument at [call], or null if the caret is in no type argument of a rule or of `list(`. */
     private fun typeArgument(call: CallContext, name: String, range: TextRange, inString: Boolean): KmetaSlot.TypeArgument? {
         val rule = when {
             MemberKind.ofKeyword(call.name) != null && call.argumentIndex == 1 -> call.name
-            // `list("…")`: primitives inside `prop(`, types inside `has(`/`knows(` and wherever the rule is unknown.
-            call.name == LIST && call.argumentIndex == 0 -> call.parent?.takeIf { MemberKind.ofKeyword(it.name) != null && it.argumentIndex == 1 }?.name
+            call.name == LIST && call.argumentIndex == 0 -> ruleOfList(call)
             else -> return null
         }
         val isProperty = rule?.let(MemberKind::ofKeyword) == MemberKind.PROPERTY
         return KmetaSlot.TypeArgument(isProperty, name, range, inString, listAllowed = call.name != LIST)
     }
+
+    /**
+     * The rule keyword of the call whose type argument the `list("…")` call [list] is, or null where the rule is
+     * unknown. Inside `prop(` the list holds primitives; inside `has(`/`knows(` and wherever the rule is unknown it holds
+     * types.
+     */
+    private fun ruleOfList(list: CallContext): String? =
+        list.parent?.takeIf { MemberKind.ofKeyword(it.name) != null && it.argumentIndex == 1 }?.name
 
     /** The name `N` of a `type "N" "D"` block header, or null for other headers. */
     private fun typeNameOf(header: List<ContextToken>): String? {

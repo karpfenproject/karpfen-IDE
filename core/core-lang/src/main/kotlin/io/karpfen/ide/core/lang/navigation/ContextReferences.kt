@@ -8,7 +8,7 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.LocatedOutcome
 
-/** A symbol that files of a modeling context reference by name (spec §5, cross-file references). */
+/** A symbol that the files of a modeling context reference by name, the subject of cross-file references. */
 internal sealed interface ContextSymbol {
     /** The symbol's name. */
     val name: String
@@ -32,6 +32,7 @@ internal class SearchFile(val language: KarpfenLanguage, val source: LocatedOutc
  */
 internal class ReferenceScope(val request: FeatureRequest, val files: List<SearchFile>) {
 
+    /** The context's events file (or the document itself if it is one), among [files]; null if it is none of them. */
     private val eventsFile: SearchFile? = run {
         val events = request.contextAnalysis?.context?.events ?: request.document.path.takeIf { request.isEventsDocument }
         files.firstOrNull { it.source.path == events }
@@ -63,7 +64,7 @@ internal fun interface ReferenceContributor {
 }
 
 /**
- * Cross-file reference search of a modeling context (spec §5): asks every [ReferenceContributor] about every file of
+ * Cross-file reference search of a modeling context: asks every [ReferenceContributor] about every file of
  * the [ReferenceScope]; duplicates are dropped. The declaration itself is not included (the providers add it).
  */
 internal class ContextReferences(private val contributors: List<ReferenceContributor>) {

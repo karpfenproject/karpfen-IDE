@@ -27,9 +27,9 @@ import java.util.Collections
 
 /**
  * The example files (`Examples.contexts()`) as a workspace below [ROOT], analyzed by the conventions documented on
- * `ProjectAnalysis` without WP-WORKSPACE's analyzer: normalized absolute paths, `TextSnapshot(text, 0)` per file
- * (a lineage of its own), syntax-only parses from `defaultLanguageRegistry()`, conversions through dsl-tools'
- * `DslConverter` (WP-PARSE) — the events file with the domain types as base types.
+ * `ProjectAnalysis`, without the workspace's analyzer: normalized absolute paths, `TextSnapshot(text, 0)` per file
+ * (a lineage of its own), syntax-only parses from `defaultLanguageRegistry()`, conversions through core-document's
+ * `DslConverter` — the events file with the domain types as base types.
  */
 object ExampleProject {
 
@@ -39,6 +39,7 @@ object ExampleProject {
     /** The tokenizers and parsers of the three languages. */
     val registry: LanguageRegistry = defaultLanguageRegistry()
 
+    /** The dsl-tools adapter of the conversions. */
     private val converter = DslConverter()
 
     /** The analysis of every example context (built once). */
@@ -133,9 +134,11 @@ object ExampleProject {
         failures: MutableList<ProviderFailure> = Collections.synchronizedList(ArrayList()),
     ): LanguageServices = defaultLanguageServices(MutableStateFlow(analysis), onProviderFailure = { failures += it })
 
+    /** The language of the file at [path], which must be a karpfen source. */
     private fun languageOf(path: Path): KarpfenLanguage =
         requireNotNull(KarpfenLanguage.fromFileName(path.fileName.toString())) { "not a karpfen file: $path" }
 
+    /** Adds the conversion [diagnostics] of [file] to the project diagnostics [into]. */
     private fun record(into: MutableMap<Path, List<Diagnostic>>, file: AnalyzedFile, diagnostics: List<Diagnostic>) {
         if (diagnostics.isNotEmpty()) into[file.path] = into[file.path].orEmpty() + diagnostics
     }

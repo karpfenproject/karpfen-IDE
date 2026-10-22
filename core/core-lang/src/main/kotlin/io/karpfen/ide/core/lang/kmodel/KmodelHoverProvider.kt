@@ -9,7 +9,7 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * KModel hover (spec §5): object type → `TypeInfo.hoverText`; property/relation key → `MemberInfo.signature` of the
+ * KModel hover: object type → `TypeInfo.hoverText`; property/relation key → `MemberInfo.signature` of the
  * enclosing object's type (`prop x: number`, …), looked up in [types]; an object key or reference → `object k: T`
  * (from the object's declaration).
  */
@@ -28,6 +28,7 @@ internal class KmodelHoverProvider(private val slots: KmodelSlots, private val t
             KmodelSlot.TopLevel, is KmodelSlot.ObjectBody, KmodelSlot.None -> null
         }
 
+    /** `object k: T` for the object [name] declared in the file, or null if there is none. */
     private fun objectHover(request: FeatureRequest, name: String, range: TextRange): Hover? {
         if (name.isBlank()) return null
         val declaration = DocumentDeclarations(request.document).named(SymbolKind.OBJECT, name).firstOrNull()?.declaration ?: return null

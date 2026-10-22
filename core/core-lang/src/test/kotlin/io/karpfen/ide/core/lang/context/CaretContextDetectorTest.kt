@@ -12,7 +12,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The token-based caret context (spec §5): strings, calls, blocks, statements, embedded Python and comments. */
+/** Covers the token-based caret context: strings, calls, blocks, statements, embedded Python, comments and words. */
 class CaretContextDetectorTest {
 
     private val detector = CaretContextDetector()

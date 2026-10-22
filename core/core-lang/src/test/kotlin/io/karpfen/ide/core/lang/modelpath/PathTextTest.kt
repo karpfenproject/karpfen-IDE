@@ -4,7 +4,7 @@ import io.karpfen.ide.core.text.TextRange
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Splitting written model paths into segments with their ranges. */
+/** Covers splitting written model paths into segments with their ranges. */
 class PathTextTest {
 
     @Test

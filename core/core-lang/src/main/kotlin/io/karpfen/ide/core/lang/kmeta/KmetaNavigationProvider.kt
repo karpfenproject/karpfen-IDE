@@ -8,7 +8,7 @@ import io.karpfen.ide.core.lang.navigation.ContextSymbol
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
- * KMeta navigation (spec §5): type references and type names → TYPE declaration (`TypeInfo.declaration` of [types]: in
+ * KMeta navigation: type references and type names → TYPE declaration (`TypeInfo.declaration` of [types]: in
  * this file, or in the domain metamodel for `EVENTS.kmeta`); member keys → their own declaration. References of a type
  * or a member across the modeling context come from [references].
  */
@@ -26,6 +26,7 @@ internal class KmetaNavigationProvider(
         return (listOfNotNull(declarationOf(request, symbol)) + references.find(symbol, request)).distinct()
     }
 
+    /** The type or member the caret is on, or null. */
     private fun symbolAt(request: FeatureRequest, offset: Int): ContextSymbol? =
         when (val slot = slots.at(request.document, offset).second) {
             is KmetaSlot.TypeName -> ContextSymbol.Type(slot.name)
@@ -34,6 +35,7 @@ internal class KmetaNavigationProvider(
             KmetaSlot.TopLevel, is KmetaSlot.TypeBody, KmetaSlot.None -> null
         }?.takeIf { it.name.isNotBlank() }
 
+    /** The declaration of [symbol] in the type catalog, or null if the type or member is unknown. */
     private fun declarationOf(request: FeatureRequest, symbol: ContextSymbol): Location? = when (symbol) {
         is ContextSymbol.Type -> types.type(request, symbol.name)?.declaration
         is ContextSymbol.Member -> types.type(request, symbol.owner)?.member(symbol.name)?.declaration

@@ -10,7 +10,7 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.nio.file.Path
 
 /**
- * A document as seen by [LanguageServices] (spec §5): immutable inputs only, so services can run off the UI thread.
+ * A document as seen by [LanguageServices]: immutable inputs only, so services can run off the UI thread.
  *
  * Staleness rule for the providers (MUST): [parse] and [lastGoodParse] may be older than [text]. Offset-based lookups
  * in a parse outcome (`SyntaxIndex.referenceAt`, `declarationAt`, `enclosingDeclarations`, `OutlineNode.pathAt`) are

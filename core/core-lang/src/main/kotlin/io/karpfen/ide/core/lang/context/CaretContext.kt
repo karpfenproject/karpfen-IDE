@@ -5,10 +5,10 @@ import io.karpfen.ide.core.lang.LanguageDocument
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Shared mechanic "context detection around the caret" (spec §5): what surrounds an offset, determined from the
- * tokens, which always belong to the request's text and are robust on broken text. Language-neutral; the
- * per-language slot detectors interpret it (the parse outcome contributes name-based knowledge there, see the staleness
- * rule of [LanguageDocument]). Owned by WP-LANG, which may refine these types.
+ * The shared mechanic of context detection around the caret: what surrounds an offset, determined from the tokens,
+ * which always belong to the request's text and are robust on broken text. Language-neutral and shared by all
+ * languages instead of being copied per language; the per-language slot detectors interpret it (the parse outcome
+ * contributes name-based knowledge there, see the staleness rule of [LanguageDocument]).
  */
 public fun interface CaretContextDetector {
     /** The context of [offset] (clamped to the text) in [document]. Never throws. */
@@ -113,9 +113,7 @@ internal class TokenCaretContextDetector : CaretContextDetector {
         val inComment = document.tokens.tokenBefore(caret)?.kind == TokenKind.COMMENT
         val embedded = document.tokens.embeddedRegionAt(caret)?.let { EmbeddedLocator.locate(view, document.tokens, it, caret) }
         val string = if (embedded == null && !inComment) StringLocator.locate(view, document.tokens, caret) else null
-        // What precedes the string (from its opening quote) or the word being typed.
-        val anchor = string?.let { it.contentRange.start - 1 } ?: word.start
-        val anchorIndex = view.firstIndexStartingAtOrAfter(anchor)
+        val anchorIndex = view.firstIndexStartingAtOrAfter(anchorOf(string, word))
         return CaretContext(
             offset = caret,
             replaceRange = string?.let { replaceRangeIn(it, word) } ?: word,
@@ -129,6 +127,13 @@ internal class TokenCaretContextDetector : CaretContextDetector {
         )
     }
 
+    /**
+     * The offset the call and the statement around the caret end before: the opening quote of the [string] the caret
+     * is in, else the start of the [word] being typed.
+     */
+    private fun anchorOf(string: StringContext?, word: TextRange): Int = string?.let { it.contentRange.start - 1 } ?: word.start
+
+    /** The content of a closed [string]; for an unterminated one, its content up to the end of the [word] at the caret. */
     private fun replaceRangeIn(string: StringContext, word: TextRange): TextRange =
         if (string.closed) string.contentRange else TextRange(string.contentRange.start, maxOf(string.contentRange.start, word.end))
 }

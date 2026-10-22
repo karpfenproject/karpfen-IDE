@@ -12,7 +12,7 @@ import java.nio.file.Path
 
 /**
  * A parse outcome together with where its ranges live: the file and the [TextLineage] its version counts in, so every
- * range taken from it becomes a [Location] with the outcome's version (decision 26 of the work-package plan).
+ * range taken from it becomes a [Location] with the outcome's version, which navigation maps into the live text.
  */
 internal class LocatedOutcome(val path: Path, val outcome: ParseOutcome, val lineage: TextLineage) {
 

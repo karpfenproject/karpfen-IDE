@@ -11,7 +11,7 @@ import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
- * KModel navigation (spec §5): object references → object declarations in the file; object types → TYPE declaration
+ * KModel navigation: object references → object declarations in the file; object types → TYPE declaration
  * in the context's metamodel; property/relation keys → their declaration in the metamodel (both through [types]).
  * References: objects within the file (declarations of the latest parse, by the staleness rule), types and keys across
  * the modeling context ([references]).
@@ -37,20 +37,24 @@ internal class KmodelNavigationProvider(
         return (listOfNotNull(declarationOf(request, symbol)) + references.find(symbol, request)).distinct()
     }
 
+    /** The type or member a slot names, or null for other slots. */
     private fun symbolOf(slot: KmodelSlot): ContextSymbol? = when (slot) {
         is KmodelSlot.ObjectType -> ContextSymbol.Type(slot.name)
         is KmodelSlot.Key -> slot.objectType?.takeIf { slot.inString }?.let { ContextSymbol.Member(it, slot.name) }
         else -> null
     }?.takeIf { it.name.isNotBlank() }
 
+    /** The declaration of [symbol] in the type catalog, or null if the type or member is unknown. */
     private fun declarationOf(request: FeatureRequest, symbol: ContextSymbol): Location? = when (symbol) {
         is ContextSymbol.Type -> types.type(request, symbol.name)?.declaration
         is ContextSymbol.Member -> types.type(request, symbol.owner)?.member(symbol.name)?.declaration
     }
 
+    /** The declarations of the object [name] in the file. */
     private fun objectDeclarations(request: FeatureRequest, name: String): List<Location> =
         if (name.isBlank()) emptyList() else DocumentDeclarations(request.document).named(SymbolKind.OBJECT, name).map { it.location }
 
+    /** The references to the object [name] in the latest parse of the file. */
     private fun objectReferences(request: FeatureRequest, name: String): List<Location> {
         val source = DocumentDeclarations(request.document).latest() ?: return emptyList()
         return source.outcome.index.references(ReferenceKind.OBJECT, name).map { source.location(it.range) }

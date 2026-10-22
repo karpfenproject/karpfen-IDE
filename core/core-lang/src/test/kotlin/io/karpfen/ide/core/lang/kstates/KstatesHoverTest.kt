@@ -12,7 +12,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** KStates hover (spec §5) at concrete carets of the examples. */
+/** Covers KStates hover at concrete carets of the examples. */
 class KstatesHoverTest {
 
     private val probe = ServicesProbe()

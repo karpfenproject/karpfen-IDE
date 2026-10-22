@@ -18,7 +18,7 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * KStates completion (spec §5): structural keywords by position (STATE, INITIAL STATE, ENTRY, DO, TRANSITION, SPLIT,
+ * KStates completion: structural keywords by position (STATE, INITIAL STATE, ENTRY, DO, TRANSITION, SPLIT,
  * JOIN, NOT LOOPING, CONDITION, EVENT, EVAL, VALUE, MACRO, TAKES, RETURNS, DEFINITION, action operations, IF IN
  * SCOPE, WITH … AS; [KstatesKeywords]); state names inside transition strings; macro names inside `MACRO("` and after
  * `@` in EVAL; `ATTACHED TO "` → domain types ([types]); TAKES/RETURNS → domain types and primitives; model paths in
@@ -47,11 +47,13 @@ internal class KstatesCompletionProvider(
         }
     }
 
+    /** The states declared in the file, each with its parent state as detail. */
     private fun states(request: FeatureRequest, range: TextRange): List<CompletionItem> =
         DocumentDeclarations(request.document).all(SymbolKind.STATE).map { it.declaration }.distinctBy { it.name }.map {
             nameItem(it.name, CompletionKind.STATE, range, detail = it.container?.let { parent -> "in $parent" })
         }
 
+    /** The macros defined in the file, each with its signature as detail. */
     private fun macros(request: FeatureRequest, range: TextRange): List<CompletionItem> {
         val declarations = DocumentDeclarations(request.document)
         return declarations.all(SymbolKind.MACRO).distinctBy { it.declaration.name }.map {
@@ -59,6 +61,7 @@ internal class KstatesCompletionProvider(
         }
     }
 
+    /** The domain types, then the primitives and type wrappers the slot allows. */
     private fun typeNames(request: FeatureRequest, slot: KstatesSlot.TypeName): List<CompletionItem> {
         val domain = types.contextTypes(request).filter { it.origin == TypeOrigin.DOMAIN }.map { type ->
             nameItem(type.name, CompletionKind.TYPE, slot.range, type.description, type.hoverText, rank = 0, quoted = !slot.inString)
@@ -74,6 +77,10 @@ internal class KstatesCompletionProvider(
         return domain + primitives + wrappers
     }
 
+    /**
+     * The segments that may follow the path before the caret in [pathRange]; an item replaces the segment under the
+     * caret, clamped to the path.
+     */
     private fun pathSegments(request: FeatureRequest, context: CaretContext, pathRange: TextRange): List<CompletionItem> {
         val caret = context.offset.coerceIn(pathRange.start, pathRange.end)
         val prefix = request.document.text.text.substring(pathRange.start, caret)
@@ -81,6 +88,7 @@ internal class KstatesCompletionProvider(
         return paths.completions(request, context, prefix).map { segment(it, replace) }
     }
 
+    /** The item of a path segment: bindings first, then members of the type so far, then the roots. */
     private fun segment(member: PathMember, replace: TextRange): CompletionItem {
         val kind = if (member.origin == PathOrigin.BINDING) CompletionKind.BINDING else CompletionKind.PATH_SEGMENT
         val rank = when (member.origin) {
@@ -92,6 +100,7 @@ internal class KstatesCompletionProvider(
         return nameItem(member.name, kind, replace, detail = detail, documentation = member.member?.signature, rank = rank)
     }
 
+    /** The `has` and `knows` relations of the type of the source path. */
     private fun relations(request: FeatureRequest, context: CaretContext, slot: KstatesSlot.RelationKey): List<CompletionItem> {
         val source = paths.typeOf(request, context, slot.sourcePath) ?: return emptyList()
         return source.members.filter { it.kind != MemberKind.PROPERTY }.map {
@@ -99,11 +108,13 @@ internal class KstatesCompletionProvider(
         }
     }
 
+    /** The event types of the context's events file. */
     private fun eventNames(request: FeatureRequest, range: TextRange): List<CompletionItem> =
         types.contextTypes(request).filter { it.origin == TypeOrigin.EVENTS }.map {
             nameItem(it.name, CompletionKind.EVENT, range, detail = it.description, documentation = it.hoverText)
         }
 
+    /** The event domains the latest parse of the file uses. */
     private fun eventDomains(request: FeatureRequest, range: TextRange): List<CompletionItem> {
         val source = DocumentDeclarations(request.document).latest() ?: return emptyList()
         return source.outcome.index.referencesOf(ReferenceKind.EVENT_DOMAIN).map { it.name }.filter { it.isNotBlank() }.distinct()

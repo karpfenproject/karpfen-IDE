@@ -16,7 +16,7 @@ import io.karpfen.ide.core.lang.overlayHighlights
  *
  * Version handling: the semantic layer comes from `document.parse`, or from `document.lastGoodParse` if only that one
  * has the tokens' version; an outcome of any other version contributes nothing (its ranges are in other coordinates —
- * the editor carries the previous semantic layer forward itself, decision 39).
+ * the editor carries the previous semantic layer forward itself, so the semantic colours do not flicker).
  */
 internal class DefaultHighlightProvider : HighlightProvider {
 

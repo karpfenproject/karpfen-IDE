@@ -13,7 +13,7 @@ import io.karpfen.ide.core.lang.navigation.ContextReferences
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
- * The KStates provider family (concrete factory, spec §1a); shared mechanics are injected, among them the path scopes
+ * The KStates provider family (a concrete factory of [LanguageFeatures]); shared mechanics are injected, among them the path scopes
  * ([KstatesPathScopes]), which the cross-file references of the context use as well. Wiring only.
  */
 internal class KstatesLanguageFeatures(

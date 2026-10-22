@@ -10,7 +10,7 @@ import io.karpfen.ide.core.lang.modelpath.pathSegmentsOf
 import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 
 /**
- * The file-local references of a KStates document (spec §5: states and macros, WITH bindings and macro parameters):
+ * The file-local references of a KStates document (states and macros, WITH bindings and macro parameters):
  * declarations by name (staleness rule, [DocumentDeclarations]) and the references of the document's latest parse
  * outcome. One instance per request.
  */
@@ -44,6 +44,7 @@ internal class KstatesLocalReferences(private val document: LanguageDocument) {
             .map(source::location)
     }
 
+    /** True if [declaration] is the binding [name] or a macro with the parameter [name]. */
     private fun declares(index: SyntaxIndex, declaration: SymbolDeclaration, name: String): Boolean = when (declaration.kind) {
         SymbolKind.BINDING -> declaration.name == name
         SymbolKind.MACRO -> index.declarationsOf(SymbolKind.MACRO_PARAMETER).any { it.container == declaration.name && it.name == name }

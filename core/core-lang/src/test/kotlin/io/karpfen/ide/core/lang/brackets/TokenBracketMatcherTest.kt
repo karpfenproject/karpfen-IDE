@@ -8,7 +8,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Matching `{}` and `()` on PUNCTUATION tokens (spec §5). */
+/**
+ * Covers matching `{}` and `()` on PUNCTUATION tokens: the preferred side, brackets that do not count, unmatched
+ * brackets, and braces closing the parentheses left open in their block.
+ */
 class TokenBracketMatcherTest {
 
     private val matcher = TokenBracketMatcher()

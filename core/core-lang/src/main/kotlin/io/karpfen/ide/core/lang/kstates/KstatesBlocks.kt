@@ -53,6 +53,7 @@ internal object KstatesBlocks {
         return if (introducer < 0) emptyList() else frame.header.subList(introducer, frame.header.size)
     }
 
+    /** [frame]'s header read by core-document's block rule. */
     private fun headerOf(frame: BlockFrame): KstatesBlockHeader = KstatesBlockHeader.of(frame.header.map(::wordOf))
 
     /** A header token as the block rule reads it: a keyword in upper case, a parenthesis, or null. */
@@ -62,6 +63,9 @@ internal object KstatesBlocks {
         else -> null
     }
 
+    /** The keyword of a binding construct. */
     private const val WITH = "WITH"
+
+    /** The keyword before a binding's name. */
     private const val AS = "AS"
 }

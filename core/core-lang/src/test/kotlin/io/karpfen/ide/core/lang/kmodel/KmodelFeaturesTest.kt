@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** KModel completion, navigation and hover at concrete carets of the examples (spec §5). */
+/** Covers KModel completion, navigation and hover at concrete carets of the examples. */
 class KmodelFeaturesTest {
 
     private val probe = ServicesProbe()

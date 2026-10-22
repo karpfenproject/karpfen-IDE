@@ -15,6 +15,7 @@ internal data class TypeExpression(val name: String, val isList: Boolean) {
     val isPrimitive: Boolean get() = name in KarpfenSyntax.PRIMITIVE_TYPES
 
     companion object {
+        /** A wrapper call `f(T)`: the function name and the inner type. */
         private val CALL = Regex("""^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(\s*(.*?)\s*\)\s*$""")
 
         /** Reads [written] (null: a missing type). */
@@ -34,6 +35,7 @@ internal data class TypeExpression(val name: String, val isList: Boolean) {
  */
 internal object SyntaxTypes {
 
+    /** The declaration kinds of members and the member kinds they declare. */
     private val MEMBER_KINDS: Map<SymbolKind, MemberKind> = mapOf(
         SymbolKind.SIMPLE_PROPERTY to MemberKind.PROPERTY,
         SymbolKind.HAS_RELATION to MemberKind.HAS,
@@ -84,6 +86,7 @@ internal object SyntaxTypes {
     /** The declaration kind of a member [kind]. */
     fun declarationKindOf(kind: MemberKind): SymbolKind = MEMBER_KINDS.entries.first { it.value == kind }.key
 
+    /** The description (outline detail) of each TYPE node by name, the first node of a name winning. */
     private fun List<OutlineNode>.associateDescriptions(): Map<String, String?> {
         val result = HashMap<String, String?>()
         forEach { node -> if (node.name !in result) result[node.name] = node.detail }

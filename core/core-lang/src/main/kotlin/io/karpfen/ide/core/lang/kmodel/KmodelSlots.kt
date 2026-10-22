@@ -8,7 +8,7 @@ import io.karpfen.ide.core.lang.context.ContextToken
 import io.karpfen.ide.core.lang.symbols.MemberKind
 import io.karpfen.ide.core.text.TextRange
 
-/** What the caret is on or in, in a KModel document (spec §5); the one classification of completion, hover, navigation. */
+/** What the caret is on or in, in a KModel document; the one classification of completion, hover and navigation. */
 internal sealed interface KmodelSlot {
     /** Before the root object: the `make object` snippet. */
     data object TopLevel : KmodelSlot
@@ -51,6 +51,7 @@ internal class KmodelSlots(private val caretContexts: CaretContextDetector) {
         return context to classify(document, context)
     }
 
+    /** The slot of [context]: keys by the call around the caret, other strings by the statement before them. */
     private fun classify(document: LanguageDocument, context: CaretContext): KmodelSlot {
         if (context.inComment) return KmodelSlot.None
         val objectType = context.blocks.asReversed().firstNotNullOfOrNull { objectTypeOf(it.header) }

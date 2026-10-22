@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Model-path resolution over `TypeInfo` members (spec §5): roots, bindings, members, lists, events. */
+/** Covers model-path resolution over `TypeInfo` members: roots, bindings, members, lists, events and completions. */
 class ModelPathResolverTest {
 
     private fun member(name: String, kind: MemberKind, type: String, isList: Boolean = false) =

@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** The KStates reading of block headers: the introducing keyword, WITH constructs and the enclosing macro. */
+/** Covers the KStates reading of block headers: the introducing keyword, WITH constructs and the enclosing macro. */
 class KstatesBlocksTest {
 
     private fun blocksAt(textWithCaret: String) = caret(textWithCaret).let { (text, offset) ->

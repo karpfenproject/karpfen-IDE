@@ -11,7 +11,10 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The shared type catalog (spec §5, decision 19): document, domain and event types with members and locations. */
+/**
+ * Covers the shared type catalog: document, domain and event types with members and declaration locations, the
+ * memoized conversion per analysis, and the syntax fallback of a metamodel that did not convert.
+ */
 class TypeCatalogTest {
 
     private val catalog = TypeCatalog()

@@ -6,7 +6,7 @@ import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.MemberInfo
 
 /**
- * The texts KStates completion and hover show for its symbols (spec §5): macro signatures, state hierarchy paths and
+ * The texts KStates completion and hover show for its symbols: macro signatures, state hierarchy paths and
  * type texts. Pure functions over declarations.
  */
 internal object KstatesTexts {
@@ -36,10 +36,12 @@ internal object KstatesTexts {
     /** The member's type as written: `Vector`, `list(Obstacle)`. */
     fun typeText(member: MemberInfo): String = written(member.typeName, member.isList)
 
+    /** The type [name] as written, wrapped in `list(…)` if [isList]; `?` for an unknown name. */
     private fun written(name: String, isList: Boolean): String {
         val shown = name.ifEmpty { "?" }
         return if (isList) "list($shown)" else shown
     }
 
+    /** Bound of the parent chain of a state hierarchy path, which also stops a cycle in broken text. */
     private const val MAX_DEPTH = 64
 }

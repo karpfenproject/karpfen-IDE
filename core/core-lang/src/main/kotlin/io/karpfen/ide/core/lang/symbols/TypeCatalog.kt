@@ -6,15 +6,15 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 
 /**
- * Shared mechanic "types of a modeling context" (spec §5: shared mechanics are separate collaborators, not copied per
- * language): the types visible from a document with their members and declaration [Location]s, as IDE-owned values,
- * so the dsl-tools `meta.*` model stays behind this interface. Used by completion, navigation and hover of all three
- * languages and by the `ModelPathResolver`. Owned by WP-LANG, which may refine it.
+ * The shared mechanic of the types of a modeling context, one collaborator for all languages instead of a copy per
+ * language: the types visible from a document with their members and declaration [Location]s, as IDE-owned values, so
+ * the dsl-tools `meta.*` model stays behind this interface. Used by completion, navigation and hover of all three
+ * languages and by the `ModelPathResolver`.
  *
  * Implementations are thread-safe and convert the dsl-tools metamodels of a context into [TypeInfo]s once per analysis
  * (memoized by `ContextAnalysis` identity, which changes with every analysis generation, keeping only the latest), so a
- * hover, a completion or a path segment never walks the mutable dsl-tools objects again (spec §1a, immutable values
- * across threads). The document's own declarations come from its parse and are not memoized.
+ * hover, a completion or a path segment never walks the mutable dsl-tools objects again: only immutable values cross
+ * threads. The document's own declarations come from its parse and are not memoized.
  */
 public interface TypeCatalog {
 
@@ -74,7 +74,7 @@ public data class TypeInfo(
     public fun member(name: String): MemberInfo? = members.firstOrNull { it.name == name }
 
     /**
-     * Hover text (spec §5, "type → its description and members"): `type <name>`, the description on the next line if
+     * Hover text, the type with its description and members: `type <name>`, the description on the next line if
      * there is one, then a blank line and one [MemberInfo.signature] per line if there are members.
      */
     public val hoverText: String
@@ -105,7 +105,7 @@ public data class MemberInfo(
     /** True if [typeName] is a primitive (`number`, `string`, `boolean`, [KarpfenSyntax.PRIMITIVE_TYPES]). */
     public val isPrimitive: Boolean get() = typeName in KarpfenSyntax.PRIMITIVE_TYPES
 
-    /** The hover signature (spec §5): `prop x: number`, `has position: Vector`, `knows obstacles: list(Obstacle)`. */
+    /** The hover signature: `prop x: number`, `has position: Vector`, `knows obstacles: list(Obstacle)`. */
     public val signature: String
         get() = "${kind.keyword} $name: ${if (isList) "list($typeName)" else typeName}"
 }

@@ -11,10 +11,13 @@ import io.karpfen.ide.core.text.TextRange
  */
 internal object CallLocator {
 
+    /** How many enclosing calls are looked up above the innermost one. */
     private const val MAX_PARENTS = 8
 
+    /** The innermost unclosed call before the token at [endIndex], with its parents, or null outside every call. */
     fun locate(view: TokenView, endIndex: Int): CallContext? = locate(view, endIndex, MAX_PARENTS)
 
+    /** [locate] with at most [parents] enclosing calls looked up. */
     private fun locate(view: TokenView, endIndex: Int, parents: Int): CallContext? {
         val tokens = view.tokens
         var depth = 0
@@ -31,6 +34,10 @@ internal object CallLocator {
         return null
     }
 
+    /**
+     * The call whose `(` is the token at [open]: its name is the token before it (comments skipped; none if that is
+     * punctuation), its arguments those complete before [endIndex].
+     */
     private fun callAt(view: TokenView, open: Int, endIndex: Int, parents: Int): CallContext {
         val tokens = view.tokens
         var nameIndex = open - 1

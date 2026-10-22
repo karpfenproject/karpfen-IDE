@@ -11,7 +11,7 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
 /**
- * KMeta completion (spec §5): top level → `type "Name" "Description" { }` snippet; in a type body → `prop`, `has`,
+ * KMeta completion: top level → `type "Name" "Description" { }` snippet; in a type body → `prop`, `has`,
  * `knows`, `list` snippets; second argument of `prop(` → `number string boolean`; type argument of
  * `has(`/`knows(`/`list(` → the types of [types] (declared in the file plus, when editing `EVENTS.kmeta`, the
  * context's domain types). Outside quotes, names are inserted quoted and `list("…")` is offered as well.
@@ -35,9 +35,11 @@ internal class KmetaCompletionProvider(
         }
     }
 
+    /** The primitive types for a `prop` type argument. */
     private fun primitives(slot: KmetaSlot.TypeArgument): List<CompletionItem> =
         KarpfenSyntax.PRIMITIVE_TYPES.sorted().map { nameItem(it, CompletionKind.PRIMITIVE_TYPE, slot.range, quoted = !slot.inString) }
 
+    /** The types of the document, plus the domain types in an events document, the document's own ones first. */
     private fun typeNames(request: FeatureRequest, slot: KmetaSlot.TypeArgument): List<CompletionItem> {
         val origins = if (request.isEventsDocument) setOf(TypeOrigin.DOCUMENT, TypeOrigin.DOMAIN) else setOf(TypeOrigin.DOCUMENT)
         return types.types(request).filter { it.origin in origins }.map { type ->

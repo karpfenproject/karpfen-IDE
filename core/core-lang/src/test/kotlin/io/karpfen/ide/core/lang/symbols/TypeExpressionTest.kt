@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Reading types as written in karpfen sources. */
+/** Covers reading types as written in karpfen sources. */
 class TypeExpressionTest {
 
     @Test

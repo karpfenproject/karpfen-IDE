@@ -3,7 +3,7 @@ package io.karpfen.ide.core.lang.modelpath
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
-/** The vocabulary of model paths (spec §5). */
+/** The vocabulary of KStates model paths. */
 internal object PathSyntax {
     /** The root segment naming the state machine's object. */
     const val SELF: String = "self"
@@ -48,6 +48,7 @@ internal fun List<PathSegment>.indexAt(offset: Int): Int = indexOfFirst { it.ran
 /** The path of the first [count] segments, `->`-joined (what a resolver needs to reach segment `count - 1`). */
 internal fun List<PathSegment>.pathOf(count: Int): String = take(count).joinToString(PathSyntax.SEPARATOR) { it.name }
 
+/** The segment written between [from] and [to] of [text], blanks trimmed from its range and removed from its name. */
 private fun segmentOf(text: String, from: Int, to: Int): PathSegment {
     var start = from
     var end = to
@@ -56,6 +57,7 @@ private fun segmentOf(text: String, from: Int, to: Int): PathSegment {
     return PathSegment(KarpfenSyntax.normalizeModelPath(text.substring(start, end)), TextRange(start, end))
 }
 
+/** The length of the segment separator `->`. */
 private val SEPARATOR_LENGTH = PathSyntax.SEPARATOR.length
 
 /**

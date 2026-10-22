@@ -13,6 +13,7 @@ import io.karpfen.ide.core.text.TextRange
  */
 internal object EmbeddedLocator {
 
+    /** The context of [caret] inside the EVAL [body]. */
     fun locate(view: TokenView, tokens: TokenizeResult, body: TextRange, caret: Int): EmbeddedContext {
         val candidates = listOfNotNull(tokens.tokenAt(caret), tokens.tokenBefore(caret)).distinct()
         val path = candidates.firstOrNull { it.kind == TokenKind.PATH_REFERENCE && isInsidePath(view, it, caret) }
@@ -27,6 +28,7 @@ internal object EmbeddedLocator {
         )
     }
 
+    /** True if [caret] lies after the `$(` of the path reference [token] and not after its closing `)`. */
     private fun isInsidePath(view: TokenView, token: SyntaxToken, caret: Int): Boolean {
         val closed = token.range.length > 2 && view.text.getOrNull(token.range.end - 1) == ')'
         val end = if (closed) token.range.end - 1 else token.range.end

@@ -22,7 +22,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Contract test of the complete core-lang values and wiring (no phase-1 implementation code is executed). */
+/**
+ * Covers the complete values and wiring of core-lang on their own: every registered language has feature providers,
+ * the member signature and type hover formats, the consistency of documents, the semantic styles, and the overlay rule
+ * of highlighting.
+ */
 class LanguageContractTest {
 
     @Test

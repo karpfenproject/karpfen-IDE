@@ -25,7 +25,8 @@ import kotlinx.coroutines.flow.StateFlow
  * analysis). Construction only wires objects.
  *
  * @param onProviderFailure called (on the calling thread) with every provider exception the facade caught and logged
- *   instead of letting it escape; robustness tests (spec §11 item 3) pass a recorder and assert it stays empty.
+ *   instead of letting it escape; the robustness tests pass a recorder and assert it stays empty, so the catch-all
+ *   never hides a provider exception.
  * @throws IllegalArgumentException if two [features] declare the same language.
  */
 public fun defaultLanguageServices(

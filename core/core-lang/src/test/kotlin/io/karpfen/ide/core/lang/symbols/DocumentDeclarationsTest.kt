@@ -10,7 +10,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The document's own declarations by the staleness rule: latest parse first, the last good parse for what it lost. */
+/** Covers the document's own declarations by the staleness rule: latest parse first, the last good parse for what it lost. */
 class DocumentDeclarationsTest {
 
     private val path = Path.of("/ws/m.kstates")

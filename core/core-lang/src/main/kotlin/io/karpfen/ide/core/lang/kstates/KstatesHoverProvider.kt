@@ -11,7 +11,7 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
 /**
- * KStates hover (spec §5): state → its hierarchy path (`state observe > react to obstacle`); macro → its TAKES/RETURNS
+ * KStates hover: state → its hierarchy path (`state observe > react to obstacle`); macro → its TAKES/RETURNS
  * signature (`macro m(p: Vector): number`); model path → the resolved type of the path up to the segment under the
  * caret (`boundingBox->position: Vector`, followed by the member's signature, [paths]); type and event name →
  * `TypeInfo.hoverText` ([types]); SETOBJ relation → the member's signature; WITH binding / TAKES parameter → its type.
@@ -45,6 +45,10 @@ internal class KstatesHoverProvider(
         }
     }
 
+    /**
+     * The type of the path up to the segment under the caret, with the member's signature or the kind of binding; an
+     * `event` root whose type is not determinable lists every event type.
+     */
     private fun pathHover(request: FeatureRequest, context: CaretContext, slot: KstatesSlot.ModelPath): Hover? {
         val hit = paths.segmentAt(request, context, slot.range) ?: return null
         val member = hit.member ?: return null

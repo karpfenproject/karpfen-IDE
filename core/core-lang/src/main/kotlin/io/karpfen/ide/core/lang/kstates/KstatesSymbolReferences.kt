@@ -12,7 +12,7 @@ import io.karpfen.ide.core.lang.navigation.ReferenceScope
 import io.karpfen.ide.core.lang.navigation.SearchFile
 
 /**
- * The KStates part of cross-file references (spec §5): event names (`EVENT("d", "n")`) of an event type; for a member,
+ * The KStates part of cross-file references: event names (`EVENT("d", "n")`) of an event type; for a member,
  * the model-path segments resolving to it (paths of actions, VALUE, IF IN SCOPE, macro arguments and `$( … )`, each
  * resolved in its scope by [scopes] and [paths]) and the relation arguments of `SETOBJ`/`APPENDOBJ` whose source path
  * has the member's owner as type.
@@ -34,6 +34,7 @@ internal class KstatesSymbolReferences(
         }
     }
 
+    /** The `SETOBJ`/`APPENDOBJ` relation arguments named like [symbol] whose source path has its owner as type. */
     private fun relationArguments(symbol: ContextSymbol.Member, file: SearchFile, scope: ReferenceScope): List<Location> =
         file.source.outcome.index.references(ReferenceKind.RELATION_KEY, symbol.name)
             .filter { reference ->
@@ -42,6 +43,7 @@ internal class KstatesSymbolReferences(
             }
             .map { file.source.location(it.range) }
 
+    /** The model-path segments of the file that resolve, in their scope, to the member [symbol]. */
     private fun pathSegments(symbol: ContextSymbol.Member, file: SearchFile, scope: ReferenceScope): List<Location> =
         file.source.outcome.index.referencesOf(ReferenceKind.MODEL_PATH)
             .filter { symbol.name in it.name }

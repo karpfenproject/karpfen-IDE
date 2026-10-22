@@ -12,7 +12,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The files a cross-file reference search sees and how contributors are asked. */
+/** Covers the files a cross-file reference search sees and how its contributors are asked. */
 class ContextReferencesTest {
 
     @Test

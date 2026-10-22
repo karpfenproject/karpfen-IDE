@@ -12,10 +12,11 @@ import java.util.concurrent.atomic.AtomicReference
 
 /**
  * The types of one modeling context as immutable values: [domain] from its domain metamodel, [events] from its event
- * metamodel (only the TYPE declarations of the events file itself, decision of WP-LANG in the plan), [all] both, a
- * name once.
+ * metamodel (only the TYPE declarations of the events file itself, because dsl-tools adds the domain base types to the
+ * converted events metamodel).
  */
 internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInfo>) {
+    /** The domain types, then the event types, a name once. */
     val all: List<TypeInfo> = (domain + events).distinctBy { it.name }
 
     companion object {
@@ -34,6 +35,10 @@ internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInf
             return ContextTypes(domain, events)
         }
 
+        /**
+         * The types of [metamodel] (restricted to [names] when given) located in [file], or the types of [file]'s syntax
+         * when the metamodel did not convert.
+         */
         private fun typesOf(file: AnalyzedFile?, metamodel: Metamodel?, origin: TypeOrigin, names: Set<String>?): List<TypeInfo> {
             val located = file?.let(LocatedOutcome::of)
             if (metamodel == null) return located?.let { SyntaxTypes.read(it, origin, names) }.orEmpty()
@@ -49,6 +54,7 @@ internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInf
  */
 internal object MetamodelTypes {
 
+    /** The [TypeInfo] of [type]; declarations stay null without a [file] or where its syntax index lacks them. */
     fun convert(type: ClassType, origin: TypeOrigin, file: LocatedOutcome?): TypeInfo {
         val index = file?.outcome?.index
         fun locate(kind: SymbolKind, name: String, container: String?) =
@@ -90,6 +96,7 @@ internal object MetamodelTypes {
  */
 internal class ContextTypesMemo {
 
+    /** The conversions made for one [project] analysis. */
     private class Generation(val project: ProjectAnalysis) {
         val byContext = ConcurrentHashMap<IdentityKey, ContextTypes>()
     }
@@ -101,6 +108,7 @@ internal class ContextTypesMemo {
         override fun hashCode(): Int = System.identityHashCode(context)
     }
 
+    /** The conversions of the latest analysis asked for. */
     private val current = AtomicReference(Generation(ProjectAnalysis.EMPTY))
 
     /** The types of [context], an analysis of [project]. */

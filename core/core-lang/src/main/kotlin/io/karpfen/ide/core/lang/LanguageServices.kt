@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.lang
 
 /**
- * Editor features for karpfen documents (spec §5). Facade per workspace: the default implementation
+ * Editor features for karpfen documents. Facade per workspace: the default implementation
  * (`io.karpfen.ide.core.lang.services.defaultLanguageServices`) picks the `LanguageFeatures` of the document's
  * language and delegates; project knowledge (other files of the modeling context) comes from the workspace's project
  * analysis it was created with.
@@ -31,7 +31,7 @@ public interface LanguageServices {
     /**
      * Completion items at [offset], unfiltered (the editor filters by the text between `replaceRange.start` and the
      * caret) and in no particular order (the editor sorts). Context is determined from tokens plus the partial parse,
-     * robust on broken text (spec §5, Completion).
+     * robust on broken text.
      */
     public fun complete(doc: LanguageDocument, offset: Int): List<CompletionItem>
 

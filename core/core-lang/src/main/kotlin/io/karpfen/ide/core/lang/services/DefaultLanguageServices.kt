@@ -80,6 +80,7 @@ internal class DefaultLanguageServices(
         }
     }
 
+    /** Logs a provider failure and reports it to [onProviderFailure], which must not throw either. */
     private fun report(operation: String, doc: LanguageDocument, error: Throwable) {
         LOG.warn("Language provider failed: {} for {} ({})", operation, doc.path, doc.language, error)
         try {

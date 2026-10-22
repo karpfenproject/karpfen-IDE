@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Snippet and name items: insertion text, caret placement and ranking. */
+/** Covers snippet and name items: insertion text, caret placement and ranking. */
 class CompletionItemsTest {
 
     private val range = TextRange(3, 5)

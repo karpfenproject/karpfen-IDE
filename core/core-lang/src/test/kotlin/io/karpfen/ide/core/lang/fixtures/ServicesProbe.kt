@@ -12,8 +12,8 @@ import java.util.Collections
 import kotlin.test.assertEquals
 
 /**
- * The default language services over an analysis, failing a test as soon as the facade reports a provider failure
- * (its catch-all must not hide exceptions, spec §11 item 3).
+ * The default language services over an analysis, failing a test as soon as the facade reports a provider failure, so
+ * the facade's catch-all never hides a provider exception.
  */
 class ServicesProbe(analysis: ProjectAnalysis = ExampleProject.analysis) {
 
@@ -22,14 +22,19 @@ class ServicesProbe(analysis: ProjectAnalysis = ExampleProject.analysis) {
     /** The services under test. */
     val services: LanguageServices = ExampleProject.services(analysis, failures)
 
+    /** The completion items at [offset]; fails on a provider failure. */
     fun complete(document: LanguageDocument, offset: Int): List<CompletionItem> = checked { services.complete(document, offset) }
 
+    /** The definitions at [offset]; fails on a provider failure. */
     fun definition(document: LanguageDocument, offset: Int): List<Location> = checked { services.definition(document, offset) }
 
+    /** The references at [offset]; fails on a provider failure. */
     fun references(document: LanguageDocument, offset: Int): List<Location> = checked { services.references(document, offset) }
 
+    /** The hover at [offset]; fails on a provider failure. */
     fun hover(document: LanguageDocument, offset: Int): Hover? = checked { services.hover(document, offset) }
 
+    /** The bracket match at [offset]; fails on a provider failure. */
     fun matchingBracket(document: LanguageDocument, offset: Int): BracketMatch? = checked { services.matchingBracket(document, offset) }
 
     /** The labels of the completion items at [offset], sorted like the editor does for an empty filter. */
@@ -39,6 +44,7 @@ class ServicesProbe(analysis: ProjectAnalysis = ExampleProject.analysis) {
     /** Fails if a provider failure was reported. */
     fun assertNoFailures() = assertEquals(emptyList(), failures.toList().map { "${it.operation} ${it.language}: ${it.error}" })
 
+    /** The result of [call], after asserting that no provider failed. */
     private fun <T> checked(call: () -> T): T = call().also { assertNoFailures() }
 }
 

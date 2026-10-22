@@ -53,11 +53,13 @@ internal class TokenBracketMatcher : BracketMatcher {
         return partners
     }
 
+    /** Records the brackets at [open] and [close] as each other's partners. */
     private fun link(partners: IntArray, open: Int, close: Int) {
         partners[open] = close
         partners[close] = open
     }
 
+    /** The bracket character of a one-character PUNCTUATION [token], or null for any other token. */
     private fun bracketOf(text: String, token: SyntaxToken): Char? {
         if (token.kind != TokenKind.PUNCTUATION || token.range.length != 1 || token.range.start >= text.length) return null
         return text[token.range.start].takeIf { it in BRACKETS }
