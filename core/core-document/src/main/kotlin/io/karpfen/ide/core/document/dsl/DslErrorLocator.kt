@@ -5,7 +5,7 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Finds the best range for a dsl-tools exception message, which carries no position (spec §3.3, best effort):
+ * Finds the best range for a dsl-tools exception message, which carries no position (best effort):
  * the name range of a reference or declaration in [SyntaxIndex] whose name appears quoted (`'x'` or `"x"`) in the
  * message; otherwise the first token of the file (the first character that is neither whitespace nor part of a `//`
  * comment, through the end of its word); the empty range at 0 for empty text.

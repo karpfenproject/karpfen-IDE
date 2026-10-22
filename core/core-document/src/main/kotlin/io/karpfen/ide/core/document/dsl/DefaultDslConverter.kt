@@ -35,6 +35,7 @@ internal class DefaultDslConverter(private val locator: DslErrorLocator) : DslCo
     override fun kstates(source: TextSnapshot, index: SyntaxIndex): Conversion<StateMachine> =
         convert(source, index) { KstatesDSLConverter.parseKstatesString(source.text) }
 
+    /** Runs [conversion]; any throwable but a fatal VM error becomes the failed [Conversion] with one diagnostic. */
     private inline fun <T : Any> convert(source: TextSnapshot, index: SyntaxIndex, conversion: () -> T): Conversion<T> =
         try {
             Conversion(conversion(), emptyList())
@@ -46,6 +47,7 @@ internal class DefaultDslConverter(private val locator: DslErrorLocator) : DslCo
             Conversion(null, listOf(diagnostic(e, source, index)))
         }
 
+    /** The DSL_TOOLS ERROR diagnostic for [e], located in [source] by its message. */
     private fun diagnostic(e: Throwable, source: TextSnapshot, index: SyntaxIndex): Diagnostic =
         Diagnostic(
             range = locator.locate(e.message, source, index),

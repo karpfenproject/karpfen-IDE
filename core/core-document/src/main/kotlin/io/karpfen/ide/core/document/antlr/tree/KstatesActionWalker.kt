@@ -10,7 +10,7 @@ import org.antlr.v4.runtime.tree.ErrorNode
 import org.antlr.v4.runtime.tree.TerminalNode
 
 /**
- * Walks the action blocks of a KStates state (ENTRY, DO and the blocks nested in them), spec §3.3:
+ * Walks the action blocks of a KStates state (ENTRY, DO and the blocks nested in them):
  * - action rules: the first argument is a MODEL_PATH (`SET("a->b", …)`, `DROPOBJ("p")`, `SETOBJ("src", …)`); the
  *   relation argument of `SETOBJ`/`APPENDOBJ` is a RELATION_KEY reference qualified with the source path (PROPERTY_NAME
  *   span); `EVENT("d", "n")` as an action is an event domain and name; a `MACRO(…)` right side is a macro call. String
@@ -28,6 +28,7 @@ internal class KstatesActionWalker(
     fun walk(block: KstatesParser.Action_blockContext?, state: String): List<OutlineNode> =
         block?.action_item().orEmpty().flatMap { item(it, state) }
 
+    /** Records one action item; returns the outline nodes of the WITH bindings it contains. */
     private fun item(ctx: KstatesParser.Action_itemContext, state: String): List<OutlineNode> {
         ctx.action_rule()?.let { rule(it) }
         ctx.in_scope_block()?.let { scope ->
@@ -38,6 +39,7 @@ internal class KstatesActionWalker(
         return emptyList()
     }
 
+    /** Records the references of an action rule such as `SET("a->b", …)` or `EVENT("d", "n")`. */
     private fun rule(ctx: KstatesParser.Action_ruleContext) {
         val operation = operationOf(ctx.action_operation())
         val arguments = tree.quotedStrings(ctx, KstatesParser.STRING)
@@ -55,6 +57,7 @@ internal class KstatesActionWalker(
         rightSide?.macro_call()?.let(references::macroCall)
     }
 
+    /** Records a `WITH MACRO(…) AS "x"` binding of [state] and returns its outline node. */
     private fun binding(ctx: KstatesParser.With_blockContext, state: String): OutlineNode {
         val macro = references.macroCall(ctx.macro_call())
         val name = tree.quoted(tree.terminal(ctx, KstatesParser.STRING))

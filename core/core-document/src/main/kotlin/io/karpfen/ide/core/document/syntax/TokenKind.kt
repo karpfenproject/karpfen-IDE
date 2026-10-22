@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.document.syntax
 
 /**
- * Lexical classification of a [SyntaxToken] (spec §3.1). The `EMBEDDED_*`, [PATH_REFERENCE] and [MACRO_REFERENCE]
+ * Lexical classification of a [SyntaxToken]. The `EMBEDDED_*`, [PATH_REFERENCE] and [MACRO_REFERENCE]
  * kinds only occur inside EVAL bodies (embedded Python).
  */
 public enum class TokenKind {
@@ -26,7 +26,7 @@ public enum class TokenKind {
     /** `->` and other operators. */
     OPERATOR,
 
-    /** A `//` line comment (also inside EVAL bodies, where it is a karpfen comment, spec §3.1). */
+    /** A `//` line comment, also inside EVAL bodies, where it is a karpfen comment that the Python code never sees. */
     COMMENT,
 
     /** Python code inside an EVAL body that has no more specific kind. */

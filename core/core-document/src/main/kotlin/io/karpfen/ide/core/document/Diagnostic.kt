@@ -3,12 +3,15 @@ package io.karpfen.ide.core.document
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A problem reported for a range of a document (spec §3.2). Library code turns every parse/analysis failure into a
- * diagnostic instead of throwing (spec §1, Errors).
+ * A problem reported for a range of a document. Library code never lets an exception from parsing or analysis escape
+ * to the UI; it turns every such failure into a diagnostic. Only programming errors (violated preconditions) throw.
  *
  * @property range the affected range in the coordinates of the document version the diagnostic was computed for; may
  *   be empty (e.g. "missing `}`" at end of file).
+ * @property severity how serious the problem is.
+ * @property message the text shown to the user.
  * @property code a stable machine-readable code, see [DiagnosticCodes].
+ * @property source the stage that reported the problem.
  */
 public data class Diagnostic(
     public val range: TextRange,
@@ -78,7 +81,10 @@ public object DiagnosticCodes {
     /** Parser error (unexpected or missing token); source [DiagnosticSource.PARSER]. */
     public const val SYNTAX_ERROR: String = "syntax-error"
 
-    /** `//` inside an EVAL body starts a karpfen comment (WARNING, spec §3.1). */
+    /**
+     * `//` inside an EVAL body starts a karpfen comment, so the rest of the line never reaches Python (a WARNING,
+     * source [DiagnosticSource.IDE]).
+     */
     public const val EVAL_DOUBLE_SLASH: String = "eval-double-slash"
 
     /** A dsl-tools converter rejected the file; source [DiagnosticSource.DSL_TOOLS]. */

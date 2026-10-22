@@ -32,6 +32,7 @@ internal class QuotedNameErrorLocator : DslErrorLocator {
         return TextRange.EMPTY
     }
 
+    /** The end of the word starting at [start], or of the single character there if it is not a word character. */
     private fun wordEnd(text: String, start: Int): Int {
         if (!isWordChar(text[start])) return start + Character.charCount(text.codePointAt(start))
         var end = start + 1

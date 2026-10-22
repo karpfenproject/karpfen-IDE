@@ -27,6 +27,7 @@ internal class QuotedNameRanking(
             compareValuesBy(this, other, Rank::distance, Rank::unqualified, Rank::wellFormed, Rank::start, Rank::end)
     }
 
+    /** The memoized results of [positionOf]. */
     private val positions = HashMap<String, Int>()
 
     /** The range of the best candidate, or null if the message quotes no symbol name. */
@@ -37,12 +38,14 @@ internal class QuotedNameRanking(
         return named.filter { it.name == subject }.minByOrNull { rank(it, scopes) }?.range
     }
 
+    /** Every usable declaration and reference whose name the message quotes. */
     private fun candidates(): List<Candidate> {
         val declarations = index.declarations.map { Candidate(it.name, it.nameRange, qualifier = null, declaration = it) }
         val references = index.references.map { Candidate(it.name, it.range, it.qualifier, declaration = null) }
         return (declarations + references).filter { isUsable(it.range) && positionOf(it.name) >= 0 }
     }
 
+    /** The [Rank] of [candidate] given the declarations the message's other quoted names name. */
     private fun rank(candidate: Candidate, scopes: List<SymbolDeclaration>): Rank =
         Rank(
             distance = distance(candidate, scopes),
@@ -68,6 +71,7 @@ internal class QuotedNameRanking(
         declaration?.kind == SymbolKind.SIMPLE_PROPERTY &&
             index.referencesOf(ReferenceKind.TYPE).any { it.range in declaration.range }
 
+    /** True if [range] lies inside the text the message is about. */
     private fun isUsable(range: TextRange): Boolean = range.end <= textLength
 
     /** Where [name] first appears quoted (`'name'` or `"name"`) in the message; -1 if it does not (or is empty). */

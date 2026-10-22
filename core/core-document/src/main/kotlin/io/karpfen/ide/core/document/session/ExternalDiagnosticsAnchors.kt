@@ -5,11 +5,12 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Re-anchors the external diagnostic sets of one document as its text advances (spec §3.4, decision 28): each set is
+ * Re-anchors the external diagnostic sets of one document as its text advances: each set is
  * mapped from where the previous merge left it, not from the snapshot it was reported for. A set reported once — the
  * FILE findings live until the next save or reload — therefore never falls out of the text's retained edit history
  * (`EditableText.mapRange` answers null for evicted versions), and each merge maps only the versions since the
- * previous one.
+ * previous one. Mapping step by step differs from mapping from the reported version only for a range that collapsed to
+ * an empty one: it then stays behind text typed at it, like any empty range.
  *
  * Thread-safe: the anchors are an immutable map replaced atomically. An anchor newer than a merge's target is not used
  * (that set is mapped from its own snapshot), so a merge never maps backwards.
@@ -19,6 +20,7 @@ internal class ExternalDiagnosticsAnchors {
     /** The set [reported] by a source and its diagnostics mapped to a later snapshot ([anchored]). */
     private class Anchor(val reported: ExternalDiagnosticSet, val anchored: ExternalDiagnosticSet)
 
+    /** The anchors by source, replaced as a whole by every [mapAll]. */
     private val anchors = AtomicReference<Map<String, Anchor>>(emptyMap())
 
     /**

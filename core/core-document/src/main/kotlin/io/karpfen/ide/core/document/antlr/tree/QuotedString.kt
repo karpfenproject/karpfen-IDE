@@ -3,8 +3,8 @@ package io.karpfen.ide.core.document.antlr.tree
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A string literal of a karpfen grammar (`"…"`, in KModel also `'…'`) as names are read from it (spec §3.3): the
- * [value] between the quotes, its [inner] range and the [whole] literal. Escapes are kept as written, as dsl-tools
+ * A string literal of a karpfen grammar (`"…"`, in KModel also `'…'`) as names are read from it: the [value] between
+ * the quotes, its [inner] range and the [whole] literal. Escapes are kept as written, as dsl-tools
  * does when it unquotes.
  *
  * @property value the text between the quotes.

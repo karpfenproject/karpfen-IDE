@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
  * Default [DocumentSession]: tokenize pipeline (mapLatest), debounced parse scheduler, diagnostics merger (maps every
  * source to the newest snapshot, then [mergeDiagnostics]; never a merge rule of its own).
  *
- * A coordinator (Facade, spec §1a) that wires single-purpose collaborators and implements nothing itself:
+ * A coordinator (Facade) that wires single-purpose collaborators and implements nothing itself:
  * - [TokenizePipeline] — [tokens], the initial snapshot synchronously, later versions without debounce, latest wins;
  * - [ParseScheduler] — [parse] and [lastGoodParse], the first snapshot at once, later versions debounced and
  *   cancellable;

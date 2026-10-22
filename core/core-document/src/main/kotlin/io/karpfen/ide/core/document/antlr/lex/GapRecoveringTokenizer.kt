@@ -9,7 +9,7 @@ import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * The tokenizing algorithm shared by KMeta and KModel (spec §3.1), whose lexers `skip` whitespace and `//` comments:
+ * The tokenizing algorithm shared by KMeta and KModel, whose lexers `skip` whitespace and `//` comments:
  *
  * 1. lex with `KarpfenLexers.lex` (IDE listener; lexer errors become LEXER diagnostics) and classify every emitted
  *    token with [kinds], ranges from `LexedText.rangeOf`;
@@ -23,8 +23,8 @@ import io.karpfen.ide.core.text.TextSnapshot
  * One refinement of step 2: a COMMENT piece that overlaps a LEXER error is an [TokenKind.ERROR] token. ANTLR's error
  * recovery consumes the character at which a token failed, so in `ty//pe` the first `/` ends the failed `type` and
  * the lexer never sees a comment, while the gap scanner, which only looks at characters, reports `//pe` as one. With
- * the refinement every ERROR token overlaps a LEXER diagnostic and vice versa (spec §3.1: lexer errors become ERROR
- * tokens plus ERROR diagnostics), which the token-invariant tests check on every mutation.
+ * the refinement every ERROR token overlaps a LEXER diagnostic and vice versa (lexer errors always become ERROR tokens
+ * plus ERROR diagnostics), which the token-invariant tests check on every mutation.
  *
  * Stateless and thread-safe; the language tokenizers wrap it in a [FailSafeTokenizer].
  */
@@ -52,6 +52,7 @@ internal class GapRecoveringTokenizer(
         return TokenizeResult(snapshot.version, tokens.toList(), lexed.diagnostics)
     }
 
+    /** The token kind of [gap]: ERROR for unrecognized input and for a comment that overlaps a lexer error. */
     private fun kindOf(gap: LexerGaps.GapPiece, lexerErrors: RangeOverlapIndex): TokenKind = when {
         gap.kind == LexerGaps.GapKind.UNRECOGNIZED -> TokenKind.ERROR
         lexerErrors.overlapsAny(gap.range) -> TokenKind.ERROR

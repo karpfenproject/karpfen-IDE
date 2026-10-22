@@ -9,12 +9,15 @@ import io.karpfen.ide.core.document.antlr.EmbeddedPiece
 import io.karpfen.ide.core.document.syntax.TokenKind
 
 /**
- * How the pieces of an EVAL body (`EvalBodies.scan`) become tokens and diagnostics (spec §3.1). Pure functions over the
- * closed [EmbeddedKind] vocabulary; no state.
+ * How the pieces of an EVAL body (`EvalBodies.scan`) become tokens and diagnostics. Pure functions over the closed
+ * [EmbeddedKind] vocabulary; no state.
  */
 internal object EmbeddedPieceTokens {
 
-    /** The message of the `eval-double-slash` warning (spec §3.1, verbatim). */
+    /**
+     * The message of the `eval-double-slash` warning. It names the consequence (the rest of the line never reaches
+     * Python) and the usual cause, Python's floor division, with replacements that the karpfen lexer leaves alone.
+     */
     const val EVAL_DOUBLE_SLASH_MESSAGE: String =
         "`//` inside EVAL starts a karpfen comment; the rest of the line is dropped. " +
             "For Python floor division use int(a / b) or math.floor(a / b)."

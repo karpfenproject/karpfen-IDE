@@ -13,7 +13,7 @@ import kstates.KstatesLexer
 import org.antlr.v4.runtime.Token
 
 /**
- * [Tokenizer] for KStates (spec §3.1) on the shared ANTLR mechanics of the `antlr` package: lexes with
+ * [Tokenizer] for KStates on the shared ANTLR mechanics of the `antlr` package: lexes with
  * `KarpfenLexers.lex` (the KStates lexer has a catch-all `SYMBOL` token, so it reports no errors) and converts token
  * indices with `LexedText.rangeOf` (`CodePointOffsets`).
  *
@@ -38,6 +38,10 @@ internal class KstatesTokenizer : Tokenizer {
 
     override fun tokenize(snapshot: TextSnapshot): TokenizeResult = tokenizer.tokenize(snapshot)
 
+    /**
+     * Tokenizes [snapshot] without the guard. The tokens of an EVAL body are replaced by the body's pieces; its
+     * closing brace is an ordinary token again.
+     */
     private fun tokenizeUnguarded(snapshot: TextSnapshot): TokenizeResult {
         val text = snapshot.text
         val lexed = KarpfenLexers.lex(KarpfenLanguage.KSTATES, text)
@@ -51,7 +55,6 @@ internal class KstatesTokenizer : Tokenizer {
         while (index < lexed.tokens.size) {
             val body = bodies.getOrNull(nextBody)
             if (body != null && index >= body.firstToken) {
-                // The body's tokens are replaced by its pieces; its closing brace is an ordinary token again.
                 for (piece in EvalBodies.scan(text, lexed.tokens, lexed.offsets, body)) {
                     tokens.add(piece.range, EmbeddedPieceTokens.kindOf(piece.kind))
                     EmbeddedPieceTokens.diagnosticOf(piece)?.let(diagnostics::add)
@@ -78,9 +81,10 @@ internal class KstatesTokenizer : Tokenizer {
 
 /**
  * The KStates vocabulary outside EVAL bodies: the operations of [KarpfenSyntax.KSTATES_OPERATIONS] (both cases are one
- * token type each, found by name in the lexer's vocabulary), every other grammar keyword (`EVENT` included; the tokenizer turns it into an
- * OPERATION in action blocks), double- and single-quoted strings, identifiers (e.g. `list` in a type expression),
- * numbers, `->`, punctuation and hidden `//` comments. `WS` is skipped; the catch-all `SYMBOL` falls back to ERROR.
+ * token type each, found by name in the lexer's vocabulary), every other grammar keyword (`EVENT` included; the
+ * tokenizer turns it into an OPERATION in action blocks), double- and single-quoted strings, identifiers (e.g. `list`
+ * in a type expression), numbers, `->`, punctuation and hidden `//` comments. `WS` is skipped; the catch-all `SYMBOL`
+ * falls back to ERROR.
  */
 internal val KSTATES_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
     TokenKind.OPERATION to KarpfenSyntax.KSTATES_OPERATIONS.map(::kstatesTokenType).toIntArray(),

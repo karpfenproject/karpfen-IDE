@@ -6,7 +6,7 @@ import io.karpfen.ide.core.text.TextRange
 import kstates.KstatesParser
 
 /**
- * Walks a KStates tree (spec §3.3) into one STATEMACHINE outline node whose children are the states, the transitions
+ * Walks a KStates tree into one STATEMACHINE outline node whose children are the states, the transitions
  * and the macros, in document order (the `STATES`, `TRANSITIONS` and `MACROS` blocks themselves are not nodes). The
  * machine is declared as STATEMACHINE named after its keyword (`STATEMACHINE`, selecting the keyword) with the
  * `ATTACHED TO` type as type name and outline detail; that type string is a type reference.
@@ -25,6 +25,7 @@ internal class KstatesTreeWalker(private val tree: ParsedTree<*>, private val co
     /** The outline of [file]: the state machine, if the text has one. */
     fun walk(file: KstatesParser.Kstates_fileContext): List<OutlineNode> = listOfNotNull(file.statemachine()?.let(::machine))
 
+    /** Records the state machine of [ctx] and returns its outline node. */
     private fun machine(ctx: KstatesParser.StatemachineContext): OutlineNode {
         val attachedTo = tree.quoted(tree.terminal(ctx, KstatesParser.STRING))
         collector.typeReference(attachedTo)

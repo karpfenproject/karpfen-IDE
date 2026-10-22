@@ -2,7 +2,7 @@ package io.karpfen.ide.core.document.parse
 
 import io.karpfen.ide.core.text.TextRange
 
-/** The role of a string or identifier as determined from the parse tree (spec §3.3); drives semantic highlighting. */
+/** The role of a string or identifier as determined from the parse tree; drives semantic highlighting. */
 public enum class SemanticKind {
     /** A declared or referenced type name. */
     TYPE_NAME,
@@ -39,7 +39,10 @@ public enum class SemanticKind {
 }
 
 /**
- * A range with a [SemanticKind]. Ranges of names point *inside* the quotes (spec §3.3); spans of one
- * [ParseOutcome] are sorted by start and do not overlap.
+ * A range with a [SemanticKind]. Ranges of names point *inside* the quotes; spans of one [ParseOutcome] are sorted by
+ * start and do not overlap.
+ *
+ * @property range the highlighted range.
+ * @property kind the role of the text in [range].
  */
 public data class SemanticSpan(public val range: TextRange, public val kind: SemanticKind)

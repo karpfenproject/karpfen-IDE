@@ -6,7 +6,7 @@ import io.karpfen.ide.core.document.syntax.TokenKind
 import kstates.KstatesLexer
 
 /**
- * Follows the block structure of a KStates document on its brace tokens to classify `EVENT` (spec §3.1): an action
+ * Follows the block structure of a KStates document on its brace tokens to classify `EVENT`: an action
  * ([TokenKind.OPERATION]) directly inside an action block, a [TokenKind.KEYWORD] in a CONDITION block and anywhere
  * else (also in broken text, where the block is unknown). A block's kind is the one rule of [KstatesBlockHeader], read
  * from the tokens since the previous brace.

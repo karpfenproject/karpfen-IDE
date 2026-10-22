@@ -4,18 +4,20 @@ import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Tokens and lexical diagnostics of one text version (spec §3.1).
+ * Tokens and lexical diagnostics of one text version.
  *
  * Invariants (checked): [tokens] are sorted by start and do not overlap; so are [embeddedRegions]. By contract of
  * [Tokenizer], every non-whitespace character belongs to exactly one token.
  *
  * @property version the [io.karpfen.ide.core.text.TextSnapshot.version] that was tokenized.
+ * @property tokens the classified pieces of the text in document order.
  * @property diagnostics LEXER errors and IDE warnings (e.g. `eval-double-slash`), sorted with [Diagnostic.ORDER].
  * @property embeddedRegions the embedded-Python regions: the content ranges of the KStates EVAL bodies (between the
  *   `{` after `EVAL` and its matching `}`, to the end of the text when unclosed), exactly as the tokenizer's EVAL
- *   scanner found them (`EvalBodies`, spec §3.1); empty for KMeta and KModel. The one answer to "is this offset embedded
+ *   scanner found them (`EvalBodies`); empty for KMeta and KModel. The one answer to "is this offset embedded
  *   Python?" outside core-document (toggle comment `#` vs `//`, the caret context of completion): consumers use
- *   [embeddedRegionAt] and never re-derive EVAL bodies from the tokens (spec §1a, plan §5 rule 6).
+ *   [embeddedRegionAt] and never re-derive EVAL bodies from the tokens, so a mechanism shared by several layers is
+ *   never implemented twice.
  */
 public data class TokenizeResult(
     public val version: Long,

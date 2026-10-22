@@ -4,8 +4,10 @@ import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.KarpfenLanguage
 
 /**
- * Everything derived from parsing one text version (spec §3.3). All ranges are in the coordinates of [version].
+ * Everything derived from parsing one text version. All ranges are in the coordinates of [version].
  *
+ * @property language the language the text was parsed as.
+ * @property version the parsed text version.
  * @property syntaxDiagnostics errors reported while parsing: PARSER errors plus LEXER errors seen by the parser's own
  *   lexer, sorted with [Diagnostic.ORDER]. (The document session shows LEXER errors from the tokenizer and only the
  *   PARSER ones from here, so nothing is reported twice.)
@@ -32,6 +34,6 @@ public data class ParseOutcome(
         require(version >= 0) { "version must be >= 0, was $version" }
     }
 
-    /** True if parsing reported no syntax diagnostics ("last good parse" candidate, spec §3.4). */
+    /** True if parsing reported no syntax diagnostics, which makes this outcome the session's new last good parse. */
     public val isSyntaxClean: Boolean get() = syntaxDiagnostics.isEmpty()
 }

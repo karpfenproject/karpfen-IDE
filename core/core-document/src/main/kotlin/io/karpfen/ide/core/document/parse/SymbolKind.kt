@@ -1,6 +1,6 @@
 package io.karpfen.ide.core.document.parse
 
-/** What a [SymbolDeclaration] or [OutlineNode] declares (spec §3.3). */
+/** What a [SymbolDeclaration] or [OutlineNode] declares. */
 public enum class SymbolKind {
     /** KMeta `type "N" "D" { … }`. */
     TYPE,
@@ -57,7 +57,7 @@ public enum class SymbolKind {
     BINDING,
 }
 
-/** What a [SymbolReference] refers to (spec §3.3). */
+/** What a [SymbolReference] refers to. */
 public enum class ReferenceKind {
     /** A type name declared in a `.kmeta` file. */
     TYPE,

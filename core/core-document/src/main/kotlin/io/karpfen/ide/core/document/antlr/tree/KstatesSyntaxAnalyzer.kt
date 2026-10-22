@@ -10,7 +10,7 @@ import kstates.KstatesParser
 /**
  * Parses KStates with the dsl-tools `kstates.KstatesParser` (default error recovery) on a `CommonTokenStream` of
  * `KarpfenLexers.create`, with one `IdeErrorListener` attached to lexer and parser, and walks the tree into outline,
- * index, folding and semantic spans (spec §3.3). Tolerates conjured "missing" tokens (negative indices) and error
+ * index, folding and semantic spans. Tolerates conjured "missing" tokens (negative indices) and error
  * nodes; token offsets are converted with `CodePointOffsets`.
  *
  * Embedded Python is taken from the shared lexical scanner, not from the tree, so references agree with the tokenizer

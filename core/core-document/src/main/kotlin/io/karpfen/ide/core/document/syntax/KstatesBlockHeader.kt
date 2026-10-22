@@ -13,12 +13,12 @@ public enum class KstatesBlockKind {
 }
 
 /**
- * The KStates block rule, the one answer to "which keyword introduces this `{` block" (decision 53): the last
+ * The KStates block rule, the one answer to "which keyword introduces this `{` block": the last
  * block-introducing keyword of the block's header outside parentheses, where `MACRO` introduces a block only as a
  * definition (`MACRO "m" {`), never as a call (`MACRO` directly followed by `(`, as in `WITH MACRO(…) AS "x" {`). The
  * keywords and the kinds they open are [KarpfenSyntax]'s. The KStates tokenizer classifies `EVENT` by it and the
- * language services (core-lang) read blocks by it, so highlighting and completion agree on every block, broken text
- * included.
+ * language services (core-lang) read blocks by it, so highlighting (`EVENT` as an operation) and completion (action
+ * snippets) agree on every block, also in broken text such as `WITH MACRO {` or `IF IN SCOPE(STATE) {`.
  *
  * A header is a block's tokens before its `{`, back to the previous brace (or to the start of the call argument the
  * block is), fed in order to [accept]; [introducer], [introducerIndex] and [kind] then describe the block. One instance
@@ -26,10 +26,22 @@ public enum class KstatesBlockKind {
  */
 public class KstatesBlockHeader {
 
+    /** The number of tokens accepted so far. */
     private var accepted = 0
+
+    /** The parenthesis depth at the current token; keywords inside parentheses introduce nothing. */
     private var depth = 0
+
+    /** The last introducing keyword found so far, or null. */
     private var keyword: String? = null
+
+    /** The index of [keyword] among the accepted tokens, or -1. */
     private var keywordIndex = -1
+
+    /**
+     * The index of a `MACRO` whose role the next token decides (a call if it is `(`, else a definition), or -1. While
+     * it is pending, a header that ends here counts it as the introducer.
+     */
     private var macroIndex = -1
 
     /**
@@ -64,6 +76,7 @@ public class KstatesBlockHeader {
             else -> KstatesBlockKind.OTHER
         }
 
+    /** Records [word] at [index] as the introducer found last. */
     private fun found(word: String, index: Int) {
         keyword = word
         keywordIndex = index
@@ -76,6 +89,7 @@ public class KstatesBlockHeader {
         /** The word of a closing parenthesis for [accept]. */
         public const val CLOSE: String = ")"
 
+        /** The keyword that introduces a block as a definition and none as a call. */
         private const val MACRO = "MACRO"
 
         /** Every keyword that may introduce a block (upper case), for callers that map their tokens to words. */

@@ -6,7 +6,7 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 import kmeta.KmetaParser
 
 /**
- * Walks a KMeta tree (spec §3.3): `type "N" "D" { … }` → TYPE declaration (outline detail: the description) with a
+ * Walks a KMeta tree: `type "N" "D" { … }` → TYPE declaration (outline detail: the description) with a
  * TYPE_NAME span on N and a DESCRIPTION span on D; `prop/has/knows("k", V)` → SIMPLE_PROPERTY / HAS_RELATION /
  * KNOWS_RELATION declarations (container: the type; type name and outline detail: `V` or `list(V)`) with a
  * PROPERTY_NAME span on k and a type reference to V (PRIMITIVE_TYPE for `number`, `string`, `boolean`, else TYPE).
@@ -16,6 +16,7 @@ internal class KmetaTreeWalker(private val tree: ParsedTree<*>, private val coll
     /** The outline of [file]: one node per type definition, in document order. */
     fun walk(file: KmetaParser.Kmeta_fileContext): List<OutlineNode> = file.type_definition().map(::type)
 
+    /** Records the type defined by [ctx] and returns its outline node, whose children are its rules. */
     private fun type(ctx: KmetaParser.Type_definitionContext): OutlineNode {
         val (name, description) = tree.quotedStrings(ctx, KmetaParser.STRING).let { it.getOrNull(0) to it.getOrNull(1) }
         collector.span(description?.inner, SemanticKind.DESCRIPTION)
@@ -27,6 +28,7 @@ internal class KmetaTreeWalker(private val tree: ParsedTree<*>, private val coll
         return node
     }
 
+    /** Records the property or relation of [ctx] in the type [typeName]; null for a rule of another kind. */
     private fun rule(ctx: KmetaParser.RuleContext, typeName: String): OutlineNode? {
         val (kind, body) = when {
             ctx.prop_rule() != null -> SymbolKind.SIMPLE_PROPERTY to ctx.prop_rule()

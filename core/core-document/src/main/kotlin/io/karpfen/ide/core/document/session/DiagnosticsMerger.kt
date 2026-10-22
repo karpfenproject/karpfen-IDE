@@ -8,14 +8,14 @@ import io.karpfen.ide.core.text.TextLineage
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Merges the diagnostic sources of one document into [VersionedDiagnostics] of the newest snapshot of [text]
- * (spec §3.4): every source's ranges are mapped from the version they were computed for with `EditableText.mapRange`
- * (the one range-mapping rule, decision 35; diagnostics whose range does not map — evicted history — are dropped),
- * then combined by [mergeDiagnostics] (the one merge rule, decision 28). It owns neither a mapping nor a merge rule.
+ * Merges the diagnostic sources of one document into [VersionedDiagnostics] of the newest snapshot of [text]: every
+ * source's ranges are mapped from the version they were computed for with `EditableText.mapRange` (the one
+ * range-mapping rule of the IDE; diagnostics whose range does not map — evicted history — are dropped), then combined
+ * by [mergeDiagnostics] (the one merge rule). It owns neither a mapping nor a merge rule.
  * The external sets, which may be reported once and then live for many edits, are mapped from their [anchors] (the
  * snapshot of the previous merge), so they never expire with the edit history.
  *
- * Reads `text.snapshot` and updates the [anchors]; thread-safe, because mapping (decision 35) and the anchors are.
+ * Reads `text.snapshot` and updates the [anchors]; thread-safe, because range mapping and the anchors are.
  */
 internal class DiagnosticsMerger(
     private val text: EditableText,
@@ -42,6 +42,7 @@ internal class DiagnosticsMerger(
         return VersionedDiagnostics(target, mergeDiagnostics(lexical, mappedParse, mappedExternal))
     }
 
+    /** [diagnostics] of the given version and lineage mapped to [target]; those whose range does not map are dropped. */
     private fun mapToTarget(
         diagnostics: List<Diagnostic>,
         fromVersion: Long,

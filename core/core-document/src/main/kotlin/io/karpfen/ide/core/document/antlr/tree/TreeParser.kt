@@ -12,7 +12,7 @@ import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.TokenStream
 
 /**
- * Runs a dsl-tools parser the IDE way (spec §3.3): a `CommonTokenStream` over [KarpfenLexers.create], one
+ * Runs a dsl-tools parser the IDE way: a `CommonTokenStream` over [KarpfenLexers.create], one
  * [IdeErrorListener] attached to the lexer and the parser (no console output), ANTLR's default error recovery, so
  * broken text still yields a partial tree. The generated parser and its entry rule are the per-language strategy.
  *
@@ -28,13 +28,16 @@ internal class TreeParser<P : Parser, T : ParserRuleContext>(
     private val newParser: (TokenStream) -> P,
     private val entryRule: (P) -> T,
 ) {
-    /** Parses [snapshot]; never throws for any input (errors become the tree's diagnostics). */
+    /**
+     * Parses [snapshot]; never throws for any input (errors become the tree's diagnostics). The stream is filled after
+     * the parse, because error recovery may stop before the end of the input, while the walkers and the EVAL scanner
+     * need every token.
+     */
     fun parse(snapshot: TextSnapshot): ParsedTree<T> {
         val offsets = CodePointOffsets.of(snapshot.text)
         val listener = IdeErrorListener(offsets)
         val stream = CommonTokenStream(KarpfenLexers.create(language, CharStreams.fromString(snapshot.text), listener))
         val root = entryRule(listener.attachTo(newParser(stream)))
-        // Recovery may stop before the end of the input; the walkers and the EVAL scanner need every token.
         stream.fill()
         return ParsedTree(snapshot, offsets, stream.tokens.toList(), root, listener.diagnostics)
     }

@@ -3,8 +3,9 @@ package io.karpfen.ide.core.document.parse
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A node of the document outline (spec §3.3), e.g. a type with its properties or a state with its nested states.
+ * A node of the document outline, e.g. a type with its properties or a state with its nested states.
  *
+ * @property kind what the node declares or stands for.
  * @property name display name: the declared name (without quotes); `:T` for an anonymous KModel object of type `T`;
  *   `a -> b`, `a -> b, c` or `a, b -> c` for transitions; `ENTRY`/`DO` for blocks.
  * @property detail optional secondary text by kind: TYPE → the description; SIMPLE_PROPERTY → the primitive

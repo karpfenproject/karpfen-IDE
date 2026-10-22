@@ -19,6 +19,7 @@ import org.antlr.v4.runtime.tree.TerminalNode
  * conjured ones at their grammar position. Immutable after construction; confined to one analysis.
  *
  * @property snapshot the parsed text.
+ * @property offsets the conversion of the parser's code-point indices into offsets of the text.
  * @property tokens every token of the parser's stream, every channel, in input order, ending with EOF.
  * @property root the tree of the grammar's entry rule.
  * @property diagnostics LEXER and PARSER errors reported while parsing, sorted with [Diagnostic.ORDER].
@@ -81,5 +82,6 @@ internal class ParsedTree<out T : ParserRuleContext>(
      */
     fun selectionOf(name: QuotedString?, ctx: ParserRuleContext): TextRange = name?.inner ?: TextRange.empty(rangeOf(ctx).start)
 
+    /** True for a token the parser invented for missing input; it has no position in the text. */
     private fun isConjured(token: Token): Boolean = token.startIndex < 0
 }

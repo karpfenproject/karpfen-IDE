@@ -3,8 +3,8 @@ package io.karpfen.ide.core.document.antlr.lex
 import io.karpfen.ide.core.document.syntax.TokenKind
 
 /**
- * The [TokenKind] of each token type of one generated lexer (the language's vocabulary, spec §3.1). Immutable; one
- * constant per language next to its tokenizer.
+ * The [TokenKind] of each token type of one generated lexer, i.e. the language's vocabulary. Immutable; one constant
+ * per language next to its tokenizer.
  *
  * Token types without an entry get [fallback] ([TokenKind.ERROR] unless stated otherwise): for the KStates lexer that
  * is its catch-all `SYMBOL` outside EVAL bodies. Types a tokenizer never classifies (skipped whitespace, KMeta/KModel

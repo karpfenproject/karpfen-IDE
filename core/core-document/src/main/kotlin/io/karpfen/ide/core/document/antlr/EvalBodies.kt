@@ -6,7 +6,8 @@ import kstates.KstatesLexer
 import org.antlr.v4.runtime.Token
 
 /**
- * An EVAL body of a KStates document (spec §3.1): `EVAL` followed by `{`, up to the matching `}`.
+ * An EVAL body of a KStates document: `EVAL` followed by `{`, up to the matching `}`. Its content is embedded Python
+ * that the runtime executes.
  *
  * @property keyword the `EVAL` keyword.
  * @property open the opening `{`.
@@ -41,7 +42,10 @@ internal enum class EmbeddedKind {
     /** A Python `#` comment up to the end of its line (trailing blanks excluded) or the end of the body. */
     COMMENT,
 
-    /** A `//` comment: the karpfen lexer's `LINE_COMMENT` (spec §3.1: COMMENT token plus `eval-double-slash` WARNING). */
+    /**
+     * A `//` comment: the karpfen lexer's `LINE_COMMENT`, which drops the rest of the line from the Python code. The
+     * tokenizer emits it as a COMMENT token plus an `eval-double-slash` WARNING.
+     */
     KARPFEN_COMMENT,
 
     /** A model-path reference `$( … )`, including `$(` and `)`. */
@@ -54,6 +58,8 @@ internal enum class EmbeddedKind {
 /**
  * One classified piece of an EVAL body.
  *
+ * @property range the piece in the document.
+ * @property kind what the piece is.
  * @property inner for [EmbeddedKind.PATH_REFERENCE] the path between the parentheses without surrounding blanks (an
  *   empty range after `$(` if there is no path); for [EmbeddedKind.MACRO_REFERENCE] the name after `@`; else null.
  * @property name for [EmbeddedKind.PATH_REFERENCE] the path with blanks removed (e.g. `boundingBox->position`); for
@@ -69,11 +75,10 @@ internal data class EmbeddedPiece(
 )
 
 /**
- * The single implementation of "where is embedded Python and what is in it" (spec §3.1, §3.3), shared by the KStates
- * tokenizer (WP-TOKENS: EMBEDDED_* / PATH_REFERENCE / MACRO_REFERENCE tokens, `//` warnings) and the KStates tree
- * walker (WP-PARSE: MODEL_PATH and MACRO references, semantic spans, EMBEDDED_CODE folding), so highlighting and
- * navigation agree on every input, broken ones included. Both consumers use these lexical results, not the parse tree.
- * Complete in the contracts step.
+ * The single implementation of "where is embedded Python and what is in it", shared by the KStates tokenizer (the
+ * EMBEDDED_*, PATH_REFERENCE and MACRO_REFERENCE tokens and the `//` warnings) and the KStates tree walkers (MODEL_PATH
+ * and MACRO references, their semantic spans, EMBEDDED_CODE folding), so highlighting, navigation and folding agree on
+ * every input, broken ones included. Both consumers use these lexical results, not the parse tree.
  *
  * Rules:
  * - Bodies: an `EVAL` token followed by an `LBRACE` token (hidden tokens in between are ignored, as by the parser);
@@ -91,12 +96,13 @@ internal data class EmbeddedPiece(
  */
 internal object EvalBodies {
 
-    /** The Python keywords highlighted as EMBEDDED_KEYWORD (spec §3.1, exactly this list). */
+    /** The Python keywords highlighted as EMBEDDED_KEYWORD: exactly this list, no other word. */
     val PYTHON_KEYWORDS: Set<String> = setOf(
         "def", "return", "for", "in", "if", "elif", "else", "while", "import", "from", "as", "and", "or", "not",
         "None", "True", "False", "lambda", "pass", "break", "continue", "endif", "endfor",
     )
 
+    /** A macro name as it may follow `@`. */
     private val IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
     /**
@@ -237,18 +243,24 @@ internal object EvalBodies {
         return index to swallowedEnd
     }
 
+    /** The offset of the first line break at or after [from], or [limit]. */
     private fun lineEnd(text: String, from: Int, limit: Int): Int {
         var i = from
         while (i < limit && text[i] != '\n' && text[i] != '\r') i++
         return i
     }
 
+    /** [end] moved back over the blanks that precede it, but not before [start]. */
     private fun trimEnd(text: String, start: Int, end: Int): Int {
         var i = end
         while (i > start && KarpfenSyntax.isBlank(text[i - 1])) i--
         return i
     }
 
+    /**
+     * The index of the `}` that closes the `{` at [openIndex], counting default-channel braces only; -1 if the body is
+     * not closed.
+     */
     private fun matchingClose(tokens: List<Token>, openIndex: Int): Int {
         var depth = 1
         for (j in openIndex + 1 until tokens.size) {
@@ -262,6 +274,7 @@ internal object EvalBodies {
         return -1
     }
 
+    /** The index of the first default-channel token at or after [from]; -1 if that is EOF or there is none. */
     private fun nextDefault(tokens: List<Token>, from: Int): Int {
         for (j in from until tokens.size) {
             if (isDefault(tokens[j])) return if (tokens[j].type == Token.EOF) -1 else j
@@ -271,6 +284,7 @@ internal object EvalBodies {
 
     private fun isDefault(token: Token): Boolean = token.channel == Token.DEFAULT_CHANNEL
 
+    /** The range of [token]; the empty range at 0 for a conjured token without a position. */
     private fun rangeOf(token: Token, offsets: CodePointOffsets): TextRange =
         offsets.range(token.startIndex, token.stopIndex) ?: TextRange.empty(0)
 

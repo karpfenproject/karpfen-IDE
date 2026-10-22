@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.document.parse
 
 /**
- * Declarations and references of one document, with lookups by offset, name and kind (spec §3.3). Immutable and
+ * Declarations and references of one document, with lookups by offset, name and kind. Immutable and
  * thread-safe; equality is by content.
  *
  * Offset lookups use inclusive bounds (`start <= offset <= end`), so a caret directly after a name still finds it.

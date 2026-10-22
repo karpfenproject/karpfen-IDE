@@ -5,16 +5,16 @@ import io.karpfen.ide.core.document.parse.DocumentParser
 import io.karpfen.ide.core.document.syntax.Tokenizer
 
 /**
- * Everything core-document knows about one language (Abstract Factory product family, spec §1a): its [tokenizer] and
- * its [parser]. The product family is split by layer: the editor features of a language live in core-lang
+ * Everything core-document knows about one language, the product family of an Abstract Factory per language: its
+ * [tokenizer] and its [parser]. Adding a fourth language adds a support and edits no existing language class. The product family is split by layer: the editor features of a language live in core-lang
  * (`LanguageFeatures`, registered by `karpfenLanguageFeatures()`), so core-document stays free of project knowledge;
  * a test in core-lang checks that every registered language has features.
  */
 public interface LanguageSupport {
     /**
      * The supported language. File names map to languages by one closed rule, `KarpfenLanguage.fromFileName` (the
-     * enum's extension), used by the registry and by core-workspace's `FileKind` alike (decision 20 of the
-     * work-package plan).
+     * enum's extension), used by the registry and by core-workspace's `FileKind` alike, so the two never disagree about
+     * a file.
      */
     public val language: KarpfenLanguage
 

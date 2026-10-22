@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 
 /**
- * Parses the versions of [text] (spec §3.4): the first snapshot the scheduler sees (the one the session started with,
+ * Parses the versions of [text]: the first snapshot the scheduler sees (the one the session started with,
  * unless the text changed before the scheduler ran) is parsed at once, every later version after
  * `DocumentSessionConfig.parseDebounce` of quiet time. A newer version cancels the pending debounce or
  * the running parse of an older one (latest wins; a cancelled outcome is never published). Parsing runs on
@@ -52,6 +52,7 @@ internal class ParseScheduler(
         }
     }
 
+    /** Parses [snapshot]; a parser exception is logged and yields null, while cancellation propagates. */
     private fun parseSafely(snapshot: TextSnapshot): ParseOutcome? =
         try {
             parser.parse(snapshot, config.semanticMode)

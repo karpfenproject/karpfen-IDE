@@ -15,13 +15,13 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Accumulates what the tree walkers of one analysis extract (spec §3.3): declarations and references for the
+ * Accumulates what the tree walkers of one analysis extract: declarations and references for the
  * [SyntaxIndex] and semantic spans, and assembles the [SyntaxAnalysis]. Names come as [QuotedString]s; a name that is
  * missing in broken text (null) never yields a reference or a span, and a declaration without a name gets the empty
  * name at the start of its construct, so the structure around it survives while the user types.
  *
- * Embedded code has one owner, the lexical EVAL scanner (decision 16): whatever a walker reports inside a region for
- * which [isEmbedded] answers true (what error recovery made of Python text) is dropped, and only
+ * Embedded code has one owner, the lexical EVAL scanner the tokenizer uses too: whatever a walker reports inside a
+ * region for which [isEmbedded] answers true (what error recovery made of Python text) is dropped, and only
  * [embeddedReference]s are recorded there. Not thread-safe; one instance per analysis.
  *
  * @param isEmbedded true for a range that lies inside embedded code (an EVAL body).
@@ -118,6 +118,7 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
             semanticSpans = spans(),
         )
 
+    /** Adds [reference] and, for a non-empty range, its semantic [span]. */
     private fun record(reference: SymbolReference, span: SemanticKind?) {
         references += reference
         if (span != null && !reference.range.isEmpty) spans += SemanticSpan(reference.range, span)

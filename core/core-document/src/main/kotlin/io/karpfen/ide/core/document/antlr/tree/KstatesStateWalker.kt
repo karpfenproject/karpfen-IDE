@@ -8,7 +8,7 @@ import kstates.KstatesParser
 import org.antlr.v4.runtime.ParserRuleContext
 
 /**
- * Walks the `STATES { … }` block of a KStates tree (spec §3.3): every `STATE "s" { … }` (also `INITIAL STATE`) is a
+ * Walks the `STATES { … }` block of a KStates tree: every `STATE "s" { … }` (also `INITIAL STATE`) is a
  * STATE declaration (container: the parent state, null at top level) with a STATE_NAME span and an outline node whose
  * children are its ENTRY and DO block nodes (named `ENTRY`/`DO`, selecting the keyword; their children are the WITH
  * bindings, see [KstatesActionWalker]) and its nested states.
@@ -22,6 +22,7 @@ internal class KstatesStateWalker(
     fun walk(block: KstatesParser.States_blockContext?): List<OutlineNode> =
         block?.state_definition().orEmpty().map { state(it, parent = null) }
 
+    /** Records the state of [ctx], nested in the state named [parent], and returns its outline node. */
     private fun state(ctx: KstatesParser.State_definitionContext, parent: String?): OutlineNode {
         val name = tree.quoted(tree.terminal(ctx, KstatesParser.STRING))
         val stateName = name?.value.orEmpty()
@@ -35,6 +36,7 @@ internal class KstatesStateWalker(
         return node
     }
 
+    /** The outline node of an ENTRY or DO block, named and selected by its keyword, with its WITH bindings as children. */
     private fun block(
         kind: SymbolKind,
         keywordText: String,

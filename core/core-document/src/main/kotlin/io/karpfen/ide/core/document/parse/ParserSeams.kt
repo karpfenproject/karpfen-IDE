@@ -10,11 +10,10 @@ import io.karpfen.ide.core.text.TextSnapshot
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-// Module-internal seams of the parse pipeline (WP-PARSE). A [DocumentParser] is composed (Strategy) of a syntax
-// analyzer (ANTLR adapter, package `antlr.tree`) and optional standalone semantics (dsl-tools adapter, package `dsl`),
-// so neither adapter knows the other and the composition rule lives in one place ([ComposedDocumentParser]).
-
-/** Parses one language with the dsl-tools ANTLR parser and walks the tree. Implemented in `antlr.tree`. */
+/**
+ * Parses one language with the dsl-tools ANTLR parser and walks the tree. Implemented in `antlr.tree`; one of the two
+ * module-internal seams a [ComposedDocumentParser] is made of.
+ */
 internal interface SyntaxAnalyzer {
     /** The language this analyzer parses. */
     val language: KarpfenLanguage
@@ -23,7 +22,7 @@ internal interface SyntaxAnalyzer {
     fun analyze(snapshot: TextSnapshot): SyntaxAnalysis
 }
 
-/** The syntax part of a [ParseOutcome]. */
+/** The syntax part of a [ParseOutcome]; its properties mean what the same properties of [ParseOutcome] mean. */
 internal data class SyntaxAnalysis(
     val syntaxDiagnostics: List<Diagnostic>,
     val outline: List<OutlineNode>,
@@ -32,19 +31,30 @@ internal data class SyntaxAnalysis(
     val semanticSpans: List<SemanticSpan>,
 )
 
-/** Converts a syntactically clean file with a dsl-tools converter. Implemented in `dsl`. Never throws. */
+/**
+ * Converts a syntactically clean file with a dsl-tools converter. Implemented in `dsl`; one of the two module-internal
+ * seams a [ComposedDocumentParser] is made of. Never throws.
+ */
 internal fun interface StandaloneSemantics {
     /** Converts [snapshot]; [index] locates exception messages (see `dsl.DslErrorLocator`). */
     fun convert(snapshot: TextSnapshot, index: SyntaxIndex): StandaloneResult
 }
 
-/** Result of [StandaloneSemantics.convert]. */
+/**
+ * Result of [StandaloneSemantics.convert].
+ *
+ * @property model the converted model, or null if the conversion failed.
+ * @property diagnostics the DSL_TOOLS diagnostics of the conversion.
+ */
 internal data class StandaloneResult(val model: DslModel?, val diagnostics: List<Diagnostic>)
 
 /**
- * The [DocumentParser] of every language: runs [syntax]; if the outcome has no syntax diagnostics, the mode is
- * [SemanticMode.STANDALONE] and [semantics] is not null, runs [semantics]; assembles the [ParseOutcome]. Any
- * exception from a collaborator (and a `StackOverflowError`, which pathologically deep nesting causes in the recursive
+ * The [DocumentParser] of every language, composed (Strategy) of a syntax analyzer (the ANTLR adapter in `antlr.tree`)
+ * and optional standalone semantics (the dsl-tools adapter in `dsl`), so neither adapter knows the other and the
+ * composition rule lives in this one class.
+ *
+ * It runs [syntax]; if the outcome has no syntax diagnostics, the mode is [SemanticMode.STANDALONE] and [semantics] is
+ * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Any exception from a collaborator (and a `StackOverflowError`, which pathologically deep nesting causes in the recursive
  * ANTLR parser) becomes an `internal-error` diagnostic at the start of the text and is logged, so parsing never throws:
  * from [syntax] a PARSER diagnostic with an empty analysis (the outcome is not syntax-clean, the session shows it and no
  * conversion runs), from [semantics] a DSL_TOOLS one without a model.
@@ -91,6 +101,7 @@ internal class ComposedDocumentParser(
             failedSyntax(snapshot, e)
         }
 
+    /** Logs [e] and returns an empty analysis with one PARSER `internal-error`. */
     private fun failedSyntax(snapshot: TextSnapshot, e: Throwable): SyntaxAnalysis {
         logger.error("Syntax analysis of a {} document (version {}) failed", language, snapshot.version, e)
         return SyntaxAnalysis(
@@ -112,11 +123,13 @@ internal class ComposedDocumentParser(
             failedConversion(snapshot, e)
         }
 
+    /** Logs [e] and returns a result without a model and with one DSL_TOOLS `internal-error`. */
     private fun failedConversion(snapshot: TextSnapshot, e: Throwable): StandaloneResult {
         logger.error("Standalone conversion of a {} document (version {}) failed", language, snapshot.version, e)
         return StandaloneResult(model = null, diagnostics = listOf(internalError(e, "Converting", DiagnosticSource.DSL_TOOLS)))
     }
 
+    /** The `internal-error` diagnostic at the start of the text for a failure of [stage] reported by [source]. */
     private fun internalError(e: Throwable, stage: String, source: DiagnosticSource): Diagnostic =
         Diagnostic(
             range = TextRange.EMPTY,

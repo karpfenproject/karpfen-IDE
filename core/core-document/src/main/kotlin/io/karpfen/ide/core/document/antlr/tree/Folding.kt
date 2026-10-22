@@ -7,7 +7,7 @@ import io.karpfen.ide.core.text.TextSnapshot
 import org.antlr.v4.runtime.Token
 
 /**
- * BLOCK folding (spec §3.3): every brace pair spanning more than one line. Braces are paired lexically on the
+ * BLOCK folding: every brace pair spanning more than one line. Braces are paired lexically on the
  * default-channel tokens of the parser's stream (the same braces the parser sees), so folding also works on broken
  * text; an unmatched brace folds nothing. The range runs from the `{` through the `}`.
  */
@@ -40,7 +40,7 @@ internal object BlockFolding {
 }
 
 /**
- * COMMENT folding (spec §3.3): runs of at least two comment lines on consecutive lines. A comment line is a line whose
+ * COMMENT folding: runs of at least two comment lines on consecutive lines. A comment line is a line whose
  * first non-blank character starts a `//` comment; a trailing comment after code and a blank line end a run. The range
  * runs from the first comment's start to the last one's end.
  */
@@ -70,6 +70,7 @@ internal object CommentFolding {
         return folds
     }
 
+    /** True if only blanks precede [offset] on its line, i.e. a comment there is a comment line. */
     private fun startsLine(snapshot: TextSnapshot, offset: Int): Boolean {
         val lineStart = snapshot.lineIndex.lineStart(snapshot.lineIndex.lineOf(offset))
         return (lineStart until offset).all { snapshot.text[it].let { char -> char == ' ' || char == '\t' || char == '\r' } }

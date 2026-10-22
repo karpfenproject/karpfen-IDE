@@ -3,7 +3,7 @@ package io.karpfen.ide.core.document.parse
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Parses a document into a [ParseOutcome] (spec §3.3). One implementation per language, reached through
+ * Parses a document into a [ParseOutcome]. One implementation per language, reached through
  * [io.karpfen.ide.core.document.language.LanguageSupport.parser].
  *
  * Contract (MUST):
@@ -11,7 +11,8 @@ import io.karpfen.ide.core.text.TextSnapshot
  *   folding and spans are extracted from whatever was recognized.
  * - The outcome's version equals [TextSnapshot.version].
  * - Stateless and thread-safe.
- * - Budget: a 5,000-line KStates document parses in < 150 ms (spec §3.4).
+ * - Budget: a 5,000-line KStates document parses in < 150 ms. This is a target that a time-budget test documents; no
+ *   test run executes it.
  */
 public interface DocumentParser {
     /**
@@ -24,10 +25,11 @@ public interface DocumentParser {
 /** Whether [DocumentParser.parse] runs the standalone dsl-tools conversion. */
 public enum class SemanticMode {
     /**
-     * Convert KMeta and KStates files with dsl-tools when there are no syntax diagnostics (spec §3.3). Opt-in: no
-     * product path uses it (decision 28 of the work-package plan); documents edited on their own and the tests of the
-     * standalone semantics do. Not for `EVENTS.kmeta`: event payloads may reference domain types and only convert with
-     * the domain metamodel as base types, which core-workspace does.
+     * Convert KMeta and KStates files with dsl-tools when there are no syntax diagnostics. Opt-in: no product path uses
+     * it, because in a workspace the project analysis is the only place that converts files, so each file is converted
+     * once and opening a file never changes what is reported. Documents edited on their own and the tests of the
+     * standalone semantics use it. Not for `EVENTS.kmeta`: event payloads may reference domain types and only convert
+     * with the domain metamodel as base types, which core-workspace does.
      */
     STANDALONE,
 

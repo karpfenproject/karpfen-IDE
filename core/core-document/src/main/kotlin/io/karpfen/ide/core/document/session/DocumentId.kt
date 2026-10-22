@@ -3,8 +3,10 @@ package io.karpfen.ide.core.document.session
 import java.nio.file.Path
 
 /**
- * Identity of an open document: its absolute, normalized file path (spec §3.4). Two ids are equal iff their paths
- * are equal (no symlink resolution).
+ * Identity of an open document: its absolute, normalized file path. Two ids are equal iff their paths are equal (no
+ * symlink resolution).
+ *
+ * @property path the absolute, normalized path of the document's file.
  */
 public data class DocumentId(public val path: Path) {
     init {

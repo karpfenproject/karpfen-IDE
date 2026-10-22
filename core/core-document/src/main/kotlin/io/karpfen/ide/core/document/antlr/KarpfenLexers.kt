@@ -12,9 +12,10 @@ import org.antlr.v4.runtime.Lexer
 import org.antlr.v4.runtime.Token
 
 /**
- * Creates the dsl-tools lexers the IDE way (spec §3.1): console listener removed, IDE listener attached. The only place
- * that maps a [KarpfenLanguage] to its generated lexer class. Shared by WP-TOKENS (tokenizers lex with [lex]) and
- * WP-PARSE (tree walkers build their `CommonTokenStream` on [create]); complete in the contracts step.
+ * Creates the dsl-tools lexers the IDE way: ANTLR's console listener removed, an [IdeErrorListener] attached, so lexer
+ * errors become diagnostics instead of console output. The only place that maps a [KarpfenLanguage] to its generated
+ * lexer class (a fourth language adds its entry here). The tokenizers lex with [lex]; the tree walkers build their
+ * `CommonTokenStream` on [create].
  */
 internal object KarpfenLexers {
 
@@ -40,6 +41,8 @@ internal object KarpfenLexers {
 /**
  * The result of lexing one text.
  *
+ * @property text the lexed text.
+ * @property offsets the conversion of the lexer's code-point indices into offsets of [text].
  * @property tokens every emitted token of every channel in input order, without EOF. Tokens the grammar `skip`s are
  *   absent (KMeta/KModel whitespace and comments, see [LexerGaps]); KStates whitespace and `//` comments are on the
  *   HIDDEN channel and present.

@@ -10,8 +10,9 @@ import states.StateMachine
 
 /**
  * Adapter over the dsl-tools converters (`dsl.textual.KmetaDSLConverter`, `KmodelDSLConverter`,
- * `KstatesDSLConverter`), the only way IDE code reaches them (spec §1a, Adapters). Used for standalone semantics in
- * core-document and for project analysis in core-workspace.
+ * `KstatesDSLConverter`), the only way IDE code reaches them: foreign APIs stay behind adapters, and the architecture
+ * tests allow the dsl-tools converter packages only in this package. Used for standalone semantics in core-document
+ * and for the project analysis in core-workspace.
  *
  * Contract (MUST):
  * - Callers convert only syntax-clean text (`ParseOutcome.isSyntaxClean` of the same snapshot): dsl-tools' own file
@@ -21,15 +22,16 @@ import states.StateMachine
  * - Never throws for any input: every exception raised by dsl-tools becomes one DSL_TOOLS ERROR [Diagnostic] (code
  *   [io.karpfen.ide.core.document.DiagnosticCodes.DSL_TOOLS_ERROR]) whose range is located by a [DslErrorLocator].
  * - Thread-safe; the converters keep no state between calls. dsl-tools writes to `System.out` (`println` while
- *   converting) and, for syntax errors, to `System.err` (ANTLR's console listener); the adapter redirects neither (the
- *   CLI silences both around its whole workspace run, spec §9; open question 3 of the work-package plan for the IDE).
+ *   converting) and, for syntax errors, to `System.err` (ANTLR's console listener); the adapter redirects neither. The
+ *   CLI silences both around its whole workspace run, while the IDE application still lets the converters' output
+ *   reach its console.
  * - The source text is passed unchanged (the converters apply `trimIndent()` themselves; ranges never come from them).
  */
 public interface DslConverter {
 
     /**
      * Converts a `.kmeta` file. [baseTypes] are types of another metamodel that the file may reference but does not
-     * define (how `EVENTS.kmeta` reuses domain types, spec §4).
+     * define (how `EVENTS.kmeta` reuses the types of the domain metamodel for its event payloads).
      *
      * @param index the syntax index of [source], used to locate error messages.
      */
@@ -48,6 +50,7 @@ public fun DslConverter(locator: DslErrorLocator = DslErrorLocator()): DslConver
 /**
  * Result of a dsl-tools conversion: the converted [value], or null together with at least one diagnostic.
  *
+ * @property value the converted model, or null if the conversion failed.
  * @property diagnostics DSL_TOOLS diagnostics in the coordinates of the converted snapshot, sorted with
  *   [Diagnostic.ORDER].
  */

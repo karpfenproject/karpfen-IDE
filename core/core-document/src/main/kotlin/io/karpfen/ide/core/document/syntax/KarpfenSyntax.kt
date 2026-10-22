@@ -1,10 +1,12 @@
 package io.karpfen.ide.core.document.syntax
 
 /**
- * The lexical facts of the karpfen languages that several layers rely on, declared once (decision 46, one source per
- * fact): the tokenizers, tree walkers and EVAL scanner of this module, the language services (core-lang) and the
- * editor (ui-editor) read them here, so e.g. the completion's replace range and the editor's word rule always agree.
- * `KarpfenSyntaxTest` checks them against the generated lexers.
+ * The lexical facts of the karpfen languages that several layers rely on, declared once (one source per fact): the
+ * tokenizers, tree walkers and EVAL scanner of this module, the language services (core-lang) and the editor
+ * (ui-editor) read them here, so e.g. the completion's replace range and the editor's word rule always agree.
+ * `KarpfenSyntaxTest` checks them against the generated lexers, and the architecture test `LexicalFactsTest` rejects a
+ * second declaration of any of them elsewhere. Undo coalescing and the quoted-name error locator keep their own Unicode
+ * word rules on purpose: they describe text and quoted names, not identifiers.
  */
 public object KarpfenSyntax {
 

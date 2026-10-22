@@ -6,7 +6,7 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 import kstates.KstatesParser
 
 /**
- * Walks the `MACROS { … }` block of a KStates tree (spec §3.3):
+ * Walks the `MACROS { … }` block of a KStates tree:
  * - `MACRO "m" { … }` → MACRO declaration (MACRO_NAME span) whose type name and outline detail are the RETURNS
  *   expression as written without quotes (`number`, `Vector`, `list(Obstacle)`, `reference(Obstacle)`);
  * - `TAKES("p", T)` → MACRO_PARAMETER declaration (container: the macro; type name and detail: `T` or `list(T)`) with a
@@ -20,6 +20,7 @@ internal class KstatesMacroWalker(private val tree: ParsedTree<*>, private val c
     /** The outline nodes of the macros of [block], in document order. */
     fun walk(block: KstatesParser.Macros_blockContext?): List<OutlineNode> = block?.macro_definition().orEmpty().map(::macro)
 
+    /** Records the macro of [ctx] and returns its outline node, whose children are its parameters. */
     private fun macro(ctx: KstatesParser.Macro_definitionContext): OutlineNode {
         val name = tree.quoted(tree.terminal(ctx, KstatesParser.STRING))
         val macroName = name?.value.orEmpty()
@@ -30,6 +31,7 @@ internal class KstatesMacroWalker(private val tree: ParsedTree<*>, private val c
         return node
     }
 
+    /** Records a `TAKES` parameter of [macro] and returns its outline node. */
     private fun parameter(ctx: KstatesParser.Takes_directiveContext, macro: String): OutlineNode {
         val name = tree.quoted(tree.terminal(ctx, KstatesParser.STRING))
         val type = typeExpression(ctx.type_expression())
@@ -56,6 +58,7 @@ internal class KstatesMacroWalker(private val tree: ParsedTree<*>, private val c
         return typeCall(function, tree.quoted(tree.terminal(call, KstatesParser.STRING)))
     }
 
+    /** Records the type reference of `function("T")`; returns it as written (null if its type is missing). */
     private fun typeCall(function: String, type: QuotedString?): String? {
         type ?: return null
         collector.typeReference(type)

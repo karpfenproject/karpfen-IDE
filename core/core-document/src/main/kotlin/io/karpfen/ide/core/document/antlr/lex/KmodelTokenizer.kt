@@ -8,7 +8,7 @@ import io.karpfen.ide.core.text.TextSnapshot
 import kmodel.KmodelLexer
 
 /**
- * [Tokenizer] for KModel (spec §3.1) on the shared ANTLR mechanics of the `antlr` package: lexes with
+ * [Tokenizer] for KModel on the shared ANTLR mechanics of the `antlr` package: lexes with
  * `KarpfenLexers.lex` (console listener removed, `IdeErrorListener` collecting LEXER diagnostics) and converts token
  * indices with `LexedText.rangeOf` (`CodePointOffsets`).
  *

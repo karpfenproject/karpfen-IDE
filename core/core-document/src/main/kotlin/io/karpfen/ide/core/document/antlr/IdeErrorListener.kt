@@ -12,16 +12,17 @@ import org.antlr.v4.runtime.Recognizer
 import org.antlr.v4.runtime.Token
 
 /**
- * The IDE's ANTLR error listener (spec §3.1, §3.3): collects lexer and parser errors as [Diagnostic]s instead of
- * printing them to the console, which is what ANTLR's default `ConsoleErrorListener` does.
+ * The IDE's ANTLR error listener: collects lexer and parser errors as [Diagnostic]s instead of printing them to the
+ * console, which is what ANTLR's default `ConsoleErrorListener` does. Parsing never throws; ANTLR's default recovery
+ * goes on, and the errors it reports end up here.
  *
  * - Lexer errors (unrecognized input) become ERROR [DiagnosticCodes.LEXER_ERROR] diagnostics with source
  *   [DiagnosticSource.LEXER], covering the characters the lexer could not match (at least one character).
  * - Parser errors become ERROR [DiagnosticCodes.SYNTAX_ERROR] diagnostics with source [DiagnosticSource.PARSER],
  *   covering the offending token (an empty range at the end of the text for `<EOF>`).
  *
- * Ranges are converted with [offsets] (code points to UTF-16). One instance per parse; not thread-safe. Shared by
- * WP-TOKENS (`antlr.lex`) and WP-PARSE (`antlr.tree`); complete in the contracts step.
+ * Ranges are converted with [offsets] (code points to UTF-16). One instance per lexing or parsing run; not thread-safe.
+ * The tokenizers in `antlr.lex` and the tree parser in `antlr.tree` both use it.
  */
 internal class IdeErrorListener(private val offsets: CodePointOffsets) : BaseErrorListener() {
 
@@ -66,6 +67,7 @@ internal class IdeErrorListener(private val offsets: CodePointOffsets) : BaseErr
         return offsets.range(start, stop) ?: TextRange.empty(textLength)
     }
 
+    /** The range of the offending [token]; the empty range at the end of the text for EOF or an unknown token. */
     private fun tokenRange(token: Token?): TextRange {
         if (token == null) return TextRange.empty(textLength)
         if (token.type == Token.EOF) return TextRange.empty(textLength)

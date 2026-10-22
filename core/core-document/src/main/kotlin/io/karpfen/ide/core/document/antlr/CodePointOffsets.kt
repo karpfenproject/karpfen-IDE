@@ -5,12 +5,11 @@ import io.karpfen.ide.core.text.TextRange
 /**
  * Converts ANTLR character indices to IDE offsets.
  *
- * `CharStreams.fromString` indexes the input by Unicode *code point*, while IDE offsets are UTF-16 code units
- * (spec §1). The two agree until the first supplementary character (e.g. an emoji in a comment). Every ANTLR adapter
- * (tokenizers in `antlr.lex`, tree walkers in `antlr.tree`) converts token indices through one instance per snapshot.
- * Unpaired surrogates count as one code point, as in [String.codePointAt] and ANTLR's `CodePointBuffer`.
- *
- * Shared by WP-TOKENS and WP-PARSE; complete in the contracts step.
+ * `CharStreams.fromString` indexes the input by Unicode *code point*, while IDE offsets are UTF-16 code-unit indices
+ * into the document `String`. The two agree until the first supplementary character (e.g. an emoji in a comment).
+ * Every ANTLR adapter (tokenizers in `antlr.lex`, tree walkers in `antlr.tree`) converts token indices through one
+ * instance per snapshot. Unpaired surrogates count as one code point, as in [String.codePointAt] and ANTLR's
+ * `CodePointBuffer`.
  */
 internal class CodePointOffsets private constructor(
     private val textLength: Int,

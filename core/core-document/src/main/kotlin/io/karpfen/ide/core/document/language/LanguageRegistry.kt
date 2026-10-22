@@ -3,7 +3,7 @@ package io.karpfen.ide.core.document.language
 import io.karpfen.ide.core.document.KarpfenLanguage
 
 /**
- * Resolves the [LanguageSupport] for a language or file name (spec §3.1). The built-in registry of the three karpfen
+ * Resolves the [LanguageSupport] for a language or file name. The built-in registry of the three karpfen
  * languages is created by `io.karpfen.ide.core.document.registry.defaultLanguageRegistry()`; tests build registries
  * from fakes with the [LanguageRegistry] factory function.
  */

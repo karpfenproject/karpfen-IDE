@@ -15,12 +15,10 @@ import io.karpfen.ide.core.document.parse.ComposedDocumentParser
 import io.karpfen.ide.core.document.parse.DocumentParser
 import io.karpfen.ide.core.document.syntax.Tokenizer
 
-// The three concrete factories of the LanguageSupport product family (Abstract Factory, spec §1a). Wiring only: each
-// bundle instantiates its language's tokenizer (WP-TOKENS, package antlr.lex) and composes its parser from the ANTLR
-// syntax analyzer (WP-PARSE, antlr.tree) and the dsl-tools standalone semantics (WP-PARSE, dsl). A fourth language is
-// a new class here plus one entry in defaultLanguageRegistry(); no existing language class changes.
-
-/** KMeta: tokenizer, syntax analyzer, standalone conversion with `KmetaDSLConverter`. */
+/**
+ * KMeta: tokenizer, syntax analyzer, standalone conversion with `KmetaDSLConverter`. Wiring only, like every support
+ * of [defaultLanguageRegistry].
+ */
 internal class KmetaLanguageSupport(converter: DslConverter) : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.KMETA
     override val tokenizer: Tokenizer = KmetaTokenizer()
@@ -28,7 +26,10 @@ internal class KmetaLanguageSupport(converter: DslConverter) : LanguageSupport {
         ComposedDocumentParser(language, KmetaSyntaxAnalyzer(), KmetaStandaloneSemantics(converter))
 }
 
-/** KModel: tokenizer and syntax analyzer; no standalone semantics (a model needs its metamodel, spec §3.3). */
+/**
+ * KModel: tokenizer and syntax analyzer; no standalone semantics, because a model only converts against its metamodel,
+ * which the project analysis of core-workspace supplies.
+ */
 internal class KmodelLanguageSupport : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.KMODEL
     override val tokenizer: Tokenizer = KmodelTokenizer()

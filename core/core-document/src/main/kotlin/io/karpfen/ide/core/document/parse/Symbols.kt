@@ -3,8 +3,9 @@ package io.karpfen.ide.core.document.parse
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A declared symbol (spec §3.3).
+ * A declared symbol.
  *
+ * @property kind what the symbol is.
  * @property name the declared name without quotes (empty for anonymous objects).
  * @property nameRange the name inside the quotes (may be empty for `""`); lies within [range].
  * @property range the whole declaring construct (e.g. the full `STATE "s" { … }`).
@@ -32,8 +33,9 @@ public data class SymbolDeclaration(
 }
 
 /**
- * A reference to a symbol by name (spec §3.3); resolution happens in core-lang.
+ * A reference to a symbol by name; resolution happens in core-lang.
  *
+ * @property kind what the name refers to.
  * @property name the referenced name without quotes; for [ReferenceKind.MODEL_PATH] the whole path with blanks
  *   removed (e.g. `a->b->c`, also for `$( a -> b )` in EVAL bodies).
  * @property range the name inside the quotes (or the path inside `$( … )` without surrounding blanks, or the name after
@@ -62,5 +64,10 @@ public enum class FoldingKind {
     COMMENT,
 }
 
-/** A foldable region (spec §3.3); [range] starts on one line and ends on a later one. */
+/**
+ * A foldable region.
+ *
+ * @property range the region; it starts on one line and ends on a later one.
+ * @property kind what the region holds.
+ */
 public data class FoldingRange(public val range: TextRange, public val kind: FoldingKind)

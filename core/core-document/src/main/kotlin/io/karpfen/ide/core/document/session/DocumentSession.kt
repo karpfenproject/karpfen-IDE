@@ -11,15 +11,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Facade over one open document (spec §1a, §3.4): keeps tokens, parse outcome and diagnostics of its [text] up to
+ * Facade over one open document: keeps tokens, parse outcome and diagnostics of its [text] up to
  * date. It coordinates collaborators (tokenize pipeline, parse scheduler, diagnostics merger) and owns no editing
  * logic; the text is edited through [text] directly.
  *
  * Lifecycle: all work runs in a child scope of the scope given to the factory; [close] cancels it. Flows keep their
  * last values after closing.
  *
- * Threading: [text] has a single writer (spec §1); the session only reads it (snapshots and the change flow) and never
- * edits it. Tokenizing and parsing run on the dispatchers of [DocumentSessionConfig].
+ * Threading: [text] has a single writer (one thread edits it); the session only reads it (snapshots and the change
+ * flow) and never edits it. Tokenizing and parsing run on the dispatchers of [DocumentSessionConfig].
  */
 public interface DocumentSession : AutoCloseable {
 
@@ -56,9 +56,9 @@ public interface DocumentSession : AutoCloseable {
     /**
      * The tokens of exactly [snapshot], a version of [text]: [tokens]' value when its version matches, otherwise
      * tokenized synchronously with the session's tokenizer (e.g. right after an edit, before the tokenize pipeline
-     * caught up). The one answer to "tokens of this text version" (decision 38 of the work-package plan):
-     * `LanguageDocument.of`, the editor's action context (toggle comment) and the workspace's analysis sources use it,
-     * never a tokenizer of their own. Thread-safe (tokenizers are stateless).
+     * caught up). The one answer to "tokens of this text version": `LanguageDocument.of`, the editor's action context
+     * (toggle comment) and the workspace's analysis sources use it, never a tokenizer of their own, so nobody compares
+     * current offsets with the tokens of an older version. Thread-safe (tokenizers are stateless).
      *
      * @throws IllegalArgumentException if [snapshot] is not a version of [text] (another lineage; programming error).
      */

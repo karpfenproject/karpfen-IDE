@@ -7,7 +7,7 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 import kmodel.KmodelParser
 
 /**
- * Walks a KModel tree (spec §3.3):
+ * Walks a KModel tree:
  * - `make object "key":"T" { … }` → OBJECT declaration (type name and outline detail T; container: the enclosing
  *   object's outline name, null for the root) with an OBJECT_NAME span, plus a type reference to T. An object whose key
  *   is empty, `_` or missing is anonymous: declared with the empty name (its name range is still the key) and shown as
@@ -23,6 +23,7 @@ internal class KmodelTreeWalker(private val tree: ParsedTree<*>, private val col
     fun walk(file: KmodelParser.Kmodel_fileContext): List<OutlineNode> =
         listOfNotNull(file.make_object_block()?.let { block(it, container = null) })
 
+    /** Records the object of [ctx] inside the object named [container] and returns its outline node. */
     private fun block(ctx: KmodelParser.Make_object_blockContext, container: String?): OutlineNode {
         val signature = tree.quotedStrings(ctx.object_signature(), KmodelParser.STRING)
         val key = signature.getOrNull(0)
@@ -37,6 +38,7 @@ internal class KmodelTreeWalker(private val tree: ParsedTree<*>, private val col
         return node
     }
 
+    /** The outline node of a `prop`, `has` or `knows` statement of an object; null for a statement of another kind. */
     private fun statement(ctx: KmodelParser.StatementContext, objectType: String?, objectName: String): OutlineNode? {
         ctx.prop_statement()?.let { return prop(it, objectType) }
         ctx.has_statement()?.let { return has(it, objectType, objectName) }

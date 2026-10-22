@@ -3,16 +3,15 @@ package io.karpfen.ide.core.document.antlr
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Recovers what the KMeta and KModel lexers drop (spec §3.1): both grammars `skip` whitespace (`[ \t\r\n]+`) and line
+ * Recovers what the KMeta and KModel lexers drop: both grammars `skip` whitespace (`[ \t\r\n]+`) and line
  * comments (`'//' ~[\r\n]*`), and a lexer error skips the characters it could not match. So the gaps between the
  * emitted tokens contain exactly whitespace, `//` comments and unrecognized characters.
  *
- * - WP-TOKENS turns [GapKind.COMMENT] pieces into COMMENT tokens and [GapKind.UNRECOGNIZED] pieces into ERROR tokens
- *   (the LEXER diagnostics come from [IdeErrorListener]).
- * - WP-PARSE folds runs of comment lines (spec §3.3, `FoldingKind.COMMENT`) from the same pieces.
+ * - The KMeta and KModel tokenizers turn [GapKind.COMMENT] pieces into COMMENT tokens and [GapKind.UNRECOGNIZED]
+ *   pieces into ERROR tokens (the LEXER diagnostics come from [IdeErrorListener]).
+ * - The syntax analyzers fold runs of comment lines (`FoldingKind.COMMENT`) from the same pieces.
  *
- * Not for KStates, whose lexer keeps comments on the HIDDEN channel and has a catch-all `SYMBOL` token. Pure and
- * complete in the contracts step.
+ * Not for KStates, whose lexer keeps comments on the HIDDEN channel and has a catch-all `SYMBOL` token. Pure.
  */
 internal object LexerGaps {
 
@@ -25,7 +24,12 @@ internal object LexerGaps {
         UNRECOGNIZED,
     }
 
-    /** One non-whitespace piece of a gap. */
+    /**
+     * One non-whitespace piece of a gap.
+     *
+     * @property range the piece in the text.
+     * @property kind what the piece is.
+     */
     data class GapPiece(val range: TextRange, val kind: GapKind)
 
     /**
@@ -43,6 +47,7 @@ internal object LexerGaps {
         return pieces
     }
 
+    /** Appends the comments and unrecognized runs of the gap `[start, end)` to [into]. */
     private fun scanGap(text: String, start: Int, end: Int, into: MutableList<GapPiece>) {
         var i = start
         while (i < end) {
@@ -64,6 +69,7 @@ internal object LexerGaps {
         }
     }
 
+    /** Whitespace exactly as the KMeta and KModel grammars skip it. */
     private fun isWhitespace(char: Char): Boolean = char == ' ' || char == '\t' || char == '\r' || char == '\n'
 
     private fun isCommentStart(text: String, index: Int, end: Int): Boolean =

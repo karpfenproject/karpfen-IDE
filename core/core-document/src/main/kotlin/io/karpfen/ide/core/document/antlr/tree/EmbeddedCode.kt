@@ -14,7 +14,7 @@ import java.util.BitSet
 /**
  * The embedded Python of a KStates tree, read with the shared lexical scanner ([EvalBodies.find]/[EvalBodies.scan]
  * over the parser stream's tokens of every channel), never from the tree, so navigation and folding agree with the
- * tokenizer's highlighting on every input (decision 16):
+ * tokenizer's highlighting on every input, broken ones included:
  * - a PATH_REFERENCE piece → MODEL_PATH reference named [EmbeddedPiece.name] at [EmbeddedPiece.inner] (MODEL_PATH span);
  * - a MACRO_REFERENCE piece → MACRO reference named after the `@` at [EmbeddedPiece.inner] (MACRO_NAME span);
  * - a closed body spanning more than one line → EMBEDDED_CODE folding from its `{` through its `}`.

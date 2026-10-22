@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 
 /**
- * Keeps [tokens] equal to the tokens of the latest version of [text] (spec §3.4): the initial snapshot is tokenized
+ * Keeps [tokens] equal to the tokens of the latest version of [text]: the initial snapshot is tokenized
  * synchronously in the constructor; every later version is tokenized on [dispatcher] without debounce, latest wins
  * (`mapLatest` semantics: a newer snapshot cancels the tokenization of an older one, whose result is never
  * published).
@@ -44,6 +44,7 @@ internal class TokenizePipeline(
             .collectLatest { snapshot -> state.value = withContext(dispatcher) { tokenizeSafely(snapshot) } }
     }
 
+    /** Tokenizes [snapshot]; a tokenizer exception is logged and yields an empty result, while cancellation propagates. */
     private fun tokenizeSafely(snapshot: TextSnapshot): TokenizeResult =
         try {
             tokenizer.tokenize(snapshot)

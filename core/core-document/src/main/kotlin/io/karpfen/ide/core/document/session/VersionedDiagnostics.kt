@@ -5,8 +5,8 @@ import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * All diagnostics of a document, merged from every source and expressed in the coordinates of one text [snapshot]
- * (spec §3.4). Carrying the snapshot (not only its version) lets consumers compute positions of exactly the text the
+ * All diagnostics of a document, merged from every source and expressed in the coordinates of one text [snapshot].
+ * Carrying the snapshot (not only its version) lets consumers compute positions of exactly the text the
  * ranges refer to while the diagnostics lag behind the live text (e.g. `FileProblems.positionOf` in core-workspace),
  * without mapping ranges themselves.
  *

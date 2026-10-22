@@ -6,7 +6,7 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import kstates.KstatesParser
 
 /**
- * The KStates reference rules shared by the action, transition and condition walkers (spec §3.3), so each construct is
+ * The KStates reference rules shared by the action, transition and condition walkers, so each construct is
  * recorded the same way wherever it occurs:
  * - a model-path string → MODEL_PATH reference named by the path with blanks removed
  *   (`KarpfenSyntax.normalizeModelPath`: `a -> b` → `a->b`, as for `$( … )` in EVAL bodies), range inside the quotes,
