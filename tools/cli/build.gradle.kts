@@ -1,26 +1,28 @@
+/** An application with a start script, and kotlinx.serialization for `validate --format json`. */
 plugins {
     id("karpfen.application")
-    // `validate --format json` (spec §9).
     id("karpfen.kotlin-serialization")
 }
 
+/** The start script is named `karpfen` (`build/install/karpfen/bin/karpfen`), matching the usage line. */
 application {
     mainClass = "io.karpfen.ide.tools.cli.MainKt"
-    // Start script name (build/install/karpfen/bin/karpfen), matching the usage line.
     applicationName = "karpfen"
 }
 
+/**
+ * `validate` needs the workspace, the project analysis and the per-file tokenizing and parsing (core-workspace has
+ * core-document as an `api` dependency). The runtime session is a phase-0 placeholder for the later `deploy` command.
+ * Test-only: logback, because the logging-configuration tests read logback's `LoggerContext`.
+ */
 dependencies {
-    // validate: workspace, project analysis and per-file tokenizing/parsing (core-workspace api core-document).
     implementation(project(":core:core-workspace"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.slf4j.api)
-    // Phase-0 placeholder for the later `deploy` command.
     implementation(project(":runtime:runtime-session"))
     runtimeOnly(libs.logback.classic)
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
-    // Test-only: the logging-configuration tests read logback's LoggerContext (rule 7 of the work-package plan).
     testImplementation(libs.logback.classic)
 }

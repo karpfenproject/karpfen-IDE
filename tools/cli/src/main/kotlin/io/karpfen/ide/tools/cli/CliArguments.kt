@@ -48,6 +48,7 @@ private class ValidateArguments(private val args: List<String>) {
     private var format = OutputFormat.TEXT
     private var optionsEnded = false
 
+    /** The command these arguments stand for: [CliCommand.Validate], [CliCommand.Help] or [CliCommand.Invalid]. */
     fun parse(): CliCommand {
         var index = 0
         while (index < args.size) {
@@ -91,8 +92,13 @@ private class ValidateArguments(private val args: List<String>) {
     }
 
     private companion object {
+        /** The option naming the output format, followed by its value or joined to it by `=`. */
         const val FORMAT_OPTION = "--format"
+
+        /** Ends the options: every later argument is the directory. */
         const val END_OF_OPTIONS = "--"
+
+        /** The options that ask for the usage. */
         val HELP_FLAGS = setOf("--help", "-h")
     }
 }

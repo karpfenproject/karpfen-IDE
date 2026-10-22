@@ -110,11 +110,19 @@ class ValidateCommandTest {
         private val result: WorkspaceProblems,
         private val analysisFailure: Exception? = null,
     ) : Workspace {
+        /** The calls in order. */
         val calls = mutableListOf<String>()
+
+        /** The `System.out` each call saw, in call order. */
         val streamsSeen = mutableListOf<PrintStream>()
+
+        /** True once [close] was called. */
         var closed = false
+
+        /** The never-ending child coroutine started on opening. */
         var childJob: Job? = null
 
+        /** Opens this workspace for [path] in [scope], printing to [out], as the factory the command gets. */
         fun opened(path: Path, scope: CoroutineScope, out: PrintStream): Workspace {
             record("open", out)
             check(path == root)
@@ -122,6 +130,7 @@ class ValidateCommandTest {
             return this
         }
 
+        /** Records [call] and prints to [out] and `System.err` like dsl-tools and ANTLR would. */
         private fun record(call: String, out: PrintStream = System.out) {
             calls += call
             streamsSeen += out

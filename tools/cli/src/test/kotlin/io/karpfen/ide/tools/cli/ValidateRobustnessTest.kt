@@ -60,8 +60,13 @@ class ValidateRobustnessTest {
     }
 
     private companion object {
+        /** The fixed seed of the mutations. */
         const val SEED = 20261021L
+
+        /** How many mutated versions of each context file are validated. */
         const val MUTATIONS_PER_FILE = 12
+
+        /** A well-formed report line, `path:line:col: severity: message [code]`, capturing path, line and column. */
         val REPORT_LINE = Regex("""^([^:]+):(\d+):(\d+): (error|warning|info|hint): .* \[[^\]]+]$""")
     }
 }

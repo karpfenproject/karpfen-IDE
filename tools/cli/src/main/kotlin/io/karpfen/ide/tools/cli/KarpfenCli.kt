@@ -37,6 +37,10 @@ internal class KarpfenCli(
         is CliCommand.Validate -> validate(command)
     }
 
+    /**
+     * Validates the command's directory and prints the report; the exit status tells whether an ERROR was found. A
+     * missing directory is a usage error, an unexpected failure is logged and reported as [ExitCodes.FAILURE].
+     */
     private suspend fun validate(command: CliCommand.Validate): Int {
         if (!Files.isDirectory(command.directory)) {
             message("not a directory: ${command.directory}")
@@ -56,6 +60,7 @@ internal class KarpfenCli(
         return if (report.hasErrors) ExitCodes.ERRORS_FOUND else ExitCodes.OK
     }
 
+    /** Prints the CLI's own message [text] to the error output, prefixed with `karpfen:`. */
     private fun message(text: String) {
         outputGuard.errorOutput.println("karpfen: $text")
     }

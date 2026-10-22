@@ -6,6 +6,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
+/**
+ * [CliArguments]: the help words, `validate` with its options before or after the directory, `--` ending the options,
+ * and one-line messages for malformed command lines.
+ */
 class CliArgumentsTest {
 
     private fun parse(vararg args: String): CliCommand = CliArguments.parse(args.toList())

@@ -24,8 +24,8 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * `karpfen validate` end to end on real folders (spec §9, §11 item 5): the examples, broken copies, loose files and the
- * shared descriptor examples, through the real workspace on virtual time, with both process streams captured.
+ * `karpfen validate` end to end on real folders: the examples (exit 0, nothing printed), broken copies, loose files and
+ * the shared descriptor examples, through the real workspace on virtual time, with both process streams captured.
  */
 class ValidateCliTest {
 
@@ -251,7 +251,10 @@ class ValidateCliTest {
     private fun String.withoutMessageOf(code: String): String = if (endsWith("[$code]")) withoutMessage() else this
 
     private companion object {
+        /** A property declaration of the example metamodel. */
         const val VALID_PROPERTY = "prop(\"y\", \"number\")"
+
+        /** [VALID_PROPERTY] without its comma, a syntax error. */
         const val PROPERTY_WITHOUT_COMMA = "prop(\"y\" \"number\")"
 
         /** `path:line:col: severity: message [code]`. */

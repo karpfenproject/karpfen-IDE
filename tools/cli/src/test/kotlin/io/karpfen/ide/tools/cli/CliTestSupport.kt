@@ -12,8 +12,9 @@ import java.nio.charset.Charset
 import kotlin.time.TestTimeSource
 
 /**
- * Real workspaces without watching on the virtual time of [scope] (the plan's CLI fake: `WorkspaceFactory(WorkspaceOptions(
- * watch = false, …test dispatchers…))`).
+ * Real workspaces without watching on the virtual time of [scope]:
+ * `WorkspaceFactory(WorkspaceOptions(watch = false, …test dispatchers…))`, the factory `ValidateCommand` takes in
+ * tests.
  */
 internal fun testWorkspaceFactory(scope: TestScope): WorkspaceFactory {
     val dispatcher = StandardTestDispatcher(scope.testScheduler)

@@ -20,6 +20,11 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+/**
+ * [StandardOutputGuard]: the original streams it keeps for the report (UTF-8 whatever the console's encoding), the
+ * redirection of both process streams while a block runs (also from other threads), their restoration on success,
+ * failure and cancellation, and that it is not reentrant.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class StandardOutputGuardTest {
 

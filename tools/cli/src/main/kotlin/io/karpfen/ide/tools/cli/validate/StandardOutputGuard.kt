@@ -7,10 +7,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Keeps the CLI's own output clean while dsl-tools prints (spec §9): [silenced] redirects `System.out` and `System.err`
- * to a sink for the duration of a block (dsl-tools `println`s while converting, and its ANTLR console listener writes
- * syntax errors to `System.err`, see `DslConverter`); the CLI prints its report through [output] and its own error
- * messages through [errorOutput], the original streams captured at construction.
+ * Keeps the CLI's own output clean while dsl-tools prints: [silenced] redirects `System.out` and `System.err` to a sink
+ * for the duration of a block (dsl-tools `println`s while converting, and its ANTLR console listener writes syntax
+ * errors to `System.err`, see `DslConverter`); the CLI prints its report through [output] and its own error messages
+ * through [errorOutput], the original streams captured at construction.
  *
  * The redirection is process-wide (`System.setOut`/`System.setErr`), so it also catches output of threads other than
  * the caller's (the analysis dispatcher). The discarded bytes are only counted (logged at DEBUG afterwards).
@@ -53,6 +53,8 @@ public class StandardOutputGuard(
     /** Discards everything written to it and counts the bytes (thread-safe). */
     private class DiscardingStream : OutputStream() {
         private val written = AtomicLong()
+
+        /** The number of bytes discarded so far. */
         val count: Long get() = written.get()
 
         override fun write(b: Int) {

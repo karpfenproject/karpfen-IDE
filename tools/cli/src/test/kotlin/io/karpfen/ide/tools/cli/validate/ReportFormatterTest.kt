@@ -11,6 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+/** [ReportFormatter]: the one-line-per-problem text format and the JSON document. */
 class ReportFormatterTest {
 
     private val root: Path = Path.of("/work/project").toAbsolutePath()

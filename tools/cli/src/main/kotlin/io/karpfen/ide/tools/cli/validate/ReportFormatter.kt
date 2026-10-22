@@ -29,6 +29,7 @@ internal class TextReportFormatter : ReportFormatter {
         }
     }
 
+    /** [message] with its non-blank lines trimmed and joined by single spaces. */
     private fun singleLine(message: String): String =
         message.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
 }
@@ -51,9 +52,11 @@ internal class JsonReportFormatter : ReportFormatter {
         return JSON.encodeToString(JsonReport.serializer(), document) + "\n"
     }
 
+    /** The serialized shape of the whole report. */
     @Serializable
     private data class JsonReport(val root: String, val errorCount: Int, val warningCount: Int, val problems: List<JsonProblem>)
 
+    /** The serialized shape of one problem; [severity] in lower case. */
     @Serializable
     private data class JsonProblem(
         val path: String,

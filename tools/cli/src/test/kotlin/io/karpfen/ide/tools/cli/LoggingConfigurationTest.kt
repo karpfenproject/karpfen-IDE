@@ -12,15 +12,17 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** The CLI's logging configuration (spec §9, work-package plan §2 rule 10). */
+/**
+ * The CLI's logging configuration: the tests run on the module's console-only `logback-test.xml`, while the production
+ * `logback.xml` logs WARN and above to standard error only, so the report on standard output stays clean.
+ */
 class LoggingConfigurationTest {
 
     @Test
     fun `the test classpath is configured by logback-test xml, not by the production logback xml`() {
         val context = assertIs<LoggerContext>(LoggerFactory.getILoggerFactory())
 
-        // The default configurator records the resource it chose: "Found resource [<name>] at [<url>]".
-        val found = context.statusManager.copyOfStatusList.map { it.message }.filter { it.startsWith("Found resource [") }
+        val found = chosenResources(context)
 
         val chosen = assertNotNull(found.singleOrNull(), "exactly one configuration resource was chosen: $found")
         assertTrue(chosen.startsWith("Found resource [logback-test.xml] at ["), chosen)
@@ -42,4 +44,11 @@ class LoggingConfigurationTest {
         assertEquals("System.err", console.target)
         context.stop()
     }
+
+    /**
+     * The status messages in which logback's default configurator recorded the configuration resource it chose: "Found
+     * resource [<name>] at [<url>]".
+     */
+    private fun chosenResources(context: LoggerContext): List<String> =
+        context.statusManager.copyOfStatusList.map { it.message }.filter { it.startsWith("Found resource [") }
 }

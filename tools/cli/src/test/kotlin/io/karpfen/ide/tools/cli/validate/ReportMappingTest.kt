@@ -12,6 +12,7 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/** The mapping of `Workspace.problems` onto the report: relative `/` paths, one-based positions and their order. */
 class ReportMappingTest {
 
     private val root: Path = Path.of("/work/project").toAbsolutePath().normalize()
