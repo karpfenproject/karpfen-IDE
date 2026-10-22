@@ -1,6 +1,6 @@
 # 14. dsl-tools output stays off the primary console
 
-- Status: Accepted; built in the second increment after phase 1
+- Status: Accepted; to be built in the second increment after phase 1
 - Date: 2026-10-22
 - Source: the owner's decision after phase 1 on silencing karpfen-dsl-tools ("I would not eat away the output but not
   add it to a primary console output")

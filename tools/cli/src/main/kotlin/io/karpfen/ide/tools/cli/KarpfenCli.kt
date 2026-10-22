@@ -13,7 +13,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * The karpfen command-line tool: parses the arguments ([CliArguments]) and runs the command, returning its exit status
  * ([ExitCodes]). Everything it prints goes through [outputGuard]: the report and the usage of `help` to its `output`
  * (stdout), its own messages (`karpfen: …` and the usage after invalid arguments) to its `errorOutput` (stderr); while
- * the workspace runs, both process streams are silenced ([ValidateCommand]).
+ * the workspace runs, both process streams are silenced ([ValidateCommand]). For now that discards what dsl-tools
+ * prints; [StandardOutputGuard] explains why this is interim and what replaces it.
  *
  * @param workspaceFactory opens the validated folder (tests pass test dispatchers).
  */

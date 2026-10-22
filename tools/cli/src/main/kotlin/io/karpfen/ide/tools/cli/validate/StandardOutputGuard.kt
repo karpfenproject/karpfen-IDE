@@ -15,6 +15,11 @@ import java.util.concurrent.atomic.AtomicLong
  * The redirection is process-wide (`System.setOut`/`System.setErr`), so it also catches output of threads other than
  * the caller's (the analysis dispatcher). The discarded bytes are only counted (logged at DEBUG afterwards).
  *
+ * Discarding the output is a stopgap, not the design. The decision that dsl-tools output stays off the primary console,
+ * recorded with the architecture decisions under that title, keeps it out of the report but wants it available on
+ * demand, with the errors among it forwarded to where the user sees problems, because it can explain a failure. The
+ * second increment after phase 1, in which dsl-tools logs through SLF4J instead of printing, replaces this guard.
+ *
  * The default [output] and [errorOutput] encode UTF-8 onto the process streams, whatever the console's encoding
  * (`stdout.encoding`, US-ASCII under `LANG=C` in containers and minimal CI runners), so paths and messages with
  * non-ASCII characters keep naming their files instead of turning into `?`.

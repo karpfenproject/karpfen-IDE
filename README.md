@@ -101,7 +101,9 @@ grep ERROR /tmp/karpfen-home/logs/ide.log
 
 `karpfen validate` checks a folder like the IDE does: the syntax of every file, the dsl-tools analysis of every
 modeling context and the environment descriptors. It prints one line per problem, with one-based positions and paths
-relative to the folder, and only the report: what dsl-tools prints while it analyzes is kept out of it.
+relative to the folder, and only the report. What dsl-tools prints while it analyzes is discarded for now; the
+[decision that dsl-tools output stays off the primary console](docs/adr/0014-dsl-tools-output-stays-off-the-primary-console.md)
+keeps it out of the report but wants it available on demand, which the second increment after phase 1 builds.
 
 ```bash
 ./gradlew :tools:cli:installDist

@@ -22,9 +22,11 @@ import states.StateMachine
  * - Never throws for any input: every exception raised by dsl-tools becomes one DSL_TOOLS ERROR [Diagnostic] (code
  *   [io.karpfen.ide.core.document.DiagnosticCodes.DSL_TOOLS_ERROR]) whose range is located by a [DslErrorLocator].
  * - Thread-safe; the converters keep no state between calls. dsl-tools writes to `System.out` (`println` while
- *   converting) and, for syntax errors, to `System.err` (ANTLR's console listener); the adapter redirects neither. The
- *   CLI silences both around its whole workspace run, while the IDE application still lets the converters' output
- *   reach its console.
+ *   converting) and, for syntax errors, to `System.err` (ANTLR's console listener); the adapter redirects neither. For
+ *   now the CLI discards both around its whole workspace run (`StandardOutputGuard`), while the IDE application lets
+ *   the converters' output reach its console. Both are interim: the decision that dsl-tools output stays off the
+ *   primary console wants it off both consoles, available on demand and with its errors forwarded, which the second
+ *   increment after phase 1 builds once dsl-tools logs through SLF4J.
  * - The source text is passed unchanged (the converters apply `trimIndent()` themselves; ranges never come from them).
  */
 public interface DslConverter {
