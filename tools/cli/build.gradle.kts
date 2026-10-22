@@ -13,16 +13,16 @@ application {
 /**
  * `validate` needs the workspace, the project analysis and the per-file tokenizing and parsing (core-workspace has
  * core-document as an `api` dependency). The runtime session is a phase-0 placeholder for the later `deploy` command.
- * Test-only: logback, because the logging-configuration tests read logback's `LoggerContext`.
+ * logback is the logging backend, whose API `LogbackLanguageToolsLog` uses to show what dsl-tools logs with
+ * `--verbose`.
  */
 dependencies {
     implementation(project(":core:core-workspace"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.slf4j.api)
+    implementation(libs.logback.classic)
     implementation(project(":runtime:runtime-session"))
-    runtimeOnly(libs.logback.classic)
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
-    testImplementation(libs.logback.classic)
 }

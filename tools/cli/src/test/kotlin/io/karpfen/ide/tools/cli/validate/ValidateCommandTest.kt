@@ -15,7 +15,6 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import io.karpfen.ide.core.workspace.problems.FileProblems
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
-import io.karpfen.ide.tools.cli.ProcessStreams
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
@@ -24,14 +23,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
-import java.io.PrintStream
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNotSame
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /** The validate run's protocol with the workspace, with a scripted fake workspace. */
@@ -43,44 +39,36 @@ class ValidateCommandTest {
     private val root: Path get() = dir.toAbsolutePath().normalize()
 
     @Test
-    fun `the whole workspace run happens silenced and its problems become the report`() = runTest {
-        ProcessStreams().use { streams ->
-            val processOut = System.out
-            val workspace = ScriptedWorkspace(root, problemsOf(root.resolve("m.kmeta")))
-            val command = ValidateCommand(StandardOutputGuard(), { path, scope -> workspace.opened(path, scope, System.out) })
+    fun `the workspace is refreshed, analyzed and closed, and its problems become the report`() = runTest {
+        val workspace = ScriptedWorkspace(root, problemsOf(root.resolve("m.kmeta")))
+        val command = ValidateCommand(workspace::opened)
 
-            val report = command.run(dir)
+        val report = command.run(dir)
 
-            assertEquals(listOf("open", "refresh", "awaitAnalysis", "problems", "close"), workspace.calls)
-            workspace.streamsSeen.forEach { assertNotSame(processOut, it, "every workspace call runs with stdout silenced") }
-            assertTrue(workspace.closed)
-            assertFalse(workspace.childJob!!.isActive, "the workspace's coroutines are cancelled")
-            assertEquals(listOf(ReportedProblem("m.kmeta", 1, 2, Severity.ERROR, "broken", "code")), report.problems)
-            assertEquals(root, report.root)
-            assertEquals("", streams.stdout() + streams.stderr(), "what the workspace printed was discarded")
-            assertSame(processOut, System.out)
-        }
+        assertEquals(listOf("open", "refresh", "awaitAnalysis", "problems", "close"), workspace.calls)
+        assertTrue(workspace.closed)
+        assertFalse(workspace.childJob!!.isActive, "the workspace's coroutines are cancelled")
+        assertEquals(listOf(ReportedProblem("m.kmeta", 1, 2, Severity.ERROR, "broken", "code")), report.problems)
+        assertEquals(root, report.root)
     }
 
     @Test
-    fun `a failing analysis still closes the workspace and restores the streams`() = runTest {
-        val processOut = System.out
+    fun `a failing analysis still closes the workspace`() = runTest {
         val workspace = ScriptedWorkspace(root, WorkspaceProblems.EMPTY, analysisFailure = IllegalStateException("converter crashed"))
-        val command = ValidateCommand(StandardOutputGuard(), { path, scope -> workspace.opened(path, scope, System.out) })
+        val command = ValidateCommand(workspace::opened)
 
         val failure = assertFailsWith<IllegalStateException> { command.run(dir) }
 
         assertEquals("converter crashed", failure.message)
         assertEquals(listOf("open", "refresh", "awaitAnalysis", "close"), workspace.calls)
         assertFalse(workspace.childJob!!.isActive)
-        assertSame(processOut, System.out)
     }
 
     @Test
     fun `a relative directory is validated as an absolute normalized root`() = runTest {
         val workspace = ScriptedWorkspace(root, WorkspaceProblems.EMPTY)
         var openedRoot: Path? = null
-        val command = ValidateCommand(StandardOutputGuard(), { path, scope -> openedRoot = path; workspace.opened(path, scope, System.out) })
+        val command = ValidateCommand({ path, scope -> openedRoot = path; workspace.opened(path, scope) })
 
         val report = command.run(dir.resolve("sub/.."))
 
@@ -102,8 +90,8 @@ class ValidateCommandTest {
     )
 
     /**
-     * A workspace that prints on every call (like dsl-tools during the analysis), records the calls, the `System.out`
-     * each one saw, and starts a never-ending child coroutine in the factory's scope, which the command must cancel.
+     * A workspace that records the calls and starts a never-ending child coroutine in the factory's scope, which the
+     * command must cancel.
      */
     private class ScriptedWorkspace(
         override val root: Path,
@@ -113,29 +101,23 @@ class ValidateCommandTest {
         /** The calls in order. */
         val calls = mutableListOf<String>()
 
-        /** The `System.out` each call saw, in call order. */
-        val streamsSeen = mutableListOf<PrintStream>()
-
         /** True once [close] was called. */
         var closed = false
 
         /** The never-ending child coroutine started on opening. */
         var childJob: Job? = null
 
-        /** Opens this workspace for [path] in [scope], printing to [out], as the factory the command gets. */
-        fun opened(path: Path, scope: CoroutineScope, out: PrintStream): Workspace {
-            record("open", out)
+        /** Opens this workspace for [path] in [scope], as the factory the command gets. */
+        fun opened(path: Path, scope: CoroutineScope): Workspace {
+            record("open")
             check(path == root)
             childJob = scope.launch { awaitCancellation() }
             return this
         }
 
-        /** Records [call] and prints to [out] and `System.err` like dsl-tools and ANTLR would. */
-        private fun record(call: String, out: PrintStream = System.out) {
+        /** Records [call]. */
+        private fun record(call: String) {
             calls += call
-            streamsSeen += out
-            out.println("dsl-tools chatter during $call")
-            System.err.println("ANTLR noise during $call")
         }
 
         override val languages: LanguageRegistry get() = unused()

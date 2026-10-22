@@ -4,17 +4,20 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.joran.JoranConfigurator
 import ch.qos.logback.core.ConsoleAppender
+import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
  * The CLI's logging configuration: the tests run on the module's console-only `logback-test.xml`, while the production
- * `logback.xml` logs WARN and above to standard error only, so the report on standard output stays clean.
+ * `logback.xml` logs WARN and above to standard error only, so the report on standard output stays clean. Both turn
+ * what dsl-tools logs off and let its logger pass events on to the console, the way `--verbose` shows them.
  */
 class LoggingConfigurationTest {
 
@@ -42,7 +45,24 @@ class LoggingConfigurationTest {
         assertEquals(Level.WARN, root.level)
         val console = assertIs<ConsoleAppender<*>>(appenders.single())
         assertEquals("System.err", console.target)
+        assertDslToolsOffAndPassingEventsOn(context)
         context.stop()
+    }
+
+    @Test
+    fun `the test configuration turns dsl-tools off like the production one`() {
+        assertDslToolsOffAndPassingEventsOn(assertIs<LoggerContext>(LoggerFactory.getILoggerFactory()))
+    }
+
+    /**
+     * Asserts that the dsl-tools logger of [context] is off, has no appender of its own and passes its events on, so
+     * raising its level shows them on the root logger's console.
+     */
+    private fun assertDslToolsOffAndPassingEventsOn(context: LoggerContext) {
+        val dslTools = context.getLogger(DslToolsLoggers.PARENT)
+        assertEquals(Level.OFF, dslTools.level)
+        assertTrue(dslTools.isAdditive)
+        assertFalse(dslTools.iteratorForAppenders().hasNext())
     }
 
     /**

@@ -3,7 +3,8 @@ package io.karpfen.ide.tools.cli
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
-import io.karpfen.ide.tools.cli.validate.StandardOutputGuard
+import io.karpfen.ide.tools.cli.logging.LanguageToolsLog
+import io.karpfen.ide.tools.cli.logging.LogbackLanguageToolsLog
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import java.io.ByteArrayOutputStream
@@ -31,7 +32,7 @@ internal fun testWorkspaceFactory(scope: TestScope): WorkspaceFactory {
 
 /**
  * Replaces the process streams `System.out` and `System.err` by captures until [close], so a test sees everything the
- * process would have printed (the CLI's guard, created inside, takes the captures as its original streams). The
+ * process would have printed (the CLI's console, created inside, takes the captures as its process streams). The
  * captures encode text written to them as [encoding] (the console's, e.g. US-ASCII under `LANG=C`); [stdout] and
  * [stderr] decode the captured bytes as UTF-8.
  */
@@ -66,14 +67,15 @@ internal data class CliRun(val status: Int, val stdout: String, val stderr: Stri
 
 /**
  * Runs the command line [args] like `main` does, capturing the process streams (encoding text as [consoleEncoding]) for
- * the whole run.
+ * the whole run; `--verbose` shows what dsl-tools logs through [languageToolsLog], by default the real one of logback.
  */
 internal suspend fun runCli(
     workspaceFactory: WorkspaceFactory,
     vararg args: String,
     consoleEncoding: Charset = Charsets.UTF_8,
+    languageToolsLog: LanguageToolsLog = LogbackLanguageToolsLog.ofApplication(),
 ): CliRun =
     ProcessStreams(consoleEncoding).use { streams ->
-        val status = KarpfenCli(StandardOutputGuard(), workspaceFactory).execute(args.toList())
+        val status = KarpfenCli(CliConsole(), workspaceFactory, languageToolsLog).execute(args.toList())
         CliRun(status, streams.stdout(), streams.stderr())
     }

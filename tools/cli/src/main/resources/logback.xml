@@ -2,8 +2,11 @@
 <!--
   Logging of the karpfen command-line tool, its only logging configuration: console only, WARN and above, on
   standard error. Standard output carries nothing but the report, so it stays machine-readable (JSON format).
-  While a workspace is validated, both process streams are silenced by StandardOutputGuard, so log lines of that phase
-  are dropped, those of dsl-tools among them; the tool's own failures are logged afterwards.
+
+  What karpfen-dsl-tools logs, below the logger io.karpfen.dsl (DslToolsLoggers names it), is off: every problem
+  dsl-tools finds reaches the report as a diagnostic anyway. The logger passes its events on to the root logger, so
+  validate with verbose, which raises it to DEBUG for the run (LogbackLanguageToolsLog), shows everything dsl-tools
+  logs on standard error as well.
 -->
 <configuration>
     <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
@@ -12,6 +15,7 @@
             <pattern>%-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
+    <logger name="io.karpfen.dsl" level="OFF"/>
     <root level="WARN">
         <appender-ref ref="STDERR"/>
     </root>

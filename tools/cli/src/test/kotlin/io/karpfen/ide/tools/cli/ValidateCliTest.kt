@@ -3,9 +3,11 @@ package io.karpfen.ide.tools.cli
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Logger
 import io.karpfen.ide.core.document.DiagnosticCodes
+import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
+import io.karpfen.ide.tools.cli.logging.LanguageToolsLog
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
@@ -29,7 +31,8 @@ import kotlin.time.TimeSource
 
 /**
  * `karpfen validate` end to end on real folders: the examples (exit 0, nothing printed), broken copies, loose files and
- * the shared descriptor examples, through the real workspace on virtual time, with both process streams captured.
+ * the shared descriptor examples, through the real workspace on virtual time, with both process streams captured; what
+ * dsl-tools logs stays off unless `--verbose` shows it on standard error.
  */
 class ValidateCliTest {
 
@@ -70,6 +73,37 @@ class ValidateCliTest {
             assertEquals("", stdout)
             assertTrue("KmetaDSLConverter" in stderr, "dsl-tools logged while converting the examples: $stderr")
         }
+
+    @Test
+    fun `verbose shows what dsl-tools logs on standard error and leaves standard output to the report`() =
+        runTest(timeout = 120.seconds) {
+            val root = Examples.copyTo(dir)
+            Files.writeString(root.resolve("karpfen-runtime/single_robot_example/zz.kmeta"), "type \"B\" \"b\" {\n")
+
+            val run = runCli(testWorkspaceFactory(this), "validate", "--format", "json", "--verbose", root.toString())
+
+            assertEquals(ExitCodes.ERRORS_FOUND, run.status)
+            assertEquals(1, Json.parseToJsonElement(run.stdout).jsonObject.getValue("errorCount").jsonPrimitive.int)
+            val logged = run.stderr.lines().filter { it.isNotEmpty() }
+            assertTrue(logged.any { " DEBUG " in it && "KmetaDSLConverter" in it }, run.stderr)
+            assertTrue(logged.all { DSL_TOOLS_LINE.containsMatchIn(it) }, "only what dsl-tools logs: ${run.stderr}")
+            assertEquals(Level.OFF, dslToolsLogger().level, "the verbose run restored the level of the configuration")
+        }
+
+    @Test
+    fun `without verbose nothing of what dsl-tools logs is shown, and verbose shows it for the validation only`() = runTest {
+        val shown = mutableListOf<String>()
+        val log = LanguageToolsLog {
+            shown += "show"
+            AutoCloseable { shown += "close" }
+        }
+        val root = Files.createDirectories(dir.resolve("empty"))
+
+        runCli(testWorkspaceFactory(this), "validate", root.toString(), languageToolsLog = log)
+        assertEquals(emptyList(), shown)
+        runCli({ _, _ -> shown += "validate"; error("disk on fire") }, "validate", "--verbose", root.toString(), languageToolsLog = log)
+        assertEquals(listOf("show", "validate", "close"), shown, "also when the validation fails")
+    }
 
     @Test
     fun `a broken copy exits 1 with the one-based position of the syntax error and prints nothing else`() =
@@ -231,7 +265,9 @@ class ValidateCliTest {
                 run.lines.map { it.withoutMessage() },
                 "unreadable karpfen files and directories are named; other files are not validated anyway",
             )
-            assertEquals("", run.stderr)
+            val warnings = run.stderr.lines().filter { it.isNotEmpty() }
+            assertTrue(warnings.isNotEmpty(), "the workspace's own warning reaches standard error")
+            assertTrue(warnings.all { " WARN " in it && "Cannot list directory $unreadableDirectory" in it }, run.stderr)
         } finally {
             Files.setPosixFilePermissions(unreadableDirectory, PosixFilePermissions.fromString("rwx------"))
             listOf(unreadableFile, otherFile).forEach { Files.setPosixFilePermissions(it, PosixFilePermissions.fromString("rw-------")) }
@@ -247,9 +283,12 @@ class ValidateCliTest {
         assertTrue("karpfen: validation of $dir failed: disk on fire\n" in run.stderr, run.stderr)
     }
 
+    /** The parent logger of dsl-tools in the test JVM's logger context. */
+    private fun dslToolsLogger(): Logger = assertIs<Logger>(LoggerFactory.getLogger(DslToolsLoggers.PARENT))
+
     /** Runs [block] with the loggers of dsl-tools at [level] and restores their level afterwards. */
     private inline fun <T> withDslToolsLoggingAt(level: Level, block: () -> T): T {
-        val logger = assertIs<Logger>(LoggerFactory.getLogger(DSL_TOOLS_LOGGER))
+        val logger = dslToolsLogger()
         val previous = logger.level
         logger.level = level
         try {
@@ -276,8 +315,8 @@ class ValidateCliTest {
     private fun String.withoutMessageOf(code: String): String = if (endsWith("[$code]")) withoutMessage() else this
 
     private companion object {
-        /** The parent logger of every logger of dsl-tools, whose loggers are named after its classes. */
-        const val DSL_TOOLS_LOGGER = "io.karpfen.dsl"
+        /** A line that the test configuration's console writes for an event of a dsl-tools logger. */
+        val DSL_TOOLS_LINE = Regex("""^\S+ (TRACE|DEBUG|INFO|WARN|ERROR) +i\.k\.d\.""")
 
         /** A property declaration of the example metamodel. */
         const val VALID_PROPERTY = "prop(\"y\", \"number\")"

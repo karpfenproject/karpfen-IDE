@@ -4,7 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kotlin.system.exitProcess
 
 /** One-line usage of the karpfen command-line tool. */
-public const val USAGE: String = "Usage: karpfen validate <dir> [--format text|json]"
+public const val USAGE: String = "Usage: karpfen validate <dir> [--format text|json] [--verbose]"
 
 /**
  * Entry point of the karpfen command-line tool (start script `karpfen`): runs the command line and exits with its

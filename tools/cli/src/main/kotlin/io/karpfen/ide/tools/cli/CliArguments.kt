@@ -6,8 +6,16 @@ import java.nio.file.Path
 
 /** A parsed command line. */
 public sealed interface CliCommand {
-    /** `karpfen validate <dir> [--format text|json]`. */
-    public data class Validate(public val directory: Path, public val format: OutputFormat) : CliCommand
+    /**
+     * `karpfen validate <dir> [--format text|json] [--verbose]`.
+     *
+     * @property verbose shows what dsl-tools logs while validating on standard error, which is off otherwise.
+     */
+    public data class Validate(
+        public val directory: Path,
+        public val format: OutputFormat,
+        public val verbose: Boolean = false,
+    ) : CliCommand
 
     /** No arguments, `help`, `--help` or `-h`: print the usage. */
     public data object Help : CliCommand
@@ -19,12 +27,13 @@ public sealed interface CliCommand {
 /**
  * Command-line parsing (pure).
  *
- * Grammar: no arguments, `help`, `--help` or `-h` → [CliCommand.Help]; `validate [options] <dir>` → [CliCommand.Validate],
- * where the options may stand before or after the directory: `--format text|json` or `--format=text|json` (case
- * insensitive, default text) and `--help`/`-h` (→ [CliCommand.Help]); `--` ends the options, so a directory may start
- * with `-`. Everything else (an unknown command, an unknown option, a missing, empty or second directory, a bad format
- * value, a path the file system cannot represent) is [CliCommand.Invalid] with a one-line message. An empty directory
- * argument (`karpfen validate "$UNSET"`) is never the working directory, which `Path.of("")` would denote.
+ * Grammar: no arguments, `help`, `--help` or `-h` → [CliCommand.Help]; `validate [options] <dir>` →
+ * [CliCommand.Validate], where the options may stand before or after the directory: `--format text|json` or
+ * `--format=text|json` (case insensitive, default text), `--verbose` and `--help`/`-h` (→ [CliCommand.Help]); `--` ends
+ * the options, so a directory may start with `-`. Everything else (an unknown command, an unknown option, a missing,
+ * empty or second directory, a bad format value, a path the file system cannot represent) is [CliCommand.Invalid] with
+ * a one-line message. An empty directory argument (`karpfen validate "$UNSET"`) is never the working directory, which
+ * `Path.of("")` would denote.
  */
 public object CliArguments {
 
@@ -46,6 +55,7 @@ public object CliArguments {
 private class ValidateArguments(private val args: List<String>) {
     private var directory: String? = null
     private var format = OutputFormat.TEXT
+    private var verbose = false
     private var optionsEnded = false
 
     /** The command these arguments stand for: [CliCommand.Validate], [CliCommand.Help] or [CliCommand.Invalid]. */
@@ -57,6 +67,7 @@ private class ValidateArguments(private val args: List<String>) {
                 optionsEnded || !arg.startsWith("-") || arg == "-" -> addDirectory(arg)
                 arg == END_OF_OPTIONS -> null.also { optionsEnded = true }
                 arg in HELP_FLAGS -> return CliCommand.Help
+                arg == VERBOSE_OPTION -> null.also { verbose = true }
                 arg == FORMAT_OPTION -> {
                     index++
                     setFormat(args.getOrNull(index) ?: return CliCommand.Invalid("$FORMAT_OPTION needs a value (text or json)"))
@@ -74,7 +85,7 @@ private class ValidateArguments(private val args: List<String>) {
         } catch (e: InvalidPathException) {
             return CliCommand.Invalid("invalid path '$name': ${e.reason}")
         }
-        return CliCommand.Validate(path, format)
+        return CliCommand.Validate(path, format, verbose)
     }
 
     /** Records the directory; returns an error message for a second one. */
@@ -94,6 +105,9 @@ private class ValidateArguments(private val args: List<String>) {
     private companion object {
         /** The option naming the output format, followed by its value or joined to it by `=`. */
         const val FORMAT_OPTION = "--format"
+
+        /** The option that shows what dsl-tools logs while validating. */
+        const val VERBOSE_OPTION = "--verbose"
 
         /** Ends the options: every later argument is the directory. */
         const val END_OF_OPTIONS = "--"

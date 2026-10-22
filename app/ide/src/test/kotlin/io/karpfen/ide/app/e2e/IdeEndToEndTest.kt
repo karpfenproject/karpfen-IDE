@@ -13,7 +13,6 @@ import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
-import io.karpfen.ide.tools.cli.validate.StandardOutputGuard
 import io.karpfen.ide.tools.cli.validate.ValidateCommand
 import io.karpfen.ide.tools.cli.validate.ValidationReport
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
@@ -39,8 +38,6 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import org.slf4j.LoggerFactory
-import java.io.ByteArrayOutputStream
-import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -227,7 +224,7 @@ class IdeEndToEndTest {
 
     /** `karpfen validate` of [folder] as text lines (the CLI's own report, through its `ValidateCommand`). */
     private suspend fun EndToEndIde.validate(folder: Path): List<String> {
-        val report = ValidateCommand(StandardOutputGuard(NOWHERE, NOWHERE), cliWorkspaces()).run(folder)
+        val report = ValidateCommand(cliWorkspaces()).run(folder)
         return report.lines()
     }
 
@@ -265,9 +262,6 @@ class IdeEndToEndTest {
     }
 
     private companion object {
-        /** Swallows the CLI's guard output (the report is compared, not printed). */
-        val NOWHERE = PrintStream(ByteArrayOutputStream())
-
         /** How each platform writes the completion shortcut in its menus. */
         val COMPLETION_SHORTCUT_TEXT: Map<HostPlatform, String> = mapOf(
             HostPlatform.MAC_OS to "⌃M",

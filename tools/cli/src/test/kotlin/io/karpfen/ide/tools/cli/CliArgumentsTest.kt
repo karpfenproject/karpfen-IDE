@@ -7,8 +7,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 /**
- * [CliArguments]: the help words, `validate` with its options before or after the directory, `--` ending the options,
- * and one-line messages for malformed command lines.
+ * [CliArguments]: the help words, `validate` with its options (format and verbose) before or after the directory, `--`
+ * ending the options, and one-line messages for malformed command lines.
  */
 class CliArgumentsTest {
 
@@ -36,6 +36,16 @@ class CliArgumentsTest {
     }
 
     @Test
+    fun `the verbose option is accepted before or after the directory and is off by default`() {
+        val verbose = CliCommand.Validate(Path.of("dir"), OutputFormat.TEXT, verbose = true)
+        assertEquals(verbose, parse("validate", "--verbose", "dir"))
+        assertEquals(verbose, parse("validate", "dir", "--verbose"))
+        assertEquals(verbose.copy(format = OutputFormat.JSON), parse("validate", "--format=json", "dir", "--verbose"))
+        assertEquals(false, assertIs<CliCommand.Validate>(parse("validate", "dir")).verbose)
+        assertEquals(CliCommand.Validate(Path.of("--verbose"), OutputFormat.TEXT), parse("validate", "--", "--verbose"))
+    }
+
+    @Test
     fun `a double dash ends the options, so a directory may start with a dash`() {
         assertEquals(CliCommand.Validate(Path.of("-odd"), OutputFormat.JSON), parse("validate", "--format", "json", "--", "-odd"))
         assertEquals(CliCommand.Validate(Path.of("-"), OutputFormat.TEXT), parse("validate", "-"))
@@ -51,7 +61,8 @@ class CliArgumentsTest {
             listOf("validate", "dir", "--format") to "--format needs a value (text or json)",
             listOf("validate", "dir", "--format", "xml") to "unknown format 'xml' (text or json)",
             listOf("validate", "--format=", "dir") to "unknown format '' (text or json)",
-            listOf("validate", "--verbose", "dir") to "unknown option '--verbose'",
+            listOf("validate", "--quiet", "dir") to "unknown option '--quiet'",
+            listOf("validate", "-v", "dir") to "unknown option '-v'",
             listOf("validate", "") to "validate needs a directory, not an empty argument",
             listOf("validate", "--format", "json", "--", "") to "validate needs a directory, not an empty argument",
         )
