@@ -88,8 +88,8 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
 
     /**
      * The rule keyword of the call whose type argument the `list("…")` call [list] is, or null where the rule is
-     * unknown. Inside `prop(` the list holds primitives; inside `has(`/`knows(` and wherever the rule is unknown it holds
-     * types.
+     * unknown. Inside `prop(` the list holds primitives; inside `has(`/`knows(` and wherever the rule is unknown it
+     * holds types.
      */
     private fun ruleOfList(list: CallContext): String? =
         list.parent?.takeIf { MemberKind.ofKeyword(it.name) != null && it.argumentIndex == 1 }?.name

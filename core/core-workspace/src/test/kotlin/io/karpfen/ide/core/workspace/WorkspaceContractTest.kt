@@ -32,8 +32,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the complete values of core-workspace on their own: file kinds, tree order and lookup, context membership,
- * option validation, the per-file diagnostic merge of analyzed files, the file order of analyses, and that workspace and
- * document diagnostic codes are distinct. No workspace implementation code runs.
+ * option validation, the per-file diagnostic merge of analyzed files, the file order of analyses, and that workspace
+ * and document diagnostic codes are distinct. No workspace implementation code runs.
  */
 class WorkspaceContractTest {
 

@@ -19,8 +19,8 @@ import kotlin.time.TimeSource
  * [TestReporter] and guarded by the tokenizer's target for the same document size (30 ms) with 5x slack, so an
  * accidental quadratic algorithm would show.
  *
- * Tagged `budget`: excluded from every test run, because load and sleep/wake cycles make the wall clock unreliable; kept
- * for later performance work.
+ * Tagged `budget`: excluded from every test run, because load and sleep/wake cycles make the wall clock unreliable;
+ * kept for later performance work.
  */
 @Tag("budget")
 class LanguageServicesBudgetTest {

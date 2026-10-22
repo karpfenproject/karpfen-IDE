@@ -29,7 +29,9 @@ public object WorkspaceDiagnosticCodes {
     /** An environment descriptor names a file that does not exist (ERROR). */
     public const val DESCRIPTOR_MISSING_FILE: String = "descriptor-missing-file"
 
-    /** An implicit modeling context contains several domain metamodels (INFO on each; the alphabetically first is used). */
+    /**
+     * An implicit modeling context contains several domain metamodels (INFO on each; the alphabetically first is used).
+     */
     public const val CONTEXT_MULTIPLE_METAMODELS: String = "context-multiple-metamodels"
 
     /** A modeling context has models or state machines but no metamodel to analyze them with (INFO). */

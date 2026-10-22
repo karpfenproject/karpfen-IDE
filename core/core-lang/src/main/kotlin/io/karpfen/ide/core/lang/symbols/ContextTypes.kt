@@ -36,8 +36,8 @@ internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInf
         }
 
         /**
-         * The types of [metamodel] (restricted to [names] when given) located in [file], or the types of [file]'s syntax
-         * when the metamodel did not convert.
+         * The types of [metamodel] (restricted to [names] when given) located in [file], or the types of [file]'s
+         * syntax when the metamodel did not convert.
          */
         private fun typesOf(file: AnalyzedFile?, metamodel: Metamodel?, origin: TypeOrigin, names: Set<String>?): List<TypeInfo> {
             val located = file?.let(LocatedOutcome::of)

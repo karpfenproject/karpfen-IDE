@@ -209,7 +209,9 @@ class EnvironmentDescriptorReaderTest {
         reporter.publishEntry("descriptor reader robustness", "$count mutated or truncated descriptors read without exception")
     }
 
-    /** Asserts sorted diagnostics, ranges inside [text], an error for every missing descriptor and ordered references. */
+    /**
+     * Asserts sorted diagnostics, ranges inside [text], an error for every missing descriptor and ordered references.
+     */
     private fun assertWellFormed(text: String, result: DescriptorReadResult) {
         assertEquals(result.diagnostics.sortedWith(Diagnostic.ORDER), result.diagnostics, text)
         (result.diagnostics.map { it.range } + result.references.map { it.range }).forEach { range ->

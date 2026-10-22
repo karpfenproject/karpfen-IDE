@@ -58,8 +58,8 @@ public sealed interface OpenResult {
     public data class Opened(public val document: OpenDocument) : OpenResult
 
     /**
-     * The file is not a karpfen source (e.g. `*.kenv.json`); the editor cannot open it, so the workbench opens it in the
-     * system's default application.
+     * The file is not a karpfen source (e.g. `*.kenv.json`); the editor cannot open it, so the workbench opens it in
+     * the system's default application.
      */
     public data class Unsupported(public val path: Path) : OpenResult
 

@@ -94,8 +94,8 @@ class ProjectDiagnosticsPublisherTest {
     }
 
     /**
-     * The analysis starts with the edited text of a document that is closed and reopened before it publishes. Neither the
-     * publisher nor a naive push of the analyzed snapshot straight into the session reaches the reopened document.
+     * The analysis starts with the edited text of a document that is closed and reopened before it publishes. Neither
+     * the publisher nor a naive push of the analyzed snapshot straight into the session reaches the reopened document.
      */
     @Test
     fun `a PROJECT push of an analysis started before a close and reopen is ignored`() = runTest {

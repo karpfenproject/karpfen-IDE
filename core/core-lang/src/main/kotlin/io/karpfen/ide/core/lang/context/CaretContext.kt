@@ -133,7 +133,9 @@ internal class TokenCaretContextDetector : CaretContextDetector {
      */
     private fun anchorOf(string: StringContext?, word: TextRange): Int = string?.let { it.contentRange.start - 1 } ?: word.start
 
-    /** The content of a closed [string]; for an unterminated one, its content up to the end of the [word] at the caret. */
+    /**
+     * The content of a closed [string]; for an unterminated one, its content up to the end of the [word] at the caret.
+     */
     private fun replaceRangeIn(string: StringContext, word: TextRange): TextRange =
         if (string.closed) string.contentRange else TextRange(string.contentRange.start, maxOf(string.contentRange.start, word.end))
 }

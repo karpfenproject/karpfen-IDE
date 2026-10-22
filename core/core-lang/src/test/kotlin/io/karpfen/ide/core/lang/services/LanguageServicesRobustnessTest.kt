@@ -67,7 +67,9 @@ class LanguageServicesRobustnessTest {
         reporter.publishEntry("KStates prefixes", "$count prefixes, typing position and one random offset each, ${mark.elapsedNow()}")
     }
 
-    /** Runs every feature on [document] at [offsets] and checks the invariants of the results; [label] names the case. */
+    /**
+     * Runs every feature on [document] at [offsets] and checks the invariants of the results; [label] names the case.
+     */
     private fun exercise(document: LanguageDocument, offsets: List<Int>, label: String) {
         val length = document.text.length
         val spans = services.highlight(document)

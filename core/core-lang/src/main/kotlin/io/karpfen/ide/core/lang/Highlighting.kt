@@ -108,11 +108,11 @@ public enum class HighlightStyle {
 public data class HighlightSpan(public val range: TextRange, public val style: HighlightStyle)
 
 /**
- * Overlays [overlay] on [base] — the one overlay rule of highlighting: the highlight provider lays the semantic spans of
- * a current parse over the lexical spans, and the editor lays the previous snapshot's semantic spans (mapped forward)
- * over fresh lexical spans while the parse lags, so semantic highlighting does not flicker while the user types. Inside
- * every overlay span its style wins; base spans partly covered are split and keep their style outside; overlay spans are
- * kept whole. Empty spans are dropped. Never throws.
+ * Overlays [overlay] on [base] — the one overlay rule of highlighting: the highlight provider lays the semantic spans
+ * of a current parse over the lexical spans, and the editor lays the previous snapshot's semantic spans (mapped
+ * forward) over fresh lexical spans while the parse lags, so semantic highlighting does not flicker while the user
+ * types. Inside every overlay span its style wins; base spans partly covered are split and keep their style outside;
+ * overlay spans are kept whole. Empty spans are dropped. Never throws.
  *
  * Precondition: each input is sorted by start and non-overlapping (as highlight results and semantic spans are); the
  * result is then sorted and non-overlapping too.

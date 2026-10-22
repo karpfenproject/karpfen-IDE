@@ -62,8 +62,8 @@ internal class DefaultDocumentManager(
     override val openDocuments: StateFlow<List<OpenDocument>> = documents.asStateFlow()
 
     /**
-     * Loads the file on the IO dispatcher and registers its document on the single writer. When another open of the same
-     * file completed while this one was loading, that document is returned and the second load is dropped.
+     * Loads the file on the IO dispatcher and registers its document on the single writer. When another open of the
+     * same file completed while this one was loading, that document is returned and the second load is dropped.
      */
     override suspend fun open(path: Path): OpenResult {
         val normalized = path.toAbsolutePath().normalize()

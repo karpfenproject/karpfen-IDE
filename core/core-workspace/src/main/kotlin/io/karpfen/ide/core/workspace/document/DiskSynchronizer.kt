@@ -12,8 +12,8 @@ import java.nio.file.Path
 
 /**
  * Keeps open documents in line with their files: reacts to changes on disk and resolves conflicts, reporting every
- * outcome as a [ConflictResult] instead of throwing. Disk content is read through the workspace's [SourceLoader] on [ioDispatcher]; documents are
- * mutated through the [writer] only.
+ * outcome as a [ConflictResult] instead of throwing. Disk content is read through the workspace's [SourceLoader] on
+ * [ioDispatcher]; documents are mutated through the [writer] only.
  *
  * Rules for a change of a document's file (compared with its disk state by content, [DefaultOpenDocument.knowsContentOf],
  * so a self-induced event of a save, or a touch without content change, is a no-op):

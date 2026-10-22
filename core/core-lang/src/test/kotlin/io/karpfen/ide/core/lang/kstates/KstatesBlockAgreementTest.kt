@@ -9,8 +9,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers that highlighting and completion read KStates blocks by one rule: `EVENT` is highlighted as an operation exactly where the
- * action keywords are completed, also in broken text.
+ * Covers that highlighting and completion read KStates blocks by one rule: `EVENT` is highlighted as an operation
+ * exactly where the action keywords are completed, also in broken text.
  */
 class KstatesBlockAgreementTest {
 
