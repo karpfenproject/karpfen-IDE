@@ -69,6 +69,47 @@ class KDocPlacementTest {
     }
 
     @Test
+    fun `KDoc on the members of an enum entry's body and on declarations with context parameters is in place`() {
+        val source = """
+            /** An enum whose entries behave differently. */
+            enum class E(val label: String) {
+                /** An entry with a body. */
+                A("a") {
+                    /** Its override. */
+                    override fun f() = 1
+                },
+
+                /** Another one. */
+                B("b") {
+                    /** Its override, with a lambda inside. */
+                    override fun f() = listOf(1).map { it + 1 }.first()
+                };
+
+                /** Implemented by every entry. */
+                abstract fun f(): Int
+            }
+
+            /** With a context parameter. */
+            context(foo: Foo)
+            fun bar() = 1
+
+            /** With an annotation and context parameters. */
+            @Suppress("x")
+            context(Foo, bar: Bar)
+            internal fun baz() = 2
+        """.trimIndent()
+
+        assertEquals(emptyList(), misplaced(source))
+    }
+
+    @Test
+    fun `KDoc inside a function of an enum entry's body still stands inside a function body`() {
+        val source = "enum class E {\n    A {\n        override fun f() {\n            /** Inside. */\n            g()\n        }\n    }\n}"
+
+        assertEquals(listOf(4 to "stands inside a function body or lambda"), misplaced(source))
+    }
+
+    @Test
     fun `KDoc after code on the same line is a trailing comment`() {
         assertEquals(listOf(1 to "follows code on its line"), misplaced("val a = 1 /** note */\nval b = 2"))
     }
@@ -128,9 +169,16 @@ class KDocPlacementTest {
     @Test
     fun `blocks are told apart by the keyword before their brace`() {
         val blocks = KotlinComments.scanPlaced(
-            "class A(val f: () -> Unit = { /**/ }) { /**/ init { /**/ } }\nenum class E { /**/ }\nval x = run { /**/ }",
+            "class A(val f: () -> Unit = { /**/ }) { /**/ init { /**/ } }\nenum class E { /**/ A({ /**/ }) { /**/ } }\n" +
+                "val x = run { /**/ }",
         ).map { it.block }
 
-        assertEquals(listOf(BlockKind.CODE, BlockKind.DECLARATIONS, BlockKind.CODE, BlockKind.ENUM_BODY, BlockKind.CODE), blocks)
+        assertEquals(
+            listOf(
+                BlockKind.CODE, BlockKind.DECLARATIONS, BlockKind.CODE, BlockKind.ENUM_BODY, BlockKind.CODE, BlockKind.DECLARATIONS,
+                BlockKind.CODE,
+            ),
+            blocks,
+        )
     }
 }

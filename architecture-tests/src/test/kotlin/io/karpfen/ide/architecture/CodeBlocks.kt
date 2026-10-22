@@ -22,9 +22,10 @@ internal enum class BlockKind {
  *
  * Whether a `{` opens a declaration body is decided by the last declaration keyword written at the same parenthesis
  * depth since the previous statement boundary: `class`, `interface` or `object` open a body of declarations (`enum
- * class` an enum body), any other keyword (`fun`, `val`, `init`, `get`, `if`, ...) or none opens a block of code. A
- * `constructor` right after a class keyword (`class A private constructor(...)`) keeps the class, and `Foo::class` is
- * no keyword. The boundaries are `;`, `{` and the `}` of a block that was not opened inside parentheses; a lambda
+ * class` an enum body), any other keyword (`fun`, `val`, `init`, `get`, `if`, ...) or none opens a block of code. The
+ * exception is a `{` without keyword directly in an enum body, outside parentheses: it opens the body of an enum entry
+ * (`A { override fun f() = 1 }`), an anonymous class whose members are declarations. A `constructor` right after a
+ * class keyword (`class A private constructor(...)`) keeps the class, and `Foo::class` is no keyword. The boundaries are `;`, `{` and the `}` of a block that was not opened inside parentheses; a lambda
  * argument, whose block was, leaves the header around it intact. The rule is lexical and can be fooled by unusual
  * code, such as a local class without a body followed by a lambda statement, which then counts as a declaration body.
  */
@@ -86,14 +87,19 @@ internal class CodeBlocks {
 
     /** Reads `{`, opening a block whose kind the header before it decides. */
     fun openBrace() {
-        val kind = when (headers.last().keyword) {
-            ENUM_CLASS -> BlockKind.ENUM_BODY
-            in CLASS_KEYWORDS -> BlockKind.DECLARATIONS
+        val keyword = headers.last().keyword
+        val kind = when {
+            keyword == ENUM_CLASS -> BlockKind.ENUM_BODY
+            keyword in CLASS_KEYWORDS || opensEnumEntryBody(keyword) -> BlockKind.DECLARATIONS
             else -> BlockKind.CODE
         }
         frames.addLast(Frame(kind, headers))
         headers = ArrayDeque(listOf(HeaderLevel()))
     }
+
+    /** True if a `{` after [keyword] opens the body of an enum entry: no keyword, directly in an enum body. */
+    private fun opensEnumEntryBody(keyword: String?): Boolean =
+        keyword == null && current == BlockKind.ENUM_BODY && parenDepth == 0
 
     /** Reads `}`, closing the current block; an unbalanced one is ignored. */
     fun closeBrace() {

@@ -19,7 +19,8 @@ import java.nio.file.Path
  * @property path the path of the open document, which identifies the tab.
  * @property title the file name.
  * @property tooltip the path relative to the workspace root, or the whole path of a file outside it.
- * @property language the document's language, which chooses the tab's icon.
+ * @property kind the kind of the file, by its name as everywhere in the workspace ([FileKind.of]), so the tab shows the
+ *   icon the project tree shows for the file; its [FileKind.language] is the document's language.
  * @property isDirty true while the document has unsaved changes.
  * @property conflict the kind of the document's external-change conflict, or null: the editor area renders the banner
  *   from it — [ExternalChangeKind.MODIFIED] → Reload / Keep mine, [ExternalChangeKind.DELETED] → Close / Keep mine —

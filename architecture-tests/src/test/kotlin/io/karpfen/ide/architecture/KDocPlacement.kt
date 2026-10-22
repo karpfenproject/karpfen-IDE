@@ -9,11 +9,11 @@ internal data class MisplacedKDoc(val comment: SourceComment, val reason: String
 
 /**
  * Checks where KDoc stands. KDoc documents a declaration, so it is only allowed on its own line right before one, after
- * which come only annotations and modifiers:
+ * which come only annotations, modifiers and context parameters (`context(...)`):
  *
- * - in a Kotlin file, a top-level declaration or a member of a class, interface or object (a class, interface, object,
- *   function, property, type alias or secondary constructor), an enum entry in an enum body, or a property of a
- *   primary constructor;
+ * - in a Kotlin file, a top-level declaration or a member of a class, interface, object or enum entry body (a class,
+ *   interface, object, function, property, type alias or secondary constructor), an enum entry in an enum body, or a
+ *   property of a primary constructor;
  * - in a script (a Gradle script or another `.kts` file), additionally any top-level statement or block, such as
  *   `dependencies { }`, because a script has no other place to document them.
  *
@@ -42,7 +42,10 @@ internal object KDocPlacement {
         }
     }
 
-    /** True if a declaration, after its annotations and modifiers, starts at [start] of [source] in a block of [block]. */
+    /**
+     * True if a declaration, after its annotations, modifiers and context parameters, starts at [start] of [source] in a
+     * block of [block].
+     */
     private fun documentsDeclaration(source: String, start: Int, block: BlockKind): Boolean {
         var offset = start
         while (true) {
@@ -52,7 +55,9 @@ internal object KDocPlacement {
                 continue
             }
             val word = wordAt(source, offset)
+            val afterWord = skipBlanks(source, offset + word.length)
             when {
+                word == CONTEXT && source.startsWith("(", afterWord) -> offset = endOfArguments(source, afterWord)
                 word in MODIFIERS -> offset += word.length
                 word in DECLARATION_KEYWORDS -> return true
                 else -> return block == BlockKind.ENUM_BODY && word.isNotEmpty()
@@ -80,12 +85,17 @@ internal object KDocPlacement {
 
     /**
      * The offset after the annotation at [start]: `@`, a name that may hold `.` and a use-site target with `:`, and
-     * an argument list in parentheses whose strings may hold parentheses of their own.
+     * an optional argument list.
      */
     private fun endOfAnnotation(source: String, start: Int): Int {
         var offset = start + 1
         while (offset < source.length && (source[offset].isLetterOrDigit() || source[offset] in "_.:")) offset++
-        if (!source.startsWith("(", offset)) return offset
+        return if (source.startsWith("(", offset)) endOfArguments(source, offset) else offset
+    }
+
+    /** The offset after the list in parentheses that opens at [start], whose strings may hold parentheses of their own. */
+    private fun endOfArguments(source: String, start: Int): Int {
+        var offset = start
         var depth = 0
         while (offset < source.length) {
             when (source[offset]) {
@@ -111,6 +121,9 @@ internal object KDocPlacement {
         "inner", "value", "inline", "noinline", "crossinline", "const", "lateinit", "override", "suspend", "operator",
         "infix", "tailrec", "external", "companion", "expect", "actual", "vararg",
     )
+
+    /** The soft keyword of the context parameters a declaration may have before its modifiers. */
+    private const val CONTEXT = "context"
 
     /** The keywords that start a declaration KDoc may document. */
     private val DECLARATION_KEYWORDS = setOf("class", "interface", "object", "fun", "val", "var", "typealias", "constructor")
