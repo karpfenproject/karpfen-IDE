@@ -6,7 +6,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Up/Down over lines with tabs keep the *display* column of [TabStops] with the editor's tab width (decision 40). */
+/**
+ * Up/Down over lines with tabs keep the *display* column of [TabStops] with the editor's tab width, the tab rule the
+ * view and the status bar use as well.
+ */
 class CaretTabColumnTest {
 
     private fun down(marked: String, tabWidth: Int, times: Int = 1): TestEditor {
@@ -15,9 +18,9 @@ class CaretTabColumnTest {
         return editor
     }
 
+    /** In `\tx` the x is at display column 4; on the line of spaces, display column 4 is after four spaces. */
     @Test
     fun `down from a tab-indented line keeps the display column with tab width 4`() {
-        // "\tx": x is at display column 4; on the space line, column 4 is after four spaces.
         val editor = down("\t|x\n        y", tabWidth = 4)
         assertEquals("\tx\n    |    y", editor.marked())
         assertEquals(4, editor.caret.primary.preferredColumn)
@@ -30,15 +33,16 @@ class CaretTabColumnTest {
         assertEquals(2, editor.caret.primary.preferredColumn)
     }
 
+    /**
+     * On `a\tb` the tab spans display columns 1 to 4 with width 4 (b at 4) and 1 to 2 with width 2 (b at 2). With width
+     * 4, display column 5 lands after b, column 2 inside the tab goes to its nearer start, column 3 to its nearer end;
+     * with width 2, column 3 lands after b.
+     */
     @Test
     fun `down onto a tab line lands on the nearer bound of the tab`() {
-        // Display column 5 on "a\tb" with width 4: the tab spans columns 1..4, b is at 4, so column 5 is after b.
         assertEquals("abcde\na\tb|", down("abcde|\na\tb", tabWidth = 4).marked())
-        // Column 2 with width 4: inside the tab (1..4), nearer to its start.
         assertEquals("ab\na|\tb", down("ab|\na\tb", tabWidth = 4).marked())
-        // Column 3 with width 4: nearer to the tab's end.
         assertEquals("abc\na\t|b", down("abc|\na\tb", tabWidth = 4).marked())
-        // The same column 3 with width 2: the tab spans 1..2, b at 2, so column 3 is after b.
         assertEquals("abc\na\tb|", down("abc|\na\tb", tabWidth = 2).marked())
     }
 

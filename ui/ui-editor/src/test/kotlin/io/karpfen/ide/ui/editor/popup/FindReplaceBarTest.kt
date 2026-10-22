@@ -38,7 +38,7 @@ import kotlin.test.assertTrue
 /**
  * The find/replace bar through the overlay contract (`EditorPopups.Header` with a fake host and the real find model):
  * incremental search with the "n/m" counter, the Aa / W / .* toggles, Enter / Shift+Enter, Escape returning focus,
- * refocusing on a repeated open, and replace (spec §7.2).
+ * refocusing on a repeated open, and replace.
  */
 @OptIn(ExperimentalTestApi::class)
 class FindReplaceBarTest {
@@ -220,13 +220,16 @@ class FindReplaceBarTest {
         onNodeWithContentDescription("Replace All").assertIsNotEnabled()
     }
 
+    /**
+     * The workbench composes `CodeEditor` in `key(activePath)`, so switching tabs disposes the bar's fields; the
+     * replacement lives in the model and comes back.
+     */
     @Test
     fun `the replacement survives a new composition of the editor, as after switching tabs`() = runComposeUiTest {
         FakePopupModel("foo bar foo").use { model ->
             val host = FakeOverlayHost(model)
             var composition by mutableStateOf(0)
             setContent {
-                // The workbench composes CodeEditor in key(activePath), so switching tabs disposes the bar's fields.
                 key(composition) { Column { EditorPopups().Header(host) } }
             }
             open(model, FindBarMode.REPLACE)

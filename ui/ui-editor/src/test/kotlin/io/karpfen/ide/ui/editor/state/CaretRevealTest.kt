@@ -14,9 +14,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The caret reveal (spec §7.2, decision 30 of the work-package plan): every executed action and typed text that changes
- * the carets or the text leaves a pending scroll request for the primary caret — minimal near the viewport, centred for
- * jumps — which the view applies with a 3-line margin; pending requests stay until consumed.
+ * The caret reveal: every executed action and typed text that changes the carets or the text leaves a pending scroll
+ * request for the primary caret — minimal near the viewport, centred for jumps — which the view applies with a 3-line
+ * margin; pending requests stay until consumed.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CaretRevealTest {

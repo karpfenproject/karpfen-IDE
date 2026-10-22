@@ -10,10 +10,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 /**
- * "Every action is exactly one undo step" (spec §7.1) and undo/redo restore the carets (`UndoManager` rule): every
- * default action and typed text, run once in a fresh editor (no history), either changes nothing or leaves exactly one
- * undo step whose undo restores text and carets and whose redo restores the result. Checked on hand-picked states and
- * on random caret states over every example file and mutations of them (fixed seeds); no action may throw.
+ * "Every action is exactly one undo step" and undo/redo restore the carets (`UndoManager` rule): every default action
+ * and typed text, run once in a fresh editor (no history), either changes nothing or leaves exactly one undo step whose
+ * undo restores text and carets and whose redo restores the result. Checked on hand-picked states and on random caret
+ * states over every example file and mutations of them (fixed seeds); no action may throw.
  */
 class ActionUndoStepTest {
 

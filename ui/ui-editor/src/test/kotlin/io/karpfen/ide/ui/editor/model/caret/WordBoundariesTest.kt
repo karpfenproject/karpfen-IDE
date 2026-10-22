@@ -7,7 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The one word rule (spec §7.1: identifier chars `[A-Za-z0-9_]`, punctuation runs, whitespace). */
+/** The one word rule: identifier characters `[A-Za-z0-9_]`, punctuation runs, whitespace runs. */
 class WordBoundariesTest {
 
     @Test

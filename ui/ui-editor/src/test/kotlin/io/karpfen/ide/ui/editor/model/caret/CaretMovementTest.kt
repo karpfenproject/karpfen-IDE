@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Every [CaretMovement] with and without selection extension (spec §7.1). */
+/** Every [CaretMovement] with and without selection extension. */
 class CaretMovementTest {
 
     private fun moved(marked: String, movement: CaretMovement, extend: Boolean = false, pageLines: Int = 1): String {

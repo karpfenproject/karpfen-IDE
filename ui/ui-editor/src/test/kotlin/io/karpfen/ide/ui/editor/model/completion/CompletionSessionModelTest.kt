@@ -32,7 +32,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The completion session: triggers, requests, filtering, keys, accept and close rules (spec §7.1). */
+/** The completion session: triggers, requests, filtering, keys, accept and close rules. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CompletionSessionModelTest {
 
@@ -333,7 +333,7 @@ class CompletionSessionModelTest {
         assertTrue(f.completion.handleKey(key(KeyCode.UP)))
         assertEquals(0, selected(), "clamped at the top")
         val page = CompletionUiState.MAX_VISIBLE_ROWS
-        assertEquals(12, page, "spec §7.2")
+        assertEquals(12, page, "the popup's 12 rows")
         f.completion.handleKey(key(KeyCode.PAGE_DOWN))
         assertEquals(page, selected(), "a page is the rows the popup shows")
         f.completion.handleKey(key(KeyCode.PAGE_DOWN))

@@ -10,22 +10,37 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Toggle comment: `//`, and `#` per line inside EVAL bodies by `embeddedRegionAt` (spec §7.1, decision 27) whose
- * `EVAL {` line lies above the block (decision 58); EVAL bodies come from the real KStates tokenizer.
+ * Toggle comment: `//`, and `#` per line inside EVAL bodies (by `embeddedRegionAt`) whose `EVAL {` line lies above the
+ * toggled block; EVAL bodies come from the real KStates tokenizer.
  */
 class ToggleCommentTest {
 
+    /**
+     * The fixture, a state with an EVAL body in its DO block; the tests address its lines by these numbers:
+     * ```
+     * 0  STATE "a" {
+     * 1      DO {
+     * 2          EVAL {
+     * 3              x = 1
+     * 4
+     * 5              // note
+     * 6              y = 2
+     * 7          }
+     * 8      }
+     * 9  }
+     * ```
+     */
     private val lines = listOf(
-        "STATE \"a\" {", //            0
-        "    DO {", //                 1
-        "        EVAL {", //           2
-        "            x = 1", //        3
-        "", //                         4
-        "            // note", //      5
-        "            y = 2", //        6
-        "        }", //                7
-        "    }", //                    8
-        "}", //                        9
+        "STATE \"a\" {",
+        "    DO {",
+        "        EVAL {",
+        "            x = 1",
+        "",
+        "            // note",
+        "            y = 2",
+        "        }",
+        "    }",
+        "}",
     )
     private val kstates = lines.joinToString("\n")
 

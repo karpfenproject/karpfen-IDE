@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
 
 /**
  * The go-to-line popup through the overlay contract: `line[:col]` input, the hint, Enter / Go through
- * `EditorPopupModel.goToLine`, invalid input, Escape returning focus and dismissal on focus loss (spec §7.2).
+ * `EditorPopupModel.goToLine`, invalid input, Escape returning focus and dismissal on focus loss.
  */
 @OptIn(ExperimentalTestApi::class)
 class GoToLinePopupTest {

@@ -12,7 +12,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Copy, cut, paste through the clipboard port and undo/redo restoring carets (spec §7.1). */
+/** Copy, cut, paste through the clipboard port and undo/redo restoring carets. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ClipboardAndHistoryActionsTest {
 

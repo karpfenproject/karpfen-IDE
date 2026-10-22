@@ -27,8 +27,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The editor state's background work on virtual time, with the real tokenizer and parser: highlighting with the
- * semantic carry-over while the parse lags (decision 39), the tokens of the action context (decision 38), bracket
- * matching, go to definition with the bounded wait for a current parse, and closing.
+ * semantic carry-over while the parse lags, the tokens of the action context (always those of the current text),
+ * bracket matching, go to definition with the bounded wait for a current parse, and closing.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BackgroundPipelinesTest {

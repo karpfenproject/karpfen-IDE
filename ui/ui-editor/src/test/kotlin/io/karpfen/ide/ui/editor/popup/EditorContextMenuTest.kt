@@ -28,7 +28,7 @@ import kotlin.test.assertTrue
 /**
  * The editor context menu through the overlay contract: the entries by action id with their shared titles at the
  * request position, disabled entries greyed out, choosing an entry runs its action by id and returns focus, Escape
- * dismisses (spec §7.2).
+ * dismisses.
  */
 @OptIn(ExperimentalTestApi::class)
 class EditorContextMenuTest {

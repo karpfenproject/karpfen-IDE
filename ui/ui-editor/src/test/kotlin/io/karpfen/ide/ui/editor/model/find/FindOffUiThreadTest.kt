@@ -17,8 +17,8 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Find never matches on the UI thread (spec §1: long-running work runs on `Dispatchers.Default` and is cancellable;
- * regression of the review finding "find-regex-on-ui-thread"). Real threads: a single-thread "UI" dispatcher runs the
+ * Find never matches on the UI thread: long-running work runs on `Dispatchers.Default` and is cancellable, so the UI
+ * never waits for a search. Real threads: a single-thread "UI" dispatcher runs the
  * editor's scope and `Dispatchers.Default` the background search, as in the app. The query is a catastrophic-backtracking
  * regular expression whose search takes seconds on this short text, so the background result is not published yet when
  * the find bar's Enter, Replace or Replace All arrive; the search gives up at its time budget.
@@ -98,7 +98,9 @@ class FindOffUiThreadTest {
         assertEquals(slowText.removePrefix("|"), onUi(500) { editor.plain }, "the waiting operations found nothing to do")
     }
 
+    /** The time limit of the UI thread. */
     private companion object {
+        /** How long an operation on the UI thread may take to return; a search on it would take far longer. */
         const val RETURN_MILLIS = 2_000L
     }
 }

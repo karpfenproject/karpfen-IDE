@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Filtering and ranking: prefix > camel/word-boundary > subsequence, stable by sortKey and label (spec §7.1). */
+/** Filtering and ranking: prefix > camel/word-boundary > subsequence, stable by sortKey and label. */
 class CompletionRankingTest {
 
     private fun item(label: String, sortKey: String = label, detail: String? = null) =

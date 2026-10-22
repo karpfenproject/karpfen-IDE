@@ -12,10 +12,10 @@ import io.karpfen.ide.core.lang.overlayHighlights
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * A [LanguageServices] fake for the editor's tests (WP-LANG is developed in parallel): highlighting follows the
+ * A [LanguageServices] fake for the editor's tests, independent of core-lang's providers: highlighting follows the
  * contract — lexical styles from the tokens (`TokenKind` → the `HighlightStyle` of the same name), overlaid with the
- * semantic spans of the parse only when the parse has the tokens' version — and the other features answer what the
- * test configures. Records the documents of definition and hover requests.
+ * semantic spans of the parse only when the parse has the tokens' version — and the other features answer what the test
+ * configures. Records the documents of definition and hover requests.
  */
 class FakeLanguageServices(
     var completions: (LanguageDocument, Int) -> List<CompletionItem> = { _, _ -> emptyList() },

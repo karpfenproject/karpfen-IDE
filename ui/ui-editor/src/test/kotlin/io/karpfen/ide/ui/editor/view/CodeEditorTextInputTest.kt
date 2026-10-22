@@ -19,11 +19,11 @@ import kotlin.test.assertNotNull
 import java.awt.event.KeyEvent as AwtKeyEvent
 
 /**
- * Typed text through the editor's real input path, the proxy text field (spec §7.2): the platform delivers a key-down
- * and then a key-typed event carrying the produced character, here synthesized as AWT events — so the characters a
- * keyboard layout produces with Option on macOS (German: Option+8 = `{`, Option+L = `@`) arrive like any other
- * character, a stroke the editor handled does not also type its character, and punctuation shortcuts follow the
- * layout. Dead keys and input methods use the same field's composition support (manual test).
+ * Typed text through the editor's real input path, the proxy text field: the platform delivers a key-down and then a
+ * key-typed event carrying the produced character, here synthesized as AWT events — so the characters a keyboard layout
+ * produces with Option on macOS (German: Option+8 = `{`, Option+L = `@`) arrive like any other character, a stroke the
+ * editor handled does not also type its character, and punctuation shortcuts follow the layout. Dead keys and input
+ * methods use the same field's composition support (manual test).
  */
 @OptIn(ExperimentalTestApi::class, InternalComposeUiApi::class)
 class CodeEditorTextInputTest {

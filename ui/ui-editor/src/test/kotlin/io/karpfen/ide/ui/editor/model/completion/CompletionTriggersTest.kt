@@ -8,7 +8,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** The auto-triggers, decided on the text after the typing action ran (spec §7.1). */
+/** The auto-triggers, decided on the text after the typing action ran. */
 class CompletionTriggersTest {
 
     /** Types [typed] into [marked] like the editor (auto-close included) and asks for the trigger. */

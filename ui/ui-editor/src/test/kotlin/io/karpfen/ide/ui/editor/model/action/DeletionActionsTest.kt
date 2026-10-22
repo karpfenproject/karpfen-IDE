@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-/** Backspace (smart unindent, pair deletion), Delete, word and line deletion (spec §7.1). */
+/** Backspace (smart unindent, pair deletion), Delete, word and line deletion. */
 class DeletionActionsTest {
 
     private fun after(marked: String, actionId: String): String = TestEditor(marked).apply { run(actionId) }.marked()

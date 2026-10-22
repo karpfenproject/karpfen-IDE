@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Selection, mementos, mapping through changes and undo coalescing of [CaretModel] (spec §7.1). */
+/** Selection, mementos, mapping through changes and undo coalescing of [CaretModel]. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CaretModelTest {
 

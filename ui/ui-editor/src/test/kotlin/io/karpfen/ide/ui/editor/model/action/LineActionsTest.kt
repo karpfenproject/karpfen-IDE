@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-/** Duplicate, move line up/down, indent and outdent (spec §7.1). */
+/** Duplicate, move line up/down, indent and outdent. */
 class LineActionsTest {
 
     private fun after(marked: String, actionId: String): String = TestEditor(marked).apply { run(actionId) }.marked()

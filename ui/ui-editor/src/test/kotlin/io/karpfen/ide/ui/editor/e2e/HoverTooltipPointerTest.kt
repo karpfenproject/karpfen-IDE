@@ -20,9 +20,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
- * The hover tooltip stays while the pointer is on it, with the real `EditorPopups` over `CodeEditor` (regression of the
- * review finding "hover-tooltip-hides-on-pointer-enter"): its long content can be scrolled, and it is hidden once the
- * pointer left it and the hovered text.
+ * The hover tooltip stays while the pointer is on it, with the real `EditorPopups` over `CodeEditor` (it must not hide
+ * when the pointer enters it): its long content can be scrolled, and it is hidden once the pointer left it and the
+ * hovered text.
  */
 @OptIn(ExperimentalTestApi::class)
 class HoverTooltipPointerTest {

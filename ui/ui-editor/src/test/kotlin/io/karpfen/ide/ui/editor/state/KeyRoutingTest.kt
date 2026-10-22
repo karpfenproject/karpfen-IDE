@@ -17,8 +17,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The key routing of the editor state (decision 15 of the work-package plan): `handleKey` asks the completion session
- * first, then the keymap, and returns true exactly for the strokes it handled.
+ * The key routing of the editor state: `handleKey` asks the completion session first, then the keymap, and returns true
+ * exactly for the strokes it handled.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class KeyRoutingTest {

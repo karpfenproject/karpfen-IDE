@@ -22,7 +22,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Find/replace over the real text and carets, with virtual time for the background matching (spec §7.1). */
+/** Find/replace over the real text and carets, with virtual time for the background matching. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FindModelTest {
 

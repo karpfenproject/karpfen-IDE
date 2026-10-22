@@ -24,8 +24,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The Compose-free pointer policy of the editor state (decision 36 of the work-package plan): clicks by count and
- * modifiers per platform, drag selection by characters, words and lines, the context-menu caret rule and focus.
+ * The Compose-free pointer policy of the editor state: clicks by count and modifiers per platform, drag selection by
+ * characters, words and lines, the context-menu caret rule and focus.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PointerPolicyTest {

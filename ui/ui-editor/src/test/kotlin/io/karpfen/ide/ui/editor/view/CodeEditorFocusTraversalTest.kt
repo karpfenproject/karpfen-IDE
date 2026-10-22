@@ -38,8 +38,8 @@ import kotlin.test.assertTrue
 
 /**
  * Tab and Shift+Tab are the editor's indent keys and never move keyboard focus out of it, also when there is nothing to
- * indent or outdent (regression of the review finding "shift-tab-moves-focus-out"): the editor sits between two
- * focusable components, like the project tree and the tool windows in the workbench.
+ * indent or outdent: the editor sits between two focusable components, like the project tree and the tool windows in
+ * the workbench.
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorFocusTraversalTest {
@@ -117,6 +117,7 @@ class CodeEditorFocusTraversalTest {
         assertEquals("abc", state.session.text.snapshot.value.text)
     }
 
+    /** The test tags of the focusable neighbours. */
     private companion object {
         const val BEFORE = "focus.before"
         const val AFTER = "focus.after"

@@ -10,7 +10,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Caret movement actions, select all and the UI requests (spec §7.1). */
+/** Caret movement actions, select all and the UI requests. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class NavigationAndUiActionsTest {
 

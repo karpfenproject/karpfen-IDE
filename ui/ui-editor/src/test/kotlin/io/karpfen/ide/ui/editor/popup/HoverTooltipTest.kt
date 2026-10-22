@@ -19,7 +19,7 @@ import kotlin.test.assertNull
 
 /**
  * The hover tooltip through the overlay contract: diagnostics with severity icons, otherwise the language hover, placed
- * at the hovered range, dismissed by a click (spec §7.2).
+ * at the hovered range, dismissed by a click.
  */
 @OptIn(ExperimentalTestApi::class)
 class HoverTooltipTest {

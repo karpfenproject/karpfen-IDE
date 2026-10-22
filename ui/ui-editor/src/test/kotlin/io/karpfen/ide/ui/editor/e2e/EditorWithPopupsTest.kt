@@ -32,10 +32,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * `CodeEditor` and `EditorPopups` together (INTEGRATION, plan §4): completion opened by typing and driven by the text
- * area's keys through `handleKey`, the find bar's Escape returning focus, find next — from the find bar and by key — to
- * an off-screen match revealing it, the context menu by right-click, and Cmd+click navigation and the hover tooltip
- * with the real language services and parser.
+ * `CodeEditor` and `EditorPopups` together: completion opened by typing and driven by the text area's keys through
+ * `handleKey`, the find bar's Escape returning focus, find next — from the find bar and by key — to an off-screen match
+ * revealing it, the context menu by right-click, and Cmd+click navigation and the hover tooltip with the real language
+ * services and parser.
  */
 @OptIn(ExperimentalTestApi::class)
 class EditorWithPopupsTest {
@@ -83,7 +83,7 @@ class EditorWithPopupsTest {
 
     /**
      * Types [keyword] at [offset] of [STATE_BODY] (after a line break when [lineBreakFirst]), checks that it opened the
-     * list, types ` {` and Enter, and asserts the block of spec §7.1 at [indent]: `}` on its own line.
+     * list, types ` {` and Enter, and asserts the block Enter opens between braces at [indent]: `}` on its own line.
      */
     private fun ComposeUiTest.assertEnterOpensBlock(ui: EditorWithPopups, keyword: String, offset: Int, indent: String, lineBreakFirst: Boolean = false) {
         ui.compose(STATE_BODY)
@@ -102,7 +102,7 @@ class EditorWithPopupsTest {
         waitForIdle()
 
         val start = ui.plain.indexOf("$keyword {")
-        assertEquals("$indent$keyword {", ui.lineAt(start), "spec §7.1: `}` goes on its own line")
+        assertEquals("$indent$keyword {", ui.lineAt(start), "Enter between braces puts `}` on its own line")
         assertEquals("$indent    ", ui.lineAt(ui.state.caret.primary.position), "the caret on the indented line")
         assertEquals("$indent}", ui.lineAt(ui.plain.indexOf('}', start)))
         assertEquals(listOf(), ui.unconsumedKeys)
@@ -253,7 +253,9 @@ class EditorWithPopupsTest {
         onNodeWithText(diagnostic.message, substring = true).assertIsDisplayed()
     }
 
+    /** The texts of the tests. */
     private companion object {
+        /** The cleaning robot of the runtime's examples, a real KStates file with states, transitions and EVAL bodies. */
         val MACHINE: String = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text
 
         /** A state machine whose initial state has an empty body line ([EMPTY_BODY_LINE]). */
@@ -267,7 +269,7 @@ class EditorWithPopupsTest {
             if (line in setOf(5, 120, 190)) "    // line $line: needle" else "    // line $line"
         }
 
-        /** The titles of the default context menu (spec §7.2: Cut, Copy, Paste, Go to Definition, Toggle Comment). */
+        /** The titles of the default context menu: Cut, Copy, Paste, Go to Definition, Toggle Comment. */
         val CONTEXT_MENU_TITLES: List<String> = listOf(
             EditorActionIds.CUT,
             EditorActionIds.COPY,

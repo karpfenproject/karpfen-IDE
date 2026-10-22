@@ -24,11 +24,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * A completion list that cannot be shown takes no keys, with the real `EditorPopups` over `CodeEditor` (regression of
- * the review finding "hidden-completion-captures-keys"): scrolling the caret out of view closes the session, so Enter
- * breaks the line instead of accepting an item nobody sees. A caret that is about to be revealed is not scrolled away
- * (review round 2, "hidden-completion-close-ignores-reveal"): typing and Ctrl+Space at an off-screen caret show it with
- * their list.
+ * A completion list that cannot be shown takes no keys, with the real `EditorPopups` over `CodeEditor`: scrolling the
+ * caret out of view closes the session, so Enter breaks the line instead of accepting an item nobody sees. A caret that
+ * is about to be revealed is not scrolled away: typing and Ctrl+Space at an off-screen caret show it with their list.
  */
 @OptIn(ExperimentalTestApi::class)
 class HiddenCompletionTest {
@@ -97,7 +95,9 @@ class HiddenCompletionTest {
         completions = { _, offset -> listOf(CompletionItem("observe", CompletionKind.KEYWORD, "observe", TextRange.empty(offset), null, null, null, "o")) },
     )
 
+    /** The text of the tests. */
     private companion object {
+        /** 200 short lines, so the caret can be scrolled far out of view. */
         val LINES: String = (1..200).joinToString("\n") { "line $it" }
     }
 }

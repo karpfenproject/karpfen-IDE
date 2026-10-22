@@ -34,7 +34,7 @@ import kotlin.time.measureTime
 /**
  * The completion list through the overlay contract (`EditorPopups.Popups` with a fake host and the real completion
  * model): kind badge, label and detail per row, at most 12 rows with the selection kept visible, keys staying with the
- * model while the text area keeps focus, mouse selection and acceptance, and the anchor at the caret (spec §7.2).
+ * model while the text area keeps focus, mouse selection and acceptance, and the anchor at the caret.
  */
 @OptIn(ExperimentalTestApi::class)
 class CompletionPopupTest {

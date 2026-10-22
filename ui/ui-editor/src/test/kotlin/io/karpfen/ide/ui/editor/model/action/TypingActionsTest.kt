@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Typing, auto-close, over-type and Enter with auto-indent (spec §7.1). */
+/** Typing, auto-close, over-type and Enter with auto-indent. */
 class TypingActionsTest {
 
     private fun typed(marked: String, typed: String): String = TestEditor(marked).apply { type(typed) }.marked()

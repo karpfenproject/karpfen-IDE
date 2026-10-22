@@ -17,9 +17,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Scrolling in the composed editor (spec §7.2): the caret stays visible with a 3-line margin when keys and typing move
- * it, `scrollTo(center)` centres, and requests made before the first composition (scroll and focus) take effect once
- * the editor is composed.
+ * Scrolling in the composed editor: the caret stays visible with a 3-line margin when keys and typing move it,
+ * `scrollTo(center)` centres, and requests made before the first composition (scroll and focus) take effect once the
+ * editor is composed.
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorScrollTest {

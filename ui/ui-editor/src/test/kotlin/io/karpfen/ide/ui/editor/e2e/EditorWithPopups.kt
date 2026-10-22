@@ -76,14 +76,14 @@ class HostRecordingPopups(private val popups: EditorOverlays = EditorPopups()) :
 }
 
 /**
- * A composed `CodeEditor` together with the real `EditorPopups` (INTEGRATION's `ui.editor.e2e`, which neither
- * WP-EDITOR-VIEW nor WP-EDITOR-POPUPS could test): a real KStates [DocumentSession] (registry tokenizer and parser), the
- * real language services of core-lang over an empty project analysis (state names, macros and keywords come from the
- * file itself), the real models, the macOS keymap. Session pipelines and the editor's background work run inline;
- * delays (parse debounce, hover, caret blink) run on the composition's clock, i.e. the test's main clock.
+ * A composed `CodeEditor` together with the real `EditorPopups`, the end-to-end setup that the view's and the popups'
+ * own tests, each with a fake of the other side, do not cover: a real KStates [DocumentSession] (registry tokenizer and
+ * parser), the real language services of core-lang over an empty project analysis (state names, macros and keywords
+ * come from the file itself), the real models, the macOS keymap. Session pipelines and the editor's background work run
+ * inline; delays (parse debounce, hover, caret blink) run on the composition's clock, i.e. the test's main clock.
  *
- * Key events that the editor does not consume reach a parent handler and are recorded in [unconsumedKeys] — the
- * strokes a window-menu accelerator would see (decision 15 of the work-package plan).
+ * Key events that the editor does not consume reach a parent handler and are recorded in [unconsumedKeys] — the strokes
+ * a window-menu accelerator would see.
  */
 @OptIn(ExperimentalTestApi::class)
 class EditorWithPopups(private val test: ComposeUiTest) {
@@ -187,7 +187,9 @@ class EditorWithPopups(private val test: ComposeUiTest) {
         test.waitForIdle()
     }
 
+    /** The modifier keys. */
     private companion object {
+        /** Keys that only hold a modifier; pressing them alone is no stroke of interest. */
         val MODIFIER_KEYS: Set<Key> = setOf(
             Key.MetaLeft, Key.MetaRight, Key.CtrlLeft, Key.CtrlRight, Key.ShiftLeft, Key.ShiftRight, Key.AltLeft, Key.AltRight,
         )

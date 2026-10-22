@@ -196,7 +196,10 @@ class FakeActionContext(override val text: EditableText, override val caret: Car
 
 /** Fixed geometry of [FakeOverlayHost]: every character is [CHAR] × [LINE] px, line n starts at y = n × [LINE]. */
 object TestGeometry {
+    /** Width of one character cell. */
     const val CHAR: Float = 8f
+
+    /** Height of one line. */
     const val LINE: Float = 16f
 
     /** The rectangle of the character at [line]/[column]. */
@@ -233,7 +236,7 @@ class FakeOverlayHost(
     }
 }
 
-/** An editor theme for tests (the real palettes are WP-EDITOR-VIEW's). */
+/** An editor theme for tests, independent of the editor's real palettes. */
 fun testEditorTheme(): EditorTheme = EditorTheme(
     background = Color(0xFFFFFFFF),
     foreground = Color(0xFF202020),

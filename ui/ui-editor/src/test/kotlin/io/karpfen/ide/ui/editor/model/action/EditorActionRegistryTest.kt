@@ -13,9 +13,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The action registry, the default actions and the platform keymaps (spec §7.1, §7.2). */
+/** The action registry, the default actions and the platform keymaps. */
 class EditorActionRegistryTest {
 
+    /** An action with a fixed enablement that counts its runs. */
     private class CountingAction(override val id: String, private val enabled: Boolean = true) : EditorAction {
         var runs = 0
         override fun isEnabled(context: EditorActionContext): Boolean = enabled

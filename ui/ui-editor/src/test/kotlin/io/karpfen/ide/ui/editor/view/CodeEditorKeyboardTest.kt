@@ -41,9 +41,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Headless keyboard tests of `CodeEditor` (spec §11 item 4): typed text through `performTextInput`
+ * Headless keyboard tests of `CodeEditor`: typed text through `performTextInput`
  * (`SemanticsActions.InsertTextAtCursor`), key strokes through the keymap, selection by keys, undo, focus, and the
- * consumption rule of decision 15 (handled strokes are consumed, unhandled ones reach the parents).
+ * consumption rule (handled strokes are consumed, unhandled ones reach the parents, where menu accelerators listen).
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorKeyboardTest {

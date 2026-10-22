@@ -43,8 +43,8 @@ object EditorTestTags {
 }
 
 /**
- * An [EditorOverlays] for view tests (WP-EDITOR-POPUPS is developed in parallel): records the host it is given and
- * marks the text area with a tagged, input-transparent box, so tests can click at `host.boundsOf(offset)`.
+ * An [EditorOverlays] for view tests, independent of the real popups: records the host it is given and marks the text
+ * area with a tagged, input-transparent box, so tests can click at `host.boundsOf(offset)`.
  */
 class RecordingOverlays : EditorOverlays {
     /** The host of the last composition. */

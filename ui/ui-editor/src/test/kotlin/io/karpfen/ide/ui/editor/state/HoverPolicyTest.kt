@@ -22,9 +22,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The hover policy on virtual time (spec §7.2): the tooltip appears after [CodeEditorState.HOVER_DELAY] of rest, shows
- * the diagnostics at the position or else the language hover, stays while the pointer is on its range or on the tooltip,
- * is hidden [HoverController.HIDE_GRACE] after the pointer left both, and at once when the user types.
+ * The hover policy on virtual time: the tooltip appears after [CodeEditorState.HOVER_DELAY] of rest, shows the
+ * diagnostics at the position or else the language hover, stays while the pointer is on its range or on the tooltip, is
+ * hidden [HoverController.HIDE_GRACE] after the pointer left both, and at once when the user types.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HoverPolicyTest {

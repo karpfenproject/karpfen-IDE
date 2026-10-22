@@ -25,9 +25,9 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * What the text area paints (spec §7.2), checked on the pixels of a headless capture: the selection, find matches only
- * while the find bar is open, diagnostic underlines that follow their text, the current line and the matching-bracket
- * box. (Mapping ranges of older versions is covered by `VersionedRangesTest` and the state's pipeline tests.)
+ * What the text area paints, checked on the pixels of a headless capture: the selection, find matches only while the
+ * find bar is open, diagnostic underlines that follow their text, the current line and the matching-bracket box.
+ * (Mapping ranges of older versions is covered by `VersionedRangesTest` and the state's pipeline tests.)
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorRenderingTest {
@@ -99,6 +99,7 @@ class CodeEditorRenderingTest {
         assertColor(theme.background, ui.cellCorner(ui.capture(), delta + 1), "closed again")
     }
 
+    /** A line inserted above moves the diagnostics of the old version with their text. */
     @Test
     fun `diagnostics are underlined and follow their text`() = runComposeUiTest {
         val ui = EditorUi(this, FakeLanguageServices())
@@ -115,7 +116,6 @@ class CodeEditorRenderingTest {
         assertTrue(ui.capture().hasRedUnderline(ui.host.boundsOf(epsilon + 2)!!))
         assertTrue(!ui.capture().hasRedUnderline(ui.host.boundsOf(alpha + 2)!!), "no underline elsewhere")
 
-        // A line inserted above: the diagnostics of the old version move with their text.
         ui.text.apply(listOf(TextEdit.insert(0, "new line\n")), EditOrigin.Typing)
         waitForIdle()
         val moved = epsilon + "new line\n".length

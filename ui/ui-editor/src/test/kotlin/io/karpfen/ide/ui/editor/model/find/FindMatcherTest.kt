@@ -10,7 +10,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The search rules: case, whole word, regex, invalid regex, replacement expansion (spec §7.1). */
+/** The search rules: case, whole word, regex, invalid regex, replacement expansion. */
 class FindMatcherTest {
 
     private val matcher = FindMatcher()

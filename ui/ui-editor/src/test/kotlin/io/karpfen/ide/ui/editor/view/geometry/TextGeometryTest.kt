@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
-/** Caret x, hit-testing and range segments in monospace cells with tab stops (decision 40 of the work-package plan). */
+/** Caret x, hit-testing and range segments in monospace cells with tab stops (the editor's one tab rule). */
 class TextGeometryTest {
 
     /** Cells of 10 px, lines of 20 px, text starting at x = 5. */

@@ -11,11 +11,11 @@ import kotlin.time.measureTime
 
 /**
  * Find on a large document stays interactive: matching and expanding replacements over a 5,000-line KStates text.
- * The editor model has no budget in the spec; these are the model's own targets (incremental search recomputes on
- * every keystroke in the find field), asserted with 5x slack and reported through [TestReporter].
+ * These are the model's own targets (incremental search recomputes on every keystroke in the find field), asserted
+ * with 5x slack and reported through [TestReporter].
  *
- * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
- * performance work.
+ * Tagged `budget`: excluded from every test run, because machine load and sleep cycles make wall-clock limits
+ * unreliable; kept for later performance work.
  */
 @Tag("budget")
 class FindBudgetTest {

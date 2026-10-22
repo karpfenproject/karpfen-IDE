@@ -13,13 +13,13 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The rendering benchmark of spec §7.2: a 10,000-line KStates document (`SyntheticKstates.withMinLines(10_000)`) with
- * highlighting, scrolled to the middle; after a warm-up, every measured frame scrolls by a few lines (so new lines are
- * laid out and drawn) and is rendered into an image, which also forces the draw phase. The average frame time is
- * reported through JUnit's [TestReporter] and asserted against the budget of 50 ms with the plan's 5x slack.
+ * The rendering benchmark: a 10,000-line KStates document (`SyntheticKstates.withMinLines(10_000)`) with highlighting,
+ * scrolled to the middle; after a warm-up, every measured frame scrolls by a few lines (so new lines are laid out and
+ * drawn) and is rendered into an image, which also forces the draw phase. The average frame time is reported through
+ * JUnit's [TestReporter] and asserted against the budget of 50 ms with 5x slack.
  *
- * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
- * performance work.
+ * Tagged `budget`: excluded from every test run, because machine load and sleep cycles make wall-clock limits
+ * unreliable; kept for later performance work.
  */
 @OptIn(ExperimentalTestApi::class)
 @Tag("budget")
@@ -52,6 +52,7 @@ class CodeEditorBenchmarkTest {
         assertTrue(averageMillis < BUDGET_MILLIS * SLACK, "average frame time $averageMillis ms (budget $BUDGET_MILLIS ms, 5x slack)")
     }
 
+    /** The document size, the frames and the budget. */
     private companion object {
         const val MIN_LINES = 10_000
         const val LINES_PER_FRAME = 7
