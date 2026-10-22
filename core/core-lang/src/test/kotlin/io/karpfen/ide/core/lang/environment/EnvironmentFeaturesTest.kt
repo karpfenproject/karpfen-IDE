@@ -171,6 +171,18 @@ class EnvironmentFeaturesTest {
     }
 
     @Test
+    fun `a number, a literal or the start of a literal typed as a value gets no proposal that would replace it`() {
+        assertEquals(emptyList(), complete("{ \"tickDelayMs\": 10‸ }").map { it.label }, "100 would replace 10 on Enter")
+        assertEquals(emptyList(), complete("{ \"eventTtlMs\": 30‸ }").map { it.label })
+        assertEquals(emptyList(), complete("{ \"events\": nu‸ }").map { it.label }, "on the way to null")
+        assertEquals(emptyList(), complete("{ \"events\": null‸ }").map { it.label })
+        assertEquals(emptyList(), complete("{ \"bridges\": [ fa‸ ] }").map { it.label })
+
+        assertEquals(listOf("50", "100", "500"), complete("{ \"tickDelayMs\": ‸ }").map { it.label }, "nothing typed yet")
+        assertEquals("cleaning_robot.kmodel", complete("{ \"model\": cl‸ }").first().label, "a word that begins no literal")
+    }
+
+    @Test
     fun `hover explains keys, resolves file paths and names the attached object's type`() {
         val document = DescriptorFixture.document(valid)
 

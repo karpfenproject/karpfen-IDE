@@ -6,6 +6,8 @@ import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.state.CodeEditorState
+import io.karpfen.ide.ui.foundation.keys.KeyCode
+import io.karpfen.ide.ui.foundation.keys.KeyStroke
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -20,7 +22,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * An environment descriptor edited in the IDE over the production wiring ([ProductionWorkbench]), as a user does it:
  * open it from the project tree into an editor tab, edit it (the workspace reports what the unsaved text names
- * wrongly), complete a file path and an attached object, and save.
+ * wrongly), complete a file path and an attached object, and save; and type values by hand that completion leaves as
+ * they are.
  */
 class DescriptorEditingEndToEndTest {
 
@@ -50,6 +53,44 @@ class DescriptorEditingEndToEndTest {
         assertEquals(expected, completion.selected.label, "${completion.items.map { it.label }}")
         assertTrue(editor.completion.accept())
         settle()
+    }
+
+    /**
+     * Selects the value after [key] (`"key": ` up to the next `,`), types [value] over it one character at a time, as a
+     * user does, and presses Enter.
+     */
+    private fun ProductionWorkbench.typeValueAndEnter(editor: CodeEditorState, key: String, value: String) {
+        val text = textOf(editor)
+        val start = text.indexOf("\"$key\": ") + "\"$key\": ".length
+        require(start >= "\"$key\": ".length) { "'$key' not in the descriptor" }
+        editor.caret.select(start, text.indexOf(',', start))
+        value.forEach { character ->
+            editor.type(character.toString())
+            settle()
+        }
+        editor.handleKey(KeyStroke(KeyCode.ENTER))
+        settle()
+    }
+
+    @Test
+    fun `a number or null typed as a value and ended with Enter stays as it was typed`() = runTest(timeout = 120.seconds) {
+        Examples.copyTo(root)
+        Files.writeString(descriptor, DescriptorExamples.text(DescriptorExamples.VALID))
+        ProductionWorkbench(testScheduler, dir.resolve("settings")).use { workbench ->
+            with(workbench) {
+                open(root)
+                val editor = openEditor(descriptor)
+
+                typeValueAndEnter(editor, "tickDelayMs", "10")
+                typeValueAndEnter(editor, "eventTtlMs", "30")
+                typeValueAndEnter(editor, "events", "null")
+
+                val text = textOf(editor)
+                assertTrue(text.contains("\"tickDelayMs\": 10\n"), "not the typical 100:\n$text")
+                assertTrue(text.contains("\"eventTtlMs\": 30\n"), "not the typical 3000:\n$text")
+                assertTrue(text.contains("\"events\": null\n"), "not a file path:\n$text")
+            }
+        }
     }
 
     @Test

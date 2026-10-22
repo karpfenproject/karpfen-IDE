@@ -3,6 +3,8 @@ package io.karpfen.ide.core.lang.environment
 import io.karpfen.ide.core.document.environment.DescriptorFileRole
 import io.karpfen.ide.core.document.environment.DescriptorKey
 import io.karpfen.ide.core.document.environment.ValueShape
+import io.karpfen.ide.core.document.json.JsonLiteral
+import io.karpfen.ide.core.document.json.JsonNode
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.lang.completion.sortKey
@@ -22,7 +24,9 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
  *   the template of new descriptors uses too (`ContextSymbols.attachmentCandidates`);
  * - at an event domain: the domains the descriptor's state machines use;
  * - at a whole number or a string with typical values: those values ([ValueShape.WholeNumber], [ValueShape.Text]);
- * - at the value of an object or list key: its template.
+ * - at the value of an object or list key: its template;
+ * - on a value the user writes out by hand, a number, a literal or a bare word that begins a literal: nothing
+ *   ([isWrittenOut]).
  *
  * Every proposal is JSON as it stands outside a string, escaped as JSON, and the slot's [SlotEdit] fits it to the
  * caret's place: it drops the quotes a string at the caret keeps, closes a string that has no closing quote, and adds the
@@ -40,7 +44,7 @@ internal class EnvironmentCompletionProvider(
         return when (val slot = caret.slotAt(trees.of(text), text.text, offset)) {
             is DescriptorSlot.Root -> listOf(template(slot.edit, slot.shape, ROOT_DETAIL))
             is DescriptorSlot.Key -> keys(slot)
-            is DescriptorSlot.Value -> values(DescriptorProject(request), slot)
+            is DescriptorSlot.Value -> if (isWrittenOut(slot, text.text)) emptyList() else values(DescriptorProject(request), slot)
             DescriptorSlot.None -> emptyList()
         }
     }
@@ -56,6 +60,27 @@ internal class EnvironmentCompletionProvider(
             val rank = if (key.isRequired) 0 else 1
             item(slot.edit, proposal, key.name, CompletionKind.PROPERTY, detailOf(key), key.documentation, rank)
         }
+
+    /**
+     * True if the caret of [slot] is on a value the user writes out by hand: a number, a literal, or a bare word of
+     * [text] that begins a literal (`nu` on the way to `null`). Completion offers nothing there, because the editor
+     * opens the list by itself once a second letter or digit is typed, filters it by any proposal that holds the typed
+     * characters in order, and accepts the highlighted proposal on Enter: a proposal would replace the value typed in
+     * full on the Enter that ends the line (`10` by the typical `100`, `null` by a file path holding n, u, l and l).
+     * Typical values are still proposed where no value is typed yet, and file paths and other strings inside a string
+     * or over a word that begins no literal.
+     */
+    private fun isWrittenOut(slot: DescriptorSlot.Value, text: String): Boolean {
+        val range = slot.edit.range
+        return when (slot.node) {
+            is JsonNode.NumberNode, is JsonNode.LiteralNode -> true
+            null -> slot.edit.isOutsideString && !range.isEmpty && beginsLiteral(text.substring(range.start, range.end))
+            else -> false
+        }
+    }
+
+    /** True if [word] is the start of a JSON literal (`true`, `false`, `null`). */
+    private fun beginsLiteral(word: String): Boolean = JsonLiteral.entries.any { it.text.startsWith(word) }
 
     /** The proposals for the value of the slot, by its shape. */
     private fun values(project: DescriptorProject, slot: DescriptorSlot.Value): List<CompletionItem> =
