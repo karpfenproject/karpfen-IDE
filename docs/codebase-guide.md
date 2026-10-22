@@ -205,7 +205,9 @@ and reports `Workspace.problems`. `ValidationReport` and `ReportFormatter` turn 
   (which libraries each layer may use), `ForeignApiConfinementTest` (ANTLR and dsl-tools only behind their adapters),
   `ComposeFreeStateTest` and `UiLayeringTest` (state holders without Compose, views on top), `PackageCycleTest`,
   `PackageLayoutTest`, `LexicalFactsTest` (one declaration per lexical fact) and `BudgetTestTaggingTest`.
-  `KarpfenModules` is the module table these tests share.
+  `KarpfenModules` is the module table these tests share. `DocumentationStyleTest` guards the documentation style in
+  every Kotlin source file and Gradle script, with `KotlinComments` to find the comments and `ReferenceIds` to find
+  reference ids in them.
 
 Typical changes and where they start:
 
@@ -246,6 +248,9 @@ The architecture tests check many of these rules on every build.
   the code. Markdown documents such as this guide are a map and point to the code instead of repeating it.
 - Documents are written for a human reader: they name other documents, sections and decisions in words, with a
   descriptive link where it helps, never by an id or a section number.
+
+`DocumentationStyleTest` checks the rules on comments and reference ids in Kotlin sources and Gradle scripts on every
+build.
 
 ### Testing
 

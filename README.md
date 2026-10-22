@@ -58,7 +58,7 @@ carry 0.1.0, is documented in `app/ide/build.gradle.kts`. The dmg is written to
 
 ### Tests
 
-`./gradlew build` runs every automated test. Each module's test report is written to
+`./gradlew build` runs the automated tests. Each module's test report is written to
 `<module>/build/reports/tests/test/index.html`. Time-budget tests, which compare wall-clock durations with a limit,
 carry the JUnit tag `budget` and are never run, as the
 [decision that time-budget tests are not run](docs/adr/0011-time-budget-tests-are-not-run.md) records. The
@@ -116,10 +116,6 @@ karpfen-runtime/single_robot_example/cleaning_robot.kstates:8:13: error: extrane
 The exit status is 0 without errors (warnings and infos are printed but allowed), 1 if an error was found, 2 for an
 invalid command line or a missing folder, and 3 if the validation itself failed. `ExitCodes` documents the statuses and
 `ReportFormatter` the text and JSON formats.
-
-The same build enforces the documentation style: `DocumentationStyleTest` in `architecture-tests` rejects line
-comments, block comments other than KDoc, and reference ids to other documents in every Kotlin source file and Gradle
-script. The KDoc of `DocumentationStyleTest`, `KotlinComments` and `ReferenceIds` explains the rules.
 
 ## karpfen-dsl-tools resolution
 
@@ -216,11 +212,14 @@ Every module keeps its code below the package prefix `io.karpfen.ide`, followed 
   `karpfen.application`, and the module dependency matrix `ModuleDependencyRules`, which `verifyModuleDependencies`
   checks as part of every module's `check`. All versions live in `gradle/libs.versions.toml`.
 - **architecture-tests**: Konsist rules that keep the layers, the adapters of foreign APIs and the UI state holders
-  apart, for example `LayerImportRulesTest` and `ComposeFreeStateTest`.
+  apart, for example `LayerImportRulesTest` and `ComposeFreeStateTest`, and the documentation style rules of
+  `DocumentationStyleTest`.
 
 Together they enforce the module boundaries on every build, as the
 [decision that module boundaries are enforced by the build](docs/adr/0008-module-boundaries-enforced-by-the-build.md)
-records.
+records. The same build enforces the documentation style: `DocumentationStyleTest` rejects line comments, block
+comments other than KDoc, and reference ids to other documents in every Kotlin source file and Gradle script. The KDoc
+of `DocumentationStyleTest`, `KotlinComments` and `ReferenceIds` explains the rules.
 
 **Later increments**, stubs so far:
 
