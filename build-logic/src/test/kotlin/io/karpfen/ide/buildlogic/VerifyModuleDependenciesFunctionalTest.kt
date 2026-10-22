@@ -10,18 +10,22 @@ import java.io.File
 
 /**
  * Applies `karpfen.kotlin-jvm` to a small fixture build and proves that verifyModuleDependencies also sees project
- * dependencies that are added late: in the module's own afterEvaluate block (after the convention plugin's callbacks)
- * and at resolution time through withDependencies. It runs with the configuration cache to prove that the inputs can be
+ * dependencies that are added late. In the fixture, `core-late` declares its forbidden dependency on a UI module in its
+ * own `afterEvaluate` block, which is registered after the convention plugin's callbacks; `core-resolution` adds it
+ * through `withDependencies`, so it only appears when a classpath that extends `implementation` is resolved;
+ * `core-clean` and `ui-clean` follow the rules. It runs with the configuration cache to prove that the inputs can be
  * stored.
  */
 class VerifyModuleDependenciesFunctionalTest {
 
+    /** The root directory of the fixture build, a fresh temporary directory for every test. */
     @TempDir
     lateinit var projectDir: File
 
     /** The shared version catalog; the test task runs in build-logic/ (see build-logic/build.gradle.kts). */
     private val versionCatalog: File = File("../gradle/libs.versions.toml").absoluteFile.normalize()
 
+    /** Writes [content], without its common indentation, to [path] below the fixture directory. */
     private fun write(path: String, content: String) {
         projectDir.resolve(path).apply { parentFile.mkdirs() }.writeText(content.trimIndent() + "\n")
     }
@@ -44,7 +48,6 @@ class VerifyModuleDependenciesFunctionalTest {
             "core/core-late/build.gradle.kts",
             """
             plugins { id("karpfen.kotlin-jvm") }
-            // Registered after the convention plugin's callbacks.
             afterEvaluate { dependencies { "implementation"(project(":ui:ui-clean")) } }
             """,
         )
@@ -53,7 +56,6 @@ class VerifyModuleDependenciesFunctionalTest {
             """
             plugins { id("karpfen.kotlin-jvm") }
             val ui = dependencies.project(":ui:ui-clean")
-            // Only added when a classpath that extends implementation is resolved.
             configurations.named("implementation") { withDependencies { add(ui) } }
             """,
         )

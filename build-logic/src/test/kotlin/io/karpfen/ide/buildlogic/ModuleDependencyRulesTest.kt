@@ -6,6 +6,12 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
+/**
+ * Covers [ModuleDependencyRules]: the allowed directions between the layers, the group wildcard, the encoding of
+ * declared dependencies and the violation messages, including forbidden project dependencies that only show up on a
+ * resolved classpath, such as those added in a module's own `afterEvaluate` block or by `withDependencies` after the
+ * declarations were scanned.
+ */
 class ModuleDependencyRulesTest {
 
     @Test
@@ -77,7 +83,6 @@ class ModuleDependencyRulesTest {
 
     @Test
     fun `forbidden project dependencies that only show up on a resolved classpath are reported`() {
-        // e.g. added in the module's own afterEvaluate block or by withDependencies, after the declarations were scanned
         val violations = ModuleDependencyRules.violations(
             ":core:core-text",
             dependencies = emptyList(),

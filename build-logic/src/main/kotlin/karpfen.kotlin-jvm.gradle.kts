@@ -4,9 +4,11 @@ import io.karpfen.ide.buildlogic.ResolvedProjectDependencies
 import io.karpfen.ide.buildlogic.VerifyModuleDependencies
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
-// Base convention for every karpfen IDE module: Kotlin/JVM on JDK 21, JUnit Platform tests,
-// explicit API mode for the UI-agnostic layers, and the module dependency rule check (D7).
-
+/**
+ * Base convention for every karpfen IDE module: Kotlin/JVM on JDK 21, JUnit Platform tests without the time-budget
+ * tests, explicit API mode for the UI-agnostic layers, and the check of the module dependency rules. The other
+ * karpfen.* convention plugins build on it, and the settings reject a module that does not apply it.
+ */
 plugins {
     `java-library`
     id("org.jetbrains.kotlin.jvm")
@@ -17,16 +19,22 @@ version = "0.1.0-SNAPSHOT"
 
 val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
+/**
+ * Compiles for JDK 21. The core and notation modules are the reusable, UI-agnostic layers, so they compile in explicit
+ * API mode: every public declaration is deliberate.
+ */
 kotlin {
     jvmToolchain(21)
-    // core/* and notation/* are the reusable, UI-agnostic layers: every public declaration is deliberate.
     if (path.startsWith(":core:") || path.startsWith(":notation:")) {
         explicitApi()
     }
 }
 
+/**
+ * Aligns kotlinx.coroutines and kotlinx.serialization through their BOMs, so all modules and their tests use one
+ * version of each, whatever the transitive graph of a module pulls in, and gives every module the shared test bundle.
+ */
 dependencies {
-    // One kotlinx version across all modules (and their tests), whatever the transitive graph of a module pulls in.
     implementation(platform(libs.findLibrary("kotlinx-coroutines-bom").get()))
     implementation(platform(libs.findLibrary("kotlinx-serialization-bom").get()))
 
@@ -35,8 +43,10 @@ dependencies {
     testRuntimeOnly(libs.findLibrary("junit-platform-launcher").get())
 }
 
-// Time-budget tests (JUnit tag "budget") assert wall-clock durations. Load and sleep/wake cycles make that clock
-// unreliable, and performance tuning is a later task, so no test task runs them (docs/adr/0011-time-budget-tests-are-not-run.md).
+/**
+ * Runs the tests on the JUnit Platform, reports failures with their full stack traces and excludes the time-budget
+ * tests ([TestTags.BUDGET]) from every test task; [TestTags] explains why they are never run.
+ */
 tasks.withType<Test>().configureEach {
     useJUnitPlatform {
         excludeTags(TestTags.BUDGET)
@@ -47,27 +57,29 @@ tasks.withType<Test>().configureEach {
     }
 }
 
-// --- module dependency rules ---------------------------------------------------------------------
-// The task gets two plain string lists, so it never touches the project model and no other project is accessed:
-//
-// 1. Declared project dependencies of every configuration, not only api/implementation/compileOnly/runtimeOnly and
-//    their test variants: a project dependency declared on a custom configuration that a classpath extends from, or
-//    on annotationProcessor, kapt or ksp, is checked as well. (`dependencies` holds what is declared on that
-//    configuration itself, so inherited declarations are not reported twice.) The scan runs in projectsEvaluated,
-//    i.e. after every afterEvaluate callback, including those of the module's own build script.
-// 2. First-level project dependencies of the resolved classpaths of every source set, as providers of the resolution
-//    result. They are evaluated when the configuration cache entry is stored (or when the task runs without the
-//    configuration cache), so they also see dependencies added at resolution time (withDependencies,
-//    defaultDependencies) and any declaration that the scan in 1. did not see.
+/** The Gradle path of this module, captured here because inside a task's configuration `path` names the task. */
 val modulePath: String = path
 
+/**
+ * Checks the project dependencies of this module against [ModuleDependencyRules]. The task gets two plain string lists,
+ * so it never touches the project model and no other project is accessed: the project dependencies declared on the
+ * module's configurations and the first-level project dependencies of its resolved classpaths, both wired below.
+ */
 val verifyModuleDependencies = tasks.register<VerifyModuleDependencies>("verifyModuleDependencies") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    description = "Checks the project dependencies against the module dependency matrix (D7)."
+    description = "Checks the project dependencies against the module dependency matrix."
     projectPath = modulePath
     reportFile = layout.buildDirectory.file("reports/module-dependencies/$name.txt")
 }
 
+/**
+ * Hands the project dependencies declared on every configuration to [verifyModuleDependencies], not only those of
+ * api, implementation, compileOnly, runtimeOnly and their test variants: a project dependency declared on a custom
+ * configuration that a classpath extends from, or on annotationProcessor, kapt or ksp, is checked as well.
+ * `dependencies` holds what is declared on that configuration itself, so inherited declarations are not reported twice.
+ * The scan runs in `projectsEvaluated`, that is after every `afterEvaluate` callback, including those of the module's
+ * own build script.
+ */
 gradle.projectsEvaluated {
     val declaredProjectDependencies: List<String> = configurations
         .flatMap { configuration ->
@@ -81,6 +93,13 @@ gradle.projectsEvaluated {
     }
 }
 
+/**
+ * Hands the first-level project dependencies of the resolved compile and runtime classpaths of every source set to
+ * [verifyModuleDependencies], as providers of the resolution result. They are evaluated when the configuration cache
+ * entry is stored, or when the task runs without the configuration cache, so they also see dependencies added at
+ * resolution time (`withDependencies`, `defaultDependencies`) and any declaration that the scan of the declared
+ * dependencies did not see.
+ */
 sourceSets.configureEach {
     listOf(compileClasspathConfigurationName, runtimeClasspathConfigurationName).forEach { classpath ->
         val firstLevelProjectDependencies: Provider<List<String>> = configurations.named(classpath)

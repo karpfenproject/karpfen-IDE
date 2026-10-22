@@ -42,6 +42,11 @@ abstract class VerifyModuleDependencies : DefaultTask() {
     @get:OutputFile
     abstract val reportFile: RegularFileProperty
 
+    /**
+     * Writes the report if every project dependency is allowed.
+     *
+     * @throws GradleException listing every violation, if a declared or resolved project dependency is not allowed.
+     */
     @TaskAction
     fun verify() {
         val from = projectPath.get()
@@ -51,7 +56,7 @@ abstract class VerifyModuleDependencies : DefaultTask() {
         if (violations.isNotEmpty()) {
             throw GradleException(
                 buildString {
-                    appendLine("Module dependency rule violated in $from (see docs/adr/0008-module-boundaries-enforced-by-the-build.md):")
+                    appendLine("Module dependency rule violated in $from (see ModuleDependencyRules in build-logic):")
                     violations.forEach { appendLine("  - $it") }
                 },
             )

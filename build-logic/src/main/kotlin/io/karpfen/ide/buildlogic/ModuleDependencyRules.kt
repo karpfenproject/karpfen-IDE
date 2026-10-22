@@ -1,7 +1,14 @@
 package io.karpfen.ide.buildlogic
 
 /**
- * The allowed dependency directions between karpfen IDE modules (D7, docs/architecture-proposal.md §4).
+ * The module dependency matrix: the allowed dependency directions between the karpfen IDE modules.
+ *
+ * Module boundaries are enforced by the build, because a layering that only lives in documents erodes. The core
+ * modules are the UI-agnostic language core and see only each other; notation, runtime and bridges build on core; the
+ * bridges are headless-first and use of the runtime only its protocol module; the UI sees every layer but the app and
+ * the tools; the command-line tools see every layer but the UI and the app; the app wires everything. Every module's
+ * `check` verifies it against [rules], and the architecture tests add the import rules that a dependency matrix cannot
+ * express. A new module needs a rule here and an entry in the architecture tests' module table.
  *
  * Module identifiers are Gradle project paths. A pattern ending in `:*` matches every module below that
  * group (`:core:*` matches `:core:core-text`), the pattern `*` matches every module, any other pattern
@@ -23,6 +30,11 @@ object ModuleDependencyRules {
         companion object {
             private const val SEPARATOR = " -> "
 
+            /**
+             * Parses the serialized form written by [encode].
+             *
+             * @throws IllegalArgumentException if [encoded] does not contain the separator after a configuration name.
+             */
             fun decode(encoded: String): DeclaredDependency {
                 val index = encoded.indexOf(SEPARATOR)
                 require(index > 0) { "Malformed declared dependency: '$encoded'" }
@@ -31,7 +43,10 @@ object ModuleDependencyRules {
         }
     }
 
-    /** The matrix. The first rule whose [Rule.from] matches the depending module applies. */
+    /**
+     * The matrix. The first rule whose [Rule.from] matches the depending module applies. The architecture tests have no
+     * allowed target: they read the source files of all modules from disk and must not depend on any module.
+     */
     val rules: List<Rule> = listOf(
         Rule(":core:*", listOf(":core:*")),
         Rule(":notation:*", listOf(":core:*", ":notation:*")),
@@ -40,7 +55,6 @@ object ModuleDependencyRules {
         Rule(":ui:*", listOf(":core:*", ":notation:*", ":runtime:*", ":bridges:*", ":ui:*")),
         Rule(":app:*", listOf("*")),
         Rule(":tools:cli", listOf(":core:*", ":notation:*", ":runtime:*", ":bridges:*")),
-        // The architecture tests scan source files; they must not depend on any module.
         Rule(":architecture-tests", emptyList()),
     )
 
