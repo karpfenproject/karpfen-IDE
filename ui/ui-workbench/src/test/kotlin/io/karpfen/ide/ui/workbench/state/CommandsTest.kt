@@ -121,6 +121,7 @@ class CommandsTest {
         }
         assertNull(registry.find(EditorActionIds.TYPE_TEXT))
         assertEquals(HostPlatform.MAC_OS, registry.platform)
+        assertEquals(KeyShortcut(KeyCode.M, ctrl = true), registry.find(EditorActionIds.COMPLETION)?.shortcut, "Complete Code is Ctrl+M")
     }
 
     @Test

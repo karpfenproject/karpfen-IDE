@@ -5,10 +5,12 @@ import io.karpfen.ide.ui.foundation.keys.KeyCode
 import io.karpfen.ide.ui.foundation.keys.KeyModifier
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import io.karpfen.ide.ui.foundation.keys.KeyStroke
+import io.karpfen.ide.ui.foundation.keys.displayText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -103,7 +105,7 @@ class EditorActionRegistryTest {
         assertEquals(EditorActionIds.FIND_NEXT, action(KeyCode.G, KeyModifier.META))
         assertEquals(EditorActionIds.FIND_PREVIOUS, action(KeyCode.G, KeyModifier.META, KeyModifier.SHIFT))
         assertEquals(EditorActionIds.GO_TO_LINE, action(KeyCode.L, KeyModifier.META))
-        assertEquals(EditorActionIds.COMPLETION, action(KeyCode.SPACE, KeyModifier.CTRL))
+        assertEquals(EditorActionIds.COMPLETION, action(KeyCode.M, KeyModifier.CTRL))
         assertEquals(EditorActionIds.GO_TO_DEFINITION, action(KeyCode.B, KeyModifier.META))
         assertNull(action(KeyCode.Y, KeyModifier.CTRL))
     }
@@ -124,10 +126,43 @@ class EditorActionRegistryTest {
             assertEquals(EditorActionIds.FIND_NEXT, action(KeyCode.F3))
             assertEquals(EditorActionIds.FIND_PREVIOUS, action(KeyCode.F3, KeyModifier.SHIFT))
             assertEquals(EditorActionIds.GO_TO_LINE, action(KeyCode.G, KeyModifier.CTRL))
-            assertEquals(EditorActionIds.COMPLETION, action(KeyCode.SPACE, KeyModifier.CTRL))
+            assertEquals(EditorActionIds.COMPLETION, action(KeyCode.M, KeyModifier.CTRL))
             assertEquals(EditorActionIds.REDO, action(KeyCode.Z, KeyModifier.CTRL, KeyModifier.SHIFT))
             assertNull(action(KeyCode.L, KeyModifier.META), platform.name)
         }
+    }
+
+    @Test
+    fun `completion is Ctrl+M on every platform and also Ctrl+Space on Windows`() {
+        val ctrlM = KeyStroke(KeyCode.M, setOf(KeyModifier.CTRL))
+        val ctrlSpace = KeyStroke(KeyCode.SPACE, setOf(KeyModifier.CTRL))
+        val completionStrokes = HostPlatform.entries.associateWith { platform ->
+            val keymap = defaultEditorKeymap(platform)
+            listOf(ctrlM, ctrlSpace).filter { keymap.actionFor(it) == EditorActionIds.COMPLETION }
+        }
+
+        assertEquals(
+            mapOf(
+                HostPlatform.MAC_OS to listOf(ctrlM),
+                HostPlatform.WINDOWS to listOf(ctrlM, ctrlSpace),
+                HostPlatform.LINUX to listOf(ctrlM),
+            ),
+            completionStrokes,
+        )
+        assertNull(defaultEditorKeymap(HostPlatform.MAC_OS).actionFor(ctrlSpace), "macOS keeps Ctrl+Space for input sources")
+        assertNull(defaultEditorKeymap(HostPlatform.LINUX).actionFor(ctrlSpace), "Linux keeps Ctrl+Space for input methods")
+        assertNull(defaultEditorKeymap(HostPlatform.MAC_OS).actionFor(KeyStroke(KeyCode.M, setOf(KeyModifier.META))), "Cmd+M minimizes")
+    }
+
+    @Test
+    fun `menus show Ctrl+M for completion on every platform, in the platform's notation`() {
+        val shown = HostPlatform.entries.associateWith { platform ->
+            val shortcut = assertNotNull(defaultEditorKeymap(platform).shortcutFor(EditorActionIds.COMPLETION), "$platform")
+            assertEquals(KeyShortcut(KeyCode.M, ctrl = true), shortcut, "the first binding, Ctrl+M, is the one menus show")
+            shortcut.displayText(platform)
+        }
+
+        assertEquals(mapOf(HostPlatform.MAC_OS to "⌃M", HostPlatform.WINDOWS to "Ctrl+M", HostPlatform.LINUX to "Ctrl+M"), shown)
     }
 
     @Test

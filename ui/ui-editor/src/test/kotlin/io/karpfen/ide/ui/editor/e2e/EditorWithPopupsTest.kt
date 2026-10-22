@@ -59,15 +59,15 @@ class EditorWithPopupsTest {
         assertNull(ui.state.completion.state.value, "Escape closes completion")
         onNodeWithTag(EditorPopupTags.COMPLETION).assertDoesNotExist()
 
-        ui.editor.performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.Spacebar) } }
+        ui.editor.performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.M) } }
         waitForIdle()
-        assertEquals("observe", assertNotNull(ui.state.completion.state.value, "Ctrl+Space reopens it").selected.label)
+        assertEquals("observe", assertNotNull(ui.state.completion.state.value, "Ctrl+M reopens it").selected.label)
         ui.editor.performKeyInput { pressKey(Key.Enter) }
         waitForIdle()
 
         assertNull(ui.state.completion.state.value, "Enter accepted the item")
         assertEquals("TRANSITION \"ready\" -> \"observe\"", ui.lineAt(ui.state.caret.primary.position).trim())
-        assertEquals(listOf(), ui.unconsumedKeys, "Enter, Escape and Ctrl+Space were consumed by the editor")
+        assertEquals(listOf(), ui.unconsumedKeys, "Enter, Escape and Ctrl+M were consumed by the editor")
         assertTrue(ui.providerFailures.isEmpty(), "no provider failed: ${ui.providerFailures}")
     }
 

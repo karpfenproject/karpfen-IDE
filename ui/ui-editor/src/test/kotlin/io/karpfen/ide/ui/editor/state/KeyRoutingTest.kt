@@ -9,6 +9,8 @@ import io.karpfen.ide.ui.foundation.keys.KeyCode
 import io.karpfen.ide.ui.foundation.keys.KeyModifier
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -18,7 +20,7 @@ import kotlin.test.assertTrue
 
 /**
  * The key routing of the editor state: `handleKey` asks the completion session first, then the keymap, and returns true
- * exactly for the strokes it handled.
+ * exactly for the strokes it handled. The completion keys per platform: Ctrl+M everywhere, Ctrl+Space on Windows only.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class KeyRoutingTest {
@@ -38,7 +40,7 @@ class KeyRoutingTest {
     @Test
     fun `completion handles its keys before the keymap`() = editorTest("abc\ndef", services = completing()) { harness ->
         harness.state.caret.moveTo(3)
-        assertTrue(harness.press(KeyCode.SPACE, KeyModifier.CTRL), "Ctrl+Space requests completion")
+        assertTrue(harness.press(KeyCode.M, KeyModifier.CTRL), "Ctrl+M requests completion")
         advanceUntilIdle()
         assertNotNull(harness.state.completion.state.value)
 
@@ -50,6 +52,32 @@ class KeyRoutingTest {
         assertEquals("abcbeta\ndef", harness.plain)
         assertNull(harness.state.completion.state.value)
     }
+
+    @ParameterizedTest
+    @EnumSource(HostPlatform::class)
+    fun `Ctrl+M requests completion on every platform`(platform: HostPlatform) =
+        editorTest("abc", platform = platform, services = completing()) { harness ->
+            harness.state.caret.moveTo(3)
+
+            assertTrue(harness.press(KeyCode.M, KeyModifier.CTRL), "handled on $platform")
+            advanceUntilIdle()
+
+            assertEquals(listOf("alpha", "beta", "gamma"), harness.state.completion.state.value?.items?.map { it.label })
+            assertEquals("abc", harness.plain, "nothing typed")
+        }
+
+    @ParameterizedTest
+    @EnumSource(HostPlatform::class)
+    fun `Ctrl+Space requests completion on Windows only and goes on unhandled elsewhere`(platform: HostPlatform) =
+        editorTest("abc", platform = platform, services = completing()) { harness ->
+            harness.state.caret.moveTo(3)
+            val windows = platform == HostPlatform.WINDOWS
+
+            assertEquals(windows, harness.press(KeyCode.SPACE, KeyModifier.CTRL), "handled on $platform")
+            advanceUntilIdle()
+
+            assertEquals(windows, harness.state.completion.state.value != null, "completion open on $platform")
+        }
 
     @Test
     fun `Escape is handled only while completion is open`() = editorTest("abc", services = completing()) { harness ->

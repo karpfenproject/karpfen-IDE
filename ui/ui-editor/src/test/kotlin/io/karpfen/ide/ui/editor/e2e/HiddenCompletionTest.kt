@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
 /**
  * A completion list that cannot be shown takes no keys, with the real `EditorPopups` over `CodeEditor`: scrolling the
  * caret out of view closes the session, so Enter breaks the line instead of accepting an item nobody sees. A caret that
- * is about to be revealed is not scrolled away: typing and Ctrl+Space at an off-screen caret show it with their list.
+ * is about to be revealed is not scrolled away: typing and Ctrl+M at an off-screen caret show it with their list.
  */
 @OptIn(ExperimentalTestApi::class)
 class HiddenCompletionTest {
@@ -75,7 +75,7 @@ class HiddenCompletionTest {
     }
 
     @Test
-    fun `Ctrl+Space with the caret scrolled out of view reveals it and shows the list`() = runComposeUiTest {
+    fun `Ctrl+M with the caret scrolled out of view reveals it and shows the list`() = runComposeUiTest {
         val ui = EditorUi(this, services())
         ui.compose(LINES, slots = HostRecordingPopups())
         ui.editor.requestFocus()
@@ -83,7 +83,7 @@ class HiddenCompletionTest {
         runOnIdle { ui.state.viewport.scrollBy(0f, 3_000f) }
         waitForIdle()
 
-        ui.editor.performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.Spacebar) } }
+        ui.editor.performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.M) } }
         waitForIdle()
 
         assertEquals(0f, ui.state.viewport.state.value.scrollY, "the explicit request revealed the caret")

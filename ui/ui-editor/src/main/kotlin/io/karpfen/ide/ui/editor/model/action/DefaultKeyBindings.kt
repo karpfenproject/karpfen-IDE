@@ -12,9 +12,15 @@ internal data class KeyBinding(val shortcut: KeyShortcut, val actionId: String)
  * (the first binding of an action is the one menus show). macOS follows the platform conventions (Alt for words, Cmd
  * for line and document ends, Cmd+Backspace deletes the line, Cmd+G finds next, Cmd+L goes to a line); Windows and
  * Linux use Ctrl for words, Ctrl+Home/End, Ctrl+Y, F3 and Ctrl+G.
+ *
+ * Completion is Ctrl+M on every platform, with the physical Control key on macOS too, and it is the first completion
+ * binding, so menus show Ctrl+M everywhere. Windows binds Ctrl+Space as a second completion key, the one Windows users
+ * expect. macOS and Linux leave Ctrl+Space unbound for the system: macOS switches input sources with it, and Linux
+ * input-method frameworks commonly toggle the input method with it.
  */
 internal fun defaultKeyBindings(platform: HostPlatform): List<KeyBinding> = buildList {
     val mac = platform == HostPlatform.MAC_OS
+    val windows = platform == HostPlatform.WINDOWS
 
     fun bind(actionId: String, key: KeyCode, primary: Boolean = false, shift: Boolean = false, alt: Boolean = false, ctrl: Boolean = false) {
         add(KeyBinding(KeyShortcut(key, primary = primary, shift = shift, alt = alt, ctrl = ctrl), actionId))
@@ -79,6 +85,7 @@ internal fun defaultKeyBindings(platform: HostPlatform): List<KeyBinding> = buil
         bind(EditorActionIds.FIND_PREVIOUS, KeyCode.F3, shift = true)
         bind(EditorActionIds.GO_TO_LINE, KeyCode.G, primary = true)
     }
-    bind(EditorActionIds.COMPLETION, KeyCode.SPACE, ctrl = true)
+    bind(EditorActionIds.COMPLETION, KeyCode.M, ctrl = true)
+    if (windows) bind(EditorActionIds.COMPLETION, KeyCode.SPACE, ctrl = true)
     bind(EditorActionIds.GO_TO_DEFINITION, KeyCode.B, primary = true)
 }

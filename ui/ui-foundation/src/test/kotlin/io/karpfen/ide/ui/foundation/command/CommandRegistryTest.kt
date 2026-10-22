@@ -104,11 +104,11 @@ class CommandRegistryTest {
     @Test
     fun `physical Ctrl on macOS is distinct from the primary modifier`() {
         val registry = CommandRegistry(HostPlatform.MAC_OS)
-        val completion = command("complete", KeyShortcut(KeyCode.SPACE, ctrl = true))
+        val completion = command("complete", KeyShortcut(KeyCode.M, ctrl = true))
         registry.register(completion)
 
-        assertSame(completion, registry.commandFor(KeyStroke(KeyCode.SPACE, setOf(KeyModifier.CTRL))))
-        assertNull(registry.commandFor(KeyStroke(KeyCode.SPACE, setOf(KeyModifier.META))))
+        assertSame(completion, registry.commandFor(KeyStroke(KeyCode.M, setOf(KeyModifier.CTRL))))
+        assertNull(registry.commandFor(KeyStroke(KeyCode.M, setOf(KeyModifier.META))))
     }
 
     @Test

@@ -30,8 +30,8 @@ public fun EditorActionRegistry(actions: Collection<EditorAction> = defaultEdito
  * Backspace, Delete, delete word, delete line (primary+Backspace on macOS, Ctrl+Y elsewhere), duplicate (primary+D),
  * move line (Alt+Shift+Up/Down), Tab/Shift+Tab, toggle comment (primary+/), copy/cut/paste, undo (primary+Z), redo
  * (primary+Shift+Z), find (primary+F), replace (primary+R), find next / previous (Cmd+G / Shift+Cmd+G on macOS, F3 /
- * Shift+F3 elsewhere), go to line (Cmd+L on macOS, Ctrl+G elsewhere), completion (Ctrl+Space), go to definition
- * (primary+B).
+ * Shift+F3 elsewhere), go to line (Cmd+L on macOS, Ctrl+G elsewhere), completion (Ctrl+M on every platform, on
+ * Windows also Ctrl+Space), go to definition (primary+B).
  *
  * Bindings are key strokes (`KeyStroke` equality per platform). Punctuation bindings such as primary+/ work on every
  * keyboard layout because the key adapter reports punctuation by the character it produces (`KeyCode` documents the

@@ -64,10 +64,15 @@ class RecordingOverlays : EditorOverlays {
 /**
  * A composed `CodeEditor` for headless UI tests: a real session (registry tokenizer and parser, running inline) and
  * editor state in the composition's scope, so delays — the parse debounce, the hover delay, the caret blink — run on
- * the test's main clock; a [FakeLanguageServices]; the macOS keymap (Cmd is the primary modifier); [RecordingOverlays].
+ * the test's main clock; a [FakeLanguageServices]; the keymap of [platform], by default macOS (Cmd is the primary
+ * modifier); [RecordingOverlays].
  */
 @OptIn(ExperimentalTestApi::class)
-class EditorUi(private val test: ComposeUiTest, val services: FakeLanguageServices) {
+class EditorUi(
+    private val test: ComposeUiTest,
+    val services: FakeLanguageServices,
+    private val platform: HostPlatform = HostPlatform.MAC_OS,
+) {
 
     /** The overlays slot. */
     val overlays = RecordingOverlays()
@@ -126,7 +131,7 @@ class EditorUi(private val test: ComposeUiTest, val services: FakeLanguageServic
                     languageServices = services,
                     scope = scope,
                     clipboard = clipboard,
-                    keymap = defaultEditorKeymap(HostPlatform.MAC_OS),
+                    keymap = defaultEditorKeymap(platform),
                     backgroundDispatcher = Dispatchers.Unconfined,
                 ).also {
                     state = it

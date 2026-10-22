@@ -12,6 +12,7 @@ import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.state.FakeLanguageServices
+import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import java.awt.Component
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -73,12 +74,16 @@ class CodeEditorTextInputTest {
         assertEquals(3, ui.state.caret.primary.position)
     }
 
-    @Test
-    fun `a stroke the editor handled does not type its character`() = runComposeUiTest {
-        val items = { offset: Int ->
+    /** Language services that offer the keyword `STATE` at every offset. */
+    private fun completing() = FakeLanguageServices(
+        completions = { _, offset ->
             listOf(CompletionItem("STATE", CompletionKind.KEYWORD, "STATE", TextRange.empty(offset), null, null, null, "s"))
-        }
-        val ui = EditorUi(this, FakeLanguageServices(completions = { _, offset -> items(offset) }))
+        },
+    )
+
+    @Test
+    fun `a stroke the editor handled does not type its character - Ctrl+Space on Windows`() = runComposeUiTest {
+        val ui = EditorUi(this, completing(), HostPlatform.WINDOWS)
         ui.compose("")
         ui.editor.requestFocus()
 
@@ -87,6 +92,20 @@ class CodeEditorTextInputTest {
         waitForIdle()
 
         assertEquals("", ui.plain, "Ctrl+Space opened completion and typed no space")
+        assertNotNull(ui.state.completion.state.value)
+    }
+
+    @Test
+    fun `Ctrl+M opens completion and types nothing`() = runComposeUiTest {
+        val ui = EditorUi(this, completing())
+        ui.compose("")
+        ui.editor.requestFocus()
+
+        ui.editor.performKeyPress(keyDown(Key.M, AwtKeyEvent.VK_M, CONTROL_M, ctrl = true))
+        ui.editor.performKeyPress(keyTyped(CONTROL_M, ctrl = true))
+        waitForIdle()
+
+        assertEquals("", ui.plain, "Ctrl+M typed no line break")
         assertNotNull(ui.state.completion.state.value)
     }
 
@@ -100,5 +119,11 @@ class CodeEditorTextInputTest {
         waitForIdle()
 
         assertEquals("// STATE", ui.plain)
+    }
+
+    /** The characters of the tests. */
+    private companion object {
+        /** The control character a platform reports for Ctrl+M: carriage return, as the terminal convention has it. */
+        const val CONTROL_M = '\r'
     }
 }

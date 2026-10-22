@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory
 
 /** Why completion opened. */
 public enum class CompletionTrigger {
-    /** Explicit request (Ctrl+Space). */
+    /** Explicit request: the completion key (Ctrl+M) or the Complete Code command. */
     EXPLICIT,
 
     /** An identifier character typed after at least one identifier character. */

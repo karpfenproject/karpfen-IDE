@@ -24,6 +24,10 @@ import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.state.CodeEditorState
+import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.foundation.keys.KeyCode
+import io.karpfen.ide.ui.foundation.keys.KeyModifier
+import io.karpfen.ide.ui.foundation.keys.KeyStroke
 import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
 import io.karpfen.ide.ui.workbench.Workbench
 import io.karpfen.ide.ui.workbench.WorkbenchTestTags
@@ -34,6 +38,8 @@ import io.karpfen.ide.ui.workbench.tabs.view.EditorAreaTestTags
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.test.TestDispatcher
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.coroutines.ContinuationInterceptor
@@ -51,7 +57,9 @@ import kotlin.time.Duration.Companion.seconds
  * window menu's accelerators ([MenuAccelerators]). One Cmd+Z in the editor undoes exactly one step — the editor
  * consumes the stroke, so no menu command runs — and Cmd+X with the focus in the project tree reaches the menu, whose
  * Cut is disabled while the editor is unfocused, so the editor text stays unchanged; shortcuts typed into a dialog
- * reach no command (the dialogs are modal). (The native macOS menu bar itself is covered by the manual test.)
+ * reach no command (the dialogs are modal). Completion follows the keymap of each platform: Ctrl+M in the focused
+ * editor opens it everywhere, Ctrl+Space only on Windows; on macOS and Linux Ctrl+Space goes on unconsumed and runs no
+ * command. (The native macOS menu bar itself is covered by the manual test.)
  */
 @OptIn(ExperimentalTestApi::class)
 class KeyRoutingEndToEndTest {
@@ -146,26 +154,67 @@ class KeyRoutingEndToEndTest {
         assertEquals(listOf(machine), state.tabs.tabs.value.map { it.path }, "no Close Tab ran after the dialog")
     }
 
-    /**
-     * Composes the prepared IDE over a copy of the examples with [machine] open in the active tab, inside the menu
-     * accelerators' key handler, and runs [block] with the IDE, the accelerators and the editor.
-     */
-    private fun composedIde(block: suspend ComposeUiTest.(EndToEndIde, MenuAccelerators, CodeEditorState) -> Unit) =
-        runComposeUiTest {
-            val scheduler = (currentCoroutineContext()[ContinuationInterceptor] as TestDispatcher).scheduler
-            EndToEndIde(scheduler, dir.resolve("settings")).use { ide ->
-                Examples.copyTo(root)
-                val session = ide.prepare(root)
-                val menu = MenuAccelerators(session.commands, session.state.settings.value.recentFolders.size)
-                setContent {
-                    Box(Modifier.size(1280.dp, 860.dp).onKeyEvent(menu::dispatch)) { Workbench(session.state) }
-                }
-                session.state.openFile(machine)
-                settle(ide)
-                val editor = assertNotNull(session.state.tabs.editorFor(machine), "the file is open")
-                block(ide, menu, editor)
-            }
+    @ParameterizedTest
+    @EnumSource(HostPlatform::class)
+    fun `Ctrl+M in the focused editor opens completion on every platform and reaches no menu`(platform: HostPlatform) =
+        composedIde(platform) { ide, menu, editor ->
+            val original = text(editor)
+            focusEditorInAttachedType(editor)
+
+            onNodeWithTag(EditorAreaTestTags.EDITOR).performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.M) } }
+            settle(ide)
+
+            val labels = assertNotNull(editor.completion.state.value, "completion opened on $platform").items.map { it.label }
+            assertTrue("Robot" in labels, "the domain types are offered: $labels")
+            assertEquals(listOf(), menu.unconsumed, "the editor consumed Ctrl+M")
+            assertEquals(original, text(editor), "nothing was typed")
         }
+
+    @ParameterizedTest
+    @EnumSource(HostPlatform::class)
+    fun `Ctrl+Space opens completion on Windows only and goes on unconsumed elsewhere`(platform: HostPlatform) =
+        composedIde(platform) { ide, menu, editor ->
+            val windows = platform == HostPlatform.WINDOWS
+            focusEditorInAttachedType(editor)
+
+            onNodeWithTag(EditorAreaTestTags.EDITOR).performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.Spacebar) } }
+            settle(ide)
+
+            assertEquals(windows, editor.completion.state.value != null, "completion opened on $platform")
+            val ctrlSpace = KeyStroke(KeyCode.SPACE, setOf(KeyModifier.CTRL))
+            assertEquals(if (windows) listOf() else listOf(ctrlSpace), menu.unconsumed, "what the editor left unconsumed on $platform")
+            assertEquals(listOf(), menu.ran, "no command ran")
+        }
+
+    /** Focuses the editor with the caret at the start of the attached type's name, where completion offers types. */
+    private fun ComposeUiTest.focusEditorInAttachedType(editor: CodeEditorState) {
+        onNodeWithTag(EditorAreaTestTags.EDITOR).requestFocus()
+        editor.caret.moveTo(text(editor).indexOf(ATTACHED_TO) + ATTACHED_TO.length)
+        waitForIdle()
+    }
+
+    /**
+     * Composes the prepared IDE for [platform] over a copy of the examples with [machine] open in the active tab, inside
+     * the menu accelerators' key handler, and runs [block] with the IDE, the accelerators and the editor.
+     */
+    private fun composedIde(
+        platform: HostPlatform = HostPlatform.MAC_OS,
+        block: suspend ComposeUiTest.(EndToEndIde, MenuAccelerators, CodeEditorState) -> Unit,
+    ) = runComposeUiTest {
+        val scheduler = (currentCoroutineContext()[ContinuationInterceptor] as TestDispatcher).scheduler
+        EndToEndIde(scheduler, dir.resolve("settings"), platform).use { ide ->
+            Examples.copyTo(root)
+            val session = ide.prepare(root)
+            val menu = MenuAccelerators(session.commands, session.state.settings.value.recentFolders.size)
+            setContent {
+                Box(Modifier.size(1280.dp, 860.dp).onKeyEvent(menu::dispatch)) { Workbench(session.state) }
+            }
+            session.state.openFile(machine)
+            settle(ide)
+            val editor = assertNotNull(session.state.tabs.editorFor(machine), "the file is open")
+            block(ide, menu, editor)
+        }
+    }
 
     /** The project tree (the Outline is a `TreeView` as well). */
     private fun ComposeUiTest.projectTree(): SemanticsNodeInteraction =
@@ -180,4 +229,10 @@ class KeyRoutingEndToEndTest {
     }
 
     private fun text(editor: CodeEditorState): String = editor.session.text.snapshot.value.text
+
+    /** The texts of the tests. */
+    private companion object {
+        /** What precedes the attached type's name in the state machine. */
+        const val ATTACHED_TO = "ATTACHED TO \""
+    }
 }

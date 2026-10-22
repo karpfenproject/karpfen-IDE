@@ -20,6 +20,7 @@ class KeyShortcutTextTest {
             KeyShortcut(KeyCode.K, primary = true, shift = true, alt = true, ctrl = true).displayText(HostPlatform.MAC_OS),
         )
         assertEquals("⌃Space", KeyShortcut(KeyCode.SPACE, ctrl = true).displayText(HostPlatform.MAC_OS))
+        assertEquals("⌃M", KeyShortcut(KeyCode.M, ctrl = true).displayText(HostPlatform.MAC_OS))
     }
 
     @Test
@@ -34,6 +35,7 @@ class KeyShortcutTextTest {
         )
         assertEquals("F3", KeyShortcut(KeyCode.F3).displayText(HostPlatform.WINDOWS))
         assertEquals("Shift+F3", KeyShortcut(KeyCode.F3, shift = true).displayText(HostPlatform.WINDOWS))
+        assertEquals("Ctrl+M", KeyShortcut(KeyCode.M, ctrl = true).displayText(HostPlatform.LINUX))
     }
 
     @Test

@@ -172,12 +172,14 @@ class ComposeKeysTest {
     fun `menu shortcuts use Cmd on macOS and Ctrl elsewhere`() {
         val save = KeyShortcut(KeyCode.S, primary = true)
         val saveAll = KeyShortcut(KeyCode.S, primary = true, alt = true)
-        val completion = KeyShortcut(KeyCode.SPACE, ctrl = true)
+        val completion = KeyShortcut(KeyCode.M, ctrl = true)
 
         assertEquals(ComposeKeyShortcut(Key.S, meta = true), save.toMenuShortcut(HostPlatform.MAC_OS))
         assertEquals(ComposeKeyShortcut(Key.S, ctrl = true), save.toMenuShortcut(HostPlatform.WINDOWS))
         assertEquals(ComposeKeyShortcut(Key.S, ctrl = true, alt = true), saveAll.toMenuShortcut(HostPlatform.LINUX))
-        assertEquals(ComposeKeyShortcut(Key.Spacebar, ctrl = true), completion.toMenuShortcut(HostPlatform.MAC_OS))
+        HostPlatform.entries.forEach { platform ->
+            assertEquals(ComposeKeyShortcut(Key.M, ctrl = true), completion.toMenuShortcut(platform), "physical Ctrl on $platform")
+        }
         assertEquals(
             ComposeKeyShortcut(Key.Slash, meta = true, shift = true),
             KeyShortcut(KeyCode.SLASH, primary = true, shift = true).toMenuShortcut(HostPlatform.MAC_OS),

@@ -1,5 +1,6 @@
 package io.karpfen.ide.app.e2e
 
+import androidx.compose.ui.input.key.Key
 import io.karpfen.ide.app.IdeMenus
 import io.karpfen.ide.app.IdePhase
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
@@ -14,6 +15,12 @@ import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.foundation.command.MenuEntry
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.foundation.keys.KeyCode
+import io.karpfen.ide.ui.foundation.keys.KeyModifier
+import io.karpfen.ide.ui.foundation.keys.KeyShortcut
+import io.karpfen.ide.ui.foundation.keys.KeyStroke
+import io.karpfen.ide.ui.foundation.keys.compose.toMenuShortcut
+import io.karpfen.ide.ui.foundation.keys.displayText
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
@@ -21,6 +28,8 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
@@ -28,16 +37,20 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
 
 /**
  * The composition root over the production wiring: `IdeApplication.prepare` opens the folder given on the command line
  * into the real workbench, the menus resolve against its commands, and the Problems view, the status bar and
  * `karpfen validate` report the same problems for the examples plus the shared descriptor examples, before and after
  * opening and closing files, because all three map `Workspace.problems`, the one problems rule. A command-line folder
- * that `main` saw as a directory may be gone (unmounted, deleted) by the time `prepare` opens it.
+ * that `main` saw as a directory may be gone (unmounted, deleted) by the time `prepare` opens it. On every platform the
+ * registered Complete Code command carries Ctrl+M, so a menu shows it in that platform's notation.
  */
 class IdeEndToEndTest {
 
@@ -46,11 +59,12 @@ class IdeEndToEndTest {
 
     private val root: Path get() = dir.resolve("ws").toAbsolutePath().normalize()
 
-    private fun scenario(block: suspend EndToEndIde.() -> Unit) = runTest(timeout = 120.seconds) {
-        ide().use { it.block() }
-    }
+    private fun scenario(platform: HostPlatform = HostPlatform.MAC_OS, block: suspend EndToEndIde.() -> Unit) =
+        runTest(timeout = 120.seconds) {
+            ide(platform).use { it.block() }
+        }
 
-    private fun TestScope.ide() = EndToEndIde(testScheduler, dir.resolve("settings"))
+    private fun TestScope.ide(platform: HostPlatform) = EndToEndIde(testScheduler, dir.resolve("settings"), platform)
 
     @Test
     fun `prepare opens the command-line folder in the real workbench and every menu item has its command`() = scenario {
@@ -70,6 +84,20 @@ class IdeEndToEndTest {
         val keymapUndo = defaultEditorKeymap(HostPlatform.MAC_OS).shortcutFor(EditorActionIds.UNDO)
         assertEquals(keymapUndo, undo.accelerator, "Cmd+Z from the one keymap")
     }
+
+    @ParameterizedTest
+    @EnumSource(HostPlatform::class)
+    fun `the Complete Code command carries Ctrl+M and shows it in the platform's notation`(platform: HostPlatform) =
+        scenario(platform) {
+            val session = prepare(Files.createDirectories(root))
+
+            val completion = assertNotNull(session.commands.find(EditorActionIds.COMPLETION), "registered on $platform")
+            val shortcut = assertNotNull(completion.shortcut, "with a shortcut on $platform")
+            assertEquals(KeyShortcut(KeyCode.M, ctrl = true), shortcut)
+            assertEquals(COMPLETION_SHORTCUT_TEXT.getValue(platform), shortcut.displayText(platform))
+            assertEquals(ComposeKeyShortcut(Key.M, ctrl = true), shortcut.toMenuShortcut(platform), "the menu accelerator")
+            assertSame(completion, session.commands.commandFor(KeyStroke(KeyCode.M, setOf(KeyModifier.CTRL))))
+        }
 
     @Test
     fun `a command-line folder that vanished before the start opens the window with the error dialog`() = scenario {
@@ -176,5 +204,12 @@ class IdeEndToEndTest {
     private companion object {
         /** Swallows the CLI's guard output (the report is compared, not printed). */
         val NOWHERE = PrintStream(ByteArrayOutputStream())
+
+        /** How each platform writes the completion shortcut in its menus. */
+        val COMPLETION_SHORTCUT_TEXT: Map<HostPlatform, String> = mapOf(
+            HostPlatform.MAC_OS to "⌃M",
+            HostPlatform.WINDOWS to "Ctrl+M",
+            HostPlatform.LINUX to "Ctrl+M",
+        )
     }
 }

@@ -14,6 +14,7 @@ import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.foundation.keys.KeyStroke
 import io.karpfen.ide.ui.foundation.keys.compose.toKeyStroke
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
 import kotlinx.coroutines.CoroutineDispatcher
@@ -34,10 +35,15 @@ import kotlin.time.TestTimeSource
  * `WorkbenchState`, through the test seams of both composition roots — with test values for everything time-, thread-,
  * file-system- and toolkit-dependent: one test dispatcher on [scheduler] for the UI scope, the workspace, the sessions,
  * the editors' background work and the workbench's I/O; a [TestTimeSource] for undo coalescing; a watcher that reports
- * nothing; a fixed clock; recording file operations; settings below [settingsDirectory]; the macOS keymap.
+ * nothing; a fixed clock; recording file operations; settings below [settingsDirectory]; [platform] as the platform
+ * of the keymap and the command registry, macOS unless a test chooses another.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-internal class EndToEndIde(val scheduler: TestCoroutineScheduler, settingsDirectory: Path) : AutoCloseable {
+internal class EndToEndIde(
+    val scheduler: TestCoroutineScheduler,
+    settingsDirectory: Path,
+    platform: HostPlatform = HostPlatform.MAC_OS,
+) : AutoCloseable {
     /** The one test dispatcher on [scheduler] that runs all of the IDE's work. */
     val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
 
@@ -61,7 +67,7 @@ internal class EndToEndIde(val scheduler: TestCoroutineScheduler, settingsDirect
         services = {
             defaultWorkbenchServices(
                 settingsDirectory = settingsDirectory,
-                platform = HostPlatform.MAC_OS,
+                platform = platform,
                 backgroundDispatcher = dispatcher,
                 ioDispatcher = dispatcher,
                 workspaceOptions = workspaceOptions,
@@ -115,12 +121,16 @@ internal class EndToEndIde(val scheduler: TestCoroutineScheduler, settingsDirect
  * The window menu's accelerators without a window: the items of `resolveMenus(IdeMenus.specs(…), registry)` with their
  * bound shortcuts. [dispatch] does what the native menu bar does with a key stroke that no component consumed (the
  * focused component handles and consumes its keys first): it finds the item whose accelerator is the stroke and invokes
- * it through the registry. Installed as the outermost `onKeyEvent`, it sees exactly the unconsumed strokes.
+ * it through the registry. Installed as the outermost `onKeyEvent`, it sees exactly the unconsumed strokes and records
+ * them in [unconsumed].
  */
 internal class MenuAccelerators(registry: CommandRegistry, recentFolderCount: Int) {
     private val platform = registry.platform
     private val items: List<ResolvedMenuEntry.Item> =
         resolveMenus(IdeMenus.specs(recentFolderCount), registry).flatMap { menu -> menu.entries.flatMap(::itemsOf) }
+
+    /** The key strokes no component consumed, whether an accelerator matched them or not. */
+    val unconsumed: MutableList<KeyStroke> = mutableListOf()
 
     /** Command ids whose accelerator saw an unconsumed stroke. */
     val reached: MutableList<String> = mutableListOf()
@@ -132,6 +142,7 @@ internal class MenuAccelerators(registry: CommandRegistry, recentFolderCount: In
     fun dispatch(event: KeyEvent): Boolean {
         if (event.type != KeyEventType.KeyDown) return false
         val stroke = event.toKeyStroke() ?: return false
+        unconsumed += stroke
         val item = items.firstOrNull { it.accelerator?.strokeFor(platform) == stroke } ?: return false
         reached += item.command.id
         if (item.invoke()) ran += item.command.id
