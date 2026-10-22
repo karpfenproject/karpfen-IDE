@@ -40,7 +40,10 @@ internal class WatchRegistry(
         val links = HashMap<Path, MutableSet<Path>>()
     }
 
+    /** What each key watches. */
     private val watched = HashMap<WatchKey, Watched>()
+
+    /** The key of each real directory, so a directory reached under two paths is registered once. */
     private val keysByRealPath = HashMap<Path, WatchKey>()
 
     /** True while a directory of the tree is watched. */

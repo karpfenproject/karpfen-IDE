@@ -51,6 +51,7 @@ internal class TreeRefresher(
 
     private val tree = MutableStateFlow(WorkspaceTree.empty(root))
     private val completedScans = MutableStateFlow(0L)
+    /** Serializes the rescans. */
     private val scanning = Mutex()
 
     /** The latest scanned tree. */

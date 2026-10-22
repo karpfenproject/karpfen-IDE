@@ -95,7 +95,10 @@ internal class DefaultWorkspace(
     )
     private val diagnosticsPublisher = ProjectDiagnosticsPublisher()
     private val problemsPublisher = ProblemsPublisher(WorkspaceProblemsAggregator(), options.analysisDispatcher)
+    /** Set once by [close]. */
     private val closed = AtomicBoolean(false)
+
+    /** The start-up described on the class; [awaitAnalysis] waits for it. */
     private val started: Job
 
     init {

@@ -13,6 +13,7 @@ import kotlin.coroutines.EmptyCoroutineContext
  */
 internal class SingleWriter(scope: CoroutineScope) {
 
+    /** The dispatcher of the workspace's scope, or no context change if the scope has none. */
     private val context = scope.coroutineContext[ContinuationInterceptor] ?: EmptyCoroutineContext
 
     /** Runs [mutation] on the writer's dispatcher and returns its result. */

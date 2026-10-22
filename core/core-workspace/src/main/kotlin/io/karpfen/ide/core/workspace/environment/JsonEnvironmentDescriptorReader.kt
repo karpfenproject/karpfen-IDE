@@ -19,7 +19,10 @@ import java.nio.file.Path
  */
 internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
 
+    /** Decodes values only; unknown keys are the [schema]'s findings. */
     private val json = Json { ignoreUnknownKeys = true }
+
+    /** The serial descriptor of [EnvironmentDescriptor], the one source of the known keys. */
     private val shape = EnvironmentDescriptor.serializer().descriptor
     private val schema = DescriptorSchema(shape)
 

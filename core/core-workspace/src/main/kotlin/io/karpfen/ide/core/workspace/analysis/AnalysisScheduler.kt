@@ -49,11 +49,15 @@ internal class AnalysisScheduler(
     private val debounce: Duration,
 ) {
 
+    /** Counts the requests; every new count restarts the serving loop, which cancels a pending or running run. */
     private val requests = MutableStateFlow(0L)
     private val analyzing = MutableStateFlow(false)
     private val analysisState = MutableStateFlow(ProjectAnalysis.EMPTY)
     private val publishedState = MutableStateFlow(PublishedAnalysis.EMPTY)
+    /** The waiting [runNow] calls; while there are any, a run starts without the debounce. Guarded by itself. */
     private val waiters = ArrayList<CompletableDeferred<ProjectAnalysis>>()
+
+    /** The generation of the latest started run. */
     private var generation = 0L
 
     /** True while an analysis is scheduled or running. */
