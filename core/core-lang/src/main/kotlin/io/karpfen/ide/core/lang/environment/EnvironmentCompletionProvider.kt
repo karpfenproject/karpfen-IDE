@@ -16,7 +16,8 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
  * - in an empty descriptor: the descriptor object with its required keys;
  * - at a key: the keys the object does not have yet, required ones first, each with its documentation; a new key, or
  *   a key string with neither `:` nor value, arrives with a value template of its shape ([ValueTemplates]), a key with
- *   a value but no `:` gets its `:`, and a key that has both is renamed;
+ *   a value but no `:` gets its `:`, and a key that has a `:`, also one written without quotes, is renamed
+ *   ([DescriptorSlot.Key.part]);
  * - at a file path: the workspace files that fit the key's role ([DescriptorProject.candidates]), relative to the
  *   descriptor's directory, the usual files of the role first (`EVENTS.kmeta` for the event metamodel, the other
  *   metamodels for the domain metamodel), and within those the files next to the descriptor first;

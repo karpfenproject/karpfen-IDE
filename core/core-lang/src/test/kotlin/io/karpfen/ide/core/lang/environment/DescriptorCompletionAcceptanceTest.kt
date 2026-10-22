@@ -126,6 +126,20 @@ class DescriptorCompletionAcceptanceTest {
     }
 
     @Test
+    fun `an unquoted key with a colon gets its quoted name, and its colon and value stay`() {
+        val first = accept("{ mo‸: \"x\" }", "model")
+        assertEquals("{ \"model\"‸: \"x\" }", first)
+        val afterComma = accept("{ \"metamodel\": \"a\", mo‸: \"x\" }", "model")
+        assertEquals("{ \"metamodel\": \"a\", \"model\"‸: \"x\" }", afterComma)
+        val multiLine = accept("{\n  mo‸: \"x.kmodel\",\n  \"metamodel\": \"a\"\n}", "model")
+        assertEquals("{\n  \"model\"‸: \"x.kmodel\",\n  \"metamodel\": \"a\"\n}", multiLine)
+        val number = accept("{ ti‸: 5 }", "tickDelayMs")
+        assertEquals("{ \"tickDelayMs\"‸: 5 }", number)
+        listOf(first, afterComma, multiLine, number).forEach(::assertClean)
+        assertEquals("{ \"model\": \"‸\" }", accept("{ mo‸ }", "model"), "without a colon the whole member is written")
+    }
+
+    @Test
     fun `after the last item of a list another item comes with the comma it needs`() {
         assertEquals(
             "{ \"bridges\": [ \"x.kbridge.json\" , \"mqtt-sim.kbridge.json\"‸ ] }",

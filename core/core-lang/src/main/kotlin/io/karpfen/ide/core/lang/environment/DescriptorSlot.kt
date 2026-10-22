@@ -23,21 +23,20 @@ internal sealed interface DescriptorSlot {
      * object's `{` or a `,`, or after its last member when nothing but the closing `}` follows.
      *
      * @property shape what the schema expects of [owner], or null where it knows nothing (below an unknown key).
-     * @property member the member whose key string holds the caret, null in blank space.
+     * @property member the member whose key string holds the caret, null in blank space or a bare word.
      * @property edit how completion writes there: the key's content (or, for a key that gets more than its name, the
      *   key up to its closing quote), the bare word at the caret, or the empty range at the caret.
+     * @property part what completion writes there, so that the member around the key is complete afterwards.
      */
     data class Key(
         val owner: JsonNode.ObjectNode,
         val shape: ValueShape.Record?,
         val member: JsonNode.Member?,
         val edit: SlotEdit,
+        val part: KeyPart,
     ) : DescriptorSlot {
         /** The keys [owner] has already, without the one under the caret. */
         val presentKeys: Set<String> get() = owner.members.filter { it !== member }.mapTo(HashSet()) { it.key.value }
-
-        /** What completion writes at this key. */
-        val part: KeyPart get() = KeyPart.of(member)
     }
 
     /**
@@ -69,7 +68,7 @@ internal sealed interface DescriptorSlot {
 
 /** What completion writes at a key, so that the member around it is complete afterwards. */
 internal enum class KeyPart {
-    /** Only the name: the key has its `:`. */
+    /** Only the name: the key, a key string or a bare word the user forgot to quote, has its `:`. */
     NAME,
 
     /** The name and the `:`: the key has a value but lacks the `:` in front of it. */
@@ -81,9 +80,9 @@ internal enum class KeyPart {
 
     /** The parts of keys. */
     companion object {
-        /** What completion writes at the key of [member], or at a new key for null. */
-        fun of(member: JsonNode.Member?): KeyPart = when {
-            member == null || (member.colon == null && member.value == null) -> MEMBER
+        /** What completion writes at the key string of [member]. */
+        fun of(member: JsonNode.Member): KeyPart = when {
+            member.colon == null && member.value == null -> MEMBER
             member.colon == null -> NAME_AND_COLON
             else -> NAME
         }

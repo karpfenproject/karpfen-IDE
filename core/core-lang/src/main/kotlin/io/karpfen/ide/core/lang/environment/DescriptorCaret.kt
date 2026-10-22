@@ -19,7 +19,8 @@ import io.karpfen.ide.core.text.TextRange
  * - after the `:` of a member without value, up to the next token, the caret is on that member's value, also within a
  *   bare word typed there;
  * - in blank space or a bare word right after `{` or `,` of an object it is on a new key, after `[` or `,` of a list on
- *   a new item;
+ *   a new item; a bare word with a `:` behind it is a key the user forgot to quote, whose `:` and value the parser left
+ *   out of the tree together with the word, so only its name is written there ([KeyPart.NAME]) and they stay;
  * - after the last complete member of an object or the last item of a list, with nothing but its closing bracket (or
  *   the end of the text) after the caret, it is on a new key or item that needs a `,` in front ([SlotEdit.leading]), so
  *   one can be added at the end without typing the comma first;
@@ -100,11 +101,24 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
             }
             val (before, range) = gap()
             return when {
-                opens(before, node.range, JsonTokenKind.BEGIN_OBJECT) ->
-                    DescriptorSlot.Key(node, shape, null, edits.outside(range, Container.OBJECT))
+                opens(before, node.range, JsonTokenKind.BEGIN_OBJECT) -> newKey(node, shape, range)
                 isAfterLast(node.members.lastOrNull()?.value, node.range, node.isClosed, before, range.end) ->
-                    DescriptorSlot.Key(node, shape, null, edits.outside(range, Container.OBJECT, leading = ", "))
+                    DescriptorSlot.Key(node, shape, null, edits.outside(range, Container.OBJECT, leading = ", "), KeyPart.MEMBER)
                 else -> DescriptorSlot.None
+            }
+        }
+
+        /**
+         * The slot of a new key of the object [owner] (expected to have [shape]) at [range], blank space or a bare word
+         * right after the object's `{` or a `,`: the whole member, or only the quoted name where a `:` follows the bare
+         * word, so the `:` and the value the user wrote behind it stay theirs.
+         */
+        private fun newKey(owner: JsonNode.ObjectNode, shape: ValueShape.Record?, range: TextRange): DescriptorSlot.Key {
+            val next = document.tokens.firstOrNull { it.range.start >= range.end }
+            return if (!range.isEmpty && next?.kind == JsonTokenKind.NAME_SEPARATOR) {
+                DescriptorSlot.Key(owner, shape, null, edits.outside(range, container = null), KeyPart.NAME)
+            } else {
+                DescriptorSlot.Key(owner, shape, null, edits.outside(range, Container.OBJECT), KeyPart.MEMBER)
             }
         }
 
@@ -115,7 +129,7 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
         private fun keyOf(owner: JsonNode.ObjectNode, shape: ValueShape.Record?, member: JsonNode.Member): DescriptorSlot.Key {
             val part = KeyPart.of(member)
             val container = if (part == KeyPart.MEMBER) Container.OBJECT else null
-            return DescriptorSlot.Key(owner, shape, member, edits.inString(member.key, container, continues = part != KeyPart.NAME))
+            return DescriptorSlot.Key(owner, shape, member, edits.inString(member.key, container, continues = part != KeyPart.NAME), part)
         }
 
         /** The slot in the list [node] (expected to have [shape]), which is the value of [place]. */
