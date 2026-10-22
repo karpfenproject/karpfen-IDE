@@ -9,9 +9,10 @@ import io.karpfen.ide.core.lang.feature.NavigationProvider
 
 /**
  * Navigation in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]: from a file path to the
- * start of the file it names (if the workspace has it), from an `attachedTo` value to the declaration of that object in
- * the descriptor's model (its key in `make object "key":"Type"`). A descriptor declares nothing others refer to, so its
- * references are the same targets.
+ * start of the file it names, if the workspace has it by the rule the workspace checks the descriptor with
+ * ([DescriptorProject.locationOf]); from an `attachedTo` value to the declaration of that object in the descriptor's
+ * model (its key in `make object "key":"Type"`). A descriptor declares nothing others refer to, so its references are
+ * the same targets.
  */
 internal class EnvironmentNavigationProvider(
     private val trees: DescriptorTrees,
@@ -24,9 +25,11 @@ internal class EnvironmentNavigationProvider(
         val slot = caret.slotAt(trees.of(text), text.text, offset) as? DescriptorSlot.Value ?: return emptyList()
         val value = (slot.node as? JsonNode.StringNode)?.value ?: return emptyList()
         val project = DescriptorProject(request)
-        val target = when (slot.shape) {
-            is ValueShape.FilePath -> project.locationOf(value)
-            ValueShape.ObjectKey -> project.fileNamed(DescriptorFileRole.MODEL, slot.root, schema)?.let { project.objectLocation(it, value) }
+        val target = when (val shape = slot.shape) {
+            is ValueShape.FilePath -> project.locationOf(value, shape.role)
+            ValueShape.ObjectKey -> project.fileNamed(DescriptorFileRole.MODEL, slot.root, schema)?.let { model ->
+                project.objectLocation(model, value)
+            }
             else -> null
         }
         return listOfNotNull(target)

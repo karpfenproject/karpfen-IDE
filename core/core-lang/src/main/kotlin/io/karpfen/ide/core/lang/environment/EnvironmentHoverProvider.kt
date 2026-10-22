@@ -7,12 +7,14 @@ import io.karpfen.ide.core.document.json.JsonNode
 import io.karpfen.ide.core.lang.Hover
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.feature.HoverProvider
+import io.karpfen.ide.core.workspace.environment.NamedFile
 
 /**
  * Hover in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]:
  * - on a key: what its value is, whether it is required, and the key's documentation; on an unknown key, the keys known
  *   there;
- * - on a file path: the file's role and the file it resolves to, or that the workspace has no such file;
+ * - on a file path: the file's role and the file it resolves to, and whether the workspace has no such file or one
+ *   of another language, by the rule the workspace checks the descriptor with ([DescriptorProject.lookUp]);
  * - on an `attachedTo` value: the object and its type (`object turtle: Robot`), or that the model has no such object;
  * - on an event domain: the domain;
  * - on any other value: the documentation of its key.
@@ -28,7 +30,9 @@ internal class EnvironmentHoverProvider(
     override fun hover(request: FeatureRequest, offset: Int): Hover? {
         val text = request.document.text
         return when (val slot = caret.slotAt(trees.of(text), text.text, offset)) {
-            is DescriptorSlot.Key -> slot.member?.let { member -> keyText(member.key.value, slot.shape)?.let { Hover(member.key.content, it) } }
+            is DescriptorSlot.Key -> slot.member?.let { member ->
+                keyText(member.key.value, slot.shape)?.let { Hover(member.key.content, it) }
+            }
             is DescriptorSlot.Value -> valueHover(DescriptorProject(request), slot)
             is DescriptorSlot.Root, DescriptorSlot.None -> null
         }
@@ -57,8 +61,12 @@ internal class EnvironmentHoverProvider(
 
     /** The role of a file path and the file it names. */
     private fun fileText(project: DescriptorProject, role: DescriptorFileRole, value: String): String {
-        val path = project.resolve(value) ?: return "'$value' is no valid path."
-        val where = if (project.exists(path)) path.toString() else "$path, which is not in the workspace"
+        val where = when (val named = project.lookUp(value, role)) {
+            NamedFile.NoPath -> return "'$value' is no valid path."
+            is NamedFile.Missing -> "${named.path}, which is not in the workspace"
+            is NamedFile.WrongLanguage -> "${named.file.path}, which is not a ${named.language.displayName} file"
+            is NamedFile.Present -> named.file.path.toString()
+        }
         return "${role.description.replaceFirstChar(Char::uppercaseChar)}: $where"
     }
 

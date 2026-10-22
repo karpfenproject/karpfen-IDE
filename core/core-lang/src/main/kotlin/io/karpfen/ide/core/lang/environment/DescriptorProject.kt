@@ -10,22 +10,30 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.analysis.AnalyzedFile
 import io.karpfen.ide.core.workspace.analysis.ContextSymbols
+import io.karpfen.ide.core.workspace.environment.DescriptorFiles
 import io.karpfen.ide.core.workspace.environment.DescriptorPaths
+import io.karpfen.ide.core.workspace.environment.NamedFile
 import io.karpfen.ide.core.workspace.files.FileKind
-import io.karpfen.ide.core.workspace.files.WorkspaceNode
+import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import java.nio.file.Path
 
 /**
  * What the workspace knows about the files an environment descriptor names, for one request: the request's file tree
  * and latest project analysis, seen from the descriptor's directory. Paths are resolved and written by the workspace's
- * one rule ([DescriptorPaths]); what a file declares comes from the workspace's [ContextSymbols], which read the syntax
- * index of each analyzed parse (the editor text of an open file), so it is known even while the descriptor or the model
- * does not convert. Immutable; one per request.
+ * one rule ([DescriptorPaths]), and whether a named file is there is decided by the rule the workspace checks the
+ * descriptor with ([DescriptorFiles], over the request's file tree), so hover, go to definition and completion never
+ * treat a file as there that the descriptor's findings report missing. Without a file tree (services that know no
+ * workspace) no named file is there. What a file declares comes from the workspace's [ContextSymbols], which read the
+ * syntax index of each analyzed parse (the editor text of an open file), so it is known even while the descriptor or
+ * the model does not convert. Immutable; one per request.
  */
 internal class DescriptorProject(private val request: FeatureRequest) {
 
     /** The descriptor's directory, against which its paths are resolved. */
     private val directory: Path? = request.document.path.parent
+
+    /** The rule for the files the descriptor names, over the request's file tree or, without one, an empty tree. */
+    private val files = DescriptorFiles(request.files ?: WorkspaceTree.empty(directory ?: request.document.path))
 
     /** What the analyzed files declare and use: objects, `ATTACHED TO` types, event domains. */
     val symbols: ContextSymbols = ContextSymbols(request.project)
@@ -33,29 +41,30 @@ internal class DescriptorProject(private val request: FeatureRequest) {
     /** The file the descriptor names as [value], absolute and normalized, or null if [value] is no valid path. */
     fun resolve(value: String): Path? = directory?.let { DescriptorPaths.resolve(it, value) }
 
-    /** True if [path] is a file of the workspace (in its tree, or analyzed). */
-    fun exists(path: Path): Boolean = request.files?.find(path) is WorkspaceNode.File || request.project.file(path) != null
+    /** What [value], named for [role], refers to in the workspace. */
+    fun lookUp(value: String, role: DescriptorFileRole): NamedFile =
+        directory?.let { files.lookUp(it, value, role) } ?: NamedFile.NoPath
 
-    /** The file the descriptor names as [value], as a navigation target at its start, or null if it does not exist. */
-    fun locationOf(value: String): Location? {
-        val path = resolve(value)?.takeIf(::exists) ?: return null
+    /**
+     * The file the descriptor names as [value] for [role], as a navigation target at its start, or null if the
+     * workspace has no such file. A file of another language than the role's is a target too: it is there.
+     */
+    fun locationOf(value: String, role: DescriptorFileRole): Location? {
+        val path = lookUp(value, role).file?.path ?: return null
         return analyzed(path)?.let { Location(path, TextRange.EMPTY, it.snapshot) } ?: Location(path, TextRange.EMPTY)
     }
 
     /**
-     * The workspace files a key of [role] can name, as the descriptor names them (relative to its directory with `/`),
-     * from the file tree, or from the analyzed files where no tree is known. These are the files that fit the role by
-     * the rule the workspace checks a descriptor with ([FileKind.fits]), each marked as the usual choice or not
+     * The workspace files a key of [role] can name, as the descriptor names them (relative to its directory with `/`):
+     * the files of the tree that fit the role ([DescriptorFiles.candidates]), each marked as the usual choice or not
      * ([FileKind.isUsualFor]). For a role that accepts any file, a bridge configuration, only the usual files are
      * offered, because a list of every file of the workspace would help nobody.
      */
     fun candidates(role: DescriptorFileRole): List<FileCandidate> {
         val base = directory ?: return emptyList()
-        val files = request.files?.files()?.map { it.path to it.kind }
-            ?: request.project.files.keys.map { it to FileKind.of(it.fileName?.toString().orEmpty()) }
-        return files
-            .filter { (_, kind) -> kind.fits(role) && (role.language != null || kind.isUsualFor(role)) }
-            .map { (path, kind) -> FileCandidate(DescriptorPaths.relative(base, path), kind.isUsualFor(role)) }
+        return files.candidates(role)
+            .filter { role.language != null || it.kind.isUsualFor(role) }
+            .map { FileCandidate(DescriptorPaths.relative(base, it.path), it.kind.isUsualFor(role)) }
     }
 
     /** The first file of [role] named below [node] (expected to have [shape]), resolved, or null. */

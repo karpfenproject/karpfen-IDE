@@ -209,6 +209,31 @@ class EnvironmentFeaturesTest {
     }
 
     @Test
+    fun `a named file the analysis knows but the tree lacks is missing, as the descriptor's finding says`() {
+        val metamodel = robotDir.resolve("cleaning_robot.kmeta")
+        val treeless = DescriptorFixture.services(failures, DescriptorFixture.treeWithout(metamodel))
+        val document = DescriptorFixture.document(valid)
+        val onPath = after(valid, "\"cleaning_robot.km")
+        assertNotNull(ExampleProject.analysis.file(metamodel), "the analysis knows the file")
+
+        assertEquals("The domain metamodel: $metamodel, which is not in the workspace", treeless.hover(document, onPath)?.text)
+        assertEquals(emptyList(), treeless.definition(document, onPath))
+        val (empty, offset) = DescriptorFixture.at("{ \"metamodel\": \"‸\" }")
+        assertTrue("cleaning_robot.kmeta" !in treeless.complete(empty, offset).map { it.label })
+    }
+
+    @Test
+    fun `a named file of another language than its role is there, and hover says what it is not`() {
+        val text = valid.replace("\"metamodel\": \"cleaning_robot.kmeta\"", "\"metamodel\": \"cleaning_robot.kstates\"")
+        val document = DescriptorFixture.document(text)
+        val onPath = after(text, "\"metamodel\": \"cleaning_robot.ks")
+        val machine = ExampleProject.pathOf(ExamplePaths.ROBOT_KSTATES)
+
+        assertEquals("The domain metamodel: $machine, which is not a KMeta file", services.hover(document, onPath)?.text)
+        assertEquals(listOf(machine), services.definition(document, onPath).map { it.path })
+    }
+
+    @Test
     fun `go to definition opens the named file and finds the attached object in the model`() {
         val document = DescriptorFixture.document(valid)
         val modelPath = ExampleProject.pathOf(ExamplePaths.ROBOT_KMODEL)

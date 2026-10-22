@@ -36,14 +36,22 @@ internal object DescriptorFixture {
     val tree: WorkspaceTree by lazy { treeWith() }
 
     /** The file tree of every example file, [PATH], [BRIDGE] and the [extra] files. */
-    fun treeWith(vararg extra: Path): WorkspaceTree {
-        val files = Examples.files().map { ExampleProject.pathOf(it.path) } + listOf(PATH, BRIDGE) + extra
-        return WorkspaceTree(directory(ExampleProject.ROOT, files))
-    }
+    fun treeWith(vararg extra: Path): WorkspaceTree = treeOf(exampleFiles() + extra)
 
-    /** The default services over the examples' analysis and [tree]; [failures] collects every provider failure. */
-    fun services(failures: MutableList<ProviderFailure> = Collections.synchronizedList(ArrayList())): LanguageServices =
-        defaultLanguageServices(MutableStateFlow(ExampleProject.analysis), onProviderFailure = { failures += it }, files = MutableStateFlow(tree))
+    /** The file tree of every example file, [PATH] and [BRIDGE], without the [missing] files. */
+    fun treeWithout(vararg missing: Path): WorkspaceTree = treeOf(exampleFiles() - missing.toSet())
+
+    /**
+     * The default services over the examples' analysis and [files], by default [tree]; [failures] collects every
+     * provider failure.
+     */
+    fun services(
+        failures: MutableList<ProviderFailure> = Collections.synchronizedList(ArrayList()),
+        files: WorkspaceTree = tree,
+    ): LanguageServices {
+        val analysis = MutableStateFlow(ExampleProject.analysis)
+        return defaultLanguageServices(analysis, onProviderFailure = { failures += it }, files = MutableStateFlow(files))
+    }
 
     /** The descriptor document with [text] at [PATH]. */
     fun document(text: String, version: Long = 1): LanguageDocument = ExampleProject.document(PATH, text, version)
@@ -54,6 +62,12 @@ internal object DescriptorFixture {
         require(offset >= 0) { "no caret marker" }
         return document(textWithCaret.removeRange(offset, offset + 1)) to offset
     }
+
+    /** Every example file, [PATH] and [BRIDGE]. */
+    private fun exampleFiles(): List<Path> = Examples.files().map { ExampleProject.pathOf(it.path) } + listOf(PATH, BRIDGE)
+
+    /** The tree below the examples' root holding exactly [files]. */
+    private fun treeOf(files: List<Path>): WorkspaceTree = WorkspaceTree(directory(ExampleProject.ROOT, files))
 
     /** The directory node of [path] with every file of [files] below it. */
     private fun directory(path: Path, files: List<Path>): WorkspaceNode.Directory {

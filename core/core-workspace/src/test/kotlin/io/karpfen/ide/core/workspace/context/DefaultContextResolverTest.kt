@@ -66,7 +66,7 @@ class DefaultContextResolverTest {
             ),
             findings.map { Triple(it.code, it.severity, it.range) },
         )
-        assertEquals(listOf(ws("ctx/missing.kmodel")), resolution.contexts.single().models)
+        assertEquals(emptyList(), resolution.contexts.single().models, "the missing model is not part of the context")
         assertEquals(listOf(ws("ctx/cleaning_robot.kmodel")), resolution.looseFiles)
     }
 
@@ -147,7 +147,7 @@ class DefaultContextResolverTest {
     }
 
     @Test
-    fun `references to ignored, absent, directory and invalid paths are missing files`() {
+    fun `references to ignored, absent, directory and invalid paths are missing files and not part of the context`() {
         val text = descriptorText("build/a.kmeta", "models", "../../outside.kstates", "bad\\u0000name.kstates")
         val tree = treeOf("ctx/robot.kenv.json", "ctx/models/x.kmodel")
 
@@ -156,7 +156,8 @@ class DefaultContextResolverTest {
         val missing = resolution.diagnostics.getValue(ws("ctx/robot.kenv.json"))
         assertEquals(4, missing.size)
         assertTrue(missing.all { it.code == WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE && it.severity == Severity.ERROR })
-        assertEquals(listOf(WS_ROOT.resolve("../outside.kstates").normalize()), resolution.contexts.first().stateMachines.map { it.file }, "invalid paths are dropped")
+        val context = resolution.contexts.single { it.descriptor == ws("ctx/robot.kenv.json") }
+        assertEquals(emptyList(), context.files, "the analysis never reads a file the descriptor reports missing")
     }
 
     @Test

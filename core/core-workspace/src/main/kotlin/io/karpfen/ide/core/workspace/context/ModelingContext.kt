@@ -5,7 +5,9 @@ import java.nio.file.Path
 
 /**
  * A set of files analyzed together: one domain metamodel, an optional event metamodel, models and state machines. All
- * paths are absolute and normalized; referenced files may be missing on disk (reported by the resolver).
+ * paths are absolute and normalized, and every one is a file of the scanned workspace tree (an explicit context leaves
+ * out what its descriptor names but the tree lacks, which the resolver reports); a file may still vanish from disk
+ * before the next scan.
  *
  * @property directory the directory the context belongs to.
  * @property descriptor the `*.kenv.json` defining the context, or null for an implicit (directory) context.

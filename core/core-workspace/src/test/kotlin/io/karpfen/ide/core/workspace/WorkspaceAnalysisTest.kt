@@ -116,6 +116,25 @@ class WorkspaceAnalysisTest {
     }
 
     @Test
+    fun `a file named outside the workspace is missing and never analyzed, though it is on disk`() = runTest(timeout = 60.seconds) {
+        val workspaceRoot = root.resolve("ws")
+        val descriptor = DescriptorExamples.copyExplicitContext(workspaceRoot.resolve("ctx")).toAbsolutePath().normalize()
+        val outside = root.resolve("outside/cleaning_robot.kmeta")
+        Files.createDirectories(outside.parent)
+        Files.move(workspaceRoot.resolve("ctx/cleaning_robot.kmeta"), outside)
+        val named = Files.readString(descriptor).replace("\"cleaning_robot.kmeta\"", "\"../../outside/cleaning_robot.kmeta\"")
+        Files.writeString(descriptor, named)
+        val workspace = TestWorkspaces(this).open(workspaceRoot)
+
+        val analysis = workspace.awaitAnalysis()
+
+        val finding = assertNotNull(workspace.problems.value.of(descriptor)).diagnostics.single()
+        assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE, finding.code)
+        assertEquals(null, analysis.file(outside), "the descriptor reports the file missing, so the analysis does not read it")
+        assertEquals(null, analysis.contexts.single().context.metamodel)
+    }
+
+    @Test
     fun `files and directories the workspace cannot read are unreadable errors in problems`() = runTest(timeout = 60.seconds) {
         assumeTrue(Files.getFileStore(root).supportsFileAttributeView("posix"), "needs POSIX permissions")
         val broken = Files.writeString(root.resolve("broken.kstates"), "STATEMACHINE")

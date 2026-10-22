@@ -123,7 +123,8 @@ below, which the `Workspace` factory function creates.
 - **Environment descriptors.** The `environment` package reads `*.kenv.json` files: `JsonEnvironmentDescriptorReader`
   parses them with core-document's JSON parser, checks them against `EnvironmentSchema` with `DescriptorValidator`
   and decodes them into core-document's typed `EnvironmentDescriptor`. `DescriptorPaths` is how a descriptor names
-  files, and `FileKind.fits` which files fit the role of a key.
+  files, `FileKind.fits` which files fit the role of a key, and `DescriptorFiles` whether a named file is there: the
+  one rule that the contexts and the editor's hover, go to definition and completion of descriptors share.
 - **Modeling contexts.** The `context` package decides which files are analyzed together: `ModelingContext`, and
   `ContextResolver` with the rules for descriptors, directories and loose files. `ContextTracker` reads an open
   descriptor from its editor text, so its findings, the contexts and the analysis follow unsaved edits.

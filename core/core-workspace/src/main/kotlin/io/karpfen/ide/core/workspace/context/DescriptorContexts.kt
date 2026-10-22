@@ -5,29 +5,33 @@ import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.environment.DescriptorFileRole
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.workspace.diagnostics.DiagnosticsByFile
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.environment.DescriptorFileReference
-import io.karpfen.ide.core.workspace.environment.DescriptorPaths
+import io.karpfen.ide.core.workspace.environment.DescriptorFiles
 import io.karpfen.ide.core.workspace.environment.DescriptorReadResult
-import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
+import io.karpfen.ide.core.workspace.environment.NamedFile
 import io.karpfen.ide.core.workspace.files.FileKind
-import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import java.nio.file.Path
 
 /**
  * The explicit contexts of a workspace (rules on [ContextResolver]): one per successfully read descriptor, in path
- * order, with paths resolved against the descriptor's directory by [DescriptorPaths.resolve] (sub-directories and `..`
- * allowed; the result is normalized). Every reference that names no file of the tree — missing, in an ignored
- * directory, outside the workspace, a directory, or not a valid path — is an ERROR `descriptor-missing-file` on the
- * descriptor at the reference's range; bridges are references too. A reference to a file that does not fit its role
- * ([FileKind.fits]: a file of another language than the role's, e.g. a `.kstates` file as metamodel) is an ERROR
- * `descriptor-invalid` there: the analysis converts nothing that depends on it, which would otherwise pass without a
- * finding. The descriptors' read findings are reported as they are.
+ * order. Whether a file the descriptor names is there is decided by [DescriptorFiles], the rule the editor follows
+ * too: a reference that names no file of the tree (missing, in an ignored directory, outside the workspace, a
+ * directory, or not a valid path) is an ERROR `descriptor-missing-file` on the descriptor at the reference's range and
+ * is left out of the context, so the analysis never reads or converts a file the descriptor reports missing; bridges
+ * are references too. A reference to a file that does not fit its role (a file of another language than the role's,
+ * e.g. a `.kstates` file as metamodel) is an ERROR `descriptor-invalid` there; the context still names the file, which
+ * is there, and the analysis converts nothing that depends on it. The descriptors' read findings are reported as they
+ * are.
  */
 internal class DescriptorContexts(private val tree: WorkspaceTree, private val descriptors: Map<Path, DescriptorReadResult>) {
+
+    /** The rule for the files the descriptors name. */
+    private val files = DescriptorFiles(tree)
 
     /** The explicit contexts; findings go to [diagnostics]. */
     fun resolve(diagnostics: DiagnosticsByFile): List<ModelingContext> {
@@ -44,32 +48,28 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
         }
     }
 
-    /** The context of the descriptor at [path]; references that are not valid paths are left out. */
-    private fun contextOf(path: Path, directory: Path, descriptor: EnvironmentDescriptor): ModelingContext =
-        ModelingContext(
+    /** The context of the descriptor at [path] in [directory]; the files it names that are not there are left out. */
+    private fun contextOf(path: Path, directory: Path, descriptor: EnvironmentDescriptor): ModelingContext {
+        fun named(value: String, role: DescriptorFileRole): Path? = files.lookUp(directory, value, role).file?.path
+        return ModelingContext(
             directory = directory,
             descriptor = path,
-            metamodel = resolve(directory, descriptor.metamodel),
-            events = descriptor.events?.let { resolve(directory, it) },
-            models = listOfNotNull(resolve(directory, descriptor.model)),
+            metamodel = named(descriptor.metamodel, DescriptorFileRole.METAMODEL),
+            events = descriptor.events?.let { named(it, DescriptorFileRole.EVENTS) },
+            models = listOfNotNull(named(descriptor.model, DescriptorFileRole.MODEL)),
             stateMachines = descriptor.stateMachines.mapNotNull { entry ->
-                resolve(directory, entry.file)?.let { StateMachineBinding(it, entry.attachedTo) }
+                named(entry.file, DescriptorFileRole.STATE_MACHINE)?.let { StateMachineBinding(it, entry.attachedTo) }
             },
         )
-
-    /** The finding on [reference] (a missing file or one of the wrong language), or null if it names a fitting file. */
-    private fun check(reference: DescriptorFileReference, directory: Path): Diagnostic? {
-        val file = resolve(directory, reference.value)?.let { tree.find(it) as? WorkspaceNode.File }
-        val language = reference.role.language
-        return when {
-            file == null -> missingFile(reference)
-            language != null && !file.kind.fits(reference.role) -> wrongLanguage(reference, language)
-            else -> null
-        }
     }
 
-    /** [value] resolved against [directory] ([DescriptorPaths.resolve]), or null if it is not a valid path. */
-    private fun resolve(directory: Path, value: String): Path? = DescriptorPaths.resolve(directory, value)
+    /** The finding on [reference] (a missing file or one of the wrong language), or null if it names a fitting file. */
+    private fun check(reference: DescriptorFileReference, directory: Path): Diagnostic? =
+        when (val named = files.lookUp(directory, reference.value, reference.role)) {
+            NamedFile.NoPath, is NamedFile.Missing -> missingFile(reference)
+            is NamedFile.WrongLanguage -> wrongLanguage(reference, named.language)
+            is NamedFile.Present -> null
+        }
 
     /** The key that names files of [role], as findings name it (`stateMachines[].file`). */
     private fun keyOf(role: DescriptorFileRole): String = EnvironmentSchema.keyPathOf(role)

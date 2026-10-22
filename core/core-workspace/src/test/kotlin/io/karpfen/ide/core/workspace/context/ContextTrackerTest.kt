@@ -111,7 +111,7 @@ class ContextTrackerTest {
         assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE, missing.code)
         assertEquals("missing.kmodel", edited.text.substring(missing.range.start, missing.range.end))
         assertSame(edited, tracker.state.value.descriptorTexts[descriptor], "findings refer to the editor's snapshot")
-        assertEquals(listOf(descriptor.resolveSibling("missing.kmodel")), tracker.resolution.value.contexts.single().models, "the context follows the edit")
+        assertEquals(emptyList(), tracker.resolution.value.contexts.single().models, "the context follows the edit, without the missing model")
 
         editor.remove(descriptor)
         tracker.refreshEdits()
