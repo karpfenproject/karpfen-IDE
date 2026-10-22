@@ -134,9 +134,8 @@ below, which the `Workspace` factory function creates.
 - **Analysis.** The `analysis` package reads every context with dsl-tools: `ProjectAnalyzer` documents the rules,
   `DefaultProjectAnalyzer` implements them with `ContextReader`, `ProjectAnalysis` is the result, and
   `AnalysisScheduler` runs the analysis again, debounced and cancellable, when the contexts or the open documents
-  change. `ContextSymbols` answers
-  what the analyzed files declare that descriptors refer to (objects, `ATTACHED TO` types, event domains); the
-  descriptor's language services and the template of new descriptors both ask it.
+  change. `ContextSymbols` answers what the analyzed files declare that descriptors refer to (objects, `ATTACHED TO`
+  types, event domains); the descriptor's language services and the template of new descriptors both ask it.
 - **Problems.** The `problems` package applies one rule to every diagnostic of every file: `WorkspaceProblems` and
   `WorkspaceProblemsAggregator`. The Problems view, the status bar and `karpfen validate` all use it unchanged, which
   is why the IDE and the CLI always agree.
