@@ -1,40 +1,32 @@
 package io.karpfen.ide.ui.workbench.state
 
-import io.karpfen.ide.core.document.parse.ReferenceKind
-import io.karpfen.ide.core.document.parse.SymbolKind
-import io.karpfen.ide.core.document.parse.SyntaxIndex
+import io.karpfen.ide.core.workspace.analysis.ContextSymbols
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.ui.workbench.templates.TemplateContext
-import io.karpfen.ide.ui.workbench.templates.TemplateObject
 import java.nio.file.Path
 
 /**
- * Builds the [TemplateContext] of a new file from the workspace's contexts and the IDE-owned syntax indexes of its
- * latest analysis — never from converted dsl-tools models, so the mediator never walks them and the context is also
- * known while a metamodel does not convert: the directory's context (its explicit context if a descriptor covers it,
- * else its implicit one), the TYPE declarations of the context's metamodel, the OBJECT declarations of its first model,
- * each state machine's `ATTACHED TO` type and the event domains the state machines use. Pure.
+ * Builds the [TemplateContext] of a new file from the workspace's contexts and the [ContextSymbols] of its latest
+ * analysis, the same queries the descriptor's language features ask, so the mediator never walks converted dsl-tools
+ * models and the context is also known while a metamodel does not convert: the directory's context (its explicit
+ * context if a descriptor covers it, else its implicit one), the types of the context's metamodel, the objects of its
+ * first model, each state machine's `ATTACHED TO` type and the event domains the state machines use. Pure.
  */
 internal object TemplateContextBuilder {
 
     /** The template context of a new file in [directory]; without a context there, only the directory is known. */
     fun build(directory: Path, resolution: ContextResolution, analysis: ProjectAnalysis): TemplateContext {
         val context = resolution.contexts.firstOrNull { it.directory == directory } ?: return TemplateContext(directory)
-        fun index(path: Path?): SyntaxIndex? = path?.let { analysis.file(it)?.parse?.index }
-        val typeNames = index(context.metamodel)?.declarationsOf(SymbolKind.TYPE)?.map { it.name }.orEmpty()
-        val objects = index(context.models.firstOrNull())
-            ?.declarationsOf(SymbolKind.OBJECT)
-            ?.map { TemplateObject(it.name, it.typeName) }
-            .orEmpty()
-        val machineTypes = context.stateMachines.mapNotNull { binding ->
-            index(binding.file)?.declarationsOf(SymbolKind.STATEMACHINE)?.firstOrNull()?.typeName?.let { binding.file to it }
-        }.toMap()
-        val eventDomains = context.stateMachines
-            .flatMap { binding -> index(binding.file)?.referencesOf(ReferenceKind.EVENT_DOMAIN)?.map { it.name }.orEmpty() }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .sorted()
-        return TemplateContext(directory, context, typeNames, objects, machineTypes, eventDomains)
+        val symbols = ContextSymbols(analysis)
+        val machines = context.stateMachines.map { it.file }
+        return TemplateContext(
+            directory = directory,
+            context = context,
+            typeNames = context.metamodel?.let(symbols::typeNamesOf).orEmpty(),
+            objects = context.models.firstOrNull()?.let(symbols::objectsOf).orEmpty(),
+            stateMachineTypes = machines.mapNotNull { file -> symbols.attachedTypeOf(file)?.let { file to it } }.toMap(),
+            eventDomains = symbols.eventDomainsOf(machines),
+        )
     }
 }

@@ -1,5 +1,8 @@
 package io.karpfen.ide.ui.workbench.templates
 
+import io.karpfen.ide.core.workspace.analysis.AttachmentCandidate
+import io.karpfen.ide.core.workspace.analysis.ContextSymbols
+import io.karpfen.ide.core.workspace.analysis.ModelObject
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import java.nio.file.Path
 
@@ -26,17 +29,17 @@ public enum class FileTemplateKind(public val suffix: String, public val display
 
 /**
  * What a template knows about where the new file goes; built by `WorkbenchState.createFile` from `Workspace.contexts`
- * and the IDE-owned syntax indexes (`AnalyzedFile.parse.index`) of `Workspace.analysis` — never from the converted
- * dsl-tools models, so it is also known while a metamodel does not convert.
+ * and the symbols of `Workspace.analysis` ([ContextSymbols], which reads the IDE-owned syntax indexes, never the
+ * converted dsl-tools models), so it is also known while a metamodel does not convert.
  *
  * @property directory the target directory.
  * @property context the modeling context the directory forms or is covered by before the file is created (an implicit
  *   context of the directory, or the explicit context of its descriptor), or null.
- * @property typeNames the TYPE declarations of that context's domain metamodel, in declaration order (empty if unknown).
- * @property objects the OBJECT declarations of that context's first model (nested ones included), in document order:
- *   key and type name (`SymbolDeclaration.typeName`); empty if unknown.
- * @property stateMachineTypes the `ATTACHED TO` type (`SymbolDeclaration.typeName` of the STATEMACHINE declaration) of
- *   each state machine of the context, by path; a machine whose type is unknown is absent.
+ * @property typeNames the types of that context's domain metamodel, in declaration order (empty if unknown).
+ * @property objects the objects with a key of that context's first model (nested ones included), in document order;
+ *   empty if unknown.
+ * @property stateMachineTypes the `ATTACHED TO` type of each state machine of the context, by path; a machine whose
+ *   type is unknown is absent.
  * @property eventDomains the event domains the context's state machines use (`EVENT("domain", …)`), sorted, without
  *   repetitions.
  */
@@ -44,13 +47,10 @@ public data class TemplateContext(
     public val directory: Path,
     public val context: ModelingContext? = null,
     public val typeNames: List<String> = emptyList(),
-    public val objects: List<TemplateObject> = emptyList(),
+    public val objects: List<ModelObject> = emptyList(),
     public val stateMachineTypes: Map<Path, String> = emptyMap(),
     public val eventDomains: List<String> = emptyList(),
 )
-
-/** An object a descriptor can attach a state machine to: its [key] and its [typeName] (null if the text omits it). */
-public data class TemplateObject(public val key: String, public val typeName: String?)
 
 /**
  * Content of new files. Generated karpfen sources must tokenize and parse without diagnostics and, where the
@@ -60,12 +60,12 @@ public data class TemplateObject(public val key: String, public val typeName: St
  * - KStates: `ATTACHED TO` the context's first domain type when known, one initial state;
  * - Environment: a descriptor naming the files of the directory's current context (metamodel, events, its first model,
  *   its state machines), paths relative to the directory, so creating it keeps the directory's files in one context
- *   instead of turning them into loose files. Each state machine is attached to the key of the first object whose type
- *   equals the machine's `ATTACHED TO` type (`stateMachineTypes`), else to the first object's key, else to the
- *   placeholder `"object"` (e.g. single_robot_example: `cleaning_robot.kstates` → `"turtle"`, the Robot, not the root
- *   Room). When the state machines use event domains, it observes every object and those domains. Without a context,
- *   files named after the descriptor (reported as `descriptor-missing-file` until created). It must read without
- *   diagnostics except missing referenced files, and it opens in an editor tab like every karpfen file.
+ *   instead of turning them into loose files. Each state machine is attached to the first object the ranking rule of
+ *   [AttachmentCandidate.rank] proposes for it, the first object of its `ATTACHED TO` type, else the first object, else
+ *   the placeholder `"object"` (e.g. single_robot_example: `cleaning_robot.kstates` → `"turtle"`, the Robot, not the
+ *   root Room). When the state machines use event domains, it observes every object and those domains. Without a
+ *   context, files named after the descriptor (reported as `descriptor-missing-file` until created). It must read
+ *   without diagnostics except missing referenced files, and it opens in an editor tab like every karpfen file.
  */
 public interface FileTemplates {
 

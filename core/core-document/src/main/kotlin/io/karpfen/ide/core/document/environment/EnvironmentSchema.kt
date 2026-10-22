@@ -59,6 +59,9 @@ public object EnvironmentSchema {
     /** The key of the observed objects' pattern. */
     public const val OBJECTS: String = "objects"
 
+    /** The pattern of [OBJECTS] that observes every object; completion suggests it, and new descriptors use it. */
+    public const val EVERY_OBJECT: String = "*"
+
     /** The key of the observed event domains. */
     public const val DOMAINS: String = "domains"
 
@@ -93,9 +96,9 @@ public object EnvironmentSchema {
     private val OBSERVATION = ValueShape.Record(
         listOf(
             DescriptorKey(
-                OBJECTS, ValueShape.Text(listOf("*")), isRequired = true, isNullable = false,
-                "The keys of the objects the IDE observes while the environment runs, as a pattern; \"*\" observes " +
-                    "every object.",
+                OBJECTS, ValueShape.Text(listOf(EVERY_OBJECT)), isRequired = true, isNullable = false,
+                "The keys of the objects the IDE observes while the environment runs, as a pattern; \"$EVERY_OBJECT\" " +
+                    "observes every object.",
             ),
             DescriptorKey(
                 DOMAINS, ValueShape.ListOf(ValueShape.EventDomain), isRequired = false, isNullable = false,

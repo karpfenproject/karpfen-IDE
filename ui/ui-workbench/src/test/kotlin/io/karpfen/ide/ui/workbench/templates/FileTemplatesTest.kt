@@ -1,8 +1,10 @@
 package io.karpfen.ide.ui.workbench.templates
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.core.workspace.analysis.ModelObject
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.context.StateMachineBinding
 import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptor
@@ -71,7 +73,7 @@ class FileTemplatesTest {
         }
         val contexts = listOf(
             TemplateContext(directory),
-            TemplateContext(directory, typeNames = listOf("Vec\"tor"), objects = listOf(TemplateObject("o\"1", "Vec\"tor"))),
+            TemplateContext(directory, typeNames = listOf("Vec\"tor"), objects = listOf(ModelObject("o\"1", "Vec\"tor"))),
         )
         names.forEach { name ->
             contexts.forEach { context ->
@@ -92,7 +94,7 @@ class FileTemplatesTest {
         )
         val template = TemplateContext(
             directory, context,
-            objects = listOf(TemplateObject("APB 2101", "Room"), TemplateObject("turtle", "Robot")),
+            objects = listOf(ModelObject("APB 2101", "Room"), ModelObject("turtle", "Robot")),
             stateMachineTypes = mapOf(
                 directory.resolve("cleaning_robot.kstates") to "Robot",
                 directory.resolve("sub/x.kstates") to "Drone",
@@ -120,7 +122,7 @@ class FileTemplatesTest {
             templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory, eventDomains = listOf("internal", "public"))),
         )
 
-        assertEquals(EnvironmentDescriptor.ObserveSpec(EnvironmentTemplate.OBSERVE_ALL, listOf("internal", "public")), descriptor.observe)
+        assertEquals(EnvironmentDescriptor.ObserveSpec(EnvironmentSchema.EVERY_OBJECT, listOf("internal", "public")), descriptor.observe)
         val text = templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory))
         assertTrue("observe" !in text && "events" !in text && "null" !in text, "keys left at their defaults are omitted: $text")
     }
@@ -135,7 +137,7 @@ class FileTemplatesTest {
             ),
             descriptor,
         )
-        val anonymousOnly = TemplateContext(directory, objects = listOf(TemplateObject("", "T")))
+        val anonymousOnly = TemplateContext(directory, objects = listOf(ModelObject("", "T")))
         assertEquals("object", EnvironmentTemplate.attachedTo(directory.resolve("x.kstates"), anonymousOnly))
     }
 }
