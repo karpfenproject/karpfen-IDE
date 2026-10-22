@@ -190,8 +190,9 @@ its composables: `projecttree` (`ProjectTreeState`), `tabs` (`EditorTabsState` a
 
 The other packages: `settings` stores the IDE settings (`IdeSettings`, `SettingsRepository`, `SettingsLocations`),
 `templates` creates new files (`FileTemplates`, `EnvironmentTemplate`), `files` defines the desktop file operations
-(`ProjectFileOperations`, `FolderChooser`) with their adapters in `files.desktop`, and `command` names the workbench
-commands (`WorkbenchCommandIds`).
+(`ProjectFileOperations`, `FolderChooser`) with their adapters in `files.desktop`, `files.view` holds the file icon
+that the project tree and the editor tabs share (`fileIconOf`), and `command` names the workbench commands
+(`WorkbenchCommandIds`).
 
 ## Application and composition root (app/ide)
 

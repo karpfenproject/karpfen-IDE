@@ -1,8 +1,8 @@
 package io.karpfen.ide.ui.workbench.tabs
 
-import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.workspace.document.ExternalChange
 import io.karpfen.ide.core.workspace.document.ExternalChangeKind
+import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.ui.workbench.testing.ClosingSpyEditor
 import io.karpfen.ide.ui.workbench.testing.FakeOpenDocument
 import io.karpfen.ide.ui.workbench.testing.editorOf
@@ -79,12 +79,20 @@ class EditorTabsStateTest {
     }
 
     @Test
-    fun `tab values carry title, relative tooltip and language`() = fixture { f ->
+    fun `tab values carry title, relative tooltip and the file's kind`() = fixture { f ->
         f.open("sub/robot.kstates")
         val tab = f.tabs.tabs.value.single()
-        val expected = EditorTab(root.resolve("sub/robot.kstates"), "robot.kstates", "sub/robot.kstates", KarpfenLanguage.KSTATES, false)
+        val expected = EditorTab(root.resolve("sub/robot.kstates"), "robot.kstates", "sub/robot.kstates", FileKind.KSTATES, false)
         assertEquals(expected, tab)
         assertFalse(tab.hasConflict)
+
+        f.open("EVENTS.kmeta")
+        f.open("robot.kenv.json")
+        assertEquals(
+            listOf(FileKind.KSTATES, FileKind.EVENTS_KMETA, FileKind.ENV_DESCRIPTOR),
+            f.tabs.tabs.value.map { it.kind },
+            "the kind of the workspace's file rule, the event metamodel included",
+        )
     }
 
     @Test

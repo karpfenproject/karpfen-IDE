@@ -1,8 +1,8 @@
 package io.karpfen.ide.ui.workbench.tabs
 
-import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.core.workspace.document.ExternalChangeKind
+import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,7 +12,7 @@ import kotlin.test.assertNull
 class ConflictBannerTest {
 
     private val tab =
-        EditorTab(Path.of("/ws/a.kstates").toAbsolutePath(), "a.kstates", "a.kstates", KarpfenLanguage.KSTATES, isDirty = true)
+        EditorTab(Path.of("/ws/a.kstates").toAbsolutePath(), "a.kstates", "a.kstates", FileKind.KSTATES, isDirty = true)
 
     @Test
     fun `modified offers Reload and Keep mine, deleted offers Close and Keep mine, both take the disk state with RELOAD`() {

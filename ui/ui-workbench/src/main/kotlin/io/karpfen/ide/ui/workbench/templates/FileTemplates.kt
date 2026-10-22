@@ -1,5 +1,6 @@
 package io.karpfen.ide.ui.workbench.templates
 
+import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.workspace.analysis.AttachmentCandidate
 import io.karpfen.ide.core.workspace.analysis.ContextSymbols
 import io.karpfen.ide.core.workspace.analysis.ModelObject
@@ -7,24 +8,31 @@ import io.karpfen.ide.core.workspace.context.ModelingContext
 import java.nio.file.Path
 
 /**
- * Kinds of files the project tree can create (its context menu's "New KMeta/KModel/KStates/Environment file").
+ * Kinds of files the project tree can create (its context menu's "New KMeta/KModel/KStates/Environment file"). A kind
+ * names its file's [language] and takes the file-name suffix and the name it shows from it, so a created file always
+ * has the name by which `KarpfenLanguage.fromFileName` recognizes that language.
  *
- * @property suffix the file-name suffix including its dot (`.kmeta`, `.kenv.json`); unlike `KarpfenLanguage.extension`
- *   (`kmeta`, without the dot) it may span several dots.
- * @property displayName the kind's name in menus and dialogs.
+ * @property language the karpfen language of the files of this kind.
  */
-public enum class FileTemplateKind(public val suffix: String, public val displayName: String) {
+public enum class FileTemplateKind(public val language: KarpfenLanguage) {
     /** A metamodel with one example type. */
-    KMETA(".kmeta", "KMeta File"),
+    KMETA(KarpfenLanguage.KMETA),
 
     /** A model with one root object. */
-    KMODEL(".kmodel", "KModel File"),
+    KMODEL(KarpfenLanguage.KMODEL),
 
     /** A state machine with one initial state. */
-    KSTATES(".kstates", "KStates File"),
+    KSTATES(KarpfenLanguage.KSTATES),
 
     /** An environment descriptor (`*.kenv.json`). */
-    ENVIRONMENT(".kenv.json", "Environment File"),
+    ENVIRONMENT(KarpfenLanguage.ENVIRONMENT),
+    ;
+
+    /** The file-name suffix including its dot (`.kmeta`, `.kenv.json`): the language's extension after a dot. */
+    public val suffix: String get() = ".${language.extension}"
+
+    /** The kind's name in menus and dialogs: the language's display name and "File", such as "KMeta File". */
+    public val displayName: String get() = "${language.displayName} File"
 }
 
 /**

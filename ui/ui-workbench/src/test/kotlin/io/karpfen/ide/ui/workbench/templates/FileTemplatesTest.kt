@@ -9,6 +9,7 @@ import io.karpfen.ide.core.workspace.analysis.ModelObject
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.context.StateMachineBinding
 import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
+import io.karpfen.ide.core.workspace.files.FileKind
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 import kotlin.random.Random
@@ -26,12 +27,7 @@ class FileTemplatesTest {
     private fun descriptorOf(text: String): EnvironmentDescriptor = Json.decodeFromString(EnvironmentDescriptor.serializer(), text)
 
     private fun assertClean(kind: FileTemplateKind, text: String, label: String) {
-        val language = when (kind) {
-            FileTemplateKind.KMETA -> KarpfenLanguage.KMETA
-            FileTemplateKind.KMODEL -> KarpfenLanguage.KMODEL
-            FileTemplateKind.KSTATES -> KarpfenLanguage.KSTATES
-            FileTemplateKind.ENVIRONMENT -> KarpfenLanguage.ENVIRONMENT
-        }
+        val language = kind.language
         if (kind == FileTemplateKind.ENVIRONMENT) {
             val read = EnvironmentDescriptorReader().read(directory.resolve("x.kenv.json"), text)
             assertEquals(emptyList(), read.diagnostics, "$label: $text")
@@ -49,6 +45,18 @@ class FileTemplatesTest {
         assertEquals("Robot.KMETA", templates.fileName(FileTemplateKind.KMETA, "Robot.KMETA"))
         assertEquals("env.kenv.json", templates.fileName(FileTemplateKind.ENVIRONMENT, "env"))
         assertEquals("env.kenv.json", templates.fileName(FileTemplateKind.ENVIRONMENT, "env.kenv.json"))
+    }
+
+    @Test
+    fun `every kind creates files that the workspace recognizes in its language and names it after the language`() {
+        FileTemplateKind.entries.forEach { kind ->
+            val name = templates.fileName(kind, "robot")
+            assertEquals(kind.language, KarpfenLanguage.fromFileName(name), name)
+            assertEquals(kind.language, FileKind.of(name).language, name)
+            assertEquals("${kind.language.displayName} File", kind.displayName)
+        }
+        assertEquals(".kenv.json", FileTemplateKind.ENVIRONMENT.suffix)
+        assertEquals("Environment File", FileTemplateKind.ENVIRONMENT.displayName)
     }
 
     @Test

@@ -1,8 +1,8 @@
 package io.karpfen.ide.ui.workbench.tabs
 
-import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.workspace.document.ExternalChangeKind
 import io.karpfen.ide.core.workspace.document.OpenDocument
+import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -17,6 +17,8 @@ import java.nio.file.Path
  * UI state of one editor tab.
  *
  * @property title file name; [tooltip] the path relative to the workspace root.
+ * @property kind the kind of the file, by its name as everywhere in the workspace ([FileKind.of]), so the tab shows the
+ *   icon the project tree shows for the file; its [FileKind.language] is the document's language.
  * @property conflict the kind of the document's external-change conflict, or null: the editor area renders the banner
  *   from it — [ExternalChangeKind.MODIFIED] → Reload / Keep mine, [ExternalChangeKind.DELETED] → Close / Keep mine —
  *   and calls `WorkbenchState.resolveConflict`, never the `OpenDocument` itself; the tab strip marks the tab.
@@ -25,7 +27,7 @@ public data class EditorTab(
     public val path: Path,
     public val title: String,
     public val tooltip: String,
-    public val language: KarpfenLanguage,
+    public val kind: FileKind,
     public val isDirty: Boolean,
     public val conflict: ExternalChangeKind? = null,
 ) {
@@ -146,6 +148,7 @@ public class EditorTabsState(private val scope: CoroutineScope) {
     /** The first UI state of [document]'s tab; the tooltip is the path relative to [workspaceRoot] where possible. */
     private fun initialTab(document: OpenDocument, workspaceRoot: Path): EditorTab {
         val path = document.path
+        val title = path.fileName?.toString() ?: path.toString()
         val tooltip = if (path.startsWith(workspaceRoot) && path != workspaceRoot) {
             workspaceRoot.relativize(path).joinToString("/")
         } else {
@@ -153,9 +156,9 @@ public class EditorTabsState(private val scope: CoroutineScope) {
         }
         return EditorTab(
             path = path,
-            title = path.fileName?.toString() ?: path.toString(),
+            title = title,
             tooltip = tooltip,
-            language = document.session.language,
+            kind = FileKind.of(title),
             isDirty = document.isDirty.value,
             conflict = document.conflict.value?.kind,
         )
