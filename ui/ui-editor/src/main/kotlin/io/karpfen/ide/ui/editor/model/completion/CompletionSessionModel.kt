@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-/** Why completion opened (spec §7.1). */
+/** Why completion opened. */
 public enum class CompletionTrigger {
     /** Explicit request (Ctrl+Space). */
     EXPLICIT,
@@ -76,7 +76,7 @@ public data class CompletionUiState(
     /** Constants of [CompletionUiState]. */
     public companion object {
         /**
-         * The most rows the completion list shows at once (spec §7.2): the popup's height, and the rows Page Up/Down
+         * The most rows the completion list shows at once: the popup's height, and the rows Page Up/Down
          * move the selection by, so keyboard paging matches what the user sees.
          */
         public const val MAX_VISIBLE_ROWS: Int = 12
@@ -84,7 +84,7 @@ public data class CompletionUiState(
 }
 
 /**
- * One editor's completion session (spec §7.1). Compose-free state holder used from the UI thread.
+ * One editor's completion session. Compose-free state holder used from the UI thread.
  *
  * - Opens on [open] (explicit) or auto-triggers from [onTyped]: an identifier character typed after ≥ 1 identifier
  *   character, `"` in a completable string position, `$(` or `->`. Opening with no items keeps it closed.
@@ -224,13 +224,15 @@ internal class DefaultCompletionSessionModel(
         return open
     }
 
-    /** Asks the source for the items at the primary caret of the current text; a newer request cancels this one. */
+    /**
+     * Asks the source for the items at the primary caret of the current text; a newer request cancels this one. The
+     * job starts only after it was assigned to [request], so an eager dispatcher that completes the request at once
+     * (and may start a newer one from [receive]) never leaves a finished job in [request].
+     */
     private fun request(trigger: CompletionTrigger) {
         request?.cancel()
         val snapshot = text.snapshot.value
         val offset = caret.primary.position
-        // Started after the assignment, so an eager dispatcher that completes the request at once (and may start a
-        // newer one from receive) never leaves a finished job in `request`.
         val job = scope.launch(start = CoroutineStart.LAZY) {
             val items = try {
                 source.items(snapshot, offset)
@@ -279,9 +281,12 @@ internal class DefaultCompletionSessionModel(
         uiState.value = null
     }
 
+    /** The id of the accept edits and the logger. */
     private companion object {
+        /** The id of the internal action that applies an accepted item (not registered, not key-bound). */
         const val ACCEPT_ID = "editor.completion.accept"
 
+        /** Reports sources that failed; their failure yields no items. */
         val logger: Logger = LoggerFactory.getLogger(DefaultCompletionSessionModel::class.java)
     }
 }

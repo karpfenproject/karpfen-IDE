@@ -28,7 +28,8 @@ import kotlin.math.roundToInt
 /**
  * The text layer of `CodeEditor`: paints the laid-out lines with [TextAreaPainter], reports its size and the content
  * size to the viewport, sends mouse input to the editor state ([textAreaPointerInput]) and hosts the [ProxyTextInput]
- * at the caret, which owns keyboard focus. Fills its parent, the overlay host's coordinate space.
+ * at the caret, which owns keyboard focus. Fills its parent, the overlay host's coordinate space. Its size is read in
+ * composition, so a resize recomposes and reports the new geometry to the viewport.
  */
 @Composable
 internal fun EditorTextArea(render: EditorRenderState, focusRequester: FocusRequester, modifier: Modifier = Modifier) {
@@ -50,7 +51,7 @@ internal fun EditorTextArea(render: EditorRenderState, focusRequester: FocusRequ
     val geometry = render.geometry.value
     val metrics = render.metrics.value
     val maxColumns = remember(geometry) { geometry.maxDisplayColumns() }
-    val areaSize = size // read in composition, so a resize recomposes and reports the new geometry
+    val areaSize = size
     SideEffect {
         editor.viewport.updateGeometry(
             viewportWidth = areaSize.width.toFloat(),
@@ -110,6 +111,11 @@ private const val LINE_LAYOUT_CACHE_SIZE = 512
 /** Cells of space right of the longest line. */
 private const val RIGHT_PADDING_CELLS = 4
 
+/** Width of the drawn caret, in dp. */
 private const val CARET_WIDTH = 2f
+
+/** Width of underlines and bracket boxes, in dp. */
 private const val STROKE = 1f
+
+/** Amplitude of the wavy underlines of errors and warnings, in dp. */
 private const val WAVE_AMPLITUDE = 1.5f

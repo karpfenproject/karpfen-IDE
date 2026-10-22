@@ -8,7 +8,7 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Types [text] (spec §7.1): replaces selections; auto-closes `"`, `(`, `{` when the next character is whitespace,
+ * Types [text]: replaces selections; auto-closes `"`, `(`, `{` when the next character is whitespace,
  * end of line or a closing bracket, and over-types an auto-inserted closer. Origin `Typing`, one undo step.
  *
  * Details: separators in [text] are normalized to `\n`, and a typed `\n` is Enter ([EnterAction], auto-indent).
@@ -45,25 +45,36 @@ internal class TypeTextAction(private val text: String) : EditorAction {
         return context.applyEdit(TextEdit(selection, typed), EditOrigin.Typing, selection.start + typed.length)
     }
 
+    /** Whether typing [char] at [position] moves over a tracked auto-inserted closer instead of inserting it. */
     private fun overTypes(context: EditorActionContext, snapshot: TextSnapshot, position: Int, char: Char): Boolean =
         char in CLOSER_OF.values && position < snapshot.length && snapshot[position] == char &&
             context.autoPairs.isAutoClosedCloser(position)
 
+    /**
+     * Whether typing the opener [char] at [position] inserts its closer as well: the next character is whitespace, the
+     * line end or a closing bracket, and a `"` does not close a string of its line.
+     */
     private fun autoCloses(snapshot: TextSnapshot, position: Int, char: Char): Boolean {
         val next = if (position < snapshot.length) snapshot[position] else '\n'
         val nextAllows = next.isWhitespace() || next in CLOSING_BRACKETS
         return nextAllows && (char != '"' || !StringLiterals.isInsideString(snapshot, position))
     }
 
+    /** The auto-closed pairs and the shared Enter action. */
     private companion object {
+        /** The closer auto-inserted after each opener. */
         val CLOSER_OF: Map<Char, Char> = mapOf('"' to '"', '(' to ')', '{' to '}')
+
+        /** The characters before which an opener auto-closes, besides whitespace and the line end. */
         const val CLOSING_BRACKETS: String = ")]}"
+
+        /** What a typed line break runs. */
         val lineBreak = EnterAction()
     }
 }
 
 /**
- * Enter (spec §7.1): new line with the indentation of the current line, +4 spaces after a line ending in `{`; between
+ * Enter: new line with the indentation of the current line, +4 spaces after a line ending in `{`; between
  * `{` and `}` the `}` moves to its own line.
  *
  * Details: replaces a selection; the indentation is the leading whitespace of the caret's line up to the caret (the
@@ -94,7 +105,11 @@ internal class EnterAction : EditorAction {
     }
 }
 
-/** Kinds of [DeletionAction]. */
+/**
+ * Kinds of [DeletionAction].
+ *
+ * @property actionId the id of the action of this kind.
+ */
 internal enum class DeletionKind(val actionId: String) {
     BACKSPACE(EditorActionIds.BACKSPACE),
     DELETE(EditorActionIds.DELETE),
@@ -104,7 +119,7 @@ internal enum class DeletionKind(val actionId: String) {
 }
 
 /**
- * Deletion (spec §7.1): selection first; Backspace smart-unindents to the previous 4-column stop inside leading
+ * Deletion: selection first; Backspace smart-unindents to the previous 4-column stop inside leading
  * whitespace and deletes an auto-inserted pair; word and line deletion.
  *
  * Details: Backspace and Delete remove one character (a surrogate pair as a whole) with origin `Typing`, so runs of
@@ -136,9 +151,11 @@ internal class DeletionAction(private val kind: DeletionKind) : EditorAction {
         return delete(context, range, origin)
     }
 
+    /** Deletes [range] with [origin], leaving the caret at its start. */
     private fun delete(context: EditorActionContext, range: TextRange, origin: EditOrigin): Boolean =
         context.applyEdit(TextEdit.delete(range), origin, range.start)
 
+    /** Deletes the caret's [LineBlock] as a command, keeping the caret's column on the line that takes its place. */
     private fun deleteLines(context: EditorActionContext, snapshot: TextSnapshot): Boolean {
         val caret = context.caret.primary
         val block = LineBlock.of(snapshot, caret)

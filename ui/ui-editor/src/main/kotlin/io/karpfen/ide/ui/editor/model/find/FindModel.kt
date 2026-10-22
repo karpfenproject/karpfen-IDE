@@ -8,7 +8,14 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
-/** What to search for (spec §7.1). An empty [text] matches nothing. */
+/**
+ * What to search for. An empty [text] matches nothing.
+ *
+ * @property text the searched text, or the regular expression when [regex] is set.
+ * @property caseSensitive whether letter case must match (otherwise Unicode case-insensitive).
+ * @property wholeWord whether a match must not be preceded or followed by an identifier character.
+ * @property regex whether [text] is a regular expression (multi-line mode: `^` and `$` match at line bounds).
+ */
 public data class FindQuery(
     public val text: String = "",
     public val caseSensitive: Boolean = false,
@@ -20,6 +27,7 @@ public data class FindQuery(
  * The find state for one text version.
  *
  * @property query the query these matches belong to (it lags behind [FindModel.query] while they are computed).
+ * @property version the text version the matches were computed for.
  * @property matches non-overlapping matches in document order (empty matches of a regex are skipped).
  * @property currentIndex index of the current match in [matches], or null if there is none.
  * @property error message of an invalid regular expression or of a search that took too long (then [matches] is empty),
@@ -47,7 +55,7 @@ public data class FindResult(
 }
 
 /**
- * Find and replace in one editor (spec §7.1). Compose-free state holder used from the UI thread. [query] is the query
+ * Find and replace in one editor. Compose-free state holder used from the UI thread. [query] is the query
  * the model searches for, set synchronously by [setQuery]; the matches follow the text and the query: computed for every
  * new version and query on the factory's background dispatcher (latest wins, cancellable, with a time budget — a
  * regular expression that takes too long ends in an error state) and published as [state] in its scope. Invalid
@@ -58,7 +66,7 @@ public data class FindResult(
  * runs, in call order, once they are published; a new query drops operations still waiting for the old one. Regex
  * replacements are expanded on the background dispatcher, too.
  *
- * Every selection and edit goes through the factory's [EditorActionExecutor] (Command pattern, spec §1a): selecting a
+ * Every selection and edit goes through the factory's [EditorActionExecutor] (Command pattern): selecting a
  * match runs an internal select-match `EditorAction` (caret only, no undo step), replacing runs a replace action
  * (origin `Command`, caret mementos, one undo step). Because the editor state reveals the caret after every executed
  * action, a selected match is always scrolled into view, whoever asked for it (find bar, FIND_NEXT key, menu).

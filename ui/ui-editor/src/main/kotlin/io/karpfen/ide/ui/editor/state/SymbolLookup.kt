@@ -18,8 +18,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Hover content and definition targets at an offset of the current text (the internal resolver of decision 36 of the
- * work-package plan). Language requests wait (at most [parseWait], on the caller's virtual or real clock) for a parse
+ * Hover content and definition targets at an offset of the current text, internal to the editor state (its public roles
+ * offer intents only). Language requests wait (at most [parseWait], on the caller's virtual or real clock) for a parse
  * of the text version they refer to, so providers normally see a current parse, then run on [backgroundDispatcher].
  * Never throws (failures are logged and yield no result).
  */
@@ -38,7 +38,7 @@ internal class SymbolLookup(
     }
 
     /**
-     * What the hover tooltip shows at [offset] of the current text (spec §7.2): the diagnostics there if there are any
+     * What the hover tooltip shows at [offset] of the current text: the diagnostics there if there are any
      * (no parse wait needed), otherwise the language hover; null if there is neither.
      */
     suspend fun hoverAt(offset: Int): HoverContent? {
@@ -73,6 +73,7 @@ internal class SymbolLookup(
         return withContext(backgroundDispatcher) { LanguageDocument.of(session, snapshot) }
     }
 
+    /** Runs [request] on the background dispatcher; a failure is logged and yields [fallback]. */
     private suspend fun <T> safely(fallback: T, request: () -> T): T = withContext(backgroundDispatcher) {
         try {
             request()
@@ -84,10 +85,12 @@ internal class SymbolLookup(
         }
     }
 
+    /** The parse wait and the logger. */
     companion object {
         /** How long hover and definition wait for a parse of the current text before using what is there. */
         val PARSE_WAIT: Duration = 1.seconds
 
+        /** Reports failed language requests; they yield no result. */
         private val logger: Logger = LoggerFactory.getLogger(SymbolLookup::class.java)
     }
 }

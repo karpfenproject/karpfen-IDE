@@ -5,7 +5,7 @@ import io.karpfen.ide.core.text.TextRange
 /**
  * Finds the items of a sorted, non-overlapping list of ranges (highlight spans, find matches) that intersect a window
  * of the drawn text, after mapping each range into the drawn version with [map] — `EditableText.mapRange`, the one
- * range-mapping rule (decision 35 of the work-package plan), or the identity when the versions agree. Mapping keeps
+ * range-mapping rule, or the identity when the versions agree. Mapping keeps
  * the order (start `RIGHT`, end `LEFT`), so the first candidate is found by binary search and only the items near the
  * window are mapped: drawing an old version's spans costs O(log n + visible) per frame, not O(n).
  *

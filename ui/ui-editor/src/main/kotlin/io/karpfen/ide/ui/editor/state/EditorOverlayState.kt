@@ -17,7 +17,7 @@ public enum class FindBarMode {
 }
 
 /**
- * What the hover tooltip shows for [range] (spec §7.2): the [diagnostics] at the position if there are any, otherwise
+ * What the hover tooltip shows for [range]: the [diagnostics] at the position if there are any, otherwise
  * the language [hover]. At least one of them is present.
  */
 public data class HoverContent(public val range: TextRange, public val diagnostics: List<Diagnostic>, public val hover: Hover?) {
@@ -36,9 +36,9 @@ public data class ContextMenuRequest(public val offset: Int, public val x: Float
 /**
  * Which editor overlays are open (find bar, go-to-line, hover, context menu). The completion popup's state lives in
  * `CompletionSessionModel`. This is the state the overlay slot (`EditorOverlays`) renders; the editor state opens
- * overlays from gestures and actions, the popups close them. Compose-free; complete in the contracts step (shared by
- * WP-EDITOR-VIEW and WP-EDITOR-POPUPS). A mutable state holder like `CodeEditorState` (naming rule of the work-package
- * plan, decision 32).
+ * overlays from gestures and actions, the popups close them. Compose-free and shared by the view and the popups. A
+ * concrete class, not an interface: a plain state holder without collaborators is its own fake, so tests use the real
+ * one. Like `CodeEditorState` it is a mutable state holder outside the editor model and therefore named `*State`.
  *
  * Find matches are drawn by the view only while [findBar] is open; closing the bar ends the highlights without
  * touching the find query.

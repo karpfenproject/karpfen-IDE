@@ -8,8 +8,9 @@ import io.karpfen.ide.ui.editor.state.EditorPopupModel
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The slot API through which `CodeEditor` (WP-EDITOR-VIEW) hosts the editor popups (WP-EDITOR-POPUPS) without either
- * package depending on the other's files (spec §7.2: popups are separate files hosted by `CodeEditor`).
+ * The slot API through which `CodeEditor` (package `view`) hosts the editor popups (package `popup`) without either
+ * package depending on the other: the view and the popups meet only here, which the architecture tests of the editor's
+ * layering check.
  *
  * `CodeEditor` calls [Header] above the text area (in a Column; the find/replace bar goes here) and [Popups] in a Box
  * layered over the text area, filling it (completion list, go-to-line, hover tooltip, context menu, positioned with
@@ -34,6 +35,7 @@ public interface EditorOverlays {
     @Composable
     public fun Popups(host: EditorOverlayHost)
 
+    /** The empty implementation. */
     public companion object {
         /** No overlays at all. */
         public val None: EditorOverlays = object : EditorOverlays {

@@ -5,8 +5,8 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * The closers an editor inserted automatically (spec §7.1: typing a closer directly before an *auto-inserted* closer
- * moves over it; Backspace between an *auto-inserted* pair deletes both). Per-editor state, Compose-free, used from the
+ * The closers an editor inserted automatically (typing a closer directly before an *auto-inserted* closer moves over
+ * it; Backspace between an *auto-inserted* pair deletes both). Per-editor state, Compose-free, used from the
  * UI thread; the editor state creates one per editor and hands it to the actions through
  * [EditorActionContext.autoPairs]. Closers the user typed are never tracked, so they are never over-typed.
  *
@@ -101,7 +101,9 @@ internal class DefaultAutoClosedPairs(private val text: EditableText) : AutoClos
         return cell.start.takeIf { cell.length == 1 && snapshot[it] == char }
     }
 
+    /** The bound of the tracker. */
     private companion object {
+        /** The most pairs kept; a long run of auto-closed pairs forgets its oldest ones. */
         const val MAX_PAIRS = 32
     }
 }

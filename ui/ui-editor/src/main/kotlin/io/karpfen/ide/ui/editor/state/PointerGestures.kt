@@ -8,8 +8,7 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyModifier
 
 /**
- * The click and drag policy of the text area (spec §7.2, decision 36 of the work-package plan), Compose-free: the view
- * only hit-tests and reports offsets.
+ * The click and drag policy of the text area, Compose-free: the view only hit-tests and reports offsets.
  *
  * A press with the [platform]'s primary modifier and one click goes to the definition at the offset (caret unchanged);
  * otherwise Shift extends the selection, one click moves the caret, two select the word, three (or more) the line.
@@ -23,6 +22,7 @@ internal class PointerGestures(
     private val goToDefinition: (offset: Int) -> Unit,
 ) {
 
+    /** What a drag extends the selection by: the unit of the press's click count. */
     private enum class SelectionUnit { CHARACTER, WORD, LINE }
 
     /** The selection unit and the range selected by the press, which a drag keeps selected. */
@@ -87,8 +87,10 @@ internal class PointerGestures(
         return TextRange(snapshot.lineIndex.lineStart(line), end)
     }
 
+    /** [offset] clamped into the current text. */
     private fun clamp(offset: Int): Int = offset.coerceIn(0, text.snapshot.value.length)
 
+    /** The click limit. */
     private companion object {
         /** Clicks beyond a triple click count as a triple click. */
         const val MAX_CLICKS = 3

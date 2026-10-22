@@ -9,8 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
 
 /**
- * Applies the editor state's pending view requests once `CodeEditor` is composed and laid out (decision 18 of the
- * work-package plan: requests are state, so requests made earlier are not lost):
+ * Applies the editor state's pending view requests once `CodeEditor` is composed and laid out (requests are state, so
+ * requests made before the composition are not lost):
  * - a scroll request reveals its offset (centred if requested) through `EditorViewport.reveal`, as soon as the text area
  *   has a size and the drawn geometry belongs to the current text (the offset refers to it), then consumes it;
  * - a focus request focuses the text area's input field, then consumes it.

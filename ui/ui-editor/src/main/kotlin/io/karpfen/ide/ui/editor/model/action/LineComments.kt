@@ -44,11 +44,13 @@ internal class LineComments(private val markers: CommentMarkers, private val nam
         return context.applyEdits(edits, EditOrigin.Command(name), listOf(EditShift(edits).caret(caret)))
     }
 
+    /** Inserts each line's marker and a space at the smallest indentation of [lines]. */
     private fun comment(lines: List<CommentLine>): List<TextEdit> {
         val indent = lines.minOf { it.firstNonBlank - it.start }
         return lines.map { TextEdit.insert(it.start + indent, it.marker + " ") }
     }
 
+    /** Removes each line's marker and the one space following it, if any. */
     private fun uncomment(snapshot: TextSnapshot, lines: List<CommentLine>): List<TextEdit> = lines.map {
         val markerEnd = it.firstNonBlank + it.marker.length
         val end = if (markerEnd < snapshot.length && snapshot[markerEnd] == ' ') markerEnd + 1 else markerEnd

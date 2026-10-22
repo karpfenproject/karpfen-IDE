@@ -4,9 +4,10 @@ import io.karpfen.ide.ui.editor.model.caret.TabStops
 
 /**
  * One line as it is drawn: every tab replaced by the spaces up to its next tab stop, the width of each tab taken from
- * [TabStops] (decision 40 of the work-package plan: the one tab rule), so the monospace cells of [text] are the line's
- * display columns. [displayOffsetOf] maps a column of [source] to the offset in [text] (where highlight spans start
- * and end). Immutable.
+ * [TabStops] (the one tab rule of the editor), so the monospace cells of [text] are the line's display columns.
+ * [displayOffsetOf] maps a column of [source] to the offset in [text] (where highlight spans start and end), with
+ * [tabColumns], the columns of the tabs of [source], and [extraAfterTab], the expansion beyond one character summed up
+ * to and including each tab. Immutable.
  *
  * @property source the line's text (without `\n`).
  * @property text [source] with its tabs expanded.
@@ -18,20 +19,29 @@ internal class DisplayLine private constructor(
     private val extraAfterTab: IntArray,
 ) {
 
-    /** The offset in [text] of [column] of [source] (clamped to the line). */
+    /**
+     * The offset in [text] of [column] of [source] (clamped to the line): the column plus the expansion beyond one
+     * character of every tab before it.
+     */
     fun displayOffsetOf(column: Int): Int {
         val clamped = column.coerceIn(0, source.length)
         if (tabColumns.isEmpty()) return clamped
-        // Number of tabs strictly before the column; each adds its expansion beyond one character.
+        val tabs = tabsBefore(clamped)
+        return clamped + if (tabs == 0) 0 else extraAfterTab[tabs - 1]
+    }
+
+    /** The number of tabs strictly before [column], by binary search over [tabColumns]. */
+    private fun tabsBefore(column: Int): Int {
         var low = 0
         var high = tabColumns.size
         while (low < high) {
             val middle = (low + high) ushr 1
-            if (tabColumns[middle] < clamped) low = middle + 1 else high = middle
+            if (tabColumns[middle] < column) low = middle + 1 else high = middle
         }
-        return clamped + if (low == 0) 0 else extraAfterTab[low - 1]
+        return low
     }
 
+    /** Creation from a line's text. */
     companion object {
         /** The display form of [line] with the tab stops of [tabStops]. */
         fun of(line: String, tabStops: TabStops): DisplayLine {

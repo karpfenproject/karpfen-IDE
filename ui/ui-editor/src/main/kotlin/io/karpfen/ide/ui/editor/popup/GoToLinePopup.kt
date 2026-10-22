@@ -28,12 +28,13 @@ import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The go-to-line popup (spec §7.2; Cmd+L on macOS, Ctrl+G elsewhere), at the top of the text area: accepts `line[:col]`
+ * The go-to-line popup (Cmd+L on macOS, Ctrl+G elsewhere), at the top of the text area: accepts `line[:col]`
  * (parsed with [GoToLineQuery.parse]; invalid input disables Go and Enter), shows the current position and line count
  * as a hint. It takes focus when shown; Enter or Go reports the query ([onGo]), Escape cancels ([onCancel]), and focus
  * moving to another component dismisses it ([onDismiss]).
  *
  * @param currentLine the primary caret's one-based line.
+ * @param lineCount the number of lines of the text, for the hint.
  */
 @Composable
 internal fun GoToLinePopup(

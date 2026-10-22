@@ -3,15 +3,15 @@ package io.karpfen.ide.ui.editor.model.caret
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Where a [Caret] goes for a [CaretMovement] (spec §7.1): pure geometry over one [TextSnapshot], without state. The
+ * Where a [Caret] goes for a [CaretMovement]: pure geometry over one [TextSnapshot], without state. The
  * [CaretModel] applies the result.
  *
  * - LEFT/RIGHT step one character (a surrogate pair is one character); without Shift a selection collapses to its
  *   start/end instead.
  * - WORD_LEFT/WORD_RIGHT use the one word rule ([WordBoundaries]).
  * - UP/DOWN and PAGE_UP/PAGE_DOWN keep the preferred column, a display column of [TabStops] with the current
- *   [tabWidth] (decision 40 of the work-package plan). A move that cannot leave the first (last) line goes to the
- *   start (end) of the document and keeps the preferred column.
+ *   [tabWidth], the one tab rule the view and the status bar use as well. A move that cannot leave the first (last)
+ *   line goes to the start (end) of the document and keeps the preferred column.
  * - LINE_START is smart Home: the first non-whitespace character of the line, then column 0.
  * - Every movement but the vertical ones forgets the preferred column.
  */
@@ -40,6 +40,7 @@ internal class CaretMotion(private val tabWidth: () -> Int) {
         return Caret(anchor = if (extend) caret.anchor else target, position = target)
     }
 
+    /** [caret] moved by [lines] (negative: up) at its preferred display column, taken from its position if unset. */
     private fun vertical(snapshot: TextSnapshot, caret: Caret, lines: Int, extend: Boolean): Caret {
         val tabStops = TabStops(tabWidth())
         val position = snapshot.positionOf(caret.position.coerceIn(0, snapshot.length))
@@ -54,6 +55,7 @@ internal class CaretMotion(private val tabWidth: () -> Int) {
         return Caret(anchor = if (extend) caret.anchor else target, position = target, preferredColumn = preferred)
     }
 
+    /** The first non-blank character of the line of [position], or the line start when the caret is there already. */
     private fun smartHome(snapshot: TextSnapshot, position: Int): Int {
         val line = snapshot.lineIndex.lineOf(position)
         val start = snapshot.lineIndex.lineStart(line)
@@ -63,12 +65,14 @@ internal class CaretMotion(private val tabWidth: () -> Int) {
         return if (position == firstNonBlank) start else firstNonBlank
     }
 
+    /** The offset one character before [offset], stepping over a surrogate pair as a whole. */
     private fun previousCharacter(text: String, offset: Int): Int = when {
         offset <= 0 -> 0
         offset >= 2 && text[offset - 1].isLowSurrogate() && text[offset - 2].isHighSurrogate() -> offset - 2
         else -> offset - 1
     }
 
+    /** The offset one character after [offset], stepping over a surrogate pair as a whole. */
     private fun nextCharacter(text: String, offset: Int): Int = when {
         offset >= text.length -> text.length
         offset + 1 < text.length && text[offset].isHighSurrogate() && text[offset + 1].isLowSurrogate() -> offset + 2

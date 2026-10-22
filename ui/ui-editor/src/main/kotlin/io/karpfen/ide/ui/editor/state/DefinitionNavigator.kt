@@ -10,8 +10,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Go to definition ([CodeEditorState.goToDefinition]): looks the target up with [definitionsAt] in [scope] and emits the
- * first location on [navigationRequests] (no replay: its owner collects it for the editor's whole life, decision 30 of
- * the work-package plan); no-op if there is none. A newer request cancels a running one.
+ * first location on [navigationRequests] (no replay: its owner collects it for the editor's whole life, so no lookup
+ * is lost on a tab switch); no-op if there is none. A newer request cancels a running one.
  */
 internal class DefinitionNavigator(
     private val scope: CoroutineScope,
@@ -30,6 +30,7 @@ internal class DefinitionNavigator(
         running = scope.launch { definitionsAt(offset).firstOrNull()?.let { requests.emit(it) } }
     }
 
+    /** The buffer size of the request stream. */
     private companion object {
         /** Targets kept for slow collectors; navigation requests are rare, so a few suffice. */
         const val BUFFER = 8

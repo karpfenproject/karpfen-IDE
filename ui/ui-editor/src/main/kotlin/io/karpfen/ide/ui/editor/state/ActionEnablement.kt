@@ -41,5 +41,6 @@ internal class ActionEnablement(
         enabled.value = compute()
     }
 
+    /** The ids of the registered actions enabled in the editor's context now. */
     private fun compute(): Set<String> = actions.actions.filter { it.isEnabled(context) }.mapTo(HashSet()) { it.id }
 }

@@ -47,10 +47,10 @@ import io.karpfen.ide.ui.editor.model.completion.CompletionUiState
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The completion list (spec §7.2): anchored below (or above, if there is no room) [anchor], at most 12 visible rows,
- * each with a kind badge, the label (matched prefix emphasized) and the detail; the selected row is kept visible.
- * Mouse: a click selects ([onSelect]), a double click accepts ([onAccept]). The list never takes keyboard focus; keys
- * are handled by the model while the text area keeps focus.
+ * The completion list: anchored below (or above, if there is no room) [anchor], at most
+ * [CompletionUiState.MAX_VISIBLE_ROWS] visible rows, each with a kind badge, the label (matched prefix emphasized) and
+ * the detail; the selected row is kept visible. Mouse: a click selects ([onSelect]), a double click accepts
+ * ([onAccept]). The list never takes keyboard focus; keys are handled by the model while the text area keeps focus.
  */
 @Composable
 internal fun CompletionPopup(
@@ -69,14 +69,31 @@ internal fun CompletionPopup(
 
 /** Fixed measures of the completion list. */
 private object CompletionListDefaults {
+    /** Vertical space added to a text line to make a row. */
     val RowPadding: Dp = 4.dp
+
+    /** Width of the kind badge. */
     val BadgeWidth: Dp = 22.dp
+
+    /** Space at the start and end of a row. */
     val HorizontalPadding: Dp = 4.dp
+
+    /** Space between the badge and the label. */
     val BadgeGap: Dp = 6.dp
+
+    /** Width reserved for the scrollbar of a long list. */
     val ScrollbarAllowance: Dp = 12.dp
+
+    /** The list's smallest width. */
     val MinWidth: Dp = 200.dp
+
+    /** The list's largest width; longer rows are cut with an ellipsis. */
     val MaxWidth: Dp = 640.dp
+
+    /** Font size of the badge text relative to the editor's. */
     const val BADGE_FONT_SCALE = 0.85f
+
+    /** Opacity of the badge's tinted background. */
     const val BADGE_BACKGROUND_ALPHA = 0.18f
 }
 
@@ -102,6 +119,7 @@ private fun rememberCompletionListMetrics(textStyle: TextStyle): CompletionListM
     }
 }
 
+/** The scrollable list of [state]'s items in a popup surface sized by [metrics]; keeps the selected row visible. */
 @Composable
 private fun CompletionList(
     state: CompletionUiState,
@@ -129,6 +147,10 @@ private fun CompletionList(
     }
 }
 
+/**
+ * One row: badge, label (the matched prefix in bold) and detail, highlighted when [selected]; a press selects it and a
+ * double tap accepts the selection.
+ */
 @Composable
 private fun CompletionRow(
     item: CompletionItem,

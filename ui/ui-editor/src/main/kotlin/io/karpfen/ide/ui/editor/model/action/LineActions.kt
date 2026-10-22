@@ -1,6 +1,10 @@
 package io.karpfen.ide.ui.editor.model.action
 
-/** Kinds of [LineAction]. */
+/**
+ * Kinds of [LineAction].
+ *
+ * @property actionId the id of the action of this kind.
+ */
 internal enum class LineOperation(val actionId: String) {
     DUPLICATE(EditorActionIds.DUPLICATE),
     MOVE_UP(EditorActionIds.MOVE_LINE_UP),
@@ -10,7 +14,7 @@ internal enum class LineOperation(val actionId: String) {
 }
 
 /**
- * Line operations (spec §7.1): duplicate line (or selection), move line(s) up/down, indent/outdent by 4 spaces
+ * Line operations: duplicate line (or selection), move line(s) up/down, indent/outdent by 4 spaces
  * (Tab/Shift+Tab; Tab without a multi-line selection inserts spaces up to the next 4-column stop).
  *
  * Each operation is a strategy of its own ([LineDuplication], [LineMove], [LineIndent], [LineOutdent]); every one
@@ -31,7 +35,7 @@ internal class LineAction(private val operation: LineOperation) : EditorAction {
 }
 
 /**
- * Toggles `//` line comments; inside an EVAL body `#` (there `//` is a karpfen comment, spec §7.1). Decided per line:
+ * Toggles `//` line comments; inside an EVAL body `#` (there `//` is a karpfen comment). Decided per line:
  * a line gets `#` iff `context.tokens.embeddedRegionAt(o)` is a body whose opening brace lies before the toggled block
  * (its content starts at or before the block's first line), for `o` = the offset of its first non-blank character (its
  * start when blank). So the `EVAL {` line itself gets `//`, the body's lines (blank lines, lines holding only a comment
@@ -56,8 +60,12 @@ internal class ToggleCommentAction : EditorAction {
         return LineComments(markers, EditorActionTitles.of(id)).execute(context)
     }
 
+    /** The comment markers of the two languages a KStates file mixes. */
     private companion object {
+        /** A karpfen line comment, also inside an EVAL body, where it drops the rest of the line. */
         const val KARPFEN_COMMENT = "//"
+
+        /** A Python line comment, which comments only inside an EVAL body. */
         const val PYTHON_COMMENT = "#"
     }
 }

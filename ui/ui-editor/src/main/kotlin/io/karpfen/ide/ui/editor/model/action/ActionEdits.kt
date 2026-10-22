@@ -9,7 +9,7 @@ import io.karpfen.ide.core.text.TextEdit
  * `caretsBefore` and [caretsAfter] (coordinates of the new text) as `caretsAfter`, then places the carets there
  * (`CaretModel.restore`, which keeps the typing run going). Returns false, changing nothing, if the edits are no-ops.
  *
- * The one way the editor actions change text, so every action records its caret mementos (spec §1a, Memento).
+ * The one way the editor actions change text, so every action records its caret mementos (Memento).
  */
 internal fun EditorActionContext.applyEdits(
     edits: List<TextEdit>,

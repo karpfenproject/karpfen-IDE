@@ -1,7 +1,7 @@
 package io.karpfen.ide.ui.editor.model.action
 
 /**
- * Undo or redo (spec §7.1), restoring the carets recorded with the step (`UndoResult.carets`); enabled only while the
+ * Undo or redo, restoring the carets recorded with the step (`UndoResult.carets`); enabled only while the
  * text's `UndoManager.canUndo`/`canRedo` is true. A step recorded without carets leaves them to the caret model, which
  * maps them through the change.
  */

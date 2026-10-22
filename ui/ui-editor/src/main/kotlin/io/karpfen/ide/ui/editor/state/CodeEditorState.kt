@@ -24,7 +24,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Display settings of an editor (spec §7.2).
+ * Display settings of an editor.
  *
  * @property fontSize font size in sp.
  * @property tabDisplayWidth columns per tab stop when rendering tab characters.
@@ -43,7 +43,7 @@ public data class EditorSettings(
 
 /**
  * Highlight spans for one text [version] (spans in that version's coordinates; the view maps older ones forward with
- * `EditableText.mapRange`). An immutable result (`*Snapshot`, naming rule of the work-package plan).
+ * `EditableText.mapRange`). An immutable, versioned result; such results of the UI modules are named `*Snapshot`.
  */
 public data class HighlightSnapshot(public val version: Long, public val spans: List<HighlightSpan>)
 
@@ -57,10 +57,10 @@ public data class BracketMatchSnapshot(public val version: Long, public val matc
 public data class ScrollRequest(public val offset: Int, public val center: Boolean)
 
 /**
- * What the workbench may use of an editor (interface segregation, spec §1a; decision 36 of the work-package plan): the
- * document, the carets, focus and enablement for command forwarding, navigation requests and the navigation intents.
- * The workbench's sub-states (`OutlineState`, `StatusBarState`) and the mediator's collaborators depend on this role,
- * so their tests fake only it. Used from the UI thread.
+ * What the workbench may use of an editor (interface segregation): the document, the carets, focus and enablement for
+ * command forwarding, navigation requests and the navigation intents. The workbench's sub-states (`OutlineState`,
+ * `StatusBarState`) and the mediator's collaborators depend on this role, so their tests fake only it. Used from the UI
+ * thread.
  */
 public interface EditorHandle : AutoCloseable {
 
@@ -97,7 +97,7 @@ public interface EditorHandle : AutoCloseable {
      */
     public fun execute(actionId: String): Boolean
 
-    /** Scrolls so that [offset] is visible, centred if [center] (spec §7.2), by setting a pending scroll request. */
+    /** Scrolls so that [offset] is visible, centred if [center], by setting a pending scroll request. */
     public fun scrollTo(offset: Int, center: Boolean = false)
 
     /** Asks the view to focus the text area (a pending request, so it also works before the editor is composed). */
@@ -108,9 +108,9 @@ public interface EditorHandle : AutoCloseable {
 }
 
 /**
- * What `CodeEditor` needs beyond the popups' model (interface segregation; decision 36 of the work-package plan):
- * geometry, render results, pending view requests and the Compose-free input intents. The view converts raw input into
- * these intents and contains no input policy (spec §1a: composables contain no business logic).
+ * What `CodeEditor` needs beyond the popups' model (interface segregation): geometry, render results, pending view
+ * requests and the Compose-free input intents. The view converts raw input into these intents and contains no input
+ * policy (composables contain no business logic), so the input rules are unit-tested without Compose.
  */
 public interface EditorViewModel {
 
@@ -121,7 +121,7 @@ public interface EditorViewModel {
     public val viewport: EditorViewport
 
     /**
-     * Highlight spans, computed on the background dispatcher from the session's tokens and parse (pipeline, MUST):
+     * Highlight spans, computed on the background dispatcher from the session's tokens and parse:
      * when the latest parse has the tokens' version, `LanguageServices.highlight` (lexical styles overlaid with the
      * semantic ones); while the parse lags the tokens (every keystroke until the debounced parse arrives), the fresh
      * lexical spans overlaid (`overlayHighlights` of core-lang) with the semantic-style spans (`HighlightStyle.isSemantic`)
@@ -150,7 +150,7 @@ public interface EditorViewModel {
 
     /**
      * The text area gained or lost keyboard focus (updates [EditorHandle.isFocused]). On focus loss the state closes
-     * completion and hides the hover tooltip (spec §7.2); the context menu and the find bar are popups of their own and
+     * completion and hides the hover tooltip; the context menu and the find bar are popups of their own and
      * stay open.
      */
     public fun onFocusChanged(focused: Boolean)
@@ -161,10 +161,11 @@ public interface EditorViewModel {
     public fun type(text: String)
 
     /**
-     * Handles a key stroke of the focused text area (decision 15 of the work-package plan): first
-     * `completion.handleKey`, then the keymap's action, executed if registered and enabled. Returns true iff the
-     * stroke was handled (completion consumed it, or a bound action was enabled and executed); the view consumes
-     * exactly those strokes, so unhandled ones reach menu accelerators and one key press runs one action.
+     * Handles a key stroke of the focused text area: first `completion.handleKey`, then the keymap's action, executed
+     * if registered and enabled. Returns true iff the stroke was handled (completion consumed it, or a bound action was
+     * enabled and executed); the view consumes exactly those strokes. The focused component thus handles its strokes
+     * first, and a window-menu accelerator only sees a stroke nobody consumed (Swing key bindings skip consumed events;
+     * the macOS screen menu bar delivers its key equivalents as key events first), so one key press runs one action.
      */
     public fun handleKey(stroke: KeyStroke): Boolean
 
@@ -209,19 +210,19 @@ public interface EditorViewModel {
 }
 
 /**
- * The state holder of one code editor (spec §7.2): bundles the document session, language services, the Compose-free
+ * The state holder of one code editor: bundles the document session, language services, the Compose-free
  * models and the overlay/viewport state. Plain Kotlin (no Compose), unit-testable; `CodeEditor` renders it and sends
  * intents to it. One instance per open editor tab; [close] cancels its background work.
  *
- * It plays three roles (decision 36 of the work-package plan): [EditorViewModel] for `CodeEditor`, [EditorPopupModel]
- * for the popups, [EditorHandle] for the workbench; each consumer depends on its role only.
+ * It plays three roles: [EditorViewModel] for `CodeEditor`, [EditorPopupModel] for the popups, [EditorHandle] for
+ * the workbench; each consumer depends on its role only.
  *
- * Deviation from spec §7.2 (low coupling, spec §1a): it depends on `DocumentSession` instead of `OpenDocument`; the
- * workbench keeps the file-level state (dirty flag, conflicts).
+ * For low coupling it depends on the `DocumentSession`, not on the workspace's `OpenDocument`: the editor needs no
+ * file-level state, which the workbench keeps (dirty flag, conflicts).
  *
- * Input policy lives here, not in the composable (spec §1a: composables contain no business logic): key routing
- * (decision 15 of the work-package plan), the pointer gestures, the hover delay, the context-menu caret rule and the
- * focus rules are Compose-free intents of [EditorViewModel], unit-testable on virtual time.
+ * Input policy lives here, not in the composable (composables contain no business logic): key routing ([handleKey]),
+ * the pointer gestures, the hover delay, the context-menu caret rule and the focus rules are Compose-free intents of
+ * [EditorViewModel], unit-testable on virtual time.
  *
  * Caret reveal: after every [execute] and [type] that changed the carets or the text, the state sets a
  * [scrollRequest] for the primary caret (3-line margin; centred when the caret was off-screen); actions never scroll
@@ -273,7 +274,7 @@ public interface CodeEditorState : EditorViewModel, EditorPopupModel, EditorHand
 
     /** Constants of [CodeEditorState]. */
     public companion object {
-        /** How long the pointer must rest before the hover tooltip appears (spec §7.2: 600 ms). */
+        /** How long the pointer must rest before the hover tooltip appears. */
         public val HOVER_DELAY: Duration = 600.milliseconds
     }
 }
@@ -281,12 +282,12 @@ public interface CodeEditorState : EditorViewModel, EditorPopupModel, EditorHand
 /**
  * Creates the state of an editor for [session] with its own child scope of [scope].
  *
- * @param scope parent scope; its dispatcher is the UI thread, the single writer of the text (spec §1).
+ * @param scope parent scope; its dispatcher is the UI thread, the single writer of the text.
  * @param clipboard the system clipboard (`io.karpfen.ide.ui.editor.view.systemClipboard()` in the app).
  * @param settings display settings, usually derived from the IDE settings.
  * @param keymap the shortcuts, and through `EditorKeymap.platform` the platform whose primary modifier the pointer
  *   gestures use; the workbench passes its one `WorkbenchServices.editorKeymap`, which also gives the menu commands
- *   their shortcuts (decision 15 of the work-package plan).
+ *   their shortcuts, so editors and menus share one source of shortcuts.
  * @param backgroundDispatcher where highlighting, bracket matching, find, completion, hover and definition lookups run
  *   (the models get it too); tests pass a test dispatcher so they run on virtual time.
  */

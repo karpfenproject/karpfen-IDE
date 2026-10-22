@@ -4,7 +4,7 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import io.karpfen.ide.ui.foundation.keys.KeyStroke
 
-/** The key-bound and menu actions of an editor by id (spec §7.1). */
+/** The key-bound and menu actions of an editor by id. */
 public interface EditorActionRegistry {
 
     /** All registered actions. */
@@ -25,7 +25,7 @@ public fun EditorActionRegistry(actions: Collection<EditorAction> = defaultEdito
     DefaultEditorActionRegistry(actions)
 
 /**
- * Maps key strokes to action ids for one platform (spec §7.1, §7.2). Includes at least: caret movement with and without
+ * Maps key strokes to action ids for one platform. Includes at least: caret movement with and without
  * Shift, word movement (Alt on macOS, Ctrl elsewhere), smart Home/End, Page Up/Down, document start/end, Select All,
  * Enter, Backspace, Delete, delete word, delete line (primary+Backspace on macOS, Ctrl+Y elsewhere), duplicate
  * (primary+D), move line (Alt+Shift+Up/Down), Tab/Shift+Tab, toggle comment (primary+/), copy/cut/paste, undo

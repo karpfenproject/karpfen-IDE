@@ -34,7 +34,7 @@ import io.karpfen.ide.ui.editor.view.scroll.ScrollAxis
 import io.karpfen.ide.ui.editor.view.scroll.ViewportScrollbarAdapter
 
 /**
- * The code editor (spec §7.2). Renders [state] and sends user intents to it; contains no editing logic.
+ * The code editor. Renders [state] and sends user intents to it; contains no editing logic.
  *
  * - Rendering: virtualized (visible lines + overscan) with `TextMeasurer`/`drawText` and a per-line layout LRU cache
  *   keyed by line text + spans + font settings; gutter with one-based line numbers and diagnostic markers; current
@@ -44,10 +44,12 @@ import io.karpfen.ide.ui.editor.view.scroll.ViewportScrollbarAdapter
  *   diagnostics while `VersionedDiagnostics` lags, bracket matches) mapped with `EditableText.mapRange` — never by
  *   mapping their bounds separately; a range that does not map is not drawn.
  * - Input: key events become `KeyStroke`s for `state.handleKey`, and the event is consumed exactly when it returns true
- *   (decision 15); typed text goes to `state.type` through a hidden proxy text field at the caret (works for every
- *   layout, macOS Option combinations, dead keys, IME; the approach and why it was chosen are documented on the
- *   internal `ProxyTextInput`); exposes `SemanticsActions.InsertTextAtCursor` (and `RequestFocus`) on this composable's
- *   node so `performTextInput` works in tests. Focus changes of the text area go to `state.onFocusChanged`.
+ *   (unhandled strokes reach the window's menu accelerators); typed text goes to `state.type` through a hidden proxy
+ *   text field at the caret (works for every layout, macOS Option combinations, dead keys, IME; the approach and why
+ *   it was chosen are documented on the internal `ProxyTextInput`); exposes `SemanticsActions.InsertTextAtCursor` (and
+ *   `RequestFocus`) on this composable's node so `performTextInput` works in tests. `SetText` is exposed as well,
+ *   because text input in tests requires it next to `InsertTextAtCursor`, but it refuses: replacing the whole document
+ *   is not an editor gesture. Focus changes of the text area go to `state.onFocusChanged`.
  * - Mouse: hit-testing only — primary press → `state.pointerPressed(offset, clickCount, modifiers)`, drag →
  *   `state.pointerDragged(offset)` (plus the edge auto-scroll timer), release → `state.pointerReleased()`; the state
  *   decides caret move, word/line selection, Shift-extension and primary-modifier go-to-definition. Pointer movement →
@@ -105,8 +107,6 @@ public fun CodeEditor(
                     state.type(text.text)
                     true
                 }
-                // Replacing the whole document is not an editor gesture; the action exists because text input in tests
-                // requires it next to InsertTextAtCursor.
                 setText { false }
             },
     ) {

@@ -80,7 +80,10 @@ internal class EditorRenderState(
     }
 }
 
-/** Collects [state]'s flows and derives the geometry for [theme]. */
+/**
+ * Collects [state]'s flows and derives the geometry for [theme]. Every argument of the holder is a remembered `State`
+ * of this composition, so one holder per editor state suffices.
+ */
 @Composable
 internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorTheme): EditorRenderState {
     val settings = state.settings.collectAsState()
@@ -115,7 +118,6 @@ internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorThem
     val findBar = state.overlays.findBar.collectAsState()
     val focused = state.isFocused.collectAsState()
     val scrollRequest = state.scrollRequest.collectAsState()
-    // Every argument is a remembered State of this composition, so one holder per editor state suffices.
     return remember(state) {
         EditorRenderState(
             editor = state,

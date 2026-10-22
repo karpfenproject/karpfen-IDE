@@ -50,15 +50,21 @@ internal class TextAreaContent(
 )
 
 /**
- * Paints the text area (spec §7.2) from a [TextAreaContent], virtualized: only the laid-out lines (visible lines plus
+ * Paints the text area from a [TextAreaContent], virtualized: only the laid-out lines (visible lines plus
  * overscan) are measured — through the [LineLayouter] and its cache — and drawn. Order: current line, find matches,
  * selection, matching brackets, text, diagnostic underlines, caret. Every range of an older version (highlight spans,
- * find matches, diagnostics, bracket matches) is mapped with `EditableText.mapRange`; a range that does not map is not
- * drawn (decision 35 of the work-package plan).
+ * find matches, diagnostics, bracket matches) is mapped with `EditableText.mapRange`, the one range-mapping rule (never
+ * by mapping the two bounds separately); a range that does not map is not drawn.
  */
 internal class TextAreaPainter(private val layouter: LineLayouter, private val metrics: PainterMetrics) {
 
-    /** Device-dependent sizes of the decorations, in pixels. */
+    /**
+     * Device-dependent sizes of the decorations, in pixels.
+     *
+     * @property caretWidth the width of the caret bar.
+     * @property stroke the width of underlines and bracket boxes.
+     * @property waveAmplitude the amplitude of wavy underlines.
+     */
     data class PainterMetrics(val caretWidth: Float, val stroke: Float, val waveAmplitude: Float)
 
     /** Draws [content] into this scope (clipped by the caller to the text area). */
@@ -83,6 +89,7 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
         }
     }
 
+    /** The background of the primary caret's line, if it is laid out. */
     private fun DrawScope.paintCurrentLine(content: TextAreaContent, lines: IntRange) {
         val frame = content.frame
         val line = frame.geometry.lineOf(content.carets.first().position)
@@ -106,6 +113,7 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
         }
     }
 
+    /** Fills the segments of [range] on the laid-out lines with [color]. */
     private fun DrawScope.paintRange(frame: TextAreaFrame, range: TextRange, color: Color) {
         paintSegments(frame, frame.geometry.segments(range, frame.laidOut), color)
     }
@@ -122,6 +130,7 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
         }
     }
 
+    /** Boxes around both brackets of the matching pair, mapped into the drawn version. */
     private fun DrawScope.paintBrackets(content: TextAreaContent) {
         val match = content.bracket.match ?: return
         val map = mapper(content, content.bracket.version)
@@ -130,6 +139,10 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
         }
     }
 
+    /**
+     * The laid-out lines with the highlight spans that intersect [window], cut into per-line spans in line columns and
+     * laid out through the [LineLayouter].
+     */
     private fun DrawScope.paintText(content: TextAreaContent, window: TextRange) {
         val frame = content.frame
         val geometry = frame.geometry
@@ -154,6 +167,7 @@ internal class TextAreaPainter(private val layouter: LineLayouter, private val m
         }
     }
 
+    /** The underlines of the diagnostics in [window]: wavy for errors and warnings, dotted for the others. */
     private fun DrawScope.paintDiagnostics(content: TextAreaContent, window: TextRange) {
         val frame = content.frame
         val geometry = frame.geometry

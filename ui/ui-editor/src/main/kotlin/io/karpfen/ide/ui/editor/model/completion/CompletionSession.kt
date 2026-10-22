@@ -61,11 +61,13 @@ internal class CompletionSession private constructor(
         return TextEdit(range, item.insertText) to range.start + (item.caretOffsetInInsert ?: item.insertText.length)
     }
 
+    /** [offset] of the session's version mapped into the current [text] with [bias], or null if history ended. */
     private fun anchor(text: EditableText, offset: Int, bias: Bias): Int? {
         val current = text.snapshot.value.version
         return if (version > current) null else text.mapOffset(offset, version, current, bias)
     }
 
+    /** Creation of sessions from a source's result. */
     companion object {
         /** The session of non-empty [items], computed for [snapshot] at [offset]. */
         fun of(items: List<CompletionItem>, snapshot: TextSnapshot, offset: Int): CompletionSession {

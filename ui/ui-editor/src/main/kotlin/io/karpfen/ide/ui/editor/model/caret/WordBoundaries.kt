@@ -4,7 +4,7 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The word rule of the editor (spec §7.1): every character belongs to one [CharClass], and a *word* is a maximal run
+ * The word rule of the editor: every character belongs to one [CharClass], and a *word* is a maximal run
  * of one class — identifier runs `[A-Za-z0-9_]+`, punctuation runs and whitespace runs, as documented on
  * [CaretMovement.WORD_LEFT]. A line break is a run of its own, so word movement and word deletion stop at every line
  * boundary and a double-click never selects across lines.

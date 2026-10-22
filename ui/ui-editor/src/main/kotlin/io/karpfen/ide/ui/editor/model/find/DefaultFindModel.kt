@@ -109,6 +109,7 @@ internal class DefaultFindModel(
 
     override fun replaceAll(replacement: String) = submit(FindOperation.Replace(replacement, all = true))
 
+    /** Queues [operation] behind the waiting ones and runs what can run now. */
     private fun submit(operation: FindOperation) {
         pending.addLast(operation)
         runPending()
@@ -142,7 +143,11 @@ internal class DefaultFindModel(
         select(target)
     }
 
-    /** Replaces the current match or all matches: at once for a literal replacement, else after a background expansion. */
+    /**
+     * Replaces the current match or all matches: at once for a literal replacement, else after a background expansion.
+     * The expansion job starts only after it was assigned to [expanding], so a dispatcher that runs it at once never
+     * leaves a finished job in [expanding].
+     */
     private fun replace(operation: FindOperation.Replace) {
         val current = result.value
         val targets = if (operation.all) current.matches else listOfNotNull(current.current)
@@ -153,7 +158,6 @@ internal class DefaultFindModel(
             apply(operation, snapshot, targets, literal)
             return
         }
-        // Started after the assignment, so a dispatcher that runs it at once never leaves a finished job in `expanding`.
         val job = scope.launch(start = CoroutineStart.LAZY) {
             val texts = search.replacements(snapshot.text, current.query, targets, operation.replacement)
             expanding = null
@@ -196,6 +200,7 @@ internal class DefaultFindModel(
         executor.execute(SelectMatchAction(current.matches[index]))
     }
 
+    /** Whether the published result belongs to the current text and the current query. */
     private fun isFresh(): Boolean = result.value.version == text.snapshot.value.version && result.value.query == currentQuery.value
 
     /** Publishes a background result unless the text or the query moved on, or it is published already. */
@@ -206,6 +211,7 @@ internal class DefaultFindModel(
         runPending()
     }
 
+    /** Makes a pending selection of the current match, if any; without a current match nothing is selected. */
     private fun selectPendingMatch() {
         if (!selectPending) return
         selectPending = false
@@ -220,6 +226,10 @@ internal class DefaultFindModel(
         if (index != current.currentIndex) result.value = current.copy(currentIndex = index)
     }
 
+    /**
+     * The index of the first of [matches] at or after the start of the primary selection, wrapping to the first match;
+     * a binary search, since the matches are in document order.
+     */
     private fun currentIndexIn(matches: List<TextRange>): Int? {
         if (matches.isEmpty()) return null
         val start = caret.primary.selection.start
@@ -232,10 +242,15 @@ internal class DefaultFindModel(
         return if (low < matches.size) low else 0
     }
 
+    /** The ids of the replace edits and the logger. */
     private companion object {
+        /** The id of the internal action that replaces the current match (not registered, not key-bound). */
         const val REPLACE_ID = "editor.find.replace"
+
+        /** The id of the internal action that replaces every match as one undo step. */
         const val REPLACE_ALL_ID = "editor.find.replaceAll"
 
+        /** Reports replacements that gave up because their expansion exceeded the search budget. */
         val logger: Logger = LoggerFactory.getLogger(DefaultFindModel::class.java)
     }
 }

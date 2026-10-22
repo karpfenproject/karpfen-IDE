@@ -13,7 +13,7 @@ import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
 
 /**
- * The system clipboard as a [ClipboardPort] (decisions 15 and 30 of the work-package plan): the AWT `Toolkit`
+ * The system clipboard as a [ClipboardPort]: the AWT `Toolkit`
  * clipboard, resolved lazily on first use, so creating the port never touches the toolkit. When the JVM is headless
  * (tests, CI) — decided by [headless] at first use — it degrades to an [InMemoryClipboard] and never throws
  * `HeadlessException`. Failures of the platform clipboard (busy, no text flavor) are logged; a failed read is "no text",
@@ -84,7 +84,9 @@ private class AwtClipboard(private val clipboard: Clipboard) : ClipboardPort {
         false
     }
 
+    /** The logger. */
     private companion object {
+        /** Reports failures of the platform clipboard. */
         val logger: Logger = LoggerFactory.getLogger(AwtClipboard::class.java)
     }
 }
@@ -104,6 +106,7 @@ private class WholeLineSelection(private val text: String) : Transferable, Clipb
 
     override fun lostOwnership(clipboard: Clipboard?, contents: Transferable?) = Unit
 
+    /** The mark. */
     companion object {
         /** Marks a whole line copied or cut by an editor of this IDE (never exported to other applications). */
         val FLAVOR: DataFlavor = DataFlavor("${DataFlavor.javaJVMLocalObjectMimeType};class=java.lang.Boolean", "karpfen whole line")

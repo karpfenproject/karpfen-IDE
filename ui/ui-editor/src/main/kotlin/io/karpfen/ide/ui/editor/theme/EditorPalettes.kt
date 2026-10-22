@@ -15,6 +15,7 @@ import io.karpfen.ide.core.lang.HighlightStyle
  */
 internal object EditorPalettes {
 
+    /** The light palette, for the light karpfen theme. */
     val light: EditorTheme = EditorTheme(
         background = Color(0xFFFFFFFF),
         foreground = Color(0xFF1E1F22),
@@ -52,6 +53,7 @@ internal object EditorPalettes {
         ),
     )
 
+    /** The dark palette, for the dark karpfen theme. */
     val dark: EditorTheme = EditorTheme(
         background = Color(0xFF1E1F22),
         foreground = Color(0xFFDFE1E5),

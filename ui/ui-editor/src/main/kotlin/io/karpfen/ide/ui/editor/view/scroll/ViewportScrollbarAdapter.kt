@@ -9,8 +9,8 @@ import io.karpfen.ide.ui.editor.state.ViewportSnapshot
 internal enum class ScrollAxis { HORIZONTAL, VERTICAL }
 
 /**
- * Drives a Compose desktop scrollbar from an [EditorViewport] (spec §7.2: scrollbars with custom adapters): reads the
- * scroll offset and sizes of one [axis] from [snapshot] (the viewport's state as Compose state, so the scrollbar
+ * Drives a Compose desktop scrollbar from an [EditorViewport] (the editor's own viewport needs a custom adapter): reads
+ * the scroll offset and sizes of one [axis] from [snapshot] (the viewport's state as Compose state, so the scrollbar
  * recomposes when it changes) and scrolls through the viewport, which clamps.
  */
 internal class ViewportScrollbarAdapter(

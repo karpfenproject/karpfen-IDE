@@ -1,6 +1,10 @@
 package io.karpfen.ide.ui.editor.model.action
 
-/** Requests handled by the UI (find bar, find next/previous, go to line, completion, go to definition). */
+/**
+ * Requests handled by the UI (find bar, find next/previous, go to line, completion, go to definition).
+ *
+ * @property actionId the id of the action of this request.
+ */
 internal enum class UiRequest(val actionId: String) {
     FIND(EditorActionIds.FIND),
     REPLACE(EditorActionIds.REPLACE),

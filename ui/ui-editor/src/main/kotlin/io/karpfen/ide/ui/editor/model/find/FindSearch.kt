@@ -9,11 +9,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Runs the search rules of a [FindMatcher] off the UI thread (spec §1: long-running work runs on a background dispatcher
- * and is cancellable). Matching and the expansion of regex replacements run on [backgroundDispatcher] and stop when
- * their coroutine is cancelled (a newer text or query) or when they exceed [budget]: a pathological regular expression
- * (catastrophic backtracking) ends in the error [TOO_SLOW] instead of keeping a thread busy. The budget runs on the
- * caller's dispatcher clock (`withTimeoutOrNull`), so tests measure it on virtual time. Stateless; callers suspend.
+ * Runs the search rules of a [FindMatcher] off the UI thread, because long-running work runs on a background dispatcher
+ * and is cancellable, so the UI never waits for a search. Matching and the expansion of regex replacements run on
+ * [backgroundDispatcher] and stop when their coroutine is cancelled (a newer text or query) or when they exceed
+ * [budget]: a pathological regular expression (catastrophic backtracking) ends in the error [TOO_SLOW] instead of
+ * keeping a thread busy. The budget runs on the caller's dispatcher clock (`withTimeoutOrNull`), so tests measure it on
+ * virtual time. Stateless; callers suspend.
  */
 internal class FindSearch(
     private val backgroundDispatcher: CoroutineDispatcher,
@@ -42,6 +43,7 @@ internal class FindSearch(
             withContext(backgroundDispatcher) { matcher.replacements(text, query, matches, replacement) { ensureActive() } }
         }
 
+    /** The budget and its error. */
     companion object {
         /** How long one search or expansion may take before it is given up. */
         val DEFAULT_BUDGET: Duration = 2.seconds

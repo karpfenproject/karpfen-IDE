@@ -1,64 +1,150 @@
 package io.karpfen.ide.ui.editor.model.action
 
 /**
- * Ids of the editor actions (spec §7.1). Menus (app), context menus (popups), keymaps and the workbench's command
- * forwarding use these constants, so every surface reaches the same action.
+ * Ids of the editor actions. Menus (app), context menus (popups), keymaps and the workbench's command forwarding use
+ * these constants, so every surface reaches the same action.
+ *
+ * The ids come in groups: caret movement (`editor.caret.*`, whose `.select` variants extend the selection instead of
+ * collapsing it), typing and deletion, line operations, clipboard and history, and UI requests (find, go to line,
+ * completion, go to definition), which the editor state fulfils.
  */
 public object EditorActionIds {
-    // --- caret movement (".select" variants extend the selection) ------------------------------------------------
+    /** Moves the caret one character left. */
     public const val CARET_LEFT: String = "editor.caret.left"
+
+    /** Moves the caret one character right. */
     public const val CARET_RIGHT: String = "editor.caret.right"
+
+    /** Moves the caret one line up, keeping its preferred display column. */
     public const val CARET_UP: String = "editor.caret.up"
+
+    /** Moves the caret one line down, keeping its preferred display column. */
     public const val CARET_DOWN: String = "editor.caret.down"
+
+    /** Moves the caret to the start of the word left of it (identifier, punctuation and whitespace runs are words). */
     public const val CARET_WORD_LEFT: String = "editor.caret.wordLeft"
+
+    /** Moves the caret to the end of the word right of it. */
     public const val CARET_WORD_RIGHT: String = "editor.caret.wordRight"
+
+    /** Smart Home: moves the caret to the first non-blank character of its line, then to column 0. */
     public const val CARET_LINE_START: String = "editor.caret.lineStart"
+
+    /** Moves the caret to the end of its line. */
     public const val CARET_LINE_END: String = "editor.caret.lineEnd"
+
+    /** Moves the caret one page of visible lines up. */
     public const val CARET_PAGE_UP: String = "editor.caret.pageUp"
+
+    /** Moves the caret one page of visible lines down. */
     public const val CARET_PAGE_DOWN: String = "editor.caret.pageDown"
+
+    /** Moves the caret to the start of the document. */
     public const val CARET_DOCUMENT_START: String = "editor.caret.documentStart"
+
+    /** Moves the caret to the end of the document. */
     public const val CARET_DOCUMENT_END: String = "editor.caret.documentEnd"
+
+    /** [CARET_LEFT], extending the selection. */
     public const val SELECT_LEFT: String = "editor.caret.left.select"
+
+    /** [CARET_RIGHT], extending the selection. */
     public const val SELECT_RIGHT: String = "editor.caret.right.select"
+
+    /** [CARET_UP], extending the selection. */
     public const val SELECT_UP: String = "editor.caret.up.select"
+
+    /** [CARET_DOWN], extending the selection. */
     public const val SELECT_DOWN: String = "editor.caret.down.select"
+
+    /** [CARET_WORD_LEFT], extending the selection. */
     public const val SELECT_WORD_LEFT: String = "editor.caret.wordLeft.select"
+
+    /** [CARET_WORD_RIGHT], extending the selection. */
     public const val SELECT_WORD_RIGHT: String = "editor.caret.wordRight.select"
+
+    /** [CARET_LINE_START], extending the selection. */
     public const val SELECT_LINE_START: String = "editor.caret.lineStart.select"
+
+    /** [CARET_LINE_END], extending the selection. */
     public const val SELECT_LINE_END: String = "editor.caret.lineEnd.select"
+
+    /** [CARET_PAGE_UP], extending the selection. */
     public const val SELECT_PAGE_UP: String = "editor.caret.pageUp.select"
+
+    /** [CARET_PAGE_DOWN], extending the selection. */
     public const val SELECT_PAGE_DOWN: String = "editor.caret.pageDown.select"
+
+    /** [CARET_DOCUMENT_START], extending the selection. */
     public const val SELECT_DOCUMENT_START: String = "editor.caret.documentStart.select"
+
+    /** [CARET_DOCUMENT_END], extending the selection. */
     public const val SELECT_DOCUMENT_END: String = "editor.caret.documentEnd.select"
+
+    /** Selects the whole document. */
     public const val SELECT_ALL: String = "editor.selectAll"
 
-    // --- typing and deletion -----------------------------------------------------------------------------------------
     /** Id shared by every [typeTextAction] instance (not key-bound; typed text arrives through text input). */
     public const val TYPE_TEXT: String = "editor.typeText"
+
+    /** Breaks the line with auto-indent. */
     public const val ENTER: String = "editor.enter"
+
+    /** Deletes the selection or the character left of the caret, with smart unindent and pair deletion. */
     public const val BACKSPACE: String = "editor.backspace"
+
+    /** Deletes the selection or the character right of the caret. */
     public const val DELETE: String = "editor.delete"
+
+    /** Deletes the selection or back to the start of the word left of the caret. */
     public const val DELETE_WORD_LEFT: String = "editor.deleteWordLeft"
+
+    /** Deletes the selection or up to the end of the word right of the caret. */
     public const val DELETE_WORD_RIGHT: String = "editor.deleteWordRight"
+
+    /** Deletes the lines of the selection or of the caret. */
     public const val DELETE_LINE: String = "editor.deleteLine"
 
-    // --- line operations ------------------------------------------------------------------------------------------------
+    /** Duplicates the selection, or the lines of the caret without a selection. */
     public const val DUPLICATE: String = "editor.duplicate"
+
+    /** Moves the lines of the selection or of the caret one line up. */
     public const val MOVE_LINE_UP: String = "editor.moveLineUp"
+
+    /** Moves the lines of the selection or of the caret one line down. */
     public const val MOVE_LINE_DOWN: String = "editor.moveLineDown"
+
+    /**
+     * Indents every non-empty line of a selection spanning lines by one level; otherwise replaces the selection by
+     * spaces up to the next indentation stop.
+     */
     public const val INDENT: String = "editor.indent"
+
+    /** Removes one indentation level from the lines of the selection or of the caret. */
     public const val OUTDENT: String = "editor.outdent"
+
+    /** Comments or uncomments the lines of the selection or of the caret. */
     public const val TOGGLE_COMMENT: String = "editor.toggleComment"
 
-    // --- clipboard and history ----------------------------------------------------------------------------------------
+    /** Copies the selection, or the caret's whole line without a selection. */
     public const val COPY: String = "editor.copy"
+
+    /** Cuts the selection, or the caret's whole line without a selection. */
     public const val CUT: String = "editor.cut"
+
+    /** Pastes the clipboard text (a copied whole line above the caret's line). */
     public const val PASTE: String = "editor.paste"
+
+    /** Undoes the last undo step and restores its carets. */
     public const val UNDO: String = "editor.undo"
+
+    /** Redoes the last undone step and restores its carets. */
     public const val REDO: String = "editor.redo"
 
-    // --- UI requests -----------------------------------------------------------------------------------------------------
+    /** Opens the find bar. */
     public const val FIND: String = "editor.find"
+
+    /** Opens the find bar with its replace row. */
     public const val REPLACE: String = "editor.replace"
 
     /** Selects the next match of the find query (opens the find bar while the query is empty). */
@@ -66,15 +152,21 @@ public object EditorActionIds {
 
     /** Selects the previous match of the find query (opens the find bar while the query is empty). */
     public const val FIND_PREVIOUS: String = "editor.findPrevious"
+
+    /** Opens the go-to-line popup. */
     public const val GO_TO_LINE: String = "editor.goToLine"
+
+    /** Opens code completion at the caret. */
     public const val COMPLETION: String = "editor.completion"
+
+    /** Navigates to the definition of the symbol at the caret. */
     public const val GO_TO_DEFINITION: String = "editor.goToDefinition"
 }
 
 /**
  * User-visible titles of the editor actions: the one source of the labels shown by the editor context menu (popups)
  * and by the window menu (the workbench registers the editor commands with these titles), so both always agree.
- * Complete in the contracts step: every id of [EditorActionIds] has a title.
+ * Every id of [EditorActionIds] has a title.
  */
 public object EditorActionTitles {
 

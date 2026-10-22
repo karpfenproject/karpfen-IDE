@@ -12,7 +12,7 @@ import io.karpfen.ide.ui.editor.model.find.FindModel
  *
  * - [openFind] seeds the find query from a one-line selection (`FindModel.setQuery` with the text replaced in the
  *   model's current query, so the options stay; the selection stays the current match) before opening the bar, so the
- *   overlay state holds no find logic (§7 item 8 of the work-package plan).
+ *   overlay state holds no find logic.
  * - [findNext]/[findPrevious] move through the `FindModel`, which selects through the editor's executor, so the match
  *   is revealed like every action; while the model's query is empty they open the find bar instead.
  * - [triggerCompletion] reveals the primary caret ([revealCaret]) before it asks for completion there: the request
@@ -60,5 +60,6 @@ internal class EditorUiRequests(
         definitions(caret.primary.position)
     }
 
+    /** Whether the find model has a query to move through. */
     private fun hasQuery(): Boolean = find.query.value.text.isNotEmpty()
 }

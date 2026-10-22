@@ -1,14 +1,14 @@
 package io.karpfen.ide.ui.editor.model.caret
 
-/** Columns per tab stop unless the editor settings say otherwise (spec §7.2). */
+/** Columns per tab stop unless the editor settings say otherwise. */
 public const val DEFAULT_TAB_WIDTH: Int = 4
 
 /**
- * Display columns with tab stops (spec §7.2: a tab advances to the next multiple of [tabWidth]): the one conversion
- * between a column of a line (UTF-16 code units from the line start, as in `TextPosition`) and the column the user
- * sees. The caret model (preferred column for Up/Down), the editor view (rendering, hit-testing, caret x) and the
- * status bar ("Col y") all use it, so a remembered column means the same everywhere (decision 40 of the work-package
- * plan). Complete in the contracts step.
+ * Display columns with tab stops (a tab advances to the next multiple of [tabWidth]): the one conversion between a
+ * column of a line (UTF-16 code units from the line start, as in `TextPosition`) and the column the user sees. The
+ * caret model (preferred column for Up/Down), the editor view (rendering, hit-testing, caret x) and the status bar
+ * ("Col y") all use it, so a remembered column means the same everywhere. It lives in the editor module because
+ * display columns are a UI concern; the text model counts code units only.
  *
  * Every character but a tab advances one display column; a surrogate pair counts as one (it renders as one glyph);
  * a tab advances to the next multiple of [tabWidth].
@@ -71,6 +71,7 @@ public data class TabStops(public val tabWidth: Int = DEFAULT_TAB_WIDTH) {
         return line.length
     }
 
+    /** The display column after the character at [index] of [line], which starts at display column [display]. */
     private fun advance(line: CharSequence, index: Int, display: Int): Int {
         val char = line[index]
         return when {
@@ -80,6 +81,7 @@ public data class TabStops(public val tabWidth: Int = DEFAULT_TAB_WIDTH) {
         }
     }
 
+    /** Whether a surrogate pair starts at [index] of [line]. */
     private fun isSurrogatePairAt(line: CharSequence, index: Int): Boolean =
         Character.isHighSurrogate(line[index]) && index + 1 < line.length && Character.isLowSurrogate(line[index + 1])
 }

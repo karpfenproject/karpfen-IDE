@@ -9,7 +9,7 @@ import kotlin.math.roundToInt
 /**
  * Where the characters of one text snapshot are, in content coordinates (pixels, before scrolling): line `n` occupies
  * `n * lineHeight until (n + 1) * lineHeight`; the text of a line starts at [textLeft] and every display column is one
- * monospace cell of [charWidth] (tabs advance to the next stop of [tabStops], decision 40 of the work-package plan).
+ * monospace cell of [charWidth] (tabs advance to the next stop of [tabStops], the one tab rule of the editor).
  * Caret x, hit-testing and decoration rectangles all come from here, so they agree with each other and with the drawn
  * text. Pure and immutable (no Compose), so it is unit-tested directly.
  *
@@ -87,10 +87,16 @@ internal class TextGeometry(
         val text = snapshot.lineText(line)
         val displayColumn = floor((x - textLeft) / charWidth).toInt()
         if (displayColumn >= tabStops.displayColumn(text, text.length)) return null
-        var column = tabStops.columnAt(text, displayColumn)
-        // columnAt answers the nearer bound; the character under the point is the one whose cell contains it.
-        if (column > 0 && tabStops.displayColumn(text, column) > displayColumn) column--
-        return snapshot.lineIndex.lineStart(line) + column
+        return snapshot.lineIndex.lineStart(line) + columnUnder(text, displayColumn)
+    }
+
+    /**
+     * The column of the character of [line] whose cell contains [displayColumn]: [TabStops.columnAt] answers the nearer
+     * bound of a cell, so a bound right of the point steps back to the character before it.
+     */
+    private fun columnUnder(line: CharSequence, displayColumn: Int): Int {
+        val column = tabStops.columnAt(line, displayColumn)
+        return if (column > 0 && tabStops.displayColumn(line, column) > displayColumn) column - 1 else column
     }
 
     /**
@@ -141,5 +147,6 @@ internal class TextGeometry(
         }
     }
 
+    /** The line under content y [y], unclamped (0 without a line height). */
     private fun lineAt(y: Float): Int = if (lineHeight <= 0f) 0 else floor(y / lineHeight).toInt()
 }

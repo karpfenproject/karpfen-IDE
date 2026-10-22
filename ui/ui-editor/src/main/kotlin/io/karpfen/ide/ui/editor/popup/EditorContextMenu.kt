@@ -19,7 +19,7 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
 import kotlin.math.roundToInt
 
 /**
- * The editor context menu (spec §7.2) at the request position; each entry runs its editor action by id ([onAction])
+ * The editor context menu at the request position; each entry runs its editor action by id ([onAction])
  * and is disabled — greyed out — when the action is disabled ([isEnabled]).
  *
  * The menu is a focusable desktop popup anchored at a zero-size point at ([ContextMenuRequest.x],

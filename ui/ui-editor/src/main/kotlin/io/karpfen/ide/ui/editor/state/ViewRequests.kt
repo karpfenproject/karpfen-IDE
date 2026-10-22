@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The pending requests of an editor state to its view (decision 18 of the work-package plan): requests are *state*,
+ * The pending requests of an editor state to its view: requests are *state*,
  * not events, so a scroll or focus request made before `CodeEditor` is composed stays pending until the view consumes
  * it. A newer scroll request replaces an older pending one. Used from the UI thread.
  */

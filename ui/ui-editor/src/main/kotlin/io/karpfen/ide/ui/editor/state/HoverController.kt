@@ -11,7 +11,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The hover tooltip policy ([EditorViewModel.pointerHover], [EditorPopupModel.pointerOverTooltip], spec §7.2),
+ * The hover tooltip policy ([EditorViewModel.pointerHover], [EditorPopupModel.pointerOverTooltip]),
  * Compose-free and on the editor's clock: after the pointer rested on one offset for [delay] (a coroutine delay in
  * [scope], so tests use virtual time), the content from [contentAt] is shown through [overlays].
  *
@@ -23,7 +23,8 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * The tooltip follows the [text]: its range and content describe the text they were computed for, so every change of
  * the text — typing, commands from menus, find and replace, completion accepted by mouse, external reloads — hides
- * it and drops a lookup in progress, like [hide]; the pointer rests again to see the new text's content.
+ * it and drops a lookup in progress, like [hide]; the pointer rests again to see the new text's content. A change is
+ * every snapshot other than the one current at construction: snapshots are never reused, so identity tells them apart.
  */
 internal class HoverController(
     private val scope: CoroutineScope,
@@ -40,14 +41,15 @@ internal class HoverController(
     private var onTooltip = false
 
     init {
-        // Every snapshot after the one current now is a change of the text (snapshots are never reused).
         val initial = text.value
         scope.launch { text.filter { it !== initial }.collect { hide() } }
     }
 
-    /** The pointer rests over text [offset], or left the text (null). */
+    /**
+     * The pointer rests over text [offset], or left the text (null). An offset also means that the pointer is not on
+     * the tooltip: the text area reports it, and the tooltip lies over the text area.
+     */
     fun pointerAt(offset: Int?) {
-        // The text area reports the pointer, so it is not on the tooltip (which lies over the text area).
         if (offset != null) onTooltip = false
         if (offset == restingAt) return
         restingAt = offset
@@ -88,12 +90,14 @@ internal class HoverController(
         overlays.hideHover()
     }
 
+    /** Shows [content], cancelling a scheduled hide. */
     private fun show(content: HoverContent) {
         keepShown()
         onTooltip = false
         overlays.showHover(content)
     }
 
+    /** Cancels the lookup waiting for the rest delay or running. */
     private fun cancelPending() {
         pending?.cancel()
         pending = null
@@ -115,6 +119,7 @@ internal class HoverController(
         }
     }
 
+    /** The hide grace. */
     companion object {
         /** How long the tooltip stays after the pointer left its range and the tooltip. */
         val HIDE_GRACE: Duration = 300.milliseconds

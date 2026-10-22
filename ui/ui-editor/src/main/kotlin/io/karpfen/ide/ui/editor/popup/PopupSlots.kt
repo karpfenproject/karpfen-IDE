@@ -8,12 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
 import io.karpfen.ide.ui.editor.overlay.EditorOverlayHost
 
-/*
- * The slots of [EditorPopups]: each reads what its popup shows from the host (the `EditorPopupModel`'s flows and the
- * host's geometry), emits nothing while its popup is closed, and wires the stateless popup composable to the intents.
- * Positions are in the host's coordinate space (the text area), as the overlay contract defines.
- */
-
 /**
  * The find/replace bar while `overlays.findBar` is open, rendering the model's query, replacement and matches. Only
  * the fields' selection and composition live in the editor's composition ([FindBarFields]); every change of

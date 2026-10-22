@@ -49,6 +49,7 @@ internal class BracketTracker(
         }
     }
 
+    /** The bracket pair at [offset] of [snapshot]; null if there is none or the language services failed (logged). */
     private fun matchAt(snapshot: TextSnapshot, offset: Int): BracketMatch? =
         try {
             languageServices.matchingBracket(LanguageDocument.of(session, snapshot), offset)
@@ -59,7 +60,9 @@ internal class BracketTracker(
             null
         }
 
+    /** The logger. */
     private companion object {
+        /** Reports failures of the language services; bracket matching then shows nothing. */
         val logger: Logger = LoggerFactory.getLogger(BracketTracker::class.java)
     }
 }

@@ -51,6 +51,7 @@ internal data class LineBlock(val first: Int, val last: Int) {
         }
     }
 
+    /** Creation from a caret. */
     companion object {
         /** The block of [caret] in [snapshot]. */
         fun of(snapshot: TextSnapshot, caret: Caret): LineBlock {

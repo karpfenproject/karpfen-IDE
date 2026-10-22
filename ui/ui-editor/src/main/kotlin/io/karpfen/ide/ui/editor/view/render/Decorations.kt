@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 
 /**
- * The editor's decoration primitives (spec §7.2), drawn in text-area coordinates: filled backgrounds (current line,
+ * The editor's decoration primitives, drawn in text-area coordinates: filled backgrounds (current line,
  * selection, find matches), bracket boxes, the caret and the diagnostic underlines — wavy for errors and warnings,
  * dotted for information. Stateless drawing functions; what to draw where is decided by the caller.
  */

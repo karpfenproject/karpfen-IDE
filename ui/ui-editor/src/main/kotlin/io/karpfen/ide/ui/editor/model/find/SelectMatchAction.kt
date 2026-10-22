@@ -5,8 +5,9 @@ import io.karpfen.ide.ui.editor.model.action.EditorAction
 import io.karpfen.ide.ui.editor.model.action.EditorActionContext
 
 /**
- * Selects a find [match] (caret at its end), run through the editor's executor so the editor reveals it (decision 37
- * of the work-package plan). Caret only: no text change, no undo step. Not registered (one instance per selection).
+ * Selects a find [match] (caret at its end), run through the editor's executor so the editor reveals it, whoever asked
+ * for the selection (the find bar, the find-next keys or the menu). Caret only: no text change, no undo step. Not
+ * registered (one instance per selection).
  */
 internal class SelectMatchAction(val match: TextRange) : EditorAction {
     override val id: String = ID
@@ -18,6 +19,7 @@ internal class SelectMatchAction(val match: TextRange) : EditorAction {
         return true
     }
 
+    /** The shared id. */
     companion object {
         /** The id of every select-match action. */
         const val ID: String = "editor.find.selectMatch"

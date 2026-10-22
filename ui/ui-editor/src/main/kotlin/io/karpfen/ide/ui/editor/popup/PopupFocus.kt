@@ -23,6 +23,7 @@ internal class FocusLossTracker {
     }
 }
 
+/** The modifier element of [onFocusLost]; an update hands the new callback to the existing node. */
 private data class FocusLossElement(val onLost: () -> Unit) : ModifierNodeElement<FocusLossNode>() {
     override fun create(): FocusLossNode = FocusLossNode(onLost)
 
@@ -31,6 +32,7 @@ private data class FocusLossElement(val onLost: () -> Unit) : ModifierNodeElemen
     }
 }
 
+/** The node of [onFocusLost]: feeds every focus event into a [FocusLossTracker] and calls [onLost] on a loss. */
 private class FocusLossNode(var onLost: () -> Unit) : Modifier.Node(), FocusEventModifierNode {
     private val tracker = FocusLossTracker()
 

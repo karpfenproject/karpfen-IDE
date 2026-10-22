@@ -3,6 +3,8 @@ package io.karpfen.ide.ui.editor.view.input
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.AwaitPointerEventScope
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerKeyboardModifiers
@@ -29,9 +31,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * The mouse input of the text area (spec §7.2): hit-testing plus the drag auto-scroll timer only, everything else is a
- * Compose-free intent of [model] (decision 36 of the work-package plan), with positions in text-area coordinates (the
- * `EditorOverlayHost` space):
+ * The mouse input of the text area: hit-testing plus the drag auto-scroll timer only, everything else is a
+ * Compose-free intent of [model], with positions in text-area coordinates (the `EditorOverlayHost` space):
  * - primary press → `pointerPressed(offset, clickCount, modifiers)` (clicks counted by [ClickCounter]), drag →
  *   `pointerDragged(offset)` with auto-scroll while the pointer is outside the area, release → `pointerReleased()`;
  * - secondary press → `openContextMenuAt(offset, x, y)`;
@@ -48,9 +49,7 @@ internal fun Modifier.textAreaPointerInput(model: EditorViewModel, frame: () -> 
         coroutineScope {
             val timers: CoroutineScope = this
             awaitEachGesture {
-                // Any button: awaitFirstDown only reports the primary mouse button on desktop.
-                var event = awaitPointerEvent(PointerEventPass.Initial)
-                while (event.changes.none { it.changedToDownIgnoreConsumed() }) event = awaitPointerEvent(PointerEventPass.Initial)
+                val event = awaitDownWithAnyButton()
                 val down = event.changes.first { it.changedToDownIgnoreConsumed() }
                 val at = frame() ?: return@awaitEachGesture
                 down.consume()
@@ -124,6 +123,16 @@ internal fun Modifier.wheelScroll(viewport: EditorViewport, lineHeight: () -> Fl
             }
         }
     }
+
+/**
+ * The next event in which a pointer went down, with any button (`awaitFirstDown` reports only the primary mouse button
+ * on desktop), taken in the initial pass.
+ */
+private suspend fun AwaitPointerEventScope.awaitDownWithAnyButton(): PointerEvent {
+    var event = awaitPointerEvent(PointerEventPass.Initial)
+    while (event.changes.none { it.changedToDownIgnoreConsumed() }) event = awaitPointerEvent(PointerEventPass.Initial)
+    return event
+}
 
 /** Scrolls while the drag position [last] is outside the area, extending the selection to the point after each step. */
 private suspend fun CoroutineScope.autoScroll(

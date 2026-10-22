@@ -4,7 +4,7 @@ import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 
 /**
- * The caret reveal after actions and typing (spec §7.2: the caret stays visible with a 3-line margin): sets a
+ * The caret reveal after actions and typing (the caret stays visible with the viewport's 3-line margin): sets a
  * [ScrollRequest] for the primary caret. The request is centred when the caret is off-screen by more than one viewport
  * height (a jump: find next, go to definition, document end), and minimal otherwise, so arrow keys and Page Up/Down at
  * the viewport edge scroll by as much as needed instead of re-centring the view. Without known geometry the request is
@@ -24,6 +24,7 @@ internal class CaretReveal(
         requests.scrollTo(ScrollRequest(offset, center = isJump(line)))
     }
 
+    /** Whether [line] lies more than one viewport height above or below the visible lines; false without geometry. */
     private fun isJump(line: Int): Boolean {
         val geometry = viewport.state.value
         if (geometry.lineHeight <= 0f || geometry.viewportHeight <= 0f) return false

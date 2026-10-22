@@ -14,10 +14,10 @@ import io.karpfen.ide.ui.editor.view.geometry.TextAreaFrame
 import io.karpfen.ide.ui.editor.view.render.Decorations.background
 
 /**
- * Paints the gutter (spec §7.2) next to the laid-out lines of a [TextAreaFrame]: one-based line numbers (right-aligned,
- * the caret's line emphasized), the current line's background and a diagnostic marker per line in the colour of the
- * most severe diagnostic starting on that line (ranges mapped into the drawn version with `EditableText.mapRange`). Number layouts are
- * cached in a [LineLayoutCache] of their own.
+ * Paints the gutter next to the laid-out lines of a [TextAreaFrame]: one-based line numbers (right-aligned, the caret's
+ * line emphasized), the current line's background and a diagnostic marker per line in the colour of the most severe
+ * diagnostic starting on that line (ranges mapped into the drawn version with `EditableText.mapRange`). Number layouts
+ * are cached in a [LineLayoutCache] of their own.
  */
 internal class GutterPainter(private val measurer: TextMeasurer, private val numbers: LineLayoutCache) {
 
@@ -85,11 +85,15 @@ internal class GutterPainter(private val measurer: TextMeasurer, private val num
         return result
     }
 
+    /** The gutter's measures in cells. */
     companion object {
         /** Cells of the gutter besides the digits: the marker column and padding on both sides. */
         const val EXTRA_CELLS: Int = 3
 
+        /** Space right of the line numbers. */
         private const val RIGHT_PADDING_CELLS = 0.8f
+
+        /** Radius of a diagnostic marker. */
         private const val MARKER_RADIUS_CELLS = 0.3f
     }
 }

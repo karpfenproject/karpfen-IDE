@@ -5,7 +5,11 @@ import io.karpfen.ide.core.text.LineSeparators
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 
-/** Kinds of [ClipboardAction]. */
+/**
+ * Kinds of [ClipboardAction].
+ *
+ * @property actionId the id of the action of this kind.
+ */
 internal enum class ClipboardOperation(val actionId: String) {
     COPY(EditorActionIds.COPY),
     CUT(EditorActionIds.CUT),
@@ -13,7 +17,7 @@ internal enum class ClipboardOperation(val actionId: String) {
 }
 
 /**
- * Copy/cut (whole line without selection) and paste (separators normalized to `\n`), spec §7.1.
+ * Copy/cut (whole line without selection) and paste (separators normalized to `\n`).
  *
  * Without a selection, copy and cut take the caret's line with a line break (`line + "\n"`), marked as a whole line on
  * the clipboard; cut removes the line like delete line ([LineBlock.deletionRange]) with origin `Cut`. Cut deletes only

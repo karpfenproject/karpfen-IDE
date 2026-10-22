@@ -13,8 +13,11 @@ import androidx.compose.foundation.text.input.clearText
  */
 internal class CommittedTextForwarder(private val field: TextFieldState, private val onCommit: (String) -> Unit) {
 
-    /** Forwards the field's committed text, if any. */
-    @OptIn(ExperimentalFoundationApi::class) // UndoState.clearHistory: the field must not undo text it handed over
+    /**
+     * Forwards the field's committed text, if any. Opts into the experimental `UndoState.clearHistory`, because the
+     * field must not undo text it handed over.
+     */
+    @OptIn(ExperimentalFoundationApi::class)
     fun flush() {
         if (field.composition != null) return
         val committed = field.text.toString()

@@ -4,7 +4,7 @@ import io.karpfen.ide.core.text.CaretMemento
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A caret with its selection (spec §7.1): [position] is where the caret blinks, [anchor] the fixed end of the
+ * A caret with its selection: [position] is where the caret blinks, [anchor] the fixed end of the
  * selection (`anchor == position`: no selection). [preferredColumn] is the column vertical movement tries to keep
  * (display column, tabs expanded), or null when the next vertical move should take it from [position].
  */
@@ -22,6 +22,7 @@ public data class Caret(public val anchor: Int, public val position: Int, public
     /** The undo memento of this caret. */
     public fun toMemento(): CaretMemento = CaretMemento(anchor, position)
 
+    /** Factories of carets. */
     public companion object {
         /** A caret at [offset] without selection. */
         public fun at(offset: Int): Caret = Caret(offset, offset)
@@ -32,7 +33,7 @@ public data class Caret(public val anchor: Int, public val position: Int, public
 }
 
 /**
- * The carets of an editor at one text [version] (spec §7.1: one caret in phase 1, list-ready for multi-caret).
+ * The carets of an editor at one text [version] (one caret for now; the list is ready for multiple carets).
  * [carets] is non-empty; the first caret is the primary one.
  */
 public data class CaretSnapshot(public val version: Long, public val carets: List<Caret>) {
@@ -44,7 +45,7 @@ public data class CaretSnapshot(public val version: Long, public val carets: Lis
     public val primary: Caret get() = carets.first()
 }
 
-/** Caret movements (spec §7.1). */
+/** Caret movements. */
 public enum class CaretMovement {
     /** One character left (to the selection start when a selection is collapsed). */
     LEFT,

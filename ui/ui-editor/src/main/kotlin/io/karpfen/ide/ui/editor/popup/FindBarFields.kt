@@ -8,7 +8,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import io.karpfen.ide.ui.editor.model.find.FindQuery
 
-/** The toggles of the find bar (spec §7.2: Aa / W / .*), each one flag of [FindQuery]. */
+/** The toggles of the find bar (Aa / W / .*), each one flag of [FindQuery]. */
 internal enum class FindOption(
     /** The toggle's label. */
     val label: String,
@@ -111,5 +111,6 @@ private class ModelTextField {
         edited = whole(text)
     }
 
+    /** [text] selected as a whole. */
     private fun whole(text: String) = TextFieldValue(text, TextRange(0, text.length))
 }

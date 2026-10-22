@@ -30,7 +30,7 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
 import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
 
 /**
- * The hover tooltip (spec §7.2) below (or above) [anchor]: the diagnostics at the position with severity icons if there
+ * The hover tooltip below (or above) [anchor]: the diagnostics at the position with severity icons if there
  * are any, otherwise the language hover text in the editor's [textStyle]. Long content scrolls. A click on the tooltip
  * dismisses it ([onDismiss]); the pointer entering and leaving it is reported to [onPointerOver], so the editor state
  * keeps it while the pointer is on it and hides it when the pointer moves on or the user types.
@@ -88,8 +88,14 @@ private fun DiagnosticLine(diagnostic: Diagnostic, theme: EditorTheme) {
     }
 }
 
-/** The icon of a diagnostic severity in the tooltip (the shared severity icons of the Problems view). */
+/**
+ * The icon of a diagnostic severity in the tooltip (the shared severity icons of the Problems view).
+ *
+ * @property image the untinted severity icon.
+ * @property description the severity's accessible name.
+ */
 internal data class SeverityIcon(val image: ImageVector, val description: String) {
+    /** The icon of each severity. */
     companion object {
         /** The icon of [severity]; hints share the info icon. */
         fun of(severity: Severity): SeverityIcon = when (severity) {

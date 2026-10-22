@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * What the editor popups (find/replace bar, completion list, go-to-line, hover tooltip, context menu) may use of an
- * editor (interface segregation, spec §1a): the models they render and drive, the overlay state, action execution and
+ * editor (interface segregation): the models they render and drive, the overlay state, action execution and
  * enablement. [CodeEditorState] extends it (next to `EditorViewModel` and `EditorHandle`); popup tests fake only this
  * interface (with the real Compose-free models). Used from the UI thread.
  *

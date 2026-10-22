@@ -2,7 +2,7 @@ package io.karpfen.ide.ui.editor.model.completion
 
 import io.karpfen.ide.core.lang.CompletionItem
 
-/** How well a label matches the typed filter text (spec §7.1); lower is better. */
+/** How well a label matches the typed filter text; lower is better. */
 internal enum class MatchQuality {
     /** The label starts with the filter (case-insensitive). */
     PREFIX,
@@ -15,7 +15,7 @@ internal enum class MatchQuality {
 }
 
 /**
- * Filtering and ranking of completion items (spec §7.1), pure and stateless: case-insensitive prefix matches before
+ * Filtering and ranking of completion items, pure and stateless: case-insensitive prefix matches before
  * camel/word-boundary matches before subsequence matches; items that match none are dropped. The sort is stable — by
  * match quality, then `sortKey`, then label, then the source's order — so equally good items never jump around while
  * the user types.
@@ -60,6 +60,10 @@ internal object CompletionRanking {
         return match(0, 0, false)
     }
 
+    /**
+     * Whether a word of [label] starts at [index]: at the label start, at a letter or digit after other characters, at
+     * an upper-case letter after a lower-case one (camel hump), or at a digit after a non-digit.
+     */
     private fun wordStartsAt(label: String, index: Int): Boolean {
         if (index == 0) return true
         val previous = label[index - 1]
@@ -69,6 +73,7 @@ internal object CompletionRanking {
             !previous.isDigit() && current.isDigit()
     }
 
+    /** Whether the characters of [filter] occur in [label] in order (case-insensitively). */
     private fun isSubsequence(label: String, filter: String): Boolean {
         var index = 0
         for (char in label) {

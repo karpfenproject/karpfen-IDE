@@ -22,7 +22,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * The highlight pipeline of one editor ([EditorViewModel.highlights], decision 39 of the work-package plan).
+ * The highlight pipeline of one editor ([EditorViewModel.highlights]).
  *
  * Follows the session's tokens and parse; whenever the tokens belong to the current text, it computes on
  * [backgroundDispatcher] (latest wins) and publishes in [scope]:
@@ -60,6 +60,10 @@ internal class HighlightPipeline(
         }
     }
 
+    /**
+     * The highlights of [snapshot] from [tokens] and [parse]; with a lagging parse the lexical spans carry the semantic
+     * spans of [previous] over. Null when the language services failed (logged), so the previous result stays.
+     */
     private fun compute(
         snapshot: TextSnapshot,
         tokens: TokenizeResult,
@@ -96,7 +100,9 @@ internal class HighlightPipeline(
         }
     }
 
+    /** The logger. */
     private companion object {
+        /** Reports failures of the language services; the previous highlights then stay. */
         val logger: Logger = LoggerFactory.getLogger(HighlightPipeline::class.java)
     }
 }

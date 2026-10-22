@@ -11,7 +11,7 @@ import kotlinx.coroutines.delay
 internal const val CARET_BLINK_MILLIS: Long = 530
 
 /**
- * Whether the caret is drawn now (spec §7.2: blinking caret, solid while typing): visible and blinking every
+ * Whether the caret is drawn now (a blinking caret, solid while typing): visible and blinking every
  * [CARET_BLINK_MILLIS] while [focused]; every change of [activity] (the carets, the text version) restarts the cycle in
  * the visible phase, so the caret stays solid while the user types or moves it. Only the draw phase reads the state.
  */

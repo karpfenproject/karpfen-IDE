@@ -9,7 +9,7 @@ import java.util.regex.PatternSyntaxException
 internal data class MatchOutcome(val matches: List<TextRange>, val error: String?)
 
 /**
- * The search rules of find/replace (spec §7.1), pure and stateless: one [Pattern] per query — the literal text unless
+ * The search rules of find/replace, pure and stateless: one [Pattern] per query — the literal text unless
  * [FindQuery.regex] (then multi-line mode, `^`/`$` at line bounds), case-insensitive (Unicode) unless
  * [FindQuery.caseSensitive], and with [FindQuery.wholeWord] bounded by non-identifier characters (`[A-Za-z0-9_]`, the
  * word rule of the caret model). Matches are non-overlapping, in document order; empty matches are skipped. An invalid
@@ -81,6 +81,10 @@ internal class FindMatcher {
         return result
     }
 
+    /**
+     * The pattern of [query]: the quoted text or the regular expression, wrapped in look-arounds that reject identifier
+     * characters on either side for a whole-word query.
+     */
     private fun compile(query: FindQuery): Pattern {
         val body = if (query.regex) query.text else Pattern.quote(query.text)
         val bounded = if (query.wholeWord) "(?<![A-Za-z0-9_])(?:$body)(?![A-Za-z0-9_])" else body
@@ -89,6 +93,7 @@ internal class FindMatcher {
         return Pattern.compile(bounded, flags)
     }
 
+    /** The message shown for an invalid regular expression: its description and, if known, the index of the error. */
     private fun describe(e: PatternSyntaxException): String =
         if (e.index >= 0) "${e.description} near index ${e.index}" else e.description
 
@@ -108,7 +113,9 @@ internal class FindMatcher {
         override fun toString(): String = text
     }
 
+    /** How often matching checks for cancellation. */
     private companion object {
+        /** Character reads (and matches) between two cancellation checks. */
         const val CHECK_INTERVAL = 4096
     }
 }

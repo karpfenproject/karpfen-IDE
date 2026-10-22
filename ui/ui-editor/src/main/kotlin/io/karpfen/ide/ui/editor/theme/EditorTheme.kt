@@ -8,8 +8,25 @@ import androidx.compose.ui.text.SpanStyle
 import io.karpfen.ide.core.lang.HighlightStyle
 
 /**
- * Colours of the code editor and its popups (spec §7.2). [styles] maps every [HighlightStyle] to a span style
- * (colour, font weight/style); a missing style renders with [foreground].
+ * Colours of the code editor and its popups. [styles] maps every [HighlightStyle] to a span style (colour, font
+ * weight/style); a missing style renders with [foreground].
+ *
+ * @property background the text area's background.
+ * @property foreground text without a highlight style.
+ * @property gutterBackground the gutter's background.
+ * @property gutterForeground the line numbers.
+ * @property currentLine the background of the caret's line.
+ * @property selection the background of selected text.
+ * @property caret the caret.
+ * @property matchingBracket the boxes around a matching bracket pair.
+ * @property findMatch the background of find matches.
+ * @property findMatchCurrent the background of the current find match.
+ * @property error underlines and markers of errors.
+ * @property warning underlines and markers of warnings.
+ * @property info underlines and markers of information.
+ * @property popupBackground the background of the popups.
+ * @property popupBorder the border of the popups.
+ * @property popupSelection the highlighted row of a popup list.
  */
 @Immutable
 public data class EditorTheme(

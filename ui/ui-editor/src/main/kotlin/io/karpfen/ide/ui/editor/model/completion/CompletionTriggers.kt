@@ -8,7 +8,7 @@ import io.karpfen.ide.ui.editor.model.caret.Caret
 import io.karpfen.ide.ui.editor.model.caret.WordBoundaries
 
 /**
- * The auto-triggers of completion (spec §7.1), decided on the text right after typing, pure and stateless:
+ * The auto-triggers of completion, decided on the text right after typing, pure and stateless:
  *
  * - [CompletionTrigger.IDENTIFIER]: one identifier character typed directly after another one (the word rule of the
  *   caret model, `[A-Za-z0-9_]`);

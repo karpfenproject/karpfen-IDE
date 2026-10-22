@@ -5,7 +5,7 @@ import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 
 /**
- * An editing or navigation operation (Command pattern, spec §1a, §7.1). Key-bound and menu actions are registered by
+ * An editing or navigation operation (Command pattern). Key-bound and menu actions are registered by
  * [id] in an [EditorActionRegistry]; parameterized commands (typing text, accepting a completion) are created per
  * use, e.g. with [typeTextAction].
  *
@@ -45,13 +45,13 @@ public interface EditorActionContext {
 
     /**
      * The closers this editor inserted automatically (typing over one moves over it, Backspace between an
-     * auto-inserted pair deletes both; spec §7.1). One tracker per editor.
+     * auto-inserted pair deletes both). One tracker per editor.
      */
     public val autoPairs: AutoClosedPairs
 
     /**
-     * The tokens of exactly the current text (`tokens.version == text.snapshot.value.version`, MUST): the editor state
-     * supplies `DocumentSession.tokensFor(text.snapshot.value)`, which tokenizes synchronously when the session's
+     * The tokens of exactly the current text (invariant: `tokens.version == text.snapshot.value.version`): the editor
+     * state supplies `DocumentSession.tokensFor(text.snapshot.value)`, which tokenizes synchronously when the session's
      * tokenize pipeline lags (e.g. Cmd+/ right after Enter or a paste), so offsets of the current text and token ranges
      * always agree. Reading it may therefore tokenize; actions read it in [EditorAction.execute] only, never in
      * [EditorAction.isEnabled]. "Inside an EVAL body" is `tokens.embeddedRegionAt(offset)` (toggle comment uses `#`
@@ -116,7 +116,7 @@ public interface EditorUiPort {
 /**
  * Runs editor actions in an editor's [EditorActionContext] (the editor state's `execute(action)`). Models that edit
  * text (find/replace, completion accept) receive one, so every edit is an [EditorAction] with caret mementos and one
- * undo step (spec §1a, Command pattern).
+ * undo step (Command pattern).
  */
 public fun interface EditorActionExecutor {
     /** Runs [action]; returns whether it did something (false if disabled). */

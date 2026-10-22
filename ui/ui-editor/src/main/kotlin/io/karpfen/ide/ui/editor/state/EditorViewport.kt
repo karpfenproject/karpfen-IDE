@@ -8,7 +8,7 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 /**
- * Scroll position and geometry of the editor, in pixels (spec §7.2). Compose-free: the view reports measured geometry
+ * Scroll position and geometry of the editor, in pixels. Compose-free: the view reports measured geometry
  * and renders from [state]; the scrollbar adapters and mouse wheel scroll through it. Scroll offsets are always clamped
  * to `0..max`.
  */
@@ -34,7 +34,7 @@ public interface EditorViewport {
 
     /**
      * Scrolls minimally so that the rectangle (content coordinates) is visible with a margin of three lines above and
-     * below (spec §7.2), or centres it vertically when [center]. In a viewport too small for the margin the margin
+     * below, or centres it vertically when [center]. In a viewport too small for the margin the margin
      * shrinks to what fits around the rectangle, so the rectangle itself is always revealed.
      */
     public fun reveal(left: Float, top: Float, right: Float, bottom: Float, center: Boolean)
@@ -55,7 +55,17 @@ public interface EditorViewport {
 /** A new [EditorViewport] at scroll position (0, 0) with empty geometry. */
 public fun EditorViewport(): EditorViewport = DefaultEditorViewport()
 
-/** Scroll offsets (px) and geometry (px) of an [EditorViewport]. */
+/**
+ * Scroll offsets (px) and geometry (px) of an [EditorViewport].
+ *
+ * @property scrollX the content offset at the viewport's left edge.
+ * @property scrollY the content offset at the viewport's top edge.
+ * @property viewportWidth the width of the visible area.
+ * @property viewportHeight the height of the visible area.
+ * @property lineHeight the height of every line.
+ * @property contentWidth the width of the widest laid-out content.
+ * @property contentHeight the height of all lines.
+ */
 public data class ViewportSnapshot(
     public val scrollX: Float = 0f,
     public val scrollY: Float = 0f,
@@ -143,9 +153,11 @@ internal class DefaultEditorViewport : EditorViewport {
     private fun fittingMargin(preferred: Float, size: Float, extent: Float): Float =
         minOf(preferred, ((size - extent) / 2f).coerceAtLeast(0f))
 
+    /** This snapshot with both scroll offsets clamped to `0..max`. */
     private fun ViewportSnapshot.clamped(): ViewportSnapshot =
         copy(scrollX = scrollX.coerceIn(0f, maxScrollX), scrollY = scrollY.coerceIn(0f, maxScrollY))
 
+    /** The horizontal reveal margin. */
     private companion object {
         /** Horizontal context kept around a revealed caret, in line heights (about three characters). */
         const val HORIZONTAL_MARGIN_LINES = 2

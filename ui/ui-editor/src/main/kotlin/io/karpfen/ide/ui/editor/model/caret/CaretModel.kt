@@ -11,9 +11,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The carets of one editor over an [EditableText] (spec §7.1). Compose-free state holder, used from the UI thread.
+ * The carets of one editor over an [EditableText]. Compose-free state holder, used from the UI thread.
  *
- * Mapping through changes (MUST): carets are stamped with the text version they refer to ([CaretSnapshot.version]).
+ * Mapping through changes: carets are stamped with the text version they refer to ([CaretSnapshot.version]).
  * Every member first catches up synchronously when the carets are older than the text (lazy mapping with
  * `EditableText.mapOffset`, like `AutoClosedPairs`), so [current], [primary], [mementos] and every movement always act
  * on the current text, also when a change (a reload, an edit by another component) arrived and the collector in the
@@ -180,5 +180,6 @@ internal class DefaultCaretModel(
         return Caret(point(caret.anchor), point(caret.position))
     }
 
+    /** [offset] clamped into a text of [length]. */
     private fun clamp(offset: Int, length: Int = text.snapshot.value.length): Int = offset.coerceIn(0, length)
 }
