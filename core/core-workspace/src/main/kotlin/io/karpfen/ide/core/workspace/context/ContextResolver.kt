@@ -23,7 +23,8 @@ import java.nio.file.Path
  *   files.
  * - [ContextResolution.looseFiles] is exactly the set of karpfen sources of the tree that are in no context's files
  *   (not converted, but still tokenized and parsed; the same rule in the IDE and the CLI).
- * - The descriptors' own read diagnostics are included in [ContextResolution.diagnostics].
+ * - The descriptors' findings ([DescriptorReadResult.diagnostics]) are included in [ContextResolution.diagnostics];
+ *   their syntax errors are not, they belong to the descriptor's text.
  * - A directory of the tree that could not be listed (`WorkspaceNode.Directory.isReadable` false) is an ERROR
  *   `unreadable` on the directory: the files in it are unknown, so they are in no context.
  */

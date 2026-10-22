@@ -78,19 +78,20 @@ class EnvironmentDescriptorReaderTest {
     }
 
     @Test
-    fun `invalid JSON is the syntax error the editor shows and no descriptor`() {
+    fun `invalid JSON is the syntax error the editor shows, apart from the findings, and no descriptor`() {
         val text = DescriptorExamples.text(DescriptorExamples.INVALID_JSON)
 
         val result = reader.read(path, text)
 
         assertNull(result.descriptor)
         assertEquals(emptyList(), result.references)
-        val error = result.diagnostics.single()
+        assertEquals(emptyList(), result.diagnostics, "a syntax error is no finding of the descriptor")
+        val error = result.syntaxDiagnostics.single()
         assertEquals(DiagnosticCodes.SYNTAX_ERROR to DiagnosticSource.PARSER, error.code to error.source)
         assertEquals(Severity.ERROR, error.severity)
         assertEquals(text.trimEnd().length, error.range.start, "at the truncation: ${error.message}")
         val editor = defaultLanguageRegistry().support(KarpfenLanguage.ENVIRONMENT).parser.parse(TextSnapshot(text, 0))
-        assertEquals(editor.syntaxDiagnostics, result.diagnostics, "one syntax rule for the reader and the editor")
+        assertEquals(editor.syntaxDiagnostics, result.syntaxDiagnostics, "one syntax rule for the reader and the editor")
     }
 
     @Test
@@ -199,8 +200,9 @@ class EnvironmentDescriptorReaderTest {
         syntax.forEach { text ->
             val result = reader.read(path, text)
             assertNull(result.descriptor, text)
-            assertTrue(result.diagnostics.isNotEmpty(), text)
-            assertTrue(result.diagnostics.all { it.code == DiagnosticCodes.SYNTAX_ERROR || it.code == DiagnosticCodes.LEXER_ERROR }, "$text: ${result.diagnostics}")
+            assertTrue(result.syntaxDiagnostics.isNotEmpty(), text)
+            val codes = result.syntaxDiagnostics.map { it.code }
+            assertTrue(codes.all { it == DiagnosticCodes.SYNTAX_ERROR || it == DiagnosticCodes.LEXER_ERROR }, "$text: $codes")
         }
         listOf("[]" to "a list", "\"x\"" to "a string").forEach { (text, kind) ->
             val error = reader.read(path, text).diagnostics.single()
@@ -250,15 +252,19 @@ class EnvironmentDescriptorReaderTest {
     }
 
     /**
-     * Asserts sorted diagnostics, ranges inside [text], an error for every missing descriptor and ordered references.
+     * Asserts sorted diagnostics, syntax errors or findings but never both, ranges inside [text], an error for every
+     * missing descriptor and ordered references.
      */
     private fun assertWellFormed(text: String, result: DescriptorReadResult) {
         assertEquals(result.diagnostics.sortedWith(Diagnostic.ORDER), result.diagnostics, text)
-        (result.diagnostics.map { it.range } + result.references.map { it.range }).forEach { range ->
+        assertEquals(result.syntaxDiagnostics.sortedWith(Diagnostic.ORDER), result.syntaxDiagnostics, text)
+        assertTrue(result.syntaxDiagnostics.isEmpty() || result.diagnostics.isEmpty(), "findings only of syntax-clean text: $text")
+        val all = result.syntaxDiagnostics + result.diagnostics
+        (all.map { it.range } + result.references.map { it.range }).forEach { range ->
             assertTrue(range.start in 0..range.end && range.end <= text.length, "range $range outside text of length ${text.length}: $text")
         }
         if (result.descriptor == null) {
-            assertTrue(result.diagnostics.any { it.severity == Severity.ERROR }, "no descriptor without an error: $text")
+            assertTrue(all.any { it.severity == Severity.ERROR }, "no descriptor without an error: $text")
             assertEquals(emptyList(), result.references)
         }
         assertEquals(result.references.sortedBy { it.range.start }, result.references)

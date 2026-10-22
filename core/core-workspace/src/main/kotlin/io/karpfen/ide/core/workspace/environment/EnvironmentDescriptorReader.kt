@@ -12,12 +12,16 @@ import java.nio.file.Path
  *
  * Never throws. Findings, all with ranges in the text passed to [read] (the `\n`-normalized text loaded by the
  * workspace's `SourceLoader`, or the editor text of an open descriptor, so `line:col` in the Problems view and the CLI
- * is computed like for every other file):
- * - JSON syntax errors are the LEXER and PARSER errors (`lexer-error`, `syntax-error`) of the environment language,
- *   exactly what the editor shows for the same text; the descriptor is then not read any further;
- * - checks against `EnvironmentSchema`: unknown keys are WARNINGs `descriptor-unknown-key` at the key; missing
- *   required keys, repeated keys and values of the wrong kind are ERRORs `descriptor-invalid`;
- * - a descriptor with an error yields no [DescriptorReadResult.descriptor] and no references.
+ * is computed like for every other file), come in two kinds:
+ * - the syntax errors of the text ([DescriptorReadResult.syntaxDiagnostics]) are the LEXER and PARSER errors
+ *   (`lexer-error`, `syntax-error`) of the environment language, exactly what the editor computes for the same text;
+ *   they belong to the text, as a karpfen file's own diagnostics do, and the descriptor is then not read any further;
+ * - the descriptor's findings ([DescriptorReadResult.diagnostics]) are its checks against `EnvironmentSchema`: unknown
+ *   keys are WARNINGs `descriptor-unknown-key` at the key; missing required keys, repeated keys and values of the wrong
+ *   kind are ERRORs `descriptor-invalid`. With the findings about the files it names, they are the descriptor's project
+ *   diagnostics.
+ *
+ * A descriptor with an error of either kind yields no [DescriptorReadResult.descriptor] and no references.
  */
 public fun interface EnvironmentDescriptorReader {
     /** Reads the descriptor at [path] with the normalized content [text]. */
@@ -31,14 +35,18 @@ public fun EnvironmentDescriptorReader(): EnvironmentDescriptorReader = JsonEnvi
  * Result of reading a descriptor.
  *
  * @property descriptor the descriptor, or null if it could not be decoded.
- * @property diagnostics findings in the descriptor text, sorted with [Diagnostic.ORDER].
+ * @property diagnostics the descriptor's findings against the schema, sorted with [Diagnostic.ORDER]; empty while the
+ *   text has syntax errors.
  * @property references every file named by the descriptor, with the range of its JSON string value (inside the
  *   quotes), in document order.
+ * @property syntaxDiagnostics the syntax errors of the text, sorted with [Diagnostic.ORDER]: what the editor of an open
+ *   descriptor computes itself, so they are never among its project diagnostics.
  */
 public data class DescriptorReadResult(
     public val descriptor: EnvironmentDescriptor?,
     public val diagnostics: List<Diagnostic>,
     public val references: List<DescriptorFileReference>,
+    public val syntaxDiagnostics: List<Diagnostic> = emptyList(),
 )
 
 /**

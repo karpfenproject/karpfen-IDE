@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.workspace.context
 
+import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.text.TextSnapshot
@@ -24,8 +25,9 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the context tracker: descriptors are loaded through the source loader (normalized text, loading findings),
- * published with the contexts, and an unreadable descriptor is an error that defines no context. An open descriptor is
- * read from its editor text, so unsaved edits change findings and contexts, and closing it falls back to the disk.
+ * published with the contexts, and an unreadable descriptor is an error that defines no context. Syntax errors and
+ * loading findings belong to the descriptor's text, never to the resolution. An open descriptor is read from its editor
+ * text, so unsaved edits change findings and contexts, and closing it falls back to the disk.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ContextTrackerTest {
@@ -50,24 +52,30 @@ class ContextTrackerTest {
 
         val state = tracker.state.value
         assertSame(state.resolution, tracker.resolution.value)
-        val text = assertNotNull(state.descriptorTexts[descriptor]).text
+        val text = assertNotNull(state.descriptors[descriptor]).snapshot.text
         assertTrue('\r' !in text, "normalized")
         val missing = state.resolution.diagnostics.getValue(descriptor).first { it.code == WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE }
         assertEquals("missing.kmodel", text.substring(missing.range.start, missing.range.end), "ranges refer to the normalized text")
     }
 
     @Test
-    fun `loading findings of a descriptor are reported on it`() = runTest {
+    fun `loading findings and syntax errors belong to the descriptor's text, not to the resolution`() = runTest {
         val descriptor = DescriptorExamples.copyExplicitContext(root).toAbsolutePath().normalize()
         Files.writeString(descriptor, DescriptorExamples.text(DescriptorExamples.VALID).replaceFirst("\n", "\r\n"))
+        val broken = root.resolve("sub/broken.kenv.json")
+        Files.createDirectories(broken.parent)
+        Files.writeString(broken, DescriptorExamples.text(DescriptorExamples.INVALID_JSON))
         val tracker = tracker()
 
         tracker.update(scanner.scan(root))
 
-        assertEquals(
-            listOf(WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS),
-            tracker.resolution.value.diagnostics.getValue(descriptor).map { it.code },
+        val own = tracker.state.value.descriptors.mapValues { (_, source) -> source.ownDiagnostics.map { it.code } }
+        val expected = mapOf(
+            descriptor to listOf(WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS),
+            broken to listOf(DiagnosticCodes.SYNTAX_ERROR),
         )
+        assertEquals(expected, own)
+        assertEquals(emptyMap(), tracker.resolution.value.diagnostics, "the descriptors have no project diagnostics")
         assertEquals(1, tracker.resolution.value.contexts.size)
     }
 
@@ -83,7 +91,7 @@ class ContextTrackerTest {
         assertEquals(Severity.ERROR, error.severity)
         assertTrue("locked" in error.message)
         assertEquals(emptyList(), tracker.resolution.value.contexts)
-        assertEquals(emptyMap(), tracker.state.value.descriptorTexts)
+        assertEquals(emptyMap(), tracker.state.value.descriptors)
         assertEquals(4, tracker.resolution.value.looseFiles.size)
     }
 
@@ -110,14 +118,15 @@ class ContextTrackerTest {
         val missing = tracker.resolution.value.diagnostics.getValue(descriptor).single()
         assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE, missing.code)
         assertEquals("missing.kmodel", edited.text.substring(missing.range.start, missing.range.end))
-        assertSame(edited, tracker.state.value.descriptorTexts[descriptor], "findings refer to the editor's snapshot")
-        assertEquals(emptyList(), tracker.resolution.value.contexts.single().models, "the context follows the edit, without the missing model")
+        assertSame(edited, tracker.state.value.descriptors[descriptor]?.snapshot, "findings refer to the editor's snapshot")
+        val context = tracker.resolution.value.contexts.single()
+        assertEquals(emptyList(), context.models, "the context follows the edit and leaves out the missing model")
 
         editor.remove(descriptor)
         tracker.refreshEdits()
 
         assertEquals(null, tracker.resolution.value.diagnostics[descriptor], "closed without saving: the disk counts again")
-        assertEquals(Files.readString(descriptor), tracker.state.value.descriptorTexts.getValue(descriptor).text)
+        assertEquals(Files.readString(descriptor), tracker.state.value.descriptors.getValue(descriptor).snapshot.text)
         assertEquals(loadsAfterScan + 1, loads, "only the descriptor that was open is loaded again")
     }
 }

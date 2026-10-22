@@ -18,7 +18,7 @@ import kotlinx.serialization.json.Json
 /**
  * The [EnvironmentDescriptorReader] in three steps, each only when the one before found no error:
  * 1. the environment language's [JsonParser] reads the text, so a syntax error is reported with the same diagnostics
- *    and ranges as in the editor;
+ *    and ranges as in the editor, as the text's [DescriptorReadResult.syntaxDiagnostics];
  * 2. [DescriptorValidator] checks the tree against `EnvironmentSchema.ROOT`;
  * 3. kotlinx.serialization decodes the text into [EnvironmentDescriptor] (ignoring the unknown keys the validator
  *    warned about). The schema is derived from that class, so the validator accepts only trees this decoding
@@ -37,7 +37,10 @@ internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
     override fun read(path: Path, text: String): DescriptorReadResult {
         val document = JsonParser.parse(text)
         val root = document.root
-        if (!document.isSyntaxClean || root == null) return invalid(document.diagnostics)
+        if (!document.isSyntaxClean || root == null) {
+            val syntax = document.diagnostics.sortedWith(Diagnostic.ORDER)
+            return DescriptorReadResult(null, emptyList(), emptyList(), syntaxDiagnostics = syntax)
+        }
         val findings = validator.check(root)
         if (findings.any { it.severity == Severity.ERROR }) return invalid(findings)
         val descriptor = try {

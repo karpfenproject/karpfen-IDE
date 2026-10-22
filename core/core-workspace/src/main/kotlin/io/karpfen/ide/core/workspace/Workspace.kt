@@ -37,7 +37,7 @@ import java.nio.file.Path
  *   [analysis]; afterwards the per-file project diagnostics are pushed into the open sessions with
  *   `setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, analyzedFile.snapshot, …)` (the session ignores a
  *   snapshot of another lineage, e.g. of a document closed and reopened during the analysis);
- * - analysis + the open documents' diagnostics + descriptor texts → [problems].
+ * - analysis + the open documents' diagnostics + the read descriptors' texts with their syntax errors → [problems].
  *
  * Threading (MUST): the workspace and its [DocumentManager] are used from the dispatcher of the scope given to the
  * factory (the UI thread in the app, the test thread in tests). Every mutation of an open document's `EditableText`

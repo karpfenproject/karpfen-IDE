@@ -13,6 +13,7 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.analysis.AnalyzedFile
 import io.karpfen.ide.core.workspace.analysis.ContextAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
+import io.karpfen.ide.core.workspace.context.DescriptorSource
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.files.FileKind
@@ -25,7 +26,7 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the one problems rule documented on [WorkspaceProblems] on hand-built analyses: open documents, unopened
- * context and loose files, and other files with project diagnostics.
+ * context and loose files, descriptors with the diagnostics of their texts, and other files with project diagnostics.
  */
 class WorkspaceProblemsAggregatorTest {
 
@@ -97,7 +98,7 @@ class WorkspaceProblemsAggregatorTest {
     }
 
     @Test
-    fun `a descriptor gets its project diagnostics on its loaded text, files without diagnostics are absent`() {
+    fun `a descriptor gets its project diagnostics on its read text, files without diagnostics are absent`() {
         val descriptor = root.resolve("robot.kenv.json")
         val text = TextSnapshot("{\"metamodel\": \"x\"}", 0)
         val error = diagnostic(1, DiagnosticSource.IDE, WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID)
@@ -110,7 +111,7 @@ class WorkspaceProblemsAggregatorTest {
         val problems = aggregator.aggregate(
             analysis,
             listOf(OpenDocumentDiagnostics(root.resolve("open.kmeta"), FileKind.KMETA, VersionedDiagnostics(TextSnapshot("", 0), emptyList()))),
-            mapOf(descriptor to text),
+            mapOf(descriptor to DescriptorSource(text, emptyList())),
         )
 
         val only = problems.files.single()
@@ -118,6 +119,25 @@ class WorkspaceProblemsAggregatorTest {
         assertEquals(FileKind.ENV_DESCRIPTOR, only.kind)
         assertSame(text, only.snapshot)
         assertEquals(1, problems.errorCount)
+    }
+
+    @Test
+    fun `a descriptor that is not open merges the diagnostics of its text with its project diagnostics`() {
+        val broken = root.resolve("broken.kenv.json")
+        val mixed = root.resolve("mixed.kenv.json")
+        val unknownKey = diagnostic(1, DiagnosticSource.IDE, WorkspaceDiagnosticCodes.DESCRIPTOR_UNKNOWN_KEY, Severity.WARNING)
+        val analysis = ProjectAnalysis(2, emptyList(), mapOf(mixed to listOf(unknownKey)))
+        val text = TextSnapshot("x".repeat(20), 0)
+        val descriptors = mapOf(
+            broken to DescriptorSource(text, listOf(lexer, parser)),
+            mixed to DescriptorSource(text, listOf(fileFinding)),
+        )
+
+        val problems = aggregator.aggregate(analysis, emptyList(), descriptors)
+
+        assertEquals(listOf(lexer, parser), problems.of(broken)?.diagnostics, "syntax errors without project diagnostics")
+        assertEquals(listOf(unknownKey, fileFinding), problems.of(mixed)?.diagnostics)
+        assertSame(text, problems.of(mixed)?.snapshot)
     }
 
     @Test

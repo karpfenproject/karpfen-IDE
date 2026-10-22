@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * Publishes `Workspace.problems`: the [aggregator]'s rule applied to the latest analysis (with its descriptor texts)
+ * Publishes `Workspace.problems`: the [aggregator]'s rule applied to the latest analysis (with its descriptors)
  * and the current diagnostics of every open document, recomputed on [dispatcher] whenever one of them changes.
  * [WorkspaceProblems.EMPTY] until the first analysis.
  */
@@ -39,7 +39,7 @@ internal class ProblemsPublisher(
                 if (published.analysis.generation == 0L) {
                     WorkspaceProblems.EMPTY
                 } else {
-                    aggregator.aggregate(published.analysis, open, published.descriptorTexts)
+                    aggregator.aggregate(published.analysis, open, published.descriptors)
                 }
             }.flowOn(dispatcher).collect { state.value = it }
         }

@@ -21,13 +21,12 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
 /**
- * The contexts of a workspace together with the descriptor texts their ranges refer to.
+ * The contexts of a workspace together with the descriptor texts their findings refer to.
  *
- * @property descriptorTexts the text every readable descriptor was read from: the editor's snapshot of an open
- *   descriptor (with its lineage, so findings can be pushed into its session), the normalized disk text otherwise (the
- *   `TextSnapshot` the descriptor diagnostics' ranges refer to, e.g. for `FileProblems.snapshot`).
+ * @property descriptors every readable descriptor's text with the diagnostics of the text itself, by path; the
+ *   descriptor's findings in [resolution] refer to that text (e.g. for `FileProblems.snapshot`).
  */
-internal data class ContextState(val resolution: ContextResolution, val descriptorTexts: Map<Path, TextSnapshot>) {
+internal data class ContextState(val resolution: ContextResolution, val descriptors: Map<Path, DescriptorSource>) {
     companion object {
         /** Before the first scan. */
         val EMPTY: ContextState = ContextState(ContextResolution.EMPTY, emptyMap())
@@ -49,6 +48,9 @@ internal fun interface EditorTexts {
  * descriptor is loaded through the workspace's [SourceLoader] (the one loading rule, so ranges refer to the normalized
  * text and loading findings such as malformed UTF-8 are reported on the descriptor); a descriptor that cannot be read
  * is an ERROR `unreadable`, like every file the workspace cannot read, and defines no context.
+ *
+ * The descriptor's findings (schema and named files) go into the resolution and become its project diagnostics; the
+ * syntax errors and loading findings belong to its text ([DescriptorSource]), as a karpfen file's own diagnostics do.
  *
  * [update] reads everything after a scan; [refreshEdits] re-reads only the open descriptors and reuses what the last
  * scan loaded from disk, so following the edits costs no file I/O. Both are serialized; loading and reading run on
@@ -105,7 +107,7 @@ internal class ContextTracker(
             tree.files(FileKind.ENV_DESCRIPTOR).associate { file -> file.path to read(file.path) }
         }
         val resolution = resolver.resolve(tree, descriptors.mapValues { it.value.result })
-        stateFlow.value = ContextState(resolution, descriptors.mapNotNull { (path, read) -> read.text?.let { path to it } }.toMap())
+        stateFlow.value = ContextState(resolution, descriptors.mapNotNull { (path, read) -> read.source?.let { path to it } }.toMap())
         resolutionFlow.value = resolution
     }
 
@@ -114,30 +116,31 @@ internal class ContextTracker(
         val edited = editorTexts.of(path)
         if (edited != null) {
             diskReads.remove(path)
-            return ReadDescriptor(descriptorReader.read(path, edited.text), edited)
+            val result = descriptorReader.read(path, edited.text)
+            return ReadDescriptor(result, DescriptorSource(edited, result.syntaxDiagnostics))
         }
         return diskReads.getOrPut(path) { readFromDisk(path) }
     }
 
     /**
-     * Loads and reads the descriptor at [path], its loading findings merged into the reader's; a descriptor that cannot
-     * be loaded yields only an `unreadable` finding and no text.
+     * Loads and reads the descriptor at [path], its loading findings joining its syntax errors as the text's own; a
+     * descriptor that cannot be loaded yields only an `unreadable` finding and no text.
      */
     private fun readFromDisk(path: Path): ReadDescriptor =
         try {
             val loaded = sourceLoader.load(path)
             val result = descriptorReader.read(path, loaded.text)
-            val withLoadingFindings = result.copy(diagnostics = (result.diagnostics + loaded.diagnostics).sortedWith(Diagnostic.ORDER))
-            ReadDescriptor(withLoadingFindings, TextSnapshot(loaded.text, 0))
+            val own = (result.syntaxDiagnostics + loaded.diagnostics).sortedWith(Diagnostic.ORDER)
+            ReadDescriptor(result, DescriptorSource(TextSnapshot(loaded.text, 0), own))
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (e: Exception) {
             logger.info("Cannot read environment descriptor {}: {}", path, e.toString())
-            ReadDescriptor(DescriptorReadResult(null, listOf(UnreadableFindings.file(ioFailureReason(e))), emptyList()), text = null)
+            ReadDescriptor(DescriptorReadResult(null, listOf(UnreadableFindings.file(ioFailureReason(e))), emptyList()), source = null)
         }
 
-    /** The read [result] of a descriptor and the [text] it was read from, null when it could not be loaded. */
-    private class ReadDescriptor(val result: DescriptorReadResult, val text: TextSnapshot?)
+    /** The read [result] of a descriptor and the [source] it was read from, null when it could not be loaded. */
+    private class ReadDescriptor(val result: DescriptorReadResult, val source: DescriptorSource?)
 
     private companion object {
         private val logger = LoggerFactory.getLogger(ContextTracker::class.java)

@@ -88,6 +88,8 @@ class WorkspaceDescriptorEditingTest {
         assertEquals(listOf(DiagnosticSource.PARSER), syntax.map { it.source }, "$syntax")
         assertEquals(DiagnosticCodes.SYNTAX_ERROR, syntax.single().code)
         assertEquals(syntax, workspace.problems.value.of(descriptor)?.diagnostics)
+        val project = workspace.analysis.value.diagnosticsFor(descriptor)
+        assertEquals(emptyList(), project, "the session owns the syntax errors, the project diagnostics never hold them")
         assertEquals(emptyList(), workspace.contexts.value.contexts.filter { it.descriptor == descriptor }, "a broken descriptor defines no context")
 
         workspace.documents.close(descriptor)

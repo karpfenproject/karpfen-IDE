@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.workspace.analysis
 
-import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.context.ContextState
+import io.karpfen.ide.core.workspace.context.DescriptorSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
@@ -20,10 +20,11 @@ import java.nio.file.Path
 import kotlin.time.Duration
 
 /**
- * An analysis together with the descriptor texts its descriptor diagnostics refer to (taken from the same
- * [ContextState] as its resolution), as the problems pipeline needs them.
+ * An analysis together with the descriptors it was resolved from (taken from the same [ContextState] as its
+ * resolution): the texts their project diagnostics refer to and the diagnostics of those texts themselves, as the
+ * diagnostics publisher and the problems pipeline need them.
  */
-internal data class PublishedAnalysis(val analysis: ProjectAnalysis, val descriptorTexts: Map<Path, TextSnapshot>) {
+internal data class PublishedAnalysis(val analysis: ProjectAnalysis, val descriptors: Map<Path, DescriptorSource>) {
     companion object {
         /** Before the first analysis. */
         val EMPTY: PublishedAnalysis = PublishedAnalysis(ProjectAnalysis.EMPTY, emptyMap())
@@ -66,7 +67,7 @@ internal class AnalysisScheduler(
     /** The latest completed analysis (`Workspace.analysis`). */
     val analysis: StateFlow<ProjectAnalysis> = analysisState.asStateFlow()
 
-    /** The latest completed analysis with its descriptor texts. */
+    /** The latest completed analysis with its descriptors. */
     val published: StateFlow<PublishedAnalysis> = publishedState.asStateFlow()
 
     /** Requests an analysis after the debounce; thread-safe. */
@@ -105,7 +106,7 @@ internal class AnalysisScheduler(
         val number = ++generation
         val result = withContext(dispatcher) { analyzer.analyze(state.resolution, sources, number) }
         analysisState.value = result
-        publishedState.value = PublishedAnalysis(result, state.descriptorTexts)
+        publishedState.value = PublishedAnalysis(result, state.descriptors)
         return result
     }
 

@@ -29,8 +29,9 @@ import java.nio.file.Path
  * @property diagnostics project-level diagnostics per file: DSL_TOOLS errors from the conversions, the
  *   descriptor/context diagnostics of the resolution (directories that cannot be read included) and the `unreadable`
  *   errors of files that could not be loaded, each list sorted with [Diagnostic.ORDER] and without duplicates.
- *   A file's own diagnostics are not repeated here (see [AnalyzedFile.ownDiagnostics]); these lists are what the
- *   workspace pushes into open sessions as external source `ExternalDiagnosticSources.PROJECT`.
+ *   A file's own diagnostics are not repeated here (see [AnalyzedFile.ownDiagnostics]; a descriptor's syntax errors
+ *   and loading findings belong to its text as well); these lists are what the workspace pushes into open sessions as
+ *   external source `ExternalDiagnosticSources.PROJECT`.
  * @property looseFiles the karpfen sources of the tree that belong to no context (`ContextResolution.looseFiles`),
  *   analyzed syntax-only: they are never converted, but their syntax errors still appear in the problems.
  */

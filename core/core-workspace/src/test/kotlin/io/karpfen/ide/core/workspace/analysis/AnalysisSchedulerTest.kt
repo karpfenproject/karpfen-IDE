@@ -3,6 +3,7 @@ package io.karpfen.ide.core.workspace.analysis
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ContextState
+import io.karpfen.ide.core.workspace.context.DescriptorSource
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -114,17 +115,17 @@ class AnalysisSchedulerTest {
     }
 
     @Test
-    fun `each run analyzes the contexts current at its start and publishes their descriptor texts`() = runTest {
+    fun `each run analyzes the contexts current at its start and publishes their descriptors`() = runTest {
         val analyzer = FakeAnalyzer()
         val scheduler = scheduler(analyzer)
         val context = ModelingContext(Path.of("/ws").toAbsolutePath(), null, null, null, emptyList(), emptyList())
-        val texts = mapOf(Path.of("/ws/a.kenv.json").toAbsolutePath() to TextSnapshot("{}", 0))
-        contexts.value = ContextState(ContextResolution(listOf(context), emptyMap()), texts)
+        val descriptors = mapOf(Path.of("/ws/a.kenv.json").toAbsolutePath() to DescriptorSource(TextSnapshot("{}", 0), emptyList()))
+        contexts.value = ContextState(ContextResolution(listOf(context), emptyMap()), descriptors)
 
         scheduler.runNow()
 
         assertEquals(listOf(context), analyzer.resolutions.single().contexts)
-        assertSame(texts, scheduler.published.value.descriptorTexts)
+        assertSame(descriptors, scheduler.published.value.descriptors)
     }
 
     @Test

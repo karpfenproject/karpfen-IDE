@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.workspace
 
+import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
@@ -94,6 +95,20 @@ class WorkspaceAnalysisTest {
         assertEquals(listOf(root.resolve("ctx/cleaning_robot.kmodel")), analysis.looseFiles.keys.toList())
         assertEquals(1, workspace.problems.value.errorCount)
         assertEquals(1, workspace.problems.value.warningCount)
+    }
+
+    @Test
+    fun `a closed descriptor's syntax error is in problems, never among its project diagnostics`() = runTest(timeout = 60.seconds) {
+        val ctx = root.resolve("ctx")
+        val descriptor = DescriptorExamples.copyExplicitContext(ctx, DescriptorExamples.INVALID_JSON).toAbsolutePath().normalize()
+        val workspace = TestWorkspaces(this).open(root)
+
+        val analysis = workspace.awaitAnalysis()
+
+        val problems = assertNotNull(workspace.problems.value.of(descriptor))
+        assertEquals(listOf(DiagnosticCodes.SYNTAX_ERROR), problems.diagnostics.map { it.code })
+        assertEquals(Files.readString(descriptor), problems.snapshot?.text)
+        assertEquals(emptyList(), analysis.diagnosticsFor(descriptor))
     }
 
     @Test

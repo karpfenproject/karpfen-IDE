@@ -8,6 +8,7 @@ import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.core.workspace.context.DescriptorSource
 import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.core.workspace.document.documentManager
 import io.karpfen.ide.core.workspace.document.openOrFail
@@ -28,7 +29,7 @@ import kotlin.test.assertTrue
  * Covers pushing project diagnostics into open sessions: diagnostics of a version of the document's text are mapped
  * forward, those of the identical disk text reach a document opened later, and those of another text or of another
  * lineage of the text (a document closed and reopened since) are never pushed. A descriptor's findings are pushed for
- * the descriptor text they were read from, without the syntax errors its session computes itself.
+ * the descriptor text they were read from.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProjectDiagnosticsPublisherTest {
@@ -149,21 +150,21 @@ class ProjectDiagnosticsPublisherTest {
     }
 
     @Test
-    fun `descriptor findings read from the editor text are pushed and mapped forward, its syntax errors are not`() = runTest {
+    fun `descriptor findings read from the editor text are pushed for that text and mapped forward`() = runTest {
         val path = dir.resolve("robot.kenv.json").toAbsolutePath().normalize()
         Files.writeString(path, "{\"metamodel\": \"a.kmeta\", \"model\": \"b.kmodel\", \"tickDelay\": 5}")
         val document = documentManager(this).openOrFail(path)
         val read = document.session.text.snapshot.value
         val start = read.text.indexOf("tickDelay")
-        val unknownKey = Diagnostic(TextRange.ofLength(start, "tickDelay".length), Severity.WARNING, "Unknown key", "descriptor-unknown-key", DiagnosticSource.IDE)
-        val syntax = Diagnostic(TextRange.EMPTY, Severity.ERROR, "Expected", DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
+        val range = TextRange.ofLength(start, "tickDelay".length)
+        val unknownKey = Diagnostic(range, Severity.WARNING, "Unknown key", "descriptor-unknown-key", DiagnosticSource.IDE)
         document.type(0, " ")
+        val analysis = ProjectAnalysis(1, emptyList(), mapOf(path to listOf(unknownKey)))
 
-        publisher.push(PublishedAnalysis(ProjectAnalysis(1, emptyList(), mapOf(path to listOf(unknownKey, syntax))), mapOf(path to read)), document)
+        publisher.push(PublishedAnalysis(analysis, mapOf(path to DescriptorSource(read, emptyList()))), document)
         runCurrent()
 
-        val pushed = document.session.diagnostics.value.diagnostics.filter { it.source == DiagnosticSource.IDE }.single()
+        val pushed = document.session.diagnostics.value.diagnostics.single()
         assertEquals("tickDelay", document.session.text.snapshot.value.text.substring(pushed.range.start, pushed.range.end))
-        assertTrue(document.session.diagnostics.value.diagnostics.none { it.message == "Expected" }, "the session computes syntax errors itself")
     }
 }

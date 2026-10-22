@@ -5,25 +5,27 @@ import io.karpfen.ide.core.document.session.VersionedDiagnostics
 import io.karpfen.ide.core.document.session.mergeDiagnostics
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
+import io.karpfen.ide.core.workspace.context.DescriptorSource
 import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
 /**
  * Applies the rule documented on [WorkspaceProblems]. Pure: the workspace calls it with the latest analysis, the
- * current diagnostics of its open documents and the loaded descriptor texts whenever one of them changes.
+ * current diagnostics of its open documents and the read descriptors whenever one of them changes.
  *
  * Per file, the first matching case wins: an open document (its session's merged diagnostics and snapshot); an
  * analyzed karpfen file, in a context or loose (`mergeDiagnostics` of its own lexical, parse and file diagnostics plus
- * its project diagnostics, on the analyzed snapshot); any other file with project diagnostics, e.g. a descriptor (its
- * project diagnostics on the descriptor text, if loaded).
+ * its project diagnostics, on the analyzed snapshot); a read descriptor (`mergeDiagnostics` of the diagnostics of its
+ * text plus its project diagnostics, on its text); any other path with project diagnostics, e.g. an unreadable file
+ * (those, without a text).
  */
 internal class WorkspaceProblemsAggregator {
 
-    /** The problems for [analysis], [openDocuments] and the descriptor texts by path ([descriptorTexts]). */
+    /** The problems for [analysis], [openDocuments] and the read [descriptors] by path. */
     fun aggregate(
         analysis: ProjectAnalysis,
         openDocuments: List<OpenDocumentDiagnostics>,
-        descriptorTexts: Map<Path, TextSnapshot>,
+        descriptors: Map<Path, DescriptorSource>,
     ): WorkspaceProblems {
         val byPath = LinkedHashMap<Path, FileProblems?>()
         for (open in openDocuments) {
@@ -38,10 +40,15 @@ internal class WorkspaceProblemsAggregator {
             )
             byPath[path] = problemsOf(path, file.kind, diagnostics, file.snapshot, isOpen = false)
         }
+        for ((path, descriptor) in descriptors) {
+            if (path in byPath) continue
+            val diagnostics = mergeDiagnostics(emptyList(), parse = null, listOf(descriptor.ownDiagnostics, analysis.diagnosticsFor(path)))
+            byPath[path] = problemsOf(path, FileKind.ENV_DESCRIPTOR, diagnostics, descriptor.snapshot, isOpen = false)
+        }
         for ((path, diagnostics) in analysis.diagnostics) {
             if (path in byPath) continue
             val name = path.fileName?.toString().orEmpty()
-            byPath[path] = problemsOf(path, FileKind.of(name), diagnostics, descriptorTexts[path], isOpen = false)
+            byPath[path] = problemsOf(path, FileKind.of(name), diagnostics, snapshot = null, isOpen = false)
         }
         return WorkspaceProblems(analysis.generation, byPath.values.filterNotNull().sortedBy { it.path })
     }
