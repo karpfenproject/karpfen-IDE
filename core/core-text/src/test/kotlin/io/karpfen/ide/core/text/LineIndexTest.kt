@@ -5,6 +5,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
+/**
+ * Covers [LineIndex] on its edge cases (empty text, trailing newline, only newlines, a very long line), clamping and
+ * argument checks, and against a naive scan on random texts.
+ */
 class LineIndexTest {
 
     @Test

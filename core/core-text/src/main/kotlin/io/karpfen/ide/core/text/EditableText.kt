@@ -6,7 +6,7 @@ import kotlin.time.TimeSource
 
 /**
  * The mutable text of one document: applies edits atomically, publishes immutable [TextSnapshot]s, records undo
- * history and maps offsets across versions (spec §2).
+ * history and maps offsets across versions.
  *
  * Threading: mutated from one thread only (the UI thread in the app, the test thread in tests). Snapshots and
  * changes are immutable and may be handed to any thread; reading [snapshot] and mapping ([mapOffset], [mapRange]) are
@@ -78,7 +78,11 @@ public interface EditableText {
 
     /**
      * Maps [range], valid in version [fromVersion] of the text with lineage [fromLineage], to version [toVersion] of
-     * this text: the one range-mapping rule of the IDE (decision 35 of the work-package plan). Never throws.
+     * this text. Never throws.
+     *
+     * This is the one range-mapping rule of the IDE: the session's diagnostics merger, the editor's decorations and
+     * highlight spans, and navigation all map ranges through it, and nobody maps the two bounds of a range separately,
+     * so every consumer agrees on where a range went.
      *
      * Returns null — the caller drops the range, or clamps it when it must navigate somewhere — if [fromLineage] is not
      * this text's [lineage] (a range of another text, e.g. of a document closed and reopened since, see [TextLineage]),
@@ -92,7 +96,9 @@ public interface EditableText {
      * A range reaching past the text of [fromVersion] is the caller's error; its bounds are mapped like offsets after
      * every edit.
      *
-     * Thread-safe like [mapOffset]. Implemented here once on top of [mapOffset].
+     * Thread-safe like [mapOffset], because the diagnostics merger and the editor's highlight pipeline map on
+     * background dispatchers while the writer edits. Implemented here once on top of [mapOffset]; implementations do
+     * not override it.
      */
     public fun mapRange(
         range: TextRange,

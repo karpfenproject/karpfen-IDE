@@ -8,6 +8,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TestTimeSource
 
+/**
+ * Covers the rules of [TypingCoalescer]: which changes are keystrokes, and when a keystroke continues the previous run
+ * (contiguity, the time window, newlines and whitespace after a word character).
+ */
 class TypingCoalescerTest {
 
     private val time = TestTimeSource()

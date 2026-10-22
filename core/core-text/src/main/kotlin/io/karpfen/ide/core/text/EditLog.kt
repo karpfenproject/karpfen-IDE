@@ -93,7 +93,10 @@ internal class EditLogWriter(private val limit: Int, baseVersion: Long) {
     private fun maxCapacity(): Int = minOf(2L * limit, MAX_ARRAY_SIZE.toLong()).toInt()
 
     private companion object {
+        /** The size of the first backing array (for small limits, twice the limit). */
         const val INITIAL_CAPACITY = 16
+
+        /** The largest array size every JVM allocates (some reserve header words in the array). */
         const val MAX_ARRAY_SIZE = Int.MAX_VALUE - 8
     }
 }

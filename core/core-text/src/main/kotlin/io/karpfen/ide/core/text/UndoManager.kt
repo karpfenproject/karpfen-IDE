@@ -3,7 +3,7 @@ package io.karpfen.ide.core.text
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Undo/redo history of one [EditableText] (spec §2). Obtained from [EditableText.undo]; it records every change the
+ * Undo/redo history of one [EditableText]. Obtained from [EditableText.undo]; it records every change the
  * text applies and is driven from the same single writer thread.
  *
  * Steps and coalescing (MUST):
@@ -85,5 +85,9 @@ public interface UndoManager {
     public fun clear()
 }
 
-/** Opaque identity of one text state of an [UndoManager]'s history, taken with [UndoManager.checkpoint]. */
+/**
+ * Opaque identity of one text state of an [UndoManager]'s history, taken with [UndoManager.checkpoint].
+ *
+ * @property identity the history's identity object of that state, compared by reference.
+ */
 public class HistoryState internal constructor(internal val identity: Any)

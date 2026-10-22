@@ -12,11 +12,12 @@ import kotlin.time.TestTimeSource
 import kotlin.time.TimeSource
 
 /**
- * Performance budgets of core-text on a 5,000-line document (the size of the tokenize/parse budgets of spec §3.4):
- * each is asserted with 5x slack and the measured value is reported through [TestReporter].
+ * Performance budgets of core-text on a 5,000-line document, the size the tokenize and parse budgets of core-document
+ * use: each is asserted with 5x slack and the measured value is reported through [TestReporter].
  *
- * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
- * performance work.
+ * Tagged `budget`, which the build excludes from every test run: wall-clock time depends on machine load, garbage
+ * collection and sleep cycles, so such assertions fail without a code change. The tests stay as executable
+ * documentation for later performance work.
  */
 @Tag("budget")
 class TextBudgetTest {
@@ -65,12 +66,12 @@ class TextBudgetTest {
         check(reporter, "mapRange across 1000 versions", range, 400.microseconds)
     }
 
+    /** One version as made by Select All + Tab: one action inserting an indent at the start of every line. */
     @Test
     fun `mapping ranges across one version made of 10000 edits`(reporter: TestReporter) {
         val lines = 2 * LINES
         val text = EditableText(buildString { repeat(lines) { append("line ").append(it).append('\n') } })
         val index = LineIndex(text.snapshot.value.text)
-        // Select All + Tab: one action, one version, one insertion per line.
         text.apply((0 until lines).map { TextEdit.insert(index.lineStart(it), "    ") }, EditOrigin.Command("indent"))
         val before = text.snapshot.value.version - 1
         val length = index.lineStart(lines - 1)

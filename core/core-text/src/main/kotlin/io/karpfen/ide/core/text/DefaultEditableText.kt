@@ -5,10 +5,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.TimeSource
 
 /**
- * Default [EditableText]: applies edits to a `String` (files are small, spec §1), keeps a bounded edit log for
- * [mapOffset] (published together with each snapshot as an immutable value, so mapping is thread-safe while the single
- * writer edits) and delegates history to a [DefaultUndoManager]. Every snapshot it publishes carries the one
- * [TextLineage] created with the instance. `mapRange` is the interface's own implementation on top of [mapOffset].
+ * Default [EditableText]: applies edits to a `String` (karpfen files are small, so a piece table or rope would not pay
+ * off), keeps a bounded edit log for [mapOffset] (published together with each snapshot as an immutable value, so
+ * mapping is thread-safe while the single writer edits) and delegates history to a [DefaultUndoManager]. Every snapshot
+ * it publishes carries the one [TextLineage] created with the instance. `mapRange` is the interface's own
+ * implementation on top of [mapOffset].
  *
  * A facade over three collaborators: [TextVersions] (current version, edit log, mapping), [DefaultUndoManager]
  * (history) and [ChangePublisher] (flows). An [apply] commits the edits, records them in the history and only then

@@ -20,7 +20,10 @@ internal class ChangePublisher(initial: TextSnapshot) {
 
     private val snapshotState = MutableStateFlow(initial)
 
-    // Unlimited buffer: tryEmit never fails and never suspends the writer; slow collectors are buffered.
+    /**
+     * The change events, with an unlimited buffer: `tryEmit` never fails and never suspends the writer, and slow
+     * collectors are buffered.
+     */
     private val changeEvents = MutableSharedFlow<TextChange>(extraBufferCapacity = Int.MAX_VALUE)
 
     private val pending = ArrayDeque<TextChange>()

@@ -28,6 +28,11 @@ class ConcurrentMappingTest {
         data class Range(val range: TextRange, val from: Long, val lowest: Long, val highest: Long, val answer: TextRange?) : Lookup
     }
 
+    /**
+     * The readers keep a snapshot for [LOOKUPS_PER_SNAPSHOT] lookups, so their lookups cross versions the writer
+     * publishes meanwhile. Once every thread has finished, each recorded answer is checked single-threaded against the
+     * mapping of the version the reader asked for.
+     */
     @Test
     fun `readers map consistently with some published version while the writer edits`(reporter: TestReporter) {
         val text = EditableText("fn main() {\n}\n", historyLimit = 100_000)
@@ -45,8 +50,7 @@ class ConcurrentMappingTest {
                     var from = text.snapshot.value
                     var count = 0
                     while (writing.get()) {
-                        // Keep an older snapshot for a while, so lookups cross versions the writer publishes meanwhile.
-                        if (++count % 100 == 0) from = text.snapshot.value
+                        if (++count % LOOKUPS_PER_SNAPSHOT == 0) from = text.snapshot.value
                         lookups += randomLookup(text, from, random)
                     }
                 } catch (throwable: Throwable) {
@@ -77,7 +81,6 @@ class ConcurrentMappingTest {
         readers.forEach { it.join() }
         failure.get()?.let { throw AssertionError("a thread failed", it) }
 
-        // Single-threaded now: every answer must equal the mapping of the version the reader asked for.
         var points = 0
         var ranges = 0
         var racing = 0
@@ -101,6 +104,10 @@ class ConcurrentMappingTest {
         )
     }
 
+    /**
+     * Every write inserts at offset 0, in front of the range the reader maps, so a range that still maps keeps its
+     * length and stays inside the text.
+     */
     @Test
     fun `readers never fail while the writer evicts the history they map from`() {
         val text = EditableText("", historyLimit = 4)
@@ -112,7 +119,6 @@ class ConcurrentMappingTest {
                 while (writing.get()) {
                     val old = text.snapshot.value
                     val answer = text.mapRange(TextRange(0, old.length), old)
-                    // Every write inserts at 0, outside the range: a mapped range keeps its length inside the text.
                     if (answer != null) {
                         assertEquals(old.length, answer.length)
                         assertTrue(answer.end <= text.snapshot.value.length)
@@ -132,6 +138,7 @@ class ConcurrentMappingTest {
         assertNotNull(text.mapOffset(0, WRITES - 4L))
     }
 
+    /** Maps a random offset or range of [from] to a version up to the current one and records the answer. */
     private fun randomLookup(text: EditableText, from: TextSnapshot, random: Random): Lookup {
         val to = text.snapshot.value
         val toVersion = random.nextLong(from.version, to.version + 1)
@@ -156,5 +163,8 @@ class ConcurrentMappingTest {
     private companion object {
         const val READERS = 2
         const val WRITES = 20_000
+
+        /** How many lookups a reader makes on one snapshot before it takes the current one. */
+        const val LOOKUPS_PER_SNAPSHOT = 100
     }
 }

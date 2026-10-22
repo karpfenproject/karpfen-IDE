@@ -9,9 +9,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Contract test of [EditableText.mapRange], the one range-mapping rule (complete in the contracts step). It runs on a
- * fake text whose [EditableText.mapOffset] knows exactly one replacement from version 0 to version 1, so no phase-1
- * implementation code is executed.
+ * Contract test of [EditableText.mapRange], the one range-mapping rule, which the interface implements itself. It runs
+ * on a fake text whose [EditableText.mapOffset] knows exactly one replacement from version 0 to version 1, so it
+ * checks the rule independently of [DefaultEditableText].
  */
 class RangeMappingContractTest {
 

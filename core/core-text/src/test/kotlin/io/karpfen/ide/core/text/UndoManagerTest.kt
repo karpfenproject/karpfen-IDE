@@ -10,6 +10,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TestTimeSource
 
+/**
+ * Covers the [UndoManager] of an [EditableText] by example: coalescing of typing and deleting, groups, caret mementos,
+ * byte-exact undo and redo, the undo and redo flags, save points and checkpoints, and clearing the history.
+ */
 class UndoManagerTest {
 
     private val time = TestTimeSource()

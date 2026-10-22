@@ -1,8 +1,14 @@
 package io.karpfen.ide.core.text
 
 /**
- * A line separator as found in files on disk. In memory every document uses [LF] only (spec §1); the original
- * separator is remembered per document and restored on save.
+ * A line separator as found in files on disk. In memory every document uses [LF] only; the dominant original separator
+ * is remembered per document and restored on save, and a file with mixed separators is normalized and reported once.
+ *
+ * The entries are declared in the tie-breaking order of [LineSeparators.normalize] (LF, CRLF, CR): when two
+ * separators occur equally often, the one declared first is the dominant one.
+ *
+ * @property chars the separator's characters as written to disk.
+ * @property displayName the short name the status bar shows.
  */
 public enum class LineSeparator(public val chars: String, public val displayName: String) {
     /** `\n` (Unix, macOS). */
@@ -57,11 +63,15 @@ public object LineSeparators {
             }
             offset += separator?.chars?.length ?: 1
         }
-        // Entries are declared in tie-breaking order LF, CRLF, CR; maxBy keeps the first of equal maxima.
-        val dominant = LineSeparator.entries.maxBy { counts[it.ordinal] }
         val kinds = counts.count { it > 0 }
-        return NormalizedText(normalized.toString(), dominant, mixed = kinds > 1)
+        return NormalizedText(normalized.toString(), dominantSeparator(counts), mixed = kinds > 1)
     }
+
+    /**
+     * The separator with the highest of [counts] (indexed by ordinal). `maxBy` keeps the first of equal maxima, so
+     * ties go to the separator declared first in [LineSeparator] (LF, then CRLF, then CR).
+     */
+    private fun dominantSeparator(counts: IntArray): LineSeparator = LineSeparator.entries.maxBy { counts[it.ordinal] }
 
     /**
      * Converts `\n`-normalized [text] back to file form by replacing every `\n` with [separator]. For text without

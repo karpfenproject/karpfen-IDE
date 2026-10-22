@@ -1,8 +1,8 @@
 package io.karpfen.ide.core.text
 
 /**
- * An immutable version of a document's text. Snapshots are freely shareable between threads (spec §1, Threading);
- * background work (tokenizing, parsing, analysis) only ever reads snapshots.
+ * An immutable version of a document's text. Snapshots are freely shareable between threads: an [EditableText] has a
+ * single writer, and background work (tokenizing, parsing, analysis) only ever reads snapshots.
  *
  * Equality is identity: two snapshots are the same snapshot, not merely equal text (comparing large texts would be
  * O(n)). Compare [version]s (of the same [lineage]) when the question is "is this result still current?".

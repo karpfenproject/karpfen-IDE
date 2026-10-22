@@ -6,7 +6,10 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Contract test of the complete core-text value objects (no phase-1 implementation code). */
+/**
+ * Contract test of the core-text value objects ([TextRange], [TextPosition], [TextEdit], [CaretMemento], [TextChange],
+ * [TextSnapshot] and its lineage), independent of the editable text implementation.
+ */
 class TextValuesContractTest {
 
     @Test

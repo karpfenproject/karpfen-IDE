@@ -14,6 +14,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+/**
+ * Covers [EditableText] by example: versions, atomic and rejected edits, minimal whole-text replacement, lineages,
+ * offset mapping and its history limit, and the order in which changes are emitted.
+ */
 class EditableTextTest {
 
     @Test

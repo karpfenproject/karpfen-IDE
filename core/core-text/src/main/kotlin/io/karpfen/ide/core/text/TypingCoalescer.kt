@@ -25,7 +25,7 @@ internal sealed interface Keystroke {
 }
 
 /**
- * The coalescing rules of the undo history (spec §2, [UndoManager]): consecutive [EditOrigin.Typing] single-character
+ * The coalescing rules of the undo history (see [UndoManager]): consecutive [EditOrigin.Typing] single-character
  * insertions contiguous with the previous one, or consecutive single-character deletions contiguous with the previous
  * one (Backspace runs end where the previous deletion started, Delete runs start where it started), merge if the pause
  * between them is at most [window]. A typed newline, or whitespace typed after a word character, starts a new step.

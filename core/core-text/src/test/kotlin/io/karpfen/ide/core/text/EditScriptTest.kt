@@ -6,6 +6,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+/**
+ * Covers [EditScript]: normalization and validation of edits, inversion, and offset mapping with both biases, checked
+ * against a reference on large and random scripts.
+ */
 class EditScriptTest {
 
     @Test
@@ -83,6 +87,10 @@ class EditScriptTest {
         assertEquals(4, script.mapOffset(6, Bias.RIGHT))
     }
 
+    /**
+     * Each script has many random edits in the first half of the text and a run of adjacent replacements and insertions
+     * in the second half.
+     */
     @Test
     fun `scripts of many edits, with runs of adjacent replacements, map like the reference`() {
         val random = Random(7)
@@ -90,7 +98,6 @@ class EditScriptTest {
         repeat(300) {
             val text = edits.text(200)
             val split = text.length / 2
-            // Many random edits in the first half, a run of adjacent replacements and insertions in the second.
             val list = edits.edits(split, maxEdits = 60) + adjacentRun(split + 1, text.length)
             val script = EditScript.of(list, text.length)
             val reference = ReferenceText(text)

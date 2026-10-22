@@ -3,9 +3,9 @@ package io.karpfen.ide.core.text
 /**
  * Maps between offsets and line/column positions of one immutable text.
  *
- * Only `\n` separates lines (documents are normalized on load, spec §1). Text with `n` newlines has `n + 1` lines;
- * the empty text has one empty line, and a trailing newline yields a final empty line. Instances are immutable and
- * thread-safe; [TextSnapshot.lineIndex] creates one lazily per snapshot.
+ * Only `\n` separates lines, because documents are normalized on load (see [LineSeparators]). Text with `n` newlines
+ * has `n + 1` lines; the empty text has one empty line, and a trailing newline yields a final empty line. Instances are
+ * immutable and thread-safe; [TextSnapshot.lineIndex] creates one lazily per snapshot.
  *
  * Performance contract: construction is O(length) and every query is O(log lineCount) or better.
  */
@@ -62,13 +62,17 @@ public class LineIndex(private val text: String) {
      */
     public fun offsetOf(position: TextPosition): Int = offsetOf(position.line, position.column)
 
-    /** Same as [offsetOf] with a [TextPosition]; negative arguments are clamped to 0. Never throws. */
+    /**
+     * Same as [offsetOf] with a [TextPosition]; negative arguments are clamped to 0. Never throws.
+     *
+     * The column is compared with the length of the line before it is added to the line start, so a huge column
+     * cannot overflow.
+     */
     public fun offsetOf(line: Int, column: Int): Int {
         if (line >= lineCount) return text.length
         val clampedLine = line.coerceAtLeast(0)
         val start = lineStarts[clampedLine]
         val end = endOf(clampedLine)
-        // Compared as a length, so a huge column cannot overflow `start + column`.
         val clampedColumn = column.coerceAtLeast(0)
         return if (clampedColumn >= end - start) end else start + clampedColumn
     }

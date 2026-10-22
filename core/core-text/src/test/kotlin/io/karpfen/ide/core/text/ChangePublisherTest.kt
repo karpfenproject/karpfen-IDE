@@ -9,6 +9,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
+/**
+ * Covers the two-phase publication of [ChangePublisher]: queued changes become visible only with the flush, in version
+ * order, also when an inline collector flushes reentrantly.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChangePublisherTest {
 

@@ -6,6 +6,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
+/**
+ * Covers [LineSeparators]: normalization, detection of the dominant and of mixed separators with its tie-breaking
+ * order, and the round trip through [LineSeparators.restore].
+ */
 class LineSeparatorsTest {
 
     @Test

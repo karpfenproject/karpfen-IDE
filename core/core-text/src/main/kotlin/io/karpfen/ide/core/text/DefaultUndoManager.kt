@@ -126,12 +126,15 @@ internal class DefaultUndoManager(
         publishState()
     }
 
+    /**
+     * Records [change] inside the open group: the first change pushes the group's step, every further one extends it.
+     * Changes that cancel each other out leave no step, and the group's next change then starts a new one.
+     */
     private fun recordInGroup(change: TextChange, caretsBefore: List<CaretMemento>?, caretsAfter: List<CaretMemento>?) {
         val top = history.undoTop
         if (groupHasStep && top != null) {
             val extended = top.extendedBy(change, caretsAfter)
             history.amendTop(extended)
-            // Changes that cancelled each other out leave no step; the group's next change starts a new one.
             groupHasStep = !extended.isEmpty
         } else {
             history.push(UndoStep.of(groupName, change, caretsBefore, caretsAfter))

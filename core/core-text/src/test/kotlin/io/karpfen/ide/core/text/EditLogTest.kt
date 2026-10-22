@@ -5,6 +5,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
+/**
+ * Covers [EditLog] and [EditLogWriter]: mapping through the logged changes, eviction beyond the limit, published logs
+ * that never change while the writer appends, and capacities for huge limits.
+ */
 class EditLogTest {
 
     private fun insertAt(offset: Int, length: Int = 1) = EditScript.of(listOf(TextEdit.insert(offset, "x".repeat(length))), Int.MAX_VALUE)

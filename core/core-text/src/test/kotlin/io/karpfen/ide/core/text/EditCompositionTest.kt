@@ -6,6 +6,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+/**
+ * Covers the composition of two edit scripts into one (`EditScript.then`): merged typing, changes that cancel out,
+ * distant edits, rejection of a second script that reaches too far, and agreement with applying both scripts on random
+ * texts and chains.
+ */
 class EditCompositionTest {
 
     @Test

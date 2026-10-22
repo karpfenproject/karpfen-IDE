@@ -1,8 +1,7 @@
 package io.karpfen.ide.core.text
 
 /**
- * Why a change was made. The origin drives undo coalescing (spec §2) and lets observers tell user edits from
- * reloads.
+ * Why a change was made. The origin drives undo coalescing and lets observers tell user edits from reloads.
  *
  * Coalescing (implemented by the [UndoManager]): only [Typing] changes coalesce; [Paste], [Cut], [Command] and
  * [External] never do; [Undo]/[Redo] are produced by the undo manager itself; [Programmatic] never coalesces.

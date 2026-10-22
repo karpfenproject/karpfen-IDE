@@ -28,8 +28,10 @@ internal fun EditScript.then(next: EditScript, baseLength: Int): EditScript {
 
 /** One part of a text described relative to a base text: base characters kept as they were, or inserted text. */
 private sealed interface Piece {
+    /** The number of characters this piece contributes to the text. */
     val length: Int
 
+    /** The characters `[from, to)` of this piece, as a piece of the same kind. */
     fun slice(from: Int, to: Int): Piece
 
     /** The base text's characters `[start, end)`. */

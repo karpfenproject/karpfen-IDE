@@ -29,6 +29,11 @@ class OffsetMappingPropertyTest {
     /** An offset mapped to an intermediate version: (from, original, bias) → [expected] at version [atVersion]. */
     private class Checkpoint(val fromVersion: Long, val original: Int, val bias: Bias, val atVersion: Long, val expected: Int)
 
+    /**
+     * Each operation applies random edits, a whole-text replacement, a group, an undo or a redo to the text and to the
+     * reference. After every change, each tracked offset, range and checkpoint is checked against the oracle; then
+     * trackers well beyond the retained history are retired and new ones start at the current version.
+     */
     @ParameterizedTest
     @ValueSource(longs = [31, 32, 33])
     fun `offsets and ranges map like the reference across random edits, undo and redo`(seed: Long, reporter: TestReporter) {
@@ -68,7 +73,6 @@ class OffsetMappingPropertyTest {
             assertEquals(reference.text, current.text)
             if (change == null) return@repeat
 
-            // Check every tracked offset, range and checkpoint against the oracle.
             for (tracker in reference.tracked) {
                 val result = text.mapOffset(tracker.original, tracker.fromVersion, bias = tracker.bias)
                 if (current.version - tracker.fromVersion > HISTORY) {
@@ -93,7 +97,6 @@ class OffsetMappingPropertyTest {
                 if (current.version - checkpoint.fromVersion > HISTORY) assertNull(result) else assertEquals(checkpoint.expected, result)
             }
 
-            // Retire old trackers and start new ones at this version.
             reference.untrack { current.version - it.fromVersion > HISTORY + 5 }
             ranges.removeAll { current.version - it.fromVersion > HISTORY + 5 }
             checkpoints.removeAll { current.version - it.fromVersion > HISTORY + 5 }
