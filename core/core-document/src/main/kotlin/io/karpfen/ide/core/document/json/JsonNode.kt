@@ -8,14 +8,18 @@ import io.karpfen.ide.core.text.TextRange
  */
 public sealed interface JsonNode {
 
-    /** The whole value in the source text: for strings including the quotes, for containers from bracket to bracket. */
+    /**
+     * The whole value in the source text: for strings including the quotes, for containers from bracket to bracket. A
+     * root object whose `{` is missing runs from its first member to the end of its last one.
+     */
     public val range: TextRange
 
     /** An object or an array: a value that holds other values between its brackets. */
     public sealed interface Container : JsonNode {
         /**
-         * False if the text ends or a bracket of an enclosing container follows before the closing bracket; the
-         * container then ends after the last value it holds.
+         * False if the text ends or a bracket of an enclosing container follows before the closing bracket, and for a
+         * root object whose `{` is missing, which has no bracket to pair; the container then ends after the last value
+         * it holds.
          */
         public val isClosed: Boolean
 
@@ -87,7 +91,8 @@ public sealed interface JsonNode {
     /**
      * An object member.
      *
-     * @property key the key.
+     * @property key the key as a string node: its range includes the quotes, its [StringNode.value] is the name that
+     *   [ObjectNode.member] looks up.
      * @property colon the range of the `:` after the key, or null if the text lacks it.
      * @property value the value, or null if the text lacks it (or has a token there that is no value).
      */

@@ -45,6 +45,9 @@ public enum class JsonTokenKind {
     public val isValueStart: Boolean
         get() = this == BEGIN_OBJECT || this == BEGIN_ARRAY || this == STRING || this == NUMBER || isLiteral
 
+    /** True for `{` and `[`, the tokens a container starts with. */
+    public val opensContainer: Boolean get() = this == BEGIN_OBJECT || this == BEGIN_ARRAY
+
     /** True for `true`, `false` and `null`. */
     public val isLiteral: Boolean get() = this == TRUE || this == FALSE || this == NULL
 
@@ -65,3 +68,7 @@ public data class JsonToken(public val kind: JsonTokenKind, public val range: Te
         require(!range.isEmpty) { "tokens are never empty, was $range" }
     }
 }
+
+/** True if the token at [at] is a string followed by `:`, so it is the key that starts a member. */
+internal fun List<JsonToken>.startsMemberAt(at: Int): Boolean =
+    getOrNull(at)?.kind == JsonTokenKind.STRING && getOrNull(at + 1)?.kind == JsonTokenKind.NAME_SEPARATOR

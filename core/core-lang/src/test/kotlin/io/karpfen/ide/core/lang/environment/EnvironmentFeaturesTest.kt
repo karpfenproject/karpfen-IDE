@@ -218,6 +218,20 @@ class EnvironmentFeaturesTest {
     }
 
     @Test
+    fun `a quote, digit or literal typed before the opening brace keeps completion, hover and brackets working`() {
+        listOf("\"", "1", "true\n").forEach { stray ->
+            assertEquals(listOf("cleaning_robot.kmodel"), firstRanked(complete(stray + "{\n  \"model\": \"‸\"\n}")), "'$stray'")
+            val text = stray + valid
+            val hover = services.hover(DescriptorFixture.document(text), after(text, "\"meta"))
+            assertTrue(hover?.text.orEmpty().startsWith("metamodel: a file path, required"), "'$stray': $hover")
+        }
+        val quoted = "\"" + valid
+        val list = assertNotNull(services.matchingBracket(DescriptorFixture.document(quoted), quoted.indexOf('[')))
+        assertEquals(quoted.indexOf(']'), list.close.start)
+        assertNull(services.matchingBracket(DescriptorFixture.document(quoted), quoted.lastIndexOf('}')), "its '{' is part of a string")
+    }
+
+    @Test
     fun `brackets pair as the parser closed them`() {
         val document = DescriptorFixture.document(valid)
 

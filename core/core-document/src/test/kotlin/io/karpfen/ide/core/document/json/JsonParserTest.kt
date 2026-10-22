@@ -161,6 +161,55 @@ class JsonParserTest {
     }
 
     @Test
+    fun `a stray value before the root object is reported once and the object is still the root`() {
+        listOf("1", "true\n", "\"\"\n", "\"x\" 2 ").forEach { stray ->
+            val text = stray + "{\"metamodel\": \"a.kmeta\",\n \"events\": [\"e\"]}"
+
+            val expected = stray.trim().split(" ").map { it to "Unexpected '$it' before the JSON value." }
+            assertEquals(expected, syntaxErrorsOf(text), "'$stray'")
+            val root = rootOf(text)
+            assertEquals(listOf("metamodel", "events"), root.members.map { it.key.value }, "'$stray'")
+            assertTrue(root.isClosed, "'$stray'")
+        }
+    }
+
+    @Test
+    fun `a quote typed before the brace makes it part of a string, and the members after it are still the root`() {
+        val text = "\"{\n \"metamodel\": \"a.kmeta\",\n \"events\": [\"e\"]\n}"
+
+        val document = JsonParser.parse(text)
+
+        assertEquals(
+            listOf(DiagnosticSource.LEXER, DiagnosticSource.PARSER).map { "\"{" to it },
+            document.diagnostics.map { text.at(it.range) to it.source }.sortedBy { it.second },
+        )
+        assertEquals(listOf("\"{" to "Unexpected '\"{' before the JSON value."), syntaxErrorsOf(text))
+        val root = assertIs<JsonNode.ObjectNode>(document.root)
+        assertEquals(listOf("metamodel", "events"), root.members.map { it.key.value })
+        assertEquals("\"metamodel\": \"a.kmeta\",\n \"events\": [\"e\"]", text.at(root.range))
+        assertFalse(root.isClosed, "no '{' pairs with the '}'")
+    }
+
+    @Test
+    fun `members without the opening brace are read as the root object, and the missing brace is one error`() {
+        val text = "\"metamodel\": \"a.kmeta\",\n\"model\": \"b\"\n}"
+
+        assertEquals(listOf("\"metamodel\"" to "Expected '{' before this member."), syntaxErrorsOf(text))
+        val root = rootOf(text)
+        assertEquals(listOf("metamodel", "model"), root.members.map { it.key.value })
+        assertFalse(root.isClosed)
+        assertEquals(listOf("\"x\"" to "Unexpected '\"x\"' before the JSON value."), syntaxErrorsOf("\"x\"\n\"a\": 1}"))
+    }
+
+    @Test
+    fun `a scalar stays the root when no object, list or member follows it`() {
+        assertEquals("abc", assertIs<JsonNode.StringNode>(JsonParser.parse("\"abc\"").root).value)
+        assertEquals(emptyList(), JsonParser.parse(" 12 ").diagnostics)
+        assertEquals(listOf("2" to "Unexpected '2' after the end of the JSON value."), syntaxErrorsOf("1 2"))
+        assertIs<JsonNode.NumberNode>(JsonParser.parse("1 2").root)
+    }
+
+    @Test
     fun `texts without a value are one error and no root`() {
         listOf("", "   \n").forEach { text ->
             val document = JsonParser.parse(text)

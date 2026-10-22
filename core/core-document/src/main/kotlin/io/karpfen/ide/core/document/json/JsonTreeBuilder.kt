@@ -20,9 +20,11 @@ import io.karpfen.ide.core.text.TextRange
  * - a closing bracket of an enclosing container ends every container opened since, each one reported once as not
  *   closed; a closing bracket that closes nothing is reported and skipped;
  * - the end of the text ends every open container and missing part with one error at the end of the last token;
- * - tokens before the root value are skipped, so one stray keystroke at the top of a file keeps the tree: an INVALID
- *   token silently, any other one reported once as standing before the value; a text without any value is one error,
- *   at its first stray token or, for an empty text, at its end;
+ * - tokens before the root value are skipped, so one stray keystroke at the top of a file keeps the tree; [JsonRootStart]
+ *   documents where the root starts, also after a stray string, number or literal. An INVALID token is skipped
+ *   silently, any other one is reported once as standing before the value; a text without any value is one error, at
+ *   its first stray token or, for an empty text, at its end;
+ * - members at the top level, whose `{` is missing, are read as the root object ([bracelessObject]);
  * - content after the root value is one error;
  * - containers nested deeper than [MAX_DEPTH] are skipped as one error, so the recursion stays far from the stack limit.
  *
@@ -45,22 +47,37 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
 
     /** The root value, or null if the text holds none. */
     fun document(): JsonNode? {
-        val strays = skipToRoot()
-        if (peek() == null) {
+        val start = JsonRootStart.of(tokens)
+        val strays = skipUntil(start?.index ?: tokens.size)
+        if (start == null) {
             reportMissingRoot(strays.firstOrNull())
-        } else {
-            strays.forEach { report(it.range, "Unexpected '${textOf(it)}' before the JSON value.") }
+            return null
         }
-        val root = peek()?.let { value(depth = 0, closers = emptySet()) }
+        strays.forEach { report(it.range, "Unexpected '${textOf(it)}' before the JSON value.") }
+        val root = if (start.isBraceless) bracelessObject(afterStrays = start.index > 0) else value(depth = 0, closers = emptySet())
         tokens.drop(index).firstOrNull { it.kind != JsonTokenKind.INVALID }?.let { extra ->
             report(extra.range, "Unexpected '${textOf(extra)}' after the end of the JSON value.")
         }
         return root
     }
 
-    /** Consumes the tokens before the first one that starts a value and returns those the lexer accepted. */
-    private fun skipToRoot(): List<JsonToken> = buildList {
-        while (peek()?.kind?.isValueStart == false) next().takeIf { it.kind != JsonTokenKind.INVALID }?.let { add(it) }
+    /** Consumes the tokens before the one at [end] and returns those the lexer accepted. */
+    private fun skipUntil(end: Int): List<JsonToken> = buildList {
+        while (index < end) next().takeIf { it.kind != JsonTokenKind.INVALID }?.let { add(it) }
+    }
+
+    /**
+     * The root object whose members stand at the top level without `{` ([JsonRootStart.isBraceless]), from its first
+     * member to the end of its last one. It is never [JsonNode.Container.isClosed], because no `{` pairs with the `}`
+     * that ends it; that `}` is consumed as the partner of the missing brace. The missing brace is reported at the first
+     * member, unless tokens stand before it ([afterStrays]): their error points at the cause, often a quote typed in
+     * front of the `{`, which turned the brace into a string.
+     */
+    private fun bracelessObject(afterStrays: Boolean): JsonNode.ObjectNode {
+        val firstKey = tokens[index]
+        if (!afterStrays) report(firstKey.range, "Expected '{' before this member.")
+        val members = members(depth = 0, closers = emptySet()).members
+        return JsonNode.ObjectNode(TextRange(firstKey.range.start, members.last().range.end), members, isClosed = false)
     }
 
     /**
@@ -92,6 +109,15 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
     /** The object opened by [open]; [closers] are the closing brackets of the enclosing containers. */
     private fun objectNode(open: JsonToken, depth: Int, closers: Set<JsonTokenKind>): JsonNode {
         if (depth >= MAX_DEPTH) return tooDeep(open)
+        val read = members(depth, closers)
+        return JsonNode.ObjectNode(TextRange(open.range.start, lastEnd), read.members, read.isClosed)
+    }
+
+    /**
+     * The members of an object, read up to the `}` that closes it, which is consumed, or up to the end of the text or a
+     * bracket of [closers], the closing brackets of the enclosing containers, which is reported and left in place.
+     */
+    private fun members(depth: Int, closers: Set<JsonTokenKind>): MembersRead {
         val members = ArrayList<JsonNode.Member>()
         val inner = closers + JsonTokenKind.END_OBJECT
         var expectMember = true
@@ -101,16 +127,16 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
             when {
                 token == null -> {
                     atEnd("The object is not closed; add '}'.")
-                    return JsonNode.ObjectNode(TextRange(open.range.start, lastEnd), members, isClosed = false)
+                    return MembersRead(members, isClosed = false)
                 }
                 token.kind == JsonTokenKind.END_OBJECT -> {
                     next()
                     if (comma != null && members.isNotEmpty()) report(comma.range, "Remove the ',' before '}'; JSON allows no trailing comma.")
-                    return JsonNode.ObjectNode(TextRange(open.range.start, token.range.end), members, isClosed = true)
+                    return MembersRead(members, isClosed = true)
                 }
                 token.kind in closers -> {
                     report(token.range, "Expected '}' to close the object before '${textOf(token)}'.")
-                    return JsonNode.ObjectNode(TextRange(open.range.start, lastEnd), members, isClosed = false)
+                    return MembersRead(members, isClosed = false)
                 }
                 token.kind == JsonTokenKind.STRING -> {
                     if (!expectMember) report(token.range, "Expected ',' before this member.")
@@ -149,7 +175,7 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
         }
         if (separator.kind != JsonTokenKind.NAME_SEPARATOR) {
             report(key.range, "Expected ':' after the key.")
-            val value = if (separator.kind.isValueStart && !startsMember(index)) value(depth + 1, closers) else null
+            val value = if (separator.kind.isValueStart && !tokens.startsMemberAt(index)) value(depth + 1, closers) else null
             return JsonNode.Member(key, colon = null, value = value)
         }
         next()
@@ -157,7 +183,7 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
         val start = peek()
         return when {
             start == null -> JsonNode.Member(key, colon, null).also { atEnd("Expected a value after ':'.") }
-            start.kind.isValueStart && !startsMember(index) -> JsonNode.Member(key, colon, value(depth + 1, closers))
+            start.kind.isValueStart && !tokens.startsMemberAt(index) -> JsonNode.Member(key, colon, value(depth + 1, closers))
             start.kind == JsonTokenKind.INVALID -> JsonNode.Member(key, colon, null).also { next() }
             else -> JsonNode.Member(key, colon, null).also { report(colon, "Expected a value after ':'.") }
         }
@@ -222,13 +248,13 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
         next()
         if (peek()?.kind != JsonTokenKind.NAME_SEPARATOR) return
         next()
-        if (peek()?.kind?.isValueStart == true && !startsMember(index)) value(depth + 1, closers)
+        if (peek()?.kind?.isValueStart == true && !tokens.startsMemberAt(index)) value(depth + 1, closers)
     }
 
     /** Skips the current token; a bracket that opens a container skips the whole container. */
     private fun skip(depth: Int, closers: Set<JsonTokenKind>) {
         val kind = peek()?.kind ?: return
-        if (kind == JsonTokenKind.BEGIN_OBJECT || kind == JsonTokenKind.BEGIN_ARRAY) value(depth + 1, closers) else next()
+        if (kind.opensContainer) value(depth + 1, closers) else next()
     }
 
     /** Skips the container opened by [open] (already consumed) and everything nested in it, as one error. */
@@ -252,10 +278,6 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
         }
     }
 
-    /** True if the token at [at] is a string followed by `:`, i.e. starts the next member. */
-    private fun startsMember(at: Int): Boolean =
-        tokens.getOrNull(at)?.kind == JsonTokenKind.STRING && tokens.getOrNull(at + 1)?.kind == JsonTokenKind.NAME_SEPARATOR
-
     private fun peek(): JsonToken? = tokens.getOrNull(index)
 
     private fun next(): JsonToken = tokens[index++].also { lastEnd = it.range.end }
@@ -272,6 +294,13 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
     private fun report(range: TextRange, message: String) {
         found += Diagnostic(range, Severity.ERROR, message, DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
     }
+
+    /**
+     * The members of an object as [members] read them.
+     *
+     * @property isClosed true if the `}` that closes the object was read.
+     */
+    private class MembersRead(val members: List<JsonNode.Member>, val isClosed: Boolean)
 
     private companion object {
         /** The deepest nesting read; environment descriptors nest three levels. */

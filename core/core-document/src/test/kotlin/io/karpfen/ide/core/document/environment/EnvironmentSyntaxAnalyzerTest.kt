@@ -68,7 +68,7 @@ class EnvironmentSyntaxAnalyzerTest {
 
     @Test
     fun `a stray token before the root keeps the outline, the folding and the spans`() {
-        listOf("x ", "}").forEach { stray ->
+        listOf("x ", "}", "1", "true\n", "\"\"\n").forEach { stray ->
             val text = stray + valid
 
             val analysis = analyze(text)
@@ -79,6 +79,18 @@ class EnvironmentSyntaxAnalyzerTest {
             assertEquals(1, analysis.syntaxDiagnostics.size, "one error at the stray token: ${analysis.syntaxDiagnostics}")
             assertEquals(0, analysis.syntaxDiagnostics.single().range.start)
         }
+    }
+
+    @Test
+    fun `a quote typed before the opening brace keeps the outline and the spans, and only the root loses its fold`() {
+        val text = "\"" + valid
+
+        val analysis = analyze(text)
+
+        assertEquals(analyze(valid).outline.map { it.name }, analysis.outline.map { it.name })
+        assertEquals(analyze(valid).semanticSpans.size, analysis.semanticSpans.size)
+        assertEquals(analyze(valid).folding.drop(1).map { it.range.length }, analysis.folding.map { it.range.length })
+        assertTrue(analysis.syntaxDiagnostics.all { it.range.start == 0 }, "errors only at the quote: ${analysis.syntaxDiagnostics}")
     }
 
     @Test
