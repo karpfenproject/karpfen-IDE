@@ -33,7 +33,8 @@ class IdeRunStateTest {
     /** A run state over a fake session on the test's virtual time; [scope] is the application scope. */
     private class Run(test: TestScope, prepareTime: Duration = Duration.ZERO, exitAfter: Duration? = null) {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(test.testScheduler))
-        val state = FakeWorkbenchState(scope, RecordingServicesFactory(HostPlatform.LINUX, StandardTestDispatcher(test.testScheduler))(RingOutputBuffer()))
+        val services = RecordingServicesFactory(HostPlatform.LINUX, StandardTestDispatcher(test.testScheduler))
+        val state = FakeWorkbenchState(scope, services(RingOutputBuffer()))
         val session = IdeSession(state, CommandRegistry(HostPlatform.LINUX))
         val running = mutableListOf<IdeSession>()
 

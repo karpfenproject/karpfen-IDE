@@ -30,14 +30,14 @@ import java.nio.file.Path
 
 /**
  * The workbench window content: Project tree (left), editor tabs with `CodeEditor` and the popups (centre), Outline
- * (right), Problems and the Language Tools Output (bottom), status bar, dialogs; the empty state with "Open Folder…" and
- * recent folders when no folder is open. The status bar's indicator of unseen problems of the language tools shows
+ * (right), Problems and the Language Tools Output (bottom), status bar, dialogs; the empty state with "Open Folder…"
+ * and recent folders when no folder is open. The status bar's indicator of unseen problems of the language tools shows
  * their output. Provides the light/dark `KarpfenTheme` and `LocalEditorTheme` from `state.layout` (theme) and lays
  * out the tool windows from it with size-based `SplitPane`s (`fixedSize = toolWindow.size.dp`,
  * `onFixedSizeChange = { layout.resizeToolWindow(id, it.value) }`; PROJECT is the FIRST pane, OUTLINE, PROBLEMS and
- * OUTPUT the SECOND). Renders [state]'s sub-states (each feature's view from its `view` package) and calls its non-suspending
- * intents and the sub-states' public UI intents; contains no business logic and launches no coroutines for intents. The
- * pending dialog is modal for the pointer and the keyboard ([ModalDialogLayer]).
+ * OUTPUT the SECOND). Renders [state]'s sub-states (each feature's view from its `view` package) and calls its
+ * non-suspending intents and the sub-states' public UI intents; contains no business logic and launches no coroutines
+ * for intents. The pending dialog is modal for the pointer and the keyboard ([ModalDialogLayer]).
  */
 @Composable
 public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {

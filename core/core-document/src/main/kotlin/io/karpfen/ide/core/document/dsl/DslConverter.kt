@@ -22,9 +22,9 @@ import io.karpfen.ide.core.text.TextSnapshot
  * - Never throws for any input: every exception raised by dsl-tools becomes one DSL_TOOLS ERROR [Diagnostic] (code
  *   [io.karpfen.ide.core.document.DiagnosticCodes.DSL_TOOLS_ERROR]) whose range is located by a [DslErrorLocator].
  * - Thread-safe; the converters keep no state between calls. dsl-tools logs through SLF4J below the parent logger of
- *   [DslToolsLoggers], the converters what they convert at DEBUG and the file parsers syntax errors as warnings, and the
- *   adapter leaves that logging to the application: the IDE shows it on demand in its Language Tools Output and keeps
- *   it off its console, the command-line tool keeps it off unless asked for with `--verbose`.
+ *   [DslToolsLoggers], the converters what they convert at DEBUG and the file parsers syntax errors as warnings, and
+ *   the adapter leaves that logging to the application: the IDE shows it on demand in its Language Tools Output and
+ *   keeps it off its console, the command-line tool keeps it off unless asked for with `--verbose`.
  * - The source text is passed unchanged (the converters apply `trimIndent()` themselves; ranges never come from them).
  */
 public interface DslConverter {

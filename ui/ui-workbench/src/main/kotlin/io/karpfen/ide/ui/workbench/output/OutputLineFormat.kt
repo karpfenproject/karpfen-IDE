@@ -4,10 +4,10 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * How the Language Tools Output writes a line, presentation only, so the composable just renders the texts: the time in
- * [zone] as `HH:mm:ss.SSS`, the level's label padded to the longest label, so the columns of the monospace view line up,
- * the logger's simple name and the message. The simple name is the part of the logger's name after its last dot, the
- * class that logged, since every logger of the language tools shares the same long package prefix.
+ * How the Language Tools Output writes a line, presentation only, so the composable just renders the texts: the time
+ * in [zone] as `HH:mm:ss.SSS`, the level's label padded to the longest label, so the columns of the monospace view line
+ * up, the logger's simple name and the message. The simple name is the part of the logger's name after its last dot,
+ * the class that logged, since every logger of the language tools shares the same long package prefix.
  */
 internal class OutputLineFormat(private val zone: ZoneId = ZoneId.systemDefault()) {
 
