@@ -9,6 +9,7 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** The structure of the window menus: File, Edit, View and Navigate with their items and separators. */
@@ -80,6 +81,15 @@ class IdeMenusTest {
             menu(IdeMenus.VIEW).itemIds(),
         )
         assertEquals(ToolWindowId.entries.map(WorkbenchCommandIds::toggleToolWindow), menu(IdeMenus.VIEW).itemIds().take(ToolWindowId.entries.size))
+    }
+
+    @Test
+    fun `View opens the Language Tools Output, which is hidden until then`() {
+        val view = menu(IdeMenus.VIEW).itemIds()
+
+        assertTrue(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.OUTPUT) in view, "$view")
+        assertEquals("Language Tools Output", ToolWindowId.OUTPUT.title, "the title of its menu item and its tool window")
+        assertFalse(ToolWindowId.OUTPUT.visibleByDefault)
     }
 
     @Test

@@ -6,19 +6,18 @@ plugins {
 
 /**
  * The composition root depends on the workbench, which brings ui-editor, ui-foundation and core-lang (an `api` chain
- * down to core-text). Test-only: logback, because the logging-configuration tests read logback's `LoggerContext`, and
- * the CLI, because the end-to-end tests show that the Problems view, the status bar and `karpfen validate` agree on one
- * folder.
+ * down to core-text), and on logback, the logging backend, whose API the adapters of the `logging` package implement to
+ * route what dsl-tools logs into the workbench's Language Tools Output. Test-only: the CLI, because the end-to-end tests
+ * show that the Problems view, the status bar and `karpfen validate` agree on one folder.
  */
 dependencies {
     implementation(project(":ui:ui-workbench"))
     implementation(libs.kotlinx.coroutines.swing)
     implementation(libs.slf4j.api)
-    runtimeOnly(libs.logback.classic)
+    implementation(libs.logback.classic)
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
-    testImplementation(libs.logback.classic)
     testImplementation(project(":tools:cli"))
 }
 

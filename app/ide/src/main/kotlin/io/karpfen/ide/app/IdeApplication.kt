@@ -6,10 +6,13 @@ import androidx.compose.ui.window.WindowExceptionHandlerFactory
 import androidx.compose.ui.window.application
 import io.karpfen.ide.app.crash.ErrorDialogPresenter
 import io.karpfen.ide.app.crash.IDE_LOG_FILE_NAME
+import io.karpfen.ide.app.logging.LanguageToolsLogRouting
 import io.karpfen.ide.app.window.awtScreenAreas
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
 import io.karpfen.ide.ui.workbench.dialog.DialogState
+import io.karpfen.ide.ui.workbench.output.OutputBuffer
+import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
 import io.karpfen.ide.ui.workbench.settings.SettingsLocations
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
@@ -40,6 +43,11 @@ import kotlin.time.Duration.Companion.milliseconds
  * `WorkbenchState.requestExit` launched in the application's scope, uncaught exceptions through [CrashHandling] into
  * `dialogs.ask(DialogRequest.Error(…))`).
  *
+ * The output of the language tools: the application owns one `RingOutputBuffer`, hands it to [services] as the
+ * workbench's `OutputBuffer`, and, while [run] runs, routes what dsl-tools logs into it as its `OutputSink`
+ * ([routeLanguageToolsLog] with the `LanguageToolsLogRouting` of the application's logger context). `logback.xml`
+ * keeps the same logging off the console.
+ *
  * The app's `main` resolves the home directory before constructing this class:
  * `SettingsLocations.HOME_ENVIRONMENT_VARIABLE` (if set) is copied into the system property
  * `SettingsLocations.HOME_PROPERTY` before any logger exists, so the default [services] (`defaultWorkbenchServices()`:
@@ -47,14 +55,24 @@ import kotlin.time.Duration.Companion.milliseconds
  * platform are parameters of the services only.
  *
  * @param exitAfterMs when set (`KARPFEN_IDE_EXIT_AFTER_MS`), the application exits with status 0 after that time.
- * @param services creates the workbench collaborators (called once, by [prepare]); tests pass test services.
+ * @param services creates the workbench collaborators over the output of the language tools (called once, by
+ *   [prepare]); tests pass test services.
  * @param workbenchStateFactory creates the workbench state; tests may pass a fake.
  */
 public class IdeApplication(
     private val exitAfterMs: Long? = null,
-    private val services: () -> WorkbenchServices = { defaultWorkbenchServices() },
+    private val services: (OutputBuffer) -> WorkbenchServices = { output -> defaultWorkbenchServices(languageToolsOutput = output) },
     private val workbenchStateFactory: (CoroutineScope, WorkbenchServices) -> WorkbenchState = ::WorkbenchState,
 ) {
+    /** What the language tools log while the application runs, shown in the workbench's Language Tools Output. */
+    private val languageToolsOutput = RingOutputBuffer()
+
+    /**
+     * Routes what dsl-tools logs into the output of the language tools through [routing], until the returned handle is
+     * closed. [run] does this for the application's logger context; tests pass a context of their own.
+     */
+    internal fun routeLanguageToolsLog(routing: LanguageToolsLogRouting): AutoCloseable = routing.attach(languageToolsOutput)
+
     /**
      * Wires the IDE without UI in [scope] (the UI scope): creates the services and the workbench state, registers the
      * commands in a new `CommandRegistry(services.platform)`, starts the state and opens [initialFolder] if given
@@ -63,7 +81,7 @@ public class IdeApplication(
      * it is pending). If anything fails (or the caller is cancelled), the state is closed and the failure propagates.
      */
     public suspend fun prepare(scope: CoroutineScope, initialFolder: Path?): IdeSession {
-        val workbenchServices = services()
+        val workbenchServices = services(languageToolsOutput)
         val state = workbenchStateFactory(scope, workbenchServices)
         try {
             val commands = CommandRegistry(workbenchServices.platform)
@@ -82,12 +100,23 @@ public class IdeApplication(
      *
      * The application scope runs on the Swing event-dispatch thread; its failures, uncaught exceptions of every thread
      * and failures inside the main window are logged and shown by [CrashHandling]. The workbench state is closed when
-     * the application exits, on the event-dispatch thread, because it is used from the UI thread only.
+     * the application exits, on the event-dispatch thread, because it is used from the UI thread only. What dsl-tools
+     * logs reaches the Language Tools Output from the start until the application exits.
      *
      * @throws IllegalStateException if the session could not be prepared (the cause is logged, the application ends).
      */
-    @OptIn(ExperimentalComposeUiApi::class)
     public fun run(initialFolder: Path?) {
+        val languageToolsLog = LanguageToolsLogRouting.ofApplication()?.let(::routeLanguageToolsLog)
+        try {
+            runWindow(initialFolder)
+        } finally {
+            languageToolsLog?.close()
+        }
+    }
+
+    /** Wires the crash handling and the run state and shows the application's window until it exits. */
+    @OptIn(ExperimentalComposeUiApi::class)
+    private fun runWindow(initialFolder: Path?) {
         val uiScope = CoroutineScope(SupervisorJob() + Dispatchers.Swing)
         val errorDialogs = ErrorDialogPresenter(uiScope, SettingsLocations.logDirectory().resolve(IDE_LOG_FILE_NAME))
         val crashHandling = CrashHandling { error -> errorDialogs.show(error) }

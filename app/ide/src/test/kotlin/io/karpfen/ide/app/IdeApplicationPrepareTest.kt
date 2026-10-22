@@ -1,5 +1,9 @@
 package io.karpfen.ide.app
 
+import ch.qos.logback.classic.LoggerContext
+import ch.qos.logback.classic.util.LogbackMDCAdapter
+import io.karpfen.ide.app.logging.LanguageToolsLogRouting
+import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
@@ -61,6 +65,23 @@ class IdeApplicationPrepareTest {
         assertSame(state, session.state)
         assertSame(backgroundScope, wiring.stateScopes.single())
         assertSame(wiring.services.services, wiring.stateServices.single())
+    }
+
+    @Test
+    fun `the services get the output that the application routes what dsl-tools logs into`() = runTest {
+        val wiring = Wiring(this)
+        val context = LoggerContext().apply { setMDCAdapter(LogbackMDCAdapter()) }
+        wiring.application.prepare(backgroundScope, initialFolder = null)
+        val dslTools = context.getLogger("${DslToolsLoggers.PARENT}.parser.KmetaFileParser")
+
+        wiring.application.routeLanguageToolsLog(LanguageToolsLogRouting(context)).use {
+            dslTools.warn("KMeta syntax error at line 1:5")
+        }
+        dslTools.warn("logged after the routing ended")
+
+        val output = wiring.services.services.languageToolsOutput.snapshot()
+        assertEquals(listOf("KMeta syntax error at line 1:5"), output.lines.map { it.message })
+        context.stop()
     }
 
     @Test

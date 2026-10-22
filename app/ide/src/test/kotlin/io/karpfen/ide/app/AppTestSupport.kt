@@ -14,6 +14,8 @@ import io.karpfen.ide.ui.workbench.files.DeleteOutcome
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
+import io.karpfen.ide.ui.workbench.output.OutputBuffer
+import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
@@ -72,6 +74,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override val outline: OutlineState get() = unused("outline")
     override val problems: ProblemsState get() = unused("problems")
     override val statusBar: StatusBarState get() = unused("statusBar")
+    override val output: OutputState get() = unused("output")
     override val dialogs: DialogState = DialogState()
     override val layout: LayoutState get() = unused("layout")
     override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
@@ -135,28 +138,35 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
 
 /**
  * A services factory that counts its calls and builds [WorkbenchServices] of fakes for [platform] (the keymap's
- * platform is the services' platform); none of the collaborators is used by the composition root.
+ * platform is the services' platform) over the output of the language tools that the composition root passes; none of
+ * the other collaborators is used by the composition root.
  */
-internal class RecordingServicesFactory(platform: HostPlatform, ioDispatcher: CoroutineDispatcher) : () -> WorkbenchServices {
+internal class RecordingServicesFactory(
+    private val platform: HostPlatform,
+    private val ioDispatcher: CoroutineDispatcher,
+) : (OutputBuffer) -> WorkbenchServices {
     /** How often the services were created. */
     var calls = 0
         private set
 
-    /** The services every call returns. */
-    val services = WorkbenchServices(
-        settings = UnusedSettings,
-        workspaceFactory = { _, _ -> throw AssertionError("no workspace is opened by the fake state") },
-        languageServicesFactory = { throw AssertionError("no language services are created") },
-        editorStateFactory = { _, _, _, _, _ -> throw AssertionError("no editor is created") },
-        fileOperations = UnusedFileOperations,
-        folderChooser = { _, _ -> null },
-        templates = UnusedTemplates,
-        editorKeymap = defaultEditorKeymap(platform),
-        ioDispatcher = ioDispatcher,
-    )
+    /** The services the last call returned, over the output of the language tools it was given. */
+    lateinit var services: WorkbenchServices
+        private set
 
-    override fun invoke(): WorkbenchServices {
+    override fun invoke(languageToolsOutput: OutputBuffer): WorkbenchServices {
         calls++
+        services = WorkbenchServices(
+            settings = UnusedSettings,
+            workspaceFactory = { _, _ -> throw AssertionError("no workspace is opened by the fake state") },
+            languageServicesFactory = { throw AssertionError("no language services are created") },
+            editorStateFactory = { _, _, _, _, _ -> throw AssertionError("no editor is created") },
+            fileOperations = UnusedFileOperations,
+            folderChooser = { _, _ -> null },
+            templates = UnusedTemplates,
+            editorKeymap = defaultEditorKeymap(platform),
+            ioDispatcher = ioDispatcher,
+            languageToolsOutput = languageToolsOutput,
+        )
         return services
     }
 

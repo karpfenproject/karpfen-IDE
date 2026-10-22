@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Logging of the karpfen IDE, its only logging configuration: WARN and above on the console, INFO and above in
-  the rolling file <IDE home>/logs/ide.log. The IDE home is the system property karpfen.ide.home, which the app's main
-  sets from KARPFEN_IDE_HOME before the first logger exists, else ~/.karpfen-ide; SettingsLocations reads the same
-  property, so settings and log always move together (launch smoke tests use a temporary home).
+  Logging of the karpfen IDE, its only logging configuration.
+
+  The IDE's own logging: WARN and above on the console (standard error), INFO and above in the rolling file
+  <IDE home>/logs/ide.log. The IDE home is the system property karpfen.ide.home, which the app's main sets from
+  KARPFEN_IDE_HOME before the first logger exists, else ~/.karpfen-ide; SettingsLocations reads the same property, so
+  settings and log always move together (launch smoke tests use a temporary home).
+
+  What karpfen-dsl-tools logs, below the logger io.karpfen.dsl (DslToolsLoggers names it), never reaches the console:
+  that logger logs at DEBUG and passes nothing on to the root logger. Every event goes to the rolling file
+  <IDE home>/logs/dsl-tools.log, and its warnings and errors are also forwarded to ide.log (DslToolsThresholdFilter
+  holds back the rest there). The composition root attaches one more appender to the same logger at runtime,
+  LanguageToolsLogRouting, which fills the workbench's Language Tools Output, shown on demand.
+
   Tests use the console-only src/test/resources/logback-test.xml instead.
 -->
 <configuration>
@@ -22,6 +31,9 @@
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${LOG_DIRECTORY}/ide.log</file>
+        <filter class="io.karpfen.ide.app.logging.DslToolsThresholdFilter">
+            <level>WARN</level>
+        </filter>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_DIRECTORY}/ide.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
@@ -32,6 +44,24 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
+
+    <appender name="DSL_TOOLS_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIRECTORY}/dsl-tools.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIRECTORY}/dsl-tools.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>100MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <logger name="io.karpfen.dsl" level="DEBUG" additivity="false">
+        <appender-ref ref="DSL_TOOLS_FILE"/>
+        <appender-ref ref="FILE"/>
+    </logger>
 
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>

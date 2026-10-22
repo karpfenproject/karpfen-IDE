@@ -3,13 +3,12 @@ package io.karpfen.ide.app
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.filter.ThresholdFilter
-import ch.qos.logback.classic.joran.JoranConfigurator
 import ch.qos.logback.classic.spi.LoggingEvent
-import ch.qos.logback.classic.util.LogbackMDCAdapter
 import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.core.rolling.RollingFileAppender
 import ch.qos.logback.core.spi.FilterReply
 import io.karpfen.ide.app.crash.IDE_LOG_FILE_NAME
+import io.karpfen.ide.app.logging.ProductionLogging
 import io.karpfen.ide.ui.workbench.settings.SettingsLocations
 import org.junit.jupiter.api.io.TempDir
 import org.slf4j.Logger
@@ -24,7 +23,8 @@ import kotlin.test.assertTrue
 
 /**
  * The IDE's logging configuration: the tests run on the module's console-only `logback-test.xml`, while the production
- * `logback.xml` writes WARN and above to the console and INFO and above to `ide.log` below the IDE home.
+ * `logback.xml` writes WARN and above to the console and INFO and above to `ide.log` below the IDE home. Where what
+ * dsl-tools logs goes is `LanguageToolsRoutingTest`'s subject.
  */
 class LoggingConfigurationTest {
 
@@ -89,18 +89,8 @@ class LoggingConfigurationTest {
     private fun chosenResources(context: LoggerContext): List<String> =
         context.statusManager.copyOfStatusList.map { it.message }.filter { it.startsWith("Found resource [") }
 
-    /**
-     * A fresh logger context configured from the production `logback.xml` with [properties] as context properties. A
-     * context of its own needs the MDC adapter that `LogbackServiceProvider` sets on the default one.
-     */
-    private fun productionContext(vararg properties: Pair<String, String>): LoggerContext {
-        val context = LoggerContext()
-        context.setMDCAdapter(LogbackMDCAdapter())
-        properties.forEach { (key, value) -> context.putProperty(key, value) }
-        val url = assertNotNull(javaClass.classLoader.getResource("logback.xml"), "app/ide ships a logback.xml")
-        JoranConfigurator().apply { setContext(context) }.doConfigure(url)
-        return context
-    }
+    /** A fresh logger context configured from the production `logback.xml` with [properties] as context properties. */
+    private fun productionContext(vararg properties: Pair<String, String>): LoggerContext = ProductionLogging.context(*properties)
 
     /** A logging event of [level] from a logger of [context]. */
     private fun loggingEvent(context: LoggerContext, level: Level) =

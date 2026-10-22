@@ -7,6 +7,7 @@ import io.karpfen.ide.app.IdeApplication
 import io.karpfen.ide.app.IdeMenus
 import io.karpfen.ide.app.IdeRunState
 import io.karpfen.ide.app.IdeSession
+import io.karpfen.ide.app.logging.LanguageToolsLogRouting
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
@@ -31,12 +32,13 @@ import java.time.ZoneOffset
 import kotlin.time.TestTimeSource
 
 /**
- * The IDE as `main` wires it — `IdeApplication(…).prepare` over `defaultWorkbenchServices(…)` and the real
- * `WorkbenchState`, through the test seams of both composition roots — with test values for everything time-, thread-,
- * file-system- and toolkit-dependent: one test dispatcher on [scheduler] for the UI scope, the workspace, the sessions,
- * the editors' background work and the workbench's I/O; a [TestTimeSource] for undo coalescing; a watcher that reports
- * nothing; a fixed clock; recording file operations; settings below [settingsDirectory]; [platform] as the platform
- * of the keymap and the command registry, macOS unless a test chooses another.
+ * The IDE as `main` wires it — `IdeApplication(…).prepare` over `defaultWorkbenchServices(…)` with the application's
+ * output of the language tools and the real `WorkbenchState`, through the test seams of both composition roots — with
+ * test values for everything time-, thread-, file-system- and toolkit-dependent: one test dispatcher on [scheduler] for
+ * the UI scope, the workspace, the sessions, the editors' background work and the workbench's I/O; a [TestTimeSource]
+ * for undo coalescing; a watcher that reports nothing; a fixed clock; recording file operations; settings below
+ * [settingsDirectory]; [platform] as the platform of the keymap and the command registry, macOS unless a test chooses
+ * another.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class EndToEndIde(
@@ -64,7 +66,7 @@ internal class EndToEndIde(
     )
 
     private val application = IdeApplication(
-        services = {
+        services = { languageToolsOutput ->
             defaultWorkbenchServices(
                 settingsDirectory = settingsDirectory,
                 platform = platform,
@@ -75,6 +77,7 @@ internal class EndToEndIde(
                 clock = FIXED_CLOCK,
                 fileOperations = fileOperations,
                 folderChooser = UnusedFolderChooser(),
+                languageToolsOutput = languageToolsOutput,
             )
         },
     )
@@ -99,6 +102,12 @@ internal class EndToEndIde(
      */
     fun startRun(folder: Path?): IdeRunState =
         IdeRunState(scope, prepare = { application.prepare(scope, folder) }).also { it.start() }
+
+    /**
+     * Routes what dsl-tools logs into the application's output of the language tools through [routing], as
+     * `IdeApplication.run` does with the application's logger context, until the returned handle is closed.
+     */
+    fun routeLanguageToolsLog(routing: LanguageToolsLogRouting): AutoCloseable = application.routeLanguageToolsLog(routing)
 
     /** Workspaces like the CLI's (no watching) on the same virtual time, for `ValidateCommand`. */
     fun cliWorkspaces(): WorkspaceFactory = WorkspaceFactory(workspaceOptions.copy(watch = false))
