@@ -25,7 +25,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Contract test of the complete ui-editor values and wiring (no phase-1 implementation code is executed). */
+/**
+ * Covers the public values and wiring of ui-editor that the workbench relies on: go-to-line input, carets, the default
+ * actions with their ids and shared titles, the overlay state, and tab stops with the default tab width.
+ */
 class EditorContractTest {
 
     @Test

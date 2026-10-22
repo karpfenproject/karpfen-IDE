@@ -36,7 +36,7 @@ object ExampleProject {
     /** The (virtual) workspace root of the examples. */
     val ROOT: Path = Path.of("/workspace/examples").toAbsolutePath().normalize()
 
-    /** The tokenizers and parsers of the three languages. */
+    /** The tokenizers and parsers of the built-in languages, environment descriptors included. */
     val registry: LanguageRegistry = defaultLanguageRegistry()
 
     /** The dsl-tools adapter of the conversions. */

@@ -27,7 +27,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Contract test of the complete ui-workbench values (no phase-1 implementation code is executed). */
+/**
+ * Covers the public values of ui-workbench: the settings with their recent folders, location and layout, the answers
+ * dialogs accept, and the versioned locations that problems and outline nodes navigate to.
+ */
 class WorkbenchContractTest {
 
     private val path: Path = Path.of("/ws/robot.kstates").toAbsolutePath()
