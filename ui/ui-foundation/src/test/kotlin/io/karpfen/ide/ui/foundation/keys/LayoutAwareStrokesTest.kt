@@ -36,12 +36,14 @@ class LayoutAwareStrokesTest {
         assertEquals(KeyStroke(KeyCode.SLASH, setOf(ctrl, shift)), LayoutAwareStrokes.resolve(KeyCode.SLASH, setOf(ctrl, shift), '/'))
     }
 
+    /**
+     * On a German layout Shift+0 produces `=` and Shift+comma `;`, so Shift is dropped; on macOS Option+5 produces `[`,
+     * and Option stays.
+     */
     @Test
     fun `a punctuation character from another key is reported by character, other modifiers kept`() {
-        // German layout: Shift+0 produces '=', Shift+comma produces ';'.
         assertEquals(KeyStroke(KeyCode.EQUALS, setOf(ctrl)), LayoutAwareStrokes.resolve(KeyCode.DIGIT_0, setOf(ctrl, shift), '='))
         assertEquals(KeyStroke(KeyCode.SEMICOLON), LayoutAwareStrokes.resolve(KeyCode.COMMA, setOf(shift), ';'))
-        // macOS German Option+5 produces '['; Option stays.
         assertEquals(
             KeyStroke(KeyCode.LEFT_BRACKET, setOf(KeyModifier.ALT)),
             LayoutAwareStrokes.resolve(KeyCode.DIGIT_5, setOf(KeyModifier.ALT), '['),

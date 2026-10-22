@@ -27,6 +27,7 @@ internal object LayoutAwareStrokes {
     fun isPrintable(char: Char): Boolean =
         char >= ' ' && char != DELETE_CHAR && char != UNDEFINED_CHAR && !char.isSurrogate()
 
+    /** The DEL control character (U+007F), which the check against the space alone would let through. */
     private const val DELETE_CHAR = '\u007f'
 
     /** AWT's `KeyEvent.CHAR_UNDEFINED`. */
