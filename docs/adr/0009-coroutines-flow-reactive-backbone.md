@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-20
-- Source: architecture proposal D8
+- Source: the architecture proposal's [reactive backbone decision](../architecture-proposal.md#reactive-backbone-kotlinxcoroutines-with-flow-and-stateflow)
 
 ## Context
 

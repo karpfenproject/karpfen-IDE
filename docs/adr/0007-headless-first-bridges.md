@@ -2,7 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-10-20
-- Source: architecture proposal D6, §5.7, §9 item 5
+- Source: the architecture proposal's [decision that bridges are headless-first](../architecture-proposal.md#bridges-are-headless-first), its
+  [bridge design](../architecture-proposal.md#bridges-bridge-modules) and the accepted recommendation that bridge mapping is declarative first
+  ([decisions record](../architecture-proposal.md#decisions-record))
 
 ## Context
 

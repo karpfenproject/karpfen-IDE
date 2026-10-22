@@ -2,12 +2,13 @@
 
 - Status: Accepted (decided by the owner)
 - Date: 2026-10-20
-- Source: architecture proposal D4, §5.8, §6
+- Source: the architecture proposal's [UI toolkit decision](../architecture-proposal.md#ui-toolkit-compose-multiplatform-for-desktop-jvm-custom-editor-and-custom-diagram-canvas), its [UI shell](../architecture-proposal.md#ui-shell-ui-modules-and-the-application) and its
+  [technology choices](../architecture-proposal.md#technology-choices)
 
 ## Context
 
 The IDE needs a native desktop UI with a code editor that can also be embedded in diagram cells, a custom
-diagram canvas, and tool windows. Compose Multiplatform for Desktop and JavaFX 25 LTS were compared (§6):
+diagram canvas, and tool windows. Compose Multiplatform for Desktop and JavaFX 25 LTS were compared in the proposal's technology choices:
 Compose fits Kotlin and coroutines natively and has hot reload and strong momentum; JavaFX offers RichTextFX
 and a retained scene graph but no hot reload and a smaller community.
 
@@ -21,5 +22,6 @@ is confined to `ui/*` and `app/`; every other module is UI-agnostic. JavaFX is n
 - The code editor (virtualized lines, caret, gutter, highlighting, completion) is built in-house; a
   `BasicTextField`-based implementation is only an acceptable stopgap behind the editor interface.
 - Packaging uses the Compose Gradle plugin (dmg/msi/deb).
-- Architecture tests reject Compose, AWT and Swing outside `ui/*` and `app/`, and JavaFX anywhere (ADR 0008).
+- Architecture tests reject Compose, AWT and Swing outside `ui/*` and `app/`, and JavaFX anywhere (see
+  [module boundaries are enforced by the build](0008-module-boundaries-enforced-by-the-build.md)).
 - Jewel may provide IntelliJ-style widgets but must be wrapped because its API is unstable.

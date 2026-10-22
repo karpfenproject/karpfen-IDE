@@ -2,7 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-10-20
-- Source: architecture proposal D3, §5.4
+- Source: the architecture proposal's [hybrid notation decision](../architecture-proposal.md#hybrid-notation-graph-structure-is-graphical-leaves-are-textual) and its
+  [notation layer](../architecture-proposal.md#notation-layer-notation-diagram-ui-diagram)
 
 ## Context
 
@@ -20,6 +21,7 @@ KMeta: class diagram. KModel: object diagram / containment tree, which doubles a
 
 ## Consequences
 
-- The code editor component must be embeddable in diagram cells (ADR 0005).
+- The code editor component must be embeddable in diagram cells (see
+  [the UI toolkit decision](0005-compose-multiplatform-for-desktop.md)).
 - The notation layer (`notation/*`) models nodes, compartments, text cells and edges independently of the UI.
 - Auto-layout uses ELK behind an isolated adapter so a custom layouter can replace it.

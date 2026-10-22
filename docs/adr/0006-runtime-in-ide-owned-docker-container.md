@@ -2,7 +2,9 @@
 
 - Status: Accepted (owner asked, accepted)
 - Date: 2026-10-20
-- Source: architecture proposal D5, §5.6, §9 item 6
+- Source: the architecture proposal's [runtime decision](../architecture-proposal.md#the-runtime-runs-in-an-ide-owned-docker-container-by-default-wire-protocol-only), its
+  [runtime integration](../architecture-proposal.md#runtime-integration-runtime-modules) and the accepted recommendation that the runtime repository publishes the
+  image ([decisions record](../architecture-proposal.md#decisions-record))
 
 ## Context
 
@@ -22,4 +24,5 @@ the runtime repository's CI; the IDE only pulls and pins it.
 
 - `runtime-host` is the only module that may use the Docker client (docker-java), enforced by architecture tests.
 - `runtime-protocol` is a typed client for every endpoint and the WebSocket session (Ktor client, kotlinx.serialization).
-- Some runtime gaps (§1.4) are worked around client-side until small upstream endpoints land.
+- Some [runtime gaps listed in the proposal](../architecture-proposal.md#gaps-the-ide-will-run-into-small-changes-in-your-own-repos) are worked around client-side until small upstream
+  endpoints land.

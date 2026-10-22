@@ -2,7 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-10-20
-- Source: architecture proposal D7, §4
+- Source: the architecture proposal's [decision that module boundaries are enforced by the build](../architecture-proposal.md#module-boundaries-are-enforced-by-the-build)
+  and its [module map](../architecture-proposal.md#module-map)
 
 ## Context
 
@@ -22,4 +23,5 @@ automatically. Conventions in documents alone erode.
 
 - `./gradlew build` fails on a boundary violation, locally and in CI.
 - Adding a module requires adding it to the dependency matrix and the architecture-test module table.
-- P0 implementation choice, not part of D7: `core/*` and `notation/*` also compile in Kotlin explicit API mode.
+- An implementation choice of phase 0 that goes beyond the proposal's decision: `core/*` and `notation/*` also
+  compile in Kotlin explicit API mode.

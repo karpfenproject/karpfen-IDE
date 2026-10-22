@@ -2,7 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-10-20
-- Source: architecture proposal D1, §5.4, §5.5, §9 item 1
+- Source: the architecture proposal's [decision that text files are the single source of truth](../architecture-proposal.md#text-files-are-the-single-source-of-truth-diagrams-are-projections-with-a-layout-sidecar),
+  its design of the [notation layer](../architecture-proposal.md#notation-layer-notation-diagram-ui-diagram) and of [synchronization](../architecture-proposal.md#synchronization-notation-sync), and the
+  accepted recommendation to commit layout sidecars next to their sources ([decisions record](../architecture-proposal.md#decisions-record))
 
 ## Context
 

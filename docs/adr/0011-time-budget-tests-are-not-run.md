@@ -2,8 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-10-22
-- Source: owner decision after phase 1 ("do no time budget testing for now … exclude them in all test runs;
-  performance tuning is a task for later"); spec §3.4, §7.2 and §11 item 4 asked for asserted budgets
+- Source: the owner's decision after phase 1 ("do no time budget testing for now … exclude them in all test runs;
+  performance tuning is a task for later"); the [phase-1 specification](../history/phase-1/p1-text-editing-spec.md)
+  had asked for asserted budgets for the document session, the editor view and the definition of done
 
 ## Context
 

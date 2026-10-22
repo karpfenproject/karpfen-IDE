@@ -12,10 +12,10 @@ research. Decisions need a stable, individually linkable record that code, build
 ## Decision
 
 We record architecturally significant decisions as lightweight ADRs in `docs/adr/`, numbered sequentially
-(`NNNN-short-title.md`), each with Status, Context, Decision and Consequences. ADRs 0002–0009 record the key
-decisions D1–D8 of the proposal; later decisions get new numbers. An accepted ADR is not edited in substance;
-it is superseded, in whole or in part, by a new ADR that links back to it, and only its status line is updated to
-point to the new ADR. The proposal remains the detailed design reference.
+(`NNNN-short-title.md`), each with Status, Context, Decision and Consequences. The second to the ninth record
+capture the eight key decisions of the proposal; later decisions get new numbers. An accepted ADR is not edited in
+substance; it is superseded, in whole or in part, by a new ADR that links back to it, and only its status line is
+updated to point to the new ADR. The proposal remains the detailed design reference.
 
 ## Consequences
 
