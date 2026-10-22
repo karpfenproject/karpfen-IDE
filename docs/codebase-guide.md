@@ -15,9 +15,9 @@ Package names below are relative to their module. Every module keeps its code be
 karpfen IDE is a Gradle build of Kotlin/JVM modules in layers, and dependencies only point downwards:
 
 - **core** is the language core and knows nothing about a UI. core-text holds the text of a document, core-document
-  turns text into tokens, parse results and diagnostics on top of karpfen-dsl-tools, core-workspace manages an opened
-  folder with its modeling contexts and their analysis, and core-lang answers editor questions such as completion,
-  hover and go to definition.
+  turns text into tokens, parse results and diagnostics on top of karpfen-dsl-tools (and, for environment descriptors,
+  on top of its own JSON parser), core-workspace manages an opened folder with its modeling contexts and their
+  analysis, and core-lang answers editor questions such as completion, hover and go to definition.
 - **ui** is built with Compose Multiplatform for Desktop. ui-foundation holds the theme, widgets, commands and the key
   model, ui-editor the code editor, and ui-workbench the window content: project tree, editor tabs, outline, problems
   and status bar.
@@ -54,7 +54,8 @@ modules, so it is the best first tour of the code.
    `TokenizePipeline` tokenizes every new version at once, `ParseScheduler` parses after a short quiet time, and
    `DiagnosticsMerger` maps all diagnostics onto the newest version. `DefaultDocumentSession` shows how they are wired.
 5. **Tokenizer and parser.** The session gets its `Tokenizer` and `DocumentParser` from the `LanguageSupport` of the
-   document's language; `defaultLanguageRegistry` in the `registry` package wires the three karpfen languages.
+   document's language; `defaultLanguageRegistry` in the `registry` package wires the three modeling languages and
+   environment descriptors.
 6. **Highlighting.** `HighlightPipeline` in the `state` package of ui-editor combines the new tokens with the latest
    parse through `LanguageServices.highlight` of core-lang and publishes the highlight spans.
 7. **Drawing.** `CodeEditor` in the `view` package renders the editor state. Its text layer `EditorTextArea` draws
@@ -78,9 +79,10 @@ tells which text a version belongs to. `DefaultEditableText` is the implementati
 
 ## Tokenizing and parsing (core-document)
 
-- **Languages.** `KarpfenLanguage` names the languages. `LanguageRegistry` and `LanguageSupport` (package `language`)
-  give each language its tokenizer and parser; `defaultLanguageRegistry` (package `registry`) wires them and explains
-  how a fourth language would be added.
+- **Languages.** `KarpfenLanguage` names the languages: KMeta, KModel and KStates, the modeling languages, and
+  environment descriptors. `LanguageRegistry` and `LanguageSupport` (package `language`) give each language its
+  tokenizer and parser; `defaultLanguageRegistry` (package `registry`) wires them and explains how a further language
+  is added.
 - **Tokens.** `Tokenizer`, `SyntaxToken` and `TokenKind` (package `syntax`) are the token model. `KarpfenSyntax` holds
   the lexical facts that the tokenizers, the language services and the editor must agree on.
 - **Parse outcomes.** `DocumentParser` and `ParseOutcome` (package `parse`) describe what a parse yields: the outline
@@ -92,6 +94,13 @@ tells which text a version belongs to. `DefaultEditableText` is the implementati
   `EVAL` bodies.
 - **dsl-tools adapter.** The `dsl` package wraps the dsl-tools converters (`DslConverter`) and places their errors,
   which carry no positions, in the text (`DslErrorLocator`).
+- **JSON.** The `json` package reads JSON the way the editor needs it, written for the IDE rather than taken from a
+  library: `JsonLexer` and `JsonTokenizer` split it into tokens, `JsonParser` builds a `JsonDocument` whose `JsonNode`
+  tree keeps every range and survives broken text (`JsonTreeBuilder` documents how it recovers).
+- **Environment descriptors.** The `environment` package is the descriptor language. `EnvironmentSchema` is the one
+  home of the descriptor keys: their nesting and value shapes (`ValueShape`, `DescriptorKey`), which are required and
+  what role a named file plays (`DescriptorFileRole`). `shapedValues` walks a descriptor along the schema, and
+  `EnvironmentSyntaxAnalyzer` turns a descriptor into outline, folding, semantic spans and syntax diagnostics.
 - **Diagnostics.** `Diagnostic` and `DiagnosticCodes` in the root package describe a problem; `mergeDiagnostics` in
   the `session` package is the one rule that combines the diagnostic sources of a document.
 
@@ -106,11 +115,13 @@ below, which the `Workspace` factory function creates.
 - **Documents.** The `document` package opens, saves and reloads documents: `DocumentManager` and `OpenDocument`,
   `SourceLoader` for reading files, `AtomicTextFileStore` for writing them, and `DiskSynchronizer` for changes made
   outside the IDE and the conflicts they cause.
-- **Environment descriptors.** The `environment` package reads `*.kenv.json` files: `EnvironmentDescriptor` is the one
-  source of their shape, `JsonEnvironmentDescriptorReader` and `DescriptorSchema` turn their mistakes into
-  diagnostics with positions.
+- **Environment descriptors.** The `environment` package reads `*.kenv.json` files: `JsonEnvironmentDescriptorReader`
+  parses them with core-document's JSON parser, checks them against `EnvironmentSchema` with `DescriptorValidator`
+  and decodes them into the typed `EnvironmentDescriptor`, whose keys are the schema's (`EnvironmentSchemaAgreementTest`
+  keeps the two in step). `DescriptorPaths` is how a descriptor names files.
 - **Modeling contexts.** The `context` package decides which files are analyzed together: `ModelingContext`, and
-  `ContextResolver` with the rules for descriptors, directories and loose files.
+  `ContextResolver` with the rules for descriptors, directories and loose files. `ContextTracker` reads an open
+  descriptor from its editor text, so its findings, the contexts and the analysis follow unsaved edits.
 - **Analysis.** The `analysis` package converts every context with dsl-tools: `ProjectAnalyzer` documents the rules,
   `DefaultProjectAnalyzer` implements them, `ProjectAnalysis` is the result, and `AnalysisScheduler` runs the
   analysis again, debounced and cancellable, when the contexts or the open documents change.
@@ -125,8 +136,9 @@ matching, and at `LanguageDocument`, its immutable input, whose KDoc explains ho
 `defaultLanguageServices` in the `services` package creates the facade for one workspace.
 
 - **Per language.** `LanguageFeatures` (package `feature`) is the family of providers of one language;
-  `karpfenLanguageFeatures` lists the three. The packages `kmeta`, `kmodel` and `kstates` hold the providers, for
-  example `KstatesCompletionProvider`.
+  `karpfenLanguageFeatures` lists them. The packages `kmeta`, `kmodel` and `kstates` hold the providers, for example
+  `KstatesCompletionProvider`; the package `environment` holds those of descriptors, which find the place of the caret
+  with `DescriptorCaret` and what the named files declare with `DescriptorProject`.
 - **Shared mechanics.** `CaretContextDetector` (package `context`) finds out what surrounds the caret, `TypeCatalog`
   (package `symbols`) knows the types of a modeling context, `ModelPathResolver` (package `modelpath`) resolves model
   paths such as `$(boundingBox->position)`, `DefaultHighlightProvider` (package `highlight`) maps tokens and semantic
@@ -215,6 +227,8 @@ Typical changes and where they start:
   in `EditorActionIds`, its title in `EditorActionTitles` and its shortcut in `defaultKeyBindings`; the workbench
   registers it as a command (`EditorCommands`), and `IdeMenus` places it in a menu;
 - a new language feature: the provider in the language's package of core-lang, registered in its `LanguageFeatures`;
+- a new descriptor key: `EnvironmentSchema` in core-document and the typed `EnvironmentDescriptor` in core-workspace;
+  checks, highlighting, completion and hover follow the schema;
 - a new module: `settings.gradle.kts`, a rule in `ModuleDependencyRules` and an entry in `KarpfenModules`.
 
 ## Conventions
@@ -231,8 +245,8 @@ Typical changes and where they start:
 - Packages are organized by feature and form no cycles.
 - Foreign APIs stay behind adapters: ANTLR and dsl-tools in core-document's `antlr` and `dsl` packages, the desktop's
   file operations and folder chooser in the workbench's `files.desktop` package.
-- One source per fact: for example `KarpfenSyntax` for lexical facts, `mergeDiagnostics` for merging diagnostics and
-  `EditableText.mapRange` for mapping ranges between versions.
+- One source per fact: for example `KarpfenSyntax` for lexical facts, `EnvironmentSchema` for descriptor keys,
+  `mergeDiagnostics` for merging diagnostics and `EditableText.mapRange` for mapping ranges between versions.
 
 The architecture tests check many of these rules on every build.
 
@@ -260,7 +274,8 @@ build.
 - The core and UI modules each have a contract test of their public values and wiring, for example
   `DocumentContractTest`, `LanguageContractTest`, `EditorContractTest` and `WorkbenchContractTest`.
 - Shared fixtures are in the test fixtures of core-document: `Examples` loads the example files copied from the karpfen
-  repositories, `DescriptorExamples` the environment descriptors written for the IDE's tests, `SyntheticKstates`
+  repositories, `DescriptorExamples` the environment descriptors written for the IDE's tests (`DescriptorFixture` of
+  core-lang puts them into the example workspace), `SyntheticKstates`
   generates large KStates documents for the benchmarks, and `Mutations` generates the deterministic random mutations
   that the robustness tests (for example `TokenizerRobustnessTest`) feed through tokenizers, parsers and language
   services.

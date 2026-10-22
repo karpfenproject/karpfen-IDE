@@ -105,24 +105,26 @@ Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, 
 
 ## Environment descriptors (2 minutes)
 
-> **New in the current increment, being built in parallel with this document.** Environment descriptors become
-> editable in the IDE. If the build you test still opens a descriptor in the system's default application, skip this
-> section and note that. The steps describe the intended behaviour.
-
 1. Right-click `robot/` in the Project tree and choose **New Environment File**, named `robot`. `robot.kenv.json`
    opens in an editor tab, not in another application. It names the four files of the folder, attaches the state
-   machine to `turtle`, and is highlighted: keys, strings and numbers in their own colours.
-2. Start a new line inside the outer object and press **Ctrl+M**: completion offers the descriptor's keys that are not
-   there yet, for example `tickDelayMs` and `eventTtlMs`. Accept one and give it a value such as `50`.
-3. Put the caret inside the quotes of the `"model"` value, delete the file name and press Ctrl+M: completion offers file
-   paths relative to the descriptor, among them `cleaning_robot.kmodel`. Accept it.
-4. Change the `"model"` value to `missing.kmodel`. An error underline appears at the file name, and Problems lists it
-   under `robot.kenv.json`. Rename the key `tickDelayMs` to `tickDelay`: a warning for the unknown key appears at the
-   key. Undo both changes with Cmd+Z until the underlines are gone.
-5. Cmd+click `cleaning_robot.kstates` in the descriptor, or put the caret on it and press Cmd+B: the state machine opens
-   in its tab.
+   machine to `turtle` and observes the event domain `public`. Keys, file paths (underlined), the object key and
+   numbers have their own colours, and the Outline lists the keys. Edit ▸ Toggle Comment is greyed out, because JSON
+   has no comments.
+2. Put the caret after the last value of the outer object (the `}` that closes `"observe"`), press Enter and then
+   **Ctrl+M**: completion offers the keys that are not there yet, for example `tickDelayMs` and `eventTtlMs`. Accept
+   `tickDelayMs`: it arrives with the comma it needs and the value `50`.
+3. Put the caret inside the quotes of the `"model"` value, delete the file name and press Ctrl+M: completion offers the
+   models of the workspace relative to the descriptor, `cleaning_robot.kmodel` first. Accept it. Delete `turtle` from
+   the `"attachedTo"` value and press Ctrl+M: completion offers the model's objects, `turtle` first because it is the
+   `Robot` the state machine is attached to.
+4. Change the `"model"` value to `missing.kmodel` without saving. Within a second an error underline appears at the
+   file name and Problems lists it under `robot.kenv.json`. Rename the key `tickDelayMs` to `tickDelay`: a warning for
+   the unknown key appears at the key. Rest the mouse on a key: a tooltip explains it. Undo both changes with Cmd+Z
+   until the underlines are gone.
+5. Rest the mouse on `turtle`: the tooltip shows `object turtle: Robot`. Cmd+click `cleaning_robot.kstates`, or put the
+   caret on it and press Cmd+B: the state machine opens in its tab. Cmd+click `turtle`: the model opens at the object.
 6. Save the descriptor with Cmd+S. Problems shows no finding for it, and the status bar is back to 0 errors and
-   0 warnings.
+   0 warnings. Right-click it in the Project tree: Reveal in Finder still shows the file in Finder.
 
 ## Undo and redo (1 minute)
 

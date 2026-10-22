@@ -11,7 +11,8 @@ language core.
 **Status: the text editor (phase 1) is complete.** The IDE opens a folder of karpfen files and edits them with syntax
 and semantic highlighting (including the Python of `EVAL` bodies), live syntax diagnostics, the diagnostics of a
 karpfen-dsl-tools analysis of each modeling context, completion, go to definition, hover, outline, problems, find and
-replace, and a project tree with file templates; `karpfen validate` checks a folder from the command line. The work
+replace, and a project tree with file templates; environment descriptors are edited the same way, with completion of
+their keys, files and objects. `karpfen validate` checks a folder from the command line. The work
 continues in the [increments after phase 1](docs/plans/increments-after-phase-1.md); diagrams, the runtime and the
 bridges are stubs so far.
 
@@ -178,14 +179,16 @@ Every module keeps its code below the package prefix `io.karpfen.ide`, followed 
 - **core/core-text**: the text of one document, with atomic edits, immutable snapshots, line and column positions,
   undo and redo with typing coalescing, and the mapping of positions between versions. Start at `EditableText` and
   `TextSnapshot`.
-- **core/core-document**: tokens, parse outcomes and diagnostics of a document on top of karpfen-dsl-tools, kept up to
-  date by a document session. Start at `DocumentSession` (package `session`) and `LanguageSupport` (package
-  `language`).
+- **core/core-document**: tokens, parse outcomes and diagnostics of a document on top of karpfen-dsl-tools, and of
+  environment descriptors on top of the IDE's own JSON parser, kept up to date by a document session. Start at
+  `DocumentSession` (package `session`), `LanguageSupport` (package `language`) and, for descriptors,
+  `EnvironmentSchema` (package `environment`).
 - **core/core-workspace**: an opened folder, with its file tree and watcher, open documents and saving, environment
   descriptors, modeling contexts, the dsl-tools analysis of every context, and the problems of every file. Start at
   `Workspace`.
 - **core/core-lang**: the language services for highlighting, completion, go to definition, references, hover and
-  bracket matching in the three languages. Start at `LanguageServices` and `LanguageFeatures` (package `feature`).
+  bracket matching in the three modeling languages and in environment descriptors. Start at `LanguageServices` and
+  `LanguageFeatures` (package `feature`).
 
 **UI**, built with Compose Multiplatform for Desktop:
 

@@ -23,7 +23,7 @@ public object DescriptorExamples {
      */
     public const val UNKNOWN_KEY_AND_MISSING_FILE: String = "unknown_key_and_missing_file.kenv.json"
 
-    /** Truncated JSON (ERROR `descriptor-invalid`, no context). */
+    /** Truncated JSON (ERROR `syntax-error` at the end of the text, no context). */
     public const val INVALID_JSON: String = "invalid_json.kenv.json"
 
     /** The example directory whose files the descriptors name. */
