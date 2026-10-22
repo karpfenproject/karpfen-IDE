@@ -45,7 +45,7 @@ A Konsist rule enforces this (only that package may import `org.antlr..`, `kmeta
 - **Determinism**: randomized tests use fixed seeds. Time is injected (`kotlin.time.TimeSource` or a
   `() -> Long` clock) wherever behaviour depends on time (undo coalescing, debounce in tests via
   `kotlinx-coroutines-test` virtual time).
-- **No time-budget testing in test runs** (owner decision, 2026-10-22, [ADR 0011](adr/0011-time-budget-tests-are-not-run.md)):
+- **No time-budget testing in test runs** (owner decision, 2026-10-22, [ADR 0011](../../adr/0011-time-budget-tests-are-not-run.md)):
   a test that compares a wall-clock duration with a limit carries the JUnit tag `budget` and is excluded from every
   test task, CI included. Machine load and sleep/wake cycles make the clock unreliable; performance tuning is a later
   task. The budgets below are targets that such tests document, not build gates.

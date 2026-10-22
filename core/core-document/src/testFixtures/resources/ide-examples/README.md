@@ -3,8 +3,8 @@
 Unlike `../examples/` (unmodified copies from the karpfen repositories, see `../examples/NOTICE.md`), the files below
 this directory were written for karpfen IDE's own tests (Apache License 2.0, like the rest of this repository).
 
-`descriptors/` holds environment descriptors (`*.kenv.json`, spec §4) for the files of
-`examples/karpfen-runtime/single_robot_example`. They are read by
+`descriptors/` holds environment descriptors (`*.kenv.json`, whose shape is documented on `EnvironmentDescriptor` in
+core-workspace) for the files of `examples/karpfen-runtime/single_robot_example`. They are read by
 `io.karpfen.ide.core.document.fixtures.DescriptorExamples`:
 
 | File | Content | Expected findings |

@@ -14,9 +14,9 @@ Status: **phase 1 (text editing) complete**. The IDE opens a folder of karpfen f
 semantic highlighting (including the Python of `EVAL` bodies), live syntax diagnostics, the diagnostics of a
 karpfen-dsl-tools analysis of each modeling context, completion, go to definition, hover, outline, problems, find and
 replace, and a project tree with file templates; `karpfen validate` checks a folder from the command line. The phase's
-contract is [docs/p1-text-editing-spec.md](docs/p1-text-editing-spec.md) (work packages in
-[docs/p1-work-packages.md](docs/p1-work-packages.md), manual smoke test in
-[docs/p1-manual-test.md](docs/p1-manual-test.md)). Diagrams, the runtime and the bridges (later phases) are stubs.
+contract is [docs/history/phase-1/p1-text-editing-spec.md](docs/history/phase-1/p1-text-editing-spec.md) (work packages in
+[docs/history/phase-1/p1-work-packages.md](docs/history/phase-1/p1-work-packages.md), manual smoke test in
+[docs/manual-test.md](docs/manual-test.md)). Diagrams, the runtime and the bridges (later phases) are stubs.
 
 ## Modules
 
@@ -167,7 +167,7 @@ KARPFEN_IDE_HOME=/tmp/karpfen-home KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app
 grep ERROR /tmp/karpfen-home/logs/ide.log   # prints nothing
 ```
 
-Before a release, run the 10-minute manual smoke test in [docs/p1-manual-test.md](docs/p1-manual-test.md) (German
+Before a release, run the 10-minute manual smoke test in [docs/manual-test.md](docs/manual-test.md) (German
 keyboard layout, completion, navigation, save/undo, external changes, quit).
 
 ### Command-line tool

@@ -1,8 +1,8 @@
 # Example files: origin and license
 
 The `.kmeta`, `.kmodel` and `.kstates` files below this directory are unmodified copies of example files from two
-karpfen repositories. They serve as test fixtures for karpfen IDE (spec `docs/p1-text-editing-spec.md` §10) and are
-listed in `index.txt`.
+karpfen repositories. They serve as test fixtures for karpfen IDE, are listed in `index.txt` and are loaded by
+`Examples` in the core-document test fixtures (`io.karpfen.ide.core.document.fixtures`).
 
 | Folder | Origin repository | Commit | Copied paths |
 |---|---|---|---|

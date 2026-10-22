@@ -6,7 +6,7 @@ Status: v1.0, 2026-10-21. Written when phase 1 closed, for the owner. Verified o
 registered, and no `TODO(` is left.
 The phase's contract is [p1-text-editing-spec.md](p1-text-editing-spec.md). Ownership and the refining decisions are
 in [p1-work-packages.md](p1-work-packages.md), and the manual smoke test is
-[p1-manual-test.md](p1-manual-test.md).
+[manual-test.md](../../manual-test.md).
 
 **Result: phase 1 is complete.** All seven items of the definition of done (spec §11) were checked again on the final
 code and are met (§4). Item 7 is the manual test document; running it on a real Mac is the owner's step. Two review
@@ -80,7 +80,7 @@ dsl-tools prints is suppressed.
 
 ## 2. How to run and test
 
-Requirements and build modes are in the [README](../README.md#build-and-run) (JDK 17+ for Gradle, JDK 21 toolchain).
+Requirements and build modes are in the [README](../../../README.md#build-run-and-test) (JDK 17+ for Gradle, JDK 21 toolchain).
 
 ```bash
 ./gradlew build                                   # compile, 1,572 tests, architecture and module-dependency checks
@@ -97,11 +97,11 @@ KARPFEN_IDE_HOME=/tmp/karpfen-home KARPFEN_IDE_EXIT_AFTER_MS=8000 ./gradlew :app
 grep ERROR /tmp/karpfen-home/logs/ide.log         # prints nothing
 ```
 
-Before you use phase 1 for real work, run the **10-minute manual smoke test in [p1-manual-test.md](p1-manual-test.md)**
+Before you use phase 1 for real work, run the **10-minute manual smoke test in [manual-test.md](../../manual-test.md)**
 on your Mac with the German input source. It covers what headless tests cannot: the native menu bar, typing with
 Option combinations, dead keys and the accent menu, real focus and mouse handling, the file watcher and quitting.
 Each module's test report is at `<module>/build/reports/tests/test/index.html`. Time-budget tests are no longer run
-(tag `budget`, [ADR 0011](adr/0011-time-budget-tests-are-not-run.md)); the measurements in §5 are from before that decision.
+(tag `budget`, [ADR 0011](../../adr/0011-time-budget-tests-are-not-run.md)); the measurements in §5 are from before that decision.
 
 ## 3. Verification environment
 
@@ -152,7 +152,7 @@ from the build cache in the composite run.
 The skipped test (`DesktopFileOperationsTest`, a case-only rename onto another file of that name) assumes a
 case-sensitive file system. On macOS it is skipped by design; the case-insensitive path is tested.
 
-Budgets of the spec, measured on 2026-10-21 before [ADR 0011](adr/0011-time-budget-tests-are-not-run.md) excluded the
+Budgets of the spec, measured on 2026-10-21 before [ADR 0011](../../adr/0011-time-budget-tests-are-not-run.md) excluded the
 `budget`-tagged tests from every test run (they are documentation for later performance work now, not gates):
 
 | Budget | Spec | Measured |
@@ -278,7 +278,7 @@ the reasons are not recorded here. Round 1: `failed-delete-rename-loses-edits`,
 Nothing found during this verification needs a fix before phase 1 is used. The following are known and accepted.
 
 **Not verified by automation**
-- No run of the manual smoke test ([p1-manual-test.md](p1-manual-test.md)) is recorded yet. The headless tests
+- No run of the manual smoke test ([manual-test.md](../../manual-test.md)) is recorded yet. The headless tests
   cannot cover the native macOS menu bar, real keyboard layouts (Option combinations, dead keys, the accent menu,
   IME), real focus and mouse handling, or quitting.
 - The branch has not been pushed, so CI (composite mode at the pinned dsl-tools commit) has not run on it. Both
@@ -339,5 +339,5 @@ From [p1-work-packages.md §8](p1-work-packages.md#8-open-questions-for-the-owne
 ## 9. Next step
 
 Phase 2 (runtime: the Docker-based runtime host, deploy/run/stop, event injector, model mirror; see the
-[roadmap](architecture-proposal.md#7-roadmap)) has not been started. It needs Docker and the karpfen runtime and waits
+[roadmap](../../architecture-proposal.md#roadmap)) has not been started. It needs Docker and the karpfen runtime and waits
 for your go-ahead. Before that, please run the manual smoke test and answer the open questions above.

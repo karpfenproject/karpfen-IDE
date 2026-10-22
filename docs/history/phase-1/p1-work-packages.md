@@ -1119,7 +1119,7 @@ Added by the review fixes of the core group (r2):
     separator, byte order mark; `DefaultOpenDocument.knowsContentOf`), not by findings, which derive from it. So the
     save's own watch event stays a no-op for a loader with findings of its own and for a text starting with U+FEFF,
     which used to raise a false MODIFIED conflict.
-71. **Time-budget tests are written but not run** (owner decision 2026-10-22, [ADR 0011](adr/0011-time-budget-tests-are-not-run.md)).
+71. **Time-budget tests are written but not run** (owner decision 2026-10-22, [ADR 0011](../../adr/0011-time-budget-tests-are-not-run.md)).
     The eight test classes that assert wall-clock budgets (core-text `TextBudgetTest`, core-document
     `TokenizeBudgetTest` and `ParseBudgetTest`, core-lang `LanguageServicesBudgetTest`, ui-editor `FindBudgetTest`,
     `CodeEditorBenchmarkTest` and `FindMatchPaintingBenchmarkTest`, ui-foundation `TreeViewScaleTest`'s timing tests)
