@@ -43,10 +43,11 @@ internal object KarpfenModules {
     const val ANTLR_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.antlr"
 
     /**
-     * The only package (with its sub-packages) that may use the dsl-tools converters (`io.karpfen.dsl.dsl.textual`),
-     * builders (`io.karpfen.dsl.dsl.functional`) and file parsers (`io.karpfen.dsl.parser`): adapters isolate foreign
-     * APIs. core-workspace reaches them through this package's public `DslConverter` adapter, so it needs no adapter
-     * package of its own.
+     * The only package (with its sub-packages) that may use the dsl-tools readers (`io.karpfen.dsl.reader`), the
+     * diagnostics and source positions they report (`io.karpfen.dsl.diagnostics`, `io.karpfen.dsl.source`), and the
+     * converters (`io.karpfen.dsl.dsl.textual`), builders (`io.karpfen.dsl.dsl.functional`) and file parsers
+     * (`io.karpfen.dsl.parser`): adapters isolate foreign APIs. core-workspace reaches the readers through this
+     * package's public `DslReader` adapter, so it needs no adapter package of its own.
      */
     const val DSL_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.dsl"
 

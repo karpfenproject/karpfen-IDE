@@ -8,7 +8,7 @@ import io.karpfen.ide.core.document.antlr.lex.KstatesTokenizer
 import io.karpfen.ide.core.document.antlr.tree.KmetaSyntaxAnalyzer
 import io.karpfen.ide.core.document.antlr.tree.KmodelSyntaxAnalyzer
 import io.karpfen.ide.core.document.antlr.tree.KstatesSyntaxAnalyzer
-import io.karpfen.ide.core.document.dsl.DslConverter
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.dsl.KmetaStandaloneSemantics
 import io.karpfen.ide.core.document.dsl.KstatesStandaloneSemantics
 import io.karpfen.ide.core.document.environment.EnvironmentSyntaxAnalyzer
@@ -20,19 +20,19 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.Tokenizer
 
 /**
- * KMeta: tokenizer, syntax analyzer, standalone conversion with `KmetaDSLConverter`. Wiring only, like every support
- * of [defaultLanguageRegistry].
+ * KMeta: tokenizer, syntax analyzer, standalone semantics with the KMeta reader of dsl-tools. Wiring only, like every
+ * support of [defaultLanguageRegistry].
  */
-internal class KmetaLanguageSupport(converter: DslConverter) : LanguageSupport {
+internal class KmetaLanguageSupport(reader: DslReader) : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.KMETA
     override val tokenizer: Tokenizer = KmetaTokenizer()
     override val parser: DocumentParser =
-        ComposedDocumentParser(language, KmetaSyntaxAnalyzer(), KmetaStandaloneSemantics(converter))
+        ComposedDocumentParser(language, KmetaSyntaxAnalyzer(), KmetaStandaloneSemantics(reader))
     override val lineComment: String = KarpfenSyntax.LINE_COMMENT
 }
 
 /**
- * KModel: tokenizer and syntax analyzer; no standalone semantics, because a model only converts against its metamodel,
+ * KModel: tokenizer and syntax analyzer; no standalone semantics, because a model is only read against its metamodel,
  * which the project analysis of core-workspace supplies.
  */
 internal class KmodelLanguageSupport : LanguageSupport {
@@ -42,12 +42,12 @@ internal class KmodelLanguageSupport : LanguageSupport {
     override val lineComment: String = KarpfenSyntax.LINE_COMMENT
 }
 
-/** KStates: tokenizer with EVAL scanning, syntax analyzer, standalone conversion with `KstatesDSLConverter`. */
-internal class KstatesLanguageSupport(converter: DslConverter) : LanguageSupport {
+/** KStates: tokenizer with EVAL scanning, syntax analyzer, standalone semantics with the KStates reader of dsl-tools. */
+internal class KstatesLanguageSupport(reader: DslReader) : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.KSTATES
     override val tokenizer: Tokenizer = KstatesTokenizer()
     override val parser: DocumentParser =
-        ComposedDocumentParser(language, KstatesSyntaxAnalyzer(), KstatesStandaloneSemantics(converter))
+        ComposedDocumentParser(language, KstatesSyntaxAnalyzer(), KstatesStandaloneSemantics(reader))
     override val lineComment: String = KarpfenSyntax.LINE_COMMENT
 }
 

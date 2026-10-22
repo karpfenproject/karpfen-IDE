@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.workspace.analysis
 
 import io.karpfen.ide.core.document.DiagnosticSource
+import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.fixtures.Mutations
@@ -18,8 +19,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Covers the robustness of the analyzer: it never throws on mutated contexts (fixed seeds), converts only syntax-clean
- * files (so dsl-tools writes nothing to `System.err`) and keeps every diagnostic inside its file's text.
+ * Covers the robustness of the analyzer: it never throws on mutated contexts (fixed seeds), lets dsl-tools read only
+ * syntax-clean files (a read of broken text would report DSL_TOOLS findings on it), reads models only against a
+ * metamodel without errors, and keeps every diagnostic inside its file's text.
  */
 class ProjectAnalyzerRobustnessTest {
 
@@ -37,24 +39,21 @@ class ProjectAnalyzerRobustnessTest {
     )
 
     @Test
-    fun `mutated contexts analyze without exceptions, stderr output or DSL_TOOLS findings on broken files`(reporter: TestReporter) =
+    fun `mutated contexts analyze without exceptions or DSL_TOOLS findings on broken files`(reporter: TestReporter) =
         runTest(timeout = 300.seconds) {
             val analyzer = analyzer()
             val mark = TimeSource.Monotonic.markNow()
             var runs = 0
-            val stderr = capturingStandardError {
-                for ((index, mutated) in files.withIndex()) {
-                    for (mutation in Mutations.random(mutated.text, seed = 1_000L + index, count = MUTATIONS_PER_FILE)) {
-                        val texts = files.associate { pathOf(it.fileName) to if (it === mutated) mutation.text else it.text }
-                        val sources = AnalysisSources { path -> texts[path]?.let { SourceText(TextSnapshot(it, 0), parse = null) } }
-                        val analysis = analyzer.analyze(ContextResolution(listOf(context), emptyMap()), sources, generation = 1)
-                        assertWellFormed(analysis, "$mutation of ${mutated.fileName}")
-                        runs++
-                    }
+            for ((index, mutated) in files.withIndex()) {
+                for (mutation in Mutations.random(mutated.text, seed = 1_000L + index, count = MUTATIONS_PER_FILE)) {
+                    val texts = files.associate { pathOf(it.fileName) to if (it === mutated) mutation.text else it.text }
+                    val sources = AnalysisSources { path -> texts[path]?.let { SourceText(TextSnapshot(it, 0), parse = null) } }
+                    val analysis = analyzer.analyze(ContextResolution(listOf(context), emptyMap()), sources, generation = 1)
+                    assertWellFormed(analysis, "$mutation of ${mutated.fileName}")
+                    runs++
                 }
             }
             reporter.publishEntry("analyzer robustness", "$runs mutated contexts analyzed in ${mark.elapsedNow()}")
-            assertEquals("", stderr)
         }
 
     /** Asserts the invariants of the class documentation on the single context of [analysis]. */
@@ -62,12 +61,17 @@ class ProjectAnalyzerRobustnessTest {
         val result = analysis.contexts.single()
         for ((path, file) in result.files) {
             val dslTools = analysis.diagnosticsFor(path).filter { it.source == DiagnosticSource.DSL_TOOLS }
-            if (!file.parse.isSyntaxClean) assertEquals(emptyList(), dslTools, "$label: a broken file is never converted")
+            if (!file.parse.isSyntaxClean) assertEquals(emptyList(), dslTools, "$label: a broken file is never read")
             (file.ownDiagnostics + analysis.diagnosticsFor(path)).forEach { diagnostic ->
                 assertTrue(diagnostic.range.end <= file.snapshot.length, "$label: ${diagnostic.range} outside ${path.fileName}")
             }
         }
-        if (result.metamodel == null) assertEquals(emptyMap(), result.models, "$label: no model without metamodel")
+        val metamodelErrors = analysis.diagnosticsFor(pathOf("cleaning_robot.kmeta"))
+            .filter { it.source == DiagnosticSource.DSL_TOOLS && it.severity == Severity.ERROR }
+        if (result.metamodel == null || metamodelErrors.isNotEmpty()) {
+            assertEquals(emptyMap(), result.models, "$label: no model without a metamodel free of errors")
+            assertEquals(null, result.events, "$label: no events without a metamodel free of errors")
+        }
     }
 
     private companion object {

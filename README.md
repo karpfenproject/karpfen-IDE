@@ -91,8 +91,9 @@ Settings (`settings.json`: recent folders, theme, font size, window bounds, tool
 (`logs/ide.log`) live in `~/.karpfen-ide`. The environment variable `KARPFEN_IDE_HOME=<dir>` moves both, for example for
 a throw-away run.
 
-What karpfen-dsl-tools logs while the IDE analyzes never appears on the IDE's console. View ▸ Language Tools Output
-opens a tool window below Problems that shows it line by line with level, logger and message; it follows new output
+What karpfen-dsl-tools logs never appears on the IDE's console. Its readers, with which the IDE analyzes the files,
+report every problem as a diagnostic and log nothing; whatever else dsl-tools logs goes to View ▸ Language Tools
+Output, a tool window below Problems that shows it line by line with level, logger and message; it follows new output
 and can be cleared. The same lines go to `logs/dsl-tools.log` next to the IDE log, and the warnings and errors among
 them are forwarded to `logs/ide.log` as well. When warnings or errors arrive while the tool window is hidden, the status
 bar shows `Language tools: n`, which opens it. `app/ide/src/main/resources/logback.xml` describes the routing.

@@ -42,17 +42,17 @@ class ComposedDocumentParserTest {
         override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis = result()
     }
 
-    /** A conversion that returns what [result] gives and records the arguments of every call in [calls]. */
+    /** A conversion that returns what [result] gives and records the snapshot of every call in [calls]. */
     private class RecordingSemantics(private val result: () -> StandaloneResult) : StandaloneSemantics {
-        val calls = ArrayList<Pair<TextSnapshot, SyntaxIndex>>()
-        override fun convert(snapshot: TextSnapshot, index: SyntaxIndex): StandaloneResult {
-            calls += snapshot to index
+        val calls = ArrayList<TextSnapshot>()
+        override fun convert(snapshot: TextSnapshot): StandaloneResult {
+            calls += snapshot
             return result()
         }
     }
 
     private val model = DslModel.Kmeta(Metamodel(mutableListOf(), ClassType("Root", "", mutableListOf(), mutableListOf())))
-    private val dslError = Diagnostic(TextRange(6, 7), Severity.ERROR, "bad 'A'", DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
+    private val dslError = Diagnostic(TextRange(6, 7), Severity.ERROR, "bad 'A'", "kmeta.unknown-target-type", DiagnosticSource.DSL_TOOLS)
 
     @Test
     fun `syntax only by default never converts`() {
@@ -69,7 +69,7 @@ class ComposedDocumentParserTest {
     }
 
     @Test
-    fun `standalone mode converts clean syntax with the outcome's index`() {
+    fun `standalone mode converts clean syntax`() {
         val semantics = RecordingSemantics { StandaloneResult(model, emptyList()) }
         val parser = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { clean }, semantics)
 
@@ -77,8 +77,7 @@ class ComposedDocumentParserTest {
 
         assertSame(model, outcome.standaloneModel)
         assertEquals(emptyList(), outcome.standaloneDiagnostics)
-        assertSame(snapshot, semantics.calls.single().first)
-        assertSame(clean.index, semantics.calls.single().second)
+        assertSame(snapshot, semantics.calls.single())
     }
 
     @Test

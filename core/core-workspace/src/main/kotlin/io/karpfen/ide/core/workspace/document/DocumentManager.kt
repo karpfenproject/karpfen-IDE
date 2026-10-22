@@ -21,7 +21,7 @@ import java.nio.file.Path
  *
  * Semantic mode (MUST): every session is created with `SemanticMode.SYNTAX_ONLY` (the base
  * `WorkspaceOptions.sessionConfig` with that mode), whatever the file's role. In a workspace the project analysis is the
- * only place that converts files (context files through `DslConverter`, loose files never), and its DSL_TOOLS
+ * only place where dsl-tools reads files (context files through `DslReader`, loose files never), and its DSL_TOOLS
  * diagnostics reach open documents as `ExternalDiagnosticSources.PROJECT`; so opening, closing or re-classifying a file
  * (e.g. it becomes loose when a descriptor appears) never changes what is reported, and the IDE and the CLI report the
  * same.

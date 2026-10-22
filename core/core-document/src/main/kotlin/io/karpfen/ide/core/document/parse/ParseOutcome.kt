@@ -16,8 +16,10 @@ import io.karpfen.ide.core.document.KarpfenLanguage
  * @property folding foldable regions sorted by start.
  * @property semanticSpans sorted, non-overlapping semantic spans.
  * @property standaloneModel the dsl-tools model of this file alone, if [SemanticMode.STANDALONE] was requested, the
- *   language supports it (KMeta, KStates) and there were no syntax diagnostics; null otherwise.
- * @property standaloneDiagnostics DSL_TOOLS diagnostics of the standalone conversion (empty if it did not run).
+ *   language supports it (KMeta, KStates), there were no syntax diagnostics and the text yields a model; partial if
+ *   [standaloneDiagnostics] hold an error; null otherwise.
+ * @property standaloneDiagnostics DSL_TOOLS diagnostics of the standalone read, at the places the dsl-tools reader
+ *   reports (empty if it did not run).
  */
 public data class ParseOutcome(
     public val language: KarpfenLanguage,

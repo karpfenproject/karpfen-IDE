@@ -2,7 +2,7 @@ package io.karpfen.ide.core.workspace
 
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
-import io.karpfen.ide.core.document.dsl.DslConverter
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.document.session.VersionedDiagnostics
 import io.karpfen.ide.core.text.EditOrigin
@@ -170,7 +170,7 @@ class WorkspaceDocumentsTest {
         val gate = CompletableDeferred<Unit>()
         var holding = false
         val languages = defaultLanguageRegistry()
-        val real = ProjectAnalyzer(languages, DslConverter())
+        val real = ProjectAnalyzer(languages, DslReader())
         val gated = ProjectAnalyzer { resolution: ContextResolution, sources: AnalysisSources, generation: Long ->
             real.analyze(resolution, sources, generation).also { if (holding) gate.await() }
         }

@@ -1,12 +1,11 @@
 package io.karpfen.ide.core.document.parse
 
-import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.antlr.tree.KmetaSyntaxAnalyzer
 import io.karpfen.ide.core.document.antlr.tree.KmodelSyntaxAnalyzer
 import io.karpfen.ide.core.document.antlr.tree.KstatesSyntaxAnalyzer
-import io.karpfen.ide.core.document.dsl.DslConverter
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.dsl.KmetaStandaloneSemantics
 import io.karpfen.ide.core.document.dsl.KstatesStandaloneSemantics
 import io.karpfen.ide.core.document.fixtures.Examples
@@ -19,16 +18,17 @@ import kotlin.test.assertTrue
 
 /**
  * The parsers as `registry/KarpfenLanguageSupports.kt` wires them (syntax analyzer + dsl-tools standalone semantics),
- * on the examples: zero PARSER diagnostics everywhere; with [SemanticMode.STANDALONE] every example
- * `.kmeta` except `EVENTS.kmeta` (whose payloads reference domain types) and every `.kstates` converts.
+ * on the examples: zero PARSER diagnostics everywhere; with [SemanticMode.STANDALONE] every example `.kmeta` except
+ * `EVENTS.kmeta` (whose payloads reference domain types) and every `.kstates` reads without findings, and a semantic
+ * error is reported where the reader finds it, next to the partial model.
  */
 class StandaloneParseTest {
 
-    private val converter = DslConverter()
+    private val reader = DslReader()
     private val parsers: Map<KarpfenLanguage, DocumentParser> = mapOf(
-        KarpfenLanguage.KMETA to ComposedDocumentParser(KarpfenLanguage.KMETA, KmetaSyntaxAnalyzer(), KmetaStandaloneSemantics(converter)),
+        KarpfenLanguage.KMETA to ComposedDocumentParser(KarpfenLanguage.KMETA, KmetaSyntaxAnalyzer(), KmetaStandaloneSemantics(reader)),
         KarpfenLanguage.KMODEL to ComposedDocumentParser(KarpfenLanguage.KMODEL, KmodelSyntaxAnalyzer(), semantics = null),
-        KarpfenLanguage.KSTATES to ComposedDocumentParser(KarpfenLanguage.KSTATES, KstatesSyntaxAnalyzer(), KstatesStandaloneSemantics(converter)),
+        KarpfenLanguage.KSTATES to ComposedDocumentParser(KarpfenLanguage.KSTATES, KstatesSyntaxAnalyzer(), KstatesStandaloneSemantics(reader)),
     )
 
     @Test
@@ -44,7 +44,7 @@ class StandaloneParseTest {
     }
 
     @Test
-    fun `every example metamodel and state machine converts standalone`() {
+    fun `every example metamodel and state machine reads standalone without findings`() {
         val convertible = Examples.files().filter { it.language != KarpfenLanguage.KMODEL && !it.isEventsMetamodel }
         assertEquals(11, convertible.size, "6 metamodels and 5 state machines")
         convertible.forEach { file ->
@@ -58,38 +58,38 @@ class StandaloneParseTest {
     }
 
     @Test
-    fun `models are never converted on their own`() {
+    fun `models are never read on their own`() {
         Examples.files(KarpfenLanguage.KMODEL).forEach { file ->
             assertNull(parsers.getValue(KarpfenLanguage.KMODEL).parse(TextSnapshot(file.text, 0), SemanticMode.STANDALONE).standaloneModel)
         }
     }
 
     @Test
-    fun `an events metamodel converted on its own reports the domain type it needs at its name`() {
+    fun `an events metamodel read on its own reports the domain type it needs where it is used`() {
         val events = Examples.file("karpfen-runtime/single_robot_example/EVENTS.kmeta").text
 
         val outcome = parsers.getValue(KarpfenLanguage.KMETA).parse(TextSnapshot(events, 0), SemanticMode.STANDALONE)
 
         assertTrue(outcome.isSyntaxClean)
-        assertNull(outcome.standaloneModel)
         val diagnostic = outcome.standaloneDiagnostics.single()
-        assertEquals(DiagnosticSource.DSL_TOOLS to DiagnosticCodes.DSL_TOOLS_ERROR, diagnostic.source to diagnostic.code)
-        assertTrue("'Vector'" in diagnostic.message, diagnostic.message)
+        assertEquals(DiagnosticSource.DSL_TOOLS to "kmeta.unknown-target-type", diagnostic.source to diagnostic.code)
+        assertEquals(events.indexOf("\"Vector\")") + 1, diagnostic.range.start, "in the has, not in the comment above it")
         assertEquals("Vector", events.substring(diagnostic.range.start, diagnostic.range.end))
-        assertEquals('"', events[diagnostic.range.start - 1])
+        val partial = assertIs<DslModel.Kmeta>(outcome.standaloneModel).metamodel
+        assertEquals(setOf("start", "setSpeed", "teleport"), partial.getClassTypes(), "the partial metamodel keeps every type")
     }
 
     @Test
-    fun `a semantic error of a state machine is located and leaves the syntax outcome intact`() {
+    fun `a semantic error of a state machine is reported at the states and leaves the syntax outcome intact`() {
         val text = "STATEMACHINE ATTACHED TO \"T\" {\n STATES {\n  STATE \"a\" { }\n }\n TRANSITIONS { }\n}"
 
         val outcome = parsers.getValue(KarpfenLanguage.KSTATES).parse(TextSnapshot(text, 0), SemanticMode.STANDALONE)
 
         assertTrue(outcome.isSyntaxClean)
-        assertNull(outcome.standaloneModel)
         val diagnostic = outcome.standaloneDiagnostics.single()
-        assertEquals(DiagnosticSource.DSL_TOOLS, diagnostic.source)
-        assertEquals("STATEMACHINE", text.substring(diagnostic.range.start, diagnostic.range.end), "no quoted name: the first token")
+        assertEquals(DiagnosticSource.DSL_TOOLS to "kstates.initial-state-count", diagnostic.source to diagnostic.code)
+        assertEquals("STATES", text.substring(diagnostic.range.start, diagnostic.range.end), "no initial state: the states as a whole")
+        assertEquals(listOf("a"), assertIs<DslModel.Kstates>(outcome.standaloneModel).stateMachine.states.map { it.name })
         assertEquals(listOf("a"), outcome.index.declarationsOf(SymbolKind.STATE).map { it.name })
     }
 }

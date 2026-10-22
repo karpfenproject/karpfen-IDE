@@ -2,7 +2,7 @@ package io.karpfen.ide.core.lang.fixtures
 
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.KarpfenLanguage
-import io.karpfen.ide.core.document.dsl.DslConverter
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.fixtures.ExampleContext
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.language.LanguageRegistry
@@ -28,8 +28,9 @@ import java.util.Collections
 /**
  * The example files (`Examples.contexts()`) as a workspace below [ROOT], analyzed by the conventions documented on
  * `ProjectAnalysis`, without the workspace's analyzer: normalized absolute paths, `TextSnapshot(text, 0)` per file
- * (a lineage of its own), syntax-only parses from `defaultLanguageRegistry()`, conversions through core-document's
- * `DslConverter` — the events file with the domain types as base types.
+ * (a lineage of its own), syntax-only parses from `defaultLanguageRegistry()`, reads through core-document's
+ * `DslReader` — the events file with the domain types as base types, the events and the models only against a domain
+ * metamodel without errors.
  */
 object ExampleProject {
 
@@ -39,8 +40,8 @@ object ExampleProject {
     /** The tokenizers and parsers of the built-in languages, environment descriptors included. */
     val registry: LanguageRegistry = defaultLanguageRegistry()
 
-    /** The dsl-tools adapter of the conversions. */
-    private val converter = DslConverter()
+    /** The dsl-tools adapter of the reads. */
+    private val reader = DslReader()
 
     /** The analysis of every example context (built once). */
     val analysis: ProjectAnalysis by lazy { analyze(Examples.contexts()) }
@@ -57,26 +58,29 @@ object ExampleProject {
         val analyses = contexts.map { example ->
             val files = example.files.associate { file -> pathOf(file.path) to analyzedFile(pathOf(file.path), file.text) }
             val metamodelFile = example.metamodel?.let { files.getValue(pathOf(it.path)) }
-            val metamodel = metamodelFile
-                ?.let { converter.kmeta(it.snapshot, it.parse.index) }
+            val metamodelRead = metamodelFile
+                ?.let { reader.kmeta(it.snapshot) }
                 ?.also { record(diagnostics, metamodelFile, it.diagnostics) }
-                ?.value
+            val domain = metamodelRead?.takeUnless { it.hasErrors }?.model
             val eventsFile = example.events?.let { files.getValue(pathOf(it.path)) }
-            val events = eventsFile?.let { file -> converter.kmeta(file.snapshot, file.parse.index, metamodel?.types.orEmpty()) }
-                ?.also { record(diagnostics, eventsFile, it.diagnostics) }?.value
+            val events = if (domain == null || eventsFile == null) {
+                null
+            } else {
+                reader.kmeta(eventsFile.snapshot, domain.types).also { record(diagnostics, eventsFile, it.diagnostics) }.model
+            }
             val models = example.models.mapNotNull { model ->
                 val file = files.getValue(pathOf(model.path))
-                metamodel
-                    ?.let { converter.kmodel(file.snapshot, file.parse.index, it) }
+                domain
+                    ?.let { reader.kmodel(file.snapshot, it) }
                     ?.also { record(diagnostics, file, it.diagnostics) }
-                    ?.value
+                    ?.model
                     ?.let { file.path to it }
             }.toMap()
             val machines = example.stateMachines.mapNotNull { machine ->
                 val file = files.getValue(pathOf(machine.path))
-                converter.kstates(file.snapshot, file.parse.index)
+                reader.kstates(file.snapshot)
                     .also { record(diagnostics, file, it.diagnostics) }
-                    .value
+                    .model
                     ?.let { file.path to it }
             }.toMap()
             ContextAnalysis(
@@ -89,7 +93,7 @@ object ExampleProject {
                     stateMachines = example.stateMachines.map { StateMachineBinding(pathOf(it.path), attachedTo = null) },
                 ),
                 files = files,
-                metamodel = metamodel,
+                metamodel = metamodelRead?.model,
                 events = events,
                 models = models,
                 stateMachines = machines,

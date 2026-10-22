@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.workspace.analysis
 
 import io.karpfen.ide.core.document.Diagnostic
-import io.karpfen.ide.core.document.dsl.DslConverter
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.document.parse.ParseOutcome
 import io.karpfen.ide.core.document.syntax.TokenizeResult
@@ -10,17 +10,17 @@ import io.karpfen.ide.core.workspace.context.ContextResolution
 import java.nio.file.Path
 
 /**
- * Analyzes every modeling context with dsl-tools, through the core-document [DslConverter] adapter only:
- * metamodel via `kmeta`; events via `kmeta` with the metamodel's types as base types; each model via `kmodel`
- * against the metamodel; each state machine via `kstates`. Exceptions become DSL_TOOLS diagnostics on the right file
- * (ranges located through each file's syntax index). No IDE-side validation rules beyond what dsl-tools reports.
+ * Analyzes every modeling context with dsl-tools, through the core-document [DslReader] adapter only: metamodel via
+ * `kmeta`; events via `kmeta` with the metamodel's types as base types; each model via `kmodel` against the metamodel;
+ * each state machine via `kstates`. What the dsl-tools readers find becomes DSL_TOOLS diagnostics on the file they read,
+ * at the ranges they report, and the models they read, partial ones included, become the [ContextAnalysis]. No IDE-side
+ * validation rules beyond what dsl-tools reports.
  *
- * Syntax first (MUST): a file is converted only when its
- * `AnalyzedFile.parse.isSyntaxClean` (dsl-tools would log ANTLR syntax errors and report cryptic messages next to the
- * PARSER errors, see [DslConverter]). A conversion that needs a metamodel which was not converted (missing,
- * not syntax-clean or rejected) is skipped: the events file and the models without a domain metamodel. A skipped
- * conversion reports nothing of its own — the broken file reports its syntax errors — so while the user types, Problems
- * shows PARSER errors only, and DSL_TOOLS errors return once the syntax is clean.
+ * Syntax first (MUST): a file is read only when its `AnalyzedFile.parse.isSyntaxClean` (a reader would report the
+ * PARSER errors a second time, see [DslReader]). A read that needs a metamodel which was not read without errors
+ * (missing, not syntax-clean, or with DSL_TOOLS errors) is skipped: the events file and the models. A skipped read
+ * reports nothing of its own — the metamodel reports its own errors — so while the user types, Problems shows PARSER
+ * errors only, and DSL_TOOLS errors return once the syntax is clean.
  *
  * Every context file and every loose file (`ContextResolution.looseFiles`) becomes an [AnalyzedFile]: tokenized unless
  * [SourceText.tokens] are given, parsed with `SemanticMode.SYNTAX_ONLY` unless [SourceText.parse] is given, with the
@@ -39,8 +39,8 @@ public fun interface ProjectAnalyzer {
 }
 
 /** The default [ProjectAnalyzer]; parses files that [AnalysisSources] did not supply a current parse for. */
-public fun ProjectAnalyzer(languages: LanguageRegistry, converter: DslConverter): ProjectAnalyzer =
-    DefaultProjectAnalyzer(languages, converter)
+public fun ProjectAnalyzer(languages: LanguageRegistry, reader: DslReader): ProjectAnalyzer =
+    DefaultProjectAnalyzer(languages, reader)
 
 /**
  * Supplies the text to analyze: the editor text of open documents (the session's current snapshot, with its lineage,

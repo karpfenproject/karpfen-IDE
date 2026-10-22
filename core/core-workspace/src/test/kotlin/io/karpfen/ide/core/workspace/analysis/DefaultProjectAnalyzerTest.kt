@@ -39,10 +39,11 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Covers the project analysis on real example folders: every example context converts without findings, broken files
- * are never converted and block the conversions that depend on them, semantic errors land on the right file, editor
- * text replaces disk text, loose files stay syntax-only, and unreadable, failing or vanished files are reported or
- * skipped. The analysis is cancellable between files.
+ * Covers the project analysis on real example folders: every example context reads without findings, broken files are
+ * never read and block the reads that depend on them, semantic errors land on the offending element of the right file
+ * next to the partial model, a metamodel with errors blocks the reads that depend on it, editor text replaces disk
+ * text, loose files stay syntax-only, and unreadable, failing or vanished files are reported or skipped. The analysis
+ * is cancellable between files.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultProjectAnalyzerTest {
@@ -61,7 +62,7 @@ class DefaultProjectAnalyzerTest {
     private fun withoutClosingBrace(text: String): String = text.trimEnd().removeSuffix("}")
 
     @Test
-    fun `every example context analyzes with zero DSL_TOOLS errors and converts every file`(reporter: TestReporter) = runTest(timeout = 120.seconds) {
+    fun `every example context analyzes with zero DSL_TOOLS findings and reads every file`(reporter: TestReporter) = runTest(timeout = 120.seconds) {
         Examples.copyTo(root)
         val resolution = resolve(root)
         warmUp(resolution)
@@ -108,7 +109,7 @@ class DefaultProjectAnalyzerTest {
     }
 
     @Test
-    fun `a broken metamodel and a broken model report PARSER errors only, write nothing to stderr, and block dependent conversions`() = runTest(timeout = 60.seconds) {
+    fun `a broken metamodel and a broken model report PARSER errors only and block dependent reads`() = runTest(timeout = 60.seconds) {
         val context = root.resolve("robot")
         Files.createDirectories(context)
         Examples.files().filter { it.directory == DescriptorExamples.CONTEXT_DIRECTORY }.forEach { file ->
@@ -119,18 +120,14 @@ class DefaultProjectAnalyzerTest {
             }
             Files.writeString(context.resolve(file.fileName), text)
         }
-        lateinit var analysis: ProjectAnalysis
-        val stderr = capturingStandardError {
-            analysis = analyzer().analyze(resolve(root), DiskSources(), generation = 1)
-        }
+        val analysis = analyzer().analyze(resolve(root), DiskSources(), generation = 1)
 
-        assertEquals("", stderr, "dsl-tools must not see broken text")
-        assertEquals(emptyMap(), dslToolsDiagnostics(analysis))
+        assertEquals(emptyMap(), dslToolsDiagnostics(analysis), "dsl-tools must not read broken text: it would report its syntax errors")
         val result = analysis.contexts.single()
         assertNull(result.metamodel)
         assertNull(result.events, "the events need the domain metamodel")
         assertEquals(emptyMap(), result.models)
-        assertEquals(1, result.stateMachines.size, "state machines convert on their own")
+        assertEquals(1, result.stateMachines.size, "state machines are read on their own")
         for (name in listOf("cleaning_robot.kmeta", "cleaning_robot.kmodel")) {
             val own = assertNotNull(analysis.file(context.resolve(name))).ownDiagnostics
             assertTrue(own.isNotEmpty() && own.all { it.source == DiagnosticSource.PARSER }, "$name: $own")
@@ -138,24 +135,46 @@ class DefaultProjectAnalyzerTest {
     }
 
     @Test
-    fun `a semantic error is a DSL_TOOLS diagnostic on the right file, located at the quoted name`() = runTest(timeout = 60.seconds) {
+    fun `a semantic error is a DSL_TOOLS diagnostic at the offending key of the right file, next to the partial model`() = runTest(timeout = 60.seconds) {
         val context = root.resolve("robot")
         Files.createDirectories(context)
         Files.writeString(context.resolve("robot.kmeta"), "type \"Robot\" \"A robot\" {\n    prop(\"speed\", \"number\")\n}\n")
         val model = "make object \"r\":\"Robot\" {\n    prop(\"speed\") -> \"1\"\n    prop(\"velocity\") -> \"2\"\n}\n"
-        Files.writeString(context.resolve("robot.kmodel"), model)
+        val modelPath = context.resolve("robot.kmodel").toAbsolutePath().normalize()
+        Files.writeString(modelPath, model)
 
         val analysis = analyzer().analyze(resolve(root), DiskSources(), generation = 1)
 
-        val errors = analysis.diagnosticsFor(context.resolve("robot.kmodel").toAbsolutePath().normalize())
-        val error = errors.single()
+        val error = analysis.diagnosticsFor(modelPath).single()
         assertEquals(DiagnosticSource.DSL_TOOLS, error.source)
-        assertEquals(DiagnosticCodes.DSL_TOOLS_ERROR, error.code)
+        assertEquals("kmodel.unknown-property", error.code)
         assertEquals(Severity.ERROR, error.severity)
-        val located = model.substring(error.range.start, error.range.end)
-        assertTrue(located.isNotEmpty() && "'$located'" in error.message, "range ${error.range} ($located) for ${error.message}")
-        assertEquals(emptyMap(), analysis.contexts.single().models)
+        assertEquals(TextRange.ofLength(model.indexOf("velocity"), "velocity".length), error.range)
+        val partial = assertNotNull(analysis.contexts.single().models[modelPath])
+        assertEquals(listOf("speed"), partial.objects.single().properties.map { it.key }, "the unknown property is left out")
         assertNotNull(analysis.contexts.single().metamodel)
+    }
+
+    @Test
+    fun `a metamodel with a DSL_TOOLS error keeps its partial metamodel and blocks the reads that depend on it`() = runTest(timeout = 60.seconds) {
+        val context = root.resolve("robot")
+        Files.createDirectories(context)
+        val metamodel = "type \"Robot\" \"A robot\" {\n    prop(\"speed\", \"nmber\")\n    prop(\"name\", \"string\")\n}\n"
+        val metamodelPath = context.resolve("robot.kmeta").toAbsolutePath().normalize()
+        Files.writeString(metamodelPath, metamodel)
+        Files.writeString(context.resolve("robot.kmodel"), "make object \"r\":\"Robot\" {\n    prop(\"speed\") -> \"1\"\n}\n")
+        Files.writeString(context.resolve("EVENTS.kmeta"), "type \"start\" \"s\" {\n}\n")
+
+        val analysis = analyzer().analyze(resolve(root), DiskSources(), generation = 1)
+
+        val error = analysis.diagnosticsFor(metamodelPath).single()
+        assertEquals("kmeta.unknown-property-type", error.code)
+        assertEquals("nmber", metamodel.substring(error.range.start, error.range.end))
+        assertEquals(setOf(metamodelPath), dslToolsDiagnostics(analysis).keys, "no follow-up error in the model")
+        val result = analysis.contexts.single()
+        assertEquals(listOf("name"), assertNotNull(result.metamodel).rootClass.simpleProperties.map { it.key })
+        assertNull(result.events)
+        assertEquals(emptyMap(), result.models)
     }
 
     @Test
@@ -183,7 +202,7 @@ class DefaultProjectAnalyzerTest {
     }
 
     @Test
-    fun `loose files are analyzed syntax-only and never converted`() = runTest {
+    fun `loose files are analyzed syntax-only and never read by dsl-tools`() = runTest {
         val loose = root.resolve("loose.kmeta")
         Files.writeString(loose, "type \"Robot\" \"A robot\" {\n    has(\"arm\", \"MissingType\")\n}\n")
         val brokenLoose = root.resolve("broken.kstates")
@@ -192,7 +211,7 @@ class DefaultProjectAnalyzerTest {
         val analysis = analyzer().analyze(ContextResolution(emptyList(), emptyMap(), listOf(loose, brokenLoose)), DiskSources(), generation = 1)
 
         assertEquals(listOf(loose, brokenLoose), analysis.looseFiles.keys.toList())
-        assertEquals(emptyMap(), analysis.diagnostics, "a loose metamodel with a semantic error is not converted")
+        assertEquals(emptyMap(), analysis.diagnostics, "a loose metamodel with a semantic error is not read")
         assertTrue(analysis.looseFiles.getValue(brokenLoose).ownDiagnostics.any { it.source == DiagnosticSource.PARSER })
     }
 
@@ -254,15 +273,13 @@ class DefaultProjectAnalyzerTest {
     }
 
     @Test
-    fun `a file whose language does not fit its role is not converted`() = runTest {
+    fun `a file whose language does not fit its role is not read`() = runTest {
         val machine = root.resolve("robot.kstates")
         Files.writeString(machine, Examples.file("${DescriptorExamples.CONTEXT_DIRECTORY}/cleaning_robot.kstates").text)
         val context = ModelingContext(root, root.resolve("x.kenv.json"), machine, null, listOf(machine), emptyList())
 
-        lateinit var analysis: ProjectAnalysis
-        val stderr = capturingStandardError { analysis = analyzer().analyze(ContextResolution(listOf(context), emptyMap()), DiskSources(), 1) }
+        val analysis = analyzer().analyze(ContextResolution(listOf(context), emptyMap()), DiskSources(), 1)
 
-        assertEquals("", stderr)
         assertNull(analysis.contexts.single().metamodel)
         assertEquals(emptyMap(), analysis.diagnostics)
     }

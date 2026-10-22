@@ -6,6 +6,7 @@ import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
+import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.tools.cli.logging.LanguageToolsLog
 import kotlinx.coroutines.test.runTest
@@ -51,12 +52,12 @@ class ValidateCliTest {
     }
 
     /**
-     * Proves that nothing prints to standard output while a workspace analyzes the examples, so the report needs no
-     * guard around the analysis: with its loggers at DEBUG, dsl-tools logs what it converts, and all of it reaches
-     * standard error through the logging backend, nothing standard output.
+     * Proves that nothing prints while a workspace analyzes the examples, so the report needs no guard around the
+     * analysis: the dsl-tools readers report what they find as diagnostics and log nothing, even with the loggers of
+     * dsl-tools at DEBUG.
      */
     @Test
-    fun `analyzing the examples writes nothing to standard output, even with dsl-tools logging everything`() =
+    fun `analyzing the examples writes nothing to the console, even with the loggers of dsl-tools at DEBUG`() =
         runTest(timeout = 120.seconds) {
             val root = Examples.copyTo(dir)
 
@@ -71,16 +72,25 @@ class ValidateCliTest {
             }
 
             assertEquals("", stdout)
-            assertTrue("KmetaDSLConverter" in stderr, "dsl-tools logged while converting the examples: $stderr")
+            assertEquals("", stderr, "the dsl-tools readers report through diagnostics, not through logging")
         }
 
+    /**
+     * The readers of dsl-tools log nothing while a workspace analyzes, so a workspace that logs through a logger of
+     * dsl-tools while it opens stands in for what dsl-tools logs during a validation.
+     */
     @Test
     fun `verbose shows what dsl-tools logs on standard error and leaves standard output to the report`() =
         runTest(timeout = 120.seconds) {
             val root = Examples.copyTo(dir)
             Files.writeString(root.resolve("karpfen-runtime/single_robot_example/zz.kmeta"), "type \"B\" \"b\" {\n")
+            val workspaces = testWorkspaceFactory(this)
+            val loggingWorkspaces = WorkspaceFactory { folder, scope ->
+                LoggerFactory.getLogger(KMETA_CONVERTER_LOGGER).debug("Type {}: {}", "B", "b")
+                workspaces.open(folder, scope)
+            }
 
-            val run = runCli(testWorkspaceFactory(this), "validate", "--format", "json", "--verbose", root.toString())
+            val run = runCli(loggingWorkspaces, "validate", "--format", "json", "--verbose", root.toString())
 
             assertEquals(ExitCodes.ERRORS_FOUND, run.status)
             assertEquals(1, Json.parseToJsonElement(run.stdout).jsonObject.getValue("errorCount").jsonPrimitive.int)
@@ -315,6 +325,9 @@ class ValidateCliTest {
     private fun String.withoutMessageOf(code: String): String = if (endsWith("[$code]")) withoutMessage() else this
 
     private companion object {
+        /** The logger of the KMeta converter of dsl-tools, which logs at DEBUG what it converts. */
+        const val KMETA_CONVERTER_LOGGER = "${DslToolsLoggers.PARENT}.dsl.textual.KmetaDSLConverter"
+
         /** A line that the test configuration's console writes for an event of a dsl-tools logger. */
         val DSL_TOOLS_LINE = Regex("""^\S+ (TRACE|DEBUG|INFO|WARN|ERROR) +i\.k\.d\.""")
 

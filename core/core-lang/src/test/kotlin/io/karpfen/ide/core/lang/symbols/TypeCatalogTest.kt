@@ -13,7 +13,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the shared type catalog: document, domain and event types with members and declaration locations, the
- * memoized conversion per analysis, and the syntax fallback of a metamodel that did not convert.
+ * memoized conversion per analysis, the partial metamodel of a metamodel with errors, and the syntax fallback of a
+ * metamodel that was not read.
  */
 class TypeCatalogTest {
 
@@ -124,7 +125,25 @@ class TypeCatalogTest {
     }
 
     @Test
-    fun `a metamodel that did not convert falls back to its file's syntax`() {
+    fun `a metamodel with an error still gives its types, without the member dsl-tools could not read`() {
+        val robotContext = Examples.contexts().single { it.directory == ExamplePaths.ROBOT_DIR }
+        val files = robotContext.files.map { file ->
+            if (file.path == ExamplePaths.ROBOT_KMETA) file.copy(text = file.text.replace(WALL_DISTANCE, MISSPELLED_WALL_DISTANCE)) else file
+        }
+        val analysis = ExampleProject.analyze(listOf(robotContext.copy(files = files)))
+        val metamodelPath = ExampleProject.pathOf(ExamplePaths.ROBOT_KMETA)
+        assertEquals(listOf("kmeta.unknown-property-type"), analysis.diagnosticsFor(metamodelPath).map { it.code })
+
+        val types = catalog.types(ExampleProject.request(robotKstates.document, analysis))
+
+        assertEquals(robotKstates.let(catalog::types).map { it.name to it.origin }, types.map { it.name to it.origin })
+        val robot = types.first { it.name == "Robot" }
+        assertEquals(null, robot.member("d_closest_wall"), "left out of the partial metamodel")
+        assertEquals("prop d_closest_obstacle: number", robot.member("d_closest_obstacle")?.signature)
+    }
+
+    @Test
+    fun `a metamodel that was not read falls back to its file's syntax`() {
         val context = assertNotNull(robotKstates.contextAnalysis)
         val broken = robotKstates.copy(contextAnalysis = context.copy(metamodel = null, events = null))
 
@@ -147,5 +166,13 @@ class TypeCatalogTest {
         val member = types.single().members.single()
         assertEquals(MemberInfo("b", MemberKind.KNOWS, "B", isList = true, declaration = member.declaration), member)
         assertEquals(TextRange(22, 23), member.declaration?.range)
+    }
+
+    private companion object {
+        /** A property declaration of the robot's metamodel. */
+        const val WALL_DISTANCE = "prop(\"d_closest_wall\", \"number\")"
+
+        /** [WALL_DISTANCE] with a misspelled type, an error dsl-tools reports at the type. */
+        const val MISSPELLED_WALL_DISTANCE = "prop(\"d_closest_wall\", \"nmber\")"
     }
 }

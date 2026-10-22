@@ -10,7 +10,7 @@ plugins {
 
 /**
  * The public API holds `TextSnapshot` and `EditableText` of core-text, the dsl-tools semantic model types (the packages
- * `io.karpfen.dsl.meta`, `io.karpfen.dsl.instance` and `io.karpfen.dsl.states`) in `DslModel`, `DslConverter` and,
+ * `io.karpfen.dsl.meta`, `io.karpfen.dsl.instance` and `io.karpfen.dsl.states`) in `DslModel`, `DslReader` and,
  * downstream, the project analysis, and the serializable `EnvironmentDescriptor`, whose JSON shape is the contract with
  * the runtime. karpfen-dsl-tools is the language core of the IDE; the IDE adds only editor concerns and has no parser of
  * its own for the modeling languages.

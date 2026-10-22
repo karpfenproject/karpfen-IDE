@@ -57,7 +57,7 @@ internal fun diagnostic(
     val code = when (source) {
         DiagnosticSource.LEXER -> DiagnosticCodes.LEXER_ERROR
         DiagnosticSource.PARSER -> DiagnosticCodes.SYNTAX_ERROR
-        DiagnosticSource.DSL_TOOLS -> DiagnosticCodes.DSL_TOOLS_ERROR
+        DiagnosticSource.DSL_TOOLS -> "kmodel.unknown-property"
         DiagnosticSource.IDE -> DiagnosticCodes.INTERNAL_ERROR
     }
     return Diagnostic(range, Severity.ERROR, message, code, source)

@@ -21,19 +21,19 @@ import java.nio.file.Path
  *   editor's, and ranges map into the live text); a file read from disk gets a fresh snapshot at version 0 with a
  *   lineage of its own (one per load);
  * - every [AnalyzedFile.parse] is a `SemanticMode.SYNTAX_ONLY` parse (open documents are parsed that way too, see
- *   `DocumentManager`); conversions happen only through the analyzer's `DslConverter`, their diagnostics are in
+ *   `DocumentManager`); dsl-tools reads files only through the analyzer's `DslReader`, and their diagnostics are in
  *   [diagnostics].
  *
  * @property generation increases with every analysis run of a workspace (0 for [EMPTY]).
  * @property contexts one entry per resolved context, in resolution order.
- * @property diagnostics project-level diagnostics per file: DSL_TOOLS errors from the conversions, the
+ * @property diagnostics project-level diagnostics per file: the DSL_TOOLS findings of the reads, the
  *   descriptor/context diagnostics of the resolution (directories that cannot be read included) and the `unreadable`
  *   errors of files that could not be loaded, each list sorted with [Diagnostic.ORDER] and without duplicates.
  *   A file's own diagnostics are not repeated here (see [AnalyzedFile.ownDiagnostics]; a descriptor's syntax errors
  *   and loading findings belong to its text as well); these lists are what the workspace pushes into open sessions as
  *   external source `ExternalDiagnosticSources.PROJECT`.
  * @property looseFiles the karpfen sources of the tree that belong to no context (`ContextResolution.looseFiles`),
- *   analyzed syntax-only: they are never converted, but their syntax errors still appear in the problems.
+ *   analyzed syntax-only: dsl-tools never reads them, but their syntax errors still appear in the problems.
  */
 public data class ProjectAnalysis(
     public val generation: Long,
@@ -69,15 +69,19 @@ public data class ProjectAnalysis(
 /**
  * Analysis of one [ModelingContext].
  *
+ * Every model here is what a dsl-tools reader read from its file: complete if the file has no DSL_TOOLS error in
+ * [ProjectAnalysis.diagnostics], partial otherwise, leaving out what the reader could not build.
+ *
  * @property files every context file that could be read, with the snapshot and parse outcome the analysis used (the
  *   editor text for open documents, the disk text otherwise).
- * @property metamodel the converted domain metamodel, or null if missing, not syntax-clean or rejected.
- * @property events the converted event metamodel, or null. Converted with the domain types as base types, and
- *   dsl-tools appends those base types to the result (`Metamodel(classTypes + baseTypes, …)`), so `events.types` also
+ * @property metamodel the domain metamodel, possibly partial; null if it is missing, not syntax-clean or yields no
+ *   model (a text without types).
+ * @property events the event metamodel, or null; read only when the domain metamodel was read without errors. Read
+ *   with the domain types as base types, and dsl-tools appends those base types to the result, so `events.types` also
  *   contains every domain type. The event types proper are the TYPE declarations of the events file itself (its
  *   [AnalyzedFile.parse] syntax index); consumers listing events (core-lang's `TypeOrigin.EVENTS`) filter by them.
- * @property models converted models by path (only those that converted).
- * @property stateMachines converted state machines by path (only those that converted).
+ * @property models the models by path, possibly partial; empty unless the domain metamodel was read without errors.
+ * @property stateMachines the state machines by path, possibly partial.
  */
 public data class ContextAnalysis(
     public val context: ModelingContext,

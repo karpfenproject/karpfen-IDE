@@ -25,14 +25,14 @@ public interface DocumentParser {
 /** Whether [DocumentParser.parse] runs the standalone dsl-tools conversion. */
 public enum class SemanticMode {
     /**
-     * Convert KMeta and KStates files with dsl-tools when there are no syntax diagnostics. Opt-in: no product path uses
-     * it, because in a workspace the project analysis is the only place that converts files, so each file is converted
-     * once and opening a file never changes what is reported. Documents edited on their own and the tests of the
-     * standalone semantics use it. Not for `EVENTS.kmeta`: event payloads may reference domain types and only convert
-     * with the domain metamodel as base types, which core-workspace does.
+     * Read KMeta and KStates files with dsl-tools when there are no syntax diagnostics. Opt-in: no product path uses
+     * it, because in a workspace the project analysis is the only place that reads files with dsl-tools, so each file is
+     * read once and opening a file never changes what is reported. Documents edited on their own and the tests of the
+     * standalone semantics use it. Not for `EVENTS.kmeta`: event payloads may reference domain types and only read
+     * without errors with the domain metamodel as base types, which core-workspace does.
      */
     STANDALONE,
 
-    /** Syntax only; never call dsl-tools converters. */
+    /** Syntax only; never call the dsl-tools readers. */
     SYNTAX_ONLY,
 }

@@ -1,7 +1,7 @@
 package io.karpfen.ide.core.workspace
 
 import io.karpfen.ide.core.document.Diagnostic
-import io.karpfen.ide.core.document.dsl.DslConverter
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
@@ -61,7 +61,7 @@ internal class TestWorkspaces(private val scope: TestScope) {
         return Workspace(
             root, scope.backgroundScope, options(watch), languages,
             fileWatcher = watcher,
-            analyzer = analyzer ?: ProjectAnalyzer(languages, DslConverter()),
+            analyzer = analyzer ?: ProjectAnalyzer(languages, DslReader()),
         )
     }
 }

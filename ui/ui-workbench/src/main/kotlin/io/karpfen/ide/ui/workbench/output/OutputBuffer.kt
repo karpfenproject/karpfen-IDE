@@ -5,8 +5,7 @@ import java.time.Instant
 
 /**
  * Where the events the language tools log arrive: the port that the application's logging adapter writes to. Called
- * from any thread, often from the analysis thread while dsl-tools converts, so implementations are thread-safe and do
- * not block for long.
+ * from any thread, such as the analysis thread, so implementations are thread-safe and do not block for long.
  */
 public fun interface OutputSink {
     /** Appends the event logged at [time] by [logger] with [level] and the formatted [message]. */

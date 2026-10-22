@@ -39,7 +39,7 @@ class WorkspaceProblemsAggregatorTest {
 
     private val lexer = diagnostic(3, DiagnosticSource.LEXER, DiagnosticCodes.LEXER_ERROR)
     private val parser = diagnostic(5, DiagnosticSource.PARSER, DiagnosticCodes.SYNTAX_ERROR)
-    private val dslTools = diagnostic(1, DiagnosticSource.DSL_TOOLS, DiagnosticCodes.DSL_TOOLS_ERROR)
+    private val dslTools = diagnostic(1, DiagnosticSource.DSL_TOOLS, "kmodel.unknown-property")
     private val fileFinding = diagnostic(2, DiagnosticSource.IDE, WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS, Severity.INFO)
 
     /** An analyzed file [name] with the [syntax] diagnostics in its parse plus one lexical and one file finding. */

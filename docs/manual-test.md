@@ -107,15 +107,12 @@ Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, 
 ## Language Tools Output (1 minute)
 
 1. No tool window shows what karpfen-dsl-tools logs yet. Choose **View ▸ Language Tools Output**: a tool window of that
-   name opens below Problems. It lists what dsl-tools logged while analyzing the examples, one line each with time,
-   level, the logging class and the message, for example `DEBUG KmetaDSLConverter - Type Robot: …`.
-2. In `robot/cleaning_robot.kmodel`, type a space and delete it again. After the analysis, new lines appear at the
-   bottom and the list scrolls to them. Click **Follow** to turn it off, scroll up and edit again: the list stays where
-   it is. Turn Follow on again.
-3. Click **Clear**: the tool window says `No output from the language tools` until the next analysis fills it again.
-4. The terminal that runs `./gradlew` shows no line of dsl-tools, while
-   `tail /tmp/karpfen-smoke-home/logs/dsl-tools.log` shows the lines of the tool window. Choose View ▸ Language Tools
-   Output again to hide it.
+   name opens below Problems. It says `No output from the language tools`: the readers of dsl-tools, with which the IDE
+   analyzes the files, report every problem in Problems and log nothing.
+2. In `robot/cleaning_robot.kmodel`, type a space and delete it again. After the analysis, the tool window still has
+   no line, and the status bar shows no `Language tools` indicator.
+3. The terminal that runs `./gradlew` shows no line of dsl-tools either. Choose View ▸ Language Tools Output again to
+   hide it.
 
 ## Environment descriptors (2 minutes)
 

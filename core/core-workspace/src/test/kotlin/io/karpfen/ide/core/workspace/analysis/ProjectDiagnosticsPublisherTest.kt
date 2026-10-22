@@ -1,7 +1,6 @@
 package io.karpfen.ide.core.workspace.analysis
 
 import io.karpfen.ide.core.document.Diagnostic
-import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
@@ -42,7 +41,7 @@ class ProjectDiagnosticsPublisherTest {
 
     /** A DSL_TOOLS error at [range], by default on the unknown type `Arm`. */
     private fun projectDiagnostic(range: TextRange = TextRange.ofLength(text.indexOf("Arm\""), 3)) =
-        Diagnostic(range, Severity.ERROR, "Unknown target class type 'Arm'", DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
+        Diagnostic(range, Severity.ERROR, "Unknown class type 'Arm'", "kmeta.unknown-target-type", DiagnosticSource.DSL_TOOLS)
 
     /** An analysis of generation [generation] that analyzed [path] as [snapshot] with the project [diagnostics]. */
     private fun analysisOf(path: Path, snapshot: TextSnapshot, vararg diagnostics: Diagnostic, generation: Long = 1): PublishedAnalysis {

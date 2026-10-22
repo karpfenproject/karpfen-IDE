@@ -95,9 +95,10 @@ tells which text a version belongs to. `DefaultEditableText` is the implementati
   KMeta and KModel), its `tree` sub-package the parse-tree walkers (`TreeParser`, `KstatesSyntaxAnalyzer` and their
   KMeta and KModel counterparts). `KarpfenLexers` creates the lexers, and `EvalBodies` finds the embedded Python of
   `EVAL` bodies.
-- **dsl-tools adapter.** The `dsl` package wraps the dsl-tools converters (`DslConverter`) and places their errors,
-  which carry no positions, in the text (`DslErrorLocator`). `DslToolsLoggers` names the parent logger below which
-  dsl-tools logs, the name by which the IDE and the command-line tool route that logging.
+- **dsl-tools adapter.** The `dsl` package wraps the tolerant readers of dsl-tools (`DslReader`): a read yields the
+  model, partial when the text has errors, and the findings at the places the reader reports (`ReadResult`), which
+  `ReadResults` turns into DSL_TOOLS diagnostics with the stable codes of dsl-tools. `DslToolsLoggers` names the parent
+  logger below which dsl-tools logs, the name by which the IDE and the command-line tool route that logging.
 - **JSON.** The `json` package reads JSON the way the editor needs it, written for the IDE rather than taken from a
   library: `JsonLexer` and `JsonTokenizer` split it into tokens, `JsonParser` builds a `JsonDocument` whose `JsonNode`
   tree keeps every range and survives broken text (`JsonTreeBuilder` documents how it recovers).
@@ -130,9 +131,10 @@ below, which the `Workspace` factory function creates.
   `ContextResolver` with the rules for descriptors, directories and loose files. `ContextTracker` follows the
   descriptors open in editors (`OpenDescriptors`) and reads them from their editor texts, so their findings, the
   contexts and the analysis follow unsaved edits.
-- **Analysis.** The `analysis` package converts every context with dsl-tools: `ProjectAnalyzer` documents the rules,
-  `DefaultProjectAnalyzer` implements them, `ProjectAnalysis` is the result, and `AnalysisScheduler` runs the
-  analysis again, debounced and cancellable, when the contexts or the open documents change. `ContextSymbols` answers
+- **Analysis.** The `analysis` package reads every context with dsl-tools: `ProjectAnalyzer` documents the rules,
+  `DefaultProjectAnalyzer` implements them with `ContextReader`, `ProjectAnalysis` is the result, and
+  `AnalysisScheduler` runs the analysis again, debounced and cancellable, when the contexts or the open documents
+  change. `ContextSymbols` answers
   what the analyzed files declare that descriptors refer to (objects, `ATTACHED TO` types, event domains); the
   descriptor's language services and the template of new descriptors both ask it.
 - **Problems.** The `problems` package applies one rule to every diagnostic of every file: `WorkspaceProblems` and

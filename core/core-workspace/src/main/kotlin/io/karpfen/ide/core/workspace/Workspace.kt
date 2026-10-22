@@ -1,6 +1,6 @@
 package io.karpfen.ide.core.workspace
 
-import io.karpfen.ide.core.document.dsl.DslConverter
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
@@ -96,7 +96,7 @@ public interface Workspace : AutoCloseable {
  * @param root an existing directory.
  * @param scope parent scope of all workspace work; its dispatcher is the single writer of the documents' texts (see
  *   [Workspace], Threading). Cancelling it has the effect of [Workspace.close].
- * @param converter the dsl-tools adapter of the default [analyzer].
+ * @param reader the dsl-tools adapter of the default [analyzer].
  * @param fileStore reads (through the default [sourceLoader]) and writes (saving) files.
  * @throws IllegalArgumentException if [root] is not a directory.
  */
@@ -105,13 +105,13 @@ public fun Workspace(
     scope: CoroutineScope,
     options: WorkspaceOptions = WorkspaceOptions(),
     languages: LanguageRegistry = defaultLanguageRegistry(),
-    converter: DslConverter = DslConverter(),
+    reader: DslReader = DslReader(),
     fileStore: TextFileStore = TextFileStore(),
     fileWatcher: FileWatcher = FileWatcher(),
     sourceLoader: SourceLoader = SourceLoader(fileStore),
     descriptorReader: EnvironmentDescriptorReader = EnvironmentDescriptorReader(),
     contextResolver: ContextResolver = ContextResolver(),
-    analyzer: ProjectAnalyzer = ProjectAnalyzer(languages, converter),
+    analyzer: ProjectAnalyzer = ProjectAnalyzer(languages, reader),
 ): Workspace {
     val normalizedRoot = root.toAbsolutePath().normalize()
     require(Files.isDirectory(normalizedRoot)) { "workspace root $normalizedRoot is not a directory" }

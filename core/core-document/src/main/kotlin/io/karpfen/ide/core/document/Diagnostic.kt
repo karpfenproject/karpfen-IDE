@@ -64,7 +64,10 @@ public enum class DiagnosticSource {
      */
     PARSER,
 
-    /** An exception from a dsl-tools converter (semantic model construction). */
+    /**
+     * A dsl-tools reader (semantic model construction): a finding at the place the reader reports, whose code is the
+     * stable id of the dsl-tools diagnostic code, such as `kmodel.unknown-property` or `kstates.initial-state-count`.
+     */
     DSL_TOOLS,
 
     /**
@@ -75,10 +78,11 @@ public enum class DiagnosticSource {
 }
 
 /**
- * Stable diagnostic codes ([Diagnostic.code]) produced by core-document: lexer, parser, EVAL scanning, dsl-tools
- * conversion and internal failures. Codes of findings that only core-workspace produces (file loading, environment
- * descriptors, modeling contexts) are `WorkspaceDiagnosticCodes` of core-workspace, so a new workspace finding never
- * edits this file.
+ * Stable diagnostic codes ([Diagnostic.code]) produced by core-document: lexer, parser, EVAL scanning and internal
+ * failures. The findings of the dsl-tools readers ([DiagnosticSource.DSL_TOOLS]) carry the stable ids of their
+ * dsl-tools codes instead, so a new kind of finding in dsl-tools needs no constant here. Codes of findings that only
+ * core-workspace produces (file loading, environment descriptors, modeling contexts) are `WorkspaceDiagnosticCodes` of
+ * core-workspace, so a new workspace finding never edits this file.
  */
 public object DiagnosticCodes {
     /** Lexer error (unrecognized input); source [DiagnosticSource.LEXER]. */
@@ -92,9 +96,6 @@ public object DiagnosticCodes {
      * source [DiagnosticSource.IDE]).
      */
     public const val EVAL_DOUBLE_SLASH: String = "eval-double-slash"
-
-    /** A dsl-tools converter rejected the file; source [DiagnosticSource.DSL_TOOLS]. */
-    public const val DSL_TOOLS_ERROR: String = "dsl-tools"
 
     /** An unexpected internal failure that was caught and reported instead of crashing (ERROR). */
     public const val INTERNAL_ERROR: String = "internal-error"

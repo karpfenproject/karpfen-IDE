@@ -178,13 +178,19 @@ class IdeEndToEndTest {
             assertAgree(session.state, cli, "after closing them")
         }
 
+    /**
+     * The readers of dsl-tools log nothing while the IDE analyzes, so the logger of a dsl-tools converter logs after the
+     * analysis, while the routing is attached, standing in for what dsl-tools logs.
+     */
     @Test
-    fun `what dsl-tools logs while the IDE analyzes is shown in the Language Tools Output, which the View menu opens`() =
+    fun `what dsl-tools logs is shown in the Language Tools Output, which the View menu opens`() =
         scenario {
             Examples.copyTo(root)
             val context = assertIs<LoggerContext>(LoggerFactory.getILoggerFactory())
             val session = withDslToolsLoggingAtDebug(context) {
-                routeLanguageToolsLog(LanguageToolsLogRouting(context)).use { prepare(root) }
+                routeLanguageToolsLog(LanguageToolsLogRouting(context)).use {
+                    prepare(root).also { context.getLogger(KMETA_CONVERTER_LOGGER).debug("Type {}: {}", "Robot", "a robot") }
+                }
             }
             val output = session.state.output
             val recent = session.state.settings.value.recentFolders.size
@@ -199,7 +205,7 @@ class IdeEndToEndTest {
 
             assertTrue(session.state.layout.state.value.toolWindow(ToolWindowId.OUTPUT).visible)
             val converters = output.state.value.lines.filter { it.logger.endsWith("DSLConverter") }
-            assertTrue(converters.isNotEmpty(), "the converters logged what they converted: ${output.state.value.lines.take(5)}")
+            assertTrue(converters.isNotEmpty(), "the converter's line is shown: ${output.state.value.lines.take(5)}")
             assertTrue(converters.all { it.level == OutputLevel.DEBUG })
             assertTrue(output.state.value.unseen.isEmpty)
         }
@@ -262,6 +268,9 @@ class IdeEndToEndTest {
     }
 
     private companion object {
+        /** The logger of the KMeta converter of dsl-tools, which logs at DEBUG what it converts. */
+        const val KMETA_CONVERTER_LOGGER = "${DslToolsLoggers.PARENT}.dsl.textual.KmetaDSLConverter"
+
         /** How each platform writes the completion shortcut in its menus. */
         val COMPLETION_SHORTCUT_TEXT: Map<HostPlatform, String> = mapOf(
             HostPlatform.MAC_OS to "⌃M",

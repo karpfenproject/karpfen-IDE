@@ -97,7 +97,7 @@ class WorkspaceContractTest {
             Diagnostic(TextRange(start, start + 1), severity, code, code, source)
         val lexer = diagnostic(1, Severity.ERROR, DiagnosticCodes.LEXER_ERROR, DiagnosticSource.LEXER)
         val parser = diagnostic(4, Severity.ERROR, DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
-        val standalone = diagnostic(0, Severity.ERROR, DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
+        val standalone = diagnostic(0, Severity.ERROR, "kmeta.unknown-target-type", DiagnosticSource.DSL_TOOLS)
         val file = diagnostic(2, Severity.INFO, WorkspaceDiagnosticCodes.MIXED_LINE_SEPARATORS, DiagnosticSource.IDE)
         val snapshot = TextSnapshot("type \"A\" \"d\" { }", 0)
         val parse = ParseOutcome(

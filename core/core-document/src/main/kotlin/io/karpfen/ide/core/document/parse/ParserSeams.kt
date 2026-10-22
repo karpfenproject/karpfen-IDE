@@ -33,19 +33,19 @@ internal data class SyntaxAnalysis(
 )
 
 /**
- * Converts a syntactically clean file with a dsl-tools converter. Implemented in `dsl`; one of the two module-internal
- * seams a [ComposedDocumentParser] is made of. Never throws.
+ * Reads a syntactically clean file with a dsl-tools reader. Implemented in `dsl`; one of the two module-internal seams a
+ * [ComposedDocumentParser] is made of. Never throws.
  */
 internal fun interface StandaloneSemantics {
-    /** Converts [snapshot]; [index] locates exception messages (see `dsl.DslErrorLocator`). */
-    fun convert(snapshot: TextSnapshot, index: SyntaxIndex): StandaloneResult
+    /** Reads [snapshot] into its model and the DSL_TOOLS diagnostics at the places the reader reports. */
+    fun convert(snapshot: TextSnapshot): StandaloneResult
 }
 
 /**
  * Result of [StandaloneSemantics.convert].
  *
- * @property model the converted model, or null if the conversion failed.
- * @property diagnostics the DSL_TOOLS diagnostics of the conversion.
+ * @property model the model read, partial if [diagnostics] hold an error; null if the text yields no model.
+ * @property diagnostics the DSL_TOOLS diagnostics of the read.
  */
 internal data class StandaloneResult(val model: DslModel?, val diagnostics: List<Diagnostic>)
 
@@ -76,7 +76,7 @@ internal class ComposedDocumentParser(
     override fun parse(snapshot: TextSnapshot, mode: SemanticMode): ParseOutcome {
         val analysis = analyzeSyntax(snapshot)
         val standalone = if (mode == SemanticMode.STANDALONE && analysis.syntaxDiagnostics.isEmpty()) {
-            semantics?.let { convert(it, snapshot, analysis.index) }
+            semantics?.let { convert(it, snapshot) }
         } else {
             null
         }
@@ -116,9 +116,9 @@ internal class ComposedDocumentParser(
     }
 
     /** The standalone conversion; a failure of the adapter becomes a DSL_TOOLS `internal-error`. */
-    private fun convert(semantics: StandaloneSemantics, snapshot: TextSnapshot, index: SyntaxIndex): StandaloneResult =
+    private fun convert(semantics: StandaloneSemantics, snapshot: TextSnapshot): StandaloneResult =
         try {
-            semantics.convert(snapshot, index)
+            semantics.convert(snapshot)
         } catch (e: Exception) {
             failedConversion(snapshot, e)
         } catch (e: StackOverflowError) {

@@ -21,10 +21,11 @@ internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInf
 
     companion object {
         /**
-         * Converts [context]: a converted metamodel ([ContextAnalysis.metamodel], [ContextAnalysis.events]) gives the
-         * types and members (dsl-tools is authoritative); the declaration locations come from the analyzed file's
-         * syntax index. A metamodel that did not convert (broken or rejected) falls back to its file's syntax
-         * ([SyntaxTypes]), so completion keeps working while the metamodel is being edited.
+         * Converts [context]: a metamodel that dsl-tools read ([ContextAnalysis.metamodel], [ContextAnalysis.events]),
+         * complete or partial, gives the types and members (dsl-tools is authoritative); the declaration locations come
+         * from the analyzed file's syntax index. A metamodel that was not read (its syntax is broken, or the events wait
+         * for a domain metamodel without errors) falls back to its file's syntax ([SyntaxTypes]), so completion keeps
+         * working while the metamodel is being edited.
          */
         fun convert(context: ContextAnalysis): ContextTypes {
             val domainFile = context.context.metamodel?.let(context.files::get)
@@ -37,7 +38,7 @@ internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInf
 
         /**
          * The types of [metamodel] (restricted to [names] when given) located in [file], or the types of [file]'s
-         * syntax when the metamodel did not convert.
+         * syntax when the metamodel was not read.
          */
         private fun typesOf(file: AnalyzedFile?, metamodel: Metamodel?, origin: TypeOrigin, names: Set<String>?): List<TypeInfo> {
             val located = file?.let(LocatedOutcome::of)

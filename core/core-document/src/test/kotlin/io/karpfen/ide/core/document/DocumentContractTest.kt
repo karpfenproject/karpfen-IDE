@@ -101,8 +101,8 @@ class DocumentContractTest {
             Diagnostic(TextRange(start, start + 1), Severity.ERROR, code, code, source)
         val lexer = diagnostic(3, DiagnosticCodes.LEXER_ERROR, DiagnosticSource.LEXER)
         val parser = diagnostic(1, DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
-        val standalone = diagnostic(0, DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
-        val project = diagnostic(5, DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
+        val standalone = diagnostic(0, "kstates.initial-state-count", DiagnosticSource.DSL_TOOLS)
+        val project = diagnostic(5, "kmodel.unknown-property", DiagnosticSource.DSL_TOOLS)
         val parse = ParseOutcome(
             KarpfenLanguage.KMETA, 0, listOf(lexer, parser), emptyList(), SyntaxIndex.EMPTY, emptyList(), emptyList(),
             standaloneModel = null, standaloneDiagnostics = listOf(standalone),
