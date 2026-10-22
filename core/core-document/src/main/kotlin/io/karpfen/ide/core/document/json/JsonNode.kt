@@ -153,6 +153,20 @@ public object JsonStrings {
         return decoded.toString()
     }
 
+    /**
+     * [value] written as the content of a JSON string, the inverse of [decode]: quotes and backslashes escaped,
+     * control characters as `\u` escapes, everything else as it is.
+     */
+    public fun encode(value: String): String = buildString(value.length) {
+        for (char in value) {
+            when {
+                char == '"' || char == '\\' -> append('\\').append(char)
+                char < ' ' -> append("\\u").append(char.code.toString(HEX).padStart(UNICODE_DIGITS, '0'))
+                else -> append(char)
+            }
+        }
+    }
+
     /** The character of the four hexadecimal digits at [start] of [text] before [end], or null if they are not there. */
     private fun unicodeAt(text: String, start: Int, end: Int): Char? {
         if (start + UNICODE_DIGITS > end) return null

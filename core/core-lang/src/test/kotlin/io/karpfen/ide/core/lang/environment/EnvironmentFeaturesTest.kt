@@ -1,0 +1,231 @@
+package io.karpfen.ide.core.lang.environment
+
+import io.karpfen.ide.core.document.environment.DescriptorKey
+import io.karpfen.ide.core.document.environment.ValueShape
+import io.karpfen.ide.core.document.parse.SymbolKind
+import io.karpfen.ide.core.lang.CompletionItem
+import io.karpfen.ide.core.lang.CompletionKind
+import io.karpfen.ide.core.lang.HighlightStyle
+import io.karpfen.ide.core.lang.feature.FeatureRequest
+import io.karpfen.ide.core.lang.fixtures.ExamplePaths
+import io.karpfen.ide.core.lang.fixtures.ExampleProject
+import io.karpfen.ide.core.lang.fixtures.after
+import io.karpfen.ide.core.lang.highlight.DefaultHighlightProvider
+import io.karpfen.ide.core.lang.services.ProviderFailure
+import io.karpfen.ide.core.text.TextRange
+import java.util.Collections
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/**
+ * Covers completion, hover, go to definition, bracket matching and highlighting of environment descriptors at concrete
+ * carets of the descriptor fixtures, in the example workspace of [DescriptorFixture].
+ */
+class EnvironmentFeaturesTest {
+
+    private val failures: MutableList<ProviderFailure> = Collections.synchronizedList(ArrayList())
+    private val services = DescriptorFixture.services(failures)
+    private val valid = DescriptorFixture.VALID
+    private val robotDir = ExampleProject.pathOf(ExamplePaths.ROBOT_DIR)
+
+    @AfterTest
+    fun noProviderFailed() = assertEquals(emptyList(), failures.map { "${it.operation}: ${it.error}" })
+
+    /** The completion items at the caret `‸` of [textWithCaret], in the editor's order for an empty filter. */
+    private fun complete(textWithCaret: String): List<CompletionItem> {
+        val (document, offset) = DescriptorFixture.at(textWithCaret)
+        return services.complete(document, offset).sortedWith(compareBy({ it.sortKey }, { it.label }))
+    }
+
+    /** The labels of [items] with the best rank (the ones the list shows first). */
+    private fun firstRanked(items: List<CompletionItem>): List<String> {
+        val best = items.minOfOrNull { it.sortKey.substringBefore(':') } ?: return emptyList()
+        return items.filter { it.sortKey.substringBefore(':') == best }.map { it.label }
+    }
+
+    @Test
+    fun `blank space after a comma offers the missing keys, required first, each with a value template`() {
+        val items = complete("{\n  \"metamodel\": \"cleaning_robot.kmeta\",\n  ‸\n}")
+
+        assertEquals(
+            listOf("model", "bridges", "events", "eventTtlMs", "observe", "runtime", "stateMachines", "tickDelayMs"),
+            items.map { it.label },
+        )
+        val model = items.first()
+        assertEquals(CompletionKind.PROPERTY, model.kind)
+        assertEquals("\"model\": \"\"", model.insertText)
+        assertEquals("\"model\": \"".length, model.caretOffsetInInsert)
+        assertEquals("a file path, required", model.detail)
+        assertTrue(model.documentation!!.contains(".kmodel"))
+        assertEquals("\"stateMachines\": [ { \"file\": \"\", \"attachedTo\": \"\" } ]", items.single { it.label == "stateMachines" }.insertText)
+        assertEquals("\"tickDelayMs\": 50", items.single { it.label == "tickDelayMs" }.insertText)
+        assertEquals("\"observe\": { \"objects\": \"\" }", items.single { it.label == "observe" }.insertText)
+    }
+
+    @Test
+    fun `inside a key string only the key is inserted, and nested objects offer their own keys`() {
+        val items = complete("{ \"metamodel\": \"a\", \"ti‸\" }")
+        val tick = items.single { it.label == "tickDelayMs" }
+        assertEquals("tickDelayMs", tick.insertText)
+        assertEquals(TextRange(21, 23), tick.replaceRange)
+        assertTrue("metamodel" !in items.map { it.label })
+
+        assertEquals(listOf("attachedTo"), complete("{ \"stateMachines\": [ { \"file\": \"x.kstates\", ‸ } ] }").map { it.label })
+        assertEquals(listOf("objects", "domains"), complete("{ \"observe\": { ‸ } }").map { it.label })
+        assertEquals(listOf("image", "pythonPackages"), complete("{ \"runtime\": {‸} }").map { it.label })
+        assertEquals(emptyList(), complete("{ \"extra\": { ‸ } }"), "nothing is known below an unknown key")
+    }
+
+    @Test
+    fun `a bare word typed where a key goes is replaced by the quoted key`() {
+        val (document, offset) = DescriptorFixture.at("{ meta‸ }")
+
+        val item = services.complete(document, offset).single { it.label == "metamodel" }
+
+        assertEquals(TextRange(2, 6), item.replaceRange)
+        assertEquals("\"metamodel\": \"\"", item.insertText)
+    }
+
+    @Test
+    fun `file paths are the files of the key's role, next to the descriptor first`() {
+        assertEquals(listOf("cleaning_robot.kmeta"), firstRanked(complete("{ \"metamodel\": \"‸\" }")))
+        val metamodels = complete("{ \"metamodel\": \"‸\" }").map { it.label }
+        assertTrue("EVENTS.kmeta" !in metamodels && "../delivery_drone_example/delivery_drone.kmeta" in metamodels, "$metamodels")
+        assertTrue("../../karpfen-dsl-tools/metamodel_dsl_example.kmeta" in metamodels)
+        assertEquals(listOf("EVENTS.kmeta"), firstRanked(complete("{ \"events\": \"‸\" }")))
+        assertEquals(listOf("cleaning_robot.kmodel"), firstRanked(complete("{ \"model\": \"‸\" }")))
+        assertEquals(listOf("cleaning_robot.kstates"), firstRanked(complete("{ \"stateMachines\": [ { \"file\": \"‸\" } ] }")))
+        assertEquals(listOf("mqtt-sim.kbridge.json"), complete("{ \"bridges\": [ \"‸\" ] }").map { it.label })
+
+        val outside = complete("{ \"model\": ‸ }").first()
+        assertEquals("\"cleaning_robot.kmodel\"", outside.insertText, "quoted outside a string")
+        assertEquals(CompletionKind.FILE, outside.kind)
+        assertEquals("the model", outside.detail)
+    }
+
+    @Test
+    fun `attachedTo offers the model's objects, those of the state machine's ATTACHED TO type first`() {
+        val text = valid.replace("\"attachedTo\": \"turtle\"", "\"attachedTo\": \"‸\"")
+
+        val items = complete(text)
+
+        assertEquals(listOf("turtle"), firstRanked(items), "the only Robot of the model")
+        assertTrue(listOf("APB 2101", "chair", "wall_top", "turtlePosition").all { it in items.map(CompletionItem::label) })
+        assertEquals("Robot", items.first().detail)
+        assertEquals(CompletionKind.OBJECT, items.first().kind)
+        assertEquals("turtle", items.first().insertText)
+    }
+
+    @Test
+    fun `observed domains are the event domains of the descriptor's state machines`() {
+        val text = valid.replace("\"domains\": [\"public\"]", "\"domains\": [\"‸\"]")
+
+        val items = complete(text)
+
+        assertEquals(listOf("public"), items.map { it.label })
+        assertEquals(CompletionKind.EVENT, items.single().kind)
+        assertEquals(emptyList(), complete("{ \"observe\": { \"domains\": [ \"‸\" ] } }").map { it.label }, "no state machine, no domains")
+    }
+
+    @Test
+    fun `numbers, patterns and object templates have typical values`() {
+        assertEquals(listOf("50", "100", "500"), complete("{ \"tickDelayMs\": ‸ }").map { it.label })
+        assertEquals(CompletionKind.VALUE, complete("{ \"tickDelayMs\": ‸ }").first().kind)
+        assertEquals(emptyList(), complete("{ \"tickDelayMs\": \"‸\" }"), "no numbers inside a string")
+        assertEquals(listOf("*"), complete("{ \"observe\": { \"objects\": \"‸\" } }").map { it.label })
+        val template = complete("{ \"observe\": ‸ }").single()
+        assertEquals("{ … }" to "{ \"objects\": \"\" }", template.label to template.insertText)
+        assertEquals("{ \"objects\": \"".length, template.caretOffsetInInsert)
+    }
+
+    @Test
+    fun `booleans offer true and false`() {
+        val schema = ValueShape.Record(listOf(DescriptorKey("enabled", ValueShape.Flag, isRequired = false, isNullable = false, "on or off")))
+        val features = EnvironmentLanguageFeatures(DefaultHighlightProvider(), schema)
+        val (document, offset) = DescriptorFixture.at("{ \"enabled\": ‸ }")
+
+        val items = features.completion.complete(FeatureRequest(document, ExampleProject.analysis, null, DescriptorFixture.tree), offset)
+
+        assertEquals(listOf("true", "false"), items.sortedBy { it.sortKey }.map { it.label })
+        assertEquals("\"enabled\": true", features.completion.complete(
+            FeatureRequest(DescriptorFixture.at("{ ‸ }").first, ExampleProject.analysis, null),
+            2,
+        ).single().insertText)
+    }
+
+    @Test
+    fun `hover explains keys, resolves file paths and names the attached object's type`() {
+        val document = DescriptorFixture.document(valid)
+
+        val key = assertNotNull(services.hover(document, after(valid, "\"meta")))
+        assertEquals(TextRange.ofLength(valid.indexOf("metamodel"), "metamodel".length), key.range)
+        assertTrue(key.text.startsWith("metamodel: a file path, required\n"), key.text)
+
+        val file = assertNotNull(services.hover(document, after(valid, "\"cleaning_robot.km")))
+        assertEquals("The domain metamodel: ${robotDir.resolve("cleaning_robot.kmeta")}", file.text)
+
+        assertEquals("object turtle: Robot", services.hover(document, after(valid, "\"tur"))?.text)
+        assertTrue(services.hover(document, after(valid, "5"))!!.text.startsWith("tickDelayMs: a whole number, optional"))
+        assertEquals("event domain public", services.hover(document, after(valid, "\"pub"))?.text)
+    }
+
+    @Test
+    fun `hover reports unknown keys, missing files and unknown objects`() {
+        val text = valid.replace("\"tickDelayMs\"", "\"tickDelay\"").replace("cleaning_robot.kmodel", "missing.kmodel")
+        val document = DescriptorFixture.document(text)
+
+        assertTrue(services.hover(document, after(text, "\"tickD"))!!.text.startsWith("Unknown key 'tickDelay'"))
+        assertTrue(services.hover(document, after(text, "\"missing"))!!.text.endsWith("which is not in the workspace"))
+        assertEquals("The model missing.kmodel has no object 'turtle'.", services.hover(document, after(text, "\"tur"))?.text)
+    }
+
+    @Test
+    fun `go to definition opens the named file and finds the attached object in the model`() {
+        val document = DescriptorFixture.document(valid)
+        val modelPath = ExampleProject.pathOf(ExamplePaths.ROBOT_KMODEL)
+
+        val machine = services.definition(document, after(valid, "\"cleaning_robot.ks")).single()
+        assertEquals(ExampleProject.pathOf(ExamplePaths.ROBOT_KSTATES) to TextRange.EMPTY, machine.path to machine.range)
+        assertEquals(0L, machine.version)
+
+        val turtle = services.definition(document, after(valid, "\"tur")).single()
+        assertEquals(modelPath, turtle.path)
+        val modelText = ExampleProject.textOf(ExamplePaths.ROBOT_KMODEL)
+        assertEquals("turtle", modelText.substring(turtle.range.start, turtle.range.end))
+        val declaration = ExampleProject.analysis.file(modelPath)!!.parse.index.declarations(SymbolKind.OBJECT, "turtle").single()
+        assertEquals(declaration.nameRange, turtle.range)
+
+        assertEquals(emptyList(), services.definition(document, after(valid, "\"meta")), "keys lead nowhere")
+        val missing = valid.replace("cleaning_robot.kmodel", "missing.kmodel")
+        assertEquals(emptyList(), services.definition(DescriptorFixture.document(missing), after(missing, "\"missing")))
+    }
+
+    @Test
+    fun `brackets pair as the parser closed them`() {
+        val document = DescriptorFixture.document(valid)
+
+        val outer = assertNotNull(services.matchingBracket(document, 0))
+        assertEquals(TextRange(0, 1) to TextRange(valid.lastIndexOf('}'), valid.lastIndexOf('}') + 1), outer.open to outer.close)
+        val list = assertNotNull(services.matchingBracket(document, valid.indexOf('[')))
+        assertEquals(valid.indexOf(']'), list.close.start)
+        assertNull(services.matchingBracket(DescriptorFixture.document("{\"a\": [1"), 6), "an open list has no match")
+    }
+
+    @Test
+    fun `file paths, object keys and numbers are highlighted by their role`() {
+        val document = DescriptorFixture.document(valid, version = 1)
+
+        val spans = services.highlight(document).associate { valid.substring(it.range.start, it.range.end) to it.style }
+
+        assertEquals(HighlightStyle.FILE_PATH, spans["cleaning_robot.kmeta"])
+        assertEquals(HighlightStyle.OBJECT_NAME, spans["turtle"])
+        assertEquals(HighlightStyle.PROPERTY_NAME, spans["metamodel"])
+        assertEquals(HighlightStyle.NUMBER_VALUE, spans["3000"])
+        assertEquals(HighlightStyle.EVENT_DOMAIN, spans["public"])
+        assertEquals(HighlightStyle.PUNCTUATION, spans["{"])
+    }
+}

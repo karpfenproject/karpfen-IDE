@@ -1,24 +1,18 @@
 package io.karpfen.ide.core.workspace.environment
 
+import io.karpfen.ide.core.document.environment.EnvironmentSchema
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * An environment descriptor `*.kenv.json`: which files form one runnable modeling context and how the runtime runs
- * them. File paths are relative to the descriptor's directory. The class is the one source of the descriptor's shape:
- * the reader checks keys against its serial descriptor and decodes values with it.
+ * An environment descriptor `*.kenv.json` as a typed value: which files form one runnable modeling context and how the
+ * runtime runs them. File paths are relative to the descriptor's directory.
  *
- * ```json
- * {
- *   "metamodel": "cleaning_robot.kmeta",
- *   "events": "EVENTS.kmeta",
- *   "model": "cleaning_robot.kmodel",
- *   "stateMachines": [ { "file": "cleaning_robot.kstates", "attachedTo": "turtle" } ],
- *   "tickDelayMs": 50, "eventTtlMs": 3000,
- *   "observe": { "objects": "*", "domains": ["public"] },
- *   "runtime": { "image": "ghcr.io/karpfenproject/karpfen-runtime:0.x", "pythonPackages": ["numpy"] },
- *   "bridges": [ "mqtt-sim.kbridge.json" ]
- * }
- * ```
+ * The keys, their nesting, their value kinds and which of them are required are defined once, by `EnvironmentSchema`
+ * of core-document, which also documents every key. This class is what kotlinx.serialization decodes a descriptor into
+ * after the reader checked it against that schema: its serial names are the schema's key constants, and a test checks
+ * that its serial shape (keys, nesting, optional and nullable values, value kinds) is exactly the schema's. It is also
+ * what the file templates encode a new descriptor from, so a written descriptor reads back without findings.
  *
  * @property metamodel the domain metamodel (required).
  * @property events the event metamodel, if any.
@@ -32,25 +26,34 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 public data class EnvironmentDescriptor(
-    public val metamodel: String,
-    public val events: String? = null,
-    public val model: String,
-    public val stateMachines: List<StateMachineEntry> = emptyList(),
-    public val tickDelayMs: Long? = null,
-    public val eventTtlMs: Long? = null,
-    public val observe: ObserveSpec? = null,
-    public val runtime: RuntimeSpec? = null,
-    public val bridges: List<String> = emptyList(),
+    @SerialName(EnvironmentSchema.METAMODEL) public val metamodel: String,
+    @SerialName(EnvironmentSchema.EVENTS) public val events: String? = null,
+    @SerialName(EnvironmentSchema.MODEL) public val model: String,
+    @SerialName(EnvironmentSchema.STATE_MACHINES) public val stateMachines: List<StateMachineEntry> = emptyList(),
+    @SerialName(EnvironmentSchema.TICK_DELAY_MS) public val tickDelayMs: Long? = null,
+    @SerialName(EnvironmentSchema.EVENT_TTL_MS) public val eventTtlMs: Long? = null,
+    @SerialName(EnvironmentSchema.OBSERVE) public val observe: ObserveSpec? = null,
+    @SerialName(EnvironmentSchema.RUNTIME) public val runtime: RuntimeSpec? = null,
+    @SerialName(EnvironmentSchema.BRIDGES) public val bridges: List<String> = emptyList(),
 ) {
     /** One state machine of the environment: [file] runs attached to the object with key [attachedTo]. */
     @Serializable
-    public data class StateMachineEntry(public val file: String, public val attachedTo: String)
+    public data class StateMachineEntry(
+        @SerialName(EnvironmentSchema.FILE) public val file: String,
+        @SerialName(EnvironmentSchema.ATTACHED_TO) public val attachedTo: String,
+    )
 
     /** Observation settings: [objects] is an object key pattern (`"*"` for all), [domains] the event domains. */
     @Serializable
-    public data class ObserveSpec(public val objects: String, public val domains: List<String> = emptyList())
+    public data class ObserveSpec(
+        @SerialName(EnvironmentSchema.OBJECTS) public val objects: String,
+        @SerialName(EnvironmentSchema.DOMAINS) public val domains: List<String> = emptyList(),
+    )
 
     /** Runtime settings: container [image] and extra [pythonPackages]. */
     @Serializable
-    public data class RuntimeSpec(public val image: String? = null, public val pythonPackages: List<String> = emptyList())
+    public data class RuntimeSpec(
+        @SerialName(EnvironmentSchema.IMAGE) public val image: String? = null,
+        @SerialName(EnvironmentSchema.PYTHON_PACKAGES) public val pythonPackages: List<String> = emptyList(),
+    )
 }

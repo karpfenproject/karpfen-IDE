@@ -71,7 +71,7 @@ internal class DefaultDocumentManager(
         val name = normalized.fileName?.toString() ?: return OpenResult.Unsupported(normalized)
         val kind = FileKind.of(name)
         val support = languages.supportFor(name)
-        if (!kind.isKarpfenSource || support == null) return OpenResult.Unsupported(normalized)
+        if (kind.language == null || support == null) return OpenResult.Unsupported(normalized)
         val loaded = try {
             withContext(ioDispatcher) { sourceLoader.load(normalized) }
         } catch (cancellation: CancellationException) {

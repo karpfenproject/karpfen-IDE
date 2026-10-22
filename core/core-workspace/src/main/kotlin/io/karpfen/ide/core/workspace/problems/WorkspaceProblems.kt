@@ -16,12 +16,13 @@ import java.nio.file.Path
  *   sources `"file"` and `"project"`; sessions of a workspace are syntax-only, so no standalone conversion);
  * - any other karpfen source of the tree, in a context or loose: `AnalyzedFile.ownDiagnostics` of the latest analysis
  *   plus the file's project diagnostics (`ProjectAnalysis.diagnosticsFor`);
- * - any other path with project diagnostics (environment descriptors; files and directories that cannot be read, as
- *   ERROR `unreadable`): those.
+ * - any other path with project diagnostics (environment descriptors that are not open; files and directories that
+ *   cannot be read, as ERROR `unreadable`): those.
  *
  * Both karpfen cases merge with the same function (`mergeDiagnostics` of core-document) and get DSL_TOOLS diagnostics
  * only from the project analysis (context files converted, loose files never), so opening or closing a file changes
- * no finding.
+ * no finding. A descriptor reports the same either way: closed, its project diagnostics hold the syntax errors the
+ * reader found; open, its session computes the same syntax errors and receives the rest as project diagnostics.
  *
  * Files without diagnostics are absent.
  *

@@ -1,11 +1,16 @@
 package io.karpfen.ide.core.workspace.environment
 
 import io.karpfen.ide.core.document.Diagnostic
+import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
+import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.environment.DescriptorFileRole
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Mutations
+import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import org.junit.jupiter.api.TestReporter
 import java.nio.file.Path
@@ -72,7 +77,7 @@ class EnvironmentDescriptorReaderTest {
     }
 
     @Test
-    fun `invalid JSON is one error and no descriptor`() {
+    fun `invalid JSON is the syntax error the editor shows and no descriptor`() {
         val text = DescriptorExamples.text(DescriptorExamples.INVALID_JSON)
 
         val result = reader.read(path, text)
@@ -80,9 +85,11 @@ class EnvironmentDescriptorReaderTest {
         assertNull(result.descriptor)
         assertEquals(emptyList(), result.references)
         val error = result.diagnostics.single()
-        assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID, error.code)
+        assertEquals(DiagnosticCodes.SYNTAX_ERROR to DiagnosticSource.PARSER, error.code to error.source)
         assertEquals(Severity.ERROR, error.severity)
-        assertTrue(error.range.end <= text.length && error.range.start >= text.indexOf("\"model\""), "near the truncation: ${error.range} ${error.message}")
+        assertEquals(text.trimEnd().length, error.range.start, "at the truncation: ${error.message}")
+        val editor = defaultLanguageRegistry().support(KarpfenLanguage.ENVIRONMENT).parser.parse(TextSnapshot(text, 0))
+        assertEquals(editor.syntaxDiagnostics, result.diagnostics, "one syntax rule for the reader and the editor")
     }
 
     @Test
@@ -187,11 +194,43 @@ class EnvironmentDescriptorReaderTest {
 
     @Test
     fun `documents that are no descriptor object are invalid`() {
-        listOf("", "   ", "[]", "\"x\"", "{\"metamodel\": \"a\", \"model\": \"b\"} trailing", "{\"metamodel\": \"a\", \"model\": \"b\",}").forEach { text ->
+        val syntax = listOf("", "   ", "{\"metamodel\": \"a\", \"model\": \"b\"} trailing", "{\"metamodel\": \"a\", \"model\": \"b\",}")
+        syntax.forEach { text ->
             val result = reader.read(path, text)
             assertNull(result.descriptor, text)
-            assertEquals(listOf(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID), result.diagnostics.map { it.code }.distinct(), text)
+            assertTrue(result.diagnostics.isNotEmpty(), text)
+            assertTrue(result.diagnostics.all { it.code == DiagnosticCodes.SYNTAX_ERROR || it.code == DiagnosticCodes.LEXER_ERROR }, "$text: ${result.diagnostics}")
         }
+        listOf("[]" to "a list", "\"x\"" to "a string").forEach { (text, kind) ->
+            val error = reader.read(path, text).diagnostics.single()
+            assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID, error.code, text)
+            assertEquals("The descriptor must be an object, not $kind.", error.message)
+        }
+    }
+
+    @Test
+    fun `numbers must be whole and null is allowed only for nullable keys`() {
+        val required = "\"metamodel\": \"a.kmeta\", \"model\": \"a.kmodel\""
+        val accepted = reader.read(path, "{$required, \"events\": null, \"tickDelayMs\": null, \"runtime\": {\"image\": null}}")
+        assertEquals(emptyList(), accepted.diagnostics)
+        assertNull(accepted.descriptor?.events)
+        val cases = listOf(
+            "{$required, \"tickDelayMs\": 1.5}" to "1.5",
+            "{$required, \"eventTtlMs\": 1e3}" to "1e3",
+            "{$required, \"tickDelayMs\": 99999999999999999999}" to "99999999999999999999",
+            "{$required, \"bridges\": null}" to "null",
+            "{$required, \"bridges\": [null]}" to "null",
+            "{\"metamodel\": null, \"model\": \"a.kmodel\"}" to "null",
+        )
+        for ((text, value) in cases) {
+            val error = reader.read(path, text).diagnostics.single()
+            assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID, error.code, text)
+            assertEquals(TextRange.ofLength(text.lastIndexOf(value), value.length), error.range, "${error.message} in $text")
+        }
+        assertEquals(
+            "'tickDelayMs' must be a whole number, not 1.5.",
+            reader.read(path, cases[0].first).diagnostics.single().message,
+        )
     }
 
     @Test

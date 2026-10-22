@@ -2,6 +2,7 @@ package io.karpfen.ide.core.workspace.context
 
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.WorkspaceOptions
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.document.SourceLoader
@@ -23,7 +24,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the context tracker: descriptors are loaded through the source loader (normalized text, loading findings),
- * published with the contexts, and an unreadable descriptor is an error that defines no context.
+ * published with the contexts, and an unreadable descriptor is an error that defines no context. An open descriptor is
+ * read from its editor text, so unsaved edits change findings and contexts, and closing it falls back to the disk.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ContextTrackerTest {
@@ -36,7 +38,7 @@ class ContextTrackerTest {
 
     /** A tracker loading through [loader] on the test's virtual time. */
     private fun TestScope.tracker(loader: SourceLoader = SourceLoader()) =
-        ContextTracker(loader, EnvironmentDescriptorReader(), ContextResolver(), StandardTestDispatcher(testScheduler))
+        ContextTracker(loader, EnvironmentDescriptorReader(), ContextResolver(), StandardTestDispatcher(testScheduler), EditorTexts { null })
 
     @Test
     fun `descriptors are read from their normalized text, which is published with the contexts`() = runTest {
@@ -83,5 +85,39 @@ class ContextTrackerTest {
         assertEquals(emptyList(), tracker.resolution.value.contexts)
         assertEquals(emptyMap(), tracker.state.value.descriptorTexts)
         assertEquals(4, tracker.resolution.value.looseFiles.size)
+    }
+
+    @Test
+    fun `an open descriptor is read from its editor text and closing it falls back to the disk`() = runTest {
+        val descriptor = DescriptorExamples.copyExplicitContext(root).toAbsolutePath().normalize()
+        val editor = HashMap<Path, TextSnapshot>()
+        var loads = 0
+        val tracker = ContextTracker(
+            SourceLoader { path ->
+                loads++
+                SourceLoader().load(path)
+            },
+            EnvironmentDescriptorReader(), ContextResolver(), StandardTestDispatcher(testScheduler), EditorTexts { editor[it] },
+        )
+        tracker.update(scanner.scan(root))
+        assertEquals(null, tracker.resolution.value.diagnostics[descriptor])
+        val loadsAfterScan = loads
+
+        val edited = TextSnapshot(Files.readString(descriptor).replace("cleaning_robot.kmodel", "missing.kmodel"), 3)
+        editor[descriptor] = edited
+        tracker.refreshEdits()
+
+        val missing = tracker.resolution.value.diagnostics.getValue(descriptor).single()
+        assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE, missing.code)
+        assertEquals("missing.kmodel", edited.text.substring(missing.range.start, missing.range.end))
+        assertSame(edited, tracker.state.value.descriptorTexts[descriptor], "findings refer to the editor's snapshot")
+        assertEquals(listOf(descriptor.resolveSibling("missing.kmodel")), tracker.resolution.value.contexts.single().models, "the context follows the edit")
+
+        editor.remove(descriptor)
+        tracker.refreshEdits()
+
+        assertEquals(null, tracker.resolution.value.diagnostics[descriptor], "closed without saving: the disk counts again")
+        assertEquals(Files.readString(descriptor), tracker.state.value.descriptorTexts.getValue(descriptor).text)
+        assertEquals(loadsAfterScan + 1, loads, "only the descriptor that was open is loaded again")
     }
 }

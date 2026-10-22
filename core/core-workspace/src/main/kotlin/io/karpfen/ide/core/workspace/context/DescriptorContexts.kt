@@ -4,22 +4,23 @@ import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.environment.DescriptorFileRole
+import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.workspace.diagnostics.DiagnosticsByFile
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.environment.DescriptorFileReference
-import io.karpfen.ide.core.workspace.environment.DescriptorFileRole
+import io.karpfen.ide.core.workspace.environment.DescriptorPaths
 import io.karpfen.ide.core.workspace.environment.DescriptorReadResult
 import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
-import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 /**
  * The explicit contexts of a workspace (rules on [ContextResolver]): one per successfully read descriptor, in path
- * order, with paths resolved against the descriptor's directory (sub-directories and `..` allowed; the result is
- * normalized). Every reference that names no file of the tree — missing, in an ignored directory, outside the
+ * order, with paths resolved against the descriptor's directory by [DescriptorPaths.resolve] (sub-directories and `..`
+ * allowed; the result is normalized). Every reference that names no file of the tree — missing, in an ignored directory, outside the
  * workspace, a directory, or not a valid path — is an ERROR `descriptor-missing-file` on the descriptor at the
  * reference's range; bridges are references too. A reference to a file of another language than its role's
  * ([DescriptorFileRole.language], e.g. a `.kstates` file as metamodel) is an ERROR `descriptor-invalid` there: the
@@ -67,20 +68,18 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
         }
     }
 
-    /** [value] resolved against [directory], absolute and normalized, or null if it is not a valid path. */
-    private fun resolve(directory: Path, value: String): Path? =
-        try {
-            directory.resolve(value).toAbsolutePath().normalize()
-        } catch (e: InvalidPathException) {
-            null
-        }
+    /** [value] resolved against [directory] ([DescriptorPaths.resolve]), or null if it is not a valid path. */
+    private fun resolve(directory: Path, value: String): Path? = DescriptorPaths.resolve(directory, value)
+
+    /** The key that names files of [role], as findings name it (`stateMachines[].file`). */
+    private fun keyOf(role: DescriptorFileRole): String = EnvironmentSchema.keyPathOf(role)
 
     /** The ERROR `descriptor-missing-file` at [reference]. */
     private fun missingFile(reference: DescriptorFileReference): Diagnostic =
         Diagnostic(
             range = reference.range,
             severity = Severity.ERROR,
-            message = "The file '${reference.value}' named by '${reference.role.key}' does not exist in the workspace.",
+            message = "The file '${reference.value}' named by '${keyOf(reference.role)}' does not exist in the workspace.",
             code = WorkspaceDiagnosticCodes.DESCRIPTOR_MISSING_FILE,
             source = DiagnosticSource.IDE,
         )
@@ -90,7 +89,7 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
         Diagnostic(
             range = reference.range,
             severity = Severity.ERROR,
-            message = "The file '${reference.value}' named by '${reference.role.key}' is not a ${language.displayName} file " +
+            message = "The file '${reference.value}' named by '${keyOf(reference.role)}' is not a ${language.displayName} file " +
                 "(.${language.extension}).",
             code = WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID,
             source = DiagnosticSource.IDE,

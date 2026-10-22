@@ -8,8 +8,9 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * A karpfen file opened for editing: its [session] plus the file-level state the workbench needs (dirty
- * flag, line separator, external-change conflict). Created and closed by the [DocumentManager].
+ * A karpfen file (a modeling-language source or an environment descriptor) opened for editing: its [session] plus the
+ * file-level state the workbench needs (dirty flag, line separator, external-change conflict). Created and closed by
+ * the [DocumentManager].
  */
 public interface OpenDocument {
 
@@ -19,7 +20,7 @@ public interface OpenDocument {
     /** The file path. */
     public val path: Path get() = id.path
 
-    /** Role of the file (KMETA, EVENTS_KMETA, KMODEL, KSTATES). */
+    /** Role of the file (KMETA, EVENTS_KMETA, KMODEL, KSTATES, ENV_DESCRIPTOR). */
     public val fileKind: FileKind
 
     /** Tokens, parse outcome and diagnostics of the edited text. */

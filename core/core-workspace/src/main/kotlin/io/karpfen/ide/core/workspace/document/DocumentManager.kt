@@ -34,8 +34,9 @@ public interface DocumentManager {
     public val openDocuments: StateFlow<List<OpenDocument>>
 
     /**
-     * Opens [path] (or returns the already open document). Only karpfen sources can be opened
-     * ([OpenResult.Unsupported] otherwise); I/O failures are [OpenResult.Failed], never exceptions.
+     * Opens [path] (or returns the already open document). Only files of a registered karpfen language can be opened
+     * (the modeling languages and environment descriptors; [OpenResult.Unsupported] otherwise); I/O failures are
+     * [OpenResult.Failed], never exceptions.
      */
     public suspend fun open(path: Path): OpenResult
 
@@ -58,8 +59,8 @@ public sealed interface OpenResult {
     public data class Opened(public val document: OpenDocument) : OpenResult
 
     /**
-     * The file is not a karpfen source (e.g. `*.kenv.json`); the editor cannot open it, so the workbench opens it in
-     * the system's default application.
+     * The file is in no karpfen language (e.g. a README or a bridge configuration); the editor cannot open it, so the
+     * workbench opens it in the system's default application.
      */
     public data class Unsupported(public val path: Path) : OpenResult
 

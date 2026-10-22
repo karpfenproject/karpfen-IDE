@@ -3,9 +3,8 @@ package io.karpfen.ide.core.workspace.analysis
 import instance.Model
 import io.karpfen.ide.core.document.dsl.Conversion
 import io.karpfen.ide.core.document.dsl.DslConverter
+import io.karpfen.ide.core.document.environment.DescriptorFileRole
 import io.karpfen.ide.core.workspace.context.ModelingContext
-import io.karpfen.ide.core.workspace.context.language
-import io.karpfen.ide.core.workspace.environment.DescriptorFileRole
 import io.karpfen.ide.core.workspace.diagnostics.DiagnosticsByFile
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive

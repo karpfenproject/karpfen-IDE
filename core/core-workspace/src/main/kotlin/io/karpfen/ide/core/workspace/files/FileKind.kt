@@ -1,11 +1,12 @@
 package io.karpfen.ide.core.workspace.files
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.environment.DescriptorFileRole
 
 /**
  * Role of a file in a workspace, derived from its name only.
  *
- * @property language the karpfen language of the file, or null for non-karpfen files.
+ * @property language the karpfen language of the file, or null for files the IDE does not edit.
  */
 public enum class FileKind(public val language: KarpfenLanguage?) {
     /** A domain metamodel (`*.kmeta` except `EVENTS.kmeta`). */
@@ -21,7 +22,10 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
     KSTATES(KarpfenLanguage.KSTATES),
 
     /** An environment descriptor (`*.kenv.json`). */
-    ENV_DESCRIPTOR(null),
+    ENV_DESCRIPTOR(KarpfenLanguage.ENVIRONMENT),
+
+    /** A bridge configuration (`*.kbridge.json`), named by environment descriptors; not interpreted yet. */
+    BRIDGE(null),
 
     /** A diagram layout sidecar (`*.layout.json`). */
     LAYOUT(null),
@@ -30,12 +34,19 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
     OTHER(null),
     ;
 
-    /** True for the karpfen languages (editable with full language support). */
-    public val isKarpfenSource: Boolean get() = language != null
+    /**
+     * True for the files of the modeling languages (KMeta, KModel, KStates): the files that form modeling contexts and
+     * that the project analysis tokenizes, parses and converts. Environment descriptors are edited with full language
+     * support as well, but they define contexts instead of belonging to one.
+     */
+    public val isKarpfenSource: Boolean get() = language?.isModelingLanguage == true
 
     public companion object {
         /** File-name suffix of environment descriptors. */
-        public const val DESCRIPTOR_SUFFIX: String = ".kenv.json"
+        public val DESCRIPTOR_SUFFIX: String = ".${KarpfenLanguage.ENVIRONMENT.extension}"
+
+        /** File-name suffix of bridge configurations. */
+        public const val BRIDGE_SUFFIX: String = ".kbridge.json"
 
         /** File-name suffix of layout sidecars. */
         public const val LAYOUT_SUFFIX: String = ".layout.json"
@@ -49,14 +60,27 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
          */
         public fun of(fileName: String): FileKind = when {
             fileName.equals(EVENTS_FILE_NAME, ignoreCase = true) -> EVENTS_KMETA
-            fileName.endsWith(DESCRIPTOR_SUFFIX, ignoreCase = true) -> ENV_DESCRIPTOR
+            fileName.endsWith(BRIDGE_SUFFIX, ignoreCase = true) -> BRIDGE
             fileName.endsWith(LAYOUT_SUFFIX, ignoreCase = true) -> LAYOUT
             else -> when (KarpfenLanguage.fromFileName(fileName)) {
                 KarpfenLanguage.KMETA -> KMETA
                 KarpfenLanguage.KMODEL -> KMODEL
                 KarpfenLanguage.KSTATES -> KSTATES
+                KarpfenLanguage.ENVIRONMENT -> ENV_DESCRIPTOR
                 null -> OTHER
             }
+        }
+
+        /**
+         * The kind of file a descriptor names in [role]: a domain metamodel, the event metamodel, a model, a state
+         * machine or a bridge configuration. Completion offers the files of this kind for a descriptor key.
+         */
+        public fun of(role: DescriptorFileRole): FileKind = when (role) {
+            DescriptorFileRole.METAMODEL -> KMETA
+            DescriptorFileRole.EVENTS -> EVENTS_KMETA
+            DescriptorFileRole.MODEL -> KMODEL
+            DescriptorFileRole.STATE_MACHINE -> KSTATES
+            DescriptorFileRole.BRIDGE -> BRIDGE
         }
     }
 }

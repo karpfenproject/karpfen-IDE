@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.workspace.context
 
+import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
 /**
@@ -24,7 +25,7 @@ public data class ModelingContext(
 
     /** Display name: the descriptor name without `.kenv.json`, or the directory name. */
     public val name: String
-        get() = descriptor?.fileName?.toString()?.removeSuffix(".kenv.json")
+        get() = descriptor?.fileName?.toString()?.removeSuffix(FileKind.DESCRIPTOR_SUFFIX)
             ?: directory.fileName?.toString()
             ?: directory.toString()
 

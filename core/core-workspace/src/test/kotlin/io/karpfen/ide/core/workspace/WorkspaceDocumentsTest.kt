@@ -77,7 +77,7 @@ class WorkspaceDocumentsTest {
             setOf(WorkspaceDiagnosticCodes.CONTEXT_MULTIPLE_METAMODELS, DiagnosticCodes.SYNTAX_ERROR),
             problems.of(loose)?.diagnostics?.map { it.code }?.toSet(),
         )
-        assertEquals(listOf(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID), problems.of(descriptor)?.diagnostics?.map { it.code })
+        assertEquals(listOf(DiagnosticCodes.SYNTAX_ERROR), problems.of(descriptor)?.diagnostics?.map { it.code })
         assertTrue(problems.files.none { it.isOpen })
 
         val document = workspace.openDocument(model)
@@ -92,13 +92,13 @@ class WorkspaceDocumentsTest {
     }
 
     @Test
-    fun `opening and closing a context file, a file with loading findings and a loose file leaves problems unchanged`() = runTest(timeout = 60.seconds) {
+    fun `opening and closing a context file, a file with loading findings, a loose file and a descriptor leaves problems unchanged`() = runTest(timeout = 60.seconds) {
         writeProject()
         val workspace = TestWorkspaces(this).open(root)
         workspace.awaitAnalysis()
         val before = workspace.problems.value.byFile()
 
-        for (path in listOf(model, mixed, loose, metamodel)) {
+        for (path in listOf(model, mixed, loose, metamodel, descriptor)) {
             val document = workspace.openDocument(path)
             settle()
             assertEquals(before, workspace.problems.value.byFile(), "after opening ${path.fileName}")

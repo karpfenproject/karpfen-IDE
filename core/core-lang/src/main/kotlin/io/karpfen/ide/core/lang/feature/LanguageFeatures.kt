@@ -10,6 +10,7 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.analysis.ContextAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.files.FileKind
+import io.karpfen.ide.core.workspace.files.WorkspaceTree
 
 /**
  * The editor features of one language, a product family of strategies (Strategy + Abstract Factory), so adding a
@@ -48,11 +49,14 @@ public interface LanguageFeatures {
  * @property project the workspace's latest project analysis.
  * @property contextAnalysis the analysis of the modeling context containing the document, or null if it belongs to
  *   none.
+ * @property files the workspace's current file tree, or null where the services know none (e.g. tests of a single
+ *   document); environment descriptors complete file paths from it, including files that are no karpfen source.
  */
 public data class FeatureRequest(
     public val document: LanguageDocument,
     public val project: ProjectAnalysis,
     public val contextAnalysis: ContextAnalysis?,
+    public val files: WorkspaceTree? = null,
 ) {
     /**
      * True if the document is an event metamodel: the events file of its modeling context, or — outside a context —

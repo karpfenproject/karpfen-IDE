@@ -37,7 +37,7 @@ public enum class HighlightStyle {
     /** `number`, `string`, `boolean`. */
     PRIMITIVE_TYPE,
 
-    /** Property or relation key. */
+    /** Property or relation key, or a key of an environment descriptor. */
     PROPERTY_NAME,
 
     /** Object key. */
@@ -63,6 +63,15 @@ public enum class HighlightStyle {
 
     /** `WITH … AS` binding name. */
     BINDING_NAME,
+
+    /** File path in an environment descriptor. */
+    FILE_PATH,
+
+    /** Number given as the value of an environment descriptor key. */
+    NUMBER_VALUE,
+
+    /** `true` or `false` given as the value of an environment descriptor key. */
+    BOOLEAN_VALUE,
 
     /** Embedded Python code. */
     EMBEDDED_CODE,
@@ -92,13 +101,14 @@ public enum class HighlightStyle {
     /**
      * True for the semantic styles, the ones that come from the parse outcome's semantic spans (one per `SemanticKind`:
      * type, primitive type, property, object, state, macro, event and binding names, event domains, model paths,
-     * descriptions); false for the lexical styles from token kinds. The editor carries the semantic layer of an older
-     * snapshot forward while the parse lags the tokens (see [overlayHighlights]).
+     * descriptions, and the file paths, numbers and booleans of environment descriptors); false for the lexical styles
+     * from token kinds. The editor carries the semantic layer of an older snapshot forward while the parse lags the
+     * tokens (see [overlayHighlights]).
      */
     public val isSemantic: Boolean
         get() = when (this) {
             TYPE_NAME, PRIMITIVE_TYPE, PROPERTY_NAME, OBJECT_NAME, STATE_NAME, MACRO_NAME, EVENT_NAME, EVENT_DOMAIN,
-            MODEL_PATH, DESCRIPTION, BINDING_NAME,
+            MODEL_PATH, DESCRIPTION, BINDING_NAME, FILE_PATH, NUMBER_VALUE, BOOLEAN_VALUE,
             -> true
             else -> false
         }

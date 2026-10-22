@@ -9,11 +9,13 @@ import io.karpfen.ide.core.workspace.analysis.WorkspaceAnalysisSources
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ContextResolver
 import io.karpfen.ide.core.workspace.context.ContextTracker
+import io.karpfen.ide.core.workspace.context.EditorTexts
 import io.karpfen.ide.core.workspace.document.DocumentManager
 import io.karpfen.ide.core.workspace.document.SourceLoader
 import io.karpfen.ide.core.workspace.document.TextFileStore
 import io.karpfen.ide.core.workspace.document.WorkspaceDocuments
 import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
+import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.FileWatcher
 import io.karpfen.ide.core.workspace.files.WorkspaceScanner
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
@@ -28,7 +30,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -59,14 +63,16 @@ internal class WorkspaceCollaborators(
  * coordinates; each pipeline is its own internal class, built here from the [collaborators], the [scope] and the
  * [options] (they are the workspace's structure, not seams):
  * - [TreeRefresher] — scan, watch debounce, routing changes to `WorkspaceDocuments.onFileChanged` → [files];
- * - [ContextTracker] — descriptors read through the `SourceLoader`, contexts resolved → [contexts];
+ * - [ContextTracker] — descriptors read through the `SourceLoader`, or from the editor text while they are open,
+ *   contexts resolved → [contexts]; it reads the open descriptors again whenever one is opened, edited or closed;
  * - [AnalysisScheduler] over [WorkspaceAnalysisSources] — debounced, cancellable analysis → [analysis], [isAnalyzing];
  * - [ProjectDiagnosticsPublisher] — each `AnalyzedFile`'s project diagnostics into the open sessions;
  * - [ProblemsPublisher] with the [WorkspaceProblemsAggregator] → [problems].
  *
- * Start-up (in [scope]): watching (if enabled), the publishers and the analysis triggers (contexts, completed rescans,
- * every text version of every open document) start, then the first scan runs, then the analysis scheduler serves the
- * request made at construction (so [isAnalyzing] is true from the start) and every trigger after it.
+ * Start-up (in [scope]): watching (if enabled), the publishers, the descriptor edits and the analysis triggers
+ * (contexts, completed rescans, every text version of every open document) start, then the first scan runs, then the
+ * analysis scheduler serves the request made at construction (so [isAnalyzing] is true from the start) and every
+ * trigger after it.
  *
  * @param scope the workspace's own scope (a supervisor child of the factory's scope, created by the factory and shared
  *   with [WorkspaceCollaborators.documents]); [close] cancels it.
@@ -81,6 +87,7 @@ internal class DefaultWorkspace(
 
     private val contextTracker = ContextTracker(
         collaborators.sourceLoader, collaborators.descriptorReader, collaborators.contextResolver, options.ioDispatcher,
+        EditorTexts { path -> collaborators.documents.get(path)?.session?.text?.snapshot?.value },
     )
     private val treeRefresher = TreeRefresher(
         root, collaborators.scanner, collaborators.fileWatcher, collaborators.documents, contextTracker,
@@ -152,7 +159,8 @@ internal class DefaultWorkspace(
         val documents = collaborators.documents.openDocuments
         if (options.watch) treeRefresher.watch(scope)
         problemsPublisher.start(scope, scheduler.published, documents)
-        diagnosticsPublisher.start(scope, scheduler.analysis, documents)
+        diagnosticsPublisher.start(scope, scheduler.published, documents)
+        launchDescriptorEdits()
         launchAnalysisTriggers()
         try {
             treeRefresher.refresh()
@@ -174,6 +182,29 @@ internal class DefaultWorkspace(
             .drop(1)
             .collect { scheduler.schedule() }
     }
+
+    /**
+     * Has the contexts follow the open descriptors: whenever a descriptor is opened, edited or closed, the open ones are
+     * read again from their editor texts (a closed one from disk). It subscribes before the first scan and skips the
+     * current state, which the first scan reads anyway; a newer edit supersedes a reading still running.
+     */
+    private fun launchDescriptorEdits(): Job = scope.launch {
+        openDescriptorTexts().distinctUntilChanged().drop(1).collectLatest { contextTracker.refreshEdits() }
+    }
+
+    /** The paths and current texts of the open descriptors, re-emitted when one is opened, edited or closed. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun openDescriptorTexts(): Flow<List<Pair<Path, Long>>> =
+        collaborators.documents.openDocuments.flatMapLatest { open ->
+            val descriptors = open.filter { it.fileKind == FileKind.ENV_DESCRIPTOR }
+            if (descriptors.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                combine(descriptors.map { document -> document.session.text.snapshot }) { snapshots ->
+                    descriptors.zip(snapshots) { document, snapshot -> document.path to snapshot.version }
+                }
+            }
+        }
 
     /** Emits whenever the set of open documents or the text of one of them changes. */
     @OptIn(ExperimentalCoroutinesApi::class)

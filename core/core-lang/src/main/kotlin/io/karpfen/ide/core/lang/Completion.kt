@@ -46,7 +46,7 @@ public enum class CompletionKind {
     /** `number`, `string`, `boolean`. */
     PRIMITIVE_TYPE,
 
-    /** A simple property key. */
+    /** A simple property key, or a key of an environment descriptor. */
     PROPERTY,
 
     /** A `has`/`knows` relation key. */
@@ -69,4 +69,10 @@ public enum class CompletionKind {
 
     /** A `WITH … AS` binding or macro parameter. */
     BINDING,
+
+    /** A file path, such as a file named in an environment descriptor. */
+    FILE,
+
+    /** A typical value of a key, such as a number or `true` in an environment descriptor. */
+    VALUE,
 }

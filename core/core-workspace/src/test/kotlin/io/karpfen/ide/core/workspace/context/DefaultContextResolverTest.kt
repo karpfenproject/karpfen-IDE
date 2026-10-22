@@ -1,5 +1,6 @@
 package io.karpfen.ide.core.workspace.context
 
+import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.text.TextRange
@@ -76,7 +77,7 @@ class DefaultContextResolverTest {
         val resolution = resolver.resolve(tree, descriptors("ctx/robot.kenv.json" to DescriptorExamples.text(DescriptorExamples.INVALID_JSON)))
 
         assertEquals(emptyList(), resolution.contexts)
-        assertEquals(listOf(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID), resolution.diagnostics.getValue(ws("ctx/robot.kenv.json")).map { it.code })
+        assertEquals(listOf(DiagnosticCodes.SYNTAX_ERROR), resolution.diagnostics.getValue(ws("ctx/robot.kenv.json")).map { it.code })
         assertEquals(robotFiles.map(::ws).sorted(), resolution.looseFiles.sorted())
     }
 

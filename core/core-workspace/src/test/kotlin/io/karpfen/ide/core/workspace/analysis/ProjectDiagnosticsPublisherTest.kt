@@ -27,7 +27,8 @@ import kotlin.test.assertTrue
 /**
  * Covers pushing project diagnostics into open sessions: diagnostics of a version of the document's text are mapped
  * forward, those of the identical disk text reach a document opened later, and those of another text or of another
- * lineage of the text (a document closed and reopened since) are never pushed.
+ * lineage of the text (a document closed and reopened since) are never pushed. A descriptor's findings are pushed for
+ * the descriptor text they were read from, without the syntax errors its session computes itself.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProjectDiagnosticsPublisherTest {
@@ -43,10 +44,10 @@ class ProjectDiagnosticsPublisherTest {
         Diagnostic(range, Severity.ERROR, "Unknown target class type 'Arm'", DiagnosticCodes.DSL_TOOLS_ERROR, DiagnosticSource.DSL_TOOLS)
 
     /** An analysis of generation [generation] that analyzed [path] as [snapshot] with the project [diagnostics]. */
-    private fun analysisOf(path: Path, snapshot: TextSnapshot, vararg diagnostics: Diagnostic, generation: Long = 1): ProjectAnalysis {
+    private fun analysisOf(path: Path, snapshot: TextSnapshot, vararg diagnostics: Diagnostic, generation: Long = 1): PublishedAnalysis {
         val parse = defaultLanguageRegistry().support(KarpfenLanguage.KMETA).parser.parse(snapshot)
         val file = AnalyzedFile(path, FileKind.KMETA, snapshot, parse)
-        return ProjectAnalysis(generation, emptyList(), mapOf(path to diagnostics.toList()), mapOf(path to file))
+        return PublishedAnalysis(ProjectAnalysis(generation, emptyList(), mapOf(path to diagnostics.toList()), mapOf(path to file)), emptyMap())
     }
 
     /** The DSL_TOOLS diagnostics of the document's session. */
@@ -109,7 +110,7 @@ class ProjectDiagnosticsPublisherTest {
 
         val stale = analysisOf(path, analyzed, projectDiagnostic(TextRange.ofLength(0, 10)))
         publisher.push(stale, reopened)
-        reopened.session.setExternalDiagnostics("project", analyzed, stale.diagnosticsFor(path))
+        reopened.session.setExternalDiagnostics("project", analyzed, stale.analysis.diagnosticsFor(path))
         runCurrent()
 
         assertEquals(emptyList(), reopened.projectFindings(), "a snapshot of the closed document's lineage is ignored")
@@ -123,7 +124,7 @@ class ProjectDiagnosticsPublisherTest {
         runCurrent()
         assertTrue(document.projectFindings().isNotEmpty())
 
-        publisher.push(ProjectAnalysis(2, emptyList(), emptyMap()), document)
+        publisher.push(PublishedAnalysis(ProjectAnalysis(2, emptyList(), emptyMap()), emptyMap()), document)
         runCurrent()
 
         assertEquals(emptyList(), document.projectFindings())
@@ -133,7 +134,7 @@ class ProjectDiagnosticsPublisherTest {
     fun `started, it pushes every new analysis and into newly opened documents`() = runTest {
         val manager = documentManager(this)
         val path = file()
-        val analyses = MutableStateFlow(ProjectAnalysis.EMPTY)
+        val analyses = MutableStateFlow(PublishedAnalysis.EMPTY)
         publisher.start(backgroundScope, analyses, manager.openDocuments)
         analyses.value = analysisOf(path, TextSnapshot(text, 0), projectDiagnostic())
         runCurrent()
@@ -145,5 +146,24 @@ class ProjectDiagnosticsPublisherTest {
         analyses.value = analysisOf(path, document.session.text.snapshot.value, generation = 2)
         runCurrent()
         assertEquals(emptyList(), document.projectFindings(), "pushed for the new analysis")
+    }
+
+    @Test
+    fun `descriptor findings read from the editor text are pushed and mapped forward, its syntax errors are not`() = runTest {
+        val path = dir.resolve("robot.kenv.json").toAbsolutePath().normalize()
+        Files.writeString(path, "{\"metamodel\": \"a.kmeta\", \"model\": \"b.kmodel\", \"tickDelay\": 5}")
+        val document = documentManager(this).openOrFail(path)
+        val read = document.session.text.snapshot.value
+        val start = read.text.indexOf("tickDelay")
+        val unknownKey = Diagnostic(TextRange.ofLength(start, "tickDelay".length), Severity.WARNING, "Unknown key", "descriptor-unknown-key", DiagnosticSource.IDE)
+        val syntax = Diagnostic(TextRange.EMPTY, Severity.ERROR, "Expected", DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
+        document.type(0, " ")
+
+        publisher.push(PublishedAnalysis(ProjectAnalysis(1, emptyList(), mapOf(path to listOf(unknownKey, syntax))), mapOf(path to read)), document)
+        runCurrent()
+
+        val pushed = document.session.diagnostics.value.diagnostics.filter { it.source == DiagnosticSource.IDE }.single()
+        assertEquals("tickDelay", document.session.text.snapshot.value.text.substring(pushed.range.start, pushed.range.end))
+        assertTrue(document.session.diagnostics.value.diagnostics.none { it.message == "Expected" }, "the session computes syntax errors itself")
     }
 }

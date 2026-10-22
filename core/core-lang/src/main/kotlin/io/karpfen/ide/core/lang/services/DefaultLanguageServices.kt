@@ -11,13 +11,14 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.feature.LanguageFeatures
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
+import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import kotlinx.coroutines.flow.StateFlow
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * Facade: builds a `FeatureRequest` (document + `analysis.value` + the document's context analysis), picks the
- * features of the document's language and delegates; catches anything a provider throws, logs it (SLF4J), reports it
+ * Facade: builds a `FeatureRequest` (document + `analysis.value` + the document's context analysis + `files.value`),
+ * picks the features of the document's language and delegates; catches anything a provider throws, logs it (SLF4J), reports it
  * to [onProviderFailure] and returns the empty result instead. Languages without features yield empty results.
  *
  * Preconditions of the `LanguageServices` contract are checked instead of trusted, so a caller's mistake cannot reach a
@@ -29,6 +30,7 @@ internal class DefaultLanguageServices(
     private val analysis: StateFlow<ProjectAnalysis>,
     private val features: Map<KarpfenLanguage, LanguageFeatures>,
     private val onProviderFailure: (ProviderFailure) -> Unit,
+    private val files: StateFlow<WorkspaceTree>?,
 ) : LanguageServices {
 
     override fun highlight(doc: LanguageDocument): List<HighlightSpan> =
@@ -70,7 +72,7 @@ internal class DefaultLanguageServices(
         }
         return try {
             val project = analysis.value
-            call(bundle, FeatureRequest(doc, project, project.contextOf(doc.path)))
+            call(bundle, FeatureRequest(doc, project, project.contextOf(doc.path), files?.value))
         } catch (e: Exception) {
             report(operation, doc, e)
             empty

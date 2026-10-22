@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.workspace.document
 
 import io.karpfen.ide.core.document.DiagnosticSource
+import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.parse.SemanticMode
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
 import io.karpfen.ide.core.text.EditableText
@@ -68,16 +69,28 @@ class DocumentManagerOpenSaveTest {
     }
 
     @Test
-    fun `non-karpfen files are unsupported and unreadable files fail without exception`() = runTest {
+    fun `files of no karpfen language are unsupported and unreadable files fail without exception`() = runTest {
         val manager = documentManager(this)
-        val descriptor = file("robot.kenv.json", "{}")
+        val bridge = file("mqtt.kbridge.json", "{}")
         file("README.md", "readme")
 
-        assertEquals(OpenResult.Unsupported(descriptor.toAbsolutePath().normalize()), manager.open(descriptor))
+        assertEquals(OpenResult.Unsupported(bridge.toAbsolutePath().normalize()), manager.open(bridge))
         assertIs<OpenResult.Unsupported>(manager.open(dir.resolve("README.md")))
         val failed = assertIs<OpenResult.Failed>(manager.open(dir.resolve("missing.kmeta")))
         assertTrue("missing.kmeta" in failed.message, failed.message)
         assertEquals(emptyList(), manager.openDocuments.value)
+    }
+
+    @Test
+    fun `an environment descriptor opens with the environment language`() = runTest {
+        val manager = documentManager(this)
+        val descriptor = file("robot.kenv.json", "{\"metamodel\": \"a.kmeta\"}")
+
+        val document = manager.openOrFail(descriptor)
+
+        assertEquals(FileKind.ENV_DESCRIPTOR, document.fileKind)
+        assertEquals(KarpfenLanguage.ENVIRONMENT, document.session.language)
+        assertEquals(listOf(document), manager.openDocuments.value)
     }
 
     @Test

@@ -1,6 +1,7 @@
 package io.karpfen.ide.core.workspace.files
 
 import io.karpfen.ide.core.document.KarpfenLanguage
+import io.karpfen.ide.core.document.environment.DescriptorFileRole
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -29,18 +30,34 @@ class FileKindTest {
     }
 
     @Test
-    fun `descriptors, layouts and other files have no language`() {
+    fun `descriptors are edited in the environment language but are no karpfen source of a context`() {
         assertEquals(FileKind.ENV_DESCRIPTOR, FileKind.of("robot.kenv.json"))
         assertEquals(FileKind.ENV_DESCRIPTOR, FileKind.of("robot.KENV.JSON"))
+        assertEquals(KarpfenLanguage.ENVIRONMENT, FileKind.ENV_DESCRIPTOR.language)
+        assertFalse(FileKind.ENV_DESCRIPTOR.isKarpfenSource)
+        assertTrue(FileKind.KMODEL.isKarpfenSource)
+    }
+
+    @Test
+    fun `bridges, layouts and other files have no language`() {
+        assertEquals(FileKind.BRIDGE, FileKind.of("mqtt-sim.kbridge.json"))
         assertEquals(FileKind.LAYOUT, FileKind.of("robot.kstates.layout.json"))
         assertEquals(FileKind.OTHER, FileKind.of("robot.json"))
         assertEquals(FileKind.OTHER, FileKind.of("kmeta"))
         assertEquals(FileKind.OTHER, FileKind.of("robot.kmeta.bak"))
         assertEquals(FileKind.OTHER, FileKind.of(""))
-        listOf(FileKind.ENV_DESCRIPTOR, FileKind.LAYOUT, FileKind.OTHER).forEach {
+        listOf(FileKind.BRIDGE, FileKind.LAYOUT, FileKind.OTHER).forEach {
             assertNull(it.language)
             assertFalse(it.isKarpfenSource)
         }
-        assertTrue(FileKind.KMODEL.isKarpfenSource)
+    }
+
+    @Test
+    fun `every file role of a descriptor has the kind of file completion offers for it`() {
+        assertEquals(
+            listOf(FileKind.KMETA, FileKind.EVENTS_KMETA, FileKind.KMODEL, FileKind.KSTATES, FileKind.BRIDGE),
+            DescriptorFileRole.entries.map { FileKind.of(it) },
+        )
+        DescriptorFileRole.entries.forEach { role -> assertEquals(role.language, FileKind.of(role).language, "$role") }
     }
 }

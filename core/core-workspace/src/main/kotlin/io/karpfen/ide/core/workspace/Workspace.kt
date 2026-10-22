@@ -31,7 +31,8 @@ import java.nio.file.Path
  * Pipelines (all in a child scope of the factory's scope, cancelled by [close]):
  * - scan → [files]; watch events are debounced (`WorkspaceOptions.watchDebounce`) and trigger a rescan plus reload or
  *   conflict handling of open documents;
- * - tree + descriptors (loaded with the [SourceLoader]) → [contexts];
+ * - tree + descriptors (loaded with the [SourceLoader], or the editor text of an open descriptor, which is read again on
+ *   every edit) → [contexts];
  * - contexts + text of open documents (on every change) → debounced (`analysisDebounce`), cancellable re-analysis →
  *   [analysis]; afterwards the per-file project diagnostics are pushed into the open sessions with
  *   `setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, analyzedFile.snapshot, …)` (the session ignores a
