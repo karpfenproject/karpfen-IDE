@@ -69,9 +69,9 @@ In `cleaning_robot.kstates`, put the caret at the end of the line `INITIAL STATE
 3. In any EVAL body, type `$(`. The list shows the properties and relations of `Robot`, such as `boundingBox` and
    `d_closest_wall`. Accept `boundingBox` and type `->`: the members of `TwoDObject` follow.
 4. In an EVAL body, type `@po`. The macros `point_to_point_distance` and `point_to_line_distance` are offered.
-5. Press **Ctrl+M** with the caret anywhere in the text: completion opens at the caret. Ctrl+M opens completion on every
-   platform; on Windows, Ctrl+Space does as well. On macOS, Ctrl+Space is left to the system, which uses it to switch
-   input sources.
+5. Press **Ctrl+M** (the Control key, not Cmd) with the caret anywhere in the text: completion opens at the caret and
+   no line break or other character is typed. Ctrl+M opens completion on every platform; on Windows, Ctrl+Space does
+   as well. On macOS, Ctrl+Space is left to the system, which uses it to switch input sources.
 6. Clicking elsewhere in the text, or moving the caret out of the completed word, closes the list.
 
 Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, or keep them for the undo section.
