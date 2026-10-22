@@ -162,8 +162,9 @@ builds in composite mode with a pinned dsl-tools commit, which `.github/workflow
 Every module keeps its code below one package prefix, `io.karpfen.ide` followed by its layer and the rest of its name
 (`io.karpfen.ide.core.document` for core/core-document); app/ide, architecture-tests and build-logic use the shorter
 `io.karpfen.ide.app`, `io.karpfen.ide.architecture` and `io.karpfen.ide.buildlogic`. `KarpfenModules` in the
-architecture tests lists every prefix, and the [codebase guide](docs/codebase-guide.md) walks through the modules
-feature by feature.
+architecture tests lists the prefix of every module of the product build, where the architecture tests check it;
+build-logic, an included build of its own, keeps its prefix by convention. The [codebase guide](docs/codebase-guide.md)
+walks through the modules feature by feature.
 
 **Core**, free of any UI:
 
@@ -184,8 +185,8 @@ feature by feature.
 **UI**, built with Compose Multiplatform for Desktop:
 
 - **ui/ui-foundation**: theme, icons and common widgets (tree view, tabs, split panes, tooltip, status bar), the
-  command registry and the toolkit-neutral key model. Start at `CommandRegistry` (package `command`) and `KeyStroke`
-  (package `keys`).
+  command registry and the toolkit-neutral key model. Start at `TreeView` (package `widgets`), `KarpfenTheme` (package
+  `theme`), `CommandRegistry` (package `command`) and `KeyStroke` (package `keys`).
 - **ui/ui-editor**: the custom code editor, made of a Compose-free model of actions, carets, completion and find, a
   state holder, the Compose view and its popups. Start at `CodeEditorState` (package `state`) and `CodeEditor`
   (package `view`).
@@ -213,7 +214,8 @@ Together they enforce the module boundaries on every build, as the
 [decision that module boundaries are enforced by the build](docs/adr/0008-module-boundaries-enforced-by-the-build.md)
 records. The same build enforces the documentation style: `DocumentationStyleTest` rejects line comments, block
 comments other than KDoc and KDoc that documents no declaration in every Kotlin source file and Gradle script, and
-reference ids to other documents there and in the markdown documents, the CI workflows and the XML resources. The KDoc
+reference ids to other documents there and in the markdown documents, the CI workflows and the XML resources. A Gradle
+script has no other place to document its top-level statements and blocks, so KDoc may document those too. The KDoc
 of `DocumentationStyleTest`, `KDocPlacement` and `ReferenceIds` explains the rules.
 
 **Later increments**, stubs so far:

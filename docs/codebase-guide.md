@@ -10,7 +10,8 @@ Package names below are relative to their module. Every module keeps its code be
 `io.karpfen.ide`, the layer and the rest of the module's name, so "the `session` package of core-document" is
 `io.karpfen.ide.core.document.session`. Three modules have shorter prefixes: app/ide uses `io.karpfen.ide.app`,
 architecture-tests `io.karpfen.ide.architecture` and build-logic `io.karpfen.ide.buildlogic`. `KarpfenModules` of the
-architecture tests lists the prefix of every module.
+architecture tests lists the prefix of every module of the product build, and the architecture tests check them;
+build-logic is an included build of its own and keeps its prefix by convention only.
 
 ## The big picture
 
@@ -104,7 +105,7 @@ tells which text a version belongs to. `DefaultEditableText` is the implementati
   schema every other reader uses from it: the keys with their nesting and value shapes (`ValueShape`,
   `DescriptorKey`), which are required, and what role a named file plays (`DescriptorFileRole`). `shapedValues` walks a
   descriptor along the schema, and `EnvironmentSyntaxAnalyzer` turns a descriptor into outline, folding, semantic
-  spans and syntax diagnostics. The `json` package holds the IDE's own JSON parser (`JsonParser`).
+  spans and syntax diagnostics.
 - **Diagnostics.** `Diagnostic` and `DiagnosticCodes` in the root package describe a problem; `mergeDiagnostics` in
   the `session` package is the one rule that combines the diagnostic sources of a document.
 
@@ -175,6 +176,21 @@ workbench uses). `DefaultCodeEditorState` lists its collaborators, each with one
   of `EditorOverlays` (package `overlay`), so view and popups do not depend on each other.
 - **Theme.** `EditorTheme` (package `theme`) maps highlight styles to colours.
 
+## UI foundation (ui-foundation)
+
+ui-foundation holds the building blocks that the editor, the workbench and the application share; it knows no IDE
+feature.
+
+- **Widgets.** The `widgets` package holds the generic widgets the workbench draws with: `TreeView` with its
+  `TreeNode`, the lazy tree behind the project tree, the outline and the problems, with keyboard navigation and context
+  menus; `TabStrip` for the editor tabs; `StatusBar`; and the tooltip and context menu they share.
+- **Layout.** `SplitPane` and `ToolWindow` in the `layout` package divide the window and frame each tool window.
+- **Theme and icons.** `KarpfenTheme` (package `theme`) provides the light and dark palettes and the typography, and
+  matches the Material widgets to them; `KarpfenIcons` (package `icons`) draws the file, severity and action icons.
+- **Commands and keys.** `CommandRegistry` (package `command`) holds the application's commands and menus; `KeyStroke`,
+  `KeyShortcut` and `HostPlatform` (package `keys`) are the toolkit-neutral key model, and `keys.compose` converts
+  Compose key events and menu shortcuts.
+
 ## Workbench (ui-workbench)
 
 Start at `WorkbenchState` in the `state` package: the mediator that owns the opened workspace and its language
@@ -204,9 +220,8 @@ unexpected exceptions into a log entry and an error dialog, the `window` package
 `menu` package resolves the menus against the registered commands. Logging is configured in
 `app/ide/src/main/resources/logback.xml`.
 
-Commands and keys come from ui-foundation: `CommandRegistry` (package `command`) holds the application's commands,
-`KeyStroke`, `KeyShortcut` and `HostPlatform` (package `keys`) are the key model, and `keys.compose` converts Compose
-key events. The editors and the menus take their shortcuts from the same `EditorKeymap`, so they always agree.
+The commands and the key model come from ui-foundation, described above. The editors and the menus take their
+shortcuts from the same `EditorKeymap`, so they always agree.
 
 ## Command-line tool (tools/cli)
 
@@ -229,11 +244,11 @@ is carried out.
   `PackageLayoutTest`, `LexicalFactsTest` (one declaration per lexical fact) and `BudgetTestTaggingTest`.
   `KarpfenModules` is the module table these tests share. `DocumentationStyleTest` guards the documentation style in
   every Kotlin source file and Gradle script, with `KotlinComments` to find the comments, `KDocPlacement` to check
-  that KDoc documents a declaration, and `ReferenceIds` to find reference ids, which it also looks for in the markdown
-  documents, the CI workflows and the XML resources. `KotlinLexer` is the one lexer behind all text-reading rules: it
-  tells comments and literal text from code for `KotlinComments`, for `SourceReferences` (the fully qualified names
-  the layer rules check) and for `WallClockAssertions`, which `BudgetTestTaggingTest` asks whether a test asserts on
-  the wall clock.
+  that KDoc documents a declaration (or, in a script, a top-level statement), and `ReferenceIds` to find reference
+  ids, which it also looks for in the markdown documents, the CI workflows and the XML resources. `KotlinLexer` is the
+  one lexer behind all text-reading rules: it tells comments and literal text from code for `KotlinComments`, for
+  `SourceReferences` (the fully qualified names the layer rules check) and for `WallClockAssertions`, which
+  `BudgetTestTaggingTest` asks whether a test asserts on the wall clock.
 
 Typical changes and where they start:
 
@@ -268,7 +283,8 @@ The architecture tests check many of these rules on every build.
 
 - Documentation lives in KDoc block comments on declarations, in official KDoc syntax: a summary sentence first, then
   the details, `[Name]` links to types and members, and tags such as `@param` or `@property` only where they add
-  information.
+  information. In a Gradle script, KDoc may also document a top-level statement or block, such as `dependencies { }`,
+  because a script has no other place for it; `KDocPlacement` documents the exact rule.
 - There are no line comments, no other block comments and no comments between statements. When code needs an
   explanation, a well-named function or value carries it in its KDoc, or the KDoc of the enclosing declaration
   explains it.
