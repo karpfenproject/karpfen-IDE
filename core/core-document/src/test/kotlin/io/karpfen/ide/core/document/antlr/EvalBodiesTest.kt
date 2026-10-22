@@ -13,6 +13,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * Covers [EvalBodies], the one lexical scanner of embedded Python: finding bodies with braces balanced like the
+ * dsl-tools parser, unclosed bodies, the classification of pieces, and agreement between the tokenizer's and the
+ * parser's token streams.
+ */
 class EvalBodiesTest {
 
     private fun scanAll(text: String): List<Pair<EvalBody, List<EmbeddedPiece>>> {

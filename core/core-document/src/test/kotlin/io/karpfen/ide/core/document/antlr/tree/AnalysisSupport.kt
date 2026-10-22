@@ -25,7 +25,7 @@ internal fun String.at(range: TextRange): String = substring(range.start, range.
 internal fun flatten(nodes: List<OutlineNode>): List<OutlineNode> = nodes.flatMap { listOf(it) + flatten(it.children) }
 
 /**
- * Checks the documented invariants of an analysis of [text] (spec §3.3, `ParseOutcome`): every range lies inside the
+ * Checks the documented invariants of an analysis of [text] (see `ParseOutcome`): every range lies inside the
  * text; outline children lie inside their parent and are in document order; spans are sorted, non-empty and do not
  * overlap; folding ranges are sorted and span more than one line; diagnostics are sorted. ([OutlineNode] and
  * `SymbolDeclaration` check the selection/name containment themselves on construction.)

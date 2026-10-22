@@ -4,9 +4,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * IDE-authored environment descriptors (`*.kenv.json`, spec §4) for the files of
- * `karpfen-runtime/single_robot_example`, loaded from the test-fixture resources below [RESOURCE_ROOT] (see
- * `ide-examples/README.md` for the expected findings). Shared by core-workspace (descriptor reading, explicit contexts),
+ * IDE-authored environment descriptors (`*.kenv.json`, which tie a metamodel, events, a model and state machines into
+ * one modeling context) for the files of `karpfen-runtime/single_robot_example`, loaded from the test-fixture
+ * resources below [RESOURCE_ROOT] (see `ide-examples/README.md` for the expected findings). Shared by core-workspace (descriptor reading, explicit contexts),
  * the CLI and the end-to-end tests, so nobody invents descriptors of their own.
  */
 public object DescriptorExamples {

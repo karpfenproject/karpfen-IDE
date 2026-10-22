@@ -6,6 +6,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
+/**
+ * Covers [CodePointOffsets]: the identity without surrogates, the conversion of ANTLR's code-point indices to UTF-16
+ * offsets after supplementary characters, and the clamping of conjured and end-of-file tokens.
+ */
 class CodePointOffsetsTest {
 
     @Test
@@ -18,12 +22,12 @@ class CodePointOffsetsTest {
         assertEquals(TextRange(6, 12), offsets.range(6, 11))
     }
 
+    /** ANTLR indexes by code point: the emoji is one index there and two UTF-16 units in the IDE. */
     @Test
     fun `maps ANTLR code point indices to UTF-16 offsets after supplementary characters`() {
         val text = "// 😀 smile\ntype"
         val offsets = CodePointOffsets.of(text)
 
-        // ANTLR indexes by code point: the emoji is one index there, two UTF-16 units in the IDE.
         assertEquals(CharStreams.fromString(text).size(), offsets.codePointCount)
         val typeIndex = text.codePointCount(0, text.indexOf("type"))
         assertEquals(TextRange(text.indexOf("type"), text.length), offsets.range(typeIndex, typeIndex + 3))

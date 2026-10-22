@@ -9,6 +9,10 @@ import kmodel.KmodelParser
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * Covers [BlockFolding] and [CommentFolding]: multi-line brace pairs, unmatched and skipped braces, runs of whole-line
+ * comments and what breaks a run.
+ */
 class FoldingTest {
 
     private val kmodel = TreeParser(KarpfenLanguage.KMODEL, ::KmodelParser, KmodelParser::kmodel_file)

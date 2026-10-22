@@ -27,10 +27,6 @@ import java.nio.file.Path
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.seconds
 
-// Test support of the session tests (plan WP-TOKENS, Fakes): real tokenizers through the public registry, a fake
-// DocumentParser (WP-PARSE is developed in parallel) returning hand-built outcomes, virtual time through
-// StandardTestDispatchers on the test scheduler.
-
 /** The real tokenizer of [language], reached like every consumer reaches it: through the registry. */
 internal fun realTokenizer(language: KarpfenLanguage = KarpfenLanguage.KSTATES): Tokenizer =
     defaultLanguageRegistry().support(language).tokenizer
@@ -68,8 +64,9 @@ internal fun diagnostic(
 }
 
 /**
- * A [DocumentParser] fake: answers [outcomeFor] (by default a clean outcome of the snapshot's version) and records the
- * parsed versions and modes. Used on the test thread only.
+ * A [DocumentParser] fake returning hand-built outcomes, so the session tests control every parse result: answers
+ * [outcomeFor] (by default a clean outcome of the snapshot's version) and records the parsed versions and modes. Used
+ * on the test thread only.
  */
 internal class FakeParser(private val outcomeFor: (TextSnapshot) -> ParseOutcome = { outcome(it.version) }) : DocumentParser {
 
@@ -101,7 +98,7 @@ internal class RecordingTokenizer(
     }
 }
 
-/** A config whose dispatchers run on the virtual time of this test. */
+/** A config whose dispatchers are `StandardTestDispatcher`s on this test's scheduler, so they run on virtual time. */
 internal fun TestScope.testConfig(semanticMode: SemanticMode = SemanticMode.SYNTAX_ONLY): DocumentSessionConfig {
     val dispatcher = StandardTestDispatcher(testScheduler)
     return DocumentSessionConfig(semanticMode = semanticMode, tokenizeDispatcher = dispatcher, parseDispatcher = dispatcher)

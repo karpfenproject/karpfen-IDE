@@ -10,11 +10,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * The tokenize budget of spec §3.4: a 5,000-line KStates document tokenizes in < 30 ms, asserted with 5x slack; the
+ * The tokenize budget of the [io.karpfen.ide.core.document.syntax.Tokenizer] contract: a 5,000-line KStates document
+ * tokenizes in < 30 ms, asserted with 5x slack; the
  * measured average after warm-up is reported through [TestReporter].
  *
- * Tagged `budget`: excluded from every test run (docs/adr/0011-time-budget-tests-are-not-run.md); kept for later
- * performance work.
+ * Tagged `budget`, which the build excludes from every test run: wall-clock time depends on machine load, garbage
+ * collection and sleep cycles, so such assertions fail without a code change. The test stays as executable
+ * documentation for later performance work.
  */
 @Tag("budget")
 class TokenizeBudgetTest {

@@ -25,8 +25,8 @@ internal fun tokenizerOf(language: KarpfenLanguage): Tokenizer = when (language)
 internal fun isGrammarWhitespace(char: Char): Boolean = char == ' ' || char == '\t' || char == '\r' || char == '\n'
 
 /**
- * Tokenizes [text] as [language] (version 7) and asserts the invariants of spec §3.1 and `TokenizeResult` (see
- * [assertTokenInvariants]); returns the result. [label] identifies the input in failure messages.
+ * Tokenizes [text] as [language] (version 7) and asserts the token invariants of the [Tokenizer] contract and of
+ * `TokenizeResult` (see [assertTokenInvariants]); returns the result. [label] identifies the input in failure messages.
  */
 internal fun tokenizeChecked(language: KarpfenLanguage, text: String, label: String): TokenizeResult {
     val snapshot = TextSnapshot(text, 7)
@@ -40,7 +40,7 @@ internal fun tokenizeChecked(language: KarpfenLanguage, text: String, label: Str
 }
 
 /**
- * The token invariants (spec §3.1, plan WP-TOKENS), checked on every example, mutation and prefix:
+ * The token invariants of the [Tokenizer] contract, checked on every example, mutation and prefix:
  * - the version is the snapshot's; tokens are non-empty, inside the text, sorted and non-overlapping;
  * - every non-whitespace character belongs to exactly one token;
  * - diagnostics are sorted with [Diagnostic.ORDER] and none is an internal error (the fail-safe guard never fired);
@@ -80,7 +80,7 @@ internal fun assertTokenInvariants(language: KarpfenLanguage, text: String, resu
     }
 }
 
-/** KMeta/KModel: lexer errors become ERROR tokens plus LEXER diagnostics (spec §3.1); each explains the other. */
+/** KMeta/KModel: lexer errors always become ERROR tokens plus LEXER diagnostics; each explains the other. */
 private fun assertLexerErrorsMatchErrorTokens(result: TokenizeResult, lexerErrors: List<Diagnostic>, label: String) {
     val errorTokens = result.tokens.filter { it.kind == TokenKind.ERROR }
     for (token in errorTokens) {
@@ -91,6 +91,10 @@ private fun assertLexerErrorsMatchErrorTokens(result: TokenizeResult, lexerError
     }
 }
 
+/**
+ * KStates: the embedded regions are exactly the EVAL body contents of [EvalBodies.find], and every embedded token lies
+ * in one of them.
+ */
 private fun assertEmbeddedRegions(text: String, result: TokenizeResult, label: String) {
     val lexed = KarpfenLexers.lex(KarpfenLanguage.KSTATES, text)
     val expected = EvalBodies.find(lexed.tokens, lexed.offsets).map { it.content }

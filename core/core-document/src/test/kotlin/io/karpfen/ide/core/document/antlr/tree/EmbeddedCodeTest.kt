@@ -18,7 +18,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * EVAL references and folding come from the same lexical scanner the tokenizer uses (decision 16): every MODEL_PATH or
+ * Covers that EVAL references and folding come from the same lexical scanner the tokenizer uses: every MODEL_PATH or
  * MACRO reference inside an EVAL body is exactly the inner range (and name) of a PATH_REFERENCE or MACRO_REFERENCE
  * piece of `EvalBodies.scan` over the tokenizer's lexing (`KarpfenLexers.lex`), and every such piece is a reference, on
  * the examples, a synthetic document and mutations alike.

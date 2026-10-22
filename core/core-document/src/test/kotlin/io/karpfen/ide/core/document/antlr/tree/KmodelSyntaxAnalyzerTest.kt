@@ -11,6 +11,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * Covers [KmodelSyntaxAnalyzer]: object declarations (anonymous ones included), qualified key references, outline,
+ * semantic spans and folding of KModel, and the objects and references of the examples.
+ */
 class KmodelSyntaxAnalyzerTest {
 
     private val text = """

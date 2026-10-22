@@ -23,7 +23,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
-/** The token and parse pipelines of [DocumentSession] (spec §3.4) on virtual time with a fake parser. */
+/** Covers the token and parse pipelines of [DocumentSession] on virtual time with a fake parser. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DocumentSessionPipelinesTest {
 
@@ -96,10 +96,10 @@ class DocumentSessionPipelinesTest {
         assertEquals(listOf(0L, 3L), tokenizer.versions)
     }
 
+    /** The tokenizer itself makes the edit that arrives while version 1 is being tokenized. */
     @Test
     fun `a newer version cancels the tokenizing of an older one`() = runTest {
         val text = EditableText(source)
-        // The edit arrives while version 1 is being tokenized.
         val tokenizer = RecordingTokenizer { snapshot -> if (snapshot.version == 1L) text.type(0, " ") }
         val session = session(text, tokenizer = tokenizer)
         val published = recordValues(session.tokens) { it.version }
@@ -148,11 +148,12 @@ class DocumentSessionPipelinesTest {
         assertEquals(1L, session.parse.value?.version)
     }
 
+    /** The parser itself makes the edit that arrives while version 1 is being parsed. */
     @Test
     fun `a newer version cancels a running parse whose outcome is never published`() = runTest {
         val text = EditableText(source)
         val parser = FakeParser { snapshot ->
-            if (snapshot.version == 1L) text.type(0, " ") // the edit arrives while version 1 is being parsed
+            if (snapshot.version == 1L) text.type(0, " ")
             outcome(snapshot.version)
         }
         val session = session(text, parser)

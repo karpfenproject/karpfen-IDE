@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 
 /**
  * The parsers as `registry/KarpfenLanguageSupports.kt` wires them (syntax analyzer + dsl-tools standalone semantics),
- * on the examples (spec §11 item 2): zero PARSER diagnostics everywhere; with [SemanticMode.STANDALONE] every example
+ * on the examples: zero PARSER diagnostics everywhere; with [SemanticMode.STANDALONE] every example
  * `.kmeta` except `EVENTS.kmeta` (whose payloads reference domain types) and every `.kstates` converts.
  */
 class StandaloneParseTest {

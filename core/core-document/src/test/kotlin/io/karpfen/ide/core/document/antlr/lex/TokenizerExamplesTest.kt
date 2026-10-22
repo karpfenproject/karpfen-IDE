@@ -11,7 +11,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Spec §11 item 2 for the tokenizers: every example tokenizes without LEXER diagnostics and with valid tokens. */
+/** Covers the tokenizers on the examples: every example tokenizes without LEXER diagnostics and with valid tokens. */
 class TokenizerExamplesTest {
 
     @Test

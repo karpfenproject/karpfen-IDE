@@ -11,6 +11,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * Covers [KmetaTokenizer]: the KMeta vocabulary, recovered comments, unrecognized input and unterminated strings as
+ * error tokens with lexer diagnostics, UTF-16 offsets, and the result's version.
+ */
 class KmetaTokenizerTest {
 
     private fun tokenize(text: String): TokenizeResult = tokenizeChecked(KarpfenLanguage.KMETA, text, "KMeta '$text'")
@@ -82,9 +86,9 @@ class KmetaTokenizerTest {
         assertEquals(listOf(DiagnosticSource.LEXER), result.diagnostics.map { it.source })
     }
 
+    /** The lexer's recovery swallows the first `/` with the failed `type`, so it never lexes a comment there. */
     @Test
     fun `a double slash the lexer consumed while recovering from an error is not a comment`() {
-        // The lexer's recovery swallows the first `/` with the failed `type`, so it never lexes a comment here.
         val text = "ty//pe \"A\" \"d\" { }"
 
         val tokens = kinds(text)

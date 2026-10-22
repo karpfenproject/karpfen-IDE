@@ -17,7 +17,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The merged, versioned diagnostics of [DocumentSession] (spec §3.4, decisions 28 and 35) on virtual time. */
+/**
+ * Covers the merged, versioned diagnostics of [DocumentSession] on virtual time: every source is mapped to the newest
+ * snapshot with the one range-mapping rule and combined by the one merge rule, [mergeDiagnostics].
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DocumentSessionDiagnosticsTest {
 
@@ -70,6 +73,7 @@ class DocumentSessionDiagnosticsTest {
         assertSame(v0, session.diagnostics.value.snapshot)
     }
 
+    /** The diagnostics are checked once the tokens caught up with the edits while the parse is still debounced. */
     @Test
     fun `sources of older versions are mapped to the newest snapshot with mapRange before merging`() = runTest {
         val text = EditableText(source)
@@ -81,7 +85,7 @@ class DocumentSessionDiagnosticsTest {
 
         text.type(0, "// header\n")
         text.replace(rangeOf("TRANSITIONS", text.snapshot.value.text), "TRANSITION")
-        runCurrent() // the tokens catch up, the parse is still debounced
+        runCurrent()
 
         val current = text.snapshot.value
         val merged = session.diagnostics.value
@@ -94,11 +98,12 @@ class DocumentSessionDiagnosticsTest {
         assertTrue(parserError.copy(range = parserError.range.shiftedBy(10)) in merged.diagnostics)
     }
 
+    /** Tokenizing runs on a held dispatcher, so the tokens lag until the test releases it. */
     @Test
     fun `lagging tokens are mapped like every other source`() = runTest {
         val text = EditableText(source)
         val v0 = text.snapshot.value
-        val tokenizing = HeldDispatcher() // tokenizing lags until the test releases it
+        val tokenizing = HeldDispatcher()
         val session = session(text, FakeParser(), config = testConfig().copy(tokenizeDispatcher = tokenizing))
         runCurrent()
         val lexicalV0 = session.tokens.value.diagnostics
@@ -131,6 +136,10 @@ class DocumentSessionDiagnosticsTest {
         assertEquals(1L, session.diagnostics.value.version)
     }
 
+    /**
+     * The foreign snapshot has the same text and version but another lineage, like an analysis of a document that was
+     * closed and reopened since.
+     */
     @Test
     fun `an external set for a snapshot of another lineage is ignored`() = runTest {
         val text = EditableText(source)
@@ -139,7 +148,6 @@ class DocumentSessionDiagnosticsTest {
         runCurrent()
         val before = session.diagnostics.value
 
-        // The same text and version, but another lineage (e.g. an analysis of a closed and reopened document).
         val stranger = TextSnapshot(source, 0)
         session.setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, stranger, emptyList())
         session.setExternalDiagnostics(ExternalDiagnosticSources.FILE, stranger, listOf(diagnostic(TextRange(0, 1))))

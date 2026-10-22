@@ -13,7 +13,7 @@ import kotlin.test.Test
 import kotlin.time.TimeSource
 
 /**
- * Spec §11 item 3 for the tokenizers: they never throw and keep every token invariant ([assertTokenInvariants]) on
+ * Covers the robustness of the tokenizers: they never throw and keep every token invariant ([assertTokenInvariants]) on
  * 10,000 deterministic mutations of every example and on every prefix of one KStates example.
  */
 class TokenizerRobustnessTest {

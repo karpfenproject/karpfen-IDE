@@ -13,6 +13,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * Covers [KmetaSyntaxAnalyzer]: declarations, type references, outline, semantic spans and folding of KMeta, the
+ * structure kept on broken text, and the declarations of the examples.
+ */
 class KmetaSyntaxAnalyzerTest {
 
     private val text = """

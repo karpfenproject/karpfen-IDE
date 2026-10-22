@@ -112,6 +112,10 @@ class DocumentSessionPropertyTest {
         return mergeDiagnostics(map(tokens.diagnostics, tokens.version), mappedParse, external.map { map(it.diagnostics, it.snapshot.version, it.snapshot) })
     }
 
+    /**
+     * Applies one random edit: typing, a deletion, a replacement by a string, a closing brace at the end of the text
+     * (the offset of the empty "missing }" diagnostic), or an undo.
+     */
     private fun edit(text: EditableText, random: Random) {
         val length = text.snapshot.value.length
         when (random.nextInt(10)) {
@@ -124,7 +128,7 @@ class DocumentSessionPropertyTest {
                 val start = random.nextInt(length)
                 text.replace(TextRange(start, minOf(length, start + 1 + random.nextInt(30))), "\"x\"")
             }
-            8 -> text.type(length, "}") // at the offset of the empty "missing }" diagnostic
+            8 -> text.type(length, "}")
             else -> text.undo.undo()
         }
     }

@@ -6,6 +6,9 @@ import io.karpfen.ide.core.text.TextRange
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * Covers [outlineNode]: a node's range is widened to cover its selection and its children, and only when needed.
+ */
 class OutlineNodesTest {
 
     @Test

@@ -8,6 +8,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * Covers [KmodelTokenizer]: the KModel vocabulary with both string quotes, and unrecognized input as an error token
+ * with a lexer diagnostic.
+ */
 class KmodelTokenizerTest {
 
     private fun tokenize(text: String): TokenizeResult = tokenizeChecked(KarpfenLanguage.KMODEL, text, "KModel '$text'")

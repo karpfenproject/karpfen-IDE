@@ -2,7 +2,12 @@ package io.karpfen.ide.core.document.fixtures
 
 import io.karpfen.ide.core.document.KarpfenLanguage
 
-/** The repository an example file was copied from (see `examples/NOTICE.md`). */
+/**
+ * The repository an example file was copied from (see `examples/NOTICE.md`).
+ *
+ * @property directoryName the first path segment of the examples copied from it.
+ * @property commit the commit they were copied at.
+ */
 public enum class ExampleOrigin(public val directoryName: String, public val commit: String) {
     /** karpfenproject/karpfen-runtime, `examples/`. */
     KARPFEN_RUNTIME("karpfen-runtime", "d4c2059"),
@@ -40,8 +45,11 @@ public data class ExampleFile(public val path: String, public val language: Karp
 }
 
 /**
- * The example files of one directory, which form one modeling context (spec §4, implicit contexts): the domain
- * metamodel, the optional event metamodel, models and state machines.
+ * The example files of one directory, which form one implicit modeling context (a directory not covered by an
+ * environment descriptor): the domain metamodel, the optional event metamodel, models and state machines.
+ *
+ * @property directory the directory below the fixture root.
+ * @property files the example files of [directory], sorted by path.
  */
 public data class ExampleContext(public val directory: String, public val files: List<ExampleFile>) {
 

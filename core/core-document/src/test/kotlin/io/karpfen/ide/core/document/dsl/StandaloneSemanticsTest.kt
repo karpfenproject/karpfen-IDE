@@ -19,6 +19,10 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
+/**
+ * Covers [KmetaStandaloneSemantics] and [KstatesStandaloneSemantics]: wrapping the converted models and passing on the
+ * diagnostics of failed conversions.
+ */
 class StandaloneSemanticsTest {
 
     private val snapshot = TextSnapshot("text", 0)

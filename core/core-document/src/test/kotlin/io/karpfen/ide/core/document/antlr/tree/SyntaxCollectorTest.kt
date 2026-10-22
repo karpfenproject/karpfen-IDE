@@ -17,6 +17,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * Covers [SyntaxCollector]: declarations with missing names, skipped and classified references, sorted spans without
+ * overlaps, dropping findings inside embedded code, and the assembled analysis.
+ */
 class SyntaxCollectorTest {
 
     private fun quoted(start: Int, value: String) = QuotedString(value, TextRange.ofLength(start + 1, value.length), TextRange.ofLength(start, value.length + 2))

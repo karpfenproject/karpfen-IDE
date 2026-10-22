@@ -8,6 +8,7 @@ import kotlin.test.assertEquals
 /** Proves that karpfen-dsl-tools resolves (composite build or artifact) and parses KMeta. */
 class DslToolsSmokeTest {
 
+    /** By the KMeta convention the last type of a metamodel is its root. */
     @Test
     fun `parses a tiny metamodel with karpfen-dsl-tools`() {
         val metamodel = KmetaDSLConverter.parseKmetaString(
@@ -23,7 +24,6 @@ class DslToolsSmokeTest {
             """,
         )
 
-        // KMeta convention: the last type is the root.
         assertEquals("Car", metamodel.rootClass.name)
         assertEquals(setOf("Wheel", "Car"), metamodel.getClassTypes())
         val wheel = metamodel.rootClass.getObjectProperty("wheel")

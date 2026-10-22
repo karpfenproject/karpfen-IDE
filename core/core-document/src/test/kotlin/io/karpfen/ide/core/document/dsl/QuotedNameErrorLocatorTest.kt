@@ -10,6 +10,10 @@ import io.karpfen.ide.core.text.TextSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/**
+ * Covers [QuotedNameErrorLocator]: locating a dsl-tools message at the symbol it quotes first, the fallback to the
+ * first token, and ignoring the symbols of another text.
+ */
 class QuotedNameErrorLocatorTest {
 
     private val locator: DslErrorLocator = DslErrorLocator()

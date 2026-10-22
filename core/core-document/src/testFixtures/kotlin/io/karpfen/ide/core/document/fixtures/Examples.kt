@@ -5,9 +5,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * The example files copied from karpfen-runtime and karpfen-dsl-tools (spec §10), loaded from the test-fixture
- * resources below [RESOURCE_ROOT]. The file list comes from `examples/index.txt`, so loading works from a directory
- * and from the test-fixtures jar alike.
+ * The example files copied from karpfen-runtime and karpfen-dsl-tools (origins, commits and license in
+ * `examples/NOTICE.md`), loaded from the test-fixture resources below [RESOURCE_ROOT]. The file list comes from
+ * `examples/index.txt`, so loading works from a directory and from the test-fixtures jar alike.
  *
  * The loaded files are immutable constants; every function is deterministic.
  */
@@ -19,6 +19,7 @@ public object Examples {
     /** Classpath location of the file list. */
     public const val INDEX_RESOURCE: String = "$RESOURCE_ROOT/index.txt"
 
+    /** Every example file, loaded on first use. */
     private val all: List<ExampleFile> by lazy { load() }
 
     /** Every example file, sorted by path. */
@@ -55,6 +56,7 @@ public object Examples {
     public fun indexedPaths(): List<String> =
         readResource(INDEX_RESOURCE).lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
 
+    /** Reads every file of the index, sorted by path. */
     private fun load(): List<ExampleFile> =
         indexedPaths().sorted().map { path ->
             val language = requireNotNull(KarpfenLanguage.fromFileName(path.substringAfterLast('/'))) {
@@ -63,6 +65,7 @@ public object Examples {
             ExampleFile(path, language, readResource("$RESOURCE_ROOT/$path"))
         }
 
+    /** The UTF-8 text of the classpath resource [name]. */
     private fun readResource(name: String): String {
         val stream = requireNotNull(Examples::class.java.classLoader.getResourceAsStream(name)) {
             "test-fixture resource '$name' not found on the classpath"

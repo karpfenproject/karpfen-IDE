@@ -3,7 +3,8 @@ package io.karpfen.ide.core.document.fixtures
 import kotlin.random.Random
 
 /**
- * A deterministically mutated variant of a text, for robustness tests (spec §11 item 3).
+ * A deterministically mutated variant of a text, for the robustness tests: tokenizers, parsers and language services
+ * must never throw on any mutation of the examples.
  *
  * @property index position in the generated sequence (0-based).
  * @property operations human-readable description of the applied operations, in order (for failure messages).
@@ -19,11 +20,15 @@ public data class Mutation(public val index: Int, public val operations: List<St
  */
 public object Mutations {
 
-    /** Punctuation and operators of the three grammars, EVAL markers and characters that stress offset handling. */
+    /**
+     * Punctuation and operators of the three grammars, EVAL markers and characters that stress offset handling: line
+     * separators and blanks, `ä` and `€` (one UTF-16 unit each), `😀` (U+1F600, a surrogate pair) and `\uD83D` (an
+     * unpaired high surrogate).
+     */
     public val PUNCTUATION: List<String> = listOf(
         "{", "}", "(", ")", ",", ":", "\"", "'", "->", "$(", "@", "#", "//", "/*", "\\", ";", "=",
-        "\n", "\t", " ", "\r", "ä", "€", "😀", // U+1F600, a surrogate pair
-        "\uD83D", // an unpaired high surrogate
+        "\n", "\t", " ", "\r", "ä", "€", "😀",
+        "\uD83D",
     )
 
     /** Keywords and operations of KMeta, KModel and KStates. */
@@ -88,6 +93,7 @@ public object Mutations {
             (if (text.length % step == 0) emptySequence() else sequenceOf(text))
     }
 
+    /** [value] in quotes with line breaks, tabs and surrogates escaped, for readable operation descriptions. */
     private fun quote(value: String): String =
         "\"" + value.map { char ->
             when {

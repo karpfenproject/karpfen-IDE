@@ -16,6 +16,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+/**
+ * Covers [ComposedDocumentParser]: when the standalone conversion runs, how its diagnostics are passed on, and how
+ * failures of the analyzer or the conversion (stack overflows included) become internal-error diagnostics.
+ */
 class ComposedDocumentParserTest {
 
     private val snapshot = TextSnapshot("type \"A\" \"d\" { }", version = 7)

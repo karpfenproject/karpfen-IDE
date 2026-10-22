@@ -12,6 +12,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * Covers [KstatesTokenizer]: the KStates vocabulary, `EVENT` as an operation or a keyword by its block, EVAL bodies
+ * piece by piece with the `//` warning, the embedded regions, and symbols, numbers and strings outside EVAL bodies.
+ */
 class KstatesTokenizerTest {
 
     private fun tokenize(text: String): TokenizeResult = tokenizeChecked(KarpfenLanguage.KSTATES, text, "KStates '$text'")

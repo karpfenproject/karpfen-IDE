@@ -15,8 +15,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Proves that the shared test fixtures (spec §10) load and behave deterministically. Uses only the fixture helpers and
- * value types, never phase-1 implementation code.
+ * Proves that the shared test fixtures (example files, mutations, synthetic documents, environment descriptors) load and
+ * behave deterministically. Uses only the fixture helpers and value types, never the tokenizers, parsers or sessions.
  */
 class ExamplesFixtureTest {
 
@@ -38,9 +38,9 @@ class ExamplesFixtureTest {
         assertEquals("EVENTS.kmeta", Examples.file("karpfen-runtime/single_robot_example/EVENTS.kmeta").fileName)
     }
 
+    /** Gradle runs the tests with the module directory as working directory, so the fixture path is relative to it. */
     @Test
     fun `the index lists exactly the karpfen files of the fixture directory`() {
-        // Gradle runs tests with the module directory as working directory.
         val root = Path.of("src/testFixtures/resources/examples")
         assertTrue(Files.isDirectory(root), "fixture directory not found from ${Path.of("").toAbsolutePath()}")
         val onDisk = Files.walk(root).use { paths ->

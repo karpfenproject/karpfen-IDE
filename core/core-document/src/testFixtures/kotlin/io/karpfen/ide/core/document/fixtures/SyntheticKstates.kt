@@ -1,7 +1,8 @@
 package io.karpfen.ide.core.document.fixtures
 
 /**
- * Generates large, syntactically valid KStates documents for budgets and benchmarks (spec §3.4, §7.2, §10).
+ * Generates large, syntactically valid KStates documents for the time-budget tests and benchmarks of the parse
+ * pipeline and the editor.
  *
  * A document with `n` states contains: states `s0` … `s(n-1)` (`s0` is the single INITIAL state; every state whose
  * index is divisible by 10 nests the following up to nine states), ENTRY and DO blocks with SET/APPEND/EVENT actions

@@ -9,7 +9,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Spec §11 item 2 for the parser, plus the extraction rules of §3.3 checked on every example file. */
+/**
+ * Covers the syntax analyzers on the examples: every example parses without PARSER diagnostics, and the documented
+ * extraction rules (declarations, references, outline, spans) hold on every example file.
+ */
 class ExamplesSyntaxTest {
 
     private val analyses: List<Pair<String, SyntaxAnalysis>> =

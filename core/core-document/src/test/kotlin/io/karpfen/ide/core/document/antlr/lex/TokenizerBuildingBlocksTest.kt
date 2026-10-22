@@ -122,6 +122,10 @@ class TokenizerBuildingBlocksTest {
         }
     }
 
+    /**
+     * In `WITH MACRO("m") AS "d" {` the macro call does not replace the pending WITH; a macro definition opens another
+     * block; unbalanced closing braces are ignored.
+     */
     @Test
     fun `the block tracker decides EVENT by the innermost block`() {
         val tracker = KstatesBlockTracker()
@@ -130,7 +134,6 @@ class TokenizerBuildingBlocksTest {
         listOf(KstatesLexer.DO, KstatesLexer.LBRACE).forEach(tracker::accept)
         assertEquals(TokenKind.OPERATION, tracker.eventKind())
 
-        // WITH MACRO("m") AS "d" { — the macro call does not replace the pending WITH.
         listOf(KstatesLexer.WITH, KstatesLexer.MACRO, KstatesLexer.LPAREN, KstatesLexer.RPAREN, KstatesLexer.AS, KstatesLexer.LBRACE)
             .forEach(tracker::accept)
         assertEquals(TokenKind.OPERATION, tracker.eventKind())
@@ -138,7 +141,6 @@ class TokenizerBuildingBlocksTest {
         listOf(KstatesLexer.RBRACE, KstatesLexer.RBRACE, KstatesLexer.CONDITION, KstatesLexer.LBRACE).forEach(tracker::accept)
         assertEquals(TokenKind.KEYWORD, tracker.eventKind())
 
-        // A macro definition opens another block; unbalanced closing braces are ignored.
         listOf(KstatesLexer.RBRACE, KstatesLexer.RBRACE, KstatesLexer.RBRACE, KstatesLexer.MACRO, KstatesLexer.STRING, KstatesLexer.LBRACE)
             .forEach(tracker::accept)
         assertEquals(TokenKind.KEYWORD, tracker.eventKind())

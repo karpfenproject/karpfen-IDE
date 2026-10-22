@@ -15,6 +15,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/**
+ * Covers [IdeErrorListener]: located LEXER and PARSER diagnostics instead of console output, error-free examples, and
+ * lexer diagnostics of mutated texts that stay inside the text.
+ */
 class IdeErrorListenerTest {
 
     @Test
@@ -45,6 +49,7 @@ class IdeErrorListenerTest {
         assertEquals(TextRange.empty(unclosed.length), atEnd.last().range, "<EOF> is an empty range at the end")
     }
 
+    /** The KStates lexer never reports errors; it keeps whitespace and comments on the hidden channel. */
     @Test
     fun `examples lex without errors and the KStates lexer never reports any`() {
         Examples.files().forEach { file ->
@@ -54,7 +59,6 @@ class IdeErrorListenerTest {
         Mutations.random(machine, seed = 11, count = 500).forEach { mutation ->
             assertEquals(emptyList(), KarpfenLexers.lex(KarpfenLanguage.KSTATES, mutation.text).diagnostics, "$mutation")
         }
-        // KStates keeps whitespace and comments on the hidden channel.
         val hidden = KarpfenLexers.lex(KarpfenLanguage.KSTATES, "STATE // c\n").tokens.filter { it.channel == Token.HIDDEN_CHANNEL }
         assertEquals(listOf(KstatesLexer.WS, KstatesLexer.LINE_COMMENT, KstatesLexer.WS), hidden.map { it.type })
     }

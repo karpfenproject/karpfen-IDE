@@ -12,7 +12,7 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Spec §11 item 3 for the parser, outline and index: the analyzers never throw on 10,000 deterministic mutations of
+ * Covers the robustness of the parser, outline and index: the analyzers never throw on 10,000 deterministic mutations of
  * each language's examples (spread over its files) and on every prefix of a KStates example, and every outcome keeps
  * the documented invariants (ranges inside the text, outline nesting, sorted non-overlapping spans, multi-line folds,
  * names inside their quotes).

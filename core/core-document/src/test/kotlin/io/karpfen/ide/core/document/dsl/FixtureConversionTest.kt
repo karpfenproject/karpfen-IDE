@@ -9,9 +9,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Baseline for spec §11 item 2: every example context converts with the dsl-tools converters themselves (called
- * directly, which only this adapter package may do), and so does a synthetic KStates document. If this fails, the
- * fixtures or dsl-tools changed, not the IDE.
+ * Baseline for the conversion of the examples: every example context converts with the dsl-tools converters
+ * themselves (called directly, which only this adapter package may do), and so does a synthetic KStates document. If
+ * this fails, the fixtures or dsl-tools changed, not the IDE.
  */
 class FixtureConversionTest {
 
