@@ -96,7 +96,8 @@ tells which text a version belongs to. `DefaultEditableText` is the implementati
   KMeta and KModel counterparts). `KarpfenLexers` creates the lexers, and `EvalBodies` finds the embedded Python of
   `EVAL` bodies.
 - **dsl-tools adapter.** The `dsl` package wraps the dsl-tools converters (`DslConverter`) and places their errors,
-  which carry no positions, in the text (`DslErrorLocator`).
+  which carry no positions, in the text (`DslErrorLocator`). `DslToolsLoggers` names the parent logger below which
+  dsl-tools logs, the name by which the IDE and the command-line tool route that logging.
 - **JSON.** The `json` package reads JSON the way the editor needs it, written for the IDE rather than taken from a
   library: `JsonLexer` and `JsonTokenizer` split it into tokens, `JsonParser` builds a `JsonDocument` whose `JsonNode`
   tree keeps every range and survives broken text (`JsonTreeBuilder` documents how it recovers).
@@ -203,8 +204,15 @@ window.
 
 Each feature has a package with a Compose-free state class and, where it draws something, a `view` sub-package with
 its composables: `projecttree` (`ProjectTreeState`), `tabs` (`EditorTabsState` and the banner for changes on disk),
-`outline` (`OutlineState`), `problems` (`ProblemsState`), `statusbar` (`StatusBarState`), `dialog` (`DialogState`) and
-`layout` (`LayoutState`); `welcome` holds the view shown when no folder is open.
+`outline` (`OutlineState`), `problems` (`ProblemsState`), `statusbar` (`StatusBarState`), `dialog` (`DialogState`),
+`layout` (`LayoutState`, with `ToolWindowId` for the tool windows) and `output` (`OutputState`); `welcome` holds the
+view shown when no folder is open.
+
+The `output` package is the Language Tools Output, the tool window that shows what the language tools log. Its port
+has two roles: the application's logging writes to an `OutputSink`, the workbench reads an `OutputBuffer`, and
+`RingOutputBuffer` is both, a thread-safe ring buffer that the composition root creates and passes in through
+`WorkbenchServices.languageToolsOutput`. `OutputState` follows it and counts the errors and warnings that arrive while
+the tool window is hidden; `SubStateBindings` in the `state` package passes them on to the status bar's indicator.
 
 The other packages: `settings` stores the IDE settings (`IdeSettings`, `SettingsRepository`, `SettingsLocations`),
 `templates` creates new files (`FileTemplates`, `EnvironmentTemplate`), `files` defines the desktop file operations
@@ -219,8 +227,12 @@ package), then starts `IdeApplication`. That class is the composition root: plai
 `WorkbenchState` over `defaultWorkbenchServices`, a `CommandRegistry` with the menus of `IdeMenus`, and the Compose
 window (`IdeWindow.kt`, with `IdeRunState` for the life of one run). `CrashHandling` and the `crash` package turn
 unexpected exceptions into a log entry and an error dialog, the `window` package keeps the window bounds, and the
-`menu` package resolves the menus against the registered commands. Logging is configured in
-`app/ide/src/main/resources/logback.xml`.
+`menu` package resolves the menus against the registered commands.
+
+Logging is configured in `app/ide/src/main/resources/logback.xml`, which also keeps what dsl-tools logs off the console
+and writes it to a log file of its own. The `logging` package holds the logback adapters: `LanguageToolsLogRouting`
+attaches `OutputSinkAppender` to the dsl-tools logger, so its events reach the workbench's Language Tools Output, and
+`DslToolsThresholdFilter` lets only the warnings and errors of dsl-tools into the IDE log.
 
 The commands and the key model come from ui-foundation, described above. The editors and the menus take their
 shortcuts from the same `EditorKeymap`, so they always agree.
@@ -229,10 +241,11 @@ shortcuts from the same `EditorKeymap`, so they always agree.
 
 `main` hands the arguments to `KarpfenCli`, which parses them with `CliArguments` and returns an exit status from
 `ExitCodes`. `ValidateCommand` in the `validate` package opens a `Workspace` without watching, waits for the analysis
-and reports `Workspace.problems`. `ValidationReport` and `ReportFormatter` turn the problems into text or JSON, and
-`StandardOutputGuard` keeps what dsl-tools logs out of the report. For now it discards that output, a stopgap until
-the [decision that dsl-tools output stays off the primary console](adr/0014-dsl-tools-output-stays-off-the-primary-console.md)
-is carried out.
+and reports `Workspace.problems`. `ValidationReport` and `ReportFormatter` turn the problems into text or JSON, which
+`CliConsole` prints on standard output. What dsl-tools logs is off in the tool's `logback.xml`; with `--verbose`,
+`LanguageToolsLog` in the `logging` package shows it on standard error for the length of the validation, as the
+[decision that dsl-tools output stays off the primary console](adr/0014-dsl-tools-output-stays-off-the-primary-console.md)
+asks.
 
 ## Build, architecture rules and tests
 
@@ -277,7 +290,8 @@ Typical changes and where they start:
 - Composables contain no logic; they render state held by plain-Kotlin state holders and forward intents to them.
 - Packages are organized by feature and form no cycles.
 - Foreign APIs stay behind adapters: ANTLR and dsl-tools in core-document's `antlr` and `dsl` packages, the desktop's
-  file operations and folder chooser in the workbench's `files.desktop` package.
+  file operations and folder chooser in the workbench's `files.desktop` package, and logback in the `logging` packages
+  of the application and the command-line tool.
 - One source per fact: for example `KarpfenSyntax` for lexical facts, `EnvironmentDescriptor` for descriptor keys,
   `mergeDiagnostics` for merging diagnostics and `EditableText.mapRange` for mapping ranges between versions.
 

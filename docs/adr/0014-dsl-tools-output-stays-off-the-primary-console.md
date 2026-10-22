@@ -1,6 +1,6 @@
 # 14. dsl-tools output stays off the primary console
 
-- Status: Accepted; to be built in the second increment after phase 1
+- Status: Accepted; built in the second increment after phase 1
 - Date: 2026-10-22
 - Source: the owner's decision after phase 1 on silencing karpfen-dsl-tools ("I would not eat away the output but not
   add it to a primary console output")
@@ -22,7 +22,13 @@ IDE leaves them on its process output.
 
 ## Consequences
 
-- The [plan of the increments after phase 1](../plans/increments-after-phase-1.md) schedules the change for its second
-  increment, together with the editor support in dsl-tools.
-- Until then, the command-line tool keeps dropping the output while it validates (`StandardOutputGuard`), which this
-  decision replaces.
+- The [plan of the increments after phase 1](../plans/increments-after-phase-1.md) scheduled the change for its second
+  increment, together with the editor support in dsl-tools, which logs through SLF4J since its version 2.0.
+- The IDE keeps what dsl-tools logs off its console and shows it on demand in the Language Tools Output, a tool window
+  opened from the View menu; the same lines go to a log file of their own, and the warnings and errors among them are
+  forwarded to the IDE log and announced in the status bar while the tool window is hidden.
+- The command-line tool keeps what dsl-tools logs off, since every problem dsl-tools finds is in its report anyway, and
+  shows it on standard error with `--verbose`. The guard that discarded the console output while the tool validated is
+  gone.
+- The [codebase guide](../codebase-guide.md) names the types that carry this out, in the sections on the workbench,
+  the application and the command-line tool.

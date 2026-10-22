@@ -19,7 +19,7 @@ current map of the code is the [codebase guide](../codebase-guide.md).
 | 0011 | [Time-budget tests are written but not run](0011-time-budget-tests-are-not-run.md) | owner decision after phase 1 | Accepted |
 | 0012 | [Documentation lives in KDoc; markdown documents are maps](0012-documentation-lives-in-kdoc.md) | owner decision after phase 1 | Accepted; partially supersedes [Record architecture decisions](0001-record-architecture-decisions.md) |
 | 0013 | [Environment descriptors are edited in the IDE with an IDE-owned JSON parser](0013-environment-descriptors-edited-in-the-ide.md) | owner decision after phase 1 | Accepted |
-| 0014 | [dsl-tools output stays off the primary console](0014-dsl-tools-output-stays-off-the-primary-console.md) | owner decision after phase 1 | Accepted; to be built in the second increment |
+| 0014 | [dsl-tools output stays off the primary console](0014-dsl-tools-output-stays-off-the-primary-console.md) | owner decision after phase 1 | Accepted; built in the second increment |
 
 New ADRs take the next free number. A decision is changed by a new ADR that supersedes the old one in whole or in
 part; the old ADR's status line and this index then point to the new one.

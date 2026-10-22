@@ -1,6 +1,6 @@
 # Manual smoke test
 
-About 15 minutes at a Mac. The automated tests run the editor, the workbench and the command-line tool headless
+About 16 minutes at a Mac. The automated tests run the editor, the workbench and the command-line tool headless
 (`./gradlew build`); this checklist covers what only a person at a real machine can check: the native menu bar, typing
 on a German keyboard layout (Option combinations, dead keys, the press-and-hold accent menu), real focus and mouse
 handling, the file watcher and quitting. Every step says what you should see. Note the section and the step of anything
@@ -104,6 +104,19 @@ Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, 
    the header of Problems hides and shows it.
 4. Cmd+Z in the model: the error disappears from the editor, from Problems and from the status bar.
 
+## Language Tools Output (1 minute)
+
+1. No tool window shows what karpfen-dsl-tools logs yet. Choose **View ▸ Language Tools Output**: a tool window of that
+   name opens below Problems. It lists what dsl-tools logged while analyzing the examples, one line each with time,
+   level, the logging class and the message, for example `DEBUG KmetaDSLConverter - Type Robot: …`.
+2. In `robot/cleaning_robot.kmodel`, type a space and delete it again. After the analysis, new lines appear at the
+   bottom and the list scrolls to them. Click **Follow** to turn it off, scroll up and edit again: the list stays where
+   it is. Turn Follow on again.
+3. Click **Clear**: the tool window says `No output from the language tools` until the next analysis fills it again.
+4. The terminal that runs `./gradlew` shows no line of dsl-tools, while
+   `tail /tmp/karpfen-smoke-home/logs/dsl-tools.log` shows the lines of the tool window. Choose View ▸ Language Tools
+   Output again to hide it.
+
 ## Environment descriptors (2 minutes)
 
 1. Right-click `robot/` in the Project tree and choose **New Environment File**, named `robot`. `robot.kenv.json`
@@ -171,5 +184,5 @@ The JDK's file watcher on macOS polls, so a change on disk shows up after **up t
 ## Reporting
 
 For every deviation, note the section and the step, what you did and what happened, and attach
-`/tmp/karpfen-smoke-home/logs/ide.log`. After a run without failures the log contains no `ERROR` line
-(`grep ERROR /tmp/karpfen-smoke-home/logs/ide.log` prints nothing).
+`/tmp/karpfen-smoke-home/logs/ide.log` and `/tmp/karpfen-smoke-home/logs/dsl-tools.log`. After a run without failures
+the IDE log contains no `ERROR` line (`grep ERROR /tmp/karpfen-smoke-home/logs/ide.log` prints nothing).

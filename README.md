@@ -14,8 +14,9 @@ diagnostics, the diagnostics of a karpfen-dsl-tools analysis of each modeling co
 hover, outline, problems, find and replace, and a project tree with file templates; environment descriptors are edited
 the same way, with completion of their keys, files and objects. Completion opens with Ctrl+M on every platform, and on
 Windows also with Ctrl+Space. `karpfen validate` checks a folder from the command line. The work continues with the
-second of the [increments after phase 1](docs/plans/increments-after-phase-1.md), editor support in karpfen-dsl-tools;
-diagrams, the runtime and the bridges are stubs so far.
+second of the [increments after phase 1](docs/plans/increments-after-phase-1.md), editor support in karpfen-dsl-tools.
+As part of it, what karpfen-dsl-tools logs now stays off both consoles and is shown on demand: in the IDE's Language
+Tools Output and with `karpfen validate --verbose`. Diagrams, the runtime and the bridges are stubs so far.
 
 ## Documentation
 
@@ -90,6 +91,12 @@ Settings (`settings.json`: recent folders, theme, font size, window bounds, tool
 (`logs/ide.log`) live in `~/.karpfen-ide`. The environment variable `KARPFEN_IDE_HOME=<dir>` moves both, for example for
 a throw-away run.
 
+What karpfen-dsl-tools logs while the IDE analyzes never appears on the IDE's console. View ▸ Language Tools Output
+opens a tool window below Problems that shows it line by line with level, logger and message; it follows new output
+and can be cleared. The same lines go to `logs/dsl-tools.log` next to the IDE log, and the warnings and errors among
+them are forwarded to `logs/ide.log` as well. When warnings or errors arrive while the tool window is hidden, the status
+bar shows `Language tools: n`, which opens it. `app/ide/src/main/resources/logback.xml` describes the routing.
+
 For a launch smoke test, `KARPFEN_IDE_EXIT_AFTER_MS=<ms>` makes the IDE close itself after that many milliseconds and
 exit with status 0. After this run, the log contains no `ERROR` line:
 
@@ -102,13 +109,15 @@ grep ERROR /tmp/karpfen-home/logs/ide.log
 
 `karpfen validate` checks a folder like the IDE does: the syntax of every file, the dsl-tools analysis of every
 modeling context and the environment descriptors. It prints one line per problem, with one-based positions and paths
-relative to the folder, and only the report. What dsl-tools logs while it analyzes is discarded for now; the
+relative to the folder, and only the report, on standard output; its own messages and warnings go to standard error.
+What dsl-tools logs while it analyzes is off, since every problem it finds is in the report anyway; `--verbose` shows
+it on standard error, as the
 [decision that dsl-tools output stays off the primary console](docs/adr/0014-dsl-tools-output-stays-off-the-primary-console.md)
-keeps it out of the report but wants it available on demand, which the second increment after phase 1 builds.
+asks.
 
 ```bash
 ./gradlew :tools:cli:installDist
-tools/cli/build/install/karpfen/bin/karpfen validate <folder> [--format text|json]
+tools/cli/build/install/karpfen/bin/karpfen validate <folder> [--format text|json] [--verbose]
 ```
 
 A problem looks like this:
@@ -175,9 +184,9 @@ walks through the modules feature by feature.
 - **ui/ui-editor**: the custom code editor, made of a Compose-free model of actions, carets, completion and find, a
   state holder, the Compose view and its popups. Start at `CodeEditorState` (package `state`) and `CodeEditor`
   (package `view`).
-- **ui/ui-workbench**: the window content, with project tree, editor tabs, outline, problems, status bar, dialogs,
-  settings and file templates, coordinated by one mediator. Start at `WorkbenchState` (package `state`) and the
-  `Workbench` composable.
+- **ui/ui-workbench**: the window content, with project tree, editor tabs, outline, problems, the output of the
+  language tools, status bar, dialogs, settings and file templates, coordinated by one mediator. Start at
+  `WorkbenchState` (package `state`) and the `Workbench` composable.
 
 **Application and tools:**
 
