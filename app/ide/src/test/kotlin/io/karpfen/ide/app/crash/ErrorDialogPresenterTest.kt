@@ -14,7 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Uncaught errors in the workbench's error dialog, one at a time (spec §9). */
+/** Uncaught errors in the workbench's error dialog, one at a time. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ErrorDialogPresenterTest {
 

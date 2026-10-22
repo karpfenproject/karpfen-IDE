@@ -27,8 +27,8 @@ internal sealed interface IdePhase {
 }
 
 /**
- * The lifecycle of one application run, Compose-free (spec §1a: the window composables only render [phase] and call
- * [requestClose]): prepares the session in [scope] (the UI scope), runs the close request's unsaved-changes flow
+ * The lifecycle of one application run, Compose-free, so the window composables only render [phase] and call
+ * [requestClose]: prepares the session in [scope] (the UI scope), runs the close request's unsaved-changes flow
  * (`WorkbenchState.requestExit`, launched in [scope]; one at a time), exits after [exitAfter] for launch smoke tests,
  * and closes the session's state exactly once when the run ends. Used from the UI thread (the dispatcher of [scope]),
  * like the workbench state it drives.
@@ -67,6 +67,10 @@ internal class IdeRunState(
         return scope.launch { startSession() }
     }
 
+    /**
+     * Prepares the session and lets it run. A failure ends the run and is kept as [startupFailure]; if the run exited
+     * while the session was being prepared (exit timer, dispose), the prepared session's state is closed at once.
+     */
     private suspend fun startSession() {
         val session = try {
             prepare()
@@ -81,7 +85,6 @@ internal class IdeRunState(
         if (mutablePhase.compareAndSet(IdePhase.Starting, IdePhase.Running(session))) {
             onRunning(session)
         } else {
-            // The run exited while the session was being prepared (exit timer, dispose).
             session.state.close()
         }
     }
@@ -113,6 +116,8 @@ internal class IdeRunState(
 
     private companion object {
         private val log = LoggerFactory.getLogger(IdeRunState::class.java)
+
+        /** The job of a close request with nothing to do. */
         private val COMPLETED: Job = CompletableDeferred(Unit)
     }
 }

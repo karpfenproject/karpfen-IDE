@@ -23,9 +23,9 @@ internal fun errorDialogFor(error: Throwable, logFile: Path): DialogRequest.Erro
 }
 
 /**
- * Shows uncaught errors in the workbench's error dialog (spec §9) once the workbench runs: [attach] passes the dialog
- * port (`WorkbenchState.dialogs.ask`). Before that, and while an error dialog is open, [show] declines (the error is
- * logged by `CrashHandling` anyway), so a burst of errors — e.g. one per frame — never queues a dialog per error.
+ * Shows uncaught errors in the workbench's error dialog once the workbench runs: [attach] passes the dialog port
+ * (`WorkbenchState.dialogs.ask`). Before that, and while an error dialog is open, [show] declines (the error is logged
+ * by `CrashHandling` anyway), so a burst of errors — e.g. one per frame — never queues a dialog per error.
  *
  * Thread-safe: [show] may be called from any thread; the dialog is asked in [scope] (the UI scope). A failure of the
  * dialog itself is logged, never rethrown, so it cannot report itself again.

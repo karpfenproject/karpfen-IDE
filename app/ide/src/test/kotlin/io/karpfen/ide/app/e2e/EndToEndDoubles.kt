@@ -29,7 +29,10 @@ internal class SilentFileWatcher : FileWatcher {
 internal class RecordingFileOperations : ProjectFileOperations {
     private val fileSystem = desktopProjectFileOperations()
 
+    /** The paths revealed in the file manager, in call order. */
     val revealed: MutableList<Path> = CopyOnWriteArrayList()
+
+    /** The paths opened in the default application, in call order. */
     val openedExternally: MutableList<Path> = CopyOnWriteArrayList()
 
     override val supportsTrash: Boolean = false

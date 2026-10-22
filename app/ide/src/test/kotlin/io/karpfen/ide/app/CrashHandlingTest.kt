@@ -11,7 +11,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** Uncaught exceptions are logged and shown instead of killing the application (spec §9). */
+/** Uncaught exceptions are logged and shown instead of killing the application. */
 class CrashHandlingTest {
 
     private val shown: MutableList<Throwable> = Collections.synchronizedList(mutableListOf())

@@ -15,9 +15,9 @@ internal sealed interface ResolvedMenuEntry {
 
     /**
      * The registered [command]. [accelerator] is the shortcut the menu binds for it, or null when the item shows no
-     * shortcut: the command has none, the registry answers another command for that stroke, or the command already
-     * has an item earlier in the menus. So every stroke is bound to at most one menu item, and to the same command the
-     * registry would run for it (decision 15 of the work-package plan: one key press runs one command once).
+     * shortcut: the command has none, the registry answers another command for that stroke, or the command already has
+     * an item earlier in the menus. So every stroke is bound to at most one menu item, and to the same command the
+     * registry would run for it: one key press runs one command once.
      */
     class Item internal constructor(
         val command: Command,
@@ -47,10 +47,10 @@ internal sealed interface ResolvedMenuEntry {
 }
 
 /**
- * Resolves [specs] against the commands of [registry] (Compose-free, spec §9): items of unregistered command ids are
- * hidden, then submenus and menus left without items are hidden, and separators that would lead, trail or repeat are
- * dropped. Titles, shortcuts and enablement come from the commands (one source, decision 33 of the work-package plan);
- * the shortcut rule is [ResolvedMenuEntry.Item.accelerator]. `IdeMenuBar` only renders the result.
+ * Resolves [specs] against the commands of [registry] (Compose-free): items of unregistered command ids are hidden,
+ * then submenus and menus left without items are hidden, and separators that would lead, trail or repeat are dropped.
+ * Titles, shortcuts and enablement come from the commands, their one source; the shortcut rule is
+ * [ResolvedMenuEntry.Item.accelerator]. `IdeMenuBar` only renders the result.
  */
 internal fun resolveMenus(specs: List<MenuSpec>, registry: CommandRegistry): List<ResolvedMenu> =
     MenuResolver(registry).resolve(specs)
@@ -59,6 +59,7 @@ internal fun resolveMenus(specs: List<MenuSpec>, registry: CommandRegistry): Lis
 private class MenuResolver(private val registry: CommandRegistry) {
     private val placed = mutableSetOf<String>()
 
+    /** The menus of [specs] that keep at least one item. */
     fun resolve(specs: List<MenuSpec>): List<ResolvedMenu> =
         specs.mapNotNull { spec -> entriesOf(spec.entries)?.let { ResolvedMenu(spec.title, it) } }
 
@@ -66,12 +67,14 @@ private class MenuResolver(private val registry: CommandRegistry) {
     private fun entriesOf(entries: List<MenuEntry>): List<ResolvedMenuEntry>? =
         tidy(entries.mapNotNull(::resolve)).takeIf { resolved -> resolved.isNotEmpty() }
 
+    /** The resolved [entry], or null if nothing of it is left. */
     private fun resolve(entry: MenuEntry): ResolvedMenuEntry? = when (entry) {
         is MenuEntry.Item -> item(entry.commandId)
         MenuEntry.Separator -> ResolvedMenuEntry.Separator
         is MenuEntry.Submenu -> entriesOf(entry.entries)?.let { ResolvedMenuEntry.Submenu(entry.title, it) }
     }
 
+    /** The item of [commandId] with its accelerator (see [ResolvedMenuEntry.Item]), or null if it is not registered. */
     private fun item(commandId: String): ResolvedMenuEntry.Item? {
         val command = registry.find(commandId) ?: return null
         val firstPlacement = placed.add(commandId)

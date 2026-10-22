@@ -21,17 +21,23 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.seconds
 
-/** `IdeApplication.prepare`: all window-free wiring, headless with a fake workbench state (spec §9, decision 34). */
+/**
+ * `IdeApplication.prepare`: all window-free wiring, headless, with a fake workbench state and recording services
+ * injected through the composition root's constructor.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class IdeApplicationPrepareTest {
 
     private val folder: Path = Path.of("/work/robots").toAbsolutePath()
 
+    /** An [IdeApplication] over recording services and fake states, recording what the state factory was given. */
     private class Wiring(scope: TestScope, platform: HostPlatform = HostPlatform.LINUX) {
         val services = RecordingServicesFactory(platform, StandardTestDispatcher(scope.testScheduler))
         val states = mutableListOf<FakeWorkbenchState>()
         val stateScopes = mutableListOf<CoroutineScope>()
         val stateServices = mutableListOf<WorkbenchServices>()
+
+        /** Scripts each fake state right after it is created. */
         var configure: (FakeWorkbenchState) -> Unit = {}
 
         val application = IdeApplication(

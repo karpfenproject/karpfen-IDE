@@ -19,7 +19,10 @@ internal data class ScreenArea(val x: Int, val y: Int, val width: Int, val heigh
     }
 
     private companion object {
+        /** The height of a window's title bar, which must fit above the screen's bottom edge. */
         const val TITLE_BAR_HEIGHT = 24
+
+        /** The width of a window that must lie over the screen, so the window can be dragged back. */
         const val MINIMUM_VISIBLE_WIDTH = 80
     }
 }

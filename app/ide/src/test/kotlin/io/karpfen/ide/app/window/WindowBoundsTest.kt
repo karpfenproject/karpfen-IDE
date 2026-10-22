@@ -13,7 +13,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Window bounds from and to the layout (spec §9: window bounds persisted). */
+/** Window bounds from and to the layout, so the main window reopens where it was. */
 class WindowBoundsTest {
 
     private val screen = ScreenArea(0, 0, 1920, 1080)

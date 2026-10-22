@@ -24,7 +24,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** Resolution of the menu structure against the registered commands, and the one-dispatch rule (decision 15). */
+/**
+ * Resolution of the menu structure against the registered commands, and the one-dispatch rule: every stroke is bound to
+ * at most one menu item, so one key press runs one command once.
+ */
 class MenuResolutionTest {
 
     private val registry = CommandRegistry(HostPlatform.MAC_OS)

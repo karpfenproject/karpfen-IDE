@@ -5,9 +5,9 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 /**
- * What one start of the IDE was asked to do (spec §9): open [initialFolder] (absolute, normalized; null for the empty
- * state) and, for launch smoke tests, exit with status 0 after [exitAfterMs] milliseconds. [warnings] name the inputs
- * that were ignored; `main` logs them once logging is configured.
+ * What one start of the IDE was asked to do: open [initialFolder] (absolute, normalized; null for the empty state) and,
+ * for launch smoke tests, exit with status 0 after [exitAfterMs] milliseconds. [warnings] name the inputs that were
+ * ignored; `main` logs them once logging is configured.
  */
 internal data class LaunchOptions(
     val initialFolder: Path?,
@@ -35,6 +35,7 @@ internal data class LaunchOptions(
             return LaunchOptions(folder, exitAfterMs, warnings)
         }
 
+        /** The folder [argument] as an absolute, normalized directory, or null with a warning added to [warnings]. */
         private fun folderOf(argument: String, isDirectory: (Path) -> Boolean, warnings: MutableList<String>): Path? {
             val path = try {
                 Path.of(argument).toAbsolutePath().normalize()
@@ -47,6 +48,7 @@ internal data class LaunchOptions(
             return null
         }
 
+        /** The exit delay [value] in milliseconds, or null with a warning added to [warnings] if it is invalid. */
         private fun exitDelayOf(value: String, warnings: MutableList<String>): Long? =
             value.trim().toLongOrNull()?.takeIf { it >= 0 }
                 ?: null.also {

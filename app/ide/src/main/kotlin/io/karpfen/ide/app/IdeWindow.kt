@@ -39,10 +39,10 @@ internal fun ApplicationScope.IdeApplicationContent(
 }
 
 /**
- * The main window of [session] (spec §9): title from `WorkbenchState.windowTitle`, bounds from and to
- * `WorkbenchState.layout`, the menu bar from [IdeMenus] (with the current number of recent folders), the [Workbench]
- * as content, close requests to [onCloseRequest], and failures inside the window to [windowExceptions] (instead of
- * Compose's default, which closes the window).
+ * The main window of [session]: title from `WorkbenchState.windowTitle`, bounds from and to `WorkbenchState.layout`,
+ * the menu bar from [IdeMenus] (with the current number of recent folders), the [Workbench] as content, close requests
+ * to [onCloseRequest], and failures inside the window to [windowExceptions] (instead of Compose's default, which closes
+ * the window).
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable

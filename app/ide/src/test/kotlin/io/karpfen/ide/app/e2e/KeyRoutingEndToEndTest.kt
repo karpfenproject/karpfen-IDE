@@ -46,12 +46,12 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Key routing of the composed IDE, headless (decision 15 of the work-package plan; INTEGRATION, plan §4): the
- * production workbench inside a key handler that plays the window menu's accelerators ([MenuAccelerators]). One
- * Cmd+Z in the editor undoes exactly one step — the editor consumes the stroke, so no menu command runs — and Cmd+X
- * with the focus in the project tree reaches the menu, whose Cut is disabled while the editor is unfocused, so the
- * editor text stays unchanged; shortcuts typed into a dialog reach no command (the dialogs are modal). (The native macOS
- * menu bar itself is covered by the manual test.)
+ * Key routing of the composed IDE, headless: the focused component handles and consumes its keys first, and a menu
+ * accelerator only sees the strokes nobody consumed. The production workbench runs inside a key handler that plays the
+ * window menu's accelerators ([MenuAccelerators]). One Cmd+Z in the editor undoes exactly one step — the editor
+ * consumes the stroke, so no menu command runs — and Cmd+X with the focus in the project tree reaches the menu, whose
+ * Cut is disabled while the editor is unfocused, so the editor text stays unchanged; shortcuts typed into a dialog
+ * reach no command (the dialogs are modal). (The native macOS menu bar itself is covered by the manual test.)
  */
 @OptIn(ExperimentalTestApi::class)
 class KeyRoutingEndToEndTest {

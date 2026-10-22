@@ -31,16 +31,23 @@ import kotlin.time.TestTimeSource
 
 /**
  * The IDE as `main` wires it — `IdeApplication(…).prepare` over `defaultWorkbenchServices(…)` and the real
- * `WorkbenchState` (decision 34 of the work-package plan) — with test values for everything time-, thread-,
+ * `WorkbenchState`, through the test seams of both composition roots — with test values for everything time-, thread-,
  * file-system- and toolkit-dependent: one test dispatcher on [scheduler] for the UI scope, the workspace, the sessions,
  * the editors' background work and the workbench's I/O; a [TestTimeSource] for undo coalescing; a watcher that reports
  * nothing; a fixed clock; recording file operations; settings below [settingsDirectory]; the macOS keymap.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class EndToEndIde(val scheduler: TestCoroutineScheduler, settingsDirectory: Path) : AutoCloseable {
+    /** The one test dispatcher on [scheduler] that runs all of the IDE's work. */
     val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
+
+    /** The UI scope of the composition root. */
     val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
+
+    /** The time source of the documents' undo coalescing. */
     val time = TestTimeSource()
+
+    /** Records the desktop file operations instead of running them. */
     val fileOperations = RecordingFileOperations()
 
     private val workspaceOptions = WorkspaceOptions(
@@ -106,9 +113,9 @@ internal class EndToEndIde(val scheduler: TestCoroutineScheduler, settingsDirect
 
 /**
  * The window menu's accelerators without a window: the items of `resolveMenus(IdeMenus.specs(…), registry)` with their
- * bound shortcuts. [dispatch] does what the native menu bar does with a key stroke that no component consumed
- * (decision 15 of the work-package plan): it finds the item whose accelerator is the stroke and invokes it through the
- * registry. Installed as the outermost `onKeyEvent`, it sees exactly the unconsumed strokes.
+ * bound shortcuts. [dispatch] does what the native menu bar does with a key stroke that no component consumed (the
+ * focused component handles and consumes its keys first): it finds the item whose accelerator is the stroke and invokes
+ * it through the registry. Installed as the outermost `onKeyEvent`, it sees exactly the unconsumed strokes.
  */
 internal class MenuAccelerators(registry: CommandRegistry, recentFolderCount: Int) {
     private val platform = registry.platform
@@ -131,6 +138,7 @@ internal class MenuAccelerators(registry: CommandRegistry, recentFolderCount: In
         return true
     }
 
+    /** The items of [entry], submenus flattened. */
     private fun itemsOf(entry: ResolvedMenuEntry): List<ResolvedMenuEntry.Item> = when (entry) {
         is ResolvedMenuEntry.Item -> listOf(entry)
         is ResolvedMenuEntry.Submenu -> entry.entries.flatMap(::itemsOf)

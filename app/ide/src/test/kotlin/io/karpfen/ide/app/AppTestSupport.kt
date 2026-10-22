@@ -38,16 +38,25 @@ import java.nio.file.Path
 import kotlin.time.Duration
 
 /**
- * A scripted [WorkbenchState] (WP-WORKBENCH may not be merged, so app tests never run the real one): records the
- * calls of the composition root, registers one command, and lets a test decide how long `openFolder` takes and whether
- * it asks a dialog, whether `start` fails and how `requestExit` answers. The composition root never touches the sub-states outside the window,
- * so the fake fails on access instead of constructing WP-WORKBENCH's classes.
+ * A scripted [WorkbenchState], so the app tests check the composition root on its own: records the calls of the
+ * composition root, registers one command, and lets a test decide how long `openFolder` takes and whether it asks a
+ * dialog, whether `start` fails and how `requestExit` answers. The composition root never touches the sub-states
+ * outside the window, so the fake fails on access instead of constructing the workbench's sub-states.
  */
 internal class FakeWorkbenchState(val scope: CoroutineScope, val services: WorkbenchServices) : WorkbenchState {
+    /** The calls of the composition root, in order (`openFolder` with its path). */
     val calls = mutableListOf<String>()
+
+    /** The registry the commands were registered in, or null before `registerCommands`. */
     var registry: CommandRegistry? = null
+
+    /** How long the `openFolder` job takes on the test's virtual time. */
     var openFolderTime: Duration = Duration.ZERO
+
+    /** The folder the last `openFolder` job finished opening, or null. */
     var openedFolder: Path? = null
+
+    /** When set, `start` throws it. */
     var startFailure: Exception? = null
 
     /** When set, `openFolder` asks this dialog (and waits for the answer) before the folder counts as opened. */
@@ -112,11 +121,14 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun closeTab(path: Path): Job = unexpected("closeTab")
     override fun closeActiveTab(): Job = unexpected("closeActiveTab")
 
+    /** Fails the test: the composition root calls no other [intent]. */
     private fun unexpected(intent: String): Nothing = throw AssertionError("the composition root does not call $intent")
 
+    /** Fails the test: the composition root reads no [subState] outside the window. */
     private fun unused(subState: String): Nothing = throw AssertionError("the composition root does not use $subState")
 
     companion object {
+        /** The id of the one command the fake registers. */
         const val FAKE_COMMAND_ID = "fake.command"
     }
 }
@@ -126,9 +138,11 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
  * platform is the services' platform); none of the collaborators is used by the composition root.
  */
 internal class RecordingServicesFactory(platform: HostPlatform, ioDispatcher: CoroutineDispatcher) : () -> WorkbenchServices {
+    /** How often the services were created. */
     var calls = 0
         private set
 
+    /** The services every call returns. */
     val services = WorkbenchServices(
         settings = UnusedSettings,
         workspaceFactory = { _, _ -> throw AssertionError("no workspace is opened by the fake state") },
@@ -146,12 +160,14 @@ internal class RecordingServicesFactory(platform: HostPlatform, ioDispatcher: Co
         return services
     }
 
+    /** Settings the composition root never loads or writes (the workbench state does). */
     private object UnusedSettings : SettingsRepository {
         override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
         override suspend fun load(): IdeSettings = throw AssertionError("settings are loaded by the workbench state")
         override suspend fun update(transform: (IdeSettings) -> IdeSettings): IdeSettings = throw AssertionError("unused")
     }
 
+    /** File operations the composition root never runs. */
     private object UnusedFileOperations : ProjectFileOperations {
         override val supportsTrash: Boolean = false
         override val supportsRevealInFileManager: Boolean = false
@@ -163,6 +179,7 @@ internal class RecordingServicesFactory(platform: HostPlatform, ioDispatcher: Co
         override fun openExternally(path: Path) = throw AssertionError("unused")
     }
 
+    /** Templates the composition root never uses. */
     private object UnusedTemplates : FileTemplates {
         override fun fileName(kind: FileTemplateKind, baseName: String): String = throw AssertionError("unused")
         override fun content(kind: FileTemplateKind, baseName: String, context: TemplateContext): String =

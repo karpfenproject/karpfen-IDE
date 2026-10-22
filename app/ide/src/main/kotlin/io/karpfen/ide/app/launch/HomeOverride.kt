@@ -12,11 +12,11 @@ internal data class HomeOverride(val home: Path?, val warning: String? = null)
 
 /**
  * Copies the environment variable `SettingsLocations.HOME_ENVIRONMENT_VARIABLE` (`KARPFEN_IDE_HOME`), if set and not
- * blank, as an absolute normalized path into the system property `SettingsLocations.HOME_PROPERTY`
- * (`karpfen.ide.home`) through [setProperty]. `main` calls it before the first logger exists, because both
+ * blank, as an absolute normalized path into the system property `SettingsLocations.HOME_PROPERTY` (`karpfen.ide.home`)
+ * through [setProperty]. `main` calls it before the first logger exists, because both
  * `SettingsLocations.defaultDirectory()` (settings) and the app's `logback.xml` (log file) read the property; so a
- * launch smoke test with a temporary home never touches the owner's settings or log (decision 34 of the work-package
- * plan). Pure apart from [setProperty]; nothing is logged here.
+ * launch smoke test with a temporary home never touches the owner's settings or log. Pure apart from [setProperty];
+ * nothing is logged here.
  */
 internal fun applyHomeOverride(
     environment: (String) -> String?,

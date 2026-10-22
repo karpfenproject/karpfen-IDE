@@ -6,8 +6,8 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Uncaught exceptions are logged (SLF4J) and shown in an error dialog instead of terminating the application
- * (spec §9). Installs the default uncaught-exception handler and the AWT event-queue handler.
+ * Uncaught exceptions are logged (SLF4J) and shown in an error dialog instead of terminating the application. Installs
+ * the default uncaught-exception handler and the AWT event-queue handler.
  *
  * The composition root routes the other sources of unexpected failures to [handle] as well: the application scope's
  * `CoroutineExceptionHandler` (failed intent flows) and the main window's Compose `WindowExceptionHandler` (failures
@@ -41,6 +41,7 @@ public class CrashHandling internal constructor(
         report("in thread '${Thread.currentThread().name}'", error)
     }
 
+    /** Logs [error] from [origin] and shows it; a failure while doing so is only logged. */
     private fun report(origin: String, error: Throwable) {
         try {
             log.error("Uncaught exception {}", origin, error)

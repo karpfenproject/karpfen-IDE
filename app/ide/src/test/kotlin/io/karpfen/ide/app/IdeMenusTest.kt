@@ -11,7 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-/** The menu structure of spec §9. */
+/** The structure of the window menus: File, Edit, View and Navigate with their items and separators. */
 class IdeMenusTest {
 
     private fun MenuSpec.itemIds(): List<String> = entries.flatMap { it.itemIds() }
@@ -68,7 +68,7 @@ class IdeMenusTest {
             ),
             menu(IdeMenus.EDIT).itemIds(),
         )
-        assertEquals("Duplicate Line", EditorActionTitles.of(EditorActionIds.DUPLICATE), "spec §9 names it Duplicate Line")
+        assertEquals("Duplicate Line", EditorActionTitles.of(EditorActionIds.DUPLICATE), "the Edit menu names it Duplicate Line")
     }
 
     @Test

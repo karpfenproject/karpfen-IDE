@@ -34,11 +34,11 @@ internal data class WindowGeometry(
 internal fun WindowState.geometry(): WindowGeometry = WindowGeometry(placement, isMinimized, position, size)
 
 /**
- * The window state the main window opens with, from the persisted [bounds] (`LayoutUiState.windowBounds`; spec §9,
- * window bounds persisted): maximized if they were, the persisted size (at least [MINIMUM_WINDOW_SIZE]) and position.
- * A position whose title bar would not be reachable on any of [screens] is dropped, so a window saved on a
- * disconnected monitor reopens centred; without bounds the window opens centred with [DEFAULT_WINDOW_SIZE]. An empty
- * [screens] list (unknown, e.g. headless) skips that check.
+ * The window state the main window opens with, from the persisted [bounds] (`LayoutUiState.windowBounds`): maximized if
+ * they were, the persisted size (at least [MINIMUM_WINDOW_SIZE]) and position. A position whose title bar would not be
+ * reachable on any of [screens] is dropped, so a window saved on a disconnected monitor reopens centred; without bounds
+ * the window opens centred with [DEFAULT_WINDOW_SIZE]. An empty [screens] list (unknown, e.g. headless) skips that
+ * check.
  */
 internal fun initialWindowState(bounds: WindowBounds?, screens: List<ScreenArea>): WindowState {
     if (bounds == null) {
@@ -78,6 +78,7 @@ internal class WindowBoundsTracker(restored: WindowBounds?) {
         }
     }
 
+    /** The bounds of a floating window of [geometry]; an unspecified position is recorded as none. */
     private fun floatingBoundsOf(geometry: WindowGeometry): WindowBounds {
         val position = geometry.position.takeIf { it.isSpecified && it.x.isSpecified && it.y.isSpecified }
         return WindowBounds(

@@ -9,10 +9,10 @@ import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
 
 /**
- * Entry point of the karpfen IDE desktop application (spec §9): `karpfen-ide [folder]` opens the folder, or the empty
- * state without one. `KARPFEN_IDE_HOME` moves settings and log (copied into `SettingsLocations.HOME_PROPERTY` before
- * the first logger exists, so this file declares no top-level logger); `KARPFEN_IDE_EXIT_AFTER_MS` makes the IDE exit
- * with status 0 after that time (launch smoke tests). Exits with status 1 if the IDE could not start.
+ * Entry point of the karpfen IDE desktop application: `karpfen-ide [folder]` opens the folder, or the empty state
+ * without one. `KARPFEN_IDE_HOME` moves settings and log (copied into `SettingsLocations.HOME_PROPERTY` before the
+ * first logger exists, so this file declares no top-level logger); `KARPFEN_IDE_EXIT_AFTER_MS` makes the IDE exit with
+ * status 0 after that time (launch smoke tests). Exits with status 1 if the IDE could not start.
  */
 public fun main(args: Array<String>) {
     val home = applyHomeOverride(System::getenv, System::setProperty)

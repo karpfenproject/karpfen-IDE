@@ -35,6 +35,8 @@ class IdeRunStateTest {
         val state = FakeWorkbenchState(scope, RecordingServicesFactory(HostPlatform.LINUX, StandardTestDispatcher(test.testScheduler))())
         val session = IdeSession(state, CommandRegistry(HostPlatform.LINUX))
         val running = mutableListOf<IdeSession>()
+
+        /** When set, the preparation fails with it. */
         var failure: Throwable? = null
         val runState = IdeRunState(
             scope = scope,

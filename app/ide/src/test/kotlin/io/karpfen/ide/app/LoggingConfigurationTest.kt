@@ -22,7 +22,10 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** The IDE's logging configuration (spec §9, work-package plan §2 rule 10). */
+/**
+ * The IDE's logging configuration: the tests run on the module's console-only `logback-test.xml`, while the production
+ * `logback.xml` writes WARN and above to the console and INFO and above to `ide.log` below the IDE home.
+ */
 class LoggingConfigurationTest {
 
     @TempDir
@@ -32,8 +35,7 @@ class LoggingConfigurationTest {
     fun `the test classpath is configured by logback-test xml, not by the production logback xml`() {
         val context = assertIs<LoggerContext>(LoggerFactory.getILoggerFactory())
 
-        // The default configurator records the resource it chose: "Found resource [<name>] at [<url>]".
-        val found = context.statusManager.copyOfStatusList.map { it.message }.filter { it.startsWith("Found resource [") }
+        val found = chosenResources(context)
 
         val chosen = assertNotNull(found.singleOrNull(), "exactly one configuration resource was chosen: $found")
         assertTrue(chosen.startsWith("Found resource [logback-test.xml] at ["), chosen)
@@ -80,16 +82,27 @@ class LoggingConfigurationTest {
         context.stop()
     }
 
-    /** A fresh logger context configured from the production `logback.xml` with [properties] as context properties. */
+    /**
+     * The status messages in which logback's default configurator recorded the configuration resource it chose: "Found
+     * resource [<name>] at [<url>]".
+     */
+    private fun chosenResources(context: LoggerContext): List<String> =
+        context.statusManager.copyOfStatusList.map { it.message }.filter { it.startsWith("Found resource [") }
+
+    /**
+     * A fresh logger context configured from the production `logback.xml` with [properties] as context properties. A
+     * context of its own needs the MDC adapter that `LogbackServiceProvider` sets on the default one.
+     */
     private fun productionContext(vararg properties: Pair<String, String>): LoggerContext {
         val context = LoggerContext()
-        context.setMDCAdapter(LogbackMDCAdapter()) // a context of its own needs the MDC adapter LogbackServiceProvider sets
+        context.setMDCAdapter(LogbackMDCAdapter())
         properties.forEach { (key, value) -> context.putProperty(key, value) }
         val url = assertNotNull(javaClass.classLoader.getResource("logback.xml"), "app/ide ships a logback.xml")
         JoranConfigurator().apply { setContext(context) }.doConfigure(url)
         return context
     }
 
+    /** A logging event of [level] from a logger of [context]. */
     private fun loggingEvent(context: LoggerContext, level: Level) =
         LoggingEvent(LoggingConfigurationTest::class.java.name, context.getLogger("io.karpfen.ide.test"), level, "message", null, null)
 }

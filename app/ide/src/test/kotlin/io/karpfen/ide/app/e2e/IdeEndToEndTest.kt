@@ -33,10 +33,11 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The composition root over the production wiring (INTEGRATION, plan §4): `IdeApplication.prepare` opens the folder
- * given on the command line into the real workbench, the menus resolve against its commands, and the Problems view,
- * the status bar and `karpfen validate` report the same problems for the examples plus the shared descriptor examples,
- * before and after opening and closing files (decision 17: one problems rule).
+ * The composition root over the production wiring: `IdeApplication.prepare` opens the folder given on the command line
+ * into the real workbench, the menus resolve against its commands, and the Problems view, the status bar and
+ * `karpfen validate` report the same problems for the examples plus the shared descriptor examples, before and after
+ * opening and closing files, because all three map `Workspace.problems`, the one problems rule. A command-line folder
+ * that `main` saw as a directory may be gone (unmounted, deleted) by the time `prepare` opens it.
  */
 class IdeEndToEndTest {
 
@@ -73,7 +74,7 @@ class IdeEndToEndTest {
     @Test
     fun `a command-line folder that vanished before the start opens the window with the error dialog`() = scenario {
         val vanished = Files.createDirectories(dir.resolve("vanished"))
-        Files.delete(vanished) // a directory when main checked it, gone (unmounted, deleted) when prepare opens it
+        Files.delete(vanished)
 
         val run = startRun(vanished)
         settle()

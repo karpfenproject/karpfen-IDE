@@ -9,7 +9,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** What `main` resolves before the application starts: home directory, launch options, desktop properties. */
+/**
+ * What `main` resolves before the application starts: home directory, launch options, desktop properties. On macOS,
+ * AWT's default quit strategy calls `System.exit(0)` for Cmd+Q and skips the window's close request, which is why the
+ * desktop properties change it.
+ */
 class LaunchTest {
 
     @TempDir
@@ -104,7 +108,6 @@ class LaunchTest {
 
     @Test
     fun `on macOS Quit closes the windows instead of exiting, so it runs the close request's unsaved-changes flow`() {
-        // AWT's default quit strategy on macOS calls System.exit(0) for Cmd+Q, skipping the window's close request.
         assertEquals("CLOSE_ALL_WINDOWS", desktopProperties(HostPlatform.MAC_OS)["apple.eawt.quitStrategy"])
 
         applyDesktopProperties(HostPlatform.MAC_OS, mapOf("apple.eawt.quitStrategy" to "NORMAL_EXIT")::get, properties::put)
