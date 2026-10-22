@@ -44,8 +44,9 @@ internal fun dslToolsDiagnostics(analysis: ProjectAnalysis): Map<Path, List<Diag
     analysis.diagnostics.mapValues { (_, list) -> list.filter { it.source == DiagnosticSource.DSL_TOOLS } }.filterValues { it.isNotEmpty() }
 
 /**
- * Runs [block] with `System.err` captured and returns what was written to it. SLF4J is initialized first, so its
- * one-time "no provider" notice goes to the real `System.err` and never into the capture.
+ * Runs [block] with `System.err` captured and returns what was written to it: the syntax errors that dsl-tools logs, as
+ * the module's `logback-test.xml` configures. SLF4J is initialized first, so whatever its backend prints while starting
+ * goes to the real `System.err` and never into the capture.
  */
 internal inline fun capturingStandardError(block: () -> Unit): String {
     LoggerFactory.getLogger(DiskSources::class.java)
