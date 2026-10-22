@@ -154,7 +154,10 @@ class JsonParserTest {
         val closer = "}{\"metamodel\": \"a.kmeta\"}"
         assertEquals(listOf("}" to "Unexpected '}' before the JSON value."), syntaxErrorsOf(closer))
         assertEquals(listOf("metamodel"), rootOf(closer).members.map { it.key.value })
-        assertEquals(listOf("]" to "Unexpected ']' before the JSON value.", ":" to "Unexpected ':' before the JSON value."), syntaxErrorsOf("] : [1]"))
+        assertEquals(
+            listOf("]" to "Unexpected ']' before the JSON value.", ":" to "Unexpected ':' before the JSON value."),
+            syntaxErrorsOf("] : [1]"),
+        )
     }
 
     @Test

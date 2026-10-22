@@ -27,6 +27,9 @@ package io.karpfen.ide.core.document.environment
  */
 public object EnvironmentSchema {
 
+    /** The pattern of `observe.objects` that observes every object; completion suggests it, new descriptors use it. */
+    public const val EVERY_OBJECT: String = "*"
+
     /** The descriptor object, the root of every descriptor. */
     public val ROOT: ValueShape.Record = SerialShapes.recordOf(EnvironmentDescriptor.serializer().descriptor)
 

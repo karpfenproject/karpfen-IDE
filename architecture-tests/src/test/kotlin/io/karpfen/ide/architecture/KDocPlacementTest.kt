@@ -95,10 +95,8 @@ class KDocPlacementTest {
 
     @Test
     fun `KDoc that documents nothing is misplaced`() {
-        assertEquals(
-            listOf(1 to "documents nothing: another comment or the end follows", 4 to "documents nothing: another comment or the end follows"),
-            misplaced("/** One. */\n/** Two. */\nval a = 1\n/** Last. */"),
-        )
+        val nothing = "documents nothing: another comment or the end follows"
+        assertEquals(listOf(1 to nothing, 4 to nothing), misplaced("/** One. */\n/** Two. */\nval a = 1\n/** Last. */"))
         assertEquals(listOf(1 to "is not followed by a declaration"), misplaced("/** A package. */\npackage a.b\n"))
     }
 

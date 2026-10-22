@@ -79,10 +79,12 @@ internal object KotlinLexer {
      * excepted, so offsets and line numbers in the result are those in [source]. Template expressions stay code, and
      * since the delimiters of a string and of its templates are blanked together, every bracket left is code and the
      * brackets pair up as in [source].
+     *
+     * @param lexed the spans of [source], for a caller that already has them, so the text is not lexed twice.
      */
-    fun code(source: String): String {
+    fun code(source: String, lexed: List<LexicalSpan> = spans(source)): String {
         val code = StringBuilder(source)
-        for (span in spans(source)) {
+        for (span in lexed) {
             for (offset in span.start until span.end) {
                 if (code[offset] != '\n') code.setCharAt(offset, ' ')
             }

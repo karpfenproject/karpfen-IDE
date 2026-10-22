@@ -227,7 +227,10 @@ and reports `Workspace.problems`. `ValidationReport` and `ReportFormatter` turn 
   `KarpfenModules` is the module table these tests share. `DocumentationStyleTest` guards the documentation style in
   every Kotlin source file and Gradle script, with `KotlinComments` to find the comments, `KDocPlacement` to check
   that KDoc documents a declaration, and `ReferenceIds` to find reference ids, which it also looks for in the markdown
-  documents, the CI workflows and the XML resources.
+  documents, the CI workflows and the XML resources. `KotlinLexer` is the one lexer behind all text-reading rules: it
+  tells comments and literal text from code for `KotlinComments`, for `SourceReferences` (the fully qualified names
+  the layer rules check) and for `WallClockAssertions`, which `BudgetTestTaggingTest` asks whether a test asserts on
+  the wall clock.
 
 Typical changes and where they start:
 

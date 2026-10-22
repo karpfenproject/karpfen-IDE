@@ -1,9 +1,9 @@
 package io.karpfen.ide.ui.workbench.templates
 
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.document.environment.EnvironmentSchema
 import io.karpfen.ide.core.workspace.analysis.AttachmentCandidate
 import io.karpfen.ide.core.workspace.environment.DescriptorPaths
-import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
 

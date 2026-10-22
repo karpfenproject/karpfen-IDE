@@ -131,7 +131,8 @@ class EnvironmentFeaturesTest {
 
         assertEquals("EVENTS.kmeta", labels.first())
         assertTrue("robot_events.kmeta" in labels, "$labels")
-        assertTrue(labels.indexOf("robot_events.kmeta") > labels.indexOf("../delivery_drone_example/EVENTS.kmeta"), "usual files first: $labels")
+        val usualElsewhere = labels.indexOf("../delivery_drone_example/EVENTS.kmeta")
+        assertTrue(labels.indexOf("robot_events.kmeta") > usualElsewhere, "usual files first: $labels")
     }
 
     @Test

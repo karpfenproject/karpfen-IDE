@@ -74,8 +74,11 @@ public data class EnvironmentDescriptor(
     /** What the IDE observes while the environment runs: the objects matching [objects] and the event [domains]. */
     @Serializable
     public data class ObserveSpec(
-        @KeyDoc("The keys of the objects the IDE observes while the environment runs, as a pattern; \"*\" observes every object.")
-        @Suggests("*")
+        @KeyDoc(
+            "The keys of the objects the IDE observes while the environment runs, as a pattern; " +
+                "\"${EnvironmentSchema.EVERY_OBJECT}\" observes every object.",
+        )
+        @Suggests(EnvironmentSchema.EVERY_OBJECT)
         public val objects: String,
 
         @KeyDoc(

@@ -54,7 +54,10 @@ class EnvironmentSchemaTest {
             listOf("metamodel", "events", "model", "stateMachines", "tickDelayMs", "eventTtlMs", "observe", "runtime", "bridges"),
             root.keys.map { it.name },
         )
-        assertEquals(listOf("events", "tickDelayMs", "eventTtlMs", "observe", "runtime"), root.keys.filter { it.isNullable }.map { it.name })
+        assertEquals(
+            listOf("events", "tickDelayMs", "eventTtlMs", "observe", "runtime"),
+            root.keys.filter { it.isNullable }.map { it.name },
+        )
         assertEquals(ValueShape.WholeNumber(listOf(50, 100, 500)), root.key("tickDelayMs")?.shape)
         assertEquals(ValueShape.ListOf(ValueShape.FilePath(DescriptorFileRole.BRIDGE)), root.key("bridges")?.shape)
 
