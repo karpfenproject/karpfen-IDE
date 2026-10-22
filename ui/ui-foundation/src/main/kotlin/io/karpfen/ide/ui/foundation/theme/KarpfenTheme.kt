@@ -83,10 +83,9 @@ public object KarpfenTheme {
 }
 
 /**
- * Applies the karpfen theme: provides [LocalKarpfenColors] (light or dark palette) and
- * [LocalKarpfenTypography], and configures the Material 3 theme used by basic widgets to match. Inside [content],
- * Material's content colour is the palette's text colour, its default text style the UI style, and the desktop
- * scrollbars are styled from the palette.
+ * Applies the karpfen theme: provides [LocalKarpfenColors] (light or dark palette) and [LocalKarpfenTypography], and
+ * configures the Material 3 theme used by basic widgets to match. Inside [content], Material's content colour is the
+ * palette's text colour, its default text style the UI style, and the desktop scrollbars are styled from the palette.
  */
 @Composable
 public fun KarpfenTheme(darkTheme: Boolean, content: @Composable () -> Unit) {

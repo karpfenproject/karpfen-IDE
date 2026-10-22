@@ -76,7 +76,7 @@ internal object MaterialThemeMapping {
         )
     }
 
-    /** Rounded 8 dp desktop scrollbars in translucent text colour, darker while hovered. */
+    /** Rounded 8 dp desktop scrollbars in translucent text colour, more opaque while hovered. */
     fun scrollbarStyle(colors: KarpfenColors): ScrollbarStyle = ScrollbarStyle(
         minimalHeight = 16.dp,
         thickness = 8.dp,

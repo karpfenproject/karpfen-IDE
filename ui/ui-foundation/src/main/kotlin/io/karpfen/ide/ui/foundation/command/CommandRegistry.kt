@@ -74,9 +74,9 @@ internal class DefaultCommandRegistry(override val platform: HostPlatform) : Com
     }
 
     /**
-     * Publishes [next] as the registered commands and rebuilds [byStroke] from it. `toMap` keeps the last pair of a
-     * key and [next] lists the commands in registration order, so the most recently registered command owns a stroke
-     * that several shortcuts share.
+     * Publishes [next] as the registered commands and rebuilds [byStroke] from it. `toMap` keeps the last pair of a key
+     * and [next] lists the commands in registration order, so the most recently registered command owns a stroke that
+     * several shortcuts share.
      */
     private fun publish(next: Map<String, Command>) {
         byStroke = next.values

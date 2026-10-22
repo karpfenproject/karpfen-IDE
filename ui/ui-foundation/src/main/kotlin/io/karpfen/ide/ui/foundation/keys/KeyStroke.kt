@@ -79,8 +79,8 @@ public enum class HostPlatform {
 }
 
 /**
- * A platform-independent shortcut: [primary] means Cmd on macOS and Ctrl elsewhere. [ctrl] requests the physical
- * Ctrl key in addition (only meaningful on macOS, where it differs from the primary modifier).
+ * A platform-independent shortcut: [primary] means Cmd on macOS and Ctrl elsewhere. [ctrl] requests the physical Ctrl
+ * key in addition (only meaningful on macOS, where it differs from the primary modifier).
  *
  * @property key the key, a physical key or a punctuation character as described on [KeyCode].
  * @property shift whether Shift is held.

@@ -65,8 +65,8 @@ public object TabStripTestTags {
 }
 
 /**
- * A horizontal strip of tabs: title, tooltip, dirty dot, close button, middle-click closes, horizontal
- * scrolling when the tabs overflow; the selected tab is scrolled into view. Stateless.
+ * A horizontal strip of tabs: title, tooltip, dirty dot, close button, middle-click closes, horizontal scrolling when
+ * the tabs overflow; the selected tab is scrolled into view. Stateless.
  *
  * A primary click selects a tab ([onSelect]), its close button or a middle click closes it ([onClose], without
  * selecting it). The strip scrolls with the horizontal wheel or trackpad and, when it overflows, with the vertical

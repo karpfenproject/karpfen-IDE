@@ -5,6 +5,6 @@ package io.karpfen.ide.ui.foundation
  * registry, the toolkit-neutral key model and the common widgets of the IDE.
  */
 public object UiFoundationModule {
-    /** The module's name as the build and the module dependency checks know it. */
+    /** The module's name, which is also the name of its directory. */
     public const val ID: String = "ui-foundation"
 }

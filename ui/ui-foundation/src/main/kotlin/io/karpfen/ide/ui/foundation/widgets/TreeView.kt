@@ -69,19 +69,19 @@ public object TreeViewTestTags {
 }
 
 /**
- * A lazy tree with expand/collapse, single selection and keyboard navigation (Up/Down move the selection,
- * Left collapses or moves to the parent, Right expands or moves to the first child, Enter opens). Double-click opens.
+ * A lazy tree with expand/collapse, single selection and keyboard navigation (Up/Down move the selection, Left
+ * collapses or moves to the parent, Right expands or moves to the first child, Enter opens). Double-click opens.
  * Stateless: [expanded] and [selected] are hoisted.
  *
  * Whenever [selected] changes — by keyboard, by click or programmatically (e.g. the workbench revealing a newly created
  * file after expanding its ancestors) — the tree scrolls minimally so the selected row is visible (MUST, tested).
  *
- * Further behaviour: Home/End select the first/last row; a click selects its row on press and focuses the tree, a
- * click on an expandable node's chevron toggles it without selecting; a right-click selects its row and opens the
- * node's [contextMenu] at the pointer (disabled entries greyed out). A context menu closes when its row vanishes (its
- * node removed or collapsed away), so it never reappears with stale entries when a node with the same key shows up
- * again. Keys must be unique within the tree; a [selected] key that is not visible (a collapsed ancestor) is revealed
- * as soon as its row appears. Needs `KarpfenTheme`.
+ * Further behaviour: Home/End select the first/last row; a click selects its row on press and focuses the tree, a click
+ * on an expandable node's chevron toggles it without selecting; a right-click selects its row and opens the node's
+ * [contextMenu] at the pointer (disabled entries greyed out). A context menu closes when its row vanishes (its node
+ * removed or collapsed away), so it never reappears with stale entries when a node with the same key shows up again.
+ * Keys must be unique within the tree; a [selected] key that is not visible (a collapsed ancestor) is revealed as soon
+ * as its row appears. Needs `KarpfenTheme`.
  *
  * @param icon slot rendering a node's icon; null uses [TreeNode.icon].
  * @param contextMenu the context-menu entries of a node (empty: no menu).

@@ -6,8 +6,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * A user-invocable command (Command pattern): menus, shortcuts and context menus reference it by [id].
- * Editor commands use the editor's action ids, so menu and keyboard reach the same `EditorAction`.
+ * A user-invocable command (Command pattern): menus, shortcuts and context menus reference it by [id]. Editor commands
+ * use the editor's action ids, so menu and keyboard reach the same `EditorAction`.
  *
  * A command object, not a value: it holds behaviour ([action]) and live state ([isEnabled]), so it has identity
  * equality (no `copy`, no structural `equals`); the registry identifies commands by [id].
