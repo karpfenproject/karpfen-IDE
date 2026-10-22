@@ -22,8 +22,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * An environment descriptor edited in the IDE over the production wiring ([ProductionWorkbench]), as a user does it:
  * open it from the project tree into an editor tab, edit it (the workspace reports what the unsaved text names
- * wrongly), complete a file path and an attached object, and save; and type values by hand that completion leaves as
- * they are.
+ * wrongly), complete a file path and an attached object, and save; go from a named file or the attached object to its
+ * definition; and type values by hand that completion leaves as they are.
  */
 class DescriptorEditingEndToEndTest {
 
@@ -89,6 +89,39 @@ class DescriptorEditingEndToEndTest {
                 assertTrue(text.contains("\"tickDelayMs\": 10\n"), "not the typical 100:\n$text")
                 assertTrue(text.contains("\"eventTtlMs\": 30\n"), "not the typical 3000:\n$text")
                 assertTrue(text.contains("\"events\": null\n"), "not a file path:\n$text")
+            }
+        }
+    }
+
+    @Test
+    fun `go to definition opens a named file, and the model at the attached object`() = runTest(timeout = 120.seconds) {
+        Examples.copyTo(root)
+        Files.writeString(descriptor, DescriptorExamples.text(DescriptorExamples.VALID))
+        ProductionWorkbench(testScheduler, dir.resolve("settings")).use { workbench ->
+            with(workbench) {
+                open(root)
+                val editor = openEditor(descriptor)
+
+                editor.caret.moveTo(textOf(editor).indexOf("cleaning_robot.kstates") + 2)
+                editor.execute(EditorActionIds.GO_TO_DEFINITION)
+                settle()
+
+                val machine = robot.resolve("cleaning_robot.kstates")
+                assertEquals(machine, state.tabs.active.value, "the state machine opened in the active tab")
+                assertEquals(0, assertNotNull(state.tabs.editorFor(machine)).caret.primary.position)
+
+                state.tabs.activate(descriptor)
+                editor.caret.moveTo(textOf(editor).indexOf(DescriptorExamples.ATTACHED_TO) + 2)
+                editor.execute(EditorActionIds.GO_TO_DEFINITION)
+                settle()
+
+                val model = robot.resolve("cleaning_robot.kmodel")
+                assertEquals(model, state.tabs.active.value, "the model opened in the active tab")
+                val target = assertNotNull(state.tabs.editorFor(model))
+                val attachedTo = DescriptorExamples.ATTACHED_TO
+                val caret = target.caret.primary.position
+                assertEquals(attachedTo, textOf(target).substring(caret, caret + attachedTo.length), "the caret is at the object")
+                assertFalse(document(descriptor).isDirty.value, "navigation leaves the descriptor unchanged")
             }
         }
     }
