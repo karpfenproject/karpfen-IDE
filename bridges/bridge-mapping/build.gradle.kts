@@ -2,7 +2,7 @@ plugins {
     id("karpfen.kotlin-jvm")
 }
 
+/** The declarative mapping engine implements the mapping SPI of bridge-api, which is therefore part of its API. */
 dependencies {
-    // The mapping engine implements the Mapping SPI of bridge-api.
     api(project(":bridges:bridge-api"))
 }

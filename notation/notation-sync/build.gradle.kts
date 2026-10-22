@@ -2,7 +2,7 @@ plugins {
     id("karpfen.kotlin-jvm")
 }
 
+/** The synchronizer exposes the diagram view model of notation-diagram. */
 dependencies {
-    // The synchronizer exposes the diagram view-model.
     api(project(":notation:notation-diagram"))
 }

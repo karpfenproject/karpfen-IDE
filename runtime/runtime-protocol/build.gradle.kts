@@ -2,9 +2,12 @@ plugins {
     id("karpfen.kotlin-serialization")
 }
 
+/**
+ * The typed HTTP and WebSocket client for the karpfen runtime is built on the Ktor client; its data transfer objects use
+ * kotlinx.serialization, which the convention plugin applies. Tests use Ktor's mock engine.
+ */
 dependencies {
     implementation(project(":core:core-text"))
-    // Typed HTTP/WebSocket client for the runtime (proposal §5.6); DTOs use kotlinx.serialization.
     implementation(libs.bundles.ktor.client)
 
     testImplementation(libs.ktor.client.mock)

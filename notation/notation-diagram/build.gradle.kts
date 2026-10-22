@@ -2,9 +2,11 @@ plugins {
     id("karpfen.kotlin-jvm")
 }
 
+/**
+ * Diagram elements are keyed by the element identities of core-workspace, which are therefore part of the API. ELK
+ * stays an implementation detail behind the auto-layout adapter.
+ */
 dependencies {
-    // Diagram elements are keyed by core-workspace element identities.
     api(project(":core:core-workspace"))
-    // Auto-layout adapter; ELK stays an implementation detail behind it.
     implementation(libs.bundles.elk)
 }

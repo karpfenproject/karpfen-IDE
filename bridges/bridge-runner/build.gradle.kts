@@ -2,9 +2,12 @@ plugins {
     id("karpfen.application")
 }
 
+/**
+ * The start script is named `karpfen-bridge-runner` (`build/install/karpfen-bridge-runner/bin/karpfen-bridge-runner`),
+ * matching the usage line that the runner prints.
+ */
 application {
     mainClass = "io.karpfen.ide.bridges.runner.MainKt"
-    // Start script name (build/install/karpfen-bridge-runner/bin/karpfen-bridge-runner), matching the usage line.
     applicationName = "karpfen-bridge-runner"
 }
 
