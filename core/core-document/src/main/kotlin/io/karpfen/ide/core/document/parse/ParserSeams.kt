@@ -55,10 +55,11 @@ internal data class StandaloneResult(val model: DslModel?, val diagnostics: List
  * neither part knows the other and the composition rule lives in this one class.
  *
  * It runs [syntax]; if the outcome has no syntax diagnostics, the mode is [SemanticMode.STANDALONE] and [semantics] is
- * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Any exception from a collaborator (and a `StackOverflowError`, which pathologically deep nesting causes in the recursive
- * ANTLR parser) becomes an `internal-error` diagnostic at the start of the text and is logged, so parsing never throws:
- * from [syntax] a PARSER diagnostic with an empty analysis (the outcome is not syntax-clean, the session shows it and no
- * conversion runs), from [semantics] a DSL_TOOLS one without a model.
+ * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Any exception from a collaborator (and a
+ * `StackOverflowError`, which pathologically deep nesting causes in the recursive ANTLR parser) becomes an
+ * `internal-error` diagnostic at the start of the text and is logged, so parsing never throws: from [syntax] a PARSER
+ * diagnostic with an empty analysis (the outcome is not syntax-clean, the session shows it and no conversion runs),
+ * from [semantics] a DSL_TOOLS one without a model.
  *
  * @throws IllegalArgumentException if [syntax] parses another language than [language].
  */

@@ -6,6 +6,6 @@ package io.karpfen.ide.architecture
  * module the production file that `PackageLayoutTest` expects of every module in the module table.
  */
 public object ArchitectureTestsModule {
-    /** The module's name as the module map and the build use it. */
+    /** The module's name, which is also the name of its directory. */
     public const val ID: String = "architecture-tests"
 }

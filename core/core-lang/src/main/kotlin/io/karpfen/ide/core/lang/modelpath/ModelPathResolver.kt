@@ -63,8 +63,9 @@ public data class PathType(public val name: String, public val isList: Boolean, 
 }
 
 /**
- * A segment that can follow a path prefix (or start a path). Type members wrap the [TypeCatalog][io.karpfen.ide.core.lang.symbols.TypeCatalog]'s
- * [MemberInfo] instead of copying it, so there is one value family for members.
+ * A segment that can follow a path prefix (or start a path). Type members wrap the
+ * [TypeCatalog][io.karpfen.ide.core.lang.symbols.TypeCatalog]'s [MemberInfo] instead of copying it, so there is one
+ * value family for members.
  *
  * @property origin a type [PathOrigin.MEMBER], the `self`/`event` [PathOrigin.ROOT] or a [PathOrigin.BINDING].
  * @property type the type the segment reaches.

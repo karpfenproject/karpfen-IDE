@@ -1,11 +1,11 @@
 package io.karpfen.ide.ui.workbench
 
 /**
- * Phase-0 stub of the `ui-workbench` module: project tree, problems, outline, runtime and bridge tool windows, log
- * console. The module map of the architecture proposal (`docs/architecture-proposal.md`) shows where the module sits
- * among the UI modules.
+ * Identity of the `ui-workbench` module, kept from the phase-0 skeleton: the window content, with the project tree,
+ * editor tabs, outline, problems, status bar, dialogs, settings and file templates. Start at `WorkbenchState` (package
+ * `state`); the module list of the README places the module among the others.
  */
 public object UiWorkbenchModule {
-    /** The Gradle project name of the module. */
+    /** The module's name, which is also the name of its directory. */
     public const val ID: String = "ui-workbench"
 }

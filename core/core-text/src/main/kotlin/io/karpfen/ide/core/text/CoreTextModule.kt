@@ -1,10 +1,11 @@
 package io.karpfen.ide.core.text
 
 /**
- * Phase-0 stub of the `core-text` module: text buffer, TextEdit, offset/line-column mapping and line index.
- * The module map of the architecture proposal (`docs/architecture-proposal.md`) shows where it sits.
+ * Identity of the `core-text` module, kept from the phase-0 skeleton: the text of one document, with atomic edits,
+ * immutable snapshots, line and column positions, undo and redo, and the mapping of positions between versions. Start
+ * at [EditableText] and [TextSnapshot]; the module list of the README places the module among the others.
  */
 public object CoreTextModule {
-    /** The module's name as the module map and the build use it. */
+    /** The module's name, which is also the name of its directory. */
     public const val ID: String = "core-text"
 }

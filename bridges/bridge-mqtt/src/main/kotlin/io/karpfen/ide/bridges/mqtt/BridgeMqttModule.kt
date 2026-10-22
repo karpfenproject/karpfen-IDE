@@ -1,10 +1,10 @@
 package io.karpfen.ide.bridges.mqtt
 
 /**
- * Phase-0 stub of the `bridge-mqtt` module: MQTT bridge on the HiveMQ MQTT client.
- * The module map of the architecture proposal (`docs/architecture-proposal.md`) shows where it sits.
+ * Placeholder of the `bridge-mqtt` module, kept from the phase-0 skeleton until a later increment builds it. The module
+ * is to hold the MQTT bridge on the HiveMQ MQTT client. The README lists it among the modules of later increments.
  */
 public object BridgeMqttModule {
-    /** The module's name as the module map and the build use it. */
+    /** The module's name, which is also the name of its directory. */
     public const val ID: String = "bridge-mqtt"
 }

@@ -1,11 +1,11 @@
 package io.karpfen.ide.runtime.protocol
 
 /**
- * Phase-0 stub of the `runtime-protocol` module: typed HTTP/WebSocket client for the karpfen runtime and the
- * environment lifecycle state machine.
- * The module map of the architecture proposal (`docs/architecture-proposal.md`) shows where it sits.
+ * Placeholder of the `runtime-protocol` module, kept from the phase-0 skeleton until a later increment builds it. The
+ * module is to hold the typed HTTP and WebSocket client of the karpfen runtime and the life cycle of a deployed
+ * environment. The README lists it among the modules of later increments.
  */
 public object RuntimeProtocolModule {
-    /** The module's name as the module map and the build use it. */
+    /** The module's name, which is also the name of its directory. */
     public const val ID: String = "runtime-protocol"
 }

@@ -15,10 +15,10 @@ import org.slf4j.LoggerFactory
 
 /**
  * Decorator that makes a [Tokenizer] keep its "never throws" contract (highlighting must work on every text, and no
- * exception from analysis may reach the editor): an exception of [delegate] is logged and turned into a degraded result instead of reaching the editor — one ERROR token per run of
- * non-whitespace characters (so the token invariants still hold) and one ERROR [DiagnosticCodes.INTERNAL_ERROR]
- * diagnostic (source IDE) at the start of the text. The robustness tests assert that this diagnostic never occurs, so a
- * defect is still found by the tests rather than hidden by this guard.
+ * exception from analysis may reach the editor): an exception of [delegate] is logged and turned into a degraded result
+ * of one ERROR token per run of non-whitespace characters (so the token invariants still hold) and one ERROR
+ * [DiagnosticCodes.INTERNAL_ERROR] diagnostic (source IDE) at the start of the text. The robustness tests assert that
+ * this diagnostic never occurs, so a defect is still found by the tests rather than hidden by this guard.
  *
  * Stateless and thread-safe if [delegate] is.
  */

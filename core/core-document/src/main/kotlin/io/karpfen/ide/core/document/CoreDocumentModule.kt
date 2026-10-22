@@ -1,11 +1,12 @@
 package io.karpfen.ide.core.document
 
 /**
- * Phase-0 stub of the `core-document` module: parse pipeline on top of karpfen-dsl-tools, document snapshots,
- * diagnostics mapping and the text patcher.
- * The module map of the architecture proposal (`docs/architecture-proposal.md`) shows where it sits.
+ * Identity of the `core-document` module, kept from the phase-0 skeleton: tokens, parse outcomes and diagnostics of a
+ * document, on top of karpfen-dsl-tools for the modeling languages and of the IDE's own JSON parser for environment
+ * descriptors, kept up to date by a document session. Start at `DocumentSession` (package `session`) and
+ * `LanguageSupport` (package `language`); the module list of the README places the module among the others.
  */
 public object CoreDocumentModule {
-    /** The module's name as the module map and the build use it. */
+    /** The module's name, which is also the name of its directory. */
     public const val ID: String = "core-document"
 }

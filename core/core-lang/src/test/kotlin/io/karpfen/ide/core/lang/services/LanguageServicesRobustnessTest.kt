@@ -22,8 +22,9 @@ import kotlin.time.TimeSource
 /**
  * Covers the robustness of highlight, completion, definition and hover (references and bracket matching included): the
  * services never throw — and no provider fails behind the facade's catch-all — on 10,000 deterministic mutations of
- * each modeling language's examples (spread over its files, in their modeling contexts) and on every prefix of a KStates
- * example (environment descriptors have a robustness test of their own in the `environment` package); every result keeps the documented invariants (ranges inside the text, highlight spans sorted and disjoint).
+ * each modeling language's examples (spread over its files, in their modeling contexts) and on every prefix of a
+ * KStates example (environment descriptors have a robustness test of their own in the `environment` package); every
+ * result keeps the documented invariants (ranges inside the text, highlight spans sorted and disjoint).
  */
 class LanguageServicesRobustnessTest {
 

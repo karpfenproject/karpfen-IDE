@@ -1,10 +1,11 @@
 package io.karpfen.ide.bridges.mapping
 
 /**
- * Phase-0 stub of the `bridge-mapping` module: declarative mapping engine (routes, path expressions, templates).
- * The module map of the architecture proposal (`docs/architecture-proposal.md`) shows where it sits.
+ * Placeholder of the `bridge-mapping` module, kept from the phase-0 skeleton until a later increment builds it. The
+ * module is to hold the declarative mapping engine (routes, path expressions, templates). The README lists it among the
+ * modules of later increments.
  */
 public object BridgeMappingModule {
-    /** The module's name as the module map and the build use it. */
+    /** The module's name, which is also the name of its directory. */
     public const val ID: String = "bridge-mapping"
 }
