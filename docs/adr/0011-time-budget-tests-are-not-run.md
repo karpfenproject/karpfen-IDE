@@ -8,26 +8,22 @@
 
 ## Context
 
-Phase 1 added tests that assert wall-clock durations against budgets with 5x slack (tokenize, parse, language
-services, text operations, find, editor frames, the project tree). Wall-clock time depends on machine load (the build
-runs many test tasks in parallel), garbage collection, CPU throttling and, on the owner's machine, sleep/wake cycles that
-make the clock unreliable. One of them failed under load although the code had not changed.
+Phase 1 added tests that assert wall-clock durations against budgets. Wall-clock time on a build machine is unreliable,
+and one of these tests failed under load although the code had not changed.
 
 ## Decision
 
-- Tests that compare a wall-clock duration with a limit carry the JUnit tag `budget` (`@Tag("budget")` on the class or
-  on the test functions; `io.karpfen.ide.buildlogic.TestTags.BUDGET` in build-logic).
-- The `karpfen.kotlin-jvm` convention excludes that tag from every `Test` task, so no build, check or CI run executes
-  them. There is no opt-in switch: enabling them is part of the later performance task.
-- Functional assertions that used to live inside a budget test move to untagged tests (e.g. the tree view's laziness,
-  the synthetic document parsing without syntax errors).
-- `BudgetTestTaggingTest` (architecture-tests) is a tripwire: a test function that asserts on a wall-clock measurement
-  must carry the tag, on itself or on its class; its KDoc and that of `WallClockAssertions` say what it recognizes.
+- Tests that compare a wall-clock duration with a limit carry the JUnit tag `budget`, and no build, check or CI run
+  executes them. There is no opt-in switch: enabling them is part of the later performance work.
+- Functional assertions that lived inside a budget test move to untagged tests, which keep running.
+- An architecture test catches a timing test without the tag.
+
+The KDoc of `TestTags.BUDGET` in build-logic explains the rule, its reasons and what it leaves undetected; the KDoc of
+`BudgetTestTaggingTest` and `WallClockAssertions` in architecture-tests says what counts as a timing test.
 
 ## Consequences
 
-- Builds no longer fail on machine load; budget tests remain as executable documentation for performance work.
-- Performance regressions are not detected automatically until that task re-enables or replaces them (for example
-  with a dedicated, serial benchmark task or with deterministic operation counts).
-- Functional tests that wait for asynchronous events still use generous wall-clock timeouts (file watcher, folder
-  chooser, the find search that gives up at its own time limit); they are not budget tests and keep running.
+- Builds no longer fail on machine load, and the budget tests stay in the code as documentation of the performance
+  targets.
+- Performance regressions are not detected automatically until the performance work re-enables or replaces the
+  budget tests.

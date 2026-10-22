@@ -17,17 +17,22 @@ dsl-tools is not published to a remote repository yet.
 
 ## Decision
 
-- **Composite build**: `dslToolsPath` from `-PdslToolsPath`, else `local.properties` (git-ignored), else
-  `../karpfen-dsl-tools`; a Gradle build there is included and substitutes the module (`using(project(":"))`).
-- **Artifact**: otherwise (or an empty `dslToolsPath`): the catalog version from `mavenLocal()` (`io.karpfen` only).
-- **CI, a temporary deviation from the language core decision**: CI clones dsl-tools at a commit pinned in
-  `DSL_TOOLS_REF`, as the proposal's risk list advises, to the default path and builds in composite mode, until
-  dsl-tools publishes versioned artifacts.
+- **Composite build**: a local dsl-tools checkout, configured per machine or found next to this repository, is
+  included in the build and replaces the artifact.
+- **Artifact**: without a checkout, the version of the version catalog is resolved from the local Maven repository,
+  and from a published repository once dsl-tools has one.
+- **CI, a temporary deviation from the language core decision**: CI clones dsl-tools at a pinned commit, as the
+  proposal's risk list advises, and builds in composite mode until dsl-tools publishes versioned artifacts.
+
+The KDoc of the resolution block in `settings.gradle.kts` documents how the checkout is found, what happens when a
+configured path holds no build and how to see the active mode; the KDoc at the end of
+`core/core-document/build.gradle.kts` documents how the composite build meets the configuration cache; the CI workflow
+`.github/workflows/build.yml` holds the pinned commit.
 
 ## Consequences
 
-- Cross-repository changes are a single local iteration. The settings log the active mode, though not on a
-  configuration-cache hit (`--no-configuration-cache` or `dependencyInsight` then shows it).
-- dsl-tools is not configuration-cache compatible yet: composite builds store no cache entry, and dsl-tools tasks
-  invoked directly need `--no-configuration-cache` (until dsl-tools generates its ANTLR sources at build time, part
-  of the housekeeping the proposal asks of it under [what dsl-tools must provide](../architecture-proposal.md#language-core-what-dsl-tools-must-provide-what-the-ide-adds)).
+- Cross-repository changes are a single local iteration.
+- CI builds against a known dsl-tools commit, which is raised on purpose when the IDE needs a newer one.
+- Composite builds give up the configuration cache until dsl-tools generates its ANTLR sources at build time, part of
+  the housekeeping the proposal asks of it under
+  [what dsl-tools must provide](../architecture-proposal.md#language-core-what-dsl-tools-must-provide-what-the-ide-adds).
