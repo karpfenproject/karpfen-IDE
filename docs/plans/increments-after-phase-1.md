@@ -7,7 +7,8 @@ an adversarial review and fixes before the next one starts.
 1. **Conventions and phase-1 follow-ups.** The code base and the documentation follow the owner's documentation style:
    documentation lives in KDoc next to the code, there are no inline comments, and the markdown documents are a map
    that tells the reader where to look in the code. Environment descriptors become editable in the IDE with language
-   support, and code completion moves to Ctrl+M on every platform, plus Ctrl+Space on Windows.
+   support, and code completion moves to Ctrl+M on every platform, plus Ctrl+Space on Windows. This increment is
+   complete.
 2. **Editor support in karpfen-dsl-tools.** Diagnostics with source positions instead of exceptions, tolerant parsing,
    printers for the three languages, logging through SLF4J instead of printing to the console, and a package cleanup.
    The IDE then places dsl-tools errors precisely and shows dsl-tools output only on demand, forwarding errors.

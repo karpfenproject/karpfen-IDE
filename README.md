@@ -8,13 +8,14 @@ and ROS, and live visualization of state machines and models. It is written in K
 Multiplatform for Desktop and builds on [karpfen-dsl-tools](https://github.com/karpfenproject/karpfen-dsl-tools) as its
 language core.
 
-**Status: the text editor (phase 1) is complete.** The IDE opens a folder of karpfen files and edits them with syntax
-and semantic highlighting (including the Python of `EVAL` bodies), live syntax diagnostics, the diagnostics of a
-karpfen-dsl-tools analysis of each modeling context, completion, go to definition, hover, outline, problems, find and
-replace, and a project tree with file templates; environment descriptors are edited the same way, with completion of
-their keys, files and objects. `karpfen validate` checks a folder from the command line. The work
-continues in the [increments after phase 1](docs/plans/increments-after-phase-1.md); diagrams, the runtime and the
-bridges are stubs so far.
+**Status: the text editor (phase 1) and the first increment after it are complete.** The IDE opens a folder of karpfen
+files and edits them with syntax and semantic highlighting (including the Python of `EVAL` bodies), live syntax
+diagnostics, the diagnostics of a karpfen-dsl-tools analysis of each modeling context, completion, go to definition,
+hover, outline, problems, find and replace, and a project tree with file templates; environment descriptors are edited
+the same way, with completion of their keys, files and objects. Completion opens with Ctrl+M on every platform, and on
+Windows also with Ctrl+Space. `karpfen validate` checks a folder from the command line. The work continues with the
+second of the [increments after phase 1](docs/plans/increments-after-phase-1.md), editor support in karpfen-dsl-tools;
+diagrams, the runtime and the bridges are stubs so far.
 
 ## Documentation
 
