@@ -3,9 +3,13 @@ package io.karpfen.ide.architecture
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Proves that the fully-qualified-reference scanner used by the layer rules finds real uses and ignores the rest. */
+/**
+ * Covers [SourceReferences], the fully-qualified-reference scanner used by the layer rules: it finds real uses in code
+ * and ignores directives, comments, literals and backtick identifiers.
+ */
 class SourceReferencesTest {
 
+    /** The names of the qualified references in [source]. */
     private fun namesIn(source: String): List<String> = SourceReferences.qualifiedReferences(source).map { it.name }
 
     @Test

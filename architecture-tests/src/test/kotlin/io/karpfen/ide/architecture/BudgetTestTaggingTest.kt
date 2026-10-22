@@ -6,8 +6,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Time-budget tests are not run (docs/adr/0011-time-budget-tests-are-not-run.md): a test that compares a wall-clock
- * duration with a limit must carry the JUnit tag `budget`, which every test task excludes.
+ * Time-budget tests are never run: a test that compares a wall-clock duration with a limit must carry the JUnit tag
+ * `budget`, which every test task excludes, because machine load and sleep/wake cycles make the wall clock unreliable.
+ * build-logic's `TestTags.BUDGET` declares the tag and explains the rule.
  *
  * The rule is a tripwire, not a proof: a test source file whose code reads the wall clock ([WALL_CLOCK]) and names a
  * limit ([LIMIT_NAME]: an identifier containing budget, slack or guard) must declare `@Tag("budget")` on the class or
@@ -17,18 +18,29 @@ import kotlin.test.assertTrue
 class BudgetTestTaggingTest {
 
     private companion object {
+        /** A read of the wall clock: a monotonic time mark, a measuring function or the system clock. */
         val WALL_CLOCK = Regex("""\b(TimeSource\.Monotonic|measureTimedValue|measureTime|measureNanoTime|measureTimeMillis|System\.nanoTime|System\.currentTimeMillis)\b""")
+
+        /** An identifier that names a time limit: it contains budget, slack or guard, in any case. */
         val LIMIT_NAME = Regex("""\b\w*(budget|slack|guard)\w*\b""", RegexOption.IGNORE_CASE)
+
+        /** A backtick identifier, such as a test name, which may talk about budgets without measuring anything. */
         val BACKTICK_NAME = Regex("""`[^`\n]*`""")
+
         /** The annotation itself, at the start of a line (so documentation that mentions it does not count). */
         val BUDGET_TAG = Regex("""(?m)^\s*@Tag\("budget"\)""")
 
+        /**
+         * True if the code of [source], without comments, literals and backtick identifiers, both reads the wall clock
+         * and names a limit.
+         */
         fun comparesWallClockWithLimit(source: String): Boolean {
             val code = SourceReferences.blankCommentsAndLiterals(source).replace(BACKTICK_NAME, " ")
             return WALL_CLOCK.containsMatchIn(code) && LIMIT_NAME.containsMatchIn(code)
         }
     }
 
+    /** The test and test-fixture source files of all modules. */
     private val testFiles: List<KoFileDeclaration> by lazy { KarpfenModules.moduleFiles.filter { it.sourceSetName != "main" } }
 
     @Test
@@ -38,8 +50,8 @@ class BudgetTestTaggingTest {
         assertEquals(
             emptyList(),
             untagged.map { it.path },
-            "These tests compare wall-clock time with a limit but are not tagged budget (ADR 0011): annotate the class " +
-                "or the test functions with @Tag(\"budget\"), or remove the timing assertion",
+            "These tests compare wall-clock time with a limit but are not tagged budget, so every build would run them: " +
+                "annotate the class or the test functions with @Tag(\"budget\"), or remove the timing assertion",
         )
     }
 

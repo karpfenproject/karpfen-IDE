@@ -6,6 +6,11 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertTrue as kotlinAssertTrue
 
+/**
+ * Covers the package layout that every other architecture rule relies on: production code lives only in the modules of
+ * [KarpfenModules.packagePrefixes] and within the package prefix of its module, no module contains Java sources, and
+ * the scope of the rules holds the production code of every module but neither build-logic nor build output.
+ */
 class PackageLayoutTest {
 
     @Test
@@ -33,10 +38,12 @@ class PackageLayoutTest {
         ) { file -> file.packageName.isWithin(KarpfenModules.packagePrefixes.getValue(file.moduleDir)) }
     }
 
+    /**
+     * All modules are plain Kotlin/JVM. `karpfen.kotlin-jvm` applies `java-library`, so a `java` source directory would
+     * compile, but Konsist reads Kotlin files only: Java code would bypass every rule in this module.
+     */
     @Test
     fun `modules contain no Java sources`() {
-        // All modules are plain Kotlin/JVM (proposal §4). karpfen.kotlin-jvm applies java-library, so src/*/java would
-        // compile, but Konsist reads Kotlin files only: Java code would bypass every rule in this module.
         val root = File(Konsist.projectRootPath)
         val sourceFiles = root.walkTopDown()
             .onEnter { dir -> dir == root || !(dir.name.startsWith(".") || dir.name == "build" || dir.isNestedBuild()) }
@@ -54,19 +61,22 @@ class PackageLayoutTest {
     private fun File.isNestedBuild(): Boolean =
         resolve("settings.gradle.kts").isFile || resolve("settings.gradle").isFile
 
+    /**
+     * Neither build tooling nor generated code is product code. The raw Konsist scope contains build-logic, so the
+     * filter in [KarpfenModules.sourceFiles] is what keeps it out. Build output contains Kotlin sources, too:
+     * build-logic's generated kotlin-dsl accessors exist whenever this build runs, because build-logic is compiled
+     * first, and Konsist itself must skip them.
+     */
     @Test
     fun `build-logic and build output are excluded from the product scope`() {
         val rawScope = Konsist.scopeFromProject().files.map { it.projectPath.replace('\\', '/') }
         val productScope = KarpfenModules.sourceFiles.map { it.projectPath.replace('\\', '/') }
 
-        // build-logic/ is part of the raw Konsist scope, so the filter in KarpfenModules.sourceFiles is what keeps it out.
         val buildLogicInRawScope = rawScope.filter { it.startsWith("/build-logic/") }
         kotlinAssertTrue(buildLogicInRawScope.isNotEmpty(), "Konsist no longer sees build-logic/; this check would be vacuous")
         val buildLogicInProductScope = productScope.filter { it.startsWith("/build-logic/") }
         kotlinAssertTrue(buildLogicInProductScope.isEmpty(), "build-logic/ leaked into the product scope: $buildLogicInProductScope")
 
-        // Build output contains Kotlin sources (build-logic's generated kotlin-dsl accessors exist whenever this build
-        // runs, because build-logic is compiled first), and Konsist itself must skip them.
         val generatedSources = File(Konsist.projectRootPath, "build-logic/build").walkTopDown().filter { it.extension == "kt" }
         kotlinAssertTrue(generatedSources.any(), "No generated Kotlin sources under build-logic/build; this check would be vacuous")
         val buildOutputInRawScope = rawScope.filter { "/build/" in it }

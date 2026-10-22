@@ -6,15 +6,17 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Unidirectional data flow (spec §1a, §7.1): the editor models and every state holder are plain Kotlin, unit-testable
- * without Compose. The rule applies to
+ * The UI follows a unidirectional data flow: composables render immutable UI state and emit intents, while the editor
+ * models and every state holder are plain Kotlin, unit-testable without Compose. The rule applies to
  * - an explicit list of packages of ui-editor and ui-foundation ([COMPOSE_FREE]): the Compose-free editor model, the
- *   editor's state holders, foundation's command registry and key model (its Compose adapter is `keys.compose`), each
- *   with its sub-packages where a WP may add feature sub-packages (`ui.editor.model..`, `ui.editor.state..`);
+ *   editor's state holders, foundation's command registry and key model (its Compose adapter is `keys.compose`); the
+ *   editor model and state include their sub-packages, where features may add their own (`ui.editor.model..`,
+ *   `ui.editor.state..`);
  * - every package of ui-workbench except the root package (the `Workbench` composable and its wiring), the features'
- *   `view` sub-packages and the desktop adapters `files.desktop` ([isWorkbenchUiPackage]): the workbench is organized
- *   by feature (decision 31 of the work-package plan), each feature package holding its Compose-free state and a
- *   `view` sub-package holding its composables.
+ *   `view` sub-packages and the desktop adapters `files.desktop` ([isWorkbenchUiPackage]). The workbench is organized
+ *   by feature: each feature package (`projecttree`, `tabs`, `outline`, `problems`, `statusbar`, `dialog`, `layout`)
+ *   holds its Compose-free sub-state and UI values and a `view` sub-package holding its composables, and `state` holds
+ *   the mediator that coordinates the sub-states.
  *
  * Those packages must not use Compose (`androidx.compose..`, `org.jetbrains.compose..`) nor AWT/Swing; composables,
  * Compose-side helper state (e.g. a hoisted `TreeViewState`) and toolkit adapters live in view or adapter packages
@@ -31,6 +33,7 @@ class ComposeFreeStateTest {
             "io.karpfen.ide.ui.foundation.keys",
         )
 
+        /** The root package of ui-workbench. */
         const val WORKBENCH = "io.karpfen.ide.ui.workbench"
 
         /** Compose-free packages of ui-workbench that must exist (guards the by-feature rule against renames). */
@@ -39,17 +42,23 @@ class ComposeFreeStateTest {
             "command", "files", "settings", "templates",
         ).map { "$WORKBENCH.$it" }
 
+        /** The UI toolkits that the Compose-free packages must not use. */
         val UI_TOOLKITS = listOf("androidx.compose", "org.jetbrains.compose", "java.awt", "javax.swing")
 
         /** The workbench packages that may use Compose: the root, every `view` package, the desktop adapters. */
         fun String.isWorkbenchUiPackage(): Boolean =
             this == WORKBENCH || endsWith(".view") || isWithin("$WORKBENCH.files.desktop")
 
+        /**
+         * True if this package must not use a UI toolkit: it is listed in [COMPOSE_FREE], or it is a workbench package
+         * that [isWorkbenchUiPackage] does not exempt.
+         */
         fun String.isComposeFree(): Boolean =
             COMPOSE_FREE.any { entry -> if (entry.endsWith("..")) isWithin(entry.removeSuffix("..")) else this == entry } ||
                 (isWithin(WORKBENCH) && !isWorkbenchUiPackage())
     }
 
+    /** The production files of the UI modules. */
     private val uiMainFiles: List<KoFileDeclaration> by lazy {
         KarpfenModules.mainFiles.filter { it.moduleDir in KarpfenModules.uiModules }
     }
@@ -71,9 +80,9 @@ class ComposeFreeStateTest {
         ) { file -> file in qualified }
     }
 
+    /** Guards against a vacuous rule: a renamed package would silently drop out of the list. */
     @Test
     fun `every listed Compose-free package exists`() {
-        // Guards against a vacuous rule: a renamed package would silently drop out of the list.
         val packages = uiMainFiles.map { it.packageName }.toSet()
         (COMPOSE_FREE + WORKBENCH_STATE_PACKAGES).forEach { entry ->
             val found = if (entry.endsWith("..")) packages.any { it.isWithin(entry.removeSuffix("..")) } else entry in packages

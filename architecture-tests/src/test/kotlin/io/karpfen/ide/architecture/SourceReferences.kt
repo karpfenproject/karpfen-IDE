@@ -18,7 +18,12 @@ internal data class QualifiedReference(val name: String, val line: Int) {
  */
 internal object SourceReferences {
 
+    /**
+     * Two or more identifier segments joined by dots, starting at a name boundary: not right after a word character, a
+     * dot (the rest of a longer chain) or a `$` (a string template).
+     */
     private val dottedName = Regex("""(?<![\w.$])[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+""")
+    /** A `package` or `import` directive line, whose names are not references in code. */
     private val directive = Regex("""^\s*(?:package|import)\s""")
 
     /** Dotted names used in the code of [source] (see the object documentation for what is skipped). */
@@ -54,7 +59,10 @@ internal object SourceReferences {
         return out.toString()
     }
 
-    /** Kotlin block comments nest. */
+    /**
+     * The end of the block comment that starts at [start], just past its closing delimiter, or the end of [source] if
+     * it is not closed. Kotlin block comments nest, so every nested comment is closed first.
+     */
     private fun endOfBlockComment(source: String, start: Int): Int {
         var depth = 0
         var j = start

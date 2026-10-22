@@ -4,19 +4,28 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Dependency direction inside the UI modules (spec §1a, §7): the Compose-free editor model sees no other editor
- * package; the editor view and the popups (built in parallel by different work packages) meet only through the
- * overlay slot API; the workbench's state holders never see its views or desktop adapters; ports never see their
- * adapters. Checked on the package graph of the production code ([PackageGraph]).
+ * Dependency direction inside the UI modules: the key model never sees its Compose adapter; the Compose-free editor
+ * model sees no other editor package; the editor view and the popups meet only through the overlay slot API, so each
+ * can change without the other; the editor and workbench state holders never see their views or desktop adapters; the
+ * workbench's feature sub-states never see the mediator that coordinates them; ports never see their adapters.
+ * Checked on the package graph of the production code ([PackageGraph]).
  */
 class UiLayeringTest {
 
     private companion object {
+        /** The root package of ui-editor. */
         const val EDITOR = "io.karpfen.ide.ui.editor"
+
+        /** The root package of ui-workbench. */
         const val WORKBENCH = "io.karpfen.ide.ui.workbench"
+
+        /** The root package of ui-foundation. */
         const val FOUNDATION = "io.karpfen.ide.ui.foundation"
 
-        /** The workbench feature packages holding sub-states (decision 31 of the work-package plan). */
+        /**
+         * The workbench feature packages, each holding a Compose-free sub-state and its UI values. The mediator in
+         * `state` coordinates the sub-states, so the dependency only runs from the mediator to them.
+         */
         val WORKBENCH_FEATURES = listOf("projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout")
             .map { "$WORKBENCH.$it" }
 
@@ -41,14 +50,16 @@ class UiLayeringTest {
             module = "ui/ui-editor",
             from = { it.isWithin("$EDITOR.model") },
             to = { !it.isWithin("$EDITOR.model") && it.isWithin(EDITOR) },
-            rule = "$EDITOR.model.. must not depend on state, overlay, view, popup or theme (spec §7.1)",
+            rule = "$EDITOR.model.. must not depend on state, overlay, view, popup or theme",
         )
     }
 
+    /**
+     * Sub-packages count as their parent, so a sub-package such as `view.render` or `popup.find` cannot bypass the
+     * rule. The editor state holders see neither side, nor the overlay or the theme.
+     */
     @Test
     fun `the editor view and the popups meet only through the overlay slot API`() {
-        // Sub-packages count as their parent (owners may create them, work-package plan §1), so `view.render` or
-        // `popup.find` cannot bypass the rule.
         assertNoEdges(
             module = "ui/ui-editor",
             from = { it.isWithin("$EDITOR.view") },
@@ -91,6 +102,10 @@ class UiLayeringTest {
         )
     }
 
+    /**
+     * Fails if a package of [module] that matches [from] depends on a package that matches [to], and if no package
+     * matches [from], so a renamed package cannot make the rule vacuous.
+     */
     private fun assertNoEdges(module: String, from: (String) -> Boolean, to: (String) -> Boolean, rule: String) {
         val graph = PackageGraph.ofModule(module)
         assertTrue(graph.nodes.any(from), "Rule '$rule' matched no package of $module; is the scope broken?")

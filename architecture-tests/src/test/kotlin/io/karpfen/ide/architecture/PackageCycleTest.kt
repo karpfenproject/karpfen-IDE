@@ -6,10 +6,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Dependency direction inside modules is acyclic (spec §1a): within each core and UI module, the packages of the
- * production code must not depend on each other in a cycle. A package depends on another package of the same module
- * when one of its files imports (or fully-qualified references) a declaration of it; the declaring package of a name
- * is the longest package of the module that contains it.
+ * Dependency direction inside modules is acyclic: within each core and UI module, the packages of the production code
+ * must not depend on each other in a cycle. A package depends on another package of the same module when one of its
+ * files imports (or fully-qualified references) a declaration of it; the declaring package of a name is the longest
+ * package of the module that contains it.
  */
 class PackageCycleTest {
 
@@ -20,13 +20,15 @@ class PackageCycleTest {
         val cycles = modules.flatMap { module ->
             PackageGraph.ofModule(module).cycles().map { cycle -> "$module: ${cycle.sorted().joinToString(" <-> ")}" }
         }
-        assertTrue(cycles.isEmpty(), "Package cycles inside core and UI modules (spec §1a): $cycles")
+        assertTrue(cycles.isEmpty(), "Package cycles inside core and UI modules: $cycles")
     }
 
+    /**
+     * Guards against a vacuous rule with known edges that must be seen: the built-in language registry wires the
+     * adapters, and the editor state holds the caret model.
+     */
     @Test
     fun `the graph is built from the real packages`() {
-        // Known edges that must be seen: the built-in language registry wires the adapters; the editor state holds
-        // the caret model.
         val document = PackageGraph.ofModule("core/core-document")
         assertTrue(
             "io.karpfen.ide.core.document.antlr.lex" in document.edges["io.karpfen.ide.core.document.registry"].orEmpty(),
@@ -50,7 +52,12 @@ class PackageCycleTest {
     }
 }
 
-/** A package dependency graph: [edges] maps a package to the packages it depends on. */
+/**
+ * A package dependency graph.
+ *
+ * @property nodes the packages.
+ * @property edges maps a package to the packages it depends on.
+ */
 internal data class PackageGraph(val nodes: Set<String>, val edges: Map<String, Set<String>>) {
 
     /** The strongly connected components with more than one package (Tarjan), each a cycle. */

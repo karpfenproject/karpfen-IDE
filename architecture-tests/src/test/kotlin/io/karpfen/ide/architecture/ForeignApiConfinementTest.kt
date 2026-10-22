@@ -6,9 +6,10 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Adapters isolate foreign APIs (spec §0, §1a): ANTLR and the generated dsl-tools parsers are only reached from
- * [KarpfenModules.ANTLR_ADAPTER_PACKAGE], the dsl-tools converters and parser classes only from
- * [KarpfenModules.DSL_ADAPTER_PACKAGE]. Applies to main, test and testFixtures sources of every module.
+ * Adapters isolate foreign APIs: ANTLR and the generated dsl-tools parsers are only reached from the ANTLR adapter
+ * package [KarpfenModules.ANTLR_ADAPTER_PACKAGE], the dsl-tools converters and parser classes only from the dsl
+ * adapter package [KarpfenModules.DSL_ADAPTER_PACKAGE], so no other package sees ANTLR types or dsl-tools parser
+ * classes. Applies to main, test and testFixtures sources of every module.
  *
  * The dsl-tools packages have short top-level names (`kmeta`, `parser`, …) that can also be local variable names, so
  * a fully qualified reference counts only when the segment after the package starts with an upper-case letter (a
@@ -17,6 +18,7 @@ import kotlin.test.assertTrue
 class ForeignApiConfinementTest {
 
     private companion object {
+        /** The root package of the ANTLR runtime. */
         const val ANTLR_RUNTIME = "org.antlr"
 
         /** Packages of the ANTLR-generated lexers, parsers and visitors shipped in dsl-tools. */
@@ -31,7 +33,7 @@ class ForeignApiConfinementTest {
         assertConfined(
             files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithin(KarpfenModules.ANTLR_ADAPTER_PACKAGE) },
             rule = "Only ${KarpfenModules.ANTLR_ADAPTER_PACKAGE}.. may use $ANTLR_RUNTIME.. and the generated parsers " +
-                "${GENERATED_PARSER_PACKAGES.joinToString { "$it.." }} (spec §0)",
+                "${GENERATED_PARSER_PACKAGES.joinToString { "$it.." }}",
         ) { name, isImport -> name.isWithin(ANTLR_RUNTIME) || name.isForeignClassUse(GENERATED_PARSER_PACKAGES, isImport) }
     }
 
@@ -40,16 +42,18 @@ class ForeignApiConfinementTest {
         assertConfined(
             files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithin(KarpfenModules.DSL_ADAPTER_PACKAGE) },
             rule = "Only ${KarpfenModules.DSL_ADAPTER_PACKAGE}.. may use the dsl-tools converters and parsers " +
-                "(${DSL_TOOLS_CONVERTER_PACKAGES.joinToString { "$it.." }}); use its DslConverter adapter (spec §1a)",
+                "(${DSL_TOOLS_CONVERTER_PACKAGES.joinToString { "$it.." }}); use its DslConverter adapter",
         ) { name, isImport -> name.isForeignClassUse(DSL_TOOLS_CONVERTER_PACKAGES, isImport) }
     }
 
+    /**
+     * The internal adapter API hands out foreign types (e.g. `LexedText.tokens: List<Token>`), which Kotlin's type
+     * inference lets a caller use without importing org.antlr, so the entry points themselves are confined: only the
+     * adapter packages and the registry (the Abstract Factory wiring them) may depend on them. Other modules reach the
+     * public `DslConverter` of the dsl package directly.
+     */
     @Test
     fun `inside core-document only the registry wires the adapter packages`() {
-        // The internal adapter API hands out foreign types (e.g. `LexedText.tokens: List<Token>`), which Kotlin's type
-        // inference lets a caller use without importing org.antlr; so the entry points themselves are confined: only
-        // the adapter packages and the registry (the Abstract Factory wiring them) may depend on them. Other modules
-        // reach the public `DslConverter` of the dsl package directly.
         val registry = "io.karpfen.ide.core.document.registry"
         val graph = PackageGraph.ofModule("core/core-document")
         listOf(KarpfenModules.ANTLR_ADAPTER_PACKAGE, KarpfenModules.DSL_ADAPTER_PACKAGE).forEach { adapter ->
@@ -64,9 +68,9 @@ class ForeignApiConfinementTest {
         }
     }
 
+    /** Guards against vacuous rules: if a package were renamed, the confinement rules above would pass trivially. */
     @Test
     fun `the adapter packages exist and are where the foreign APIs are used`() {
-        // Guards against vacuous rules: if a package were renamed, the confinement rules above would pass trivially.
         val antlrFiles = KarpfenModules.filesInPackage(KarpfenModules.ANTLR_ADAPTER_PACKAGE)
         assertTrue(antlrFiles.any { it.sourceSetName == "main" }, "no production code in ${KarpfenModules.ANTLR_ADAPTER_PACKAGE}")
         assertTrue(
@@ -81,20 +85,25 @@ class ForeignApiConfinementTest {
         )
     }
 
+    /**
+     * Covers [isForeignClassUse]: imports and class references count; member access on a local variable named like a
+     * package does not, and dsl-tools' semantic model packages (`meta`, `instance`, `states`) stay usable everywhere.
+     */
     @Test
     fun `foreign class uses are recognized in imports and qualified references`() {
         assertTrue("kstates.KstatesLexer".isForeignClassUse(GENERATED_PARSER_PACKAGES, isImport = false))
         assertTrue("kmeta.*".isForeignClassUse(GENERATED_PARSER_PACKAGES, isImport = true))
         assertTrue("dsl.textual.KmetaDSLConverter".isForeignClassUse(DSL_TOOLS_CONVERTER_PACKAGES, isImport = false))
         assertTrue("parser.KmetaFileParser".isForeignClassUse(DSL_TOOLS_CONVERTER_PACKAGES, isImport = false))
-        // Member access on local variables named like a package is not a use.
         assertTrue(!"parser.parse".isForeignClassUse(DSL_TOOLS_CONVERTER_PACKAGES, isImport = false))
         assertTrue(!"kmeta.text".isForeignClassUse(GENERATED_PARSER_PACKAGES, isImport = false))
-        // dsl-tools' semantic model packages (meta, instance, states) stay usable everywhere.
         assertTrue(!"states.StateMachine".isForeignClassUse(GENERATED_PARSER_PACKAGES, isImport = false))
     }
 
-    /** Fails if an import or a fully qualified reference in [files] is forbidden by [isForbidden]. */
+    /**
+     * Fails if an import or a fully qualified reference in [files] is forbidden by [isForbidden]. Inline, so that
+     * Konsist, which derives the test name from the call stack, reports and suppresses by the test method name.
+     */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun assertConfined(
         files: List<KoFileDeclaration>,
@@ -117,7 +126,8 @@ class ForeignApiConfinementTest {
 /**
  * True if this import or qualified name uses one of the foreign [packages]: an import anywhere below them, or a
  * qualified reference whose first segment after the lower-case package segments starts with an upper-case letter
- * (a class such as `kstates.KstatesParser` or `dsl.textual.KmetaDSLConverter`, see the class comment).
+ * (a class such as `kstates.KstatesParser` or `dsl.textual.KmetaDSLConverter`), because the dsl-tools packages have
+ * short names that can also be local variable names (see [ForeignApiConfinementTest]).
  */
 internal fun String.isForeignClassUse(packages: Collection<String>, isImport: Boolean): Boolean {
     val root = packages.firstOrNull { isWithin(it) } ?: return false

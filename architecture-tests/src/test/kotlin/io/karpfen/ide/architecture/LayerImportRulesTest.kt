@@ -6,10 +6,18 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Import rules that keep the layers apart (D4, D5, D6, D7 in docs/architecture-proposal.md).
- * They apply to main and test sources of every module, identified by package. Each rule checks the import directives
- * and, because JDK packages such as java.awt compile without any dependency, also fully qualified references in the
- * code (see [SourceReferences]).
+ * Import rules that keep the layers apart. They complement the module dependency matrix of the build, which only sees
+ * project dependencies, with the external libraries and JDK packages each layer may use:
+ * - Compose Multiplatform for Desktop is the UI toolkit and stays in the UI and app modules, so every other module is
+ *   UI-agnostic; JavaFX is not used at all.
+ * - Core and notation, the reusable layers, see no layer above them and no infrastructure library.
+ * - The runtime runs in an IDE-owned Docker container, and only runtime-host talks to Docker.
+ * - Bridges are headless-first and use of the runtime only its wire protocol; only the MQTT bridge uses the HiveMQ
+ *   client.
+ *
+ * The rules apply to main and test sources of every module, identified by package. Each rule checks the import
+ * directives and, because JDK packages such as java.awt compile without any dependency, also fully qualified
+ * references in the code (see [SourceReferences]).
  */
 class LayerImportRulesTest {
 
@@ -27,7 +35,10 @@ class LayerImportRulesTest {
         const val TOOLS = "$IDE.tools"
 
         val COMPOSE = listOf("androidx.compose", "org.jetbrains.compose")
+
+        /** Compose and the other desktop UI toolkits of the JVM. */
         val DESKTOP_UI_TOOLKITS = COMPOSE + listOf("javafx", "java.awt", "javax.swing")
+
         const val DOCKER = "com.github.dockerjava"
         const val HIVEMQ = "com.hivemq"
         const val KTOR = "io.ktor"
@@ -100,7 +111,7 @@ class LayerImportRulesTest {
             files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithinAny(listOf(UI, APP)) },
             forbidden = DESKTOP_UI_TOOLKITS - "javafx",
             rule = "Desktop UI toolkits (Compose, AWT, Swing) may only be used by $UI.. and $APP.. " +
-                "(D4: every other module is UI-agnostic; D6: bridges are headless)",
+                "(every other module is UI-agnostic, and bridges are headless)",
         )
     }
 
@@ -109,19 +120,24 @@ class LayerImportRulesTest {
         assertNoUsages(
             files = KarpfenModules.moduleFiles,
             forbidden = listOf("javafx"),
-            rule = "JavaFX is not used anywhere (D4: Compose Multiplatform for Desktop)",
+            rule = "JavaFX is not used anywhere (the UI toolkit is Compose Multiplatform for Desktop)",
         )
     }
 
-    // The assertions are inline so that Konsist, which derives the test name from the call stack, reports and
-    // suppresses by the test method name.
-
+    /**
+     * Fails if an import or a fully qualified reference in [files] lies within one of the [forbidden] packages. Inline,
+     * like the overload it delegates to, so that Konsist, which derives the test name from the call stack, reports and
+     * suppresses by the test method name.
+     */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun assertNoUsages(files: List<KoFileDeclaration>, forbidden: List<String>, rule: String) {
         assertNoUsages(files, rule) { name -> name.isWithinAny(forbidden) }
     }
 
-    /** Fails if an import or a fully qualified reference in [files] is [isForbidden]. */
+    /**
+     * Fails if an import or a fully qualified reference in [files] is [isForbidden]. Inline, so that Konsist, which
+     * derives the test name from the call stack, reports and suppresses by the test method name.
+     */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun assertNoUsages(files: List<KoFileDeclaration>, rule: String, noinline isForbidden: (String) -> Boolean) {
         assertTrue(files.isNotEmpty(), "Rule '$rule' matched no files; is the Konsist scope broken?")
