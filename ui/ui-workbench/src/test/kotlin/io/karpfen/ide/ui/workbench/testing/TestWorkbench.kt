@@ -13,6 +13,7 @@ import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
+import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import io.karpfen.ide.ui.workbench.state.LanguageServicesFactory
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
@@ -44,7 +45,8 @@ import kotlin.time.TestTimeSource
  * dispatcher (the mediator's scope, the workspace's I/O and analysis, the sessions', the editors' background work, the
  * workbench's I/O) is one test dispatcher, so [settle] runs everything due; a [FakeFileWatcher], a
  * [ControllableFileStore], a [RecordingFileOperations], a [FakeFolderChooser], JSON settings in [settingsDirectory]
- * (counted by [settings]) with a fixed clock, real workspaces, language services and editors (macOS keymap).
+ * (counted by [settings]) with a fixed clock, real workspaces, language services and editors (macOS keymap), and a
+ * [RingOutputBuffer] as the output of the language tools.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestWorkbench(
@@ -92,6 +94,9 @@ class TestWorkbench(
     /** The built-in languages. */
     val languages = defaultLanguageRegistry()
 
+    /** The output of the language tools that the Language Tools Output shows; tests append to it as the logging would. */
+    val languageToolsOutput = RingOutputBuffer()
+
     /** The workbench services wired from the test values above. */
     val services = WorkbenchServices(
         settings = settings,
@@ -107,6 +112,7 @@ class TestWorkbench(
         templates = FileTemplates(),
         editorKeymap = keymap,
         ioDispatcher = dispatcher,
+        languageToolsOutput = languageToolsOutput,
     )
 
     /** The workbench state under test. */

@@ -26,7 +26,7 @@ class UiLayeringTest {
          * The workbench feature packages, each holding a Compose-free sub-state and its UI values. The mediator in
          * `state` coordinates the sub-states, so the dependency only runs from the mediator to them.
          */
-        val WORKBENCH_FEATURES = listOf("projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout")
+        val WORKBENCH_FEATURES = listOf("projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout", "output")
             .map { "$WORKBENCH.$it" }
 
         /** Workbench packages that may use Compose: the root, every `view` package, the desktop adapters. */

@@ -9,6 +9,7 @@ import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import io.karpfen.ide.ui.editor.model.caret.CaretSnapshot
 import io.karpfen.ide.ui.editor.state.EditorHandle
 import io.karpfen.ide.ui.editor.state.EditorSettings
+import io.karpfen.ide.ui.workbench.output.UnseenOutputProblems
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,8 +23,8 @@ import kotlinx.coroutines.launch
 /**
  * What the status bar shows: `Ln x, Col y` (one-based; [column] is the display column with tabs expanded by `TabStops`
  * of the editor's `tabDisplayWidth`, so it matches what the user sees), selection length, language, line separator,
- * encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), and
- * "Analyzing…".
+ * encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), "Analyzing…",
+ * and the errors and warnings of the language tools that arrived while their output was hidden ([unseenOutput]).
  */
 public data class StatusBarUiState(
     public val line: Int? = null,
@@ -35,11 +36,13 @@ public data class StatusBarUiState(
     public val errorCount: Int = 0,
     public val warningCount: Int = 0,
     public val isAnalyzing: Boolean = false,
+    public val unseenOutput: UnseenOutputProblems = UnseenOutputProblems(),
 )
 
 /**
- * Status bar state; follows the active editor and the workspace (collected in [scope]). The bindings are mediator
- * operations and internal, so no view can bypass the mediator. The caret position is [CaretPositionText]'s.
+ * Status bar state; follows the active editor and the workspace (collected in [scope]) and shows what the mediator
+ * passes on from the Language Tools Output. The bindings are mediator operations and internal, so no view can bypass
+ * the mediator. The caret position is [CaretPositionText]'s.
  */
 public class StatusBarState(private val scope: CoroutineScope) {
 
@@ -92,6 +95,11 @@ public class StatusBarState(private val scope: CoroutineScope) {
         workspaceBinding = scope.launch {
             combine(workspace.problems, workspace.isAnalyzing, ::show).collect()
         }
+    }
+
+    /** Shows [unseen] errors and warnings of the language tools, as the Language Tools Output counts them. Mediator only. */
+    internal fun showUnseenOutput(unseen: UnseenOutputProblems) {
+        status.update { it.copy(unseenOutput = unseen) }
     }
 
     /** This state without the editor's part (caret, selection, language, line separator). */

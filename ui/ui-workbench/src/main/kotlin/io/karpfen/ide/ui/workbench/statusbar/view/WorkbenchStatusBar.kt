@@ -12,26 +12,33 @@ import io.karpfen.ide.ui.workbench.statusbar.StatusSegmentKind
 
 /**
  * The status bar content: `Ln x, Col y`, selection length, language, line separator, `UTF-8`, error and warning counts,
- * "Analyzing…". The texts come from [StatusBarSegments]; each item's id is its segment's id
- * (`StatusBarTestTags.item(id)`).
+ * "Analyzing…", and the indicator of unseen problems of the language tools, whose click calls [onShowOutput]. The texts
+ * come from [StatusBarSegments]; each item's id is its segment's id (`StatusBarTestTags.item(id)`).
  */
 @Composable
-internal fun WorkbenchStatusBar(state: StatusBarUiState, modifier: Modifier = Modifier) {
+internal fun WorkbenchStatusBar(state: StatusBarUiState, onShowOutput: () -> Unit, modifier: Modifier = Modifier) {
     StatusBar(
-        left = StatusBarSegments.left(state).map(::item),
-        right = StatusBarSegments.right(state).map(::item),
+        left = StatusBarSegments.left(state).map { item(it, onShowOutput) },
+        right = StatusBarSegments.right(state).map { item(it, onShowOutput) },
         modifier = modifier,
     )
 }
 
-/** The status-bar item of [segment]; the error and warning counts carry their severity icon. */
-private fun item(segment: StatusSegment): StatusBarItem = StatusBarItem(
+/**
+ * The status-bar item of [segment]; the error and warning counts and the language tools' indicator carry their
+ * severity icon, and the indicator is a button that calls [onShowOutput].
+ */
+private fun item(segment: StatusSegment, onShowOutput: () -> Unit): StatusBarItem = StatusBarItem(
     id = segment.id,
     text = segment.text,
     tooltip = segment.tooltip,
     icon = when (segment.kind) {
-        StatusSegmentKind.ERRORS -> KarpfenIcons.Error
-        StatusSegmentKind.WARNINGS -> KarpfenIcons.Warning
+        StatusSegmentKind.ERRORS, StatusSegmentKind.LANGUAGE_TOOLS_ERRORS -> KarpfenIcons.Error
+        StatusSegmentKind.WARNINGS, StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS -> KarpfenIcons.Warning
+        else -> null
+    },
+    onClick = when (segment.kind) {
+        StatusSegmentKind.LANGUAGE_TOOLS_ERRORS, StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS -> onShowOutput
         else -> null
     },
 )

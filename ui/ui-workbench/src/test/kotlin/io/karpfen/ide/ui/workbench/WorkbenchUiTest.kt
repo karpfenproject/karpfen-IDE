@@ -4,6 +4,8 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
@@ -25,6 +27,8 @@ import io.karpfen.ide.ui.foundation.widgets.TabStripTestTags
 import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
 import io.karpfen.ide.ui.workbench.dialog.view.WorkbenchDialogTestTags
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
+import io.karpfen.ide.ui.workbench.output.OutputLevel
+import io.karpfen.ide.ui.workbench.output.view.OutputViewTestTags
 import io.karpfen.ide.ui.workbench.problems.view.ProblemKey
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsViewTestTags
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
@@ -34,6 +38,7 @@ import io.karpfen.ide.ui.workbench.welcome.view.WelcomeTestTags
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -41,8 +46,8 @@ import kotlin.test.assertTrue
 
 /**
  * Headless UI tests of the composed workbench over a temp-dir copy of the examples: empty state, layout, tree, editing
- * with the dirty marker and saving, closing a dirty tab, Problems and Outline navigation, the status bar and the
- * external-change banner.
+ * with the dirty marker and saving, closing a dirty tab, Problems and Outline navigation, the status bar, the
+ * external-change banner, and the Language Tools Output with the status bar's indicator of its unseen warnings.
  */
 @OptIn(ExperimentalTestApi::class)
 class WorkbenchUiTest {
@@ -89,7 +94,8 @@ class WorkbenchUiTest {
     @Test
     fun `the layout shows the tool windows and hides a toggled one`() = workbenchUiTest(dir) {
         openExamples()
-        ToolWindowId.entries.forEach { tagged(WorkbenchTestTags.toolWindow(it)).assertIsDisplayed() }
+        ToolWindowId.entries.filter { it.visibleByDefault }.forEach { tagged(WorkbenchTestTags.toolWindow(it)).assertIsDisplayed() }
+        test.onNodeWithTag(WorkbenchTestTags.toolWindow(ToolWindowId.OUTPUT)).assertDoesNotExist()
         tagged(EditorAreaTestTags.AREA).assertIsDisplayed()
         tagged(StatusBarTestTags.BAR).assertIsDisplayed()
         treeRow(root).assertIsDisplayed()
@@ -98,6 +104,45 @@ class WorkbenchUiTest {
         settle()
         test.onNodeWithTag(WorkbenchTestTags.toolWindow(ToolWindowId.PROBLEMS)).assertDoesNotExist()
         tagged(WorkbenchTestTags.toolWindow(ToolWindowId.OUTLINE)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `the Language Tools Output opens from its toggle and shows what the language tools logged`() = workbenchUiTest(dir) {
+        openExamples()
+        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.DEBUG, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", "Type Robot")
+        settle()
+        test.onNodeWithTag(WorkbenchTestTags.toolWindow(ToolWindowId.OUTPUT)).assertDoesNotExist()
+
+        workbench.state.layout.toggleToolWindow(ToolWindowId.OUTPUT)
+        settle()
+
+        tagged(WorkbenchTestTags.toolWindow(ToolWindowId.OUTPUT)).assertIsDisplayed()
+        test.onNodeWithText("Language Tools Output").assertIsDisplayed()
+        tagged(OutputViewTestTags.line(1)).assertTextContains("KmetaDSLConverter - Type Robot", substring = true)
+        tagged(WorkbenchTestTags.toolWindow(ToolWindowId.PROBLEMS)).assertIsDisplayed()
+
+        tagged(OutputViewTestTags.CLEAR).performClick()
+        settle()
+        test.onNodeWithText("No output from the language tools").assertIsDisplayed()
+        assertEquals(emptyList(), workbench.languageToolsOutput.snapshot().lines)
+    }
+
+    @Test
+    fun `a warning of the language tools while their output is hidden shows an indicator that opens it`() = workbenchUiTest(dir) {
+        openExamples()
+        val indicator = StatusBarTestTags.item("language_tools_warnings")
+        test.onNodeWithTag(indicator).assertDoesNotExist()
+
+        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "syntax error")
+        settle()
+        tagged(indicator).assertTextEquals("Language tools: 1")
+
+        tagged(indicator).performClick()
+        settle()
+
+        tagged(WorkbenchTestTags.toolWindow(ToolWindowId.OUTPUT)).assertIsDisplayed()
+        tagged(OutputViewTestTags.line(1)).assertTextContains("syntax error", substring = true)
+        test.onNodeWithTag(indicator).assertDoesNotExist()
     }
 
     @Test
@@ -285,5 +330,10 @@ class WorkbenchUiTest {
         assertTrue(Files.exists(created))
         assertEquals(created, workbench.state.tabs.active.value)
         tagged(TabStripTestTags.tab(created.toString())).assertIsDisplayed()
+    }
+
+    private companion object {
+        /** When the language tools logged what the tests append to their output. */
+        val LOGGED_AT: Instant = Instant.parse("2026-10-22T10:15:30Z")
     }
 }

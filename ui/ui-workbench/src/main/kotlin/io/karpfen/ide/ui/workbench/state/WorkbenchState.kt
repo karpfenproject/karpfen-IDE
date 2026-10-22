@@ -9,6 +9,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
+import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
@@ -73,6 +74,12 @@ public interface WorkbenchState : AutoCloseable {
 
     /** Status bar. */
     public val statusBar: StatusBarState
+
+    /**
+     * The Language Tools Output: what the language tools log, from `WorkbenchServices.languageToolsOutput`, shown on
+     * demand in its tool window (hidden by default, opened from the View menu).
+     */
+    public val output: OutputState
 
     /** Pending dialog (unsaved changes, delete confirmation, rename, new file, errors). */
     public val dialogs: DialogState

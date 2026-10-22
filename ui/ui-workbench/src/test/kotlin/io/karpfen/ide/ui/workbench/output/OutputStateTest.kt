@@ -1,0 +1,141 @@
+package io.karpfen.ide.ui.workbench.output
+
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import java.time.Instant
+import java.time.ZoneOffset
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/**
+ * [OutputState], the state holder of the Language Tools Output, and [OutputLineFormat]: it follows the buffer, counts
+ * the errors and warnings that arrive while the tool window is hidden until it is shown, reads a burst of output as one
+ * snapshot, clears the buffer and keeps the follow toggle.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+class OutputStateTest {
+
+    private val time: Instant = Instant.parse("2026-10-22T10:15:30.123Z")
+    private val buffer = RingOutputBuffer()
+    private val visible = MutableStateFlow(false)
+
+    private fun log(level: OutputLevel, message: String = level.name) =
+        buffer.append(time, level, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", message)
+
+    private fun TestScope.boundState(): OutputState =
+        OutputState(backgroundScope, buffer).also { it.bindVisibility(visible) }
+
+    @Test
+    fun `the state follows the buffer`() = runTest {
+        val state = boundState()
+        assertEquals(OutputUiState(), state.state.value)
+
+        log(OutputLevel.DEBUG, "Type Robot: a robot")
+        log(OutputLevel.INFO, "done")
+        runCurrent()
+
+        assertEquals(listOf("Type Robot: a robot", "done"), state.state.value.lines.map { it.message })
+    }
+
+    @Test
+    fun `errors and warnings that arrive while the tool window is hidden are unseen until it is shown`() = runTest {
+        val state = boundState()
+
+        log(OutputLevel.WARNING)
+        log(OutputLevel.ERROR)
+        log(OutputLevel.WARNING)
+        log(OutputLevel.DEBUG)
+        runCurrent()
+        assertEquals(UnseenOutputProblems(errors = 1, warnings = 2), state.state.value.unseen)
+
+        visible.value = true
+        runCurrent()
+        assertTrue(state.state.value.unseen.isEmpty)
+
+        log(OutputLevel.ERROR)
+        runCurrent()
+        assertTrue(state.state.value.unseen.isEmpty, "a visible tool window shows new problems at once")
+
+        visible.value = false
+        log(OutputLevel.WARNING)
+        runCurrent()
+        assertEquals(UnseenOutputProblems(warnings = 1), state.state.value.unseen)
+    }
+
+    @Test
+    fun `problems cleared or dropped before anyone looked stay unseen`() = runTest {
+        val small = RingOutputBuffer(capacity = 1)
+        val state = OutputState(backgroundScope, small).also { it.bindVisibility(visible) }
+
+        small.append(time, OutputLevel.ERROR, "io.karpfen.dsl.X", "lost")
+        small.append(time, OutputLevel.DEBUG, "io.karpfen.dsl.X", "kept")
+        runCurrent()
+        assertEquals(listOf("kept"), state.state.value.lines.map { it.message })
+        assertEquals(UnseenOutputProblems(errors = 1), state.state.value.unseen)
+
+        state.clear()
+        runCurrent()
+        assertEquals(emptyList(), state.state.value.lines)
+        assertEquals(UnseenOutputProblems(errors = 1), state.state.value.unseen)
+    }
+
+    @Test
+    fun `a burst of output is read as one snapshot`() = runTest {
+        val reads = CountingBuffer(buffer)
+        val state = OutputState(backgroundScope, reads).also { it.bindVisibility(visible) }
+        runCurrent()
+        val before = reads.snapshots
+
+        repeat(100) { log(OutputLevel.DEBUG, "line $it") }
+        runCurrent()
+
+        assertEquals(1, reads.snapshots - before)
+        assertEquals(100, state.state.value.lines.size)
+    }
+
+    @Test
+    fun `clear empties the buffer and follow is a toggle of the view`() = runTest {
+        val state = boundState()
+        log(OutputLevel.INFO)
+        runCurrent()
+
+        state.clear()
+        state.setFollow(false)
+        runCurrent()
+
+        assertEquals(emptyList(), buffer.snapshot().lines)
+        assertEquals(emptyList(), state.state.value.lines)
+        assertFalse(state.state.value.follow)
+        state.setFollow(true)
+        assertTrue(state.state.value.follow)
+    }
+
+    @Test
+    fun `a line is written with its local time, padded level and the logger's simple name`() {
+        val format = OutputLineFormat(ZoneOffset.ofHours(2))
+        val line = OutputLine(7, time, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "KMeta syntax error")
+
+        assertEquals("12:15:30.123", format.time(line))
+        assertEquals("WARN ", format.level(line))
+        assertEquals("ERROR", format.level(line.copy(level = OutputLevel.ERROR)))
+        assertEquals("KmetaFileParser", format.logger(line))
+        assertEquals("root", format.logger(line.copy(logger = "root")))
+    }
+
+    /** An [OutputBuffer] over [buffer] that counts the snapshots read. */
+    private class CountingBuffer(private val buffer: OutputBuffer) : OutputBuffer by buffer {
+        /** How many snapshots were read. */
+        var snapshots = 0
+            private set
+
+        override fun snapshot(): OutputSnapshot {
+            snapshots++
+            return buffer.snapshot()
+        }
+    }
+}

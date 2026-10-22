@@ -12,6 +12,7 @@ import io.karpfen.ide.core.workspace.problems.FileProblems
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import io.karpfen.ide.ui.editor.model.caret.Caret
 import io.karpfen.ide.ui.editor.state.EditorSettings
+import io.karpfen.ide.ui.workbench.output.UnseenOutputProblems
 import io.karpfen.ide.ui.workbench.testing.FakeOpenDocument
 import io.karpfen.ide.ui.workbench.testing.FakeWorkspace
 import io.karpfen.ide.ui.workbench.testing.editorOf
@@ -106,5 +107,29 @@ class StatusBarStateTest {
         )
         assertEquals(listOf("errors", "warnings"), StatusBarSegments.right(StatusBarUiState()).map { it.id })
         assertEquals("5 chars", StatusBarSegments.right(StatusBarUiState(selectionLength = 5)).first().text)
+    }
+
+    @Test
+    fun `unseen problems of the language tools show as an indicator on the left, an error one if an error is among them`() {
+        assertEquals(emptyList(), StatusBarSegments.left(StatusBarUiState()))
+
+        val warnings = StatusBarSegments.left(StatusBarUiState(unseenOutput = UnseenOutputProblems(warnings = 2))).single()
+        val mixed = StatusBarSegments.left(StatusBarUiState(isAnalyzing = true, unseenOutput = UnseenOutputProblems(1, 3))).last()
+
+        assertEquals(StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS, warnings.kind)
+        assertEquals("Language tools: 2", warnings.text)
+        assertEquals("0 errors and 2 warnings of the language tools; click to show their output", warnings.tooltip)
+        assertEquals(StatusSegmentKind.LANGUAGE_TOOLS_ERRORS, mixed.kind)
+        assertEquals("Language tools: 4", mixed.text)
+        assertEquals("1 error and 3 warnings of the language tools; click to show their output", mixed.tooltip)
+    }
+
+    @Test
+    fun `the status bar shows the unseen problems the mediator passes on`() = runTest {
+        val status = StatusBarState(backgroundScope)
+
+        status.showUnseenOutput(UnseenOutputProblems(errors = 1))
+
+        assertEquals(UnseenOutputProblems(errors = 1), status.state.value.unseenOutput)
     }
 }

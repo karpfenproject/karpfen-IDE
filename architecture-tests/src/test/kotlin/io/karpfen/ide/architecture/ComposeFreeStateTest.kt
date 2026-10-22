@@ -14,9 +14,9 @@ import kotlin.test.assertTrue
  *   `ui.editor.state..`);
  * - every package of ui-workbench except the root package (the `Workbench` composable and its wiring), the features'
  *   `view` sub-packages and the desktop adapters `files.desktop` ([isWorkbenchUiPackage]). The workbench is organized
- *   by feature: each feature package (`projecttree`, `tabs`, `outline`, `problems`, `statusbar`, `dialog`, `layout`)
- *   holds its Compose-free sub-state and UI values and a `view` sub-package holding its composables, and `state` holds
- *   the mediator that coordinates the sub-states.
+ *   by feature: each feature package (`projecttree`, `tabs`, `outline`, `problems`, `statusbar`, `dialog`, `layout`,
+ *   `output`) holds its Compose-free sub-state and UI values and a `view` sub-package holding its composables, and
+ *   `state` holds the mediator that coordinates the sub-states.
  *
  * Those packages must not use Compose (`androidx.compose..`, `org.jetbrains.compose..`) nor AWT/Swing; composables,
  * Compose-side helper state (e.g. a hoisted `TreeViewState`) and toolkit adapters live in view or adapter packages
@@ -38,7 +38,7 @@ class ComposeFreeStateTest {
 
         /** Compose-free packages of ui-workbench that must exist (guards the by-feature rule against renames). */
         val WORKBENCH_STATE_PACKAGES = listOf(
-            "state", "projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout",
+            "state", "projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout", "output",
             "command", "files", "settings", "templates",
         ).map { "$WORKBENCH.$it" }
 

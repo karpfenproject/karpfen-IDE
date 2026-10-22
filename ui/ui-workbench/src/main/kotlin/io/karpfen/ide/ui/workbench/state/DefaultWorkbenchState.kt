@@ -9,6 +9,7 @@ import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
+import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeMenu
@@ -60,6 +61,7 @@ internal class DefaultWorkbenchState(
     override val outline: OutlineState = OutlineState(ownScope)
     override val problems: ProblemsState = ProblemsState(ownScope)
     override val statusBar: StatusBarState = StatusBarState(ownScope)
+    override val output: OutputState = OutputState(ownScope, services.languageToolsOutput)
     override val dialogs: DialogState = DialogState()
     override val layout: LayoutState = LayoutState()
 
@@ -74,7 +76,7 @@ internal class DefaultWorkbenchState(
     private val editorSettings: StateFlow<EditorSettings> = services.settings.settings
         .map { EditorSettings(fontSize = it.editorFontSize) }
         .stateIn(ownScope, SharingStarted.Eagerly, EditorSettings(fontSize = services.settings.settings.value.editorFontSize))
-    private val bindings = SubStateBindings(ownScope, tabs, projectTree, outline, problems, statusBar)
+    private val bindings = SubStateBindings(ownScope, tabs, projectTree, outline, problems, statusBar, output, layout)
     private val navigation = EditorNavigationCollector(ownScope, ::navigateTo)
     private val lifecycle = EditorLifecycle(
         ownScope, holder, tabs, services.editorStateFactory, editorSettings, services.editorKeymap, navigation,

@@ -16,8 +16,10 @@ import io.karpfen.ide.ui.editor.theme.darkEditorTheme
 import io.karpfen.ide.ui.editor.theme.lightEditorTheme
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.dialog.view.ModalDialogLayer
+import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.layout.isDark
 import io.karpfen.ide.ui.workbench.outline.view.OutlineView
+import io.karpfen.ide.ui.workbench.output.view.OutputView
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsView
 import io.karpfen.ide.ui.workbench.projecttree.view.ProjectTreeView
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
@@ -28,11 +30,12 @@ import java.nio.file.Path
 
 /**
  * The workbench window content: Project tree (left), editor tabs with `CodeEditor` and the popups (centre), Outline
- * (right), Problems (bottom), status bar, dialogs; the empty state with "Open Folder…" and recent folders when no
- * folder is open. Provides the light/dark `KarpfenTheme` and `LocalEditorTheme` from `state.layout` (theme) and lays
+ * (right), Problems and the Language Tools Output (bottom), status bar, dialogs; the empty state with "Open Folder…" and
+ * recent folders when no folder is open. The status bar's indicator of unseen problems of the language tools shows
+ * their output. Provides the light/dark `KarpfenTheme` and `LocalEditorTheme` from `state.layout` (theme) and lays
  * out the tool windows from it with size-based `SplitPane`s (`fixedSize = toolWindow.size.dp`,
- * `onFixedSizeChange = { layout.resizeToolWindow(id, it.value) }`; PROJECT is the FIRST pane, OUTLINE and PROBLEMS the
- * SECOND). Renders [state]'s sub-states (each feature's view from its `view` package) and calls its non-suspending
+ * `onFixedSizeChange = { layout.resizeToolWindow(id, it.value) }`; PROJECT is the FIRST pane, OUTLINE, PROBLEMS and
+ * OUTPUT the SECOND). Renders [state]'s sub-states (each feature's view from its `view` package) and calls its non-suspending
  * intents and the sub-states' public UI intents; contains no business logic and launches no coroutines for intents. The
  * pending dialog is modal for the pointer and the keyboard ([ModalDialogLayer]).
  */
@@ -58,15 +61,18 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
                             WorkbenchLayout(
                                 layout = layout,
                                 layoutState = state.layout,
-                                project = { ProjectPane(state) },
-                                editor = { EditorPane(state) },
-                                outline = { OutlinePane(state) },
-                                problems = { ProblemsPane(state) },
+                                panes = WorkbenchPanes(
+                                    project = { ProjectPane(state) },
+                                    editor = { EditorPane(state) },
+                                    outline = { OutlinePane(state) },
+                                    problems = { ProblemsPane(state) },
+                                    output = { OutputPane(state) },
+                                ),
                             )
                         }
                     }
                     val status by state.statusBar.state.collectAsState()
-                    WorkbenchStatusBar(status)
+                    WorkbenchStatusBar(status, onShowOutput = { state.layout.showToolWindow(ToolWindowId.OUTPUT) })
                 }
             }
         }
@@ -116,6 +122,13 @@ private fun EditorPane(state: WorkbenchState) {
 private fun OutlinePane(state: WorkbenchState) {
     val outline by state.outline.state.collectAsState()
     OutlineView(outline, onNavigate = { state.navigateTo(it) })
+}
+
+/** The Language Tools Output tool window over [state]'s output. */
+@Composable
+private fun OutputPane(state: WorkbenchState) {
+    val output by state.output.state.collectAsState()
+    OutputView(output, onFollowChange = state.output::setFollow, onClear = state.output::clear)
 }
 
 /** The Problems tool window of [state]'s workspace. */

@@ -77,6 +77,17 @@ class CommandsTest {
     }
 
     @Test
+    fun `the Language Tools Output command opens the hidden tool window`() = scenario { registry ->
+        val toggle = assertNotNull(registry.find(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.OUTPUT)))
+        assertEquals("Language Tools Output", toggle.title)
+        assertFalse(state.layout.state.value.toolWindow(ToolWindowId.OUTPUT).visible)
+
+        assertTrue(registry.execute(toggle.id))
+
+        assertTrue(state.layout.state.value.toolWindow(ToolWindowId.OUTPUT).visible)
+    }
+
+    @Test
     fun `open recent commands follow the recent folders and open them`() = scenario { registry ->
         val other = Files.createDirectories(dir.resolve("other")).toAbsolutePath().normalize()
         open(root)

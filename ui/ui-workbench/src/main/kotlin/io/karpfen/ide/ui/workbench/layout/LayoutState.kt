@@ -10,12 +10,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * The tool windows around the editor area, with their [title] (tool-window header and View menu) and default size in dp
- * (width for side windows, height for bottom ones). A new tool window is a new entry here: the persisted form is a map
- * by [name] (no schema change), the toggle command id is `WorkbenchCommandIds.toggleToolWindow(id)` and the View menu
- * iterates the entries.
+ * The tool windows around the editor area, with their [title] (tool-window header and View menu), default size in dp
+ * (width for side windows, height for bottom ones) and whether they are [visibleByDefault]. A new tool window is a new
+ * entry here: the persisted form is a map by [name] (no schema change), the toggle command id is
+ * `WorkbenchCommandIds.toggleToolWindow(id)` and the View menu iterates the entries.
  */
-public enum class ToolWindowId(public val title: String, public val defaultSize: Float) {
+public enum class ToolWindowId(public val title: String, public val defaultSize: Float, public val visibleByDefault: Boolean = true) {
     /** Project tree (left). */
     PROJECT("Project", 260f),
 
@@ -24,10 +24,13 @@ public enum class ToolWindowId(public val title: String, public val defaultSize:
 
     /** Problems (bottom). */
     PROBLEMS("Problems", 200f),
+
+    /** What the language tools log (bottom, below Problems); hidden until the user opens it. */
+    OUTPUT("Language Tools Output", 180f, visibleByDefault = false),
     ;
 
-    /** Visible with the default size. */
-    public val defaultLayout: ToolWindowLayout get() = ToolWindowLayout(visible = true, size = defaultSize)
+    /** The layout of a tool window nobody changed: its default visibility and size. */
+    public val defaultLayout: ToolWindowLayout get() = ToolWindowLayout(visible = visibleByDefault, size = defaultSize)
 }
 
 /**
@@ -78,9 +81,14 @@ public class LayoutState {
         updateToolWindow(id) { it.copy(visible = !it.visible) }
     }
 
+    /** Shows a tool window; a visible one stays as it is. */
+    public fun showToolWindow(id: ToolWindowId) {
+        updateToolWindow(id) { it.copy(visible = true) }
+    }
+
     /**
-     * Sets a tool window's size in dp (width for PROJECT/OUTLINE, height for PROBLEMS), clamped to a minimum. The
-     * workbench passes the value of the size-based `SplitPane`'s `onFixedSizeChange` unchanged (`Dp.value`), so the
+     * Sets a tool window's size in dp (width for PROJECT/OUTLINE, height for PROBLEMS/OUTPUT), clamped to a minimum.
+     * The workbench passes the value of the size-based `SplitPane`'s `onFixedSizeChange` unchanged (`Dp.value`), so the
      * composable converts nothing.
      */
     public fun resizeToolWindow(id: ToolWindowId, size: Float) {
