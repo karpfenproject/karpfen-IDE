@@ -40,7 +40,7 @@ In `cleaning_robot.kstates`, put the caret at the end of the line `INITIAL STATE
    Enter: the `}` moves to its own line and the caret is indented by 4 more spaces. The `"` was closed automatically
    too, and typing the closing `"` stepped over it instead of adding a second one.
 2. Type `DO `, `{` and Enter, then `SET("log", EVAL { return [1, 2] })`, with Option+5 and Option+6 for the square
-   brackets. `(` and `{` close automatically and typing their closers steps over them, so each character appears
+   brackets. `(`, `[` and `{` close automatically and typing their closers steps over them, so each character appears
    exactly once; Option+5, Option+6 and Option+8 run no command.
 3. Press Enter and type a comment line `// | \ @ ~` (Option+7, Option+Shift+7, Option+L, then Option+N and Space).
    Exactly these characters appear. Option+L must not open Go to Line, which is Cmd+L.

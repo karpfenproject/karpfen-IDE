@@ -8,14 +8,15 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Types [text]: replaces selections; auto-closes `"`, `(`, `{` when the next character is whitespace, end of line or a
- * closing bracket, and over-types an auto-inserted closer. Origin `Typing`, one undo step.
+ * Types [text]: replaces selections; auto-closes `"`, `(`, `[`, `{` when the next character is whitespace, end of line
+ * or a closing bracket, and over-types an auto-inserted closer. Origin `Typing`, one undo step.
  *
  * Details: separators in [text] are normalized to `\n`, and a typed `\n` is Enter ([EnterAction], auto-indent).
  * Over-typing moves the caret over a closer that [AutoClosedPairs] tracks (closers the user typed are never tracked, so
  * typing `)` before one inserts a new `)`). A `"` auto-closes only outside a string of its line ([StringLiterals]), so
  * typing the closing quote of a string never inserts a pair. Auto-close and over-type apply to a single typed character
- * without selection; anything else is inserted as is.
+ * without selection; anything else is inserted as is. `[` closes like the other brackets because lists are everyday
+ * syntax in two of the edited languages: the JSON of environment descriptors and the Python of EVAL bodies.
  */
 internal class TypeTextAction(private val text: String) : EditorAction {
     override val id: String = EditorActionIds.TYPE_TEXT
@@ -63,7 +64,7 @@ internal class TypeTextAction(private val text: String) : EditorAction {
     /** The auto-closed pairs and the shared Enter action. */
     private companion object {
         /** The closer auto-inserted after each opener. */
-        val CLOSER_OF: Map<Char, Char> = mapOf('"' to '"', '(' to ')', '{' to '}')
+        val CLOSER_OF: Map<Char, Char> = mapOf('"' to '"', '(' to ')', '[' to ']', '{' to '}')
 
         /** The characters before which an opener auto-closes, besides whitespace and the line end. */
         const val CLOSING_BRACKETS: String = ")]}"
@@ -74,12 +75,14 @@ internal class TypeTextAction(private val text: String) : EditorAction {
 }
 
 /**
- * Enter: new line with the indentation of the current line, +4 spaces after a line ending in `{`; between `{` and `}`
- * the `}` moves to its own line.
+ * Enter: new line with the indentation of the current line, +4 spaces after a line ending in a block opener (`{`, or
+ * `[` of a list); between an opener and its own closer (`{}` or `[]`) the closer moves to its own line.
  *
  * Details: replaces a selection; the indentation is the leading whitespace of the caret's line up to the caret (the
- * text before the caret, trimmed, decides "ends in `{`"); between `{` and `}` (whitespace around the caret allowed) the
- * whitespace before `}` is dropped and the caret lands on the indented middle line. Origin `Typing`, one undo step.
+ * text before the caret, trimmed, decides "ends in an opener"); between an opener and its closer (whitespace around the
+ * caret allowed) the whitespace before the closer is dropped and the caret lands on the indented middle line. A closer
+ * of the other kind (`{|]`) stays where it is. Lists open blocks like braces because descriptors spread their lists
+ * over lines, one item per line, as the descriptor template writes them. Origin `Typing`, one undo step.
  */
 internal class EnterAction : EditorAction {
     override val id: String = EditorActionIds.ENTER
@@ -91,10 +94,10 @@ internal class EnterAction : EditorAction {
         val before = snapshot.text.substring(index.lineStart(index.lineOf(selection.start)), selection.start)
         val after = snapshot.text.substring(selection.end, index.lineEnd(index.lineOf(selection.end)))
         val indent = Indentation.leadingWhitespace(before)
-        val opensBlock = before.trimEnd().endsWith('{')
-        val inner = if (opensBlock) indent + Indentation.UNIT else indent
+        val blockCloser = before.trimEnd().lastOrNull()?.let(BLOCK_CLOSER_OF::get)
+        val inner = if (blockCloser != null) indent + Indentation.UNIT else indent
         val closerOffset = Indentation.leadingWhitespace(after).length
-        val closesBlock = opensBlock && after.getOrNull(closerOffset) == '}'
+        val closesBlock = blockCloser != null && after.getOrNull(closerOffset) == blockCloser
         val caretAfter = selection.start + 1 + inner.length
         return if (closesBlock) {
             val replaced = TextRange(selection.start, selection.end + closerOffset)
@@ -102,6 +105,12 @@ internal class EnterAction : EditorAction {
         } else {
             context.applyEdit(TextEdit(selection, "\n$inner"), EditOrigin.Typing, caretAfter)
         }
+    }
+
+    /** The block openers. */
+    private companion object {
+        /** The closer of each opener after which Enter indents one level more. */
+        val BLOCK_CLOSER_OF: Map<Char, Char> = mapOf('{' to '}', '[' to ']')
     }
 }
 

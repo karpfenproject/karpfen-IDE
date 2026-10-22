@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** Typing, auto-close, over-type and Enter with auto-indent. */
+/** Typing, auto-close, over-type and Enter with auto-indent, for braces and for the square brackets of lists. */
 class TypingActionsTest {
 
     private fun typed(marked: String, typed: String): String = TestEditor(marked).apply { type(typed) }.marked()
@@ -40,6 +40,21 @@ class TypingActionsTest {
         assertEquals("a{|}]", typed("a|]", "{"))
         assertEquals("\"|\"", typed("|", "\""))
         assertEquals("x = \"|\" ", typed("x = | ", "\""))
+    }
+
+    @Test
+    fun `an opening square bracket auto-closes, is over-typed and is deleted with its closer like the other brackets`() {
+        assertEquals("\"stateMachines\": [|]", typed("\"stateMachines\": |", "["), "a JSON list of a descriptor")
+        assertEquals("x = np.array([|])", typed("x = np.array(|)", "["), "a Python list in an EVAL body")
+        assertEquals("[|a", typed("|a", "["))
+        val editor = TestEditor("\"domains\": |")
+        editor.typeEach("[\"public\"]")
+        assertEquals("\"domains\": [\"public\"]|", editor.marked(), "the closing quote and bracket were over-typed")
+        val emptied = TestEditor("\"bridges\": |").apply {
+            type("[")
+            run(EditorActionIds.BACKSPACE)
+        }
+        assertEquals("\"bridges\": |", emptied.marked(), "Backspace removes the auto-inserted pair")
     }
 
     @Test
@@ -155,6 +170,29 @@ class TypingActionsTest {
             run(EditorActionIds.ENTER)
         }
         assertEquals("x {\n    |\n}", autoClosed.marked(), "Enter right after an auto-closed {")
+    }
+
+    @Test
+    fun `enter after an opening square bracket indents one level more`() {
+        assertEquals("    \"a\": [\n        |", enter("    \"a\": [|"))
+        assertEquals("x = [ \n    |1", enter("x = [ |1"))
+    }
+
+    @Test
+    fun `enter between square brackets puts the closing bracket on its own line`() {
+        assertEquals("    \"stateMachines\": [\n        |\n    ]", enter("    \"stateMachines\": [|]"))
+        assertEquals("x = f([\n    |\n])", enter("x = f([|])"))
+        val autoClosed = TestEditor("    \"bridges\": |").apply {
+            type("[")
+            run(EditorActionIds.ENTER)
+        }
+        assertEquals("    \"bridges\": [\n        |\n    ]", autoClosed.marked(), "Enter right after an auto-closed [")
+    }
+
+    @Test
+    fun `enter leaves a closer of the other kind where it is`() {
+        assertEquals("x {\n    |]", enter("x {|]"))
+        assertEquals("x [\n    |}", enter("x [|}"))
     }
 
     @Test
