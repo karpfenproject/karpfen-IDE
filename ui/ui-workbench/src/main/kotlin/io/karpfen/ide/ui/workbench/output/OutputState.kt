@@ -57,16 +57,32 @@ public data class OutputUiState(
  * buffer's counts as seen; while it is hidden, the counts beyond those are [OutputUiState.unseen]. The counts come from
  * the buffer, so problems pushed out of the ring buffer or cleared before anyone looked still count. The binding to the
  * tool window's visibility is a mediator operation and internal.
+ *
+ * The tool window opens where the user left it, at the [readingPosition] the view keeps here while it is hidden, unless
+ * problems arrived meanwhile: then it opens following, with the newest lines, the unseen problems among them, in sight.
  */
 public class OutputState(private val scope: CoroutineScope, private val buffer: OutputBuffer) {
 
     private val output = MutableStateFlow(OutputUiState())
     private var seenErrors = 0L
     private var seenWarnings = 0L
+    private var wasVisible = false
     private var binding: Job? = null
 
     /** What the tool window shows. */
     public val state: StateFlow<OutputUiState> get() = output.asStateFlow()
+
+    /**
+     * Where the user left the output, null before the view showed any line. Not part of [state]: it changes with every
+     * scrolled frame, and only the view reads it, as the place to show when it enters the composition again.
+     */
+    public var readingPosition: OutputReadingPosition? = null
+        private set
+
+    /** Keeps [position] as the place where the user left the output. Called by the view as the user scrolls. */
+    public fun keepReadingPosition(position: OutputReadingPosition) {
+        readingPosition = position
+    }
 
     /** Whether the view keeps the newest line in sight as output arrives. */
     public fun setFollow(follow: Boolean) {
@@ -86,14 +102,22 @@ public class OutputState(private val scope: CoroutineScope, private val buffer: 
         }
     }
 
-    /** Reads the buffer's current snapshot into [state]; while the tool window [isVisible], its problems count as seen. */
+    /**
+     * Reads the buffer's current snapshot into [state]; while the tool window [isVisible], its problems count as seen,
+     * and when it is shown with unseen problems, it follows the newest lines.
+     */
     private fun refresh(isVisible: Boolean) {
         val snapshot = buffer.snapshot()
+        val shownWithUnseen = isVisible && !wasVisible && !unseenIn(snapshot).isEmpty
+        wasVisible = isVisible
         if (isVisible) {
             seenErrors = snapshot.appendedErrors
             seenWarnings = snapshot.appendedWarnings
         }
-        val unseen = UnseenOutputProblems(snapshot.appendedErrors - seenErrors, snapshot.appendedWarnings - seenWarnings)
-        output.update { it.copy(lines = snapshot.lines, unseen = unseen) }
+        output.update { it.copy(lines = snapshot.lines, follow = it.follow || shownWithUnseen, unseen = unseenIn(snapshot)) }
     }
+
+    /** The problems of [snapshot] beyond those counted as seen. */
+    private fun unseenIn(snapshot: OutputSnapshot): UnseenOutputProblems =
+        UnseenOutputProblems(snapshot.appendedErrors - seenErrors, snapshot.appendedWarnings - seenWarnings)
 }

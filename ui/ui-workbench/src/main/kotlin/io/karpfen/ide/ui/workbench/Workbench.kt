@@ -143,7 +143,13 @@ private fun OutlinePane(state: WorkbenchState) {
 @Composable
 private fun OutputPane(state: WorkbenchState) {
     val output by state.output.state.collectAsState()
-    OutputView(output, onFollowChange = state.output::setFollow, onClear = state.output::clear)
+    OutputView(
+        output,
+        onFollowChange = state.output::setFollow,
+        onClear = state.output::clear,
+        readingPosition = state.output.readingPosition,
+        onReadingPositionChange = state.output::keepReadingPosition,
+    )
 }
 
 /** The Problems tool window of [state]'s workspace. */

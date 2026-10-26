@@ -28,9 +28,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * [OutputState], the state holder of the Language Tools Output, and [OutputLineFormat]: it follows the buffer, counts
- * the errors and warnings that arrive while the tool window is hidden until it is shown, reads a burst of output as one
- * snapshot, clears the buffer and keeps the follow toggle.
+ * [OutputState], the state holder of the Language Tools Output, [OutputReadingPosition] and [OutputLineFormat]: the
+ * state follows the buffer, counts the errors and warnings that arrive while the tool window is hidden until it is
+ * shown, reads a burst of output as one snapshot, clears the buffer, keeps the follow toggle and the reading position,
+ * and follows the newest lines when the tool window is shown with unseen problems.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OutputStateTest {
@@ -97,6 +98,47 @@ class OutputStateTest {
         runCurrent()
         assertEquals(emptyList(), state.state.value.lines)
         assertEquals(UnseenOutputProblems(errors = 1), state.state.value.unseen)
+    }
+
+    @Test
+    fun `showing the tool window with unseen problems follows the newest lines`() = runTest {
+        val state = boundState()
+        state.setFollow(false)
+        log(OutputLevel.WARNING)
+        runCurrent()
+        assertFalse(state.state.value.follow, "a hidden tool window does not move")
+
+        visible.value = true
+        runCurrent()
+
+        assertTrue(state.state.value.follow)
+    }
+
+    @Test
+    fun `showing the tool window without unseen problems keeps where the user left it`() = runTest {
+        val state = boundState()
+        state.setFollow(false)
+        state.keepReadingPosition(OutputReadingPosition(sequence = 3, offset = 12))
+        log(OutputLevel.DEBUG)
+        runCurrent()
+
+        visible.value = true
+        runCurrent()
+
+        assertFalse(state.state.value.follow)
+        assertEquals(OutputReadingPosition(sequence = 3, offset = 12), state.readingPosition)
+    }
+
+    @Test
+    fun `a reading position is found again among the lines, or the line after it`() {
+        val lines = (5L..9L).map { OutputLine(it, time, OutputLevel.DEBUG, "io.karpfen.dsl.X", "line $it") }
+
+        val kept = OutputReadingPosition(sequence = 7, offset = 12)
+        val dropped = OutputReadingPosition(sequence = 3, offset = 12)
+
+        assertEquals(2 to 12, kept.indexIn(lines) to kept.offsetIn(lines))
+        assertEquals(0 to 0, dropped.indexIn(lines) to dropped.offsetIn(lines))
+        assertEquals(0 to 0, kept.indexIn(emptyList()) to kept.offsetIn(emptyList()))
     }
 
     @Test

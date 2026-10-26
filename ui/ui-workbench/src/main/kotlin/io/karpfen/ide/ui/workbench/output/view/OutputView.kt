@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,15 +53,17 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.output.OutputLevel
 import io.karpfen.ide.ui.workbench.output.OutputLine
 import io.karpfen.ide.ui.workbench.output.OutputLineFormat
+import io.karpfen.ide.ui.workbench.output.OutputReadingPosition
 import io.karpfen.ide.ui.workbench.output.OutputUiState
 
 /**
  * The Language Tools Output tool window: a toolbar with the Follow toggle and Clear, above the buffered lines in a
  * monospace font, each with its time, level (coloured by severity), the logger's simple name, the file it read and the
- * message, as [OutputLineFormat] writes them. While [OutputUiState.follow] is on, the list scrolls to the newest line whenever one
- * arrives, showing it from its start. Following yields to the user: scrolling the newest line out of sight switches it
- * off, and scrolling it back into sight switches it on again, both through [onFollowChange]. The text can be selected
- * and copied.
+ * message, as [OutputLineFormat] writes them. While [OutputUiState.follow] is on, the list scrolls to the newest line
+ * whenever one arrives, showing it from its start. Following yields to the user: scrolling the newest line out of sight
+ * switches it off, and scrolling it back into sight switches it on again, both through [onFollowChange]. The view
+ * reports where the user reads to [onReadingPositionChange] and, when it enters the composition again, as when its
+ * hidden tool window is shown, starts at [readingPosition]. The text can be selected and copied.
  */
 @Composable
 internal fun OutputView(
@@ -68,6 +71,8 @@ internal fun OutputView(
     onFollowChange: (Boolean) -> Unit,
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
+    readingPosition: OutputReadingPosition? = null,
+    onReadingPositionChange: (OutputReadingPosition) -> Unit = {},
 ) {
     Column(modifier.fillMaxSize()) {
         Row(
@@ -94,7 +99,7 @@ internal fun OutputView(
                     modifier = Modifier.align(Alignment.Center),
                 )
             } else {
-                OutputLines(state.lines, state.follow, onFollowChange)
+                OutputLines(state.lines, state.follow, onFollowChange, readingPosition, onReadingPositionChange)
             }
         }
     }
@@ -102,12 +107,29 @@ internal fun OutputView(
 
 /**
  * The scrollable, selectable list of [lines]; scrolls to the newest line when one arrives while [follow] is on, and
- * reports the user's scrolling to [onFollowChange] ([FollowUserScrolling]).
+ * reports the user's scrolling to [onFollowChange] ([FollowUserScrolling]). It starts at [readingPosition] and reports
+ * every change of the line at its top to [onReadingPositionChange].
  */
 @Composable
-private fun OutputLines(lines: List<OutputLine>, follow: Boolean, onFollowChange: (Boolean) -> Unit) {
+private fun OutputLines(
+    lines: List<OutputLine>,
+    follow: Boolean,
+    onFollowChange: (Boolean) -> Unit,
+    readingPosition: OutputReadingPosition?,
+    onReadingPositionChange: (OutputReadingPosition) -> Unit,
+) {
     val format = remember { OutputLineFormat() }
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = readingPosition?.indexIn(lines) ?: 0,
+        initialFirstVisibleItemScrollOffset = readingPosition?.offsetIn(lines) ?: 0,
+    )
+    val currentLines by rememberUpdatedState(lines)
+    val currentOnReadingPositionChange by rememberUpdatedState(onReadingPositionChange)
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }.collect { (index, offset) ->
+            currentLines.getOrNull(index)?.let { currentOnReadingPositionChange(OutputReadingPosition(it.sequence, offset)) }
+        }
+    }
     val currentFollow by rememberUpdatedState(follow)
     val currentOnFollowChange by rememberUpdatedState(onFollowChange)
     val userScrolling = remember(listState) {

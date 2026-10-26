@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.output.OutputLevel
 import io.karpfen.ide.ui.workbench.output.OutputLine
+import io.karpfen.ide.ui.workbench.output.OutputReadingPosition
 import io.karpfen.ide.ui.workbench.output.OutputUiState
 import java.time.Instant
 import kotlin.test.Test
@@ -228,6 +229,46 @@ class OutputViewUiTest {
 
         assertFalse(state.value.follow, "the scrollbar switched following off")
         onNodeWithTag(OutputViewTestTags.line(1)).assertIsDisplayed()
+    }
+
+    /**
+     * Hiding the tool window takes the view out of the composition, and showing it puts it back: it opens at the line
+     * where the user left it, not at the oldest line.
+     */
+    @Test
+    fun `hiding and showing the view keeps the line the user reads`() = runComposeUiTest {
+        val state = mutableStateOf(OutputUiState(lines = (1L..200L).map { line(it) }))
+        var shown by mutableStateOf(true)
+        var position: OutputReadingPosition? = null
+        setContent {
+            KarpfenTheme(darkTheme = false) {
+                Box(Modifier.size(500.dp, 200.dp)) {
+                    if (shown) {
+                        OutputView(
+                            state.value,
+                            onFollowChange = { state.value = state.value.copy(follow = it) },
+                            onClear = {},
+                            readingPosition = position,
+                            onReadingPositionChange = { position = it },
+                        )
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        repeat(2) { onNodeWithTag(OutputViewTestTags.LINES).performTouchInput { swipeDown() } }
+        waitForIdle()
+        assertFalse(state.value.follow, "scrolling up switched following off")
+        val left = checkNotNull(position) { "the view reports where the user reads" }
+
+        shown = false
+        waitForIdle()
+        shown = true
+        waitForIdle()
+
+        onNodeWithTag(OutputViewTestTags.line(left.sequence)).assertIsDisplayed()
+        onNodeWithTag(OutputViewTestTags.line(1)).assertDoesNotExist()
+        assertEquals(left, position)
     }
 
     @Test
