@@ -44,7 +44,8 @@ public enum class OutputLevel(public val label: String) {
  * @property time when the event was logged.
  * @property level the event's severity.
  * @property logger the name of the logger that logged it, such as `io.karpfen.dsl.reader.kstates.KstatesReader`.
- * @property message the formatted message; the stack trace of an exception follows it on further lines.
+ * @property message the formatted message; the stack trace of an exception follows it on further lines, each line
+ *   separated by [LINE_BREAK].
  */
 public data class OutputLine(
     public val sequence: Long,
@@ -52,4 +53,9 @@ public data class OutputLine(
     public val level: OutputLevel,
     public val logger: String,
     public val message: String,
-)
+) {
+    public companion object {
+        /** Separates the lines of a [message], on every platform. */
+        public const val LINE_BREAK: String = "\n"
+    }
+}

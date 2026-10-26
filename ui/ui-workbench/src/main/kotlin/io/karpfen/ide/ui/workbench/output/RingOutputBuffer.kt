@@ -94,7 +94,7 @@ public class RingOutputBuffer(
     private fun cut(message: String): String {
         if (message.length <= messageLimit) return message
         val end = if (message[messageLimit - 1].isHighSurrogate()) messageLimit - 1 else messageLimit
-        return message.substring(0, end) + "\n… ${message.length - end} more characters"
+        return message.substring(0, end) + OutputLine.LINE_BREAK + "… ${message.length - end} more characters"
     }
 
     public companion object {

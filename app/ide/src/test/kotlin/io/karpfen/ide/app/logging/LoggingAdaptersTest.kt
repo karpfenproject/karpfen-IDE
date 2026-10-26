@@ -68,9 +68,28 @@ class LoggingAdaptersTest {
         appender.doAppend(event("io.karpfen.dsl.X", Level.ERROR, "conversion failed", error = IllegalStateException("broken")))
 
         val message = output.snapshot().lines.single().message
-        assertTrue(message.startsWith("conversion failed" + System.lineSeparator()), message)
-        assertTrue("java.lang.IllegalStateException: broken" in message, message)
+        assertTrue(message.startsWith("conversion failed\njava.lang.IllegalStateException: broken\n"), message)
         assertTrue("at io.karpfen.ide.app.logging.LoggingAdaptersTest" in message, message)
+    }
+
+    /**
+     * logback ends a stack trace with the platform's line separator; the message ends with the last frame instead, so
+     * the output view shows no empty line after it, and its lines are separated by `\n` alone, as the ring buffer
+     * separates the note of a cut message, also where the platform separates lines by `\r\n`.
+     */
+    @Test
+    fun `a message ends with its last line and separates its lines by a line feed alone`() {
+        val output = RingOutputBuffer()
+        val appender = OutputSinkAppender(output).apply { context = this@LoggingAdaptersTest.context; start() }
+
+        appender.doAppend(event("io.karpfen.dsl.X", Level.ERROR, "two\r\nlines\r\n", error = IllegalStateException("broken")))
+        appender.doAppend(event("io.karpfen.dsl.X", Level.WARN, "one line\n"))
+
+        val (traced, plain) = output.snapshot().lines.map { it.message }
+        assertTrue(traced.startsWith("two\nlines\njava.lang.IllegalStateException: broken\n"), traced)
+        assertFalse(traced.endsWith("\n"), traced)
+        assertFalse('\r' in traced, traced)
+        assertEquals("one line", plain)
     }
 
     @Test
