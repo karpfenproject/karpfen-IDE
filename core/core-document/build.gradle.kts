@@ -31,10 +31,11 @@ plugins {
  * its own for the modeling languages.
  *
  * core-document declares the ANTLR runtime itself, because its adapter package `io.karpfen.ide.core.document.antlr`
- * uses it directly, and pins it to the version that generates the dsl-tools parsers. dsl-tools publishes the runtime as
- * part of its own API, since its generated lexers and parsers are public, so it also reaches the compile classpath of
- * downstream modules; the architecture tests keep every use of ANTLR and of the generated parsers inside that adapter
- * package, and no public signature of the IDE exposes an ANTLR type.
+ * uses it directly, but without a version: dsl-tools publishes the runtime as part of its own API, since its generated
+ * lexers and parsers are public, and its version is the one those parsers are generated for, so the IDE always runs
+ * them with the runtime they expect (`AntlrRuntimeVersionTest` checks it). The runtime also reaches the compile
+ * classpath of downstream modules that way; the architecture tests keep every use of ANTLR and of the generated parsers
+ * inside that adapter package, and no public signature of the IDE exposes an ANTLR type.
  */
 dependencies {
     api(project(":core:core-text"))

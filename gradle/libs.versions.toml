@@ -17,8 +17,6 @@ junit = "6.1.3"
 konsist = "0.18.1"
 slf4j = "2.0.20"
 logback = "1.6.5"
-# Pinned to the ANTLR version with which karpfen-dsl-tools generates its parsers at build time.
-antlr = "4.13.1"
 karpfen-dsl-tools = "2.0.0-SNAPSHOT"
 # Also hard-coded in settings.gradle.kts: version catalogs are not available in the settings plugins block.
 foojay-resolver = "1.0.0"
@@ -26,7 +24,9 @@ foojay-resolver = "1.0.0"
 [libraries]
 # --- language core -----------------------------------------------------------------------------
 karpfen-dsl-tools = { module = "io.karpfen:karpfen-dsl-tools", version.ref = "karpfen-dsl-tools" }
-antlr4-runtime = { module = "org.antlr:antlr4-runtime", version.ref = "antlr" }
+# No version of its own: the ANTLR runtime comes in the version karpfen-dsl-tools exports with its API, the one its
+# parsers are generated for, so the two cannot drift apart.
+antlr4-runtime = { module = "org.antlr:antlr4-runtime" }
 
 # --- kotlinx -----------------------------------------------------------------------------------
 # The BOMs are applied to every module by karpfen.kotlin-jvm, so transitive dependencies (Compose, Ktor) cannot pull
