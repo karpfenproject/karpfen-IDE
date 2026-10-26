@@ -50,9 +50,10 @@ import io.karpfen.ide.core.text.TextSnapshot
  * - Logging: the readers report what they find through diagnostics and log nothing for it, nor for a read that
  *   succeeds. A read that fails is a `reader.failure`, and dsl-tools also logs it below the parent logger of
  *   [DslToolsLoggers]: as a warning without a stack trace when the text nests deeper than the reader's parser can
- *   recurse, which a user can type, and as an error with its stack trace for a defect of the reader. The IDE shows
- *   these events in its Language Tools Output and keeps them in its logs; the command-line tool shows them with
- *   `--verbose`.
+ *   recurse on the stack of the reading thread, which syntax-clean text within the nesting limit of the parsers
+ *   (`NestingLimit`) does only on a stack far smaller than the default one, and as an error with its stack trace for a
+ *   defect of the reader. The IDE shows these events in its Language Tools Output and keeps them in its logs; the
+ *   command-line tool shows them with `--verbose`.
  * - The source text is passed unchanged, so the offsets the readers report are offsets into the snapshot.
  */
 public interface DslReader {
