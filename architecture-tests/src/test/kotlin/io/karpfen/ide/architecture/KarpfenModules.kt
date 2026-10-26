@@ -52,17 +52,17 @@ internal object KarpfenModules {
     /**
      * The only package (with its sub-packages) that may use ANTLR and the lexers and parsers that dsl-tools generates
      * from its grammars (`io.karpfen.dsl.grammar.kmeta`, `.kmodel` and `.kstates`). The IDE takes source positions from
-     * their parse trees; keeping every use in one internal package lets a later source-map API of dsl-tools replace it
-     * without touching the rest of the IDE.
+     * their parse trees; keeping every use in one internal package lets the source maps that dsl-tools now ships with
+     * its readers (`SourceMap` in `io.karpfen.dsl.source`) replace it without touching the rest of the IDE.
      */
     const val ANTLR_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.antlr"
 
     /**
-     * The only package (with its sub-packages) that may use the dsl-tools readers (`io.karpfen.dsl.reader`), the
-     * diagnostics and source positions they report (`io.karpfen.dsl.diagnostics`, `io.karpfen.dsl.source`), and the
-     * converters (`io.karpfen.dsl.dsl.textual`), builders (`io.karpfen.dsl.dsl.functional`) and file parsers
-     * (`io.karpfen.dsl.parser`): adapters isolate foreign APIs. core-workspace reaches the readers through this
-     * package's public `DslReader` adapter, so it needs no adapter package of its own.
+     * The only package (with its sub-packages) that may use dsl-tools beyond its semantic model: the readers
+     * (`io.karpfen.dsl.reader`), the diagnostics and source positions they report (`io.karpfen.dsl.diagnostics`,
+     * `io.karpfen.dsl.source`), the printers (`io.karpfen.dsl.printer`), the converters, builders and file parsers and
+     * whatever else dsl-tools offers outside its generated parsers: adapters isolate foreign APIs. core-workspace
+     * reaches the readers through this package's public `DslReader` adapter, so it needs no adapter package of its own.
      */
     const val DSL_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.dsl"
 

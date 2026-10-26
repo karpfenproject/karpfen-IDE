@@ -15,8 +15,6 @@
  */
 package io.karpfen.ide.tools.cli
 
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.Logger
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
@@ -24,6 +22,7 @@ import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.tools.cli.logging.LanguageToolsLog
+import io.karpfen.ide.tools.cli.logging.LogbackLanguageToolsLog
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.int
@@ -40,7 +39,7 @@ import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -68,15 +67,15 @@ class ValidateCliTest {
 
     /**
      * Proves that nothing prints while a workspace analyzes the examples, so the report needs no guard around the
-     * analysis: the dsl-tools readers report what they find as diagnostics and log nothing, even with the loggers of
-     * dsl-tools at DEBUG.
+     * analysis: the dsl-tools readers report what they find as diagnostics and log nothing, even while what dsl-tools
+     * logs is shown at DEBUG, as `--verbose` shows it.
      */
     @Test
     fun `analyzing the examples writes nothing to the console, even with the loggers of dsl-tools at DEBUG`() =
         runTest(timeout = 120.seconds) {
             val root = Examples.copyTo(dir)
 
-            val (stdout, stderr) = withDslToolsLoggingAt(Level.DEBUG) {
+            val (stdout, stderr) = LogbackLanguageToolsLog.ofApplication().show().use {
                 ProcessStreams().use { streams ->
                     val workspace = testWorkspaceFactory(this).open(root, backgroundScope)
                     workspace.refresh()
@@ -112,7 +111,7 @@ class ValidateCliTest {
             val logged = run.stderr.lines().filter { it.isNotEmpty() }
             assertTrue(logged.any { " DEBUG " in it && "KmetaDSLConverter" in it }, run.stderr)
             assertTrue(logged.all { DSL_TOOLS_LINE.containsMatchIn(it) }, "only what dsl-tools logs: ${run.stderr}")
-            assertEquals(Level.OFF, dslToolsLogger().level, "the verbose run restored the level of the configuration")
+            assertFalse(LoggerFactory.getLogger(DslToolsLoggers.PARENT).isErrorEnabled, "the verbose run turned dsl-tools off again")
         }
 
     @Test
@@ -306,21 +305,6 @@ class ValidateCliTest {
         assertEquals(ExitCodes.FAILURE, run.status)
         assertEquals("", run.stdout)
         assertTrue("karpfen: validation of $dir failed: disk on fire\n" in run.stderr, run.stderr)
-    }
-
-    /** The parent logger of dsl-tools in the test JVM's logger context. */
-    private fun dslToolsLogger(): Logger = assertIs<Logger>(LoggerFactory.getLogger(DslToolsLoggers.PARENT))
-
-    /** Runs [block] with the loggers of dsl-tools at [level] and restores their level afterwards. */
-    private inline fun <T> withDslToolsLoggingAt(level: Level, block: () -> T): T {
-        val logger = dslToolsLogger()
-        val previous = logger.level
-        logger.level = level
-        try {
-            return block()
-        } finally {
-            logger.level = previous
-        }
     }
 
     /** One-based `line:col` of the first occurrence of [needle] in [text]. */

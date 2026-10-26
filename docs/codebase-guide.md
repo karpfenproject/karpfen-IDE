@@ -231,9 +231,11 @@ unexpected exceptions into a log entry and an error dialog, the `window` package
 `menu` package resolves the menus against the registered commands.
 
 Logging is configured in `app/ide/src/main/resources/logback.xml`, which also keeps what dsl-tools logs off the console
-and writes it to a log file of its own. The `logging` package holds the logback adapters: `LanguageToolsLogRouting`
-attaches `OutputSinkAppender` to the dsl-tools logger, so its events reach the workbench's Language Tools Output, and
-`DslToolsThresholdFilter` lets only the warnings and errors of dsl-tools into the IDE log.
+and writes it to a log file of its own. The `logging` package holds the seam `LanguageToolsLogRouting`, which the
+composition root takes in its constructor and attaches for the life of a session, and the logback adapters:
+`LogbackLanguageToolsLogRouting` attaches `OutputSinkAppender` to the dsl-tools logger, so its events reach the
+workbench's Language Tools Output, and `DslToolsThresholdFilter` lets only the warnings and errors of dsl-tools into the
+IDE log.
 
 The commands and the key model come from ui-foundation, described above. The editors and the menus take their
 shortcuts from the same `EditorKeymap`, so they always agree.
@@ -255,9 +257,10 @@ asks.
   `ModuleDependencyRules` with its check `VerifyModuleDependencies`, and `TestTags`. Versions live in
   `gradle/libs.versions.toml`; `settings.gradle.kts` decides how karpfen-dsl-tools is resolved.
 - **Architecture tests.** The `architecture-tests` module checks the layering with Konsist: `LayerImportRulesTest`
-  (which libraries each layer may use), `ForeignApiConfinementTest` (ANTLR and dsl-tools only behind their adapters),
-  `ComposeFreeStateTest` and `UiLayeringTest` (state holders without Compose, views on top), `PackageCycleTest`,
-  `PackageLayoutTest`, `LexicalFactsTest` (one declaration per lexical fact) and `BudgetTestTaggingTest`.
+  (which libraries each layer may use), `ForeignApiConfinementTest` (ANTLR, dsl-tools beyond its semantic model and
+  logback only behind their adapters), `ComposeFreeStateTest` and `UiLayeringTest` (state holders without Compose,
+  views on top), `PackageCycleTest`, `PackageLayoutTest`, `LexicalFactsTest` (one declaration per lexical fact) and
+  `BudgetTestTaggingTest`.
   `KarpfenModules` is the module table these tests share. `DocumentationStyleTest` guards the documentation style in
   every Kotlin source file and Gradle script, with `KotlinComments` to find the comments, `KDocPlacement` to check
   that KDoc documents a declaration (or, in a script, a top-level statement), and `ReferenceIds` to find reference

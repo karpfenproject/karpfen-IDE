@@ -18,16 +18,19 @@ package io.karpfen.ide.architecture
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 import com.lemonappdev.konsist.api.verify.assertFalse
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
  * Adapters isolate foreign APIs: ANTLR and the parsers that dsl-tools generates from its grammars are only reached from
- * the ANTLR adapter package [KarpfenModules.ANTLR_ADAPTER_PACKAGE]; the dsl-tools readers with their diagnostics and
- * source positions, and its converters, builders and file parsers only from the dsl adapter package
- * [KarpfenModules.DSL_ADAPTER_PACKAGE], so no other package sees ANTLR types, dsl-tools diagnostics or dsl-tools parser
- * classes. The semantic model of dsl-tools (`io.karpfen.dsl.meta`, `io.karpfen.dsl.instance` and
- * `io.karpfen.dsl.states`) stays usable everywhere. The rules apply to the main, test and testFixtures sources of every
- * module, and a fully qualified reference in code counts like an import.
+ * the ANTLR adapter package [KarpfenModules.ANTLR_ADAPTER_PACKAGE]; everything else of dsl-tools except its semantic
+ * model only from the dsl adapter package [KarpfenModules.DSL_ADAPTER_PACKAGE], so no other package sees ANTLR types,
+ * dsl-tools readers, diagnostics or printers; and logback only from the logging packages of the application and the
+ * command-line tool ([LOGGING_PACKAGES]). The semantic model of dsl-tools ([DSL_TOOLS_SEMANTIC_MODEL]) stays usable
+ * everywhere. The dsl-tools rule is an allow-list: a package that dsl-tools adds later is confined until it is added to
+ * the semantic model on purpose. The rules apply to the main, test and testFixtures sources of every module, and a
+ * fully qualified reference in code counts like an import.
  */
 class ForeignApiConfinementTest {
 
@@ -35,36 +38,40 @@ class ForeignApiConfinementTest {
         /** The root package of the ANTLR runtime. */
         const val ANTLR_RUNTIME = "org.antlr"
 
+        /** The root package of dsl-tools. */
+        const val DSL_TOOLS = "io.karpfen.dsl"
+
         /** The package of the lexers, parsers and visitors that dsl-tools generates from its grammars at build time. */
-        const val GENERATED_PARSERS = "io.karpfen.dsl.grammar"
+        const val GENERATED_PARSERS = "$DSL_TOOLS.grammar"
 
         /** The dsl-tools package of the readers, the entry points through which the IDE reads its languages. */
-        const val DSL_TOOLS_READERS = "io.karpfen.dsl.reader"
+        const val DSL_TOOLS_READERS = "$DSL_TOOLS.reader"
+
+        /** The root package of logback, the logging backend of the application and the command-line tool. */
+        const val LOGBACK = "ch.qos.logback"
 
         /** The packages that only the ANTLR adapter package may use. */
         val ANTLR_PACKAGES = listOf(ANTLR_RUNTIME, GENERATED_PARSERS)
 
-        /**
-         * The dsl-tools packages that only the dsl adapter package may use: the readers, the diagnostics they report
-         * and the source positions and maps of `io.karpfen.dsl.source`, the converters and builders below
-         * `io.karpfen.dsl.dsl`, and the file parsers of `io.karpfen.dsl.parser`.
-         */
-        val DSL_TOOLS_ADAPTED_PACKAGES = listOf(
-            DSL_TOOLS_READERS,
-            "io.karpfen.dsl.diagnostics",
-            "io.karpfen.dsl.source",
-            "io.karpfen.dsl.dsl",
-            "io.karpfen.dsl.parser",
-        )
+        /** The semantic model of dsl-tools: metamodels, models and state machines, which every package may use. */
+        val DSL_TOOLS_SEMANTIC_MODEL = listOf("$DSL_TOOLS.meta", "$DSL_TOOLS.instance", "$DSL_TOOLS.states")
+
+        /** The packages that may use logback: the logging packages of the application and the command-line tool. */
+        val LOGGING_PACKAGES = listOf("io.karpfen.ide.app.logging", "io.karpfen.ide.tools.cli.logging")
 
         /** True if [name] lies within ANTLR or the generated parsers, which only the ANTLR adapter may use. */
         fun usesAntlr(name: String): Boolean = name.isWithinAny(ANTLR_PACKAGES)
 
         /**
-         * True if [name] lies within the dsl-tools readers, diagnostics, source positions, converters, builders or file
-         * parsers, which only the dsl adapter may use.
+         * True if [name] lies within dsl-tools but neither within its semantic model nor within the generated parsers,
+         * which the ANTLR rule confines: the readers, diagnostics, source positions, printers, converters, builders,
+         * file parsers and every package dsl-tools adds later, which only the dsl adapter may use.
          */
-        fun usesAdaptedDslTools(name: String): Boolean = name.isWithinAny(DSL_TOOLS_ADAPTED_PACKAGES)
+        fun usesAdaptedDslTools(name: String): Boolean =
+            name.isWithin(DSL_TOOLS) && !name.isWithinAny(DSL_TOOLS_SEMANTIC_MODEL + GENERATED_PARSERS)
+
+        /** True if [name] lies within logback, which only the logging packages may use. */
+        fun usesLogback(name: String): Boolean = name.isWithin(LOGBACK)
     }
 
     @Test
@@ -76,12 +83,20 @@ class ForeignApiConfinementTest {
     }
 
     @Test
-    fun `only the dsl adapter package uses the dsl-tools readers, diagnostics, converters and parser classes`() {
+    fun `only the dsl adapter package uses dsl-tools beyond its semantic model`() {
         assertConfined(
             files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithin(KarpfenModules.DSL_ADAPTER_PACKAGE) },
-            rule = "Only ${KarpfenModules.DSL_ADAPTER_PACKAGE}.. may use the dsl-tools readers, diagnostics, converters and " +
-                "parsers (${DSL_TOOLS_ADAPTED_PACKAGES.joinToString { "$it.." }}); use its DslReader adapter",
+            rule = "Only ${KarpfenModules.DSL_ADAPTER_PACKAGE}.. may use $DSL_TOOLS.. beyond its semantic model " +
+                "(${DSL_TOOLS_SEMANTIC_MODEL.joinToString { "$it.." }}); use its DslReader adapter",
         ) { name -> usesAdaptedDslTools(name) }
+    }
+
+    @Test
+    fun `only the logging packages of the application and the command-line tool use logback`() {
+        assertConfined(
+            files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithinAny(LOGGING_PACKAGES) },
+            rule = "Only ${LOGGING_PACKAGES.joinToString { "$it.." }} may use $LOGBACK..; elsewhere log through SLF4J",
+        ) { name -> usesLogback(name) }
     }
 
     /**
@@ -108,7 +123,8 @@ class ForeignApiConfinementTest {
 
     /**
      * Guards against vacuous rules: if an adapter package or a foreign package were renamed, the confinement rules above
-     * would pass trivially, so each adapter must hold production code that uses the packages its rule confines.
+     * would pass trivially, so each adapter, the logging packages included, must hold production code that uses the
+     * packages its rule confines.
      */
     @Test
     fun `the adapter packages exist and are where the foreign APIs are used`() {
@@ -126,32 +142,50 @@ class ForeignApiConfinementTest {
             dslFiles.any { file -> file.sourceSetName == "main" && file.imports.any { it.name.isWithin(DSL_TOOLS_READERS) } },
             "nothing in ${KarpfenModules.DSL_ADAPTER_PACKAGE} uses $DSL_TOOLS_READERS; is the rule still aimed at the right package?",
         )
+        LOGGING_PACKAGES.forEach { logging ->
+            assertTrue(
+                KarpfenModules.filesInPackage(logging)
+                    .any { file -> file.sourceSetName == "main" && file.imports.any { it.name.isWithin(LOGBACK) } },
+                "nothing in the production code of $logging uses $LOGBACK; is the rule still aimed at the right package?",
+            )
+        }
     }
 
     /**
-     * Covers [usesAntlr] and [usesAdaptedDslTools]: the generated parsers, readers, diagnostics, source positions,
-     * converters, builders and file parsers of dsl-tools count, in imports and in fully qualified references in code,
-     * while its semantic model and packages that merely share a prefix do not.
+     * Covers [usesAntlr] and [usesAdaptedDslTools]: the generated parsers count for the ANTLR rule, and every other
+     * package of dsl-tools beyond its semantic model counts for the dsl rule, the printers and the examples included,
+     * and so do packages that merely share a prefix with the semantic model, in imports and in fully qualified
+     * references in code; the semantic model and packages outside dsl-tools that merely share its prefix do not.
      */
     @Test
     fun `the rules recognize the dsl-tools packages and leave the semantic model alone`() {
         assertTrue(usesAntlr("io.karpfen.dsl.grammar.kstates.KstatesLexer"))
         assertTrue(usesAntlr("io.karpfen.dsl.grammar.kmeta.*"))
         assertTrue(usesAntlr("org.antlr.v4.runtime.Token"))
-        assertTrue(usesAdaptedDslTools("io.karpfen.dsl.reader.kmodel.KmodelReader"))
-        assertTrue(usesAdaptedDslTools("io.karpfen.dsl.reader.ParseResult"))
-        assertTrue(usesAdaptedDslTools("io.karpfen.dsl.diagnostics.DiagnosticCode"))
-        assertTrue(usesAdaptedDslTools("io.karpfen.dsl.source.SourceMap"))
-        assertTrue(usesAdaptedDslTools("io.karpfen.dsl.dsl.textual.KmetaDSLConverter"))
-        assertTrue(usesAdaptedDslTools("io.karpfen.dsl.dsl.functional.MetamodelBuilder"))
-        assertTrue(usesAdaptedDslTools("io.karpfen.dsl.parser.KmetaFileParser"))
+        val adapted = listOf(
+            "io.karpfen.dsl.reader.kmodel.KmodelReader",
+            "io.karpfen.dsl.reader.ParseResult",
+            "io.karpfen.dsl.diagnostics.DiagnosticCode",
+            "io.karpfen.dsl.source.SourceMap",
+            "io.karpfen.dsl.printer.kmeta.KmetaPrinter",
+            "io.karpfen.dsl.printer.kstates.*",
+            "io.karpfen.dsl.examples.printObject",
+            "io.karpfen.dsl.dsl.textual.KmetaDSLConverter",
+            "io.karpfen.dsl.dsl.functional.MetamodelBuilder",
+            "io.karpfen.dsl.parser.KmetaFileParser",
+            "io.karpfen.dsl.grammarguide.Example",
+            "io.karpfen.dsl.metadata.Example",
+        )
+        assertEquals(emptyList(), adapted.filterNot { usesAdaptedDslTools(it) }, "confined to the dsl adapter")
+        assertEquals(emptyList(), adapted.filter { usesAntlr(it) }, "not the generated parsers")
+        assertFalse(usesAdaptedDslTools("io.karpfen.dsl.grammar.kmeta.KmetaParser"), "the ANTLR rule confines the generated parsers")
 
         val usableEverywhere = listOf(
             "io.karpfen.dsl.meta.Metamodel",
             "io.karpfen.dsl.instance.Model",
             "io.karpfen.dsl.states.StateMachine",
-            "io.karpfen.dsl.grammarguide.Example",
-            "io.karpfen.dsl.readers.Example",
+            "io.karpfen.dslx.Example",
+            "io.karpfen.ide.core.document.dsl.DslReader",
         )
         assertTrue(
             usableEverywhere.none { usesAntlr(it) || usesAdaptedDslTools(it) },
@@ -160,10 +194,19 @@ class ForeignApiConfinementTest {
 
         val inCode = SourceReferences.qualifiedReferences(
             "val lexer = io.karpfen.dsl.grammar.kstates.KstatesLexer(input)\n" +
-                "val reader = io.karpfen.dsl.reader.kstates.KstatesReader()",
+                "val printer = io.karpfen.dsl.printer.kstates.KstatesPrinter()",
         ).map { it.name }
         assertTrue(inCode.any { usesAntlr(it) }, "a fully qualified generated parser in code must count: $inCode")
-        assertTrue(inCode.any { usesAdaptedDslTools(it) }, "a fully qualified reader in code must count: $inCode")
+        assertTrue(inCode.any { usesAdaptedDslTools(it) }, "a fully qualified printer in code must count: $inCode")
+    }
+
+    /** Covers [usesLogback]: the packages of logback count, SLF4J and packages that merely share a prefix do not. */
+    @Test
+    fun `the logback rule recognizes logback and leaves SLF4J alone`() {
+        assertTrue(usesLogback("ch.qos.logback.classic.LoggerContext"))
+        assertTrue(usesLogback("ch.qos.logback.core.read.ListAppender"))
+        val others = listOf("org.slf4j.LoggerFactory", "ch.qos.logbackx.Other", "ch.qos.reload4j.Logger")
+        assertEquals(emptyList(), others.filter(::usesLogback))
     }
 
     /**

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.karpfen.ide.app
+package io.karpfen.ide.app.logging
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
@@ -23,7 +23,6 @@ import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.core.rolling.RollingFileAppender
 import ch.qos.logback.core.spi.FilterReply
 import io.karpfen.ide.app.crash.IDE_LOG_FILE_NAME
-import io.karpfen.ide.app.logging.ProductionLogging
 import io.karpfen.ide.ui.workbench.settings.SettingsLocations
 import org.junit.jupiter.api.io.TempDir
 import org.slf4j.Logger

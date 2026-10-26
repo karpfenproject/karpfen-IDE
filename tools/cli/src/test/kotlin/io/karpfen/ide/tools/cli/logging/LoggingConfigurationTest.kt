@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.karpfen.ide.tools.cli
+package io.karpfen.ide.tools.cli.logging
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
