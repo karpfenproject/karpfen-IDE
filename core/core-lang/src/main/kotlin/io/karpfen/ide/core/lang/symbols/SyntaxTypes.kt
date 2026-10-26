@@ -46,7 +46,8 @@ internal data class TypeExpression(val name: String, val isList: Boolean) {
 /**
  * Reads [TypeInfo]s from the KMeta syntax of parse outcomes (IDE-owned, no dsl-tools): TYPE declarations with their
  * description (the TYPE outline node's detail) and their member declarations (container = the type, type name as
- * written). Used for the document's own types and as the fallback for context files that did not convert.
+ * written). Used for the document's own types, as the fallback for context files that were not read, and for what a
+ * partial metamodel left out.
  */
 internal object SyntaxTypes {
 

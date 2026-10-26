@@ -35,13 +35,13 @@ public interface TypeCatalog {
 
     /**
      * The types visible from [request]'s document, in this order (a name appears once, the first wins): the types
-     * declared in the document itself when it is a `.kmeta` file (from its parse, so they are known before conversion),
-     * then the context's domain metamodel, then its event types. Never throws.
+     * declared in the document itself when it is a `.kmeta` file (from its parse, so they are known before the
+     * analysis reads it), then the context's domain metamodel, then its event types. Never throws.
      *
      * Event types ([TypeOrigin.EVENTS]) are the TYPE declarations of the context's events file itself (its
-     * `AnalyzedFile.parse` syntax index), with members from the converted `ContextAnalysis.events` metamodel — never
-     * all of `events.types`, which dsl-tools fills with the domain base types too (see `ContextAnalysis.events`). So a
-     * provider listing event names or event types offers no domain type.
+     * `AnalyzedFile.parse` syntax index), with members from the events metamodel that dsl-tools read
+     * (`ContextAnalysis.events`) — never all of `events.types`, which dsl-tools fills with the domain base types too.
+     * So a provider listing event names or event types offers no domain type.
      */
     public fun types(request: FeatureRequest): List<TypeInfo>
 
@@ -146,7 +146,7 @@ public enum class MemberKind(public val keyword: String) {
 /**
  * [TypeCatalog] reading the document's own TYPE declarations (a `.kmeta` document, from its parse outcomes by the
  * staleness rule, see [DocumentDeclarations]) and the context's types, converted once per `ContextAnalysis` by
- * [ContextTypesMemo] (see [ContextTypes] for the conversion and its syntax fallback).
+ * [ContextTypesMemo] (see [ContextTypes] for the conversion, its completion by the syntax and its syntax fallback).
  */
 internal class ContextTypeCatalog(private val memo: ContextTypesMemo = ContextTypesMemo()) : TypeCatalog {
 

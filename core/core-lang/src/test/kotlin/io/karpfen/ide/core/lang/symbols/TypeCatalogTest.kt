@@ -15,10 +15,12 @@
  */
 package io.karpfen.ide.core.lang.symbols
 
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.lang.fixtures.ExamplePaths
 import io.karpfen.ide.core.lang.fixtures.ExampleProject
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.core.text.TextSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -28,8 +30,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the shared type catalog: document, domain and event types with members and declaration locations, the
- * memoized conversion per analysis, the partial metamodel of a metamodel with errors, and the syntax fallback of a
- * metamodel that was not read.
+ * memoized conversion per analysis, the partial metamodel of a metamodel with errors completed by the file's syntax,
+ * and the syntax fallback of a metamodel that was not read.
  */
 class TypeCatalogTest {
 
@@ -140,7 +142,7 @@ class TypeCatalogTest {
     }
 
     @Test
-    fun `a metamodel with an error still gives its types, without the member dsl-tools could not read`() {
+    fun `a metamodel with an error still gives its types, the members dsl-tools could not read from the file's syntax`() {
         val robotContext = Examples.contexts().single { it.directory == ExamplePaths.ROBOT_DIR }
         val files = robotContext.files.map { file ->
             if (file.path == ExamplePaths.ROBOT_KMETA) file.copy(text = file.text.replace(WALL_DISTANCE, MISSPELLED_WALL_DISTANCE)) else file
@@ -148,13 +150,36 @@ class TypeCatalogTest {
         val analysis = ExampleProject.analyze(listOf(robotContext.copy(files = files)))
         val metamodelPath = ExampleProject.pathOf(ExamplePaths.ROBOT_KMETA)
         assertEquals(listOf("kmeta.unknown-property-type"), analysis.diagnosticsFor(metamodelPath).map { it.code })
+        val partial = assertNotNull(analysis.contexts.single().metamodel).types.single { it.name == "Robot" }
+        assertTrue(partial.simpleProperties.none { it.key == "d_closest_wall" }, "precondition: left out of the partial metamodel")
 
         val types = catalog.types(ExampleProject.request(robotKstates.document, analysis))
 
         assertEquals(robotKstates.let(catalog::types).map { it.name to it.origin }, types.map { it.name to it.origin })
         val robot = types.first { it.name == "Robot" }
-        assertEquals(null, robot.member("d_closest_wall"), "left out of the partial metamodel")
+        val wall = assertNotNull(robot.member("d_closest_wall"), "the member the read left out comes from the syntax")
+        assertEquals("prop d_closest_wall: nmber", wall.signature, "with its type as written")
+        val file = assertNotNull(analysis.file(metamodelPath))
+        assertEquals("d_closest_wall", file.snapshot.substring(assertNotNull(wall.declaration).range))
+        val clean = assertNotNull(catalog.type(robotKstates, "Robot"))
+        assertEquals(clean.members.map { it.name }, robot.members.map { it.name }, "in the file's order")
         assertEquals("prop d_closest_obstacle: number", robot.member("d_closest_obstacle")?.signature)
+    }
+
+    @Test
+    fun `a type the read left out comes from the file's syntax after the types dsl-tools read`() {
+        val context = assertNotNull(robotKstates.contextAnalysis)
+        val metamodelFile = assertNotNull(context.files[ExampleProject.pathOf(ExamplePaths.ROBOT_KMETA)])
+        val withoutRoom = metamodelFile.snapshot.text.substringBefore("type \"Room\"")
+        val read = assertNotNull(DslReader().kmeta(TextSnapshot(withoutRoom, 0)).model)
+        val partial = robotKstates.copy(contextAnalysis = context.copy(metamodel = read))
+
+        val types = catalog.contextTypes(partial)
+
+        assertEquals(catalog.contextTypes(robotKstates).map { it.name to it.origin }, types.map { it.name to it.origin })
+        val room = types.single { it.name == "Room" }
+        assertEquals("A room that contains a robot and obstacles", room.description)
+        assertEquals("Room", metamodelFile.snapshot.substring(assertNotNull(room.declaration).range))
     }
 
     @Test
