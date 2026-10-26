@@ -269,7 +269,9 @@ asks.
   `SourceReferences` (the fully qualified names the layer rules check) and for `WallClockAssertions`, which
   `BudgetTestTaggingTest` asks whether a test asserts on the wall clock; behind it, `MeasuredValues` and `Lambdas`
   follow a measurement through the code of a test and `TimeLimits` judges the limits of timeouts. `BuildOutput` is the
-  one rule that tells build output from sources; the `.gitignore` follows it.
+  one rule that tells build output from sources; the `.gitignore` follows it, and `OwnCode` leaves build output and
+  the checkouts of git submodules out of every rule. The tests read the submodule directories that the build hands
+  them with build-logic's own `GitSubmodules`, which they compile as well.
 
 Typical changes and where they start:
 

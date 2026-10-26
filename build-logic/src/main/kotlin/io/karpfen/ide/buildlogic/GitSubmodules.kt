@@ -21,7 +21,8 @@ package io.karpfen.ide.buildlogic
  *
  * The one reader of `.gitmodules` in the build. The build script of the architecture tests leaves these directories out
  * of the tests' inputs and hands the same list to the tests through [SYSTEM_PROPERTY], so the inputs and the files the
- * tests check always leave out the same directories.
+ * tests check always leave out the same directories. It writes the value with [encode], and the tests read it with
+ * [decode]: they compile this very file as well, so the property and its format have this one declaration.
  */
 object GitSubmodules {
     /**
@@ -56,4 +57,7 @@ object GitSubmodules {
         require(unsupported.isEmpty()) { "submodule directories with a '$SEPARATOR' are not supported: $unsupported" }
         return directories.joinToString(SEPARATOR.toString())
     }
+
+    /** The directories that the value [encoded] of [SYSTEM_PROPERTY] hands over, as [encode] wrote them. */
+    fun decode(encoded: String): List<String> = encoded.split(SEPARATOR).filter { it.isNotEmpty() }
 }

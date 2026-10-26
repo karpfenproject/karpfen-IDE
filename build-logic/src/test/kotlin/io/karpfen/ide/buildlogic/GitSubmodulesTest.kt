@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test
 /**
  * Covers [GitSubmodules]: the `path` entries of a `.gitmodules` text are normalized to '/' separators without trailing
  * slashes and without empty entries, and the directories are handed over joined, which a directory with the separator
- * cannot be.
+ * cannot be, and read back as they were.
  */
 class GitSubmodulesTest {
 
@@ -50,5 +50,13 @@ class GitSubmodulesTest {
         assertEquals("a,libs/b", GitSubmodules.encode(GitSubmodules.parse(text)))
         assertEquals(emptyList<String>(), GitSubmodules.parse(""))
         assertThrows(IllegalArgumentException::class.java) { GitSubmodules.encode(listOf("a,b")) }
+    }
+
+    @Test
+    fun `the handed-over directories are read back as they were`() {
+        val directories = listOf("karpfen-dsl-tools", "libs/b", "external/nested/c")
+
+        assertEquals(directories, GitSubmodules.decode(GitSubmodules.encode(directories)))
+        assertEquals(emptyList<String>(), GitSubmodules.decode(GitSubmodules.encode(emptyList())))
     }
 }

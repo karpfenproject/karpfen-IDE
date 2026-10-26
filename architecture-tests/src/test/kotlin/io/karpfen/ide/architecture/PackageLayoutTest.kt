@@ -28,7 +28,9 @@ import kotlin.test.assertTrue as kotlinAssertTrue
  * [KarpfenModules.packagePrefixes] and within the package prefix of its module, no module contains Java sources, and
  * the scope of the rules holds the production code of every module but neither build-logic nor build output. Build
  * output is told from sources by one rule, [BuildOutput], here, in the documentation style rules and in the
- * `.gitignore`, so a source package named `build` is sources everywhere.
+ * `.gitignore`, so a source package named `build` is sources everywhere; the checkouts of git submodules are left out
+ * by [OwnCode] here as everywhere. The files the tests read at the root of the repository ([RootFiles]) are inputs of
+ * their test task.
  */
 class PackageLayoutTest {
 
@@ -65,7 +67,7 @@ class PackageLayoutTest {
     fun `modules contain no Java sources`() {
         val root = File(Konsist.projectRootPath)
         val sourceFiles = root.walkTopDown()
-            .onEnter { dir -> dir == root || !(dir.name.startsWith(".") || dir.isBuildOutputBelow(root) || dir.isNestedBuild()) }
+            .onEnter { dir -> dir == root || isScannedForJava(dir, root) }
             .filter { it.isFile && "src" in it.relativeTo(root).invariantSeparatorsPath.split('/').dropLast(1) }
             .toList()
         kotlinAssertTrue(sourceFiles.any { it.extension == "kt" }, "No Kotlin sources found under $root; this check would be vacuous")
@@ -76,8 +78,26 @@ class PackageLayoutTest {
         )
     }
 
-    /** True if this directory below [root] holds build output ([BuildOutput]). */
-    private fun File.isBuildOutputBelow(root: File): Boolean = BuildOutput.isBuildDirectory(relativeTo(root).invariantSeparatorsPath)
+    /**
+     * A submodule checkout is left out of the search for Java sources like everywhere else, also when it holds no
+     * Gradle build of its own, which other repositories need not have.
+     */
+    @Test
+    fun `a submodule checkout without a build of its own is not searched for Java sources`() {
+        val root = File("/no-repository")
+        val submodule = Submodules.paths.first()
+
+        assertFalse(isScannedForJava(File(root, submodule), root))
+        assertFalse(isScannedForJava(File(root, "$submodule/src/main/java"), root))
+        kotlinAssertTrue(isScannedForJava(File(root, "core/core-text/src/main/java"), root))
+    }
+
+    /**
+     * True for the directory [dir] below [root] if the search for Java sources enters it: a directory of this code base
+     * ([OwnCode]) that is neither hidden nor a separate build.
+     */
+    private fun isScannedForJava(dir: File, root: File): Boolean =
+        !dir.name.startsWith(".") && OwnCode.isOwnDirectory(dir.relativeTo(root).invariantSeparatorsPath) && !dir.isNestedBuild()
 
     /** A directory below the root with its own settings file, e.g. build-logic/, is a separate build, not a module. */
     private fun File.isNestedBuild(): Boolean =
@@ -122,7 +142,7 @@ class PackageLayoutTest {
      */
     @Test
     fun `git ignores only the build directories that Gradle writes`() {
-        val patterns = File(Konsist.projectRootPath, ".gitignore").readLines()
+        val patterns = RootFiles.read(RootFiles.GITIGNORE).lines()
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.startsWith("#") }
         val buildPatterns = patterns.filter { BUILD_DIRECTORY in it.split('/') }
@@ -134,8 +154,24 @@ class PackageLayoutTest {
         )
     }
 
+    /**
+     * Every file the tests read at the root of the repository is an input of their test task, so that changing it runs
+     * the tests again instead of serving their last result from the build cache.
+     */
+    @Test
+    fun `the files the tests read at the root are inputs of their test task`() {
+        val script = File(Konsist.projectRootPath, "architecture-tests/build.gradle.kts").readText()
+        val declared = ROOT_INPUTS.find(script)?.groupValues?.get(1)
+        kotlinAssertTrue(declared != null, "The build script of the architecture tests declares no root files as inputs")
+
+        assertEquals(emptyList(), RootFiles.all.filterNot { "\"$it\"" in declared })
+    }
+
     private companion object {
         /** The name of the directories that hold build output. */
         const val BUILD_DIRECTORY = "build"
+
+        /** The root files that the build script of the architecture tests declares as inputs of their test task. */
+        val ROOT_INPUTS = Regex("""val rootFilesRead: List<String> = listOf\(([^)]*)\)""")
     }
 }

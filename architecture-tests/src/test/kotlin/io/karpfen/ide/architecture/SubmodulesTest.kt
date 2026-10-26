@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.architecture
 
+import io.karpfen.ide.buildlogic.GitSubmodules
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -25,6 +26,14 @@ import kotlin.test.assertTrue
  * scope and of the files the documentation style rules read, while the repository's own sources stay in.
  */
 class SubmodulesTest {
+
+    @Test
+    fun `the tests get every submodule that gitmodules records`() {
+        val recorded = GitSubmodules.parse(RootFiles.read(RootFiles.GITMODULES))
+
+        assertTrue(recorded.isNotEmpty(), "no submodule recorded; this check would be vacuous")
+        assertEquals(recorded, Submodules.paths)
+    }
 
     @Test
     fun `the dsl-tools submodule is recorded and its directory is recognized`() {

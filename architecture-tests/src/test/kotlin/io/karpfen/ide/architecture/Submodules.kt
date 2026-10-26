@@ -15,20 +15,20 @@
  */
 package io.karpfen.ide.architecture
 
+import io.karpfen.ide.buildlogic.GitSubmodules
+
 /**
  * The git submodules of the repository: checkouts of other repositories, such as karpfen-dsl-tools, that the build uses
  * but that are not part of this code base. Their sources follow their own repository's rules, so the architecture and
- * documentation rules leave them out.
+ * documentation rules leave them out ([OwnCode]).
  *
  * The build script of the architecture tests reads the submodule directories from `.gitmodules` with build-logic's
- * `GitSubmodules`, the one reader of that file, leaves them out of the tests' inputs and hands the same list to the tests
- * in the system property [SYSTEM_PROPERTY], so adding a submodule needs no change here and the inputs and the tests
- * always leave out the same directories.
+ * [GitSubmodules], the one reader of that file, leaves them out of the tests' inputs and hands the same list to the
+ * tests in the system property [GitSubmodules.SYSTEM_PROPERTY], so adding a submodule needs no change here and the
+ * inputs and the tests always leave out the same directories. The tests compile build-logic's [GitSubmodules] too and
+ * read the property with it, so the property and its format are declared once.
  */
 internal object Submodules {
-
-    /** The system property through which the test task hands over the submodule directories, comma-separated. */
-    private const val SYSTEM_PROPERTY = "karpfen.submodules"
 
     /**
      * The submodule directories relative to the repository root, with '/' separators (e.g. `karpfen-dsl-tools`).
@@ -36,10 +36,10 @@ internal object Submodules {
      * @throws IllegalStateException if the tests run without the system property, that is not through the build.
      */
     val paths: List<String> by lazy {
-        val value = checkNotNull(System.getProperty(SYSTEM_PROPERTY)) {
-            "the system property $SYSTEM_PROPERTY is missing; run the architecture tests through the build"
+        val value = checkNotNull(System.getProperty(GitSubmodules.SYSTEM_PROPERTY)) {
+            "the system property ${GitSubmodules.SYSTEM_PROPERTY} is missing; run the architecture tests through the build"
         }
-        value.split(',').filter { it.isNotEmpty() }
+        GitSubmodules.decode(value)
     }
 
     /**
