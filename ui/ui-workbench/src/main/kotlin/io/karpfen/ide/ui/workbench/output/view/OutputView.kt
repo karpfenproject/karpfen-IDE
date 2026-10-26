@@ -34,10 +34,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -55,7 +58,8 @@ import io.karpfen.ide.ui.workbench.output.OutputUiState
  * The Language Tools Output tool window: a toolbar with the Follow toggle and Clear, above the buffered lines in a
  * monospace font, each with its time, level (coloured by severity), the logger's simple name and the message, as
  * [OutputLineFormat] writes them. While [OutputUiState.follow] is on, the list scrolls to the newest line whenever one
- * arrives. The text can be selected and copied.
+ * arrives. Following yields to the user: scrolling away from the newest line switches it off, and scrolling back to the
+ * end switches it on again, both through [onFollowChange]. The text can be selected and copied.
  */
 @Composable
 internal fun OutputView(
@@ -89,30 +93,40 @@ internal fun OutputView(
                     modifier = Modifier.align(Alignment.Center),
                 )
             } else {
-                OutputLines(state.lines, state.follow)
+                OutputLines(state.lines, state.follow, onFollowChange)
             }
         }
     }
 }
 
-/** The scrollable, selectable list of [lines]; scrolls to the newest line when one arrives while [follow] is on. */
+/**
+ * The scrollable, selectable list of [lines]; scrolls to the newest line when one arrives while [follow] is on, and
+ * reports the user's scrolling to [onFollowChange] ([FollowUserScrolling]).
+ */
 @Composable
-private fun OutputLines(lines: List<OutputLine>, follow: Boolean) {
+private fun OutputLines(lines: List<OutputLine>, follow: Boolean, onFollowChange: (Boolean) -> Unit) {
     val format = remember { OutputLineFormat() }
     val listState = rememberLazyListState()
+    val currentFollow by rememberUpdatedState(follow)
+    val currentOnFollowChange by rememberUpdatedState(onFollowChange)
+    val userScrolling = remember(listState) {
+        FollowUserScrolling(listState, isFollowing = { currentFollow }, onFollowChange = { currentOnFollowChange(it) })
+    }
     val newest = lines.last().sequence
     LaunchedEffect(newest, follow) {
         if (follow) listState.scrollToItem(lines.lastIndex)
     }
-    Box(Modifier.fillMaxSize()) {
+    val listAdapter = rememberScrollbarAdapter(listState)
+    val scrollbarAdapter = remember(userScrolling, listAdapter) { userScrolling.scrollbar(listAdapter) }
+    Box(Modifier.fillMaxSize().nestedScroll(userScrolling)) {
         SelectionContainer {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag(OutputViewTestTags.LINES)) {
                 items(lines, key = { it.sequence }) { line -> OutputLineRow(line, format) }
             }
         }
         VerticalScrollbar(
-            adapter = rememberScrollbarAdapter(listState),
-            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+            adapter = scrollbarAdapter,
+            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().testTag(OutputViewTestTags.SCROLLBAR),
         )
     }
 }

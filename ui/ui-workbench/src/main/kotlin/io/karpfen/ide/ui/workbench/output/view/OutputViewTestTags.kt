@@ -20,6 +20,9 @@ public object OutputViewTestTags {
     /** The list of lines. */
     public const val LINES: String = "Workbench.output.lines"
 
+    /** The scrollbar of the list of lines. */
+    public const val SCROLLBAR: String = "Workbench.output.scrollbar"
+
     /** The toggle that keeps the newest line in sight. */
     public const val FOLLOW: String = "Workbench.output.follow"
 

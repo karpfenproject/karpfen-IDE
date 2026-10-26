@@ -17,10 +17,12 @@ package io.karpfen.ide.ui.workbench.output.view
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -29,6 +31,10 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
@@ -38,11 +44,14 @@ import io.karpfen.ide.ui.workbench.output.OutputUiState
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * [OutputView] headless: each line shows its level, the logger's simple name and the message; while following, the
- * newest line is scrolled into sight when it arrives, and without following the view stays where it is; Follow and
- * Clear report to their callbacks, and Clear is disabled without output.
+ * newest line is scrolled into sight when it arrives, and without following the view stays where it is; following
+ * yields to the user, who stops it by scrolling or dragging the scrollbar away from the newest line and resumes it by
+ * scrolling back to the end; Follow and Clear report to their callbacks, and Clear is disabled without output.
  */
 @OptIn(ExperimentalTestApi::class)
 class OutputViewUiTest {
@@ -73,6 +82,27 @@ class OutputViewUiTest {
             }
         }
         return Pair({ next -> state = next }, calls)
+    }
+
+    /**
+     * Shows the view over [initial] in a small box with Follow switched as the view asks, the way the workbench's
+     * output state switches it; returns the state, which the test changes as output arrives.
+     */
+    private fun ComposeUiTest.followingView(initial: OutputUiState): MutableState<OutputUiState> {
+        val state = mutableStateOf(initial)
+        setContent {
+            KarpfenTheme(darkTheme = false) {
+                Box(Modifier.size(500.dp, 200.dp)) {
+                    OutputView(state.value, onFollowChange = { state.value = state.value.copy(follow = it) }, onClear = {})
+                }
+            }
+        }
+        return state
+    }
+
+    /** Appends the line with the next sequence number to the output of [state]. */
+    private fun MutableState<OutputUiState>.append() {
+        value = value.copy(lines = value.lines + line(value.lines.size + 1L))
     }
 
     @Test
@@ -112,6 +142,59 @@ class OutputViewUiTest {
 
         onNodeWithTag(OutputViewTestTags.line(1)).assertIsDisplayed()
         onNodeWithTag(OutputViewTestTags.line(200)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `scrolling away from the newest line stops following, so arriving lines leave the view where it is`() =
+        runComposeUiTest {
+            val state = followingView(OutputUiState(lines = (1L..30L).map { line(it) }))
+            waitForIdle()
+            onNodeWithTag(OutputViewTestTags.line(30)).assertIsDisplayed()
+
+            repeat(5) { onNodeWithTag(OutputViewTestTags.LINES).performTouchInput { swipeDown() } }
+            waitForIdle()
+            assertFalse(state.value.follow, "scrolling towards older lines switched following off")
+            onNodeWithTag(OutputViewTestTags.line(1)).assertIsDisplayed()
+
+            state.append()
+            waitForIdle()
+
+            onNodeWithTag(OutputViewTestTags.line(1)).assertIsDisplayed()
+            onNodeWithTag(OutputViewTestTags.line(31)).assertDoesNotExist()
+        }
+
+    @Test
+    fun `scrolling back to the newest line follows again`() = runComposeUiTest {
+        val state = followingView(OutputUiState(lines = (1L..30L).map { line(it) }, follow = false))
+        waitForIdle()
+        onNodeWithTag(OutputViewTestTags.line(1)).assertIsDisplayed()
+
+        repeat(5) { onNodeWithTag(OutputViewTestTags.LINES).performTouchInput { swipeUp() } }
+        waitForIdle()
+        assertTrue(state.value.follow, "reaching the newest line switched following on")
+
+        state.append()
+        waitForIdle()
+
+        onNodeWithTag(OutputViewTestTags.line(31)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `dragging the scrollbar away from the newest line stops following too`() = runComposeUiTest {
+        val state = followingView(OutputUiState(lines = (1L..200L).map { line(it) }))
+        waitForIdle()
+        onNodeWithTag(OutputViewTestTags.line(200)).assertIsDisplayed()
+
+        onNodeWithTag(OutputViewTestTags.SCROLLBAR).performMouseInput {
+            moveTo(bottomCenter - Offset(0f, 3f))
+            press()
+            moveTo(topCenter)
+            release()
+        }
+        waitForIdle()
+
+        assertFalse(state.value.follow, "the scrollbar switched following off")
+        onNodeWithTag(OutputViewTestTags.line(1)).assertIsDisplayed()
     }
 
     @Test
