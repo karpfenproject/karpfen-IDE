@@ -71,7 +71,9 @@ compose.desktop {
  * Starts the IDE like `run`, with `--args=<folder>` as well, but with readers of dsl-tools that read on a small stack,
  * so that a state machine nested a few hundred levels deep makes them fail as a real reader failure does: the manual
  * smoke test fills the Language Tools Output this way (`FailingReadersLaunch` of the tests). It runs on the classpath of
- * the tests, whose console-only `logback-test.xml` it sets aside for the production `logback.xml`.
+ * the tests, whose console-only `logback-test.xml` it sets aside for the production `logback.xml` of this module. That
+ * file is named by its URL: the classpath holds the command-line tool's `logback.xml` too, and a name that two resources
+ * answer makes logback print its status on the console.
  */
 tasks.register<JavaExec>("runWithFailingReaders") {
     group = "application"
@@ -79,5 +81,6 @@ tasks.register<JavaExec>("runWithFailingReaders") {
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass = "io.karpfen.ide.app.FailingReadersLaunchKt"
     javaLauncher = javaToolchains.launcherFor(java.toolchain)
-    systemProperty("logback.configurationFile", "logback.xml")
+    val productionConfiguration = layout.projectDirectory.file("src/main/resources/logback.xml").asFile.toURI()
+    systemProperty("logback.configurationFile", productionConfiguration.toString())
 }
