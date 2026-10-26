@@ -121,7 +121,7 @@ class RingOutputBufferTest {
         revisions += buffer.revision.value
 
         assertEquals(revisions.distinct(), revisions)
-        assertEquals(OutputSnapshot.EMPTY, RingOutputBuffer().snapshot())
+        assertEquals(OutputSnapshot(emptyList(), appendedErrors = 0, appendedWarnings = 0), RingOutputBuffer().snapshot())
     }
 
     @Test

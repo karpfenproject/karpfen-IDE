@@ -33,10 +33,6 @@ public enum class OutputLevel(public val label: String) {
 
     /** The finest detail. */
     TRACE("TRACE"),
-    ;
-
-    /** True for the levels that report a problem, [ERROR] and [WARNING]. */
-    public val isProblem: Boolean get() = this == ERROR || this == WARNING
 }
 
 /**

@@ -59,9 +59,4 @@ public data class OutputSnapshot(
     public val lines: List<OutputLine>,
     public val appendedErrors: Long,
     public val appendedWarnings: Long,
-) {
-    public companion object {
-        /** The contents of a buffer to which nothing was appended yet. */
-        public val EMPTY: OutputSnapshot = OutputSnapshot(emptyList(), appendedErrors = 0, appendedWarnings = 0)
-    }
-}
+)
