@@ -8,15 +8,17 @@ and ROS, and live visualization of state machines and models. It is written in K
 Multiplatform for Desktop and builds on [karpfen-dsl-tools](https://github.com/karpfenproject/karpfen-dsl-tools) as its
 language core.
 
-**Status: the text editor (phase 1) and the first increment after it are complete.** The IDE opens a folder of karpfen
-files and edits them with syntax and semantic highlighting (including the Python of `EVAL` bodies), live syntax
+**Status: the text editor (phase 1) and the first two increments after it are complete.** The IDE opens a folder of
+karpfen files and edits them with syntax and semantic highlighting (including the Python of `EVAL` bodies), live syntax
 diagnostics, the diagnostics of a karpfen-dsl-tools analysis of each modeling context, completion, go to definition,
 hover, outline, problems, find and replace, and a project tree with file templates; environment descriptors are edited
 the same way, with completion of their keys, files and objects. Completion opens with Ctrl+M on every platform, and on
-Windows also with Ctrl+Space. `karpfen validate` checks a folder from the command line. The work continues with the
-second of the [increments after phase 1](docs/plans/increments-after-phase-1.md), editor support in karpfen-dsl-tools.
-As part of it, what karpfen-dsl-tools logs now stays off both consoles and is shown on demand: in the IDE's Language
-Tools Output and with `karpfen validate --verbose`. Diagrams, the runtime and the bridges are stubs so far.
+Windows also with Ctrl+Space. `karpfen validate` checks a folder from the command line. karpfen-dsl-tools 2.0 reads
+text with diagnostics at their source positions instead of throwing, prints models back as text and logs through SLF4J;
+the IDE places its problems precisely, and what it logs stays off both consoles and is shown on demand: in the IDE's
+Language Tools Output and with `karpfen validate --verbose`. The work continues with the third of the
+[increments after phase 1](docs/plans/increments-after-phase-1.md), a runtime client without Docker. Diagrams, the
+runtime and the bridges are stubs so far.
 
 ## Documentation
 

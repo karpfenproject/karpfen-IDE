@@ -22,8 +22,8 @@ karpfen IDE is a Gradle build of Kotlin/JVM modules in layers, and dependencies 
   on top of its own JSON parser), core-workspace manages an opened folder with its modeling contexts and their
   analysis, and core-lang answers editor questions such as completion, hover and go to definition.
 - **ui** is built with Compose Multiplatform for Desktop. ui-foundation holds the theme, widgets, commands and the key
-  model, ui-editor the code editor, and ui-workbench the window content: project tree, editor tabs, outline, problems
-  and status bar.
+  model, ui-editor the code editor, and ui-workbench the window content: project tree, editor tabs, outline, problems,
+  the output of the language tools and status bar.
 - **app/ide** is the desktop application and its composition root.
 - **tools/cli** is the `karpfen` command-line tool. It validates a folder with the same workspace code as the IDE.
 - **runtime**, **notation**, **bridges** and ui-diagram belong to later increments and are stubs so far.

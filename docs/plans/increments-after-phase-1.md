@@ -11,7 +11,10 @@ an adversarial review and fixes before the next one starts.
    complete.
 2. **Editor support in karpfen-dsl-tools.** Diagnostics with source positions instead of exceptions, tolerant parsing,
    printers for the three languages, logging through SLF4J instead of printing to the console, and a package cleanup.
-   The IDE then places dsl-tools errors precisely and shows dsl-tools output only on demand, forwarding errors.
+   The IDE then places dsl-tools errors precisely and shows dsl-tools output only on demand, forwarding errors. This
+   increment is complete. karpfen-dsl-tools 2.0 lives on the branch feature/editor-support of the dsl-tools
+   repository, to which the submodule points; that branch must be pushed to the dsl-tools repository before CI can
+   build this repository.
 3. **Runtime client without Docker.** A typed client for the runtime's HTTP and WebSocket API, deployment driven by an
    environment descriptor, a live mirror of the model, and event injection, all tested against fakes.
 4. **Changes in the runtime repository.** A model snapshot endpoint, wildcard object observers, deleting environments,
