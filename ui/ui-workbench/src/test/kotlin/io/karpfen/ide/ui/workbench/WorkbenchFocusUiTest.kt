@@ -19,6 +19,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.hasAnyAncestor
@@ -37,14 +38,17 @@ import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.popup.EditorPopupTags
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
+import io.karpfen.ide.ui.foundation.widgets.StatusBarTestTags
 import io.karpfen.ide.ui.foundation.widgets.TabStripTestTags
 import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.view.WorkbenchDialogTestTags
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
+import io.karpfen.ide.ui.workbench.output.OutputLevel
 import io.karpfen.ide.ui.workbench.tabs.view.EditorAreaTestTags
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -55,7 +59,8 @@ import kotlin.test.assertTrue
 
 /**
  * Keyboard focus of the composed workbench: modal dialogs keep the focus (Tab cycles inside them, no key reaches the
- * workbench behind them) and give it back when they are answered; the find bar keeps it on Find Next.
+ * workbench behind them) and give it back when they are answered; the find bar keeps it on Find Next; the editor keeps
+ * it while tool windows are shown and hidden.
  *
  * Menu shortcuts are simulated by what they run: Cmd+W by the Close Tab command's intent on the active tab, and Cmd+G
  * typed into the find bar's query field by Find Next run through the command registry, which is where a menu
@@ -142,6 +147,34 @@ class WorkbenchFocusUiTest {
         assertTrue(text().startsWith("STATEMACHINE"), "Backspace after the typed x reached the editor: ${text().take(20)}")
     }
 
+    /**
+     * The tool windows wrap the editor area, so showing or hiding one must not move the editor in the composition, and
+     * the status bar's indicator, which shows the Language Tools Output while the user types, must not take the focus.
+     */
+    @Test
+    fun `showing and hiding tool windows, also from the status bar's indicator, keeps the editor's focus`() = workbenchUiTest(dir) {
+        val editor = editMachine("x")
+        assertTrue(editor.isFocused.value)
+
+        listOf(ToolWindowId.OUTPUT, ToolWindowId.PROJECT, ToolWindowId.PROBLEMS, ToolWindowId.OUTLINE).forEach { id ->
+            repeat(2) { step ->
+                workbench.state.layout.toggleToolWindow(id)
+                settle()
+                assertTrue(editor.isFocused.value, "the editor has the focus after toggle ${step + 1} of $id")
+            }
+        }
+        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.WARNING, "io.karpfen.dsl.reader.kstates.KstatesReader", "deep")
+        settle()
+        tagged(StatusBarTestTags.item(LANGUAGE_TOOLS_INDICATOR)).performClick()
+        settle()
+
+        tagged(WorkbenchTestTags.toolWindow(ToolWindowId.OUTPUT)).assertIsDisplayed()
+        assertTrue(editor.isFocused.value, "the editor has the focus after the indicator showed the output")
+        tagged(EditorAreaTestTags.EDITOR).performKeyInput { pressKey(Key.Backspace) }
+        settle()
+        assertTrue(text().startsWith("STATEMACHINE"), "Backspace after the typed x reached the editor: ${text().take(20)}")
+    }
+
     @Test
     fun `the project tree has the focus again after the rename dialog it opened is cancelled`() = workbenchUiTest(dir) {
         editMachine("")
@@ -187,6 +220,12 @@ class WorkbenchFocusUiTest {
     }
 
     private companion object {
+        /** When the output line of the indicator test was logged. */
+        val LOGGED_AT: Instant = Instant.parse("2026-10-26T10:15:30Z")
+
+        /** The id of the status bar's indicator of unseen warnings of the language tools. */
+        const val LANGUAGE_TOOLS_INDICATOR = "language_tools_warnings"
+
         /** The focus stops of the unsaved-changes dialog: the dialog itself and its three buttons. */
         const val DIALOG_FOCUS_STOPS = 4
 

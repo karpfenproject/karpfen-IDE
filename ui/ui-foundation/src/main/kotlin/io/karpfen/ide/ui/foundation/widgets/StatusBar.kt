@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -70,7 +71,8 @@ public object StatusBarTestTags {
  * The window status bar: [left] items aligned left, [right] items aligned right. Stateless.
  *
  * Each item shows its icon (untinted, e.g. a severity icon) and text in the small UI style; it has a tooltip when
- * [StatusBarItem.tooltip] is set and is a button when [StatusBarItem.onClick] is set. Needs `KarpfenTheme`.
+ * [StatusBarItem.tooltip] is set and is a button that never takes the keyboard focus when [StatusBarItem.onClick] is
+ * set. Needs `KarpfenTheme`.
  */
 @Composable
 public fun StatusBar(
@@ -89,6 +91,13 @@ public fun StatusBar(
     }
 }
 
+/**
+ * Makes a segment a button that runs [onClick] without taking the keyboard focus, so clicking it, for example to show
+ * a tool window, leaves the focus where the user works, such as in the editor.
+ */
+private fun Modifier.statusBarButton(onClick: () -> Unit): Modifier =
+    focusProperties { canFocus = false }.clickable(role = Role.Button, onClick = onClick)
+
 /** Fixed measures of [StatusBar]. */
 internal object StatusBarDefaults {
     /** Height of the bar. */
@@ -104,7 +113,7 @@ private fun StatusBarSegment(item: StatusBarItem) {
             Modifier
                 .fillMaxHeight()
                 .testTag(StatusBarTestTags.item(item.id))
-                .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+                .then(if (onClick != null) Modifier.statusBarButton(onClick) else Modifier)
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

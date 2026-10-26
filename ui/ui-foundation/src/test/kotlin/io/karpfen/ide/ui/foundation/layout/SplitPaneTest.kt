@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -42,7 +43,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Headless UI tests of the size-based [SplitPane]: layout, divider drag, minimums, container resizes. */
+/**
+ * Headless UI tests of the size-based [SplitPane]: layout, divider drag, minimums, container resizes, and a hidden fixed
+ * pane.
+ */
 @OptIn(ExperimentalTestApi::class)
 class SplitPaneTest {
 
@@ -265,5 +269,39 @@ class SplitPaneTest {
         waitForIdle()
 
         assertDp(250.dp, harness.size, "299 laid out - 49")
+    }
+
+    @Test
+    fun `a hidden fixed pane gives the other pane the whole space and keeps the other pane's state`() = runComposeUiTest {
+        var shown by mutableStateOf(true)
+        val compositions = mutableListOf<String>()
+        setThemedContent {
+            Box(Modifier.size(600.dp, 400.dp)) {
+                SplitPane(
+                    orientation = SplitOrientation.HORIZONTAL,
+                    fixedSide = SplitSide.FIRST,
+                    fixedSize = 200.dp,
+                    onFixedSizeChange = {},
+                    fixedPaneShown = shown,
+                    first = { Box(Modifier.fillMaxSize().testTag("first")) },
+                    second = {
+                        remember { compositions.add("second") }
+                        Box(Modifier.fillMaxSize().testTag("second"))
+                    },
+                )
+            }
+        }
+        assertDp(200.dp, bounds("first").width, "first width while shown")
+
+        shown = false
+        waitForIdle()
+        onNodeWithTag("first").assertDoesNotExist()
+        onNodeWithTag(SplitPaneTestTags.DIVIDER).assertDoesNotExist()
+        assertDp(600.dp, bounds("second").width, "second takes the whole width")
+        shown = true
+        waitForIdle()
+
+        assertDp(200.dp, bounds("first").width, "first width when shown again")
+        assertEquals(listOf("second"), compositions, "the other pane stays in the composition throughout")
     }
 }

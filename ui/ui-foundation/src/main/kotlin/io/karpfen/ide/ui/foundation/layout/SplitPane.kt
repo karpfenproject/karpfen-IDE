@@ -80,6 +80,10 @@ public object SplitPaneTestTags {
  * The divider is a 1 dp line in the palette's border colour between the panes; its drag handle is a few dp wider and
  * follows the pointer from the press on (no touch slop). On an unbounded main axis the split takes the fixed pane's
  * size plus the other pane's minimum. Needs [KarpfenTheme].
+ *
+ * While [fixedPaneShown] is false, the fixed pane and the divider are left out and the other pane takes the whole space.
+ * The other pane keeps its place in the composition either way, so showing or hiding the fixed pane keeps the state of
+ * everything in the other one, such as the keyboard focus and what its composables remember.
  */
 @Composable
 public fun SplitPane(
@@ -90,6 +94,7 @@ public fun SplitPane(
     modifier: Modifier = Modifier,
     minFirst: Dp = 80.dp,
     minSecond: Dp = 80.dp,
+    fixedPaneShown: Boolean = true,
     first: @Composable () -> Unit,
     second: @Composable () -> Unit,
 ) {
@@ -105,31 +110,37 @@ public fun SplitPane(
 
     Layout(
         contents = listOf(
-            first,
-            second,
+            { if (fixedPaneShown || fixedSide != SplitSide.FIRST) first() },
+            { if (fixedPaneShown || fixedSide != SplitSide.SECOND) second() },
             {
-                SplitDivider(
-                    orientation = orientation,
-                    onDragStart = tracker::start,
-                    onDrag = { delta ->
-                        tracker.drag(delta, currentGeometry.value)?.let { px ->
-                            currentOnChange.value(with(density) { px.toDp() })
-                        }
-                    },
-                )
+                if (fixedPaneShown) {
+                    SplitDivider(
+                        orientation = orientation,
+                        onDragStart = tracker::start,
+                        onDrag = { delta ->
+                            tracker.drag(delta, currentGeometry.value)?.let { px ->
+                                currentOnChange.value(with(density) { px.toDp() })
+                            }
+                        },
+                    )
+                }
             },
         ),
         modifier = modifier,
     ) { (firstPane, secondPane, divider), constraints ->
-        measureSplit(
-            axis = SplitAxis(orientation),
-            constraints = constraints,
-            geometry = geometry,
-            fixedPx = fixedPx,
-            handlePx = handlePx,
-            tracker = tracker,
-            measurables = SplitMeasurables(firstPane.single(), secondPane.single(), divider.single()),
-        )
+        if (!fixedPaneShown) {
+            measureAlone(if (fixedSide == SplitSide.FIRST) secondPane.single() else firstPane.single(), constraints)
+        } else {
+            measureSplit(
+                axis = SplitAxis(orientation),
+                constraints = constraints,
+                geometry = geometry,
+                fixedPx = fixedPx,
+                handlePx = handlePx,
+                tracker = tracker,
+                measurables = SplitMeasurables(firstPane.single(), secondPane.single(), divider.single()),
+            )
+        }
     }
 }
 
@@ -175,6 +186,12 @@ internal object SplitPaneDefaults {
 internal object ToolWindowDefaults {
     /** Height of the header row. */
     val HeaderHeight: Dp = 28.dp
+}
+
+/** Measures and places the one [pane] a [SplitPane] shows while its fixed pane is hidden, in the whole space. */
+private fun MeasureScope.measureAlone(pane: Measurable, constraints: Constraints): MeasureResult {
+    val placeable = pane.measure(constraints)
+    return layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 /** The three children of a [SplitPane] layout: both panes and the divider's drag handle. */

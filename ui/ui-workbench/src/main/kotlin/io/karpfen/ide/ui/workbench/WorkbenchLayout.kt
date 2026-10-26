@@ -32,7 +32,8 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
  * The tool windows around the editor area: Project left (the FIRST pane), Outline right, Problems at the bottom and the
  * Language Tools Output below Problems (SECOND panes), each in a size-based `SplitPane` whose fixed size is the tool
  * window's persisted size in dp (`fixedSize = size.dp`, `onFixedSizeChange = { resizeToolWindow(id, it.value) }`), so
- * the workbench never converts between split fractions and the persisted sizes. A hidden tool window takes no space.
+ * the workbench never converts between split fractions and the persisted sizes. A hidden tool window takes no space,
+ * and the editor area keeps its place in the composition while tool windows are shown and hidden.
  */
 @Composable
 internal fun WorkbenchLayout(
@@ -62,7 +63,11 @@ internal class WorkbenchPanes(
     val output: @Composable () -> Unit,
 )
 
-/** [main] with the tool window [id] on its [side] when visible, else [main] alone. */
+/**
+ * [main] with the tool window [id] on its [side] when visible, else [main] alone. The split is there either way, so
+ * [main] keeps its place in the composition and showing or hiding the tool window keeps the state of everything in it,
+ * such as the editor's keyboard focus.
+ */
 @Composable
 private fun ToolWindowSplit(
     id: ToolWindowId,
@@ -75,10 +80,6 @@ private fun ToolWindowSplit(
     main: @Composable () -> Unit,
 ) {
     val toolWindow = layout.toolWindow(id)
-    if (!toolWindow.visible) {
-        main()
-        return
-    }
     val tool: @Composable () -> Unit = {
         ToolWindow(title = id.title, modifier = Modifier.fillMaxSize().testTag(WorkbenchTestTags.toolWindow(id))) { content() }
     }
@@ -88,6 +89,7 @@ private fun ToolWindowSplit(
         fixedSize = toolWindow.size.dp,
         onFixedSizeChange = { layoutState.resizeToolWindow(id, it.value) },
         modifier = modifier.fillMaxSize(),
+        fixedPaneShown = toolWindow.visible,
         first = if (side == SplitSide.FIRST) tool else main,
         second = if (side == SplitSide.FIRST) main else tool,
     )
