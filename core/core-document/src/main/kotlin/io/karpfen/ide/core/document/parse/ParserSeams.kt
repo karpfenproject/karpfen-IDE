@@ -70,11 +70,17 @@ internal data class StandaloneResult(val model: DslModel?, val diagnostics: List
  * neither part knows the other and the composition rule lives in this one class.
  *
  * It runs [syntax]; if the outcome has no syntax diagnostics, the mode is [SemanticMode.STANDALONE] and [semantics] is
- * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Any exception from a collaborator (and a
- * `StackOverflowError`, which pathologically deep nesting causes in the recursive ANTLR parser) becomes an
- * `internal-error` diagnostic at the start of the text and is logged, so parsing never throws: from [syntax] a PARSER
- * diagnostic with an empty analysis (the outcome is not syntax-clean, the session shows it and nothing is read),
- * from [semantics] a DSL_TOOLS one without a model.
+ * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Parsing never throws: a failure of a
+ * collaborator becomes one diagnostic at the start of the text, from [syntax] a PARSER diagnostic with an empty
+ * analysis (the outcome is not syntax-clean, the session shows it and nothing is read), from [semantics] a DSL_TOOLS one
+ * without a model.
+ *
+ * - An exception is a defect: it becomes an `internal-error` and is logged as an error with its stack trace.
+ * - A `StackOverflowError` comes from text that nests deeper than the recursive parsers and tree walkers can follow, a
+ *   limit the user can type rather than a defect, as dsl-tools treats it too: it becomes a `nesting-too-deep` error and
+ *   is logged as one line at INFO, without its stack trace, which would otherwise be repeated on every reparse of the
+ *   text. At INFO it reaches the IDE log but neither the IDE's console nor the command-line tool's standard error,
+ *   which show warnings and errors only.
  *
  * @throws IllegalArgumentException if [syntax] parses another language than [language].
  */
@@ -108,42 +114,46 @@ internal class ComposedDocumentParser(
         )
     }
 
-    /** The syntax analysis; a failure of the analyzer becomes a PARSER `internal-error`, so the outcome is not clean. */
+    /** The syntax analysis; a failure of the analyzer becomes a PARSER diagnostic, so the outcome is not clean. */
     private fun analyzeSyntax(snapshot: TextSnapshot): SyntaxAnalysis =
         try {
             syntax.analyze(snapshot)
         } catch (e: Exception) {
-            failedSyntax(snapshot, e)
+            logger.error("Syntax analysis of a {} document (version {}) failed", language, snapshot.version, e)
+            failedSyntax(internalError(e, "Parsing", DiagnosticSource.PARSER))
         } catch (e: StackOverflowError) {
-            failedSyntax(snapshot, e)
+            logTooDeep("Syntax analysis", snapshot)
+            failedSyntax(nestingTooDeep(DiagnosticSource.PARSER))
         }
 
-    /** Logs [e] and returns an empty analysis with one PARSER `internal-error`. */
-    private fun failedSyntax(snapshot: TextSnapshot, e: Throwable): SyntaxAnalysis {
-        logger.error("Syntax analysis of a {} document (version {}) failed", language, snapshot.version, e)
-        return SyntaxAnalysis(
-            syntaxDiagnostics = listOf(internalError(e, "Parsing", DiagnosticSource.PARSER)),
+    /** An empty analysis with the one PARSER [diagnostic] that says why the syntax analysis failed. */
+    private fun failedSyntax(diagnostic: Diagnostic): SyntaxAnalysis =
+        SyntaxAnalysis(
+            syntaxDiagnostics = listOf(diagnostic),
             outline = emptyList(),
             index = SyntaxIndex.EMPTY,
             folding = emptyList(),
             semanticSpans = emptyList(),
         )
-    }
 
-    /** The standalone read; a failure of the adapter becomes a DSL_TOOLS `internal-error`. */
+    /** The standalone read; a failure of the adapter becomes a DSL_TOOLS diagnostic and no model. */
     private fun read(semantics: StandaloneSemantics, snapshot: TextSnapshot): StandaloneResult =
         try {
             semantics.read(snapshot)
         } catch (e: Exception) {
-            failedRead(snapshot, e)
+            logger.error("Standalone read of a {} document (version {}) failed", language, snapshot.version, e)
+            StandaloneResult(model = null, diagnostics = listOf(internalError(e, "Reading", DiagnosticSource.DSL_TOOLS)))
         } catch (e: StackOverflowError) {
-            failedRead(snapshot, e)
+            logTooDeep("Standalone read", snapshot)
+            StandaloneResult(model = null, diagnostics = listOf(nestingTooDeep(DiagnosticSource.DSL_TOOLS)))
         }
 
-    /** Logs [e] and returns a result without a model and with one DSL_TOOLS `internal-error`. */
-    private fun failedRead(snapshot: TextSnapshot, e: Throwable): StandaloneResult {
-        logger.error("Standalone read of a {} document (version {}) failed", language, snapshot.version, e)
-        return StandaloneResult(model = null, diagnostics = listOf(internalError(e, "Reading", DiagnosticSource.DSL_TOOLS)))
+    /** Logs in one line, without a stack trace, that [stage] of [snapshot] stopped at the nesting limit. */
+    private fun logTooDeep(stage: String, snapshot: TextSnapshot) {
+        logger.info(
+            "{} of a {} document (version {}) stopped: it nests deeper than the parser can follow",
+            stage, language, snapshot.version,
+        )
     }
 
     /** The `internal-error` diagnostic at the start of the text for a failure of [stage] reported by [source]. */
@@ -153,6 +163,19 @@ internal class ComposedDocumentParser(
             severity = Severity.ERROR,
             message = "$stage the ${language.displayName} document failed internally: ${e.message ?: e.javaClass.name}",
             code = DiagnosticCodes.INTERNAL_ERROR,
+            source = source,
+        )
+
+    /**
+     * The `nesting-too-deep` diagnostic reported by [source], at the start of the text: the parser gives no position
+     * when it runs out of stack.
+     */
+    private fun nestingTooDeep(source: DiagnosticSource): Diagnostic =
+        Diagnostic(
+            range = TextRange.EMPTY,
+            severity = Severity.ERROR,
+            message = "The ${language.displayName} document nests deeper than the parser can follow; reduce the nesting",
+            code = DiagnosticCodes.NESTING_TOO_DEEP,
             source = source,
         )
 

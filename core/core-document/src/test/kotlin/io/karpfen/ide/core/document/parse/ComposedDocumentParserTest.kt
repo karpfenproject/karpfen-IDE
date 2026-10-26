@@ -23,6 +23,7 @@ import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.antlr.tree.KstatesSyntaxAnalyzer
+import io.karpfen.ide.core.document.fixtures.DeepNesting
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import kotlin.test.Test
@@ -34,8 +35,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Covers [ComposedDocumentParser]: when the standalone read runs, how its diagnostics are passed on, and how failures
- * of the analyzer or the read (stack overflows included) become internal-error diagnostics.
+ * Covers [ComposedDocumentParser]: when the standalone read runs, how its diagnostics are passed on, how failures of
+ * the analyzer or the read become internal-error diagnostics, and how their stack overflows, which deep nesting
+ * causes, become nesting-too-deep diagnostics.
  */
 class ComposedDocumentParserTest {
 
@@ -155,28 +157,29 @@ class ComposedDocumentParserTest {
     }
 
     @Test
-    fun `a stack overflow of the analyzer is reported, not thrown`() {
-        val parser = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { throw StackOverflowError() }, semantics = null)
+    fun `a stack overflow of the analyzer or of the read is reported as nesting too deep, not thrown`() {
+        val analyzer = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { throw StackOverflowError() }, semantics = null)
+        val reader = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { clean }, RecordingSemantics { throw StackOverflowError() })
 
-        val diagnostic = parser.parse(snapshot).syntaxDiagnostics.single()
+        val syntax = analyzer.parse(snapshot).syntaxDiagnostics.single()
+        val read = reader.parse(snapshot, SemanticMode.STANDALONE)
 
-        assertEquals(DiagnosticCodes.INTERNAL_ERROR to DiagnosticSource.PARSER, diagnostic.code to diagnostic.source)
-        assertTrue("StackOverflowError" in diagnostic.message)
+        assertEquals(DiagnosticCodes.NESTING_TOO_DEEP to DiagnosticSource.PARSER, syntax.code to syntax.source)
+        assertEquals(Severity.ERROR to TextRange.EMPTY, syntax.severity to syntax.range)
+        assertEquals("The KMeta document nests deeper than the parser can follow; reduce the nesting", syntax.message)
+        assertNull(read.standaloneModel)
+        val diagnostic = read.standaloneDiagnostics.single()
+        assertEquals(DiagnosticCodes.NESTING_TOO_DEEP to DiagnosticSource.DSL_TOOLS, diagnostic.code to diagnostic.source)
     }
 
     @Test
     fun `pathologically deep nesting is reported, not thrown, by the real parser`() {
-        val depth = 5_000
-        val text = "STATEMACHINE ATTACHED TO \"T\" {\n STATES {\n" + "STATE \"s\" {\n".repeat(depth) + "}\n".repeat(depth) + " }\n TRANSITIONS { }\n}"
         val parser = ComposedDocumentParser(KarpfenLanguage.KSTATES, KstatesSyntaxAnalyzer(), semantics = null)
-        var outcome: ParseOutcome? = null
-        val smallStack = Thread(null, { outcome = parser.parse(TextSnapshot(text, 0)) }, "small-stack", 256L * 1024)
 
-        smallStack.start()
-        smallStack.join()
+        val outcome = DeepNesting.onStack(DeepNesting.SMALL_STACK) { parser.parse(TextSnapshot(DeepNesting.kstates(5_000), 0)) }
 
-        val diagnostic = outcome!!.syntaxDiagnostics.single()
-        assertEquals(DiagnosticCodes.INTERNAL_ERROR to DiagnosticSource.PARSER, diagnostic.code to diagnostic.source)
+        val diagnostic = outcome.syntaxDiagnostics.single()
+        assertEquals(DiagnosticCodes.NESTING_TOO_DEEP to DiagnosticSource.PARSER, diagnostic.code to diagnostic.source)
     }
 
     @Test

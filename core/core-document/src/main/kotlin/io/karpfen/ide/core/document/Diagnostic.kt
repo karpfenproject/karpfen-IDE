@@ -114,4 +114,10 @@ public object DiagnosticCodes {
 
     /** An unexpected internal failure that was caught and reported instead of crashing (ERROR). */
     public const val INTERNAL_ERROR: String = "internal-error"
+
+    /**
+     * The text nests deeper than the recursive parser can follow (ERROR at the start of the text): a limit of the
+     * parser that the user can type, and remove again, rather than a defect.
+     */
+    public const val NESTING_TOO_DEEP: String = "nesting-too-deep"
 }
