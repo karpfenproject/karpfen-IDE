@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.tools.cli
 
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
@@ -28,11 +29,11 @@ import java.nio.charset.Charset
 import kotlin.time.TestTimeSource
 
 /**
- * Real workspaces without watching on the virtual time of [scope]:
- * `WorkspaceFactory(WorkspaceOptions(watch = false, …test dispatchers…))`, the factory `ValidateCommand` takes in
- * tests.
+ * Real workspaces without watching on the virtual time of [scope], reading with [reader], the real readers of dsl-tools
+ * unless a test makes them fail: `WorkspaceFactory(WorkspaceOptions(watch = false, …test dispatchers…), reader)`, the
+ * factory `ValidateCommand` takes in tests.
  */
-internal fun testWorkspaceFactory(scope: TestScope): WorkspaceFactory {
+internal fun testWorkspaceFactory(scope: TestScope, reader: DslReader = DslReader()): WorkspaceFactory {
     val dispatcher = StandardTestDispatcher(scope.testScheduler)
     return WorkspaceFactory(
         WorkspaceOptions(
@@ -42,6 +43,7 @@ internal fun testWorkspaceFactory(scope: TestScope): WorkspaceFactory {
             sessionConfig = DocumentSessionConfig(tokenizeDispatcher = dispatcher, parseDispatcher = dispatcher),
             timeSource = TestTimeSource(),
         ),
+        reader = reader,
     )
 }
 

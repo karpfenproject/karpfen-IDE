@@ -157,13 +157,15 @@ public fun interface WorkspaceFactory {
 }
 
 /**
- * The default [WorkspaceFactory]: production workspaces with [options], [fileWatcher] and [languages] (every other
- * collaborator as in the [Workspace] factory). Wiring only.
+ * The default [WorkspaceFactory]: production workspaces with [options], [fileWatcher] and [reader], with which both the
+ * standalone semantics of the default languages and the project analysis read (every other collaborator as in the
+ * [Workspace] factory). Wiring only.
  */
 public fun WorkspaceFactory(
     options: WorkspaceOptions = WorkspaceOptions(),
     fileWatcher: FileWatcher = FileWatcher(),
-    languages: LanguageRegistry = defaultLanguageRegistry(),
-): WorkspaceFactory = WorkspaceFactory { root, scope ->
-    Workspace(root, scope, options, languages, fileWatcher = fileWatcher)
+    reader: DslReader = DslReader(),
+): WorkspaceFactory {
+    val languages = defaultLanguageRegistry(reader)
+    return WorkspaceFactory { root, scope -> Workspace(root, scope, options, languages, reader, fileWatcher = fileWatcher) }
 }

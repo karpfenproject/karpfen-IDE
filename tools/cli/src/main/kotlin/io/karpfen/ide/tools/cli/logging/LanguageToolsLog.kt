@@ -26,15 +26,18 @@ import org.slf4j.LoggerFactory
  * standard error for the length of a command run with `--verbose`.
  */
 internal fun interface LanguageToolsLog {
-    /** Shows what dsl-tools logs, at every level, on standard error until the returned handle is closed. */
+    /**
+     * Shows what dsl-tools logs at DEBUG and above, the finest level it logs at, on standard error until the returned
+     * handle is closed.
+     */
     fun show(): AutoCloseable
 }
 
 /**
  * The [LanguageToolsLog] of logback, the tool's logging backend: `logback.xml` turns the parent logger of dsl-tools
  * ([DslToolsLoggers.PARENT]) off and lets it pass its events on to the root logger, whose only appender writes to
- * standard error. [show] raises that logger to DEBUG, so everything dsl-tools logs takes that way, and closing the
- * handle restores the level it had.
+ * standard error. [show] raises that logger to DEBUG, the finest level dsl-tools logs at, so everything dsl-tools logs
+ * takes that way, and closing the handle restores the level it had.
  */
 internal class LogbackLanguageToolsLog(private val context: LoggerContext) : LanguageToolsLog {
 

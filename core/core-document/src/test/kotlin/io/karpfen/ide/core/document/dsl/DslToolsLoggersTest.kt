@@ -19,19 +19,25 @@ import io.karpfen.dsl.dsl.textual.KmetaDSLConverter
 import io.karpfen.dsl.dsl.textual.KmodelDSLConverter
 import io.karpfen.dsl.dsl.textual.KstatesDSLConverter
 import io.karpfen.dsl.parser.KmetaFileParser
+import io.karpfen.dsl.reader.kmeta.KmetaReader
+import io.karpfen.dsl.reader.kmodel.KmodelReader
+import io.karpfen.dsl.reader.kstates.KstatesReader
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * [DslToolsLoggers]: dsl-tools names its loggers after its classes, so the converters and file parsers log below the
- * parent logger, and only names below it count as dsl-tools loggers.
+ * [DslToolsLoggers]: dsl-tools names its loggers after its classes, so the readers, the converters and the file parsers
+ * log below the parent logger, and only names below it count as dsl-tools loggers.
  */
 class DslToolsLoggersTest {
 
     @Test
     fun `the classes that log in dsl-tools lie below the parent logger`() {
-        listOf(KmetaDSLConverter::class, KmodelDSLConverter::class, KstatesDSLConverter::class, KmetaFileParser::class)
+        listOf(
+            KmetaReader::class, KmodelReader::class, KstatesReader::class,
+            KmetaDSLConverter::class, KmodelDSLConverter::class, KstatesDSLConverter::class, KmetaFileParser::class,
+        )
             .map { it.java.name }
             .forEach { name -> assertTrue(DslToolsLoggers.isDslToolsLogger(name), name) }
     }

@@ -17,9 +17,10 @@ package io.karpfen.ide.tools.cli
 
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.dsl.DslToolsLoggers
+import io.karpfen.ide.core.document.fixtures.DeepNesting
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
-import io.karpfen.ide.core.workspace.WorkspaceFactory
+import io.karpfen.ide.core.document.fixtures.SmallStackDslReader
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.tools.cli.logging.LanguageToolsLog
 import io.karpfen.ide.tools.cli.logging.LogbackLanguageToolsLog
@@ -67,8 +68,8 @@ class ValidateCliTest {
 
     /**
      * Proves that nothing prints while a workspace analyzes the examples, so the report needs no guard around the
-     * analysis: the dsl-tools readers report what they find as diagnostics and log nothing, even while what dsl-tools
-     * logs is shown at DEBUG, as `--verbose` shows it.
+     * analysis: the dsl-tools readers report what they find as diagnostics and log only a read that fails, which no
+     * example makes them do, even while what dsl-tools logs is shown at DEBUG, as `--verbose` shows it.
      */
     @Test
     fun `analyzing the examples writes nothing to the console, even with the loggers of dsl-tools at DEBUG`() =
@@ -86,32 +87,57 @@ class ValidateCliTest {
             }
 
             assertEquals("", stdout)
-            assertEquals("", stderr, "the dsl-tools readers report through diagnostics, not through logging")
+            assertEquals("", stderr, "the dsl-tools readers report what they find through diagnostics, not through logging")
         }
 
     /**
-     * The readers of dsl-tools log nothing while a workspace analyzes, so a workspace that logs through a logger of
-     * dsl-tools while it opens stands in for what dsl-tools logs during a validation.
+     * What dsl-tools logs while a workspace analyzes is the failure of a reader, here a real one: a KStates text nests
+     * deeper than the reader can follow on the small stack it reads with ([SmallStackDslReader]), while the IDE's syntax
+     * analysis follows it on the large stack the validation runs on. The failure is a `reader.failure` in the report
+     * either way; dsl-tools logs it as a warning, which `--verbose` shows on standard error and which stays off
+     * without it.
      */
     @Test
     fun `verbose shows what dsl-tools logs on standard error and leaves standard output to the report`() =
-        runTest(timeout = 120.seconds) {
-            val root = Examples.copyTo(dir)
-            Files.writeString(root.resolve("karpfen-runtime/single_robot_example/zz.kmeta"), "type \"B\" \"b\" {\n")
-            val workspaces = testWorkspaceFactory(this)
-            val loggingWorkspaces = WorkspaceFactory { folder, scope ->
-                LoggerFactory.getLogger(KMETA_CONVERTER_LOGGER).debug("Type {}: {}", "B", "b")
-                workspaces.open(folder, scope)
+        DeepNesting.onStack(DeepNesting.LARGE_STACK) {
+            runTest(timeout = 120.seconds) {
+                val root = deeplyNestedContext()
+                val workspaces = testWorkspaceFactory(this, SmallStackDslReader())
+
+                val quiet = runCli(workspaces, "validate", root.toString())
+                val verbose = runCli(workspaces, "validate", "--verbose", root.toString())
+
+                assertEquals(ExitCodes.ERRORS_FOUND, quiet.status)
+                val failure = quiet.lines.single { it.endsWith("[$READER_FAILURE]") }
+                assertTrue(failure.startsWith("deep.kstates:1:1: error: The text could not be read"), failure)
+                assertEquals("", quiet.stderr, "without verbose nothing of what dsl-tools logs is shown")
+                assertEquals(quiet, verbose.copy(stderr = ""), "verbose changes standard error only")
+                val logged = verbose.stderr.lines().filter { it.isNotEmpty() }
+                assertTrue(logged.isNotEmpty(), "the reader's failure is logged")
+                assertTrue(logged.all { DSL_TOOLS_LINE.containsMatchIn(it) && " WARN " in it && READER_LIMIT in it }, verbose.stderr)
+                assertFalse(LoggerFactory.getLogger(DslToolsLoggers.PARENT).isErrorEnabled, "the verbose run turned dsl-tools off again")
             }
+        }
 
-            val run = runCli(loggingWorkspaces, "validate", "--format", "json", "--verbose", root.toString())
+    /**
+     * A text that nests deeper than even the IDE's own syntax analysis can follow is an error in the report, and its
+     * stack overflow, a limit rather than a defect, leaves standard error empty: no stack trace floods the console.
+     */
+    @Test
+    fun `a file nested deeper than the parser can follow is an error in the report and leaves standard error empty`() =
+        DeepNesting.onStack(DEFAULT_STACK) {
+            runTest(timeout = 120.seconds) {
+                val root = deeplyNestedContext(depth = 20_000)
 
-            assertEquals(ExitCodes.ERRORS_FOUND, run.status)
-            assertEquals(1, Json.parseToJsonElement(run.stdout).jsonObject.getValue("errorCount").jsonPrimitive.int)
-            val logged = run.stderr.lines().filter { it.isNotEmpty() }
-            assertTrue(logged.any { " DEBUG " in it && "KmetaDSLConverter" in it }, run.stderr)
-            assertTrue(logged.all { DSL_TOOLS_LINE.containsMatchIn(it) }, "only what dsl-tools logs: ${run.stderr}")
-            assertFalse(LoggerFactory.getLogger(DslToolsLoggers.PARENT).isErrorEnabled, "the verbose run turned dsl-tools off again")
+                val run = runCli(testWorkspaceFactory(this), "validate", root.toString())
+
+                assertEquals(ExitCodes.ERRORS_FOUND, run.status)
+                assertEquals(
+                    listOf("deep.kstates:1:1: error: [${DiagnosticCodes.NESTING_TOO_DEEP}]"),
+                    run.lines.filter { it.startsWith("deep.kstates:") }.map { it.withoutMessage() },
+                )
+                assertEquals("", run.stderr)
+            }
         }
 
     @Test
@@ -307,6 +333,17 @@ class ValidateCliTest {
         assertTrue("karpfen: validation of $dir failed: disk on fire\n" in run.stderr, run.stderr)
     }
 
+    /**
+     * A modeling context of a metamodel and a state machine whose states nest [depth] levels deep
+     * ([DeepNesting.kstates]), deeper than a dsl-tools reader follows on [DeepNesting.SMALL_STACK].
+     */
+    private fun deeplyNestedContext(depth: Int = READER_DEPTH): Path {
+        val root = Files.createDirectories(dir.resolve("deep"))
+        Files.writeString(root.resolve("deep.kmeta"), "type \"T\" \"t\" {\n}\n")
+        Files.writeString(root.resolve("deep.kstates"), DeepNesting.kstates(depth))
+        return root
+    }
+
     /** One-based `line:col` of the first occurrence of [needle] in [text]. */
     private fun positionOf(text: String, needle: String): String {
         val line = text.lines().indexOfFirst { needle in it }
@@ -324,11 +361,26 @@ class ValidateCliTest {
     private fun String.withoutMessageOf(code: String): String = if (endsWith("[$code]")) withoutMessage() else this
 
     private companion object {
-        /** The logger of the KMeta converter of dsl-tools, which logs at DEBUG what it converts. */
-        const val KMETA_CONVERTER_LOGGER = "${DslToolsLoggers.PARENT}.dsl.textual.KmetaDSLConverter"
+        /**
+         * How deep [deeplyNestedContext] nests by default: too deep for a dsl-tools reader on [DeepNesting.SMALL_STACK],
+         * far from the limit of the IDE's syntax analysis on [DeepNesting.LARGE_STACK].
+         */
+        const val READER_DEPTH = 2_000
 
-        /** A line that the test configuration's console writes for an event of a dsl-tools logger. */
-        val DSL_TOOLS_LINE = Regex("""^\S+ (TRACE|DEBUG|INFO|WARN|ERROR) +i\.k\.d\.""")
+        /** The code of dsl-tools for a read that failed. */
+        const val READER_FAILURE = "reader.failure"
+
+        /** What dsl-tools logs when a text nests deeper than its reader can follow. */
+        const val READER_LIMIT = "KstatesReader - Reading a text failed, it nests deeper than the parser can recurse"
+
+        /**
+         * A line that the test configuration's console writes for an event of a dsl-tools logger, whose name the
+         * console abbreviates to `i.k.d.` or `i.k.dsl.` followed by the rest.
+         */
+        val DSL_TOOLS_LINE = Regex("""^\S+ (TRACE|DEBUG|INFO|WARN|ERROR) +i\.k\.d(sl)?\.""")
+
+        /** The stack that most JVMs give a thread by default, on which the parsers follow about two thousand levels. */
+        const val DEFAULT_STACK = 1024L * 1024
 
         /** A property declaration of the example metamodel. */
         const val VALID_PROPERTY = "prop(\"y\", \"number\")"

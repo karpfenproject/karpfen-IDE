@@ -109,7 +109,8 @@ Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, 
 
 1. No tool window shows what karpfen-dsl-tools logs yet. Choose **View ▸ Language Tools Output**: a tool window of that
    name opens below Problems. It says `No output from the language tools`: the readers of dsl-tools, with which the IDE
-   analyzes the files, report every problem in Problems and log nothing.
+   analyzes the files, report every problem in Problems and log only a read that fails, which the examples never
+   make them do.
 2. In `robot/cleaning_robot.kmodel`, type a space and delete it again. After the analysis, the tool window still has
    no line, and the status bar shows no `Language tools` indicator.
 3. The terminal that runs `./gradlew` shows no line of dsl-tools either. Choose View ▸ Language Tools Output again to

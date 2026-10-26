@@ -28,7 +28,7 @@ public enum class OutputLevel(public val label: String) {
     /** Information. */
     INFO("INFO"),
 
-    /** Detail for debugging, such as the models dsl-tools converts. */
+    /** Detail for debugging. */
     DEBUG("DEBUG"),
 
     /** The finest detail. */
@@ -47,7 +47,7 @@ public enum class OutputLevel(public val label: String) {
  *   reused, also not after the buffer was cleared, so it identifies the line.
  * @property time when the event was logged.
  * @property level the event's severity.
- * @property logger the name of the logger that logged it, such as `io.karpfen.dsl.dsl.textual.KmetaDSLConverter`.
+ * @property logger the name of the logger that logged it, such as `io.karpfen.dsl.reader.kstates.KstatesReader`.
  * @property message the formatted message; the stack trace of an exception follows it on further lines.
  */
 public data class OutputLine(

@@ -22,9 +22,12 @@ import io.karpfen.ide.app.logging.ApplicationLogging
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
 import io.karpfen.ide.core.document.DiagnosticCodes
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.dsl.DslToolsLoggers
+import io.karpfen.ide.core.document.fixtures.DeepNesting
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
+import io.karpfen.ide.core.document.fixtures.SmallStackDslReader
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.tools.cli.validate.ValidateCommand
 import io.karpfen.ide.tools.cli.validate.ValidationReport
@@ -50,7 +53,6 @@ import org.junit.jupiter.api.TestReporter
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
-import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -71,8 +73,8 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
  * opening and closing files (descriptors included), because all three map `Workspace.problems`, the one problems
  * rule. A command-line folder that `main` saw as a directory may be gone (unmounted, deleted) by the time `prepare`
  * opens it. On every platform the Edit menu resolves Complete Code with the accelerator Ctrl+M, written in that
- * platform's notation, and the stroke finds that command. What dsl-tools logs while the IDE analyzes reaches the
- * Language Tools Output through the composition root, and the View menu opens it.
+ * platform's notation, and the stroke finds that command. What dsl-tools logs while the IDE analyzes, the failure of a
+ * reader, reaches the Language Tools Output through the composition root, and the View menu opens it.
  */
 class IdeEndToEndTest {
 
@@ -81,12 +83,16 @@ class IdeEndToEndTest {
 
     private val root: Path get() = dir.resolve("ws").toAbsolutePath().normalize()
 
-    private fun scenario(platform: HostPlatform = HostPlatform.MAC_OS, block: suspend EndToEndIde.() -> Unit) =
-        runTest(timeout = 120.seconds) {
-            ide(platform).use { it.block() }
-        }
+    private fun scenario(
+        platform: HostPlatform = HostPlatform.MAC_OS,
+        reader: DslReader = DslReader(),
+        block: suspend EndToEndIde.() -> Unit,
+    ) = runTest(timeout = 120.seconds) {
+        ide(platform, reader).use { it.block() }
+    }
 
-    private fun TestScope.ide(platform: HostPlatform) = EndToEndIde(testScheduler, dir.resolve("settings"), platform)
+    private fun TestScope.ide(platform: HostPlatform, reader: DslReader) =
+        EndToEndIde(testScheduler, dir.resolve("settings"), platform, reader)
 
     @Test
     fun `prepare opens the command-line folder in the real workbench and every menu item has its command`() = scenario {
@@ -192,32 +198,39 @@ class IdeEndToEndTest {
         }
 
     /**
-     * The readers of dsl-tools log nothing while the IDE analyzes, so the logger of a dsl-tools converter logs after
-     * the analysis, while the prepared session routes what dsl-tools logs, standing in for what dsl-tools logs.
+     * What dsl-tools logs while the IDE analyzes is the failure of a reader, here a real one: a KStates text nests
+     * deeper than the reader can follow on the small stack it reads with ([SmallStackDslReader]), while the IDE's syntax
+     * analysis follows it on the large stack the scenario runs on. dsl-tools logs the failure as a warning, which reaches
+     * the Language Tools Output through the composition root and, while that is hidden, the status bar's indicator.
      */
     @Test
     fun `what dsl-tools logs is shown in the Language Tools Output, which the View menu opens`() =
-        scenario {
-            Examples.copyTo(root)
-            val session = ApplicationLogging.withDslToolsAtDebug {
-                prepare(root).also { LoggerFactory.getLogger(KMETA_CONVERTER_LOGGER).debug("Type {}: {}", "Robot", "a robot") }
+        DeepNesting.onStack(DeepNesting.LARGE_STACK) {
+            scenario(reader = SmallStackDslReader()) {
+                val folder = Files.createDirectories(root.resolve("deep"))
+                Files.writeString(folder.resolve("deep.kmeta"), "type \"T\" \"t\" {\n}\n")
+                Files.writeString(folder.resolve("deep.kstates"), DeepNesting.kstates(READER_DEPTH))
+                val session = ApplicationLogging.withDslToolsAtDebug { prepare(root) }
+                settle()
+                val output = session.state.output
+                val recent = session.state.settings.value.recentFolders.size
+                val view = resolveMenus(IdeMenus.specs(recent), session.commands).single { it.title == IdeMenus.VIEW }
+                val item = view.entries.filterIsInstance<ResolvedMenuEntry.Item>()
+                    .single { it.command.id == WorkbenchCommandIds.toggleToolWindow(ToolWindowId.OUTPUT) }
+                assertFalse(session.state.layout.state.value.toolWindow(ToolWindowId.OUTPUT).visible, "hidden by default")
+                assertTrue(session.state.statusBar.state.value.unseenOutput.warnings > 0, "the indicator counts the warning")
+
+                assertEquals("Language Tools Output", item.title)
+                assertTrue(item.invoke())
+                settle()
+
+                assertTrue(session.state.layout.state.value.toolWindow(ToolWindowId.OUTPUT).visible)
+                val failures = output.state.value.lines.filter { it.logger == KSTATES_READER_LOGGER }
+                assertTrue(failures.isNotEmpty(), "the reader's failure is shown: ${output.state.value.lines.take(5)}")
+                assertTrue(failures.all { it.level == OutputLevel.WARNING && READER_LIMIT in it.message }, "$failures")
+                assertTrue(output.state.value.unseen.isEmpty)
+                assertTrue(session.state.statusBar.state.value.unseenOutput.isEmpty)
             }
-            val output = session.state.output
-            val recent = session.state.settings.value.recentFolders.size
-            val view = resolveMenus(IdeMenus.specs(recent), session.commands).single { it.title == IdeMenus.VIEW }
-            val item = view.entries.filterIsInstance<ResolvedMenuEntry.Item>()
-                .single { it.command.id == WorkbenchCommandIds.toggleToolWindow(ToolWindowId.OUTPUT) }
-            assertFalse(session.state.layout.state.value.toolWindow(ToolWindowId.OUTPUT).visible, "hidden by default")
-
-            assertEquals("Language Tools Output", item.title)
-            assertTrue(item.invoke())
-            settle()
-
-            assertTrue(session.state.layout.state.value.toolWindow(ToolWindowId.OUTPUT).visible)
-            val converters = output.state.value.lines.filter { it.logger.endsWith("DSLConverter") }
-            assertTrue(converters.isNotEmpty(), "the converter's line is shown: ${output.state.value.lines.take(5)}")
-            assertTrue(converters.all { it.level == OutputLevel.DEBUG })
-            assertTrue(output.state.value.unseen.isEmpty)
         }
 
     /** `karpfen validate` of [folder] as text lines (the CLI's own report, through its `ValidateCommand`). */
@@ -260,8 +273,17 @@ class IdeEndToEndTest {
     }
 
     private companion object {
-        /** The logger of the KMeta converter of dsl-tools, which logs at DEBUG what it converts. */
-        const val KMETA_CONVERTER_LOGGER = "${DslToolsLoggers.PARENT}.dsl.textual.KmetaDSLConverter"
+        /** The logger of the KStates reader of dsl-tools, which logs a read that fails. */
+        const val KSTATES_READER_LOGGER = "${DslToolsLoggers.PARENT}.reader.kstates.KstatesReader"
+
+        /** What dsl-tools logs when a text nests deeper than its reader can follow. */
+        const val READER_LIMIT = "Reading a text failed, it nests deeper than the parser can recurse"
+
+        /**
+         * How deep the state machine of the reader's failure nests: too deep for a dsl-tools reader on
+         * [DeepNesting.SMALL_STACK], far from the limit of the IDE's syntax analysis on [DeepNesting.LARGE_STACK].
+         */
+        const val READER_DEPTH = 2_000
 
         /** How each platform writes the completion shortcut in its menus. */
         val COMPLETION_SHORTCUT_TEXT: Map<HostPlatform, String> = mapOf(

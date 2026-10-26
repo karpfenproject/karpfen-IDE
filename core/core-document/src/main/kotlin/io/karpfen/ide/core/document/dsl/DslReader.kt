@@ -46,8 +46,13 @@ import io.karpfen.ide.core.text.TextSnapshot
  *   diagnostic code, such as `kmodel.unknown-property`.
  * - Never throws for any input, except fatal VM errors: should a reader fail nevertheless, the failure becomes a
  *   `reader.failure` error at the start of the text and no model, as the readers report their own failures.
- * - Thread-safe: the readers keep no state between reads. They report what they find through diagnostics and log
- *   nothing, so a read adds nothing to what dsl-tools logs below the parent logger of [DslToolsLoggers].
+ * - Thread-safe: the readers keep no state between reads.
+ * - Logging: the readers report what they find through diagnostics and log nothing for it, nor for a read that
+ *   succeeds. A read that fails is a `reader.failure`, and dsl-tools also logs it below the parent logger of
+ *   [DslToolsLoggers]: as a warning without a stack trace when the text nests deeper than the reader's parser can
+ *   recurse, which a user can type, and as an error with its stack trace for a defect of the reader. The IDE shows
+ *   these events in its Language Tools Output and keeps them in its logs; the command-line tool shows them with
+ *   `--verbose`.
  * - The source text is passed unchanged, so the offsets the readers report are offsets into the snapshot.
  */
 public interface DslReader {

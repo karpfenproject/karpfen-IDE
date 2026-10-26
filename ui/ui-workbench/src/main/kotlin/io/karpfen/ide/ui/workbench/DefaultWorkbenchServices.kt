@@ -15,7 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench
 
-import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
 import io.karpfen.ide.core.lang.services.defaultLanguageServices
 import io.karpfen.ide.core.workspace.WorkspaceFactory
@@ -49,10 +49,11 @@ import java.time.Clock
  * Every time-, file-system- and toolkit-dependent collaborator is a parameter with a production default, so end-to-end
  * tests run exactly this wiring with test values: [workspaceOptions] (dispatchers, `timeSource` for undo coalescing,
  * `watch`), [fileWatcher] (a fake instead of the slow macOS `WatchService`), [clock] (settings backups),
- * [fileOperations] / [folderChooser] (the desktop adapters are headless-safe, but tests usually record calls) and
+ * [fileOperations] / [folderChooser] (the desktop adapters are headless-safe, but tests usually record calls),
  * [clipboard] (the system clipboard, created once: every editor of the workbench gets this one port, so text and the
  * whole-line mark copied in one tab are pasted in another also where the port is not the global AWT clipboard — its
- * headless in-memory fallback, a test's fake). [languageToolsOutput] has no default: it is the buffer the
+ * headless in-memory fallback, a test's fake) and [dslReader] (the readers of dsl-tools, which every workspace reads its
+ * files with; end-to-end tests make them fail on purpose). [languageToolsOutput] has no default: it is the buffer the
  * application's logging fills with what the language tools log, and the composition root passes the one it routes that
  * logging into, so no caller can end up with an output that nothing fills.
  */
@@ -72,10 +73,11 @@ public fun defaultWorkbenchServices(
     fileOperations: ProjectFileOperations = desktopProjectFileOperations(),
     folderChooser: FolderChooser = nativeFolderChooser(),
     clipboard: ClipboardPort = systemClipboard(),
+    dslReader: DslReader = DslReader(),
 ): WorkbenchServices {
     return WorkbenchServices(
         settings = SettingsRepository(settingsDirectory, ioDispatcher, clock),
-        workspaceFactory = WorkspaceFactory(workspaceOptions, fileWatcher, defaultLanguageRegistry()),
+        workspaceFactory = WorkspaceFactory(workspaceOptions, fileWatcher, dslReader),
         languageServicesFactory = { workspace -> defaultLanguageServices(workspace.analysis, files = workspace.files) },
         editorStateFactory = { session, languageServices, scope, settings, keymap ->
             CodeEditorState(

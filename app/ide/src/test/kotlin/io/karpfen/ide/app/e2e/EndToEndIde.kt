@@ -24,6 +24,7 @@ import io.karpfen.ide.app.IdeRunState
 import io.karpfen.ide.app.IdeSession
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
+import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
@@ -53,13 +54,15 @@ import kotlin.time.TestTimeSource
  * the UI scope, the workspace, the sessions, the editors' background work and the workbench's I/O; a [TestTimeSource]
  * for undo coalescing; a watcher that reports nothing; a fixed clock; recording file operations; settings below
  * [settingsDirectory]; [platform] as the platform of the keymap and the command registry, macOS unless a test chooses
- * another.
+ * another; [reader] as the readers of dsl-tools that the workspaces read with, the real ones unless a test makes them
+ * fail.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class EndToEndIde(
     val scheduler: TestCoroutineScheduler,
     settingsDirectory: Path,
     platform: HostPlatform = HostPlatform.MAC_OS,
+    private val reader: DslReader = DslReader(),
 ) : AutoCloseable {
     /** The one test dispatcher on [scheduler] that runs all of the IDE's work. */
     val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
@@ -93,6 +96,7 @@ internal class EndToEndIde(
                 fileOperations = fileOperations,
                 folderChooser = UnusedFolderChooser(),
                 languageToolsOutput = languageToolsOutput,
+                dslReader = reader,
             )
         },
     )
@@ -119,7 +123,7 @@ internal class EndToEndIde(
         IdeRunState(scope, prepare = { application.prepare(scope, folder) }).also { it.start() }
 
     /** Workspaces like the CLI's (no watching) on the same virtual time, for `ValidateCommand`. */
-    fun cliWorkspaces(): WorkspaceFactory = WorkspaceFactory(workspaceOptions.copy(watch = false))
+    fun cliWorkspaces(): WorkspaceFactory = WorkspaceFactory(workspaceOptions.copy(watch = false), reader = reader)
 
     /** Runs everything due on the virtual clock. */
     fun settle() = scheduler.advanceUntilIdle()
