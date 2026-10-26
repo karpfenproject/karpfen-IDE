@@ -24,8 +24,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 
 /**
- * [RingOutputBuffer]: lines numbered in arrival order, the oldest dropped beyond the capacity, problem counts that
- * survive dropping and clearing, a revision for every change, snapshots that are copies, and appends from many threads.
+ * [RingOutputBuffer]: lines numbered in arrival order, the oldest dropped beyond the capacity and beyond the character
+ * budget, long messages cut, problem counts that survive dropping and clearing, a revision for every change, snapshots
+ * that are copies, and appends from many threads.
  */
 class RingOutputBufferTest {
 
@@ -57,6 +58,34 @@ class RingOutputBufferTest {
 
         assertEquals(listOf("line 3", "line 4", "line 5"), buffer.snapshot().lines.map { it.message })
         assertEquals(listOf(3L, 4L, 5L), buffer.snapshot().lines.map { it.sequence })
+    }
+
+    @Test
+    fun `beyond its character budget the buffer drops the oldest lines and keeps the newest`() {
+        val buffer = RingOutputBuffer(capacity = 100, characterBudget = 10, messageLimit = 4)
+
+        (1..4).forEach { buffer.log(OutputLevel.INFO, "abc$it") }
+
+        assertEquals(listOf("abc3", "abc4"), buffer.snapshot().lines.map { it.message })
+        buffer.log(OutputLevel.ERROR, "a stack trace of many frames")
+        assertEquals(listOf("a st\n… 24 more characters"), buffer.snapshot().lines.map { it.message }, "the newest line stays")
+        buffer.clear()
+        (5..6).forEach { buffer.log(OutputLevel.INFO, "abc$it") }
+        assertEquals(listOf("abc5", "abc6"), buffer.snapshot().lines.map { it.message }, "clearing frees the budget")
+    }
+
+    @Test
+    fun `a message beyond the limit is cut with a note of how much was cut, never inside a surrogate pair`() {
+        val buffer = RingOutputBuffer(messageLimit = 5)
+
+        buffer.log(OutputLevel.ERROR, "12345")
+        buffer.log(OutputLevel.ERROR, "1234567890")
+        buffer.log(OutputLevel.ERROR, "1234\uD83D\uDE00")
+
+        assertEquals(
+            listOf("12345", "12345\n… 5 more characters", "1234\n… 2 more characters"),
+            buffer.snapshot().lines.map { it.message },
+        )
     }
 
     @Test
@@ -129,8 +158,10 @@ class RingOutputBufferTest {
     }
 
     @Test
-    fun `the capacity must be positive`() {
+    fun `the bounds must be positive and a message must fit the character budget`() {
         assertFailsWith<IllegalArgumentException> { RingOutputBuffer(capacity = 0) }
+        assertFailsWith<IllegalArgumentException> { RingOutputBuffer(messageLimit = 0) }
+        assertFailsWith<IllegalArgumentException> { RingOutputBuffer(characterBudget = 10, messageLimit = 11) }
     }
 
     private companion object {
