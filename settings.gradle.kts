@@ -53,6 +53,31 @@ rootProject.name = "karpfen-ide"
 val DEFAULT_DSL_TOOLS_PATH = "karpfen-dsl-tools"
 
 /**
+ * The source directory below which dsl-tools 2.0 and newer keep their Kotlin packages, `io.karpfen.dsl`; version 1.0
+ * kept them in root packages such as `dsl.textual` and `meta`, which the IDE no longer compiles against.
+ */
+val DSL_TOOLS_TWO_SOURCES = "src/main/kotlin/io/karpfen/dsl"
+
+/**
+ * Fails the build with a message that names [dir] and the way out when the dsl-tools checkout there is older than
+ * version 2.0 ([DSL_TOOLS_TWO_SOURCES]), such as a submodule that `git submodule update` has not moved yet or a
+ * configured checkout of version 1.0: compiling against it would otherwise end in many unresolved references and name
+ * neither the version nor the checkout.
+ */
+fun requireDslToolsTwo(dir: File, explicitlyConfigured: Boolean) {
+    if (dir.resolve(DSL_TOOLS_TWO_SOURCES).isDirectory) return
+    val remedy = if (explicitlyConfigured) {
+        "point dslToolsPath at a checkout of dsl-tools 2.0 or newer, or set it blank to resolve the artifact"
+    } else {
+        "run 'git submodule update --init' to check out the commit this repository records"
+    }
+    throw GradleException(
+        "karpfen-dsl-tools at $dir is older than version 2.0 (it has no $DSL_TOOLS_TWO_SOURCES); the IDE needs 2.0 or " +
+            "newer: $remedy",
+    )
+}
+
+/**
  * Resolves karpfen-dsl-tools, the language core of the IDE, in one of two modes.
  *
  * - Composite build: karpfen-dsl-tools is a git submodule of this repository in the directory `karpfen-dsl-tools`, and
@@ -60,6 +85,7 @@ val DEFAULT_DSL_TOOLS_PATH = "karpfen-dsl-tools"
  *   `settings.gradle.kts`), that build is included and substitutes the module `io.karpfen:karpfen-dsl-tools`, so a
  *   change that spans both repositories is a single local iteration. The included build is always named
  *   `karpfen-dsl-tools`, whatever its directory is called, so its tasks keep one path, such as `:karpfen-dsl-tools:test`.
+ *   The checkout must hold dsl-tools 2.0 or newer; an older one fails the build at once ([requireDslToolsTwo]).
  * - Artifact: otherwise the version declared in the version catalog is resolved from the repositories above. This is the
  *   fallback when the submodule is not initialized (run `git submodule update --init`) or when the composite build is
  *   switched off with a blank `dslToolsPath`. An explicitly configured path that holds no Gradle build falls back to the
@@ -92,6 +118,7 @@ run {
         ?.takeIf { dir -> dir.resolve("settings.gradle").isFile || dir.resolve("settings.gradle.kts").isFile }
 
     if (dslToolsBuildDir != null) {
+        requireDslToolsTwo(dslToolsBuildDir, explicitlyConfigured)
         settingsLogger.lifecycle("karpfen-dsl-tools: composite build from $dslToolsBuildDir")
         includeBuild(dslToolsBuildDir) {
             name = "karpfen-dsl-tools"

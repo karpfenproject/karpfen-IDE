@@ -26,8 +26,9 @@ dsl-tools is not published to a remote repository yet.
   proposal's risk list advises, and builds in composite mode until dsl-tools publishes versioned artifacts.
 
 The KDoc of the resolution block in `settings.gradle.kts` documents how the checkout is found, which version of
-dsl-tools it must hold, what happens when a configured path holds no build and how to see the active mode; the CI
-workflow `.github/workflows/build.yml` holds the pinned commit.
+dsl-tools it must hold, what happens when a configured path holds no build and how to see the active mode. Since the
+[decision that required repositories are git submodules](0015-required-repositories-are-git-submodules.md), the
+submodule commit this repository records is the pinned commit, and the CI workflow checks it out with the repository.
 
 ## Consequences
 
@@ -39,4 +40,4 @@ workflow `.github/workflows/build.yml` holds the pinned commit.
   dsl-tools 2.0 generates its parsers at build time, so both modes now keep the configuration cache.
 - dsl-tools 2.0 also moved its packages below `io.karpfen.dsl`, and the IDE builds against that version, so a checkout
   used for the composite build must hold dsl-tools 2.0 or newer; an older one, such as a submodule that still pins
-  version 1.0, no longer compiles with the IDE.
+  version 1.0, no longer compiles with the IDE, and the settings stop the build with a message that says so.

@@ -144,11 +144,12 @@ describes:
 2. **Artifact**, the fallback when the submodule is not initialized or `dslToolsPath` is blank: the version of the
    version catalog is resolved from the repositories of the build. The build never publishes anywhere itself.
 
-Either way the IDE needs dsl-tools 2.0 or newer, whose packages lie below `io.karpfen.dsl`. Both modes keep the
-configuration cache, since dsl-tools generates its parsers at build time. The build log names the active mode, except
-when the configuration cache is reused; `--no-configuration-cache` shows it then. The KDoc of the resolution block in
-`settings.gradle.kts` documents how the path is found. CI checks the submodule out together with this repository, so
-a submodule commit must be pushed to the dsl-tools repository before CI can build the commit that points to it.
+Either way the IDE needs dsl-tools 2.0 or newer, whose packages lie below `io.karpfen.dsl`; a composite checkout of an
+older version stops the build with a message that names it. Both modes keep the configuration cache, since dsl-tools
+generates its parsers at build time. The build log names the active mode, except when the configuration cache is
+reused; `--no-configuration-cache` shows it then. The KDoc of the resolution block in `settings.gradle.kts` documents
+how the path is found. CI checks the submodule out together with this repository, so a submodule commit must be pushed
+to the dsl-tools repository before CI can build the commit that points to it.
 
 ## Modules
 
