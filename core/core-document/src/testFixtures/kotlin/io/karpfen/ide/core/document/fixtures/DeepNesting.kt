@@ -15,6 +15,8 @@
  */
 package io.karpfen.ide.core.document.fixtures
 
+import org.slf4j.MDC
+
 /**
  * KStates documents that nest deep, and threads with a chosen stack size, which decides how deep a recursive parser can
  * follow. The parsers of the karpfen languages descend once per nesting level, so a text runs a parser out of stack when
@@ -81,11 +83,18 @@ public object DeepNesting {
 
     /**
      * Runs [block] on a new thread with a stack of [stackBytes] and returns its result; what [block] throws is thrown
-     * again on the calling thread, which waits until the new one ends.
+     * again on the calling thread, which waits until the new one ends. The new thread starts with the mapped diagnostic
+     * context of the logging of the calling thread, so what is logged on it names what the caller names, such as the
+     * file a reader of dsl-tools reads.
      */
     public fun <T> onStack(stackBytes: Long, block: () -> T): T {
+        val logging: Map<String, String>? = MDC.getCopyOfContextMap()
         var result: Result<T>? = null
-        val thread = Thread(null, { result = runCatching(block) }, "stack-${stackBytes / 1024}k", stackBytes)
+        val run = {
+            logging?.let(MDC::setContextMap)
+            result = runCatching(block)
+        }
+        val thread = Thread(null, run, "stack-${stackBytes / 1024}k", stackBytes)
         thread.start()
         thread.join()
         return checkNotNull(result) { "the thread ended without a result" }.getOrThrow()

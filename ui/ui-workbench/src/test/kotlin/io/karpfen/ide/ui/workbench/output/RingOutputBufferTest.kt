@@ -32,19 +32,19 @@ class RingOutputBufferTest {
 
     private val time: Instant = Instant.parse("2026-10-22T10:15:30.123Z")
 
-    private fun RingOutputBuffer.log(level: OutputLevel, message: String) = append(time, level, "io.karpfen.dsl.Test", message)
+    private fun RingOutputBuffer.log(level: OutputLevel, message: String) = append(time, level, "io.karpfen.dsl.Test", message, null)
 
     @Test
     fun `lines are numbered from 1 in arrival order and keep what was logged`() {
         val buffer = RingOutputBuffer()
 
         buffer.log(OutputLevel.DEBUG, "first")
-        buffer.append(time, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "second")
+        buffer.append(time, OutputLevel.WARNING, "io.karpfen.dsl.reader.kmeta.KmetaReader", "second", "/work/robot/robot.kmeta")
 
         assertEquals(
             listOf(
                 OutputLine(1, time, OutputLevel.DEBUG, "io.karpfen.dsl.Test", "first"),
-                OutputLine(2, time, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "second"),
+                OutputLine(2, time, OutputLevel.WARNING, "io.karpfen.dsl.reader.kmeta.KmetaReader", "second", "/work/robot/robot.kmeta"),
             ),
             buffer.snapshot().lines,
         )

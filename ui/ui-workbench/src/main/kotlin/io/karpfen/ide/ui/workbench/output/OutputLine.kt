@@ -46,6 +46,8 @@ public enum class OutputLevel(public val label: String) {
  * @property logger the name of the logger that logged it, such as `io.karpfen.dsl.reader.kstates.KstatesReader`.
  * @property message the formatted message; the stack trace of an exception follows it on further lines, each line
  *   separated by [LINE_BREAK].
+ * @property file the path of the file the language tools read when they logged the event, as the IDE named it to them;
+ *   null for an event logged outside a read.
  */
 public data class OutputLine(
     public val sequence: Long,
@@ -53,6 +55,7 @@ public data class OutputLine(
     public val level: OutputLevel,
     public val logger: String,
     public val message: String,
+    public val file: String? = null,
 ) {
     public companion object {
         /** Separates the lines of a [message], on every platform. */

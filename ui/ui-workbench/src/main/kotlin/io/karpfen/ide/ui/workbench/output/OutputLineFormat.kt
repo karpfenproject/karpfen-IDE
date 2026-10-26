@@ -21,8 +21,9 @@ import java.time.format.DateTimeFormatter
 /**
  * How the Language Tools Output writes a line, presentation only, so the composable just renders the texts: the time
  * in [zone] as `HH:mm:ss.SSS`, the level's label padded to the longest label, so the columns of the monospace view line
- * up, the logger's simple name and the message. The simple name is the part of the logger's name after its last dot,
- * the class that logged, since every logger of the language tools shares the same long package prefix.
+ * up, the logger's simple name, the file the language tools read, if any, in brackets, and the message. The simple
+ * name is the part of the logger's name after its last dot, the class that logged, since every logger of the language
+ * tools shares the same long package prefix.
  */
 internal class OutputLineFormat(private val zone: ZoneId = ZoneId.systemDefault()) {
 
@@ -34,6 +35,9 @@ internal class OutputLineFormat(private val zone: ZoneId = ZoneId.systemDefault(
 
     /** The simple name of the logger of [line]. */
     fun logger(line: OutputLine): String = line.logger.substringAfterLast('.')
+
+    /** The file of [line] in brackets, such as `[/work/robot/robot.kstates]`; null for a line without a file. */
+    fun file(line: OutputLine): String? = line.file?.let { "[$it]" }
 
     private companion object {
         /** Hours, minutes, seconds and milliseconds. */

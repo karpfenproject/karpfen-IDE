@@ -43,6 +43,10 @@ import java.nio.file.Path
  * [AnalysisSources.load]) is an ERROR `unreadable` in [ProjectAnalysis.diagnostics], so nothing is skipped silently. The
  * result follows the conventions documented on [ProjectAnalysis] (paths, snapshots, parse modes).
  *
+ * The default analyzer remembers its reads: a file whose text and metamodel are those of its read in an earlier run is
+ * not read again, so an unchanged file that dsl-tools cannot read is reported on every run but read, and logged by
+ * dsl-tools, once. What dsl-tools logs while it reads a file names that file (`DslToolsLoggers.FILE_KEY`).
+ *
  * Cancellable (checks for cancellation between files) and never throws otherwise.
  */
 public fun interface ProjectAnalyzer {

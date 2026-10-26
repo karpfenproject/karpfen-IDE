@@ -6,13 +6,14 @@
   What karpfen-dsl-tools logs, below the logger io.karpfen.dsl (DslToolsLoggers names it), is off: every problem
   dsl-tools finds reaches the report as a diagnostic anyway. The logger passes its events on to the root logger, so
   validate with verbose, which raises it to DEBUG for the run (LogbackLanguageToolsLog), shows everything dsl-tools
-  logs on standard error as well.
+  logs on standard error as well, with the file it read in brackets after the logger: while dsl-tools reads a file, the
+  mapped diagnostic context names it under karpfen.file (DslToolsLoggers names the key).
 -->
 <configuration>
     <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.err</target>
         <encoder>
-            <pattern>%-5level %logger{36} - %msg%n</pattern>
+            <pattern>%-5level %logger{36} %replace([%X{karpfen.file}] ){'\[\] ', ''}- %msg%n</pattern>
         </encoder>
     </appender>
     <logger name="io.karpfen.dsl" level="OFF"/>

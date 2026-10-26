@@ -23,8 +23,11 @@ import java.time.Instant
  * from any thread, such as the analysis thread, so implementations are thread-safe and do not block for long.
  */
 public fun interface OutputSink {
-    /** Appends the event logged at [time] by [logger] with [level] and the formatted [message]. */
-    public fun append(time: Instant, level: OutputLevel, logger: String, message: String)
+    /**
+     * Appends the event logged at [time] by [logger] with [level] and the formatted [message], while the language tools
+     * read [file], if they read one.
+     */
+    public fun append(time: Instant, level: OutputLevel, logger: String, message: String, file: String?)
 }
 
 /**

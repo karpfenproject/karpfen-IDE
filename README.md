@@ -93,8 +93,8 @@ a throw-away run.
 
 What karpfen-dsl-tools logs never appears on the IDE's console. Its readers, with which the IDE analyzes the files,
 report every problem as a diagnostic; they log only a read that fails, which is a problem too, and the contract of
-`DslReader` says how. What dsl-tools logs goes to View ▸ Language Tools Output, a tool window below Problems that shows it line by line with level, logger and message; it follows new output
-and can be cleared. The same lines go to `logs/dsl-tools.log` next to the IDE log, and the warnings and errors among
+`DslReader` says how. What dsl-tools logs goes to View ▸ Language Tools Output, a tool window below Problems that shows it line by line with
+level, logger, the file dsl-tools read and message; it follows new output and can be cleared. The same lines go to `logs/dsl-tools.log` next to the IDE log, and the warnings and errors among
 them are forwarded to `logs/ide.log` as well. When warnings or errors arrive while the tool window is hidden, the status
 bar shows `Language tools: n`, which opens it. `app/ide/src/main/resources/logback.xml` describes the routing.
 

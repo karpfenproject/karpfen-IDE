@@ -24,10 +24,17 @@ package io.karpfen.ide.core.document.dsl
  * The applications route this logging by the parent's name: the IDE keeps it off its console and shows it in its
  * Language Tools Output, and the command-line tool keeps it off unless asked for with `--verbose`. Their logging
  * configurations name the same logger, and their tests check that both agree with [PARENT].
+ *
+ * dsl-tools logs a read without naming the text it reads. The project analysis therefore puts the path of the file it
+ * hands a reader into the mapped diagnostic context of SLF4J under [FILE_KEY] for the length of the read, so every event
+ * logged during the read carries it: the Language Tools Output shows it, and the logging configurations write it.
  */
 public object DslToolsLoggers {
     /** The name of the parent logger of every logger of dsl-tools. */
     public const val PARENT: String = "io.karpfen.dsl"
+
+    /** The key under which the mapped diagnostic context names the file that dsl-tools reads, by its path. */
+    public const val FILE_KEY: String = "karpfen.file"
 
     /** True if [loggerName] names [PARENT] or a logger below it. */
     public fun isDslToolsLogger(loggerName: String): Boolean = loggerName == PARENT || loggerName.startsWith("$PARENT.")

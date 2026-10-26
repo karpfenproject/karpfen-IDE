@@ -163,7 +163,7 @@ class WorkbenchFocusUiTest {
                 assertTrue(editor.isFocused.value, "the editor has the focus after toggle ${step + 1} of $id")
             }
         }
-        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.WARNING, "io.karpfen.dsl.reader.kstates.KstatesReader", "deep")
+        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.WARNING, "io.karpfen.dsl.reader.kstates.KstatesReader", "deep", null)
         settle()
         tagged(StatusBarTestTags.item(LANGUAGE_TOOLS_INDICATOR)).performClick()
         settle()

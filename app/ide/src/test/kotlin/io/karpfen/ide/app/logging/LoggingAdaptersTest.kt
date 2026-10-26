@@ -18,7 +18,9 @@ package io.karpfen.ide.app.logging
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.spi.LoggingEvent
+import ch.qos.logback.classic.util.LogbackMDCAdapter
 import ch.qos.logback.core.spi.FilterReply
+import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import io.karpfen.ide.ui.workbench.output.OutputLevel
 import io.karpfen.ide.ui.workbench.output.OutputLine
 import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
@@ -35,7 +37,7 @@ import kotlin.test.assertTrue
  */
 class LoggingAdaptersTest {
 
-    private val context = LoggerContext()
+    private val context = LoggerContext().apply { setMDCAdapter(LogbackMDCAdapter()) }
 
     private fun event(logger: String, level: Level, message: String, vararg arguments: Any?, error: Throwable? = null) =
         LoggingEvent(LoggingAdaptersTest::class.java.name, context.getLogger(logger), level, message, error, arguments)
@@ -58,6 +60,20 @@ class LoggingAdaptersTest {
             ),
             output.snapshot().lines,
         )
+    }
+
+    @Test
+    fun `the appender hands on the file that the logging context names while dsl-tools reads it`() {
+        val output = RingOutputBuffer()
+        val appender = OutputSinkAppender(output).apply { context = this@LoggingAdaptersTest.context; start() }
+        val read = event("io.karpfen.dsl.reader.kstates.KstatesReader", Level.WARN, "Reading a text failed")
+        read.setMDCPropertyMap(mapOf(DslToolsLoggers.FILE_KEY to "/work/robot/robot.kstates"))
+        read.setInstant(Instant.parse("2026-10-22T10:15:30.123Z"))
+
+        appender.doAppend(read)
+        appender.doAppend(event("io.karpfen.dsl.X", Level.WARN, "outside a read"))
+
+        assertEquals(listOf("/work/robot/robot.kstates", null), output.snapshot().lines.map { it.file })
     }
 
     @Test

@@ -95,8 +95,8 @@ class ValidateCliTest {
      * What dsl-tools logs while a workspace analyzes is the failure of a reader, here a real one: a KStates text within
      * the nesting limit nests deeper than the reader can follow on the small stack it reads with ([SmallStackDslReader]),
      * while the IDE's syntax analysis follows it on the large stack the validation runs on. The failure is a
-     * `reader.failure` in the report either way; dsl-tools logs it as a warning, which `--verbose` shows on standard
-     * error and which stays off without it.
+     * `reader.failure` in the report either way; dsl-tools logs it as a warning naming the file, which `--verbose` shows
+     * on standard error and which stays off without it.
      */
     @Test
     fun `verbose shows what dsl-tools logs on standard error and leaves standard output to the report`() =
@@ -114,8 +114,9 @@ class ValidateCliTest {
                 assertEquals("", quiet.stderr, "without verbose nothing of what dsl-tools logs is shown")
                 assertEquals(quiet, verbose.copy(stderr = ""), "verbose changes standard error only")
                 val logged = verbose.stderr.lines().filter { it.isNotEmpty() }
+                val failed = "KstatesReader [${root.resolve("deep.kstates").toAbsolutePath().normalize()}] - $READER_LIMIT"
                 assertTrue(logged.isNotEmpty(), "the reader's failure is logged")
-                assertTrue(logged.all { DSL_TOOLS_LINE.containsMatchIn(it) && " WARN " in it && READER_LIMIT in it }, verbose.stderr)
+                assertTrue(logged.all { DSL_TOOLS_LINE.containsMatchIn(it) && " WARN " in it && failed in it }, verbose.stderr)
                 assertFalse(LoggerFactory.getLogger(DslToolsLoggers.PARENT).isErrorEnabled, "the verbose run turned dsl-tools off again")
             }
         }
@@ -418,7 +419,7 @@ class ValidateCliTest {
         const val READER_FAILURE = "reader.failure"
 
         /** What dsl-tools logs when a text nests deeper than its reader can follow. */
-        const val READER_LIMIT = "KstatesReader - Reading a text failed, it nests deeper than the parser can recurse"
+        const val READER_LIMIT = "Reading a text failed, it nests deeper than the parser can recurse"
 
         /**
          * A line that the test configuration's console writes for an event of a dsl-tools logger, whose name the

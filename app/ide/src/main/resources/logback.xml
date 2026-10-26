@@ -13,6 +13,9 @@
   holds back the rest there). The composition root attaches one more appender to the same logger at runtime,
   LanguageToolsLogRouting, which fills the workbench's Language Tools Output, shown on demand.
 
+  While dsl-tools reads a file, the mapped diagnostic context names it under karpfen.file (DslToolsLoggers names the
+  key); both log files write it in brackets after the logger, and leave the brackets out for an event without it.
+
   Tests use the console-only src/test/resources/logback-test.xml instead.
 -->
 <configuration>
@@ -41,7 +44,7 @@
             <totalSizeCap>200MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} %replace([%X{karpfen.file}] ){'\[\] ', ''}- %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -54,7 +57,7 @@
             <totalSizeCap>100MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} %replace([%X{karpfen.file}] ){'\[\] ', ''}- %msg%n</pattern>
         </encoder>
     </appender>
 

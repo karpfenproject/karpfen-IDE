@@ -116,6 +116,14 @@ class OutputViewUiTest {
     }
 
     @Test
+    fun `a line logged while a file was read names the file`() = runComposeUiTest {
+        view(OutputUiState(lines = listOf(line(1, OutputLevel.WARNING, "failed").copy(file = "/work/robot/robot.kstates"))))
+
+        onNodeWithTag(OutputViewTestTags.line(1))
+            .assertTextContains("KmetaDSLConverter [/work/robot/robot.kstates] - failed", substring = true)
+    }
+
+    @Test
     fun `without output the view says so and Clear is disabled`() = runComposeUiTest {
         view(OutputUiState())
 

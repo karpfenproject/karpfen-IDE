@@ -19,12 +19,15 @@ import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.dsl.DslReader
+import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import io.karpfen.ide.core.document.dsl.ReadResult
 import io.karpfen.ide.core.document.environment.DescriptorFileRole
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.context.ModelingContext
 import io.karpfen.ide.core.workspace.diagnostics.DiagnosticsByFile
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import org.slf4j.MDC
 import java.nio.file.Path
 
 /**
@@ -42,14 +45,22 @@ import java.nio.file.Path
  * a property whose type the metamodel misspells would report that property as unknown). So a dependent file that is
  * skipped reports nothing of its own while the metamodel's own errors, syntax or DSL_TOOLS, explain it. Checks for
  * cancellation between reads.
+ *
+ * A file whose text and input are those of its last read in an earlier analysis is not read again: [memory] answers
+ * with that read. While a file is read, the mapped diagnostic context of the logging names it under
+ * [DslToolsLoggers.FILE_KEY], so what dsl-tools logs during the read says which file it was.
  */
-internal class ContextReader(private val reader: DslReader, private val problems: DiagnosticsByFile) {
+internal class ContextReader(
+    private val reader: DslReader,
+    private val memory: ReadMemory,
+    private val problems: DiagnosticsByFile,
+) {
 
     /** The analysis of [context] whose readable files are [files] (by path). */
     suspend fun read(context: ModelingContext, files: Map<Path, AnalyzedFile>): ContextAnalysis {
         val metamodel = context.metamodel
             ?.let { readable(files, it, DescriptorFileRole.METAMODEL) }
-            ?.let { file -> record(file, reader.kmeta(file.snapshot)) }
+            ?.let { file -> read(file, memory.metamodels, input = null) { reader.kmeta(it) } }
         val domain = metamodel?.takeUnless { it.hasErrors }?.model
         return ContextAnalysis(
             context = context,
@@ -65,14 +76,14 @@ internal class ContextReader(private val reader: DslReader, private val problems
     private suspend fun readEvents(context: ModelingContext, files: Map<Path, AnalyzedFile>, domain: Metamodel): Metamodel? =
         context.events
             ?.let { readable(files, it, DescriptorFileRole.EVENTS) }
-            ?.let { file -> record(file, reader.kmeta(file.snapshot, baseTypes = domain.types)).model }
+            ?.let { file -> read(file, memory.metamodels, input = domain) { reader.kmeta(it, baseTypes = domain.types) }.model }
 
     /** The models of [context] read against [domain], by path. */
     private suspend fun readModels(context: ModelingContext, files: Map<Path, AnalyzedFile>, domain: Metamodel): Map<Path, Model> {
         val models = LinkedHashMap<Path, Model>()
         for (path in context.models) {
             val file = readable(files, path, DescriptorFileRole.MODEL) ?: continue
-            record(file, reader.kmodel(file.snapshot, domain)).model?.let { models[path] = it }
+            read(file, memory.models, input = domain) { reader.kmodel(it, domain) }.model?.let { models[path] = it }
         }
         return models
     }
@@ -82,7 +93,7 @@ internal class ContextReader(private val reader: DslReader, private val problems
         val stateMachines = LinkedHashMap<Path, StateMachine>()
         for (binding in context.stateMachines) {
             val file = readable(files, binding.file, DescriptorFileRole.STATE_MACHINE) ?: continue
-            record(file, reader.kstates(file.snapshot)).model?.let { stateMachines[binding.file] = it }
+            read(file, memory.stateMachines, input = null) { reader.kstates(it) }.model?.let { stateMachines[binding.file] = it }
         }
         return stateMachines
     }
@@ -93,9 +104,22 @@ internal class ContextReader(private val reader: DslReader, private val problems
         return files[path]?.takeIf { it.parse.isSyntaxClean && it.parse.language == role.language }
     }
 
-    /** Records the diagnostics of [read] on [file] and returns [read]. */
-    private fun <T : Any> record(file: AnalyzedFile, read: ReadResult<T>): ReadResult<T> {
-        problems.add(file.path, read.diagnostics)
-        return read
+    /**
+     * Reads [file] against [input] with [read], unless [remembered] still holds its read, records the diagnostics of the
+     * result on [file] and returns the result.
+     */
+    private fun <T : Any> read(
+        file: AnalyzedFile,
+        remembered: RememberedReads<T>,
+        input: Any?,
+        read: (TextSnapshot) -> ReadResult<T>,
+    ): ReadResult<T> {
+        val result = remembered.read(file.path, file.snapshot, input) { snapshot -> namingFile(file) { read(snapshot) } }
+        problems.add(file.path, result.diagnostics)
+        return result
     }
+
+    /** Runs [read] with [file] named in the mapped diagnostic context of the logging, see [DslToolsLoggers.FILE_KEY]. */
+    private fun <T> namingFile(file: AnalyzedFile, read: () -> T): T =
+        MDC.putCloseable(DslToolsLoggers.FILE_KEY, file.path.toString()).use { read() }
 }

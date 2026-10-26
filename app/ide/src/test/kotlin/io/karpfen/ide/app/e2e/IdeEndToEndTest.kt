@@ -201,16 +201,15 @@ class IdeEndToEndTest {
     /**
      * What dsl-tools logs while the IDE analyzes is the failure of a reader, here a real one: a KStates text within the
      * nesting limit nests deeper than the reader can follow on the small stack it reads with ([SmallStackDslReader]),
-     * while the IDE's syntax analysis follows it on the large stack the scenario runs on. dsl-tools logs the failure as a warning, which reaches
-     * the Language Tools Output through the composition root and, while that is hidden, the status bar's indicator.
+     * while the IDE's syntax analysis follows it on the large stack the scenario runs on. dsl-tools logs the failure as
+     * a warning, which reaches the Language Tools Output through the composition root and, while that is hidden, the
+     * status bar's indicator.
      */
     @Test
     fun `what dsl-tools logs is shown in the Language Tools Output, which the View menu opens`() =
         DeepNesting.onStack(DeepNesting.LARGE_STACK) {
             scenario(reader = SmallStackDslReader()) {
-                val folder = Files.createDirectories(root.resolve("deep"))
-                Files.writeString(folder.resolve("deep.kmeta"), "type \"T\" \"t\" {\n}\n")
-                Files.writeString(folder.resolve("deep.kstates"), DeepNesting.guardedKstates(READER_DEPTH))
+                deepContext()
                 val session = ApplicationLogging.withDslToolsAtDebug { prepare(root) }
                 settle()
                 val output = session.state.output
@@ -233,6 +232,40 @@ class IdeEndToEndTest {
                 assertTrue(session.state.statusBar.state.value.unseenOutput.isEmpty)
             }
         }
+
+    /**
+     * An unchanged file that a reader of dsl-tools fails on is read once however often the workspace is analyzed, so
+     * the Language Tools Output and the status bar's indicator show its failure once, and the line names the file.
+     */
+    @Test
+    fun `the reader failure of an unchanged file is shown once, with the file`() =
+        DeepNesting.onStack(DeepNesting.LARGE_STACK) {
+            scenario(reader = SmallStackDslReader()) {
+                val machine = deepContext().resolve("deep.kstates")
+                val session = ApplicationLogging.withDslToolsAtDebug {
+                    prepare(root).also { prepared -> repeat(3) { checkNotNull(prepared.state.workspace.value).awaitAnalysis() } }
+                }
+                settle()
+
+                val failures = session.state.output.state.value.lines.filter { it.logger == KSTATES_READER_LOGGER }
+                assertEquals(listOf(machine.toString()), failures.map { it.file })
+                assertEquals(1L, session.state.statusBar.state.value.unseenOutput.warnings)
+                val problems = session.state.problems.state.value.groups.flatMap { group -> group.items.map { it.diagnostic.code } }
+                assertEquals(listOf(READER_FAILURE), problems, "the failure is still reported")
+            }
+        }
+
+    /**
+     * Writes a modeling context into the folder `deep` of the workspace: a metamodel and a state machine whose action
+     * nests [READER_DEPTH] guards deep, more than a reader of dsl-tools follows on [DeepNesting.SMALL_STACK]; returns the
+     * folder.
+     */
+    private fun deepContext(): Path {
+        val folder = Files.createDirectories(root.resolve("deep"))
+        Files.writeString(folder.resolve("deep.kmeta"), "type \"T\" \"t\" {\n}\n")
+        Files.writeString(folder.resolve("deep.kstates"), DeepNesting.guardedKstates(READER_DEPTH))
+        return folder
+    }
 
     /** `karpfen validate` of [folder] as text lines (the CLI's own report, through its `ValidateCommand`). */
     private suspend fun EndToEndIde.validate(folder: Path): List<String> {
@@ -279,6 +312,9 @@ class IdeEndToEndTest {
 
         /** What dsl-tools logs when a text nests deeper than its reader can follow. */
         const val READER_LIMIT = "Reading a text failed, it nests deeper than the parser can recurse"
+
+        /** The code of dsl-tools for a read that failed. */
+        const val READER_FAILURE = "reader.failure"
 
         /**
          * How many guards the action of the reader's failure nests in: too many for a dsl-tools reader on

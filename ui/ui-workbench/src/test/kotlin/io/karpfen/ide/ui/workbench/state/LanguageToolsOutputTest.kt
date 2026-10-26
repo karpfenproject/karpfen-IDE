@@ -47,8 +47,8 @@ class LanguageToolsOutputTest {
             state.start()
             settle()
 
-            languageToolsOutput.append(loggedAt, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "syntax error")
-            languageToolsOutput.append(loggedAt, OutputLevel.DEBUG, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", "Type Robot")
+            languageToolsOutput.append(loggedAt, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "syntax error", null)
+            languageToolsOutput.append(loggedAt, OutputLevel.DEBUG, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", "Type Robot", null)
             settle()
 
             assertEquals(listOf("syntax error", "Type Robot"), state.output.state.value.lines.map { it.message })
@@ -73,7 +73,7 @@ class LanguageToolsOutputTest {
             state.start()
             settle()
 
-            languageToolsOutput.append(loggedAt, OutputLevel.ERROR, "io.karpfen.dsl.X", "failed")
+            languageToolsOutput.append(loggedAt, OutputLevel.ERROR, "io.karpfen.dsl.X", "failed", null)
             settle()
 
             assertTrue(state.statusBar.state.value.unseenOutput.isEmpty)

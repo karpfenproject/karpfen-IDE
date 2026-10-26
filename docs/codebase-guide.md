@@ -133,7 +133,8 @@ below, which the `Workspace` factory function creates.
   descriptors open in editors (`OpenDescriptors`) and reads them from their editor texts, so their findings, the
   contexts and the analysis follow unsaved edits.
 - **Analysis.** The `analysis` package reads every context with dsl-tools: `ProjectAnalyzer` documents the rules,
-  `DefaultProjectAnalyzer` implements them with `ContextReader`, `ProjectAnalysis` is the result, and
+  `DefaultProjectAnalyzer` implements them with `ContextReader`, which reads only what changed since the last run
+  (`RememberedReads`) and names the file it reads in the logging context, `ProjectAnalysis` is the result, and
   `AnalysisScheduler` runs the analysis again, debounced and cancellable, when the contexts or the open documents
   change. `ContextSymbols` answers what the analyzed files declare that descriptors refer to (objects, `ATTACHED TO`
   types, event domains); the descriptor's language services and the template of new descriptors both ask it.

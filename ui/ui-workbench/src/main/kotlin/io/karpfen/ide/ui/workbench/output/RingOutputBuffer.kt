@@ -54,7 +54,7 @@ public class RingOutputBuffer(
 
     override val revision: StateFlow<Long> get() = changes.asStateFlow()
 
-    override fun append(time: Instant, level: OutputLevel, logger: String, message: String) {
+    override fun append(time: Instant, level: OutputLevel, logger: String, message: String, file: String?) {
         val kept = cut(message)
         synchronized(lock) {
             lastSequence++
@@ -63,7 +63,7 @@ public class RingOutputBuffer(
                 OutputLevel.WARNING -> warnings++
                 else -> Unit
             }
-            lines.addLast(OutputLine(lastSequence, time, level, logger, kept))
+            lines.addLast(OutputLine(lastSequence, time, level, logger, kept, file))
             characters += kept.length
             dropOldestBeyondBounds()
             changes.value++

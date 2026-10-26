@@ -26,21 +26,28 @@ import java.nio.file.Path
  * [ProjectAnalyzer]. A coordinator over two collaborators per run: [AnalyzedFiles] (loading, tokenizing and parsing
  * each file once) and [ContextReader] (the dsl-tools reads of one context). The project diagnostics start with the
  * resolution's diagnostics; the reads add their DSL_TOOLS diagnostics.
+ *
+ * The analyzer of a workspace remembers the reads of its runs ([ReadMemory]), so a run reads only the files whose text
+ * or metamodel changed since; each run forgets the reads of the files that no context names any more.
  */
 internal class DefaultProjectAnalyzer(
     private val languages: LanguageRegistry,
     private val reader: DslReader,
 ) : ProjectAnalyzer {
 
+    /** The reads of the earlier runs. */
+    private val memory = ReadMemory()
+
     override suspend fun analyze(resolution: ContextResolution, sources: AnalysisSources, generation: Long): ProjectAnalysis {
         val diagnostics = DiagnosticsByFile().apply { addAll(resolution.diagnostics) }
         val files = AnalyzedFiles(languages, sources, diagnostics)
-        val reads = ContextReader(reader, diagnostics)
+        val reads = ContextReader(reader, memory, diagnostics)
         val contexts = resolution.contexts.map { context ->
             val contextFiles = LinkedHashMap<Path, AnalyzedFile>()
             for (path in context.files) files.get(path)?.let { contextFiles[path] = it }
             reads.read(context, contextFiles)
         }
+        memory.retainOnly(resolution.contexts.flatMapTo(HashSet()) { it.files })
         val looseFiles = LinkedHashMap<Path, AnalyzedFile>()
         for (path in resolution.looseFiles) files.get(path)?.let { looseFiles[path] = it }
         return ProjectAnalysis(generation, contexts, diagnostics.build(), looseFiles)

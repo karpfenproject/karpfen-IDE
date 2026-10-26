@@ -124,7 +124,7 @@ class WorkbenchUiTest {
     @Test
     fun `the Language Tools Output opens from its toggle and shows what the language tools logged`() = workbenchUiTest(dir) {
         openExamples()
-        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.DEBUG, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", "Type Robot")
+        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.DEBUG, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", "Type Robot", null)
         settle()
         test.onNodeWithTag(WorkbenchTestTags.toolWindow(ToolWindowId.OUTPUT)).assertDoesNotExist()
 
@@ -148,7 +148,7 @@ class WorkbenchUiTest {
         val indicator = StatusBarTestTags.item("language_tools_warnings")
         test.onNodeWithTag(indicator).assertDoesNotExist()
 
-        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "syntax error")
+        workbench.languageToolsOutput.append(LOGGED_AT, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "syntax error", null)
         settle()
         tagged(indicator).assertTextEquals("Language tools: 1")
 

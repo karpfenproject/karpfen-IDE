@@ -40,7 +40,7 @@ class OutputStateTest {
     private val visible = MutableStateFlow(false)
 
     private fun log(level: OutputLevel, message: String = level.name) =
-        buffer.append(time, level, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", message)
+        buffer.append(time, level, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", message, null)
 
     private fun TestScope.boundState(): OutputState =
         OutputState(backgroundScope, buffer).also { it.bindVisibility(visible) }
@@ -87,8 +87,8 @@ class OutputStateTest {
         val small = RingOutputBuffer(capacity = 1)
         val state = OutputState(backgroundScope, small).also { it.bindVisibility(visible) }
 
-        small.append(time, OutputLevel.ERROR, "io.karpfen.dsl.X", "lost")
-        small.append(time, OutputLevel.DEBUG, "io.karpfen.dsl.X", "kept")
+        small.append(time, OutputLevel.ERROR, "io.karpfen.dsl.X", "lost", null)
+        small.append(time, OutputLevel.DEBUG, "io.karpfen.dsl.X", "kept", null)
         runCurrent()
         assertEquals(listOf("kept"), state.state.value.lines.map { it.message })
         assertEquals(UnseenOutputProblems(errors = 1), state.state.value.unseen)
@@ -131,7 +131,7 @@ class OutputStateTest {
     }
 
     @Test
-    fun `a line is written with its local time, padded level and the logger's simple name`() {
+    fun `a line is written with its local time, padded level, the logger's simple name and its file`() {
         val format = OutputLineFormat(ZoneOffset.ofHours(2))
         val line = OutputLine(7, time, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "KMeta syntax error")
 
@@ -140,6 +140,8 @@ class OutputStateTest {
         assertEquals("ERROR", format.level(line.copy(level = OutputLevel.ERROR)))
         assertEquals("KmetaFileParser", format.logger(line))
         assertEquals("root", format.logger(line.copy(logger = "root")))
+        assertEquals(null, format.file(line))
+        assertEquals("[/work/robot.kmeta]", format.file(line.copy(file = "/work/robot.kmeta")))
     }
 
     /** An [OutputBuffer] over [buffer] that counts the snapshots read. */

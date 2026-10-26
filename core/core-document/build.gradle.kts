@@ -46,4 +46,5 @@ dependencies {
     implementation(libs.slf4j.api)
 
     testImplementation(libs.kotlinx.coroutines.test)
+    testFixturesImplementation(libs.slf4j.api)
 }
