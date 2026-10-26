@@ -39,8 +39,8 @@ Tools Output and with `karpfen validate --verbose`. Diagrams, the runtime and th
   an older JDK.
 - Network access to the Gradle Plugin Portal, Maven Central and Google Maven, and, for downloading a JDK, to the
   foojay discovery API (`api.foojay.io`) and the JDK vendor's download host.
-- karpfen-dsl-tools, either as a checkout next to this repository or in your local Maven repository; see
-  [karpfen-dsl-tools resolution](#karpfen-dsl-tools-resolution) below.
+- The git submodules: clone with `git clone --recurse-submodules`, or run `git submodule update --init` in an existing
+  clone. karpfen-dsl-tools is a submodule; see [karpfen-dsl-tools resolution](#karpfen-dsl-tools-resolution) below.
 
 ### Gradle tasks
 
@@ -132,25 +132,23 @@ JSON formats.
 
 ## karpfen-dsl-tools resolution
 
-The IDE depends on `io.karpfen:karpfen-dsl-tools` and resolves it in one of two modes, as the
-[decision on how dsl-tools is resolved](docs/adr/0010-dsl-tools-resolution-modes.md) records:
+The IDE depends on `io.karpfen:karpfen-dsl-tools`. karpfen-dsl-tools is a git submodule of this repository in the
+directory `karpfen-dsl-tools`, as the decision that
+[required repositories are git submodules](docs/adr/0015-required-repositories-are-git-submodules.md) records, and the
+build resolves it in one of two modes, as the [decision on how dsl-tools is resolved](docs/adr/0010-dsl-tools-resolution-modes.md)
+describes:
 
-1. **Composite build**, for working on both repositories at once: a dsl-tools checkout next to this repository
-   (`../karpfen-dsl-tools`), or at the path that `dslToolsPath` names in a git-ignored `local.properties`, is included
-   in the build and replaces the artifact.
-2. **Artifact**, when there is no checkout: the version of the version catalog is resolved from your local Maven
-   repository, because the build reads no remote repository for dsl-tools yet. dsl-tools publishes itself there; run
-   this once in the dsl-tools checkout, and again whenever it changes:
-
-   ```bash
-   ./gradlew publishToMavenLocal
-   ```
+1. **Composite build**, the default: the submodule checkout is included in the build and replaces the artifact, so a
+   change that spans both repositories is a single local iteration. Work on dsl-tools happens in the submodule, on a
+   branch of the dsl-tools repository. A git-ignored `local.properties` can point `dslToolsPath` at another checkout.
+2. **Artifact**, the fallback when the submodule is not initialized or `dslToolsPath` is blank: the version of the
+   version catalog is resolved from the repositories of the build. The build never publishes anywhere itself.
 
 Either way the IDE needs dsl-tools 2.0 or newer, whose packages lie below `io.karpfen.dsl`. Both modes keep the
 configuration cache, since dsl-tools generates its parsers at build time. The build log names the active mode, except
 when the configuration cache is reused; `--no-configuration-cache` shows it then. The KDoc of the resolution block in
-`settings.gradle.kts` documents how the path is found and written. CI builds in composite mode with a pinned dsl-tools
-commit, which `.github/workflows/build.yml` explains.
+`settings.gradle.kts` documents how the path is found. CI checks the submodule out together with this repository, so
+a submodule commit must be pushed to the dsl-tools repository before CI can build the commit that points to it.
 
 ## Modules
 

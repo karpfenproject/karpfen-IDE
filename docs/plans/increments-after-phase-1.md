@@ -26,6 +26,9 @@ an adversarial review and fixes before the next one starts.
 8. **Depth.** Validation rules in dsl-tools, a language server for other editors, packaging and signing, and stepping
    the engine tick by tick.
 
+Every repository the IDE needs is a git submodule of this repository, and all work happens inside this workspace:
+karpfen-dsl-tools is a submodule now, and karpfen-runtime joins as one when the runtime increments need it.
+
 Owner decisions that shape these increments: environment descriptors are edited inside the IDE; code completion uses
 Ctrl+M everywhere and Ctrl+Space on Windows; dsl-tools output never lands on the primary console but is available on
 demand with errors forwarded; time-budget tests are written but never run; and documentation follows the style above.

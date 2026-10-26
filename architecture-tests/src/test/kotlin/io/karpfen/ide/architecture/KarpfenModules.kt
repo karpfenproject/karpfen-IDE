@@ -61,11 +61,15 @@ internal object KarpfenModules {
     private val nonProductModules = setOf("build-logic")
 
     /**
-     * Every Kotlin source file (`src/<sourceSet>/...kt`) in the repository, build tooling included. Konsist already
-     * skips hidden directories and build output; build scripts (`*.gradle.kts`) are filtered out here.
+     * Every Kotlin source file (`src/<sourceSet>/...kt`) of this code base, build tooling included. Konsist already
+     * skips hidden directories and build output; build scripts (`*.gradle.kts`) and the checkouts of other repositories
+     * in git submodules ([Submodules]) are filtered out here.
      */
     private val allSourceFiles: List<KoFileDeclaration> by lazy {
-        Konsist.scopeFromProject().files.filter { file -> file.path.endsWith(".kt") && "/src/" in file.projectPath.replace('\\', '/') }
+        Konsist.scopeFromProject().files.filter { file ->
+            val projectPath = file.projectPath.replace('\\', '/')
+            file.path.endsWith(".kt") && "/src/" in projectPath && !Submodules.contains(projectPath)
+        }
     }
 
     /** Every Kotlin source file in the repository except build tooling, which the rules on product code leave out. */

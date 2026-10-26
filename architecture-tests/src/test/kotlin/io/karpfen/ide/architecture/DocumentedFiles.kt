@@ -18,7 +18,8 @@ internal class RepositoryFile(val relativePath: String, val text: String)
  *
  * Build output ([BuildOutput]) and hidden directories are skipped, as Konsist skips them, so generated sources are not
  * part of it, while a source package named `build` is guarded like any other. The CI workflows below `.github` are the
- * one hidden directory that is read, for the reference-id rule only.
+ * one hidden directory that is read, for the reference-id rule only. The checkouts of other repositories in git
+ * submodules ([Submodules]) are not part of this code base and are skipped too.
  */
 internal object DocumentedFiles {
 
@@ -51,11 +52,15 @@ internal object DocumentedFiles {
             .toList()
     }
 
-    /** True for a directory that is read: no build output, and not hidden unless it holds the CI workflows. */
+    /**
+     * True for a directory that is read: no build output, no submodule checkout, and not hidden unless it holds the CI
+     * workflows.
+     */
     private fun isReadDirectory(relativePath: String): Boolean {
         val name = relativePath.substringAfterLast('/')
         val isWorkflows = relativePath == ".github" || relativePath.startsWith(".github/")
-        return !BuildOutput.isBuildDirectory(relativePath) && (!name.startsWith(".") || isWorkflows)
+        val isOwnCode = !BuildOutput.isBuildDirectory(relativePath) && !Submodules.contains(relativePath)
+        return isOwnCode && (!name.startsWith(".") || isWorkflows)
     }
 
     /** True for a Gradle script outside `.github` and for a Kotlin file of any kind inside a source directory. */

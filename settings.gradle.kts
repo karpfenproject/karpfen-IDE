@@ -18,8 +18,8 @@ plugins {
 
 /**
  * The repositories of every module; a module must not declare its own. Only karpfen artifacts, that is
- * karpfen-dsl-tools in artifact mode, may come from the local Maven repository in `~/.m2`. The version catalog `libs`
- * is picked up from `gradle/libs.versions.toml`, its default location.
+ * karpfen-dsl-tools in artifact mode, may be read from the local Maven repository in `~/.m2`; the build never writes
+ * there. The version catalog `libs` is picked up from `gradle/libs.versions.toml`, its default location.
  */
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
@@ -34,31 +34,32 @@ dependencyResolutionManagement {
 
 rootProject.name = "karpfen-ide"
 
+/** The directory of the karpfen-dsl-tools git submodule, relative to the repository root. */
+val DEFAULT_DSL_TOOLS_PATH = "karpfen-dsl-tools"
+
 /**
  * Resolves karpfen-dsl-tools, the language core of the IDE, in one of two modes.
  *
- * - Composite build: if `dslToolsPath` names a directory that holds a Gradle build (`settings.gradle` or
+ * - Composite build: karpfen-dsl-tools is a git submodule of this repository in the directory `karpfen-dsl-tools`, and
+ *   that checkout is the default. If `dslToolsPath` names a directory that holds a Gradle build (`settings.gradle` or
  *   `settings.gradle.kts`), that build is included and substitutes the module `io.karpfen:karpfen-dsl-tools`, so a
- *   change that spans both repositories is a single local iteration. The checkout must be dsl-tools 2.0 or newer, whose
- *   packages lie below `io.karpfen.dsl` and whose build generates its ANTLR parsers into its own build directory; the
- *   initialized submodule of the runtime repository (`../karpfen-runtime/karpfen-dsl-tools`) qualifies once the
- *   runtime has moved to that version. The included build is always named `karpfen-dsl-tools`, whatever its checkout
- *   directory is called, so its tasks keep one path, such as `:karpfen-dsl-tools:test`.
- * - Artifact: otherwise the version declared in the version catalog is resolved from the repositories above, the local
- *   Maven repository for now and a published repository later. An explicitly configured path that holds no Gradle
- *   build falls back to the artifact with a warning.
+ *   change that spans both repositories is a single local iteration. The included build is always named
+ *   `karpfen-dsl-tools`, whatever its directory is called, so its tasks keep one path, such as `:karpfen-dsl-tools:test`.
+ * - Artifact: otherwise the version declared in the version catalog is resolved from the repositories above. This is the
+ *   fallback when the submodule is not initialized (run `git submodule update --init`) or when the composite build is
+ *   switched off with a blank `dslToolsPath`. An explicitly configured path that holds no Gradle build falls back to the
+ *   artifact with a warning.
  *
  * `dslToolsPath` is read from, in this order, the Gradle property `-PdslToolsPath=<path>`, the git-ignored per-machine
- * `local.properties` (`dslToolsPath=<path>`) and the default `../karpfen-dsl-tools`. A relative path is resolved
- * against the repository root; a blank value disables the composite build. `local.properties` is read with
- * `java.util.Properties`, where a backslash is an escape character, so Windows paths are written with forward slashes
- * (`C:/work/karpfen-dsl-tools`) or with doubled backslashes.
+ * `local.properties` (`dslToolsPath=<path>`) and the default, the submodule directory `karpfen-dsl-tools`. A relative
+ * path is resolved against the repository root. `local.properties` is read with `java.util.Properties`, where a
+ * backslash is an escape character, so Windows paths are written with forward slashes (`C:/work/karpfen-dsl-tools`) or
+ * with doubled backslashes.
  *
  * The settings log the active mode (`karpfen-dsl-tools: composite build from <path>` or `karpfen-dsl-tools: resolving
  * <module> from repositories`), though not on a configuration-cache hit, where `--no-configuration-cache` or
  * `./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools --configuration compileClasspath`
- * shows it. CI clones dsl-tools at a pinned commit into the default path and builds in composite
- * mode until dsl-tools publishes versioned artifacts.
+ * shows it. CI checks the submodule out together with this repository and builds in composite mode.
  */
 run {
     val settingsLogger = Logging.getLogger("karpfen-settings")
@@ -68,7 +69,7 @@ run {
     val fromLocalProperties: String? = providers.fileContents(rootDirectory.file("local.properties")).asText.orNull
         ?.let { text -> java.util.Properties().apply { load(text.reader()) }.getProperty("dslToolsPath") }
     val explicitlyConfigured = fromGradleProperty != null || fromLocalProperties != null
-    val dslToolsPath: String = (fromGradleProperty ?: fromLocalProperties ?: "../karpfen-dsl-tools").trim()
+    val dslToolsPath: String = (fromGradleProperty ?: fromLocalProperties ?: DEFAULT_DSL_TOOLS_PATH).trim()
 
     val dslToolsBuildDir: File? = dslToolsPath
         .takeIf { it.isNotEmpty() }
@@ -86,6 +87,8 @@ run {
     } else {
         if (explicitlyConfigured && dslToolsPath.isNotEmpty()) {
             settingsLogger.warn("karpfen-dsl-tools: dslToolsPath '$dslToolsPath' is not a Gradle build; falling back to the artifact")
+        } else if (!explicitlyConfigured) {
+            settingsLogger.warn("karpfen-dsl-tools: the submodule '$DEFAULT_DSL_TOOLS_PATH' is not initialized; run 'git submodule update --init'. Falling back to the artifact")
         }
         val catalog = providers.fileContents(rootDirectory.file("gradle/libs.versions.toml")).asText.get()
         val version = Regex("""(?m)^\s*karpfen-dsl-tools\s*=\s*"([^"]+)"""").find(catalog)?.groupValues?.get(1) ?: "?"

@@ -15,6 +15,7 @@ Decision log:
 | 2026-10-20 | Compose Multiplatform for Desktop is the UI toolkit (see [the UI toolkit decision](#ui-toolkit-compose-multiplatform-for-desktop-jvm-custom-editor-and-custom-diagram-canvas)) | owner |
 | 2026-10-20 | The IDE owns a Docker-managed runtime container by default (see [the runtime decision](#the-runtime-runs-in-an-ide-owned-docker-container-by-default-wire-protocol-only) and [runtime integration](#runtime-integration-runtime-modules)) | owner (asked), accepted |
 | 2026-10-20 | All remaining recommendations in this document accepted (see the [decisions record](#decisions-record)) | owner |
+| 2026-10-26 | Every repository the IDE needs is a git submodule of the IDE repository, and work stays inside the workspace; karpfen-dsl-tools is the first (replaces the sibling checkout path below; see the [decision record on git submodules](adr/0015-required-repositories-are-git-submodules.md)) | owner |
 
 ---
 
@@ -357,7 +358,7 @@ Accepted on 2026-10-20 (the recommended option in each case):
 1. Layout sidecars are committed next to their source files as `<file>.layout.json`; they are optional and regenerable.
 2. The environment descriptor is IDE-owned JSON (`<name>.kenv.json`); teaching the runtime to accept such a bundle directly is a possible later addition, not a prerequisite.
 3. dsl-tools exposes source ranges as a non-invasive `SourceMap` side table; the model classes stay unchanged.
-4. The composite build points at `../karpfen-dsl-tools` by default, overridable with `-PdslToolsPath=` (on the owner's machine `../karpfen-runtime/karpfen-dsl-tools` is the initialized submodule).
+4. The composite build points at `../karpfen-dsl-tools` by default, overridable with `-PdslToolsPath=` (on the owner's machine `../karpfen-runtime/karpfen-dsl-tools` is the initialized submodule). Superseded on 2026-10-26: karpfen-dsl-tools is a git submodule of the IDE repository, and that checkout is the default.
 5. Bridge mapping is declarative only in phase 4; a scripting hook (Kotlin script or Python) comes later.
 6. The runtime image is published from the runtime repo's CI as a multi-arch image; the IDE only pulls and pins it.
 
