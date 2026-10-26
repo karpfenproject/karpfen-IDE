@@ -311,6 +311,9 @@ The architecture tests check many of these rules on every build.
   the code. Markdown documents such as this guide are a map and point to the code instead of repeating it.
 - Documents are written for a human reader: they name other documents, sections and decisions in words, with a
   descriptive link where it helps, never by an id or a section number.
+- Every Kotlin source file and Gradle script starts with the Apache 2.0 license header that the sources of
+  karpfen-dsl-tools carry too; it is the one KDoc that documents no declaration, and `LicenseHeader` in the
+  architecture tests holds it.
 
 `DocumentationStyleTest` checks these rules on every build: the comments, where KDoc stands, and reference ids in
 Kotlin sources and Gradle scripts, and reference ids in the markdown documents, the CI workflows and the XML

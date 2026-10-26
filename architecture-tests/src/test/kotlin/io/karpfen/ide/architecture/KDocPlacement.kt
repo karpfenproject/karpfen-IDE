@@ -1,3 +1,18 @@
+/**
+ * Copyright 2026 Karl Kegel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.karpfen.ide.architecture
 
 /**
@@ -19,14 +34,15 @@ internal data class MisplacedKDoc(val comment: SourceComment, val reason: String
  *
  * Everything else is a comment in disguise and is rejected: KDoc after code on the same line, KDoc inside a function
  * body or lambda (a statement or a local declaration, which no API documentation shows), KDoc between statements of a
- * script block, and KDoc that stands before another comment or at the end of the text.
+ * script block, and KDoc that stands before another comment or at the end of the text. The one exception is the
+ * license header at the top of a file ([LicenseHeader]), which documents the file rather than a declaration.
  */
 internal object KDocPlacement {
 
     /** The misplaced KDoc comments of [source]; [isScript] is true for a `.kts` file. */
     fun check(source: String, isScript: Boolean): List<MisplacedKDoc> =
         KotlinComments.scanPlaced(source)
-            .filter { it.comment.kind == CommentKind.KDOC }
+            .filter { it.comment.kind == CommentKind.KDOC && !LicenseHeader.isHeader(it) }
             .mapNotNull { placed -> reasonAgainst(source, placed, isScript)?.let { MisplacedKDoc(placed.comment, it) } }
 
     /** Why the KDoc [placed] in [source] is misplaced, or null if it documents a declaration. */

@@ -209,7 +209,9 @@ records. The same build enforces the documentation style: `DocumentationStyleTes
 comments other than KDoc and KDoc that documents no declaration in every Kotlin source file and Gradle script, and
 reference ids to other documents there and in the markdown documents, the CI workflows and the XML resources. A Gradle
 script has no other place to document its top-level statements and blocks, so KDoc may document those too. The KDoc
-of `DocumentationStyleTest`, `KDocPlacement` and `ReferenceIds` explains the rules.
+of `DocumentationStyleTest`, `KDocPlacement` and `ReferenceIds` explains the rules. Every Kotlin source file and Gradle
+script starts with the Apache 2.0 license header that the sources of karpfen-dsl-tools carry too, which
+`DocumentationStyleTest` requires and `LicenseHeader` holds.
 
 **Later increments**, stubs so far:
 

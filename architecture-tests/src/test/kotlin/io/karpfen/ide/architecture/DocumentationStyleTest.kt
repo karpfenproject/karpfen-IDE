@@ -1,3 +1,18 @@
+/**
+ * Copyright 2026 Karl Kegel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.karpfen.ide.architecture
 
 import kotlin.test.Test
@@ -14,6 +29,9 @@ import kotlin.test.assertTrue
  * comments, so a URL or a comment delimiter inside a string, a character literal, a backtick name or KDoc is no
  * violation. KDoc itself must stand where it documents a declaration ([KDocPlacement]), so it cannot stand in for a
  * trailing comment or a comment between statements.
+ *
+ * Every one of these files starts with the Apache 2.0 license header ([LicenseHeader]), exactly once and before
+ * anything else. It is KDoc in form, and the one KDoc that documents no declaration.
  *
  * Documentation is written for a human reader and names what it refers to in words instead of by an id that has to be
  * looked up in another document. [ReferenceIds] lists the ids that are rejected; they are searched in the text of every
@@ -75,6 +93,17 @@ class DocumentationStyleTest {
             violations.isEmpty(),
             "Line comments and block comments other than KDoc are not allowed. Document the declaration in KDoc, or " +
                 "extract a well-named function or value and document that:\n" + violations.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `every Kotlin source file and Gradle script starts with the license header`() {
+        val violations = files.mapNotNull { file -> LicenseHeader.violationIn(file.text)?.let { "${file.relativePath}  $it" } }
+        assertTrue(
+            violations.isEmpty(),
+            "Every Kotlin source file and Gradle script starts with the Apache 2.0 license header, copied exactly from " +
+                "another source file, before its file annotations, its package or its first statement:\n" +
+                violations.joinToString("\n"),
         )
     }
 
