@@ -1,7 +1,7 @@
 # 15. Required repositories are git submodules of this repository
 
 - Status: Accepted; partially supersedes [karpfen-dsl-tools resolution](0010-dsl-tools-resolution-modes.md) (where the
-  checkout for the composite build lives, and how CI gets it)
+  checkout for the composite build lives, how CI gets it, and where the artifact comes from)
 - Date: 2026-10-26
 - Source: owner rule: every repository the IDE needs is hooked into this repository as a git submodule, and work happens
   only inside this workspace
@@ -20,11 +20,13 @@ this repository referred to it.
   submodule commit it builds against.
 - CI checks the submodules out together with this repository instead of cloning them separately.
 - Nothing is written outside the workspace: no sibling checkouts, and no publishing into the local Maven repository.
-  Artifact mode stays as a fallback for an uninitialized submodule and for a published artifact later.
+- Artifact mode stays for a published artifact: chosen explicitly, it resolves dsl-tools from GitHub Packages, where
+  dsl-tools publishes. It is no fallback for an uninitialized submodule, since nothing the build reads holds an
+  unpublished version.
 
 ## Consequences
 
-- A fresh clone needs `git submodule update --init`; the settings warn and fall back to the artifact when it is missing.
+- A fresh clone needs `git submodule update --init`; the settings stop the build with that command when it is missing.
 - A submodule commit that is not pushed to its own repository cannot be fetched by CI or by other clones, so submodule
   branches are pushed before this repository's commits that point to them.
 - The architecture tests and the documentation rules leave submodule checkouts out, since those follow their own

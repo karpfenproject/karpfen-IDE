@@ -32,18 +32,16 @@ plugins {
 }
 
 /**
- * The repositories of every module; a module must not declare its own. Only karpfen artifacts, that is
- * karpfen-dsl-tools in artifact mode, may be read from the local Maven repository in `~/.m2`; the build never writes
- * there. The version catalog `libs` is picked up from `gradle/libs.versions.toml`, its default location.
+ * The repositories of every module; a module must not declare its own. karpfen-dsl-tools comes from its submodule, or
+ * in artifact mode from GitHub Packages, which the resolution below adds; the build never reads from or writes to the
+ * local Maven repository in `~/.m2`. The version catalog `libs` is picked up from `gradle/libs.versions.toml`, its
+ * default location.
  */
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
         mavenCentral()
         google()
-        mavenLocal {
-            content { includeGroup("io.karpfen") }
-        }
     }
 }
 
@@ -51,6 +49,13 @@ rootProject.name = "karpfen-ide"
 
 /** The directory of the karpfen-dsl-tools git submodule, relative to the repository root. */
 val DEFAULT_DSL_TOOLS_PATH = "karpfen-dsl-tools"
+
+/**
+ * The repository to which karpfen-dsl-tools publishes its versions, GitHub Packages of its GitHub repository. Reading
+ * from it needs credentials, the Gradle properties `GitHubPackagesUsername` and `GitHubPackagesPassword`, the names
+ * dsl-tools publishes with.
+ */
+val DSL_TOOLS_PACKAGES = "https://maven.pkg.github.com/karpfenproject/karpfen-dsl-tools"
 
 /**
  * The source directory below which dsl-tools 2.0 and newer keep their Kotlin packages, `io.karpfen.dsl`; version 1.0
@@ -67,7 +72,7 @@ val DSL_TOOLS_TWO_SOURCES = "src/main/kotlin/io/karpfen/dsl"
 fun requireDslToolsTwo(dir: File, explicitlyConfigured: Boolean) {
     if (dir.resolve(DSL_TOOLS_TWO_SOURCES).isDirectory) return
     val remedy = if (explicitlyConfigured) {
-        "point dslToolsPath at a checkout of dsl-tools 2.0 or newer, or set it blank to resolve the artifact"
+        "point dslToolsPath at a checkout of dsl-tools 2.0 or newer, or remove it to build with the submodule"
     } else {
         "run 'git submodule update --init' to check out the commit this repository records"
     }
@@ -86,10 +91,14 @@ fun requireDslToolsTwo(dir: File, explicitlyConfigured: Boolean) {
  *   change that spans both repositories is a single local iteration. The included build is always named
  *   `karpfen-dsl-tools`, whatever its directory is called, so its tasks keep one path, such as `:karpfen-dsl-tools:test`.
  *   The checkout must hold dsl-tools 2.0 or newer; an older one fails the build at once ([requireDslToolsTwo]).
- * - Artifact: otherwise the version declared in the version catalog is resolved from the repositories above. This is the
- *   fallback when the submodule is not initialized (run `git submodule update --init`) or when the composite build is
- *   switched off with a blank `dslToolsPath`. An explicitly configured path that holds no Gradle build falls back to the
- *   artifact with a warning.
+ * - Artifact: a blank `dslToolsPath` switches the composite build off, and the version declared in the version catalog
+ *   is resolved from GitHub Packages ([DSL_TOOLS_PACKAGES]), where dsl-tools publishes, with the credentials named
+ *   there; without them the build stops at once and names the missing properties. It resolves only once dsl-tools has
+ *   published the version that the catalog names.
+ *
+ * Any other path stops the build with a message that names the way out: an uninitialized submodule, the default, with
+ * the command that checks it out, and a configured path that holds no Gradle build with the setting to change. Neither
+ * falls back to the artifact, which would fail later and less clearly in dependency resolution.
  *
  * `dslToolsPath` is read from, in this order, the Gradle property `-PdslToolsPath=<path>`, the git-ignored per-machine
  * `local.properties` (`dslToolsPath=<path>`) and the default, the submodule directory `karpfen-dsl-tools`. A relative
@@ -98,7 +107,7 @@ fun requireDslToolsTwo(dir: File, explicitlyConfigured: Boolean) {
  * with doubled backslashes.
  *
  * The settings log the active mode (`karpfen-dsl-tools: composite build from <path>` or `karpfen-dsl-tools: resolving
- * <module> from repositories`), though not on a configuration-cache hit, where `--no-configuration-cache` or
+ * <module> from GitHub Packages`), though not on a configuration-cache hit, where `--no-configuration-cache` or
  * `./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools --configuration compileClasspath`
  * shows it. CI checks the submodule out together with this repository and builds in composite mode.
  */
@@ -126,15 +135,30 @@ run {
                 substitute(module("io.karpfen:karpfen-dsl-tools")).using(project(":"))
             }
         }
-    } else {
-        if (explicitlyConfigured && dslToolsPath.isNotEmpty()) {
-            settingsLogger.warn("karpfen-dsl-tools: dslToolsPath '$dslToolsPath' is not a Gradle build; falling back to the artifact")
-        } else if (!explicitlyConfigured) {
-            settingsLogger.warn("karpfen-dsl-tools: the submodule '$DEFAULT_DSL_TOOLS_PATH' is not initialized; run 'git submodule update --init'. Falling back to the artifact")
+    } else if (dslToolsPath.isEmpty()) {
+        dependencyResolutionManagement {
+            repositories {
+                maven {
+                    name = "GitHubPackages"
+                    url = uri(DSL_TOOLS_PACKAGES)
+                    credentials(PasswordCredentials::class)
+                    content { includeGroup("io.karpfen") }
+                }
+            }
         }
         val catalog = providers.fileContents(rootDirectory.file("gradle/libs.versions.toml")).asText.get()
         val version = Regex("""(?m)^\s*karpfen-dsl-tools\s*=\s*"([^"]+)"""").find(catalog)?.groupValues?.get(1) ?: "?"
-        settingsLogger.lifecycle("karpfen-dsl-tools: resolving io.karpfen:karpfen-dsl-tools:$version from repositories")
+        settingsLogger.lifecycle("karpfen-dsl-tools: resolving io.karpfen:karpfen-dsl-tools:$version from GitHub Packages")
+    } else if (explicitlyConfigured) {
+        throw GradleException(
+            "karpfen-dsl-tools: dslToolsPath '$dslToolsPath' holds no Gradle build; point it at a checkout of dsl-tools " +
+                "2.0 or newer, or remove it to build with the submodule",
+        )
+    } else {
+        throw GradleException(
+            "karpfen-dsl-tools: the submodule '$DEFAULT_DSL_TOOLS_PATH' is not initialized; run " +
+                "'git submodule update --init' to check out the commit this repository records",
+        )
     }
 }
 

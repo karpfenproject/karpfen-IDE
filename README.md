@@ -141,8 +141,10 @@ describes:
 1. **Composite build**, the default: the submodule checkout is included in the build and replaces the artifact, so a
    change that spans both repositories is a single local iteration. Work on dsl-tools happens in the submodule, on a
    branch of the dsl-tools repository. A git-ignored `local.properties` can point `dslToolsPath` at another checkout.
-2. **Artifact**, the fallback when the submodule is not initialized or `dslToolsPath` is blank: the version of the
-   version catalog is resolved from the repositories of the build. The build never publishes anywhere itself.
+   Without an initialized submodule, the build stops and names the command that checks it out.
+2. **Artifact**, chosen with a blank `dslToolsPath`: the version of the version catalog is resolved from GitHub
+   Packages, where dsl-tools publishes, with credentials; this works once that version is published. The build never
+   reads from or publishes to the local Maven repository.
 
 Either way the IDE needs dsl-tools 2.0 or newer, whose packages lie below `io.karpfen.dsl`; a composite checkout of an
 older version stops the build with a message that names it. Both modes keep the configuration cache, since dsl-tools

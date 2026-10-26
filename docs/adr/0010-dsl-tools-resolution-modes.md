@@ -2,7 +2,7 @@
 
 - Status: Accepted; partially supersedes the CI part of
   [the decision that dsl-tools is the language core](0003-dsl-tools-is-the-language-core.md) until dsl-tools is
-  published. Where the checkout lives and how CI gets it are superseded by
+  published. Where the checkout lives, how CI gets it and where the artifact comes from are superseded by
   [required repositories are git submodules](0015-required-repositories-are-git-submodules.md)
 - Date: 2026-10-20
 - Source: the architecture proposal's [language core decision](../architecture-proposal.md#karpfen-dsl-tools-is-the-language-core-the-ide-adds-only-editor-concerns), the dependency mechanics under
