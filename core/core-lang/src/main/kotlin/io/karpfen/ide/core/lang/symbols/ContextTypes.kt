@@ -103,7 +103,7 @@ internal object MetamodelTypes {
             MemberInfo(
                 name = property.key,
                 kind = MemberKind.PROPERTY,
-                typeName = property.propertyType.name.lowercase(),
+                typeName = property.propertyType.keyword,
                 isList = property.isList,
                 declaration = locate(SymbolKind.SIMPLE_PROPERTY, property.key, type.name),
             )

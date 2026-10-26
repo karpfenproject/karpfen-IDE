@@ -15,6 +15,8 @@
  */
 package io.karpfen.ide.core.document.syntax
 
+import io.karpfen.dsl.meta.SimplePropertyType
+
 /**
  * The lexical facts of the karpfen languages that several layers rely on, declared once (one source per fact): the
  * tokenizers, tree walkers and EVAL scanner of this module, the language services (core-lang) and the editor
@@ -26,10 +28,11 @@ package io.karpfen.ide.core.document.syntax
 public object KarpfenSyntax {
 
     /**
-     * The KMeta primitive property types (dsl-tools' `SimplePropertyType`) as written in the files; KStates uses the
-     * same names in TAKES/RETURNS types.
+     * The KMeta primitive property types as written in the files: the keywords of dsl-tools' [SimplePropertyType], which
+     * holds them, so the IDE names them exactly as dsl-tools reads them. KStates uses the same names in TAKES/RETURNS
+     * types.
      */
-    public val PRIMITIVE_TYPES: Set<String> = setOf("number", "string", "boolean")
+    public val PRIMITIVE_TYPES: Set<String> = SimplePropertyType.entries.mapTo(LinkedHashSet()) { it.keyword }
 
     /** The KStates action operations, by their upper-case names (the grammar accepts both cases). */
     public val KSTATES_OPERATIONS: Set<String> = setOf("SET", "APPEND", "SETLIST", "DROPLIST", "SETOBJ", "APPENDOBJ", "DROPOBJ")

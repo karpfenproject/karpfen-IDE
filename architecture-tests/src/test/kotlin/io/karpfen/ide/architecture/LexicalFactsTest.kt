@@ -29,9 +29,10 @@ import kotlin.test.assertEquals
  * resolver reads it.
  *
  * Each fact is recognized by the shape of its declarations in production code. Some facts have several shapes: the
- * KStates operations count as a set or written out as completion snippets (`"SET(\"…`); the block keywords count
- * quoted or as lexer tokens; the model-path separator counts as a constant or as a character-by-character scan; a
- * comment marker counts as its string literal.
+ * primitive types count written out as a set or taken from the keywords of dsl-tools' `SimplePropertyType`; the KStates
+ * operations count as a set or written out as completion snippets (`"SET(\"…`); the block keywords count quoted or as
+ * lexer tokens; the model-path separator counts as a constant or as a character-by-character scan; a comment marker
+ * counts as its string literal.
  */
 class LexicalFactsTest {
 
@@ -54,7 +55,7 @@ class LexicalFactsTest {
         /** The facts by name; the class documentation lists the shapes that count as a declaration. */
         val FACTS: Map<String, Fact> = mapOf(
             "identifier characters" to Fact(Regex("""in 'a'\.\.'z' \|\| \w+ in 'A'\.\.'Z'""")),
-            "primitive types" to Fact(Regex("""setOf\("number", "string", "boolean"\)""")),
+            "primitive types" to Fact(Regex("""setOf\("number", "string", "boolean"\)|SimplePropertyType\.entries\.\w+""")),
             "KStates operations" to Fact(Regex("""setOf\("SET", "APPEND"|"(SET|APPEND|SETLIST|DROPLIST|SETOBJ|APPENDOBJ|DROPOBJ)\(\\"""")),
             "KStates relation operations" to Fact(Regex("""setOf\("SETOBJ", "APPENDOBJ"\)""")),
             "KStates unary operations" to Fact(Regex("""setOf\("DROPLIST", "DROPOBJ"\)""")),

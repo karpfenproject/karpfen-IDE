@@ -15,6 +15,9 @@
  */
 package io.karpfen.ide.core.lang.symbols
 
+import io.karpfen.dsl.meta.ClassType
+import io.karpfen.dsl.meta.SimpleProperty
+import io.karpfen.dsl.meta.SimplePropertyType
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.lang.fixtures.ExamplePaths
@@ -30,8 +33,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the shared type catalog: document, domain and event types with members and declaration locations, the
- * memoized conversion per analysis, the partial metamodel of a metamodel with errors completed by the file's syntax,
- * and the syntax fallback of a metamodel that was not read.
+ * primitive member types by the keywords of dsl-tools, the memoized conversion per analysis, the partial metamodel of a
+ * metamodel with errors completed by the file's syntax, and the syntax fallback of a metamodel that was not read.
  */
 class TypeCatalogTest {
 
@@ -80,6 +83,20 @@ class TypeCatalogTest {
         )
         assertEquals("A cleaning robot that can move around the room and log its actions", robot.description)
         assertTrue(robot.hoverText.startsWith("type Robot\nA cleaning robot"))
+    }
+
+    /**
+     * The primitive member types are named as dsl-tools names its primitive types, so hover and completion treat every
+     * one of them as primitive, whatever the names of the constants of dsl-tools' enum are.
+     */
+    @Test
+    fun `a property of each primitive type of dsl-tools is a primitive member named by its keyword`() {
+        val properties = SimplePropertyType.entries.map { SimpleProperty("p${it.ordinal}", it, isList = false) }
+
+        val members = MetamodelTypes.convert(ClassType("T", "t", properties, emptyList()), TypeOrigin.DOMAIN, file = null).members
+
+        assertEquals(SimplePropertyType.entries.map { it.keyword }, members.map { it.typeName })
+        assertTrue(members.all { it.isPrimitive }, "${members.map { it.signature }}")
     }
 
     @Test
