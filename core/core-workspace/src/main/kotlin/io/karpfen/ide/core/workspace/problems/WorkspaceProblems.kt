@@ -28,7 +28,7 @@ import java.nio.file.Path
  *
  * The rule, per file:
  * - an open document: its session's merged diagnostics (`DocumentSession.diagnostics`: lexer, parser and the external
- *   sources `"file"` and `"project"`; sessions of a workspace are syntax-only, so no standalone conversion);
+ *   sources `"file"` and `"project"`; sessions of a workspace are syntax-only, so dsl-tools reads nothing there);
  * - any other karpfen source of the tree, in a context or loose: `AnalyzedFile.ownDiagnostics` of the latest analysis
  *   plus the file's project diagnostics (`ProjectAnalysis.diagnosticsFor`);
  * - any other environment descriptor the workspace read: the diagnostics of its text (syntax errors, loading findings)
@@ -37,7 +37,7 @@ import java.nio.file.Path
  *
  * Every case merges with the same function (`mergeDiagnostics` of core-document), and project diagnostics never hold
  * a file's own diagnostics; karpfen files get DSL_TOOLS diagnostics only from the project analysis (context files
- * converted, loose files never). So opening or closing a file changes no finding: a closed descriptor's syntax errors
+ * read, loose files never). So opening or closing a file changes no finding: a closed descriptor's syntax errors
  * are those the reader found in its text, an open one's session computes the same.
  *
  * Files without diagnostics are absent.

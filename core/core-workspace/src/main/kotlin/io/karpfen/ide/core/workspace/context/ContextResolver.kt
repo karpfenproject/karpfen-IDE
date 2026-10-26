@@ -37,7 +37,7 @@ import java.nio.file.Path
  *   Directories containing a descriptor are covered by it; their karpfen files not named by any descriptor are loose
  *   files.
  * - [ContextResolution.looseFiles] is exactly the set of karpfen sources of the tree that are in no context's files
- *   (not converted, but still tokenized and parsed; the same rule in the IDE and the CLI).
+ *   (not read by dsl-tools, but still tokenized and parsed; the same rule in the IDE and the CLI).
  * - The descriptors' findings ([DescriptorReadResult.diagnostics]) are included in [ContextResolution.diagnostics];
  *   their syntax errors are not, they belong to the descriptor's text.
  * - A directory of the tree that could not be listed (`WorkspaceNode.Directory.isReadable` false) is an ERROR

@@ -114,19 +114,20 @@ class CreateFileFlowTest {
         assertEquals(emptyList(), diagnosticsOf(descriptor), "it names existing files only")
         listOf(robot.resolve("cleaning_robot.kmodel"), robot.resolve("cleaning_robot.kstates")).forEach {
             assertTrue(it in context, "$it stays in the context")
-            assertEquals(emptyList(), diagnosticsOf(it).filter { d -> d.source == DiagnosticSource.DSL_TOOLS }, "$it converts")
+            val dslTools = diagnosticsOf(it).filter { d -> d.source == DiagnosticSource.DSL_TOOLS }
+            assertEquals(emptyList(), dslTools, "$it reads without findings")
         }
     }
 
     @Test
-    fun `the KModel and KStates templates convert in an implicit context`() = scenario {
+    fun `the KModel and KStates templates read without findings in an implicit context`() = scenario {
         val model = create(robot, FileTemplateKind.KMODEL, "another")
         val machine = create(robot, FileTemplateKind.KSTATES, "another")
         workspace.awaitAnalysis()
         settle()
         val context = assertNotNull(workspace.contexts.value.contexts.firstOrNull { model in it })
         assertTrue(machine in context)
-        assertEquals(emptyList(), diagnosticsOf(model) + diagnosticsOf(machine), "parse, convert, no findings")
+        assertEquals(emptyList(), diagnosticsOf(model) + diagnosticsOf(machine), "parse, read, no findings")
     }
 
     @Test

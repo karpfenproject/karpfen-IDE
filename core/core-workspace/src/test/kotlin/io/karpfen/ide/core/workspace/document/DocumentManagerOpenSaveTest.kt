@@ -58,7 +58,7 @@ class DocumentManagerOpenSaveTest {
     private val metamodel = "type \"Robot\" \"A robot\" {\n    prop(\"speed\", \"number\")\n}\n"
 
     /**
-     * A metamodel that converts with a dsl-tools error on its own: the relation target type `Arm` does not exist.
+     * A metamodel that dsl-tools reads with an error on its own: the relation target type `Arm` does not exist.
      */
     private val metamodelWithUnknownTarget = "type \"Robot\" \"A robot\" {\n    has(\"arm\", \"Arm\")\n}\n"
 

@@ -72,7 +72,7 @@ internal class DirectoryContexts(private val tree: WorkspaceTree, private val co
                 diagnostics.add(file.path, info(
                     WorkspaceDiagnosticCodes.CONTEXT_NO_METAMODEL,
                     "Directory '${directory.name}' has no metamodel (a .kmeta file other than ${FileKind.EVENTS_FILE_NAME}), " +
-                        "so its models are not converted and no domain types are known.",
+                        "so its models are not read and no domain types are known.",
                 ))
             }
         }

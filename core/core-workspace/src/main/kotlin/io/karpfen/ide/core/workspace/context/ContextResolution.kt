@@ -28,7 +28,7 @@ import java.nio.file.Path
  * @property looseFiles every karpfen source of the tree that is in no context's [ModelingContext.files], in tree order:
  *   files in a directory covered by a descriptor that no descriptor names, and the metamodels an implicit context did
  *   not choose (`context-multiple-metamodels`). Tokenized and parsed like every file (their syntax diagnostics appear in
- *   the Problems view and in the CLI), never converted, in the IDE and in the CLI alike.
+ *   the Problems view and in the CLI), never read by dsl-tools, in the IDE and in the CLI alike.
  */
 public data class ContextResolution(
     public val contexts: List<ModelingContext>,

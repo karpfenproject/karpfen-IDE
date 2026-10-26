@@ -157,7 +157,7 @@ object ExampleProject {
     private fun languageOf(path: Path): KarpfenLanguage =
         requireNotNull(KarpfenLanguage.fromFileName(path.fileName.toString())) { "not a karpfen file: $path" }
 
-    /** Adds the conversion [diagnostics] of [file] to the project diagnostics [into]. */
+    /** Adds the read [diagnostics] of [file] to the project diagnostics [into]. */
     private fun record(into: MutableMap<Path, List<Diagnostic>>, file: AnalyzedFile, diagnostics: List<Diagnostic>) {
         if (diagnostics.isNotEmpty()) into[file.path] = into[file.path].orEmpty() + diagnostics
     }

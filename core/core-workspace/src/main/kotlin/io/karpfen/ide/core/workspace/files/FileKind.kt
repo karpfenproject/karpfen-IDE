@@ -51,8 +51,8 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
 
     /**
      * True for the files of the modeling languages (KMeta, KModel, KStates): the files that form modeling contexts and
-     * that the project analysis tokenizes, parses and converts. Environment descriptors are edited with full language
-     * support as well, but they define contexts instead of belonging to one.
+     * that the project analysis tokenizes, parses and reads with dsl-tools. Environment descriptors are edited with
+     * full language support as well, but they define contexts instead of belonging to one.
      */
     public val isKarpfenSource: Boolean get() = language?.isModelingLanguage == true
 

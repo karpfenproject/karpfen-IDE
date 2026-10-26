@@ -23,7 +23,7 @@ import io.karpfen.ide.core.document.KarpfenLanguage
  *
  * @property language the language a file in this role is written in: KMeta for the metamodel and the events, KModel for
  *   the model, KStates for a state machine; null for a bridge configuration, which may be any file. The workspace
- *   checks a referenced file against it and converts a context's file only in the language of its role.
+ *   checks a referenced file against it and reads a context's file only in the language of its role.
  * @property description the role in words, for hovers and messages ("the domain metamodel").
  */
 public enum class DescriptorFileRole(public val language: KarpfenLanguage?, public val description: String) {

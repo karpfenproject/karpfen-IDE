@@ -34,8 +34,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Covers [ComposedDocumentParser]: when the standalone conversion runs, how its diagnostics are passed on, and how
- * failures of the analyzer or the conversion (stack overflows included) become internal-error diagnostics.
+ * Covers [ComposedDocumentParser]: when the standalone read runs, how its diagnostics are passed on, and how failures
+ * of the analyzer or the read (stack overflows included) become internal-error diagnostics.
  */
 class ComposedDocumentParserTest {
 
@@ -57,10 +57,10 @@ class ComposedDocumentParserTest {
         override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis = result()
     }
 
-    /** A conversion that returns what [result] gives and records the snapshot of every call in [calls]. */
+    /** A standalone read that returns what [result] gives and records the snapshot of every call in [calls]. */
     private class RecordingSemantics(private val result: () -> StandaloneResult) : StandaloneSemantics {
         val calls = ArrayList<TextSnapshot>()
-        override fun convert(snapshot: TextSnapshot): StandaloneResult {
+        override fun read(snapshot: TextSnapshot): StandaloneResult {
             calls += snapshot
             return result()
         }
@@ -70,7 +70,7 @@ class ComposedDocumentParserTest {
     private val dslError = Diagnostic(TextRange(6, 7), Severity.ERROR, "bad 'A'", "kmeta.unknown-target-type", DiagnosticSource.DSL_TOOLS)
 
     @Test
-    fun `syntax only by default never converts`() {
+    fun `syntax only by default never reads with dsl-tools`() {
         val semantics = RecordingSemantics { StandaloneResult(model, emptyList()) }
         val parser: DocumentParser = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { clean }, semantics)
 
@@ -84,7 +84,7 @@ class ComposedDocumentParserTest {
     }
 
     @Test
-    fun `standalone mode converts clean syntax`() {
+    fun `standalone mode reads clean syntax`() {
         val semantics = RecordingSemantics { StandaloneResult(model, emptyList()) }
         val parser = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { clean }, semantics)
 
@@ -110,7 +110,7 @@ class ComposedDocumentParserTest {
     }
 
     @Test
-    fun `syntax errors or missing semantics skip the conversion`() {
+    fun `syntax errors or missing semantics skip the read`() {
         val semantics = RecordingSemantics { StandaloneResult(model, emptyList()) }
         val broken = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { clean.copy(syntaxDiagnostics = listOf(syntaxError)) }, semantics)
 
@@ -142,7 +142,7 @@ class ComposedDocumentParserTest {
     }
 
     @Test
-    fun `a failing conversion becomes a DSL_TOOLS internal error`() {
+    fun `a failing read becomes a DSL_TOOLS internal error`() {
         val parser = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { clean }, RecordingSemantics { throw IllegalStateException("adapter bug") })
 
         val outcome = parser.parse(snapshot, SemanticMode.STANDALONE)
@@ -151,7 +151,7 @@ class ComposedDocumentParserTest {
         assertNull(outcome.standaloneModel)
         val diagnostic = outcome.standaloneDiagnostics.single()
         assertEquals(DiagnosticCodes.INTERNAL_ERROR to DiagnosticSource.DSL_TOOLS, diagnostic.code to diagnostic.source)
-        assertTrue("adapter bug" in diagnostic.message)
+        assertEquals("Reading the KMeta document failed internally: adapter bug", diagnostic.message)
     }
 
     @Test

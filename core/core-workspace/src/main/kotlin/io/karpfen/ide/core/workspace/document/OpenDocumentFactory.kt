@@ -33,8 +33,8 @@ import kotlin.time.TimeSource
  * `SemanticMode.SYNTAX_ONLY` session (whatever [sessionConfig] says) in a child scope of [scope], and the loading
  * findings as external source `ExternalDiagnosticSources.FILE` of the initial snapshot.
  *
- * Sessions never convert with dsl-tools: the project analysis is the only place that converts files, so each file is
- * converted once, open or not, and opening a file never changes what is reported.
+ * Sessions never read with dsl-tools: the project analysis is the only place that reads files with dsl-tools, so each
+ * file is read once, open or not, and opening a file never changes what is reported.
  */
 internal class OpenDocumentFactory(
     private val scope: CoroutineScope,

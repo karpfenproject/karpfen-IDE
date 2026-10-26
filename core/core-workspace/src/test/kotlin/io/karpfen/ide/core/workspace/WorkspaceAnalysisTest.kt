@@ -137,7 +137,7 @@ class WorkspaceAnalysisTest {
 
         val analysis = workspace.awaitAnalysis()
 
-        assertEquals(null, analysis.contexts.single().metamodel, "nothing converts")
+        assertEquals(null, analysis.contexts.single().metamodel, "nothing is read")
         val problems = assertNotNull(workspace.problems.value.of(descriptor))
         val finding = problems.diagnostics.single()
         assertEquals(WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID to Severity.ERROR, finding.code to finding.severity)
@@ -256,7 +256,7 @@ class WorkspaceAnalysisTest {
             val own = assertNotNull(problems.of(ctx.resolve(name)), name).diagnostics
             assertTrue(own.all { it.source == DiagnosticSource.PARSER }, "$name: $own")
         }
-        assertEquals(emptyMap(), analysis.contexts.single().models, "no model converts without the metamodel")
+        assertEquals(emptyMap(), analysis.contexts.single().models, "no model is read without the metamodel")
     }
 
     @Test

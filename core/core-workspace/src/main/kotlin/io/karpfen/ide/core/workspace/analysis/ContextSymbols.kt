@@ -26,8 +26,8 @@ import java.nio.file.Path
  * machines use.
  *
  * The answers come from the IDE's own syntax index of each file of the [analysis] ([AnalyzedFile.parse]), never from
- * converted dsl-tools models, so they are known also while a metamodel or a model does not convert. A file the analysis
- * does not know declares nothing.
+ * the models dsl-tools read, so they are known also while a metamodel or a model has errors or is not read at all. A
+ * file the analysis does not know declares nothing.
  *
  * These queries have their one home here: the language features of descriptors and the template of new descriptors both
  * ask this class, and both propose objects for a state machine by the one rule of [AttachmentCandidate.rank]. Immutable

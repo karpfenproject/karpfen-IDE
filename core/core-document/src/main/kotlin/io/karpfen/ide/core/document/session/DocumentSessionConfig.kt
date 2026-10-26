@@ -27,12 +27,12 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * @property parseDebounce quiet time after the last change before re-parsing ([DEFAULT_PARSE_DEBOUNCE] by default).
  * @property semanticMode passed to the parser. [SemanticMode.SYNTAX_ONLY] (the default) is what every product path uses:
- *   in a workspace the project analysis is the only place that converts files, so each file is converted once and
- *   opening a file never changes what is reported; sessions created without an explicit config (editor tests,
+ *   in a workspace the project analysis is the only place that reads files with dsl-tools, so each file is read once
+ *   and opening a file never changes what is reported; sessions created without an explicit config (editor tests,
  *   embeddings) run the same diagnostics pipeline as the product. [SemanticMode.STANDALONE] is opt-in, for a document
- *   converted on its own (and the tests of the standalone semantics and of the session).
+ *   read on its own (and the tests of the standalone semantics and of the session).
  * @property tokenizeDispatcher where tokenizing runs (CPU work).
- * @property parseDispatcher where parsing and standalone conversion run (CPU work).
+ * @property parseDispatcher where parsing and the standalone read run (CPU work).
  */
 public data class DocumentSessionConfig(
     public val parseDebounce: Duration = DEFAULT_PARSE_DEBOUNCE,

@@ -37,11 +37,11 @@ import java.nio.file.Path
  * order. Whether a file the descriptor names is there is decided by [DescriptorFiles], the rule the editor follows
  * too: a reference that names no file of the tree (missing, in an ignored directory, outside the workspace, a
  * directory, or not a valid path) is an ERROR `descriptor-missing-file` on the descriptor at the reference's range and
- * is left out of the context, so the analysis never reads or converts a file the descriptor reports missing; bridges
+ * is left out of the context, so the analysis never reads a file the descriptor reports missing; bridges
  * are references too. A reference to a file that does not fit its role (a file of another language than the role's,
  * e.g. a `.kstates` file as metamodel) is an ERROR `descriptor-invalid` there; the context still names the file, which
- * is there, and the analysis converts nothing that depends on it. The descriptors' read findings are reported as they
- * are.
+ * is there, and the analysis reads nothing with dsl-tools that depends on it. The descriptors' read findings are
+ * reported as they are.
  */
 internal class DescriptorContexts(private val tree: WorkspaceTree, private val descriptors: Map<Path, DescriptorReadResult>) {
 

@@ -25,7 +25,7 @@ import io.karpfen.ide.core.text.TextSnapshot
  * wrapped as `DslModel.Kmeta`.
  */
 internal class KmetaStandaloneSemantics(private val reader: DslReader) : StandaloneSemantics {
-    override fun convert(snapshot: TextSnapshot): StandaloneResult {
+    override fun read(snapshot: TextSnapshot): StandaloneResult {
         val read = reader.kmeta(snapshot)
         return StandaloneResult(read.model?.let(DslModel::Kmeta), read.diagnostics)
     }
@@ -36,7 +36,7 @@ internal class KmetaStandaloneSemantics(private val reader: DslReader) : Standal
  * `DslModel.Kstates`.
  */
 internal class KstatesStandaloneSemantics(private val reader: DslReader) : StandaloneSemantics {
-    override fun convert(snapshot: TextSnapshot): StandaloneResult {
+    override fun read(snapshot: TextSnapshot): StandaloneResult {
         val read = reader.kstates(snapshot)
         return StandaloneResult(read.model?.let(DslModel::Kstates), read.diagnostics)
     }

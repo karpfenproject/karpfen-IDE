@@ -47,7 +47,7 @@ class StandaloneParseTest {
     )
 
     @Test
-    fun `every example parses syntax-only without diagnostics or conversion`() {
+    fun `every example parses syntax-only without diagnostics or a dsl-tools read`() {
         Examples.files().forEach { file ->
             val outcome = parsers.getValue(file.language).parse(TextSnapshot(file.text, 3))
             assertEquals(emptyList(), outcome.syntaxDiagnostics, file.path)
@@ -60,9 +60,9 @@ class StandaloneParseTest {
 
     @Test
     fun `every example metamodel and state machine reads standalone without findings`() {
-        val convertible = Examples.files().filter { it.language != KarpfenLanguage.KMODEL && !it.isEventsMetamodel }
-        assertEquals(11, convertible.size, "6 metamodels and 5 state machines")
-        convertible.forEach { file ->
+        val readable = Examples.files().filter { it.language != KarpfenLanguage.KMODEL && !it.isEventsMetamodel }
+        assertEquals(11, readable.size, "6 metamodels and 5 state machines")
+        readable.forEach { file ->
             val outcome = parsers.getValue(file.language).parse(TextSnapshot(file.text, 0), SemanticMode.STANDALONE)
             assertEquals(emptyList(), outcome.standaloneDiagnostics, file.path)
             when (file.language) {

@@ -40,7 +40,7 @@ import java.nio.file.Path
  * treat a file as there that the descriptor's findings report missing. Without a file tree (services that know no
  * workspace) no named file is there. What a file declares comes from the workspace's [ContextSymbols], which read the
  * syntax index of each analyzed parse (the editor text of an open file), so it is known even while the descriptor or
- * the model does not convert. Immutable; one per request.
+ * the model has errors. Immutable; one per request.
  */
 internal class DescriptorProject(private val request: FeatureRequest) {
 

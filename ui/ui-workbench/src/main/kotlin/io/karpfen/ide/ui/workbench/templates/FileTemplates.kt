@@ -52,8 +52,8 @@ public enum class FileTemplateKind(public val language: KarpfenLanguage) {
 
 /**
  * What a template knows about where the new file goes; built by `WorkbenchState.createFile` from `Workspace.contexts`
- * and the symbols of `Workspace.analysis` ([ContextSymbols], which reads the IDE-owned syntax indexes, never the
- * converted dsl-tools models), so it is also known while a metamodel does not convert.
+ * and the symbols of `Workspace.analysis` ([ContextSymbols], which reads the IDE-owned syntax indexes, never the models
+ * dsl-tools read), so it is also known while a metamodel has errors.
  *
  * @property directory the target directory.
  * @property context the modeling context the directory forms or is covered by before the file is created (an implicit
@@ -77,7 +77,7 @@ public data class TemplateContext(
 
 /**
  * Content of new files. Generated karpfen sources must tokenize and parse without diagnostics and, where the
- * [TemplateContext] allows, convert in their context:
+ * [TemplateContext] allows, read without findings in their context:
  * - KMeta: one example type named after the file;
  * - KModel: one root object of the context's first domain type (`TemplateContext.typeNames`) when known;
  * - KStates: `ATTACHED TO` the context's first domain type when known, one initial state;

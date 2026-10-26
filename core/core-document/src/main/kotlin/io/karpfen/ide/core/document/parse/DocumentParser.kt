@@ -31,13 +31,13 @@ import io.karpfen.ide.core.text.TextSnapshot
  */
 public interface DocumentParser {
     /**
-     * Parses [snapshot]; [mode] decides whether the standalone dsl-tools conversion may run ([SemanticMode.SYNTAX_ONLY]
-     * by default, like `DocumentSessionConfig`; standalone conversion is opt-in).
+     * Parses [snapshot]; [mode] decides whether dsl-tools may read it on its own ([SemanticMode.SYNTAX_ONLY] by
+     * default, like `DocumentSessionConfig`; the standalone read is opt-in).
      */
     public fun parse(snapshot: TextSnapshot, mode: SemanticMode = SemanticMode.SYNTAX_ONLY): ParseOutcome
 }
 
-/** Whether [DocumentParser.parse] runs the standalone dsl-tools conversion. */
+/** Whether [DocumentParser.parse] reads the document with dsl-tools on its own. */
 public enum class SemanticMode {
     /**
      * Read KMeta and KStates files with dsl-tools when there are no syntax diagnostics. Opt-in: no product path uses

@@ -122,7 +122,7 @@ class DefaultContextResolverTest {
         val resolution = resolver.resolve(tree, descriptors("robot.kenv.json" to text))
 
         assertEquals(listOf(ws("")), resolution.contexts.map { it.directory })
-        assertEquals(emptyMap(), resolution.diagnostics, "no context-no-metamodel INFO on files the descriptor converts")
+        assertEquals(emptyMap(), resolution.diagnostics, "no context-no-metamodel INFO on files the descriptor names")
         assertEquals(emptyList(), resolution.looseFiles)
     }
 

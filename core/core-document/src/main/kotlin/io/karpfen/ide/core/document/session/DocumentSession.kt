@@ -123,7 +123,7 @@ public fun DocumentSession(
 
 /** The external diagnostic sources used by the core modules ([DocumentSession.setExternalDiagnostics]). */
 public object ExternalDiagnosticSources {
-    /** Project analysis of core-workspace (DSL_TOOLS conversions, descriptor and context findings). */
+    /** Project analysis of core-workspace (the findings of the dsl-tools readers, descriptors and contexts). */
     public const val PROJECT: String = "project"
 
     /**

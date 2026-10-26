@@ -53,11 +53,11 @@ internal data class SyntaxAnalysis(
  */
 internal fun interface StandaloneSemantics {
     /** Reads [snapshot] into its model and the DSL_TOOLS diagnostics at the places the reader reports. */
-    fun convert(snapshot: TextSnapshot): StandaloneResult
+    fun read(snapshot: TextSnapshot): StandaloneResult
 }
 
 /**
- * Result of [StandaloneSemantics.convert].
+ * Result of [StandaloneSemantics.read].
  *
  * @property model the model read, partial if [diagnostics] hold an error; null if the text yields no model.
  * @property diagnostics the DSL_TOOLS diagnostics of the read.
@@ -73,7 +73,7 @@ internal data class StandaloneResult(val model: DslModel?, val diagnostics: List
  * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Any exception from a collaborator (and a
  * `StackOverflowError`, which pathologically deep nesting causes in the recursive ANTLR parser) becomes an
  * `internal-error` diagnostic at the start of the text and is logged, so parsing never throws: from [syntax] a PARSER
- * diagnostic with an empty analysis (the outcome is not syntax-clean, the session shows it and no conversion runs),
+ * diagnostic with an empty analysis (the outcome is not syntax-clean, the session shows it and nothing is read),
  * from [semantics] a DSL_TOOLS one without a model.
  *
  * @throws IllegalArgumentException if [syntax] parses another language than [language].
@@ -91,7 +91,7 @@ internal class ComposedDocumentParser(
     override fun parse(snapshot: TextSnapshot, mode: SemanticMode): ParseOutcome {
         val analysis = analyzeSyntax(snapshot)
         val standalone = if (mode == SemanticMode.STANDALONE && analysis.syntaxDiagnostics.isEmpty()) {
-            semantics?.let { convert(it, snapshot) }
+            semantics?.let { read(it, snapshot) }
         } else {
             null
         }
@@ -130,20 +130,20 @@ internal class ComposedDocumentParser(
         )
     }
 
-    /** The standalone conversion; a failure of the adapter becomes a DSL_TOOLS `internal-error`. */
-    private fun convert(semantics: StandaloneSemantics, snapshot: TextSnapshot): StandaloneResult =
+    /** The standalone read; a failure of the adapter becomes a DSL_TOOLS `internal-error`. */
+    private fun read(semantics: StandaloneSemantics, snapshot: TextSnapshot): StandaloneResult =
         try {
-            semantics.convert(snapshot)
+            semantics.read(snapshot)
         } catch (e: Exception) {
-            failedConversion(snapshot, e)
+            failedRead(snapshot, e)
         } catch (e: StackOverflowError) {
-            failedConversion(snapshot, e)
+            failedRead(snapshot, e)
         }
 
     /** Logs [e] and returns a result without a model and with one DSL_TOOLS `internal-error`. */
-    private fun failedConversion(snapshot: TextSnapshot, e: Throwable): StandaloneResult {
-        logger.error("Standalone conversion of a {} document (version {}) failed", language, snapshot.version, e)
-        return StandaloneResult(model = null, diagnostics = listOf(internalError(e, "Converting", DiagnosticSource.DSL_TOOLS)))
+    private fun failedRead(snapshot: TextSnapshot, e: Throwable): StandaloneResult {
+        logger.error("Standalone read of a {} document (version {}) failed", language, snapshot.version, e)
+        return StandaloneResult(model = null, diagnostics = listOf(internalError(e, "Reading", DiagnosticSource.DSL_TOOLS)))
     }
 
     /** The `internal-error` diagnostic at the start of the text for a failure of [stage] reported by [source]. */

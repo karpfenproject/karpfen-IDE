@@ -23,8 +23,8 @@ import java.nio.file.Path
 
 /**
  * Builds the [TemplateContext] of a new file from the workspace's contexts and the [ContextSymbols] of its latest
- * analysis, the same queries the descriptor's language features ask, so the mediator never walks converted dsl-tools
- * models and the context is also known while a metamodel does not convert: the directory's context (its explicit
+ * analysis, the same queries the descriptor's language features ask, so the mediator never walks the models dsl-tools
+ * read and the context is also known while a metamodel has errors: the directory's context (its explicit
  * context if a descriptor covers it, else its implicit one), the types of the context's metamodel, the objects of its
  * first model, each state machine's `ATTACHED TO` type and the event domains the state machines use. Pure.
  */

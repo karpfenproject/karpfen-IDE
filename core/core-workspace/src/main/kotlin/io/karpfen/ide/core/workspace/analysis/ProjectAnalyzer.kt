@@ -39,7 +39,7 @@ import java.nio.file.Path
  *
  * Every context file and every loose file (`ContextResolution.looseFiles`) becomes an [AnalyzedFile]: tokenized unless
  * [SourceText.tokens] are given, parsed with `SemanticMode.SYNTAX_ONLY` unless [SourceText.parse] is given, with the
- * source's [SourceText.fileDiagnostics]. Loose files are never converted. A file that cannot be read (see
+ * source's [SourceText.fileDiagnostics]. Loose files are never read by dsl-tools. A file that cannot be read (see
  * [AnalysisSources.load]) is an ERROR `unreadable` in [ProjectAnalysis.diagnostics], so nothing is skipped silently. The
  * result follows the conventions documented on [ProjectAnalysis] (paths, snapshots, parse modes).
  *
