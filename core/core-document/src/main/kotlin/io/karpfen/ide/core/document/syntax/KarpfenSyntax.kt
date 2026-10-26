@@ -16,14 +16,17 @@
 package io.karpfen.ide.core.document.syntax
 
 import io.karpfen.dsl.meta.SimplePropertyType
+import io.karpfen.dsl.states.actions.ActionOperationType
 
 /**
  * The lexical facts of the karpfen languages that several layers rely on, declared once (one source per fact): the
  * tokenizers, tree walkers and EVAL scanner of this module, the language services (core-lang) and the editor
  * (ui-editor) read them here, so e.g. the completion's replace range and the editor's word rule always agree.
  * `KarpfenSyntaxTest` checks them against the generated lexers, and the architecture test `LexicalFactsTest` rejects a
- * second declaration of any of them elsewhere, the comment markers included. Undo coalescing and the quoted-name error
- * locator keep their own Unicode word rules on purpose: they describe text and quoted names, not identifiers.
+ * second declaration of any of them elsewhere, the comment markers included. Where dsl-tools publishes a fact in its
+ * semantic model, such as the primitive types and the action operations with their operand counts, it is taken from
+ * there, so the IDE names it exactly as dsl-tools reads it. Undo coalescing keeps its own Unicode word rule on purpose:
+ * it describes text, not identifiers.
  */
 public object KarpfenSyntax {
 
@@ -34,14 +37,24 @@ public object KarpfenSyntax {
      */
     public val PRIMITIVE_TYPES: Set<String> = SimplePropertyType.entries.mapTo(LinkedHashSet()) { it.keyword }
 
-    /** The KStates action operations, by their upper-case names (the grammar accepts both cases). */
-    public val KSTATES_OPERATIONS: Set<String> = setOf("SET", "APPEND", "SETLIST", "DROPLIST", "SETOBJ", "APPENDOBJ", "DROPOBJ")
+    /**
+     * The KStates action operations, by their upper-case names (the grammar accepts both cases), in the order of
+     * dsl-tools' [ActionOperationType]: every operation but `EVENT`, which is also the keyword of an event clause in
+     * conditions and therefore a keyword of its own.
+     */
+    public val KSTATES_OPERATIONS: Set<String> = operationsWith { true }
 
-    /** The KStates operations whose second argument is a relation of the type their first argument (a path) names. */
-    public val KSTATES_RELATION_OPERATIONS: Set<String> = setOf("SETOBJ", "APPENDOBJ")
+    /**
+     * The KStates operations whose second argument is a relation of the type their first argument (a path) names: the
+     * operations of three operands, a source, a relation and a target.
+     */
+    public val KSTATES_RELATION_OPERATIONS: Set<String> = operationsWith { it.operandCount == 3 }
 
-    /** The KStates operations that take a path only (`DROPLIST("p")`); the others take a value after their path. */
-    public val KSTATES_UNARY_OPERATIONS: Set<String> = setOf("DROPLIST", "DROPOBJ")
+    /**
+     * The KStates operations that take a path only (`DROPLIST("p")`), the operations of one operand; the others take a
+     * value after their path.
+     */
+    public val KSTATES_UNARY_OPERATIONS: Set<String> = operationsWith { it.operandCount == 1 }
 
     /**
      * The line comment of the modeling languages; inside EVAL bodies it is still a karpfen comment, which the Python
@@ -87,4 +100,13 @@ public object KarpfenSyntax {
      * `a->b`), so the tree walkers, the EVAL scanner and core-lang name every path alike.
      */
     public fun normalizeModelPath(path: String): String = path.filterNot(::isBlank)
+
+    /**
+     * The names of the [KSTATES_OPERATIONS] among dsl-tools' [ActionOperationType] that [accepts], with
+     * [ActionOperationType.operandCount] as the number of operands an operation is written with.
+     */
+    private fun operationsWith(accepts: (ActionOperationType) -> Boolean): Set<String> =
+        ActionOperationType.entries
+            .filter { it != ActionOperationType.EVENT && accepts(it) }
+            .mapTo(LinkedHashSet()) { it.name }
 }

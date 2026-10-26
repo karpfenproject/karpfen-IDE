@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.lang.symbols
 
+import io.karpfen.dsl.meta.AssociationType
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.Location
@@ -125,16 +126,19 @@ public data class MemberInfo(
         get() = "${kind.keyword} $name: ${if (isList) "list($typeName)" else typeName}"
 }
 
-/** Kind of a [MemberInfo]; [keyword] is how KMeta declares it. */
+/**
+ * Kind of a [MemberInfo]; [keyword] is how KMeta declares it. The keywords of the relations are the ones dsl-tools
+ * publishes as [AssociationType.keyword], so the IDE names them exactly as dsl-tools reads them.
+ */
 public enum class MemberKind(public val keyword: String) {
     /** `prop(…)`. */
     PROPERTY("prop"),
 
     /** `has(…)` (containment). */
-    HAS("has"),
+    HAS(AssociationType.EMBEDDED.keyword),
 
     /** `knows(…)` (reference). */
-    KNOWS("knows"),
+    KNOWS(AssociationType.LINK.keyword),
     ;
 
     public companion object {
