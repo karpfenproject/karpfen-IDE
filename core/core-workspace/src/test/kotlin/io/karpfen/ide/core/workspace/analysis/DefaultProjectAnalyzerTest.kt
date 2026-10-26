@@ -56,9 +56,9 @@ import kotlin.time.TimeSource
 /**
  * Covers the project analysis on real example folders: every example context reads without findings, broken files are
  * never read and block the reads that depend on them, semantic errors land on the offending element of the right file
- * next to the partial model, a metamodel with errors blocks the reads that depend on it, editor text replaces disk
- * text, loose files stay syntax-only, and unreadable, failing or vanished files are reported or skipped. The analysis
- * is cancellable between files.
+ * next to the partial model, in the events metamodel too, a metamodel with errors blocks the reads that depend on it,
+ * editor text replaces disk text, loose files stay syntax-only, and unreadable, failing or vanished files are reported
+ * or skipped. The analysis is cancellable between files.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultProjectAnalyzerTest {
@@ -106,7 +106,7 @@ class DefaultProjectAnalyzerTest {
     }
 
     @Test
-    fun `the explicit example context analyzes cleanly with events converted against the domain types`() = runTest(timeout = 60.seconds) {
+    fun `the explicit example context analyzes cleanly with events read against the domain types`() = runTest(timeout = 60.seconds) {
         val descriptor = DescriptorExamples.copyExplicitContext(root.resolve("ctx")).toAbsolutePath().normalize()
         val tree = WorkspaceScanner(emptySet()).scan(root)
         val read = EnvironmentDescriptorReader().read(descriptor, Files.readString(descriptor))
@@ -191,6 +191,36 @@ class DefaultProjectAnalyzerTest {
         assertNull(result.events)
         assertEquals(emptyMap(), result.models)
     }
+
+    @Test
+    fun `an error in the events metamodel lands on the offending name of the events file, next to the partial events`() =
+        runTest(timeout = 60.seconds) {
+            val context = Files.createDirectories(root.resolve("robot"))
+            Files.writeString(
+                context.resolve("robot.kmeta"),
+                "type \"GeoPoint\" \"A point\" {\n    prop(\"lat\", \"number\")\n}\n\n" +
+                    "type \"Robot\" \"A robot\" {\n    prop(\"name\", \"string\")\n}\n",
+            )
+            val events = "type \"move\" \"Move somewhere\" {\n    has(\"destination\", \"GeoPont\")\n    prop(\"factor\", \"nmber\")\n}\n"
+            val eventsPath = context.resolve("EVENTS.kmeta").toAbsolutePath().normalize()
+            Files.writeString(eventsPath, events)
+            val modelPath = context.resolve("robot.kmodel").toAbsolutePath().normalize()
+            Files.writeString(modelPath, "make object \"r\":\"Robot\" {\n    prop(\"name\") -> \"r1\"\n}\n")
+            val machine = Examples.file("${DescriptorExamples.CONTEXT_DIRECTORY}/cleaning_robot.kstates").text
+            Files.writeString(context.resolve("robot.kstates"), machine)
+
+            val analysis = analyzer().analyze(resolve(root), DiskSources(), generation = 1)
+
+            assertEquals(setOf(eventsPath), dslToolsDiagnostics(analysis).keys, "only the events file has findings")
+            val findings = analysis.diagnosticsFor(eventsPath).map { it.code to events.substring(it.range.start, it.range.end) }
+            assertEquals(listOf("kmeta.unknown-target-type" to "GeoPont", "kmeta.unknown-property-type" to "nmber"), findings)
+            val result = analysis.contexts.single()
+            val partial = assertNotNull(result.events, "the partial events metamodel is kept")
+            assertTrue(partial.types.any { it.name == "move" }, "${partial.types.map { it.name }}")
+            assertNotNull(result.metamodel)
+            assertEquals(setOf(modelPath), result.models.keys, "the model is read against the domain metamodel")
+            assertEquals(1, result.stateMachines.size)
+        }
 
     @Test
     fun `editor text supplied by the sources is analyzed instead of disk text, with its snapshot, tokens and parse`() = runTest {

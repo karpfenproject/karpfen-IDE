@@ -99,7 +99,8 @@ Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, 
    `line:col`, and the status bar's error count goes up. Rest the mouse on the underline: the tooltip shows the
    parser's message. Cmd+Z makes all three disappear.
 2. Open `robot/cleaning_robot.kmodel` and change the first `prop("diameter")` to `prop("radius")`. The status bar shows
-   `Analyzing…` briefly, then a dsl-tools error appears in Problems and in the editor.
+   `Analyzing…` briefly, then a dsl-tools error appears in Problems and in the editor: the red wavy underline lies
+   under `radius` and nowhere else, and Problems lists the error at the line and column where `radius` starts.
 3. Double-click the error in Problems: the editor shows the file with the caret at the error. The `Errors` toggle in
    the header of Problems hides and shows it.
 4. Cmd+Z in the model: the error disappears from the editor, from Problems and from the status bar.
