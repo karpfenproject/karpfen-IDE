@@ -37,7 +37,7 @@ internal sealed interface IdePhase {
     /** The prepared [session]; the main window shows it. */
     class Running(val session: IdeSession) : IdePhase
 
-    /** The run is over: the application exits (the session's state is closed). */
+    /** The run is over: the application exits (the session is closed). */
     data object Exited : IdePhase
 }
 
@@ -45,7 +45,7 @@ internal sealed interface IdePhase {
  * The lifecycle of one application run, Compose-free, so the window composables only render [phase] and call
  * [requestClose]: prepares the session in [scope] (the UI scope), runs the close request's unsaved-changes flow
  * (`WorkbenchState.requestExit`, launched in [scope]; one at a time), exits after [exitAfter] for launch smoke tests,
- * and closes the session's state exactly once when the run ends. Used from the UI thread (the dispatcher of [scope]),
+ * and closes the session exactly once when the run ends. Used from the UI thread (the dispatcher of [scope]),
  * like the workbench state it drives.
  *
  * @param prepare wires the session (`IdeApplication.prepare`).
@@ -84,7 +84,7 @@ internal class IdeRunState(
 
     /**
      * Prepares the session and lets it run. A failure ends the run and is kept as [startupFailure]; if the run exited
-     * while the session was being prepared (exit timer, dispose), the prepared session's state is closed at once.
+     * while the session was being prepared (exit timer, dispose), the prepared session is closed at once.
      */
     private suspend fun startSession() {
         val session = try {
@@ -100,7 +100,7 @@ internal class IdeRunState(
         if (mutablePhase.compareAndSet(IdePhase.Starting, IdePhase.Running(session))) {
             onRunning(session)
         } else {
-            session.state.close()
+            session.close()
         }
     }
 
@@ -117,10 +117,10 @@ internal class IdeRunState(
         }.also { closeFlow = it }
     }
 
-    /** Ends the run now (no unsaved-changes flow): the phase becomes [IdePhase.Exited] and the state is closed once. */
+    /** Ends the run now (no unsaved-changes flow): the phase becomes [IdePhase.Exited], and the session closes once. */
     fun exit() {
         val previous = mutablePhase.getAndUpdate { IdePhase.Exited }
-        if (previous is IdePhase.Running) previous.session.state.close()
+        if (previous is IdePhase.Running) previous.session.close()
     }
 
     /** After the application returned: ends the run and cancels [scope]. */

@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.app
 
+import io.karpfen.ide.app.logging.LanguageToolsLogRouting
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
@@ -30,6 +31,7 @@ import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
 import io.karpfen.ide.ui.workbench.output.OutputBuffer
+import io.karpfen.ide.ui.workbench.output.OutputSink
 import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
@@ -209,5 +211,23 @@ internal class RecordingServicesFactory(
         override fun fileName(kind: FileTemplateKind, baseName: String): String = throw AssertionError("unused")
         override fun content(kind: FileTemplateKind, baseName: String, context: TemplateContext): String =
             throw AssertionError("unused")
+    }
+}
+
+/**
+ * A [LanguageToolsLogRouting] that records the sinks it is attached to and how many of its routes were closed, so the
+ * app tests check how the composition root routes what dsl-tools logs without a logging backend.
+ */
+internal class RecordingLanguageToolsLog : LanguageToolsLogRouting {
+    /** The sink of every attach, in order. */
+    val sinks: MutableList<OutputSink> = mutableListOf()
+
+    /** How many of the returned routes were closed. */
+    var closed: Int = 0
+        private set
+
+    override fun attach(sink: OutputSink): AutoCloseable {
+        sinks += sink
+        return AutoCloseable { closed++ }
     }
 }

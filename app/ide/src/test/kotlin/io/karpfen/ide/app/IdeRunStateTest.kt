@@ -50,7 +50,8 @@ class IdeRunStateTest {
         val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(test.testScheduler))
         val services = RecordingServicesFactory(HostPlatform.LINUX, StandardTestDispatcher(test.testScheduler))
         val state = FakeWorkbenchState(scope, services(RingOutputBuffer()))
-        val session = IdeSession(state, CommandRegistry(HostPlatform.LINUX))
+        val languageToolsLog = RecordingLanguageToolsLog()
+        val session = IdeSession(state, CommandRegistry(HostPlatform.LINUX), languageToolsLog.attach(RingOutputBuffer()))
         val running = mutableListOf<IdeSession>()
 
         /** When set, the preparation fails with it. */
@@ -147,7 +148,7 @@ class IdeRunStateTest {
     }
 
     @Test
-    fun `the smoke-test timer exits without the unsaved-changes flow and closes the state once`() = runTest {
+    fun `the smoke-test timer exits without the unsaved-changes flow and closes the session once`() = runTest {
         val run = Run(this, exitAfter = 6.seconds)
         run.runState.start()
 
@@ -159,6 +160,7 @@ class IdeRunStateTest {
         assertEquals(listOf("close"), run.state.calls)
         run.runState.dispose()
         assertEquals(listOf("close"), run.state.calls, "dispose does not close twice")
+        assertEquals(1, run.languageToolsLog.closed, "the session ends its routing of what dsl-tools logs once")
     }
 
     @Test
@@ -171,6 +173,7 @@ class IdeRunStateTest {
         assertEquals(IdePhase.Exited, run.runState.phase.value)
         assertEquals(emptyList(), run.running)
         assertEquals(listOf("close"), run.state.calls)
+        assertEquals(1, run.languageToolsLog.closed)
     }
 
     @Test

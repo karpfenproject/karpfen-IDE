@@ -21,7 +21,16 @@ import io.karpfen.ide.ui.workbench.output.OutputSink
 import org.slf4j.LoggerFactory
 
 /**
- * Routes what dsl-tools logs into the workbench's Language Tools Output: [attach] adds an [OutputSinkAppender] for a
+ * What dsl-tools logs, as the IDE shows it: in the workbench's Language Tools Output, which the application fills
+ * through this seam. The composition root attaches the output's sink for the length of a session.
+ */
+public fun interface LanguageToolsLogRouting {
+    /** Sends every event of the dsl-tools loggers to [sink] as well, until the returned handle is closed. */
+    public fun attach(sink: OutputSink): AutoCloseable
+}
+
+/**
+ * The [LanguageToolsLogRouting] of logback, the IDE's logging backend: [attach] adds an [OutputSinkAppender] for a
  * sink to the parent logger of dsl-tools ([DslToolsLoggers.PARENT]) in [context].
  *
  * The rest of the routing is the logging configuration's, `logback.xml` of this module: the dsl-tools loggers log at
@@ -29,10 +38,9 @@ import org.slf4j.LoggerFactory
  * every event to `dsl-tools.log` next to the IDE log, and their warnings and errors also to the IDE log itself. The
  * appender attached here is the third destination, the in-memory one the workbench shows.
  */
-internal class LanguageToolsLogRouting(private val context: LoggerContext) {
+internal class LogbackLanguageToolsLogRouting(private val context: LoggerContext) : LanguageToolsLogRouting {
 
-    /** Sends every event of the dsl-tools loggers to [sink] as well, until the returned handle is closed. */
-    fun attach(sink: OutputSink): AutoCloseable {
+    override fun attach(sink: OutputSink): AutoCloseable {
         val appender = OutputSinkAppender(sink)
         appender.context = context
         appender.name = APPENDER_NAME
@@ -49,16 +57,17 @@ internal class LanguageToolsLogRouting(private val context: LoggerContext) {
         /** The name of the appender that [attach] adds. */
         const val APPENDER_NAME: String = "LANGUAGE_TOOLS_OUTPUT"
 
-        private val log = LoggerFactory.getLogger(LanguageToolsLogRouting::class.java)
+        private val log = LoggerFactory.getLogger(LogbackLanguageToolsLogRouting::class.java)
 
         /**
-         * The routing of the application's logger context, or null if SLF4J does not log through logback (then nothing
-         * reaches the Language Tools Output, which a warning says).
+         * The routing of the application's logger context; one that routes nothing, after a warning, if SLF4J does not
+         * log through logback, so the Language Tools Output stays empty.
          */
-        fun ofApplication(): LanguageToolsLogRouting? {
+        fun ofApplication(): LanguageToolsLogRouting {
             val context = LoggerFactory.getILoggerFactory() as? LoggerContext
-            if (context == null) log.warn("SLF4J does not log through logback; the Language Tools Output stays empty")
-            return context?.let(::LanguageToolsLogRouting)
+            if (context != null) return LogbackLanguageToolsLogRouting(context)
+            log.warn("SLF4J does not log through logback; the Language Tools Output stays empty")
+            return LanguageToolsLogRouting { AutoCloseable {} }
         }
     }
 }

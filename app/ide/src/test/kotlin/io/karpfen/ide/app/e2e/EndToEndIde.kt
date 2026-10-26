@@ -22,7 +22,6 @@ import io.karpfen.ide.app.IdeApplication
 import io.karpfen.ide.app.IdeMenus
 import io.karpfen.ide.app.IdeRunState
 import io.karpfen.ide.app.IdeSession
-import io.karpfen.ide.app.logging.LanguageToolsLogRouting
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
@@ -48,7 +47,8 @@ import kotlin.time.TestTimeSource
 
 /**
  * The IDE as `main` wires it — `IdeApplication(…).prepare` over `defaultWorkbenchServices(…)` with the application's
- * output of the language tools and the real `WorkbenchState`, through the test seams of both composition roots — with
+ * output of the language tools, the real `WorkbenchState` and the routing of what dsl-tools logs through the test
+ * JVM's logger context, using the test seams of both composition roots — with
  * test values for everything time-, thread-, file-system- and toolkit-dependent: one test dispatcher on [scheduler] for
  * the UI scope, the workspace, the sessions, the editors' background work and the workbench's I/O; a [TestTimeSource]
  * for undo coalescing; a watcher that reports nothing; a fixed clock; recording file operations; settings below
@@ -118,12 +118,6 @@ internal class EndToEndIde(
     fun startRun(folder: Path?): IdeRunState =
         IdeRunState(scope, prepare = { application.prepare(scope, folder) }).also { it.start() }
 
-    /**
-     * Routes what dsl-tools logs into the application's output of the language tools through [routing], as
-     * `IdeApplication.run` does with the application's logger context, until the returned handle is closed.
-     */
-    fun routeLanguageToolsLog(routing: LanguageToolsLogRouting): AutoCloseable = application.routeLanguageToolsLog(routing)
-
     /** Workspaces like the CLI's (no watching) on the same virtual time, for `ValidateCommand`. */
     fun cliWorkspaces(): WorkspaceFactory = WorkspaceFactory(workspaceOptions.copy(watch = false))
 
@@ -131,7 +125,7 @@ internal class EndToEndIde(
     fun settle() = scheduler.advanceUntilIdle()
 
     override fun close() {
-        prepared?.state?.close()
+        prepared?.close()
         scope.cancel()
     }
 

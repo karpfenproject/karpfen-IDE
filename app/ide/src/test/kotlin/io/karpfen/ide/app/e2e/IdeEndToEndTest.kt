@@ -16,11 +16,9 @@
 package io.karpfen.ide.app.e2e
 
 import androidx.compose.ui.input.key.Key
-import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.LoggerContext
 import io.karpfen.ide.app.IdeMenus
 import io.karpfen.ide.app.IdePhase
-import io.karpfen.ide.app.logging.LanguageToolsLogRouting
+import io.karpfen.ide.app.logging.ApplicationLogging
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
 import io.karpfen.ide.core.document.DiagnosticCodes
@@ -195,17 +193,14 @@ class IdeEndToEndTest {
 
     /**
      * The readers of dsl-tools log nothing while the IDE analyzes, so the logger of a dsl-tools converter logs after
-     * the analysis, while the routing is attached, standing in for what dsl-tools logs.
+     * the analysis, while the prepared session routes what dsl-tools logs, standing in for what dsl-tools logs.
      */
     @Test
     fun `what dsl-tools logs is shown in the Language Tools Output, which the View menu opens`() =
         scenario {
             Examples.copyTo(root)
-            val context = assertIs<LoggerContext>(LoggerFactory.getILoggerFactory())
-            val session = withDslToolsLoggingAtDebug(context) {
-                routeLanguageToolsLog(LanguageToolsLogRouting(context)).use {
-                    prepare(root).also { context.getLogger(KMETA_CONVERTER_LOGGER).debug("Type {}: {}", "Robot", "a robot") }
-                }
+            val session = ApplicationLogging.withDslToolsAtDebug {
+                prepare(root).also { LoggerFactory.getLogger(KMETA_CONVERTER_LOGGER).debug("Type {}: {}", "Robot", "a robot") }
             }
             val output = session.state.output
             val recent = session.state.settings.value.recentFolders.size
@@ -224,24 +219,6 @@ class IdeEndToEndTest {
             assertTrue(converters.all { it.level == OutputLevel.DEBUG })
             assertTrue(output.state.value.unseen.isEmpty)
         }
-
-    /**
-     * Runs [block] with the dsl-tools loggers of [context] at DEBUG and passing nothing on to the test console, as the
-     * production configuration has them, and restores both afterwards.
-     */
-    private inline fun <T> withDslToolsLoggingAtDebug(context: LoggerContext, block: () -> T): T {
-        val logger = context.getLogger(DslToolsLoggers.PARENT)
-        val level = logger.level
-        val additive = logger.isAdditive
-        logger.level = Level.DEBUG
-        logger.isAdditive = false
-        try {
-            return block()
-        } finally {
-            logger.level = level
-            logger.isAdditive = additive
-        }
-    }
 
     /** `karpfen validate` of [folder] as text lines (the CLI's own report, through its `ValidateCommand`). */
     private suspend fun EndToEndIde.validate(folder: Path): List<String> {

@@ -33,10 +33,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Where what dsl-tools logs goes in the IDE, through the production `logback.xml` and [LanguageToolsLogRouting]: every
- * event reaches the Language Tools Output and `dsl-tools.log`, never the console; its warnings and errors are forwarded
- * to `ide.log` as well; and the IDE's own events keep their way to the console and `ide.log` without entering the
- * output of the language tools.
+ * Where what dsl-tools logs goes in the IDE, through the production `logback.xml` and
+ * [LogbackLanguageToolsLogRouting]: every event reaches the Language Tools Output and `dsl-tools.log`, never the
+ * console; its warnings and errors are forwarded to `ide.log` as well; and the IDE's own events keep their way to the
+ * console and `ide.log` without entering the output of the language tools.
  */
 class LanguageToolsRoutingTest {
 
@@ -64,7 +64,7 @@ class LanguageToolsRoutingTest {
 
     /** Runs [block] with the output routed and the console captured; returns what reached the console. */
     private fun routed(block: () -> Unit): String =
-        ProductionLogging.capturingConsole { LanguageToolsLogRouting(context).attach(output).use { block() } }
+        ProductionLogging.capturingConsole { LogbackLanguageToolsLogRouting(context).attach(output).use { block() } }
 
     @Test
     fun `what dsl-tools logs reaches the output and dsl-tools log, but neither the console nor the IDE log`() {
@@ -128,14 +128,14 @@ class LanguageToolsRoutingTest {
 
     @Test
     fun `after the routing is closed, nothing more reaches the output`() {
-        val routing = LanguageToolsLogRouting(context).attach(output)
+        val routing = LogbackLanguageToolsLogRouting(context).attach(output)
         converter.debug("routed")
 
         routing.close()
         converter.debug("not routed")
 
         assertEquals(listOf("routed"), output.snapshot().lines.map { it.message })
-        assertEquals(null, context.getLogger(DslToolsLoggers.PARENT).getAppender(LanguageToolsLogRouting.APPENDER_NAME))
+        assertEquals(null, context.getLogger(DslToolsLoggers.PARENT).getAppender(LogbackLanguageToolsLogRouting.APPENDER_NAME))
     }
 
     private companion object {

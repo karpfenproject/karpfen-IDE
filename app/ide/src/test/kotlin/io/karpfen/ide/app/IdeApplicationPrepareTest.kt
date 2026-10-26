@@ -15,10 +15,6 @@
  */
 package io.karpfen.ide.app
 
-import ch.qos.logback.classic.LoggerContext
-import ch.qos.logback.classic.util.LogbackMDCAdapter
-import io.karpfen.ide.app.logging.LanguageToolsLogRouting
-import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
@@ -41,8 +37,8 @@ import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `IdeApplication.prepare`: all window-free wiring, headless, with a fake workbench state and recording services
- * injected through the composition root's constructor.
+ * `IdeApplication.prepare`: all window-free wiring, headless, with a fake workbench state, recording services and a
+ * recording routing of what dsl-tools logs injected through the composition root's constructor.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class IdeApplicationPrepareTest {
@@ -56,6 +52,8 @@ class IdeApplicationPrepareTest {
         val stateScopes = mutableListOf<CoroutineScope>()
         val stateServices = mutableListOf<WorkbenchServices>()
 
+        val languageToolsLog = RecordingLanguageToolsLog()
+
         /** Scripts each fake state right after it is created. */
         var configure: (FakeWorkbenchState) -> Unit = {}
 
@@ -66,6 +64,7 @@ class IdeApplicationPrepareTest {
                 stateServices += services
                 FakeWorkbenchState(scope, services).also { configure(it); states += it }
             },
+            languageToolsLog = languageToolsLog,
         )
     }
 
@@ -83,20 +82,16 @@ class IdeApplicationPrepareTest {
     }
 
     @Test
-    fun `the services get the output that the application routes what dsl-tools logs into`() = runTest {
+    fun `the session routes what dsl-tools logs into the output the services get, until it is closed`() = runTest {
         val wiring = Wiring(this)
-        val context = LoggerContext().apply { setMDCAdapter(LogbackMDCAdapter()) }
-        wiring.application.prepare(backgroundScope, initialFolder = null)
-        val dslTools = context.getLogger("${DslToolsLoggers.PARENT}.parser.KmetaFileParser")
 
-        wiring.application.routeLanguageToolsLog(LanguageToolsLogRouting(context)).use {
-            dslTools.warn("KMeta syntax error at line 1:5")
-        }
-        dslTools.warn("logged after the routing ended")
+        val session = wiring.application.prepare(backgroundScope, initialFolder = null)
 
-        val output = wiring.services.services.languageToolsOutput.snapshot()
-        assertEquals(listOf("KMeta syntax error at line 1:5"), output.lines.map { it.message })
-        context.stop()
+        assertSame<Any>(wiring.services.services.languageToolsOutput, wiring.languageToolsLog.sinks.single())
+        assertEquals(0, wiring.languageToolsLog.closed)
+        session.close()
+        assertEquals(listOf("registerCommands", "start", "close"), wiring.states.single().calls)
+        assertEquals(1, wiring.languageToolsLog.closed)
     }
 
     @Test
@@ -163,6 +158,7 @@ class IdeApplicationPrepareTest {
 
         assertEquals("settings unreadable", failure.message)
         assertEquals(listOf("registerCommands", "start", "close"), wiring.states.single().calls)
+        assertEquals(1, wiring.languageToolsLog.closed, "the routing ends with the failed preparation")
     }
 
     @Test
@@ -176,5 +172,6 @@ class IdeApplicationPrepareTest {
         runCurrent()
 
         assertEquals("close", wiring.states.single().calls.last())
+        assertEquals(1, wiring.languageToolsLog.closed)
     }
 }
