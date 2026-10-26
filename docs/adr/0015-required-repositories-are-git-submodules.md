@@ -27,5 +27,6 @@ this repository referred to it.
 - A fresh clone needs `git submodule update --init`; the settings warn and fall back to the artifact when it is missing.
 - A submodule commit that is not pushed to its own repository cannot be fetched by CI or by other clones, so submodule
   branches are pushed before this repository's commits that point to them.
-- The architecture tests and the documentation rules read `.gitmodules` and leave submodule checkouts out, since those
-  follow their own repository's rules; `Submodules` in the architecture tests holds that logic.
+- The architecture tests and the documentation rules leave submodule checkouts out, since those follow their own
+  repository's rules. `GitSubmodules` in build-logic reads `.gitmodules`, and the build script of the architecture
+  tests hands the directories to `Submodules` in the tests.

@@ -21,22 +21,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The git submodules are recognized from `.gitmodules`, and their sources stay out of the Konsist scope and of the
- * files the documentation style rules read, while the repository's own sources stay in.
+ * The git submodules that the build reads from `.gitmodules` reach the tests, and their sources stay out of the Konsist
+ * scope and of the files the documentation style rules read, while the repository's own sources stay in.
  */
 class SubmodulesTest {
-
-    @Test
-    fun `path entries are read from a gitmodules text`() {
-        val text = """
-            [submodule "karpfen-dsl-tools"]
-            	path = karpfen-dsl-tools
-            	url = https://github.com/karpfenproject/karpfen-dsl-tools.git
-            [submodule "nested"]
-                path = external/nested/
-        """.trimIndent()
-        assertEquals(listOf("karpfen-dsl-tools", "external/nested"), Submodules.parse(text))
-    }
 
     @Test
     fun `the dsl-tools submodule is recorded and its directory is recognized`() {
