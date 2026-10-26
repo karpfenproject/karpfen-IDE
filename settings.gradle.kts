@@ -94,7 +94,9 @@ fun requireDslToolsTwo(dir: File, explicitlyConfigured: Boolean) {
  * - Artifact: a blank `dslToolsPath` switches the composite build off, and the version declared in the version catalog
  *   is resolved from GitHub Packages ([DSL_TOOLS_PACKAGES]), where dsl-tools publishes, with the credentials named
  *   there; without them the build stops at once and names the missing properties. It resolves only once dsl-tools has
- *   published the version that the catalog names.
+ *   published the version that the catalog names. The group `io.karpfen` comes from that repository only: Maven
+ *   Central and Google Maven are never asked for it, so no artifact of the same coordinates elsewhere can take its
+ *   place.
  *
  * Any other path stops the build with a message that names the way out: an uninitialized submodule, the default, with
  * the command that checks it out, and a configured path that holds no Gradle build with the setting to change. Neither
@@ -138,11 +140,15 @@ run {
     } else if (dslToolsPath.isEmpty()) {
         dependencyResolutionManagement {
             repositories {
-                maven {
-                    name = "GitHubPackages"
-                    url = uri(DSL_TOOLS_PACKAGES)
-                    credentials(PasswordCredentials::class)
-                    content { includeGroup("io.karpfen") }
+                exclusiveContent {
+                    forRepository {
+                        maven {
+                            name = "GitHubPackages"
+                            url = uri(DSL_TOOLS_PACKAGES)
+                            credentials(PasswordCredentials::class)
+                        }
+                    }
+                    filter { includeGroup("io.karpfen") }
                 }
             }
         }
