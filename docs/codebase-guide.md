@@ -89,7 +89,8 @@ tells which text a version belongs to. `DefaultEditableText` is the implementati
 - **Tokens.** `Tokenizer`, `SyntaxToken` and `TokenKind` (package `syntax`) are the token model. `KarpfenSyntax` holds
   the lexical facts that the tokenizers, the language services and the editor must agree on.
 - **Parse outcomes.** `DocumentParser` and `ParseOutcome` (package `parse`) describe what a parse yields: the outline
-  (`OutlineNode`), declarations and references (`SyntaxIndex`), folding regions and semantic spans.
+  (`OutlineNode`), declarations and references (`SyntaxIndex`), folding regions and semantic spans. `NestingLimit`
+  says how deep a text of a modeling language may nest before it is reported instead of parsed.
 - **ANTLR adapter.** The `antlr` package is the only code that touches ANTLR and the parsers generated in
   karpfen-dsl-tools. Its `lex` sub-package holds the tokenizers (`KstatesTokenizer`, and `GapRecoveringTokenizer` for
   KMeta and KModel), its `tree` sub-package the parse-tree walkers (`TreeParser`, `KstatesSyntaxAnalyzer` and their

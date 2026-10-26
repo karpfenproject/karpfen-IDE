@@ -28,6 +28,7 @@ import io.karpfen.ide.core.document.fixtures.DeepNesting
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.fixtures.SmallStackDslReader
+import io.karpfen.ide.core.document.parse.NestingLimit
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.tools.cli.validate.ValidateCommand
 import io.karpfen.ide.tools.cli.validate.ValidationReport
@@ -198,9 +199,9 @@ class IdeEndToEndTest {
         }
 
     /**
-     * What dsl-tools logs while the IDE analyzes is the failure of a reader, here a real one: a KStates text nests
-     * deeper than the reader can follow on the small stack it reads with ([SmallStackDslReader]), while the IDE's syntax
-     * analysis follows it on the large stack the scenario runs on. dsl-tools logs the failure as a warning, which reaches
+     * What dsl-tools logs while the IDE analyzes is the failure of a reader, here a real one: a KStates text within the
+     * nesting limit nests deeper than the reader can follow on the small stack it reads with ([SmallStackDslReader]),
+     * while the IDE's syntax analysis follows it on the large stack the scenario runs on. dsl-tools logs the failure as a warning, which reaches
      * the Language Tools Output through the composition root and, while that is hidden, the status bar's indicator.
      */
     @Test
@@ -209,7 +210,7 @@ class IdeEndToEndTest {
             scenario(reader = SmallStackDslReader()) {
                 val folder = Files.createDirectories(root.resolve("deep"))
                 Files.writeString(folder.resolve("deep.kmeta"), "type \"T\" \"t\" {\n}\n")
-                Files.writeString(folder.resolve("deep.kstates"), DeepNesting.kstates(READER_DEPTH))
+                Files.writeString(folder.resolve("deep.kstates"), DeepNesting.guardedKstates(READER_DEPTH))
                 val session = ApplicationLogging.withDslToolsAtDebug { prepare(root) }
                 settle()
                 val output = session.state.output
@@ -280,10 +281,10 @@ class IdeEndToEndTest {
         const val READER_LIMIT = "Reading a text failed, it nests deeper than the parser can recurse"
 
         /**
-         * How deep the state machine of the reader's failure nests: too deep for a dsl-tools reader on
-         * [DeepNesting.SMALL_STACK], far from the limit of the IDE's syntax analysis on [DeepNesting.LARGE_STACK].
+         * How many guards the action of the reader's failure nests in: too many for a dsl-tools reader on
+         * [DeepNesting.SMALL_STACK], within the nesting limit of the IDE's syntax analysis.
          */
-        const val READER_DEPTH = 2_000
+        const val READER_DEPTH = NestingLimit.MAX_DEPTH - DeepNesting.GUARDS_STRUCTURE_DEPTH
 
         /** How each platform writes the completion shortcut in its menus. */
         val COMPLETION_SHORTCUT_TEXT: Map<HostPlatform, String> = mapOf(

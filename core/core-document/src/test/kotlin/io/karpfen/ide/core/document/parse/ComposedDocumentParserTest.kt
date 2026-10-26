@@ -22,8 +22,6 @@ import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.Severity
-import io.karpfen.ide.core.document.antlr.tree.KstatesSyntaxAnalyzer
-import io.karpfen.ide.core.document.fixtures.DeepNesting
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import kotlin.test.Test
@@ -36,8 +34,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers [ComposedDocumentParser]: when the standalone read runs, how its diagnostics are passed on, how failures of
- * the analyzer or the read become internal-error diagnostics, and how their stack overflows, which deep nesting
- * causes, become nesting-too-deep diagnostics.
+ * the analyzer or the read become internal-error diagnostics, and how a text beyond the nesting limit and a stack
+ * overflow of the analyzer or the read become nesting-too-deep diagnostics.
  */
 class ComposedDocumentParserTest {
 
@@ -173,14 +171,19 @@ class ComposedDocumentParserTest {
     }
 
     @Test
-    fun `pathologically deep nesting is reported, not thrown, by the real parser`() {
-        val parser = ComposedDocumentParser(KarpfenLanguage.KSTATES, KstatesSyntaxAnalyzer(), semantics = null)
+    fun `a text beyond the nesting limit is reported at the brace the analyzer names`() {
+        val brace = TextRange(13, 14)
+        val parser = ComposedDocumentParser(KarpfenLanguage.KMETA, FakeSyntax { throw NestingLimitExceeded(brace) }, semantics = null)
 
-        val outcome = DeepNesting.onStack(DeepNesting.SMALL_STACK) { parser.parse(TextSnapshot(DeepNesting.kstates(5_000), 0)) }
+        val outcome = parser.parse(snapshot)
 
         val diagnostic = outcome.syntaxDiagnostics.single()
         assertEquals(DiagnosticCodes.NESTING_TOO_DEEP to DiagnosticSource.PARSER, diagnostic.code to diagnostic.source)
+        assertEquals(Severity.ERROR to brace, diagnostic.severity to diagnostic.range)
+        assertEquals("The KMeta document nests deeper than ${NestingLimit.MAX_DEPTH} levels; reduce the nesting", diagnostic.message)
+        assertFalse(outcome.isSyntaxClean)
     }
+
 
     @Test
     fun `the analyzer must parse the parser's language`() {

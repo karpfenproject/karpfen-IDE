@@ -34,7 +34,12 @@ internal interface SyntaxAnalyzer {
     /** The language this analyzer parses. */
     val language: KarpfenLanguage
 
-    /** Never throws; see [DocumentParser] for the contract. */
+    /**
+     * Analyzes [snapshot]; see [DocumentParser] for the contract.
+     *
+     * @throws NestingLimitExceeded instead of parsing a text of a modeling language that nests deeper than
+     *   [NestingLimit.MAX_DEPTH]; never throws otherwise.
+     */
     fun analyze(snapshot: TextSnapshot): SyntaxAnalysis
 }
 
@@ -70,17 +75,21 @@ internal data class StandaloneResult(val model: DslModel?, val diagnostics: List
  * neither part knows the other and the composition rule lives in this one class.
  *
  * It runs [syntax]; if the outcome has no syntax diagnostics, the mode is [SemanticMode.STANDALONE] and [semantics] is
- * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Parsing never throws: a failure of a
- * collaborator becomes one diagnostic at the start of the text, from [syntax] a PARSER diagnostic with an empty
- * analysis (the outcome is not syntax-clean, the session shows it and nothing is read), from [semantics] a DSL_TOOLS one
- * without a model.
+ * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Parsing never throws: a text beyond the
+ * [NestingLimit] and a failure of a collaborator each become one diagnostic, from [syntax] a PARSER diagnostic with an
+ * empty analysis (the outcome is not syntax-clean, the session shows it and nothing is read), from [semantics] a
+ * DSL_TOOLS one without a model.
  *
- * - An exception is a defect: it becomes an `internal-error` and is logged as an error with its stack trace.
- * - A `StackOverflowError` comes from text that nests deeper than the recursive parsers and tree walkers can follow, a
- *   limit the user can type rather than a defect, as dsl-tools treats it too: it becomes a `nesting-too-deep` error and
- *   is logged as one line at INFO, without its stack trace, which would otherwise be repeated on every reparse of the
- *   text. At INFO it reaches the IDE log but neither the IDE's console nor the command-line tool's standard error,
- *   which show warnings and errors only.
+ * - [NestingLimitExceeded] answers a text that nests deeper than [NestingLimit.MAX_DEPTH]: it becomes a
+ *   `nesting-too-deep` error at the brace that opens the first level too many, the same on every parse.
+ * - An exception is a defect: it becomes an `internal-error` at the start of the text and is logged as an error with
+ *   its stack trace.
+ * - A `StackOverflowError` comes from a text within the limit that still nests deeper than the recursive parsers and
+ *   tree walkers can follow on the stack of the parsing thread, which only a thread with a stack far smaller than the
+ *   default one meets: it becomes a `nesting-too-deep` error at the start of the text and is logged as one line at INFO,
+ *   without its stack trace, which would otherwise be repeated on every reparse of the text. At INFO it reaches the IDE
+ *   log but neither the IDE's console nor the command-line tool's standard error, which show warnings and errors
+ *   only.
  *
  * @throws IllegalArgumentException if [syntax] parses another language than [language].
  */
@@ -118,6 +127,8 @@ internal class ComposedDocumentParser(
     private fun analyzeSyntax(snapshot: TextSnapshot): SyntaxAnalysis =
         try {
             syntax.analyze(snapshot)
+        } catch (e: NestingLimitExceeded) {
+            failedSyntax(nestingTooDeep(DiagnosticSource.PARSER, e.range, "${NestingLimit.MAX_DEPTH} levels"))
         } catch (e: Exception) {
             logger.error("Syntax analysis of a {} document (version {}) failed", language, snapshot.version, e)
             failedSyntax(internalError(e, "Parsing", DiagnosticSource.PARSER))
@@ -167,14 +178,18 @@ internal class ComposedDocumentParser(
         )
 
     /**
-     * The `nesting-too-deep` diagnostic reported by [source], at the start of the text: the parser gives no position
-     * when it runs out of stack.
+     * The `nesting-too-deep` diagnostic reported by [source] at [range], for a text that nests deeper than [reach]. By
+     * default at the start of the text, because a parser that runs out of stack gives no position.
      */
-    private fun nestingTooDeep(source: DiagnosticSource): Diagnostic =
+    private fun nestingTooDeep(
+        source: DiagnosticSource,
+        range: TextRange = TextRange.EMPTY,
+        reach: String = "the parser can follow",
+    ): Diagnostic =
         Diagnostic(
-            range = TextRange.EMPTY,
+            range = range,
             severity = Severity.ERROR,
-            message = "The ${language.displayName} document nests deeper than the parser can follow; reduce the nesting",
+            message = "The ${language.displayName} document nests deeper than $reach; reduce the nesting",
             code = DiagnosticCodes.NESTING_TOO_DEEP,
             source = source,
         )

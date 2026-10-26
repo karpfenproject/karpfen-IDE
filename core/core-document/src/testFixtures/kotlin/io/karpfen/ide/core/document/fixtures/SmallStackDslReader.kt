@@ -25,10 +25,10 @@ import io.karpfen.ide.core.text.TextSnapshot
 
 /**
  * A [DslReader] that hands every read to [delegate], the real readers of dsl-tools by default, on a thread of its own
- * with the stack [DeepNesting.SMALL_STACK]. On a text that nests a few thousand levels deep ([DeepNesting.kstates]), a
- * dsl-tools reader then runs out of stack, reports a `reader.failure` and logs the failure as it does in use, while the
- * IDE's own syntax analysis of the same text, on a [DeepNesting.LARGE_STACK], follows it: the way end-to-end tests make
- * a real dsl-tools reader fail.
+ * with the stack [DeepNesting.SMALL_STACK]. On a text that nests a few hundred levels deep ([DeepNesting.guardedKstates]),
+ * within the nesting limit of the IDE's parsers, a dsl-tools reader then runs out of stack, reports a `reader.failure`
+ * and logs the failure as it does in use, while the IDE's own syntax analysis of the same text, on a
+ * [DeepNesting.LARGE_STACK], follows it: the way end-to-end tests make a real dsl-tools reader fail.
  */
 public class SmallStackDslReader(private val delegate: DslReader = DslReader()) : DslReader {
 

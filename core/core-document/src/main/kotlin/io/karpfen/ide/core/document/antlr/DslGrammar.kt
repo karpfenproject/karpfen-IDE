@@ -28,17 +28,24 @@ import org.antlr.v4.runtime.Lexer
  * tokenizer of the `json` package reads them.
  *
  * @property language the language the grammar describes.
+ * @property openBrace the token type of `{`, which opens a block one level deeper.
+ * @property closeBrace the token type of `}`, which closes it.
  * @param newLexer creates the generated lexer over a character stream.
  */
-internal enum class DslGrammar(val language: KarpfenLanguage, private val newLexer: (CharStream) -> Lexer) {
+internal enum class DslGrammar(
+    val language: KarpfenLanguage,
+    val openBrace: Int,
+    val closeBrace: Int,
+    private val newLexer: (CharStream) -> Lexer,
+) {
     /** KMeta, lexed by the generated [KmetaLexer]. */
-    KMETA(KarpfenLanguage.KMETA, ::KmetaLexer),
+    KMETA(KarpfenLanguage.KMETA, KmetaLexer.LBRACE, KmetaLexer.RBRACE, ::KmetaLexer),
 
     /** KModel, lexed by the generated [KmodelLexer]. */
-    KMODEL(KarpfenLanguage.KMODEL, ::KmodelLexer),
+    KMODEL(KarpfenLanguage.KMODEL, KmodelLexer.LBRACE, KmodelLexer.RBRACE, ::KmodelLexer),
 
     /** KStates, lexed by the generated [KstatesLexer]. */
-    KSTATES(KarpfenLanguage.KSTATES, ::KstatesLexer),
+    KSTATES(KarpfenLanguage.KSTATES, KstatesLexer.LBRACE, KstatesLexer.RBRACE, ::KstatesLexer),
     ;
 
     /** A new generated lexer of this grammar over [input], with ANTLR's default listeners. */

@@ -116,8 +116,9 @@ public object DiagnosticCodes {
     public const val INTERNAL_ERROR: String = "internal-error"
 
     /**
-     * The text nests deeper than the recursive parser can follow (ERROR at the start of the text): a limit of the
-     * parser that the user can type, and remove again, rather than a defect.
+     * The text nests deeper than the parser follows: an ERROR at the brace that opens the first level beyond
+     * [io.karpfen.ide.core.document.parse.NestingLimit.MAX_DEPTH], or at the start of the text when a parser runs out
+     * of stack before. A limit of the parser that the user can type, and remove again, rather than a defect.
      */
     public const val NESTING_TOO_DEEP: String = "nesting-too-deep"
 }
