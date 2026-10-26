@@ -50,8 +50,9 @@ import kotlin.test.assertTrue
 /**
  * [OutputView] headless: each line shows its level, the logger's simple name and the message; while following, the
  * newest line is scrolled into sight when it arrives, and without following the view stays where it is; following
- * yields to the user, who stops it by scrolling or dragging the scrollbar away from the newest line and resumes it by
- * scrolling back to the end; Follow and Clear report to their callbacks, and Clear is disabled without output.
+ * yields to the user, who stops it by scrolling or dragging the scrollbar away from the newest line, keeps it by
+ * scrolling within a newest line taller than the view, and resumes it by scrolling back to the end; Follow and Clear
+ * report to their callbacks, and Clear is disabled without output.
  */
 @OptIn(ExperimentalTestApi::class)
 class OutputViewUiTest {
@@ -177,6 +178,30 @@ class OutputViewUiTest {
         waitForIdle()
 
         onNodeWithTag(OutputViewTestTags.line(31)).assertIsDisplayed()
+    }
+
+    /**
+     * While following, the view shows the start of the newest line; when that line, such as an error with its stack
+     * trace, is taller than the view, scrolling down through it keeps the newest line in sight and following on.
+     */
+    @Test
+    fun `scrolling down within a newest line taller than the view keeps following`() = runComposeUiTest {
+        val trace = (listOf("boom") + List(40) { "    at io.karpfen.Frame.call$it" }).joinToString("\n")
+        val state = followingView(OutputUiState(lines = (1L..10L).map { line(it) } + line(11, OutputLevel.ERROR, trace)))
+        waitForIdle()
+        onNodeWithTag(OutputViewTestTags.line(11)).assertIsDisplayed()
+
+        onNodeWithTag(OutputViewTestTags.LINES).performMouseInput {
+            moveTo(center)
+            scroll(3f)
+        }
+        waitForIdle()
+        assertTrue(state.value.follow, "the newest line is still in sight")
+
+        state.append()
+        waitForIdle()
+
+        onNodeWithTag(OutputViewTestTags.line(12)).assertIsDisplayed()
     }
 
     @Test

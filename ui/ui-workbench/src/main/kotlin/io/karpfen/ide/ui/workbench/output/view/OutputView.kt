@@ -58,8 +58,9 @@ import io.karpfen.ide.ui.workbench.output.OutputUiState
  * The Language Tools Output tool window: a toolbar with the Follow toggle and Clear, above the buffered lines in a
  * monospace font, each with its time, level (coloured by severity), the logger's simple name and the message, as
  * [OutputLineFormat] writes them. While [OutputUiState.follow] is on, the list scrolls to the newest line whenever one
- * arrives. Following yields to the user: scrolling away from the newest line switches it off, and scrolling back to the
- * end switches it on again, both through [onFollowChange]. The text can be selected and copied.
+ * arrives, showing it from its start. Following yields to the user: scrolling the newest line out of sight switches it
+ * off, and scrolling it back into sight switches it on again, both through [onFollowChange]. The text can be selected
+ * and copied.
  */
 @Composable
 internal fun OutputView(

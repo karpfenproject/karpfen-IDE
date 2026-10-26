@@ -51,7 +51,18 @@ internal class FollowUserScrolling(
 
     /** Switches following to whether the newest line is in sight, after the user scrolled. */
     private fun afterUserScroll() {
-        val atEnd = !listState.canScrollForward
-        if (atEnd != isFollowing()) onFollowChange(atEnd)
+        val inSight = isNewestLineInSight()
+        if (inSight != isFollowing()) onFollowChange(inSight)
+    }
+
+    /**
+     * True if some of the newest line lies inside the list's viewport. This is not the same as the end of the list
+     * being in sight: following shows the newest line from its start, and a line taller than the viewport, such as an
+     * error with its stack trace, keeps its end out of sight while the user scrolls down through it.
+     */
+    private fun isNewestLineInSight(): Boolean {
+        val layout = listState.layoutInfo
+        val newest = layout.visibleItemsInfo.lastOrNull { it.index == layout.totalItemsCount - 1 } ?: return false
+        return newest.offset < layout.viewportEndOffset && newest.offset + newest.size > layout.viewportStartOffset
     }
 }
