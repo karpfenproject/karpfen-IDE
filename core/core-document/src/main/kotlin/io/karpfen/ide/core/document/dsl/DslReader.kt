@@ -18,6 +18,9 @@ package io.karpfen.ide.core.document.dsl
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.reader.kmeta.KmetaReader
+import io.karpfen.dsl.reader.kmodel.KmodelReader
+import io.karpfen.dsl.reader.kstates.KstatesReader
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.Severity
@@ -64,7 +67,11 @@ public interface DslReader {
 }
 
 /** The default [DslReader] over the readers of dsl-tools. */
-public fun DslReader(): DslReader = DefaultDslReader()
+public fun DslReader(): DslReader = DefaultDslReader(
+    kmetaReader = ::KmetaReader,
+    kmodelReader = ::KmodelReader,
+    kstatesReader = KstatesReader(),
+)
 
 /**
  * What a [DslReader] read from one snapshot.

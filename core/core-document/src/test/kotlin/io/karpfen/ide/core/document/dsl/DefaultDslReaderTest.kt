@@ -15,7 +15,12 @@
  */
 package io.karpfen.ide.core.document.dsl
 
+import io.karpfen.dsl.meta.ClassType
+import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.dsl.reader.TextReader
+import io.karpfen.dsl.reader.kmeta.KmetaReader
+import io.karpfen.dsl.reader.kmodel.KmodelReader
+import io.karpfen.dsl.reader.kstates.KstatesReader
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
@@ -138,26 +143,55 @@ class DefaultDslReaderTest {
     }
 
     @Test
-    fun `a reader that throws is reported as a reader failure at the start of the text`() {
-        val failing = TextReader<Any> { throw NotImplementedError("not yet") }
+    fun `a reader that throws is reported as a reader failure at the start of the text, in every language`() {
+        val failing = readingWith { throw NotImplementedError("not yet") }
+        val metamodel = assertNotNull(reader.kmeta(TextSnapshot(point, 0)).model)
 
-        val read = DefaultDslReader().read(TextSnapshot("text", 3), failing)
-
-        assertNull(read.model)
-        val message = "The text could not be read: ${NotImplementedError("not yet")}"
-        assertEquals(
-            Diagnostic(TextRange.EMPTY, Severity.ERROR, message, "reader.failure", DiagnosticSource.DSL_TOOLS),
-            read.diagnostics.single(),
+        val reads = listOf(
+            failing.kmeta(TextSnapshot("text", 3)),
+            failing.kmodel(TextSnapshot("text", 3), metamodel),
+            failing.kstates(TextSnapshot("text", 3)),
         )
+
+        val message = "The text could not be read: ${NotImplementedError("not yet")}"
+        val failure = Diagnostic(TextRange.EMPTY, Severity.ERROR, message, "reader.failure", DiagnosticSource.DSL_TOOLS)
+        reads.forEach { read ->
+            assertNull(read.model)
+            assertEquals(failure, read.diagnostics.single())
+        }
     }
 
     @Test
     fun `a stack overflow is reported, other fatal errors are not caught`() {
-        val overflowing = TextReader<Any> { throw StackOverflowError() }
-        val exhausted = TextReader<Any> { throw OutOfMemoryError("test") }
+        val overflowing = readingWith { throw StackOverflowError() }
+        val exhausted = readingWith { throw OutOfMemoryError("test") }
 
-        assertEquals("reader.failure", DefaultDslReader().read(TextSnapshot("", 0), overflowing).diagnostics.single().code)
-        assertFailsWith<OutOfMemoryError> { DefaultDslReader().read(TextSnapshot("", 0), exhausted) }
+        assertEquals("reader.failure", overflowing.kstates(TextSnapshot("", 0)).diagnostics.single().code)
+        assertFailsWith<OutOfMemoryError> { exhausted.kstates(TextSnapshot("", 0)) }
+    }
+
+    @Test
+    fun `the KMeta reader is created over the base types and the KModel reader against the metamodel of each read`() {
+        val domain = assertNotNull(reader.kmeta(TextSnapshot(point, 0)).model)
+        val baseTypes = mutableListOf<List<ClassType>>()
+        val metamodels = mutableListOf<Metamodel>()
+        val recording = DefaultDslReader(
+            kmetaReader = { types -> baseTypes += types; KmetaReader(types) },
+            kmodelReader = { metamodel -> metamodels += metamodel; KmodelReader(metamodel) },
+            kstatesReader = KstatesReader(),
+        )
+
+        recording.kmeta(TextSnapshot("type \"move\" \"m\" {\n    has(\"to\", \"Point\")\n}\n", 0), domain.types)
+        recording.kmodel(TextSnapshot("make object \"p\":\"Point\" {\n}\n", 0), domain)
+
+        assertEquals<List<List<ClassType>>>(listOf(domain.types), baseTypes)
+        assertEquals<List<Metamodel>>(listOf(domain), metamodels)
+    }
+
+    /** A [DefaultDslReader] whose readers of every language read with [read]. */
+    private fun readingWith(read: (String) -> Nothing): DefaultDslReader {
+        val failing = TextReader<Nothing> { text -> read(text) }
+        return DefaultDslReader(kmetaReader = { failing }, kmodelReader = { failing }, kstatesReader = failing)
     }
 
     @Test

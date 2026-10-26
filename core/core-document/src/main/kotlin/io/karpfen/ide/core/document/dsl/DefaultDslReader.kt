@@ -19,42 +19,42 @@ import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.dsl.reader.TextReader
-import io.karpfen.dsl.reader.kmeta.KmetaReader
-import io.karpfen.dsl.reader.kmodel.KmodelReader
-import io.karpfen.dsl.reader.kstates.KstatesReader
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.text.TextSnapshot
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * Reads with the dsl-tools readers and turns what they report into the IDE's values with [ReadResults] (see
- * [DslReader] for the contract).
+ * Reads with the dsl-tools readers it is given and turns what they report into the IDE's values with [ReadResults] (see
+ * [DslReader] for the contract). The `DslReader` factory function wires the readers of dsl-tools.
  *
  * The readers never throw by their own contract: they turn runtime exceptions and the `StackOverflowError` of deeply
  * nested input into a `reader.failure` diagnostic themselves. Any other throwable that escapes a reader, except a fatal
  * VM error, is a defect of dsl-tools; it is logged and becomes the same `reader.failure` diagnostic, so the IDE keeps
  * running.
  *
- * Stateless and thread-safe.
+ * Stateless and thread-safe as long as its readers keep no state between reads, which the readers of dsl-tools do not.
+ *
+ * @param kmetaReader the KMeta reader over the given base types, created for each read.
+ * @param kmodelReader the KModel reader against the given metamodel, created for each read.
+ * @param kstatesReader the KStates reader, shared by every read.
  */
-internal class DefaultDslReader : DslReader {
-
-    private val kstatesReader = KstatesReader()
+internal class DefaultDslReader(
+    private val kmetaReader: (baseTypes: List<ClassType>) -> TextReader<Metamodel>,
+    private val kmodelReader: (metamodel: Metamodel) -> TextReader<Model>,
+    private val kstatesReader: TextReader<StateMachine>,
+) : DslReader {
 
     override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> =
-        read(source, KmetaReader(baseTypes))
+        read(source, kmetaReader(baseTypes))
 
     override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
-        read(source, KmodelReader(metamodel))
+        read(source, kmodelReader(metamodel))
 
     override fun kstates(source: TextSnapshot): ReadResult<StateMachine> = read(source, kstatesReader)
 
-    /**
-     * Reads [source] with [reader]; a throwable that escapes it, except a fatal VM error, becomes a reader failure.
-     * Internal rather than private so that the tests can hand it a reader that fails.
-     */
-    internal fun <T : Any> read(source: TextSnapshot, reader: TextReader<T>): ReadResult<T> =
+    /** Reads [source] with [reader]; a throwable that escapes it, except a fatal VM error, becomes a reader failure. */
+    private fun <T : Any> read(source: TextSnapshot, reader: TextReader<T>): ReadResult<T> =
         try {
             ReadResults.of(reader.read(source.text), source)
         } catch (e: StackOverflowError) {
