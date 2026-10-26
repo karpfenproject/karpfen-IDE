@@ -1,6 +1,6 @@
 # Manual smoke test
 
-About 16 minutes at a Mac. The automated tests run the editor, the workbench and the command-line tool headless
+About 20 minutes at a Mac. The automated tests run the editor, the workbench and the command-line tool headless
 (`./gradlew build`); this checklist covers what only a person at a real machine can check: the native menu bar, typing
 on a German keyboard layout (Option combinations, dead keys, the press-and-hold accent menu), real focus and mouse
 handling, the file watcher and quitting. Every step says what you should see. Note the section and the step of anything
@@ -105,16 +105,53 @@ Undo the edits of this section with Cmd+Z until the tab's dirty dot disappears, 
    the header of Problems hides and shows it.
 4. Cmd+Z in the model: the error disappears from the editor, from Problems and from the status bar.
 
-## Language Tools Output (1 minute)
+## Language Tools Output (5 minutes)
+
+The readers of dsl-tools, with which the IDE analyzes the files, report every problem in Problems and log only a read
+that fails. Within the nesting limit of the parsers (`NestingLimit` in core-document) no text makes them fail, and a
+text beyond it is never read, so this section first checks that limit and then starts the IDE a second time with
+readers that fail on purpose, to fill the tool window. In a second terminal, from the repository root, write a folder of
+deeply nested state machines into the copy of the examples:
+
+```bash
+mkdir /tmp/karpfen-smoke/deep && printf 'type "T" "t" {\n}\n' > /tmp/karpfen-smoke/deep/deep.kmeta
+guards() { printf 'STATEMACHINE ATTACHED TO "T" {\nSTATES {\nINITIAL STATE "s0" {\nDO {\n'; for i in $(seq "$1"); do printf 'IF IN SCOPE("a") {\n'; done; printf 'SET("x", "1")\n'; for i in $(seq "$1"); do printf '}\n'; done; printf '}\n}\n}\nTRANSITIONS { }\n}\n'; }
+guards 400 > /tmp/karpfen-smoke/deep/too_deep.kstates
+for n in $(seq 40); do guards 280 > /tmp/karpfen-smoke/deep/guards_$n.kstates; done
+```
 
 1. No tool window shows what karpfen-dsl-tools logs yet. Choose **View ▸ Language Tools Output**: a tool window of that
-   name opens below Problems. It says `No output from the language tools`: the readers of dsl-tools, with which the IDE
-   analyzes the files, report every problem in Problems and log only a read that fails, which the examples never
-   make them do.
-2. In `robot/cleaning_robot.kmodel`, type a space and delete it again. After the analysis, the tool window still has
-   no line, and the status bar shows no `Language tools` indicator.
-3. The terminal that runs `./gradlew` shows no line of dsl-tools either. Choose View ▸ Language Tools Output again to
+   name opens below Problems. It says `No output from the language tools`. Choose View ▸ Language Tools Output again to
    hide it.
+2. Within about 10 seconds the folder `deep` appears in the Project tree, and Problems lists exactly one error, under
+   `deep/too_deep.kstates`: the document nests deeper than 300 levels, at `301:18`, the brace of the first guard too
+   many. The 40 files of 280 guards are within the limit and show no problem. The Language Tools Output stays empty,
+   and the status bar shows no `Language tools` indicator.
+3. Open `deep/too_deep.kstates`, type a space at its end and delete it again. After the analysis Problems shows the same
+   error at the same place, and the output is still empty. The terminal that runs `./gradlew` shows no line of
+   dsl-tools.
+4. Quit the IDE with Cmd+Q and start it again with readers that fail on deeply nested state machines, as a reader that
+   runs out of stack would:
+
+   ```bash
+   KARPFEN_IDE_HOME=/tmp/karpfen-smoke-home ./gradlew :app:ide:runWithFailingReaders --args=/tmp/karpfen-smoke
+   ```
+
+   Problems lists a `reader.failure` error at the start of each of the 40 files, and the status bar shows
+   `Language tools: 40`. Click it: the tool window opens with the newest line in sight and Follow switched on; each
+   line reads `WARN KstatesReader [/tmp/karpfen-smoke/deep/guards_<n>.kstates] - Reading a text failed, …`, and the
+   indicator disappears.
+5. Scroll up with the mouse wheel, and once more with a trackpad flick that keeps scrolling after the fingers lift:
+   Follow switches off as soon as the newest line leaves the view, and the view stays where the scrolling ended. Scroll
+   back down to the end: Follow switches on again. Drag the scrollbar's thumb up: Follow switches off; drag it to the
+   bottom: Follow switches on.
+6. Scroll to a line in the middle and note its file name. Hide the tool window with View ▸ Language Tools Output and
+   show it again: the same lines are in sight, and Follow is still off. Hide it once more, type a space in
+   `deep/guards_1.kstates` and wait for the analysis: the status bar shows `Language tools: 1`. Click it: the tool
+   window opens following, with the new line of `guards_1.kstates` at the bottom.
+7. Click Clear: the tool window says `No output from the language tools`. The terminal shows no line of dsl-tools, and
+   `/tmp/karpfen-smoke-home/logs/dsl-tools.log` holds the warnings, each with its file. Quit the IDE and start it again
+   with the setup's `./gradlew` line for the sections that follow.
 
 ## Environment descriptors (2 minutes)
 

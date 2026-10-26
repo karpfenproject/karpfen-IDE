@@ -50,6 +50,7 @@ Tools Output and with `karpfen validate --verbose`. Diagrams, the runtime and th
 | `./gradlew :core:core-lang:test` | Runs the tests of one module, the quick loop while working on it. |
 | `./gradlew :app:ide:run` | Starts the IDE with an empty state that offers Open Folder… and the recent folders. |
 | `./gradlew :app:ide:run --args=<folder>` | Starts the IDE on a folder of karpfen files. |
+| `./gradlew :app:ide:runWithFailingReaders --args=<folder>` | Starts the IDE with dsl-tools readers that fail on deeply nested state machines, which the manual smoke test uses to fill the Language Tools Output. |
 | `./gradlew :tools:cli:installDist` | Builds the command-line tool's start script, `tools/cli/build/install/karpfen/bin/karpfen`. |
 | `./gradlew :tools:cli:run` | Runs the command-line tool, which prints its usage. |
 | `./gradlew :bridges:bridge-runner:installDist` | Builds the start script of the headless bridge runner, a stub that prints its usage. |

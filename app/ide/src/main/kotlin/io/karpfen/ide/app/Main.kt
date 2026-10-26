@@ -30,6 +30,15 @@ import kotlin.system.exitProcess
  * status 0 after that time (launch smoke tests). Exits with status 1 if the IDE could not start.
  */
 public fun main(args: Array<String>) {
+    exitProcess(launch(args))
+}
+
+/**
+ * Starts the IDE with the command-line [args] as [main] describes and returns the exit status, 0 or 1. The IDE is the
+ * [application] made for the self-exit delay of the launch options; launches for manual tests pass one with other
+ * collaborators.
+ */
+internal fun launch(args: Array<String>, application: (exitAfterMs: Long?) -> IdeApplication = { IdeApplication(it) }): Int {
     val home = applyHomeOverride(System::getenv, System::setProperty)
     applyDesktopProperties(HostPlatform.current(), System::getProperty, System::setProperty)
     val launch = LaunchOptions.parse(args.asList(), System::getenv)
@@ -38,12 +47,11 @@ public fun main(args: Array<String>) {
     (listOfNotNull(home.warning) + launch.warnings).forEach(log::warn)
     log.info("Starting karpfen IDE; settings and log in {}", SettingsLocations.defaultDirectory())
 
-    val status = try {
-        IdeApplication(launch.exitAfterMs).run(launch.initialFolder)
+    return try {
+        application(launch.exitAfterMs).run(launch.initialFolder)
         0
     } catch (e: Exception) {
         log.error("karpfen IDE stopped after a failure", e)
         1
     }
-    exitProcess(status)
 }

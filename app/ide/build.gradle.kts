@@ -66,3 +66,18 @@ compose.desktop {
         }
     }
 }
+
+/**
+ * Starts the IDE like `run`, with `--args=<folder>` as well, but with readers of dsl-tools that read on a small stack,
+ * so that a state machine nested a few hundred levels deep makes them fail as a real reader failure does: the manual
+ * smoke test fills the Language Tools Output this way (`FailingReadersLaunch` of the tests). It runs on the classpath of
+ * the tests, whose console-only `logback-test.xml` it sets aside for the production `logback.xml`.
+ */
+tasks.register<JavaExec>("runWithFailingReaders") {
+    group = "application"
+    description = "Runs the IDE with dsl-tools readers that fail on deeply nested state machines (manual smoke test)."
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass = "io.karpfen.ide.app.FailingReadersLaunchKt"
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
+    systemProperty("logback.configurationFile", "logback.xml")
+}
