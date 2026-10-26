@@ -27,7 +27,6 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.files.FolderChooser
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
 import io.karpfen.ide.ui.workbench.output.OutputBuffer
-import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import io.karpfen.ide.ui.workbench.templates.FileTemplates
 import kotlinx.coroutines.CoroutineDispatcher
@@ -45,8 +44,8 @@ import kotlinx.coroutines.flow.StateFlow
  *   ([EditorStateFactory.create]) and the editor commands of the menu take their shortcuts from it, so the menu and the
  *   editors always bind the same strokes. Its platform is [platform].
  * @property ioDispatcher where the workbench runs blocking file work ([fileOperations]); tests pass a test dispatcher.
- * @property languageToolsOutput the output of the language tools, which the Language Tools Output tool window shows;
- *   the application fills it from its logging, and without one the tool window stays empty.
+ * @property languageToolsOutput the output of the language tools, which the Language Tools Output tool window shows:
+ *   the buffer the application's logging fills, which the composition root hands over.
  */
 public class WorkbenchServices(
     public val settings: SettingsRepository,
@@ -56,9 +55,9 @@ public class WorkbenchServices(
     public val fileOperations: ProjectFileOperations,
     public val folderChooser: FolderChooser,
     public val templates: FileTemplates,
+    public val languageToolsOutput: OutputBuffer,
     public val editorKeymap: EditorKeymap = defaultEditorKeymap(),
     public val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    public val languageToolsOutput: OutputBuffer = RingOutputBuffer(),
 ) {
     /**
      * The platform of the whole workbench, the one source of truth for it: the [editorKeymap]'s, which the editors'

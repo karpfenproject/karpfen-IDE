@@ -22,6 +22,7 @@ import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
+import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.testing.FakeFileWatcher
@@ -72,8 +73,12 @@ class ProductionWorkbench(val scheduler: TestCoroutineScheduler, settingsDirecto
     /** The time source of the documents' undo coalescing. */
     val time = TestTimeSource()
 
+    /** The output of the language tools; tests append to it as the application's logging would. */
+    val languageToolsOutput = RingOutputBuffer()
+
     /** The production wiring with the test values above. */
     val services: WorkbenchServices = defaultWorkbenchServices(
+        languageToolsOutput = languageToolsOutput,
         settingsDirectory = settingsDirectory,
         platform = HostPlatform.MAC_OS,
         backgroundDispatcher = dispatcher,

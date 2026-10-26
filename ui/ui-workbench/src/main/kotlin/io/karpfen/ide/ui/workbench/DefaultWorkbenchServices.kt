@@ -31,7 +31,6 @@ import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
 import io.karpfen.ide.ui.workbench.files.desktop.desktopProjectFileOperations
 import io.karpfen.ide.ui.workbench.files.desktop.nativeFolderChooser
 import io.karpfen.ide.ui.workbench.output.OutputBuffer
-import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
 import io.karpfen.ide.ui.workbench.settings.SettingsLocations
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
@@ -53,10 +52,12 @@ import java.time.Clock
  * [fileOperations] / [folderChooser] (the desktop adapters are headless-safe, but tests usually record calls) and
  * [clipboard] (the system clipboard, created once: every editor of the workbench gets this one port, so text and the
  * whole-line mark copied in one tab are pasted in another also where the port is not the global AWT clipboard — its
- * headless in-memory fallback, a test's fake). [languageToolsOutput] is the buffer the application's logging fills with
- * what the language tools log; the composition root passes the one it routes that logging into.
+ * headless in-memory fallback, a test's fake). [languageToolsOutput] has no default: it is the buffer the
+ * application's logging fills with what the language tools log, and the composition root passes the one it routes that
+ * logging into, so no caller can end up with an output that nothing fills.
  */
 public fun defaultWorkbenchServices(
+    languageToolsOutput: OutputBuffer,
     settingsDirectory: Path = SettingsLocations.defaultDirectory(),
     platform: HostPlatform = HostPlatform.current(),
     backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default,
@@ -71,7 +72,6 @@ public fun defaultWorkbenchServices(
     fileOperations: ProjectFileOperations = desktopProjectFileOperations(),
     folderChooser: FolderChooser = nativeFolderChooser(),
     clipboard: ClipboardPort = systemClipboard(),
-    languageToolsOutput: OutputBuffer = RingOutputBuffer(),
 ): WorkbenchServices {
     return WorkbenchServices(
         settings = SettingsRepository(settingsDirectory, ioDispatcher, clock),

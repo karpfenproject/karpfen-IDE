@@ -21,6 +21,7 @@ import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
+import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
 import io.karpfen.ide.ui.workbench.testing.FakeOpenDocument
 import io.karpfen.ide.ui.workbench.testing.TestClipboard
 import kotlinx.coroutines.CoroutineScope
@@ -35,11 +36,13 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
  * The collaborators of the workbench keep one source per fact: a workspace's languages come from the workspace factory,
- * and every editor gets the one clipboard the services are given.
+ * every editor gets the one clipboard the services are given, and the workbench shows the one output of the language
+ * tools it is given.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkbenchServicesTest {
@@ -63,6 +66,7 @@ class WorkbenchServicesTest {
         val scope = CoroutineScope(dispatcher + SupervisorJob())
         val clipboard = TestClipboard()
         val services = defaultWorkbenchServices(
+            languageToolsOutput = RingOutputBuffer(),
             settingsDirectory = dir.resolve("settings"),
             backgroundDispatcher = dispatcher,
             ioDispatcher = dispatcher,
@@ -85,5 +89,14 @@ class WorkbenchServicesTest {
         } finally {
             scope.cancel()
         }
+    }
+
+    @Test
+    fun `the production wiring hands the workbench the output of the language tools it is given`() {
+        val output = RingOutputBuffer()
+
+        val services = defaultWorkbenchServices(languageToolsOutput = output, settingsDirectory = dir.resolve("settings"))
+
+        assertSame(output, services.languageToolsOutput, "the one buffer the application's logging fills")
     }
 }
