@@ -23,7 +23,7 @@ jobs:
       - name: Check out karpfen IDE with its submodules
         uses: actions/checkout@v7
         with:
-          submodules: recursive
+          submodules: true
 
       - name: Set up JDK 21
         uses: actions/setup-java@v6

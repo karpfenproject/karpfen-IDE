@@ -1,3 +1,6 @@
 [submodule "karpfen-dsl-tools"]
 	path = karpfen-dsl-tools
 	url = https://github.com/karpfenproject/karpfen-dsl-tools.git
+[submodule "karpfen-runtime"]
+	path = karpfen-runtime
+	url = https://github.com/karpfenproject/karpfen-runtime.git
