@@ -26,9 +26,10 @@ plugins {
 /**
  * The public API holds `TextSnapshot` and `EditableText` of core-text, the dsl-tools semantic model types (the packages
  * `io.karpfen.dsl.meta`, `io.karpfen.dsl.instance` and `io.karpfen.dsl.states`) in `DslModel`, `DslReader` and,
- * downstream, the project analysis, and the serializable `EnvironmentDescriptor`, whose JSON shape is the contract with
- * the runtime. karpfen-dsl-tools is the language core of the IDE; the IDE adds only editor concerns and has no parser of
- * its own for the modeling languages.
+ * downstream, the project analysis, and the serializable `EnvironmentDescriptor`, whose JSON shape is the format of the
+ * environment descriptors that the IDE reads and its deployment works from (the runtime never reads them).
+ * karpfen-dsl-tools is the language core of the IDE; the IDE adds only editor concerns and has no parser of its own for
+ * the modeling languages.
  *
  * core-document declares the ANTLR runtime itself, because its adapter package `io.karpfen.ide.core.document.antlr`
  * uses it directly, but without a version: dsl-tools publishes the runtime as part of its own API, since its generated

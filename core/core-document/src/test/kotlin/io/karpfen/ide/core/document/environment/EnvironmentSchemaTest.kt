@@ -62,6 +62,28 @@ class EnvironmentSchemaTest {
     }
 
     @Test
+    fun `the timing keys document their defaults and that every deploy sends them, the observe key that deploys ignore it`() {
+        val root = EnvironmentSchema.ROOT
+
+        assertEquals(50L to 3_000L, EnvironmentDefaults.TICK_DELAY_MS to EnvironmentDefaults.EVENT_TTL_MS)
+        assertEquals(
+            "The delay between two ticks of the runtime's engine, in milliseconds; 50 when absent. The IDE sends it with " +
+                "every deploy.",
+            root.key("tickDelayMs")?.documentation,
+        )
+        assertEquals(
+            "How long an event stays available to the state machines, in milliseconds; 3000 when absent, 0 keeps events " +
+                "until they are consumed. The IDE sends it with every deploy.",
+            root.key("eventTtlMs")?.documentation,
+        )
+        assertEquals(
+            "Not read by the IDE's deployment: while observation is on, the IDE observes the whole model, and it listens " +
+                "to every event domain the state machines use.",
+            root.key("observe")?.documentation,
+        )
+    }
+
+    @Test
     fun `the schema is derived from the typed descriptor, keys, nesting and annotations included`() {
         val root = EnvironmentSchema.ROOT
 

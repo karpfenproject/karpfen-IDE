@@ -19,7 +19,7 @@ import kotlinx.serialization.Serializable
 
 /**
  * An environment descriptor `*.kenv.json` as a typed value: which files form one runnable modeling context and how the
- * runtime runs them. File paths are relative to the descriptor's directory.
+ * IDE deploys them to the runtime. File paths are relative to the descriptor's directory.
  *
  * This class is the one declaration of the descriptor's shape. Its property names are the JSON keys, its nesting is the
  * nesting of the objects, a property without a default value is a required key, a nullable property a key that may be
@@ -31,7 +31,9 @@ import kotlinx.serialization.Serializable
  *
  * kotlinx.serialization decodes a descriptor into this class after the workspace checked its text against
  * [EnvironmentSchema.ROOT], and the file templates encode new descriptors from it, so a written descriptor reads back
- * without findings. Renaming a property renames a key of the format the runtime reads.
+ * without findings. Renaming a property renames a key of the format the IDE reads: the runtime never reads descriptors;
+ * the IDE's deployment uploads the files a descriptor names and sends its tick delay and event time to live, which are
+ * the deploy configuration of the environment, with [EnvironmentDefaults] where the descriptor has none.
  */
 @Serializable
 public data class EnvironmentDescriptor(
@@ -50,15 +52,24 @@ public data class EnvironmentDescriptor(
     @KeyDoc("The state machines of the environment, each running attached to one object of the model.")
     public val stateMachines: List<StateMachineEntry> = emptyList(),
 
-    @KeyDoc("The delay between two ticks of the runtime's engine, in milliseconds.")
+    @KeyDoc(
+        "The delay between two ticks of the runtime's engine, in milliseconds; ${EnvironmentDefaults.TICK_DELAY_MS} when " +
+            "absent. The IDE sends it with every deploy.",
+    )
     @SuggestsNumbers(50, 100, 500)
     public val tickDelayMs: Long? = null,
 
-    @KeyDoc("How long an event stays available to the state machines, in milliseconds.")
+    @KeyDoc(
+        "How long an event stays available to the state machines, in milliseconds; ${EnvironmentDefaults.EVENT_TTL_MS} " +
+            "when absent, 0 keeps events until they are consumed. The IDE sends it with every deploy.",
+    )
     @SuggestsNumbers(1_000, 3_000, 10_000)
     public val eventTtlMs: Long? = null,
 
-    @KeyDoc("What the IDE observes while the environment runs: objects and event domains.")
+    @KeyDoc(
+        "Not read by the IDE's deployment: while observation is on, the IDE observes the whole model, and it listens to " +
+            "every event domain the state machines use.",
+    )
     public val observe: ObserveSpec? = null,
 
     @KeyDoc("How the runtime runs the environment: its container image and extra Python packages.")
@@ -86,7 +97,11 @@ public data class EnvironmentDescriptor(
         public val attachedTo: String,
     )
 
-    /** What the IDE observes while the environment runs: the objects matching [objects] and the event [domains]. */
+    /**
+     * Objects matching [objects] and the event [domains], once meant as what the IDE observes while the environment
+     * runs. Not read by the IDE's deployment: while observation is on, the IDE observes the whole model, and it listens
+     * to every event domain the state machines use.
+     */
     @Serializable
     public data class ObserveSpec(
         @KeyDoc(
