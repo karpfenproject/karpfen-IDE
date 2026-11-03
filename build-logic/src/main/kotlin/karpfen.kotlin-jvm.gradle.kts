@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import io.karpfen.ide.buildlogic.LiveRuntimeTesting
 import io.karpfen.ide.buildlogic.ModuleDependencyRules
 import io.karpfen.ide.buildlogic.TestTags
 import io.karpfen.ide.buildlogic.ResolvedProjectDependencies
@@ -21,8 +22,9 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
 /**
  * Base convention for every karpfen IDE module: Kotlin/JVM on JDK 21, JUnit Platform tests without the time-budget
- * tests, explicit API mode for the UI-agnostic layers, and the check of the module dependency rules. The other
- * karpfen.* convention plugins build on it, and the settings reject a module that does not apply it.
+ * tests and without the tests against a real runtime, explicit API mode for the UI-agnostic layers and the runtime
+ * modules, and the check of the module dependency rules. The other karpfen.* convention plugins build on it, and the
+ * settings reject a module that does not apply it.
  */
 plugins {
     `java-library`
@@ -35,12 +37,13 @@ version = "0.1.0-SNAPSHOT"
 val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
 /**
- * Compiles for JDK 21. The core and notation modules are the reusable, UI-agnostic layers, so they compile in explicit
- * API mode: every public declaration is deliberate.
+ * Compiles for JDK 21. The core and notation modules are the reusable, UI-agnostic layers, and the runtime modules
+ * are the client of the karpfen runtime that the bridges build on too, so they compile in explicit API mode: every
+ * public declaration is deliberate.
  */
 kotlin {
     jvmToolchain(21)
-    if (path.startsWith(":core:") || path.startsWith(":notation:")) {
+    if (path.startsWith(":core:") || path.startsWith(":notation:") || path.startsWith(":runtime:")) {
         explicitApi()
     }
 }
@@ -60,11 +63,17 @@ dependencies {
 
 /**
  * Runs the tests on the JUnit Platform, reports failures with their full stack traces and excludes the time-budget
- * tests ([TestTags.BUDGET]) from every test task; [TestTags] explains why they are never run.
+ * tests ([TestTags.BUDGET]) from every test task; [TestTags] explains why they are never run. The tests against a real
+ * runtime ([TestTags.LIVE_RUNTIME]) are excluded from every test task but the live task of the runtime modules
+ * ([LiveRuntimeTesting.TASK_NAME]), which must not inherit that exclusion.
  */
 tasks.withType<Test>().configureEach {
+    val runsLiveRuntimeTests = name == LiveRuntimeTesting.TASK_NAME
     useJUnitPlatform {
         excludeTags(TestTags.BUDGET)
+        if (!runsLiveRuntimeTests) {
+            excludeTags(TestTags.LIVE_RUNTIME)
+        }
     }
     testLogging {
         events("failed")

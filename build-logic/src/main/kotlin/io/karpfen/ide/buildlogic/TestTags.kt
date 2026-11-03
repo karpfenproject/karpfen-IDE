@@ -36,4 +36,16 @@ object TestTags {
      * not time-budget tests and keep running.
      */
     const val BUDGET: String = "budget"
+
+    /**
+     * Tests against a real karpfen runtime, reached at the URL that [LiveRuntimeTesting.URL_PROPERTY] names. They carry
+     * the tag through the `@LiveRuntime` annotation of runtime-protocol's test fixtures, and every test task excludes
+     * it except the `liveRuntimeTest` task of the runtime modules ([LiveRuntimeTesting.TASK_NAME]), which runs only
+     * these tests and is never part of `check` or `build`.
+     *
+     * Unlike the budget tag, this tag has an opt-in task on purpose: a live test asserts behaviour, not time, and it
+     * runs whenever someone hands the task a runtime, usually through `runtime/live-runtime.sh test`, which starts a
+     * throwaway runtime in Docker. The architecture test `LiveRuntimeTaggingTest` checks the wiring.
+     */
+    const val LIVE_RUNTIME: String = "live-runtime"
 }
