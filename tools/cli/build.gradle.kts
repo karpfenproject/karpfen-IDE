@@ -27,8 +27,8 @@ application {
 
 /**
  * `validate` needs the workspace, the project analysis and the per-file tokenizing and parsing (core-workspace has
- * core-document as an `api` dependency). The runtime session is a phase-0 placeholder for the later `deploy` command.
- * logback is the logging backend, whose API `LogbackLanguageToolsLog` uses to show what dsl-tools logs with
+ * core-document as an `api` dependency). The runtime session is the base of a later `deploy` command; the CLI has
+ * none yet. logback is the logging backend, whose API `LogbackLanguageToolsLog` uses to show what dsl-tools logs with
  * `--verbose`.
  */
 dependencies {

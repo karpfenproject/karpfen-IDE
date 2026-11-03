@@ -21,8 +21,9 @@ plugins {
 
 /**
  * The editor, the UI foundation and the language services are `api` dependencies because the public `WorkbenchState`
- * exposes `Workspace`, `LanguageServices`, `CodeEditorState` and `CommandRegistry`. The diagram and runtime modules are
- * phase-0 placeholders for the diagram and runtime tool windows of later phases.
+ * exposes `Workspace`, `LanguageServices`, `CodeEditorState` and `CommandRegistry`. The runtime session is the base of
+ * the later runtime tool window; the diagram module and runtime-host are still phase-0 placeholders for the diagram and
+ * the runtime hosting of later phases.
  */
 dependencies {
     api(project(":ui:ui-editor"))
