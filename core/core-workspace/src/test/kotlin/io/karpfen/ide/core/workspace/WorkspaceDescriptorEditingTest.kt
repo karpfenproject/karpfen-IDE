@@ -15,12 +15,21 @@
  */
 package io.karpfen.ide.core.workspace
 
+import io.karpfen.dsl.instance.Model
+import io.karpfen.dsl.meta.ClassType
+import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
+import io.karpfen.ide.core.document.dsl.DslReader
+import io.karpfen.ide.core.document.dsl.ReadResult
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
+import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
@@ -39,10 +48,26 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * An environment descriptor open in an editor counts with its unsaved text: its findings appear in its session at the
- * edited ranges and in the problems, and the contexts and the analysis follow its edits; syntax errors are reported
- * once; closing it without saving falls back to the disk.
+ * edited ranges and in the problems, and the contexts and the analysis follow its edits, also an edit of a value that
+ * names no file, which the context carries in its typed descriptor and which the analysis follows without reading a
+ * file again; syntax errors are reported once; closing it without saving falls back to the disk.
  */
 class WorkspaceDescriptorEditingTest {
+
+    /** The real readers of dsl-tools, counting their reads. */
+    private class CountingReader(private val delegate: DslReader = DslReader()) : DslReader {
+        /** The number of reads so far. */
+        var reads: Int = 0
+            private set
+
+        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> =
+            delegate.kmeta(source, baseTypes).also { reads++ }
+
+        override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
+            delegate.kmodel(source, metamodel).also { reads++ }
+
+        override fun kstates(source: TextSnapshot): ReadResult<StateMachine> = delegate.kstates(source).also { reads++ }
+    }
 
     @TempDir
     lateinit var dir: Path
@@ -89,6 +114,32 @@ class WorkspaceDescriptorEditingTest {
         assertFalse(model in workspace.contexts.value.contexts.single(), "the context follows the edit")
         assertTrue(model in workspace.analysis.value.looseFiles, "and so does the analysis: the model is loose now")
         assertTrue(Files.readString(descriptor).contains("cleaning_robot.kmodel"), "nothing was saved")
+    }
+
+    @Test
+    fun `editing only the tick delay yields a new resolution and an analysis that reads no file again`() = runTest(timeout = 60.seconds) {
+        val descriptor = DescriptorExamples.copyExplicitContext(ctx).toAbsolutePath().normalize()
+        val reader = CountingReader()
+        val workspace = TestWorkspaces(this).open(root, analyzer = ProjectAnalyzer(defaultLanguageRegistry(), reader))
+        workspace.awaitAnalysis()
+        val document = workspace.openDocument(descriptor)
+        settle()
+        val before = workspace.contexts.value.contexts.single()
+        val analysisBefore = workspace.analysis.value
+        val readsBefore = reader.reads
+        assertEquals(50L, before.environment?.tickDelayMs)
+
+        document.replace("\"tickDelayMs\": 50", "\"tickDelayMs\": 75")
+        settle()
+
+        val after = workspace.contexts.value.contexts.single()
+        assertEquals(75L, after.environment?.tickDelayMs, "the context carries the edited descriptor")
+        assertEquals(before.copy(environment = after.environment), after, "nothing but the descriptor changed")
+        val analysis = workspace.analysis.value
+        assertTrue(analysis.generation > analysisBefore.generation, "the new resolution was analyzed")
+        assertEquals(after, analysis.contexts.single().context)
+        assertEquals(readsBefore, reader.reads, "no file was read again: the analyzer remembers its reads by text")
+        assertEquals(analysisBefore.contexts.single().models, analysis.contexts.single().models)
     }
 
     @Test

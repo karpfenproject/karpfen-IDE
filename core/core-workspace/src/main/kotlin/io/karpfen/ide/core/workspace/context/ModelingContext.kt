@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace.context
 
+import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
@@ -24,10 +25,19 @@ import java.nio.file.Path
  * out what its descriptor names but the tree lacks, which the resolver reports); a file may still vanish from disk
  * before the next scan.
  *
+ * An explicit context also carries the typed descriptor it was resolved from, so that everything else the descriptor
+ * says, such as the tick delay and the event time to live of a deployment, has one source: the descriptor's text as
+ * the workspace read it. The descriptor is part of the context's equality, so editing only such a value yields a new
+ * resolution and a new analysis, which reads no file again because the analyzer remembers its reads by text.
+ *
  * @property directory the directory the context belongs to.
  * @property descriptor the `*.kenv.json` defining the context, or null for an implicit (directory) context.
  * @property metamodel the domain metamodel, or null if the context has none.
  * @property events the event metamodel (`EVENTS.kmeta` in an implicit context), or null.
+ * @property models the models of the context, at most one in an explicit context.
+ * @property stateMachines the state machines of the context, with their attachments in an explicit context.
+ * @property environment the typed descriptor the context was resolved from, decoded from the same text as [descriptor];
+ *   null for an implicit context.
  */
 public data class ModelingContext(
     public val directory: Path,
@@ -36,6 +46,7 @@ public data class ModelingContext(
     public val events: Path?,
     public val models: List<Path>,
     public val stateMachines: List<StateMachineBinding>,
+    public val environment: EnvironmentDescriptor? = null,
 ) {
     /** True for a context formed by a directory without descriptor. */
     public val isImplicit: Boolean get() = descriptor == null

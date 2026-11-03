@@ -63,7 +63,10 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
         }
     }
 
-    /** The context of the descriptor at [path] in [directory]; the files it names that are not there are left out. */
+    /**
+     * The context of the descriptor at [path] in [directory]; the files it names that are not there are left out. The
+     * context carries the decoded [descriptor] itself, so the rest of what it says reaches the analysis too.
+     */
     private fun contextOf(path: Path, directory: Path, descriptor: EnvironmentDescriptor): ModelingContext {
         fun named(value: String, role: DescriptorFileRole): Path? = files.lookUp(directory, value, role).file?.path
         return ModelingContext(
@@ -75,6 +78,7 @@ internal class DescriptorContexts(private val tree: WorkspaceTree, private val d
             stateMachines = descriptor.stateMachines.mapNotNull { entry ->
                 named(entry.file, DescriptorFileRole.STATE_MACHINE)?.let { StateMachineBinding(it, entry.attachedTo) }
             },
+            environment = descriptor,
         )
     }
 

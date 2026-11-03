@@ -23,6 +23,7 @@ import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -56,6 +57,7 @@ class DefaultContextResolverTest {
                     events = ws("ctx/EVENTS.kmeta"),
                     models = listOf(ws("ctx/cleaning_robot.kmodel")),
                     stateMachines = listOf(StateMachineBinding(ws("ctx/cleaning_robot.kstates"), DescriptorExamples.ATTACHED_TO)),
+                    environment = read.getValue(ws("ctx/robot.kenv.json")).descriptor,
                 ),
             ),
             resolution.contexts,
@@ -63,6 +65,20 @@ class DefaultContextResolverTest {
         assertEquals(emptyMap(), resolution.diagnostics)
         assertEquals(emptyList(), resolution.looseFiles)
         assertEquals("robot", resolution.contexts.single().name)
+    }
+
+    @Test
+    fun `an explicit context carries the descriptor it was decoded from and an implicit context none`() {
+        val tree = treeOf(*robotFiles, "ctx/robot.kenv.json", "loose/robot.kmeta", "loose/robot.kmodel")
+        val read = descriptors("ctx/robot.kenv.json" to DescriptorExamples.text(DescriptorExamples.VALID))
+
+        val resolution = resolver.resolve(tree, read)
+
+        val explicit = resolution.contexts.single { it.descriptor != null }
+        val environment = assertNotNull(explicit.environment)
+        assertEquals(read.getValue(ws("ctx/robot.kenv.json")).descriptor, environment)
+        assertEquals(50L to 3000L, environment.tickDelayMs to environment.eventTtlMs, "the timing of the descriptor reaches the context")
+        assertEquals(listOf(null), resolution.contexts.filter { it.isImplicit }.map { it.environment })
     }
 
     @Test
