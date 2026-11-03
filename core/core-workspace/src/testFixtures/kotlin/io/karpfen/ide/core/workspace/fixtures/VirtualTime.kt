@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.karpfen.ide.core.workspace
+package io.karpfen.ide.core.workspace.fixtures
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
@@ -28,7 +28,7 @@ import kotlin.time.Duration.Companion.seconds
  * and `runCurrent` run it.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-internal fun TestScope.settle(time: Duration = 5.seconds) {
+public fun TestScope.settle(time: Duration = 5.seconds) {
     advanceTimeBy(time)
     runCurrent()
 }

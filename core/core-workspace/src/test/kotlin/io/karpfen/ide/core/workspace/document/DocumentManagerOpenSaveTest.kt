@@ -23,9 +23,9 @@ import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.LineSeparator
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.files.FileKind
+import io.karpfen.ide.core.workspace.fixtures.settle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import io.karpfen.ide.core.workspace.settle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir

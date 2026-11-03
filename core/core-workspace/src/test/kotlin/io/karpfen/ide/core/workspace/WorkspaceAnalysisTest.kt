@@ -23,6 +23,9 @@ import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.text.TextPosition
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.files.FileKind
+import io.karpfen.ide.core.workspace.fixtures.FakeFileWatcher
+import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
+import io.karpfen.ide.core.workspace.fixtures.settle
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent

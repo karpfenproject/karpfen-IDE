@@ -27,6 +27,9 @@ import io.karpfen.ide.core.workspace.analysis.AnalysisSources
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
+import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
+import io.karpfen.ide.core.workspace.fixtures.openDocument
+import io.karpfen.ide.core.workspace.fixtures.settle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch

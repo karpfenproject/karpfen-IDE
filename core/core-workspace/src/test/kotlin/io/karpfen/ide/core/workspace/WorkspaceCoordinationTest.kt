@@ -33,6 +33,9 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceScanner
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
+import io.karpfen.ide.core.workspace.fixtures.FakeFileWatcher
+import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
+import io.karpfen.ide.core.workspace.fixtures.settle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy

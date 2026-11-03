@@ -21,6 +21,9 @@ import io.karpfen.ide.core.workspace.document.ExternalChangeKind
 import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.core.workspace.document.SaveResult
 import io.karpfen.ide.core.workspace.files.FileChangeKind
+import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
+import io.karpfen.ide.core.workspace.fixtures.openDocument
+import io.karpfen.ide.core.workspace.fixtures.settle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent

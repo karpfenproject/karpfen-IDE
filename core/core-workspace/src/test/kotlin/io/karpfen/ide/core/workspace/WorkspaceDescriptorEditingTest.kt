@@ -23,6 +23,9 @@ import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.document.OpenDocument
+import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
+import io.karpfen.ide.core.workspace.fixtures.openDocument
+import io.karpfen.ide.core.workspace.fixtures.settle
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files

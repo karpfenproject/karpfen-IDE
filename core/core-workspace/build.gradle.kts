@@ -13,13 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Kotlin/JVM with shared test fixtures: workspaces on virtual time, a file watcher that tests drive, and the helpers to
+ * open documents and let virtual time pass, which the tests of this module use and the tests of downstream modules,
+ * such as the runtime session, reach through `testFixtures(project(":core:core-workspace"))`.
+ */
 plugins {
     id("karpfen.kotlin-jvm")
+    `java-test-fixtures`
 }
 
 /**
  * The workspace hands out documents, sessions, diagnostics and the dsl-tools models of the project analysis, all from
- * core-document, which also brings kotlinx.serialization, the reader of environment descriptors.
+ * core-document, which also brings kotlinx.serialization, the reader of environment descriptors. The test fixtures
+ * expose kotlinx-coroutines-test, whose test scope and dispatchers their public functions take.
  */
 dependencies {
     api(project(":core:core-document"))
@@ -27,4 +34,5 @@ dependencies {
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
+    testFixturesApi(libs.kotlinx.coroutines.test)
 }
