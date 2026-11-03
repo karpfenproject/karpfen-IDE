@@ -1,0 +1,48 @@
+STATEMACHINE ATTACHED TO "Lamp" {
+    STATES {
+        INITIAL STATE "off" {
+            ENTRY {
+                SET("mode", "off")
+                SET("bulb->lit", "false")
+                APPEND("log", "off")
+            }
+        }
+        STATE "on" {
+            ENTRY {
+                SET("mode", "on")
+                SET("bulb->lit", "true")
+                APPEND("log", "on")
+            }
+            STATE "full power" {
+                ENTRY {
+                    SET("bulb->watts", "100")
+                    APPEND("log", "100 W – full power")
+                }
+            }
+        }
+        STATE "broken" {
+            ENTRY {
+                DROPOBJ("spare")
+                SET("mode", "broken")
+                APPEND("log", "broken")
+            }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "off" -> "on" {
+            CONDITION { EVENT("switch", "press") }
+        }
+        TRANSITION "on" -> "off" {
+            CONDITION { EVENT("switch", "press") }
+        }
+        TRANSITION "on" -> "full power" NOT LOOPING {
+            CONDITION {
+                EVENT("switch", "dim")
+                VALUE("event->bright")
+            }
+        }
+        TRANSITION "off" -> "broken" {
+            CONDITION { EVENT("service", "smash") }
+        }
+    }
+}

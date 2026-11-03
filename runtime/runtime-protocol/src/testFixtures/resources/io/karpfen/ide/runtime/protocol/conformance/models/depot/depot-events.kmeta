@@ -1,0 +1,8 @@
+type "receive" "Receives a new crate into the slot" {
+}
+type "stack" "Stacks a new crate onto the stack" {
+}
+type "label" "Relabels the crate in the slot" {
+}
+type "scrap" "Scraps the crate in the slot" {
+}

@@ -1,0 +1,7 @@
+{
+  "metamodel": "ring.kmeta",
+  "model": "ring.kmodel",
+  "stateMachines": [
+    { "file": "ring.kstates", "attachedTo": "a" }
+  ]
+}

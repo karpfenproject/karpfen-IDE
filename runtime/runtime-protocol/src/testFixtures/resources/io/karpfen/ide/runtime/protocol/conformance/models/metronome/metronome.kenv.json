@@ -1,0 +1,8 @@
+{
+  "metamodel": "metronome.kmeta",
+  "events": "metronome-events.kmeta",
+  "model": "metronome.kmodel",
+  "stateMachines": [
+    { "file": "metronome.kstates", "attachedTo": "metronome" }
+  ]
+}

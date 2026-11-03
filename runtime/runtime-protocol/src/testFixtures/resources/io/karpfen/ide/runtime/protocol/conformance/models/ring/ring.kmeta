@@ -1,0 +1,7 @@
+type "Node" "A node that knows the next node" {
+    prop("visits", "number")
+    knows("next", "Node")
+}
+type "Ring" "Holds the nodes of a reference loop" {
+    has("nodes", list("Node"))
+}

@@ -1,0 +1,1 @@
+make object "metronome":"Metronome" { prop("phase") -> "idle" }

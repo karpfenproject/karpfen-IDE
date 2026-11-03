@@ -1,0 +1,8 @@
+{
+  "metamodel": "depot.kmeta",
+  "events": "depot-events.kmeta",
+  "model": "depot.kmodel",
+  "stateMachines": [
+    { "file": "depot.kstates", "attachedTo": "depot" }
+  ]
+}

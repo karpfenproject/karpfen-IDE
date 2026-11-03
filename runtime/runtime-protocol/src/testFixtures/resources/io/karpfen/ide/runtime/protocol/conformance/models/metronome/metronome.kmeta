@@ -1,0 +1,4 @@
+type "Metronome" "Counts beats in bursts" {
+    prop("phase", "string")
+    prop("beats", list("string"))
+}

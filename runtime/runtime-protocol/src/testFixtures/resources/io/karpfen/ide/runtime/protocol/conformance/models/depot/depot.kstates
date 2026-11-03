@@ -1,0 +1,47 @@
+STATEMACHINE ATTACHED TO "Depot" {
+    STATES {
+        INITIAL STATE "idle" { }
+        STATE "receiving" {
+            ENTRY {
+                SETOBJ("self", "slot", EVAL { return {"label": "received"} })
+                SET("status", "received")
+            }
+        }
+        STATE "stacking" {
+            ENTRY {
+                APPENDOBJ("self", "stack", EVAL { return {"label": "stacked"} })
+                SET("status", "stacked")
+            }
+        }
+        STATE "labelling" {
+            ENTRY {
+                SET("slot->label", "relabelled")
+                SET("status", "labelled")
+            }
+        }
+        STATE "scrapping" {
+            ENTRY {
+                DROPOBJ("slot")
+                SET("status", "scrapped")
+            }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "idle" -> "receiving" {
+            CONDITION { EVENT("dock", "receive") }
+        }
+        TRANSITION "idle" -> "stacking" {
+            CONDITION { EVENT("dock", "stack") }
+        }
+        TRANSITION "idle" -> "labelling" {
+            CONDITION { EVENT("dock", "label") }
+        }
+        TRANSITION "idle" -> "scrapping" {
+            CONDITION { EVENT("dock", "scrap") }
+        }
+        TRANSITION "receiving" -> "idle" { }
+        TRANSITION "stacking" -> "idle" { }
+        TRANSITION "labelling" -> "idle" { }
+        TRANSITION "scrapping" -> "idle" { }
+    }
+}

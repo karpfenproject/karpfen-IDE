@@ -1,0 +1,28 @@
+STATEMACHINE ATTACHED TO "Switch" {
+    STATES {
+        INITIAL STATE "down" { }
+        STATE "up" {
+            ENTRY {
+                SET("position", "up")
+                APPEND("presses", "up")
+            }
+        }
+        STATE "back down" {
+            ENTRY {
+                SET("position", "down")
+                APPEND("presses", "down")
+            }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "down" -> "up" {
+            CONDITION { EVENT("switch", "press") }
+        }
+        TRANSITION "up" -> "back down" {
+            CONDITION { EVENT("switch", "press") }
+        }
+        TRANSITION "back down" -> "up" {
+            CONDITION { EVENT("switch", "press") }
+        }
+    }
+}

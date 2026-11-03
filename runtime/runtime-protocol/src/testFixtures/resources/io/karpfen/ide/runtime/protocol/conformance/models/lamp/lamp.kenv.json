@@ -1,0 +1,9 @@
+{
+  "metamodel": "lamp.kmeta",
+  "events": "lamp-events.kmeta",
+  "model": "lamp.kmodel",
+  "stateMachines": [
+    { "file": "lamp.kstates", "attachedTo": "lamp" },
+    { "file": "switch.kstates", "attachedTo": "wallSwitch" }
+  ]
+}

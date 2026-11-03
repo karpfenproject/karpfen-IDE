@@ -1,0 +1,6 @@
+make object "depot":"Depot" {
+    prop("status") -> "idle"
+    has("slot") -> make object "crate0":"Crate" {
+        prop("label") -> "initial"
+    }
+}

@@ -1,0 +1,7 @@
+type "press" "Presses the wall switch" {
+}
+type "dim" "Asks the lamp for full power when bright is true" {
+    prop("bright", "boolean")
+}
+type "smash" "Breaks the lamp for good" {
+}

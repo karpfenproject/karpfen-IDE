@@ -1,0 +1,17 @@
+make object "living room":"Room" {
+    has("lamp") -> make object "lamp":"Lamp" {
+        prop("mode") -> "off"
+        has("bulb") -> make object "bulb":"Bulb" {
+            prop("watts") -> "40"
+            prop("lit") -> "false"
+        }
+        has("spare") -> make object "spare":"Bulb" {
+            prop("watts") -> "60"
+            prop("lit") -> "false"
+        }
+        knows("control") -> "wallSwitch"
+    }
+    has("switch") -> make object "wallSwitch":"Switch" {
+        prop("position") -> "down"
+    }
+}

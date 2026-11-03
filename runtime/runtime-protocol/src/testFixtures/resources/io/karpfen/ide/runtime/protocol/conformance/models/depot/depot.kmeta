@@ -1,0 +1,8 @@
+type "Crate" "A crate" {
+    prop("label", "string")
+}
+type "Depot" "Receives, stacks, relabels and scraps crates" {
+    prop("status", "string")
+    has("slot", "Crate")
+    has("stack", list("Crate"))
+}

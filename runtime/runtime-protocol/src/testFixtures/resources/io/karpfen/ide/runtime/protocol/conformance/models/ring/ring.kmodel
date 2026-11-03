@@ -1,0 +1,10 @@
+make object "ring":"Ring" {
+    has("nodes") -> make object "a":"Node" {
+        prop("visits") -> "0"
+        knows("next") -> "b"
+    }
+    has("nodes") -> make object "b":"Node" {
+        prop("visits") -> "0"
+        knows("next") -> "a"
+    }
+}

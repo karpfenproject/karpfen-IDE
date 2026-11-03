@@ -1,0 +1,19 @@
+type "Bulb" "A light bulb" {
+    prop("watts", "number")
+    prop("lit", "boolean")
+}
+type "Switch" "A wall switch" {
+    prop("position", "string")
+    prop("presses", list("string"))
+}
+type "Lamp" "A lamp with a bulb, a spare bulb and the switch it is wired to" {
+    prop("mode", "string")
+    prop("log", list("string"))
+    has("bulb", "Bulb")
+    has("spare", "Bulb")
+    knows("control", "Switch")
+}
+type "Room" "The room the lamp stands in" {
+    has("lamp", "Lamp")
+    has("switch", "Switch")
+}

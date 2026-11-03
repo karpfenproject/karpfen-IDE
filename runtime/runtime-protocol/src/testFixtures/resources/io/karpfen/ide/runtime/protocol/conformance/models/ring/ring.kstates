@@ -1,0 +1,8 @@
+STATEMACHINE ATTACHED TO "Node" {
+    STATES {
+        INITIAL STATE "visit" {
+            ENTRY { SET("visits", "1") }
+        }
+    }
+    TRANSITIONS { }
+}

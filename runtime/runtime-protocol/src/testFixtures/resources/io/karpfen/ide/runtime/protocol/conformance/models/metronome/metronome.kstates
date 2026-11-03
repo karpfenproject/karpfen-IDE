@@ -1,0 +1,40 @@
+STATEMACHINE ATTACHED TO "Metronome" {
+    STATES {
+        INITIAL STATE "rest" {
+            ENTRY { SET("phase", "rest") }
+        }
+        STATE "beat one" {
+            ENTRY {
+                SET("phase", "beating")
+                APPEND("beats", "1")
+            }
+        }
+        STATE "beat two" {
+            ENTRY { APPEND("beats", "2") }
+        }
+        STATE "beat three" {
+            ENTRY { APPEND("beats", "3") }
+        }
+        STATE "lane a" {
+            ENTRY { APPEND("beats", "a") }
+        }
+        STATE "lane b" {
+            ENTRY { APPEND("beats", "b") }
+        }
+        STATE "lane a done" { }
+        STATE "lane b done" {
+            ENTRY { EVENT("tick", "burst done") }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "rest" -> "beat one" {
+            CONDITION { EVENT("beat", "go") }
+        }
+        TRANSITION "beat one" -> "beat two" { }
+        TRANSITION "beat two" -> "beat three" { }
+        SPLIT "beat three" -> "lane a", "lane b" { }
+        TRANSITION "lane a" -> "lane a done" { }
+        TRANSITION "lane b" -> "lane b done" { }
+        JOIN "lane a done", "lane b done" -> "rest" { }
+    }
+}
