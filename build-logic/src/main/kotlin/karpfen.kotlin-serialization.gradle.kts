@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 /**
- * Convention for modules with kotlinx.serialization, such as the data transfer objects of the runtime protocol: the
- * Kotlin/JVM base convention plus the serialization compiler plugin and the JSON runtime. It has to be a convention
+ * Convention for modules with kotlinx.serialization, such as the environment descriptors of core-document and the
+ * settings of the workbench: the Kotlin/JVM base convention plus the serialization compiler plugin and the JSON runtime.
+ * The runtime protocol reads and writes the runtime's JSON with its own reader instead. It has to be a convention
  * plugin because the serialization plugin reaches the modules through build-logic's classpath and therefore cannot be
  * requested by id alone in a module's `plugins` block.
  */

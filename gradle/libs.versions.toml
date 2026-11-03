@@ -17,6 +17,9 @@ junit = "6.1.3"
 konsist = "0.18.1"
 slf4j = "2.0.20"
 logback = "1.6.5"
+# The JSON library of karpfen-runtime in the version the runtime pins; runtime-protocol's test fixtures write and parse
+# JSON with it exactly as the runtime does.
+org-json = "20240303"
 karpfen-dsl-tools = "2.0.0-SNAPSHOT"
 # Also hard-coded in settings.gradle.kts: version catalogs are not available in the settings plugins block.
 foojay-resolver = "1.0.0"
@@ -62,6 +65,9 @@ lsp4j = { module = "org.eclipse.lsp4j:org.eclipse.lsp4j", version.ref = "lsp4j" 
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
 compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "compose-multiplatform" }
+
+# --- runtime test fixtures ---------------------------------------------------------------------
+org-json = { module = "org.json:json", version.ref = "org-json" }
 
 # --- logging -----------------------------------------------------------------------------------
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }

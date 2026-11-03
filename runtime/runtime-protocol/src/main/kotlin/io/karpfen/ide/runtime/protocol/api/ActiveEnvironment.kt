@@ -13,15 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.karpfen.ide.runtime.protocol
+package io.karpfen.ide.runtime.protocol.api
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
+import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 
-/** Covers the phase-0 module stub [RuntimeProtocolModule]. */
-class RuntimeProtocolModuleTest {
-    @Test
-    fun `module id matches the module directory`() {
-        assertEquals("runtime-protocol", RuntimeProtocolModule.ID)
-    }
-}
+/**
+ * An environment the runtime lists: activated, running, halted or stopped (configuring environments are not listed).
+ *
+ * @property key the environment.
+ * @property modelElements the `attachedTo` keys of its state machines, in the order the runtime lists them.
+ */
+public data class ActiveEnvironment(public val key: EnvironmentKey, public val modelElements: List<String>)

@@ -19,11 +19,12 @@ package io.karpfen.ide.buildlogic
  * The module dependency matrix: the allowed dependency directions between the karpfen IDE modules.
  *
  * Module boundaries are enforced by the build, because a layering that only lives in documents erodes. The core
- * modules are the UI-agnostic language core and see only each other; notation, runtime and bridges build on core; the
- * bridges are headless-first and use of the runtime only its protocol module; the UI sees every layer but the app and
- * the tools; the command-line tools see every layer but the UI and the app; the app wires everything. Every module's
- * `check` verifies it against [rules], and the architecture tests add the import rules that a dependency matrix cannot
- * express. A new module needs a rule here and an entry in the architecture tests' module table.
+ * modules are the UI-agnostic language core and see only each other; notation, runtime and bridges build on core,
+ * except the runtime protocol, which depends on no IDE module at all, so that the bridges built on it stay free of the
+ * core; the bridges are headless-first and use of the runtime only its protocol module; the UI sees every layer but the
+ * app and the tools; the command-line tools see every layer but the UI and the app; the app wires everything. Every
+ * module's `check` verifies it against [rules], and the architecture tests add the import rules that a dependency
+ * matrix cannot express. A new module needs a rule here and an entry in the architecture tests' module table.
  *
  * Module identifiers are Gradle project paths. A pattern ending in `:*` matches every module below that
  * group (`:core:*` matches `:core:core-text`), the pattern `*` matches every module, any other pattern
@@ -59,12 +60,16 @@ object ModuleDependencyRules {
     }
 
     /**
-     * The matrix. The first rule whose [Rule.from] matches the depending module applies. The architecture tests have no
-     * allowed target: they read the source files of all modules from disk and must not depend on any module.
+     * The matrix. The first rule whose [Rule.from] matches the depending module applies, so the rule of the runtime
+     * protocol comes before the rule of the runtime group. The runtime protocol and the architecture tests have no
+     * allowed target: the protocol is the client of the karpfen runtime that the bridges use too, and the architecture
+     * tests read the source files of all modules from disk; neither may depend on any module (a module may still use its
+     * own test fixtures).
      */
     val rules: List<Rule> = listOf(
         Rule(":core:*", listOf(":core:*")),
         Rule(":notation:*", listOf(":core:*", ":notation:*")),
+        Rule(":runtime:runtime-protocol", emptyList()),
         Rule(":runtime:*", listOf(":core:*", ":runtime:*")),
         Rule(":bridges:*", listOf(":core:*", ":bridges:*", ":runtime:runtime-protocol")),
         Rule(":ui:*", listOf(":core:*", ":notation:*", ":runtime:*", ":bridges:*", ":ui:*")),

@@ -75,6 +75,27 @@ class ModuleDependencyRulesTest {
     }
 
     @Test
+    fun `the runtime protocol depends on no other module while the rest of the runtime may use it and core`() {
+        assertEquals(
+            ModuleDependencyRules.Rule(":runtime:runtime-protocol", emptyList()),
+            ModuleDependencyRules.ruleFor(":runtime:runtime-protocol"),
+        )
+        listOf(":core:core-text", ":core:core-workspace", ":runtime:runtime-session", ":runtime:runtime-host", ":bridges:bridge-api")
+            .forEach { assertFalse(ModuleDependencyRules.isAllowed(":runtime:runtime-protocol", it), it) }
+        assertTrue(ModuleDependencyRules.isAllowed(":runtime:runtime-protocol", ":runtime:runtime-protocol"), "its own test fixtures")
+        assertTrue(ModuleDependencyRules.isAllowed(":runtime:runtime-session", ":runtime:runtime-protocol"))
+        assertTrue(ModuleDependencyRules.isAllowed(":runtime:runtime-host", ":runtime:runtime-protocol"))
+        assertTrue(ModuleDependencyRules.isAllowed(":runtime:runtime-session", ":core:core-workspace"))
+        assertEquals(
+            listOf(
+                "implementation(project(\":core:core-text\")) is not allowed: " +
+                    ":runtime:runtime-protocol may depend on no project dependencies",
+            ),
+            ModuleDependencyRules.violations(":runtime:runtime-protocol", listOf(DeclaredDependency("implementation", ":core:core-text"))),
+        )
+    }
+
+    @Test
     fun `group wildcard does not match a sibling group with the same prefix`() {
         assertFalse(ModuleDependencyRules.matches(":core:*", ":corelib:x"))
         assertFalse(ModuleDependencyRules.matches(":core:*", ":core"))
