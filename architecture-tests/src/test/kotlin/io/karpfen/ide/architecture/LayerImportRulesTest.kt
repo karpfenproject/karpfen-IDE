@@ -27,12 +27,15 @@ import kotlin.test.assertTrue
  *   UI-agnostic; JavaFX is not used at all.
  * - Core and notation, the reusable layers, see no layer above them and no infrastructure library.
  * - The runtime runs in an IDE-owned Docker container, and only runtime-host talks to Docker.
+ * - The client of the runtime reaches the network through its own transport seams, and only their Ktor adapter package
+ *   uses Ktor, in its code and its tests alike; everything else of the runtime, test fixtures included, works against
+ *   the seams. The bridges keep their own use of Ktor.
  * - Bridges are headless-first and use of the runtime only its wire protocol; only the MQTT bridge uses the HiveMQ
  *   client.
  *
- * The rules apply to main and test sources of every module, identified by package. Each rule checks the import
- * directives and, because JDK packages such as java.awt compile without any dependency, also fully qualified
- * references in the code (see [SourceReferences]).
+ * The rules apply to the main, test and test-fixture sources of every module, identified by package. Each rule checks
+ * the import directives and, because JDK packages such as java.awt compile without any dependency, also fully
+ * qualified references in the code (see [SourceReferences]).
  */
 class LayerImportRulesTest {
 
@@ -43,6 +46,7 @@ class LayerImportRulesTest {
         const val RUNTIME = "$IDE.runtime"
         const val RUNTIME_PROTOCOL = "$IDE.runtime.protocol"
         const val RUNTIME_HOST = "$IDE.runtime.host"
+        const val RUNTIME_KTOR_ADAPTER = "$IDE.runtime.protocol.transport.ktor"
         const val BRIDGES = "$IDE.bridges"
         const val BRIDGES_MQTT = "$IDE.bridges.mqtt"
         const val UI = "$IDE.ui"
@@ -108,6 +112,17 @@ class LayerImportRulesTest {
             files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithin(RUNTIME_HOST) },
             forbidden = listOf(DOCKER),
             rule = "Only $RUNTIME_HOST.. may import $DOCKER..",
+        )
+    }
+
+    @Test
+    fun `within the runtime only the Ktor adapter of the protocol may use Ktor`() {
+        val runtimeFiles = KarpfenModules.filesInPackage(RUNTIME)
+        assertTrue(runtimeFiles.any { it.sourceSetName == "testFixtures" }, "the rule must see the test fixtures of the runtime modules")
+        assertNoUsages(
+            files = runtimeFiles.filterNot { it.packageName.isWithin(RUNTIME_KTOR_ADAPTER) },
+            forbidden = listOf(KTOR),
+            rule = "Within $RUNTIME.. only $RUNTIME_KTOR_ADAPTER.. may import $KTOR..",
         )
     }
 

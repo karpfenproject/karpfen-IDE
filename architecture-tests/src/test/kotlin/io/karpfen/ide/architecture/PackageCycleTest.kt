@@ -21,26 +21,42 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Dependency direction inside modules is acyclic: within each core and UI module, the packages of the production code
- * must not depend on each other in a cycle. A package depends on another package of the same module when one of its
- * files imports (or fully-qualified references) a declaration of it; the declaring package of a name is the longest
- * package of the module that contains it.
+ * Dependency direction inside modules is acyclic: within each core, runtime and UI module, the packages of the
+ * production code must not depend on each other in a cycle. A package depends on another package of the same module
+ * when one of its files imports (or fully-qualified references) a declaration of it; the declaring package of a name is
+ * the longest package of the module that contains it. A module's root package counts like any other, so in the runtime
+ * modules it holds only the facade, its factory functions and its options, which no other package imports.
  */
 class PackageCycleTest {
 
     @Test
-    fun `the packages of each core and UI module form no dependency cycle`() {
-        val modules = KarpfenModules.coreModules + KarpfenModules.uiModules
-        assertTrue(KarpfenModules.coreModules.isNotEmpty() && KarpfenModules.uiModules.isNotEmpty(), "is KarpfenModules broken?")
+    fun `the packages of each core, runtime and UI module form no dependency cycle`() {
+        val modules = KarpfenModules.coreModules + KarpfenModules.runtimeModules + KarpfenModules.uiModules
+        assertTrue(
+            listOf(KarpfenModules.coreModules, KarpfenModules.runtimeModules, KarpfenModules.uiModules).all { it.isNotEmpty() },
+            "is KarpfenModules broken?",
+        )
         val cycles = modules.flatMap { module ->
             PackageGraph.ofModule(module).cycles().map { cycle -> "$module: ${cycle.sorted().joinToString(" <-> ")}" }
         }
-        assertTrue(cycles.isEmpty(), "Package cycles inside core and UI modules: $cycles")
+        assertTrue(cycles.isEmpty(), "Package cycles inside core, runtime and UI modules: $cycles")
+    }
+
+    @Test
+    fun `no package of a runtime module imports the module's root package`() {
+        val imports = KarpfenModules.runtimeModules.flatMap { module ->
+            val root = KarpfenModules.packagePrefixes.getValue(module)
+            PackageGraph.ofModule(module).edges
+                .filter { (from, targets) -> from != root && root in targets }
+                .keys.map { "$module: $it -> $root" }
+        }
+        assertTrue(imports.isEmpty(), "The root package of a runtime module holds only its facade, factories and options: $imports")
     }
 
     /**
      * Guards against a vacuous rule with known edges that must be seen: the built-in language registry wires the
-     * adapters, and the editor state holds the caret model.
+     * adapters, the editor state holds the caret model, and the lifecycle of the runtime protocol answers the failures of
+     * its gateway.
      */
     @Test
     fun `the graph is built from the real packages`() {
@@ -53,6 +69,11 @@ class PackageCycleTest {
         assertTrue(
             "io.karpfen.ide.ui.editor.model.caret" in editor.edges["io.karpfen.ide.ui.editor.state"].orEmpty(),
             "expected state -> model.caret, got ${editor.edges}",
+        )
+        val protocol = PackageGraph.ofModule("runtime/runtime-protocol")
+        assertTrue(
+            "io.karpfen.ide.runtime.protocol.api" in protocol.edges["io.karpfen.ide.runtime.protocol.lifecycle"].orEmpty(),
+            "expected lifecycle -> api, got ${protocol.edges}",
         )
     }
 

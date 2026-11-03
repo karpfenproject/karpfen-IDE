@@ -72,6 +72,9 @@ internal object KarpfenModules {
     /** Module directories of the UI layer (Compose). */
     val uiModules: List<String> get() = packagePrefixes.keys.filter { it.startsWith("ui/") }
 
+    /** Module directories of the runtime layer, the client of the karpfen runtime (explicit API mode). */
+    val runtimeModules: List<String> get() = packagePrefixes.keys.filter { it.startsWith("runtime/") }
+
     /** Directories whose Kotlin files are build tooling, not product code. */
     private val nonProductModules = setOf("build-logic")
 
