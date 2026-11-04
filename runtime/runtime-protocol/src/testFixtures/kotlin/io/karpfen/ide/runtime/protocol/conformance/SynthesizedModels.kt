@@ -22,7 +22,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * The small karpfen models the scenarios run against both runtimes, each in a folder of its own with a descriptor
+ * The small karpfen models the scenarios run against a real runtime, each in a folder of its own with a descriptor
  * `<folder>.kenv.json` that names its files and attachments (and no tick delay or time to live: those come from the
  * deploy configuration, and [SynthesizedModels.copyTo] adds them when a scenario asks). Every model has one root object
  * and writes every scalar its machines set; no event domain equals an attached key. All but [DEPOT] run without Python.
@@ -115,8 +115,8 @@ public data class DescriptorTiming(public val tickDelayMs: Long? = null, public 
 /**
  * The texts of the [SynthesizedModel]s and of the failure inputs, as test-fixture resources below [RESOURCE_ROOT], and
  * copies of them on disk: a deployment uploads saved files, so every scenario that deploys writes a model into a
- * folder of its own with [copyTo] and opens it as a workspace. The exact texts let the fake runtime recognize what was
- * uploaded. The models are IDE-authored and Apache 2.0 licensed; the README of the folder describes them.
+ * folder of its own with [copyTo] and opens it as a workspace. The models are IDE-authored and Apache 2.0 licensed; the
+ * README of the folder describes them.
  */
 public object SynthesizedModels {
     /** The classpath folder of the models, one sub-folder per [SynthesizedModel.folder]. */

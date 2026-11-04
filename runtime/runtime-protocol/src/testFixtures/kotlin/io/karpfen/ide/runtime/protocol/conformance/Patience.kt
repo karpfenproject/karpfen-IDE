@@ -50,9 +50,9 @@ public data class Patience(
 
     public companion object {
         /**
-         * The patience with a real runtime, which the fake uses too because waits cost nothing on virtual time: 60 s
-         * for a deployment, 30 s for a reaction, 60 s for a burst, 180 s for a step with several environments, 5 min for
-         * a scenario, polling every 250 ms.
+         * The patience with a real runtime, which tests on virtual time may use too because waits cost nothing there:
+         * 60 s for a deployment, 30 s for a reaction, 60 s for a burst, 180 s for a step with several environments, 5 min
+         * for a scenario, polling every 250 ms.
          */
         public val LIVE: Patience = Patience(
             deploy = 60.seconds,

@@ -1,7 +1,7 @@
 # Synthesized models
 
-Small karpfen models written for karpfen IDE's tests against the fake runtime and a real runtime (Apache License 2.0,
-like the rest of this repository). `SynthesizedModels` in runtime-protocol's test fixtures reads them; `SynthesizedModel`
+Small karpfen models written for karpfen IDE's tests against a real runtime (Apache License 2.0, like the rest of this
+repository). `SynthesizedModels` in runtime-protocol's test fixtures reads them; `SynthesizedModel`
 describes what each one exercises, and `SynthesizedModels.copyTo` writes one into a folder, optionally with a tick delay
 and an event time to live in its descriptor. The files carry no comments, so the texts stay exactly what is uploaded.
 

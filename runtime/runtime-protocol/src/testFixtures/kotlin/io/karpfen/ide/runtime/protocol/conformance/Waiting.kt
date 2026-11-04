@@ -28,8 +28,8 @@ import kotlin.time.Duration
  * [AssertionError] such as a failed `assertEquals`, while the awaited state has not come yet; any other exception fails
  * at once.
  *
- * The wait uses only `delay` and `withTimeoutOrNull`, so it runs on virtual time under the fake and on real time live,
- * and measures nothing on the wall clock.
+ * The wait uses only `delay` and `withTimeoutOrNull`, so it runs on virtual time in a test and on real time against a
+ * real runtime, and measures nothing on the wall clock.
  *
  * @param what the awaited state in words, such as `the lamp's stack ["on"]`.
  * @param within the bound, [Patience.reaction] by default.
@@ -64,7 +64,7 @@ public suspend fun <T : Any> RuntimeScenarioScope.eventually(
  * Awaits the first value of [values] that [accept] accepts, and answers it: an eventual assertion on a flow, such as
  * the stacks a connection reports, with the same bound and the same failure as [eventually].
  *
- * The wait uses only `withTimeoutOrNull`, so it runs on virtual time under the fake and on real time live.
+ * The wait uses only `withTimeoutOrNull`, so it runs on virtual time in a test and on real time against a real runtime.
  *
  * @param what the awaited value in words.
  * @param within the bound, [Patience.reaction] by default.

@@ -1,0 +1,536 @@
+/**
+ * Copyright 2026 Karl Kegel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.karpfen.ide.runtime.protocol.conformance
+
+import io.karpfen.ide.runtime.protocol.api.RejectionClassifier
+import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
+import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
+import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
+import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.WireNames
+import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.BAD_REQUEST
+import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.CLIENT_ID
+import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.CONFLICT
+import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.ENV_KEY
+import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.OK
+import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.lamp
+import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.string
+import io.karpfen.ide.runtime.protocol.golden.RuntimeGoldens
+import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
+import io.karpfen.ide.runtime.protocol.message.EventFrame
+import io.karpfen.ide.runtime.protocol.message.EventFrameEncoder
+import io.karpfen.ide.runtime.protocol.message.EventPayload
+import io.karpfen.ide.runtime.protocol.message.JsonReading
+import io.karpfen.ide.runtime.protocol.message.RuntimeJson
+import io.karpfen.ide.runtime.protocol.message.RuntimePhase
+import io.karpfen.ide.runtime.protocol.message.WireValue
+import io.karpfen.ide.runtime.protocol.transport.LinkClosure
+import io.karpfen.ide.runtime.protocol.transport.LinkSendResult
+import io.karpfen.ide.runtime.protocol.transport.ktor.RawWebSocketProbe
+import kotlinx.coroutines.withTimeout
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/**
+ * Covers the runtime's contract with the client, driven only through the transports with raw requests built from the
+ * catalogue's routes and raw links, with the lamp's texts: the missing-parameter texts in the order each route checks
+ * its parameters; every route's rejection of an absent environment; every route in a configuring, an activated, a
+ * running and a stopped environment with the exact statuses and texts of the catalogue; uploads the runtime refuses
+ * (an unknown type, an attachment to a missing object, a reference loop) leaving the environment configuring; unique
+ * environment keys and single-use access keys of the runtime's shapes; the silent handshake and its three refusals;
+ * the snapshot's member order, its revision 0 before the start and roots written like `objectChanged` values, equal to
+ * the lamp's golden; a model subscriber receiving every observation from the start with consecutive revisions; a second
+ * activation refused and a second start changing nothing; domain events with the members the decoder reads; pushes for
+ * a client without a session dropped; and a stop that closes the sockets with `Environment stopped`, after which the
+ * environment stays readable and a start runs it again.
+ *
+ * The scenarios run only against a real runtime ([LiveRuntimeContractTest]); failures that only a fake can produce are
+ * ordinary tests of the client against the fake runtime.
+ */
+abstract class RuntimeContract {
+
+    /** The runtime the scenarios run against. */
+    protected abstract val runtime: RuntimeUnderTest
+
+    /** Where that runtime listens, for the raw links. */
+    protected abstract val endpoint: RuntimeEndpoint
+
+    @Test
+    fun `every route refuses a missing parameter with the text of the first one it checks`() = scenario {
+        RuntimeRoute.entries.filter { it.parameters.isNotEmpty() }.forEach { route ->
+            route.parameters.indices.forEach { present ->
+                val given = route.parameters.take(present).map { it to sampleValue(it, "env-1") }
+                val missing = route.parameters[present]
+                val text = if (missing in NUMERIC) RuntimeText.INVALID_PARAMETER else RuntimeText.MISSING_PARAMETER
+                rejected(BAD_REQUEST, text, mapOf("name" to missing), route, *given.toTypedArray())
+            }
+        }
+        rejected(
+            BAD_REQUEST,
+            RuntimeText.INVALID_PARAMETER,
+            mapOf("name" to "milliseconds"),
+            RuntimeRoute.SET_TICK_DELAY,
+            ENV_KEY to "env-1",
+            "milliseconds" to "fast",
+        )
+        rejected(
+            BAD_REQUEST,
+            RuntimeText.INVALID_PARAMETER,
+            mapOf("name" to "ttlMs"),
+            RuntimeRoute.SET_EVENT_TTL,
+            ENV_KEY to "env-1",
+            "ttlMs" to "1.5",
+        )
+    }
+
+    @Test
+    fun `every route of an environment rejects an absent one`() = scenario {
+        RuntimeRoute.entries.filter { ENV_KEY in it.parameters }.forEach { route ->
+            val parameters = route.parameters.map { it to sampleValue(it, ABSENT) }
+            rejected(
+                BAD_REQUEST,
+                RuntimeText.UNKNOWN_ENVIRONMENT,
+                mapOf("env" to ABSENT),
+                route,
+                *parameters.toTypedArray(),
+                upload = lamp(LAMP_FILES.metamodel),
+            )
+        }
+    }
+
+    @Test
+    fun `environment keys are unique and access keys are single-use keys of the runtime's shape`() = scenario {
+        val keys = List(KEYS) { create() }
+        val client = clientId()
+        val accessKeys = listOf(accessKey(client, keys.first()), accessKey(client, keys.first()))
+        val observatoryKey = call(
+            RuntimeRoute.REGISTER_OBSERVATORY_CLIENT,
+            CLIENT_ID to client,
+            ENV_KEY to keys.first(),
+            "modelElement" to "*",
+        )
+
+        assertTrue(keys.all { ENVIRONMENT_KEY.matches(it) }, "$keys")
+        assertEquals(KEYS, keys.toSet().size, "every key once: $keys")
+        assertTrue((accessKeys + observatoryKey.body).all { accessKeyPattern(client).matches(it) }, "$accessKeys $observatoryKey")
+        assertEquals(2, accessKeys.toSet().size)
+        val used = listOf(client, keys.first(), accessKeys.first()).joinToString(WireNames.HANDSHAKE_SEPARATOR)
+        connect(used)
+        subscribe(client, keys.first())
+        assertEquals(
+            LinkClosure(WireNames.CLOSE_CANNOT_ACCEPT, WireNames.REASON_INVALID_CREDENTIALS, byClient = false),
+            withTimeout(scope.patience.reaction) { connect(used).link.closure.await() },
+        )
+    }
+
+    @Test
+    fun `the handshake is refused with its three reasons`() = scenario {
+        val environment = create()
+
+        val noFormat = connect("a:b").link
+        val foreign = connect(listOf(clientId(), environment, "ak-nobody-1-1").joinToString(WireNames.HANDSHAKE_SEPARATOR)).link
+        val binary = RawWebSocketProbe.closureAfterBinaryFirstFrame(endpoint.webSocketUrl, scope.patience.reaction)
+
+        withTimeout(scope.patience.reaction) {
+            assertEquals(
+                LinkClosure(WireNames.CLOSE_CANNOT_ACCEPT, WireNames.REASON_INVALID_AUTH_FORMAT, byClient = false),
+                noFormat.closure.await(),
+            )
+            assertEquals(
+                LinkClosure(WireNames.CLOSE_CANNOT_ACCEPT, WireNames.REASON_INVALID_CREDENTIALS, byClient = false),
+                foreign.closure.await(),
+            )
+        }
+        assertEquals(WireNames.CLOSE_CANNOT_ACCEPT to WireNames.REASON_FIRST_MESSAGE_NOT_TEXT, binary.code to binary.reason)
+    }
+
+    @Test
+    fun `a configuring environment answers every route as the catalogue says`() = scenario {
+        val environment = create()
+        val client = clientId()
+        val env = mapOf("env" to environment)
+
+        rejected(
+            CONFLICT,
+            RuntimeText.METAMODEL_REQUIRED,
+            env,
+            RuntimeRoute.SET_MODEL,
+            ENV_KEY to environment,
+            upload = lamp(LAMP_FILES.model),
+        )
+        rejected(CONFLICT, RuntimeText.NO_MODEL, env, RuntimeRoute.MODEL_SNAPSHOT, ENV_KEY to environment)
+        rejected(CONFLICT, RuntimeText.MODELS_REQUIRED, env, RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        rejected(CONFLICT, RuntimeText.NOT_ACTIVATED, env, RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        rejected(CONFLICT, RuntimeText.NOT_ACTIVATED, env, RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+        rejected(
+            CONFLICT,
+            RuntimeText.NOT_ACTIVE,
+            env,
+            RuntimeRoute.SET_ACTIVE_STATE,
+            ENV_KEY to environment,
+            "modelElement" to "lamp",
+            "state" to "off",
+        )
+        rejected(
+            BAD_REQUEST, RuntimeText.NO_STATE_MACHINE_SOURCE, env + ("element" to "lamp"),
+            RuntimeRoute.STATE_MACHINE_SOURCE, ENV_KEY to environment, "modelElement" to "lamp",
+        )
+        rejected(
+            CONFLICT,
+            RuntimeText.NO_SESSION,
+            env + ("client" to client),
+            RuntimeRoute.SUBSCRIBE_MODEL,
+            ENV_KEY to environment,
+            CLIENT_ID to client,
+        )
+        repeat(2) { ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to client) }
+
+        uploadLamp(environment)
+        ok(RuntimeRoute.REGISTER_OBJECT_OBSERVER, ENV_KEY to environment, CLIENT_ID to client, "objectId" to "lamp")
+        ok(RuntimeRoute.REGISTER_DOMAIN_LISTENER, ENV_KEY to environment, CLIENT_ID to client, "domain" to "switch")
+        val lampSource = lamp(LAMP_FILES.machines.first().file)
+        expect(OK, lampSource, RuntimeRoute.STATE_MACHINE_SOURCE, ENV_KEY to environment, "modelElement" to "lamp")
+        expect(
+            OK,
+            RuntimeWireWriter.snapshot(environment, RuntimePhase.CONFIGURING, 0, emptyMap(), listOf(RuntimeGoldens.LAMP_ROOT)),
+            RuntimeRoute.MODEL_SNAPSHOT, ENV_KEY to environment,
+        )
+        rejected(
+            CONFLICT,
+            RuntimeText.NOT_ACTIVE,
+            env,
+            RuntimeRoute.SET_ACTIVE_STATE,
+            ENV_KEY to environment,
+            "modelElement" to "lamp",
+            "state" to "off",
+        )
+        assertTrue(listed().none { it.first == environment }, "a configuring environment is not listed")
+    }
+
+    @Test
+    fun `uploads the runtime refuses leave the environment configuring`() = scenario {
+        val unknownType = create()
+        ok(RuntimeRoute.SET_METAMODEL, ENV_KEY to unknownType, upload = lamp(LAMP_FILES.metamodel))
+        val refused = call(RuntimeRoute.SET_MODEL, ENV_KEY to unknownType, body = lamp(SynthesizedModels.LAMP_UNKNOWN_TYPE))
+        assertEquals(BAD_REQUEST to "Unknown class type 'Bulbb' for object 'spare'", refused.status to refused.body)
+        assertEquals(
+            RejectionKind.CONTENT_REJECTED,
+            RejectionClassifier.classify(RuntimeRoute.SET_MODEL, refused.status, refused.body).kind,
+        )
+
+        val ghost = create()
+        uploadLampModels(ghost)
+        ok(RuntimeRoute.SET_STATE_MACHINE, ENV_KEY to ghost, "attachedTo" to "ghost", upload = lamp(LAMP_FILES.machines.first().file))
+        rejected(
+            CONFLICT,
+            RuntimeText.UNKNOWN_ATTACHMENT,
+            mapOf("env" to ghost, "keys" to "ghost"),
+            RuntimeRoute.RUN_ENVIRONMENT,
+            ENV_KEY to ghost,
+        )
+        assertEquals(RuntimePhase.CONFIGURING.wireName, string(snapshot(ghost), WireNames.PHASE))
+
+        val ring = create()
+        ok(RuntimeRoute.SET_METAMODEL, ENV_KEY to ring, upload = SynthesizedModels.text(SynthesizedModel.RING, "ring.kmeta"))
+        ok(RuntimeRoute.SET_MODEL, ENV_KEY to ring, upload = SynthesizedModels.text(SynthesizedModel.RING, "ring.kmodel"))
+        rejected(CONFLICT, RuntimeText.REFERENCE_LOOP, mapOf("id" to "a"), RuntimeRoute.MODEL_SNAPSHOT, ENV_KEY to ring)
+    }
+
+    @Test
+    fun `an activated environment refuses changes and answers the snapshot golden before its start`() = scenario {
+        val environment = create()
+        val client = clientId()
+        uploadLamp(environment)
+        ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        val env = mapOf("env" to environment)
+
+        expect(
+            OK,
+            RuntimeGoldens.LAMP_SNAPSHOT_BEFORE_START.replace(RuntimeGoldens.ENVIRONMENT, environment),
+            RuntimeRoute.MODEL_SNAPSHOT,
+            ENV_KEY to environment,
+        )
+        rejected(CONFLICT, RuntimeText.ALREADY_ACTIVE, env, RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        configurationCalls(environment, client).forEach { (route, parameters, upload) ->
+            rejected(CONFLICT, RuntimeText.ALREADY_ACTIVE, env, route, *parameters.toTypedArray(), upload = upload)
+        }
+        rejected(
+            BAD_REQUEST,
+            RuntimeText.UNKNOWN_STATE,
+            mapOf("state" to "nowhere", "element" to "lamp"),
+            RuntimeRoute.SET_ACTIVE_STATE,
+            ENV_KEY to environment,
+            "modelElement" to "lamp",
+            "state" to "nowhere",
+        )
+        rejected(
+            BAD_REQUEST, RuntimeText.UNKNOWN_STATE_MACHINE, env + ("element" to "ghost"),
+            RuntimeRoute.SET_ACTIVE_STATE, ENV_KEY to environment, "modelElement" to "ghost", "state" to "off",
+        )
+        rejected(
+            CONFLICT,
+            RuntimeText.NO_SESSION,
+            env + ("client" to client),
+            RuntimeRoute.SUBSCRIBE_MODEL,
+            ENV_KEY to environment,
+            CLIENT_ID to client,
+        )
+        connect(client, environment)
+        subscribe(client, environment)
+        ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to client)
+        assertEquals(setOf("lamp", "wallSwitch"), listed().single { it.first == environment }.second.toSet())
+        val source = lamp(LAMP_FILES.machines.first().file)
+        expect(OK, source, RuntimeRoute.STATE_MACHINE_SOURCE, ENV_KEY to environment, "modelElement" to "lamp")
+        ok(RuntimeRoute.SET_ACTIVE_STATE, ENV_KEY to environment, "modelElement" to "lamp", "state" to "full power")
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+    }
+
+    @Test
+    fun `a model subscriber receives every observation from the start with consecutive revisions and nothing before them`() = scenario {
+        val environment = create()
+        val client = clientId()
+        uploadLamp(environment)
+        val link = connect(client, environment)
+        subscribe(client, environment)
+        ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+
+        scope.eventually("the first stacks of both lamp machines") {
+            assertEquals(listOf(listOf("off")), link.stacks("lamp"))
+            assertEquals(listOf(listOf("down")), link.stacks("wallSwitch"))
+            Unit
+        }
+        val firstEnvelope = link.envelopes.first()
+        assertTrue(
+            string(firstEnvelope, WireNames.MESSAGE_TYPE) in OBSERVATIONS,
+            "the first frame is a push, no acknowledgement: $firstEnvelope",
+        )
+        val settled = scope.eventually("a snapshot at the revision the subscriber received last") {
+            val snapshot = snapshot(environment)
+            assertEquals(RuntimePhase.RUNNING.wireName, string(snapshot, WireNames.PHASE))
+            assertEquals(link.revisions.maxOrNull()?.toDouble(), (snapshot[WireNames.REVISION] as WireValue.WireNumber).value)
+            snapshot
+        }
+        assertEquals((1L..link.revisions.size).toList(), link.revisions, "every revision from the first, once and in order")
+        assertEquals(
+            json("""{"lamp":["off"],"wallSwitch":["down"]}""").fields.sortedBy { it.name },
+            (settled[WireNames.ACTIVE_STATES] as WireValue.WireObject).fields.sortedBy { it.name },
+        )
+        val root = (settled[WireNames.ROOTS] as WireValue.WireArray).items.single() as WireValue.WireObject
+        assertEquals(link.values("lamp").last(), root["lamp"], "the snapshot's roots are written like objectChanged values")
+
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        val before = link.revisions.size
+        assertEquals(LinkSendResult.Sent, link.link.send(PRESS))
+        scope.eventually("the reaction to a press") {
+            assertEquals(listOf("up"), link.stacks("wallSwitch").last())
+            assertEquals(listOf("on"), link.stacks("lamp").last())
+            assertEquals("up", string(link.values("wallSwitch").last(), "position"))
+            Unit
+        }
+        assertEquals(
+            (1L..link.revisions.size).toList(), link.revisions,
+            "the second start produced no observation of its own: revisions continue from ${before} without a gap",
+        )
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+    }
+
+    @Test
+    fun `a domain listener receives every published event with the members the decoder reads`() = scenario {
+        val environment = create()
+        val listener = clientId()
+        uploadLamp(environment)
+        ok(RuntimeRoute.REGISTER_DOMAIN_LISTENER, ENV_KEY to environment, CLIENT_ID to listener, "domain" to "switch")
+        ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        val link = connect(listener, environment)
+        subscribe(listener, environment)
+        ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to listener)
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+
+        link.link.send(PRESS)
+        val event = scope.eventually("the domainEvent of the press") { link.payloads(WireNames.DOMAIN_EVENT).firstOrNull() }
+
+        assertEquals("switch", string(event, WireNames.DOMAIN))
+        val published = event[WireNames.PAYLOAD] as WireValue.WireObject
+        val golden = json(RuntimeGoldens.PUBLISHED_EVENT)
+        assertEquals(golden.fields.map { it.name }, published.fields.map { it.name }, "the members in org.json's order, as the golden")
+        assertEquals("press", string(published, WireNames.EVENT))
+        assertEquals("", string(published, WireNames.PAYLOAD))
+        assertEquals(WireNames.FORMAT_NONE, string(published, WireNames.PAYLOAD_FORMAT))
+        assertEquals("EXTERNAL_MESSAGE", string(published, WireNames.SOURCE))
+        assertEquals(WireValue.WireNumber(EVENT_TTL_MS.toDouble()), published[WireNames.TTL_MS])
+        assertTrue(published[WireNames.TIMESTAMP] is WireValue.WireNumber)
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+    }
+
+    @Test
+    fun `pushes for a client without a session are dropped, not kept for its later session`() = scenario {
+        val environment = create()
+        val subscriber = clientId()
+        val observer = clientId()
+        uploadLamp(environment)
+        ok(RuntimeRoute.REGISTER_OBJECT_OBSERVER, ENV_KEY to environment, CLIENT_ID to observer, "objectId" to "lamp")
+        val link = connect(subscriber, environment)
+        subscribe(subscriber, environment)
+        ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        link.link.send(PRESS)
+        scope.eventually("the lamp turned on") { link.stacks("lamp").lastOrNull()?.takeIf { it == listOf("on") } }
+        val dropped = link.revisions.max()
+
+        val observerLink = connect(observer, environment)
+        subscribe(observer, environment)
+        ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to observer)
+        link.link.send(PRESS)
+        val change = scope.eventually("the observer's first change of the lamp") { observerLink.values("lamp").firstOrNull() }
+
+        assertEquals(listOf("off"), (change["log"] as WireValue.WireArray).items.takeLast(1).map { (it as WireValue.WireString).value })
+        assertTrue(
+            observerLink.revisions.all { it > dropped },
+            "no push up to revision $dropped reached the later session: ${observerLink.revisions}",
+        )
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+    }
+
+    @Test
+    fun `a stop closes the sockets, keeps the final model readable, and a start runs the environment again`() = scenario {
+        val environment = create()
+        val client = clientId()
+        uploadLamp(environment)
+        val link = connect(client, environment)
+        subscribe(client, environment)
+        ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        scope.eventually("the lamp's first stack") { link.stacks("lamp").firstOrNull() }
+        val env = mapOf("env" to environment)
+
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+
+        assertEquals(
+            LinkClosure(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED, byClient = false),
+            withTimeout(scope.patience.reaction) { link.link.closure.await() },
+        )
+        val final = snapshot(environment)
+        assertEquals(RuntimePhase.STOPPED.wireName, string(final, WireNames.PHASE))
+        assertEquals(
+            json("""{"lamp":["off"],"wallSwitch":["down"]}""").fields.toSet(),
+            (final[WireNames.ACTIVE_STATES] as WireValue.WireObject).fields.toSet(),
+        )
+        rejected(
+            CONFLICT,
+            RuntimeText.NO_SESSION,
+            env + ("client" to client),
+            RuntimeRoute.SUBSCRIBE_MODEL,
+            ENV_KEY to environment,
+            CLIENT_ID to client,
+        )
+        ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to client)
+        configurationCalls(environment, client).forEach { (route, parameters, upload) ->
+            rejected(CONFLICT, RuntimeText.ALREADY_ACTIVE, env, route, *parameters.toTypedArray(), upload = upload)
+        }
+        accessKey(client, environment)
+        val switchSource = lamp(LAMP_FILES.machines.last().file)
+        expect(OK, switchSource, RuntimeRoute.STATE_MACHINE_SOURCE, ENV_KEY to environment, "modelElement" to "wallSwitch")
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+        assertTrue(listed().any { it.first == environment }, "a stopped environment stays listed")
+
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        scope.eventually("the restarted environment running") {
+            string(snapshot(environment), WireNames.PHASE)?.takeIf { it == RuntimePhase.RUNNING.wireName }
+        }
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+        assertEquals(RuntimePhase.STOPPED.wireName, string(snapshot(environment), WireNames.PHASE))
+    }
+
+    /** Runs [body] as a scenario against [runtime] with the raw view of it. */
+    private fun scenario(body: suspend RawRuntime.() -> Unit) {
+        runtime.run { RawRuntime(this, endpoint.webSocketUrl).body() }
+    }
+
+    /** The environments the runtime lists, each key with its machines' model elements. */
+    private suspend fun RawRuntime.listed(): List<Pair<String, List<String>>> {
+        val answer = call(RuntimeRoute.LIST_ENVIRONMENTS)
+        assertEquals(OK, answer.status, answer.body)
+        val listing = (RuntimeJson.read(answer.body) as JsonReading.Read).value as WireValue.WireArray
+        return listing.items.map { item ->
+            val entry = item as WireValue.WireObject
+            val elements = (entry["modelElements"] as WireValue.WireArray).items.map { (it as WireValue.WireString).value }
+            string(entry, "envKey").orEmpty() to elements
+        }
+    }
+
+    /** The calls that configure an environment, which the runtime refuses once it is active: route, parameters, body. */
+    private fun configurationCalls(environment: String, client: String): List<Triple<RuntimeRoute, List<Pair<String, String>>, String>> =
+        listOf(
+            Triple(RuntimeRoute.SET_METAMODEL, listOf(ENV_KEY to environment), lamp(LAMP_FILES.metamodel)),
+            Triple(RuntimeRoute.SET_EVENT_DEFINITIONS, listOf(ENV_KEY to environment), lamp(checkNotNull(LAMP_FILES.events))),
+            Triple(RuntimeRoute.SET_MODEL, listOf(ENV_KEY to environment), lamp(LAMP_FILES.model)),
+            Triple(
+                RuntimeRoute.SET_STATE_MACHINE,
+                listOf(ENV_KEY to environment, "attachedTo" to "lamp"),
+                lamp(LAMP_FILES.machines.first().file),
+            ),
+            Triple(RuntimeRoute.SET_TICK_DELAY, listOf(ENV_KEY to environment, "milliseconds" to "50"), ""),
+            Triple(RuntimeRoute.SET_EVENT_TTL, listOf(ENV_KEY to environment, "ttlMs" to "3000"), ""),
+            Triple(RuntimeRoute.REGISTER_OBJECT_OBSERVER, listOf(ENV_KEY to environment, CLIENT_ID to client, "objectId" to "lamp"), ""),
+            Triple(RuntimeRoute.REGISTER_DOMAIN_LISTENER, listOf(ENV_KEY to environment, CLIENT_ID to client, "domain" to "switch"), ""),
+        )
+
+    private companion object {
+        /** An environment key that never exists: the key of the first millisecond of 1970. */
+        const val ABSENT = "env-1"
+
+        /** The number of environments the key scenario creates in a row. */
+        const val KEYS = 20
+
+        /** The event time to live the lamp scenarios configure. */
+        const val EVENT_TTL_MS = 30_000L
+
+        /** The parameters that must be numbers. */
+        val NUMERIC = setOf("milliseconds", "ttlMs")
+
+        /** The message types of the pushes that carry a revision. */
+        val OBSERVATIONS = setOf(WireNames.OBJECT_CHANGED, WireNames.OBJECT_DELETED, WireNames.STATE_CHANGE)
+
+        /** The shape of an environment key. */
+        val ENVIRONMENT_KEY = Regex("""env-\d+""")
+
+        /** The files of the lamp. */
+        val LAMP_FILES: ModelFiles = RawRuntime.LAMP_FILES
+
+        /** The frame that injects a `press` of the domain `switch`. */
+        val PRESS: String = EventFrameEncoder.encode(EventFrame("switch", "press", EventPayload.None))
+
+        /** The shape of an access key of [client]. */
+        fun accessKeyPattern(client: String): Regex = Regex(Regex.escape("ak-$client-") + """\d+-\d{1,4}""")
+
+        /** A value for the parameter [name] that the runtime accepts, in the environment [environment]. */
+        fun sampleValue(name: String, environment: String): String =
+            when (name) {
+                ENV_KEY -> environment
+                "milliseconds" -> "50"
+                "ttlMs" -> "3000"
+                "modelElement", "attachedTo", "objectId" -> "lamp"
+                "state" -> "off"
+                "domain" -> "switch"
+                else -> "ide-live-sample"
+            }
+
+        /** The JSON object [text]. */
+        fun json(text: String): WireValue.WireObject = RawRuntime.json(text)
+    }
+}

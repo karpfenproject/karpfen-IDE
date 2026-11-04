@@ -20,24 +20,22 @@ import io.karpfen.ide.runtime.protocol.transport.RuntimeTransports
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * A runtime a scenario runs against: the fake runtime on virtual time in every build, or a real runtime with IDE support
- * reached by URL in the live task. A scenario class holds the scenarios as test functions and has one subclass per
- * runtime, which only supplies this; so one scenario checks the fake and the real runtime alike.
+ * A runtime the scenario classes run against: a real karpfen runtime with IDE support, reached by URL in the live task
+ * (`LiveRuntimeUnderTest`). A scenario class holds the scenarios as test functions and has a live subclass, which only
+ * supplies this. Failures only a fake can produce are no scenarios: they are ordinary tests of the client against the
+ * fake runtime with hardcoded responses.
  *
  * Threading (MUST): [run] blocks the calling test thread until the scenario ended, and runs the scenario on the
- * runtime's own dispatchers: a test dispatcher for the fake, the default dispatcher for a real runtime.
+ * runtime's own dispatchers.
  *
  * Contract (MUST):
  * - Every [run] gets fresh transports and fails the test if the scenario fails or runs longer than [Patience.scenario].
  * - A scenario creates its own environments and client ids, never assumes a fresh runtime, and leaves its environments
- *   stopped; scenarios that harm the whole runtime or need failures only a fake can script check [traits] first.
+ *   stopped.
  */
 public interface RuntimeUnderTest {
-    /** The name failure messages use, such as `fake` or the URL of the real runtime. */
+    /** The name failure messages use, such as the URL of the runtime. */
     public val name: String
-
-    /** What the scenarios may do with this runtime. */
-    public val traits: RuntimeTraits
 
     /** How long the scenarios wait for this runtime. */
     public val patience: Patience
@@ -54,7 +52,8 @@ public interface RuntimeUnderTest {
  * Threading (MUST): the scope is used from the scenario's coroutine and its children.
  *
  * Contract (MUST): [transports] stay open while the scenario runs and are closed when it ends; [clientOptions] carry
- * the dispatcher and time source of this runtime (virtual time for the fake, real time live).
+ * the dispatcher and time source the scenario runs on (real time against a real runtime, virtual time in a test of the
+ * waiting helpers).
  */
 public interface RuntimeScenarioScope : CoroutineScope {
     /** The transports to the runtime under test. */
@@ -69,13 +68,3 @@ public interface RuntimeScenarioScope : CoroutineScope {
     /** What a failure message adds about the runtime, such as its URL and where its logs are. */
     public val diagnostics: String
 }
-
-/**
- * What the scenarios may do with a runtime under test.
- *
- * @property runtimeWideHazards scenarios may harm the whole runtime: stall its one broadcaster with a slow consumer,
- *   restart it, make it unreachable. Only a fake allows it.
- * @property scriptedFailures scenarios may script failures a real runtime cannot be made to show on demand: an engine
- *   that halts, a half-open link, a dropped push, a runtime without IDE support. Only a fake allows it.
- */
-public data class RuntimeTraits(public val runtimeWideHazards: Boolean, public val scriptedFailures: Boolean)
