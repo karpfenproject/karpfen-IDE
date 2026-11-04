@@ -46,8 +46,9 @@ import kotlin.time.Duration.Companion.seconds
  * programs: object and stack pushes reach the observed model, the states and the model updates in revision order;
  * injected events leave as the exact frames the runtime reads; observation switched off ignores pushes and switched on
  * reads a snapshot first; a dropped link reconnects with a fresh key, a second epoch and a re-synchronization; a lost
- * push shows as a revision gap and is healed by a snapshot; domain events flow whatever the switch; and a pull applies
- * a snapshot, and while the link is down it leaves the model synchronizing.
+ * push shows as a revision gap and is healed by a snapshot, and only applied pushes are journaled as applied; domain
+ * events flow whatever the switch; and a pull applies a snapshot, and while the link is down it leaves the model
+ * synchronizing.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionObservationTest {
@@ -195,6 +196,26 @@ class RuntimeSessionObservationTest {
         assertEquals(listOf("press", "press"), events.map { it.event?.name })
         assertTrue(events.all { it.domain == "switch" && it.event?.source == "EXTERNAL_MESSAGE" }, "$events")
         assertEquals(2, session.journal().count { it is SessionActivity.DomainEventReceived })
+        session.close()
+    }
+
+    @Test
+    fun `a push a snapshot covers or one that reveals a gap is not journaled as applied`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.METRONOME)
+        val session = rig.running(deployment)
+        val link = rig.linkOf(session)
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, 5, mapOf("metronome" to listOf("beat three")))
+
+        link.push(rig.stack(session, "metronome", listOf("beat one"), 1))
+        link.push(rig.stack(session, "metronome", listOf("beat three"), 5))
+        link.push(rig.stack(session, "metronome", listOf("beat one"), 6))
+        runCurrent()
+
+        assertEquals(SyncStatus.Live(6), session.model.value.sync)
+        val journal = session.journal()
+        assertEquals(listOf(6L), journal.filterIsInstance<SessionActivity.PushApplied>().map { it.revision }, "$journal")
+        assertTrue(journal.any { it is SessionActivity.Synchronized && it.reason == SyncReason.GAP && it.revision == 5L }, "$journal")
         session.close()
     }
 

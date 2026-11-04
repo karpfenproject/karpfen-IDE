@@ -36,7 +36,6 @@ import io.karpfen.ide.runtime.session.observation.ObservationNotice
 import io.karpfen.ide.runtime.session.observation.ObservationReducer
 import io.karpfen.ide.runtime.session.observation.ObservationSettings
 import io.karpfen.ide.runtime.session.observation.ObservedModel
-import io.karpfen.ide.runtime.session.observation.SyncStatus
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.states.ActiveStatesReducer
@@ -294,10 +293,12 @@ internal class PushRouter(
         }
     }
 
-    /** Hands the object or stack push of [event] to the observation and journals it if it was applied. */
+    /**
+     * Hands the object or stack push of [event] to the observation and journals it if the observation applied it; a
+     * push a snapshot covers or one that reveals a gap is not applied.
+     */
     private suspend fun applied(event: ConnectionEvent.Received, messageType: String, ids: List<String>, revision: Long) {
-        observer.handle(event)
-        if (observer.model.value.sync == SyncStatus.Live(revision)) {
+        if (observer.handle(event)) {
             journal(SessionActivity.PushApplied(messageType, ids, revision, clock.elapsed()))
         }
     }

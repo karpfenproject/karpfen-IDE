@@ -86,21 +86,24 @@ internal class ModelObserver(
     val updates: Flow<ModelUpdate> = updateStream.asSharedFlow()
 
     /**
-     * Takes one event of the connection: an open after the first and an interruption or end make the observation
-     * re-synchronize while it is on; object and stack pushes are applied by the rules; other pushes and violations are
-     * not the observation's business.
+     * Takes one event of the connection and answers true if it was an object or stack push that was applied to the
+     * model: an open after the first and an interruption or end make the observation re-synchronize while it is on;
+     * object and stack pushes are applied by the rules, unless a snapshot covers them or they reveal a gap; other pushes
+     * and violations are not the observation's business.
      */
-    suspend fun handle(event: ConnectionEvent) {
+    suspend fun handle(event: ConnectionEvent): Boolean {
         val input = when (event) {
             is ConnectionEvent.Opened -> ObservationInput.LinkOpened(event.epoch)
             is ConnectionEvent.Interrupted, is ConnectionEvent.Ended -> ObservationInput.LinkInterrupted
             is ConnectionEvent.Received -> when (event.push) {
                 is RuntimePush.ObjectChanged, is RuntimePush.ObjectDeleted, is RuntimePush.StateChanged -> ObservationInput.Pushed(event.push)
-                is RuntimePush.DomainEvent, is RuntimePush.Unrecognized -> return
+                is RuntimePush.DomainEvent, is RuntimePush.Unrecognized -> return false
             }
-            is ConnectionEvent.Violated -> return
+            is ConnectionEvent.Violated -> return false
         }
-        feed(input)
+        val step = advance(input)
+        execute(step)
+        return step.update?.cause == UpdateCause.PUSH
     }
 
     /**
@@ -145,9 +148,16 @@ internal class ModelObserver(
      * Applies [input], publishes the result and executes the requests it caused; answers the outcome of the last
      * snapshot read among them, or null if none was read.
      */
-    private suspend fun feed(input: ObservationInput): CallOutcome<RuntimeModelSnapshot>? {
-        val step = reducer.apply(state, input)
-        publish(step)
+    private suspend fun feed(input: ObservationInput): CallOutcome<RuntimeModelSnapshot>? = execute(advance(input))
+
+    /** Applies [input] to the rules and publishes the step it makes, without executing its requests. */
+    private suspend fun advance(input: ObservationInput): ObservationStep = reducer.apply(state, input).also { publish(it) }
+
+    /**
+     * Executes the requests of [step], feeding their results back; answers the outcome of the last snapshot read among
+     * them, or null if none was read.
+     */
+    private suspend fun execute(step: ObservationStep): CallOutcome<RuntimeModelSnapshot>? {
         var snapshot: CallOutcome<RuntimeModelSnapshot>? = null
         for (request in step.requests) {
             when (request) {

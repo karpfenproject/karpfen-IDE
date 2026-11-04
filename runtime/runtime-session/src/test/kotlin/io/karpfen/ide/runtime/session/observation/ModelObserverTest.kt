@@ -58,7 +58,7 @@ import kotlin.time.Duration.Companion.seconds
  * Covers the model observer with a port that answers as each test programs it, on virtual time: switching on with
  * retries while the runtime has no session for the client, pushes that wait in the router's inbox while a snapshot is
  * read, a gap, a reconnect, failed snapshots and the out-of-sync report, switching off with late pushes, pulls (also
- * while the link is down) and the final snapshot after the stop.
+ * while the link is down) and the final snapshot after the stop, and which pushes count as applied.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelObserverTest {
@@ -349,6 +349,23 @@ class ModelObserverTest {
         observer.handle(ConnectionEvent.Opened(2))
         assertEquals(SyncStatus.Live(13), observer.model.value.sync)
         assertEquals(ObservationNotice.Synchronized(SyncReason.RECONNECTED, 13), notices.last())
+    }
+
+    @Test
+    fun `only a push the rules apply counts as applied, not one a snapshot covers or one that reveals a gap`() = runTest {
+        val port = FakePort(this)
+        port.snapshots += answer(snapshot(10))
+        port.snapshots += answer(snapshot(13))
+        val observer = observer(port)
+        observer.switchOn()
+
+        val covered = observer.handle(ConnectionEvent.Received(bulb(10, watts = 60)))
+        val next = observer.handle(ConnectionEvent.Received(bulb(11, watts = 70)))
+        val gap = observer.handle(ConnectionEvent.Received(bulb(13, watts = 80)))
+        val domainEvent = observer.handle(ConnectionEvent.Received(RuntimePush.Unrecognized("somethingNew", "{}")))
+
+        assertEquals(listOf(false, true, false, false), listOf(covered, next, gap, domainEvent))
+        assertEquals(SyncStatus.Live(13), observer.model.value.sync)
     }
 
     @Test
