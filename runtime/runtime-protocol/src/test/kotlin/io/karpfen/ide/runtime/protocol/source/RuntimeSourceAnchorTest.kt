@@ -86,7 +86,8 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(HTTP_ROUTES, "is IllegalStateException -> HttpStatusCode.Conflict"),
                 SourceAnchor(HTTP_ROUTES, "else -> HttpStatusCode.InternalServerError"),
                 SourceAnchor(HTTP_ROUTES, "call.respond(status, e.message ?: \"Unexpected error\")"),
-                SourceAnchor(OBSERVATION_ROUTES, "HTTPRoutes.respondWithError(call, e)"),
+                SourceAnchor(OBSERVATION_ROUTES, "errors.respond(call, e)"),
+                SourceAnchor(KTOR_SERVER, "HTTPRoutes::respondWithError"),
                 SourceAnchor(
                     OBSERVATION_ROUTES,
                     "call.respondText(snapshot.toJson(), ContentType.Application.Json.withCharset(Charsets.UTF_8))",
