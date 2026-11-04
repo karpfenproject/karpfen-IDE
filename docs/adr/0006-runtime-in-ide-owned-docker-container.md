@@ -1,6 +1,7 @@
 # 6. The runtime runs in an IDE-owned Docker container by default; wire protocol only
 
-- Status: Accepted (owner asked, accepted)
+- Status: Accepted (owner asked, accepted); what the consequences say about the client's libraries is superseded by
+  [the runtime client with IDE support](0016-the-runtime-client-talks-to-the-runtime-with-ide-support.md)
 - Date: 2026-10-20
 - Source: the architecture proposal's [runtime decision](../architecture-proposal.md#the-runtime-runs-in-an-ide-owned-docker-container-by-default-wire-protocol-only), its
   [runtime integration](../architecture-proposal.md#runtime-integration-runtime-modules) and the accepted recommendation that the runtime repository publishes the

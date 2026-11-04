@@ -26,7 +26,10 @@ karpfen IDE is a Gradle build of Kotlin/JVM modules in layers, and dependencies 
   the output of the language tools and status bar.
 - **app/ide** is the desktop application and its composition root.
 - **tools/cli** is the `karpfen` command-line tool. It validates a folder with the same workspace code as the IDE.
-- **runtime**, **notation**, **bridges** and ui-diagram belong to later increments and are stubs so far.
+- **runtime** is the IDE's side of the karpfen runtime: runtime-protocol, the typed client of the runtime with IDE
+  support, and runtime-session, which deploys an environment descriptor from a workspace and keeps a session with the
+  deployed environment. Neither has a user interface yet.
+- runtime-host, **notation**, **bridges** and ui-diagram belong to later increments and are stubs so far.
 
 An edit travels through the layers like this: the editor applies it to the document's text (core-text); the document
 session tokenizes and parses the new version (core-document); the workspace analyzes the modeling context again and
@@ -252,17 +255,85 @@ and reports `Workspace.problems`. `ValidationReport` and `ReportFormatter` turn 
 [decision that dsl-tools output stays off the primary console](adr/0014-dsl-tools-output-stays-off-the-primary-console.md)
 asks.
 
+## Runtime client (runtime-protocol, runtime-session)
+
+Start at `RuntimeClient` in the root package of runtime-protocol and at `RuntimeSessions` and `RuntimeSession` in the
+root package of runtime-session. A client checks a runtime, creates environments and opens connections; a session
+deploys one prepared environment descriptor through a client and is the facade over everything that follows. The
+[decision on the runtime client](adr/0016-the-runtime-client-talks-to-the-runtime-with-ide-support.md) and the
+[decision on deploying](adr/0017-deployment-uploads-the-saved-files.md) explain the design.
+
+runtime-protocol depends on no other module of the IDE, so the bridges can build on it, and both modules declare their
+API explicitly. Its packages:
+
+- **`catalogue`**: the wire contract as data. `RuntimeRoute` lists the runtime's routes with their parameters,
+  `RuntimeText` the texts of its rejections with their `RejectionKind`, `WireNames` the names on the wire, and
+  `EnvironmentKey`, `ClientId`, `AccessKey` and `RuntimeEndpoint` the values the runtime hands out or is reached at.
+- **`transport`**: the two seams the IDE owns, `RuntimeHttp` and `WebSocketConnector` with its `WebSocketLink`, bundled
+  as `RuntimeTransports`. **`transport.ktor`** holds their Ktor adapters behind `ktorTransports`, the only Ktor code.
+- **`message`**: the runtime's JSON, read by `RuntimeJson` into `WireValue`s; the pushes (`RuntimePush`), which
+  `RuntimeFrameDecoder` decodes with every `ProtocolViolation`; the model snapshot (`RuntimeModelSnapshot`); and the
+  event frames to the runtime (`EventFrame`, written by `EventFrameEncoder`).
+- **`api`**: `RuntimeApi`, the raw gateway with one function per route over the HTTP seam, whose `RuntimeResult`s and
+  `RuntimeFailure`s never throw.
+- **`lifecycle`**: `RuntimeEnvironment`, the handle of one environment, which keeps its `EnvironmentPhase` on the
+  client's side, asks `LifecycleRules` before every call and refuses what the runtime would mishandle.
+- **`connection`**: `RuntimeConnection`, the authenticated push channel of one client to one environment, with its
+  `ConnectionState`, its `ConnectionEvent`s and the `ReconnectPolicy`.
+
+runtime-session's packages, in the order a deployment uses them:
+
+- **`problem`**: `DeployProblem`, `DeployProblemCodes` and `SourceLocation`, the problems of preparing, deploying and
+  running.
+- **`plan`**: `DeploymentPlanner` turns the analysis of the saved workspace into a `DeploymentPlan` with its
+  `DeployConfiguration` and `DeclarationLocations`, or into the problems that block it; each check is a `PlanCheck`.
+- **`deploy`**: `Deployer` runs the steps of a deployment (`DeployStep`, run by `DeployPipeline`) with progress,
+  locates failures (`FailureLocator`) and cleans up (`EnvironmentCleanup`); `DeployObservation` is the port to the
+  session's observation, and `EnvironmentLedger` records every environment left on a runtime.
+- **`schema`**, **`mirror`** and **`states`**: `TypeSchema`, the metamodel as values; `MirrorSeeder` and
+  `MirrorReducer`, which keep the model as `MirrorSnapshot` values, and `MirrorComparison`; `MachineLayout` and
+  `ActiveStatesReducer`, the active states of the machines.
+- **`observation`**: the live switch. `ObservedModel` is what a session shows; `ObservationReducer` holds the rules and
+  `ModelObserver` carries them out.
+- **`events`**: `EventCatalogBuilder` builds the `EventCatalog` of the domains the machines use, `PayloadFormat` and
+  `PayloadForm` check and write payloads, and `EventInjector` injects events.
+- **Root package**: `RuntimeSessions` prepares a deployment (`DeploymentPreparer`, which saves first) and launches a
+  session. `DefaultRuntimeSession` composes two mediators: `SessionConductor`, which carries out the commands in order
+  and is the single writer of the session's state, progress and problems, and `PushRouter`, the only reader of the
+  connection's events and the writer of the observed model, the domain events and the journal. `PhaseStates` and
+  `CommandRules` are the tables of the session's states and commands.
+
+The tests of both modules run against `FakeRuntime` in the `fake` package of runtime-protocol's test fixtures, which
+never simulates the runtime: it answers only the responses and frames each test programs. `RuntimeGoldens` and
+`RuntimeWireWriter` in the `golden` package hold the runtime's wire format, and the `source` package reads the runtime's
+sources, so that `RuntimeSourceAnchorTest`, `RouteCompletenessTest` and `TemplateGoldenTest` find every fact the client
+relies on in the karpfen-runtime submodule. The scenario classes, `RuntimeContract` and `ConnectionScenarios` in
+runtime-protocol and `DeploymentScenarios`, `InjectionScenarios`, `ForcedStateScenarios`, `ObservationScenarios`,
+`RunTimeObjectScenarios` and `MultiEnvironmentScenarios` in runtime-session, run only against a real runtime, through
+their `Live…Test` subclasses tagged with `@LiveRuntime`; failures only a fake can produce are ordinary tests against the
+fake, such as `RuntimeHazardsTest` and `RuntimeSessionFailureTest`. The `conformance` package of the fixtures holds
+what the scenarios share: `RuntimeUnderTest` with `LiveRuntimeUnderTest`, `Patience`, the waits `eventually` and
+`awaitValue`, and `SynthesizedModels`, the small models in its resources; runtime-session adds `SessionUnderTest`. The
+`liveRuntimeTest` task of `karpfen.live-runtime-test` runs them against the runtime that `runtime/live-runtime.sh`
+starts in a throwaway Docker container, as the [README](../README.md#checking-the-client-against-a-real-runtime) and the
+[decision on testing runtime work](adr/0018-runtime-work-is-tested-against-an-anchored-fake-and-a-throwaway-runtime-container.md)
+describe. runtime-session's fixtures add `ModelWireText`, which writes an analyzed model as the runtime does, and
+`FakeRuntimeSession`, a session the tests of views can script.
+
 ## Build, architecture rules and tests
 
 - **Build logic.** `build-logic` holds the convention plugins `karpfen.kotlin-jvm` (applied by every module),
-  `karpfen.kotlin-serialization`, `karpfen.compose` and `karpfen.application`, the module dependency matrix
-  `ModuleDependencyRules` with its check `VerifyModuleDependencies`, and `TestTags`. Versions live in
+  `karpfen.kotlin-serialization`, `karpfen.compose`, `karpfen.application` and `karpfen.live-runtime-test` (the live task
+  of the runtime modules, named in `LiveRuntimeTesting`), the module dependency matrix `ModuleDependencyRules` with its
+  check `VerifyModuleDependencies`, and `TestTags`. Versions live in
   `gradle/libs.versions.toml`; `settings.gradle.kts` decides how karpfen-dsl-tools is resolved.
 - **Architecture tests.** The `architecture-tests` module checks the layering with Konsist: `LayerImportRulesTest`
-  (which libraries each layer may use), `ForeignApiConfinementTest` (ANTLR, dsl-tools beyond its semantic model and
-  logback only behind their adapters), `ComposeFreeStateTest` and `UiLayeringTest` (state holders without Compose,
-  views on top), `PackageCycleTest`, `PackageLayoutTest`, `LexicalFactsTest` (one declaration per lexical fact) and
-  `BudgetTestTaggingTest`.
+  (which libraries each layer may use, Ktor in the runtime only in the adapters of runtime-protocol),
+  `ForeignApiConfinementTest` (ANTLR, dsl-tools beyond its semantic model and logback only behind their adapters),
+  `ComposeFreeStateTest` and `UiLayeringTest` (state holders without Compose, views on top), `PackageCycleTest` (no
+  cycles, and no package of a runtime module imports the module's root package), `PackageLayoutTest`,
+  `LexicalFactsTest` (one declaration per lexical fact), `BudgetTestTaggingTest` and `LiveRuntimeTaggingTest` (the live
+  tag and task stay in the runtime modules and out of every other build and CI run).
   `KarpfenModules` is the module table these tests share. `DocumentationStyleTest` guards the documentation style in
   every Kotlin source file and Gradle script, with `KotlinComments` to find the comments, `KDocPlacement` to check
   that KDoc documents a declaration (or, in a script, a top-level statement), and `ReferenceIds` to find reference
@@ -283,7 +354,14 @@ Typical changes and where they start:
 - a new language feature: the provider in the language's package of core-lang, registered in its `LanguageFeatures`;
 - a new descriptor key: a property of the typed `EnvironmentDescriptor` in core-document with its annotations; the
   schema is derived from it, and checks, highlighting, completion and hover follow the schema;
-- a new module: `settings.gradle.kts`, a rule in `ModuleDependencyRules` and an entry in `KarpfenModules`.
+- a new module: `settings.gradle.kts`, a rule in `ModuleDependencyRules` and an entry in `KarpfenModules`;
+- a new runtime endpoint: the route on the runtime's branch with IDE support, an entry in `RuntimeRoute` with its
+  texts in `RuntimeText`, a function of `RuntimeApi` (and of `RuntimeEnvironment` with its verdict in `LifecycleRules`
+  where it concerns an environment), the fake's default answer if it needs one, the goldens, the anchors of
+  `RuntimeSourceAnchorTest`, a row of `RuntimeContract`, and a live run;
+- moving the karpfen-runtime submodule: the anchors and the route completeness fail exactly where the runtime's facts
+  changed; the catalogue, the goldens and the hardcoded responses of the tests change together, the live suite runs,
+  and then the anchors follow, as the KDoc of `RuntimeSourceAnchorTest` describes.
 
 ## Conventions
 
@@ -329,16 +407,25 @@ style.
 
 ### Testing
 
-- Tests use JUnit 5 with kotlin-test. Compose UI tests run headless with `runComposeUiTest`, and coroutine code runs
-  with `runTest`. Time-dependent behaviour is tested on virtual time, not on the wall clock: debouncing with a
-  `StandardTestDispatcher`, undo coalescing with a `TestTimeSource`.
-- The core and UI modules each have a contract test of their public values and wiring, for example
-  `DocumentContractTest`, `LanguageContractTest`, `EditorContractTest` and `WorkbenchContractTest`.
+- Tests use JUnit 6 (Jupiter) with kotlin-test. Compose UI tests run headless with `runComposeUiTest`, and coroutine
+  code runs with `runTest`. Time-dependent behaviour is tested on virtual time, not on the wall clock: debouncing with
+  a `StandardTestDispatcher`, undo coalescing with a `TestTimeSource`, and the runtime client and sessions with every
+  dispatcher and time source of their options on the test's scheduler.
+- The core, runtime and UI modules each have a contract test of their public values and wiring, for example
+  `DocumentContractTest`, `LanguageContractTest`, `RuntimeProtocolContractTest`, `RuntimeSessionContractTest`,
+  `EditorContractTest` and `WorkbenchContractTest`.
 - Shared fixtures are in the test fixtures of core-document: `Examples` loads the example files copied from the karpfen
   repositories, `DescriptorExamples` the environment descriptors written for the IDE's tests (`DescriptorFixture` of
   core-lang puts them into the example workspace), `SyntheticKstates` generates large KStates documents for the
   benchmarks, and `Mutations` generates the deterministic random mutations that the robustness tests (for example
-  `TokenizerRobustnessTest`) feed through tokenizers, parsers and language services.
+  `TokenizerRobustnessTest`) feed through tokenizers, parsers and language services. core-workspace's test fixtures
+  open workspaces on virtual time (`TestWorkspaces`, `FakeFileWatcher`, `settle` and `openDocument`), and the runtime
+  modules' fixtures hold the fake runtime, the goldens, the scenario types and the synthesized models described in the
+  section on the runtime client.
+- Tests against a real runtime carry `@LiveRuntime`, the JUnit tag `live-runtime`, which every test task excludes
+  except the `liveRuntimeTest` task of the runtime modules; unlike the tag of time-budget tests, it has a switch on
+  purpose, the script that starts a runtime. Their waits are eventual with the generous bounds of `Patience`, and absence is proven
+  by a cause, never by a time window.
 - The end-to-end tests run headless in the `e2e` test packages of three modules. In app/ide, `IdeEndToEndTest` and
   `KeyRoutingEndToEndTest` run the whole application wiring. In ui-workbench, `WorkbenchEndToEndTest` runs the
   workbench over its production wiring, and `DescriptorEditingEndToEndTest` edits an environment descriptor as a user
