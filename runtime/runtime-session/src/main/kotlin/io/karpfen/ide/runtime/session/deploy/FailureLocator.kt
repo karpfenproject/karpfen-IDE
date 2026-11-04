@@ -38,7 +38,7 @@ import io.karpfen.ide.runtime.session.problem.SourceLocation
  * - an internal error on an upload says that the runtime's older parser could not read the file and quotes its text;
  * - an activation refused because a machine is attached to a key the model lacks points at the descriptor;
  * - a failure while checking the runtime makes the runtime unreachable or incompatible;
- * - every other failure has no location and is described by the failure itself.
+ * - every other failure has no location and is described by the failure itself ([unlocated]).
  *
  * The parser texts are those of the runtime's dsl-tools 1.0 converters, `KmetaDSLConverter`, `KmodelDSLConverter` and
  * `KstatesDSLConverter` in `dsl/textual`, at the commit the runtime pins.
@@ -73,7 +73,7 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
                     "The runtime refused the activation: ${failure.message}",
                     SourceLocation(plan.descriptor, null, null),
                 )
-            else -> general(failure)
+            else -> unlocated(failure)
         }
 
     /** The problem of a call the environment's handle refused in its phase, without sending it. */
@@ -96,8 +96,11 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
             )
         }
 
-    /** The problem of [failure] without a location. */
-    private fun general(failure: RuntimeFailure): DeployProblem =
+    /**
+     * The problem of [failure] without a location: the problem of every failure that no file or declaration explains,
+     * also of the calls a session makes after the deployment.
+     */
+    fun unlocated(failure: RuntimeFailure): DeployProblem =
         when (failure) {
             is RuntimeFailure.Unreachable -> problem(
                 DeployProblemCodes.RUNTIME_UNREACHABLE,
