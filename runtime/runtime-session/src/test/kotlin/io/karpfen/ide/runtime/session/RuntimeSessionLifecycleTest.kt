@@ -38,15 +38,19 @@ import io.karpfen.ide.runtime.session.observation.ObservationMode
 import io.karpfen.ide.runtime.session.observation.SyncReason
 import io.karpfen.ide.runtime.session.observation.SyncStatus
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
@@ -62,11 +66,12 @@ import kotlin.time.Duration.Companion.seconds
  * Covers the lifecycle of a session after its deployment, end to end against the fake runtime, which answers only what
  * each test programs: a stop ends the connection, finalizes the model and records the environment once, and an event
  * sent after it never overtakes it; closing and shutting down in every state leave the ledger entry the state calls
- * for, and closing right when a stop begins still stops; a stop is bounded as the deploy timing says; the
- * environment's phase drives the state (halted from a snapshot, uncertain after a call without answer, lost after a
- * restart); a stop the session did not make is settled by reading the final model; a connection that gives up is a
- * warning; forcing a state reaches the runtime, a refusal comes back with the runtime's text, and events that got no
- * reaction are noted; and commands the state does not allow are refused.
+ * for, closing right when a stop begins still stops, and cancelling the scope a session was launched in closes it; a
+ * stop is bounded as the deploy timing says; the environment's phase drives the state (halted from a snapshot,
+ * uncertain after a call without answer, lost after a restart); a stop the session did not make is settled by reading
+ * the final model; a connection that gives up is a warning; forcing a state reaches the runtime, a refusal comes back
+ * with the runtime's text, and events that got no reaction are noted; and commands the state does not allow are
+ * refused.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionLifecycleTest {
@@ -323,6 +328,33 @@ class RuntimeSessionLifecycleTest {
         assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), session.model.value.sync)
         assertIs<InjectionAvailability.Unavailable>(session.events.availability.value)
         session.close()
+    }
+
+    @Test
+    fun `cancelling the scope a session was launched in closes it, answers every caller and records the environment`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        rig.programDeployment(deployment)
+        val parent = CoroutineScope(backgroundScope.coroutineContext + Job(backgroundScope.coroutineContext[Job]))
+        val session = rig.sessions.launch(deployment.prepared, rig.client, parent)
+        assertIs<SessionState.Running>(rig.awaitState(session) { it != SessionState.Deploying })
+        rig.fake.hang(RuntimeRoute.MODEL_SNAPSHOT, where = mapOf(SessionRig.ENV_KEY to "env-1"))
+        val waiting = backgroundScope.async { session.pull() }
+        runCurrent()
+
+        parent.cancel()
+        advanceTimeBy(2.minutes)
+
+        val closed = SessionCommandOutcome.Refused(SessionState.Closed, "The session is closed.")
+        assertEquals(SessionState.Closed, session.state.value)
+        assertEquals(closed, withTimeout(SessionRig.PATIENCE) { waiting.await() })
+        assertEquals(closed, withTimeout(SessionRig.PATIENCE) { session.pull() })
+        assertEquals(closed, withTimeout(SessionRig.PATIENCE) { session.stop() })
+        assertEquals(closed, withTimeout(SessionRig.PATIENCE) { session.setObservation(false) })
+        withTimeout(SessionRig.PATIENCE) { session.shutdown() }
+        assertEquals(listOf(LedgerDisposition.LEFT_RUNNING), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT))
+        assertTrue(rig.fake.links.none { it.isOpen }, "no link stays open")
     }
 
     @Test

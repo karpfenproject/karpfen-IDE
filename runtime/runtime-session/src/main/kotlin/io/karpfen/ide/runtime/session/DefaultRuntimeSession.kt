@@ -41,7 +41,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * The session facade: composes the deployment, the conductor with its calls and its stopper, the router, the published
  * status and the event injector of one deployment, and delegates every function to the one that owns it. It runs in its
  * own supervisor child of the scope it was launched in, on the dispatcher of the options; the conductor's, the router's
- * and the deployment's coroutines and the connection live in it.
+ * and the deployment's coroutines and the connection live in it. When that child ends because the scope it was
+ * launched in was cancelled, the session closes itself, so nobody waits for an answer that never comes and the
+ * environment is recorded as it is left.
  *
  * @param prepared what the session deploys.
  * @param client the client of the runtime.
@@ -150,8 +152,12 @@ internal class DefaultRuntimeSession(
         sink = ConductorEventSink(conductor),
     )
 
-    /** Starts the router, the conductor and the deployment. */
+    /**
+     * Starts the router, the conductor and the deployment, and closes the session once its job ended, which it does
+     * after [close] and after a cancellation of the scope it was launched in.
+     */
     fun begin() {
+        job.invokeOnCompletion { close() }
         router.start()
         conductor.start()
         deployment.start()

@@ -44,10 +44,11 @@ import kotlinx.coroutines.flow.StateFlow
  * | closed | nothing |
  *
  * Threading (MUST): every function may be called from any coroutine; the session runs its work on the dispatcher of
- * its options, in a supervisor child of the scope it was launched in. One conductor carries out the commands in the
- * order they arrive and is the single writer of [state], [progress] and [problems]; one router is the only reader of the
- * connection's pushes and the single writer of [model], [modelUpdates], [domainEvents] and [activity]. Events go through
- * the conductor too, so an injected event never overtakes a stop.
+ * its options, in a supervisor child of the scope it was launched in, and cancelling that scope closes the session as
+ * [close] does. One conductor carries out the commands in the order they arrive and is the single writer of [state],
+ * [progress] and [problems]; one router is the only reader of the connection's pushes and the single writer of [model],
+ * [modelUpdates], [domainEvents] and [activity]. Events go through the conductor too, so an injected event never
+ * overtakes a stop.
  *
  * Contract (MUST):
  * - Failures are outcomes and problems, never exceptions; a `CancellationException` of the caller is rethrown.
