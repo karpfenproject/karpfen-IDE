@@ -49,14 +49,15 @@ import kotlin.test.assertTrue
  * Covers the runtime's contract with the client, driven only through the transports with raw requests built from the
  * catalogue's routes and raw links, with the lamp's texts: the missing-parameter texts in the order each route checks
  * its parameters; every route's rejection of an absent environment; every route in a configuring, an activated, a
- * running and a stopped environment with the exact statuses and texts of the catalogue; uploads the runtime refuses
- * (an unknown type, an attachment to a missing object, a reference loop) leaving the environment configuring; unique
- * environment keys and single-use access keys of the runtime's shapes; the silent handshake and its three refusals;
- * the snapshot's member order, its revision 0 before the start and roots written like `objectChanged` values, equal to
- * the lamp's golden; a model subscriber receiving every observation from the start with consecutive revisions; a second
- * activation refused and a second start changing nothing; domain events with the members the decoder reads; pushes for
- * a client without a session dropped; and a stop that closes the sockets with `Environment stopped`, after which the
- * environment stays readable and a start runs it again.
+ * running and a stopped environment with the exact statuses and texts of the catalogue, with a state forced in a
+ * running one applied at its next tick; uploads the runtime refuses (an unknown type, an attachment to a missing
+ * object, a reference loop) leaving the environment configuring; unique environment keys and single-use access keys of
+ * the runtime's shapes; the silent handshake and its three refusals; the snapshot's member order, its revision 0 before
+ * the start and roots written like `objectChanged` values, equal to the lamp's golden; a model subscriber receiving
+ * every observation from the start with consecutive revisions; a second activation refused and a second start changing
+ * nothing; domain events with the members the decoder reads; pushes for a client without a session dropped; and a stop
+ * that closes the sockets with `Environment stopped`, after which the environment stays readable and a start runs it
+ * again.
  *
  * The scenarios run only against a real runtime ([LiveRuntimeContractTest]); failures that only a fake can produce are
  * ordinary tests of the client against the fake runtime.
@@ -296,6 +297,58 @@ abstract class RuntimeContract {
         val source = lamp(LAMP_FILES.machines.first().file)
         expect(OK, source, RuntimeRoute.STATE_MACHINE_SOURCE, ENV_KEY to environment, "modelElement" to "lamp")
         ok(RuntimeRoute.SET_ACTIVE_STATE, ENV_KEY to environment, "modelElement" to "lamp", "state" to "full power")
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+    }
+
+    @Test
+    fun `a running environment refuses changes and answers every other route as the catalogue says`() = scenario {
+        val environment = create()
+        val client = clientId()
+        val stranger = clientId()
+        val observatory = clientId()
+        uploadLamp(environment)
+        val link = connect(client, environment)
+        subscribe(client, environment)
+        ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        scope.eventually("the first stacks of both lamp machines") {
+            link.stacks("lamp").firstOrNull()?.let { link.stacks("wallSwitch").firstOrNull() }
+        }
+        val env = mapOf("env" to environment)
+
+        rejected(CONFLICT, RuntimeText.ALREADY_ACTIVE, env, RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        configurationCalls(environment, client).forEach { (route, parameters, upload) ->
+            rejected(CONFLICT, RuntimeText.ALREADY_ACTIVE, env, route, *parameters.toTypedArray(), upload = upload)
+        }
+        val strangerKey = accessKey(stranger, environment)
+        assertTrue(accessKeyPattern(stranger).matches(strangerKey), strangerKey)
+        val observatoryKey = call(
+            RuntimeRoute.REGISTER_OBSERVATORY_CLIENT,
+            CLIENT_ID to observatory,
+            ENV_KEY to environment,
+            "modelElement" to "*",
+        )
+        assertEquals(OK, observatoryKey.status, observatoryKey.body)
+        assertTrue(accessKeyPattern(observatory).matches(observatoryKey.body), observatoryKey.body)
+        val source = lamp(LAMP_FILES.machines.first().file)
+        expect(OK, source, RuntimeRoute.STATE_MACHINE_SOURCE, ENV_KEY to environment, "modelElement" to "lamp")
+        assertEquals(RuntimePhase.RUNNING.wireName, string(snapshot(environment), WireNames.PHASE))
+        ok(RuntimeRoute.SUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to client)
+        rejected(
+            CONFLICT,
+            RuntimeText.NO_SESSION,
+            env + ("client" to stranger),
+            RuntimeRoute.SUBSCRIBE_MODEL,
+            ENV_KEY to environment,
+            CLIENT_ID to stranger,
+        )
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        ok(RuntimeRoute.SET_ACTIVE_STATE, ENV_KEY to environment, "modelElement" to "lamp", "state" to "full power")
+        scope.eventually("the forced state at the next tick") {
+            assertEquals(listOf("on", "full power"), link.stacks("lamp").last())
+            Unit
+        }
+        ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to client)
         ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
     }
 
