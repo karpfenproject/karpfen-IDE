@@ -1,0 +1,110 @@
+/**
+ * Copyright 2026 Karl Kegel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.karpfen.ide.runtime.protocol.api
+
+import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
+import io.karpfen.ide.runtime.protocol.catalogue.ClientId
+import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
+import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
+
+/**
+ * The raw gateway to the runtime: one function per [RuntimeRoute] with typed parameters, without any lifecycle guard.
+ * Only the client's own environment handles and the client facade call it; the handles guard it.
+ *
+ * Threading (MUST): every function may be called from any coroutine, concurrently; each waits at most the timeout of
+ * its route's timeout class.
+ *
+ * Contract (MUST):
+ * - No function throws for a runtime or transport failure; failures are [RuntimeResult.Failed].
+ * - Parameter values must not be blank (the runtime would read an empty value as present and fail later); a blank value
+ *   is a programming error and throws [IllegalArgumentException] before anything is sent.
+ * - A `CancellationException` of the caller is always rethrown.
+ */
+internal interface RuntimeApi {
+    /** `POST /createEnvironment`: a new environment key. */
+    suspend fun createEnvironment(): RuntimeResult<EnvironmentKey>
+
+    /** `PUT /setMetamodel`: uploads the domain metamodel [text] of [environment]. */
+    suspend fun setMetamodel(environment: EnvironmentKey, text: String): RuntimeResult<Unit>
+
+    /** `PUT /setModel`: uploads the model [text] of [environment]. */
+    suspend fun setModel(environment: EnvironmentKey, text: String): RuntimeResult<Unit>
+
+    /** `PUT /setEventDefinitions`: uploads the event definitions [text] of [environment]. */
+    suspend fun setEventDefinitions(environment: EnvironmentKey, text: String): RuntimeResult<Unit>
+
+    /** `PUT /setStateMachine`: attaches the state machine [text] to the object [attachedTo] of [environment]. */
+    suspend fun setStateMachine(environment: EnvironmentKey, attachedTo: String, text: String): RuntimeResult<Unit>
+
+    /** `POST /setTickDelay`: sets the tick delay of [environment] to [milliseconds]. */
+    suspend fun setTickDelay(environment: EnvironmentKey, milliseconds: Int): RuntimeResult<Unit>
+
+    /** `POST /setActiveState`: forces the machine attached to [modelElement] of [environment] into [state]. */
+    suspend fun setActiveState(environment: EnvironmentKey, modelElement: String, state: String): RuntimeResult<Unit>
+
+    /** `POST /setEventTtl`: sets the event time to live of [environment] to [milliseconds]. */
+    suspend fun setEventTtl(environment: EnvironmentKey, milliseconds: Long): RuntimeResult<Unit>
+
+    /** `POST /registerObjectObserver`: registers [client] as an observer of the object [objectId] of [environment]. */
+    suspend fun registerObjectObserver(environment: EnvironmentKey, client: ClientId, objectId: String): RuntimeResult<Unit>
+
+    /** `POST /registerDomainListener`: registers [client] as a listener of the event [domain] of [environment]. */
+    suspend fun registerDomainListener(environment: EnvironmentKey, client: ClientId, domain: String): RuntimeResult<Unit>
+
+    /** `POST /registerClientForWebSocket`: an access key of [client] for [environment], without an observatory element. */
+    suspend fun registerClientForWebSocket(client: ClientId, environment: EnvironmentKey): RuntimeResult<AccessKey>
+
+    /** `POST /runEnvironment`: activates [environment]. */
+    suspend fun runEnvironment(environment: EnvironmentKey): RuntimeResult<Unit>
+
+    /** `POST /startEnvironment`: starts [environment]. */
+    suspend fun startEnvironment(environment: EnvironmentKey): RuntimeResult<Unit>
+
+    /** `POST /stopEnvironment`: stops [environment]. */
+    suspend fun stopEnvironment(environment: EnvironmentKey): RuntimeResult<Unit>
+
+    /** `GET /health`: whether the runtime is up. */
+    suspend fun health(): RuntimeResult<Unit>
+
+    /** `GET /observatory/environments`: the activated, running, halted and stopped environments. */
+    suspend fun listEnvironments(): RuntimeResult<List<ActiveEnvironment>>
+
+    /** `GET /observatory/statemachine`: the state machine text uploaded for [modelElement] of [environment]. */
+    suspend fun stateMachineSource(environment: EnvironmentKey, modelElement: String): RuntimeResult<String>
+
+    /**
+     * `POST /observatory/registerClient`: an access key of [client] for [environment] that also registers the stack
+     * changes of [modelElement], `*` for every machine.
+     */
+    suspend fun registerObservatoryClient(client: ClientId, environment: EnvironmentKey, modelElement: String): RuntimeResult<AccessKey>
+
+    /** `GET /observatory/model`: the model snapshot of [environment]. */
+    suspend fun modelSnapshot(environment: EnvironmentKey): RuntimeResult<RuntimeModelSnapshot>
+
+    /** `POST /observatory/subscribeModel`: subscribes [client] to every object and stack change of [environment]. */
+    suspend fun subscribeModel(environment: EnvironmentKey, client: ClientId): RuntimeResult<Unit>
+
+    /** `POST /observatory/unsubscribeModel`: ends the model subscription of [client] to [environment]. */
+    suspend fun unsubscribeModel(environment: EnvironmentKey, client: ClientId): RuntimeResult<Unit>
+
+    /**
+     * Checks that the runtime has the routes of IDE support: `GET /observatory/model` without parameters, which such a
+     * runtime answers with 400 and exactly `Missing required parameter: envKey`. That answer is [RuntimeResult.Ok]; any
+     * other, a 404 of a runtime without the route among them, is a failure.
+     */
+    suspend fun probeSnapshotRoute(): RuntimeResult<Unit>
+}
