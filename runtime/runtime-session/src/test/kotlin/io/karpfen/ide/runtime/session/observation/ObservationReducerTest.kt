@@ -38,7 +38,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the rules of the observation switch row by row: switching on and off, pushes while off, while synchronizing
- * and while live (dropped, applied, a gap), snapshots read and failed, a reconnect, an interruption and the stop.
+ * and while live (dropped, applied, a gap), snapshots read and failed, a reconnect, an interruption, snapshots while
+ * the link is down and the stop.
  */
 class ObservationReducerTest {
 
@@ -243,7 +244,48 @@ class ObservationReducerTest {
 
         assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), interrupted.state.model.sync)
         assertEquals(emptyList(), interrupted.requests)
-        assertUnchanged(reducer.apply(live, ObservationInput.SwitchedOff).state, ObservationInput.LinkInterrupted)
+        assertTrue(interrupted.state.linkDown)
+        val off = reducer.apply(live, ObservationInput.SwitchedOff).state
+        val interruptedOff = reducer.apply(off, ObservationInput.LinkInterrupted)
+        assertSame(off.model, interruptedOff.state.model, "the model stays as it is while off")
+        assertTrue(interruptedOff.state.linkDown)
+        assertEquals(emptyList(), interruptedOff.requests)
+    }
+
+    @Test
+    fun `while the link is down a snapshot updates the model but never makes it live, until the read after the next open`() {
+        val down = reducer.apply(live(at = 5), ObservationInput.LinkInterrupted).state
+
+        val pulled = reducer.apply(down, ObservationInput.SnapshotRead(snapshot(revision = 7, roots = rootsWith("on"))))
+
+        assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), pulled.state.model.sync)
+        assertEquals(7L, pulled.state.model.mirror.objects.getValue("lamp").revision)
+        assertEquals(7L, pulled.state.lastRevision)
+        assertEquals(setOf("lamp"), pulled.update?.changed)
+        assertEquals(
+            SyncStatus.Synchronizing(SyncReason.RECONNECTED),
+            reducer.apply(down, ObservationInput.SnapshotFailed("no answer")).state.model.sync,
+            "a failed read while the link is down still waits for the reconnect",
+        )
+        assertUnchanged(pulled.state, ObservationInput.Pushed(RuntimePush.StateChanged("lamp", listOf("on"), 8)))
+
+        val reopened = reducer.apply(pulled.state, ObservationInput.LinkOpened(2))
+        assertEquals(listOf(ObservationRequest.Resubscribe, ObservationRequest.ReadSnapshot), reopened.requests)
+        val live = reducer.apply(reopened.state, ObservationInput.SnapshotRead(snapshot(revision = 9))).state
+        assertEquals(SyncStatus.Live(9), live.model.sync)
+    }
+
+    @Test
+    fun `a link that went down while off keeps a model switched on meanwhile from going live until it opens again`() {
+        val off = reducer.apply(live(at = 5), ObservationInput.SwitchedOff).state
+        val down = reducer.apply(off, ObservationInput.LinkInterrupted).state
+        val on = reducer.apply(down, ObservationInput.SwitchedOn).state
+
+        val read = reducer.apply(on, ObservationInput.SnapshotRead(snapshot(revision = 6))).state
+
+        assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), read.model.sync)
+        val reopened = reducer.apply(read, ObservationInput.LinkOpened(2)).state
+        assertEquals(SyncStatus.Live(6), reducer.apply(reopened, ObservationInput.SnapshotRead(snapshot(revision = 6))).state.model.sync)
     }
 
     @Test

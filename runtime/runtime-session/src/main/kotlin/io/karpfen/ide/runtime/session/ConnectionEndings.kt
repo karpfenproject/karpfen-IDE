@@ -60,7 +60,7 @@ internal sealed interface EndingVerdict {
  * | handshake rejected | failed with `handshake-rejected`; the environment is stopped |
  * | environment stopped | stopped, from the final model it reads |
  * | environment lost | failed with `environment-lost` |
- * | gave up reconnecting | unchanged, with the warning `connection-lost`; the observation waits for a reconnect |
+ * | gave up reconnecting | unchanged, with the warning `connection-lost`; no push arrives any more, so an observation that is on stays synchronizing, and pulls still read the model |
  * | disconnected | unchanged: the session disconnected itself |
  */
 internal object ConnectionEndings {

@@ -36,7 +36,11 @@ public enum class SyncReason {
     /** A push skipped revisions: pushes were lost. */
     GAP,
 
-    /** The connection was interrupted or opened again: pushes may have been lost meanwhile. */
+    /**
+     * The connection was interrupted or opened again: pushes may have been lost meanwhile. The model is live again only
+     * once the connection is open and a snapshot was read after it; a pull meanwhile updates the model but leaves it
+     * synchronizing, and so does every pull after the connection gave up for good.
+     */
     RECONNECTED,
 
     /** Reading a snapshot failed; it is tried again. */
@@ -56,9 +60,10 @@ public sealed interface SyncStatus {
     public data class Pulled(public val revision: Long) : SyncStatus
 
     /**
-     * Observation is on and a snapshot is pending; pushes are not applied meanwhile, because the snapshot covers them.
+     * Observation is on, but the model is not in step with the pushes: a snapshot is pending, or the connection has to
+     * open again first; pushes are not applied meanwhile, because the snapshot that follows covers them.
      *
-     * @property reason why the snapshot is read.
+     * @property reason why the model is re-read.
      */
     public data class Synchronizing(public val reason: SyncReason) : SyncStatus
 

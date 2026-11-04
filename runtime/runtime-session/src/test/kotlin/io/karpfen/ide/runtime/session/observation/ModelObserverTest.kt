@@ -57,8 +57,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Covers the model observer with a port that answers as each test programs it, on virtual time: switching on with
  * retries while the runtime has no session for the client, pushes that wait in the router's inbox while a snapshot is
- * read, a gap, a reconnect, failed snapshots and the out-of-sync report, switching off with late pushes, pulls and the
- * final snapshot after the stop.
+ * read, a gap, a reconnect, failed snapshots and the out-of-sync report, switching off with late pushes, pulls (also
+ * while the link is down) and the final snapshot after the stop.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelObserverTest {
@@ -316,7 +316,7 @@ class ModelObserverTest {
     }
 
     @Test
-    fun `a connection that ends while on leaves observation waiting for a reconnect`() = runTest {
+    fun `a connection that ends while on leaves observation synchronizing, and a pull reads the model without making it live`() = runTest {
         val port = FakePort(this)
         port.snapshots += answer(snapshot(10))
         val observer = observer(port)
@@ -325,6 +325,30 @@ class ModelObserverTest {
         observer.handle(ConnectionEvent.Ended(ConnectionEnd.GaveUp(20, "connection refused")))
 
         assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), observer.model.value.sync)
+        port.snapshots += answer(snapshot(17))
+        assertEquals(CallOutcome.Done(snapshot(17)), observer.pull())
+        assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), observer.model.value.sync)
+        assertEquals(ObservationMode.ON, observer.model.value.mode)
+        assertEquals(17L, observer.model.value.mirror.objects.getValue("bulb").revision)
+        assertEquals(ObservationNotice.Synchronized(null, 17), notices.last(), "a plain read, no re-synchronization")
+    }
+
+    @Test
+    fun `a pull while the link is interrupted leaves the model synchronizing until the read after the reconnect`() = runTest {
+        val port = FakePort(this)
+        port.snapshots += answer(snapshot(10))
+        val observer = observer(port)
+        observer.switchOn()
+        observer.handle(ConnectionEvent.Interrupted(LinkClosure(null, null, byClient = false)))
+        port.snapshots += answer(snapshot(12))
+
+        observer.pull()
+
+        assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), observer.model.value.sync)
+        port.snapshots += answer(snapshot(13))
+        observer.handle(ConnectionEvent.Opened(2))
+        assertEquals(SyncStatus.Live(13), observer.model.value.sync)
+        assertEquals(ObservationNotice.Synchronized(SyncReason.RECONNECTED, 13), notices.last())
     }
 
     @Test

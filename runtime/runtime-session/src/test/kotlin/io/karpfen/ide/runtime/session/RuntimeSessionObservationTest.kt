@@ -46,8 +46,8 @@ import kotlin.time.Duration.Companion.seconds
  * programs: object and stack pushes reach the observed model, the states and the model updates in revision order;
  * injected events leave as the exact frames the runtime reads; observation switched off ignores pushes and switched on
  * reads a snapshot first; a dropped link reconnects with a fresh key, a second epoch and a re-synchronization; a lost
- * push shows as a revision gap and is healed by a snapshot; domain events flow whatever the switch; and a pull applies a
- * snapshot.
+ * push shows as a revision gap and is healed by a snapshot; domain events flow whatever the switch; and a pull applies
+ * a snapshot, and while the link is down it leaves the model synchronizing.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionObservationTest {
@@ -195,6 +195,29 @@ class RuntimeSessionObservationTest {
         assertEquals(listOf("press", "press"), events.map { it.event?.name })
         assertTrue(events.all { it.domain == "switch" && it.event?.source == "EXTERNAL_MESSAGE" }, "$events")
         assertEquals(2, session.journal().count { it is SessionActivity.DomainEventReceived })
+        session.close()
+    }
+
+    @Test
+    fun `a pull while the link is down reads the model but leaves it synchronizing until the link opens again`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        rig.fake.hangConnect()
+        rig.linkOf(session).drop()
+        advanceTimeBy(ReconnectPolicy().delayBefore(1) + 1.seconds)
+        assertIs<ConnectionState.Connecting>(session.connection.value)
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, 7, mapOf("lamp" to listOf("on"), "wallSwitch" to listOf("down")))
+
+        assertEquals(SessionCommandOutcome.Done, session.pull())
+
+        assertEquals(ObservationMode.ON, session.model.value.mode)
+        assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), session.model.value.sync)
+        assertEquals(listOf("on"), session.model.value.stacks["lamp"], "the pulled model is shown")
+        runCurrent()
+        val journal = session.journal()
+        assertTrue(journal.none { it is SessionActivity.Synchronized && it.revision == 7L }, "$journal")
+        assertTrue(journal.any { it is SessionActivity.Note && it.text == "Read the model at revision 7." }, "$journal")
         session.close()
     }
 

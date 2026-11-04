@@ -69,9 +69,9 @@ import kotlin.time.Duration.Companion.seconds
  * for, closing right when a stop begins still stops, and cancelling the scope a session was launched in closes it; a
  * stop is bounded as the deploy timing says; the environment's phase drives the state (halted from a snapshot,
  * uncertain after a call without answer, lost after a restart); a stop the session did not make is settled by reading
- * the final model; a connection that gives up is a warning; forcing a state reaches the runtime, a refusal comes back
- * with the runtime's text, and events that got no reaction are noted; and commands the state does not allow are
- * refused.
+ * the final model; a connection that gives up is a warning, after which pulls never make the model live; forcing a
+ * state reaches the runtime, a refusal comes back with the runtime's text, and events that got no reaction are noted;
+ * and commands the state does not allow are refused.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionLifecycleTest {
@@ -313,9 +313,10 @@ class RuntimeSessionLifecycleTest {
     }
 
     @Test
-    fun `a connection that gives up reconnecting is a warning and the session keeps its state`() = runTest {
+    fun `a connection that gives up reconnecting is a warning, the session keeps its state and a pull never makes the model live`() = runTest {
         val rig = SessionRig(this, root)
-        val session = rig.running(rig.prepared(SynthesizedModel.LAMP))
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
         val running = session.state.value
         repeat(ReconnectPolicy().maxAttempts) { rig.fake.refuseConnect(TransportFailure.Unreachable("Connection refused")) }
 
@@ -327,6 +328,10 @@ class RuntimeSessionLifecycleTest {
         assertEquals(Severity.WARNING, warning.severity)
         assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), session.model.value.sync)
         assertIs<InjectionAvailability.Unavailable>(session.events.availability.value)
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, 7, mapOf("lamp" to listOf("on"), "wallSwitch" to listOf("down")))
+        assertEquals(SessionCommandOutcome.Done, session.pull())
+        assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), session.model.value.sync, "no push arrives any more")
+        assertEquals(listOf("on"), session.model.value.stacks["lamp"], "the pulled model is shown")
         session.close()
     }
 

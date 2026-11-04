@@ -34,12 +34,15 @@ import io.karpfen.ide.runtime.session.states.ActiveStatesReducer
  * @property lastRevision the revision of the last applied snapshot or push; 0 before anything was read.
  * @property hasRead true once a snapshot was applied.
  * @property stopped true once the environment stopped; the next snapshot is final.
+ * @property linkDown true while the connection is interrupted or ended: no push arrives until it opens again, so the
+ *   model cannot be live meanwhile.
  */
 internal data class ObservationState(
     val model: ObservedModel,
     val lastRevision: Long,
     val hasRead: Boolean,
     val stopped: Boolean,
+    val linkDown: Boolean,
 )
 
 /** What the observation reacts to. */
@@ -120,10 +123,10 @@ internal data class ObservationStep(
  * | object or stack push, mode off | ignored (pushes enqueued before the unsubscription may still arrive) |
  * | object or stack push, synchronizing | ignored (the pending snapshot is read later, so it covers the push) |
  * | object or stack push, live at L | at most L ignored; L + 1 applied, live at L + 1, an update; above L + 1 a gap: synchronizing, read a snapshot, an anomaly naming the missed revisions |
- * | snapshot read | when at least the last applied revision: mirror and states replaced, phase set, live when on, pulled when off, final after the stop; one update listing what differs from before. An older snapshot is ignored |
- * | snapshot failed | synchronizing because the snapshot failed when on; unchanged when off |
- * | connection opened again (not the first open), mode on | synchronizing because of the reconnect, subscribe again, then read a snapshot |
- * | connection interrupted, mode on | synchronizing because of the reconnect, no request (the next open brings them) |
+ * | snapshot read | when at least the last applied revision: mirror and states replaced, phase set, live when on, still synchronizing because of the reconnect when on while the link is down, pulled when off, final after the stop; one update listing what differs from before. An older snapshot is ignored |
+ * | snapshot failed | when on, synchronizing because the snapshot failed, or because of the reconnect while the link is down; unchanged when off |
+ * | connection opened | the link is up again; when on and not the first open, synchronizing because of the reconnect, subscribe again, then read a snapshot |
+ * | connection interrupted or ended | the link is down until the next open; when on, synchronizing because of the reconnect, no request (the next open brings them) |
  * | environment stopped | mode off, read a snapshot, which is final |
  *
  * After the stop, switching on or off changes nothing. Domain events, violations and unrecognized pushes are not the
@@ -141,6 +144,7 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
             lastRevision = 0,
             hasRead = false,
             stopped = false,
+            linkDown = false,
         )
 
     /** The step [input] makes from [state]. */
@@ -227,8 +231,9 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
         val states = states.replaced(before.states, snapshot.activeStates)
         val sync = when {
             state.stopped -> SyncStatus.Final(snapshot.revision)
-            before.mode == ObservationMode.ON -> SyncStatus.Live(snapshot.revision)
-            else -> SyncStatus.Pulled(snapshot.revision)
+            before.mode == ObservationMode.OFF -> SyncStatus.Pulled(snapshot.revision)
+            state.linkDown -> SyncStatus.Synchronizing(SyncReason.RECONNECTED)
+            else -> SyncStatus.Live(snapshot.revision)
         }
         val model = before.copy(sync = sync, phase = snapshot.phase, mirror = step.snapshot, states = states)
         val differences = MirrorComparison.differences(before.mirror, step.snapshot)
@@ -246,27 +251,30 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
     /** Reading a snapshot failed. */
     private fun snapshotFailed(state: ObservationState): ObservationStep {
         if (state.model.mode == ObservationMode.OFF) return unchanged(state)
-        val model = state.model.copy(sync = SyncStatus.Synchronizing(SyncReason.SNAPSHOT_FAILED))
+        val reason = if (state.linkDown) SyncReason.RECONNECTED else SyncReason.SNAPSHOT_FAILED
+        val model = state.model.copy(sync = SyncStatus.Synchronizing(reason))
         return ObservationStep(state.copy(model = model), null, emptyList(), emptyList())
     }
 
     /** The connection opened. */
     private fun linkOpened(state: ObservationState, epoch: Int): ObservationStep {
-        if (epoch <= 1 || state.model.mode == ObservationMode.OFF) return unchanged(state)
+        val up = if (state.linkDown) state.copy(linkDown = false) else state
+        if (epoch <= 1 || state.model.mode == ObservationMode.OFF) return unchanged(up)
         val model = state.model.copy(sync = SyncStatus.Synchronizing(SyncReason.RECONNECTED))
         return ObservationStep(
-            state.copy(model = model),
+            up.copy(model = model),
             null,
             listOf(ObservationRequest.Resubscribe, ObservationRequest.ReadSnapshot),
             emptyList(),
         )
     }
 
-    /** The connection was interrupted. */
+    /** The connection was interrupted or ended. */
     private fun linkInterrupted(state: ObservationState): ObservationStep {
-        if (state.model.mode == ObservationMode.OFF) return unchanged(state)
+        val down = if (state.linkDown) state else state.copy(linkDown = true)
+        if (state.model.mode == ObservationMode.OFF) return unchanged(down)
         val model = state.model.copy(sync = SyncStatus.Synchronizing(SyncReason.RECONNECTED))
-        return ObservationStep(state.copy(model = model), null, emptyList(), emptyList())
+        return ObservationStep(down.copy(model = model), null, emptyList(), emptyList())
     }
 
     /** The environment stopped. */

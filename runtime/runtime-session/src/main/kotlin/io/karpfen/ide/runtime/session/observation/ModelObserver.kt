@@ -172,7 +172,8 @@ internal class ModelObserver(
 
     /**
      * Feeds the [outcome] of a first read, and of the reads after it, to the rules: a snapshot is applied and reported as
-     * a synchronization; a failure while observation is on is read again after the retry delay until [attempts] reads
+     * a synchronization, with the reason the observation was synchronizing for if the model is live afterwards, as a
+     * plain read otherwise; a failure while observation is on is read again after the retry delay until [attempts] reads
      * were made, then reported out of sync. Answers the last outcome.
      */
     private suspend fun applySnapshot(outcome: CallOutcome<RuntimeModelSnapshot>, attempts: Int): CallOutcome<RuntimeModelSnapshot> {
@@ -183,7 +184,10 @@ internal class ModelObserver(
             when (val read = current) {
                 is CallOutcome.Done -> {
                     feed(ObservationInput.SnapshotRead(read.value))
-                    if (state.lastRevision == read.value.revision) listener.notice(ObservationNotice.Synchronized(reason, read.value.revision))
+                    if (state.lastRevision == read.value.revision) {
+                        val live = state.model.sync is SyncStatus.Live
+                        listener.notice(ObservationNotice.Synchronized(reason.takeIf { live }, read.value.revision))
+                    }
                     return read
                 }
                 is CallOutcome.Refused, is CallOutcome.Failed -> {
