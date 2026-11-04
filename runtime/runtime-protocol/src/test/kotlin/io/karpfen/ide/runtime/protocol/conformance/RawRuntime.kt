@@ -28,23 +28,47 @@ import io.karpfen.ide.runtime.protocol.transport.LinkFrame
 import io.karpfen.ide.runtime.protocol.transport.LinkSendResult
 import io.karpfen.ide.runtime.protocol.transport.TextRequest
 import io.karpfen.ide.runtime.protocol.transport.WebSocketLink
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.fail
 
 /**
+ * Runs [body] as a scenario against this runtime with the raw view of it at [webSocketUrl], and stops every environment
+ * the scenario asked to activate or start and did not stop when it ends, also when it fails, so that a failed scenario
+ * leaves no engine running for the scenarios after it.
+ */
+internal fun RuntimeUnderTest.runRaw(webSocketUrl: String, body: suspend RawRuntime.() -> Unit) {
+    run {
+        val raw = RawRuntime(this, webSocketUrl)
+        try {
+            raw.body()
+        } finally {
+            withContext(NonCancellable) { raw.stopLaunched() }
+        }
+    }
+}
+
+/**
  * The runtime as the contract scenarios drive it: raw requests built from the catalogue's routes and raw links, through
  * the transports of the scenario, without the client's gateway, lifecycle or connection, so that the scenarios check
- * the runtime's behaviour itself.
+ * the runtime's behaviour itself. It remembers the environments it asked to activate or start until a stop of them
+ * succeeds, so that [stopLaunched] can stop them after the scenario.
  *
  * @property scope the scenario's scope, whose transports reach the runtime and whose patience bounds every wait.
  * @property webSocketUrl the URL of the runtime's WebSocket.
  */
 internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocketUrl: String) {
+
+    /** The keys of the environments asked to activate or start and not stopped since, in that order. */
+    private val launched = MutableStateFlow<Set<String>>(emptySet())
 
     /**
      * Sends [route] with the query [parameters] in the order given and, for a PUT, [body], and answers the runtime's
@@ -52,9 +76,25 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
      */
     suspend fun call(route: RuntimeRoute, vararg parameters: Pair<String, String>, body: String = ""): HttpOutcome.Answered {
         val request = TextRequest(route.verb, route.path, parameters.toList(), body.takeIf { route.verb == HttpVerb.PUT })
-        return when (val outcome = scope.transports.http.exchange(request)) {
+        val environment = request.query.firstOrNull { it.first == ENV_KEY }?.second
+        if (environment != null && route in LAUNCHING) launched.update { it + environment }
+        val answer = when (val outcome = scope.transports.http.exchange(request)) {
             is HttpOutcome.Answered -> outcome
             is HttpOutcome.Failed -> fail("$route failed on the transport: ${outcome.failure}. ${scope.diagnostics}")
+        }
+        if (environment != null && route == RuntimeRoute.STOP_ENVIRONMENT && answer.status == OK) launched.update { it - environment }
+        return answer
+    }
+
+    /**
+     * Stops every environment asked to activate or start and not stopped since, each stop bounded by the patience for
+     * a reaction, whatever the runtime answers: the cleanup after a scenario, also after one that failed.
+     */
+    suspend fun stopLaunched() {
+        launched.value.forEach { environment ->
+            val route = RuntimeRoute.STOP_ENVIRONMENT
+            val stop = TextRequest(route.verb, route.path, listOf(ENV_KEY to environment), null)
+            withTimeoutOrNull(scope.patience.reaction) { scope.transports.http.exchange(stop) }
         }
     }
 
@@ -172,6 +212,9 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
 
         /** The radix of the random part of a client id. */
         const val HEX_RADIX = 16
+
+        /** The routes that activate or start an environment, which then has to be stopped. */
+        val LAUNCHING = setOf(RuntimeRoute.RUN_ENVIRONMENT, RuntimeRoute.START_ENVIRONMENT)
 
         /** The files of the lamp model. */
         val LAMP_FILES: ModelFiles = SynthesizedModels.files(SynthesizedModel.LAMP)

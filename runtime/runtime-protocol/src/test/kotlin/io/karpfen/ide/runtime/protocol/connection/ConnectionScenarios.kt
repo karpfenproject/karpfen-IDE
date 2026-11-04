@@ -51,7 +51,8 @@ import kotlin.test.assertTrue
  * text with spaces and an en dash surviving the wire in snapshots, stacks, forced-state requests and pushed values.
  *
  * The scenarios run only against a real runtime ([LiveConnectionScenariosTest]); a half-open old link that heals
- * through a revision gap is a failure only a fake can produce and is an ordinary test against the fake runtime.
+ * through a revision gap is a failure only a fake can produce and is an ordinary test against the fake runtime. Every
+ * scenario stops the environments it deployed when it ends, also when it fails.
  */
 abstract class ConnectionScenarios {
 
@@ -178,9 +179,9 @@ abstract class ConnectionScenarios {
         assertIs<CallOutcome.Done<Unit>>(environment.stop())
     }
 
-    /** Runs [body] as a scenario against [runtime] with a real client over its transports. */
+    /** Runs [body] as a scenario against [runtime] with a real client over its transports, which stops what it deployed at the end. */
     private fun scenario(body: suspend ScenarioClient.() -> Unit) {
-        runtime.run { ScenarioClient(this, endpoint).body() }
+        runtime.runClient(endpoint, body)
     }
 
     /** The string member [name] of [value]. */

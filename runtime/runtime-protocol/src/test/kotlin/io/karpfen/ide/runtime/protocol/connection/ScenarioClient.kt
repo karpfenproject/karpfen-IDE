@@ -20,6 +20,7 @@ import io.karpfen.ide.runtime.protocol.api.RuntimeResult
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.conformance.RuntimeScenarioScope
+import io.karpfen.ide.runtime.protocol.conformance.RuntimeUnderTest
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModels
 import io.karpfen.ide.runtime.protocol.conformance.eventually
@@ -35,18 +36,38 @@ import io.karpfen.ide.runtime.protocol.transport.RuntimeTransports
 import io.karpfen.ide.runtime.protocol.transport.WebSocketConnector
 import io.karpfen.ide.runtime.protocol.transport.WebSocketLink
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 /**
+ * Runs [body] as a scenario against this runtime with a real client of [endpoint], and stops every environment the
+ * scenario deployed when it ends, also when it fails, so that a failed scenario leaves no engine running for the
+ * scenarios after it.
+ */
+internal fun RuntimeUnderTest.runClient(endpoint: RuntimeEndpoint, body: suspend ScenarioClient.() -> Unit) {
+    run {
+        val client = ScenarioClient(this, endpoint)
+        try {
+            client.body()
+        } finally {
+            withContext(NonCancellable) { client.stopDeployed() }
+        }
+    }
+}
+
+/**
  * The real client of a connection scenario: a [RuntimeClient] over the scenario's transports, whose WebSocket seam keeps
  * every link the client opens so a scenario can close one or read how it closed, and the steps the scenarios share:
- * deploying the lamp through an environment handle, opening an observed connection and subscribing it to the model.
+ * deploying the lamp through an environment handle, opening an observed connection and subscribing it to the model. It
+ * keeps the handles it deployed, so that [stopDeployed] can stop them after the scenario.
  *
  * @property scope the scenario's scope.
  * @param endpoint where the runtime listens.
@@ -59,9 +80,13 @@ internal class ScenarioClient(val scope: RuntimeScenarioScope, endpoint: Runtime
     /** The client. */
     val client: RuntimeClient = RuntimeClient(endpoint, scope.clientOptions, RuntimeTransports(scope.transports.http, links))
 
+    /** The handles of the environments deployed so far, in order. */
+    private val deployed = MutableStateFlow<List<RuntimeEnvironment>>(emptyList())
+
     /** Creates an environment and uploads the lamp with a tick delay of 50 ms and an event time to live of 30 000 ms. */
     suspend fun deployLamp(): RuntimeEnvironment {
         val environment = assertIs<RuntimeResult.Ok<RuntimeEnvironment>>(client.createEnvironment()).value
+        deployed.update { it + environment }
         val files = SynthesizedModels.files(SynthesizedModel.LAMP)
         fun text(name: String): String = SynthesizedModels.text(SynthesizedModel.LAMP, name)
         done(environment.setMetamodel(text(files.metamodel)))
@@ -90,6 +115,15 @@ internal class ScenarioClient(val scope: RuntimeScenarioScope, endpoint: Runtime
     /** Subscribes [clientId] to the model of [environment], repeated while its session is not attached yet. */
     suspend fun subscribe(environment: RuntimeEnvironment, clientId: ClientId) {
         scope.eventually("an attached session of $clientId") { done(environment.subscribeModel(clientId)) }
+    }
+
+    /**
+     * Stops every environment deployed so far, whatever comes of it: the cleanup after a scenario, also after one that
+     * failed. A handle bounds its stop and sends nothing for an environment that is stopped already or was never
+     * activated.
+     */
+    suspend fun stopDeployed() {
+        deployed.value.forEach { it.stop() }
     }
 
     /** Deploys the lamp, connects and subscribes a client before the start, starts and waits for the first stacks. */

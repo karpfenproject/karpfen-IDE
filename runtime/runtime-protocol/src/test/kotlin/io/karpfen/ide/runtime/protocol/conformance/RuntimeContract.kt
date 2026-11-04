@@ -60,7 +60,8 @@ import kotlin.test.assertTrue
  * again.
  *
  * The scenarios run only against a real runtime ([LiveRuntimeContractTest]); failures that only a fake can produce are
- * ordinary tests of the client against the fake runtime.
+ * ordinary tests of the client against the fake runtime. Every scenario stops the environments it launched when it
+ * ends, also when it fails.
  */
 abstract class RuntimeContract {
 
@@ -509,9 +510,9 @@ abstract class RuntimeContract {
         assertEquals(RuntimePhase.STOPPED.wireName, string(snapshot(environment), WireNames.PHASE))
     }
 
-    /** Runs [body] as a scenario against [runtime] with the raw view of it. */
+    /** Runs [body] as a scenario against [runtime] with the raw view of it, which stops what it launched at the end. */
     private fun scenario(body: suspend RawRuntime.() -> Unit) {
-        runtime.run { RawRuntime(this, endpoint.webSocketUrl).body() }
+        runtime.runRaw(endpoint.webSocketUrl, body)
     }
 
     /** The environments the runtime lists, each key with its machines' model elements. */
