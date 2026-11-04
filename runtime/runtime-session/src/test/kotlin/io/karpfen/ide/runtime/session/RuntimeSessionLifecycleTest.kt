@@ -39,6 +39,8 @@ import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -58,11 +60,11 @@ import kotlin.time.Duration.Companion.seconds
  * Covers the lifecycle of a session after its deployment, end to end against the fake runtime, which answers only what
  * each test programs: a stop ends the connection, finalizes the model and records the environment once, and an event
  * sent after it never overtakes it; closing and shutting down in every state leave the ledger entry the state calls
- * for; the environment's phase drives the state (halted from a snapshot, uncertain after a call without answer, lost
- * after a restart) until the session stopped, which stays stopped whatever a later read reports; a stop the session
- * did not make is settled by reading the final model; a connection that gives up
- * is a warning; forcing a state reaches the runtime, a refusal comes back with the runtime's text, and events that got
- * no reaction are noted; and commands the state does not allow are refused.
+ * for, and closing right when a stop begins still stops; the environment's phase drives the state (halted from a
+ * snapshot, uncertain after a call without answer, lost after a restart); a stop the session did not make is settled
+ * by reading the final model; a connection that gives up is a warning; forcing a state reaches the runtime, a refusal
+ * comes back with the runtime's text, and events that got no reaction are noted; and commands the state does not allow
+ * are refused.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionLifecycleTest {
@@ -319,6 +321,28 @@ class RuntimeSessionLifecycleTest {
         assertEquals(SyncStatus.Synchronizing(SyncReason.RECONNECTED), session.model.value.sync)
         assertIs<InjectionAvailability.Unavailable>(session.events.availability.value)
         session.close()
+    }
+
+    @Test
+    fun `closing right when a stop begins still stops the environment and records it`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        programStop(rig, deployment, session)
+        backgroundScope.launch {
+            session.state.first { it is SessionState.Stopping }
+            session.close()
+        }
+        runCurrent()
+
+        val outcome = session.stop()
+        advanceTimeBy(5.minutes)
+
+        assertEquals(SessionCommandOutcome.Refused(SessionState.Closed, "The session is closed."), outcome)
+        assertEquals(SessionState.Closed, session.state.value)
+        assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
+        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertTrue(rig.fake.links.none { it.isOpen }, "no link stays open")
     }
 
     @Test

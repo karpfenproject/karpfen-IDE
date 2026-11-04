@@ -26,6 +26,7 @@ import io.karpfen.ide.runtime.session.problem.DeployProblem
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -34,7 +35,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Stops the environment of a session on a coroutine of its own and reports the end to the conductor's inbox, so the
- * conductor shows the session as stopping and keeps answering commands meanwhile:
+ * conductor shows the session as stopping and keeps answering commands meanwhile. A stop that was begun always runs:
+ * its coroutine starts at once, even if the session is closed right after, and the stop call itself cannot be
+ * cancelled, so closing during a stop never leaves the environment both running and unrecorded.
  *
  * 1. stops the environment, not cancellable and bounded; the runtime closes the connection with `Environment stopped`;
  * 2. records the environment as stopped once it stopped, or, if the session was closed during a stop that failed, as
@@ -56,10 +59,14 @@ internal class EnvironmentStopper(
     private val bounds: CleanupBounds,
     private val scope: CoroutineScope,
 ) {
-    /** Stops [environment], whose connection is [connection], and reports the end. */
+    /**
+     * Stops [environment], whose connection is [connection], and reports the end. The coroutine runs in the caller's
+     * thread up to its first suspension, inside the stop call, before this function returns, so a close that follows
+     * cannot cancel it before the stop call is made.
+     */
     fun launch(environment: RuntimeEnvironment, connection: RuntimeConnection?) {
         departure.stopStarts()
-        scope.launch(CoroutineName("session-stop")) {
+        scope.launch(CoroutineName("session-stop"), start = CoroutineStart.UNDISPATCHED) {
             var entry: LedgerEntry? = null
             val outcome = withContext(NonCancellable) {
                 val stopped = withTimeoutOrNull(bounds.stop) { environment.stop() }
