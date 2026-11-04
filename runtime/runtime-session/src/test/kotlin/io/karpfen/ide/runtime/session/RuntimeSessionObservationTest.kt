@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
+import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.connection.ReconnectPolicy
@@ -28,11 +29,13 @@ import io.karpfen.ide.runtime.session.observation.ObservationMode
 import io.karpfen.ide.runtime.session.observation.SyncReason
 import io.karpfen.ide.runtime.session.observation.SyncStatus
 import io.karpfen.ide.runtime.session.observation.UpdateCause
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import kotlin.test.Test
@@ -47,8 +50,8 @@ import kotlin.time.Duration.Companion.seconds
  * injected events leave as the exact frames the runtime reads; observation switched off ignores pushes and switched on
  * reads a snapshot first; a dropped link reconnects with a fresh key, a second epoch and a re-synchronization; a lost
  * push shows as a revision gap and is healed by a snapshot, and only applied pushes are journaled as applied; domain
- * events flow whatever the switch; and a pull applies a snapshot, and while the link is down it leaves the model
- * synchronizing.
+ * events flow whatever the switch; a pull applies a snapshot, and while the link is down it leaves the model
+ * synchronizing; and collectors that call commands while they collect, or never return, never stall the session.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionObservationTest {
@@ -220,6 +223,72 @@ class RuntimeSessionObservationTest {
     }
 
     @Test
+    fun `a collector of the model updates that pulls while it collects is answered, however many pushes wait`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, AFTER_BURST)
+        val pulled = CompletableDeferred<SessionCommandOutcome>()
+        backgroundScope.launch {
+            session.modelUpdates.collect { if (!pulled.isCompleted) pulled.complete(session.pull()) }
+        }
+        runCurrent()
+
+        pushBurst(rig, session)
+
+        assertEquals(SessionCommandOutcome.Done, withTimeout(SessionRig.PATIENCE) { pulled.await() })
+        assertEquals(SyncStatus.Live(AFTER_BURST), session.model.value.sync)
+        session.close()
+    }
+
+    @Test
+    fun `a collector of the domain events that stops the environment while it collects is answered, however many events wait`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        rig.fake.after(RuntimeRoute.STOP_ENVIRONMENT) {
+            linksOf(session.clientId.value).filter { it.isOpen }.forEach { it.closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED) }
+        }
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, AFTER_BURST)
+        val stopped = CompletableDeferred<SessionCommandOutcome>()
+        backgroundScope.launch {
+            session.domainEvents.collect { if (!stopped.isCompleted) stopped.complete(session.stop()) }
+        }
+        runCurrent()
+        val link = rig.linkOf(session)
+
+        repeat(BURST) { link.push(rig.domainEvent(session, "switch", "press")) }
+
+        assertEquals(SessionCommandOutcome.Done, withTimeout(SessionRig.PATIENCE) { stopped.await() })
+        assertIs<SessionState.Stopped>(session.state.value)
+        assertEquals(SyncStatus.Final(AFTER_BURST), session.model.value.sync)
+        session.close()
+    }
+
+    @Test
+    fun `collectors that never return hold back neither the observation nor the commands`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        val never = CompletableDeferred<Unit>()
+        backgroundScope.launch { session.modelUpdates.collect { never.await() } }
+        backgroundScope.launch { session.domainEvents.collect { never.await() } }
+        runCurrent()
+        val link = rig.linkOf(session)
+
+        pushBurst(rig, session)
+        repeat(BURST) { link.push(rig.domainEvent(session, "switch", "press")) }
+        runCurrent()
+
+        assertEquals(SyncStatus.Live(FIRST_PUSH + BURST - 1), session.model.value.sync)
+        assertEquals(BURST, session.journal().count { it is SessionActivity.DomainEventReceived })
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, AFTER_BURST)
+        assertEquals(SessionCommandOutcome.Done, withTimeout(SessionRig.PATIENCE) { session.pull() })
+        assertEquals(SyncStatus.Live(AFTER_BURST), session.model.value.sync)
+        session.close()
+    }
+
+    @Test
     fun `a pull while the link is down reads the model but leaves it synchronizing until the link opens again`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
@@ -260,4 +329,22 @@ class RuntimeSessionObservationTest {
         session.close()
     }
 
+    /** Pushes [BURST] stack changes of the lamp to [session], from revision [FIRST_PUSH] on, without letting them be taken. */
+    private fun pushBurst(rig: SessionRig, session: RuntimeSession) {
+        val link = rig.linkOf(session)
+        for (revision in FIRST_PUSH until FIRST_PUSH + BURST) {
+            link.push(rig.stack(session, "lamp", listOf(if (revision % 2 == 0L) "on" else "off"), revision))
+        }
+    }
+
+    private companion object {
+        /** More pushes than a collector may fall behind by default. */
+        const val BURST: Int = 150
+
+        /** The revision of the first pushed change after the deployment, which reads the model at revision 2. */
+        const val FIRST_PUSH: Long = 3
+
+        /** A revision after every pushed one. */
+        const val AFTER_BURST: Long = 1_000
+    }
 }

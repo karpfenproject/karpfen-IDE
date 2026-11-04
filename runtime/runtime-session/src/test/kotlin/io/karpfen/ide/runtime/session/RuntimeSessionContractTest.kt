@@ -139,11 +139,13 @@ class RuntimeSessionContractTest {
         assertEquals(DeployTiming(10.seconds, 3.seconds, 20, 250.milliseconds, 75.seconds, 15.seconds), options.deployTiming)
         assertEquals(25 to 200.milliseconds, options.subscribeAttempts to options.subscribeRetryDelay)
         assertEquals(3 to 1.seconds, options.snapshotAttempts to options.snapshotRetryDelay)
+        assertEquals(64, options.collectorBuffer)
         assertEquals(DeployOptions(start = true, observe = true), DeployOptions())
         assertFailsWith<IllegalArgumentException> { RuntimeSessionOptions(journalCapacity = 0) }
         assertFailsWith<IllegalArgumentException> { RuntimeSessionOptions(subscribeAttempts = 0) }
         assertFailsWith<IllegalArgumentException> { RuntimeSessionOptions(snapshotAttempts = 0) }
         assertFailsWith<IllegalArgumentException> { RuntimeSessionOptions(snapshotRetryDelay = (-1).seconds) }
+        assertFailsWith<IllegalArgumentException> { RuntimeSessionOptions(collectorBuffer = 0) }
         assertFailsWith<IllegalArgumentException> { DeployTiming(stopBound = 0.seconds) }
         assertFailsWith<IllegalArgumentException> { DeployTiming(disconnectBound = 0.seconds) }
     }

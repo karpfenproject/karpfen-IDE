@@ -92,11 +92,13 @@ internal class DefaultRuntimeSession(
             subscribeRetryDelay = options.subscribeRetryDelay,
             snapshotAttempts = options.snapshotAttempts,
             snapshotRetryDelay = options.snapshotRetryDelay,
+            updateBuffer = options.collectorBuffer,
         ),
         clock = clock,
         conductor = inbox,
         scope = scope,
         journalCapacity = options.journalCapacity,
+        domainEventBuffer = options.collectorBuffer,
     )
 
     /** Records the environment once and settles a close that races the deployment or a stop. */

@@ -42,25 +42,20 @@ internal interface ObservationPort {
  * @property subscribeRetryDelay the pause between two such calls.
  * @property snapshotAttempts the snapshot reads while observation is on, until the model counts as out of sync.
  * @property snapshotRetryDelay the pause between two snapshot reads.
- * @property updateBuffer how many model updates wait for a slow collector before the observation waits for it.
+ * @property updateBuffer how many model updates a collector may fall behind before it misses the oldest of them.
  */
 internal data class ObservationSettings(
     val subscribeAttempts: Int,
     val subscribeRetryDelay: Duration,
     val snapshotAttempts: Int,
     val snapshotRetryDelay: Duration,
-    val updateBuffer: Int = DEFAULT_UPDATE_BUFFER,
+    val updateBuffer: Int,
 ) {
     init {
         require(subscribeAttempts >= 1) { "at least one subscription attempt, not $subscribeAttempts" }
         require(snapshotAttempts >= 1) { "at least one snapshot attempt, not $snapshotAttempts" }
         require(!subscribeRetryDelay.isNegative() && !snapshotRetryDelay.isNegative()) { "retry delays are never negative" }
-        require(updateBuffer >= 0) { "the update buffer is never negative, not $updateBuffer" }
-    }
-
-    companion object {
-        /** The updates that wait for a slow collector by default. */
-        const val DEFAULT_UPDATE_BUFFER: Int = 64
+        require(updateBuffer >= 1) { "a collector may fall at least one update behind, not $updateBuffer" }
     }
 }
 

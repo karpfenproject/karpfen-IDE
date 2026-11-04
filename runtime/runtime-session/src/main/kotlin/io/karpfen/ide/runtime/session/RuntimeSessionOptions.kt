@@ -39,6 +39,8 @@ import kotlin.time.TimeSource
  * @property snapshotAttempts how often a snapshot the observation needs is read in all before the model counts as out
  *   of sync.
  * @property snapshotRetryDelay the pause between two such reads.
+ * @property collectorBuffer how many model updates, and how many domain events, a collector of a session may fall
+ *   behind before it misses the oldest of them; the session never waits for its collectors.
  * @throws IllegalArgumentException if a capacity or a number of attempts is below 1 or a delay is negative.
  */
 public data class RuntimeSessionOptions(
@@ -51,9 +53,11 @@ public data class RuntimeSessionOptions(
     public val subscribeRetryDelay: Duration = 200.milliseconds,
     public val snapshotAttempts: Int = 3,
     public val snapshotRetryDelay: Duration = 1.seconds,
+    public val collectorBuffer: Int = 64,
 ) {
     init {
         require(journalCapacity >= 1) { "the journal keeps at least one entry, not $journalCapacity" }
+        require(collectorBuffer >= 1) { "a collector may fall at least one value behind, not $collectorBuffer" }
         require(subscribeAttempts >= 1) { "at least one subscription attempt, not $subscribeAttempts" }
         require(snapshotAttempts >= 1) { "at least one snapshot attempt, not $snapshotAttempts" }
         require(!subscribeRetryDelay.isNegative() && !snapshotRetryDelay.isNegative()) { "retry delays are never negative" }

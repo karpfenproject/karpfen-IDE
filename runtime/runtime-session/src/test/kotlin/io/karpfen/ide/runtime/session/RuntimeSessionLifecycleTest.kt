@@ -68,10 +68,11 @@ import kotlin.time.Duration.Companion.seconds
  * sent after it never overtakes it; closing and shutting down in every state leave the ledger entry the state calls
  * for, closing right when a stop begins still stops, and cancelling the scope a session was launched in closes it; a
  * stop is bounded as the deploy timing says; the environment's phase drives the state (halted from a snapshot,
- * uncertain after a call without answer, lost after a restart); a stop the session did not make is settled by reading
- * the final model; a connection that gives up is a warning, after which pulls never make the model live; forcing a
- * state reaches the runtime, a refusal comes back with the runtime's text, and events that got no reaction are noted;
- * and commands the state does not allow are refused.
+ * uncertain after a call without answer, lost after a restart) until the session stopped, which stays stopped whatever
+ * a later read reports; a stop the session did not make is settled by reading the final model; a connection that gives
+ * up is a warning, after which pulls never make the model live; forcing a state reaches the runtime, a refusal comes
+ * back with the runtime's text, and events that got no reaction are noted; and commands the state does not allow are
+ * refused.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionLifecycleTest {

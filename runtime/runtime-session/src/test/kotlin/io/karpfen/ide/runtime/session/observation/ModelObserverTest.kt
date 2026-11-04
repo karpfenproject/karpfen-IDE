@@ -58,7 +58,8 @@ import kotlin.time.Duration.Companion.seconds
  * Covers the model observer with a port that answers as each test programs it, on virtual time: switching on with
  * retries while the runtime has no session for the client, pushes that wait in the router's inbox while a snapshot is
  * read, a gap, a reconnect, failed snapshots and the out-of-sync report, switching off with late pushes, pulls (also
- * while the link is down) and the final snapshot after the stop, and which pushes count as applied.
+ * while the link is down) and the final snapshot after the stop, which pushes count as applied, and a collector that
+ * never takes its updates.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelObserverTest {
@@ -369,6 +370,30 @@ class ModelObserverTest {
     }
 
     @Test
+    fun `a collector that never takes its updates does not hold the observer back and misses only the oldest`() = runTest {
+        val port = FakePort(this)
+        port.snapshots += answer(snapshot(10))
+        val observer = observer(port, SETTINGS.copy(updateBuffer = 2))
+        val stuck = CompletableDeferred<Unit>()
+        val taken = ArrayList<ModelUpdate>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            observer.updates.collect {
+                taken += it
+                stuck.await()
+            }
+        }
+        observer.switchOn()
+
+        (11L..30L).forEach { revision -> observer.handle(ConnectionEvent.Received(bulb(revision, watts = revision.toInt()))) }
+
+        assertEquals(SyncStatus.Live(30), observer.model.value.sync)
+        assertEquals(listOf(10L), taken.map { it.revision })
+        stuck.complete(Unit)
+        runCurrent()
+        assertEquals(listOf(10L, 29L, 30L), taken.map { it.revision })
+    }
+
+    @Test
     fun `violations, domain events and unrecognized pushes leave the model as it is`() = runTest {
         val port = FakePort(this)
         port.snapshots += answer(snapshot(10))
@@ -390,13 +415,13 @@ class ModelObserverTest {
         assertEquals(noticesBefore, notices.size)
     }
 
-    /** The observer of the lamp model over [port], reporting to [notices]. */
-    private fun observer(port: ObservationPort): ModelObserver =
+    /** The observer of the lamp model over [port] with [settings], reporting to [notices]. */
+    private fun observer(port: ObservationPort, settings: ObservationSettings = SETTINGS): ModelObserver =
         ModelObserver(
             ObservationReducer(lamp.reducer(), ActiveStatesReducer(listOf(LAMP, SWITCH))),
             port,
             lamp.seed,
-            SETTINGS,
+            settings,
             ObservationListener { notices += it },
         )
 
@@ -503,6 +528,7 @@ class ModelObserverTest {
             subscribeRetryDelay = 200.milliseconds,
             snapshotAttempts = 3,
             snapshotRetryDelay = 1.seconds,
+            updateBuffer = 64,
         )
 
         /** The runtime's refusal of a subscription before it processed the handshake. */

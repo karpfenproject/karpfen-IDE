@@ -22,6 +22,7 @@ import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.session.mirror.MirrorSnapshot
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -41,7 +42,7 @@ import org.slf4j.LoggerFactory
  * it returns, so the caller takes the next connection event only afterwards: pushes that arrive meanwhile wait in the
  * caller's unbounded inbox. That, and the runtime's guarantees (the subscription is in place before the snapshot is
  * read, and pushes arrive in revision order), is why switching on, a gap and a reconnect neither lose nor reorder
- * updates.
+ * updates. Publishing never suspends, so the observer never waits for the collectors of [updates].
  *
  * - [switchOn] subscribes; a refusal because the runtime has no open WebSocket session for the client yet (it may not
  *   have processed the handshake) is retried [ObservationSettings.subscribeAttempts] times in all,
@@ -56,7 +57,7 @@ import org.slf4j.LoggerFactory
  * @param reducer the rules.
  * @param port the runtime calls.
  * @param seed the mirror before anything was read: the seed of the deployed model.
- * @param settings the retries and the update buffer.
+ * @param settings the retries and how far a collector of the updates may fall behind.
  * @param listener hears synchronizations, out-of-sync reports and anomalies.
  */
 internal class ModelObserver(
@@ -73,15 +74,18 @@ internal class ModelObserver(
     private val modelState = MutableStateFlow(state.model)
 
     /** The writable stream of updates. */
-    private val updateStream = MutableSharedFlow<ModelUpdate>(extraBufferCapacity = settings.updateBuffer)
+    private val updateStream = MutableSharedFlow<ModelUpdate>(
+        extraBufferCapacity = settings.updateBuffer,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
     /** The observed model; it starts with the seed, observation off and the predicted states. */
     val model: StateFlow<ObservedModel> = modelState.asStateFlow()
 
     /**
-     * Every change of the observed model, hot and without replay. A collector that falls more than
-     * [ObservationSettings.updateBuffer] updates behind makes the observer wait for it; pushes keep queuing in the
-     * router's inbox meanwhile, so the runtime is never stalled.
+     * Every change of the observed model, hot and without replay. The observer never waits for a collector: one that
+     * falls more than [ObservationSettings.updateBuffer] updates behind misses the oldest of them, while [model] always
+     * shows the latest state.
      */
     val updates: Flow<ModelUpdate> = updateStream.asSharedFlow()
 
@@ -151,7 +155,7 @@ internal class ModelObserver(
     private suspend fun feed(input: ObservationInput): CallOutcome<RuntimeModelSnapshot>? = execute(advance(input))
 
     /** Applies [input] to the rules and publishes the step it makes, without executing its requests. */
-    private suspend fun advance(input: ObservationInput): ObservationStep = reducer.apply(state, input).also { publish(it) }
+    private fun advance(input: ObservationInput): ObservationStep = reducer.apply(state, input).also(::publish)
 
     /**
      * Executes the requests of [step], feeding their results back; answers the outcome of the last snapshot read among
@@ -227,12 +231,15 @@ internal class ModelObserver(
         }
     }
 
-    /** Takes over the state of [step], publishes the model and the update, and reports the anomalies. */
-    private suspend fun publish(step: ObservationStep) {
+    /**
+     * Takes over the state of [step], publishes the model and the update, and reports the anomalies; never suspends,
+     * since the update stream drops the oldest update a slow collector has not taken yet.
+     */
+    private fun publish(step: ObservationStep) {
         state = step.state
         modelState.value = step.state.model
         step.anomalies.forEach { listener.notice(ObservationNotice.Anomaly(it)) }
-        step.update?.let { updateStream.emit(it) }
+        step.update?.let { updateStream.tryEmit(it) }
     }
 
     /** Reports that observation is on but out of sync because [reason]. */

@@ -42,6 +42,7 @@ import io.karpfen.ide.runtime.session.states.ActiveStatesReducer
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -105,17 +106,21 @@ internal sealed interface RouterMessage {
  * - Domain events go to [domainEvents] and the journal; violations, anomalies and unknown message types to the journal.
  * - The end of the connection, its state and observation problems are reported to the conductor without suspending;
  *   the router never waits for the conductor, so the two never wait for each other.
+ * - The model updates and the domain events are published without suspending: a collector that falls behind misses
+ *   the oldest of them, so the router never waits for a collector either, and a collector may call the session's
+ *   commands, which wait for the router.
  *
  * An observation call runs to its end, its snapshot reads and their retries included, before the router takes the next
  * message, so pushes that arrive meanwhile wait in the inbox: that keeps every push after a snapshot in arrival order.
  *
  * @param prepared what the session deploys: the schema, the object keys, the layouts and the seed of the observation.
  * @param clientId the session's client id, as which the observation subscribes.
- * @param settings the observation's retries.
+ * @param settings the observation's retries and how far a collector of the model updates may fall behind.
  * @param clock the session's clock.
  * @param conductor where the router reports to.
  * @param scope the session's scope, in which the router and its forwarders run.
  * @param journalCapacity how many entries the journal keeps.
+ * @param domainEventBuffer how many domain events a collector may fall behind before it misses the oldest of them.
  */
 internal class PushRouter(
     prepared: PreparedDeployment,
@@ -125,6 +130,7 @@ internal class PushRouter(
     private val conductor: ConductorInbox,
     private val scope: CoroutineScope,
     journalCapacity: Int,
+    domainEventBuffer: Int,
 ) {
     /** The router's messages, unbounded. */
     private val inbox = Channel<RouterMessage>(Channel.UNLIMITED)
@@ -144,8 +150,11 @@ internal class PushRouter(
     /** The journal. */
     private val journal = SessionJournal(journalCapacity)
 
-    /** The writable domain events, hot and without replay. */
-    private val domainEventStream = MutableSharedFlow<ObservedDomainEvent>(extraBufferCapacity = DOMAIN_EVENT_BUFFER)
+    /** The writable domain events, hot and without replay; a collector that falls behind misses the oldest. */
+    private val domainEventStream = MutableSharedFlow<ObservedDomainEvent>(
+        extraBufferCapacity = domainEventBuffer,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
 
     /** Guards [sealed] and the writes of [connectionState]. */
     private val lock = Any()
@@ -163,11 +172,11 @@ internal class PushRouter(
     val model: StateFlow<ObservedModel>
         get() = observer.model
 
-    /** Every change of the observed model, hot and without replay. */
+    /** Every change of the observed model, hot and without replay; it never makes the router wait. */
     val modelUpdates: Flow<ModelUpdate>
         get() = observer.updates
 
-    /** Every domain event, hot and without replay. */
+    /** Every domain event, hot and without replay; it never makes the router wait. */
     val domainEvents: Flow<ObservedDomainEvent> = domainEventStream.asSharedFlow()
 
     /** The connection's state as the session shows it; idle until the deployment connects. */
@@ -282,7 +291,7 @@ internal class PushRouter(
         when (val push = event.push) {
             is RuntimePush.DomainEvent -> {
                 val observed = ObservedDomainEvent(push.domain, push.event, push.rawPayload, clock.elapsed())
-                domainEventStream.emit(observed)
+                domainEventStream.tryEmit(observed)
                 journal(SessionActivity.DomainEventReceived(observed, observed.elapsed))
             }
             is RuntimePush.Unrecognized ->
@@ -343,8 +352,5 @@ internal class PushRouter(
     private companion object {
         /** The router's logger. */
         private val logger = LoggerFactory.getLogger(PushRouter::class.java)
-
-        /** How many domain events wait for a slow collector before the router waits for it. */
-        private const val DOMAIN_EVENT_BUFFER = 64
     }
 }

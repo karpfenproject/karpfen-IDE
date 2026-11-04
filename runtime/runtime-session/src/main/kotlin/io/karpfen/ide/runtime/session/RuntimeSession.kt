@@ -43,12 +43,13 @@ import kotlinx.coroutines.flow.StateFlow
  * | failed | [close] |
  * | closed | nothing |
  *
- * Threading (MUST): every function may be called from any coroutine; the session runs its work on the dispatcher of
- * its options, in a supervisor child of the scope it was launched in, and cancelling that scope closes the session as
- * [close] does. One conductor carries out the commands in the order they arrive and is the single writer of [state],
- * [progress] and [problems]; one router is the only reader of the connection's pushes and the single writer of [model],
- * [modelUpdates], [domainEvents] and [activity]. Events go through the conductor too, so an injected event never
- * overtakes a stop.
+ * Threading (MUST): every function may be called from any coroutine, a collector of the session's flows included; the
+ * session runs its work on the dispatcher of its options, in a supervisor child of the scope it was launched in, and
+ * cancelling that scope closes the session as [close] does. One conductor carries out the commands in the order they
+ * arrive and is the single writer of [state], [progress] and [problems]; one router is the only reader of the
+ * connection's pushes and the single writer of [model], [modelUpdates], [domainEvents] and [activity]. Events go through
+ * the conductor too, so an injected event never overtakes a stop. The session never waits for a collector of its
+ * flows.
  *
  * Contract (MUST):
  * - Failures are outcomes and problems, never exceptions; a `CancellationException` of the caller is rethrown.
@@ -79,12 +80,18 @@ public interface RuntimeSession : AutoCloseable {
     /** The observed model, the seed and the predicted states until something was read from the runtime. */
     public val model: StateFlow<ObservedModel>
 
-    /** Every change of [model], hot and without replay. */
+    /**
+     * Every change of [model], hot and without replay. It never holds the session back: a collector that falls more
+     * than [RuntimeSessionOptions.collectorBuffer] updates behind misses the oldest of them, while [model] always shows
+     * the latest state.
+     */
     public val modelUpdates: Flow<ModelUpdate>
 
     /**
      * Every event published on a domain the state machines use, hot and without replay. Domain events keep coming
-     * while observation is off, because the runtime freezes the listeners when the environment is activated.
+     * while observation is off, because the runtime freezes the listeners when the environment is activated. It never
+     * holds the session back: a collector that falls more than [RuntimeSessionOptions.collectorBuffer] events behind
+     * misses the oldest of them; the journal keeps them as well.
      */
     public val domainEvents: Flow<ObservedDomainEvent>
 
