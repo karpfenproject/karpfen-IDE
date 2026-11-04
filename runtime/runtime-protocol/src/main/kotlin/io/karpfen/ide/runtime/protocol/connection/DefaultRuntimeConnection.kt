@@ -81,7 +81,8 @@ import kotlin.time.Duration
  *
  * The connection ends with a close 1003 (a rejected handshake, whenever it comes), with the close `Environment stopped`
  * or the handle's phase becoming stopped, with a key issuance the runtime rejects for an unknown environment or the
- * handle's phase becoming lost, with [disconnect] or [close], and after the policy's limit of failed attempts in a row.
+ * handle's phase becoming lost, with [disconnect] or [close], with a cancellation of [parent]'s scope, also before the
+ * first [open], and after the policy's limit of failed attempts in a row.
  * Any other close the client did not ask for is an interruption, followed by a reconnect after the policy's delay.
  *
  * @param handle the environment's handle: its phase ends the connection and its verdict guards [send].
@@ -133,8 +134,12 @@ internal class DefaultRuntimeConnection(
     /** Decodes the frames of every link of this connection. */
     private val decoder = RuntimeFrameDecoder(environment, clientId)
 
-    /** The supervisor coroutine, started by the first [open]. */
+    /**
+     * The supervisor coroutine, started by the first [open]. Its completion ends the connection as disconnected if it
+     * has not ended, which matters only when a cancellation of the connection's scope completes it before it started.
+     */
     private val supervisor: Job = scope.launch(start = CoroutineStart.LAZY) { supervise() }
+        .also { job -> job.invokeOnCompletion { finish(ConnectionEnd.Disconnected) } }
 
     override val state: StateFlow<ConnectionState> = mutableState.asStateFlow()
 

@@ -59,7 +59,8 @@ public fun interface AccessKeyIssuer {
  * - A protocol violation never closes the link.
  * - Sends are serialized; [send] checks the environment's phase and the connection's state before it writes.
  * - [disconnect] and [close] end the connection with [ConnectionEnd.Disconnected]; [close] is idempotent and does not
- *   suspend.
+ *   suspend. A cancellation of the scope the connection was created in ends it the same way, also before [open], so
+ *   [open] never waits for a connection whose scope is gone.
  * - A `CancellationException` of the caller is always rethrown.
  */
 public interface RuntimeConnection : AutoCloseable {

@@ -39,16 +39,19 @@ import io.karpfen.ide.runtime.protocol.message.ViolationKind
 import io.karpfen.ide.runtime.protocol.transport.LinkClosure
 import io.karpfen.ide.runtime.protocol.transport.TransportFailure
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -60,9 +63,10 @@ import kotlin.time.Duration.Companion.seconds
  * Covers [DefaultRuntimeConnection] over scripted links on virtual time: the exact handshake and an open state without
  * any acknowledgement; pushes, violations and binary frames in order without closing the link; a reader that drains the
  * link while the collector is suspended; the ends by a close 1003 (also late), by the runtime's stop, by the handle's
- * phase, by a key the runtime refuses for an unknown environment, by the client and by the attempt limit; reconnects
- * after the policy's delay with a fresh key, the same client id, the old link closed first and the next epoch; failed
- * attempts with their backoff; [RuntimeConnection.awaitOpen]; and the checks of [RuntimeConnection.send].
+ * phase, by a key the runtime refuses for an unknown environment, by the client, by a scope cancelled before the open
+ * and by the attempt limit; reconnects after the policy's delay with a fresh key, the same client id, the old link
+ * closed first and the next epoch; failed attempts with their backoff; [RuntimeConnection.awaitOpen]; and the checks of
+ * [RuntimeConnection.send].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultRuntimeConnectionTest {
@@ -98,9 +102,15 @@ class DefaultRuntimeConnectionTest {
         issuances.removeFirstOrNull() ?: CallOutcome.Done(AccessKey(key(issued)))
     }
 
-    /** A connection of the client to the environment in the background of the test, running on its virtual time. */
-    private fun TestScope.connection(policy: ReconnectPolicy = ReconnectPolicy()): DefaultRuntimeConnection =
-        DefaultRuntimeConnection(handle, client, url, connector, issuer, policy, backgroundScope, StandardTestDispatcher(testScheduler))
+    /**
+     * A connection of the client to the environment in [parent], by default the background of the test, running on its
+     * virtual time.
+     */
+    private fun TestScope.connection(
+        policy: ReconnectPolicy = ReconnectPolicy(),
+        parent: CoroutineScope = backgroundScope,
+    ): DefaultRuntimeConnection =
+        DefaultRuntimeConnection(handle, client, url, connector, issuer, policy, parent, StandardTestDispatcher(testScheduler))
 
     /** The events of [connection], collected in the background as they come, and the collecting job. */
     private fun TestScope.collect(connection: RuntimeConnection): Pair<List<ConnectionEvent>, Job> {
@@ -428,6 +438,22 @@ class DefaultRuntimeConnectionTest {
 
         assertEquals(ConnectionState.Ended(ConnectionEnd.Disconnected), connection.open())
         assertEquals(listOf(ConnectionEvent.Ended(ConnectionEnd.Disconnected)), connection.events.toList())
+        assertEquals(emptyList(), connector.connectedUrls)
+        assertEquals(0, issued)
+    }
+
+    @Test
+    fun `a connection whose scope was cancelled before it opened ends as disconnected and never connects`() = runTest {
+        val cancelledBefore = Job(backgroundScope.coroutineContext[Job]).apply { cancel() }
+        val createdInCancelled = connection(parent = backgroundScope + cancelledBefore)
+        val cancelledAfter = Job(backgroundScope.coroutineContext[Job])
+        val cancelledAfterCreation = connection(parent = backgroundScope + cancelledAfter)
+        cancelledAfter.cancel()
+
+        listOf(createdInCancelled, cancelledAfterCreation).forEach { connection ->
+            assertEquals(ConnectionState.Ended(ConnectionEnd.Disconnected), withTimeout(1.minutes) { connection.open() })
+            assertEquals(listOf(ConnectionEvent.Ended(ConnectionEnd.Disconnected)), withTimeout(1.minutes) { connection.events.toList() })
+        }
         assertEquals(emptyList(), connector.connectedUrls)
         assertEquals(0, issued)
     }
