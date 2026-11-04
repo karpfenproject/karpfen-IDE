@@ -300,8 +300,10 @@ runtime-session's packages, in the order a deployment uses them:
 - **Root package**: `RuntimeSessions` prepares a deployment (`DeploymentPreparer`, which saves first) and launches a
   session. `DefaultRuntimeSession` composes two mediators: `SessionConductor`, which carries out the commands in order
   and is the single writer of the session's state, progress and problems, and `PushRouter`, the only reader of the
-  connection's events and the writer of the observed model, the domain events and the journal. `PhaseStates` and
-  `CommandRules` are the tables of the session's states and commands.
+  connection's events and the writer of the observed model, the domain events and the journal. The conductor's
+  collaborators run the deployment (`SessionDeployment`), make the calls of the commands (`SessionCalls`) and stop the
+  environment (`EnvironmentStopper`); `PhaseStates`, `ConnectionEndings` and `CommandRules` are the tables of the
+  session's states, connection endings and commands.
 
 The tests of both modules run against `FakeRuntime` in the `fake` package of runtime-protocol's test fixtures, which
 never simulates the runtime: it answers only the responses and frames each test programs. `RuntimeGoldens` and

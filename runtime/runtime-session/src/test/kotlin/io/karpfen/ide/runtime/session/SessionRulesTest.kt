@@ -17,6 +17,8 @@ package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
+import io.karpfen.ide.runtime.protocol.connection.HandshakeRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
 import io.karpfen.ide.runtime.protocol.lifecycle.PhaseKind
 import io.karpfen.ide.runtime.protocol.lifecycle.Uploads
@@ -29,8 +31,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 
 /**
- * Covers the rules of a session as tables: the session's state for every phase of its environment, the commands every
- * state allows, and the injection availability of every state with and without an open connection.
+ * Covers the rules of a session as tables: the session's state for every phase of its environment, the reaction to every
+ * end of its connection, the commands every state allows, and the injection availability of every state with and
+ * without an open connection.
  */
 class SessionRulesTest {
 
@@ -49,6 +52,20 @@ class SessionRulesTest {
         assertEquals(DeployProblemCodes.RUNTIME_NO_ANSWER, uncertain.problem?.code)
         val lost = assertIs<PhaseVerdict.Loses>(PhaseStates.of(EnvironmentPhase.Lost("the runtime lists no such environment"), KEY))
         assertEquals(DeployProblemCodes.ENVIRONMENT_LOST to Severity.ERROR, lost.problem.code to lost.problem.severity)
+    }
+
+    @Test
+    fun `every end of the connection after the deployment has its reaction`() {
+        val rejected = assertIs<EndingVerdict.FailsAndStops>(
+            ConnectionEndings.of(ConnectionEnd.HandshakeRejected(HandshakeRejection.InvalidCredentials), KEY),
+        )
+        assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED to Severity.ERROR, rejected.problem.code to rejected.problem.severity)
+        assertEquals(EndingVerdict.StoppedElsewhere, ConnectionEndings.of(ConnectionEnd.EnvironmentStopped, KEY))
+        val lost = assertIs<EndingVerdict.Loses>(ConnectionEndings.of(ConnectionEnd.EnvironmentLost("the listing lacks it"), KEY))
+        assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, lost.problem.code)
+        val gaveUp = assertIs<EndingVerdict.Warns>(ConnectionEndings.of(ConnectionEnd.GaveUp(20, "Connection refused"), KEY))
+        assertEquals(DeployProblemCodes.CONNECTION_LOST to Severity.WARNING, gaveUp.problem.code to gaveUp.problem.severity)
+        assertEquals(EndingVerdict.Ignored, ConnectionEndings.of(ConnectionEnd.Disconnected, KEY))
     }
 
     @Test

@@ -18,10 +18,12 @@ package io.karpfen.ide.runtime.session
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
+import io.karpfen.ide.runtime.session.deploy.CleanupBounds
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
 import io.karpfen.ide.runtime.session.deploy.DeployProgress
 import io.karpfen.ide.runtime.session.deploy.Deployer
 import io.karpfen.ide.runtime.session.deploy.EnvironmentLedger
+import io.karpfen.ide.runtime.session.deploy.FailureLocator
 import io.karpfen.ide.runtime.session.events.EventInjector
 import io.karpfen.ide.runtime.session.observation.ModelUpdate
 import io.karpfen.ide.runtime.session.observation.ObservationSettings
@@ -36,10 +38,10 @@ import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * The session facade: composes the conductor, the router, the published status and the event injector of one
- * deployment and delegates every function to the one that owns it. It runs in its own supervisor child of the scope it
- * was launched in, on the dispatcher of the options; the conductor's, the router's and the deployment's coroutines and
- * the connection live in it.
+ * The session facade: composes the deployment, the conductor with its calls and its stopper, the router, the published
+ * status and the event injector of one deployment, and delegates every function to the one that owns it. It runs in its
+ * own supervisor child of the scope it was launched in, on the dispatcher of the options; the conductor's, the router's
+ * and the deployment's coroutines and the connection live in it.
  *
  * @param prepared what the session deploys.
  * @param client the client of the runtime.
@@ -95,20 +97,27 @@ internal class DefaultRuntimeSession(
         journalCapacity = options.journalCapacity,
     )
 
+    /** Records the environment once and settles a close that races the deployment or a stop. */
+    private val departure = EnvironmentDeparture(ledger, client.endpoint)
+
+    /** The bounds of stopping and disconnecting, those of a deployment's cleanup. */
+    private val bounds = CleanupBounds.DEFAULT
+
     /** The conductor of the commands. */
     private val conductor = SessionConductor(
-        prepared = prepared,
-        client = client,
-        clientId = clientId,
-        deployOptions = deployOptions,
-        deployer = deployer,
+        startsEnvironment = deployOptions.start,
         router = router,
         inbox = inbox,
         status = status,
-        departure = EnvironmentDeparture(ledger, client.endpoint),
+        departure = departure,
+        calls = SessionCalls(router, FailureLocator(prepared.plan, client.endpoint), status, clock),
+        stopper = EnvironmentStopper(router, inbox, departure, bounds, scope),
         clock = clock,
         scope = scope,
     )
+
+    /** The deployment. */
+    private val deployment = SessionDeployment(prepared, client, clientId, deployOptions, deployer, router, inbox, departure, bounds, scope)
 
     override val state: StateFlow<SessionState>
         get() = status.state
@@ -145,6 +154,7 @@ internal class DefaultRuntimeSession(
     fun begin() {
         router.start()
         conductor.start()
+        deployment.start()
     }
 
     override suspend fun start(): SessionCommandOutcome = conductor.execute(SessionCommand.Start)
