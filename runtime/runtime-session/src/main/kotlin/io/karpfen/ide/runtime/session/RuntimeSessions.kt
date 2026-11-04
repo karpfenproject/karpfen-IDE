@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.core.workspace.Workspace
+import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
 import io.karpfen.ide.runtime.session.deploy.Deployer
@@ -63,4 +64,4 @@ public fun RuntimeSessions(
     ledger: EnvironmentLedger = EnvironmentLedger(),
     planner: DeploymentPlanner = DeploymentPlanner(),
     deployer: Deployer = Deployer(ledger, options.deployTiming),
-): RuntimeSessions = DefaultRuntimeSessions(options, ledger, DeploymentPreparer(planner), deployer)
+): RuntimeSessions = DefaultRuntimeSessions(options, ledger, DeploymentPreparer(planner, EnvironmentDescriptorReader()), deployer)

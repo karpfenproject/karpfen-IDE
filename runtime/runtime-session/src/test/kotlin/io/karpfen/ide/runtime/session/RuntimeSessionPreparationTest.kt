@@ -25,6 +25,7 @@ import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.analysis.ContextAnalysis
 import io.karpfen.ide.core.workspace.analysis.ContextSymbols
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
+import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.core.workspace.document.TextFileStore
 import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
 import io.karpfen.ide.core.workspace.fixtures.openDocument
@@ -49,7 +50,8 @@ import kotlin.test.assertTrue
  * Covers preparing a deployment from a workspace: every synthesized model but the ring prepares without errors, the
  * ring is blocked by its reference loop; the event catalog lists exactly the plan's domains for every synthesized model,
  * the single robot and the runtime's four examples; preparing saves open documents first, so what is uploaded, checked
- * and seeded is the edited text; and a document that cannot be saved blocks the deployment.
+ * and seeded is the edited text, and an edited descriptor's configuration is deployed, while an analysis that still
+ * holds the descriptor's earlier text blocks the deployment; and a document that cannot be saved blocks the deployment.
  */
 class RuntimeSessionPreparationTest {
 
@@ -113,6 +115,39 @@ class RuntimeSessionPreparationTest {
     }
 
     @Test
+    fun `an edited descriptor is saved and deployed with the configuration of its saved text`() = runTest {
+        val descriptor = SynthesizedModels.copyTo(root.resolve("lamp"), SynthesizedModel.LAMP, DescriptorTiming(tickDelayMs = 50))
+        val workspace = TestWorkspaces(this).open(root)
+        val document = workspace.openDocument(descriptor)
+        editTickDelay(document, from = 50, to = 777)
+
+        val prepared = assertIs<Preparation.Ready>(sessions(this).prepare(workspace, descriptor)).prepared
+
+        assertTrue("\"tickDelayMs\": 777" in Files.readString(descriptor), "the edit was saved")
+        assertEquals(777, prepared.plan.configuration.tickDelayMs)
+    }
+
+    @Test
+    fun `a descriptor whose analysis still holds its earlier text blocks the deployment instead of deploying its old configuration`() = runTest {
+        val descriptor = SynthesizedModels.copyTo(root.resolve("lamp"), SynthesizedModel.LAMP, DescriptorTiming(tickDelayMs = 50))
+        val workspace = TestWorkspaces(this).open(root)
+        val document = workspace.openDocument(descriptor)
+        val earlier = workspace.awaitAnalysis()
+        editTickDelay(document, from = 50, to = 777)
+        val lagging = object : Workspace by workspace {
+            override suspend fun awaitAnalysis(): ProjectAnalysis = earlier
+        }
+
+        val findings = assertIs<Preparation.Blocked>(sessions(this).prepare(lagging, descriptor)).findings
+
+        assertTrue("\"tickDelayMs\": 777" in Files.readString(descriptor), "the edit was saved")
+        assertEquals(false, document.isDirty.value)
+        val unsaved = findings.single { it.severity == Severity.ERROR }
+        assertEquals(DeployProblemCodes.UNSAVED_FILE, unsaved.code)
+        assertEquals(descriptor.toAbsolutePath().normalize(), unsaved.location?.file?.toAbsolutePath()?.normalize())
+    }
+
+    @Test
     fun `a document that cannot be saved blocks the deployment`() = runTest {
         val descriptor = SynthesizedModels.copyTo(root.resolve("lamp"), SynthesizedModel.LAMP, DescriptorTiming.NONE)
         val workspaces = TestWorkspaces(this)
@@ -129,6 +164,12 @@ class RuntimeSessionPreparationTest {
         assertEquals(DeployProblemCodes.SAVE_FAILED to Severity.ERROR, problem.code to problem.severity)
         assertEquals(root.resolve("lamp/lamp.kmodel").toAbsolutePath().normalize(), problem.location?.file?.toAbsolutePath()?.normalize())
         assertTrue("the disk is full" in problem.message, problem.message)
+    }
+
+    /** Replaces the tick delay [from] by [to] in the text of the open descriptor [document], as typing does. */
+    private fun editTickDelay(document: OpenDocument, from: Long, to: Long) {
+        val text = document.session.text
+        text.replaceAll(text.snapshot.value.text.replace("\"tickDelayMs\": $from", "\"tickDelayMs\": $to"), EditOrigin.Typing)
     }
 
     /** The sessions of a test on its virtual time. */

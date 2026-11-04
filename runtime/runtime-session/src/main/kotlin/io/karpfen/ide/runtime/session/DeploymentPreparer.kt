@@ -22,6 +22,7 @@ import io.karpfen.ide.core.workspace.analysis.ContextSymbols
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.core.workspace.document.SaveResult
+import io.karpfen.ide.core.workspace.environment.EnvironmentDescriptorReader
 import io.karpfen.ide.runtime.session.events.EventCatalogBuilder
 import io.karpfen.ide.runtime.session.events.EventSources
 import io.karpfen.ide.runtime.session.events.ListeningMachine
@@ -45,7 +46,10 @@ import java.nio.file.Path
  *    `deploy-save-failed`;
  * 2. awaits the analysis of the saved state;
  * 3. finds the unsaved paths: open documents that are still dirty, or whose analyzed snapshot is not their current
- *    one (another lineage or version), both because they were edited while the analysis ran;
+ *    one (another lineage or version), both because they were edited while the analysis ran; and an open environment
+ *    descriptor whose current text does not decode to the descriptor its analyzed context was resolved from, because
+ *    the workspace reads an edited descriptor again on its own schedule, so the analysis may still hold an earlier one,
+ *    whose deploy configuration would otherwise be deployed;
  * 4. plans the deployment with [planner];
  * 5. turns the analysis into immutable values: the schema of the domain metamodel, the seed of the model, one layout
  *    per attached machine and the event catalog of the plan's domains.
@@ -54,8 +58,13 @@ import java.nio.file.Path
  * Stateless.
  *
  * @param planner plans the deployment from the analysis.
+ * @param descriptorReader decodes the current text of an open environment descriptor, to compare it with the
+ *   descriptor of its analyzed context.
  */
-internal class DeploymentPreparer(private val planner: DeploymentPlanner) {
+internal class DeploymentPreparer(
+    private val planner: DeploymentPlanner,
+    private val descriptorReader: EnvironmentDescriptorReader,
+) {
 
     /** Prepares the deployment of [descriptor] from [workspace]. */
     suspend fun prepare(workspace: Workspace, descriptor: Path): Preparation {
@@ -73,13 +82,17 @@ internal class DeploymentPreparer(private val planner: DeploymentPlanner) {
     }
 
     /**
-     * True if [document] differs from what the deployment would upload: it is dirty, or the analysis read another text
-     * of it than its current one.
+     * True if [document] differs from what the deployment would upload or configure: it is dirty, the analysis read
+     * another text of it than its current one, or it is the descriptor of an analyzed context that was resolved from
+     * another descriptor than its current text decodes to.
      */
     private fun isUnsaved(document: OpenDocument, analysis: ProjectAnalysis): Boolean {
         if (document.isDirty.value) return true
-        val analyzed = analysis.file(document.path)?.snapshot ?: return false
         val current = document.session.text.snapshot.value
+        analysis.contexts.firstOrNull { it.context.descriptor == document.path }?.let { described ->
+            return descriptorReader.read(document.path, current.text).descriptor != described.context.environment
+        }
+        val analyzed = analysis.file(document.path)?.snapshot ?: return false
         return analyzed.lineage != current.lineage || analyzed.version != current.version
     }
 
