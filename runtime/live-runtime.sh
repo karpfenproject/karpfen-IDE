@@ -27,8 +27,9 @@
 #   cleanup             Remove every container, volume and image of the harness, verify, and report what stays.
 #
 # Environment: KARPFEN_RUNTIME_DIR (the runtime checkout to build, default <repository>/karpfen-runtime),
-# KARPFEN_LIVE_HEALTH_TIMEOUT_S (default 180), KARPFEN_LIVE_TICK_DELAY_MS (default 50), KARPFEN_LIVE_EVENT_TTL_MS
-# (default 3000), KARPFEN_LIVE_TRACING (default true). Run folders and build logs go to build/live-runtime/.
+# KARPFEN_LIVE_HEALTH_TIMEOUT_S (the seconds the whole health wait may take, default 180), KARPFEN_LIVE_TICK_DELAY_MS
+# (default 50), KARPFEN_LIVE_EVENT_TTL_MS (default 3000), KARPFEN_LIVE_TRACING (default true). Run folders and build logs
+# go to build/live-runtime/.
 
 set -euo pipefail
 
@@ -39,6 +40,7 @@ REPOSITORY="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNTIME_DIR="${KARPFEN_RUNTIME_DIR:-$REPOSITORY/karpfen-runtime}"
 STATE_DIR="$REPOSITORY/build/live-runtime"
 HEALTH_TIMEOUT_S="${KARPFEN_LIVE_HEALTH_TIMEOUT_S:-180}"
+PROBE_TIMEOUT_S=5
 IMAGE=""
 SOURCE=""
 RUN_ID=""
@@ -168,16 +170,17 @@ start_container() {
 }
 
 wait_healthy() {
-    local waited=0 state
-    while [ "$waited" -lt "$HEALTH_TIMEOUT_S" ]; do
+    local deadline left probe state
+    deadline=$(($(date +%s) + HEALTH_TIMEOUT_S))
+    while left=$((deadline - $(date +%s))) && [ "$left" -gt 0 ]; do
         state="$(docker inspect --format '{{.State.Status}}' "$CONTAINER" 2>/dev/null || echo missing)"
         [ "$state" = "running" ] || fail "$CONTAINER is $state; its log is written to $RUN_DIR/runtime.log at teardown"
-        if curl --silent --fail --max-time 5 "$URL/health" >/dev/null 2>&1; then
+        probe=$((left < PROBE_TIMEOUT_S ? left : PROBE_TIMEOUT_S))
+        if curl --silent --fail --max-time "$probe" "$URL/health" >/dev/null 2>&1; then
             echo "The runtime at $URL is healthy"
             return 0
         fi
-        sleep 1
-        waited=$((waited + 1))
+        [ "$((deadline - $(date +%s)))" -le 1 ] || sleep 1
     done
     fail "$CONTAINER did not answer $URL/health within $HEALTH_TIMEOUT_S s; its log is written to $RUN_DIR/runtime.log at teardown"
 }

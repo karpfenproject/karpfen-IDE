@@ -76,3 +76,14 @@ tasks.test {
         ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("runtimeSources")
     }
 }
+
+/**
+ * `RuntimeContainerScriptTest` runs `runtime/live-runtime.sh`, the script that starts a runtime in Docker for the live
+ * tests, with Docker, git and curl replaced by shell functions, so the script reaches the tests as the system property
+ * `karpfen.runtime.script` and is an input of the task by its relative path: changing it reruns the tests.
+ */
+tasks.test {
+    val script = layout.settingsDirectory.file("runtime/live-runtime.sh")
+    systemProperty("karpfen.runtime.script", script.asFile.absolutePath)
+    inputs.file(script).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("containerScript")
+}

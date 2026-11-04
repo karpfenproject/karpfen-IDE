@@ -319,7 +319,8 @@ what the scenarios share: `RuntimeUnderTest` with `LiveRuntimeUnderTest`, `Patie
 `liveRuntimeTest` task of `karpfen.live-runtime-test` runs them against the runtime that `runtime/live-runtime.sh`
 starts in a throwaway Docker container, as the [README](../README.md#checking-the-client-against-a-real-runtime) and the
 [decision on testing runtime work](adr/0018-runtime-work-is-tested-against-an-anchored-fake-and-a-throwaway-runtime-container.md)
-describe. runtime-session's fixtures add `ModelWireText`, which writes an analyzed model as the runtime does, and
+describe; `RuntimeContainerScriptTest` runs that script with Docker, git and curl replaced by shell functions on a
+virtual clock, so its health wait is checked in every build. runtime-session's fixtures add `ModelWireText`, which writes an analyzed model as the runtime does, and
 `FakeRuntimeSession`, a session the tests of views can script.
 
 ## Build, architecture rules and tests
