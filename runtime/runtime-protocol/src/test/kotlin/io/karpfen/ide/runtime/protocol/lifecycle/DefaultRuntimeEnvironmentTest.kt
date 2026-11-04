@@ -53,7 +53,8 @@ import kotlin.time.Duration.Companion.seconds
  * time: refused calls send nothing, the uploads are kept, lifecycle calls move the phase, calls never overlap on the
  * wire, a cancelled activation completes and records its phase before the cancellation is rethrown, unknown outcomes and
  * rejections that show another phase are probed with a snapshot, a failed probe leaves the phase uncertain, a halted
- * engine shows only through a snapshot, and an environment the runtime forgot is lost.
+ * engine shows only through a snapshot, a stopped environment stays stopped while the runtime still reports its last
+ * tick, and an environment the runtime forgot is lost.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultRuntimeEnvironmentTest {
@@ -180,6 +181,36 @@ class DefaultRuntimeEnvironmentTest {
 
         assertEquals(
             listOf("/setMetamodel", "/setModel", "/runEnvironment", "/startEnvironment", "/setActiveState", "/stopEnvironment"),
+            http.paths,
+        )
+        assertEquals(EnvironmentPhase.Stopped, handle.phase.value)
+    }
+
+    @Test
+    fun `a stopped environment stays stopped while the runtime still reports its last tick as running`() = runTest {
+        val handle = handle()
+        configure(handle)
+        handle.activate()
+        handle.start()
+        assertEquals(CallOutcome.Done(Unit), handle.stop())
+        http.ok(snapshot(RuntimePhase.RUNNING))
+            .reject(409, RuntimeText.TICK_BOUNDARY_TIMEOUT.render(mapOf("env" to environment.value, "ms" to "10000")))
+
+        val running = assertIs<CallOutcome.Done<RuntimeModelSnapshot>>(handle.snapshot()).value
+        assertEquals(RuntimePhase.RUNNING, running.phase)
+        assertEquals(EnvironmentPhase.Stopped, handle.phase.value)
+        val timedOut = assertIs<CallOutcome.Failed>(handle.snapshot())
+        assertEquals(RejectionKind.TICK_BOUNDARY_TIMEOUT, assertIs<RuntimeFailure.Rejected>(timedOut.failure).kind)
+        assertEquals(EnvironmentPhase.Stopped, handle.phase.value)
+
+        assertIs<CallOutcome.Refused>(handle.forceState("lamp", "on"))
+        assertNotNull(handle.allows(LifecycleOperation.INJECT_EVENT))
+        assertEquals(CallOutcome.Done(Unit), handle.stop())
+        assertEquals(
+            listOf(
+                "/setMetamodel", "/setModel", "/runEnvironment", "/startEnvironment", "/stopEnvironment",
+                "/observatory/model", "/observatory/model",
+            ),
             http.paths,
         )
         assertEquals(EnvironmentPhase.Stopped, handle.phase.value)

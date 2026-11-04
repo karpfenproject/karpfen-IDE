@@ -87,6 +87,10 @@ internal sealed interface ProbeResult {
  * other changes nothing; activate, start, stop and the snapshot have rules of their own. A probe's snapshot settles the
  * phase; a probe that fails leaves the phase uncertain between the phases the operation could have left.
  *
+ * A stopped environment stays stopped, whatever a later snapshot or probe reports, until the runtime no longer knows it:
+ * while the engine's last tick still ends, for good if a call in it never returns, the runtime reports the stopped
+ * environment as running or finds no tick boundary in it, and the client never restarts a stopped environment.
+ *
  * Stateless.
  */
 internal object LifecycleRules {
@@ -134,7 +138,7 @@ internal object LifecycleRules {
             LifecycleOperation.READ_SNAPSHOT -> when (rejection?.kind) {
                 null -> unknownOutcome(phase, failure, probes = false)
                 RejectionKind.NO_MODEL, RejectionKind.REFERENCE_LOOP -> OutcomeResolution.Settled(phase)
-                RejectionKind.TICK_BOUNDARY_TIMEOUT -> OutcomeResolution.Settled(EnvironmentPhase.Running)
+                RejectionKind.TICK_BOUNDARY_TIMEOUT -> OutcomeResolution.Settled(reportedOver(phase, EnvironmentPhase.Running))
                 else -> reconcile(phase, rejection)
             }
             else -> if (rejection == null) unknownOutcome(phase, failure, probes = false) else reconcile(phase, rejection)
@@ -145,28 +149,37 @@ internal object LifecycleRules {
     fun afterProbe(phase: EnvironmentPhase, operation: LifecycleOperation, probe: ProbeResult): EnvironmentPhase =
         when (probe) {
             is ProbeResult.Reported -> afterSnapshot(phase, probe.snapshot)
-            is ProbeResult.Failed -> when ((probe.failure as? RuntimeFailure.Rejected)?.kind) {
-                RejectionKind.NO_MODEL -> EnvironmentPhase.Configuring(phase.knownUploads())
-                RejectionKind.TICK_BOUNDARY_TIMEOUT -> EnvironmentPhase.Running
-                RejectionKind.UNKNOWN_ENVIRONMENT -> EnvironmentPhase.Lost(probe.failure.describe())
-                else -> EnvironmentPhase.Uncertain(
-                    candidates(phase, operation),
-                    "${operation.words()} may or may not have been applied, and the snapshot that should tell failed: " +
-                        probe.failure.describe(),
-                    phase.knownUploads(),
-                )
-            }
+            is ProbeResult.Failed -> reportedOver(
+                phase,
+                when ((probe.failure as? RuntimeFailure.Rejected)?.kind) {
+                    RejectionKind.NO_MODEL -> EnvironmentPhase.Configuring(phase.knownUploads())
+                    RejectionKind.TICK_BOUNDARY_TIMEOUT -> EnvironmentPhase.Running
+                    RejectionKind.UNKNOWN_ENVIRONMENT -> EnvironmentPhase.Lost(probe.failure.describe())
+                    else -> EnvironmentPhase.Uncertain(
+                        candidates(phase, operation),
+                        "${operation.words()} may or may not have been applied, and the snapshot that should tell failed: " +
+                            probe.failure.describe(),
+                        phase.knownUploads(),
+                    )
+                },
+            )
         }
 
-    /** The phase that [snapshot] reports, keeping the known uploads of [phase] for a configuring environment. */
+    /**
+     * The phase that [snapshot] reports, keeping the known uploads of [phase] for a configuring environment; a stopped
+     * environment stays stopped.
+     */
     fun afterSnapshot(phase: EnvironmentPhase, snapshot: RuntimeModelSnapshot): EnvironmentPhase =
-        when (snapshot.phase) {
-            RuntimePhase.CONFIGURING -> EnvironmentPhase.Configuring(phase.knownUploads())
-            RuntimePhase.ACTIVATED -> EnvironmentPhase.Activated
-            RuntimePhase.RUNNING -> EnvironmentPhase.Running
-            RuntimePhase.HALTED -> EnvironmentPhase.Halted
-            RuntimePhase.STOPPED -> EnvironmentPhase.Stopped
-        }
+        reportedOver(
+            phase,
+            when (snapshot.phase) {
+                RuntimePhase.CONFIGURING -> EnvironmentPhase.Configuring(phase.knownUploads())
+                RuntimePhase.ACTIVATED -> EnvironmentPhase.Activated
+                RuntimePhase.RUNNING -> EnvironmentPhase.Running
+                RuntimePhase.HALTED -> EnvironmentPhase.Halted
+                RuntimePhase.STOPPED -> EnvironmentPhase.Stopped
+            },
+        )
 
     /** The kind of [phase]; null for the phases that are not one of the runtime's. */
     fun kindOf(phase: EnvironmentPhase): PhaseKind? =
@@ -282,6 +295,14 @@ internal object LifecycleRules {
             RejectionKind.ALREADY_ACTIVE, RejectionKind.NOT_ACTIVE, RejectionKind.NO_EXECUTION_THREAD -> OutcomeResolution.Probe
             else -> OutcomeResolution.Settled(phase)
         }
+
+    /**
+     * The phase a report of the runtime establishes over the believed [phase]: [reported], unless [phase] is stopped and
+     * [reported] is not lost. The runtime reports a stopped environment as running, or finds no tick boundary in it,
+     * while the engine's last tick ends, and a stopped environment is final for the client.
+     */
+    private fun reportedOver(phase: EnvironmentPhase, reported: EnvironmentPhase): EnvironmentPhase =
+        if (phase == EnvironmentPhase.Stopped && reported !is EnvironmentPhase.Lost) phase else reported
 
     /** The environment is lost, as [rejection] shows. */
     private fun lost(rejection: RuntimeFailure.Rejected): OutcomeResolution =

@@ -62,7 +62,10 @@ public enum class RejectionKind {
     /** The snapshot of a configuring environment without a model. */
     NO_MODEL,
 
-    /** The snapshot of a running environment found no tick boundary within the runtime's wait. */
+    /**
+     * The snapshot found no tick boundary within the runtime's wait: a tick of a running environment, or the last tick
+     * of a stopped one, did not end.
+     */
     TICK_BOUNDARY_TIMEOUT,
 
     /** The model holds an object reachable from itself, which the runtime cannot write as JSON. */

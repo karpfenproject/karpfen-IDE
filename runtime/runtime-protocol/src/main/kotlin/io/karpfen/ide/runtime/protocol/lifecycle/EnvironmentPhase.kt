@@ -92,7 +92,10 @@ public sealed interface EnvironmentPhase {
     /** Started, but the engine ended on its own, as a snapshot revealed. */
     public data object Halted : EnvironmentPhase
 
-    /** Stopped. Final: the client never restarts a stopped environment. */
+    /**
+     * Stopped. Final: the client never restarts a stopped environment, and a snapshot that reports it running while the
+     * engine's last tick ends changes nothing; only a runtime that no longer knows it makes it lost.
+     */
     public data object Stopped : EnvironmentPhase
 
     /**

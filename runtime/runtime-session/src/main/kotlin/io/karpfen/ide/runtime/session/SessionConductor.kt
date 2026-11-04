@@ -51,8 +51,9 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * - **Deployment.** [SessionDeployment] runs it on a coroutine of its own and reports here, so commands are answered
  *   while it runs (refused, except shutting down, which waits for its end).
- * - **State.** Once the deployment ended, the state follows the environment's phase ([PhaseStates]); the conductor
- *   follows the handle's phase and settles the state after every command at once.
+ * - **State.** Once the deployment ended, the state follows the environment's phase ([PhaseStates]) until the session
+ *   is stopped, failed or closed; the conductor follows the handle's phase and settles the state after every command at
+ *   once.
  * - **Commands** ([CommandRules]) are carried out one by one through [SessionCalls]; only the stop runs on its own, in
  *   [EnvironmentStopper], so that the session shows [SessionState.Stopping] and refuses commands meanwhile.
  * - **Connection endings** after the deployment ([ConnectionEndings]): a refused handshake fails the session and stops
@@ -347,10 +348,16 @@ internal class SessionConductor(
         shutdownsAfterDeployment.toList().also { shutdownsAfterDeployment.clear() }.forEach { it.complete(Unit) }
     }
 
-    /** Settles the state from the environment's [phase], unless the phase is the one the state was settled from. */
+    /**
+     * Settles the state from the environment's [phase], unless the phase is the one the state was settled from or the
+     * state no longer follows the phase: while stopping, and once stopped, failed or closed. A stopped session stays
+     * stopped whatever a later read reports, as the runtime reports a stopped engine running while its last tick ends.
+     */
     private fun settle(phase: EnvironmentPhase) {
         val state = status.state.value
-        if (state is SessionState.Stopping || state is SessionState.Failed || state == SessionState.Closed || phase == settledPhase) return
+        val followsPhase = state !is SessionState.Stopping && state !is SessionState.Stopped && state !is SessionState.Failed &&
+            state != SessionState.Closed
+        if (finalized || !followsPhase || phase == settledPhase) return
         settledPhase = phase
         when (val verdict = PhaseStates.of(phase, environment().key)) {
             is PhaseVerdict.Becomes -> if (verdict.state != state) {

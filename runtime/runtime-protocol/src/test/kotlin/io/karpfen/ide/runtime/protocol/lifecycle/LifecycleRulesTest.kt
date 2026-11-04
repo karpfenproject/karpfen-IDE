@@ -49,7 +49,8 @@ import kotlin.test.assertTrue
 /**
  * Covers [LifecycleRules] exhaustively: the verdict of every operation in every phase against the lifecycle's verdict
  * table, the phase after every success, the resolution of every kind of failure and every rejection kind for every
- * operation against the transition table, every probe result, and the reconciliation with a snapshot's phase.
+ * operation against the transition table, every probe result, the reconciliation with a snapshot's phase, and a stopped
+ * environment that stays stopped.
  */
 class LifecycleRulesTest {
 
@@ -189,7 +190,7 @@ class LifecycleRulesTest {
                         operation == READ_SNAPSHOT && kind in setOf(RejectionKind.NO_MODEL, RejectionKind.REFERENCE_LOOP) ->
                             OutcomeResolution.Settled(phase)
                         operation == READ_SNAPSHOT && kind == RejectionKind.TICK_BOUNDARY_TIMEOUT ->
-                            OutcomeResolution.Settled(EnvironmentPhase.Running)
+                            OutcomeResolution.Settled(if (phase == EnvironmentPhase.Stopped) phase else EnvironmentPhase.Running)
                         kind == RejectionKind.UNKNOWN_ENVIRONMENT -> lostResolution()
                         kind in probedByReconcile -> OutcomeResolution.Probe
                         else -> OutcomeResolution.Settled(phase)
@@ -265,6 +266,39 @@ class LifecycleRulesTest {
             setOf(PhaseKind.ACTIVATED, PhaseKind.RUNNING, PhaseKind.HALTED, PhaseKind.STOPPED),
             assertIs<EnvironmentPhase.Uncertain>(LifecycleRules.afterProbe(configuring, SET_TICK_DELAY, timedOut)).candidates,
         )
+    }
+
+    @Test
+    fun `a stopped environment stays stopped whatever the runtime reports while its last tick ends, until it is lost`() {
+        val stopped = EnvironmentPhase.Stopped
+        fun failed(kind: RejectionKind) =
+            ProbeResult.Failed(RuntimeFailure.Rejected(RuntimeRoute.MODEL_SNAPSHOT, 409, kind, "text", emptyMap()))
+        val timedOut = ProbeResult.Failed(RuntimeFailure.NoAnswer(RuntimeRoute.MODEL_SNAPSHOT, "no answer", timedOut = true))
+
+        assertEquals(
+            OutcomeResolution.Settled(stopped),
+            LifecycleRules.afterFailure(stopped, READ_SNAPSHOT, rejected(RejectionKind.TICK_BOUNDARY_TIMEOUT)),
+        )
+        RuntimePhase.entries.forEach { reported ->
+            assertEquals(stopped, LifecycleRules.afterSnapshot(stopped, snapshot(reported)), "a snapshot that reports $reported")
+            LifecycleOperation.entries.forEach { operation ->
+                val probe = ProbeResult.Reported(snapshot(reported))
+                assertEquals(stopped, LifecycleRules.afterProbe(stopped, operation, probe), "a probe for $operation that reports $reported")
+            }
+        }
+        val failedProbes = listOf(
+            failed(RejectionKind.TICK_BOUNDARY_TIMEOUT),
+            failed(RejectionKind.NO_MODEL),
+            failed(RejectionKind.REFERENCE_LOOP),
+            timedOut,
+        )
+        failedProbes.forEach { probe -> assertEquals(stopped, LifecycleRules.afterProbe(stopped, UNSUBSCRIBE_MODEL, probe), "$probe") }
+        assertIs<EnvironmentPhase.Lost>(LifecycleRules.afterProbe(stopped, UNSUBSCRIBE_MODEL, failed(RejectionKind.UNKNOWN_ENVIRONMENT)))
+        val forgotten = LifecycleRules.afterFailure(stopped, READ_SNAPSHOT, rejected(RejectionKind.UNKNOWN_ENVIRONMENT))
+        assertIs<EnvironmentPhase.Lost>(assertIs<OutcomeResolution.Settled>(forgotten).phase)
+        assertEquals(EnvironmentPhase.Running, LifecycleRules.afterSnapshot(uncertain, snapshot(RuntimePhase.RUNNING)))
+        val stopWithoutBoundary = LifecycleRules.afterProbe(EnvironmentPhase.Running, STOP, failed(RejectionKind.TICK_BOUNDARY_TIMEOUT))
+        assertEquals(EnvironmentPhase.Running, stopWithoutBoundary)
     }
 
     @Test

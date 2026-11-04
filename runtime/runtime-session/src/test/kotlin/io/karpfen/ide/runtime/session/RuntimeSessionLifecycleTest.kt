@@ -59,7 +59,8 @@ import kotlin.time.Duration.Companion.seconds
  * each test programs: a stop ends the connection, finalizes the model and records the environment once, and an event
  * sent after it never overtakes it; closing and shutting down in every state leave the ledger entry the state calls
  * for; the environment's phase drives the state (halted from a snapshot, uncertain after a call without answer, lost
- * after a restart); a stop the session did not make is settled by reading the final model; a connection that gives up
+ * after a restart) until the session stopped, which stays stopped whatever a later read reports; a stop the session
+ * did not make is settled by reading the final model; a connection that gives up
  * is a warning; forcing a state reaches the runtime, a refusal comes back with the runtime's text, and events that got
  * no reaction are noted; and commands the state does not allow are refused.
  */
@@ -94,6 +95,80 @@ class RuntimeSessionLifecycleTest {
         assertIs<SessionCommandOutcome.Refused>(session.start())
         session.close()
         assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+    }
+
+    @Test
+    fun `a stopped session stays stopped while the runtime still reports the engine's last tick as running`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        closeLinkOnStop(rig, session)
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, 3)
+
+        assertEquals(SessionCommandOutcome.Done, session.stop())
+
+        val stopped = SessionState.Stopped(session.progress.value.environment!!)
+        assertEquals(stopped, session.state.value)
+        assertEquals(SyncStatus.Final(3), session.model.value.sync)
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, 3)
+        assertEquals(SessionCommandOutcome.Done, session.pull())
+        assertEquals(stopped, session.state.value)
+        val refused = SessionCommandOutcome.Refused(stopped, "Forcing the state of 'lamp' is not possible while the environment is stopped.")
+        assertEquals(refused, session.forceState("lamp", "on"))
+        assertIs<SessionCommandOutcome.Refused>(session.stop())
+        assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.SET_ACTIVE_STATE))
+        assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
+        assertIs<InjectionAvailability.Unavailable>(session.events.availability.value)
+        session.close()
+        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+    }
+
+    @Test
+    fun `a stopped session stays stopped while the engine's last tick holds the tick boundary, and a later pull finalizes it`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        closeLinkOnStop(rig, session)
+        val noBoundary =
+            FakeResponse.rejected(FakeResponse.CONFLICT, RuntimeText.TICK_BOUNDARY_TIMEOUT, mapOf("env" to "env-1", "ms" to "10000"))
+        rig.fake.respond(RuntimeRoute.MODEL_SNAPSHOT, noBoundary)
+
+        assertEquals(SessionCommandOutcome.Done, session.stop())
+
+        val stopped = SessionState.Stopped(session.progress.value.environment!!)
+        assertEquals(stopped, session.state.value)
+        rig.fake.respond(RuntimeRoute.MODEL_SNAPSHOT, noBoundary)
+        assertIs<SessionCommandOutcome.Refused>(session.pull())
+        assertEquals(stopped, session.state.value)
+        assertIs<SessionCommandOutcome.Refused>(session.forceState("lamp", "on"))
+        assertIs<SessionCommandOutcome.Refused>(session.stop())
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 4)
+        assertEquals(SessionCommandOutcome.Done, session.pull())
+        assertEquals(SyncStatus.Final(4), session.model.value.sync)
+        assertEquals(stopped, session.state.value)
+        assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.SET_ACTIVE_STATE))
+        assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
+        session.close()
+    }
+
+    @Test
+    fun `a stopped session stays stopped when the runtime forgets the environment afterwards`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        programStop(rig, deployment, session)
+        assertEquals(SessionCommandOutcome.Done, session.stop())
+        rig.fake.respond(
+            RuntimeRoute.MODEL_SNAPSHOT,
+            FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.UNKNOWN_ENVIRONMENT, mapOf("env" to "env-1")),
+        )
+
+        assertIs<SessionCommandOutcome.Failed>(session.pull())
+
+        assertEquals(SessionState.Stopped(session.progress.value.environment!!), session.state.value)
+        assertEquals(emptyList(), session.problems.value.filter { it.code == DeployProblemCodes.ENVIRONMENT_LOST })
+        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        session.close()
     }
 
     @Test
@@ -282,10 +357,15 @@ class RuntimeSessionLifecycleTest {
 
     /** Programs the answers of a stop of [session]: the runtime closes its link, and the final model at revision 3. */
     private fun programStop(rig: SessionRig, deployment: SessionRig.Deployment, session: RuntimeSession) {
+        closeLinkOnStop(rig, session)
+        rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 3)
+    }
+
+    /** Programs the runtime to close the open links of [session] after the next stop, as the runtime does. */
+    private fun closeLinkOnStop(rig: SessionRig, session: RuntimeSession) {
         rig.fake.after(RuntimeRoute.STOP_ENVIRONMENT) {
             linksOf(session.clientId.value).filter { it.isOpen }.forEach { it.closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED) }
         }
-        rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 3)
     }
 
     /** A session of the lamp in [situation], with the answers its stop and shutdown need programmed. */

@@ -88,7 +88,10 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
     /** `observatory/model` of a configuring environment without a model (409). */
     NO_MODEL("Environment with key {env} has no model", RejectionKind.NO_MODEL),
 
-    /** `observatory/model` of a running environment without a tick boundary within the runtime's wait (409). */
+    /**
+     * `observatory/model` without a tick boundary within the runtime's wait (409): a tick of a running environment, or
+     * the last tick of a stopped one, did not end.
+     */
     TICK_BOUNDARY_TIMEOUT(
         "Environment with key {env} did not reach a tick boundary within {ms} ms",
         RejectionKind.TICK_BOUNDARY_TIMEOUT,

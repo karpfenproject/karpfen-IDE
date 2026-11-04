@@ -29,13 +29,16 @@ public enum class RuntimePhase(public val wireName: String) {
     /** Activated: the engine is built over the uploaded texts but was never started. */
     ACTIVATED("activated"),
 
-    /** Started, and the engine thread is alive. */
+    /**
+     * The engine thread is alive: started, or a start or a stop is under way. A stopped environment is reported running
+     * while the engine's last tick ends, for good if a call in that tick never returns.
+     */
     RUNNING("running"),
 
     /** Started and not stopped, but the engine thread ended on its own (the runtime's console log has the reason). */
     HALTED("halted"),
 
-    /** Stopped; the final model stays readable. */
+    /** Stopped, and the engine's last tick ended; the final model stays readable. */
     STOPPED("stopped"),
     ;
 

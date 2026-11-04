@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
  * updates the phase from the outcome; a rejection that shows the runtime's phase differs from the believed one, and an
  * outcome that leaves open whether the call was applied, are settled by reading a snapshot, whose phase the runtime
  * reports. What cannot be settled becomes [EnvironmentPhase.Uncertain], a key the runtime no longer knows
- * [EnvironmentPhase.Lost].
+ * [EnvironmentPhase.Lost]. A stopped environment stays stopped whatever a later snapshot reports, unless it is lost.
  *
  * Threading (MUST): every function may be called from any coroutine. The handle serializes its calls, so two calls
  * never overlap on the wire and the phase changes in call order; [phase] has the handle as its one writer.
@@ -125,7 +125,8 @@ public interface RuntimeEnvironment {
     public suspend fun stateMachineSource(modelElement: String): CallOutcome<String>
 
     /**
-     * Reads a snapshot of the model, between two ticks of a running environment; its phase settles the handle's phase.
+     * Reads a snapshot of the model, between two ticks of a running environment; its phase settles the handle's phase,
+     * except that a stopped environment stays stopped while the runtime still reports its last tick as running.
      */
     public suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot>
 
