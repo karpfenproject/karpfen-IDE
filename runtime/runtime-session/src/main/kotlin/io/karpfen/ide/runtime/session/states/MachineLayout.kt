@@ -1,0 +1,61 @@
+/**
+ * Copyright 2026 Karl Kegel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.karpfen.ide.runtime.session.states
+
+import io.karpfen.dsl.states.State
+import io.karpfen.dsl.states.StateMachine
+import java.nio.file.Path
+
+/**
+ * What the IDE knows of one attached state machine before the runtime reports anything: its top-level states and the
+ * stack the runtime will enter first. Immutable; built during the preparation of a deployment, so nothing launched
+ * later holds the dsl-tools machine.
+ *
+ * @property attachedTo the key of the object the machine runs attached to, the `modelElementId` of its stack pushes.
+ * @property file the machine's file.
+ * @property topLevelStates the names of the machine's top-level states in file order.
+ * @property initialStack the stack the runtime enters at the start.
+ */
+public data class MachineLayout(
+    public val attachedTo: String,
+    public val file: Path,
+    public val topLevelStates: List<String>,
+    public val initialStack: List<String>,
+) {
+    public companion object {
+        /** The layout of [machine] in [file], attached to [attachedTo]. */
+        public fun of(attachedTo: String, file: Path, machine: StateMachine): MachineLayout =
+            MachineLayout(attachedTo, file, machine.states.map { it.name }, InitialStackPredictor.predict(machine.states))
+    }
+}
+
+/**
+ * The runtime's rule for the first stack of a machine (`StateMachineQueryHelper.getInitialStateStack`): at every level
+ * the state marked initial, or else the first state, recursively into its inner states. Stateless.
+ */
+internal object InitialStackPredictor {
+    /** The initial stack of a machine whose top-level states are [states]; empty for a machine without states. */
+    fun predict(states: List<State>): List<String> {
+        val stack = ArrayList<String>()
+        var level = states
+        while (level.isNotEmpty()) {
+            val entered = level.firstOrNull { it.isInitial } ?: level.first()
+            stack += entered.name
+            level = entered.innerStates
+        }
+        return stack
+    }
+}
