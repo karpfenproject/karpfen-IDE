@@ -96,7 +96,8 @@ public data class DeployRequest(
 }
 
 /**
- * The waits of a deployment. Immutable.
+ * The waits of a deployment and the bounds of stopping and disconnecting an environment, in the cleanup of a failed
+ * deployment and in the stop of a session. Immutable.
  *
  * @property connectionWait how long activating and starting wait for the connection to be open.
  * @property confirmMinimum the least time the start confirmation waits for every state machine to report a state.
@@ -104,18 +105,27 @@ public data class DeployRequest(
  *   [confirmMinimum].
  * @property confirmPoll how often the start confirmation reads the model at most; it never reads more often than once a
  *   tick.
+ * @property stopBound how long stopping an environment may take before it counts as unanswered. Keep it above the
+ *   client's stop timeout plus its snapshot timeout, which bounds the probe that may follow an unanswered stop, so that
+ *   a stop the client still sees succeed is never cut off; with the client's default timeouts that is 60 seconds, and a
+ *   client with longer timeouts needs a longer bound.
+ * @property disconnectBound how long letting a connection end after a stop, and disconnecting it, may take each.
  */
 public data class DeployTiming(
     public val connectionWait: Duration = 10.seconds,
     public val confirmMinimum: Duration = 3.seconds,
     public val confirmTicks: Int = 20,
     public val confirmPoll: Duration = 250.milliseconds,
+    public val stopBound: Duration = 75.seconds,
+    public val disconnectBound: Duration = 15.seconds,
 ) {
     init {
         require(connectionWait.isPositive()) { "the connection wait is positive, not $connectionWait" }
         require(!confirmMinimum.isNegative()) { "the confirmation minimum is never negative, not $confirmMinimum" }
         require(confirmTicks >= 0) { "the confirmation ticks are never negative, not $confirmTicks" }
         require(confirmPoll.isPositive()) { "the confirmation poll is positive, not $confirmPoll" }
+        require(stopBound.isPositive()) { "the stop bound is positive, not $stopBound" }
+        require(disconnectBound.isPositive()) { "the disconnect bound is positive, not $disconnectBound" }
     }
 }
 
@@ -182,4 +192,4 @@ public fun Deployer(
     ledger: EnvironmentLedger,
     timing: DeployTiming = DeployTiming(),
     disposer: EnvironmentDisposer = KeepEnvironments(ledger),
-): Deployer = DefaultDeployer(timing, EnvironmentCleanup(ledger, disposer, CleanupBounds.DEFAULT))
+): Deployer = DefaultDeployer(timing, EnvironmentCleanup(ledger, disposer, CleanupBounds.of(timing)))

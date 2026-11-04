@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.runtime.protocol.api.RuntimeTimeouts
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
@@ -27,6 +28,7 @@ import io.karpfen.ide.runtime.protocol.fake.FakeResponse
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.transport.TransportFailure
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
+import io.karpfen.ide.runtime.session.deploy.DeployTiming
 import io.karpfen.ide.runtime.session.deploy.LedgerDisposition
 import io.karpfen.ide.runtime.session.events.InjectionAvailability
 import io.karpfen.ide.runtime.session.events.InjectionOutcome
@@ -60,11 +62,11 @@ import kotlin.time.Duration.Companion.seconds
  * Covers the lifecycle of a session after its deployment, end to end against the fake runtime, which answers only what
  * each test programs: a stop ends the connection, finalizes the model and records the environment once, and an event
  * sent after it never overtakes it; closing and shutting down in every state leave the ledger entry the state calls
- * for, and closing right when a stop begins still stops; the environment's phase drives the state (halted from a
- * snapshot, uncertain after a call without answer, lost after a restart); a stop the session did not make is settled
- * by reading the final model; a connection that gives up is a warning; forcing a state reaches the runtime, a refusal
- * comes back with the runtime's text, and events that got no reaction are noted; and commands the state does not allow
- * are refused.
+ * for, and closing right when a stop begins still stops; a stop is bounded as the deploy timing says; the
+ * environment's phase drives the state (halted from a snapshot, uncertain after a call without answer, lost after a
+ * restart); a stop the session did not make is settled by reading the final model; a connection that gives up is a
+ * warning; forcing a state reaches the runtime, a refusal comes back with the runtime's text, and events that got no
+ * reaction are noted; and commands the state does not allow are refused.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionLifecycleTest {
@@ -343,6 +345,22 @@ class RuntimeSessionLifecycleTest {
         assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
         assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
         assertTrue(rig.fake.links.none { it.isOpen }, "no link stays open")
+    }
+
+    @Test
+    fun `a stop waits as long as the stop bound of the deploy timing allows`() = runTest {
+        val rig = SessionRig(this, root, timing = DeployTiming(stopBound = 3.minutes), timeouts = RuntimeTimeouts(stop = 2.minutes))
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val session = rig.running(deployment)
+        rig.fake.respond(RuntimeRoute.STOP_ENVIRONMENT, FakeResponse.ok(), delay = 100.seconds)
+        programStop(rig, deployment, session)
+
+        assertEquals(SessionCommandOutcome.Done, session.stop())
+
+        assertIs<SessionState.Stopped>(session.state.value)
+        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertTrue(session.problems.value.none { it.code == DeployProblemCodes.RUNTIME_NO_ANSWER }, "${session.problems.value}")
+        session.close()
     }
 
     @Test

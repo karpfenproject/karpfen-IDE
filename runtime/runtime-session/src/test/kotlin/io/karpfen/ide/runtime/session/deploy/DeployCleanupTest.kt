@@ -32,6 +32,7 @@ import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.params.ParameterizedTest
@@ -42,12 +43,13 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers what a failed or cancelled deployment leaves: a failure at every step with the cleanup of the phase it left
  * (nothing, stop and disconnect, or disconnect) and the ledger entry recorded; a creation without an answer; a lost
- * environment; an activation and a stop whose outcome is unknown; an injected disposer; and a cancellation at every
- * step, which cleans up and is rethrown.
+ * environment; an activation and a stop whose outcome is unknown; a stop bounded as the deploy timing says; an injected
+ * disposer; and a cancellation at every step, which cleans up and is rethrown.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeployCleanupTest {
@@ -132,6 +134,18 @@ class DeployCleanupTest {
         assertEquals(DeployProblemCodes.RUNTIME_NO_ANSWER, failed.failure.problem.code)
         assertEquals(listOf("stop", "disconnect", "close"), rig.script.callsAfter("activate"))
         assertEquals(LedgerDisposition.STOPPED, failed.cleanup.leftBehind?.disposition)
+    }
+
+    @Test
+    fun `the cleanup waits for a stop as long as the stop bound of the deploy timing allows`() = runTest {
+        val rig = DeployRig(this)
+        rig.script.fail("start", Failures.fault(RuntimeRoute.START_ENVIRONMENT, "Unexpected error"))
+        rig.script.hold("stop")
+
+        val failed = rig.deploy(timing = DeployTiming(stopBound = 7.seconds)).failed()
+
+        assertEquals("Stopping $ENVIRONMENT took too long", failed.cleanup.actions.first())
+        assertEquals(7_000L, currentTime)
     }
 
     @Test

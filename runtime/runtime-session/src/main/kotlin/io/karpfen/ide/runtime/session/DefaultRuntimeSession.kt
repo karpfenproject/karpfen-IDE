@@ -101,7 +101,7 @@ internal class DefaultRuntimeSession(
     private val departure = EnvironmentDeparture(ledger, client.endpoint)
 
     /** The bounds of stopping and disconnecting, those of a deployment's cleanup. */
-    private val bounds = CleanupBounds.DEFAULT
+    private val bounds = CleanupBounds.of(options.deployTiming)
 
     /** The conductor of the commands. */
     private val conductor = SessionConductor(

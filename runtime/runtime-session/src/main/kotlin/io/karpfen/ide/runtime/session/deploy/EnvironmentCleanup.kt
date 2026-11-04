@@ -23,7 +23,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * What the cleanup after a failed or cancelled deployment did. Immutable.
@@ -34,15 +33,15 @@ import kotlin.time.Duration.Companion.seconds
 public data class CleanupReport(public val actions: List<String>, public val leftBehind: LedgerEntry?)
 
 /**
- * The bounds of the calls of a cleanup. Immutable.
+ * The bounds of the calls of a cleanup and of a session's stop. Immutable.
  *
  * @property stop how long stopping the environment may take, its probe included.
  * @property disconnect how long closing the connection may take.
  */
 internal data class CleanupBounds(val stop: Duration, val disconnect: Duration) {
     companion object {
-        /** Above the client's stop timeout and the probe that may follow it. */
-        val DEFAULT: CleanupBounds = CleanupBounds(stop = 75.seconds, disconnect = 15.seconds)
+        /** The bounds [timing] sets. */
+        fun of(timing: DeployTiming): CleanupBounds = CleanupBounds(stop = timing.stopBound, disconnect = timing.disconnectBound)
     }
 }
 

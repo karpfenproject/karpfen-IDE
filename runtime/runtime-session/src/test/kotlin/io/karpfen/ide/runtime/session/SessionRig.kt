@@ -21,6 +21,7 @@ import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.RuntimeClientOptions
+import io.karpfen.ide.runtime.protocol.api.RuntimeTimeouts
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -37,6 +38,7 @@ import io.karpfen.ide.runtime.protocol.golden.FakeScalar
 import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
+import io.karpfen.ide.runtime.session.deploy.DeployTiming
 import io.karpfen.ide.runtime.session.deploy.EnvironmentLedger
 import io.karpfen.ide.runtime.session.fixtures.ModelWireText
 import kotlinx.coroutines.flow.first
@@ -57,8 +59,15 @@ import kotlin.time.Duration.Companion.minutes
  *
  * @property scope the test's scope.
  * @property root the folder the workspaces are copied into.
+ * @param timing the waits and bounds of the deployments and the stops of the sessions.
+ * @param timeouts the timeouts of the client.
  */
-internal class SessionRig(private val scope: TestScope, private val root: Path) {
+internal class SessionRig(
+    private val scope: TestScope,
+    private val root: Path,
+    timing: DeployTiming = DeployTiming(),
+    timeouts: RuntimeTimeouts = RuntimeTimeouts(),
+) {
     /** The fake runtime; its follow-ups run in the test's background scope. */
     val fake = FakeRuntime(scope.backgroundScope)
 
@@ -69,7 +78,12 @@ internal class SessionRig(private val scope: TestScope, private val root: Path) 
     val ledger = EnvironmentLedger()
 
     /** The options of the sessions: virtual time and a seeded random, so the client ids are the same in every run. */
-    val options = RuntimeSessionOptions(dispatcher = dispatcher, timeSource = scope.testScheduler.timeSource, random = Random(SEED))
+    val options = RuntimeSessionOptions(
+        dispatcher = dispatcher,
+        timeSource = scope.testScheduler.timeSource,
+        random = Random(SEED),
+        deployTiming = timing,
+    )
 
     /** The sessions. */
     val sessions: RuntimeSessions = RuntimeSessions(options, ledger)
@@ -77,7 +91,7 @@ internal class SessionRig(private val scope: TestScope, private val root: Path) 
     /** The client of the fake, on virtual time. */
     val client: RuntimeClient = RuntimeClient(
         ENDPOINT,
-        RuntimeClientOptions(dispatcher = dispatcher, timeSource = scope.testScheduler.timeSource),
+        RuntimeClientOptions(dispatcher = dispatcher, timeSource = scope.testScheduler.timeSource, timeouts = timeouts),
         fake.transports(),
     )
 

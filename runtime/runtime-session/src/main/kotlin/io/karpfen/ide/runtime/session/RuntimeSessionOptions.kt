@@ -32,7 +32,7 @@ import kotlin.time.TimeSource
  * @property timeSource the clock the journal measures the elapsed time of a session with.
  * @property random where the client ids of the sessions come from.
  * @property journalCapacity how many entries the journal of a session keeps for a late collector; older ones are dropped.
- * @property deployTiming the waits of the deployments.
+ * @property deployTiming the waits of the deployments and the bounds of their cleanups and of the sessions' stops.
  * @property subscribeAttempts how often switching observation on subscribes in all while the runtime has not processed
  *   the WebSocket handshake yet.
  * @property subscribeRetryDelay the pause between two such subscriptions.
