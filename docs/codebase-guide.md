@@ -315,9 +315,11 @@ runtime-protocol and `DeploymentScenarios`, `InjectionScenarios`, `ForcedStateSc
 their `Live…Test` subclasses tagged with `@LiveRuntime`; failures only a fake can produce are ordinary tests against the
 fake, such as `RuntimeHazardsTest` and `RuntimeSessionFailureTest`. The `conformance` package of the fixtures holds
 what the scenarios share: `RuntimeUnderTest` with `LiveRuntimeUnderTest`, `Patience`, the waits `eventually` and
-`awaitValue`, and `SynthesizedModels`, the small models in its resources; runtime-session adds `SessionUnderTest`. The
-`liveRuntimeTest` task of `karpfen.live-runtime-test` runs them against the runtime that `runtime/live-runtime.sh`
-starts in a throwaway Docker container, as the [README](../README.md#checking-the-client-against-a-real-runtime) and the
+`awaitValue`, and `SynthesizedModels`, the small models in its resources; runtime-session adds `SessionUnderTest`.
+`SessionUnderTest`, and `RawRuntime` and `ScenarioClient` of the runtime-protocol scenarios, stop what a scenario
+launched when it ends, also when it fails. The `liveRuntimeTest` task of `karpfen.live-runtime-test` runs the scenarios
+against the runtime that `runtime/live-runtime.sh` starts in a throwaway Docker container, as the
+[README](../README.md#checking-the-client-against-a-real-runtime) and the
 [decision on testing runtime work](adr/0018-runtime-work-is-tested-against-an-anchored-fake-and-a-throwaway-runtime-container.md)
 describe; `RuntimeContainerScriptTest` runs that script with Docker, git and curl replaced by shell functions on a
 virtual clock, so its health wait is checked in every build. runtime-session's fixtures add `ModelWireText`, which writes an analyzed model as the runtime does, and
