@@ -178,6 +178,9 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
             container?.watch(running)
             log.host("The runtime is running at ${endpoint.httpBase}.")
             HostOutcome.Ready(endpoint)
+        } catch (cancelled: CancellationException) {
+            state.value = HostStatus.Stopped
+            throw cancelled
         } catch (failure: StartFailure) {
             log.host(failure.problem.message)
             state.value = HostStatus.Failed(failure.problem)
