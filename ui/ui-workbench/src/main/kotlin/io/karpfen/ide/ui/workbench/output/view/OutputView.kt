@@ -63,7 +63,9 @@ import io.karpfen.ide.ui.workbench.output.OutputUiState
  * whenever one arrives, showing it from its start. Following yields to the user: scrolling the newest line out of sight
  * switches it off, and scrolling it back into sight switches it on again, both through [onFollowChange]. The view
  * reports where the user reads to [onReadingPositionChange] and, when it enters the composition again, as when its
- * hidden tool window is shown, starts at [readingPosition]. The text can be selected and copied.
+ * hidden tool window is shown, starts at [readingPosition]. The text can be selected and copied. Without lines it shows
+ * [emptyText]; with [errorsInErrorColour], the whole text of an error line is in the error colour, as the runtime log
+ * shows standard error.
  */
 @Composable
 internal fun OutputView(
@@ -73,6 +75,8 @@ internal fun OutputView(
     modifier: Modifier = Modifier,
     readingPosition: OutputReadingPosition? = null,
     onReadingPositionChange: (OutputReadingPosition) -> Unit = {},
+    emptyText: String = "No output from the language tools",
+    errorsInErrorColour: Boolean = false,
 ) {
     Column(modifier.fillMaxSize()) {
         Row(
@@ -93,13 +97,13 @@ internal fun OutputView(
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (state.lines.isEmpty()) {
                 Text(
-                    "No output from the language tools",
+                    emptyText,
                     color = KarpfenTheme.colors.textMuted,
                     style = KarpfenTheme.typography.uiSmall,
                     modifier = Modifier.align(Alignment.Center),
                 )
             } else {
-                OutputLines(state.lines, state.follow, onFollowChange, readingPosition, onReadingPositionChange)
+                OutputLines(state.lines, state.follow, onFollowChange, readingPosition, onReadingPositionChange, errorsInErrorColour)
             }
         }
     }
@@ -108,7 +112,7 @@ internal fun OutputView(
 /**
  * The scrollable, selectable list of [lines]; scrolls to the newest line when one arrives while [follow] is on, and
  * reports the user's scrolling to [onFollowChange] ([FollowUserScrolling]). It starts at [readingPosition] and reports
- * every change of the line at its top to [onReadingPositionChange].
+ * every change of the line at its top to [onReadingPositionChange]; [errorsInErrorColour] colours whole error lines.
  */
 @Composable
 private fun OutputLines(
@@ -117,6 +121,7 @@ private fun OutputLines(
     onFollowChange: (Boolean) -> Unit,
     readingPosition: OutputReadingPosition?,
     onReadingPositionChange: (OutputReadingPosition) -> Unit,
+    errorsInErrorColour: Boolean,
 ) {
     val format = remember { OutputLineFormat() }
     val listState = rememberLazyListState(
@@ -144,7 +149,7 @@ private fun OutputLines(
     Box(Modifier.fillMaxSize().nestedScroll(userScrolling)) {
         SelectionContainer {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag(OutputViewTestTags.LINES)) {
-                items(lines, key = { it.sequence }) { line -> OutputLineRow(line, format) }
+                items(lines, key = { it.sequence }) { line -> OutputLineRow(line, format, errorsInErrorColour) }
             }
         }
         VerticalScrollbar(
@@ -156,24 +161,31 @@ private fun OutputLines(
 
 /**
  * One [line] as one text: muted time, logger and file, the level in its severity's colour, the message in the text
- * colour.
+ * colour, or all of it in the error colour for an error line with [errorsInErrorColour].
  */
 @Composable
-private fun OutputLineRow(line: OutputLine, format: OutputLineFormat) {
+private fun OutputLineRow(line: OutputLine, format: OutputLineFormat, errorsInErrorColour: Boolean) {
     val colors = KarpfenTheme.colors
+    val wholeLineInError = errorsInErrorColour && line.level == OutputLevel.ERROR
     Text(
-        text = lineText(line, format, colors),
-        color = colors.text,
+        text = lineText(line, format, colors, wholeLineInError),
+        color = if (wholeLineInError) colors.error else colors.text,
         style = KarpfenTheme.typography.monospace,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).testTag(OutputViewTestTags.line(line.sequence)),
     )
 }
 
-/** The styled text of [line] in [colors]. */
-private fun lineText(line: OutputLine, format: OutputLineFormat, colors: KarpfenColors): AnnotatedString = buildAnnotatedString {
-    withStyle(SpanStyle(color = colors.textMuted)) { append("${format.time(line)} ") }
+/** The styled text of [line] in [colors]; [inError] writes every part in the error colour. */
+private fun lineText(
+    line: OutputLine,
+    format: OutputLineFormat,
+    colors: KarpfenColors,
+    inError: Boolean,
+): AnnotatedString = buildAnnotatedString {
+    val muted = if (inError) colors.error else colors.textMuted
+    withStyle(SpanStyle(color = muted)) { append("${format.time(line)} ") }
     withStyle(SpanStyle(color = levelColor(line.level, colors))) { append("${format.level(line)} ") }
-    withStyle(SpanStyle(color = colors.textMuted)) {
+    withStyle(SpanStyle(color = muted)) {
         append(format.logger(line))
         format.file(line)?.let { append(" $it") }
         append(" - ")
