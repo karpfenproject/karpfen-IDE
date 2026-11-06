@@ -36,6 +36,7 @@ import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
+import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
@@ -96,6 +97,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override val layout: LayoutState get() = unused("layout")
     override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
     override val windowTitle: StateFlow<String> = MutableStateFlow("karpfen IDE")
+    override val runtime: StateFlow<RuntimeState?> = MutableStateFlow(null)
 
     override suspend fun start() {
         calls += "start"

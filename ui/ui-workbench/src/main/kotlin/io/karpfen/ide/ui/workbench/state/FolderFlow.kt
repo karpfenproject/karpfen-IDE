@@ -29,10 +29,11 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Opening and closing folders: the unsaved-changes flow over every open document, closing the tabs and the old
- * workspace, opening the new one through the [WorkspaceFactory] in [scope] (its dispatcher is the documents' single
- * writer), binding the sub-states and recording the folder as the most recent one. The tree is scanned before the flow
- * ends, so the project tree is filled when the intent's job completes.
+ * Opening and closing folders: the unsaved-changes flow over every open document, shutting down the old workspace's
+ * runtime, closing the tabs and the old workspace, opening the new one through the [WorkspaceFactory] in [scope] (its
+ * dispatcher is the documents' single writer) with its runtime state, binding the sub-states and recording the folder
+ * as the most recent one. The tree is scanned before the flow ends, so the project tree is filled when the intent's
+ * job completes.
  *
  * A folder that is no longer a directory (a stale recent folder: deleted, moved, its volume unmounted) or that cannot
  * be listed (permissions, a protected folder) is checked on [ioDispatcher] before anything is closed: the open
@@ -46,6 +47,7 @@ internal class FolderFlow(
     private val lifecycle: EditorLifecycle,
     private val unsaved: UnsavedChangesFlow,
     private val bindings: SubStateBindings,
+    private val runtimes: RuntimeHolder,
     private val workspaces: WorkspaceFactory,
     private val languageServices: LanguageServicesFactory,
     private val settings: SettingsRepository,
@@ -64,6 +66,7 @@ internal class FolderFlow(
         if (holder.workspace.value?.root != root) {
             problemOf(root)?.let { return cannotOpen(root, it) }
             if (!unsaved.confirm(tabs.documents())) return
+            runtimes.shutdown()
             closeWorkspace()
             val workspace = try {
                 workspaces.open(root, scope)
@@ -72,6 +75,7 @@ internal class FolderFlow(
             }
             holder.set(workspace, languageServices.create(workspace))
             bindings.bindWorkspace(workspace)
+            runtimes.open(workspace)
             workspace.refresh()
         }
         settings.update { it.withRecentFolder(root.toString()) }
@@ -116,8 +120,12 @@ internal class FolderFlow(
         openFolder(folder)
     }
 
-    /** Closes every tab and the current workspace without asking (unsaved changes are discarded). */
+    /**
+     * Closes the runtime state at once, every tab and the current workspace without asking (unsaved changes are
+     * discarded).
+     */
     fun closeWorkspace() {
+        runtimes.close()
         lifecycle.closeAllTabs()
         bindings.bindWorkspace(null)
         holder.clear()?.close()

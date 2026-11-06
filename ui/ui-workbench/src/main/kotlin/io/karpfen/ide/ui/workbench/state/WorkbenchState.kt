@@ -28,6 +28,7 @@ import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
+import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
@@ -96,7 +97,14 @@ public interface WorkbenchState : AutoCloseable {
      */
     public val output: OutputState
 
-    /** Pending dialog (unsaved changes, delete confirmation, rename, new file, errors). */
+    /**
+     * The runtime and the runs of the opened workspace, shown in the Runtime tool window, or null without a workspace.
+     * Created when a workspace opens; its sessions are shut down and its host closed when the workspace closes or the
+     * workbench is closed.
+     */
+    public val runtime: StateFlow<RuntimeState?>
+
+    /** Pending dialog (unsaved changes, delete confirmation, rename, new file, errors, the descriptor to run). */
     public val dialogs: DialogState
 
     /**
@@ -217,7 +225,8 @@ public interface WorkbenchState : AutoCloseable {
 
     /**
      * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder
-     * and one toggle per `ToolWindowId`; the View commands drive [layout]) and the editor commands in [registry]; keeps
+     * and one toggle per `ToolWindowId`; the View commands drive [layout]), the runtime commands (`RuntimeCommandIds`,
+     * over [runtime]) and the editor commands in [registry]; keeps
      * enablement and the recent-folder commands up to date. Commands call the non-suspending intents above. The
      * [dialogs] are modal: while one is shown, every command is disabled and does nothing when run, so a shortcut typed
      * into a dialog never acts on the workbench behind it.

@@ -19,6 +19,7 @@ import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.EditorActionTitles
 import io.karpfen.ide.ui.foundation.command.MenuEntry
 import io.karpfen.ide.ui.foundation.command.MenuSpec
+import io.karpfen.ide.ui.workbench.command.RuntimeCommandIds
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import kotlin.test.Test
@@ -27,7 +28,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** The structure of the window menus: File, Edit, View and Navigate with their items and separators. */
+/** The structure of the window menus: File, Edit, View, Navigate and Run with their items and separators. */
 class IdeMenusTest {
 
     private fun MenuSpec.itemIds(): List<String> = entries.flatMap { it.itemIds() }
@@ -41,8 +42,8 @@ class IdeMenusTest {
     private fun menu(title: String, recent: Int = 0): MenuSpec = IdeMenus.specs(recent).single { it.title == title }
 
     @Test
-    fun `the menu bar has File, Edit, View and Navigate`() {
-        assertEquals(listOf("File", "Edit", "View", "Navigate"), IdeMenus.specs(0).map { it.title })
+    fun `the menu bar has File, Edit, View, Navigate and Run`() {
+        assertEquals(listOf("File", "Edit", "View", "Navigate", "Run"), IdeMenus.specs(0).map { it.title })
     }
 
     @Test
@@ -110,6 +111,16 @@ class IdeMenusTest {
     @Test
     fun `Navigate goes to a line or a definition`() {
         assertEquals(listOf(EditorActionIds.GO_TO_LINE, EditorActionIds.GO_TO_DEFINITION), menu(IdeMenus.NAVIGATE).itemIds())
+    }
+
+    @Test
+    fun `Run runs and stops, and starts and stops the runtime`() {
+        assertEquals(
+            listOf(RuntimeCommandIds.RUN, RuntimeCommandIds.STOP, RuntimeCommandIds.START_RUNTIME, RuntimeCommandIds.STOP_RUNTIME),
+            menu(IdeMenus.RUN).itemIds(),
+        )
+        val view = menu(IdeMenus.VIEW).itemIds()
+        assertTrue(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.RUNTIME) in view, "the Runtime toggle is in View: $view")
     }
 
     @Test

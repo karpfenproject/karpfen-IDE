@@ -19,6 +19,10 @@ import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.WorkspaceFactory
+import io.karpfen.ide.runtime.host.RuntimeHostFactory
+import io.karpfen.ide.runtime.protocol.RuntimeClient
+import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
+import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.ui.editor.model.action.EditorKeymap
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.editor.state.CodeEditorState
@@ -27,6 +31,7 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.files.FolderChooser
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
 import io.karpfen.ide.ui.workbench.output.OutputBuffer
+import io.karpfen.ide.ui.workbench.runtime.UnavailableRuntimeHosts
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import io.karpfen.ide.ui.workbench.templates.FileTemplates
 import kotlinx.coroutines.CoroutineDispatcher
@@ -46,6 +51,11 @@ import kotlinx.coroutines.flow.StateFlow
  * @property ioDispatcher where the workbench runs blocking file work ([fileOperations]); tests pass a test dispatcher.
  * @property languageToolsOutput the output of the language tools, which the Language Tools Output tool window shows:
  *   the buffer the application's logging fills, which the composition root hands over.
+ * @property runtimeSessions prepares the deployments of the Run command and launches their sessions; one per process,
+ *   with the one ledger of the environments left on a runtime.
+ * @property runtimeHosts creates the runtime host of each opened workspace from the runtime settings; without one from
+ *   the composition root, no host ever has a runtime.
+ * @property runtimeClients creates the client of a runtime endpoint; tests hand in clients of the fake runtime.
  */
 public class WorkbenchServices(
     public val settings: SettingsRepository,
@@ -58,6 +68,9 @@ public class WorkbenchServices(
     public val languageToolsOutput: OutputBuffer,
     public val editorKeymap: EditorKeymap = defaultEditorKeymap(),
     public val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    public val runtimeSessions: RuntimeSessions = RuntimeSessions(),
+    public val runtimeHosts: RuntimeHostFactory = UnavailableRuntimeHosts(),
+    public val runtimeClients: (RuntimeEndpoint) -> RuntimeClient = { RuntimeClient(it) },
 ) {
     /**
      * The platform of the whole workbench, the one source of truth for it: the [editorKeymap]'s, which the editors'

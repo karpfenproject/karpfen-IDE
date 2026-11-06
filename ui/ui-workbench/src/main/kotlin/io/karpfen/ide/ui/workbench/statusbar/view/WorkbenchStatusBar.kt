@@ -27,23 +27,30 @@ import io.karpfen.ide.ui.workbench.statusbar.StatusSegmentKind
 
 /**
  * The status bar content: `Ln x, Col y`, selection length, language, line separator, `UTF-8`, error and warning counts,
- * "Analyzing…", and the indicator of unseen problems of the language tools, whose click calls [onShowOutput]. The texts
- * come from [StatusBarSegments]; each item's id is its segment's id (`StatusBarTestTags.item(id)`).
+ * "Analyzing…", the runtime's status, whose click calls [onShowRuntime], and the indicator of unseen problems of the
+ * language tools, whose click calls [onShowOutput]. The texts come from [StatusBarSegments]; each item's id is its
+ * segment's id (`StatusBarTestTags.item(id)`).
  */
 @Composable
-internal fun WorkbenchStatusBar(state: StatusBarUiState, onShowOutput: () -> Unit, modifier: Modifier = Modifier) {
+internal fun WorkbenchStatusBar(
+    state: StatusBarUiState,
+    onShowOutput: () -> Unit,
+    onShowRuntime: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     StatusBar(
-        left = StatusBarSegments.left(state).map { item(it, onShowOutput) },
-        right = StatusBarSegments.right(state).map { item(it, onShowOutput) },
+        left = StatusBarSegments.left(state).map { item(it, onShowOutput, onShowRuntime) },
+        right = StatusBarSegments.right(state).map { item(it, onShowOutput, onShowRuntime) },
         modifier = modifier,
     )
 }
 
 /**
  * The status-bar item of [segment]; the error and warning counts and the language tools' indicator carry their
- * severity icon, and the indicator is a button that calls [onShowOutput].
+ * severity icon, the indicator is a button that calls [onShowOutput] and the runtime's status one that calls
+ * [onShowRuntime].
  */
-private fun item(segment: StatusSegment, onShowOutput: () -> Unit): StatusBarItem = StatusBarItem(
+private fun item(segment: StatusSegment, onShowOutput: () -> Unit, onShowRuntime: () -> Unit): StatusBarItem = StatusBarItem(
     id = segment.id,
     text = segment.text,
     tooltip = segment.tooltip,
@@ -54,6 +61,7 @@ private fun item(segment: StatusSegment, onShowOutput: () -> Unit): StatusBarIte
     },
     onClick = when (segment.kind) {
         StatusSegmentKind.LANGUAGE_TOOLS_ERRORS, StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS -> onShowOutput
+        StatusSegmentKind.RUNTIME -> onShowRuntime
         else -> null
     },
 )

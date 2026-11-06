@@ -22,6 +22,7 @@ import io.karpfen.ide.ui.workbench.outline.OutlineState
 import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
+import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import kotlinx.coroutines.CoroutineScope
@@ -35,8 +36,9 @@ import kotlinx.coroutines.launch
  * Binds the read-only sub-states to what they follow: the project tree to `Workspace.files`, Problems and the
  * status-bar counts to the workspace ([bindWorkspace], called by the folder flow), the Outline and the status bar's
  * caret part to the active tab's editor (followed from [EditorTabsState.activeEditor] once [start]ed, since views
- * switch tabs directly), the Language Tools Output to its tool window's visibility in the [layout], and the status
- * bar's indicator to the output's unseen problems. Collected in [scope].
+ * switch tabs directly), the Language Tools Output to its tool window's visibility in the [layout], the status bar's
+ * indicator to the output's unseen problems, and the status bar's runtime segment and the runtime log to the runtime
+ * state of the workspace ([bindRuntime]). Collected in [scope].
  */
 internal class SubStateBindings(
     private val scope: CoroutineScope,
@@ -49,6 +51,7 @@ internal class SubStateBindings(
     private val layout: LayoutState,
 ) {
     private var treeBinding: Job? = null
+    private var runtimeBinding: Job? = null
 
     /** Follows the active editor, the output's tool window and the output's unseen problems from now on. */
     fun start() {
@@ -62,6 +65,19 @@ internal class SubStateBindings(
         output.bindVisibility(layout.state.map { it.toolWindow(ToolWindowId.OUTPUT).visible }.distinctUntilChanged())
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             output.state.map { it.unseen }.distinctUntilChanged().collect(statusBar::showUnseenOutput)
+        }
+    }
+
+    /**
+     * Binds the status bar's runtime segment to the host of [runtime] and its log to the Runtime tool window's
+     * visibility (null removes the segment).
+     */
+    fun bindRuntime(runtime: RuntimeState?) {
+        runtimeBinding?.cancel()
+        statusBar.showRuntime(runtime?.host?.value)
+        runtimeBinding = runtime?.let { bound ->
+            bound.bindLogVisibility(layout.state.map { it.toolWindow(ToolWindowId.RUNTIME).visible }.distinctUntilChanged())
+            scope.launch(start = CoroutineStart.UNDISPATCHED) { bound.host.collect(statusBar::showRuntime) }
         }
     }
 

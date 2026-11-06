@@ -29,6 +29,7 @@ import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeMenu
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
+import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
@@ -58,9 +59,9 @@ import java.nio.file.Path
  *
  * The collaborators: [IntentRunner], [WorkspaceHolder], [SubStateBindings], [EditorNavigationCollector],
  * [EditorLifecycle], [SaveFlow], [UnsavedChangesFlow], [FileOpenFlow], [NavigationFlow], [TabFlows], [FolderFlow],
- * [FileOperationFlows] (with [TemplateContextBuilder]), [RenameFlow], [LayoutPersister], and [WorkbenchCommands] and
- * [EditorCommands] registering through a [ModalCommandRegistry]. All work runs in a supervisor child of [scope],
- * cancelled by [close].
+ * [FileOperationFlows] (with [TemplateContextBuilder]), [RenameFlow], [LayoutPersister], the [RuntimeHolder] with its
+ * [WorkbenchRunSupport], and [WorkbenchCommands], [RuntimeCommands] and [EditorCommands] registering through a
+ * [ModalCommandRegistry]. All work runs in a supervisor child of [scope], cancelled by [close].
  */
 internal class DefaultWorkbenchState(
     scope: CoroutineScope,
@@ -84,6 +85,7 @@ internal class DefaultWorkbenchState(
     override val languageServices: StateFlow<LanguageServices?> get() = holder.languageServices
     override val settings: StateFlow<IdeSettings> get() = services.settings.settings
     override val windowTitle: StateFlow<String> get() = holder.windowTitle
+    override val runtime: StateFlow<RuntimeState?> get() = runtimes.state
 
     private val runner = IntentRunner(ownScope) { intent, error ->
         dialogs.showError("Unexpected error", "'$intent' failed: ${error.message ?: error}")
@@ -101,8 +103,9 @@ internal class DefaultWorkbenchState(
     private val fileOpen = FileOpenFlow(lifecycle, dialogs, services.fileOperations, services.ioDispatcher)
     private val navigationFlow = NavigationFlow(fileOpen, tabs)
     private val tabFlows = TabFlows(tabs, lifecycle, unsaved, saving, dialogs)
+    private val runtimes = RuntimeHolder(ownScope, services, WorkbenchRunSupport(runner, tabs, saving, dialogs, layout), bindings)
     private val folders = FolderFlow(
-        ownScope, holder, tabs, lifecycle, unsaved, bindings, services.workspaceFactory, services.languageServicesFactory,
+        ownScope, holder, tabs, lifecycle, unsaved, bindings, runtimes, services.workspaceFactory, services.languageServicesFactory,
         services.settings, services.folderChooser, dialogs, services.ioDispatcher,
     )
     private val fileOperations = FileOperationFlows(
@@ -172,6 +175,7 @@ internal class DefaultWorkbenchState(
     override fun registerCommands(registry: CommandRegistry) {
         val modal = ModalCommandRegistry(ownScope, registry, dialogs.current)
         WorkbenchCommands(ownScope, this, tabs, layout, services.settings).register(modal)
+        RuntimeCommands(ownScope, runtimes.state).register(modal)
         EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(modal)
     }
 

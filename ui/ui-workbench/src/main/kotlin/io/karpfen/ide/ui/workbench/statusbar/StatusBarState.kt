@@ -21,6 +21,7 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
+import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.ui.editor.model.caret.CaretSnapshot
 import io.karpfen.ide.ui.editor.state.EditorHandle
 import io.karpfen.ide.ui.editor.state.EditorSettings
@@ -39,7 +40,8 @@ import kotlinx.coroutines.launch
  * What the status bar shows: `Ln x, Col y` (one-based; [column] is the display column with tabs expanded by `TabStops`
  * of the editor's `tabDisplayWidth`, so it matches what the user sees), selection length, language, line separator,
  * encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), "Analyzing…",
- * and the errors and warnings of the language tools that arrived while their output was hidden ([unseenOutput]).
+ * the errors and warnings of the language tools that arrived while their output was hidden ([unseenOutput]), and what
+ * the runtime of the workspace is doing ([runtime], null without a workspace).
  */
 public data class StatusBarUiState(
     public val line: Int? = null,
@@ -52,6 +54,7 @@ public data class StatusBarUiState(
     public val warningCount: Int = 0,
     public val isAnalyzing: Boolean = false,
     public val unseenOutput: UnseenOutputProblems = UnseenOutputProblems(),
+    public val runtime: HostStatus? = null,
 )
 
 /**
@@ -115,6 +118,11 @@ public class StatusBarState(private val scope: CoroutineScope) {
     /** Shows [unseen] errors and warnings of the language tools, as the Language Tools Output counts them. Mediator only. */
     internal fun showUnseenOutput(unseen: UnseenOutputProblems) {
         status.update { it.copy(unseenOutput = unseen) }
+    }
+
+    /** Shows what the runtime of the workspace is doing; null without a workspace. Mediator only. */
+    internal fun showRuntime(runtime: HostStatus?) {
+        status.update { it.copy(runtime = runtime) }
     }
 
     /** This state without the editor's part (caret, selection, language, line separator). */

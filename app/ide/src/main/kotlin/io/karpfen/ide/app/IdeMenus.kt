@@ -31,14 +31,16 @@ import io.karpfen.ide.ui.foundation.command.MenuEntry
 import io.karpfen.ide.ui.foundation.command.MenuSpec
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.compose.toMenuShortcut
+import io.karpfen.ide.ui.workbench.command.RuntimeCommandIds
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 
 /**
  * The window menus: File (Open Folder…, Open Recent, Save, Save All, Close Tab), Edit (Undo, Redo, Cut, Copy, Paste,
  * Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line, Complete Code), View (one toggle
- * per `ToolWindowId.entries` with its `title` and `WorkbenchCommandIds.toggleToolWindow(id)`, Light/Dark theme),
- * Navigate (Go to Line, Go to Definition); items reference `WorkbenchCommandIds` and `EditorActionIds`.
+ * per `ToolWindowId.entries` with its `title` and `WorkbenchCommandIds.toggleToolWindow(id)`, the Runtime tool window
+ * among them, Light/Dark theme), Navigate (Go to Line, Go to Definition), Run (Run, Stop, Start Runtime, Stop
+ * Runtime); items reference `WorkbenchCommandIds`, `EditorActionIds` and `RuntimeCommandIds`.
  *
  * Menus hold command ids only: titles, shortcuts and enablement come from the registered commands (the workbench
  * registers the tool-window toggles with `ToolWindowId.title` and the editor commands with `EditorActionTitles`).
@@ -58,6 +60,9 @@ public object IdeMenus {
     /** Title of the Navigate menu. */
     public const val NAVIGATE: String = "Navigate"
 
+    /** Title of the Run menu. */
+    public const val RUN: String = "Run"
+
     /** Title of the File menu's submenu of recent folders. */
     public const val OPEN_RECENT: String = "Open Recent"
 
@@ -67,7 +72,7 @@ public object IdeMenus {
      */
     public fun specs(recentFolderCount: Int): List<MenuSpec> {
         require(recentFolderCount >= 0) { "recentFolderCount must not be negative, was $recentFolderCount" }
-        return listOf(file(recentFolderCount), edit(), view(), navigate())
+        return listOf(file(recentFolderCount), edit(), view(), navigate(), run())
     }
 
     private fun file(recentFolderCount: Int) = MenuSpec(
@@ -119,6 +124,17 @@ public object IdeMenus {
     private fun navigate() = MenuSpec(
         NAVIGATE,
         listOf(item(EditorActionIds.GO_TO_LINE), item(EditorActionIds.GO_TO_DEFINITION)),
+    )
+
+    private fun run() = MenuSpec(
+        RUN,
+        listOf(
+            item(RuntimeCommandIds.RUN),
+            item(RuntimeCommandIds.STOP),
+            MenuEntry.Separator,
+            item(RuntimeCommandIds.START_RUNTIME),
+            item(RuntimeCommandIds.STOP_RUNTIME),
+        ),
     )
 
     private fun item(commandId: String) = MenuEntry.Item(commandId)
