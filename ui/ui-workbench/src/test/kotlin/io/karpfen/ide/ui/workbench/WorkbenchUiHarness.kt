@@ -54,11 +54,14 @@ class WorkbenchUi(val test: ComposeUiTest, val workbench: TestWorkbench) {
     fun tagged(tag: String): SemanticsNodeInteraction = test.onNodeWithTag(tag)
 }
 
-/** Runs [block] with a composed workbench (1280 x 860 dp) whose settings live below [directory]. */
+/**
+ * Runs [block] with a composed workbench (1280 x 860 dp) whose settings live below [directory]; with [scriptSessions],
+ * runs launch scriptable sessions.
+ */
 @OptIn(ExperimentalTestApi::class)
-fun workbenchUiTest(directory: Path, block: suspend WorkbenchUi.() -> Unit) = runComposeUiTest {
+fun workbenchUiTest(directory: Path, scriptSessions: Boolean = false, block: suspend WorkbenchUi.() -> Unit) = runComposeUiTest {
     val scheduler = (currentCoroutineContext()[ContinuationInterceptor] as TestDispatcher).scheduler
-    val workbench = TestWorkbench(scheduler, directory.resolve("settings"))
+    val workbench = TestWorkbench(scheduler, directory.resolve("settings"), scriptSessions = scriptSessions)
     setContent {
         Box(Modifier.size(1280.dp, 860.dp)) { Workbench(workbench.state) }
     }

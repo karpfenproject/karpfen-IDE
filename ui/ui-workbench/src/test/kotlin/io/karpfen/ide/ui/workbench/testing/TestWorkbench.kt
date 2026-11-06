@@ -23,6 +23,11 @@ import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
 import io.karpfen.ide.core.workspace.document.OpenDocument
+import io.karpfen.ide.runtime.protocol.RuntimeClient
+import io.karpfen.ide.runtime.protocol.RuntimeClientOptions
+import io.karpfen.ide.runtime.protocol.fake.FakeRuntime
+import io.karpfen.ide.runtime.session.RuntimeSessionOptions
+import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
@@ -48,6 +53,7 @@ import java.nio.file.Path
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlin.random.Random
 import kotlin.reflect.KClass
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -60,8 +66,9 @@ import kotlin.time.TestTimeSource
  * dispatcher (the mediator's scope, the workspace's I/O and analysis, the sessions', the editors' background work, the
  * workbench's I/O) is one test dispatcher, so [settle] runs everything due; a [FakeFileWatcher], a
  * [ControllableFileStore], a [RecordingFileOperations], a [FakeFolderChooser], JSON settings in [settingsDirectory]
- * (counted by [settings]) with a fixed clock, real workspaces, language services and editors (macOS keymap), and a
- * [RingOutputBuffer] as the output of the language tools.
+ * (counted by [settings]) with a fixed clock, real workspaces, language services and editors (macOS keymap), a
+ * [RingOutputBuffer] as the output of the language tools, [FakeRuntimeHosts], and real runtime sessions whose clients
+ * reach the [fakeRuntime], or, with [scriptSessions], sessions that launch scriptable fakes ([scriptedSessions]).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestWorkbench(
@@ -69,6 +76,7 @@ class TestWorkbench(
     val settingsDirectory: Path,
     val fileOperations: RecordingFileOperations = RecordingFileOperations(),
     languageServices: (Workspace) -> LanguageServices = { defaultLanguageServices(it.analysis, files = it.files) },
+    scriptSessions: Boolean = false,
 ) {
     /** The one test dispatcher on [scheduler] that runs all of the workbench's work. */
     val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
@@ -112,6 +120,20 @@ class TestWorkbench(
     /** The output of the language tools that the Language Tools Output shows; tests append to it as the logging would. */
     val languageToolsOutput = RingOutputBuffer()
 
+    /** The runtime the clients of the sessions reach; it answers only what a test programs. */
+    val fakeRuntime = FakeRuntime(scope)
+
+    /** The hosts of the opened workspaces. */
+    val runtimeHosts = FakeRuntimeHosts()
+
+    /** The real sessions, on [dispatcher] and the virtual time of [scheduler], with a seeded random. */
+    val realSessions: RuntimeSessions = RuntimeSessions(
+        RuntimeSessionOptions(dispatcher = dispatcher, timeSource = scheduler.timeSource, random = Random(SESSION_SEED)),
+    )
+
+    /** Sessions that prepare like [realSessions] and launch scriptable fakes. */
+    val scriptedSessions = ScriptedRuntimeSessions(realSessions)
+
     /** The workbench services wired from the test values above. */
     val services = WorkbenchServices(
         settings = settings,
@@ -128,6 +150,12 @@ class TestWorkbench(
         editorKeymap = keymap,
         ioDispatcher = dispatcher,
         languageToolsOutput = languageToolsOutput,
+        runtimeSessions = if (scriptSessions) scriptedSessions else realSessions,
+        runtimeHosts = runtimeHosts,
+        runtimeClients = { endpoint ->
+            val options = RuntimeClientOptions(dispatcher = dispatcher, timeSource = scheduler.timeSource)
+            RuntimeClient(endpoint, options, fakeRuntime.transports())
+        },
     )
 
     /** The workbench state under test. */
@@ -188,6 +216,9 @@ class TestWorkbench(
         /** The clock of the settings backups. */
         val FIXED_CLOCK: Clock = Clock.fixed(Instant.parse("2026-10-21T08:30:00Z"), ZoneOffset.UTC)
 
+        /** The seed of the sessions' random, so the client ids are the same in every run. */
+        const val SESSION_SEED: Int = 7
+
         /** Writes [text] to [path], creating its directories, and returns [path]. */
         fun write(path: Path, text: String): Path {
             Files.createDirectories(path.parent)
@@ -200,9 +231,10 @@ class TestWorkbench(
 suspend fun TestScope.withWorkbench(
     settingsDirectory: Path,
     fileOperations: RecordingFileOperations = RecordingFileOperations(),
+    scriptSessions: Boolean = false,
     block: suspend TestWorkbench.() -> Unit,
 ) {
-    val workbench = TestWorkbench(testScheduler, settingsDirectory, fileOperations)
+    val workbench = TestWorkbench(testScheduler, settingsDirectory, fileOperations, scriptSessions = scriptSessions)
     try {
         workbench.block()
     } finally {
