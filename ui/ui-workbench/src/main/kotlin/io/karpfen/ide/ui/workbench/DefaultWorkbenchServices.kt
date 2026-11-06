@@ -21,6 +21,8 @@ import io.karpfen.ide.core.lang.services.defaultLanguageServices
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
 import io.karpfen.ide.core.workspace.files.FileWatcher
+import io.karpfen.ide.runtime.host.RuntimeHostFactory
+import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.ui.editor.model.action.ClipboardPort
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.editor.state.CodeEditorState
@@ -31,6 +33,7 @@ import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
 import io.karpfen.ide.ui.workbench.files.desktop.desktopProjectFileOperations
 import io.karpfen.ide.ui.workbench.files.desktop.nativeFolderChooser
 import io.karpfen.ide.ui.workbench.output.OutputBuffer
+import io.karpfen.ide.ui.workbench.runtime.UnavailableRuntimeHosts
 import io.karpfen.ide.ui.workbench.settings.SettingsLocations
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
@@ -56,6 +59,10 @@ import java.time.Clock
  * files with; end-to-end tests make them fail on purpose). [languageToolsOutput] has no default: it is the buffer the
  * application's logging fills with what the language tools log, and the composition root passes the one it routes that
  * logging into, so no caller can end up with an output that nothing fills.
+ *
+ * The runtime is the composition root's choice: the application passes the one [runtimeSessions] of the process and
+ * the IDE's runtime hosts as [runtimeHosts]. Without them the wiring has sessions of its own and hosts that never have
+ * a runtime, so a test that runs this wiring never reaches Docker or a runtime at a URL.
  */
 public fun defaultWorkbenchServices(
     languageToolsOutput: OutputBuffer,
@@ -74,6 +81,8 @@ public fun defaultWorkbenchServices(
     folderChooser: FolderChooser = nativeFolderChooser(),
     clipboard: ClipboardPort = systemClipboard(),
     dslReader: DslReader = DslReader(),
+    runtimeSessions: RuntimeSessions = RuntimeSessions(),
+    runtimeHosts: RuntimeHostFactory = UnavailableRuntimeHosts(),
 ): WorkbenchServices {
     return WorkbenchServices(
         settings = SettingsRepository(settingsDirectory, ioDispatcher, clock),
@@ -92,5 +101,7 @@ public fun defaultWorkbenchServices(
         editorKeymap = defaultEditorKeymap(platform),
         ioDispatcher = ioDispatcher,
         languageToolsOutput = languageToolsOutput,
+        runtimeSessions = runtimeSessions,
+        runtimeHosts = runtimeHosts,
     )
 }

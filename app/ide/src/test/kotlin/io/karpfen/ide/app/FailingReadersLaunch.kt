@@ -16,6 +16,8 @@
 package io.karpfen.ide.app
 
 import io.karpfen.ide.core.document.fixtures.SmallStackDslReader
+import io.karpfen.ide.runtime.host.RuntimeHosts
+import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
 import kotlin.system.exitProcess
 
@@ -28,7 +30,17 @@ import kotlin.system.exitProcess
  */
 public fun main(args: Array<String>) {
     val status = launch(args) { exitAfterMs ->
-        IdeApplication(exitAfterMs, services = { output -> defaultWorkbenchServices(output, dslReader = SmallStackDslReader()) })
+        IdeApplication(
+            exitAfterMs,
+            services = { output ->
+                defaultWorkbenchServices(
+                    output,
+                    dslReader = SmallStackDslReader(),
+                    runtimeSessions = RuntimeSessions(),
+                    runtimeHosts = RuntimeHosts(),
+                )
+            },
+        )
     }
     exitProcess(status)
 }

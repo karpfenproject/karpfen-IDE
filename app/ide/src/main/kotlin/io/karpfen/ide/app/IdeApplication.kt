@@ -24,6 +24,8 @@ import io.karpfen.ide.app.crash.IDE_LOG_FILE_NAME
 import io.karpfen.ide.app.logging.LanguageToolsLogRouting
 import io.karpfen.ide.app.logging.LogbackLanguageToolsLogRouting
 import io.karpfen.ide.app.window.awtScreenAreas
+import io.karpfen.ide.runtime.host.RuntimeHosts
+import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
 import io.karpfen.ide.ui.workbench.dialog.DialogState
@@ -63,6 +65,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * workbench's `OutputBuffer`, and, for the life of the prepared session, routes what dsl-tools logs into it as its
  * `OutputSink` through [languageToolsLog]. `logback.xml` keeps the same logging off the console.
  *
+ * The runtime: the default [services] get the one `RuntimeSessions()` of the process and the IDE's two runtime hosts,
+ * `RuntimeHosts()`, the Docker container of each workspace and a runtime at a URL. When the window is closed and
+ * `WorkbenchState.requestExit` allows it, [IdeRunState] shuts the runtime down before the application exits.
+ *
  * The app's `main` resolves the home directory before constructing this class:
  * `SettingsLocations.HOME_ENVIRONMENT_VARIABLE` (if set) is copied into the system property
  * `SettingsLocations.HOME_PROPERTY` before any logger exists, so the default [services] (`defaultWorkbenchServices`:
@@ -78,7 +84,9 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 public class IdeApplication(
     private val exitAfterMs: Long? = null,
-    private val services: (OutputBuffer) -> WorkbenchServices = { output -> defaultWorkbenchServices(languageToolsOutput = output) },
+    private val services: (OutputBuffer) -> WorkbenchServices = { output ->
+        defaultWorkbenchServices(languageToolsOutput = output, runtimeSessions = RuntimeSessions(), runtimeHosts = RuntimeHosts())
+    },
     private val workbenchStateFactory: (CoroutineScope, WorkbenchServices) -> WorkbenchState = ::WorkbenchState,
     private val languageToolsLog: LanguageToolsLogRouting = LogbackLanguageToolsLogRouting.ofApplication(),
 ) {
