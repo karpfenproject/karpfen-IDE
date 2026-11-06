@@ -47,6 +47,13 @@ docker rm --force --volumes $(docker ps --all --quiet --filter label=io.karpfen.
 docker rmi $(docker images --quiet --filter label=io.karpfen.ide.runtime=true)
 ```
 
+A build leaves two kinds of images without the label, which the host never touches. The runtime's `Dockerfile` has a
+build stage that compiles the runtime and a runtime stage, and the engine labels only the image of the last stage, so
+every build normally leaves the build stage as an untagged image; the build also pulls the base images
+`eclipse-temurin:21-jdk` and `debian:trixie-slim`. `docker images --filter dangling=true` lists the untagged images,
+those of other builds as well; the ones whose creation time is that of a runtime build can go with `docker rmi <id>`,
+and the base images with `docker rmi eclipse-temurin:21-jdk debian:trixie-slim` when nothing else builds on them.
+
 ## Tests
 
 The tests run the hosts against a fake engine and the fake runtime of runtime-protocol's test fixtures on virtual time.

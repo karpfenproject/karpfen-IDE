@@ -161,6 +161,9 @@ docker rm --force --volumes $(docker ps --all --quiet --filter label=io.karpfen.
 docker rmi $(docker images --quiet --filter label=io.karpfen.ide.runtime=true)
 ```
 
+A build of the image also leaves images without the label: the untagged image of the `Dockerfile`'s build stage and
+the pulled base images; the [README of runtime-host](runtime/runtime-host/README.md) says how to find and remove them.
+
 The [README of runtime-host](runtime/runtime-host/README.md) maps its code, and the
 [decision on hosting the runtime](docs/adr/0019-the-runtime-runs-in-an-ide-owned-container-or-at-a-url.md) explains
 why there are exactly these two hosts.
