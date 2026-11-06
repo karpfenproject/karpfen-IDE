@@ -48,4 +48,13 @@ object TestTags {
      * throwaway runtime in Docker. The architecture test `LiveRuntimeTaggingTest` checks the wiring.
      */
     const val LIVE_RUNTIME: String = "live-runtime"
+
+    /**
+     * Tests against the local Docker engine: those of runtime-host that build the IDE's runtime image, start its
+     * container and remove it again. They carry `@Tag("live-docker")`, and every test task excludes the tag except the
+     * `liveDockerTest` task of runtime-host ([LiveDockerTesting.TASK_NAME]), which runs only these tests and is never
+     * part of `check` or `build`: the first image build takes minutes, and only Docker resources labelled for the IDE are
+     * touched, so they run on purpose only.
+     */
+    const val LIVE_DOCKER: String = "live-docker"
 }
