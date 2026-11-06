@@ -22,6 +22,6 @@ plugins {
  * into the API.
  */
 dependencies {
-    implementation(project(":runtime:runtime-protocol"))
+    api(project(":runtime:runtime-protocol"))
     implementation(libs.bundles.docker.java)
 }
