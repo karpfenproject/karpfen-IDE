@@ -51,11 +51,15 @@ class LiveRuntimeTaggingTest {
         )
     }
 
+    /**
+     * Besides the live convention plugin, only runtime-host's build script includes a tag: that of its own opt-in task
+     * for the tests against the local Docker engine, which build-logic's `TestTags.LIVE_DOCKER` describes.
+     */
     @Test
-    fun `only the live convention plugin includes tags`() {
+    fun `only the live convention plugin and runtime-host's Docker task include tags`() {
         val including = gradleScripts().filter { INCLUDE_TAGS.containsMatchIn(KotlinLexer.code(it.text)) }.map { it.relativePath }
 
-        assertEquals(listOf(LIVE_PLUGIN), including)
+        assertEquals(listOf(LIVE_PLUGIN, RUNTIME_HOST_SCRIPT), including)
     }
 
     @Test
@@ -173,6 +177,9 @@ class LiveRuntimeTaggingTest {
 
         /** The two convention plugins that may name the live task: the live plugin and the base plugin that exempts it. */
         val CONVENTION_PLUGINS = setOf(LIVE_PLUGIN, "build-logic/src/main/kotlin/karpfen.kotlin-jvm.gradle.kts")
+
+        /** The build script of runtime-host, which registers the opt-in task of the tests against the local Docker engine. */
+        const val RUNTIME_HOST_SCRIPT = "runtime/runtime-host/build.gradle.kts"
 
         /** The build script that orders runtime-session's live task after runtime-protocol's. */
         const val RUNTIME_SESSION_SCRIPT = "runtime/runtime-session/build.gradle.kts"
