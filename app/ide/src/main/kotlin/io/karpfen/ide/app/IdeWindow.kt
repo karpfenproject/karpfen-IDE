@@ -76,8 +76,8 @@ internal fun ApplicationScope.IdeApplicationContent(
 /**
  * The main window of [session]: title from `WorkbenchState.windowTitle`, bounds from and to `WorkbenchState.layout`,
  * the menu bar from [IdeMenus] (with the current number of recent folders), the [Workbench] as content with the
- * [StoppingRuntimeNote] over it while [stoppingRuntime] is true, close requests to [onCloseRequest], and failures inside
- * the window to [windowExceptions] (instead of Compose's default, which closes the window).
+ * [StoppingRuntimeNote] over it while [stoppingRuntime] is true, close requests to [onCloseRequest], and failures
+ * inside the window to [windowExceptions] (instead of Compose's default, which closes the window).
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable

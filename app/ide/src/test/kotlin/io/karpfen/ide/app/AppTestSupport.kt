@@ -60,8 +60,9 @@ import kotlin.time.Duration
 /**
  * A scripted [WorkbenchState], so the app tests check the composition root on its own: records the calls of the
  * composition root, registers one command, and lets a test decide how long `openFolder` takes and whether it asks a
- * dialog, whether `start` fails, how `requestExit` answers and how long `shutdownRuntime` takes. The composition root never touches the sub-states
- * outside the window, so the fake fails on access instead of constructing the workbench's sub-states.
+ * dialog, whether `start` fails, how `requestExit` answers and how long `shutdownRuntime` takes. The composition root
+ * never touches the sub-states outside the window, so the fake fails on access instead of constructing the workbench's
+ * sub-states.
  */
 internal class FakeWorkbenchState(val scope: CoroutineScope, val services: WorkbenchServices) : WorkbenchState {
     /** The calls of the composition root, in order (`openFolder` with its path). */

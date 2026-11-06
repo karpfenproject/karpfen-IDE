@@ -85,7 +85,11 @@ import kotlin.time.Duration.Companion.milliseconds
 public class IdeApplication(
     private val exitAfterMs: Long? = null,
     private val services: (OutputBuffer) -> WorkbenchServices = { output ->
-        defaultWorkbenchServices(languageToolsOutput = output, runtimeSessions = RuntimeSessions(), runtimeHosts = RuntimeHosts())
+        defaultWorkbenchServices(
+            languageToolsOutput = output,
+            runtimeSessions = RuntimeSessions(),
+            runtimeHosts = RuntimeHosts(),
+        )
     },
     private val workbenchStateFactory: (CoroutineScope, WorkbenchServices) -> WorkbenchState = ::WorkbenchState,
     private val languageToolsLog: LanguageToolsLogRouting = LogbackLanguageToolsLogRouting.ofApplication(),

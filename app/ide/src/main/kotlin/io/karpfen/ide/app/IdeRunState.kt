@@ -70,8 +70,8 @@ internal class IdeRunState(
     val phase: StateFlow<IdePhase> = mutablePhase.asStateFlow()
 
     /**
-     * True while the runtime is being shut down on exit and that has taken longer than [STOPPING_NOTE_DELAY]: the window
-     * then shows a short note ([STOPPING_RUNTIME_NOTE]).
+     * True while the runtime is being shut down on exit and that has taken longer than [STOPPING_NOTE_DELAY]: the
+     * window then shows a short note ([STOPPING_RUNTIME_NOTE]).
      */
     val stoppingRuntime: StateFlow<Boolean> = mutableStoppingRuntime.asStateFlow()
 
@@ -134,7 +134,7 @@ internal class IdeRunState(
         }.also { closeFlow = it }
     }
 
-    /** Shuts the runtime of [session] down; [stoppingRuntime] turns true once that takes longer than the note's delay. */
+    /** Shuts the runtime of [session] down; [stoppingRuntime] is true while that takes longer than the note's delay. */
     private suspend fun shutDownRuntime(session: IdeSession) {
         val note = scope.launch {
             delay(STOPPING_NOTE_DELAY)
