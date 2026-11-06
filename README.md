@@ -137,8 +137,9 @@ creates one. Run first saves every open file, because a deployment uploads the s
 deployment, waits for the runtime and deploys, starts and observes the environment. The Runtime tool window (View ▸
 Runtime) opens with the run: the runs with their phase, and for the selected run its deploy steps and active states,
 the observed model as a tree with the observation switch and Pull, the domain events with the event injector, and the
-runtime's log. Run ▸ Stop (Ctrl+F2, Cmd+F2 on macOS) stops the selected run; running a descriptor again stops its
-previous run first. When the IDE exits, it shuts down every run and stops its runtime within 15 seconds.
+runtime's log. Run ▸ Stop (Ctrl+F2, Cmd+F2 on macOS) stops the selected run, or the only one running; running a
+descriptor again stops its previous run first. When the IDE exits, it shuts down every run and stops its runtime
+within 15 seconds.
 
 The header of the Runtime tool window chooses the runtime, and the choice is kept in `settings.json`:
 
