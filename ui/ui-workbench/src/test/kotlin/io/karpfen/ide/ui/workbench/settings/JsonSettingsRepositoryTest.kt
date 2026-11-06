@@ -67,7 +67,7 @@ class JsonSettingsRepositoryTest {
                 theme = ThemeMode.DARK,
                 editorFontSize = 15f,
                 windowBounds = WindowBounds(10, 20, 800, 600, maximized = true),
-                toolWindows = mapOf("PROJECT" to ToolWindowLayout(false, 300f), "RUNTIME" to ToolWindowLayout(size = 120f)),
+                toolWindows = mapOf("PROJECT" to ToolWindowLayout(false, 300f), "DIAGRAM" to ToolWindowLayout(size = 120f)),
             )
         }
         assertEquals(updated, settings.settings.value)
@@ -76,7 +76,7 @@ class JsonSettingsRepositoryTest {
 
         val reloaded = repository(dir.resolve("new/home")).load()
         assertEquals(updated, reloaded)
-        assertEquals(ToolWindowLayout(size = 120f), reloaded.toolWindows["RUNTIME"], "unknown tool windows are kept")
+        assertEquals(ToolWindowLayout(size = 120f), reloaded.toolWindows["DIAGRAM"], "unknown tool windows are kept")
     }
 
     @Test

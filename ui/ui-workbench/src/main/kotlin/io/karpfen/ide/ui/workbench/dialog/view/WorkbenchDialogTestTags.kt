@@ -23,6 +23,9 @@ public object WorkbenchDialogTestTags {
     /** The dialog's text field (rename, new file). */
     public const val INPUT: String = "Workbench.dialog.input"
 
+    /** The entry at [index] of the dialog's list (the descriptor to run). */
+    public fun choice(index: Int): String = "Workbench.dialog.choice:$index"
+
     /** The dialog's button [label]. */
     public fun button(label: String): String = "Workbench.dialog.button:$label"
 }

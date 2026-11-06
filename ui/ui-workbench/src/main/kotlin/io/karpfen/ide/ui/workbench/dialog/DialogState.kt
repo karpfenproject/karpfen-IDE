@@ -63,6 +63,23 @@ public sealed interface DialogRequest<out R : DialogResponse> {
         override fun accepts(response: DialogResponse): Boolean = response is TextAnswer
     }
 
+    /**
+     * Choose which of the environment [descriptors] of the workspace at [root] to run; [preselected] is the index of the
+     * one selected at first.
+     */
+    public data class ChooseDescriptor(
+        public val root: Path,
+        public val descriptors: List<Path>,
+        public val preselected: Int = 0,
+    ) : DialogRequest<ChoiceAnswer> {
+        init {
+            require(preselected in descriptors.indices) { "the preselected index $preselected is out of ${descriptors.indices}" }
+        }
+
+        override fun accepts(response: DialogResponse): Boolean =
+            response == DialogResponse.Cancel || (response is DialogResponse.Chosen && response.index in descriptors.indices)
+    }
+
     /** Show an error; the only answer is [DialogResponse.Confirm] (also when the dialog is dismissed). */
     public data class Error(public val title: String, public val message: String) : DialogRequest<DialogResponse.Confirm> {
         override fun accepts(response: DialogResponse): Boolean = response == DialogResponse.Confirm
@@ -81,10 +98,13 @@ public sealed interface DialogResponse {
     public data object Confirm : ConfirmAnswer
 
     /** Cancel the operation. */
-    public data object Cancel : UnsavedChangesAnswer, ConfirmAnswer, TextAnswer
+    public data object Cancel : UnsavedChangesAnswer, ConfirmAnswer, TextAnswer, ChoiceAnswer
 
     /** Entered text (rename, new file name). */
     public data class Text(public val value: String) : TextAnswer
+
+    /** The entry at [index] of a list was chosen. */
+    public data class Chosen(public val index: Int) : ChoiceAnswer
 }
 
 /** Answers to [DialogRequest.UnsavedChanges]: Save, Discard, Cancel. */
@@ -95,6 +115,9 @@ public sealed interface ConfirmAnswer : DialogResponse
 
 /** Answers to [DialogRequest.Rename] and [DialogRequest.NewFile]: Text, Cancel. */
 public sealed interface TextAnswer : DialogResponse
+
+/** Answers to [DialogRequest.ChooseDescriptor]: Chosen, Cancel. */
+public sealed interface ChoiceAnswer : DialogResponse
 
 /**
  * The pending dialog. The mediator (and the application's crash handling) suspends in [ask] until the composable

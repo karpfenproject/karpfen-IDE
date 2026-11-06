@@ -17,6 +17,7 @@ package io.karpfen.ide.ui.workbench.dialog.view
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,7 +68,8 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
  * Renders the pending [request] as a modal dialog and reports the answer through [onRespond]; it offers exactly the
  * answers the request accepts (`DialogRequest.accepts`), as decided by [DialogPresentation]. Drawn over the workbench
  * with a scrim that swallows pointer input; Enter presses the default button, Escape dismisses. A text field (rename,
- * new file) starts focused with its text selected; Tab and Shift+Tab cycle through the dialog's focus stops
+ * new file) starts focused with its text selected; a list (the descriptor to run) starts with its preselected entry
+ * selected, Up and Down move the selection and a click selects. Tab and Shift+Tab cycle through the dialog's focus stops
  * ([DialogFocusOrder]) and never leave it. [ModalDialogLayer] keeps the focus out of the workbench behind it.
  */
 @Composable
@@ -78,6 +80,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         val initial = presentation.input.orEmpty()
         mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length)))
     }
+    var selected by remember(request) { mutableStateOf(presentation.preselected) }
     val stops = remember(request) { List(presentation.buttons.size + 1) { FocusRequester() } }
     val order = DialogFocusOrder.of(presentation, text.text)
     fun Modifier.focusStop(stop: Int): Modifier = focusRequester(stops[stop]).focusProperties {
@@ -85,8 +88,9 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         previous = stops[order.previous(stop)]
     }
     fun press(button: DialogButton) {
-        presentation.responseFor(button.choice, text.text)?.let(onRespond)
+        presentation.responseFor(button.choice, text.text, selected)?.let(onRespond)
     }
+    val choices = presentation.choices
     val colors = KarpfenTheme.colors
     Box(
         Modifier
@@ -104,9 +108,17 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                 .testTag(WorkbenchDialogTestTags.DIALOG)
                 .onPreviewKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                    when (event.key) {
-                        Key.Escape -> onRespond(presentation.dismiss).let { true }
-                        Key.Enter -> presentation.buttons.firstOrNull { it.isDefault }?.let(::press).let { true }
+                    when {
+                        event.key == Key.Escape -> onRespond(presentation.dismiss).let { true }
+                        event.key == Key.Enter -> presentation.buttons.firstOrNull { it.isDefault }?.let(::press).let { true }
+                        choices != null && event.key == Key.DirectionDown -> {
+                            selected = (selected + 1).coerceAtMost(choices.lastIndex)
+                            true
+                        }
+                        choices != null && event.key == Key.DirectionUp -> {
+                            selected = (selected - 1).coerceAtLeast(0)
+                            true
+                        }
                         else -> false
                     }
                 }
@@ -115,6 +127,24 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
             Text(presentation.title, color = colors.text, style = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold))
             Spacer(Modifier.height(8.dp))
             Text(presentation.message, color = colors.text, style = KarpfenTheme.typography.ui)
+            if (choices != null) {
+                Spacer(Modifier.height(8.dp))
+                Column(Modifier.fillMaxWidth().border(1.dp, colors.border)) {
+                    choices.forEachIndexed { index, choice ->
+                        Text(
+                            choice,
+                            color = colors.text,
+                            style = KarpfenTheme.typography.ui,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(if (index == selected) colors.selection else Color.Transparent)
+                                .clickable { selected = index }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .testTag(WorkbenchDialogTestTags.choice(index)),
+                        )
+                    }
+                }
+            }
             if (presentation.input != null) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -127,7 +157,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                 presentation.buttons.forEachIndexed { index, button ->
-                    val enabled = presentation.responseFor(button.choice, text.text) != null
+                    val enabled = presentation.responseFor(button.choice, text.text, selected) != null
                     val tagged = Modifier.testTag(WorkbenchDialogTestTags.button(button.label)).focusStop(index + 1)
                     if (button.isDefault) {
                         Button(onClick = { press(button) }, enabled = enabled, modifier = tagged) { Text(button.label) }

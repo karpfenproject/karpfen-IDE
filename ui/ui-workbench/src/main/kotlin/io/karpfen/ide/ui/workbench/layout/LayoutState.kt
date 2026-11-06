@@ -42,6 +42,9 @@ public enum class ToolWindowId(public val title: String, public val defaultSize:
 
     /** What the language tools log (bottom, below Problems); hidden until the user opens it. */
     OUTPUT("Language Tools Output", 180f, visibleByDefault = false),
+
+    /** The runtime and the runs of the workspace (bottom, below the output); hidden until the user opens it or runs. */
+    RUNTIME("Runtime", 320f, visibleByDefault = false),
     ;
 
     /** The layout of a tool window nobody changed: its default visibility and size. */
@@ -102,7 +105,7 @@ public class LayoutState {
     }
 
     /**
-     * Sets a tool window's size in dp (width for PROJECT/OUTLINE, height for PROBLEMS/OUTPUT), clamped to a minimum.
+     * Sets a tool window's size in dp (width for PROJECT/OUTLINE, height for PROBLEMS/OUTPUT/RUNTIME), clamped to a minimum.
      * The workbench passes the value of the size-based `SplitPane`'s `onFixedSizeChange` unchanged (`Dp.value`), so the
      * composable converts nothing.
      */

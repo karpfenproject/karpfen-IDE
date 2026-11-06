@@ -17,13 +17,19 @@ package io.karpfen.ide.ui.workbench.dialog
 
 import java.nio.file.Path
 
-/** What pressing a dialog button does: answer [Answer.response], or submit the entered text ([SubmitText]). */
+/**
+ * What pressing a dialog button does: answer [Answer.response], submit the entered text ([SubmitText]) or the selected
+ * entry of the list ([SubmitSelection]).
+ */
 internal sealed interface DialogChoice {
     /** Answers with [response]. */
     data class Answer(val response: DialogResponse) : DialogChoice
 
     /** Answers with the entered text (trimmed; not possible while it is blank). */
     data object SubmitText : DialogChoice
+
+    /** Answers with the selected entry of the list. */
+    data object SubmitSelection : DialogChoice
 }
 
 /** A button of a dialog; the [isDefault] one is also pressed by Enter. */
@@ -31,8 +37,9 @@ internal data class DialogButton(val label: String, val choice: DialogChoice, va
 
 /**
  * How a [DialogRequest] is shown (presentation only, so the dialog composable just renders it): [title], [message],
- * the [buttons] — exactly the answers the request accepts — an optional text field prefilled with [input], and the
- * answer for dismissing the dialog (Escape) [dismiss].
+ * the [buttons] — exactly the answers the request accepts — an optional text field prefilled with [input], an optional
+ * list of [choices] with the entry [preselected] selected at first, and the answer for dismissing the dialog (Escape)
+ * [dismiss].
  */
 internal data class DialogPresentation(
     val title: String,
@@ -40,11 +47,17 @@ internal data class DialogPresentation(
     val buttons: List<DialogButton>,
     val dismiss: DialogResponse,
     val input: String? = null,
+    val choices: List<String>? = null,
+    val preselected: Int = 0,
 ) {
-    /** The response of [choice] with [text] entered, or null if the choice is not possible now (blank text). */
-    fun responseFor(choice: DialogChoice, text: String): DialogResponse? = when (choice) {
+    /**
+     * The response of [choice] with [text] entered and the list entry [selected] selected, or null if the choice is not
+     * possible now (blank text).
+     */
+    fun responseFor(choice: DialogChoice, text: String, selected: Int = preselected): DialogResponse? = when (choice) {
         is DialogChoice.Answer -> choice.response
         DialogChoice.SubmitText -> text.trim().takeIf { it.isNotEmpty() }?.let(DialogResponse::Text)
+        DialogChoice.SubmitSelection -> DialogResponse.Chosen(selected)
     }
 
     companion object {
@@ -72,6 +85,17 @@ internal data class DialogPresentation(
                 buttons = listOf(submit("Create"), answer("Cancel", DialogResponse.Cancel)),
                 dismiss = DialogResponse.Cancel,
                 input = "",
+            )
+            is DialogRequest.ChooseDescriptor -> DialogPresentation(
+                title = "Run",
+                message = "Choose the environment descriptor to run:",
+                buttons = listOf(
+                    DialogButton("Run", DialogChoice.SubmitSelection, isDefault = true),
+                    answer("Cancel", DialogResponse.Cancel),
+                ),
+                dismiss = DialogResponse.Cancel,
+                choices = request.descriptors.map { request.root.relativize(it).toString() },
+                preselected = request.preselected,
             )
             is DialogRequest.Error -> DialogPresentation(
                 title = request.title,

@@ -15,6 +15,8 @@
  */
 package io.karpfen.ide.ui.workbench.settings
 
+import io.karpfen.ide.runtime.host.RuntimeHostKind
+import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import kotlinx.serialization.Serializable
 
 /**
@@ -28,6 +30,7 @@ import kotlinx.serialization.Serializable
  * @property toolWindows visibility and size of the tool windows by tool-window name (`ToolWindowId.name` of the
  *   workbench's layout package); a missing entry means the default layout, an unknown one is kept but ignored, so a
  *   new tool window needs no schema change.
+ * @property runtime how the IDE reaches the karpfen runtime.
  */
 @Serializable
 public data class IdeSettings(
@@ -36,6 +39,7 @@ public data class IdeSettings(
     public val editorFontSize: Float = 13f,
     public val windowBounds: WindowBounds? = null,
     public val toolWindows: Map<String, ToolWindowLayout> = emptyMap(),
+    public val runtime: RuntimeSettings = RuntimeSettings(),
 ) {
     init {
         require(recentFolders.size <= MAX_RECENT_FOLDERS) { "at most $MAX_RECENT_FOLDERS recent folders" }
@@ -84,4 +88,19 @@ public data class ToolWindowLayout(public val visible: Boolean = true, public va
     init {
         require(size > 0f) { "size must be positive, was $size" }
     }
+}
+
+/**
+ * How the IDE reaches the karpfen runtime: the container the IDE owns, or a runtime started elsewhere at [url].
+ *
+ * @property host the kind of host.
+ * @property url the base URL of a runtime started elsewhere, used when [host] is [RuntimeHostKind.URL].
+ */
+@Serializable
+public data class RuntimeSettings(
+    public val host: RuntimeHostKind = RuntimeHostKind.DOCKER,
+    public val url: String = RuntimeHostSettings.DEFAULT_URL,
+) {
+    /** These settings as the runtime host reads them. */
+    public fun toHostSettings(): RuntimeHostSettings = RuntimeHostSettings(host, url)
 }

@@ -51,10 +51,13 @@ class LayoutStateTest {
     }
 
     @Test
-    fun `the Language Tools Output is hidden by default and shown on request`() {
+    fun `the Language Tools Output and the Runtime are hidden by default and shown on request`() {
         val layout = LayoutState()
         assertFalse(layout.state.value.toolWindow(ToolWindowId.OUTPUT).visible)
-        assertEquals(ToolWindowId.entries - ToolWindowId.OUTPUT, ToolWindowId.entries.filter { it.visibleByDefault })
+        assertEquals(
+            ToolWindowId.entries - ToolWindowId.OUTPUT - ToolWindowId.RUNTIME,
+            ToolWindowId.entries.filter { it.visibleByDefault },
+        )
         assertFalse(LayoutUiState.of(IdeSettings()).toolWindow(ToolWindowId.OUTPUT).visible, "also without a stored layout")
 
         layout.showToolWindow(ToolWindowId.OUTPUT)
