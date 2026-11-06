@@ -31,6 +31,7 @@ import io.karpfen.ide.runtime.session.RuntimeSession
 import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
 import io.karpfen.ide.runtime.session.fixtures.FakeRuntimeSession
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -45,10 +46,18 @@ import java.nio.file.Path
  * what it was asked. It starts and stops nothing.
  *
  * @property settings the settings it was created with.
+ * @param lifecycle where it records that it was closed.
  */
-class FakeRuntimeHost(val settings: RuntimeHostSettings, var outcome: HostOutcome) : RuntimeHost {
+class FakeRuntimeHost(
+    val settings: RuntimeHostSettings,
+    var outcome: HostOutcome,
+    private val lifecycle: MutableList<String> = ArrayList(),
+) : RuntimeHost {
     /** The status the test sets. */
     val statusFlow = MutableStateFlow<HostStatus>(HostStatus.Stopped)
+
+    /** When set, [ensureRunning] answers [outcome] only once the test completes it, as a host that is still starting. */
+    var held: CompletableDeferred<Unit>? = null
 
     /** Where the test emits log lines; recent ones are replayed. */
     val logLines = MutableSharedFlow<HostLogLine>(replay = LOG_REPLAY)
@@ -73,6 +82,7 @@ class FakeRuntimeHost(val settings: RuntimeHostSettings, var outcome: HostOutcom
 
     override suspend fun ensureRunning(): HostOutcome {
         starts++
+        held?.await()
         return outcome
     }
 
@@ -82,6 +92,7 @@ class FakeRuntimeHost(val settings: RuntimeHostSettings, var outcome: HostOutcom
 
     override fun close() {
         closes++
+        lifecycle += "close ${settings.kind}"
     }
 
     companion object {
@@ -100,12 +111,16 @@ class FakeRuntimeHosts(var outcome: HostOutcome = HostOutcome.Ready(FakeRuntimeH
     /** The roots the hosts were created for, oldest first. */
     val roots = ArrayList<Path>()
 
+    /** The creation and the close of every host by its kind, such as `create DOCKER`, in the order they happened. */
+    val lifecycle = ArrayList<String>()
+
     /** The host created last. */
     val current: FakeRuntimeHost get() = created.last()
 
     override fun create(workspaceRoot: Path, settings: RuntimeHostSettings): RuntimeHost {
         roots.add(workspaceRoot)
-        return FakeRuntimeHost(settings, outcome).also { created += it }
+        lifecycle += "create ${settings.kind}"
+        return FakeRuntimeHost(settings, outcome, lifecycle).also { created += it }
     }
 }
 

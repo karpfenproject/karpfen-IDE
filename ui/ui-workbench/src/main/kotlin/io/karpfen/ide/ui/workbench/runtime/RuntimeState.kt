@@ -45,6 +45,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -52,17 +53,21 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.nio.file.Path
 import java.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The runtime of one opened workspace and its runs, as the Runtime tool window shows and steers them: the host with its
  * status and log, the runs with the selected one, and the commands. A run resolves the descriptor, saves every open
- * file, stops a live run of the same descriptor, prepares the deployment, waits for the runtime and launches a session
- * that deploys, starts and observes the environment; from then on its entry follows the session. Changing the runtime
- * settings stops the live runs and replaces the host. The workbench creates one per opened workspace and shuts it down
- * when the workspace closes or the IDE exits.
+ * file, stops the runs of the same descriptor that still prepare, wait for the runtime or are live, prepares the
+ * deployment, waits for the runtime and launches a session that deploys, starts and observes the environment; from then
+ * on its entry follows the session. Changing the runtime settings stops the live runs and replaces the host. The
+ * workbench creates one per opened workspace and shuts it down when the workspace closes or the IDE exits.
  *
  * Used from the UI thread: the commands launch their work in [scope] and return its job; the sessions run on their own
  * dispatcher and their flows are collected in [scope].
@@ -96,6 +101,7 @@ public class RuntimeState internal constructor(
     private val list = RunList()
     private val resolver = DescriptorResolver(workspace.root, support)
     private val launched = HashMap<Long, Launched>()
+    private val pending = HashMap<Long, Job>()
     private var nextId = 1L
 
     /** What the host of the workspace is doing. */
@@ -184,9 +190,14 @@ public class RuntimeState internal constructor(
     /** Sets the URL of a runtime reached by URL and writes it to the settings. */
     public fun setUrl(url: String): Job = scope.launch { settings.update { it.copy(runtime = it.runtime.copy(url = url.trim())) } }
 
-    /** Shuts down every session, then closes the host; the state is closed afterwards. */
+    /**
+     * Shuts down every session, closing those still busy after [SESSIONS_BOUND] at once, then closes the host; the
+     * state is closed afterwards.
+     */
     public suspend fun shutdown() {
-        coroutineScope { list.runs.value.mapNotNull { it.session }.forEach { launch { it.shutdown() } } }
+        withTimeoutOrNull(SESSIONS_BOUND) {
+            coroutineScope { list.runs.value.mapNotNull { it.session }.forEach { launch { it.shutdown() } } }
+        }
         launched.keys.toList().forEach { id -> list.entry(id)?.let(::release) }
         binding.close()
     }
@@ -210,10 +221,15 @@ public class RuntimeState internal constructor(
         stopRunsOf(descriptor)
         val id = nextId++
         list.add(RunEntry(id, descriptor, RunEntry.nameOf(descriptor), RunPhase.PREPARING)).forEach(::release)
-        show(id)
-        when (val preparation = sessions.prepare(workspace, descriptor)) {
-            is Preparation.Blocked -> list.update(id) { it.copy(phase = RunPhase.BLOCKED, findings = preparation.findings) }
-            is Preparation.Ready -> deploy(id, preparation.prepared)
+        pending[id] = currentCoroutineContext().job
+        try {
+            show(id)
+            when (val preparation = sessions.prepare(workspace, descriptor)) {
+                is Preparation.Blocked -> list.update(id) { it.copy(phase = RunPhase.BLOCKED, findings = preparation.findings) }
+                is Preparation.Ready -> deploy(id, preparation.prepared)
+            }
+        } finally {
+            pending.remove(id)
         }
     }
 
@@ -249,9 +265,19 @@ public class RuntimeState internal constructor(
         if (session.stop() == SessionCommandOutcome.Done) list.update(id) { it.copy(phase = RunPhase.STOPPED) }
     }
 
-    /** Shuts down the sessions of the live runs of [descriptor]; their entries stay listed as stopped. */
+    /**
+     * Cancels the runs of [descriptor] that are not launched yet and shuts down the sessions of its live runs; their
+     * entries stay listed as stopped.
+     */
     private suspend fun stopRunsOf(descriptor: Path) {
-        shutDown(list.runs.value.filter { it.isLive && it.descriptor == descriptor })
+        val runs = list.runs.value.filter { it.descriptor == descriptor }
+        runs.forEach { entry ->
+            pending.remove(entry.id)?.let { run ->
+                run.cancel()
+                list.update(entry.id) { it.copy(phase = RunPhase.STOPPED) }
+            }
+        }
+        shutDown(runs.filter { it.isLive })
     }
 
     /** Shuts down the sessions of every live run; their entries stay listed as stopped. */
@@ -316,6 +342,9 @@ public class RuntimeState internal constructor(
     public companion object {
         /** How many lines the runtime log keeps. */
         public const val LOG_LINES: Int = 5_000
+
+        /** How long shutting down the sessions may take before they are closed at once, leaving the host time to stop. */
+        internal val SESSIONS_BOUND: Duration = 5.seconds
 
         /** The job of a command with nothing to do. */
         private val DONE: Job = Job().apply { complete() }

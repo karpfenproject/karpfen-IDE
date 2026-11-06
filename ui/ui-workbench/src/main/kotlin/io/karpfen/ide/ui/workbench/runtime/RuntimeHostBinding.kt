@@ -41,9 +41,9 @@ import java.time.Clock
 /**
  * The runtime host of one workspace and what hangs on it: the host created through [hosts] from the settings, its
  * status, its log lines written to [log], and one client per endpoint of the runtime, created when the host reports it
- * running and closed when the endpoint changes or the binding closes. Replacing the settings closes the old host,
- * which stops its container, and creates the new one. Used from the UI thread; collected in [scope]; the blocking
- * close of a host runs on [ioDispatcher].
+ * running and closed when the endpoint changes or the binding closes. Replacing the settings creates the new host and
+ * makes it current at once, then closes the old host, which stops its container, so nothing reaches the old host while
+ * it closes. Used from the UI thread; collected in [scope]; the blocking close of a host runs on [ioDispatcher].
  *
  * @param root the root folder of the workspace.
  * @param settings the settings the first host is created from.
@@ -88,13 +88,15 @@ internal class RuntimeHostBinding(
         return clients(endpoint).also { client = it }
     }
 
-    /** Closes the current host and its client and creates the host of [next]. */
+    /** Creates the host of [next] and makes it current, then closes the host before and its client. */
     suspend fun replace(next: RuntimeSettings) {
-        release()
+        val previous = host.takeIf { open }
+        detach()
         settings = next
         host = hosts.create(root, next.toHostSettings())
         following = follow(host)
         open = true
+        previous?.let { withContext(ioDispatcher) { it.close() } }
     }
 
     /** Closes the host, which stops its runtime within the host's bound, and the client; once only. */
@@ -109,9 +111,7 @@ internal class RuntimeHostBinding(
     fun closeNow() {
         if (!open) return
         open = false
-        following.forEach(Job::cancel)
-        client?.close()
-        client = null
+        detach()
         val closing = host
         CoroutineScope(ioDispatcher).launch { closing.close() }
     }
@@ -120,12 +120,17 @@ internal class RuntimeHostBinding(
     private suspend fun release() {
         if (!open) return
         open = false
-        following.forEach(Job::cancel)
-        client?.close()
-        client = null
+        detach()
         val closing = host
         withContext(ioDispatcher) { closing.close() }
         hostStatus.value = HostStatus.Stopped
+    }
+
+    /** Stops following the current host and closes its client. */
+    private fun detach() {
+        following.forEach(Job::cancel)
+        client?.close()
+        client = null
     }
 
     /** Follows the status of [host], creating the client of a running runtime, and writes its log lines to [log]. */

@@ -42,6 +42,8 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -51,15 +53,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * The runtime state of a workspace over a [FakeRuntimeHost][io.karpfen.ide.ui.workbench.testing.FakeRuntimeHost] that
  * answers what each test programs and real sessions whose clients reach the fake runtime, which answers only what each
  * test programs: which descriptor Run picks, saving before preparing, blocked and failed runs, a launch followed until
- * the environment runs, running again, stopping, replacing the host when the settings change, closing the workspace
- * and the limit of the runs list.
+ * the environment runs, running again, also while the previous run waits for the runtime, stopping, replacing the host
+ * when the settings change, closing the workspace, the bound of the sessions' shutdown and the limit of the runs list.
  */
 class RuntimeStateTest {
 
@@ -261,6 +265,31 @@ class RuntimeStateTest {
     }
 
     @Test
+    fun `running a descriptor again while its previous run waits for the runtime cancels that run`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP)
+        withWorkbench(settingsDirectory, scriptSessions = true) {
+            open(root)
+            val starting = CompletableDeferred<Unit>()
+            runtimeHosts.current.held = starting
+            val first = runtime.run(lamp)
+            settle()
+            assertEquals(RunPhase.WAITING_FOR_RUNTIME, runtime.runs.value.single().phase)
+
+            val second = runtime.run(lamp)
+            settle()
+            starting.complete(Unit)
+            second.joinSettled()
+
+            val (latest, previous) = runtime.runs.value
+            assertTrue(first.isCancelled)
+            assertEquals(RunPhase.STOPPED, previous.phase)
+            assertNull(previous.session)
+            assertEquals(RunPhase.DEPLOYING, latest.phase)
+            assertEquals(1, scriptedSessions.launched.size, "only the latest run deploys")
+        }
+    }
+
+    @Test
     fun `Stop stops the environment of a run`() = runTest(timeout = TIMEOUT) {
         val lamp = copy(SynthesizedModel.LAMP)
         withWorkbench(settingsDirectory) {
@@ -288,6 +317,11 @@ class RuntimeStateTest {
             runtime.selectHost(RuntimeHostKind.URL).joinSettled()
 
             assertEquals(1, docker.closes)
+            assertEquals(
+                listOf("create DOCKER", "create URL", "close DOCKER"),
+                runtimeHosts.lifecycle,
+                "the new host is current before the old one closes",
+            )
             assertEquals(RuntimeHostKind.URL, runtimeHosts.current.settings.kind)
             assertEquals(RuntimeHostKind.URL, state.settings.value.runtime.host)
 
@@ -318,6 +352,33 @@ class RuntimeStateTest {
             assertEquals(1, host.closes)
             assertEquals(other, runtimeHosts.roots.last(), "the new workspace has a host of its own")
             assertTrue(runtime.runs.value.isEmpty())
+        }
+    }
+
+    @Test
+    fun `shutting down closes the sessions still busy after their bound, so the host is closed in time`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP)
+        withWorkbench(settingsDirectory) {
+            open(root)
+            val host = runtimeHosts.current
+            programDeployment(lamp, ENV_1)
+            runtime.run(lamp).joinSettled()
+            val entry = runtime.runs.value.single()
+            fakeRuntime.hang(RuntimeRoute.STOP_ENVIRONMENT)
+
+            val shutdown = scope.launch { runtime.shutdown() }
+            scheduler.advanceTimeBy(RuntimeState.SESSIONS_BOUND - 1.milliseconds)
+            scheduler.runCurrent()
+
+            assertFalse(shutdown.isCompleted, "the session still stops its environment")
+            assertEquals(0, host.closes)
+
+            scheduler.advanceTimeBy(1.milliseconds)
+            scheduler.runCurrent()
+
+            assertTrue(shutdown.isCompleted)
+            assertEquals(SessionState.Closed, entry.session?.state?.value)
+            assertEquals(1, host.closes)
         }
     }
 
