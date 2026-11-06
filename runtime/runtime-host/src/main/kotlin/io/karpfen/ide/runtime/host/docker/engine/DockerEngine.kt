@@ -63,7 +63,10 @@ internal interface DockerEngine : AutoCloseable {
     /** Starts the container [id]. */
     suspend fun startContainer(id: String)
 
-    /** The state of the container [id] and the host port published for its container port. */
+    /**
+     * The state of the container [id] and the host port published for its container port; a container that no longer
+     * exists answers as not running, without exit code and port.
+     */
     suspend fun inspectContainer(id: String): ContainerInspection
 
     /**

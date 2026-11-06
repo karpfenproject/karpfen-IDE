@@ -45,8 +45,9 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Covers [DockerRuntimeHost] against a [FakeDockerEngine] that answers what each test programs, with the health checks
  * answered by the fake runtime, on virtual time: adoption, clean-up, the image build and its clean-up, the container's
- * configuration and port, each failure with its problem code, a call joining a start under way, stopping only the own
- * container and the watcher noticing a container that died.
+ * configuration and port, each failure with its problem code, calls joining a start under way and getting its answer,
+ * also a failure or a stop, a failed start removing its container, a closed host starting nothing, stopping only the own
+ * container and the watcher noticing a container that died while it tolerates a passing failure of the engine.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DockerRuntimeHostTest {
@@ -245,6 +246,77 @@ class DockerRuntimeHostTest {
     }
 
     @Test
+    fun `a start that fails answers every call waiting for it at once`() = runTest {
+        val rig = HostRig(this)
+        rig.engine.imageExists = false
+        rig.engine.failures["buildImage"] = "The command '/bin/sh -c ./gradlew installDist' returned a non-zero code: 1"
+
+        rig.dockerHost().use { host ->
+            val first = async { host.ensureRunning() }
+            val second = async { host.ensureRunning() }
+
+            val failed = assertIs<HostOutcome.Failed>(first.await())
+            assertEquals(HostProblemCode.IMAGE_BUILD_FAILED, failed.problem.code)
+            assertEquals(failed, second.await())
+        }
+        assertEquals(1, rig.engine.callsOf<EngineCall.BuildImage>().size)
+    }
+
+    @Test
+    fun `stop cancels a start under way, answers every call waiting for it and starts nothing again`() = runTest {
+        val rig = HostRig(this)
+        repeat(300) { rig.fake.fail(RuntimeRoute.HEALTH, TransportFailure.Unreachable("connection refused")) }
+
+        rig.dockerHost().use { host ->
+            val first = async { host.ensureRunning() }
+            val second = async { host.ensureRunning() }
+            advanceTimeBy(1.seconds)
+            assertEquals(HostStatus.Preparing(HostStage.WAITING_FOR_HEALTH), host.status.value)
+
+            host.stop()
+
+            val stopped = assertIs<HostOutcome.Failed>(first.await())
+            assertEquals(HostProblemCode.CONTAINER_FAILED, stopped.problem.code)
+            assertEquals(stopped, second.await())
+            assertEquals(HostStatus.Stopped, host.status.value)
+        }
+        assertEquals(1, rig.engine.callsOf<EngineCall.Ping>().size)
+        assertEquals(1, rig.engine.callsOf<EngineCall.CreateContainer>().size)
+        assertEquals(listOf(EngineCall.RemoveContainer(FakeDockerEngine.CREATED_ID)), rig.engine.callsOf<EngineCall.RemoveContainer>())
+    }
+
+    @Test
+    fun `a start that fails after creating the container removes it, and the next start creates a new one`() = runTest {
+        val rig = HostRig(this)
+        repeat(250) { rig.fake.fail(RuntimeRoute.HEALTH, TransportFailure.Unreachable("connection refused")) }
+
+        rig.dockerHost().use { host ->
+            assertEquals(HostProblemCode.UNHEALTHY, assertIs<HostOutcome.Failed>(host.ensureRunning()).problem.code)
+            val created = FakeDockerEngine.CREATED_ID
+            assertEquals(
+                listOf(EngineCall.StopContainer(created, 10.seconds), EngineCall.RemoveContainer(created)),
+                rig.engine.calls.filter { it is EngineCall.StopContainer || it is EngineCall.RemoveContainer },
+            )
+
+            rig.supportIde()
+            assertEquals(HostOutcome.Ready(endpoint), host.ensureRunning())
+        }
+        assertEquals(2, rig.engine.callsOf<EngineCall.CreateContainer>().size)
+    }
+
+    @Test
+    fun `after close the host starts nothing`() = runTest {
+        val rig = HostRig(this)
+        val host = rig.dockerHost()
+        host.close()
+
+        val outcome = assertIs<HostOutcome.Failed>(host.ensureRunning())
+
+        assertEquals(HostProblemCode.CONTAINER_FAILED, outcome.problem.code)
+        assertEquals(emptyList(), rig.engine.calls)
+    }
+
+    @Test
     fun `stop removes only the host's own container and is idempotent`() = runTest {
         val rig = HostRig(this).apply { supportIde() }
         rig.engine.createdId = "c-own"
@@ -281,6 +353,34 @@ class DockerRuntimeHostTest {
             assertEquals(HostOutcome.Ready(endpoint), host.ensureRunning())
         }
         assertEquals(2, rig.engine.callsOf<EngineCall.CreateContainer>().size)
+    }
+
+    @Test
+    fun `the watcher tries a failed inspection again and gives the container up after three in a row`() = runTest {
+        val rig = HostRig(this).apply { supportIde() }
+
+        rig.dockerHost().use { host ->
+            host.ensureRunning()
+            val running = host.status.value
+            rig.engine.failures["inspectContainer"] = "Read timed out"
+            advanceTimeBy(5.seconds)
+            runCurrent()
+            rig.engine.failures.clear()
+            advanceTimeBy(5.seconds)
+            runCurrent()
+            rig.engine.failures["inspectContainer"] = "Read timed out"
+            advanceTimeBy(10.seconds)
+            runCurrent()
+
+            assertEquals(running, host.status.value)
+
+            advanceTimeBy(5.seconds)
+            runCurrent()
+
+            val failed = assertIs<HostStatus.Failed>(host.status.value)
+            assertEquals(HostProblemCode.CONTAINER_DIED, failed.problem.code)
+            assertTrue("Read timed out" in failed.problem.message, failed.problem.message)
+        }
     }
 
     @Test

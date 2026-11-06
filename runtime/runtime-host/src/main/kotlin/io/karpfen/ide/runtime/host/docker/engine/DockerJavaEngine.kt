@@ -143,7 +143,11 @@ internal class DockerJavaEngine(endpoint: String) : DockerEngine {
 
     override suspend fun inspectContainer(id: String): ContainerInspection =
         call("inspect the container $id") {
-            val response = client.inspectContainerCmd(id).exec()
+            val response = try {
+                client.inspectContainerCmd(id).exec()
+            } catch (missing: NotFoundException) {
+                return@call GONE
+            }
             val bindings = response.networkSettings?.ports?.bindings.orEmpty()
             val hostPort = bindings.entries
                 .firstOrNull { (port, _) -> port.port == CONTAINER_PORT }
@@ -272,6 +276,9 @@ internal class DockerJavaEngine(endpoint: String) : DockerEngine {
 
         /** The container port whose host port [inspectContainer] reads. */
         const val CONTAINER_PORT = 8080
+
+        /** The inspection of a container that no longer exists. */
+        val GONE = ContainerInspection(running = false, exitCode = null, hostPort = null)
 
         /** How long connecting to the engine may take. */
         val CONNECTION_TIMEOUT: JavaDuration = JavaDuration.ofSeconds(5)

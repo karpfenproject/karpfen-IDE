@@ -30,11 +30,13 @@ import io.karpfen.ide.runtime.protocol.api.RuntimeResult
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
@@ -48,7 +50,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
 import java.nio.file.Path
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * The runtime of one workspace in a Docker container the IDE owns, built from the runtime sources bundled with the IDE.
@@ -56,10 +57,12 @@ import java.util.concurrent.atomic.AtomicReference
  * [ensureRunning] answers at once while the container runs; otherwise it checks the engine, adopts a running container
  * of this workspace built from the current sources or removes the workspace's other containers, builds the image if it
  * is missing, creates the container with its configuration, starts it and waits until the runtime answers and supports
- * the IDE. Calls are serialized, so a call during a start waits for it and then finds the runtime running. While the
- * container runs, a watcher notices when it stops; the next [ensureRunning] starts a new one. [stop] cancels a start
- * under way and removes the container. The host only lists, stops and removes images and containers labelled as the
- * IDE's runtime, and containers only of its own workspace.
+ * the IDE. There is at most one start at a time: a call during a start joins it and gets its answer, a failure as well,
+ * and only a later call starts again. A start that fails after creating or adopting the container removes it, so the
+ * next start begins afresh. While the container runs, a watcher notices when it stops; the next [ensureRunning] starts a
+ * new one. [stop] cancels a start under way, which answers every call waiting for it that the runtime was stopped, and
+ * removes the container; after [close] the host starts nothing. The host only lists, stops and removes images and
+ * containers labelled as the IDE's runtime, and containers only of its own workspace.
  *
  * @param workspaceRoot the root folder of the workspace, which names and labels the container.
  * @param options what the host works with.
@@ -87,39 +90,41 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
     /** Where the watcher and the log follower run. */
     private val scope = CoroutineScope(SupervisorJob() + options.dispatcher)
 
-    /** Serializes starts and stops. */
+    /** Guards [starting] and keeps a stop from overlapping a start. */
     private val mutex = Mutex()
 
-    /** The start under way, which [stop] cancels. */
-    private val attempt = AtomicReference<Job?>(null)
+    /** The start under way, which every call joins while it runs and [stop] cancels, or the last one; under [mutex]. */
+    private var starting: Deferred<HostOutcome>? = null
+
+    /** True once [close] began. */
+    @Volatile
+    private var closed = false
 
     /** The engine the host is connected to, or null before the first check. */
     @Volatile
     private var connection: EngineConnection? = null
 
-    /** The container the host created or adopted, or null; read and written under [mutex]. */
+    /** The container the host created or adopted, or null; written by a start, or by [stop] once no start runs. */
+    @Volatile
     private var container: OwnContainer? = null
 
-    override suspend fun ensureRunning(): HostOutcome =
-        mutex.withLock {
-            runningOutcome()?.let { return@withLock it }
-            coroutineScope {
-                val start = async { start() }
-                attempt.set(start)
-                try {
-                    start.await()
-                } catch (cancelled: CancellationException) {
-                    ensureActive()
-                    HostOutcome.Failed(STOPPED_WHILE_STARTING)
-                } finally {
-                    attempt.set(null)
-                }
-            }
+    override suspend fun ensureRunning(): HostOutcome {
+        val start = mutex.withLock {
+            if (closed) return HostOutcome.Failed(STOPPED_WHILE_STARTING)
+            runningOutcome()?.let { return it }
+            starting?.takeIf { it.isActive } ?: scope.async { start() }.also { starting = it }
         }
+        return try {
+            start.await()
+        } catch (cancelled: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            HostOutcome.Failed(STOPPED_WHILE_STARTING)
+        }
+    }
 
     override suspend fun stop() {
-        attempt.get()?.cancel()
         mutex.withLock {
+            starting?.cancelAndJoin()
             val current = container
             if (current == null) {
                 state.value = HostStatus.Stopped
@@ -127,42 +132,54 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
             }
             state.value = HostStatus.Stopping
             log.host("Stopping the runtime container ${workspace.name}.")
-            try {
-                current.engine.stopContainer(current.id, timings.stopTimeout)
-            } catch (failure: DockerEngineException) {
-                log.host(failure.message.orEmpty())
-            }
-            try {
-                current.engine.removeContainer(current.id)
-                log.host("Removed the runtime container ${workspace.name}.")
-            } catch (failure: DockerEngineException) {
-                log.host(failure.message.orEmpty())
-            }
-            current.release()
-            container = null
+            discard(current)
             state.value = HostStatus.Stopped
         }
     }
 
     override fun close() {
+        closed = true
         runBlocking { withTimeoutOrNull(timings.closeBound) { stop() } }
         scope.cancel()
         connection?.engine?.close()
     }
 
-    /** [HostOutcome.Ready] if the status is running and the container still runs, else null. */
+    /**
+     * [HostOutcome.Ready] if the status is running and the container still runs, else null. An inspection that fails
+     * leaves the verdict to the watcher, which tolerates a passing failure of the engine.
+     */
     private suspend fun runningOutcome(): HostOutcome? {
         val running = state.value as? HostStatus.Running ?: return null
         val current = container ?: return null
         val stillRuns = try {
             current.engine.inspectContainer(current.id).running
         } catch (failure: DockerEngineException) {
-            false
+            true
         }
         return if (stillRuns) HostOutcome.Ready(running.endpoint) else null
     }
 
-    /** Starts the runtime step by step and answers where it is reached, or why there is none. */
+    /** Stops and removes the container [own] and ends its coroutines; a failure of the engine is only logged. */
+    private suspend fun discard(own: OwnContainer) {
+        try {
+            own.engine.stopContainer(own.id, timings.stopTimeout)
+        } catch (failure: DockerEngineException) {
+            log.host(failure.message.orEmpty())
+        }
+        try {
+            own.engine.removeContainer(own.id)
+            log.host("Removed the runtime container ${workspace.name}.")
+        } catch (failure: DockerEngineException) {
+            log.host(failure.message.orEmpty())
+        }
+        own.release()
+        container = null
+    }
+
+    /**
+     * Starts the runtime step by step and answers where it is reached, or why there is none; a step that fails after
+     * the container was created or adopted removes it.
+     */
     private suspend fun start(): HostOutcome {
         container?.release()
         container = null
@@ -183,6 +200,7 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
             throw cancelled
         } catch (failure: StartFailure) {
             log.host(failure.problem.message)
+            container?.let { discard(it) }
             state.value = HostStatus.Failed(failure.problem)
             HostOutcome.Failed(failure.problem)
         }
@@ -345,7 +363,7 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
                 HostProblemCode.UNHEALTHY,
                 "The runtime did not answer its health check within ${timings.healthTimeout.inWholeSeconds} s. Its last log lines:\n" +
                     log.last(UNHEALTHY_LOG_LINES).joinToString("\n"),
-                "Look at the runtime log; stop the runtime and run again.",
+                "Look at the runtime log, then run again.",
             )
             is RuntimeResult.Failed -> throw StartFailure(
                 HostProblemCode.NO_IDE_SUPPORT,
@@ -399,21 +417,31 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
             }
         }
 
-        /** Checks the container every watch interval and fails [running] with its exit code once it no longer runs. */
+        /**
+         * Checks the container every watch interval and fails [running] once an inspection shows that it stopped or is
+         * gone, or once [WATCH_ATTEMPTS] inspections in a row failed; a single failed inspection is tried again.
+         */
         fun watch(running: HostStatus.Running) {
             jobs += scope.launch {
+                var failedInspections = 0
                 while (true) {
                     delay(timings.watchInterval)
-                    val inspection = try {
-                        engine.inspectContainer(id)
+                    val ending = try {
+                        val inspection = engine.inspectContainer(id)
+                        failedInspections = 0
+                        when {
+                            inspection.running -> null
+                            inspection.exitCode != null -> "stopped with exit code ${inspection.exitCode}"
+                            else -> "stopped and is gone"
+                        }
                     } catch (failure: DockerEngineException) {
-                        null
+                        failedInspections++
+                        if (failedInspections < WATCH_ATTEMPTS) null else "cannot be inspected any more: ${failure.message}"
                     }
-                    if (inspection?.running == true) continue
-                    val ending = inspection?.exitCode?.let { "with exit code $it" } ?: "and is gone"
+                    if (ending == null) continue
                     val problem = HostProblem(
                         HostProblemCode.CONTAINER_DIED,
-                        "The runtime container ${workspace.name} stopped $ending.",
+                        "The runtime container ${workspace.name} $ending.",
                         "Run again to start a new runtime container; the runtime log tells why it stopped.",
                     )
                     if (state.compareAndSet(running, HostStatus.Failed(problem))) log.host(problem.message)
@@ -451,10 +479,13 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
         /** The number of log lines the problem of an unhealthy runtime quotes. */
         const val UNHEALTHY_LOG_LINES = 20
 
+        /** How many inspections of a running container in a row may fail before the watcher gives it up. */
+        const val WATCH_ATTEMPTS = 3
+
         /** What the user can do when no engine answers. */
         const val ENGINE_HINT = "Start Docker Desktop or the local Docker engine, then try again."
 
-        /** The answer to a start that [stop] cancelled. */
+        /** The answer to the calls waiting for a start that [stop] cancelled, and to every call after [close]. */
         val STOPPED_WHILE_STARTING = HostProblem(
             HostProblemCode.CONTAINER_FAILED,
             "The runtime was stopped before it was ready.",
