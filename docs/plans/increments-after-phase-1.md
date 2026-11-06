@@ -1,8 +1,9 @@
 # Increments after phase 1
 
 Phase 1 delivered the text editor: language support for KMeta, KModel and KStates, a workspace with project analysis,
-and the Compose workbench. The work continues in the increments below, in this order. Each one ends with a green build,
-an adversarial review and fixes before the next one starts.
+and the Compose workbench. The work continues in the increments below, in this order, except that the fifth came
+before the fourth by the owner's choice. Each one ends with a green build, an adversarial review and fixes before the
+next one starts.
 
 1. **Conventions and phase-1 follow-ups.** The code base and the documentation follow the owner's documentation style:
    documentation lives in KDoc next to the code, there are no inline comments, and the markdown documents are a map
@@ -33,9 +34,15 @@ an adversarial review and fixes before the next one starts.
    wrote mean; expiring access keys and the events of stopped environments; authentication; reading uploads with
    dsl-tools 2.0, so that errors carry positions; and the entry block of a state that a join leaves in the next tick,
    which the engine skips today. Running the runtime's own tests needs the owner's permission.
-5. **Runtime hosting and runtime UI.** Attaching to a running runtime, starting it as a local process or as an
-   IDE-owned container, a Run action, a runtime tool window with logs, and an event injector. Real runtime starts and
-   Docker need the owner's permission; everything is built and tested against fakes first.
+5. **Runtime hosting and runtime UI.** Done before the fourth increment. The IDE hosts the runtime in an IDE-owned
+   Docker container, one per workspace, whose image it builds on first use from the karpfen-runtime sources bundled
+   with it, or attaches to a runtime started elsewhere by its URL; it never runs the runtime as a local process. A Run
+   action saves every open file and deploys an environment descriptor of the workspace through a runtime session, and
+   the Runtime tool window shows the runtime's status and log and the runs, each with its deploy steps, its problems,
+   the active states, the observed model as a tree, the domain events and an event injector that edits a JSON payload
+   prefilled from the event's payload type. When the IDE exits, it shuts down every session and stops its container.
+   The hosts are tested against a fake Docker engine and, on demand, against the local Docker engine. This increment
+   is complete.
 6. **Blended statechart view.** A read-only statechart diagram with automatic layout, then a live overlay of the active
    states, then graphical editing that patches the text, then class and object diagrams.
 7. **Bridges.** Declarative message mapping, MQTT, ROS through the rosbridge protocol, and the headless bridge runner.
@@ -49,5 +56,6 @@ Owner decisions that shape these increments: environment descriptors are edited 
 Ctrl+M everywhere and Ctrl+Space on Windows; dsl-tools output never lands on the primary console but is available on
 demand with errors forwarded; time-budget tests are written but never run; documentation follows the style above; a
 deployment uploads the saved files, the descriptor holds the deploy configuration, observation is a live switch and a
-stopped environment is final; and tests against a real runtime run on demand in throwaway containers, against a fake
-that never simulates the runtime otherwise.
+stopped environment is final; tests against a real runtime run on demand in throwaway containers, against a fake
+that never simulates the runtime otherwise; and the runtime runs in an IDE-owned Docker container built from the
+bundled runtime sources or at a URL, never as a local process.

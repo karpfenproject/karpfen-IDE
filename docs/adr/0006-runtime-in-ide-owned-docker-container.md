@@ -1,7 +1,9 @@
 # 6. The runtime runs in an IDE-owned Docker container by default; wire protocol only
 
 - Status: Accepted (owner asked, accepted); what the consequences say about the client's libraries is superseded by
-  [the runtime client with IDE support](0016-the-runtime-client-talks-to-the-runtime-with-ide-support.md)
+  [the runtime client with IDE support](0016-the-runtime-client-talks-to-the-runtime-with-ide-support.md); the host
+  process and the pulled image are superseded by
+  [the runtime in an IDE-owned container or at a URL](0019-the-runtime-runs-in-an-ide-owned-container-or-at-a-url.md)
 - Date: 2026-10-20
 - Source: the architecture proposal's [runtime decision](../architecture-proposal.md#the-runtime-runs-in-an-ide-owned-docker-container-by-default-wire-protocol-only), its
   [runtime integration](../architecture-proposal.md#runtime-integration-runtime-modules) and the accepted recommendation that the runtime repository publishes the
@@ -17,9 +19,12 @@ themselves. IDE and runtime should remain independently versioned.
 The IDE talks to the runtime exactly like any other client, over HTTP/WebSocket. By default the IDE owns one
 runtime container per project workspace and manages its whole lifecycle (image pull, config injection without
 bind mounts, start, health, logs, stop, cleanup and reconciliation via labels). Alternatives behind the same
-`RuntimeHost` interface: attach to an external runtime URL, or run the distribution as a host process. In-process
-embedding of the execution engine is a later, optional module. The runtime image is published multi-arch from
-the runtime repository's CI; the IDE only pulls and pins it.
+`RuntimeHost` interface: attach to an external runtime URL, or run the distribution as a host process; the host
+process is dropped, see [the runtime in an IDE-owned container or at a
+URL](0019-the-runtime-runs-in-an-ide-owned-container-or-at-a-url.md). In-process embedding of the execution engine is
+a later, optional module. The runtime image is published multi-arch from the runtime repository's CI; the IDE only
+pulls and pins it. Until such an image exists, the IDE builds it from the runtime sources bundled with it, as the same
+decision records.
 
 ## Consequences
 

@@ -16,6 +16,7 @@ Decision log:
 | 2026-10-20 | The IDE owns a Docker-managed runtime container by default (see [the runtime decision](#the-runtime-runs-in-an-ide-owned-docker-container-by-default-wire-protocol-only) and [runtime integration](#runtime-integration-runtime-modules)) | owner (asked), accepted |
 | 2026-10-20 | All remaining recommendations in this document accepted (see the [decisions record](#decisions-record)) | owner |
 | 2026-10-26 | Every repository the IDE needs is a git submodule of the IDE repository, and work stays inside the workspace; karpfen-dsl-tools is the first (replaces the sibling checkout path below; see the [decision record on git submodules](adr/0015-required-repositories-are-git-submodules.md)) | owner |
+| 2026-11-06 | The runtime has exactly two hosts, the IDE-owned Docker container and a runtime attached by URL; the IDE never runs it as a local process, now or later. Until a published runtime image exists, the IDE builds the image from the runtime sources bundled with it (see [runtime integration](#runtime-integration-runtime-modules) and the [decision record on hosting the runtime](adr/0019-the-runtime-runs-in-an-ide-owned-container-or-at-a-url.md)) | owner |
 
 ---
 
@@ -99,7 +100,7 @@ Decided by the owner. The trade-off table is kept under [technology choices](#te
 
 ### The runtime runs in an IDE-owned Docker container by default; wire protocol only
 
-The IDE talks to the runtime exactly like any other client over HTTP/WebSocket, so IDE and runtime stay independently versioned. The container's whole lifecycle (image pull, config injection, start, health, logs, stop, cleanup) is owned by the IDE, so users never touch Docker themselves (see [runtime integration](#runtime-integration-runtime-modules)). Alternatives behind the same interface: attach to an external runtime URL, or run the distribution as a host process where Docker is unavailable. In-process embedding of `execution-engine` (tick stepping, breakpoints) is a later, optional module. Recorded in [the decision record on the IDE-owned runtime container](adr/0006-runtime-in-ide-owned-docker-container.md).
+The IDE talks to the runtime exactly like any other client over HTTP/WebSocket, so IDE and runtime stay independently versioned. The container's whole lifecycle (image build, config injection, start, health, logs, stop, cleanup) is owned by the IDE, so users never touch Docker themselves (see [runtime integration](#runtime-integration-runtime-modules)). The one alternative behind the same interface is attaching to a runtime started elsewhere by its URL; the IDE never runs the runtime as a local process. In-process embedding of `execution-engine` (tick stepping, breakpoints) is a later, optional module. Recorded in [the decision record on the IDE-owned runtime container](adr/0006-runtime-in-ide-owned-docker-container.md) and, for the two hosts and the image built from the bundled runtime sources, the [decision record on hosting the runtime](adr/0019-the-runtime-runs-in-an-ide-owned-container-or-at-a-url.md).
 
 ### Bridges are headless-first
 
@@ -134,8 +135,8 @@ karpfen-ide/
 ├── runtime/
 │   ├── runtime-protocol               # typed client for every endpoint + WS session (Ktor client 3, kotlinx.serialization), env lifecycle FSM
 │   ├── runtime-session                # deploy pipeline from environment descriptor, live model mirror, event injector, trace/log stream
-│   ├── runtime-host                   # RuntimeHost interface + DockerRuntimeHost (default), AttachRuntimeHost, ProcessRuntimeHost;
-│   │                                  # image management, config injection, health, log streaming, reconciliation
+│   ├── runtime-host                   # RuntimeHost interface + DockerRuntimeHost (default) and UrlRuntimeHost; image built from the
+│   │                                  # bundled runtime sources, config injection, health, log streaming, reconciliation
 │   └── runtime-embedded (later)       # in-process engine via composite build; tick stepping, breakpoints on transitions
 │
 ├── notation/
@@ -258,16 +259,16 @@ Thin adapters over dsl-tools' scope and analysis API: symbols and references, re
 The IDE owns one runtime container per project workspace (one runtime already hosts many environments). Users see a status widget ("Runtime: running, image 0.x, port 51234") and never a `docker` command.
 
 - **Engine access**: Docker Engine API over the local socket (Unix domain socket on macOS/Linux, named pipe on Windows), honouring `DOCKER_HOST` and the active docker context. Library: `docker-java` 3.5.x with the `httpclient5` transport (Apache-2.0, maintained, used by Testcontainers). A custom minimal client is feasible later (JDK 16+ has Unix-domain sockets; the API is plain HTTP/JSON) if you want to drop the dependency. Podman, Colima and Rancher Desktop expose the same API and work unchanged, which also sidesteps Docker Desktop licensing for larger organisations.
-- **Image**: publish `ghcr.io/karpfenproject/karpfen-runtime:<semver>` as a multi-arch image (amd64 + arm64, needed for Apple Silicon) from the runtime repo's CI. The IDE pins a compatible tag range per IDE release, pulls on first use with progress, and verifies the version via an image label (`org.opencontainers.image.version`) until `GET /version` exists. Developer option: build the image from a local runtime checkout through the API.
+- **Image**: until the runtime repository publishes an image, the IDE builds it on first use through the API from the karpfen-runtime sources bundled with it (the files git tracks in the submodule, packed by the build into a deterministic archive), tags it `karpfen-ide/runtime:<content hash>`, shows the build's progress and reuses the image on later starts. Once `ghcr.io/karpfenproject/karpfen-runtime:<semver>` is published as a multi-arch image (amd64 + arm64, needed for Apple Silicon) from the runtime repo's CI, pulling it is a new decision.
 - **Configuration without bind mounts**: the IDE generates `application.conf` (host `0.0.0.0`, chosen port, tick/TTL defaults, tracing to stdout) and injects it with `PUT /containers/{id}/archive` (tar upload) before start. No host directory is mounted, so Docker Desktop never prompts for file sharing. Env-var overrides upstream would make even this step unnecessary.
 - **Networking**: publish the container port on `127.0.0.1:0` and read the ephemeral host port from inspect; no port conflicts, not reachable from the LAN. Bridges run in the IDE process (or the headless runner) and connect to that port, so they can still reach ROS/MQTT on the host network.
-- **Ownership and reconciliation**: containers carry labels (`io.karpfen.ide.instance`, `io.karpfen.ide.project`, `io.karpfen.runtime.version`). On startup the IDE lists containers with its labels and adopts a healthy one or removes stale ones (crash recovery). Containers start with `AutoRemove`. Shutdown hook: stop all environments via the API, then stop the container with a short grace period.
-- **Health and failure**: `/health` polling plus the Docker `/events` stream; if the container dies, the IDE reports it and offers a one-click re-deploy from the environment descriptor (the runtime is in-memory, so nothing else can be recovered anyway).
+- **Ownership and reconciliation**: images and containers carry the label `io.karpfen.ide.runtime=true`, containers also their workspace and the hash of the sources they were built from. Before it starts a container, the IDE lists the workspace's containers and adopts a running one of the current sources or removes the others (crash recovery); it never touches anything without its label. Containers start without `AutoRemove`, so their log stays readable until the IDE removes them after they stopped. On exit: stop all environments via the API, then stop and remove the container, within 15 seconds.
+- **Health and failure**: `/health` polling and the check for IDE support while the container starts, then a watcher that inspects the container every few seconds; if the container dies, the IDE reports it with its exit code, and the next Run starts a new container and deploys the environment descriptor again (the runtime is in-memory, so nothing else can be recovered anyway).
 - **Logs and traces**: container stdout/stderr streamed with `logs?follow=1` into the Runtime tool window; trace files, if enabled, fetched from `/app/logs` with `GET /containers/{id}/archive`, again without a mount.
 - **Python packages**: when the descriptor lists extra `pythonPackages`, the IDE builds a derived image (`FROM <base>` + `pip install …`) via the API, tagged by a hash of the package list and cached.
 - **Resources**: CPU/memory limits from settings; a warning when `tickDelayMs = 0` (busy loop).
 
-**Other hosts behind the same `RuntimeHost` interface**: `AttachRuntimeHost` (URL only, for a runtime started elsewhere) and `ProcessRuntimeHost` (runs the `installDist` distribution with the host JDK and host Python; preflights Python 3.12+ and packages; for machines without a container engine). Same lifecycle, health and log API for the UI.
+**The other host behind the same `RuntimeHost` interface**: `UrlRuntimeHost` attaches to a runtime started elsewhere by its URL, checks its health and IDE support, and never stops it. Same lifecycle, health and log API for the UI. There is no host that runs the runtime as a local process.
 
 **Later**: `runtime-embedded` depends on `execution-engine` through a composite build and adds tick stepping and transition breakpoints (needs a small step-mode hook in `Engine`).
 
@@ -329,7 +330,7 @@ refine the order of this roadmap.
 |---|---|---|
 | **Phase 0: skeleton** (1–2 wks) | Repo layout, `build-logic`, version catalog, composite build of dsl-tools, CI, module stubs, ADR folder, Konsist rules | `./gradlew build` green with architecture tests, dsl-tools resolved from the sibling checkout |
 | **Phase 1: text** (4–6 wks, split across both repos) | dsl-tools: `SourceMap`, `ParseResult`/diagnostics, tolerant converters, tokenizer, SLF4J, build cleanup. IDE: `core-text`, `core-document`, `core-workspace`, Compose shell with project tree, custom editor (highlighting from the tokenizer, diagnostics, outline, completion for keywords/types) | All repo examples parse with ranges; broken files still highlight and outline; editor usable daily |
-| **Phase 2: runtime** (3–4 wks) | `runtime-protocol`, environment descriptor, `DockerRuntimeHost` (pull, inject config, start, health, logs, reconcile), deploy/run/stop, event injector, log/trace view, model mirror; published runtime image | "Run" on the cleaning-robot example works end-to-end from a fresh machine with only Docker installed |
+| **Phase 2: runtime** (3–4 wks) | `runtime-protocol`, environment descriptor, `DockerRuntimeHost` (build the image, inject config, start, health, logs, reconcile), deploy/run/stop, event injector, log/trace view, model mirror; published runtime image | "Run" on the cleaning-robot example works end-to-end from a fresh machine with only Docker installed |
 | **Phase 3: blended** (6–10 wks) | dsl-tools printers and scope API; `notation-diagram`, layout sidecar, ELK adapter, statechart view **read-only with live overlay first**, then editing commands + text patcher, then KMeta/KModel views | Graphical edits round-trip byte-stable except the edited span; live overlay shows active stack and values |
 | **Phase 4: bridges** (4–6 wks) | `bridge-api`, mapping engine, MQTT, rosbridge, headless runner, bridge tool window | A ROS topic drives an event and an `objectChanged` publishes to MQTT without IDE involvement |
 | **Phase 5: depth** | dsl-tools validators (the validation backlog of the [workspace model](#workspace-model-core-workspace)), LSP façade, packaging/signing, `runtime-embedded` stepping, upstream runtime endpoints, scripting hook for mappings | — |
@@ -345,7 +346,7 @@ Ordering rationale: a read-only live statechart (the start of phase 3) validates
 - **Custom editor effort in Compose.** Keep the editor interface narrow; a `BasicTextField`-based implementation is the fallback; measure per-keystroke latency from day one.
 - **Patch fidelity** (comments, Python bodies, user formatting). Golden-file tests per command; byte-identity assertions outside the edited span.
 - **Identity instability** (rename = new identity → layout loss). Rename as a refactoring that migrates layout; structural fallback matching in the diff.
-- **Docker not present or not permitted.** Detect early with a clear message; `ProcessRuntimeHost` and `AttachRuntimeHost` as fallbacks; Podman/Colima work via the same API.
+- **Docker not present or not permitted.** Detect early with a clear message; attaching to a runtime by URL as the fallback; Podman/Colima work via the same API.
 - **Image/runtime version drift.** Pin image tag ranges per IDE release; label check now, `GET /version` later.
 - **Runtime API gaps** (see [the gaps](#gaps-the-ide-will-run-into-small-changes-in-your-own-repos)). Reconstruct state client-side now; land the small endpoints in parallel.
 
@@ -360,7 +361,11 @@ Accepted on 2026-10-20 (the recommended option in each case):
 3. dsl-tools exposes source ranges as a non-invasive `SourceMap` side table; the model classes stay unchanged.
 4. The composite build points at `../karpfen-dsl-tools` by default, overridable with `-PdslToolsPath=` (on the owner's machine `../karpfen-runtime/karpfen-dsl-tools` is the initialized submodule). Superseded on 2026-10-26: karpfen-dsl-tools is a git submodule of the IDE repository, and that checkout is the default.
 5. Bridge mapping is declarative only in phase 4; a scripting hook (Kotlin script or Python) comes later.
-6. The runtime image is published from the runtime repo's CI as a multi-arch image; the IDE only pulls and pins it.
+6. The runtime image is published from the runtime repo's CI as a multi-arch image; the IDE only pulls and pins it. Superseded on 2026-11-06 until such an image exists: the IDE builds the image from the runtime sources bundled with it.
+
+Decided by the owner on 2026-11-06: the runtime has exactly two hosts, the IDE-owned Docker container and a runtime
+attached by URL, and the IDE never runs it as a local process, now or later (the
+[decision record on hosting the runtime](adr/0019-the-runtime-runs-in-an-ide-owned-container-or-at-a-url.md)).
 
 Still open (decide before the packaging work of phase 5):
 

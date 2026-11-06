@@ -8,7 +8,7 @@ and ROS, and live visualization of state machines and models. It is written in K
 Multiplatform for Desktop and builds on [karpfen-dsl-tools](https://github.com/karpfenproject/karpfen-dsl-tools) as its
 language core.
 
-**Status: the text editor (phase 1) and the first three increments after it are complete.** The IDE opens a folder of
+**Status: the text editor (phase 1), the first three increments after it and the fifth are complete.** The IDE opens a folder of
 karpfen files and edits them with syntax and semantic highlighting (including the Python of `EVAL` bodies), live syntax
 diagnostics, the diagnostics of a karpfen-dsl-tools analysis of each modeling context, completion, go to definition,
 hover, outline, problems, find and replace, and a project tree with file templates; environment descriptors are edited
@@ -20,9 +20,12 @@ Language Tools Output and with `karpfen validate --verbose`. The third increment
 runtime's IDE support: the karpfen runtime gained a model snapshot, revisions, a subscription to the whole model and
 domain events on its branch with IDE support, and the IDE deploys an environment descriptor to it, observes the model
 behind a live switch and injects events. The client is tested against a fake runtime that answers only what each test
-programs and, on demand, against a real runtime in throwaway Docker containers. It has no user interface yet; the work
-continues with the next of the [increments after phase 1](docs/plans/increments-after-phase-1.md). Diagrams, hosting the
-runtime from the IDE and the bridges are stubs so far.
+programs and, on demand, against a real runtime in throwaway Docker containers. The fifth increment, done before the
+fourth, made the runtime usable from the IDE: Run deploys an environment descriptor to the runtime in an IDE-owned
+Docker container, whose image the IDE builds on first use from the runtime sources bundled with it, or to a runtime at
+a URL, and the Runtime tool window shows the runs with their deploy steps, active states, model, domain events and
+log, and injects events. The work continues with the next of the
+[increments after phase 1](docs/plans/increments-after-phase-1.md). Diagrams and the bridges are stubs so far.
 
 ## Documentation
 
@@ -45,11 +48,14 @@ runtime from the IDE and the bridges are stubs so far.
   an older JDK.
 - Network access to the Gradle Plugin Portal, Maven Central and Google Maven, and, for downloading a JDK, to the
   foojay discovery API (`api.foojay.io`) and the JDK vendor's download host.
-- The git submodules: clone with `git clone --recurse-submodules`, or run `git submodule update --init` in an existing
-  clone. karpfen-dsl-tools is a submodule; see [karpfen-dsl-tools resolution](#karpfen-dsl-tools-resolution) below.
-  karpfen-runtime is a submodule too: the tests of the runtime client compare it with the runtime's sources, and the
-  live tests build the runtime from it. The IDE needs the runtime's branch with IDE support, feature/ide-support, to
-  which the submodule points.
+- The git submodules: clone with `git clone --recurse-submodules`, or run `git submodule update --init --recursive` in
+  an existing clone. karpfen-dsl-tools is a submodule; see [karpfen-dsl-tools resolution](#karpfen-dsl-tools-resolution)
+  below. karpfen-runtime is a submodule too, with karpfen-dsl-tools as its own submodule: the build bundles its sources
+  with the IDE, which builds its runtime image from them, the tests of the runtime client compare it with the runtime's
+  sources, and the live tests build the runtime from it. The IDE needs the runtime's branch with IDE support,
+  feature/ide-support, to which the submodule points.
+- To run models from the IDE: a local Docker engine, such as Docker Desktop, or a karpfen runtime with IDE support
+  started elsewhere and reached by its URL; see [running models](#running-models) below.
 
 ### Gradle tasks
 
@@ -80,7 +86,10 @@ and how to test on virtual time.
 
 Tests against a real karpfen runtime carry the JUnit tag `live-runtime` and run only in the `liveRuntimeTest` task of
 the two runtime modules, which no build runs by itself; [checking the client against a real
-runtime](#checking-the-client-against-a-real-runtime) below says how to run them.
+runtime](#checking-the-client-against-a-real-runtime) below says how to run them. Tests against the local Docker engine
+carry the tag `live-docker` and run only in the `liveDockerTest` task of runtime-host, which no build runs by itself
+either: `./gradlew :runtime:runtime-host:liveDockerTest` builds the IDE's runtime image unless it exists, starts and
+adopts a container for a workspace in a temporary folder and removes every container it made; the image stays.
 
 Before a release, run the [manual smoke test](docs/manual-test.md) at a real machine with a German keyboard layout. It
 covers what headless tests cannot: the native menu bar, typing on a real keyboard layout, focus and mouse handling,
@@ -120,6 +129,41 @@ KARPFEN_IDE_HOME=/tmp/karpfen-home KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app
 grep ERROR /tmp/karpfen-home/logs/ide.log
 ```
 
+### Running models
+
+Run ▸ Run (Shift+F10) deploys an environment descriptor of the opened folder: the one in the active editor, the only
+one of the folder, or the one chosen from a list; without any, New Environment File in the project tree's context menu
+creates one. Run first saves every open file, because a deployment uploads the saved files, then prepares the
+deployment, waits for the runtime and deploys, starts and observes the environment. The Runtime tool window (View ▸
+Runtime) opens with the run: the runs with their phase, and for the selected run its deploy steps and active states,
+the observed model as a tree with the observation switch and Pull, the domain events with the event injector, and the
+runtime's log. Run ▸ Stop (Ctrl+F2, Cmd+F2 on macOS) stops the selected run; running a descriptor again stops its
+previous run first. When the IDE exits, it shuts down every run and stops its runtime within 15 seconds.
+
+The header of the Runtime tool window chooses the runtime, and the choice is kept in `settings.json`:
+
+- **Docker**, the default: the IDE runs the runtime in a container of its own, one per opened folder, in the local
+  Docker engine, found as the Docker command line finds it (`DOCKER_HOST`, then the current Docker context, then the
+  platform's default socket); a remote engine is refused. The first start builds the image
+  `karpfen-ide/runtime:<hash>` from the runtime sources bundled with the IDE, which takes minutes and shows its
+  progress; later starts reuse it. The container `karpfen-ide-runtime-<hash>` publishes the runtime on `127.0.0.1` at
+  a free port. Run ▸ Start Runtime and Run ▸ Stop Runtime start and stop it without a run.
+- **URL**: the IDE attaches to a karpfen runtime with IDE support started elsewhere, for example with
+  `runtime/live-runtime.sh up`, at the URL entered in the header, by default `http://127.0.0.1:8080`. It checks the
+  runtime's health and IDE support, never stops it, and cannot show its log.
+
+Every image and container of the IDE's runtime carries the label `io.karpfen.ide.runtime=true`, and the IDE only
+touches what carries it. To remove them by hand, the containers first:
+
+```bash
+docker rm --force --volumes $(docker ps --all --quiet --filter label=io.karpfen.ide.runtime=true)
+docker rmi $(docker images --quiet --filter label=io.karpfen.ide.runtime=true)
+```
+
+The [README of runtime-host](runtime/runtime-host/README.md) maps its code, and the
+[decision on hosting the runtime](docs/adr/0019-the-runtime-runs-in-an-ide-owned-container-or-at-a-url.md) explains
+why there are exactly these two hosts.
+
 ### Command-line tool
 
 `karpfen validate` checks a folder like the IDE does: the syntax of every file, the dsl-tools analysis of every
@@ -151,7 +195,8 @@ an environment descriptor from a workspace and keeps a session with the deployed
 progress, the commands of its lifecycle, the observed model with its live switch, the domain events and the injection
 of events. A deployment first saves every open file, because it uploads the saved files, and checks exactly the text it
 uploads; the descriptor's `tickDelayMs` and `eventTtlMs`, 50 and 3000 when absent, are sent with every deployment. The
-IDE has no user interface for it yet, and the command-line tool has no deploy command. The
+Runtime tool window is its user interface ([running models](#running-models)); the command-line tool has no deploy
+command. The
 [codebase guide](docs/codebase-guide.md#runtime-client-runtime-protocol-runtime-session) maps the code, and the
 decisions on [the client](docs/adr/0016-the-runtime-client-talks-to-the-runtime-with-ide-support.md),
 [deploying](docs/adr/0017-deployment-uploads-the-saved-files.md) and
@@ -242,8 +287,9 @@ walks through the modules feature by feature.
   state holder, the Compose view and its popups. Start at `CodeEditorState` (package `state`) and `CodeEditor`
   (package `view`).
 - **ui/ui-workbench**: the window content, with project tree, editor tabs, outline, problems, the output of the
-  language tools, status bar, dialogs, settings and file templates, coordinated by one mediator. Start at
-  `WorkbenchState` (package `state`) and the `Workbench` composable.
+  language tools, the Runtime tool window, status bar, dialogs, settings and file templates, coordinated by one
+  mediator. Start at `WorkbenchState` (package `state`), the `Workbench` composable and, for the runtime,
+  `RuntimeState` (package `runtime`).
 
 **Application and tools:**
 
@@ -260,6 +306,9 @@ walks through the modules feature by feature.
 - **runtime/runtime-session**: deploying an environment descriptor from a workspace and the session with the deployed
   environment: the plan and its checks, the deploy pipeline, the observed model with its live switch, the event catalog
   and the injection of events. Start at `RuntimeSessions` and `RuntimeSession`.
+- **runtime/runtime-host**: hosting the runtime: the IDE-owned Docker container of a workspace, whose image it builds
+  from the runtime sources bundled with it, and a runtime attached by URL. Only its Docker engine adapter uses the
+  Docker client. Start at `RuntimeHost` and `RuntimeHosts`; its [README](runtime/runtime-host/README.md) maps the code.
 
 **Build and architecture:**
 
@@ -283,7 +332,6 @@ script starts with the Apache 2.0 license header that the sources of karpfen-dsl
 
 **Later increments**, stubs so far:
 
-- **runtime/runtime-host**: hosting the runtime, by default in an IDE-owned Docker container.
 - **notation/notation-diagram** and **notation/notation-sync**: the UI-agnostic diagram model with its layout, and the
   synchronization of text, model and diagram.
 - **bridges/bridge-api**, **bridges/bridge-mapping**, **bridges/bridge-mqtt**, **bridges/bridge-ros** and

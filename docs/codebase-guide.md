@@ -23,13 +23,14 @@ karpfen IDE is a Gradle build of Kotlin/JVM modules in layers, and dependencies 
   analysis, and core-lang answers editor questions such as completion, hover and go to definition.
 - **ui** is built with Compose Multiplatform for Desktop. ui-foundation holds the theme, widgets, commands and the key
   model, ui-editor the code editor, and ui-workbench the window content: project tree, editor tabs, outline, problems,
-  the output of the language tools and status bar.
+  the output of the language tools, the Runtime tool window and status bar.
 - **app/ide** is the desktop application and its composition root.
 - **tools/cli** is the `karpfen` command-line tool. It validates a folder with the same workspace code as the IDE.
 - **runtime** is the IDE's side of the karpfen runtime: runtime-protocol, the typed client of the runtime with IDE
-  support, and runtime-session, which deploys an environment descriptor from a workspace and keeps a session with the
-  deployed environment. Neither has a user interface yet.
-- runtime-host, **notation**, **bridges** and ui-diagram belong to later increments and are stubs so far.
+  support; runtime-session, which deploys an environment descriptor from a workspace and keeps a session with the
+  deployed environment; and runtime-host, which runs the runtime in an IDE-owned Docker container or reaches it at a
+  URL. The Runtime tool window of ui-workbench is their user interface.
+- **notation**, **bridges** and ui-diagram belong to later increments and are stubs so far.
 
 An edit travels through the layers like this: the editor applies it to the document's text (core-text); the document
 session tokenizes and parses the new version (core-document); the workspace analyzes the modeling context again and
@@ -224,14 +225,31 @@ The other packages: `settings` stores the IDE settings (`IdeSettings`, `Settings
 `templates` creates new files (`FileTemplates`, `EnvironmentTemplate`), `files` defines the desktop file operations
 (`ProjectFileOperations`, `FolderChooser`) with their adapters in `files.desktop`, `files.view` holds the file icon
 that the project tree and the editor tabs share (`fileIconOf`), and `command` names the workbench commands
-(`WorkbenchCommandIds`).
+(`WorkbenchCommandIds`) and the runtime commands (`RuntimeCommandIds`).
+
+The `runtime` package is the Runtime tool window's state. `RuntimeState` is the runtime of one opened workspace: the
+host with its status and log, which `RuntimeHostBinding` creates from the runtime settings (`RuntimeSettings` in
+`IdeSettings`) and replaces when they change, and the runs, which `RunList` keeps as `RunEntry` values with their
+`RunPhase`. A run resolves its descriptor with `DescriptorResolver`, saves and shows the tool window through
+`RunSupport`, prepares and launches a session through `WorkbenchServices.runtimeSessions` and follows it. `RunDetails`
+holds what the tabs of a launched run show: the event log, the model tree (`ModelTreeState` over
+`ModelTreeProjection`) and the event injector (`InjectorState`); `RuntimeTexts` puts statuses and phases into words, and
+`navigationTarget` turns a blocking finding into a place in the editor. Its `view` sub-package draws the tool window
+(`RuntimeToolWindow`) and the tabs of a run (`RunTabs`, `ModelTab`, `EventsTab`). In the `state` package,
+`RuntimeHolder` creates the runtime state when a workspace opens and shuts it down, within a bound, when the workspace
+closes or the IDE exits; `WorkbenchRunSupport` implements `RunSupport` over the sub-states; and `RuntimeCommands`
+registers Run, Stop, Start Runtime and Stop Runtime. The status bar shows the host's status, and a click on it shows
+the tool window.
 
 ## Application and composition root (app/ide)
 
 `main` resolves the home directory for settings and log and the launch options (`LaunchOptions` in the `launch`
 package), then starts `IdeApplication`. That class is the composition root: plain Kotlin that wires the
-`WorkbenchState` over `defaultWorkbenchServices`, a `CommandRegistry` with the menus of `IdeMenus`, and the Compose
-window (`IdeWindow.kt`, with `IdeRunState` for the life of one run). `CrashHandling` and the `crash` package turn
+`WorkbenchState` over `defaultWorkbenchServices` with the runtime sessions and the runtime hosts of runtime-host
+(`RuntimeHosts()`), a `CommandRegistry` with the menus of `IdeMenus`, among them the Run menu, and the Compose window
+(`IdeWindow.kt`, with `IdeRunState` for the life of one run). When the window is closed and the unsaved-changes flow
+allows it, `IdeRunState` shuts the runtime down through `WorkbenchState.shutdownRuntime`, within 15 seconds, and the
+window shows a short note while that takes longer than a second. `CrashHandling` and the `crash` package turn
 unexpected exceptions into a log entry and an error dialog, the `window` package keeps the window bounds, and the
 `menu` package resolves the menus against the registered commands.
 
@@ -325,15 +343,36 @@ describe; `RuntimeContainerScriptTest` runs that script with Docker, git and cur
 virtual clock, so its health wait is checked in every build. runtime-session's fixtures add `ModelWireText`, which writes an analyzed model as the runtime does, and
 `FakeRuntimeSession`, a session the tests of views can script.
 
+## Runtime hosting (runtime-host)
+
+Start at `RuntimeHost` and `RuntimeHostFactory` in the root package of runtime-host, and at `RuntimeHosts()`, the
+factory of the IDE's two hosts: `DockerRuntimeHost`, the container of a workspace in the local Docker engine, and
+`UrlRuntimeHost`, a runtime started elsewhere. The
+[decision on hosting the runtime](adr/0019-the-runtime-runs-in-an-ide-owned-container-or-at-a-url.md) explains why
+there are exactly these two, and the module's [README](../runtime/runtime-host/README.md) maps its packages: the
+bundled runtime sources (`bundled`), the names, labels and configuration of the image and the container (`docker`),
+and the port `DockerEngine` with its docker-java adapter `DockerJavaEngine` and `DockerEndpointResolver`
+(`docker.engine`), the only code that uses the Docker client. The build task `bundleRuntimeSources`
+(`BundleRuntimeSources` of build-logic, which packs with `RuntimeSourcesArchive`) puts the runtime's sources into the
+module's resources.
+
+The tests run the hosts against `FakeDockerEngine`, which answers only what each test programs, and against the fake
+runtime of runtime-protocol's test fixtures on virtual time. `DockerJavaEngineLiveTest` and
+`DockerRuntimeHostLiveTest` carry the tag `live-docker` and run only in the task `liveDockerTest`
+(`LiveDockerTesting` of build-logic), against the local Docker engine; the [README](../README.md#tests) says how to run
+them.
+
 ## Build, architecture rules and tests
 
 - **Build logic.** `build-logic` holds the convention plugins `karpfen.kotlin-jvm` (applied by every module),
   `karpfen.kotlin-serialization`, `karpfen.compose`, `karpfen.application` and `karpfen.live-runtime-test` (the live task
   of the runtime modules, named in `LiveRuntimeTesting`), the module dependency matrix `ModuleDependencyRules` with its
-  check `VerifyModuleDependencies`, and `TestTags`. Versions live in
+  check `VerifyModuleDependencies`, `TestTags`, and the bundling of the runtime sources and the Docker task of
+  runtime-host described above. Versions live in
   `gradle/libs.versions.toml`; `settings.gradle.kts` decides how karpfen-dsl-tools is resolved.
 - **Architecture tests.** The `architecture-tests` module checks the layering with Konsist: `LayerImportRulesTest`
-  (which libraries each layer may use, Ktor in the runtime only in the adapters of runtime-protocol),
+  (which libraries each layer may use, Ktor in the runtime only in the adapters of runtime-protocol, the Docker client
+  only in the engine adapter of runtime-host), `RuntimeHostApiTest` (the public API of runtime-host),
   `ForeignApiConfinementTest` (ANTLR, dsl-tools beyond its semantic model and logback only behind their adapters),
   `ComposeFreeStateTest` and `UiLayeringTest` (state holders without Compose, views on top), `PackageCycleTest` (no
   cycles, and no package of a runtime module imports the module's root package), `PackageLayoutTest`,
