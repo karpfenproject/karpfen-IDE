@@ -54,7 +54,7 @@ class ComposeFreeStateTest {
         /** Compose-free packages of ui-workbench that must exist (guards the by-feature rule against renames). */
         val WORKBENCH_STATE_PACKAGES = listOf(
             "state", "projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout", "output",
-            "command", "files", "settings", "templates",
+            "command", "files", "settings", "templates", "runtime",
         ).map { "$WORKBENCH.$it" }
 
         /** The UI toolkits that the Compose-free packages must not use. */

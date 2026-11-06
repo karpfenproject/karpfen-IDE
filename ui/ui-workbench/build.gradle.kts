@@ -21,9 +21,10 @@ plugins {
 
 /**
  * The editor, the UI foundation and the language services are `api` dependencies because the public `WorkbenchState`
- * exposes `Workspace`, `LanguageServices`, `CodeEditorState` and `CommandRegistry`. The runtime session is the base of
- * the later runtime tool window; the diagram module and runtime-host are still phase-0 placeholders for the diagram and
- * the runtime hosting of later phases.
+ * exposes `Workspace`, `LanguageServices`, `CodeEditorState` and `CommandRegistry`; the runtime session and the runtime
+ * host are `api` too, because the public `RuntimeState` and `WorkbenchServices` expose sessions, host statuses and the
+ * host factory. The diagram module is still a phase-0 placeholder for the diagram of a later phase. The tests run
+ * sessions against the fake runtime of the runtime fixtures and show views over the scriptable session.
  */
 dependencies {
     api(project(":ui:ui-editor"))
@@ -32,9 +33,10 @@ dependencies {
     implementation(libs.slf4j.api)
 
     implementation(project(":ui:ui-diagram"))
-    implementation(project(":runtime:runtime-session"))
-    implementation(project(":runtime:runtime-host"))
+    api(project(":runtime:runtime-session"))
+    api(project(":runtime:runtime-host"))
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
+    testImplementation(testFixtures(project(":runtime:runtime-session")))
 }
