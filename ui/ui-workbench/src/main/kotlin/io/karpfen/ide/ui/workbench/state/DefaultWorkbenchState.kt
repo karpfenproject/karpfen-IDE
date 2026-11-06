@@ -172,6 +172,10 @@ internal class DefaultWorkbenchState(
         unsaved.confirm(tabs.documents()).also { mayExit -> if (mayExit) persister.persistNow() }
     }
 
+    override suspend fun shutdownRuntime() {
+        runtimes.shutdown()
+    }
+
     override fun registerCommands(registry: CommandRegistry) {
         val modal = ModalCommandRegistry(ownScope, registry, dialogs.current)
         WorkbenchCommands(ownScope, this, tabs, layout, services.settings).register(modal)

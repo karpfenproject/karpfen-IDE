@@ -102,14 +102,18 @@ internal class RuntimeHostBinding(
         release()
     }
 
-    /** Closes the host and the client at once, without waiting on another thread. */
+    /**
+     * Closes the client at once and hands the close of the host, which may block until the host stopped its container,
+     * to [ioDispatcher] without waiting for it, so the calling thread never blocks; once only.
+     */
     fun closeNow() {
         if (!open) return
         open = false
         following.forEach(Job::cancel)
         client?.close()
         client = null
-        host.close()
+        val closing = host
+        CoroutineScope(ioDispatcher).launch { closing.close() }
     }
 
     /** Stops following the host, closes it on the I/O dispatcher and closes the client. */

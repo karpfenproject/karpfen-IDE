@@ -224,6 +224,13 @@ public interface WorkbenchState : AutoCloseable {
     public suspend fun requestExit(): Boolean
 
     /**
+     * Shuts down every session of the opened workspace's [runtime] and then closes its host, which stops a container the
+     * IDE started, all within 15 seconds; whatever is left then is closed at once without blocking the caller. The
+     * composition root calls it when the IDE exits, after [requestExit] allowed it. Returns at once without a workspace.
+     */
+    public suspend fun shutdownRuntime()
+
+    /**
      * Registers the workbench commands (`WorkbenchCommandIds`, including one "Open Recent" command per recent folder
      * and one toggle per `ToolWindowId`; the View commands drive [layout]), the runtime commands (`RuntimeCommandIds`,
      * over [runtime]) and the editor commands in [registry]; keeps

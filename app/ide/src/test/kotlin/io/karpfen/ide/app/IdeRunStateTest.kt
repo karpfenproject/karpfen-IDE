@@ -84,7 +84,7 @@ class IdeRunStateTest {
     }
 
     @Test
-    fun `a close request runs the unsaved-changes flow and exits when it allows`() = runTest {
+    fun `a close request runs the unsaved-changes flow, shuts the runtime down and exits when it allows`() = runTest {
         val run = Run(this)
         run.runState.start()
         runCurrent()
@@ -93,7 +93,28 @@ class IdeRunStateTest {
         runCurrent()
 
         assertEquals(IdePhase.Exited, run.runState.phase.value)
-        assertEquals(listOf("requestExit", "close"), run.state.calls)
+        assertEquals(listOf("requestExit", "shutdownRuntime", "close"), run.state.calls)
+        assertFalse(run.runState.stoppingRuntime.value, "a quick shutdown shows no note")
+    }
+
+    @Test
+    fun `a shutdown of the runtime that takes longer than a second shows the note until the run exits`() = runTest {
+        val run = Run(this)
+        run.state.shutdownTime = 3.seconds
+        run.runState.start()
+        runCurrent()
+
+        run.runState.requestClose()
+        advanceTimeBy(IdeRunState.STOPPING_NOTE_DELAY - 1.milliseconds)
+        assertFalse(run.runState.stoppingRuntime.value)
+        advanceTimeBy(2.milliseconds)
+        assertTrue(run.runState.stoppingRuntime.value)
+        assertIs<IdePhase.Running>(run.runState.phase.value)
+        advanceTimeBy(2.seconds)
+
+        assertEquals(IdePhase.Exited, run.runState.phase.value)
+        assertFalse(run.runState.stoppingRuntime.value)
+        assertEquals(listOf("requestExit", "shutdownRuntime", "close"), run.state.calls)
     }
 
     @Test
@@ -111,7 +132,7 @@ class IdeRunStateTest {
         runCurrent()
 
         assertEquals(IdePhase.Exited, run.runState.phase.value)
-        assertEquals(listOf("requestExit", "requestExit", "close"), run.state.calls)
+        assertEquals(listOf("requestExit", "requestExit", "shutdownRuntime", "close"), run.state.calls)
     }
 
     @Test
@@ -130,7 +151,7 @@ class IdeRunStateTest {
         runCurrent()
 
         assertSame(first, second)
-        assertEquals(listOf("requestExit", "close"), run.state.calls)
+        assertEquals(listOf("requestExit", "shutdownRuntime", "close"), run.state.calls)
     }
 
     @Test

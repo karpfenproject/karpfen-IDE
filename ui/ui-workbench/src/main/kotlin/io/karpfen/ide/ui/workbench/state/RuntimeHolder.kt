@@ -22,6 +22,7 @@ import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,8 +34,10 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [RuntimeState] of the opened workspace: created when a workspace opens, in a scope of its own below [scope], and
- * shut down when it closes. Shutting down ends every session and closes the host within [shutdownBound]; whatever is
- * left then is closed at once.
+ * shut down when it closes or the IDE exits. Shutting down ends every session and closes the host within
+ * [shutdownBound]; whatever is left then is closed at once. The bound holds also while a host blocks a thread to stop
+ * its container: the shutdown runs in the runtime state's own scope, and the caller waits for it no longer than the
+ * bound.
  */
 internal class RuntimeHolder(
     private val scope: CoroutineScope,
@@ -65,8 +68,12 @@ internal class RuntimeHolder(
     /** Shuts the runtime state down within the bound, then closes it. */
     suspend fun shutdown() {
         val opened = current.value ?: return
-        withTimeoutOrNull(shutdownBound) { opened.state.shutdown() }
-        close()
+        val shutdown = opened.scope.async { opened.state.shutdown() }
+        try {
+            withTimeoutOrNull(shutdownBound) { shutdown.await() }
+        } finally {
+            close()
+        }
     }
 
     /** Closes the runtime state at once. */
