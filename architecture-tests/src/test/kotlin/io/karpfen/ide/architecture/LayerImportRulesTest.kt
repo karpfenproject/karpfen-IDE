@@ -26,7 +26,8 @@ import kotlin.test.assertTrue
  * - Compose Multiplatform for Desktop is the UI toolkit and stays in the UI and app modules, so every other module is
  *   UI-agnostic; JavaFX is not used at all.
  * - Core and notation, the reusable layers, see no layer above them and no infrastructure library.
- * - The runtime runs in an IDE-owned Docker container, and only runtime-host talks to Docker.
+ * - The runtime runs in an IDE-owned Docker container, and only the Docker engine adapter of runtime-host talks to
+ *   Docker, so the host behind it is tested against a fake engine and Docker types never reach its API.
  * - The client of the runtime reaches the network through its own transport seams, and only their Ktor adapter package
  *   uses Ktor, in its code and its tests alike; everything else of the runtime, test fixtures included, works against
  *   the seams. The bridges keep their own use of Ktor.
@@ -45,7 +46,7 @@ class LayerImportRulesTest {
         const val NOTATION = "$IDE.notation"
         const val RUNTIME = "$IDE.runtime"
         const val RUNTIME_PROTOCOL = "$IDE.runtime.protocol"
-        const val RUNTIME_HOST = "$IDE.runtime.host"
+        const val RUNTIME_DOCKER_ENGINE = "$IDE.runtime.host.docker.engine"
         const val RUNTIME_KTOR_ADAPTER = "$IDE.runtime.protocol.transport.ktor"
         const val BRIDGES = "$IDE.bridges"
         const val BRIDGES_MQTT = "$IDE.bridges.mqtt"
@@ -107,11 +108,16 @@ class LayerImportRulesTest {
     }
 
     @Test
-    fun `only runtime-host may use the Docker client`() {
+    fun `only the Docker engine adapter of runtime-host may use the Docker client`() {
+        val adapter = KarpfenModules.filesInPackage(RUNTIME_DOCKER_ENGINE)
+        assertTrue(
+            adapter.any { file -> file.sourceSetName == "main" && file.imports.any { it.name.isWithin(DOCKER) } },
+            "nothing in $RUNTIME_DOCKER_ENGINE uses $DOCKER; is the rule still aimed at the right package?",
+        )
         assertNoUsages(
-            files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithin(RUNTIME_HOST) },
+            files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithin(RUNTIME_DOCKER_ENGINE) },
             forbidden = listOf(DOCKER),
-            rule = "Only $RUNTIME_HOST.. may import $DOCKER..",
+            rule = "Only $RUNTIME_DOCKER_ENGINE.. may import $DOCKER..",
         )
     }
 
