@@ -23,17 +23,17 @@ import io.karpfen.ide.buildlogic.GitSubmodules
  * documentation rules leave them out ([OwnCode]).
  *
  * The build script of the architecture tests reads the submodule directories from `.gitmodules` with build-logic's
- * [GitSubmodules], the one reader of that file, leaves them out of the tests' inputs and hands the same list to the
- * tests in the system property [GitSubmodules.SYSTEM_PROPERTY], so adding a submodule needs no change here and the
- * inputs and the tests always leave out the same directories. The tests compile build-logic's [GitSubmodules] too and
- * read the property with it, so the property and its format are declared once.
+ * [GitSubmodules], the one reader of that file. It leaves them out of the inputs of the tests and hands the same list
+ * to the tests in the system property [GitSubmodules.SYSTEM_PROPERTY]. So adding a submodule needs no change here, and
+ * the inputs and the tests always leave out the same directories. The tests compile build-logic's [GitSubmodules] too
+ * and read the property with it, so the property and its format are declared once.
  */
 internal object Submodules {
 
     /**
-     * The submodule directories relative to the repository root, with '/' separators (e.g. `karpfen-dsl-tools`).
+     * The submodule directories relative to the repository root, with '/' separators, for example `karpfen-dsl-tools`.
      *
-     * @throws IllegalStateException if the tests run without the system property, that is not through the build.
+     * @throws IllegalStateException if the tests run without the system property, which means not through the build.
      */
     val paths: List<String> by lazy {
         val value = checkNotNull(System.getProperty(GitSubmodules.SYSTEM_PROPERTY)) {

@@ -20,13 +20,13 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Covers [WallClockAssertions], the judgement behind the budget tripwire: the shapes of timing assertions it must
- * recognize, whatever the limit is named, and the functional tests that read the wall clock without asserting on a
- * measured duration, which it must leave alone: a duration in a message or a report, a timestamp, a deadline and a
+ * Covers [WallClockAssertions], the judgement behind the budget tripwire. It must recognize the shapes of timing
+ * assertions, whatever the limit is named. It must leave alone the functional tests that read the wall clock without
+ * asserting on a measured duration. Those hold a duration in a message or a report, a timestamp, a deadline or a
  * generous timeout.
  *
- * Each input is a function declaration as written in a test source file, most of them built by [test]; helpers of the
- * same file are passed along as further declarations.
+ * Each input is a function declaration as written in a test source file, and most of them are built by [test]. Helpers
+ * of the same file are passed along as further declarations.
  */
 class WallClockAssertionsTest {
 

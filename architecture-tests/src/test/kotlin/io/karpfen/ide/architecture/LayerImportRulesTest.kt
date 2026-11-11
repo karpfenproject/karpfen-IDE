@@ -22,21 +22,22 @@ import kotlin.test.assertTrue
 
 /**
  * Import rules that keep the layers apart. They complement the module dependency matrix of the build, which only sees
- * project dependencies, with the external libraries and JDK packages each layer may use:
- * - Compose Multiplatform for Desktop is the UI toolkit and stays in the UI and app modules, so every other module is
- *   UI-agnostic; JavaFX is not used at all.
- * - Core and notation, the reusable layers, see no layer above them and no infrastructure library.
- * - The runtime runs in an IDE-owned Docker container, and only the Docker engine adapter of runtime-host talks to
- *   Docker, so the host behind it is tested against a fake engine and Docker types never reach its API.
- * - The client of the runtime reaches the network through its own transport seams, and only their Ktor adapter package
- *   uses Ktor, in its code and its tests alike; everything else of the runtime, test fixtures included, works against
- *   the seams. The bridges keep their own use of Ktor.
- * - Bridges are headless-first and use of the runtime only its wire protocol; only the MQTT bridge uses the HiveMQ
+ * project dependencies, with the external libraries and JDK packages each layer may use.
+ *
+ * - Compose Multiplatform for Desktop is the UI toolkit. It stays in the UI and app modules, so every other module is
+ *   UI-agnostic. JavaFX is not used at all.
+ * - Core and notation are the reusable layers. They see no layer above them and no infrastructure library.
+ * - The IDE can run the runtime in a Docker container that it owns. Only the Docker engine adapter of runtime-host
+ *   talks to Docker, so the host behind it is tested against a fake engine and Docker types never reach its API.
+ * - The client of the runtime reaches the network through its own transport seams. Only their Ktor adapter package
+ *   uses Ktor, in its code and in its tests. Everything else of the runtime, test fixtures included, works against the
+ *   seams. The bridges keep their own use of Ktor.
+ * - Bridges are headless first. Of the runtime they use only its wire protocol. Only the MQTT bridge uses the HiveMQ
  *   client.
  *
  * The rules apply to the main, test and test-fixture sources of every module, identified by package. Each rule checks
- * the import directives and, because JDK packages such as java.awt compile without any dependency, also fully
- * qualified references in the code (see [SourceReferences]).
+ * the import directives. It also checks the fully qualified references in the code ([SourceReferences]), because JDK
+ * packages such as java.awt compile without any dependency and so need no import.
  */
 class LayerImportRulesTest {
 
@@ -54,13 +55,19 @@ class LayerImportRulesTest {
         const val APP = "$IDE.app"
         const val TOOLS = "$IDE.tools"
 
+        /** The root packages of Compose Multiplatform. */
         val COMPOSE = listOf("androidx.compose", "org.jetbrains.compose")
 
         /** Compose and the other desktop UI toolkits of the JVM. */
         val DESKTOP_UI_TOOLKITS = COMPOSE + listOf("javafx", "java.awt", "javax.swing")
 
+        /** The root package of docker-java, the Docker client of runtime-host. */
         const val DOCKER = "com.github.dockerjava"
+
+        /** The root package of the HiveMQ MQTT client. */
         const val HIVEMQ = "com.hivemq"
+
+        /** The root package of Ktor, the HTTP and WebSocket library. */
         const val KTOR = "io.ktor"
 
         /** Infrastructure libraries that the core and notation layers must never see. */
@@ -161,9 +168,9 @@ class LayerImportRulesTest {
     }
 
     /**
-     * Fails if an import or a fully qualified reference in [files] lies within one of the [forbidden] packages. Inline,
-     * like the overload it delegates to, so that Konsist, which derives the test name from the call stack, reports and
-     * suppresses by the test method name.
+     * Fails if an import or a fully qualified reference in [files] lies within one of the [forbidden] packages. The
+     * function is inline, like the overload it delegates to, because Konsist derives the test name from the call stack.
+     * Inlined into the test method, it lets Konsist report and suppress a failure under the name of that method.
      */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun assertNoUsages(files: List<KoFileDeclaration>, forbidden: List<String>, rule: String) {
@@ -171,8 +178,9 @@ class LayerImportRulesTest {
     }
 
     /**
-     * Fails if an import or a fully qualified reference in [files] is [isForbidden]. Inline, so that Konsist, which
-     * derives the test name from the call stack, reports and suppresses by the test method name.
+     * Fails if an import or a fully qualified reference in [files] is [isForbidden]. The function is inline because
+     * Konsist derives the test name from the call stack. Inlined into the test method, it lets Konsist report and
+     * suppress a failure under the name of that method.
      */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun assertNoUsages(files: List<KoFileDeclaration>, rule: String, noinline isForbidden: (String) -> Boolean) {

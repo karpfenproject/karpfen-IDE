@@ -32,14 +32,16 @@ import com.lemonappdev.konsist.api.provider.KoContainingDeclarationProvider
  *   under a tight JUnit `@Timeout` ([TimeLimits]).
  */
 internal data class TimingVerdict(val file: String, val test: String, val isTaggedBudget: Boolean, val assertsOnWallClock: Boolean) {
+
+    /** The file and the name of the test, as failure messages print them. */
     override fun toString(): String = "$file: $test"
 }
 
 /**
- * Reads the test functions of a test source file for the budget tripwire. Konsist supplies the declarations: every
+ * Reads the test functions of a test source file for the budget tripwire. Konsist supplies the declarations. Every
  * function of the file, nested and local ones included, goes to [WallClockAssertions], which follows measurements and
- * assertions through the helpers of the file, and every test function, a function annotated as a JUnit test, gets a
- * [TimingVerdict].
+ * assertions through the helpers of the file. Every test function, which is a function annotated as a JUnit test, gets
+ * a [TimingVerdict].
  *
  * The annotations are looked up per test, on the function itself and on the classes around it, so a file that mixes
  * tagged and untagged tests is judged test by test. They are read by their simple name and their arguments, so the

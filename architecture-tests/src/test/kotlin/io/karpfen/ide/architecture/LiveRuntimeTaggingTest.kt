@@ -26,17 +26,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Tests against a real runtime run only on purpose: they carry the JUnit tag `live-runtime` through the `@LiveRuntime`
- * annotation of runtime-protocol's test fixtures, every test task excludes the tag except the opt-in task
- * `liveRuntimeTest` that build-logic's `karpfen.live-runtime-test` registers in the runtime modules, and nothing else
- * reaches that task: no other Gradle script wires it in, only runtime-session orders its live task after the
- * protocol's, and no CI workflow runs it or the script that starts a runtime in Docker. build-logic's
- * `LiveRuntimeTestFunctionalTest` proves the wiring in a fixture build; this test guards the repository.
+ * Tests against a real runtime run only on purpose. They carry the JUnit tag `live-runtime` through the `@LiveRuntime`
+ * annotation of runtime-protocol's test fixtures. Every test task excludes the tag, except the opt-in task
+ * `liveRuntimeTest` that build-logic's `karpfen.live-runtime-test` registers in the runtime modules. Nothing else
+ * reaches that task. Besides that plugin, only the base convention plugin `karpfen.kotlin-jvm` names the task, to keep
+ * the tag exclusion off it, and the build script of runtime-session names it, to order its live task after the one of
+ * runtime-protocol. No other Gradle script wires it in. No CI workflow runs the task or the script that starts a
+ * runtime in Docker. build-logic's `LiveRuntimeTestFunctionalTest` proves the wiring in a fixture build, and this test
+ * guards the repository.
  *
- * A live test class sits in a runtime module, is named `Live…Test` and carries `@LiveRuntime`, and every class of a test
- * source set so named carries it, so a forgotten annotation cannot make a live test run in every build. Test fixtures
- * are no tests (the fixture `LiveRuntimeUnderTest` is the live runtime of the scenarios, not a test), and the
- * architecture tests' own classes are named after the rules they check, so the naming rule leaves both out.
+ * A live test class sits in a runtime module, is named `Live…Test` and carries `@LiveRuntime`. Every class of a test
+ * source set that is named this way must carry the annotation, so a forgotten annotation cannot make a live test run in
+ * every build. The naming rule leaves out two kinds of class. Test fixtures are no tests, and the fixture
+ * `LiveRuntimeUnderTest` is the live runtime of the scenarios, not a test. The classes of the architecture tests are
+ * named after the rules they check.
  */
 class LiveRuntimeTaggingTest {
 
@@ -52,8 +55,9 @@ class LiveRuntimeTaggingTest {
     }
 
     /**
-     * Besides the live convention plugin, only runtime-host's build script includes a tag: that of its own opt-in task
-     * for the tests against the local Docker engine, which build-logic's `TestTags.LIVE_DOCKER` describes.
+     * Besides the live convention plugin, only the build script of runtime-host includes a tag. The tag belongs to its
+     * own opt-in task for the tests against the local Docker engine, which build-logic's `TestTags.LIVE_DOCKER`
+     * describes.
      */
     @Test
     fun `only the live convention plugin and runtime-host's Docker task include tags`() {
@@ -138,9 +142,9 @@ class LiveRuntimeTaggingTest {
     }
 
     /**
-     * The violations of the live test rules among the classes of [files]: a class annotated `@LiveRuntime` outside a
-     * file that [isRuntimeModule] accepts or not named `Live…Test`, and a class named `Live…Test` without the annotation
-     * in a file that [isTestSource] accepts.
+     * The violations of the live test rules among the classes of [files], sorted. A class annotated `@LiveRuntime`
+     * violates them when it is not named `Live…Test`, and when it stands in a file that [isRuntimeModule] rejects. A
+     * class named `Live…Test` violates them when it lacks the annotation in a file that [isTestSource] accepts.
      */
     private fun problemsOf(
         files: List<KoFileDeclaration>,

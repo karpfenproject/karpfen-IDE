@@ -19,21 +19,26 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * One source per fact: the lexical facts of the karpfen languages that the tokenizers, the language services and the
- * editor must agree on are declared only in core-document's `KarpfenSyntax`, the member keywords only in core-lang's
- * `MemberKind` (declared in `TypeCatalog`). `KarpfenSyntax` holds the identifier characters, the primitive types, the
- * KStates operations with the subsets that take a relation or no value, the block keywords that open action and
- * structural blocks, the model-path syntax (the separator and the blanks a path may hold), and the line comment markers
- * of the modeling languages and of the Python in EVAL bodies. A second declaration could drift unnoticed, for example
- * the completion's replace range against the editor's word rule, or a path the walker names differently than the
- * resolver reads it.
+ * Each lexical fact of the karpfen languages has one source. The tokenizers, the language services and the editor must
+ * agree on these facts, so they are declared only in core-document's `KarpfenSyntax`. The member keywords are the one
+ * exception. They are declared only in core-lang's `MemberKind`, which lives in the file `TypeCatalog`.
  *
- * Each fact is recognized by the shape of its declarations in production code. Some facts have several shapes: the
- * primitive types count written out as a set or taken from the keywords of dsl-tools' `SimplePropertyType`; the KStates
- * operations count as a set, taken from dsl-tools' `ActionOperationType` or written out as completion snippets
- * (`"SET(\"…`), and the operations that take a relation or no value as a set or chosen by their operand count; the block
- * keywords count quoted or as lexer tokens; the model-path separator counts as a constant or as a
- * character-by-character scan; a comment marker counts as its string literal.
+ * `KarpfenSyntax` holds the identifier characters, the primitive types, the KStates operations with the subsets that
+ * take a relation or no value, the block keywords that open action and structural blocks, the model-path syntax with
+ * its separator and the blanks a path may hold, and the line comment markers of the modeling languages and of the
+ * Python in EVAL bodies. A second declaration could drift unnoticed. The replace range of the completion could drift
+ * from the word rule of the editor, for example, or the walker could name a path differently from how the resolver
+ * reads it.
+ *
+ * Each fact is recognized by the shape of its declarations in production code. Some facts have several shapes:
+ *
+ * - The primitive types count when written out as a set or taken from the keywords of dsl-tools' `SimplePropertyType`.
+ * - The KStates operations count as a set, when taken from dsl-tools' `ActionOperationType`, or when written out as
+ *   completion snippets (`"SET(\"…`).
+ * - The operations that take a relation or no value count as a set or when chosen by their operand count.
+ * - The block keywords count when quoted or as lexer tokens.
+ * - The model-path separator counts as a constant or as a scan character by character.
+ * - A comment marker counts as its string literal.
  */
 class LexicalFactsTest {
 
@@ -46,14 +51,19 @@ class LexicalFactsTest {
         assertEquals(FACTS.mapValues { listOf(it.value.home) }, declarations)
     }
 
-    /** A fact recognized by the shape of its declaration, and the one file that may declare it. */
+    /**
+     * A fact recognized by the shape of its declaration, and the one file that may declare it.
+     *
+     * @property pattern the shapes of a declaration of the fact in production code.
+     * @property home the name of the one production file that may declare the fact, without its extension.
+     */
     private class Fact(val pattern: Regex, val home: String = SYNTAX)
 
     private companion object {
         /** The home of most facts: core-document's `KarpfenSyntax`. */
         const val SYNTAX = "KarpfenSyntax"
 
-        /** The facts by name; the class documentation lists the shapes that count as a declaration. */
+        /** The facts by name. The class documentation lists the shapes that count as a declaration. */
         val FACTS: Map<String, Fact> = mapOf(
             "identifier characters" to Fact(Regex("""in 'a'\.\.'z' \|\| \w+ in 'A'\.\.'Z'""")),
             "primitive types" to Fact(Regex("""setOf\("number", "string", "boolean"\)|SimplePropertyType\.entries\.\w+""")),

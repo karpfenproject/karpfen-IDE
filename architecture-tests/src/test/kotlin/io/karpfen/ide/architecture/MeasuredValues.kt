@@ -24,34 +24,34 @@ package io.karpfen.ide.architecture
  * `Clock.System` or `Instant.now()`, and a value computed from one, such as a deadline `mark + 10.seconds`. A
  * measurement is a duration measured on the wall clock:
  *
- * - a call of a measuring function of the Kotlin standard library (`measureTime`, `measureTimedValue`,
- *   `measureNanoTime`, `measureTimeMillis`), unqualified, qualified by its package or called on the monotonic source,
- *   but not called on another receiver, such as a test time source;
- * - `elapsedNow()` called on a timestamp;
- * - a subtraction one of whose operands is a timestamp, such as `System.nanoTime() - start`, and a `between` call
- *   whose arguments hold one, such as java.time's `Duration.between(start, Instant.now())`;
- * - a call of one of the [measuringFunctions] of the same file;
- * - a value computed from a measurement.
+ * - A call of a measuring function of the Kotlin standard library (`measureTime`, `measureTimedValue`,
+ *   `measureNanoTime`, `measureTimeMillis`). It counts unqualified, qualified by its package or called on the
+ *   monotonic source, but not when called on another receiver, such as a test time source.
+ * - `elapsedNow()` called on a timestamp.
+ * - A subtraction with a timestamp as one of its operands, such as `System.nanoTime() - start`, and a `between` call
+ *   whose arguments hold a timestamp, such as java.time's `Duration.between(start, Instant.now())`.
+ * - A call of one of the [measuringFunctions] of the same file.
+ * - A value computed from a measurement.
  *
- * A timestamp alone measures nothing: comparing it with a stored one, saving it or checking a deadline with
+ * A timestamp alone measures nothing. Comparing it with a stored one, saving it, or checking a deadline with
  * `hasNotPassedNow()` or with a comparison against a fresh clock reading asserts nothing on a duration.
  *
  * A name holds the kind of value that the code giving it its value mentions ([Binding]):
  *
- * - a `val` or `var`, destructuring declarations included, by its initializer up to the end of the statement, so
- *   `val average = mark.elapsedNow() / runs` binds `average` to a measurement;
- * - a name assigned at the start of a statement, by the assigned value, compound assignments included, so both
- *   `elapsed = measureTime { … }` and `total += measureTime { … }` bind;
- * - the parameters of a lambda, `it` included, by the receiver and the argument list of the call that takes the lambda
- *   ([Lambdas]), so `measurements.forEach { (name, duration) -> … }` binds `name` and `duration` once `measurements`
- *   holds measurements, and `measureTime { … }.let { … }` binds `it`;
- * - the variables of a `for` loop by the expression after `in`.
+ * - A `val` or `var`, destructuring declarations included, takes its value from its initializer up to the end of the
+ *   statement. So `val average = mark.elapsedNow() / runs` binds `average` to a measurement.
+ * - A name assigned at the start of a statement takes its value from the assigned value, compound assignments
+ *   included. So both `elapsed = measureTime { … }` and `total += measureTime { … }` bind.
+ * - The parameters of a lambda, `it` included, take their values from the receiver and the argument list of the call
+ *   that takes the lambda ([Lambdas]). So `measurements.forEach { (name, duration) -> … }` binds `name` and `duration`
+ *   once `measurements` holds measurements, and `measureTime { … }.let { … }` binds `it`.
+ * - The variables of a `for` loop take their values from the expression after `in`.
  *
  * The parameters of a lambda hold their value inside the lambda only, where they hide the names of the same name
- * outside it, so `it` means the parameter of the innermost lambda around it. Every other name holds its value in all of
- * the function, because the rule reads [code] as text and neither knows types nor the scopes of local declarations; a
- * value passed on through a function parameter, a property or a lambda parameter with a type is lost. Names are
- * followed until no more are bound.
+ * outside it. So `it` means the parameter of the innermost lambda around it. Every other name holds its value in all of
+ * the function. The rule reads [code] as text and knows neither types nor the scopes of local declarations. A value
+ * passed on through a function parameter, a property or a lambda parameter with a type is lost. Names are followed
+ * until no more are bound.
  *
  * @property code the code of the function, comments and string literals blanked ([KotlinLexer.codeOutsideStrings]).
  * @param measuringFunctions the names of the functions of the same file that return a measurement.
@@ -68,7 +68,7 @@ internal class MeasuredValues(private val code: String, measuringFunctions: Coll
     private val bindingsByName: Map<String, List<Binding>> =
         bindings.flatMap { binding -> binding.names.map { it to binding } }.groupBy({ it.first }, { it.second })
 
-    /** A mention of a bound name that is not the member of another value; null if no name is bound. */
+    /** A mention of a bound name that is not the member of another value. Null if no name is bound. */
     private val boundName: Regex? =
         bindingsByName.keys.takeIf { it.isNotEmpty() }?.let { Regex("""(?<![\w.])(?:${it.joinToString("|")})\b""") }
 
@@ -115,7 +115,7 @@ internal class MeasuredValues(private val code: String, measuringFunctions: Coll
         /** The receiver of the member access that starts at [access]. */
         private fun receiverBefore(access: Int): IntRange = CodeRegions.startOfOperandBefore(code, access) until access
 
-        /** True if the minus at [minus] subtracts two operands one of which holds a timestamp; a unary minus does not. */
+        /** True if the minus at [minus] subtracts two operands, one of which holds a timestamp. A unary minus does not. */
         private fun subtractsTimestamp(minus: Int): Boolean {
             val left = CodeRegions.startOfOperandBefore(code, minus)
             return left < minus && (stamps(left until minus) || stamps(minus + 1 until CodeRegions.endOfOperandAfter(code, minus + 1)))
@@ -166,8 +166,8 @@ internal class MeasuredValues(private val code: String, measuringFunctions: Coll
      *
      * @property names the names bound.
      * @property sources the regions of [code] whose value they hold.
-     * @property scope the region in which the names hold that value, the body of a lambda for its parameters; null for
-     *   all of the function.
+     * @property scope the region in which the names hold that value, which is the body of a lambda for its parameters.
+     *   Null means all of the function.
      */
     private class Binding(val names: List<String>, val sources: List<IntRange>, val scope: IntRange? = null)
 
@@ -184,7 +184,7 @@ internal class MeasuredValues(private val code: String, measuringFunctions: Coll
                 """\bClock\.System\b|\bInstant\.now\b""",
         )
 
-        /** The member access of `elapsedNow`, plain or as a safe call; its receiver ends where the match starts. */
+        /** The member access of `elapsedNow`, plain or as a safe call. Its receiver ends where the match starts. */
         val ELAPSED = Regex("""\??\.elapsedNow\b""")
 
         /** A minus that is no part of an arrow, a decrement, a compound assignment or another operator. */
@@ -205,10 +205,10 @@ internal class MeasuredValues(private val code: String, measuringFunctions: Coll
          */
         val ASSIGNMENT = Regex("""(?:^|[;{]|->)[ \t]*(\w+)[ \t]*[-+*/%]?=(?!=)""", RegexOption.MULTILINE)
 
-        /** The head of a `for` loop up to `in`; group one holds its variables, plain or destructured. */
+        /** The head of a `for` loop up to `in`. Group one holds its variables, plain or destructured. */
         val FOR_LOOP = Regex("""\bfor\s*\(\s*([\w\s,()]+?)\s+in\b""")
 
-        /** A plain identifier; the underscore that skips a destructured value is left out by [identifiersIn]. */
+        /** A plain identifier. [identifiersIn] leaves out the underscore that skips a destructured value. */
         val IDENTIFIER = Regex("""[A-Za-z_]\w*""")
 
         /** The identifiers in [text], a list of names, without the placeholder underscore. */

@@ -20,23 +20,27 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Guards the documentation style of the project in every Kotlin source file and Gradle script ([DocumentedFiles.all])
- * and, for reference ids, in the other text documents ([DocumentedFiles.documents]).
+ * Guards the documentation style of the project. The rules read every Kotlin source file and Gradle script
+ * ([DocumentedFiles.all]) and, for the rules on the whole text, the other text documents ([DocumentedFiles.documents]).
  *
  * Documentation lives in KDoc on declarations. A line comment or a plain block comment is not allowed anywhere, not
- * even as a trailing comment or a commented-out statement: code that needs an explanation gets a well-named function
+ * even as a trailing comment or a commented-out statement. Code that needs an explanation gets a well-named function
  * or value with KDoc, or the explanation goes into the KDoc of the enclosing declaration. [KotlinComments] finds the
  * comments, so a URL or a comment delimiter inside a string, a character literal, a backtick name or KDoc is no
  * violation. KDoc itself must stand where it documents a declaration ([KDocPlacement]), so it cannot stand in for a
  * trailing comment or a comment between statements.
  *
  * Every one of these files starts with the Apache 2.0 license header ([LicenseHeader]), exactly once and before
- * anything else. It is KDoc in form, and the one KDoc that documents no declaration.
+ * anything else. The header is KDoc in form, and it is the one KDoc that documents no declaration.
  *
- * Documentation is written for a human reader and names what it refers to in words instead of by an id that has to be
- * looked up in another document. [ReferenceIds] lists the ids that are rejected; they are searched in the text of every
- * comment and in the whole text of the markdown documents, the CI workflows, the XML resources and the version
- * catalog.
+ * Markdown is kept minimal. The only markdown files are the README, the three guides in `docs` and the license notice
+ * of the example files that the test fixtures copy from other repositories ([ALLOWED_MARKDOWN]). Everything else a
+ * reader of the code needs is in KDoc.
+ *
+ * Documentation is written for a human reader in plain sentences. It names what it refers to in words instead of by
+ * an id that has to be looked up in another document. [ReferenceIds] lists the ids that are rejected. It also does
+ * without dashes, middle dots, bullets and arrows ([TypographicCharacters]). Both rules search the text of every
+ * comment and the whole text of the markdown documents, the CI workflows, the XML resources and the version catalog.
  */
 class DocumentationStyleTest {
 
@@ -72,14 +76,24 @@ class DocumentationStyleTest {
     }
 
     @Test
-    fun `the guarded documents are the maps, workflows, resources and catalog, not the archived records`() {
+    fun `the guarded documents are the guides, workflows, resources and catalog`() {
         val paths = documents.map { it.relativePath }.toSet()
 
-        listOf(
-            "README.md", "docs/codebase-guide.md", "docs/adr/README.md", "docs/plans/increments-after-phase-1.md",
-            ".github/workflows/build.yml", "app/ide/src/main/resources/logback.xml", "gradle/libs.versions.toml",
-        ).forEach { assertTrue(it in paths, "$it is missing from the guarded documents") }
-        assertEquals(emptyList(), paths.filter { it.startsWith("docs/history/") }, "the archived records keep their ids")
+        assertEquals(emptyList(), REQUIRED_DOCUMENTS.filterNot { it in paths }, "documents missing from the guarded documents")
+    }
+
+    @Test
+    fun `markdown exists only as the README, the guides and the license notice of the example files`() {
+        val markdown = DocumentedFiles.markdownPaths
+        assertTrue("README.md" in markdown, "the README is not among the markdown files; this check would be vacuous")
+
+        val unexpected = markdown.filterNot { it in ALLOWED_MARKDOWN }
+        assertTrue(
+            unexpected.isEmpty(),
+            "Markdown is kept minimal. The only markdown files are ${ALLOWED_MARKDOWN.joinToString()}. Put the content " +
+                "of these files into the KDoc of the code it explains, or into one of the guides in docs, and delete " +
+                "them:\n" + unexpected.joinToString("\n"),
+        )
     }
 
     @Test
@@ -135,11 +149,56 @@ class DocumentationStyleTest {
         val violations = inComments + inDocuments
         assertTrue(
             violations.isEmpty(),
-            "Documentation must not refer to documents, sections or decisions by id. Name the thing in words, for " +
-                "example \"the parse budget of the phase-1 specification\":\n" + violations.joinToString("\n"),
+            "Documentation must not refer to documents, sections, decisions, phases or increments by id or number. Name " +
+                "the thing in words, for example \"the decision that text files are the source of truth\":\n" +
+                violations.joinToString("\n"),
+        )
+    }
+
+    @Test
+    fun `documentation uses plain punctuation`() {
+        val inComments = files.flatMap { file ->
+            KotlinComments.scan(file.text).flatMap { comment ->
+                TypographicCharacters.findIn(comment.text).map { found ->
+                    "${file.relativePath}:${comment.lineAt(found.offset)}  ${found.description}"
+                }
+            }
+        }
+        val inDocuments = documents.flatMap { file ->
+            TypographicCharacters.findIn(file.text).map { found ->
+                "${file.relativePath}:${lineOf(file.text, found.offset)}  ${found.description}"
+            }
+        }
+        val violations = inComments + inDocuments
+        assertTrue(
+            violations.isEmpty(),
+            "Documentation does without dashes, middle dots, bullets and arrows. Write plain sentences: split a long " +
+                "sentence in two, use a comma or a full stop, and write a verb such as \"becomes\" or \"returns\" " +
+                "instead of an arrow:\n" + violations.joinToString("\n"),
         )
     }
 
     /** The 1-based line of the character at [offset] of [text]. */
     private fun lineOf(text: String, offset: Int): Int = text.substring(0, offset).count { it == '\n' } + 1
+
+    private companion object {
+        /**
+         * The documents that the guarded documents must include. They are the README, the three guides, the CI
+         * workflow, the logging configuration of the application and the version catalog, one of each kind.
+         */
+        val REQUIRED_DOCUMENTS = listOf(
+            "README.md", "docs/getting-started.md", "docs/archdoc.md", "docs/devdoc.md", ".github/workflows/build.yml",
+            "app/ide/src/main/resources/logback.xml", "gradle/libs.versions.toml",
+        )
+
+        /**
+         * The only markdown files of the repository. They are the README, the getting started guide, the architecture
+         * guide, the developer guide and the license notice of the example files that core-document's test fixtures
+         * copy from the karpfen-runtime and karpfen-dsl-tools repositories.
+         */
+        val ALLOWED_MARKDOWN = setOf(
+            "README.md", "docs/getting-started.md", "docs/archdoc.md", "docs/devdoc.md",
+            "core/core-document/src/testFixtures/resources/examples/NOTICE.md",
+        )
+    }
 }

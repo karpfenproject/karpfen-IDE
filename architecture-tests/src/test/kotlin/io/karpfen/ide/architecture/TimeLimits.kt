@@ -21,11 +21,11 @@ import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 /**
- * Judges the time limits of the timeouts of a test: JUnit's timeout assertions (`assertTimeout`,
+ * Judges the time limits of the timeouts of a test. These are JUnit's timeout assertions (`assertTimeout`,
  * `assertTimeoutPreemptively`), JUnit's `@Timeout` annotation and the `timeout` argument of the coroutine test runner
- * `runTest`. A timeout measures nothing the test sees, so whether it is a time budget or a guard against a test that
- * hangs shows only in its limit: a limit shorter than [GENEROUS] is tight, a time budget, while a functional test that
- * waits for an event gives it seconds. One rule holds for all three kinds of timeout.
+ * `runTest`. A timeout measures nothing the test sees. Whether it is a time budget or a guard against a test that hangs
+ * shows only in its limit. A limit shorter than [GENEROUS] is tight and counts as a time budget, while a functional
+ * test that waits for an event gives its timeout seconds. One rule holds for all three kinds of timeout.
  *
  * Only a limit written as a literal is judged: a Kotlin duration such as `100.milliseconds`, a java.time duration such
  * as `Duration.ofMillis(100)`, also with a static import, or the value and unit of `@Timeout`, whose unit defaults to
@@ -78,8 +78,9 @@ internal object TimeLimits {
     }
 
     /**
-     * True if JUnit's `@Timeout` with the argument [value] and the [unit], the name of a `TimeUnit` constant, possibly
-     * qualified, or null for the default of seconds, is tight.
+     * True if JUnit's `@Timeout` with the argument [value] and the [unit] is tight. [unit] is the name of a `TimeUnit`
+     * constant, possibly qualified, or null for the default of seconds. A value or a unit that cannot be read counts as
+     * generous.
      */
     fun isTightJUnitTimeout(value: String, unit: String?): Boolean {
         val amount = value.trim().removeSuffix("L").replace("_", "").toDoubleOrNull() ?: return false

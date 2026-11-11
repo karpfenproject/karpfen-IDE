@@ -16,9 +16,10 @@
 package io.karpfen.ide.architecture
 
 /**
- * Production code of the `architecture-tests` module, whose Konsist rules live in the test source set. The rules keep
- * the layers, the adapters of foreign APIs and the package layout of every module in shape; this object gives the
- * module the production file that `PackageLayoutTest` expects of every module in the module table.
+ * The production code of the `architecture-tests` module. The rules of the module live in its test source set. They
+ * keep the layers, the adapters of foreign APIs, the package layout and the documentation of every module in shape.
+ * This object exists because `PackageLayoutTest` expects production code in every module that the tests' module table
+ * `KarpfenModules` lists, this one included.
  */
 public object ArchitectureTestsModule {
     /** The module's name, which is also the name of its directory. */

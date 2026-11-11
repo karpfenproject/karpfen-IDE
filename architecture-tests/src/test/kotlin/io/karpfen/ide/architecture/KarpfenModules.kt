@@ -18,12 +18,16 @@ package io.karpfen.ide.architecture
 import com.lemonappdev.konsist.api.Konsist
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 
-/** The karpfen IDE modules as seen by the architecture tests. */
+/**
+ * The modules of the karpfen IDE as the architecture tests see them, with the Kotlin files that Konsist reads from them
+ * and the two adapter packages that confine dsl-tools and ANTLR.
+ */
 internal object KarpfenModules {
 
     /**
-     * Module directory (relative to the repository root) -> package prefix of all of its code.
-     * Must list every module included in settings.gradle.kts.
+     * Maps each module directory, relative to the repository root, to the package prefix of all of its code. It must
+     * list every module that settings.gradle.kts includes, because production code outside these modules fails
+     * `PackageLayoutTest`.
      */
     val packagePrefixes: Map<String, String> = linkedMapOf(
         "core/core-text" to "io.karpfen.ide.core.text",
@@ -50,29 +54,31 @@ internal object KarpfenModules {
     )
 
     /**
-     * The only package (with its sub-packages) that may use ANTLR and the lexers and parsers that dsl-tools generates
-     * from its grammars (`io.karpfen.dsl.grammar.kmeta`, `.kmodel` and `.kstates`). The IDE takes source positions from
-     * their parse trees; keeping every use in one internal package lets the source maps that dsl-tools now ships with
-     * its readers (`SourceMap` in `io.karpfen.dsl.source`) replace it without touching the rest of the IDE.
+     * The only package that may use ANTLR and the lexers and parsers that dsl-tools generates from its grammars
+     * (`io.karpfen.dsl.grammar.kmeta`, `.kmodel` and `.kstates`). Its sub-packages count as part of it. The IDE takes
+     * source positions from the parse trees. Every use stays in one internal package, so the source maps that
+     * dsl-tools ships with its readers (`SourceMap` in `io.karpfen.dsl.source`) can replace it without touching the
+     * rest of the IDE.
      */
     const val ANTLR_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.antlr"
 
     /**
-     * The only package (with its sub-packages) that may use dsl-tools beyond its semantic model: the readers
-     * (`io.karpfen.dsl.reader`), the diagnostics and source positions they report (`io.karpfen.dsl.diagnostics`,
-     * `io.karpfen.dsl.source`), the printers (`io.karpfen.dsl.printer`), the converters, builders and file parsers and
-     * whatever else dsl-tools offers outside its generated parsers: adapters isolate foreign APIs. core-workspace
-     * reaches the readers through this package's public `DslReader` adapter, so it needs no adapter package of its own.
+     * The only package that may use dsl-tools beyond its semantic model, because adapters isolate foreign APIs. Its
+     * sub-packages count as part of it. This covers the readers (`io.karpfen.dsl.reader`), the diagnostics and source
+     * positions they report (`io.karpfen.dsl.diagnostics`, `io.karpfen.dsl.source`), the printers
+     * (`io.karpfen.dsl.printer`), the converters, builders and file parsers, and whatever else dsl-tools offers outside
+     * its generated parsers. core-workspace reaches the readers through the public `DslReader` adapter of this package,
+     * so it needs no adapter package of its own.
      */
     const val DSL_ADAPTER_PACKAGE: String = "io.karpfen.ide.core.document.dsl"
 
-    /** Module directories of the core layer (UI-agnostic, explicit API mode). */
+    /** The module directories of the core layer, which is UI-agnostic and compiles in explicit API mode. */
     val coreModules: List<String> get() = packagePrefixes.keys.filter { it.startsWith("core/") }
 
-    /** Module directories of the UI layer (Compose). */
+    /** The module directories of the UI layer, which is built with Compose. */
     val uiModules: List<String> get() = packagePrefixes.keys.filter { it.startsWith("ui/") }
 
-    /** Module directories of the runtime layer, the client of the karpfen runtime (explicit API mode). */
+    /** The module directories of the runtime layer, the client of the karpfen runtime. The layer compiles in explicit API mode. */
     val runtimeModules: List<String> get() = packagePrefixes.keys.filter { it.startsWith("runtime/") }
 
     /** Directories whose Kotlin files are build tooling, not product code. */
@@ -80,8 +86,8 @@ internal object KarpfenModules {
 
     /**
      * Every Kotlin source file (`src/<sourceSet>/...kt`) of this code base, build tooling included. Konsist already
-     * skips hidden directories and build output; build scripts (`*.gradle.kts`) and the checkouts of other repositories
-     * in git submodules ([Submodules]) are filtered out here.
+     * skips hidden directories and build output. Build scripts (`*.gradle.kts`) and the checkouts of other
+     * repositories in git submodules ([Submodules]) are filtered out here.
      */
     private val allSourceFiles: List<KoFileDeclaration> by lazy {
         Konsist.scopeFromProject().files.filter { file ->
@@ -118,7 +124,7 @@ internal object KarpfenModules {
         moduleFiles.filter { it.packageName.isWithin(packagePrefix) }
 }
 
-/** Module directory relative to the repository root, with '/' separators (e.g. `core/core-text`). */
+/** The module directory relative to the repository root, with '/' separators, for example `core/core-text`. */
 internal val KoFileDeclaration.moduleDir: String
     get() = moduleName.replace('\\', '/')
 
@@ -126,7 +132,7 @@ internal val KoFileDeclaration.moduleDir: String
 internal val KoFileDeclaration.packageName: String
     get() = packagee?.name ?: ""
 
-/** True if this package or import name equals [prefix] or lies below it (`a.b` is within `a`, `ab` is not). */
+/** True if this package or import name equals [prefix] or lies below it. So `a.b` is within `a`, but `ab` is not. */
 internal fun String.isWithin(prefix: String): Boolean = this == prefix || startsWith("$prefix.")
 
 /** True if this name lies within any of [prefixes]. */

@@ -18,28 +18,34 @@ package io.karpfen.ide.architecture
 /**
  * A KDoc comment that documents nothing a reader of the API documentation sees.
  *
+ * @property comment the misplaced KDoc comment.
  * @property reason why its place is wrong, for failure messages.
  */
 internal data class MisplacedKDoc(val comment: SourceComment, val reason: String)
 
 /**
- * Checks where KDoc stands. KDoc documents a declaration, so it is only allowed on its own line right before one, after
- * which come only annotations, modifiers and context parameters (`context(...)`):
+ * Checks where KDoc stands. KDoc documents a declaration, so it is only allowed on its own line right before one. Only
+ * annotations, modifiers and context parameters (`context(...)`) may stand between the KDoc and its declaration.
  *
- * - in a Kotlin file, a top-level declaration or a member of a class, interface, object or enum entry body (a class,
- *   interface, object, function, property, type alias or secondary constructor), an enum entry in an enum body, or a
- *   property of a primary constructor;
- * - in a script (a Gradle script or another `.kts` file), additionally any top-level statement or block, such as
- *   `dependencies { }`, because a script has no other place to document them.
+ * In a Kotlin file these declarations can be documented:
  *
- * Everything else is a comment in disguise and is rejected: KDoc after code on the same line, KDoc inside a function
- * body or lambda (a statement or a local declaration, which no API documentation shows), KDoc between statements of a
- * script block, and KDoc that stands before another comment or at the end of the text. The one exception is the
- * license header at the top of a file ([LicenseHeader]), which documents the file rather than a declaration.
+ * - a top-level declaration, or a member of a class, interface, object or enum entry body, which is a class,
+ *   interface, object, function, property, type alias or secondary constructor
+ * - an enum entry in an enum body
+ * - a property of a primary constructor
+ *
+ * A script, which is a Gradle script or another `.kts` file, may in addition document any top-level statement or
+ * block, such as `dependencies { }`. A script has no other place to document them.
+ *
+ * Everything else is a comment in disguise and is rejected. That is KDoc after code on the same line, KDoc inside a
+ * function body or lambda, KDoc between the statements of a script block, and KDoc that stands before another comment
+ * or at the end of the text. No API documentation shows a statement or a local declaration inside a function body. The
+ * one exception is the license header at the top of a file ([LicenseHeader]), which documents the file instead of a
+ * declaration.
  */
 internal object KDocPlacement {
 
-    /** The misplaced KDoc comments of [source]; [isScript] is true for a `.kts` file. */
+    /** The misplaced KDoc comments of [source]. [isScript] is true for a `.kts` file. */
     fun check(source: String, isScript: Boolean): List<MisplacedKDoc> =
         KotlinComments.scanPlaced(source)
             .filter { it.comment.kind == CommentKind.KDOC && !LicenseHeader.isHeader(it) }
@@ -84,12 +90,14 @@ internal object KDocPlacement {
     /** The offset of the first character after [from] that is no whitespace, or null at the end of [source]. */
     private fun nextCode(source: String, from: Int): Int? = skipBlanks(source, from).takeIf { it < source.length }
 
+    /** The offset of the first character at or after [from] in [source] that is no whitespace, line breaks included. */
     private fun skipBlanks(source: String, from: Int): Int {
         var offset = from
         while (offset < source.length && source[offset].isWhitespace()) offset++
         return offset
     }
 
+    /** The offset at which the line that holds [offset] in [source] starts. */
     private fun lineStart(source: String, offset: Int): Int = source.lastIndexOf('\n', offset - 1) + 1
 
     /** The identifier at [offset], or the empty string if none starts there. */

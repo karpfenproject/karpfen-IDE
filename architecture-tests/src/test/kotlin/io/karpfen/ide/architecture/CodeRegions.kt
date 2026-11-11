@@ -16,12 +16,12 @@
 package io.karpfen.ide.architecture
 
 /**
- * Finds regions in Kotlin code from which comments and literal text are blanked ([KotlinLexer.code] or
- * [KotlinLexer.codeOutsideStrings]): statements, the arguments of a call, the expression body of a function and the
- * operands around an operator. In such code every bracket is code, so brackets pair up and a region can be delimited
- * by counting them. Generic angle brackets are not counted, because they cannot be told from comparisons without a
- * parser and no region depends on them. A region is a range of offsets in the code, so a reader can tell where in the
- * function a name is mentioned.
+ * Finds regions in Kotlin code whose comments and literal text are blanked, as [KotlinLexer.code] and
+ * [KotlinLexer.codeOutsideStrings] return it. The regions are statements, the arguments of a call, the expression body
+ * of a function and the operands around an operator. In such code every bracket is code, so the brackets pair up and a
+ * region can be delimited by counting them. Generic angle brackets are not counted. Without a parser they cannot be
+ * told from comparisons, and no region depends on them. A region is a range of offsets in the code, so a reader can
+ * tell where in the function a name is mentioned.
  */
 internal object CodeRegions {
 
@@ -119,7 +119,7 @@ internal object CodeRegions {
 
     /**
      * The argument list in parentheses of the call in [code] whose name ends at [nameEnd], the parentheses included,
-     * without a trailing lambda; an empty range if no parenthesis follows the name.
+     * without a trailing lambda. It is an empty range if no parenthesis follows the name.
      */
     fun argumentList(code: String, nameEnd: Int): IntRange {
         val start = skipBlanks(code, nameEnd)
@@ -209,9 +209,10 @@ internal object CodeRegions {
     }
 
     /**
-     * True if the statement that started at [statementStart] goes on after the line break at [lineBreak]: nothing of it
-     * has been written yet, as after an equals sign at the end of a line, its text so far ends with an operator, or
-     * the next line that is not blank starts with one.
+     * True if the statement that started at [statementStart] goes on after the line break at [lineBreak]. That is the
+     * case when nothing of the statement has been written yet, as when it starts after an equals sign at the end of a
+     * line. It is also the case when the text of the statement so far ends with an operator, or when the next line
+     * that is not blank starts with one.
      */
     private fun continuesAfter(code: String, statementStart: Int, lineBreak: Int): Boolean {
         val lineEnd = code.substring(statementStart, lineBreak).trimEnd().lastOrNull() ?: return true
@@ -222,8 +223,9 @@ internal object CodeRegions {
     }
 
     /**
-     * The offset before the member access that ends at [nameStart] in [code], a dot, a safe call or a non-null
-     * assertion with the dot, and the blanks and line breaks before it; null if no member access ends there.
+     * The offset before the member access that ends at [nameStart] in [code], with the blanks and line breaks before
+     * it. The member access is a dot, a safe call, or a non-null assertion with its dot. Null if no member access ends
+     * there.
      */
     private fun skipMemberAccessBackward(code: String, nameStart: Int): Int? {
         if (nameStart == 0 || code[nameStart - 1] != '.') return null
@@ -282,8 +284,8 @@ internal fun String.textOf(range: IntRange): String = substring(range.first, ran
 internal class FunctionCalls(names: Collection<String>) {
 
     /**
-     * One of the names, followed by an argument list or a trailing lambda; null if there are none. A name that is no
-     * plain identifier, such as a test name in backticks, is left out, because the lexer blanks it in code.
+     * One of the names, followed by an argument list or a trailing lambda. Null if there are no names. A name that is
+     * no plain identifier, such as a test name in backticks, is left out, because the lexer blanks it in code.
      */
     private val call: Regex? = names.filter { IDENTIFIER.matches(it) }.distinct().takeIf { it.isNotEmpty() }
         ?.let { identifiers -> Regex("""\b(?:${identifiers.joinToString("|")})(?=[ \t]*[({])""") }
@@ -298,7 +300,7 @@ internal class FunctionCalls(names: Collection<String>) {
     }
 }
 
-/** The matches of this pattern in [code] that lie wholly inside [region]; the text around it is seen by lookarounds. */
+/** The matches of this pattern in [code] that lie wholly inside [region]. Lookarounds still see the text around it. */
 internal fun Regex.matchesIn(code: String, region: IntRange): Sequence<MatchResult> =
     if (region.isEmpty()) {
         emptySequence()

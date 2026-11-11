@@ -24,18 +24,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Time-budget tests are never run: a test that asserts on a wall-clock measurement must carry the JUnit tag `budget`,
- * and every test task excludes that tag, because machine load and sleep/wake cycles make the wall clock unreliable.
- * build-logic's `TestTags.BUDGET` declares the tag and explains the rule.
+ * Time-budget tests are never run. A test that asserts on a wall-clock measurement must carry the JUnit tag `budget`,
+ * and every test task excludes that tag. Machine load and the sleep and wake cycles of a computer make the wall clock
+ * unreliable, so such a test would fail at random. build-logic's `TestTags.BUDGET` declares the tag and explains the
+ * rule.
  *
- * The rule is a tripwire, not a proof. [TimingTests] judges every test function of every test source file, those of
- * build-logic included: [WallClockAssertions] decides whether it asserts on a wall-clock measurement, whatever the
- * limit is compared with, and the tag counts on the function or on a class around it, so an untagged timing test is
- * caught even in a file whose other tests carry the tag. Functional tests that wait for an event with a generous time
- * limit, or only report a measured duration, assert nothing on the wall clock and keep running.
+ * The rule is a tripwire, not a proof. [TimingTests] judges every test function of every test source file, including
+ * those of build-logic. [WallClockAssertions] decides whether a function asserts on a wall-clock measurement, whatever
+ * the measurement is compared with. The tag counts on the function or on a class around it, so an untagged timing test
+ * is caught even in a file whose other tests carry the tag. Functional tests that wait for an event with a generous
+ * time limit, or that only report a measured duration, assert nothing on the wall clock and keep running.
  *
- * The test tasks are read from the Gradle scripts: every call of `useJUnitPlatform` must exclude the tag, by the
- * constant `TestTags.BUDGET` or by its value, which is checked against the declaration of the constant.
+ * The test tasks are read from the Gradle scripts. Every call of `useJUnitPlatform` must exclude the tag, either by the
+ * constant `TestTags.BUDGET` or by its value. The value is checked against the declaration of the constant.
  */
 class BudgetTestTaggingTest {
 
@@ -87,7 +88,7 @@ class BudgetTestTaggingTest {
     @Test
     fun `every test tagged budget is a timing test the tripwire recognizes`() {
         val tagged = verdicts.filter { it.isTaggedBudget }
-        assertTrue(tagged.size >= PHASE_ONE_BUDGET_TESTS, "expected the budget tests of phase 1, found $tagged")
+        assertTrue(tagged.size >= KNOWN_BUDGET_TESTS, "expected at least $KNOWN_BUDGET_TESTS tests tagged budget, found $tagged")
         assertEquals(
             emptyList(),
             tagged.filterNot { it.assertsOnWallClock }.map { it.toString() },
@@ -119,8 +120,11 @@ class BudgetTestTaggingTest {
     }
 
     private companion object {
-        /** The number of time-budget test functions written in phase 1, all of which the tripwire must recognize. */
-        const val PHASE_ONE_BUDGET_TESTS = 14
+        /**
+         * The number of time-budget test functions that the tripwire must at least recognize. It is the number of such
+         * tests in the code base, so a change that blinds the tripwire to some of them fails.
+         */
+        const val KNOWN_BUDGET_TESTS = 14
 
         /** The Gradle scripts that configure the test tasks of build-logic and of the modules. */
         val TEST_TASK_SCRIPTS = listOf("build-logic/build.gradle.kts", "build-logic/src/main/kotlin/karpfen.kotlin-jvm.gradle.kts")
@@ -138,8 +142,9 @@ class BudgetTestTaggingTest {
         val BUDGET_EXCLUSION = Regex("""\bexcludeTags\(\s*(?:TestTags\.BUDGET|"${TimingTests.BUDGET_TAG}")\s*\)""")
 
         /**
-         * A test source file with a tagged class, and a class with a generous timeout that mixes a functional test,
-         * tests tagged in each way JUnit reads the tag, and untagged timing tests, one of them by a tight timeout.
+         * A test source file with two classes. The first is tagged as a whole. The second has a generous timeout and
+         * mixes a functional test, tests tagged in each way JUnit reads the tag, and untagged timing tests, one of
+         * which is a timing test only through its tight timeout.
          */
         const val PLANTED_TESTS = """
             package planted

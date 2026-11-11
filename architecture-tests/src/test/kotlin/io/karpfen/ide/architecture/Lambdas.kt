@@ -19,10 +19,11 @@ package io.karpfen.ide.architecture
  * A lambda in Kotlin code.
  *
  * @property body the code between its braces.
- * @property parameters the names of its parameters: those before its arrow, or `it` for a lambda without an arrow; empty
- *   for a lambda whose parameters carry types, whose names are not read.
- * @property inputs the code that gives the parameters their values: the receiver and the argument list of the call that
- *   takes the lambda as its trailing lambda, as far as the call has them; empty for a lambda passed in any other way.
+ * @property parameters the names of its parameters. These are the names before its arrow, or `it` for a lambda without
+ *   an arrow. The list is empty for a lambda whose parameters carry types, because their names are not read.
+ * @property inputs the code that gives the parameters their values. This is the receiver and the argument list of the
+ *   call that takes the lambda as its trailing lambda, as far as the call has them. The list is empty for a lambda
+ *   passed in any other way.
  */
 internal class Lambda(val body: IntRange, val parameters: List<String>, val inputs: List<IntRange>)
 
@@ -30,11 +31,11 @@ internal class Lambda(val body: IntRange, val parameters: List<String>, val inpu
  * Finds the lambdas in Kotlin code from which comments and literal text are blanked. An opening brace opens a lambda or
  * a block of another kind, and the code before it tells which:
  *
- * - A block follows a keyword of control flow or of a declaration body (`if (…)`, `else`, `when`, `try`, `catch (…)`,
- *   `finally`, `do`, `for (…)`, `while (…)`, `init`, `get()`, `set(…)`, `constructor(…)`, `companion object`, an
- *   anonymous `fun (…)`), an arrow, as in a branch of `when`, a closing angle bracket of a type, a declared function with
- *   its parameter list, a type after a colon, or the name of a class, interface or object with its optional parameter
- *   list.
+ * - A block follows a keyword of control flow or of a declaration body: `if (…)`, `else`, `when`, `try`, `catch (…)`,
+ *   `finally`, `do`, `for (…)`, `while (…)`, `init`, `get()`, `set(…)`, `constructor(…)`, `companion object` or an
+ *   anonymous `fun (…)`. A block also follows an arrow, as in a branch of `when`, the closing angle bracket of a type,
+ *   a declared function with its parameter list, a type after a colon, and the name of a class, interface or object
+ *   with its optional parameter list.
  * - A trailing lambda follows the name of a call or its argument list. The receiver of the call and its argument list
  *   are the lambda's inputs, so in `items.forEach { item -> … }` the parameter `item` takes its value from `items`, and
  *   in `measureTime { work() }.let { … }` the parameter `it` takes the measurement.
@@ -60,7 +61,7 @@ internal object Lambdas {
     /** The parameters of a lambda with types before its arrow on the line of its opening brace. */
     private val TYPED_PARAMETERS = Regex("""\{[ \t]*[\w \t,()]*:[\w \t,()<>?.:]*?->""")
 
-    /** A plain identifier; the underscore that skips a destructured value is left out. */
+    /** A plain identifier. [parametersOf] leaves out the underscore that skips a destructured value. */
     private val IDENTIFIER = Regex("""[A-Za-z_]\w*""")
 
     /** The lambdas of [code], in the order of their opening braces. */
@@ -72,7 +73,7 @@ internal object Lambdas {
         }
 
     /**
-     * The inputs of the lambda that opens with the brace at [brace] in [code]; null if the brace opens a block that is
+     * The inputs of the lambda that opens with the brace at [brace] in [code]. Null if the brace opens a block that is
      * no lambda.
      */
     private fun inputsOf(code: String, brace: Int): List<IntRange>? {
@@ -108,8 +109,8 @@ internal object Lambdas {
     }
 
     /**
-     * The receiver of the call whose name starts at [nameStart] in [code], before its dot, safe call or non-null
-     * assertion with a dot; null if the name follows no dot.
+     * The receiver of the call whose name starts at [nameStart] in [code]. It stands before the dot, the safe call or
+     * the non-null assertion with its dot. Null if the name follows no dot.
      */
     private fun receiverOf(code: String, nameStart: Int): IntRange? {
         val dot = lastCodeBefore(code, nameStart) - 1
@@ -122,7 +123,7 @@ internal object Lambdas {
         return CodeRegions.startOfOperandBefore(code, access) until access
     }
 
-    /** The name that ends just before [end] in [code], blanks skipped; null if no name ends there. */
+    /** The name that ends just before [end] in [code], with blanks skipped. Null if no name ends there. */
     private fun nameBefore(code: String, end: Int): IntRange? {
         val nameEnd = lastCodeBefore(code, end)
         var nameStart = nameEnd

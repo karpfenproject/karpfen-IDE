@@ -27,27 +27,29 @@ internal data class FunctionSource(val name: String, val text: String)
  * Recognizes the functions of one test source file that assert on a wall-clock measurement: the functions that the
  * budget tripwire requires to be tagged `budget` when they are tests.
  *
- * A function asserts on a wall-clock measurement if
+ * A function asserts on a wall-clock measurement in four cases:
  *
- * - it calls an assertion, a function whose name starts with `assert`, `check` or `require` (the assertions of
- *   kotlin.test and JUnit, the preconditions of the standard library and helpers named like them), with an argument
- *   that holds a measurement ([MeasuredValues]), whatever the measurement is compared with: a named budget, a literal
- *   duration or another measurement. The trailing lambda of an assertion counts as an argument, as the condition of
- *   kotlin.test's `assertTrue { … }`, while that of a precondition is its lazy message and does not;
- * - it fails, by `fail(…)`, `error(…)` or `throw`, in the branch of an `if` whose condition holds a measurement;
- * - it calls one of JUnit's timeout assertions or runs a coroutine test with a tight literal limit ([TimeLimits]); or
- * - it calls another function of the file that asserts on a wall-clock measurement, such as a helper that measures a
+ * - It calls an assertion with an argument that holds a measurement ([MeasuredValues]). An assertion is a function
+ *   whose name starts with `assert`, `check` or `require`. These are the assertions of kotlin.test and JUnit, the
+ *   preconditions of the standard library, and helpers named like them. What the measurement is compared with does not
+ *   matter. It may be a named budget, a literal duration or another measurement. The trailing lambda of an assertion
+ *   counts as an argument, because it may be the condition, as in kotlin.test's `assertTrue { … }`. The trailing lambda
+ *   of a precondition is its lazy message and does not count.
+ * - It fails, by `fail(…)`, `error(…)` or `throw`, in the branch of an `if` whose condition holds a measurement.
+ * - It calls one of JUnit's timeout assertions, or runs a coroutine test, with a tight literal limit ([TimeLimits]).
+ * - It calls another function of the file that asserts on a wall-clock measurement, such as a helper that measures a
  *   block and asserts on the result.
  *
- * Measurements flow between the functions of the file: a function whose result is a measurement, by a `return`
- * statement or its expression body, makes every call of it a measurement, as a helper that averages the duration of a
- * block does. Both sets of functions are grown until they no longer change.
+ * Measurements flow between the functions of the file. A function whose result is a measurement, by a `return`
+ * statement or by its expression body, makes every call of it a measurement. A helper that averages the duration of a
+ * block is an example. Both sets of functions are grown until they no longer change.
  *
  * The code is read without its string literals ([KotlinLexer.codeOutsideStrings]), so a duration written into an
- * assertion message or a report is no measurement. A timestamp is none either: a test that compares a stored instant,
- * or waits for an event until a deadline, with a loop that compares the clock with the deadline or checks
- * `hasNotPassedNow()`, asserts nothing on a duration, and neither does a test that only reports a measured duration, so
- * a functional test with a generous time limit keeps running. Assertions in helpers of another file are not followed.
+ * assertion message or a report is no measurement. A timestamp is no measurement either. A test that compares a stored
+ * instant asserts nothing on a duration. Neither does a test that waits for an event until a deadline, with a loop
+ * that compares the clock with the deadline or checks `hasNotPassedNow()`. A test that only reports a measured
+ * duration asserts nothing on it either. So a functional test with a generous time limit keeps running. Assertions in
+ * helpers of another file are not followed.
  *
  * @param functions all functions of the file, those nested in classes and declared locally included.
  */

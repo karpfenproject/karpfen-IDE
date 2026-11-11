@@ -23,7 +23,10 @@ internal enum class CommentKind : SpanKind {
     /** A line comment, from two slashes to the end of the line. */
     LINE,
 
-    /** A block comment that is not KDoc; the empty block comment `/**/` is one of them. */
+    /**
+     * A block comment that is not KDoc. The empty block comment is one of them, although it starts with a slash and
+     * two asterisks like KDoc.
+     */
     BLOCK,
 
     /** A KDoc comment: a block comment whose opening delimiter carries a second asterisk. */
@@ -56,10 +59,10 @@ internal enum class LiteralKind : SpanKind {
 internal data class LexicalSpan(val kind: SpanKind, val start: Int, val end: Int)
 
 /**
- * The one lexer of the architecture tests: it splits Kotlin source text, of `.kt` files and Gradle's `.kts` scripts
- * alike, into code and the spans that are no code. [KotlinComments] reads the comments from it, [SourceReferences] the
- * code that remains when the spans are blanked, and the budget tripwire ([WallClockAssertions]) the code that remains
- * when whole string literals are blanked as well.
+ * The one lexer of the architecture tests. It splits Kotlin source text, of `.kt` files and Gradle's `.kts` scripts
+ * alike, into code and the spans that are no code. [KotlinComments] reads the comments from it. [SourceReferences]
+ * reads the code that remains when the spans are blanked. The budget tripwire ([WallClockAssertions]) reads the code
+ * that remains when whole string literals are blanked as well.
  *
  * Only a lexer can tell code from text that merely looks like it, such as a URL in a string or a package name in a
  * test name, so this object follows the lexical rules of Kotlin as far as the architecture tests depend on them:
@@ -67,23 +70,24 @@ internal data class LexicalSpan(val kind: SpanKind, val start: Int, val end: Int
  * - A line comment runs from two slashes to the end of the line, a block comment from a slash and an asterisk to the
  *   matching asterisk and slash. Block comments nest, KDoc included, so a nested opening delimiter needs its own
  *   closing one. A block comment whose opening delimiter has a second asterisk is KDoc, except the empty `/**/`.
- * - Nothing inside a string literal is a comment or code. A regular string ends at the next unescaped quote or,
- *   unterminated, at the end of the line; a backslash escapes the next character. A raw string has no escapes and
- *   ends at the last three of a run of three or more quotes, so a quote right before its closing delimiter belongs to
- *   the content.
+ * - Nothing inside a string literal is a comment or code. A regular string ends at the next unescaped quote, or at
+ *   the end of the line if it is unterminated. A backslash escapes the next character. A raw string has no escapes
+ *   and ends at the last three of a run of three or more quotes, so a quote right before its closing delimiter
+ *   belongs to the content.
  * - A string may open with a prefix of dollar signs, the multi-dollar interpolation of Kotlin 2. The length of the
- *   prefix, one for a string without one, is the number of dollar signs that open a template: a run of at least that
- *   many dollar signs directly before an opening brace starts a template expression, and the dollar signs before the
- *   last ones of a longer run are text. A shorter run is text, so in a string with a prefix of two dollar signs a
- *   single dollar sign before a brace opens nothing.
+ *   prefix is the number of dollar signs that open a template, and a string without a prefix counts as one with a
+ *   single dollar sign. A run of at least that many dollar signs directly before an opening brace starts a template
+ *   expression, and the dollar signs before the last ones of a longer run are text. A shorter run is text, so in a
+ *   string with a prefix of two dollar signs a single dollar sign before a brace opens nothing.
  * - A template expression, from its opening brace up to the brace that matches it, is code again inside either kind
- *   of string: it may hold comments, nested strings and braces of lambdas, which the lexer follows to any depth. A
- *   simple template such as `$name` holds an identifier only and stays part of the string.
+ *   of string. It may hold comments, nested strings and the braces of lambdas, which the lexer follows to any depth.
+ *   A simple template such as `$name` holds an identifier only and stays part of the string.
  * - Character literals and identifiers in backticks are literal text, so `'"'` opens no string and a test name such
  *   as `` `a // b` `` holds no comment.
  *
- * An unterminated comment, string, character literal or backtick identifier ends with the text instead of failing,
- * because the compiler already rejects such a file and the lexer only has to terminate.
+ * An unterminated comment, string, character literal or backtick identifier does not make the lexer fail. It ends at
+ * the end of its line or of the text, as the rules above say. The compiler already rejects such a file, so the lexer
+ * only has to terminate.
  */
 internal object KotlinLexer {
 
@@ -137,7 +141,7 @@ internal object KotlinLexer {
         /** The offset of the next character to read. */
         private var position = 0
 
-        /** Scans all of [source] as code and returns the spans it found; [stringLiterals] then holds its string literals. */
+        /** Scans all of [source] as code and returns the spans it found. [stringLiterals] then holds its string literals. */
         fun spans(): List<LexicalSpan> {
             scanCode(insideTemplate = false)
             return found
@@ -145,7 +149,7 @@ internal object KotlinLexer {
 
         /**
          * Scans code from [position]. Inside a template expression ([insideTemplate]) the scan stops at the closing
-         * brace that matches the template's opening one, which belongs to the string around it; braces in between,
+         * brace that matches the template's opening one, which belongs to the string around it. Braces in between,
          * such as those of a lambda, are counted so they do not end it early. At the top level it runs to the end of
          * the text.
          */
@@ -191,8 +195,8 @@ internal object KotlinLexer {
         /**
          * Scans the body of the string literal that starts at [start] and whose body starts at [bodyStart], and records
          * the string's pieces. A run of at least [templateDollars] dollar signs before an opening brace starts a
-         * template expression, which is scanned as code. A [raw] string has no escapes and may span lines; a regular
-         * string stops, unterminated, before a line break.
+         * template expression, which is scanned as code. A [raw] string has no escapes and may span lines. A regular
+         * string that is still open at a line break stops there, unterminated.
          */
         private fun scanStringBody(start: Int, bodyStart: Int, templateDollars: Int, raw: Boolean) {
             var pieceStart = start
@@ -258,7 +262,7 @@ internal object KotlinLexer {
 
         /**
          * The offset just past the block comment that opens at [start]. Every nested opening delimiter is closed before
-         * the comment itself; an unterminated comment runs to the end of the text.
+         * the comment itself. An unterminated comment runs to the end of the text.
          */
         private fun endOfBlockComment(start: Int): Int {
             var depth = 0
@@ -282,7 +286,7 @@ internal object KotlinLexer {
 
         /**
          * The offset just past the run of three or more quotes at [start]. The last three quotes of the run close the
-         * raw string; those before them are part of its content.
+         * raw string. The quotes before them are part of its content.
          */
         private fun endOfQuoteRun(start: Int): Int {
             var offset = start
@@ -298,8 +302,10 @@ internal object KotlinLexer {
         }
 
         /**
-         * The offset just past the character literal or backtick identifier that opens at [start]: the next unescaped
-         * occurrence of its opening character. A backslash escapes the next character; neither form spans lines.
+         * The offset just past the character literal or backtick identifier that opens at [start], which ends at the
+         * next unescaped occurrence of its opening character. In a character literal a backslash escapes the next
+         * character, while a backtick identifier has no escapes. Neither form spans lines, so an unterminated one ends
+         * before the line break.
          */
         private fun endOfQuoted(start: Int): Int {
             val delimiter = source[start]

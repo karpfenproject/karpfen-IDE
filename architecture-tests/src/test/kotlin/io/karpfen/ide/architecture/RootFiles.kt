@@ -21,7 +21,7 @@ import java.io.File
 /**
  * The files at the root of the repository that the architecture tests read besides the sources and documents, by
  * name. The build script of the architecture tests declares each of them as an input of their test task, one by one,
- * so that a change to one of them runs the tests again; `PackageLayoutTest` checks that it does.
+ * so that a change to one of them runs the tests again. `PackageLayoutTest` checks that the build script does so.
  */
 internal object RootFiles {
 

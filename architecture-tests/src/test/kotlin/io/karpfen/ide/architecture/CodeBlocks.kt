@@ -31,18 +31,26 @@ internal enum class BlockKind {
 }
 
 /**
- * Follows the brace blocks of Kotlin code while [KotlinComments] scans it, so a comment knows the kind of block it
- * stands in ([current]) and how deep it is nested in parentheses there ([parenDepth]). The scanner reports the code it
- * reads (words, parentheses, braces and semicolons); strings, character literals and comments never reach this class.
+ * Follows the brace blocks of Kotlin code while [KotlinComments] scans it. A comment can then tell the kind of block it
+ * stands in ([current]) and how deep it is nested in parentheses there ([parenDepth]). The scanner hands over the code
+ * it reads, which is words, parentheses, braces and semicolons. Strings, character literals and comments never reach
+ * this class.
  *
- * Whether a `{` opens a declaration body is decided by the last declaration keyword written at the same parenthesis
- * depth since the previous statement boundary: `class`, `interface` or `object` open a body of declarations (`enum
- * class` an enum body), any other keyword (`fun`, `val`, `init`, `get`, `if`, ...) or none opens a block of code. The
- * exception is a `{` without keyword directly in an enum body, outside parentheses: it opens the body of an enum entry
- * (`A { override fun f() = 1 }`), an anonymous class whose members are declarations. A `constructor` right after a
- * class keyword (`class A private constructor(...)`) keeps the class, and `Foo::class` is no keyword. The boundaries are `;`, `{` and the `}` of a block that was not opened inside parentheses; a lambda
- * argument, whose block was, leaves the header around it intact. The rule is lexical and can be fooled by unusual
- * code, such as a local class without a body followed by a lambda statement, which then counts as a declaration body.
+ * The last declaration keyword decides whether a `{` opens a declaration body. Only a keyword written at the same
+ * parenthesis depth since the previous statement boundary counts. After `class`, `interface` or `object` the brace
+ * opens a body of declarations, and after `enum class` it opens an enum body. After any other keyword, such as `fun`,
+ * `val`, `init`, `get` or `if`, or after no keyword at all, it opens a block of code.
+ *
+ * There is one exception. A `{` without a keyword, directly in an enum body and outside parentheses, opens the body of
+ * an enum entry, as in `A { override fun f() = 1 }`. Such a body is an anonymous class, so its members are
+ * declarations. A `constructor` right after a class keyword, as in `class A private constructor(...)`, keeps the class
+ * keyword in force. In `Foo::class` the word `class` is no keyword.
+ *
+ * The statement boundaries are `;`, `{` and the `}` of a block that was not opened inside parentheses. The block of a
+ * lambda argument was opened inside parentheses, so it leaves the header around it intact.
+ *
+ * The rule is lexical, and unusual code can fool it. A local class without a body, followed by a lambda statement,
+ * makes the lambda count as a declaration body.
  */
 internal class CodeBlocks {
 
@@ -61,6 +69,7 @@ internal class CodeBlocks {
      */
     private class HeaderLevel(var keyword: String? = null)
 
+    /** The open brace blocks, the innermost one last. The top level of the text has no frame. */
     private val frames = ArrayDeque<Frame>()
 
     /** The header levels of the current block, one per open parenthesis plus the block's own level. */
@@ -75,7 +84,10 @@ internal class CodeBlocks {
     /** The number of parentheses open in the current block. */
     val parenDepth: Int get() = headers.size - 1
 
-    /** Reads the identifier or keyword [word]; [isMemberReference] marks a word written right after `::`. */
+    /**
+     * Reads the identifier or keyword [word]. [isMemberReference] is true for a word written right after `::`, which is
+     * never a keyword.
+     */
     fun word(word: String, isMemberReference: Boolean) {
         val level = headers.last()
         when {
@@ -90,7 +102,7 @@ internal class CodeBlocks {
     /** Reads `(`. */
     fun openParen() = headers.addLast(HeaderLevel())
 
-    /** Reads `)`; an unbalanced one is ignored. */
+    /** Reads `)`. An unbalanced one is ignored. */
     fun closeParen() {
         if (headers.size > 1) headers.removeLast()
     }
@@ -116,7 +128,11 @@ internal class CodeBlocks {
     private fun opensEnumEntryBody(keyword: String?): Boolean =
         keyword == null && current == BlockKind.ENUM_BODY && parenDepth == 0
 
-    /** Reads `}`, closing the current block; an unbalanced one is ignored. */
+    /**
+     * Reads `}` and closes the current block. The header levels of the enclosing block come back. If the closed block
+     * was not opened inside parentheses, the `}` ends a statement of the enclosing block, so the keyword read there is
+     * forgotten. An unbalanced `}` is ignored.
+     */
     fun closeBrace() {
         val frame = frames.removeLastOrNull() ?: return
         headers = frame.outerHeaders

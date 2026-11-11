@@ -24,10 +24,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * runtime-host keeps its whole API in its root package: the host, its settings, statuses, problems and log lines, and
- * the factory of the default hosts. Every top-level declaration of the module states its visibility, as explicit API
- * mode demands, and those of its sub-packages, the bundled sources, the Docker names and the Docker engine with its
- * adapter, are internal or private, so no Docker type and nothing of the hosts' workings becomes public API.
+ * runtime-host keeps its whole API in its root package. That API is the host, its settings, statuses, problems and log
+ * lines, and the factory of the default hosts. Every top-level declaration of the module states its visibility, as
+ * explicit API mode demands. The declarations of its sub-packages are internal or private. The sub-packages hold the
+ * bundled sources, the Docker names, and the Docker engine with its adapter. So no Docker type and nothing of the inner
+ * workings of the hosts becomes public API.
  */
 class RuntimeHostApiTest {
 

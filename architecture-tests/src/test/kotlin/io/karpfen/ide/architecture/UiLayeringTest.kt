@@ -19,11 +19,15 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Dependency direction inside the UI modules: the key model never sees its Compose adapter; the Compose-free editor
- * model sees no other editor package; the editor view and the popups meet only through the overlay slot API, so each
- * can change without the other; the editor and workbench state holders never see their views or desktop adapters; the
- * workbench's feature sub-states never see the mediator that coordinates them; ports never see their adapters.
- * Checked on the package graph of the production code ([PackageGraph]).
+ * Guards the direction of the dependencies inside the UI modules. The rules are checked on the package graph of the
+ * production code ([PackageGraph]).
+ *
+ * - The key model never sees its Compose adapter.
+ * - The Compose-free editor model sees no other editor package.
+ * - The editor view and the popups meet only through the overlay slot API, so each can change without the other.
+ * - The editor and workbench state holders never see their views or desktop adapters.
+ * - The feature sub-states of the workbench never see the mediator that coordinates them.
+ * - Ports never see their adapters.
  */
 class UiLayeringTest {
 
@@ -44,7 +48,7 @@ class UiLayeringTest {
         val WORKBENCH_FEATURES = listOf("projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout", "output", "runtime")
             .map { "$WORKBENCH.$it" }
 
-        /** Workbench packages that may use Compose: the root, every `view` package, the desktop adapters. */
+        /** The workbench packages that may use Compose: the root, every `view` package and the desktop adapters. */
         fun String.isWorkbenchUiPackage(): Boolean =
             this == WORKBENCH || endsWith(".view") || isWithin("$WORKBENCH.files.desktop")
     }
@@ -118,8 +122,8 @@ class UiLayeringTest {
     }
 
     /**
-     * Fails if a package of [module] that matches [from] depends on a package that matches [to], and if no package
-     * matches [from], so a renamed package cannot make the rule vacuous.
+     * Fails if a package of [module] that matches [from] depends on a package that matches [to]. It also fails if no
+     * package matches [from], so a renamed package cannot make the rule vacuous.
      */
     private fun assertNoEdges(module: String, from: (String) -> Boolean, to: (String) -> Boolean, rule: String) {
         val graph = PackageGraph.ofModule(module)

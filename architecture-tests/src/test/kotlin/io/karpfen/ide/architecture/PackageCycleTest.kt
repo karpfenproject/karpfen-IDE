@@ -21,11 +21,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Dependency direction inside modules is acyclic: within each core, runtime and UI module, the packages of the
- * production code must not depend on each other in a cycle. A package depends on another package of the same module
- * when one of its files imports (or fully-qualified references) a declaration of it; the declaring package of a name is
- * the longest package of the module that contains it. A module's root package counts like any other, so in the runtime
- * modules it holds only the facade, its factory functions and its options, which no other package imports.
+ * The dependencies between the packages of a module run in one direction. Within each core, runtime and UI module, the
+ * packages of the production code must not depend on each other in a cycle. A package depends on another package of
+ * the same module when one of its files imports a declaration of it or refers to one by its fully qualified name. The
+ * declaring package of a name is the longest package of the module that contains it. The root package of a module
+ * counts like any other. In the runtime modules it holds only the facade, its factory functions and its options, and
+ * no other package of the module imports it.
  */
 class PackageCycleTest {
 
@@ -54,7 +55,7 @@ class PackageCycleTest {
     }
 
     /**
-     * Guards against a vacuous rule with known edges that must be seen: the built-in language registry wires the
+     * Guards against a vacuous rule with known edges that must be seen. The built-in language registry wires the
      * adapters, the editor state holds the caret model, and the lifecycle of the runtime protocol answers the failures of
      * its gateway.
      */
@@ -96,7 +97,10 @@ class PackageCycleTest {
  */
 internal data class PackageGraph(val nodes: Set<String>, val edges: Map<String, Set<String>>) {
 
-    /** The strongly connected components with more than one package (Tarjan), each a cycle. */
+    /**
+     * The strongly connected components with more than one package, each of which holds a cycle. Tarjan's algorithm
+     * finds them in one depth-first pass, starting from the packages in sorted order.
+     */
     fun cycles(): List<Set<String>> {
         var counter = 0
         val index = HashMap<String, Int>()
@@ -135,10 +139,13 @@ internal data class PackageGraph(val nodes: Set<String>, val edges: Map<String, 
     }
 
     companion object {
-        /** The graph of the production packages of [module] (a module directory such as `ui/ui-editor`). */
+        /** The graph of the production packages of [module], a module directory such as `ui/ui-editor`. */
         fun ofModule(module: String): PackageGraph = of(KarpfenModules.mainFiles.filter { it.moduleDir == module })
 
-        /** The graph of the packages of [files] (one module) and the dependencies between them. */
+        /**
+         * The graph of the packages of [files], which belong to one module, and of the dependencies between them. A
+         * name that an import or a fully qualified reference uses points to the longest package that contains it.
+         */
         fun of(files: List<KoFileDeclaration>): PackageGraph {
             val packages = files.map { it.packageName }.toSet()
             val edges = HashMap<String, MutableSet<String>>()

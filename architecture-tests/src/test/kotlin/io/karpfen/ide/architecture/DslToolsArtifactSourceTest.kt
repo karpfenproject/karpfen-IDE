@@ -22,10 +22,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * In artifact mode the settings resolve karpfen-dsl-tools from GitHub Packages only: that repository is the exclusive
- * source of the group `io.karpfen`, so Maven Central and Google Maven, which the settings declare for every other
- * dependency and which Gradle asks first, are never asked for it, and no artifact of the same coordinates there can
- * take its place.
+ * In artifact mode the settings resolve karpfen-dsl-tools from GitHub Packages only. Artifact mode is on when a blank
+ * `dslToolsPath` switches off the composite build of the submodule. GitHub Packages is then the exclusive source of the
+ * group `io.karpfen`. The settings also declare Maven Central and Google Maven for every other dependency, and Gradle
+ * asks those first. Because of the exclusive source, Gradle never asks them for `io.karpfen`, and no artifact with the
+ * same coordinates there can take the place of dsl-tools.
  */
 class DslToolsArtifactSourceTest {
 

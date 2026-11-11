@@ -23,14 +23,21 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Adapters isolate foreign APIs: ANTLR and the parsers that dsl-tools generates from its grammars are only reached from
- * the ANTLR adapter package [KarpfenModules.ANTLR_ADAPTER_PACKAGE]; everything else of dsl-tools except its semantic
- * model only from the dsl adapter package [KarpfenModules.DSL_ADAPTER_PACKAGE], so no other package sees ANTLR types,
- * dsl-tools readers, diagnostics or printers; and logback only from the logging packages of the application and the
- * command-line tool ([LOGGING_PACKAGES]). The semantic model of dsl-tools ([DSL_TOOLS_SEMANTIC_MODEL]) stays usable
- * everywhere. The dsl-tools rule is an allow-list: a package that dsl-tools adds later is confined until it is added to
- * the semantic model on purpose. The rules apply to the main, test and testFixtures sources of every module, and a
- * fully qualified reference in code counts like an import.
+ * Adapters isolate foreign APIs. Three rules confine them.
+ *
+ * ANTLR and the parsers that dsl-tools generates from its grammars are only reached from the ANTLR adapter package
+ * [KarpfenModules.ANTLR_ADAPTER_PACKAGE].
+ *
+ * Everything else of dsl-tools, except its semantic model, is only reached from the dsl adapter package
+ * [KarpfenModules.DSL_ADAPTER_PACKAGE]. So no other package sees ANTLR types, dsl-tools readers, diagnostics or
+ * printers. The semantic model of dsl-tools ([DSL_TOOLS_SEMANTIC_MODEL]) stays usable everywhere. This rule works as an
+ * allow-list. A package that dsl-tools adds later is confined until someone adds it to the semantic model on purpose.
+ *
+ * Logback is only reached from the logging packages of the application and the command-line tool
+ * ([LOGGING_PACKAGES]).
+ *
+ * The rules apply to the main, test and testFixtures sources of every module. A fully qualified reference in code
+ * counts like an import.
  */
 class ForeignApiConfinementTest {
 
@@ -64,8 +71,9 @@ class ForeignApiConfinementTest {
 
         /**
          * True if [name] lies within dsl-tools but neither within its semantic model nor within the generated parsers,
-         * which the ANTLR rule confines: the readers, diagnostics, source positions, printers, converters, builders,
-         * file parsers and every package dsl-tools adds later, which only the dsl adapter may use.
+         * which the ANTLR rule already confines. This covers the readers, diagnostics, source positions, printers,
+         * converters, builders, file parsers and every package that dsl-tools adds later. Only the dsl adapter may use
+         * them.
          */
         fun usesAdaptedDslTools(name: String): Boolean =
             name.isWithin(DSL_TOOLS) && !name.isWithinAny(DSL_TOOLS_SEMANTIC_MODEL + GENERATED_PARSERS)
@@ -100,10 +108,11 @@ class ForeignApiConfinementTest {
     }
 
     /**
-     * The internal adapter API hands out foreign types (e.g. `LexedText.tokens: List<Token>`), which Kotlin's type
-     * inference lets a caller use without importing org.antlr, so the entry points themselves are confined: only the
-     * adapter packages and the registry (the Abstract Factory wiring them) may depend on them. Other modules reach the
-     * public `DslReader` of the dsl package directly.
+     * The internal adapter API hands out foreign types, for example `LexedText.tokens: List<Token>`. Kotlin's type
+     * inference lets a caller use such a type without importing org.antlr, so the import rules cannot see that use.
+     * That is why the entry points themselves are confined. Only the adapter packages and the registry may depend on
+     * them. The registry is the Abstract Factory that wires the adapters. Other modules reach the public `DslReader` of
+     * the dsl package directly.
      */
     @Test
     fun `inside core-document only the registry wires the adapter packages`() {
@@ -122,8 +131,8 @@ class ForeignApiConfinementTest {
     }
 
     /**
-     * Guards against vacuous rules: if an adapter package or a foreign package were renamed, the confinement rules above
-     * would pass trivially, so each adapter, the logging packages included, must hold production code that uses the
+     * Guards against vacuous rules. If an adapter package or a foreign package were renamed, the confinement rules above
+     * would pass trivially. So each adapter, the logging packages included, must hold production code that uses the
      * packages its rule confines.
      */
     @Test
@@ -152,10 +161,11 @@ class ForeignApiConfinementTest {
     }
 
     /**
-     * Covers [usesAntlr] and [usesAdaptedDslTools]: the generated parsers count for the ANTLR rule, and every other
-     * package of dsl-tools beyond its semantic model counts for the dsl rule, the printers and the examples included,
-     * and so do packages that merely share a prefix with the semantic model, in imports and in fully qualified
-     * references in code; the semantic model and packages outside dsl-tools that merely share its prefix do not.
+     * Covers [usesAntlr] and [usesAdaptedDslTools]. The generated parsers count for the ANTLR rule. Every other package
+     * of dsl-tools beyond its semantic model counts for the dsl rule, the printers and the examples included. So do
+     * packages that merely share a prefix with the semantic model. This holds for imports and for fully qualified
+     * references in code. The semantic model does not count, and neither do packages outside dsl-tools that merely
+     * share its prefix.
      */
     @Test
     fun `the rules recognize the dsl-tools packages and leave the semantic model alone`() {
@@ -200,7 +210,7 @@ class ForeignApiConfinementTest {
         assertTrue(inCode.any { usesAdaptedDslTools(it) }, "a fully qualified printer in code must count: $inCode")
     }
 
-    /** Covers [usesLogback]: the packages of logback count, SLF4J and packages that merely share a prefix do not. */
+    /** Covers [usesLogback]. The packages of logback count. SLF4J and packages that merely share its prefix do not. */
     @Test
     fun `the logback rule recognizes logback and leaves SLF4J alone`() {
         assertTrue(usesLogback("ch.qos.logback.classic.LoggerContext"))
@@ -210,8 +220,9 @@ class ForeignApiConfinementTest {
     }
 
     /**
-     * Fails if an import or a fully qualified reference in [files] is forbidden by [isForbidden]. Inline, so that
-     * Konsist, which derives the test name from the call stack, reports and suppresses by the test method name.
+     * Fails if an import or a fully qualified reference in [files] is forbidden by [isForbidden]. The function is
+     * inline because Konsist derives the test name from the call stack. Inlined into the test method, it lets Konsist
+     * report and suppress a failure under the name of that method.
      */
     @Suppress("NOTHING_TO_INLINE")
     private inline fun assertConfined(

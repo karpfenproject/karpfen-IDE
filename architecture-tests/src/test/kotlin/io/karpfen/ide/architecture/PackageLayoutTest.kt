@@ -24,13 +24,14 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue as kotlinAssertTrue
 
 /**
- * Covers the package layout that every other architecture rule relies on: production code lives only in the modules of
- * [KarpfenModules.packagePrefixes] and within the package prefix of its module, no module contains Java sources, and
- * the scope of the rules holds the production code of every module but neither build-logic nor build output. Build
- * output is told from sources by one rule, [BuildOutput], here, in the documentation style rules and in the
- * `.gitignore`, so a source package named `build` is sources everywhere; the checkouts of git submodules are left out
- * by [OwnCode] here as everywhere. The files the tests read at the root of the repository ([RootFiles]) are inputs of
- * their test task.
+ * Covers the package layout that every other architecture rule relies on. Production code lives only in the modules of
+ * [KarpfenModules.packagePrefixes] and within the package prefix of its module. No module contains Java sources. The
+ * scope of the rules holds the production code of every module, but neither build-logic nor build output.
+ *
+ * One rule, [BuildOutput], tells build output from sources here, in the documentation style rules and in the
+ * `.gitignore`. So a source package named `build` counts as sources everywhere. [OwnCode] leaves out the checkouts of
+ * git submodules here, as it does everywhere. The files that the tests read at the root of the repository
+ * ([RootFiles]) are inputs of their test task.
  */
 class PackageLayoutTest {
 
@@ -61,7 +62,7 @@ class PackageLayoutTest {
 
     /**
      * All modules are plain Kotlin/JVM. `karpfen.kotlin-jvm` applies `java-library`, so a `java` source directory would
-     * compile, but Konsist reads Kotlin files only: Java code would bypass every rule in this module.
+     * compile. Konsist reads Kotlin files only, so Java code would bypass every rule in this module.
      */
     @Test
     fun `modules contain no Java sources`() {
@@ -99,13 +100,13 @@ class PackageLayoutTest {
     private fun isScannedForJava(dir: File, root: File): Boolean =
         !dir.name.startsWith(".") && OwnCode.isOwnDirectory(dir.relativeTo(root).invariantSeparatorsPath) && !dir.isNestedBuild()
 
-    /** A directory below the root with its own settings file, e.g. build-logic/, is a separate build, not a module. */
+    /** True for a directory with its own settings file, such as `build-logic`, which is a separate build and no module. */
     private fun File.isNestedBuild(): Boolean =
         resolve("settings.gradle.kts").isFile || resolve("settings.gradle").isFile
 
     /**
      * Neither build tooling nor generated code is product code. The raw Konsist scope contains build-logic, so the
-     * filter in [KarpfenModules.sourceFiles] is what keeps it out. Build output contains Kotlin sources, too:
+     * filter in [KarpfenModules.sourceFiles] is what keeps it out. Build output contains Kotlin sources too.
      * build-logic's generated kotlin-dsl accessors exist whenever this build runs, because build-logic is compiled
      * first, and Konsist itself must skip them.
      */
@@ -137,7 +138,7 @@ class PackageLayoutTest {
     }
 
     /**
-     * Git ignores build output only where Gradle writes it: every pattern of the `.gitignore` that names a `build`
+     * Git ignores build output only where Gradle writes it. Every pattern of the `.gitignore` that names a `build`
      * directory is anchored at the root, because an unanchored one would also ignore a source package named `build`.
      */
     @Test

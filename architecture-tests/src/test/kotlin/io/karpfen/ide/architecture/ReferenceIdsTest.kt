@@ -19,9 +19,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers [ReferenceIds], the recognizer of reference ids behind the documentation style rules: it finds every kind of
- * id it lists, in the phrasings the planning documents and the reviews of the project use, and leaves ordinary prose
- * alone, including words and codes that resemble an id.
+ * Covers [ReferenceIds], the recognizer of reference ids behind the documentation style rules. It finds every kind of
+ * id it lists, in the phrasings that planning documents and reviews use. It leaves ordinary prose alone, including
+ * words and codes that resemble an id.
  */
 class ReferenceIdsTest {
 
@@ -43,7 +43,7 @@ class ReferenceIdsTest {
 
     @Test
     fun `finds sections and work packages named in words`() {
-        assertEquals(listOf("section 4.2"), idsIn("As section 4.2 of the phase-1 specification requires"))
+        assertEquals(listOf("section 4.2"), idsIn("As section 4.2 of the parser specification requires"))
         assertEquals(listOf("sections 2"), idsIn("as sections 2 and 3 describe"))
         assertEquals(listOf("work package PARSE", "Work-package 7"), idsIn("See the work package PARSE and Work-package 7."))
     }
@@ -72,9 +72,12 @@ class ReferenceIdsTest {
     }
 
     @Test
-    fun `finds the phrasings of the phase-1 comments and their variants`() {
+    fun `finds numbered rules, possessive items, records, work-package names and keys beside their words`() {
         assertEquals(listOf("rule 7 of the work-package plan"), idsIn("(rule 7 of the work-package plan)"))
-        assertEquals(listOf("steps 3–4 of the phase-1 specification"), idsIn("as steps 3–4 of the phase-1 specification say"))
+        assertEquals(
+            listOf("steps 3\u20134 of the text-editing specification"),
+            idsIn("as steps 3\u20134 of the text-editing specification say"),
+        )
         assertEquals(listOf("proposal's item 6"), idsIn("the proposal's item 6"))
         assertEquals(listOf("INTEGRATION's"), idsIn("(INTEGRATION's e2e)"))
         assertEquals(listOf("INTEGRATION's"), idsIn("(INTEGRATION's `ui.editor.e2e`, the editor tests)"))
@@ -85,10 +88,20 @@ class ReferenceIdsTest {
     }
 
     @Test
+    fun `finds numbered phases, increments, milestones, iterations and sprints`() {
+        assertEquals(
+            listOf("phase 1", "Phase-2", "increment 3", "Increments 4", "milestone two", "iteration 7", "Sprint Ten", "phase 0"),
+            idsIn("Done in phase 1 and Phase-2, increment 3, Increments 4 and 5, milestone two, iteration 7, Sprint Ten and phase 0."),
+        )
+        assertEquals(listOf("phase-1", "increment-zero"), idsIn("the phase-1 specification and the increment-zero skeleton"))
+        assertEquals(listOf("phases  3"), idsIn("kept from phases  3 to 5"))
+    }
+
+    @Test
     fun `ordinary prose is no reference id`() {
         listOf(
             "the decision that text files are the source of truth",
-            "the parse budget of the phase-1 specification",
+            "the time budget for parsing a large model file",
             "a section of the specification, read 3 times",
             "the color 0xFFD1E0, the D10 grid, the key Ctrl+D and 2D1 coordinates",
             "D9 and D0 are no decision keys",
@@ -101,6 +114,8 @@ class ReferenceIdsTest {
             "One refinement of step 2: a comment piece; the steps 1 to 3 of the algorithm",
             "ANTLR's conjured tokens (ANTLR's console listener), the enclosing TRANSITION's clause, the CLI's report",
             "the format (TEXT), the parser records 3 errors, a record of 2 entries, 5 sec timeout",
+            "the phase becomes active, an increment of one, each iteration once, 3 milestones, a sprint to the end",
+            "a phase-locked loop, an increment-only counter, the tenth iteration, iteration 1E7 and phase 10x",
         ).forEach { prose -> assertEquals(emptyList(), idsIn(prose), prose) }
     }
 

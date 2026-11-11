@@ -21,26 +21,29 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The UI follows a unidirectional data flow: composables render immutable UI state and emit intents, while the editor
- * models and every state holder are plain Kotlin, unit-testable without Compose. The rule applies to
- * - an explicit list of packages of ui-editor and ui-foundation ([COMPOSE_FREE]): the Compose-free editor model, the
- *   editor's state holders, foundation's command registry and key model (its Compose adapter is `keys.compose`); the
- *   editor model and state include their sub-packages, where features may add their own (`ui.editor.model..`,
- *   `ui.editor.state..`);
- * - every package of ui-workbench except the root package (the `Workbench` composable and its wiring), the features'
- *   `view` sub-packages and the desktop adapters `files.desktop` ([isWorkbenchUiPackage]). The workbench is organized
- *   by feature: each feature package (`projecttree`, `tabs`, `outline`, `problems`, `statusbar`, `dialog`, `layout`,
- *   `output`) holds its Compose-free sub-state and UI values and a `view` sub-package holding its composables, and
- *   `state` holds the mediator that coordinates the sub-states.
+ * The UI follows a unidirectional data flow. Composables render immutable UI state and emit intents, while the editor
+ * models and every state holder are plain Kotlin that unit tests can run without Compose. The rule covers two groups of
+ * packages.
  *
- * Those packages must not use Compose (`androidx.compose..`, `org.jetbrains.compose..`) nor AWT/Swing; composables,
- * Compose-side helper state (e.g. a hoisted `TreeViewState`) and toolkit adapters live in view or adapter packages
- * that depend on them, never the other way round.
+ * The first group is an explicit list of packages of ui-editor and ui-foundation ([COMPOSE_FREE]). It holds the
+ * Compose-free editor model, the state holders of the editor, and the command registry and key model of foundation.
+ * The Compose adapter of the key model lives apart in `keys.compose`. The editor model and the editor state include
+ * their sub-packages (`ui.editor.model..`, `ui.editor.state..`), where features may add their own.
+ *
+ * The second group is every package of ui-workbench except three kinds ([isWorkbenchUiPackage]): the root package with
+ * the `Workbench` composable and its wiring, the `view` sub-packages of the features, and the desktop adapters in
+ * `files.desktop`. The workbench is organized by feature. Each feature package (`projecttree`, `tabs`, `outline`,
+ * `problems`, `statusbar`, `dialog`, `layout`, `output`) holds its Compose-free sub-state and UI values, and its `view`
+ * sub-package holds its composables. The package `state` holds the mediator that coordinates the sub-states.
+ *
+ * These packages must not use Compose (`androidx.compose..`, `org.jetbrains.compose..`), AWT or Swing. Composables,
+ * Compose-side helper state such as a hoisted `TreeViewState`, and toolkit adapters live in view or adapter packages.
+ * Those depend on the Compose-free packages, never the other way round.
  */
 class ComposeFreeStateTest {
 
     private companion object {
-        /** Compose-free packages of ui-editor and ui-foundation; an entry ending in `..` includes its sub-packages. */
+        /** The Compose-free packages of ui-editor and ui-foundation. An entry ending in `..` includes its sub-packages. */
         val COMPOSE_FREE = listOf(
             "io.karpfen.ide.ui.editor.model..",
             "io.karpfen.ide.ui.editor.state..",
@@ -51,7 +54,10 @@ class ComposeFreeStateTest {
         /** The root package of ui-workbench. */
         const val WORKBENCH = "io.karpfen.ide.ui.workbench"
 
-        /** Compose-free packages of ui-workbench that must exist (guards the by-feature rule against renames). */
+        /**
+         * The Compose-free packages of ui-workbench that must exist. The list keeps a renamed feature package from
+         * silently dropping out of the rule.
+         */
         val WORKBENCH_STATE_PACKAGES = listOf(
             "state", "projecttree", "tabs", "outline", "problems", "statusbar", "dialog", "layout", "output",
             "command", "files", "settings", "templates", "runtime",
@@ -95,7 +101,7 @@ class ComposeFreeStateTest {
         ) { file -> file in qualified }
     }
 
-    /** Guards against a vacuous rule: a renamed package would silently drop out of the list. */
+    /** Guards against a vacuous rule. A renamed package would otherwise silently drop out of the rule. */
     @Test
     fun `every listed Compose-free package exists`() {
         val packages = uiMainFiles.map { it.packageName }.toSet()

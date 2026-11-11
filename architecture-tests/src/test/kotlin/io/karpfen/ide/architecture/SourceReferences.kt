@@ -17,8 +17,15 @@ package io.karpfen.ide.architecture
 
 import com.lemonappdev.konsist.api.declaration.KoFileDeclaration
 
-/** A dotted name used in code, e.g. `javax.swing.JFrame` in `val frame = javax.swing.JFrame()`, and its 1-based line. */
+/**
+ * A dotted name used in code, such as `javax.swing.JFrame` in `val frame = javax.swing.JFrame()`.
+ *
+ * @property name the dotted name as written.
+ * @property line the 1-based line on which the name stands.
+ */
 internal data class QualifiedReference(val name: String, val line: Int) {
+
+    /** The name and its line, as failure messages print them. */
     override fun toString(): String = "$name (line $line)"
 }
 
@@ -27,9 +34,10 @@ internal data class QualifiedReference(val name: String, val line: Int) {
  *
  * Import rules alone miss references such as `java.awt.Toolkit.getDefaultToolkit()` or `javax.swing.JPanel()`, which
  * compile without an import because the JDK is on every classpath. This scanner reports every dotted name in the code
- * of a file, as [KotlinLexer] separates it from comments and literal text, outside `package` and `import` directives,
- * so the layer rules can check them against the same forbidden package prefixes as the imports. The expressions of
- * string templates are code and are seen; a name split across lines is not.
+ * of a file outside the `package` and `import` directives. [KotlinLexer] separates that code from comments and literal
+ * text. The layer rules check the names against the same forbidden package prefixes as the imports. A member access on
+ * a local name, such as `value.length`, looks the same and is reported as written. The expressions of string templates
+ * are code and are seen. A name split across lines is not.
  */
 internal object SourceReferences {
 
@@ -39,7 +47,7 @@ internal object SourceReferences {
     /** A `package` or `import` directive line, whose names are not references in code. */
     private val directive = Regex("""^\s*(?:package|import)\s""")
 
-    /** Dotted names used in the code of [source] (see the object documentation for what is skipped). */
+    /** The dotted names used in the code of [source], with their lines. The object documentation says what is skipped. */
     fun qualifiedReferences(source: String): List<QualifiedReference> =
         KotlinLexer.code(source).lines().flatMapIndexed { index, line ->
             if (directive.containsMatchIn(line)) {
@@ -50,6 +58,6 @@ internal object SourceReferences {
         }
 }
 
-/** Fully qualified references in this file's code (see [SourceReferences]). */
+/** The fully qualified references in the code of this file, as [SourceReferences] finds them. */
 internal val KoFileDeclaration.qualifiedReferences: List<QualifiedReference>
     get() = SourceReferences.qualifiedReferences(text)

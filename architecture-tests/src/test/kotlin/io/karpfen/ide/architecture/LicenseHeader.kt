@@ -22,7 +22,7 @@ package io.karpfen.ide.architecture
  *
  * The header stands once in a file, as its first lines and followed by a line break, before the file annotations, the
  * package declaration or the first statement of a script. In that one place it is the only KDoc that documents no
- * declaration, which [KDocPlacement] allows; a copy anywhere else, or a changed header, is a comment like any other.
+ * declaration, which [KDocPlacement] allows. A copy anywhere else, or a changed header, is a comment like any other.
  * Windows line breaks count as line breaks, so a checkout that converts them still has its headers.
  */
 internal object LicenseHeader {
