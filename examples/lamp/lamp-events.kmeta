@@ -1,0 +1,10 @@
+// The events of the lamp example. Each type names an event, and its properties are the
+// payload the event carries. The state machines decide the domain of each event:
+// press and dim arrive in the domain "switch", smash in the domain "service".
+type "press" "Presses the wall switch" {
+}
+type "dim" "Asks the lamp for full power when bright is true" {
+    prop("bright", "boolean")
+}
+type "smash" "Breaks the lamp for good" {
+}

@@ -1,0 +1,30 @@
+// The state machine of the wall switch. The descriptor attaches it to the object "wallSwitch".
+// It reacts to the same press events as the lamp and records every new position in "presses".
+STATEMACHINE ATTACHED TO "Switch" {
+    STATES {
+        INITIAL STATE "down" { }
+        STATE "up" {
+            ENTRY {
+                SET("position", "up")
+                APPEND("presses", "up")
+            }
+        }
+        STATE "back down" {
+            ENTRY {
+                SET("position", "down")
+                APPEND("presses", "down")
+            }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "down" -> "up" {
+            CONDITION { EVENT("switch", "press") }
+        }
+        TRANSITION "up" -> "back down" {
+            CONDITION { EVENT("switch", "press") }
+        }
+        TRANSITION "back down" -> "up" {
+            CONDITION { EVENT("switch", "press") }
+        }
+    }
+}
