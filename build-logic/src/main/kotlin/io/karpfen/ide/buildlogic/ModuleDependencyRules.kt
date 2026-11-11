@@ -16,21 +16,22 @@
 package io.karpfen.ide.buildlogic
 
 /**
- * The module dependency matrix: the allowed dependency directions between the karpfen IDE modules.
+ * The module dependency matrix, which lists the allowed dependency directions between the karpfen IDE modules.
  *
- * Module boundaries are enforced by the build, because a layering that only lives in documents erodes. The core
- * modules are the UI-agnostic language core and see only each other; notation, runtime and bridges build on core,
- * except the runtime protocol, which depends on no IDE module at all, so that the bridges built on it stay free of the
- * core; the bridges are headless-first and use of the runtime only its protocol module; the UI sees every layer but the
- * app and the tools; the command-line tools see every layer but the UI and the app; the app wires everything. Every
- * module's `check` verifies it against [rules], and the architecture tests add the import rules that a dependency
- * matrix cannot express. A new module needs a rule here and an entry in the architecture tests' module table.
+ * The build enforces the module boundaries, because a layering that lives only in documents erodes. The core modules
+ * are the UI-agnostic language core and see only each other. Notation, runtime and bridges build on core. The runtime
+ * protocol is the exception. It depends on no IDE module at all, so the bridges built on it stay free of the core. The
+ * bridges are headless-first and use only the protocol module of the runtime. The UI sees every layer except the app
+ * and the tools. The command-line tools see every layer except the UI and the app. The app wires everything together.
+ * Every module's `check` verifies the module against [rules], and the architecture tests add the import rules that a
+ * dependency matrix cannot express. A new module needs a rule here and an entry in the module table of the
+ * architecture tests.
  *
- * Module identifiers are Gradle project paths. A pattern ending in `:*` matches every module below that
- * group (`:core:*` matches `:core:core-text`), the pattern `*` matches every module, any other pattern
- * matches exactly one project path.
+ * Module identifiers are Gradle project paths. A pattern ending in `:*` matches every module below that group, so
+ * `:core:*` matches `:core:core-text`. The pattern `*` matches every module. Any other pattern matches exactly one
+ * project path.
  *
- * Pure logic without Gradle types, so it can be unit-tested directly; the Gradle wiring lives in
+ * The rules are pure logic without Gradle types, so they can be unit-tested directly. The Gradle wiring lives in
  * [VerifyModuleDependencies] and the `karpfen.kotlin-jvm` convention plugin.
  */
 object ModuleDependencyRules {
@@ -40,7 +41,7 @@ object ModuleDependencyRules {
 
     /** A project dependency declared in [configuration] of a module, pointing at [targetPath]. */
     data class DeclaredDependency(val configuration: String, val targetPath: String) {
-        /** Serialized form used as a Gradle task input. */
+        /** The serialized form, used as a Gradle task input. */
         fun encode(): String = "$configuration$SEPARATOR$targetPath"
 
         companion object {
@@ -62,9 +63,9 @@ object ModuleDependencyRules {
     /**
      * The matrix. The first rule whose [Rule.from] matches the depending module applies, so the rule of the runtime
      * protocol comes before the rule of the runtime group. The runtime protocol and the architecture tests have no
-     * allowed target: the protocol is the client of the karpfen runtime that the bridges use too, and the architecture
-     * tests read the source files of all modules from disk; neither may depend on any module (a module may still use its
-     * own test fixtures).
+     * allowed target. The protocol is the client of the karpfen runtime that the bridges use too. The architecture tests
+     * read the source files of all modules from disk. Neither may depend on any module, although a module may still use
+     * its own test fixtures.
      */
     val rules: List<Rule> = listOf(
         Rule(":core:*", listOf(":core:*")),
@@ -78,7 +79,7 @@ object ModuleDependencyRules {
         Rule(":architecture-tests", emptyList()),
     )
 
-    /** True if [projectPath] matches [pattern] (see the class documentation for the pattern syntax). */
+    /** True if [projectPath] matches [pattern], in the pattern syntax that the class documentation describes. */
     fun matches(pattern: String, projectPath: String): Boolean = when {
         pattern == "*" -> true
         pattern.endsWith(":*") -> projectPath.startsWith(pattern.removeSuffix("*")) &&
@@ -89,7 +90,7 @@ object ModuleDependencyRules {
     /** The rule that governs [from], or null if the module is not covered by the matrix. */
     fun ruleFor(from: String): Rule? = rules.firstOrNull { matches(it.from, from) }
 
-    /** True if module [from] may depend on module [to]. A module may always depend on itself (e.g. test fixtures). */
+    /** True if module [from] may depend on module [to]. A module may always depend on itself, for example on its test fixtures. */
     fun isAllowed(from: String, to: String): Boolean {
         if (from == to) return true
         val rule = ruleFor(from) ?: return false
@@ -97,13 +98,13 @@ object ModuleDependencyRules {
     }
 
     /**
-     * Human-readable violations of module [from]; empty if all project dependencies are allowed.
+     * The violations of module [from] as messages for people, or an empty list if all project dependencies are allowed.
      *
      * [dependencies] are the project dependencies declared on the module's configurations. [resolved] are the
-     * first-level project dependencies of its resolved classpaths ([DeclaredDependency.configuration] is then the
-     * classpath, e.g. `compileClasspath`); they also contain dependencies added after the declarations were scanned or
-     * during resolution (`withDependencies`, `defaultDependencies`). A forbidden target that is already reported as a
-     * declaration is not repeated for the classpaths it reaches.
+     * first-level project dependencies of its resolved classpaths, and their [DeclaredDependency.configuration] is the
+     * classpath, such as `compileClasspath`. They also contain dependencies added after the declarations were scanned or
+     * during resolution, through `withDependencies` or `defaultDependencies`. A forbidden target that is already reported
+     * as a declaration is not repeated for the classpaths it reaches.
      */
     fun violations(
         from: String,

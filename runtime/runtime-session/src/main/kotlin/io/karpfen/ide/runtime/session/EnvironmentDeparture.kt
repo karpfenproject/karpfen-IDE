@@ -25,13 +25,13 @@ import io.karpfen.ide.runtime.session.deploy.LedgerEntry
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * How the environment of a session leaves it, decided once even when closing races the end of the deployment or a
- * stop: the session records its environment in the ledger at most once (a failed deployment's cleanup records it
- * instead), and whoever learns second of a deployment that succeeded and a session that was closed meanwhile takes
- * care of the deployed environment.
+ * Decides how the environment of a session leaves it. The decision is made once, even when closing races the end of
+ * the deployment or a stop. The session records its environment in the ledger at most once. When the deployment
+ * failed, the deployment's cleanup records it instead. A deployment can succeed while the session is closed at the same
+ * time. Whoever of the two learns about the other second takes care of the deployed environment.
  *
- * Threading: every function may be called from any thread; closing, the end of the deployment and the session's own stop
- * are decided under one lock.
+ * Every function may be called from any thread. Closing, the end of the deployment and the session's own stop are
+ * decided under one lock.
  *
  * @param ledger where the environment is recorded.
  * @param endpoint the runtime the environment is on.
@@ -49,12 +49,12 @@ internal class EnvironmentDeparture(private val ledger: EnvironmentLedger, priva
     /** True once the environment was recorded. */
     private val recorded = AtomicBoolean(false)
 
-    /** True while the session's own stop call runs; it records the environment itself. */
+    /** True while the session's own stop call runs. That call records the environment itself. */
     private var stopping = false
 
     /**
-     * Takes the deployment's [result] and answers true if the session was closed while the deployment ran: a deployed
-     * environment is then the caller's to take care of, since closing found no deployment to leave.
+     * Takes the deployment's [result] and returns true if the session was closed while the deployment ran. In that
+     * case the caller takes care of a deployed environment, because closing found no deployment to leave.
      */
     fun deployEnded(result: DeploymentResult): Boolean =
         synchronized(lock) {
@@ -63,8 +63,9 @@ internal class EnvironmentDeparture(private val ledger: EnvironmentLedger, priva
         }
 
     /**
-     * Marks the session as closed and answers the deployed environment it leaves, or null if the deployment still
-     * runs (its cancellation cleans up) or failed (its cleanup recorded it).
+     * Marks the session as closed and returns the deployed environment it leaves. Returns null if the deployment still
+     * runs, because its cancellation cleans up. Also returns null if the deployment failed, because its cleanup
+     * recorded the environment already.
      */
     fun close(): Leaving? =
         synchronized(lock) {
@@ -78,8 +79,8 @@ internal class EnvironmentDeparture(private val ledger: EnvironmentLedger, priva
     }
 
     /**
-     * Marks that the session's own stop call ended and answers true if the session was closed meanwhile: closing left
-     * the recording to the stop, so the caller records the environment as the stop left it.
+     * Marks that the session's own stop call ended and returns true if the session was closed meanwhile. In that case
+     * closing left the recording to the stop, so the caller records the environment as the stop left it.
      */
     fun stopEnded(): Boolean =
         synchronized(lock) {
@@ -87,7 +88,10 @@ internal class EnvironmentDeparture(private val ledger: EnvironmentLedger, priva
             closed
         }
 
-    /** Records [environment] as [disposition] with [note], unless it was recorded already; answers the entry or null. */
+    /**
+     * Records [environment] as [disposition] with [note], unless it was recorded already. Returns the new entry, or
+     * null if nothing was recorded.
+     */
     fun record(environment: EnvironmentKey, disposition: LedgerDisposition, note: String): LedgerEntry? {
         if (!recorded.compareAndSet(false, true)) return null
         return LedgerEntry(endpoint, environment, disposition, note).also(ledger::record)
@@ -102,7 +106,7 @@ internal class EnvironmentDeparture(private val ledger: EnvironmentLedger, priva
  * The deployed environment a closed session leaves.
  *
  * @property deployed the deployment's result.
- * @property records true if closing records the environment; false while the session's own stop call runs, which
- *   records it when it ends.
+ * @property records true if closing records the environment. It is false while the session's own stop call runs,
+ *   because that call records the environment when it ends.
  */
 internal data class Leaving(val deployed: DeploymentResult.Deployed, val records: Boolean)

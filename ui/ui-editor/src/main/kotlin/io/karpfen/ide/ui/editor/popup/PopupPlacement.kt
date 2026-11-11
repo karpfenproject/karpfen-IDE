@@ -28,24 +28,29 @@ import androidx.compose.ui.unit.constrainWidth
 import kotlin.math.roundToInt
 
 /**
- * Where an anchored popup (completion list, hover tooltip) goes inside the overlay area — the text area, in the
- * `EditorOverlayHost` coordinate space, px. Pure functions.
+ * Computes where an anchored popup goes inside the overlay area. Anchored popups are the completion list and the hover
+ * tooltip. The overlay area is the text area, in pixels of the `EditorOverlayHost` coordinate space. The object holds
+ * pure functions.
  *
- * Vertically the popup goes below its anchor (its top at the anchor's bottom) if it fits there, else above (its bottom
- * at the anchor's top) if it fits there, else on the side with more room; the caller limits the popup's height to
- * [maxHeight], so it always fits on that side. Horizontally it starts at the anchor's left edge, moved left as far as
- * needed to end inside the area, but never beyond the area's left edge.
+ * Vertically, the popup goes below its anchor if it fits there, with its top at the anchor's bottom. Otherwise it goes
+ * above the anchor if it fits there, with its bottom at the anchor's top. If it fits on neither side, it goes on the
+ * side with more room. The caller limits the popup's height to [maxHeight], so it always fits on that side.
+ * Horizontally, it starts at the anchor's left edge and moves left as far as needed to end inside the area. It never
+ * moves beyond the left edge of the area.
  */
 internal object PopupPlacement {
 
-    /** The height available to a popup anchored at [anchor] in an area [areaHeight] px high: the larger of both sides. */
+    /**
+     * Returns the height available to a popup anchored at [anchor] in an area that is [areaHeight] pixels high. That is
+     * the larger of the room below and the room above the anchor.
+     */
     fun maxHeight(anchor: Rect, areaHeight: Int): Int {
         val below = areaHeight - anchor.bottom.roundToInt()
         val above = anchor.top.roundToInt()
         return maxOf(below, above, 0)
     }
 
-    /** The top-left corner of a popup of [popup] size anchored at [anchor] in an area of [area] size. */
+    /** Returns the top left corner of a popup of size [popup], anchored at [anchor] in an area of size [area]. */
     fun topLeft(anchor: Rect, popup: IntSize, area: IntSize): IntOffset {
         val below = anchor.bottom.roundToInt()
         val roomBelow = area.height - below
@@ -62,10 +67,10 @@ internal object PopupPlacement {
 }
 
 /**
- * Lays out [content] (one popup) inside the overlay area at the place [PopupPlacement] computes for [anchor]. Fills the
- * area (the Box of the `EditorOverlays.Popups` slot, which has the text area's size) without handling pointer input
- * itself, so the text area below still receives every event outside the popup. The popup is measured with the area's
- * width and [PopupPlacement.maxHeight] as limits.
+ * Lays out [content], which is one popup, inside the overlay area at the place [PopupPlacement] computes for [anchor].
+ * The layout fills the area, which is the Box of the `EditorOverlays.Popups` slot and has the size of the text area.
+ * It does not handle pointer input itself, so the text area below still receives every event outside the popup. The
+ * popup is measured with the width of the area and [PopupPlacement.maxHeight] as limits.
  */
 @Composable
 internal fun AnchoredPopupLayout(anchor: Rect, content: @Composable () -> Unit) {
@@ -82,5 +87,8 @@ internal fun AnchoredPopupLayout(anchor: Rect, content: @Composable () -> Unit) 
     }
 }
 
-/** The area assumed when the slot gives unbounded constraints (it should not: the slot Box fills the text area). */
+/**
+ * The area size assumed when the slot gives unbounded constraints. That should not happen, because the slot Box fills
+ * the text area.
+ */
 private const val UNBOUNDED_AREA = 1 shl 20

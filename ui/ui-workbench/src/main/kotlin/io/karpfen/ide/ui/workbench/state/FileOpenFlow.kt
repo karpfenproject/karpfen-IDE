@@ -25,10 +25,11 @@ import java.io.IOException
 import java.nio.file.Path
 
 /**
- * Opening a file: files of a karpfen language — the modeling languages and environment descriptors — open in an editor
- * tab (or activate theirs); files the editor cannot open (`OpenResult.Unsupported`, e.g. a bridge configuration or a
- * README) open in the system's default application through [fileOperations] on [ioDispatcher], also when the Problems
- * view navigates to them; failures become an error dialog.
+ * Opens files. Files of a karpfen language open in an editor tab, or activate their tab if it is open already. These
+ * are the files of the modeling languages and the environment descriptors. Files that the editor cannot open come back
+ * as `OpenResult.Unsupported`. A bridge configuration or a README are examples. They open in the system's default
+ * application through [fileOperations] on [ioDispatcher]. That also happens when the Problems view navigates to such a
+ * file. Failures become an error dialog.
  */
 internal class FileOpenFlow(
     private val lifecycle: EditorLifecycle,
@@ -37,7 +38,7 @@ internal class FileOpenFlow(
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 
-    /** Opens [path]; true if it is now the active editor tab. */
+    /** Opens [path]. Returns true if it is now the active editor tab. */
     suspend fun openFile(path: Path): Boolean = when (val result = lifecycle.open(path)) {
         is OpenResult.Opened -> true
         is OpenResult.Unsupported -> {
@@ -54,7 +55,10 @@ internal class FileOpenFlow(
         }
     }
 
-    /** Opens [path] in the system's default application; a failure becomes an error dialog. */
+    /**
+     * Opens [path] in the system's default application. A failure becomes an error dialog. Where the platform does not
+     * support this at all, the attempt is only logged, because the port then does nothing.
+     */
     private suspend fun openExternally(path: Path) {
         if (!fileOperations.supportsOpenExternally) {
             logger.info("Opening {} in the default application is not supported on this platform", path)

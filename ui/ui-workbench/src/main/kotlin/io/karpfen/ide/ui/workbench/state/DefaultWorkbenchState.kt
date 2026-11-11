@@ -45,23 +45,37 @@ import kotlinx.coroutines.flow.stateIn
 import java.nio.file.Path
 
 /**
- * Default [WorkbenchState]: creates the sub-states and coordinates them (Mediator). A coordinator only (no god class,
- * at most about 300 lines): the flows are internal collaborators of this package with one responsibility each, e.g. an
- * intent runner (launches each intent's flow in [scope], one at a time in call order, and returns its `Job`; the flows
- * themselves are internal suspend functions the tests may also call), a command registrar (commands, enablement incl.
- * the focus rule, recent folders, tool-window toggles, editor commands with `EditorActionTitles` and
- * `WorkbenchServices.editorKeymap`), a layout persister (writes `layout.state` into the settings debounced, about
- * 500 ms, and on exit; restores it in [start]), an editor-navigation collector (each tab's `navigationRequests` from
- * open to close → [navigateTo]), an unsaved-changes flow (tab close, folder switch, rename, exit), a file-operations
- * flow (create with a `TemplateContext`, rename incl. directories with reopening, delete, reveal in the file manager on
- * `WorkbenchServices.ioDispatcher`) and a template-context builder (from `Workspace.contexts` and the syntax indexes of
- * `Workspace.analysis`). Collaborators use editors as `EditorHandle`.
+ * The default [WorkbenchState]. It creates the sub-states and coordinates them, following the Mediator pattern.
  *
- * The collaborators: [IntentRunner], [WorkspaceHolder], [SubStateBindings], [EditorNavigationCollector],
- * [EditorLifecycle], [SaveFlow], [UnsavedChangesFlow], [FileOpenFlow], [NavigationFlow], [TabFlows], [FolderFlow],
- * [FileOperationFlows] (with [TemplateContextBuilder]), [RenameFlow], [LayoutPersister], the [RuntimeHolder] with its
- * [WorkbenchRunSupport], and [WorkbenchCommands], [RuntimeCommands] and [EditorCommands] registering through a
- * [ModalCommandRegistry]. All work runs in a supervisor child of [scope], cancelled by [close].
+ * The class is a coordinator only. It must not grow into a god class and stays at about 300 lines at most. Each flow is
+ * an internal collaborator of this package with a single responsibility. The flows are internal suspend functions,
+ * which the tests may also call directly. The collaborators are these:
+ *
+ * - [IntentRunner] launches the flow of each intent in [scope], one at a time in call order, and returns its `Job`.
+ * - [WorkspaceHolder] holds the open workspace, its language services and the window title.
+ * - [SubStateBindings] binds the read-only sub-states to the workspace, the active editor, the layout and the runtime.
+ * - [EditorNavigationCollector] collects the `navigationRequests` of each tab from open to close and hands them to
+ *   [navigateTo].
+ * - [EditorLifecycle] opens and closes documents together with their editors and tabs.
+ * - [SaveFlow] saves documents and asks before it writes over a change made on disk.
+ * - [UnsavedChangesFlow] asks about unsaved changes before a tab closes, the folder switches, a file is renamed or the
+ *   IDE exits.
+ * - [FileOpenFlow] and [NavigationFlow] open files and navigate to locations.
+ * - [TabFlows] closes tabs, saves them and resolves conflicts with changes on disk.
+ * - [FolderFlow] opens, switches and closes the workspace folder.
+ * - [FileOperationFlows] creates files with a `TemplateContext` from [TemplateContextBuilder], deletes files and shows
+ *   them in the file manager. The file work runs on `WorkbenchServices.ioDispatcher`. [TemplateContextBuilder] reads
+ *   `Workspace.contexts` and the syntax indexes of `Workspace.analysis`.
+ * - [RenameFlow] renames files and directories and reopens what was open below them.
+ * - [LayoutPersister] writes `layout.state` into the settings, debounced by about 500 ms and once more on exit. The
+ *   layout itself is restored in [start].
+ * - [RuntimeHolder] owns the runtime state of the workspace and uses [WorkbenchRunSupport] to reach the workbench.
+ * - [WorkbenchCommands], [RuntimeCommands] and [EditorCommands] register the commands through a
+ *   [ModalCommandRegistry]. They cover enablement including the focus rule, the recent folders, the tool window
+ *   toggles, and the editor commands with their `EditorActionTitles` and the `WorkbenchServices.editorKeymap`.
+ *
+ * The collaborators see editors only as `EditorHandle`. All work runs in a supervisor child scope of [scope], which
+ * [close] cancels.
  */
 internal class DefaultWorkbenchState(
     scope: CoroutineScope,
@@ -188,10 +202,13 @@ internal class DefaultWorkbenchState(
         ownScope.cancel()
     }
 
-    /** The absolute, normalized form of this path, the one form in which the flows and sub-states compare paths. */
+    /**
+     * The absolute, normalized form of this path. The flows and sub-states compare paths only in this form, so every
+     * intent normalizes its path first.
+     */
     private fun Path.normalized(): Path = toAbsolutePath().normalize()
 
-    /** The [IntentRunner.launchOnce] key of closing the tab of [path]. */
+    /** The [IntentRunner.launchOnce] key for closing the tab of [path]. */
     private data class CloseTab(val path: Path)
 
     private companion object {

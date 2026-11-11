@@ -49,9 +49,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers open documents in a workspace: the one problems rule for open, unopened, loose and descriptor files, that
- * opening and closing changes no finding, the editor text and its debounce in the analysis, and project diagnostics in
- * sessions, including that an analysis started before a close and reopen never reaches the reopened document.
+ * Covers open documents in a workspace. It checks the single problems rule for open, unopened, loose and descriptor
+ * files, and that opening and closing changes no finding. It checks the editor text and its debounce in the analysis.
+ * It checks project diagnostics in sessions, including that an analysis started before a close and reopen never
+ * reaches the reopened document.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkspaceDocumentsTest {
@@ -70,7 +71,10 @@ class WorkspaceDocumentsTest {
     private val validModel = "make object \"r\":\"Robot\" {\n    prop(\"speed\") -> \"1\"\n}\n"
     private val semanticError = "    prop(\"velocity\") -> \"2\"\n"
 
-    /** A context with a DSL_TOOLS error, a file with FILE findings, a loose metamodel with a syntax error and a broken descriptor. */
+    /**
+     * Writes a context with a DSL_TOOLS error, a file with FILE findings, a loose metamodel with a syntax error and a
+     * broken descriptor.
+     */
     private fun writeProject() {
         Files.createDirectories(ctx)
         Files.createDirectories(descriptor.parent)

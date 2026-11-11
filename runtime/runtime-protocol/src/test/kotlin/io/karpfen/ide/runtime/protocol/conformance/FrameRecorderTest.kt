@@ -31,10 +31,10 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers the frame recorder of the live runtime under test, over the fake runtime's seams: the frames a link receives
- * reach the client unchanged and in order, together with the closure; after the scenario every recorded frame is decoded
- * for the environment and client of its link's handshake, so frames the decoder accepts give no violation, while a
- * frame it rejects, a binary frame and frames on a link without a valid handshake each give one.
+ * Covers the frame recorder of the live runtime under test, over the seams of the fake runtime. The frames a link
+ * receives reach the client unchanged and in order, together with the closure. After the scenario, every recorded frame
+ * is decoded for the environment and client of its link's handshake. Frames the decoder accepts give no violation. A
+ * frame it rejects, a binary frame, and frames on a link without a valid handshake each give one.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FrameRecorderTest {

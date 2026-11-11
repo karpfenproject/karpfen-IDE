@@ -20,21 +20,23 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * The closers an editor inserted automatically (typing a closer directly before an *auto-inserted* closer moves over
- * it; Backspace between an *auto-inserted* pair deletes both). Per-editor state, Compose-free, used from the UI thread;
- * the editor state creates one per editor and hands it to the actions through [EditorActionContext.autoPairs]. Closers
- * the user typed are never tracked, so they are never over-typed.
+ * Tracks the closing characters that an editor inserted automatically. Typing a closer directly before an
+ * auto-inserted closer moves the caret over it. Backspace between an auto-inserted pair deletes both characters.
+ * Closers the user typed are never tracked, so they are never typed over.
  *
- * Offsets refer to the current text version. A pair is stamped with the version it was recorded in and mapped to the
- * current version (`EditableText.mapOffset`) when queried, so the tracker needs no subscription; a pair is dropped when
- * the mapping fails or the characters at the mapped offsets are no longer the recorded opener and closer (an edit
- * touched them, an undo removed them, a reload replaced them).
+ * This is per-editor state without Compose, used from the UI thread. The editor state creates one tracker per editor
+ * and hands it to the actions through [EditorActionContext.autoPairs].
+ *
+ * Offsets refer to the current text version. A pair is stamped with the version it was recorded in. When it is
+ * queried, it is mapped to the current version, so the tracker needs no subscription to the text. A pair is dropped
+ * when the mapping fails, or when the characters at the mapped offsets are no longer the recorded opener and closer.
+ * That happens when an edit touched them, an undo removed them or a reload replaced them.
  */
 public interface AutoClosedPairs {
 
     /**
-     * Records that the closing character at [closer] was inserted automatically for the opening character at [opener]
-     * (offsets in the current version, `opener < closer`).
+     * Records that the closing character at [closer] was inserted automatically for the opening character at [opener].
+     * Both are offsets of the current version, and [opener] must be less than [closer].
      */
     public fun record(opener: Int, closer: Int)
 
@@ -42,12 +44,12 @@ public interface AutoClosedPairs {
     public fun isAutoClosedCloser(offset: Int): Boolean
 
     /**
-     * The tracked pair whose opener is directly left of [caret] and whose closer directly right of it (`(|)`), as the
-     * range covering both characters; null otherwise.
+     * Returns the tracked pair whose opener is directly left of [caret] and whose closer is directly right of it, as in
+     * `(|)`. The result is the range that covers both characters, or null if there is no such pair.
      */
     public fun pairAround(caret: Int): TextRange?
 
-    /** Forgets the pair whose closer is at [closer] (e.g. after it was over-typed); no-op if there is none. */
+    /** Forgets the pair whose closer is at [closer], for example after it was typed over. Does nothing if there is none. */
     public fun forget(closer: Int)
 
     /** Forgets every pair. */
@@ -58,16 +60,18 @@ public interface AutoClosedPairs {
 public fun AutoClosedPairs(text: EditableText): AutoClosedPairs = DefaultAutoClosedPairs(text)
 
 /**
- * Default [AutoClosedPairs]: a short list of version-stamped pairs, re-validated and re-stamped on every query.
+ * The default [AutoClosedPairs]. It keeps a short list of version-stamped pairs and checks and re-stamps them on every
+ * query.
  *
- * A tracked character survives a change iff its one-character cell, mapped with `EditableText.mapRange` (the one
- * range-mapping rule, start `RIGHT`, end `LEFT`), still has length one and holds the recorded character: text inserted
- * next to it moves it, an edit that deleted or replaced it collapses the cell, history beyond the retained versions
- * drops it. At most [MAX_PAIRS] pairs are kept (the oldest are forgotten first).
+ * A tracked character survives a change only if its one-character cell, mapped with `EditableText.mapRange`, still has
+ * length one and still holds the recorded character. `mapRange` is the single range-mapping rule of the text, with
+ * start bias `RIGHT` and end bias `LEFT`. So text inserted next to the character moves it, and an edit that deleted or
+ * replaced it collapses the cell. A pair recorded in a version older than the retained history is dropped. At most
+ * [MAX_PAIRS] pairs are kept, and the oldest are forgotten first.
  */
 internal class DefaultAutoClosedPairs(private val text: EditableText) : AutoClosedPairs {
 
-    /** A pair recorded in (or last re-validated at) [version]. */
+    /** A pair that was recorded or last checked at [version], with the characters [open] and [close] it expects. */
     private data class TrackedPair(val opener: Int, val closer: Int, val version: Long, val open: Char, val close: Char)
 
     private var pairs: List<TrackedPair> = emptyList()
@@ -118,7 +122,7 @@ internal class DefaultAutoClosedPairs(private val text: EditableText) : AutoClos
 
     /** The bound of the tracker. */
     private companion object {
-        /** The most pairs kept; a long run of auto-closed pairs forgets its oldest ones. */
+        /** The most pairs kept. A long run of auto-closed pairs forgets its oldest ones. */
         const val MAX_PAIRS = 32
     }
 }

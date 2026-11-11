@@ -26,14 +26,18 @@ import kotlin.test.assertTrue
 import kotlin.time.TestTimeSource
 
 /**
- * `mapOffset` (both biases) and `mapRange` on the real text against the character-identity oracle of [ReferenceText],
- * across random edits, groups, replaceAll, undo and redo, including evicted history.
+ * Checks `mapOffset` with both biases and `mapRange` on the real text against the character-identity oracle of
+ * [ReferenceText]. The operations are random edits, groups, replaceAll, undo and redo, and the checks include evicted
+ * history.
  */
 class OffsetMappingPropertyTest {
 
-    /** A range tracked from [fromVersion]: its bounds followed with the contract's biases. */
+    /** A range tracked from [fromVersion]. Its bounds are followed with the biases that `mapRange` uses. */
     private class TrackedRange(val fromVersion: Long, val range: TextRange, val start: ReferenceText.Tracker, val end: ReferenceText.Tracker?) {
-        /** The range the contract expects now: start RIGHT, end LEFT, inverted → empty at the end, empty stays empty. */
+        /**
+         * The range `mapRange` should give now. The start maps with RIGHT and the end with LEFT. An inverted result
+         * becomes the empty range at the end, and an empty range stays empty.
+         */
         val expected: TextRange
             get() {
                 val mappedEnd = end ?: return TextRange.empty(start.offset)
@@ -41,13 +45,16 @@ class OffsetMappingPropertyTest {
             }
     }
 
-    /** An offset mapped to an intermediate version: (from, original, bias) → [expected] at version [atVersion]. */
+    /**
+     * An offset mapped to an intermediate version. [original] in [fromVersion], mapped with [bias], must give
+     * [expected] at version [atVersion].
+     */
     private class Checkpoint(val fromVersion: Long, val original: Int, val bias: Bias, val atVersion: Long, val expected: Int)
 
     /**
      * Each operation applies random edits, a whole-text replacement, a group, an undo or a redo to the text and to the
-     * reference. After every change, each tracked offset, range and checkpoint is checked against the oracle; then
-     * trackers well beyond the retained history are retired and new ones start at the current version.
+     * reference. After every change, each tracked offset, range and checkpoint is checked against the oracle. Then
+     * trackers well beyond the retained history are retired, and new ones start at the current version.
      */
     @ParameterizedTest
     @ValueSource(longs = [31, 32, 33])

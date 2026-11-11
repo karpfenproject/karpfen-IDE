@@ -21,16 +21,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * A user-invocable command (Command pattern): menus, shortcuts and context menus reference it by [id]. Editor commands
- * use the editor's action ids, so menu and keyboard reach the same `EditorAction`.
+ * A command the user can invoke, following the Command pattern. Menus, shortcuts and context menus refer to it by
+ * [id]. Editor commands use the editor's action ids, so the menu and the keyboard reach the same `EditorAction`.
  *
- * A command object, not a value: it holds behaviour ([action]) and live state ([isEnabled]), so it has identity
- * equality (no `copy`, no structural `equals`); the registry identifies commands by [id].
+ * A command is an object, not a value. It holds behaviour in [action] and live state in [isEnabled], so it has
+ * identity equality. There is no `copy` and no structural `equals`. The registry identifies commands by [id].
  *
  * @property id the identifier menus and the registry know the command by.
- * @property title menu label.
- * @property shortcut default shortcut, or null.
- * @property isEnabled whether the command can run now (menus grey it out when false).
+ * @property title the menu label.
+ * @property shortcut the default shortcut, or null.
+ * @property isEnabled whether the command can run now. Menus grey it out while this is false.
  * @property action runs the command on the UI thread.
  */
 public class Command(
@@ -58,12 +58,12 @@ public data class MenuSpec(public val title: String, public val entries: List<Me
 
 /** An entry of a [MenuSpec]. */
 public sealed interface MenuEntry {
-    /** The registered command [commandId]; hidden if no such command is registered. */
+    /** The registered command [commandId]. The item is hidden while no command with this id is registered. */
     public data class Item(public val commandId: String) : MenuEntry
 
     /** A separator line. */
     public data object Separator : MenuEntry
 
-    /** A nested menu. */
+    /** A nested menu with its own [title] and [entries]. */
     public data class Submenu(public val title: String, public val entries: List<MenuEntry>) : MenuEntry
 }

@@ -33,14 +33,15 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 
 /**
- * Parses the versions of [text]: the first snapshot the scheduler sees (the one the session started with,
- * unless the text changed before the scheduler ran) is parsed at once, every later version after
- * `DocumentSessionConfig.parseDebounce` of quiet time. A newer version cancels the pending debounce or
- * the running parse of an older one (latest wins; a cancelled outcome is never published). Parsing runs on
- * `DocumentSessionConfig.parseDispatcher` with `DocumentSessionConfig.semanticMode`.
+ * Parses the versions of [text]. The first snapshot the scheduler sees is parsed at once. That is the snapshot the
+ * session started with, unless the text changed before the scheduler ran. Every later version is parsed after
+ * [DocumentSessionConfig.parseDebounce] of quiet time. A newer version cancels the pending debounce or the running
+ * parse of an older one, so the latest wins and a cancelled outcome is never published. Parsing runs on
+ * [DocumentSessionConfig.parseDispatcher] with [DocumentSessionConfig.semanticMode].
  *
- * [parse] is null until the first parse completes; [lastGoodParse] is the latest published outcome without syntax
- * diagnostics. A parser that throws (the built-in ones never do) is logged and the previous outcome stays published.
+ * [parse] is null until the first parse completes. [lastGoodParse] is the latest published outcome without syntax
+ * diagnostics. The built-in parsers never throw. If a parser does throw, the failure is logged and the previous
+ * outcome stays published.
  */
 internal class ParseScheduler(
     private val text: EditableText,
@@ -57,7 +58,7 @@ internal class ParseScheduler(
     /** The latest published outcome that is [ParseOutcome.isSyntaxClean]. */
     val lastGoodParse: StateFlow<ParseOutcome?> = lastGood.asStateFlow()
 
-    /** Starts following [text] in [scope]; the returned job ends with the scope. */
+    /** Starts following [text] in [scope]. The returned job ends with the scope. */
     fun start(scope: CoroutineScope): Job = scope.launch {
         text.snapshot.withIndex().collectLatest { (index, snapshot) ->
             if (index > 0) delay(config.parseDebounce)
@@ -67,7 +68,7 @@ internal class ParseScheduler(
         }
     }
 
-    /** Parses [snapshot]; a parser exception is logged and yields null, while cancellation propagates. */
+    /** Parses [snapshot]. A parser exception is logged and yields null, while cancellation propagates. */
     private fun parseSafely(snapshot: TextSnapshot): ParseOutcome? =
         try {
             parser.parse(snapshot, config.semanticMode)

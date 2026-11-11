@@ -23,15 +23,18 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Types [text]: replaces selections; auto-closes `"`, `(`, `[`, `{` when the next character is whitespace, end of line
- * or a closing bracket, and over-types an auto-inserted closer. Origin `Typing`, one undo step.
+ * Types [text] at the primary caret and replaces the selection. The change has origin `Typing` and is one undo step.
  *
- * Details: separators in [text] are normalized to `\n`, and a typed `\n` is Enter ([EnterAction], auto-indent).
- * Over-typing moves the caret over a closer that [AutoClosedPairs] tracks (closers the user typed are never tracked, so
- * typing `)` before one inserts a new `)`). A `"` auto-closes only outside a string of its line ([StringLiterals]), so
- * typing the closing quote of a string never inserts a pair. Auto-close and over-type apply to a single typed character
- * without selection; anything else is inserted as is. `[` closes like the other brackets because lists are everyday
- * syntax in two of the edited languages: the JSON of environment descriptors and the Python of EVAL bodies.
+ * Line separators in [text] are normalized to `\n`. A typed `\n` alone runs Enter ([EnterAction]) with auto-indent.
+ *
+ * Typing `"`, `(`, `[` or `{` also inserts the matching closer when the next character is whitespace, the line end or
+ * a closing bracket. `[` closes like the other brackets because lists are everyday syntax in two of the edited
+ * languages, the JSON of environment descriptors and the Python of EVAL bodies. A `"` auto-closes only outside a string
+ * of its line ([StringLiterals]), so typing the closing quote of a string never inserts a pair.
+ *
+ * Typing a closer right before a closer that [AutoClosedPairs] tracks moves the caret over it instead of inserting it.
+ * Closers the user typed are never tracked, so typing `)` before one of them inserts a new `)`. Auto-close and typing
+ * over a closer apply only to a single typed character without a selection. Anything else is inserted as it is.
  */
 internal class TypeTextAction(private val text: String) : EditorAction {
     override val id: String = EditorActionIds.TYPE_TEXT
@@ -67,8 +70,8 @@ internal class TypeTextAction(private val text: String) : EditorAction {
             context.autoPairs.isAutoClosedCloser(position)
 
     /**
-     * Whether typing the opener [char] at [position] inserts its closer as well: the next character is whitespace, the
-     * line end or a closing bracket, and a `"` does not close a string of its line.
+     * Whether typing the opener [char] at [position] inserts its closer as well. That is the case when the next
+     * character is whitespace, the line end or a closing bracket, and when a `"` does not close a string of its line.
      */
     private fun autoCloses(snapshot: TextSnapshot, position: Int, char: Char): Boolean {
         val next = if (position < snapshot.length) snapshot[position] else '\n'
@@ -90,14 +93,18 @@ internal class TypeTextAction(private val text: String) : EditorAction {
 }
 
 /**
- * Enter: new line with the indentation of the current line, +4 spaces after a line ending in a block opener (`{`, or
- * `[` of a list); between an opener and its own closer (`{}` or `[]`) the closer moves to its own line.
+ * Enter. It replaces the selection with a new line that has the indentation of the current line. After a line that ends
+ * in a block opener, the new line gets 4 more spaces. Block openers are `{` and the `[` of a list. Lists open blocks
+ * like braces because descriptors spread their lists over lines, one item per line, the way the descriptor template
+ * writes them.
  *
- * Details: replaces a selection; the indentation is the leading whitespace of the caret's line up to the caret (the
- * text before the caret, trimmed, decides "ends in an opener"); between an opener and its closer (whitespace around the
- * caret allowed) the whitespace before the closer is dropped and the caret lands on the indented middle line. A closer
- * of the other kind (`{|]`) stays where it is. Lists open blocks like braces because descriptors spread their lists
- * over lines, one item per line, as the descriptor template writes them. Origin `Typing`, one undo step.
+ * The indentation is the leading whitespace of the caret's line up to the caret. Whether the line ends in an opener is
+ * decided on the text before the caret, with trailing whitespace trimmed.
+ *
+ * If the caret sits between an opener and its own closer, as in `{}` or `[]`, the closer moves to a line of its own.
+ * Whitespace around the caret is allowed. The whitespace before the closer is dropped and the caret lands on the
+ * indented middle line. A closer of the other kind, as in `{|]`, stays where it is. The change has origin `Typing` and
+ * is one undo step.
  */
 internal class EnterAction : EditorAction {
     override val id: String = EditorActionIds.ENTER
@@ -143,13 +150,15 @@ internal enum class DeletionKind(val actionId: String) {
 }
 
 /**
- * Deletion: selection first; Backspace smart-unindents to the previous 4-column stop inside leading whitespace and
- * deletes an auto-inserted pair; word and line deletion.
+ * The deletion actions. If there is a selection, Backspace, Delete and the word deletions remove the selection.
  *
- * Details: Backspace and Delete remove one character (a surrogate pair as a whole) with origin `Typing`, so runs of
- * them coalesce into one undo step; Backspace between a tracked pair (`(|)`, [AutoClosedPairs]) removes both. Word
- * deletion removes up to the previous word start / next word end of the one word rule ([DeletionRules]); line deletion
- * removes the lines of the selection ([LineBlock]) and keeps the caret's column. Both are commands (one step each).
+ * Backspace and Delete remove one character, and a surrogate pair as a whole. They use origin `Typing`, so a run of
+ * them coalesces into one undo step. Inside leading whitespace, Backspace removes the spaces back to the previous
+ * 4-column stop. Between a tracked pair, as in `(|)`, Backspace removes both characters ([AutoClosedPairs]).
+ *
+ * Word deletion removes text up to the previous word start or the next word end, using the editor's single word rule
+ * ([DeletionRules]). Line deletion removes the lines of the selection ([LineBlock]) and keeps the caret's column. Word
+ * and line deletion are commands, so each one is an undo step of its own.
  */
 internal class DeletionAction(private val kind: DeletionKind) : EditorAction {
     override val id: String = kind.actionId
@@ -179,7 +188,7 @@ internal class DeletionAction(private val kind: DeletionKind) : EditorAction {
     private fun delete(context: EditorActionContext, range: TextRange, origin: EditOrigin): Boolean =
         context.applyEdit(TextEdit.delete(range), origin, range.start)
 
-    /** Deletes the caret's [LineBlock] as a command, keeping the caret's column on the line that takes its place. */
+    /** Deletes the caret's [LineBlock] as a command and keeps the caret's column on the line that takes its place. */
     private fun deleteLines(context: EditorActionContext, snapshot: TextSnapshot): Boolean {
         val caret = context.caret.primary
         val block = LineBlock.of(snapshot, caret)

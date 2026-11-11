@@ -37,8 +37,8 @@ import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `IdeApplication.prepare`: all window-free wiring, headless, with a fake workbench state, recording services and a
- * recording routing of what dsl-tools logs injected through the composition root's constructor.
+ * `IdeApplication.prepare` with all the wiring that needs no window, run headless. A fake workbench state, recording
+ * services and a recording routing of what dsl-tools logs are injected through the composition root's constructor.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class IdeApplicationPrepareTest {

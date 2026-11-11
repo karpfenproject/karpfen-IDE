@@ -26,18 +26,21 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
 /**
- * Keeps open documents in line with their files: reacts to changes on disk and resolves conflicts, reporting every
+ * Keeps open documents in line with their files. It reacts to changes on disk and resolves conflicts. It reports every
  * outcome as a [ConflictResult] instead of throwing. Disk content is read through the workspace's [SourceLoader] on
- * [ioDispatcher]; documents are mutated through the [writer] only.
+ * [ioDispatcher]. Documents are changed through the [writer] only.
  *
- * Rules for a change of a document's file (compared with its disk state by content, [DefaultOpenDocument.knowsContentOf],
- * so a self-induced event of a save, or a touch without content change, is a no-op):
- * - content as known → nothing (a pending conflict is void and cleared);
- * - other content, clean document without conflict → reload as one undoable `External` change, save point marked, line
- *   separator and BOM adopted, FILE findings replaced;
- * - other content while dirty (or while a conflict is pending) → conflict MODIFIED;
- * - file gone → conflict DELETED (also for a clean document; the workbench offers Close / Keep mine);
- * - unreadable → logged, nothing changes.
+ * A change of a document's file is compared with the document's disk state by content, through
+ * [DefaultOpenDocument.knowsContentOf]. So the event that a save causes itself, or a touch without a content change,
+ * does nothing. These are the rules.
+ * - If the content is as known, nothing happens. A pending conflict no longer applies and is cleared.
+ * - If the content differs and the document is clean and has no conflict, the document is reloaded. The reload is one
+ *   undoable `External` change. The save point is marked, the line separator and the byte order mark are adopted, and
+ *   the FILE findings are replaced.
+ * - If the content differs while the document is dirty, or while a conflict is pending, a MODIFIED conflict is raised.
+ * - If the file is gone, a DELETED conflict is raised. This also happens for a clean document. The workbench then
+ *   offers Close or Keep mine.
+ * - If the file cannot be read, that is logged and nothing changes.
  */
 internal class DiskSynchronizer(
     private val sourceLoader: SourceLoader,
@@ -45,7 +48,7 @@ internal class DiskSynchronizer(
     private val writer: SingleWriter,
 ) : ConflictResolver {
 
-    /** The file of [document] changed on disk ([deleted]: it no longer exists). */
+    /** The file of [document] changed on disk. [deleted] is true if it no longer exists. */
     suspend fun onFileChanged(document: DefaultOpenDocument, deleted: Boolean) {
         val disk = if (deleted) DiskContent.Absent else read(document.path)
         writer.run { follow(document, disk) }
@@ -82,7 +85,10 @@ internal class DiskSynchronizer(
         }
     }
 
-    /** Takes the disk state [source]: one undoable `External` change, save point, separator, BOM and FILE findings. */
+    /**
+     * Takes the disk state [source] into [document]. The text changes in one undoable `External` change. Then the save
+     * point is marked, the line separator and the byte order mark are adopted, and the FILE findings are replaced.
+     */
     private fun reload(document: DefaultOpenDocument, source: LoadedSource) {
         document.text.replaceAll(source.text, EditOrigin.External)
         document.text.undo.markSavePoint()
@@ -91,8 +97,8 @@ internal class DiskSynchronizer(
     }
 
     /**
-     * Reads [path] through the loader; a file that cannot be read but no longer exists counts as absent, so a deletion
-     * racing with the read is no read failure.
+     * Reads [path] through the loader. A file that cannot be read but no longer exists counts as absent. So a deletion
+     * that races with the read is not a read failure.
      */
     private suspend fun read(path: Path): DiskContent = withContext(ioDispatcher) {
         try {
@@ -114,7 +120,7 @@ internal class DiskSynchronizer(
         /** The file does not exist. */
         data object Absent : DiskContent
 
-        /** The file exists but cannot be read; [message] is user-readable. */
+        /** The file exists but cannot be read. [message] is meant for the user. */
         data class Unreadable(val message: String) : DiskContent
     }
 

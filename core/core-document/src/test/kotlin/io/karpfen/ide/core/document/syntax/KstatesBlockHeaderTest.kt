@@ -21,7 +21,7 @@ import kotlin.test.assertEquals
 /** The one KStates block rule: which keyword introduces a block, and the kind of block it opens. */
 class KstatesBlockHeaderTest {
 
-    /** The header of space-separated words; `_` stands for any other token (a string, a comma, `->`). */
+    /** The header of space-separated words. `_` stands for any other token, such as a string, a comma or `->`. */
     private fun header(words: String): KstatesBlockHeader =
         KstatesBlockHeader.of(words.split(' ').filter { it.isNotEmpty() }.map { it.takeUnless { word -> word == "_" } })
 

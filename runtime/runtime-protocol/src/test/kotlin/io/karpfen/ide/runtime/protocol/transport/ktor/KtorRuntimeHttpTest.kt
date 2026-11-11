@@ -46,10 +46,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers [KtorRuntimeHttp] over Ktor's mock engine: the URL from the endpoint's base and the request's path, the query
- * encoded by the client itself, PUT bodies as UTF-8 `text/plain` and no body on POST and GET, every answer passed
- * through with its status, its UTF-8 text and its content type, failures to connect as unreachable and failures after
- * the request was handed over as interruptions, and the caller's cancellation rethrown.
+ * Covers [KtorRuntimeHttp] over Ktor's mock engine. The URL is built from the endpoint's base and the request's path,
+ * and the client encodes the query itself. PUT bodies go as UTF-8 `text/plain`, and POST and GET have no body. Every
+ * answer is passed through with its status, its UTF-8 text and its content type. Failures to connect count as
+ * unreachable, and failures after the request was handed over count as interruptions. The caller's cancellation is
+ * rethrown.
  */
 class KtorRuntimeHttpTest {
 

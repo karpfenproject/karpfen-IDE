@@ -28,15 +28,16 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * The syntax analysis of environment descriptors: [JsonParser] reads the text into a tree, also a broken one, and the
- * tree yields the syntax diagnostics (the lexer's and the parser's), the folding regions (every object and list that is
- * closed and spans several lines), and, from one walk of the tree along the [schema] ([shapedValues]), the outline
- * ([DescriptorOutline]) and the semantic spans ([DescriptorSpans]). A descriptor declares and references no symbols,
- * so its syntax index is empty; what its strings name is resolved by the language services. Stateless and thread-safe.
+ * The syntax analysis of environment descriptors. [JsonParser] reads the text into a tree, also a broken one. The tree
+ * yields the syntax diagnostics of the lexer and the parser. It also yields the folding regions, which are every
+ * object and list that is closed and spans several lines. One walk of the tree along the [schema], [shapedValues],
+ * yields the outline through [DescriptorOutline] and the semantic spans through [DescriptorSpans]. A descriptor
+ * declares and references no symbols, so its syntax index is empty. The language services resolve what its strings
+ * name. The class holds no state and is thread-safe.
  *
- * The descriptor checks beyond syntax (unknown and missing keys, values of the wrong kind, missing files) belong to the
- * workspace, which reads every descriptor against the same schema and reports them to the open editor as project
- * diagnostics.
+ * The descriptor checks beyond syntax belong to the workspace. They cover unknown and missing keys, values of the
+ * wrong kind and missing files. The workspace reads every descriptor against the same schema and reports the findings
+ * to the open editor as project diagnostics.
  */
 internal class EnvironmentSyntaxAnalyzer(private val schema: ValueShape.Record = EnvironmentSchema.ROOT) : SyntaxAnalyzer {
 
@@ -54,7 +55,7 @@ internal class EnvironmentSyntaxAnalyzer(private val schema: ValueShape.Record =
         )
     }
 
-    /** A BLOCK region for every closed object and list below and including [root] that spans several lines. */
+    /** A BLOCK region for every closed object and list that spans several lines, from [root] down. */
     private fun folding(snapshot: TextSnapshot, root: JsonNode): List<FoldingRange> =
         root.containers()
             .filter { it.isClosed && isMultiLine(snapshot, it.range) }

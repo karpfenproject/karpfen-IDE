@@ -34,14 +34,14 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
 import kotlin.math.roundToInt
 
 /**
- * The editor context menu at the request position; each entry runs its editor action by id ([onAction]) and is disabled
- * — greyed out — when the action is disabled ([isEnabled]).
+ * The editor context menu at the request position. Each entry runs its editor action by id through [onAction]. An
+ * entry is disabled and greyed out when [isEnabled] says its action is disabled.
  *
- * The menu is a focusable desktop popup anchored at a zero-size point at ([ContextMenuRequest.x],
- * [ContextMenuRequest.y]) of the overlay area (the `EditorOverlayHost` space), so it opens there and, like every menu,
- * flips or shifts when the window has no room; Escape and clicks outside report [onDismiss], arrow keys move between
- * the entries. Escape is handled by the menu itself while one of its entries has focus (keyboard navigation) and by the
- * platform popup otherwise; either way [onDismiss] is reported once.
+ * The menu is a focusable desktop popup. It is anchored at a point of zero size at [ContextMenuRequest.x] and
+ * [ContextMenuRequest.y] of the overlay area, which is the `EditorOverlayHost` space. So it opens there, and like every
+ * menu it flips or shifts when the window has no room. Escape and clicks outside report [onDismiss]. Arrow keys move
+ * between the entries. While one of the entries has focus during keyboard navigation, the menu itself handles Escape.
+ * Otherwise the platform popup handles it. Either way [onDismiss] is reported once.
  */
 @Composable
 internal fun EditorContextMenu(
@@ -79,5 +79,8 @@ internal fun EditorContextMenu(
     }
 }
 
-/** Height of a menu entry (compact desktop menus instead of Material's 48 dp touch targets, like the workbench's). */
+/**
+ * The height of a menu entry. Desktop menus are compact, so they do not use the 48 dp touch targets of Material. The
+ * menus of the workbench use the same height.
+ */
 private val ITEM_HEIGHT = 28.dp

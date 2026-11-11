@@ -22,18 +22,19 @@ import io.karpfen.ide.ui.workbench.problems.ProblemItem
 import io.karpfen.ide.ui.workbench.problems.ProblemsUiState
 import java.nio.file.Path
 
-/** The key of a row of the Problems tree: a file group or one of its items. */
+/** The key of a row of the Problems tree. A row is either a file group or one of its items. */
 internal sealed interface ProblemKey {
     /** The group of the file [path]. */
     data class Group(val path: Path) : ProblemKey
 
-    /** The [index]-th item of the group of [path]. */
+    /** The item at [index] in the group of [path]. */
     data class Item(val path: Path, val index: Int) : ProblemKey
 }
 
 /**
- * The `TreeView` nodes of the Problems view: one node per file (`displayPath (n)`) with one child per problem (severity
- * icon, `message (line:col)`), and the item behind each key for navigation.
+ * The `TreeView` nodes of the Problems view. There is one node per file, labelled `displayPath (n)`. It has one child
+ * per problem, with the severity icon and the label `message (line:col)`. The class also keeps the item behind each
+ * key for navigation.
  */
 internal class ProblemsTreeNodes(state: ProblemsUiState) {
 
@@ -56,7 +57,7 @@ internal class ProblemsTreeNodes(state: ProblemsUiState) {
     /** Every group key. */
     val groups: Set<ProblemKey> = roots.mapTo(LinkedHashSet()) { it.key }
 
-    /** The problem of [key], or null for a group. */
+    /** The problem of [key], or null if [key] is a group. */
     fun itemOf(key: ProblemKey): ProblemItem? = items[key]
 
     private fun iconOf(severity: Severity) = when (severity) {

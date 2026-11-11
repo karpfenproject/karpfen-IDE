@@ -17,9 +17,10 @@ package io.karpfen.ide.core.document.environment
 
 /**
  * What the absent timing keys of an [EnvironmentDescriptor] mean. The descriptor format owns the meaning of its absent
- * keys, so the deploy configuration of an environment has one source: the descriptor, with these values where it says
- * nothing. The IDE's deployment always sends both values to the runtime, so the runtime's own configured defaults never
- * apply to an environment the IDE deploys; the key documentation that hover and completion show is built from them.
+ * keys, so the deploy configuration of an environment has one source. That source is the descriptor, with these values
+ * where it says nothing. The IDE's deployment always sends both values to the runtime, so the runtime's own configured
+ * defaults never apply to an environment that the IDE deploys. The key documentation that hover and completion show is
+ * built from these values.
  */
 public object EnvironmentDefaults {
     /** The tick delay of an environment whose descriptor has no `tickDelayMs`, in milliseconds. */

@@ -22,9 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * The palettes and the typography of the karpfen theme: immutable constants (neutral greys with a blue accent, in the
- * spirit of current desktop IDEs). Text colours keep a WCAG contrast of at least 4.5:1 on the window, panel and
- * selection backgrounds, severity colours at least 3:1 on the window background (tested).
+ * The palettes and the typography of the karpfen theme, as immutable constants. The palettes use neutral greys with a
+ * blue accent, in the spirit of current desktop IDEs. Text colours keep a WCAG contrast of at least 4.5:1 on the
+ * window, panel and selection backgrounds. Severity colours keep at least 3:1 on the window background. Tests check
+ * both ratios.
  */
 internal object KarpfenPalettes {
 
@@ -59,8 +60,8 @@ internal object KarpfenPalettes {
     )
 
     /**
-     * UI text in the platform's default (sans-serif) font, code in the platform's monospace font: no bundled font
-     * resources, so the IDE looks native on macOS, Windows and Linux.
+     * UI text uses the platform's default sans-serif font, and code uses the platform's monospace font. No font
+     * resources are bundled, so the IDE looks native on macOS, Windows and Linux.
      */
     val typography: KarpfenTypography = KarpfenTypography(
         ui = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Normal, fontSize = 13.sp, lineHeight = 18.sp),

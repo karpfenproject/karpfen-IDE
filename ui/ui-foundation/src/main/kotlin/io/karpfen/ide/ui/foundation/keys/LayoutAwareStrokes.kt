@@ -16,18 +16,24 @@
 package io.karpfen.ide.ui.foundation.keys
 
 /**
- * The layout-aware punctuation rule of the key adapter, Compose-free so it is unit-testable without key events: a key
- * press that produced one of the punctuation characters of [KeyCode] is reported as that character's code; Shift is
- * dropped when the layout needed it for the character, i.e. when the physical key is not the character's own key
- * (German Shift+7 produces `/` → [KeyCode.SLASH] without Shift). Every other press is reported as its physical key with
- * its modifiers (US Shift+/ produces `?` → SLASH + Shift).
+ * The layout-aware punctuation rule of the key adapter. It does not depend on Compose, so it can be unit-tested
+ * without key events.
+ *
+ * A key press that produced one of the punctuation characters of [KeyCode] is reported as that character's code.
+ * Shift is dropped when the layout needed it for the character, which is the case when the physical key is not the
+ * character's own key. On a German layout Shift+7 produces `/`, which becomes [KeyCode.SLASH] without Shift. Every
+ * other press is reported as its physical key with its modifiers. On a US layout Shift+/ produces `?`, which stays
+ * SLASH with Shift.
  */
 internal object LayoutAwareStrokes {
 
     /**
-     * The stroke of a key press: [physical] is the code of the pressed key (null for keys without one, e.g. a lone
-     * modifier), [modifiers] the physical modifiers held, [produced] the character the press produced on the current
-     * layout, if known.
+     * The stroke of a key press. Returns null when the pressed key has no code and the press produced no punctuation
+     * character.
+     *
+     * @param physical the code of the pressed key, or null for a key without one, such as a lone modifier.
+     * @param modifiers the physical modifiers held.
+     * @param produced the character the press produced on the current layout, or null if it is not known.
      */
     fun resolve(physical: KeyCode?, modifiers: Set<KeyModifier>, produced: Char?): KeyStroke? {
         val punctuation = produced?.let(PunctuationKeys::keyOf)
@@ -38,7 +44,10 @@ internal object LayoutAwareStrokes {
         }
     }
 
-    /** Whether [char] is a character a key press can produce as text (no control character, not "undefined"). */
+    /**
+     * Whether [char] is a character a key press can produce as text. Control characters, surrogates and AWT's
+     * undefined character are not.
+     */
     fun isPrintable(char: Char): Boolean =
         char >= ' ' && char != DELETE_CHAR && char != UNDEFINED_CHAR && !char.isSurrogate()
 

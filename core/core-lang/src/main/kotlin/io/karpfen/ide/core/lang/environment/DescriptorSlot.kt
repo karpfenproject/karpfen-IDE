@@ -34,13 +34,16 @@ internal sealed interface DescriptorSlot {
     data class Root(val shape: ValueShape.Record, val edit: SlotEdit) : DescriptorSlot
 
     /**
-     * A place for a key of the object [owner]: inside a key string, or in blank space or a bare word right after the
-     * object's `{` or a `,`, or after its last member when nothing but the closing `}` follows.
+     * A place for a key of the object [owner]. This is inside a key string, or in blank space or a bare word right
+     * after the `{` of the object or after a `,`. It is also the place after the last member when only the closing `}`
+     * follows.
      *
-     * @property shape what the schema expects of [owner], or null where it knows nothing (below an unknown key).
-     * @property member the member whose key string holds the caret, null in blank space or a bare word.
-     * @property edit how completion writes there: the key's content (or, for a key that gets more than its name, the
-     *   key up to its closing quote), the bare word at the caret, or the empty range at the caret.
+     * @property shape what the schema expects of [owner]. It is null where the schema knows nothing, such as below an
+     *   unknown key.
+     * @property member the member whose key string holds the caret. It is null in blank space or a bare word.
+     * @property edit how completion writes there. It replaces the content of the key, or the key up to its closing
+     *   quote when the key gets more than its name. Otherwise it replaces the bare word at the caret or the empty range
+     *   at the caret.
      * @property part what completion writes there, so that the member around the key is complete afterwards.
      */
     data class Key(
@@ -55,17 +58,17 @@ internal sealed interface DescriptorSlot {
     }
 
     /**
-     * A place for a value of [key]: its value, or an item of its list. Strings, numbers and literals hold it where they
-     * are; blank space or a bare word holds it right after the key's `:`, after a list's `[` or a `,`, or after the last
-     * item of a list when nothing but the closing `]` follows.
+     * A place for a value of [key]. This is its value, or an item of its list. Strings, numbers and literals hold the
+     * place where they are. Blank space or a bare word holds it right after the `:` of the key, after the `[` of a list
+     * or after a `,`. It also holds it after the last item of a list when only the closing `]` follows.
      *
-     * @property shape what the schema expects there (for a list item, the list's item shape).
-     * @property node the value under the caret, null in blank space or a bare word.
-     * @property edit how completion writes there: a string's content (or up to its closing quote), a number or
-     *   literal, the bare word at the caret, or the empty range at the caret.
-     * @property owner the object that holds [key], whose other keys give a value its context (the file of the state
-     *   machine an `attachedTo` belongs to); [ownerShape] is what the schema expects of it.
-     * @property root the root of the descriptor (the model, the state machines).
+     * @property shape what the schema expects there. For a list item it is the item shape of the list.
+     * @property node the value under the caret. It is null in blank space or a bare word.
+     * @property edit how completion writes there. It replaces the content of a string, or the string up to its closing
+     *   quote, a number or literal, the bare word at the caret, or the empty range at the caret.
+     * @property owner the object that holds [key]. Its other keys give a value its context. For an `attachedTo` this is
+     *   the file of the state machine it belongs to. [ownerShape] is what the schema expects of the owner.
+     * @property root the root of the descriptor, which holds the model and the state machines.
      */
     data class Value(
         val key: DescriptorKey,
@@ -83,13 +86,15 @@ internal sealed interface DescriptorSlot {
 
 /** What completion writes at a key, so that the member around it is complete afterwards. */
 internal enum class KeyPart {
-    /** Only the name: the key, a key string or a bare word the user forgot to quote, has its `:`. */
+    /** Only the name. The key already has its `:`. It is a key string or a bare word the user forgot to quote. */
     NAME,
 
-    /** The name and the `:`: the key has a value but lacks the `:` in front of it. */
+    /** The name and the `:`. The key has a value but lacks the `:` in front of it. */
     NAME_AND_COLON,
 
-    /** The whole member, the key with `:` and a value template: a new key, or a key string with neither `:` nor value. */
+    /**
+     * The whole member with key, `:` and a value template. This is for a new key, or a key string without `:` or value.
+     */
     MEMBER,
     ;
 

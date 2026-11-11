@@ -30,11 +30,11 @@ import kotlin.test.assertNotEquals
 
 /**
  * Covers objects the runtime creates while it runs, observed through a session with observation on, against a real
- * runtime and the depot, the one model that runs Python inside the container, for objects created at run time: a crate
- * created into the atomic slot replaces the modeled one and is observed with its own later change and its deletion;
- * crates created into a list are observed one by one; switching on after crates were created reads them from the
- * snapshot and then observes their changes; and at the end the mirror equals a fresh snapshot. Generated ids are never
- * asserted, only that they are not in the uploaded model.
+ * runtime. The scenarios use the depot, the one model that runs Python inside the container to create objects at run
+ * time. A crate created into the atomic slot replaces the modeled one. It is observed with its own later change and its
+ * deletion. Crates created into a list are observed one by one. Switching on after crates were created reads them from
+ * the snapshot and then observes their changes. At the end the mirror equals a fresh snapshot. Generated ids are never
+ * asserted. The scenarios only check that they are not in the uploaded model.
  */
 abstract class RunTimeObjectScenarios {
 

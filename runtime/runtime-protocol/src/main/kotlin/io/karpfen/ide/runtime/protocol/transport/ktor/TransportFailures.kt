@@ -26,11 +26,12 @@ import java.net.UnknownHostException
 import java.nio.channels.UnresolvedAddressException
 
 /**
- * Classifies what Ktor throws by how far the exchange got, looking through the chain of causes: a failure to connect
- * (a refused connection, an unresolved host, no route to the host) is [TransportFailure.Unreachable], a connect timeout
- * [TransportFailure.TimedOut] while [TransportPhase.CONNECTING]; a request or socket timeout is
- * [TransportFailure.TimedOut] while [TransportPhase.AWAITING_RESPONSE]; anything else happened after the request was
- * handed to the connection and is [TransportFailure.Interrupted]. Stateless.
+ * Classifies what Ktor throws by how far the exchange got. It looks through the chain of causes, and the first cause it
+ * knows decides. A failure to connect is [TransportFailure.Unreachable]. That covers a refused connection, an
+ * unresolved host and no route to the host. A connect timeout is [TransportFailure.TimedOut] while
+ * [TransportPhase.CONNECTING]. A request or socket timeout is [TransportFailure.TimedOut] while
+ * [TransportPhase.AWAITING_RESPONSE]. Anything else happened after the request was handed to the connection and is
+ * [TransportFailure.Interrupted]. The object holds no state.
  */
 internal object TransportFailures {
 
@@ -49,7 +50,7 @@ internal object TransportFailures {
         return TransportFailure.Interrupted(cause)
     }
 
-    /** [thrown] in words: its message, or its class name without one. */
+    /** [thrown] in words. That is its message, or its class name when it has no message. */
     fun describe(thrown: Throwable): String = thrown.message?.takeIf { it.isNotBlank() } ?: thrown::class.java.simpleName
 
     /** The most causes followed, so that a cyclic chain of causes ends. */

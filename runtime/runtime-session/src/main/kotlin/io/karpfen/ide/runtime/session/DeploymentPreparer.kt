@@ -39,22 +39,23 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
 /**
- * Prepares the deployment of one environment descriptor from a workspace, so that what the problems gate checked is
- * exactly what runs:
+ * Prepares the deployment of one environment descriptor from a workspace. The goal is that what the problems gate
+ * checked is exactly what runs. The preparation takes these steps:
  *
- * 1. saves every open document, because a deployment uploads the saved files; a failed save blocks with
- *    `deploy-save-failed`;
- * 2. awaits the analysis of the saved state;
- * 3. finds the unsaved paths: open documents that are still dirty, or whose analyzed snapshot is not their current
- *    one (another lineage or version), both because they were edited while the analysis ran; and an open environment
- *    descriptor whose current text does not decode to the descriptor its analyzed context was resolved from, because
- *    the workspace reads an edited descriptor again on its own schedule, so the analysis may still hold an earlier one,
- *    whose deploy configuration would otherwise be deployed;
- * 4. plans the deployment with [planner];
- * 5. turns the analysis into immutable values: the schema of the domain metamodel, the seed of the model, one layout
- *    per attached machine and the event catalog of the plan's domains.
+ * 1. It saves every open document, because a deployment uploads the saved files. A failed save blocks the deployment
+ *    with `deploy-save-failed`.
+ * 2. It awaits the analysis of the saved state.
+ * 3. It finds the unsaved paths. An open document counts as unsaved when it is still dirty, or when its analyzed
+ *    snapshot is not its current one, which means another lineage or version. Both happen when a document was edited
+ *    while the analysis ran. An open environment descriptor also counts as unsaved when its current text does not
+ *    decode to the descriptor that its analyzed context was resolved from. The workspace reads an edited descriptor
+ *    again on its own schedule, so the analysis may still hold an earlier one. Without this check, the deploy
+ *    configuration of that earlier descriptor would be deployed.
+ * 4. It plans the deployment with [planner].
+ * 5. It turns the analysis into immutable values. These are the schema of the domain metamodel, the seed of the model,
+ *    one layout per attached machine and the event catalog of the plan's domains.
  *
- * Nothing the preparation answers holds a dsl-tools object; the dsl-tools objects of the analysis are read only here.
+ * Nothing the preparation returns holds a dsl-tools object. The dsl-tools objects of the analysis are read only here.
  * Stateless.
  *
  * @param planner plans the deployment from the analysis.
@@ -82,9 +83,9 @@ internal class DeploymentPreparer(
     }
 
     /**
-     * True if [document] differs from what the deployment would upload or configure: it is dirty, the analysis read
-     * another text of it than its current one, or it is the descriptor of an analyzed context that was resolved from
-     * another descriptor than its current text decodes to.
+     * True if [document] differs from what the deployment would upload or configure. That is the case when it is
+     * dirty, when the analysis read another text of it than its current one, or when it is the descriptor of an
+     * analyzed context that was resolved from another descriptor than its current text decodes to.
      */
     private fun isUnsaved(document: OpenDocument, analysis: ProjectAnalysis): Boolean {
         if (document.isDirty.value) return true

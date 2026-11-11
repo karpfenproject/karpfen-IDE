@@ -18,13 +18,14 @@ package io.karpfen.ide.app.window
 import androidx.compose.ui.unit.DpSize
 import java.awt.GraphicsEnvironment
 
-/** A screen's bounds in the window system's coordinates (dp on the desktop). */
+/** A screen's bounds in the window system's coordinates, which are dp on the desktop. */
 internal data class ScreenArea(val x: Int, val y: Int, val width: Int, val height: Int) {
 
     /**
-     * True if a window at ([windowX], [windowY]) of [size] has its title bar on this screen: its top edge within the
-     * screen (leaving [TITLE_BAR_HEIGHT]) and at least [MINIMUM_VISIBLE_WIDTH] of its width over the screen, so it can
-     * be dragged back.
+     * True if a window of [size] at [windowX] and [windowY] has its title bar on this screen, so that it can be dragged
+     * back. The window's top edge must lie within the screen, with room for [TITLE_BAR_HEIGHT] above the screen's
+     * bottom edge. At least [MINIMUM_VISIBLE_WIDTH] of the window's width must lie over the screen. A window narrower
+     * than that must lie over the screen with its whole width.
      */
     fun showsTitleBarOf(windowX: Int, windowY: Int, size: DpSize): Boolean {
         val windowWidth = size.width.value.toInt()
@@ -42,13 +43,13 @@ internal data class ScreenArea(val x: Int, val y: Int, val width: Int, val heigh
     }
 }
 
-/** The screens a window can be placed on (the seam between window placement and AWT). */
+/** The screens a window can be placed on. This is the seam between window placement and AWT. */
 internal fun interface ScreenAreas {
-    /** The current screens; empty if unknown. */
+    /** The current screens. The list is empty if they are unknown. */
     fun current(): List<ScreenArea>
 }
 
-/** The screens of the local graphics environment; none in a headless JVM. */
+/** The screens of the local graphics environment. A headless JVM has none. */
 internal fun awtScreenAreas(): ScreenAreas = ScreenAreas {
     if (GraphicsEnvironment.isHeadless()) {
         emptyList()

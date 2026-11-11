@@ -26,10 +26,11 @@ import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
- * KModel navigation: object references → object declarations in the file; object types → TYPE declaration
- * in the context's metamodel; property/relation keys → their declaration in the metamodel (both through [types]).
- * References: objects within the file (declarations of the latest parse, by the staleness rule), types and keys across
- * the modeling context ([references]).
+ * Navigation in KModel. Object references lead to the object declarations in the file. Object types lead to the TYPE
+ * declaration in the metamodel of the context. Property and relation keys lead to their declaration in the metamodel.
+ * Types and keys are both found through [types]. References of objects are searched within the file, in the
+ * declarations of the latest parse by the staleness rule. References of types and keys are searched across the
+ * modeling context through [references].
  */
 internal class KmodelNavigationProvider(
     private val slots: KmodelSlots,

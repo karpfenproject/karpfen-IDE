@@ -301,7 +301,9 @@ class DocumentSessionPipelinesTest {
         assertFalse(session.tokens.value.tokens.isEmpty())
     }
 
-    /** Records every value of [flow] (mapped with [select]) from now on, in the background, without conflation. */
+    /**
+     * Records every value of [flow], mapped with [select], from now on. It runs in the background without conflation.
+     */
     private fun <T, R> TestScope.recordValues(flow: StateFlow<T>, select: (T) -> R): List<R> {
         val values = ArrayList<R>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { flow.collect { values += select(it) } }

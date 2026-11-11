@@ -35,7 +35,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** [JsonSettingsRepository]: defaults, round trips, unknown keys and values, corrupt-file recovery, I/O failures. */
+/**
+ * Tests [JsonSettingsRepository]. They cover the defaults, round trips, unknown keys and values, recovery from a
+ * corrupt file, and I/O failures.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class JsonSettingsRepositoryTest {
 
@@ -173,7 +176,7 @@ class JsonSettingsRepositoryTest {
         /** Valid JSON whose font size violates an [IdeSettings] invariant. */
         const val NEGATIVE_FONT_SIZE = """{ "editorFontSize": -1 }"""
 
-        /** Settings hand-edited and saved as Latin-1: the é is the single byte 0xE9, which is no UTF-8. */
+        /** Settings edited by hand and saved as Latin-1. The é is the single byte 0xE9, which is not valid UTF-8. */
         val LATIN1_SETTINGS: ByteArray
             get() = """{"recentFolders": ["/Users/x/Café"], "editorFontSize": 18.0}""".toByteArray(Charsets.ISO_8859_1)
     }

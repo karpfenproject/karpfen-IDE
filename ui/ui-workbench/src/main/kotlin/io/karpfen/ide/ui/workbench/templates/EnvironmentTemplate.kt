@@ -23,30 +23,36 @@ import kotlinx.serialization.json.Json
 import java.nio.file.Path
 
 /**
- * Content of a new environment descriptor `*.kenv.json` (documented on [FileTemplates]): the files of the directory's
- * current context, named as descriptors name files ([DescriptorPaths.relative]), so creating the descriptor keeps them
- * in one context; each state machine attached to the object [AttachmentCandidate.rank] proposes first, the rule the
- * descriptor completion ranks by, else to [PLACEHOLDER_OBJECT]; when the state machines use event domains, an `observe`
- * section that watches every object ([EnvironmentSchema.EVERY_OBJECT]) and those domains. Without a context the
- * descriptor names files after itself.
+ * The content of a new environment descriptor `*.kenv.json`, as [FileTemplates] documents it. It is pure.
  *
- * The descriptor is the typed `EnvironmentDescriptor` encoded with kotlinx.serialization, the class the environment
- * schema is derived from, so its keys are the schema's, every name is a correctly escaped JSON string, and keys left
- * at their defaults are omitted.
- * Pure.
+ * The descriptor names the files of the directory's current context. It names them the way descriptors name files,
+ * through [DescriptorPaths.relative], so creating the descriptor keeps them in one context. Each state machine is
+ * attached to the object that [AttachmentCandidate.rank] proposes first. That is the same rule the descriptor
+ * completion ranks by. If no object is proposed, the machine is attached to [PLACEHOLDER_OBJECT]. When the state
+ * machines use event domains, an `observe` section watches every object through [EnvironmentSchema.EVERY_OBJECT] and
+ * lists those domains. Without a context, the descriptor names files after itself.
+ *
+ * The descriptor is the typed `EnvironmentDescriptor`, encoded with kotlinx.serialization. The environment schema is
+ * derived from that class. Its keys are therefore the schema's keys, every name is a correctly escaped JSON string,
+ * and keys left at their defaults are omitted.
  */
 internal object EnvironmentTemplate {
 
     /** The object key used when the context knows no object. */
     const val PLACEHOLDER_OBJECT: String = "object"
 
-    /** Pretty-printing JSON without the keys left at their defaults, so the new descriptor reads well in any editor. */
+    /**
+     * Pretty-printing JSON that leaves out the keys at their defaults, so the new descriptor reads well in any editor.
+     */
     private val json = Json {
         prettyPrint = true
         encodeDefaults = false
     }
 
-    /** The descriptor of a new environment file [baseName] (without suffix) for [context], ending in a newline. */
+    /**
+     * The descriptor of a new environment file [baseName] for [context], ending in a newline. [baseName] has no
+     * suffix.
+     */
     fun content(baseName: String, context: TemplateContext): String {
         val modeling = context.context
         val relative = { path: Path -> DescriptorPaths.relative(context.directory, path) }
@@ -63,7 +69,10 @@ internal object EnvironmentTemplate {
         return json.encodeToString(EnvironmentDescriptor.serializer(), descriptor) + "\n"
     }
 
-    /** The key of the object the state machine [file] runs attached to (see [FileTemplates]). */
+    /**
+     * The key of the object that the state machine [file] runs attached to, as [FileTemplates] describes. Falls back
+     * to [PLACEHOLDER_OBJECT].
+     */
     fun attachedTo(file: Path, context: TemplateContext): String =
         AttachmentCandidate.rank(context.objects, context.stateMachineTypes[file]).firstOrNull()?.modelObject?.key
             ?: PLACEHOLDER_OBJECT

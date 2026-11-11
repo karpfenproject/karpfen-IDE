@@ -31,8 +31,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The logback adapters of the `logging` package on single events: [OutputSinkAppender] hands an event to the sink with
- * its time, level, logger and formatted message, and [DslToolsThresholdFilter] holds back the dsl-tools events below
+ * The logback adapters of the `logging` package on single events. [OutputSinkAppender] hands an event to the sink
+ * with its time, level, logger and formatted message. [DslToolsThresholdFilter] holds back the dsl-tools events below
  * its level and nothing else.
  */
 class LoggingAdaptersTest {
@@ -89,9 +89,9 @@ class LoggingAdaptersTest {
     }
 
     /**
-     * logback ends a stack trace with the platform's line separator; the message ends with the last frame instead, so
-     * the output view shows no empty line after it, and its lines are separated by `\n` alone, as the ring buffer
-     * separates the note of a cut message, also where the platform separates lines by `\r\n`.
+     * logback ends a stack trace with the platform's line separator. The message ends with the last frame instead, so
+     * the output view shows no empty line after it. Its lines are separated by `\n` alone, as the ring buffer separates
+     * the note of a cut message, also where the platform separates lines by `\r\n`.
      */
     @Test
     fun `a message ends with its last line and separates its lines by a line feed alone`() {

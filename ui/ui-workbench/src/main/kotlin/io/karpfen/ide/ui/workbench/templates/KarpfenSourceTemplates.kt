@@ -16,10 +16,12 @@
 package io.karpfen.ide.ui.workbench.templates
 
 /**
- * Contents of new KMeta, KModel and KStates files (documented on [FileTemplates]); each tokenizes and parses without
- * diagnostics. Names come from the file's base name: the example type of a metamodel is the base name in PascalCase
- * ([typeName]), which is also the type a model or state machine falls back to when the context knows no domain type —
- * so `robot.kmeta`, `robot.kmodel` and `robot.kstates` created in an empty directory fit together. Pure.
+ * The contents of new KMeta, KModel and KStates files, as [FileTemplates] documents them. Each tokenizes and parses
+ * without diagnostics. It is pure.
+ *
+ * Names come from the file's base name. The example type of a metamodel is the base name in PascalCase, as [typeName]
+ * builds it. A model or state machine falls back to the same type when the context knows no domain type. The files
+ * `robot.kmeta`, `robot.kmodel` and `robot.kstates` created in an empty directory therefore fit together.
  */
 internal object KarpfenSourceTemplates {
 
@@ -33,7 +35,10 @@ internal object KarpfenSourceTemplates {
             |""".trimMargin()
     }
 
-    /** One root object of the context's first domain type (else the type named after the file), keyed by the file name. */
+    /**
+     * One root object keyed by the file name. Its type is the context's first domain type, or the type named after the
+     * file if the context knows none.
+     */
     fun kmodel(baseName: String, context: TemplateContext): String {
         val type = context.typeNames.firstOrNull() ?: typeName(baseName)
         return """
@@ -42,7 +47,10 @@ internal object KarpfenSourceTemplates {
             |""".trimMargin()
     }
 
-    /** A state machine attached to the context's first domain type (else the type named after the file), one initial state. */
+    /**
+     * A state machine with one initial state. It is attached to the context's first domain type, or to the type named
+     * after the file if the context knows none.
+     */
     fun kstates(baseName: String, context: TemplateContext): String {
         val type = context.typeNames.firstOrNull() ?: typeName(baseName)
         return """
@@ -58,7 +66,11 @@ internal object KarpfenSourceTemplates {
             |""".trimMargin()
     }
 
-    /** [baseName] in PascalCase from its letters and digits (`cleaning_robot` → `CleaningRobot`), or `Example`. */
+    /**
+     * [baseName] in PascalCase, built from its letters and digits. For example, `cleaning_robot` becomes
+     * `CleaningRobot`. A name that would start with a digit gets a leading `T`. A name without letters or digits
+     * becomes `Example`.
+     */
     fun typeName(baseName: String): String {
         val name = baseName.split(Regex("[^\\p{L}\\p{N}]+"))
             .filter { it.isNotEmpty() }
@@ -70,6 +82,9 @@ internal object KarpfenSourceTemplates {
         }
     }
 
-    /** [value] without the characters a karpfen string literal cannot hold (quotes, backslashes, line breaks). */
+    /**
+     * [value] without the characters that a karpfen string literal cannot hold. These are quotes, backslashes and line
+     * breaks.
+     */
     private fun quoted(value: String): String = value.filterNot { it == '"' || it == '\\' || it == '\n' || it == '\r' }
 }

@@ -19,8 +19,8 @@ import io.karpfen.ide.runtime.protocol.conformance.LiveRuntime
 import io.karpfen.ide.runtime.protocol.conformance.LiveRuntimeUnderTest
 
 /**
- * Covers forcing the states of a session's machines ([ForcedStateScenarios]) against the real runtime that the live task is given, usually a throwaway
- * container of `runtime/live-runtime.sh test`.
+ * Covers forcing the states of a session's machines against the real runtime that the live task is given. The scenarios
+ * are those of [ForcedStateScenarios]. The runtime is usually a throwaway container of `runtime/live-runtime.sh test`.
  */
 @LiveRuntime
 class LiveForcedStateScenariosTest : ForcedStateScenarios() {

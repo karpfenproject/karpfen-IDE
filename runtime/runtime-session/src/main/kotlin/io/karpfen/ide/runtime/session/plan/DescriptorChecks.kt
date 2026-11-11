@@ -20,7 +20,7 @@ import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 
 /**
- * Finds event domains named like an attached object key: forcing the state of that object's machine makes the runtime
+ * Finds event domains named like an attached object key. Forcing the state of that object's machine makes the runtime
  * discard the domain's queued events.
  */
 internal class DomainIsAttachmentCheck : PlanCheck {
@@ -39,7 +39,7 @@ internal class DomainIsAttachmentCheck : PlanCheck {
 }
 
 /**
- * Finds an `observe` key in the descriptor, which the deployment does not use: while observation is on, the IDE
+ * Finds an `observe` key in the descriptor, which the deployment does not use. While observation is on, the IDE
  * observes the whole model, and it listens to every event domain the state machines use.
  */
 internal class ObserveSupersededCheck : PlanCheck {
@@ -58,8 +58,8 @@ internal class ObserveSupersededCheck : PlanCheck {
 }
 
 /**
- * Finds the runtime's image, its Python packages or bridges in the descriptor: they concern hosting the runtime and
- * bridges, which the deployment does not do.
+ * Finds the runtime's image, its Python packages or bridges in the descriptor. They concern hosting the runtime and
+ * bridges, which the deployment does not do. It deploys to a runtime that is already running.
  */
 internal class HostingIgnoredCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> {

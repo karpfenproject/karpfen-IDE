@@ -22,10 +22,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Covers [ModuleDependencyRules]: the allowed directions between the layers, the group wildcard, the encoding of
- * declared dependencies and the violation messages, including forbidden project dependencies that only show up on a
- * resolved classpath, such as those added in a module's own `afterEvaluate` block or by `withDependencies` after the
- * declarations were scanned.
+ * Covers [ModuleDependencyRules]. It checks the allowed directions between the layers, the group wildcard, the encoding
+ * of declared dependencies and the violation messages. The messages include forbidden project dependencies that only
+ * show up on a resolved classpath, such as those added in a module's own `afterEvaluate` block or by `withDependencies`
+ * after the declarations were scanned.
  */
 class ModuleDependencyRulesTest {
 

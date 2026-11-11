@@ -19,9 +19,9 @@ import androidx.compose.ui.input.key.Key
 import io.karpfen.ide.ui.foundation.keys.KeyCode
 
 /**
- * The physical Compose keys of the toolkit-neutral [KeyCode]s, in both directions. Every [KeyCode] has exactly one
- * Compose key (used for menu accelerators); a few further Compose keys report an existing code (the keypad's Enter is
- * [KeyCode.ENTER]).
+ * Maps the toolkit-neutral [KeyCode]s to the physical Compose keys and back. Every [KeyCode] has exactly one Compose
+ * key, which the menu accelerators use. A few further Compose keys report an existing code. The keypad's Enter, for
+ * example, reports [KeyCode.ENTER].
  */
 internal object ComposeKeyTable {
 
@@ -73,6 +73,6 @@ internal object ComposeKeyTable {
     /** The Compose key of [code]. */
     fun composeKeyOf(code: KeyCode): Key = composeKeyByCode.getValue(code)
 
-    /** The code of the physical Compose [key], or null for keys without one (modifiers, keypad digits, …). */
+    /** The code of the physical Compose [key], or null for keys without one, such as modifiers and keypad digits. */
     fun codeOf(key: Key): KeyCode? = codeByComposeKey[key]
 }

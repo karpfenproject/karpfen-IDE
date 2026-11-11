@@ -23,22 +23,23 @@ import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
  * @property wireName the phase as the snapshot writes it.
  */
 public enum class RuntimePhase(public val wireName: String) {
-    /** Created and being configured; no execution thread yet. */
+    /** Created and being configured. There is no execution thread yet. */
     CONFIGURING("configuring"),
 
-    /** Activated: the engine is built over the uploaded texts but was never started. */
+    /** Activated. The engine is built over the uploaded texts but was never started. */
     ACTIVATED("activated"),
 
     /**
-     * The engine thread is alive: started, or a start or a stop is under way. A stopped environment is reported running
-     * while the engine's last tick ends, for good if a call in that tick never returns.
+     * The engine thread is alive. The environment was started, or a start or a stop is under way. A stopped
+     * environment is reported as running while the engine's last tick ends. If a call in that tick never returns, it
+     * stays reported as running for good.
      */
     RUNNING("running"),
 
-    /** Started and not stopped, but the engine thread ended on its own (the runtime's console log has the reason). */
+    /** Started and not stopped, but the engine thread ended on its own. The runtime's console log has the reason. */
     HALTED("halted"),
 
-    /** Stopped, and the engine's last tick ended; the final model stays readable. */
+    /** Stopped, and the engine's last tick ended. The final model stays readable. */
     STOPPED("stopped"),
     ;
 
@@ -49,14 +50,14 @@ public enum class RuntimePhase(public val wireName: String) {
 }
 
 /**
- * The model of an environment as the runtime reported it at one revision, read between two ticks: it contains exactly
- * the effects of every observation up to [revision] and nothing after it. Immutable.
+ * The model of an environment as the runtime reported it at one revision, read between two ticks. It contains exactly
+ * the effects of every observation up to [revision] and nothing after it. Values of this type are immutable.
  *
  * @property environment the environment.
  * @property phase the lifecycle phase the runtime derived.
- * @property revision the revision of the last observation the snapshot contains; 0 before anything happened.
- * @property activeStates per state machine (its `attachedTo` key) the last reported active stack, in the order the
- *   machines first reported; empty before the first tick after a start.
+ * @property revision the revision of the last observation the snapshot contains. It is 0 before anything happened.
+ * @property activeStates the last reported active stack of each state machine, keyed by the machine's `attachedTo`
+ *   key. The machines come in the order they first reported. The map is empty before the first tick after a start.
  * @property roots every root object of the model in model order, each as an `objectChanged` push writes its value.
  * @throws IllegalArgumentException if [revision] is negative.
  */

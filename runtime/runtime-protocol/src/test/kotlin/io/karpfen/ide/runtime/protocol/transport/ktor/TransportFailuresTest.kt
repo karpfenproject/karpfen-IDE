@@ -29,8 +29,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers [TransportFailures]: failures to connect are unreachable or a timeout while connecting, timeouts after the
- * request was handed over are timeouts while awaiting the answer, everything else is an interruption; causes are
+ * Covers [TransportFailures]. Failures to connect are unreachable or a timeout while connecting. Timeouts after the
+ * request was handed over are timeouts while awaiting the answer. Everything else is an interruption. Causes are
  * followed, also through a cycle, and a failure without a message is described by its class.
  */
 class TransportFailuresTest {

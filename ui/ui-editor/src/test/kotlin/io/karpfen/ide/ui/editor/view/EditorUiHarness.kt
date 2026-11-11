@@ -50,16 +50,16 @@ import java.nio.file.Path
 
 /** Test tags of the composed editor. */
 object EditorTestTags {
-    /** The `CodeEditor` node (carries the text-input semantics). */
+    /** The `CodeEditor` node. It carries the text-input semantics. */
     const val EDITOR = "editor"
 
-    /** A box filling the text area (the overlay host's space), drawn by [RecordingOverlays]. */
+    /** A box that fills the text area, which is the space of the overlay host. [RecordingOverlays] draws it. */
     const val TEXT_AREA = "textArea"
 }
 
 /**
- * An [EditorOverlays] for view tests, independent of the real popups: records the host it is given and marks the text
- * area with a tagged, input-transparent box, so tests can click at `host.boundsOf(offset)`.
+ * An [EditorOverlays] for view tests that does not depend on the real popups. It records the host it is given and marks
+ * the text area with a tagged box that takes no input, so tests can click at `host.boundsOf(offset)`.
  */
 class RecordingOverlays : EditorOverlays {
     /** The host of the last composition. */
@@ -77,10 +77,15 @@ class RecordingOverlays : EditorOverlays {
 }
 
 /**
- * A composed `CodeEditor` for headless UI tests: a real session (registry tokenizer and parser, running inline) and
- * editor state in the composition's scope, so delays — the parse debounce, the hover delay, the caret blink — run on
- * the test's main clock; a [FakeLanguageServices]; the keymap of [platform], by default macOS (Cmd is the primary
- * modifier); [RecordingOverlays].
+ * A composed `CodeEditor` for headless UI tests. The session is real and uses the registry's tokenizer and parser,
+ * which run inline. The session and the editor state live in the composition's scope, so delays such as the parse
+ * debounce, the hover delay and the caret blink run on the test's main clock. The language services are a
+ * [FakeLanguageServices], and the overlays are [RecordingOverlays]. The keymap is the one of [platform], by default
+ * macOS, where Cmd is the primary modifier.
+ *
+ * @param test the Compose UI test that composes the editor.
+ * @property services the fake language services of the editor.
+ * @param platform the platform whose keymap the editor uses.
  */
 @OptIn(ExperimentalTestApi::class)
 class EditorUi(
@@ -98,7 +103,7 @@ class EditorUi(
     /** Targets passed to `onNavigate`. */
     val navigated = mutableListOf<Location>()
 
-    /** The editor state (set by the composition). */
+    /** The editor state. The composition sets it. */
     lateinit var state: CodeEditorState
         private set
 
@@ -111,7 +116,7 @@ class EditorUi(
     /** The editor node. */
     val editor: SemanticsNodeInteraction get() = test.onNodeWithTag(EditorTestTags.EDITOR)
 
-    /** The text-area node (positions in its coordinates are text-area coordinates). */
+    /** The text-area node. Positions in its coordinates are text-area coordinates. */
     val textArea: SemanticsNodeInteraction get() = test.onNodeWithTag(EditorTestTags.TEXT_AREA)
 
     /** The overlay host. */
@@ -121,7 +126,7 @@ class EditorUi(
     fun centerOf(offset: Int): Offset = checkNotNull(host.boundsOf(offset)) { "offset $offset is not laid out" }.center
 
     /**
-     * Composes the editor over [initialText] in a box of [width] x [height] with [slots] as overlays;
+     * Composes the editor over [initialText] in a box of [width] by [height] with [slots] as overlays.
      * [beforeComposition] runs on the new state before the editor is composed.
      */
     fun compose(

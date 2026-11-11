@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.file.Path
 
-/** Which severities the Problems view shows (its error, warning and info filter). */
+/** Which severities the Problems view shows. This is its error, warning and info filter. */
 public data class ProblemFilter(
     public val showErrors: Boolean = true,
     public val showWarnings: Boolean = true,
@@ -36,11 +36,11 @@ public data class ProblemFilter(
 )
 
 /**
- * One problem: a diagnostic of [path] with its one-based [line] and [column] for display (`line:col`).
+ * One problem. It is a diagnostic of [path], with the one-based [line] and [column] that the view shows as `line:col`.
  *
- * @property version the version of the text the diagnostic's range refers to (`FileProblems.snapshot`), null if
- *   unknown.
- * @property lineage that text's lineage, null if unknown.
+ * @property version the version of the text that the diagnostic's range refers to, taken from `FileProblems.snapshot`.
+ *   Null if unknown.
+ * @property lineage the lineage of that text. Null if unknown.
  */
 public data class ProblemItem(
     public val path: Path,
@@ -54,14 +54,17 @@ public data class ProblemItem(
         require(lineage == null || version != null) { "a lineage needs a version" }
     }
 
-    /** Where double-click navigates: the diagnostic's range in the text it refers to (mapped by `navigateTo`). */
+    /**
+     * Where a double-click navigates to. That is the diagnostic's range in the text it refers to. `navigateTo` maps it
+     * into the live text.
+     */
     public val location: Location get() = Location(path, diagnostic.range, version, lineage)
 }
 
-/** The problems of one file; [displayPath] is relative to the workspace root. */
+/** The problems of one file. [displayPath] is relative to the workspace root. */
 public data class ProblemGroup(public val path: Path, public val displayPath: String, public val items: List<ProblemItem>)
 
-/** What the Problems tool window shows; counts are before filtering. */
+/** What the Problems tool window shows. The counts are taken before filtering. */
 public data class ProblemsUiState(
     public val groups: List<ProblemGroup> = emptyList(),
     public val filter: ProblemFilter = ProblemFilter(),
@@ -70,11 +73,13 @@ public data class ProblemsUiState(
 )
 
 /**
- * Problems of the workspace grouped by file: maps `Workspace.problems` (the single rule of core-workspace, shared with
- * the status bar and `karpfen validate`) into groups and items with one-based `line:col` (`FileProblems.positionOf`)
- * and the snapshot's version and lineage; it never merges diagnostics itself (collected in [scope]). The binding is a
- * mediator operation and internal, so no view can bypass the workbench's coordinated flows. The mapping is
- * [ProblemsMapping]'s.
+ * The problems of the workspace, grouped by file. It collects `Workspace.problems` in [scope] and maps them through
+ * [ProblemsMapping] into groups and items. Each item has a one-based `line:col` from `FileProblems.positionOf` and the
+ * version and lineage of the file's snapshot. The class never merges diagnostics itself. `Workspace.problems` is the
+ * single rule of core-workspace for that, and the status bar and `karpfen validate` share it.
+ *
+ * Binding a workspace is an operation of the mediator and is internal, so no view can bypass the coordinated flows of
+ * the workbench.
  */
 public class ProblemsState(private val scope: CoroutineScope) {
 
@@ -85,7 +90,7 @@ public class ProblemsState(private val scope: CoroutineScope) {
     /** What the Problems tool window shows. */
     public val state: StateFlow<ProblemsUiState> get() = problems.asStateFlow()
 
-    /** Follows [workspace] (null clears). Mediator only. */
+    /** Follows [workspace]. Null clears the problems. Only the mediator calls it. */
     internal fun bindWorkspace(workspace: Workspace?) {
         binding?.cancel()
         this.workspace = workspace
@@ -101,7 +106,7 @@ public class ProblemsState(private val scope: CoroutineScope) {
         refresh()
     }
 
-    /** Maps the bound workspace's current problems under the current filter (nothing without a workspace). */
+    /** Maps the current problems of the bound workspace under the current filter. Shows nothing without a workspace. */
     private fun refresh() {
         val filter = problems.value.filter
         problems.value = workspace?.let { ProblemsMapping.map(it.problems.value, it.root, filter) } ?: ProblemsUiState(filter = filter)

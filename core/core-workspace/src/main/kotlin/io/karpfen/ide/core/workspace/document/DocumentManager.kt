@@ -19,29 +19,30 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * Opens, saves and closes the documents of one workspace. Owned by the `Workspace`; all suspend functions
- * do their file I/O on the workspace's IO dispatcher and are safe to call from the UI thread.
+ * Opens, saves and closes the documents of one workspace. The `Workspace` owns it. All suspend functions do their file
+ * I/O on the workspace's IO dispatcher and are safe to call from the UI thread.
  *
- * Loading goes through the workspace's `SourceLoader` (UTF-8 with replacement characters + a WARNING, byte order mark
- * removed, line separators normalized to `\n` + one INFO for mixed separators) and publishes its findings as the
- * session's external diagnostics `ExternalDiagnosticSources.FILE` for the loaded snapshot. Each document's
- * `EditableText` uses `WorkspaceOptions.timeSource`. Saving writes atomically (temp file in the same directory, then an
- * atomic move), restores the line separator and the byte order mark, marks the save point and ignores the watch event
+ * Loading goes through the workspace's `SourceLoader`. It decodes UTF-8 and replaces invalid bytes with replacement
+ * characters and a WARNING. It removes a byte order mark. It normalizes line separators to `\n` and adds one INFO for
+ * mixed separators. The findings are published as the session's external diagnostics
+ * `ExternalDiagnosticSources.FILE` for the loaded snapshot. The `EditableText` of each document uses
+ * `WorkspaceOptions.timeSource`. Saving writes atomically, first to a temp file in the same directory and then with an
+ * atomic move. It restores the line separator and the byte order mark, marks the save point and ignores the watch event
  * it causes itself.
  *
- * FILE findings follow the disk (MUST, so the IDE and `karpfen validate` agree): a successful save clears them
- * (`setExternalDiagnostics(FILE, savedSnapshot, emptyList())`; the written file is valid UTF-8 with one separator), and
- * every reload (automatic, or conflict RELOAD) replaces them with the new `LoadedSource.diagnostics` for the reloaded
- * snapshot.
+ * FILE findings always follow the disk, so the IDE and `karpfen validate` agree. A successful save clears them with
+ * `setExternalDiagnostics(FILE, savedSnapshot, emptyList())`, because the written file is valid UTF-8 with one kind of
+ * line separator. Every reload replaces them with the new `LoadedSource.diagnostics` for the reloaded snapshot. That
+ * holds for an automatic reload and for the reload that resolves a conflict.
  *
- * Semantic mode (MUST): every session is created with `SemanticMode.SYNTAX_ONLY` (the base
- * `WorkspaceOptions.sessionConfig` with that mode), whatever the file's role. In a workspace the project analysis is the
- * only place where dsl-tools reads files (context files through `DslReader`, loose files never), and its DSL_TOOLS
- * diagnostics reach open documents as `ExternalDiagnosticSources.PROJECT`; so opening, closing or re-classifying a file
- * (e.g. it becomes loose when a descriptor appears) never changes what is reported, and the IDE and the CLI report the
- * same.
+ * Every session is created with `SemanticMode.SYNTAX_ONLY`, whatever the role of the file. The session gets the base
+ * `WorkspaceOptions.sessionConfig` with that mode. In a workspace the project analysis is the only place where
+ * dsl-tools reads files. It reads context files through `DslReader` and never reads loose files. Its DSL_TOOLS
+ * diagnostics reach the open documents as `ExternalDiagnosticSources.PROJECT`. So opening, closing or reclassifying a
+ * file never changes what is reported, and the IDE and the command line tool report the same. A file is reclassified,
+ * for example, when it becomes loose because a descriptor appears.
  *
- * Threading: called from the workspace's scope dispatcher (see `Workspace`, Threading); texts are only mutated there.
+ * Call it from the dispatcher of the workspace's scope, as described on `Workspace`. Texts are only changed there.
  */
 public interface DocumentManager {
 
@@ -49,37 +50,40 @@ public interface DocumentManager {
     public val openDocuments: StateFlow<List<OpenDocument>>
 
     /**
-     * Opens [path] (or returns the already open document). Only files of a registered karpfen language can be opened
-     * (the modeling languages and environment descriptors; [OpenResult.Unsupported] otherwise); I/O failures are
-     * [OpenResult.Failed], never exceptions.
+     * Opens [path], or returns the document if it is already open. Only files of a registered karpfen language can be
+     * opened. These are the modeling languages and the environment descriptors. Any other file gives
+     * [OpenResult.Unsupported]. I/O failures give [OpenResult.Failed] and never throw.
      */
     public suspend fun open(path: Path): OpenResult
 
     /** The open document at [path], or null. */
     public fun get(path: Path): OpenDocument?
 
-    /** Closes the document at [path], discarding unsaved changes (the UI asks first). No-op if it is not open. */
+    /**
+     * Closes the document at [path] and discards unsaved changes. The UI asks the user first. It does nothing if the
+     * document is not open.
+     */
     public suspend fun close(path: Path)
 
-    /** Saves the document at [path] (also when it is not dirty). */
+    /** Saves the document at [path], also when it is not dirty. */
     public suspend fun save(path: Path): SaveResult
 
-    /** Saves every dirty document; one result per saved document, in opening order. */
+    /** Saves every dirty document. It returns one result per saved document, in opening order. */
     public suspend fun saveAll(): List<SaveResult>
 }
 
 /** Result of [DocumentManager.open]. */
 public sealed interface OpenResult {
-    /** The opened (or already open) document. */
+    /** The document that was opened or was already open. */
     public data class Opened(public val document: OpenDocument) : OpenResult
 
     /**
-     * The file is in no karpfen language (e.g. a README or a bridge configuration); the editor cannot open it, so the
-     * workbench opens it in the system's default application.
+     * The file is in no karpfen language, such as a README or a bridge configuration. The editor cannot open it, so
+     * the workbench opens it in the system's default application.
      */
     public data class Unsupported(public val path: Path) : OpenResult
 
-    /** Reading failed; [message] is user-readable. */
+    /** Reading failed. [message] is meant for the user. */
     public data class Failed(public val path: Path, public val message: String) : OpenResult
 }
 
@@ -88,6 +92,8 @@ public sealed interface SaveResult {
     /** The text of [version] was written to [path]. */
     public data class Saved(public val path: Path, public val version: Long) : SaveResult
 
-    /** Writing failed (or the document is not open); [message] is user-readable. The document stays dirty. */
+    /**
+     * Writing failed, or the document is not open. [message] is meant for the user. The document stays dirty.
+     */
     public data class Failed(public val path: Path, public val message: String) : SaveResult
 }

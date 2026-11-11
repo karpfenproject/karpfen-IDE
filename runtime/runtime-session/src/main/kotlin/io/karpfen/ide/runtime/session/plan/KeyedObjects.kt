@@ -27,17 +27,18 @@ import java.util.IdentityHashMap
 /**
  * One object of a model as the plan sees it. Immutable.
  *
- * @property key the object's key; `_` is a key like any other here, and only an object without a key on a reference
- *   loop has the empty key.
+ * @property key the object's key. `_` is a key like any other here. Only an object without a key on a reference loop
+ *   has the empty key.
  * @property typeName the name of the object's type.
  */
 internal data class KeyedObject(val key: String, val typeName: String)
 
 /**
- * The objects of a model as the runtime indexes them, copied into immutable values: the roots of the model, then,
- * recursively in relation order, the targets of their `has` relations, each object once, in that pre-order; of these
- * every object with a non-empty key. The runtime builds the same index when it activates an environment and keeps the
- * last of equal keys. The IDE's syntax index treats `_` as anonymous, the runtime does not, so `_` is a key here.
+ * The objects of a model as the runtime indexes them, copied into immutable values. The walk visits the roots of the
+ * model and then, recursively in relation order, the targets of their `has` relations. Each object is visited once, in
+ * that pre-order. Every visited object with a non-empty key is in the index. The runtime builds the same index when it
+ * activates an environment, and it keeps the last of equal keys. The IDE's syntax index treats `_` as anonymous, but
+ * the runtime does not, so `_` is a key here.
  *
  * @property objects the keyed objects in pre-order, equal keys included.
  */
@@ -49,13 +50,16 @@ internal class KeyedObjects private constructor(val objects: List<KeyedObject>) 
     val duplicates: Map<String, Int> =
         objects.groupingBy { it.key }.eachCount().filterValues { it > 1 }
 
-    /** The type of the object with [key] the runtime keeps, the last of equal keys, or null if no object has it. */
+    /**
+     * The type of the object with [key] that the runtime keeps, which is the last of equal keys. Returns null if no
+     * object has the key.
+     */
     fun typeOf(key: String): String? = objects.lastOrNull { it.key == key }?.typeName
 
     companion object {
         /**
-         * The index of [model], reading relation targets through their references only, since resolving the list of
-         * an unresolved reference throws.
+         * The index of [model]. It reads relation targets through their references only, because resolving the list
+         * of an unresolved reference throws.
          */
         fun of(model: Model): KeyedObjects {
             val visited: MutableSet<DataObject> = Collections.newSetFromMap(IdentityHashMap())

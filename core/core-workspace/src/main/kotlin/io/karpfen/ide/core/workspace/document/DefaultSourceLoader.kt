@@ -25,8 +25,8 @@ import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import java.nio.file.Path
 
 /**
- * [SourceLoader] over a [TextFileStore] and `LineSeparators.normalize`: the one loading rule of the workspace (see
- * [SourceLoader] and [LoadedSource] for the findings and their ranges).
+ * [SourceLoader] over a [TextFileStore] and `LineSeparators.normalize`. It is the single loading rule of the
+ * workspace. [SourceLoader] and [LoadedSource] describe the findings and their ranges.
  */
 internal class DefaultSourceLoader(private val fileStore: TextFileStore) : SourceLoader {
 
@@ -35,7 +35,7 @@ internal class DefaultSourceLoader(private val fileStore: TextFileStore) : Sourc
     override fun loadWritten(path: Path, content: String, withBom: Boolean): LoadedSource =
         loaded(path, fileStore.readBack(content, withBom))
 
-    /** The rule itself: [decoded], the text of [path], in editor form with its findings. */
+    /** The rule itself. It turns [decoded], the text of [path], into editor form with its findings. */
     private fun loaded(path: Path, decoded: DecodedText): LoadedSource {
         val normalized = LineSeparators.normalize(decoded.content)
         val diagnostics = buildList {
@@ -51,7 +51,7 @@ internal class DefaultSourceLoader(private val fileStore: TextFileStore) : Sourc
         )
     }
 
-    /** WARNING on the first replacement character of [text], or null if the decoder produced none. */
+    /** A WARNING on the first replacement character of [text], or null if the decoder produced none. */
     private fun malformedEncoding(text: String): Diagnostic? {
         val offset = text.indexOf(REPLACEMENT_CHARACTER)
         if (offset < 0) return null
@@ -65,8 +65,9 @@ internal class DefaultSourceLoader(private val fileStore: TextFileStore) : Sourc
     }
 
     /**
-     * INFO on the first line break whose original separator differs from [dominant]: its range is that line break, the
-     * `\n` of the normalized text (every `\r\n` before it shrank by one character).
+     * An INFO on the first line break whose original separator differs from [dominant]. Its range is that line break,
+     * the `\n` of the normalized text. Every `\r\n` before it shrank by one character, and the offset accounts for
+     * that.
      */
     private fun mixedSeparators(raw: String, dominant: LineSeparator): Diagnostic? {
         var shrink = 0

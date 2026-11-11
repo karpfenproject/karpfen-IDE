@@ -18,17 +18,17 @@ package io.karpfen.ide.core.lang.environment
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * How completion writes a proposal at a [DescriptorSlot], so that the descriptor stays valid JSON around it: the
- * [range] the proposal replaces, how it meets the quotes of the string at the caret, and the separators the text lacks
- * around the member or item it writes. [SlotEdits] works it out; the completion provider fits every proposal into it
- * with [fit].
+ * How completion writes a proposal at a [DescriptorSlot], so that the descriptor stays valid JSON around it. It holds
+ * the [range] the proposal replaces, how the proposal meets the quotes of the string at the caret, and the separators
+ * the text lacks around the member or item it writes. [SlotEdits] works it out. The completion provider fits every
+ * proposal into it with [fit].
  *
  * @property range what the proposal replaces.
  * @property quotes how the proposal meets the quotes of the string at the caret.
- * @property leading what goes in front of the proposal: `, ` for a member or item after the last one of its object or
- *   list, which has no comma behind it yet; empty elsewhere.
- * @property trailing what goes behind the proposal: `,` for a member or item that another one follows without a comma
- *   in between, `, ` when that one starts right behind [range]; empty elsewhere.
+ * @property leading what goes in front of the proposal. It is `, ` for a member or item after the last one of its
+ *   object or list, which has no comma behind it yet. It is empty elsewhere.
+ * @property trailing what goes behind the proposal. It is `,` for a member or item that another one follows without a
+ *   comma in between. It is `, ` when that other one starts right behind [range]. It is empty elsewhere.
  */
 internal data class SlotEdit(
     val range: TextRange,
@@ -40,11 +40,13 @@ internal data class SlotEdit(
     val isOutsideString: Boolean get() = quotes == Quotes.OWN
 
     /**
-     * The text to write for [proposal], written as JSON: without the quotes the text keeps ([Quotes]), and between
-     * [leading] and [trailing]. The caret goes to the proposal's own caret place, which stays in front of [trailing].
+     * The text to write for [proposal], written as JSON. It leaves out the quotes the text keeps, as [Quotes] says,
+     * and it stands between [leading] and [trailing]. The caret goes to the caret place of the proposal, which stays in
+     * front of [trailing].
      *
      * @throws IllegalArgumentException if the caret is in a string and [proposal] is no JSON text that starts with a
-     *   string (a string, or a member whose key the string is), or, where the string's quotes stay, is no string.
+     *   string. Such a text is a string, or a member whose key is the string. It is also thrown where the quotes of the
+     *   string stay and [proposal] is no string.
      */
     fun fit(proposal: Template): Template {
         val text = proposal.text
@@ -59,16 +61,17 @@ internal data class SlotEdit(
 
 /** How a proposal meets the quotes of the string at the caret. */
 internal enum class Quotes {
-    /** The caret is outside any string: the proposal brings its own quotes. */
+    /** The caret is outside any string. The proposal brings its own quotes. */
     OWN,
 
-    /** The caret is in a string whose quotes stay: the proposal replaces the content between them. */
+    /** The caret is in a string whose quotes stay. The proposal replaces the content between them. */
     KEPT,
 
     /**
-     * The caret is in a string whose opening quote stays and which the proposal ends: the proposal is written after
-     * that quote and brings the closing one, because the string has none, or because more follows the string (the `:`
-     * of a key that becomes a member, the `,` in front of the next item) and the proposal takes its closing quote in.
+     * The caret is in a string whose opening quote stays and which the proposal ends. The proposal is written after
+     * that quote and brings the closing one. This happens when the string has no closing quote. It also happens when
+     * more follows the string and the proposal takes in its closing quote. Examples are the `:` of a key that becomes a
+     * member and the `,` in front of the next item.
      */
     OPENED,
 }

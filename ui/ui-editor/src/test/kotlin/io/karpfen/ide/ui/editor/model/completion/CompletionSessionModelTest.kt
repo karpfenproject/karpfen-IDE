@@ -47,20 +47,31 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The completion session: triggers, requests, filtering, keys, accept and close rules. */
+/** The completion session: its triggers, requests, filtering and keys, and the rules for accepting and closing. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CompletionSessionModelTest {
 
     /**
-     * A completion source that answers [labels] for the identifier before the offset (its replace range) and suspends
-     * while [gate] is open (not completed).
+     * A completion source that answers [labels] with the identifier before the offset as the replace range. While
+     * [gate] is set and not completed, every request suspends.
      */
     private class FakeSource : CompletionSource {
+        /** Every request as snapshot and offset, in order. */
         val requests = mutableListOf<Pair<TextSnapshot, Int>>()
+
+        /** How many requests were cancelled while they waited at [gate]. */
         var cancelled = 0
+
+        /** Holds requests back until it completes. Null lets them answer at once. */
         var gate: CompletableDeferred<Unit>? = null
+
+        /** The labels of the answered items. */
         var labels: List<String> = listOf("print", "prop", "parse_rule", "has")
+
+        /** An exception that requests throw after [gate] instead of answering. */
         var failure: Exception? = null
+
+        /** Builds the item for a label and its replace range. */
         var itemFor: (String, TextRange) -> CompletionItem = { label, range ->
             CompletionItem(label, CompletionKind.KEYWORD, label, range, null, null, null, label)
         }
@@ -80,31 +91,44 @@ class CompletionSessionModelTest {
         }
     }
 
-    /** An editor with a completion model on the test's scheduler; [close] cancels the model's scope. */
+    /** An editor with a completion model on the test's scheduler. [close] cancels the model's scope. */
     private class Fixture(scope: TestScope, marked: String) {
+        /** The job of the model's scope. */
         private val job = Job()
+
+        /** The edited text and carets. */
         val editor = TestEditor(marked)
+
+        /** The completion source of the model. */
         val source = FakeSource()
+
+        /** Every action the model ran through [executor], in order. */
         val executed = mutableListOf<EditorAction>()
+
+        /** Records each action and runs it in [editor] while it is enabled. */
         val executor = EditorActionExecutor { action ->
             executed += action
             action.isEnabled(editor) && action.execute(editor)
         }
+        /** The model under test. Its scope runs on the test's scheduler. */
         val completion = CompletionSessionModel(
             editor.text, editor.caret, source, executor, CoroutineScope(StandardTestDispatcher(scope.testScheduler) + job),
         )
 
+        /** The labels of the open session, or null while no session is open. */
         val labels: List<String>? get() = completion.state.value?.items?.map { it.label }
 
-        /** Types [typed] like the editor state: the typing action, then the model's auto-trigger and filter. */
+        /** Types [typed] like the editor state does. It runs the typing action and then the model's auto-trigger and filter. */
         fun type(typed: String) {
             editor.type(typed)
             completion.onTyped(typed)
         }
 
+        /** Cancels the scope of the model. */
         fun close() = job.cancel()
     }
 
+    /** Runs [block] with a [Fixture] on [marked] in `runTest` and closes the fixture afterwards. */
     private fun completionTest(marked: String, block: suspend TestScope.(Fixture) -> Unit) = runTest {
         val fixture = Fixture(this, marked)
         try {
@@ -114,6 +138,7 @@ class CompletionSessionModelTest {
         }
     }
 
+    /** A key stroke of [code] with [modifiers]. */
     private fun key(code: KeyCode, vararg modifiers: KeyModifier) = KeyStroke(code, modifiers.toSet())
 
     @Test

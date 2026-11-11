@@ -21,10 +21,11 @@ import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 
 /**
- * The byte form of the workspace's text files, the one encoding rule of [TextFileStore]: UTF-8, a byte order mark
- * written first on request and removed (and reported) when reading. Reading decodes strictly first and, only for invalid
- * UTF-8, again with replacement characters, so a valid file that happens to contain U+FFFD is not flagged; writing
- * encodes what UTF-8 cannot (an unpaired surrogate) as `?`. Pure.
+ * The byte form of the workspace's text files. It is the single encoding rule of [TextFileStore]. The encoding is
+ * UTF-8. A byte order mark is written first on request, and it is removed and reported when reading. Reading decodes
+ * strictly first. Only for invalid UTF-8 does it decode again with replacement characters. So a valid file that
+ * happens to contain U+FFFD is not flagged. Writing encodes what UTF-8 cannot encode, an unpaired surrogate, as `?`.
+ * The object has no state and no side effects.
  */
 internal object Utf8Text {
 
@@ -34,7 +35,7 @@ internal object Utf8Text {
         return if (withBom) BOM + bytes else bytes
     }
 
-    /** The text of [bytes]; a leading byte order mark is removed and reported. */
+    /** The text of [bytes]. A leading byte order mark is removed and reported. */
     fun decode(bytes: ByteArray): DecodedText {
         val hasBom = bytes.size >= BOM.size && BOM.indices.all { bytes[it] == BOM[it] }
         val offset = if (hasBom) BOM.size else 0

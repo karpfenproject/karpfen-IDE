@@ -17,11 +17,11 @@ package io.karpfen.ide.runtime.session.states
 
 /**
  * Splits the flat stack the runtime pushes into its parallel branches. The runtime concatenates the paths of all
- * branches without a separator, and every branch path starts at a top-level state, so a new branch begins at every name
- * of a top-level state; names before the first top-level name form a branch of their own.
+ * branches without a separator, and every branch path starts at a top-level state. So a new branch begins at every
+ * name of a top-level state. Names before the first top-level name form a branch of their own.
  *
- * The split is ambiguous when a state nested somewhere has the same name as a top-level state: the runtime's state
- * names are global (its lookups take the first depth-first match), and the nested state then starts a branch here too.
+ * The split is ambiguous when a nested state has the same name as a top-level state. The runtime's state names are
+ * global, and its lookups take the first depth-first match. The nested state then starts a branch here too.
  *
  * @param topLevelStates the names of the machine's top-level states.
  */
@@ -29,7 +29,7 @@ internal class StackSegmenter(topLevelStates: List<String>) {
     /** The names at which a branch begins. */
     private val starts: Set<String> = topLevelStates.toSet()
 
-    /** The branches of [stack] in order; no branch for an empty stack. */
+    /** The branches of [stack] in order. An empty stack has no branch. */
     fun regions(stack: List<String>): List<List<String>> {
         val regions = ArrayList<List<String>>()
         var current = ArrayList<String>()

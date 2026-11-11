@@ -22,7 +22,10 @@ import io.karpfen.ide.runtime.session.examples.WireTexts
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Covers the comparison of two snapshots object by object, as the deploy compares the runtime's read-back with the seed. */
+/**
+ * Covers the comparison of two snapshots object by object, as the deployment compares the runtime's read-back with the
+ * seed.
+ */
 class MirrorComparisonTest {
 
     private val lamp = ReadModel.synthesized(SynthesizedModel.LAMP)
@@ -117,7 +120,7 @@ class MirrorComparisonTest {
         )
     }
 
-    /** A snapshot holding only [objects], each a root. */
+    /** A snapshot holding only [objects], each of them a root. */
     private fun snapshotOf(vararg objects: MirrorObject): MirrorSnapshot =
         MirrorSnapshot(objects.associateBy { it.id }, objects.map { ObjectRef.Keyed(it.id) }, emptyMap())
 }

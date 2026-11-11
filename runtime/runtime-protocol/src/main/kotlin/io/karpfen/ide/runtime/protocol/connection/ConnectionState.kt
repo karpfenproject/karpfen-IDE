@@ -17,7 +17,7 @@ package io.karpfen.ide.runtime.protocol.connection
 
 import io.karpfen.ide.runtime.protocol.transport.LinkClosure
 
-/** Why the runtime refused a WebSocket handshake: it closed the link with 1003 and one of its reasons. */
+/** Why the runtime refused a WebSocket handshake. The runtime refuses by closing the link with 1003 and a reason. */
 public sealed interface HandshakeRejection {
     /** The first frame was not text (`First message must be text`). */
     public data object FirstMessageNotText : HandshakeRejection
@@ -37,7 +37,7 @@ public sealed interface HandshakeRejection {
     public data class Other(public val code: Int, public val reason: String?) : HandshakeRejection
 }
 
-/** Why a connection ended for good; an ended connection never reconnects. */
+/** Why a connection ended for good. An ended connection never reconnects. */
 public sealed interface ConnectionEnd {
     /**
      * The runtime refused the handshake.
@@ -46,7 +46,10 @@ public sealed interface ConnectionEnd {
      */
     public data class HandshakeRejected(public val rejection: HandshakeRejection) : ConnectionEnd
 
-    /** The environment was stopped: the runtime closed the link with `Environment stopped`, or the handle saw the stop. */
+    /**
+     * The environment was stopped. Either the runtime closed the link with `Environment stopped`, or the handle saw the
+     * stop.
+     */
     public data object EnvironmentStopped : ConnectionEnd
 
     /**
@@ -81,14 +84,14 @@ public sealed interface ConnectionState {
     public data class Connecting(public val attempt: Int) : ConnectionState
 
     /**
-     * The handshake was sent and not rejected; the runtime acknowledges nothing, so this is all a client can know.
+     * The handshake was sent and not rejected. The runtime acknowledges nothing, so this is all a client can know.
      *
-     * @property epoch the number of the successful open, counting from 1; every reconnect increases it.
+     * @property epoch the number of the successful open, counting from 1. Every reconnect increases it.
      */
     public data class Open(public val epoch: Int) : ConnectionState
 
     /**
-     * The link closed without the client asking; the connection reconnects after the policy's delay.
+     * The link closed without the client asking. The connection reconnects after the policy's delay.
      *
      * @property attempt the number of the next attempt, counting from 1.
      * @property after how the link closed, or null if the last attempt never opened one.

@@ -33,13 +33,13 @@ import io.karpfen.ide.core.lang.symbols.TypeInfo
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Model paths at the caret of a KStates document: the [ModelPathResolver] in the scope of [scopes], shared by KStates
- * completion, hover and navigation (segment candidates, the segment under the caret, the type of a `SETOBJ` source
- * path). Stateless.
+ * Model paths at the caret of a KStates document. It applies the [ModelPathResolver] in the scope that [scopes] gives.
+ * KStates completion, hover and navigation share it for segment candidates, the segment under the caret and the type
+ * of a `SETOBJ` source path. The class has no state.
  */
 internal class KstatesPaths(private val scopes: KstatesPathScopes, private val paths: ModelPathResolver) {
 
-    /** The segments that may follow [prefix] (the path text before the caret) at the caret of [context]. */
+    /** The segments that may follow [prefix], the path text before the caret, at the caret of [context]. */
     fun completions(request: FeatureRequest, context: CaretContext, prefix: String): List<PathMember> =
         paths.completions(prefix, scopes.scopeAt(request, context).path)
 
@@ -51,15 +51,15 @@ internal class KstatesPaths(private val scopes: KstatesPathScopes, private val p
         return PathHit(scope, segments, index, paths.resolve(segments.pathOf(index + 1), scope.path))
     }
 
-    /** The type reached by [path] (e.g. the source path of `SETOBJ`) at the caret of [context], or null. */
+    /** The type reached by [path], such as the source path of `SETOBJ`, at the caret of [context], or null. */
     fun typeOf(request: FeatureRequest, context: CaretContext, path: String): TypeInfo? {
         val scope = scopes.scopeAt(request, context).path
         return paths.resolve(path, scope).type?.takeIf { !it.isPrimitive }?.let { scope.type(it.name) }
     }
 
     /**
-     * The type of the binding that the `WITH MACRO("m", …) AS "x"` statement at the caret of [context] declares: the
-     * RETURNS type of `m`, or null if unknown.
+     * The type of the binding that the `WITH MACRO("m", …) AS "x"` statement at the caret of [context] declares. It is
+     * the RETURNS type of `m`, or null if unknown.
      */
     fun declaredBindingType(request: FeatureRequest, context: CaretContext): PathType? {
         val macro = KstatesBlocks.boundMacroOf(KstatesBlocks.withConstructOf(context.statement)) ?: return null
@@ -67,22 +67,22 @@ internal class KstatesPaths(private val scopes: KstatesPathScopes, private val p
     }
 }
 
-/** A resolved path segment at the caret: segment [index] of [segments] and the [resolution] up to it. */
+/** A resolved path segment at the caret. It is the segment at [index] of [segments], with the [resolution] up to it. */
 internal class PathHit(val scope: KstatesScope, val segments: List<PathSegment>, val index: Int, val resolution: PathResolution) {
 
     /** The segment under the caret. */
     val segment: PathSegment get() = segments[index]
 
-    /** Its resolution (member null if unresolved). */
+    /** The resolution of the segment. Its member is null if the segment is unresolved. */
     val resolved: ResolvedSegment? get() = resolution.segments.getOrNull(index)
 
     /** The member the segment resolved to, or null. */
     val member: PathMember? get() = resolved?.member
 
-    /** The path up to and including the segment, `->`-joined without blanks. */
+    /** The path up to and including the segment, joined by `->` without blanks. */
     val path: String get() = segments.pathOf(index + 1)
 
-    /** True for the `event` root while the event type is not determinable. */
+    /** True for the `event` root while the event type cannot be determined. */
     val isUndeterminedEvent: Boolean
         get() = member?.let { it.origin == PathOrigin.ROOT && it.name == PathSyntax.EVENT } == true && scope.path.eventType == null
 }

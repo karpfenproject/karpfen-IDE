@@ -27,24 +27,24 @@ import io.karpfen.dsl.diagnostics.Diagnostic as DslDiagnostic
 import io.karpfen.dsl.diagnostics.Severity as DslSeverity
 
 /**
- * Turns what a dsl-tools reader reports into the IDE's values: a [ParseResult] into a [ReadResult], each dsl-tools
- * diagnostic into a [Diagnostic] of source [DiagnosticSource.DSL_TOOLS].
+ * Turns what a dsl-tools reader reports into the IDE's values. A [ParseResult] becomes a [ReadResult], and each
+ * dsl-tools diagnostic becomes a [Diagnostic] with source [DiagnosticSource.DSL_TOOLS].
  *
- * A dsl-tools range counts UTF-16 chars like a [TextRange], so its offsets carry over unchanged; the line and column of
+ * A dsl-tools range counts UTF-16 chars like a [TextRange], so its offsets carry over unchanged. The line and column of
  * its positions are not needed, because the snapshot knows its lines. The reader guarantees that its ranges lie within
- * the text it read, and the mapping still clamps them to the snapshot, so that a defect of dsl-tools can never put a
- * range outside the document. The code of a diagnostic is the stable id of its dsl-tools code
- * ([DiagnosticCode.id]), the message is the reader's.
+ * the text it read. The mapping still clamps them to the snapshot, so that a defect of dsl-tools can never put a range
+ * outside the document. The code of a diagnostic is the stable id of its dsl-tools code, [DiagnosticCode.id]. The
+ * message is the reader's.
  */
 internal object ReadResults {
 
-    /** The [ReadResult] of [parse], a read of [source]'s text: its model and its diagnostics, sorted. */
+    /** The [ReadResult] of [parse], which read the text of [source]. It holds the model and the sorted diagnostics. */
     fun <T : Any> of(parse: ParseResult<T>, source: TextSnapshot): ReadResult<T> =
         ReadResult(parse.model, parse.diagnostics.map { diagnosticOf(it, source.length) }.sortedWith(Diagnostic.ORDER))
 
     /**
-     * The result of a read that failed with [failure]: no model and one `reader.failure` error at the start of the
-     * text, worded like the failures the readers report themselves.
+     * The result of a read that failed with [failure]. It has no model and one `reader.failure` error at the start of
+     * the text, worded like the failures that the readers report themselves.
      */
     fun failure(failure: Throwable): ReadResult<Nothing> =
         ReadResult(

@@ -24,10 +24,10 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Covers the source fixtures the anchor tests stand on: [KotlinTemplateLiteral] finds the string literals of Kotlin
- * code past comments and character literals, splits quoted and triple-quoted templates into text and placeholders,
- * unescapes quoted strings, skips the strings nested in a placeholder's expression, joins concatenations and fails
- * naming a placeholder without a sample; [RuntimeSourceCheckout] reads files and names what is missing.
+ * Covers the source fixtures the anchor tests stand on. [KotlinTemplateLiteral] finds the string literals of Kotlin
+ * code past comments and character literals. It splits quoted and triple-quoted templates into text and placeholders,
+ * unescapes quoted strings and skips the strings nested in a placeholder's expression. It joins concatenations and
+ * fails naming a placeholder without a sample. [RuntimeSourceCheckout] reads files and names what is missing.
  */
 class KotlinTemplateLiteralTest {
 

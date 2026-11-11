@@ -18,9 +18,9 @@ package io.karpfen.ide.runtime.session.mirror
 import io.karpfen.dsl.meta.AssociationType
 
 /**
- * A working copy of a [MirrorSnapshot] for one step of the [MirrorReducer]: objects are put, embedded subtrees removed
- * and references to removed objects scrubbed, then [build] answers the new snapshot and what changed. Confined to the
- * step that created it; the snapshot it started from stays as it was.
+ * A working copy of a [MirrorSnapshot] for one step of the [MirrorReducer]. The step puts objects, removes embedded
+ * subtrees and scrubs references to removed objects. Then [build] returns the new snapshot and what changed. Confined
+ * to the step that created it. The snapshot it started from stays as it was.
  *
  * @param before the snapshot the step starts from.
  */
@@ -56,8 +56,8 @@ internal class MirrorEditor(private val before: MirrorSnapshot) {
     }
 
     /**
-     * Removes the object [id] with every keyed object it embeds, directly or through anonymous objects, and answers the
-     * removed ids; objects that are no longer there are skipped.
+     * Removes the object [id] with every keyed object it embeds, directly or through anonymous objects. Returns the
+     * removed ids. Objects that are no longer there are skipped.
      */
     fun removeSubtree(id: String): Set<String> {
         val gone = LinkedHashSet<String>()
@@ -78,7 +78,7 @@ internal class MirrorEditor(private val before: MirrorSnapshot) {
     /**
      * Removes every reference to the removed objects from the relations of the remaining objects, anonymous ones
      * included, and stamps each object it changes with [revision]. An atomic relation that referred to a removed object
-     * becomes empty; a list relation loses the entry.
+     * becomes empty. A list relation loses the entry.
      */
     fun scrub(revision: Long) {
         if (removed.isEmpty()) return
@@ -137,9 +137,15 @@ internal class MirrorEditor(private val before: MirrorSnapshot) {
     }
 }
 
-/** Compares mirror objects by content: type, properties and relations, ignoring origin and revision. Stateless. */
+/**
+ * Compares mirror objects by content, that is type, properties and relations. Origin and revision are ignored.
+ * Stateless.
+ */
 internal object MirrorContent {
-    /** True if [a] and [b] have the same id, type, properties and relations, anonymous targets compared alike. */
+    /**
+     * True if [a] and [b] have the same id, type, properties and relations. Anonymous targets are compared the same
+     * way.
+     */
     fun same(a: MirrorObject, b: MirrorObject): Boolean = normalized(a) == normalized(b)
 
     /** [obj] with origin and revision cleared, also in its anonymous targets. */

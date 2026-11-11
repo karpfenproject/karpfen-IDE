@@ -22,36 +22,36 @@ import io.karpfen.ide.core.text.TextRange
 
 /**
  * Works out the [SlotEdit] of a place that [DescriptorCaret] found in the [document] of [text], for the caret at
- * [offset], so that accepting a proposal leaves the descriptor valid JSON around it:
- * - in blank space, a bare word, a number or a literal, the proposal replaces that and brings its own quotes;
- * - in a closed string it replaces the content and the quotes stay, unless more has to follow the string (the `:` of
- *   a key that becomes a member, the `,` in front of the next item): then it also takes in the closing quote and
- *   brings it;
- * - in a string without closing quote, which the lexer ends at the line break, it replaces the content only up to the
- *   end of the word at the caret and brings the closing quote, so the rest of the line (a `,`, a `}`) stays where it
- *   is. The modeling languages follow the same rule (`CaretContext.replaceRange`);
- * - where the member or item the proposal writes stands in front of another one with no comma in between, the
- *   proposal brings the `,`. Blank lines between members are where keys are usually added, so this is the common case.
+ * [offset]. The edit makes sure that accepting a proposal leaves the descriptor valid JSON around it.
+ * - In blank space, a bare word, a number or a literal, the proposal replaces that and brings its own quotes.
+ * - In a closed string the proposal replaces the content and the quotes stay. When more has to follow the string, it
+ *   also takes in the closing quote and brings it. Examples are the `:` of a key that becomes a member and the `,` in
+ *   front of the next item.
+ * - The lexer ends a string without a closing quote at the line break. In such a string the proposal replaces the
+ *   content only up to the end of the word at the caret and brings the closing quote. So the rest of the line, such
+ *   as a `,` or a `}`, stays where it is. The modeling languages follow the same rule in `CaretContext.replaceRange`.
+ * - When the member or item the proposal writes stands in front of another one without a comma in between, the
+ *   proposal brings the `,`. Keys are usually added in blank lines between members, so this is the common case.
  *
- * Pure; one per search of [DescriptorCaret].
+ * It has no side effects. Each search of [DescriptorCaret] makes its own.
  */
 internal class SlotEdits(private val document: JsonDocument, private val text: String, private val offset: Int) {
 
     /**
-     * The edit for a new member or item at [range], blank space or a bare word, of a [container] (null for the root);
-     * [leading] goes in front of it.
+     * The edit for a new member or item of a [container] at [range], which is blank space or a bare word. The
+     * [container] is null for the root. [leading] goes in front of the proposal.
      */
     fun outside(range: TextRange, container: Container?, leading: String = ""): SlotEdit =
         SlotEdit(range, Quotes.OWN, leading, trailingAfter(range.end, container))
 
-    /** The edit on the number or literal [node], a member value or item of a [container] (null for the root). */
+    /** The edit on the number or literal [node], a member value or item of a [container] that is null for the root. */
     fun on(node: JsonNode, container: Container?): SlotEdit =
         SlotEdit(node.range, Quotes.OWN, trailing = trailingAfter(node.range.end, container))
 
     /**
      * The edit in the [string] at the caret. [container] holds the member or item the proposal ends, which may need a
-     * `,` behind it; null where the proposal ends nothing (a key that keeps its value). [continues] is true if the
-     * proposal writes past the string's closing quote, as a key that gets its `:` does.
+     * `,` behind it. It is null where the proposal ends nothing, as for a key that keeps its value. [continues] is true
+     * if the proposal writes past the closing quote of the string, as a key that gets its `:` does.
      */
     fun inString(string: JsonNode.StringNode, container: Container?, continues: Boolean): SlotEdit {
         if (!string.isClosed) {
@@ -67,8 +67,8 @@ internal class SlotEdits(private val document: JsonDocument, private val text: S
     }
 
     /**
-     * Where the word at the caret ends in [content], the content of a string without closing quote: at the first blank
-     * or JSON punctuation from the caret on, else at the end of the content.
+     * Where the word at the caret ends in [content], the content of a string without a closing quote. It ends at the
+     * first blank or JSON punctuation from the caret on, or else at the end of the content.
      */
     private fun wordEnd(content: TextRange): Int {
         var end = offset.coerceIn(content.start, content.end)
@@ -77,11 +77,11 @@ internal class SlotEdits(private val document: JsonDocument, private val text: S
     }
 
     /**
-     * The separator a member or item of [container] that ends at [end] needs behind it: `,` when the next token
-     * starts another member or item of the container, `, ` when that one starts right at [end]; nothing when a `,`, a
-     * closing bracket, other text or nothing follows, and nothing without a container. When [end] lies inside a token,
-     * in a string without closing quote, the rest of that string comes first: only a blank rest lets the next line
-     * decide.
+     * The separator that a member or item of [container] ending at [end] needs behind it. It is `,` when the next
+     * token starts another member or item of the container, and `, ` when that one starts right at [end]. It is empty
+     * when a `,`, a closing bracket, other text or nothing follows, and when there is no container. [end] can lie
+     * inside a token, in a string without a closing quote. Then the rest of that string comes first, and only a blank
+     * rest lets the next line decide.
      */
     private fun trailingAfter(end: Int, container: Container?): String {
         if (container == null) return ""
@@ -97,17 +97,20 @@ internal class SlotEdits(private val document: JsonDocument, private val text: S
     }
 
     private companion object {
-        /** The characters that end a word in a string without closing quote: JSON punctuation, quote and backslash. */
+        /**
+         * The characters that end a word in a string without a closing quote. They are JSON punctuation, quote and
+         * backslash.
+         */
         const val WORD_STOPS = ",:{}[]\"\\"
     }
 }
 
 /** What holds a member or item, by what starts the next one in it. */
 internal enum class Container {
-    /** An object: its next member starts with its key string. */
+    /** An object. Its next member starts with its key string. */
     OBJECT,
 
-    /** A list: its next item starts with any value. */
+    /** A list. Its next item starts with any value. */
     LIST,
     ;
 

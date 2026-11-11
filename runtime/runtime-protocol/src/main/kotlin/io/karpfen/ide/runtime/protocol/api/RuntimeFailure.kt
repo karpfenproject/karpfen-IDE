@@ -21,17 +21,17 @@ import io.karpfen.ide.runtime.protocol.message.ProtocolViolation
 
 /** How far a failed call got, which decides whether the runtime may have applied it. */
 public enum class Reach {
-    /** Nothing was sent: the runtime did not apply the call. */
+    /** Nothing was sent, so the runtime did not apply the call. */
     NOT_SENT,
 
-    /** The request was handed over but no answer came: the runtime may or may not have applied it. */
+    /** The request was handed over but no answer came. The runtime may or may not have applied it. */
     MAYBE_APPLIED,
 
-    /** The runtime answered: what it did is known from the answer. */
+    /** The runtime answered, so the answer tells what it did. */
     ANSWERED,
 }
 
-/** Why a call of a [RuntimeRoute] did not succeed. Immutable. */
+/** Why a call of a [RuntimeRoute] did not succeed. Values of this type are immutable. */
 public sealed interface RuntimeFailure {
     /** The route that was called. */
     public val route: RuntimeRoute
@@ -43,7 +43,7 @@ public sealed interface RuntimeFailure {
     public fun describe(): String
 
     /**
-     * The runtime could not be reached; nothing was sent.
+     * The runtime could not be reached, and nothing was sent.
      *
      * @property cause what the transport observed.
      */
@@ -81,8 +81,8 @@ public sealed interface RuntimeFailure {
      * @property kind the kind of the text, [RejectionKind.CONTENT_REJECTED] or [RejectionKind.UNCLASSIFIED] if it is
      *   none of the known texts.
      * @property message the body, the runtime's text.
-     * @property captured the placeholder values of the matched text, such as the parameter name of a missing parameter;
-     *   empty for a text without placeholders or an unknown text.
+     * @property captured the placeholder values of the matched text, such as the parameter name of a missing parameter.
+     *   It is empty for a text without placeholders and for an unknown text.
      */
     public data class Rejected(
         override val route: RuntimeRoute,
@@ -97,7 +97,7 @@ public sealed interface RuntimeFailure {
     }
 
     /**
-     * The runtime failed with an internal error (500).
+     * The runtime failed with an internal error, which has the status 500.
      *
      * @property message the body, the message of the exception the runtime ran into.
      */

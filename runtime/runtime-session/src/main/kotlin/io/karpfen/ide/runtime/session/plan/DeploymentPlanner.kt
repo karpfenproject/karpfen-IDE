@@ -25,31 +25,30 @@ import java.nio.file.Path
  * that block the deployment.
  *
  * The plan uploads the analyzed snapshots of the context's files, and the problems gate reads the diagnostics of
- * exactly those snapshots, so what the gate checked is what runs. The gate refuses a context without a metamodel or a
- * model, a file with an error and a file that still differs from its saved state; the preflight checks then refuse
- * what the runtime would mishandle and warn about what it would do unexpectedly.
+ * exactly those snapshots. So what the gate checked is what runs. The gate refuses a context without a metamodel or a
+ * model, a file with an error and a file that still differs from its saved state. The preflight checks then refuse
+ * what the runtime would mishandle, and warn about what it would do unexpectedly.
  *
- * Threading (MUST): [plan] is pure: it reads the analysis, never touches the wire and never suspends. It reads the
- * dsl-tools models of the analysis, so it runs where the analysis may be read; the plan it answers holds no dsl-tools
- * object and may cross threads.
+ * [plan] is pure. It reads the analysis, never touches the wire and never suspends. It reads the dsl-tools models of
+ * the analysis, so it runs where the analysis may be read. The plan it returns holds no dsl-tools object and may cross
+ * threads.
  *
- * Contract (MUST):
- * - [plan] never throws for a broken workspace; every finding is a [DeployProblem].
- * - A [PlanResult.Blocked] holds at least one ERROR; a [PlanResult.Ready] plan holds only warnings and infos.
+ * [plan] never throws for a broken workspace. Every finding is a [DeployProblem]. A [PlanResult.Blocked] holds at
+ * least one ERROR. A [PlanResult.Ready] plan holds only warnings and infos.
  */
 public interface DeploymentPlanner {
     /**
      * Plans the deployment of the explicit context of [descriptor] from [analysis]. [unsaved] holds the paths whose
-     * open document still differs from its saved state or from the snapshot the analysis read; any file of the context
-     * or the descriptor in it blocks the deployment.
+     * open document still differs from its saved state or from the snapshot the analysis read. If it holds a file of
+     * the context or the descriptor, the deployment is blocked.
      */
     public fun plan(analysis: ProjectAnalysis, descriptor: Path, unsaved: Set<Path>): PlanResult
 }
 
-/** The planner with every check of the problems gate and every preflight check. */
+/** Creates the planner with every check of the problems gate and every preflight check. */
 public fun DeploymentPlanner(): DeploymentPlanner = DefaultDeploymentPlanner(PlanChecks.gate(), PlanChecks.preflight())
 
-/** What planning a deployment answers: a plan, or the problems that block it. Immutable. */
+/** What planning a deployment returns, which is a plan or the problems that block it. Immutable. */
 public sealed interface PlanResult {
     /**
      * The deployment can run.

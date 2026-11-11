@@ -23,14 +23,16 @@ import io.karpfen.ide.core.text.TextLineage
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Merges the diagnostic sources of one document into [VersionedDiagnostics] of the newest snapshot of [text]: every
- * source's ranges are mapped from the version they were computed for with `EditableText.mapRange` (the one
- * range-mapping rule of the IDE; diagnostics whose range does not map — evicted history — are dropped), then combined
- * by [mergeDiagnostics] (the one merge rule). It owns neither a mapping nor a merge rule.
- * The external sets, which may be reported once and then live for many edits, are mapped from their [anchors] (the
- * snapshot of the previous merge), so they never expire with the edit history.
+ * Merges the diagnostic sources of one document into the [VersionedDiagnostics] of the newest snapshot of [text]. The
+ * ranges of every source are mapped from the version they were computed for with `EditableText.mapRange`, the one
+ * range-mapping rule of the IDE. A diagnostic whose range does not map, because that part of the history was evicted,
+ * is dropped. [mergeDiagnostics], the one merge rule, then combines the rest. The merger owns neither a mapping rule
+ * nor a merge rule.
  *
- * Reads `text.snapshot` and updates the [anchors]; thread-safe, because range mapping and the anchors are.
+ * The external sets may be reported once and then live for many edits. They are mapped from their [anchors], which
+ * hold the snapshot of the previous merge, so they never expire with the edit history.
+ *
+ * It reads `text.snapshot` and updates the [anchors]. It is thread-safe, because range mapping and the anchors are.
  */
 internal class DiagnosticsMerger(
     private val text: EditableText,
@@ -38,9 +40,9 @@ internal class DiagnosticsMerger(
 ) {
 
     /**
-     * The merged diagnostics of [tokens], [parse] and the [external] sets by source, in the coordinates of the newest
-     * snapshot of [text] at the time of the call (never older than any source, since all of them come from versions of
-     * [text]).
+     * The merged diagnostics of [tokens], [parse] and the [external] sets by source. They are in the coordinates of the
+     * newest snapshot of [text] at the time of the call. That snapshot is never older than any source, since all
+     * sources come from versions of [text].
      */
     fun merge(tokens: TokenizeResult, parse: ParseOutcome?, external: Map<String, ExternalDiagnosticSet>): VersionedDiagnostics {
         val target = text.snapshot.value
@@ -57,7 +59,10 @@ internal class DiagnosticsMerger(
         return VersionedDiagnostics(target, mergeDiagnostics(lexical, mappedParse, mappedExternal))
     }
 
-    /** [diagnostics] of the given version and lineage mapped to [target]; those whose range does not map are dropped. */
+    /**
+     * The [diagnostics] of the given version and lineage, mapped to [target]. Those whose range does not map are
+     * dropped.
+     */
     private fun mapToTarget(
         diagnostics: List<Diagnostic>,
         fromVersion: Long,

@@ -46,8 +46,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * [OutlineView] headless: every click navigates, also on the highlighted node (the one containing the caret); the arrow
- * keys browse the outline without navigating, Enter navigates to the browsed node.
+ * Headless tests of [OutlineView]. Every click navigates. That also holds for the highlighted node, which is the node
+ * that contains the caret. The arrow keys browse the outline without navigating. Enter navigates to the browsed node.
  */
 @OptIn(ExperimentalTestApi::class)
 class OutlineViewUiTest {

@@ -51,7 +51,7 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 
 /** A press on a tree row, in the row's coordinates. */
 internal sealed interface TreeRowPress {
-    /** A primary-button (or touch) press at [x] px, at [uptimeMillis]. */
+    /** A press of the primary button, or a touch, at [x] px and at [uptimeMillis]. */
     data class Primary(val x: Float, val uptimeMillis: Long) : TreeRowPress
 
     /** A secondary-button press at [position] px. */
@@ -67,7 +67,7 @@ internal class TreeRowMenu<K>(val key: K, val actions: List<ContextMenuAction>, 
 
 /** Fixed measures of [TreeView]. */
 internal object TreeViewDefaults {
-    /** Height of every row; fixed, so scroll offsets of rows that are not composed are exact. */
+    /** Height of every row. It is fixed, so the scroll offsets of rows that are not composed are exact. */
     val RowHeight: Dp = 22.dp
 
     /** Indentation per nesting level. */
@@ -87,8 +87,9 @@ internal object TreeViewDefaults {
 }
 
 /**
- * One row of a [TreeView]: indentation, chevron (expandable nodes), icon, label; the selection background (lighter
- * while the tree is not focused); reports presses to [onPress] and shows [menu] if it belongs to this row.
+ * One row of a [TreeView]: the indentation, a chevron for an expandable node, the icon and the label. A selected row
+ * has the selection background, which is lighter while the tree is not focused. The row reports presses to [onPress]
+ * and shows [menu]. The tree passes a menu only to the row it belongs to.
  */
 @Composable
 internal fun <K> TreeRowView(

@@ -22,8 +22,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The current [Workspace] of the workbench with its [LanguageServices] and the window title derived from it
- * (`<folder> — karpfen IDE`). A plain holder; opening and closing workspaces is the folder flow's job.
+ * Holds the current [Workspace] of the workbench, its [LanguageServices] and the window title derived from it. The
+ * title is the folder's name, a dash and the application name. The class is a plain holder. Opening and closing
+ * workspaces is the job of the folder flow.
  */
 internal class WorkspaceHolder {
 
@@ -31,10 +32,10 @@ internal class WorkspaceHolder {
     private val services = MutableStateFlow<LanguageServices?>(null)
     private val title = MutableStateFlow(APPLICATION_NAME)
 
-    /** The opened folder's workspace, or null. */
+    /** The workspace of the opened folder, or null while no folder is open. */
     val workspace: StateFlow<Workspace?> get() = current.asStateFlow()
 
-    /** The language services of [workspace], or null. */
+    /** The language services of [workspace], or null while no folder is open. */
     val languageServices: StateFlow<LanguageServices?> get() = services.asStateFlow()
 
     /** The window title. */
@@ -47,7 +48,7 @@ internal class WorkspaceHolder {
         title.value = "${workspace.root.fileName ?: workspace.root} — $APPLICATION_NAME"
     }
 
-    /** Forgets the current workspace and returns it (the caller closes it), or null. */
+    /** Forgets the current workspace and returns it, or null if there was none. The caller closes it. */
     fun clear(): Workspace? {
         val previous = current.value
         current.value = null
@@ -57,7 +58,7 @@ internal class WorkspaceHolder {
     }
 
     companion object {
-        /** The application's name, the window title without a folder. */
+        /** The application's name, which is also the window title while no folder is open. */
         const val APPLICATION_NAME: String = "karpfen IDE"
     }
 }

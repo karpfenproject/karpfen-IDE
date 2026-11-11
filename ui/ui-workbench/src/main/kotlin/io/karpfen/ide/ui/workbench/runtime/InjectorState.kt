@@ -34,9 +34,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * What the event injector of a run shows: the domains, declared ones first, then those only the state machines use; the
- * events of the chosen domain, declared ones first; the payload text with its findings; whether events can be injected
- * now; and the outcome of the last send.
+ * What the event injector of a run shows. It lists the domains, the declared ones first and then those that only the
+ * state machines use. It lists the events of the chosen domain, again the declared ones first. It shows the payload
+ * text with its findings, whether events can be injected now, and the outcome of the last send.
  *
  * @property domains the domains of the deployment, declared ones first.
  * @property domain the chosen domain, or null for a deployment without domains.
@@ -61,19 +61,24 @@ public data class InjectorUiState(
     public val sending: Boolean = false,
     public val lastOutcome: InjectionOutcome? = null,
 ) {
-    /** True if the event can be sent now: one is chosen, its payload has no error and injection is available. */
+    /**
+     * True if the event can be sent now. That needs a chosen event, no send under way, a payload without errors and
+     * injection that is live or queued.
+     */
     public val canSend: Boolean
         get() = event != null && !sending && !validation.hasErrors &&
             (availability == InjectionAvailability.Live || availability == InjectionAvailability.Queued)
 }
 
 /**
- * The state of the event injector of one run: choose a domain and an event, edit the payload prefilled with the
- * template of its type, see the findings after every edit, and send. Choosing another event replaces the payload by
- * its template. The findings are checked again when the availability changes, because an environment that is not
- * started yet queues events. Collected in [scope] on the UI thread.
+ * The state of the event injector of one run. The user chooses a domain and an event, edits the payload, sees the
+ * findings after every edit, and sends. The payload starts as the template of the event's payload type. Choosing
+ * another event replaces the payload with that event's template. The findings are checked again when the availability
+ * changes, because an environment that is not started yet queues events. The state is collected in [scope] on the UI
+ * thread.
  *
- * @param injector the session's injector: catalog, formats, findings and availability.
+ * @param injector the session's injector. It provides the catalog, the payload formats, the findings and the
+ *   availability.
  * @param send sends a request through the runtime state.
  */
 public class InjectorState internal constructor(
@@ -102,12 +107,15 @@ public class InjectorState internal constructor(
         ui.update { current -> withEvent(current, current.events.firstOrNull { it.name == name }) }
     }
 
-    /** Replaces the payload by [text] and checks it. */
+    /** Replaces the payload with [text] and checks it. */
     public fun edit(text: String) {
         ui.update { checked(it.copy(text = text)) }
     }
 
-    /** Sends the chosen event with its payload, unless it cannot be sent now, and keeps the outcome. */
+    /**
+     * Sends the chosen event with its payload and keeps the outcome. Does nothing if the event cannot be sent now. In
+     * that case the returned job is already complete.
+     */
     public fun send(): Job {
         val request = request(ui.value)
         if (request == null || !ui.value.canSend) return DONE
@@ -126,7 +134,10 @@ public class InjectorState internal constructor(
         return withEvent(start.copy(availability = injector.availability.value), null)
     }
 
-    /** [state] with [event] chosen, or the first event of its list for null, its template and its findings. */
+    /**
+     * Returns [state] with [event] chosen, together with the event's template and findings. For null the first event
+     * of the list is chosen.
+     */
     private fun withEvent(state: InjectorUiState, event: InjectableEvent?): InjectorUiState {
         val chosen = event ?: state.events.firstOrNull()
         val kind = if (chosen?.payloadType != null) PayloadKind.JSON else PayloadKind.NONE
@@ -134,11 +145,11 @@ public class InjectorState internal constructor(
         return checked(state.copy(event = chosen, kind = kind, text = text))
     }
 
-    /** [state] with the findings on its request. */
+    /** Returns [state] with the findings on its request. */
     private fun checked(state: InjectorUiState): InjectorUiState =
         state.copy(validation = request(state)?.let(injector::validate) ?: PayloadValidation.CLEAN)
 
-    /** The request of [state], or null without a chosen event. */
+    /** The request of [state], or null if no event is chosen. */
     private fun request(state: InjectorUiState): InjectionRequest? =
         state.event?.let { InjectionRequest(it.domain, it.name, state.kind, state.text) }
 
@@ -146,7 +157,7 @@ public class InjectorState internal constructor(
         /** The job of a send that did not happen. */
         val DONE: Job = Job().apply { complete() }
 
-        /** [domains] with the declared ones first, each group in catalog order. */
+        /** Returns [domains] with the declared ones first. Each group keeps the catalog order. */
         fun ordered(domains: List<EventDomain>): List<EventDomain> =
             domains.filter { it.origin == DomainOrigin.DECLARED } + domains.filter { it.origin == DomainOrigin.USED_ONLY }
 

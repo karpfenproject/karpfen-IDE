@@ -23,9 +23,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Runs everything due within [time] of virtual time (more than every debounce of the workspace). Workspaces and
- * documents of the tests run in `backgroundScope`, whose work `advanceUntilIdle` does not wait for; `advanceTimeBy`
- * and `runCurrent` run it.
+ * Runs everything that is due within [time] of virtual time. The default is longer than every debounce of the
+ * workspace. Workspaces and documents of the tests run in `backgroundScope`, and `advanceUntilIdle` does not wait for
+ * that work. `advanceTimeBy` and `runCurrent` run it.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 public fun TestScope.settle(time: Duration = 5.seconds) {

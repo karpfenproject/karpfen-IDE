@@ -20,15 +20,15 @@ package io.karpfen.ide.runtime.protocol.message
  * runtime takes the environment from the handshake and publishes the event on the bus of [domain].
  *
  * @property domain the event's domain, sent in the frame's `environmentKey` member.
- * @property name the event's name, sent in the frame's `messageType` member; for a JSON payload also the name of the
- *   payload's type in the event metamodel.
+ * @property name the event's name, sent in the frame's `messageType` member. For a JSON payload it is also the name of
+ *   the payload's type in the event metamodel.
  * @property payload the payload and its format.
  */
 public data class EventFrame(public val domain: String, public val name: String, public val payload: EventPayload)
 
 /** The payload of an [EventFrame], always sent as a JSON string with an explicit format. */
 public sealed interface EventPayload {
-    /** No payload: an empty text with the format `none`. */
+    /** No payload. It is sent as an empty text with the format `none`. */
     public data object None : EventPayload
 
     /**
@@ -39,7 +39,7 @@ public sealed interface EventPayload {
     public data class Json(public val text: String) : EventPayload
 
     /**
-     * A KModel snippet, read by the runtime against the event metamodel; it takes the first root object.
+     * A KModel snippet, read by the runtime against the event metamodel. The runtime takes the first root object.
      *
      * @property text the KModel text.
      */

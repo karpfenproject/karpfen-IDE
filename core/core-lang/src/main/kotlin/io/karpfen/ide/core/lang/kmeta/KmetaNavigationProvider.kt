@@ -23,9 +23,10 @@ import io.karpfen.ide.core.lang.navigation.ContextSymbol
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
- * KMeta navigation: type references and type names → TYPE declaration (`TypeInfo.declaration` of [types]: in
- * this file, or in the domain metamodel for `EVENTS.kmeta`); member keys → their own declaration. References of a type
- * or a member across the modeling context come from [references].
+ * Navigation in KMeta. Type references and type names lead to the TYPE declaration, which is the
+ * `TypeInfo.declaration` of [types]. It lies in this file, or in the domain metamodel for `EVENTS.kmeta`. Member keys
+ * lead to their own declaration. The references of a type or a member across the modeling context come from
+ * [references].
  */
 internal class KmetaNavigationProvider(
     private val slots: KmetaSlots,

@@ -39,25 +39,28 @@ internal data class InterpretedTree(
 )
 
 /**
- * Turns an object tree of the runtime's JSON, a pushed `value` or a root of a snapshot, into mirror values with the
- * [schema] of the domain metamodel, as the runtime's `ModelJsonWriter` wrote it: `__id__` and `__type__` first, then
- * the properties and relations present on the instance, `has` and `knows` targets alike as full nested objects.
+ * Turns an object tree of the runtime's JSON into mirror values with the [schema] of the domain metamodel. The tree is
+ * a pushed `value` or a root of a snapshot. The runtime's `ModelJsonWriter` writes `__id__` and `__type__` first. Then
+ * it writes the properties and relations present on the instance. Both `has` and `knows` targets are written as full
+ * nested objects.
  *
- * - `__type__` selects the type. A key among its simple properties is a property: a number, a string or a boolean, an
- *   array a list. A key among its relations is a relation with that relation's association: `null` an empty atomic
- *   relation, an object one target, an array a list whose `null` entries are [ObjectRef.Missing]. A value of another
- *   kind than the schema declares is kept as the JSON shows it and reported as an anomaly.
- * - Another key is kept, classified by its JSON shape (objects and arrays holding objects as relations without
- *   association, everything else as properties), and reported as an anomaly. An unknown `__type__` keeps all its fields
- *   that way and is reported once per object.
- * - Every nested object with an id is a keyed object of the tree; the first occurrence of an id wins, because the
+ * - `__type__` selects the type. A key among its simple properties is a property. Its value is a number, a string or a
+ *   boolean, or an array for a list. A key among its relations is a relation with that relation's association. A
+ *   `null` value is an empty atomic relation, an object is one target, and an array is a list whose `null` entries are
+ *   [ObjectRef.Missing]. A value of another kind than the schema declares is kept as the JSON shows it and reported as
+ *   an anomaly.
+ * - Any other key is kept and reported as an anomaly. It is classified by its JSON shape. Objects and arrays holding
+ *   objects become relations without association. Everything else becomes a property. An unknown `__type__` keeps all
+ *   its fields that way and is reported once per object.
+ * - Every nested object with an id is a keyed object of the tree. The first occurrence of an id wins, because the
  *   runtime writes every reference to an object in full, from the same model state. Objects without an id stay inline
  *   as [ObjectRef.Anonymous].
- * - Containment is recorded only for targets of relations the schema declares as `has`, never for unknown associations.
- * - Ids outside [modelObjectIds] get origin [ObjectOrigin.RUNTIME]; anonymous objects take the origin of the nearest
- *   keyed object that holds them, anonymous roots [ObjectOrigin.MODEL]. Every object gets the given revision.
+ * - Containment is recorded only for targets of relations that the schema declares as `has`, never for unknown
+ *   associations.
+ * - Ids outside [modelObjectIds] get origin [ObjectOrigin.RUNTIME]. Anonymous objects take the origin of the nearest
+ *   keyed object that holds them. Anonymous roots get [ObjectOrigin.MODEL]. Every object gets the given revision.
  *
- * Stateless; each call of [interpret] uses a confined builder.
+ * Stateless. Each call of [interpret] uses a confined builder.
  *
  * @param schema the schema of the domain metamodel.
  * @param modelObjectIds the ids the deployed model declares.
@@ -68,7 +71,7 @@ internal class WireObjectInterpreter(private val schema: TypeSchema, private val
     fun interpret(root: WireValue.WireObject, revision: Long): InterpretedTree = TreeReader(revision).read(root)
 
     /**
-     * Reads one tree; confined to one call of [interpret].
+     * Reads one tree. Confined to one call of [interpret].
      *
      * @param revision the revision every object gets.
      */
@@ -92,8 +95,8 @@ internal class WireObjectInterpreter(private val schema: TypeSchema, private val
         }
 
         /**
-         * The reference to the nested object [value]: a keyed object is read at its first occurrence and gets [holder]
-         * as its containment if it is embedded; an anonymous one is read inline with [inheritedOrigin].
+         * The reference to the nested object [value]. A keyed object is read at its first occurrence, and it gets
+         * [holder] as its containment if it is embedded. An anonymous object is read inline with [inheritedOrigin].
          */
         private fun target(value: WireValue.WireObject, holder: Containment?, inheritedOrigin: ObjectOrigin): ObjectRef {
             val id = idOf(value)
@@ -103,7 +106,7 @@ internal class WireObjectInterpreter(private val schema: TypeSchema, private val
             return ObjectRef.Keyed(id)
         }
 
-        /** The id of [value]: its string `__id__`, or empty with an anomaly when it has none. */
+        /** The id of [value], which is its string `__id__`. It is empty, with an anomaly, when there is none. */
         private fun idOf(value: WireValue.WireObject): String {
             val id = value[WireNames.OBJECT_ID_MEMBER]
             if (id !is WireValue.WireString) anomalies += "An object of the runtime's JSON has no string ${WireNames.OBJECT_ID_MEMBER}; it is kept without id."
@@ -162,7 +165,9 @@ internal class WireObjectInterpreter(private val schema: TypeSchema, private val
             return read?.let { MirrorProperty(shape.key, it) }
         }
 
-        /** The scalar [value] of the property [shape] of [id], or null with an anomaly for a value that is no scalar. */
+        /**
+         * The scalar [value] of the property [shape] of [id]. A value that is no scalar gives null and an anomaly.
+         */
         private fun scalar(id: String, shape: PropertyShape, value: WireValue): ScalarValue? {
             val scalar = scalarOf(value)
             if (scalar == null) {
@@ -178,7 +183,7 @@ internal class WireObjectInterpreter(private val schema: TypeSchema, private val
             return scalar
         }
 
-        /** The relation [shape] of [id] from [value]; embedded keyed targets get [holder]. */
+        /** The relation [shape] of [id] from [value]. Embedded keyed targets get [holder]. */
         private fun relation(
             id: String,
             shape: RelationShape,
@@ -204,7 +209,10 @@ internal class WireObjectInterpreter(private val schema: TypeSchema, private val
             return MirrorRelation(shape.key, shape.association, shape.isList, targets)
         }
 
-        /** The targets of the list [value] of the relation [key] of [id]: objects and `null` entries. */
+        /**
+         * The targets of the list [value] of the relation [key] of [id]. Objects and `null` entries become targets. Any
+         * other entry is left out with an anomaly.
+         */
         private fun entries(
             id: String,
             key: String,
@@ -224,8 +232,9 @@ internal class WireObjectInterpreter(private val schema: TypeSchema, private val
             }
 
         /**
-         * Keeps the field [key] that no schema member explains, classified by its JSON shape: objects, `null` and arrays
-         * holding objects as relations without association (never containment), everything else as properties.
+         * Keeps the field [key] that no schema member explains, classified by its JSON shape. Objects, `null` and
+         * arrays holding objects become relations without association, and never get containment. Everything else
+         * becomes a property.
          */
         private fun unclassified(
             id: String,

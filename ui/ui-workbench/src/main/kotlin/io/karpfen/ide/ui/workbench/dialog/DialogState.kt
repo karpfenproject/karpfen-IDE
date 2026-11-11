@@ -25,12 +25,13 @@ import kotlinx.coroutines.sync.withLock
 import java.nio.file.Path
 
 /**
- * A dialog the workbench needs answered. The type parameter [R] is the set of answers the dialog accepts, so
- * `DialogState.ask` returns only answers its caller has to handle (e.g. no `Save` for a rename).
+ * A dialog the workbench needs answered. The type parameter [R] is the set of answers the dialog accepts. That way
+ * `DialogState.ask` returns only answers its caller has to handle. A rename, for example, can never be answered with
+ * `Save`.
  */
 public sealed interface DialogRequest<out R : DialogResponse> {
 
-    /** True if [response] is one of this dialog's answers ([R]). */
+    /** True if [response] is one of the answers this dialog accepts, that is, an [R]. */
     public fun accepts(response: DialogResponse): Boolean
 
     /** Unsaved changes in [paths] before closing a tab, the folder or the application. */
@@ -38,16 +39,16 @@ public sealed interface DialogRequest<out R : DialogResponse> {
         override fun accepts(response: DialogResponse): Boolean = response is UnsavedChangesAnswer
     }
 
-    /** Confirm deleting [path] ([toTrash]: it goes to the trash). */
+    /** Confirm that [path] is to be deleted. If [toTrash] is true, it goes to the trash and is not deleted for good. */
     public data class ConfirmDelete(public val path: Path, public val toTrash: Boolean) : DialogRequest<ConfirmAnswer> {
         override fun accepts(response: DialogResponse): Boolean = response is ConfirmAnswer
     }
 
     /**
-     * Confirm saving [paths] over their versions on disk: each was changed or deleted on disk while it had unsaved
-     * changes, and the external-change conflict is not resolved yet. Saving never silently writes over an external
-     * change, so Save, Save All and Save in the unsaved-changes dialog ask this first. Confirm overwrites, Cancel keeps
-     * the disk versions and the conflicts.
+     * Confirm that [paths] are to be saved over their versions on disk. Each of them was changed or deleted on disk
+     * while it had unsaved changes, and that conflict is not resolved yet. Saving never silently writes over an
+     * external change, so Save, Save All and Save in the unsaved-changes dialog ask this first. Confirm overwrites the
+     * files. Cancel keeps the versions on disk and keeps the conflicts open.
      */
     public data class ConfirmOverwrite(public val paths: List<Path>) : DialogRequest<ConfirmAnswer> {
         override fun accepts(response: DialogResponse): Boolean = response is ConfirmAnswer
@@ -64,8 +65,8 @@ public sealed interface DialogRequest<out R : DialogResponse> {
     }
 
     /**
-     * Choose which of the environment [descriptors] of the workspace at [root] to run; [preselected] is the index of the
-     * one selected at first.
+     * Choose which of the environment [descriptors] of the workspace at [root] to run. [preselected] is the index of
+     * the descriptor that is selected when the dialog opens.
      */
     public data class ChooseDescriptor(
         public val root: Path,
@@ -80,7 +81,7 @@ public sealed interface DialogRequest<out R : DialogResponse> {
             response == DialogResponse.Cancel || (response is DialogResponse.Chosen && response.index in descriptors.indices)
     }
 
-    /** Show an error; the only answer is [DialogResponse.Confirm] (also when the dialog is dismissed). */
+    /** Show an error. The only answer is [DialogResponse.Confirm], also when the user dismisses the dialog. */
     public data class Error(public val title: String, public val message: String) : DialogRequest<DialogResponse.Confirm> {
         override fun accepts(response: DialogResponse): Boolean = response == DialogResponse.Confirm
     }
@@ -94,37 +95,38 @@ public sealed interface DialogResponse {
     /** Discard the changes. */
     public data object Discard : UnsavedChangesAnswer
 
-    /** Confirm (delete, overwrite, acknowledge an error). */
+    /** Confirm the operation: delete, overwrite, or acknowledge an error. */
     public data object Confirm : ConfirmAnswer
 
     /** Cancel the operation. */
     public data object Cancel : UnsavedChangesAnswer, ConfirmAnswer, TextAnswer, ChoiceAnswer
 
-    /** Entered text (rename, new file name). */
+    /** The entered text, such as the new name of a renamed file or the name of a new file. */
     public data class Text(public val value: String) : TextAnswer
 
     /** The entry at [index] of a list was chosen. */
     public data class Chosen(public val index: Int) : ChoiceAnswer
 }
 
-/** Answers to [DialogRequest.UnsavedChanges]: Save, Discard, Cancel. */
+/** The answers to [DialogRequest.UnsavedChanges], which are Save, Discard and Cancel. */
 public sealed interface UnsavedChangesAnswer : DialogResponse
 
-/** Answers to [DialogRequest.ConfirmDelete] and [DialogRequest.ConfirmOverwrite]: Confirm, Cancel. */
+/** The answers to [DialogRequest.ConfirmDelete] and [DialogRequest.ConfirmOverwrite], which are Confirm and Cancel. */
 public sealed interface ConfirmAnswer : DialogResponse
 
-/** Answers to [DialogRequest.Rename] and [DialogRequest.NewFile]: Text, Cancel. */
+/** The answers to [DialogRequest.Rename] and [DialogRequest.NewFile], which are Text and Cancel. */
 public sealed interface TextAnswer : DialogResponse
 
-/** Answers to [DialogRequest.ChooseDescriptor]: Chosen, Cancel. */
+/** The answers to [DialogRequest.ChooseDescriptor], which are Chosen and Cancel. */
 public sealed interface ChoiceAnswer : DialogResponse
 
 /**
- * The pending dialog. The mediator (and the application's crash handling) suspends in [ask] until the composable
- * answers through [respond]; one dialog at a time (further requests wait).
+ * Holds the pending dialog. The workbench mediator and the application's crash handling suspend in [ask] until the
+ * dialog composable answers through [respond]. Only one dialog is shown at a time. Further requests wait.
  *
- * Requests wait in call order (a fair mutex); cancelling a waiting or a shown request removes it, so a cancelled flow
- * never leaves a dialog on screen. Used from the UI thread.
+ * Waiting requests are served in call order, because a fair mutex guards the queue. Cancelling a request removes it,
+ * whether it is waiting or already shown, so a cancelled flow never leaves a dialog on screen. Use the class from the
+ * UI thread only.
  */
 public class DialogState {
 
@@ -136,9 +138,9 @@ public class DialogState {
     public val current: StateFlow<DialogRequest<*>?> get() = currentRequest.asStateFlow()
 
     /**
-     * Shows [request] and suspends until it is answered (cancellation of the caller cancels the dialog). The answer is
-     * cast to [R] unchecked, which is safe because [respond] accepts only the request's answers
-     * ([DialogRequest.accepts]).
+     * Shows [request] and suspends until it is answered. Cancelling the caller cancels the dialog. The answer is cast
+     * to [R] without a check. That is safe, because [respond] only accepts answers for which [DialogRequest.accepts]
+     * returns true.
      */
     public suspend fun <R : DialogResponse> ask(request: DialogRequest<R>): R = queue.withLock {
         val pending = Pending(request, CompletableDeferred())
@@ -154,8 +156,10 @@ public class DialogState {
     }
 
     /**
-     * Answers the current dialog; no-op without one.
-     * @throws IllegalArgumentException if the current dialog does not accept [response] ([DialogRequest.accepts]).
+     * Answers the current dialog. Does nothing if no dialog is shown.
+     *
+     * @throws IllegalArgumentException if the current dialog does not accept [response], as told by
+     *   [DialogRequest.accepts].
      */
     public fun respond(response: DialogResponse) {
         val pending = shown.value ?: return

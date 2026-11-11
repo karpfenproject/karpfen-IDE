@@ -32,14 +32,15 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * Facade: builds a `FeatureRequest` (document + `analysis.value` + the document's context analysis + `files.value`),
- * picks the features of the document's language and delegates; catches anything a provider throws, logs it (SLF4J), reports it
- * to [onProviderFailure] and returns the empty result instead. Languages without features yield empty results.
+ * The facade of the language services. It builds a `FeatureRequest` from the document, `analysis.value`, the context
+ * analysis of the document and `files.value`. Then it picks the features of the language of the document and
+ * delegates. It catches anything a provider throws, logs it through SLF4J, reports it to [onProviderFailure] and
+ * returns the empty result instead. Languages without features yield empty results.
  *
- * Preconditions of the `LanguageServices` contract are checked instead of trusted, so a caller's mistake cannot reach a
- * provider: an offset outside `0..text.length`, and — for every operation but `highlight` — tokens of another version
- * than the text ([LanguageDocument.isConsistent]), yield the empty result (logged at debug level, not a provider
- * failure).
+ * The preconditions of the `LanguageServices` contract are checked instead of trusted, so a mistake of the caller
+ * cannot reach a provider. An offset outside `0..text.length` yields the empty result. So do tokens of another version
+ * than the text, as [LanguageDocument.isConsistent] tells, for every operation except `highlight`. Such a case is
+ * logged at debug level and is not a provider failure.
  */
 internal class DefaultLanguageServices(
     private val analysis: StateFlow<ProjectAnalysis>,
@@ -67,8 +68,9 @@ internal class DefaultLanguageServices(
         delegate("matchingBracket", doc, offset, null) { features, request -> features.brackets.match(request, offset) }
 
     /**
-     * Runs [call] with the features of [doc]'s language and a request for it; [empty] if there are no features, a
-     * precondition does not hold ([offset] null: `highlight`, which needs no consistent tokens) or the provider throws.
+     * Runs [call] with the features of the language of [doc] and a request for it. It returns [empty] if there are no
+     * features, if a precondition does not hold, or if the provider throws. [offset] is null for `highlight`, which
+     * needs no consistent tokens.
      */
     private fun <T> delegate(
         operation: String,

@@ -24,12 +24,12 @@ import kotlin.test.assertNull
 import kotlin.time.TestTimeSource
 
 /**
- * Random edits interleaved with undo, redo, save points and clear, checked after every operation against a reference
- * history in which every apply and every group is exactly one step (typing is preceded by `breakCoalescing`).
+ * Checks random edits interleaved with undo, redo, save points and clear after every operation. The reference is a
+ * history in which every apply and every group is exactly one step. Typing is therefore preceded by `breakCoalescing`.
  */
 class UndoRedoPropertyTest {
 
-    /** The reference: stacks of whole texts with state identities, carets per step. */
+    /** The reference history. It keeps stacks of whole texts with state identities and the carets of each step. */
     private class ReferenceHistory(initial: String) {
         /** One undo step: the texts and carets before and after it, and the identity of the state it leads to. */
         class Step(val id: Int, val before: String, val after: String, val caretsBefore: List<CaretMemento>?, val caretsAfter: List<CaretMemento>?)

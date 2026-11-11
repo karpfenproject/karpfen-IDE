@@ -17,34 +17,35 @@ package io.karpfen.ide.runtime.protocol.transport
 
 /** Where a transport ran out of time. */
 public enum class TransportPhase {
-    /** While connecting: nothing was sent. */
+    /** While connecting, so nothing was sent. */
     CONNECTING,
 
-    /** After the request was handed to the connection, while waiting for the answer: it may have been applied. */
+    /** After the request was handed to the connection, while waiting for the answer. It may have been applied. */
     AWAITING_RESPONSE,
 }
 
 /**
- * Why a transport got no answer or could not send, from the client's side: whether the runtime may have received what
- * was sent decides how the caller goes on.
+ * Why a transport got no answer or could not send, seen from the client's side. Whether the runtime may have received
+ * what was sent decides how the caller goes on.
  */
 public sealed interface TransportFailure {
     /** What the transport observed, in words, such as the message of the underlying exception. */
     public val cause: String
 
     /**
-     * The runtime could not be reached: the connection was refused, the host was not found, or connecting failed
-     * otherwise. Nothing was sent.
+     * The runtime could not be reached. The connection was refused, the host was not found, or connecting failed in
+     * another way. Nothing was sent.
      */
     public data class Unreachable(override val cause: String) : TransportFailure
 
-    /** The connection broke after the request was handed over: the runtime may have applied it. */
+    /** The connection broke after the request was handed over. The runtime may have applied it. */
     public data class Interrupted(override val cause: String) : TransportFailure
 
     /**
      * The transport ran out of time.
      *
-     * @property phase whether it was still connecting (nothing sent) or awaiting the answer (maybe applied).
+     * @property phase whether it was still connecting, so nothing was sent, or awaiting the answer, so the request may
+     *   have been applied.
      */
     public data class TimedOut(public val phase: TransportPhase, override val cause: String) : TransportFailure
 }

@@ -65,12 +65,14 @@ import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 
 /**
- * Renders the pending [request] as a modal dialog and reports the answer through [onRespond]; it offers exactly the
- * answers the request accepts (`DialogRequest.accepts`), as decided by [DialogPresentation]. Drawn over the workbench
- * with a scrim that swallows pointer input; Enter presses the default button, Escape dismisses. A text field (rename,
- * new file) starts focused with its text selected; a list (the descriptor to run) starts with its preselected entry
- * selected, Up and Down move the selection and a click selects. Tab and Shift+Tab cycle through the dialog's focus stops
- * ([DialogFocusOrder]) and never leave it. [ModalDialogLayer] keeps the focus out of the workbench behind it.
+ * Renders the pending [request] as a modal dialog and reports the answer through [onRespond]. The dialog offers exactly
+ * the answers the request accepts, as laid out by [DialogPresentation]. It is drawn over the workbench on a scrim that
+ * swallows all pointer input. Enter presses the default button and Escape dismisses the dialog.
+ *
+ * The rename and new file dialogs have a text field. It starts focused, with its whole text selected. The dialog that
+ * picks the descriptor to run has a list instead. It starts with the preselected entry selected. Up and Down move the
+ * selection, and a click selects an entry. Tab and Shift+Tab cycle through the focus stops of [DialogFocusOrder] and
+ * never leave the dialog. [ModalDialogLayer] keeps the focus out of the workbench behind it.
  */
 @Composable
 internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResponse) -> Unit) {

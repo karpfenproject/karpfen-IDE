@@ -18,8 +18,8 @@ plugins {
 }
 
 /**
- * An MQTT bridge is a bridge of bridge-api, re-exported by bridge-mapping, configured with mappings. It is the only
- * module that uses the HiveMQ MQTT client.
+ * The MQTT bridge, which holds no code yet. It is a bridge of bridge-api, which bridge-mapping re-exports, and it is
+ * configured with mappings. It is the only module that uses the HiveMQ MQTT client.
  */
 dependencies {
     api(project(":bridges:bridge-mapping"))

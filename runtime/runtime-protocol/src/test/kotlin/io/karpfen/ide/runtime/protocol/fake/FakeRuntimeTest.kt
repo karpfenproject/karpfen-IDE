@@ -42,11 +42,12 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers the fake runtime: programmed answers, failures, delays and silences come back as programmed, queued per route
- * in programming order and matched on parameters; the fixed defaults of routes without a program; follow-ups attached
- * to a request run after its answer; links record the handshake and the client's frames, accept the handshake silently
- * or close it as programmed, deliver pushed frames, and close or drop as the test says; refused and hanging connects;
- * and the recording of requests, handshakes and frames. The fake decides nothing, so nothing else is tested.
+ * Covers the fake runtime. Programmed answers, failures, delays and silences come back as programmed. They are queued
+ * per route in programming order and matched on parameters. Routes without a program have fixed defaults. Follow-ups
+ * attached to a request run after its answer. Links record the handshake and the client's frames. They accept the
+ * handshake silently or close it as programmed, deliver pushed frames, and close or drop as the test says. The tests
+ * also cover refused and hanging connects, and the recording of requests, handshakes and frames. The fake decides
+ * nothing, so nothing else is tested.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FakeRuntimeTest {

@@ -16,16 +16,25 @@
 package io.karpfen.ide.runtime.protocol.catalogue
 
 /**
- * The exact texts with which the runtime rejects a call (answered with 400 or 409, or with any status for
- * [UNEXPECTED_ERROR]), as templates with placeholders in braces: `{env}` an environment key, `{client}` a client id,
- * `{name}` a parameter name, `{element}` a model element, `{state}` a state name, `{keys}` a comma-separated list of
- * object keys, `{id}` an object id and `{ms}` a number of milliseconds.
+ * The exact texts with which the runtime rejects a call. The runtime answers them with 400 or 409. Only
+ * [UNEXPECTED_ERROR] may come with any status. Each text is a template with placeholders in braces.
  *
- * A body is one of these texts only if it is the whole text ([match]): `{env}` and `{client}` match a run of
- * non-whitespace characters, possibly empty (the runtime renders a present but empty parameter as nothing), `{ms}`
- * matches digits and every other placeholder any text on one line. An environment key never starts with a single quote
- * (`env-<millis>`), so `{env}` matches no text that does: that keeps [NO_EXECUTION_THREAD] apart from [NOT_ACTIVATED],
- * whose template quotes the key, and makes the templates disjoint, so a body matches at most one of them.
+ * - `{env}` is an environment key.
+ * - `{client}` is a client id.
+ * - `{name}` is a parameter name.
+ * - `{element}` is a model element.
+ * - `{state}` is a state name.
+ * - `{keys}` is a comma-separated list of object keys.
+ * - `{id}` is an object id.
+ * - `{ms}` is a number of milliseconds.
+ *
+ * A body counts as one of these texts only if it is the whole text, as [match] checks. `{env}` and `{client}` match a
+ * run of non-whitespace characters, which may be empty, because the runtime renders a present but empty parameter as
+ * nothing. `{ms}` matches digits. Every other placeholder matches any text on one line.
+ *
+ * An environment key has the form `env-<millis>` and never starts with a single quote, so `{env}` matches no text that
+ * does. That keeps [NO_EXECUTION_THREAD] apart from [NOT_ACTIVATED], whose template quotes the key. It also makes the
+ * templates disjoint, so a body matches at most one of them.
  *
  * @property template the text with its placeholders.
  * @property kind the rejection kind the text stands for.
@@ -40,7 +49,7 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
     /** The environment does not exist (400). */
     UNKNOWN_ENVIRONMENT("Environment with key {env} does not exist", RejectionKind.UNKNOWN_ENVIRONMENT),
 
-    /** The environment is active: setters, observers, listeners and a second activation are refused (409). */
+    /** The environment is active, so setters, observers, listeners and a second activation are refused (409). */
     ALREADY_ACTIVE(
         "Environment with key {env} is already active and cannot be modified in the intended way.",
         RejectionKind.ALREADY_ACTIVE,
@@ -61,10 +70,13 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
         RejectionKind.UNKNOWN_ATTACHMENT,
     ),
 
-    /** `startEnvironment` or `stopEnvironment` on a configuring environment, the key in single quotes (409). */
+    /** `startEnvironment` or `stopEnvironment` on a configuring environment (409). This text quotes the key. */
     NOT_ACTIVATED("Environment with key '{env}' has no execution thread", RejectionKind.NOT_ACTIVATED),
 
-    /** `setActiveState` without an execution thread, the key without quotes (409); unreachable since activation is atomic. */
+    /**
+     * `setActiveState` without an execution thread (409). This text writes the key without quotes. The runtime never
+     * sends it in practice, because activation is atomic.
+     */
     NO_EXECUTION_THREAD("Environment with key {env} has no execution thread", RejectionKind.NO_EXECUTION_THREAD),
 
     /** `setActiveState` on an environment that is not active (409). */
@@ -89,7 +101,7 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
     NO_MODEL("Environment with key {env} has no model", RejectionKind.NO_MODEL),
 
     /**
-     * `observatory/model` without a tick boundary within the runtime's wait (409): a tick of a running environment, or
+     * `observatory/model` without a tick boundary within the runtime's wait (409). A tick of a running environment, or
      * the last tick of a stopped one, did not end.
      */
     TICK_BOUNDARY_TIMEOUT(
@@ -111,14 +123,15 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
     private val pattern: TextPattern = TextPattern(template)
 
     /**
-     * The text with every placeholder replaced by its value in [values], such as the text the runtime answers.
+     * Renders the text with every placeholder replaced by its value in [values], the way the runtime does.
      *
      * @throws IllegalArgumentException if [values] lacks a placeholder of the template.
      */
     public fun render(values: Map<String, String>): String = pattern.render(values)
 
     /**
-     * The placeholder values if [body] is exactly this text, else null; an empty map for a text without placeholders.
+     * Returns the placeholder values if [body] is exactly this text, and null otherwise. A match of a text without
+     * placeholders returns an empty map.
      */
     public fun match(body: String): Map<String, String>? = pattern.match(body)
 }
@@ -154,7 +167,7 @@ internal class TextPattern(private val template: String) {
     }
 
     private companion object {
-        /** A placeholder: a name in braces. */
+        /** A placeholder, which is a name in braces. */
         val PLACEHOLDER = Regex("""\{(\w+)}""")
 
         /** A run of non-whitespace characters that does not start with a single quote, possibly empty. */

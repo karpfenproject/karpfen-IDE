@@ -20,16 +20,17 @@ import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Finds the innermost unclosed call before a token index: scans backwards over balanced parentheses (skipping brace
- * blocks that close before it, e.g. an `EVAL { … }` argument) to an unmatched `(`, counting top-level commas; stops at
- * an unmatched `{`. The call's parents are found the same way from the token before its name.
+ * Finds the innermost unclosed call before a token index. It scans backwards over balanced parentheses to an unmatched
+ * `(` and counts the top-level commas. On the way it skips brace blocks that close before the index, such as an
+ * `EVAL { ... }` argument. It stops at an unmatched `{`. The parents of the call are found the same way, starting from
+ * the token before its name.
  */
 internal object CallLocator {
 
     /** How many enclosing calls are looked up above the innermost one. */
     private const val MAX_PARENTS = 8
 
-    /** The innermost unclosed call before the token at [endIndex], with its parents, or null outside every call. */
+    /** The innermost unclosed call before the token at [endIndex] with its parents, or null outside every call. */
     fun locate(view: TokenView, endIndex: Int): CallContext? = locate(view, endIndex, MAX_PARENTS)
 
     /** [locate] with at most [parents] enclosing calls looked up. */
@@ -50,8 +51,8 @@ internal object CallLocator {
     }
 
     /**
-     * The call whose `(` is the token at [open]: its name is the token before it (comments skipped; none if that is
-     * punctuation), its arguments those complete before [endIndex].
+     * The call whose `(` is the token at [open]. Its name is the token before the `(`, with comments skipped. If that
+     * token is punctuation, the call has no name. Its arguments are those that are complete before [endIndex].
      */
     private fun callAt(view: TokenView, open: Int, endIndex: Int, parents: Int): CallContext {
         val tokens = view.tokens
@@ -68,7 +69,10 @@ internal object CallLocator {
         )
     }
 
-    /** The complete top-level arguments in `[from, to)`: the content of a single-string argument, else null. */
+    /**
+     * The complete top-level arguments in the token range from [from] inclusive to [to] exclusive. Each entry is the
+     * content of an argument that is a single string, or null for any other argument.
+     */
     private fun argumentsBetween(view: TokenView, from: Int, to: Int): List<String?> {
         val arguments = ArrayList<String?>()
         val current = ArrayList<SyntaxToken>()
@@ -90,7 +94,7 @@ internal object CallLocator {
         return arguments
     }
 
-    /** Index of the `{` matching the `}` at [close], scanning backwards; null if there is none. */
+    /** The index of the `{` that matches the `}` at [close], found by scanning backwards, or null if there is none. */
     private fun matchingOpenBrace(view: TokenView, close: Int): Int? {
         var depth = 0
         for (i in close downTo 0) {

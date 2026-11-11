@@ -23,17 +23,20 @@ import io.karpfen.ide.ui.editor.model.completion.CompletionTrigger
 import io.karpfen.ide.ui.editor.model.find.FindModel
 
 /**
- * The editor's [EditorUiPort]: what actions ask of the UI, answered with the editor's models and overlay state.
+ * The [EditorUiPort] of the editor. It answers what actions ask of the UI with the editor's models and overlay state.
  *
- * - [openFind] seeds the find query from a one-line selection (`FindModel.setQuery` with the text replaced in the
- *   model's current query, so the options stay; the selection stays the current match) before opening the bar, so the
- *   overlay state holds no find logic.
- * - [findNext]/[findPrevious] move through the `FindModel`, which selects through the editor's executor, so the match
- *   is revealed like every action; while the model's query is empty they open the find bar instead.
- * - [triggerCompletion] reveals the primary caret ([revealCaret]) before it asks for completion there: the request
- *   changes neither text nor carets, so the executor reveals nothing, and a list at an off-screen caret could not be
- *   shown.
- * - [goToDefinition] asks [definitions] for the symbol at the primary caret.
+ * [openFind] seeds the find query from a selection on one line before it opens the bar. It calls `FindModel.setQuery`
+ * with only the text of the model's current query replaced, so the options stay. The selection stays the current
+ * match. Seeding happens here, so the overlay state holds no find logic.
+ *
+ * [findNext] and [findPrevious] move through the `FindModel`. The model selects through the editor's executor, so the
+ * match is revealed like after every action. While the model's query is empty, they open the find bar instead.
+ *
+ * [triggerCompletion] reveals the primary caret with [revealCaret] before it asks for completion there. The request
+ * changes neither text nor carets, so the executor would reveal nothing. A list at an off-screen caret could not be
+ * shown.
+ *
+ * [goToDefinition] asks [definitions] for the symbol at the primary caret.
  */
 internal class EditorUiRequests(
     private val text: EditableText,

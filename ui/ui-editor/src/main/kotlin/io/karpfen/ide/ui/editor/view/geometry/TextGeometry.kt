@@ -22,14 +22,14 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
- * Where the characters of one text snapshot are, in content coordinates (pixels, before scrolling): line `n` occupies
- * `n * lineHeight until (n + 1) * lineHeight`; the text of a line starts at [textLeft] and every display column is one
- * monospace cell of [charWidth] (tabs advance to the next stop of [tabStops], the one tab rule of the editor). Caret x,
- * hit-testing and decoration rectangles all come from here, so they agree with each other and with the drawn text. Pure
- * and immutable (no Compose), so it is unit-tested directly.
+ * Computes where the characters of one text snapshot are, in content coordinates. These are pixels before scrolling.
+ * Line `n` occupies `n * lineHeight until (n + 1) * lineHeight`. The text of a line starts at [textLeft], and every
+ * display column is one monospace cell of [charWidth]. Tabs advance to the next stop of [tabStops], the single tab rule
+ * of the editor. The caret x, hit-testing and decoration rectangles all come from here, so they agree with each other
+ * and with the drawn text. The class is pure and immutable and does not use Compose, so it is unit-tested directly.
  *
- * Characters wider than one cell (CJK, emoji) are drawn wider than their cell; positions after them on the same line
- * are then slightly off, the usual limitation of a cell-based editor.
+ * Characters wider than one cell, such as CJK characters and emoji, are drawn wider than their cell. Positions after
+ * them on the same line are then slightly off. This is the usual limitation of an editor based on cells.
  */
 internal class TextGeometry(
     val snapshot: TextSnapshot,
@@ -42,25 +42,25 @@ internal class TextGeometry(
     /** A horizontal piece of a range on one [line], from [left] to [right]. */
     data class Segment(val line: Int, val left: Float, val right: Float)
 
-    /** The top of [line]. */
+    /** Returns the top of [line]. */
     fun lineTop(line: Int): Float = line * lineHeight
 
-    /** The line containing [offset] (clamped to the text). */
+    /** Returns the line that contains [offset], clamped to the text. */
     fun lineOf(offset: Int): Int = snapshot.lineIndex.lineOf(offset.coerceIn(0, snapshot.length))
 
-    /** The x of the caret position [offset] (clamped to the text). */
+    /** Returns the x of the caret position [offset], clamped to the text. */
     fun xOf(offset: Int): Float {
         val clamped = offset.coerceIn(0, snapshot.length)
         val position = snapshot.positionOf(clamped)
         return textLeft + tabStops.displayColumn(snapshot.lineText(position.line), position.column) * charWidth
     }
 
-    /** The right end of [line]'s text. */
+    /** Returns the right end of the text of [line]. */
     fun lineRight(line: Int): Float = xOf(snapshot.lineIndex.lineEnd(line))
 
     /**
-     * Number of display columns of the widest line (for the content width): one pass over the text, [TabStops] only for
-     * lines that contain a tab.
+     * Returns the number of display columns of the widest line, for the content width. It makes one pass over the text
+     * and uses [TabStops] only for lines that contain a tab.
      */
     fun maxDisplayColumns(): Int {
         val text = snapshot.text
@@ -83,8 +83,8 @@ internal class TextGeometry(
     }
 
     /**
-     * The caret position nearest to ([x], [y]) for a click: the line under [y] (clamped to the text's lines), the
-     * nearest boundary between display cells (inside a tab, its nearer bound).
+     * Returns the caret position nearest to [x] and [y] for a click. It takes the line under [y], clamped to the lines
+     * of the text, and the nearest boundary between display cells. Inside a tab it takes the nearer bound of the tab.
      */
     fun offsetAt(x: Float, y: Float): Int {
         val line = lineAt(y).coerceIn(0, snapshot.lineCount - 1)
@@ -93,8 +93,8 @@ internal class TextGeometry(
     }
 
     /**
-     * The offset of the character under ([x], [y]) for hovering, or null outside the text: above the first line, below
-     * the last one, left of the text or right of the line's end.
+     * Returns the offset of the character under [x] and [y] for hovering. Returns null outside the text, which means
+     * above the first line, below the last one, left of the text or right of the end of the line.
      */
     fun characterAt(x: Float, y: Float): Int? {
         val line = lineAt(y)
@@ -106,8 +106,8 @@ internal class TextGeometry(
     }
 
     /**
-     * The column of the character of [line] whose cell contains [displayColumn]: [TabStops.columnAt] answers the nearer
-     * bound of a cell, so a bound right of the point steps back to the character before it.
+     * Returns the column of the character of [line] whose cell contains [displayColumn]. [TabStops.columnAt] answers
+     * the nearer bound of a cell, so a bound right of the point steps back to the character before it.
      */
     private fun columnUnder(line: CharSequence, displayColumn: Int): Int {
         val column = tabStops.columnAt(line, displayColumn)
@@ -115,15 +115,15 @@ internal class TextGeometry(
     }
 
     /**
-     * The pieces of [range] on the lines of [lines]: on every line but the last the piece extends past the line's end by
-     * one cell (the selected line break); an empty range yields nothing.
+     * Returns the pieces of [range] on the lines of [lines]. On every line except the last, the piece extends one cell
+     * past the end of the line, which shows the selected line break. An empty range yields nothing.
      */
     fun segments(range: TextRange, lines: IntRange): List<Segment> = segments(listOf(range), lines).single()
 
     /**
-     * The [segments] of each of [ranges], in the same order. The x positions of all bounds on one line come from one pass
-     * over that line ([TabStops.displayColumns]), so k ranges on a line of n characters (find matches) cost
-     * O(n + k log k), not O(k × n) as one [xOf] per bound would.
+     * Returns the [segments] of each of [ranges], in the same order. The x positions of all bounds on one line come from
+     * one pass over that line with [TabStops.displayColumns]. So k ranges on a line of n characters, such as find
+     * matches, cost O(n + k log k). One call of [xOf] per bound would cost O(k * n).
      */
     fun segments(ranges: List<TextRange>, lines: IntRange): List<List<Segment>> {
         val result = List(ranges.size) { ArrayList<Segment>() }
@@ -140,16 +140,16 @@ internal class TextGeometry(
         return result
     }
 
-    /** The range of [line] (without its line break). */
+    /** Returns the range of [line] without its line break. */
     fun lineRange(line: Int): TextRange = snapshot.lineRange(line)
 
     /**
-     * The columns [start] until [end] of [line] that a range covers; [pastLineEnd] when it goes on to the next line (its
-     * piece then includes the line break's cell).
+     * The columns from [start] until [end] of [line] that a range covers. [pastLineEnd] is true when the range goes on
+     * to the next line. The piece then includes the cell of the line break.
      */
     private class LinePiece(val line: Int, val start: Int, val end: Int, val pastLineEnd: Boolean)
 
-    /** The pieces of [range] on the lines of [lines], in line order. */
+    /** Returns the pieces of [range] on the lines of [lines], in line order. */
     private fun pieces(range: TextRange, lines: IntRange): List<LinePiece> {
         if (range.isEmpty || lines.isEmpty()) return emptyList()
         val first = lineOf(range.start)
@@ -162,6 +162,6 @@ internal class TextGeometry(
         }
     }
 
-    /** The line under content y [y], unclamped (0 without a line height). */
+    /** Returns the line under the content y [y], without clamping. Without a line height it returns 0. */
     private fun lineAt(y: Float): Int = if (lineHeight <= 0f) 0 else floor(y / lineHeight).toInt()
 }

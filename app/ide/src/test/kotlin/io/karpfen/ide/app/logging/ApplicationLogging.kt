@@ -22,14 +22,14 @@ import org.slf4j.LoggerFactory
 import kotlin.test.assertIs
 
 /**
- * The logger context of the test JVM, the one the application's default routing of what dsl-tools logs attaches to,
- * for tests outside this package, which log through SLF4J only.
+ * The logger context of the test JVM, which the application's default routing of what dsl-tools logs attaches to. It
+ * serves tests outside this package, which log through SLF4J only.
  */
 internal object ApplicationLogging {
 
     /**
-     * Runs [block] with the dsl-tools loggers of the test JVM's logger context at DEBUG and passing nothing on to the
-     * test console, as the production configuration has them, and restores both afterwards.
+     * Runs [block] with the dsl-tools loggers of the test JVM's logger context set up as the production configuration
+     * has them. They log at DEBUG and pass nothing on to the test console. Both settings are restored afterwards.
      */
     suspend fun <T> withDslToolsAtDebug(block: suspend () -> T): T {
         val logger = assertIs<LoggerContext>(LoggerFactory.getILoggerFactory()).getLogger(DslToolsLoggers.PARENT)

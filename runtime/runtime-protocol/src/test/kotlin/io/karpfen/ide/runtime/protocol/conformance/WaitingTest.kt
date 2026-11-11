@@ -38,10 +38,10 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers the waiting helpers and [Patience] on virtual time: [eventually] polls at the scope's pace until its probe
- * answers, takes a failed assertion for "not yet", and fails after its bound naming what it awaited, the bound, the last
- * answer and the diagnostics; [awaitValue] answers the first accepted value of a flow and fails the same way when none
- * comes or the flow ends; the live patience has the documented bounds.
+ * Covers the waiting helpers and [Patience] on virtual time. [eventually] polls at the scope's pace until its probe
+ * answers, and it takes a failed assertion for "not yet". After its bound it fails, naming what it awaited, the bound,
+ * the last answer and the diagnostics. [awaitValue] returns the first accepted value of a flow. It fails the same way
+ * when none comes or the flow ends. The live patience has the documented bounds.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WaitingTest {

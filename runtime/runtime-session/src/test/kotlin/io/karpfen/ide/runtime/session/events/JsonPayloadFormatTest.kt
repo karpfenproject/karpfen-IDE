@@ -25,8 +25,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Covers the checks of JSON payloads as the runtime's converter reads them: every finding code with its range in the
- * payload text, the template and the encoding.
+ * Covers the checks of JSON payloads as the runtime's converter reads them. It checks every finding code with its range
+ * in the payload text, the template and the encoding.
  */
 class JsonPayloadFormatTest {
 
@@ -191,7 +191,10 @@ class JsonPayloadFormatTest {
         )
     }
 
-    /** The codes and range texts of the findings on [text] as the payload of [event], absent members left out unless [withDefaults]. */
+    /**
+     * The codes and range texts of the findings on [text] as the payload of [event]. The findings that an absent member
+     * gets its default are left out unless [withDefaults] is true.
+     */
     private fun findings(text: String, event: InjectableEvent = OrderEvents.order, withDefaults: Boolean = false): List<Pair<String, String>> =
         format.validate(text, event).diagnostics
             .filter { withDefaults || it.code != PayloadDiagnosticCodes.MEMBER_DEFAULTED }

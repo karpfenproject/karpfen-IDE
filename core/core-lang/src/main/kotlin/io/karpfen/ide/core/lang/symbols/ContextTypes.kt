@@ -26,24 +26,24 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * The types of one modeling context as immutable values: [domain] from its domain metamodel, [events] from its event
- * metamodel (only the TYPE declarations of the events file itself, because dsl-tools adds the domain base types to the
- * events metamodel it reads).
+ * The types of one modeling context as immutable values. [domain] comes from its domain metamodel and [events] from its
+ * event metamodel. [events] holds only the TYPE declarations of the events file itself, because dsl-tools adds the
+ * domain base types to the events metamodel it reads.
  */
 internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInfo>) {
-    /** The domain types, then the event types, a name once. */
+    /** The domain types, then the event types, with each name once. */
     val all: List<TypeInfo> = (domain + events).distinctBy { it.name }
 
     companion object {
         /**
-         * Converts [context]: a metamodel that dsl-tools read ([ContextAnalysis.metamodel],
-         * [ContextAnalysis.events]), complete or partial, gives the types and members (dsl-tools is authoritative);
-         * the declaration locations come from the analyzed file's syntax index. What the read left out and the file's
-         * syntax declares is added from the syntax ([SyntaxTypes]), with its type as written: a partial metamodel
-         * leaves out a property of an unknown type, for example, which completion, hover and go to definition still
-         * offer while the user fixes it. A metamodel that was not read (its syntax is broken, or the events wait for a
-         * domain metamodel without errors) falls back to its file's syntax entirely, so completion keeps working while
-         * the metamodel is being edited.
+         * Converts [context]. A metamodel that dsl-tools read, complete or partial, gives the types and members,
+         * because dsl-tools is authoritative. These are [ContextAnalysis.metamodel] and [ContextAnalysis.events]. The
+         * declaration locations come from the syntax index of the analyzed file. What the read left out but the syntax
+         * of the file declares is added from the syntax through [SyntaxTypes], with its type as written. For example, a
+         * partial metamodel leaves out a property of an unknown type. Completion, hover and go to definition still
+         * offer it while the user fixes it. A metamodel may not have been read, because its syntax is broken or because
+         * the events wait for a domain metamodel without errors. Then it falls back to the syntax of its file entirely,
+         * so completion keeps working while the metamodel is being edited.
          */
         fun convert(context: ContextAnalysis): ContextTypes {
             val domainFile = context.context.metamodel?.let(context.files::get)
@@ -55,8 +55,8 @@ internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInf
         }
 
         /**
-         * The types of [metamodel] (restricted to [names] when given) located in [file] and completed by its syntax,
-         * or the types of [file]'s syntax alone when the metamodel was not read.
+         * The types of [metamodel], located in [file] and completed by its syntax. They are restricted to [names] when
+         * given. When the metamodel was not read, these are the types of the syntax of [file] alone.
          */
         private fun typesOf(file: AnalyzedFile?, metamodel: Metamodel?, origin: TypeOrigin, names: Set<String>?): List<TypeInfo> {
             val located = file?.let(LocatedOutcome::of)
@@ -67,8 +67,8 @@ internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInf
         }
 
         /**
-         * These types, as dsl-tools read them, completed by the [declared] types of the file's syntax: a member the
-         * read left out joins its type in the file's order, and a type the read left out follows the others.
+         * These types as dsl-tools read them, completed by the [declared] types of the syntax of the file. A member the
+         * read left out joins its type in the order of the file. A type the read left out follows the others.
          */
         private fun List<TypeInfo>.completedBy(declared: List<TypeInfo>): List<TypeInfo> {
             val read = associateBy { it.name }
@@ -88,12 +88,12 @@ internal class ContextTypes(val domain: List<TypeInfo>, val events: List<TypeInf
 }
 
 /**
- * Converts dsl-tools [ClassType]s into [TypeInfo]s, locating the declarations in the syntax index of the metamodel's
- * analyzed file. Members keep the file's order (simple and object properties are separate lists in dsl-tools).
+ * Converts dsl-tools [ClassType]s into [TypeInfo]s and locates the declarations in the syntax index of the analyzed
+ * metamodel file. Members keep the order of the file. In dsl-tools simple and object properties are separate lists.
  */
 internal object MetamodelTypes {
 
-    /** The [TypeInfo] of [type]; declarations stay null without a [file] or where its syntax index lacks them. */
+    /** The [TypeInfo] of [type]. Declarations stay null without a [file] or where its syntax index lacks them. */
     fun convert(type: ClassType, origin: TypeOrigin, file: LocatedOutcome?): TypeInfo {
         val index = file?.outcome?.index
         fun locate(kind: SymbolKind, name: String, container: String?) =
@@ -129,9 +129,9 @@ internal object MetamodelTypes {
 }
 
 /**
- * Memoizes [ContextTypes.convert] per `ContextAnalysis` identity for the latest [ProjectAnalysis] only (a new
- * analysis generation drops the conversions of the previous one). Thread-safe; a conversion may run twice under a
- * race, which is harmless (it is pure).
+ * Memoizes [ContextTypes.convert] by the identity of each `ContextAnalysis`, for the latest [ProjectAnalysis] only. A
+ * new analysis generation drops the conversions of the previous one. The class is thread-safe. Under a race a
+ * conversion may run twice. That is harmless, because the conversion has no side effects.
  */
 internal class ContextTypesMemo {
 
@@ -140,7 +140,7 @@ internal class ContextTypesMemo {
         val byContext = ConcurrentHashMap<IdentityKey, ContextTypes>()
     }
 
-    /** Identity of a `ContextAnalysis` (data-class equality would compare whole analyses). */
+    /** The identity of a `ContextAnalysis`. Data class equality would compare whole analyses. */
     private class IdentityKey(val context: ContextAnalysis) {
         override fun equals(other: Any?): Boolean = other is IdentityKey && other.context === context
 

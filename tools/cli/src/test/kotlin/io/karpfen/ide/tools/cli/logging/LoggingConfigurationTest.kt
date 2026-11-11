@@ -30,7 +30,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The CLI's logging configuration: the tests run on the module's console-only `logback-test.xml`, while the production
+ * The CLI's logging configuration. The tests run on the module's console-only `logback-test.xml`. The production
  * `logback.xml` logs WARN and above to standard error only, so the report on standard output stays clean. Both turn
  * what dsl-tools logs off and let its logger pass events on to the console, the way `--verbose` shows them.
  */

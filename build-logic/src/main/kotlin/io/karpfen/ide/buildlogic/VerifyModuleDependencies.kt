@@ -28,32 +28,33 @@ import org.gradle.work.DisableCachingByDefault
 /**
  * Fails when the module has a project dependency that violates [ModuleDependencyRules].
  *
- * Both inputs are plain lists of strings (see `karpfen.kotlin-jvm`), so the task never touches the project model
- * while executing and is compatible with the configuration cache:
- * - [declaredProjectDependencies]: the project dependencies declared on every configuration of the module, scanned
- *   after all projects have been evaluated (so `afterEvaluate` declarations are included);
- * - [resolvedProjectDependencies]: the first-level project dependencies of the module's resolved classpaths, which
- *   also contain dependencies added at resolution time (`withDependencies`, `defaultDependencies`).
+ * Both inputs are plain lists of strings, which the `karpfen.kotlin-jvm` convention wires. So the task never touches the
+ * project model while it runs, and it works with the configuration cache. [declaredProjectDependencies] holds the
+ * project dependencies declared on every configuration of the module. They are scanned after all projects were
+ * evaluated, so declarations in `afterEvaluate` are included. [resolvedProjectDependencies] holds the first-level
+ * project dependencies of the module's resolved classpaths. They also contain dependencies added at resolution time,
+ * through `withDependencies` or `defaultDependencies`.
  */
 @DisableCachingByDefault(because = "Cheap check; up-to-date checking via the report file is sufficient")
 abstract class VerifyModuleDependencies : DefaultTask() {
 
-    /** Gradle path of the module being verified, e.g. `:core:core-text`. */
+    /** The Gradle path of the module being verified, such as `:core:core-text`. */
     @get:Input
     abstract val projectPath: Property<String>
 
-    /** Declared project dependencies, encoded with [ModuleDependencyRules.DeclaredDependency.encode]. */
+    /** The declared project dependencies, encoded with [ModuleDependencyRules.DeclaredDependency.encode]. */
     @get:Input
     abstract val declaredProjectDependencies: ListProperty<String>
 
     /**
-     * First-level project dependencies of the resolved classpaths, encoded like [declaredProjectDependencies] with the
-     * classpath configuration (e.g. `compileClasspath`) in place of the declaring configuration.
+     * The first-level project dependencies of the resolved classpaths. They are encoded like
+     * [declaredProjectDependencies], but with the classpath configuration, such as `compileClasspath`, in place of the
+     * declaring configuration.
      */
     @get:Input
     abstract val resolvedProjectDependencies: ListProperty<String>
 
-    /** Written on success so the task is up to date until its inputs change. */
+    /** The report, written on success, so the task stays up to date until its inputs change. */
     @get:OutputFile
     abstract val reportFile: RegularFileProperty
 

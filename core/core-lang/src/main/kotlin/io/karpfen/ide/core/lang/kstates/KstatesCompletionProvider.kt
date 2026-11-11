@@ -33,13 +33,19 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * KStates completion: structural keywords by position (STATE, INITIAL STATE, ENTRY, DO, TRANSITION, SPLIT,
- * JOIN, NOT LOOPING, CONDITION, EVENT, EVAL, VALUE, MACRO, TAKES, RETURNS, DEFINITION, action operations, IF IN
- * SCOPE, WITH … AS; [KstatesKeywords]); state names inside transition strings; macro names inside `MACRO("` and after
- * `@` in EVAL; `ATTACHED TO "` → domain types ([types]); TAKES/RETURNS → domain types and primitives; model paths in
- * action/VALUE/IF IN SCOPE/macro-argument strings and after `$(` in EVAL (via [paths], the segment under the caret
- * replaced); the relation argument of SETOBJ/APPENDOBJ → relations of the source path's type; event names in the second
- * argument of `EVENT(` from `EVENTS.kmeta`; event domains used in the file.
+ * Completion in KStates. It offers the following.
+ * - Structural keywords by position from [KstatesKeywords]. These are STATE, INITIAL STATE, ENTRY, DO, TRANSITION,
+ *   SPLIT, JOIN, NOT LOOPING, CONDITION, EVENT, EVAL, VALUE, MACRO, TAKES, RETURNS, DEFINITION, the action operations,
+ *   IF IN SCOPE and WITH … AS.
+ * - State names inside transition strings.
+ * - Macro names inside `MACRO("` and after `@` in EVAL.
+ * - Domain types from [types] after `ATTACHED TO "`.
+ * - Domain types and primitives at TAKES and RETURNS.
+ * - Model paths through [paths] in the strings of actions, VALUE, IF IN SCOPE and macro arguments, and after `$(` in
+ *   EVAL. The item replaces the segment under the caret.
+ * - The relations of the type of the source path at the relation argument of SETOBJ and APPENDOBJ.
+ * - Event names from `EVENTS.kmeta` in the second argument of `EVENT(`.
+ * - The event domains used in the file.
  */
 internal class KstatesCompletionProvider(
     private val slots: KstatesSlots,
@@ -93,7 +99,7 @@ internal class KstatesCompletionProvider(
     }
 
     /**
-     * The segments that may follow the path before the caret in [pathRange]; an item replaces the segment under the
+     * The segments that may follow the path before the caret in [pathRange]. An item replaces the segment under the
      * caret, clamped to the path.
      */
     private fun pathSegments(request: FeatureRequest, context: CaretContext, pathRange: TextRange): List<CompletionItem> {
@@ -103,7 +109,7 @@ internal class KstatesCompletionProvider(
         return paths.completions(request, context, prefix).map { segment(it, replace) }
     }
 
-    /** The item of a path segment: bindings first, then members of the type so far, then the roots. */
+    /** The item of a path segment. Bindings come first, then the members of the type so far, then the roots. */
     private fun segment(member: PathMember, replace: TextRange): CompletionItem {
         val kind = if (member.origin == PathOrigin.BINDING) CompletionKind.BINDING else CompletionKind.PATH_SEGMENT
         val rank = when (member.origin) {
@@ -123,7 +129,7 @@ internal class KstatesCompletionProvider(
         }
     }
 
-    /** The event types of the context's events file. */
+    /** The event types of the events file of the context. */
     private fun eventNames(request: FeatureRequest, range: TextRange): List<CompletionItem> =
         types.contextTypes(request).filter { it.origin == TypeOrigin.EVENTS }.map {
             nameItem(it.name, CompletionKind.EVENT, range, detail = it.description, documentation = it.hoverText)

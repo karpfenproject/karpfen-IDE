@@ -27,19 +27,21 @@ import io.karpfen.ide.runtime.protocol.message.RuntimeJson
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.protocol.message.WireValue
 
-/** Reads small karpfen texts written in a test with the dsl-tools reader adapter, as the project analysis reads files. */
+/**
+ * Reads small karpfen texts written in a test with the dsl-tools reader adapter, as the project analysis reads files.
+ */
 object DslTexts {
-    /** The metamodel of [text], whose types may refer to [baseTypes]; the text must read without errors. */
+    /** The metamodel of [text], whose types may refer to [baseTypes]. The text must read without errors. */
     fun metamodel(text: String, baseTypes: List<ClassType> = emptyList()): Metamodel = clean(DslReader().kmeta(TextSnapshot(text, 0), baseTypes))
 
-    /** The model of [text] against [metamodel]; the text must read without errors. */
+    /** The model of [text] against [metamodel]. The text must read without errors. */
     fun model(text: String, metamodel: Metamodel): Model = clean(DslReader().kmodel(TextSnapshot(text, 0), metamodel))
 
     /** The model of [text] against [metamodel] as far as it reads, also with errors such as unresolved references. */
     fun partialModel(text: String, metamodel: Metamodel): Model =
         checkNotNull(DslReader().kmodel(TextSnapshot(text, 0), metamodel).model) { "the text yields no model" }
 
-    /** The state machine of [text]; the text must read without errors. */
+    /** The state machine of [text]. The text must read without errors. */
     fun machine(text: String): StateMachine = clean(DslReader().kstates(TextSnapshot(text, 0)))
 
     /** The model of [result], which must have no errors. */

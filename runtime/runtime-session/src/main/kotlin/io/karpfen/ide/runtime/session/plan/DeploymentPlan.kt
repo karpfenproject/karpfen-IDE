@@ -25,18 +25,19 @@ import java.nio.file.Path
  *
  * A plan comes from a [DeploymentPlanner] or, in tests, from its [Builder], which checks the plan's invariants.
  *
- * @property name the name of the context, the descriptor's file name without its suffix.
+ * @property name the name of the context, which is the descriptor's file name without its suffix.
  * @property descriptor the path of the environment descriptor.
  * @property generation the generation of the analysis the plan was read from.
- * @property uploads the texts to upload, in upload order: the metamodel, the event definitions if there are any, the
- *   model, then the state machines in descriptor order, which becomes the runtime's tick order.
+ * @property uploads the texts to upload, in upload order. First the metamodel, then the event definitions if there
+ *   are any, then the model, and then the state machines in descriptor order. That order becomes the runtime's tick
+ *   order.
  * @property attachments the state machines and what they are attached to, in descriptor order.
  * @property configuration the tick delay and the event time to live the deployment sends.
- * @property domains the event domains the state machines use, in conditions and actions, sorted and distinct; the
+ * @property domains the event domains the state machines use in conditions and actions, sorted and distinct. The
  *   deployment registers a listener for each.
  * @property modelObjectIds the keys of the model's objects in the runtime's index of the model.
  * @property locations where the objects, types and states of the uploaded files are declared.
- * @property findings the warnings and infos of the checks; a plan holds no ERROR.
+ * @property findings the warnings and infos of the checks. A plan holds no ERROR.
  */
 public class DeploymentPlan private constructor(
     public val name: String,
@@ -50,7 +51,7 @@ public class DeploymentPlan private constructor(
     public val locations: DeclarationLocations,
     public val findings: List<DeployProblem>,
 ) {
-    /** The metamodel upload, the first one. */
+    /** The metamodel upload, which is always the first one. */
     public val metamodel: PlannedUpload
         get() = uploads.first()
 
@@ -71,8 +72,8 @@ public class DeploymentPlan private constructor(
             "attachments=${attachments.map { it.attachedTo }}, configuration=$configuration, domains=$domains)"
 
     /**
-     * Builds a [DeploymentPlan], one setter per property, and checks its invariants in [build]. Not thread-safe; a
-     * builder is used by one caller.
+     * Builds a [DeploymentPlan], with one setter per property, and checks its invariants in [build]. Not thread-safe.
+     * A builder is used by one caller.
      */
     public class Builder {
         /** The plan's name. */
@@ -105,43 +106,44 @@ public class DeploymentPlan private constructor(
         /** The plan's findings. */
         private var findings: List<DeployProblem> = emptyList()
 
-        /** Sets the name of the context; required. */
+        /** Sets the name of the context. Required. */
         public fun name(name: String): Builder = apply { this.name = name }
 
-        /** Sets the descriptor's path; required. */
+        /** Sets the descriptor's path. Required. */
         public fun descriptor(descriptor: Path): Builder = apply { this.descriptor = descriptor }
 
-        /** Sets the generation of the analysis; 0 unless set. */
+        /** Sets the generation of the analysis. It is 0 unless set. */
         public fun generation(generation: Long): Builder = apply { this.generation = generation }
 
-        /** Sets the uploads, in upload order; required. */
+        /** Sets the uploads, in upload order. Required. */
         public fun uploads(uploads: List<PlannedUpload>): Builder = apply { this.uploads = uploads.toList() }
 
-        /** Sets the attachments, in descriptor order; none unless set. */
+        /** Sets the attachments, in descriptor order. There are none unless set. */
         public fun attachments(attachments: List<AttachedMachine>): Builder = apply { this.attachments = attachments.toList() }
 
-        /** Sets the deploy configuration; the defaults of the descriptor format unless set. */
+        /** Sets the deploy configuration. It is the defaults of the descriptor format unless set. */
         public fun configuration(configuration: DeployConfiguration): Builder = apply { this.configuration = configuration }
 
-        /** Sets the event domains; none unless set. */
+        /** Sets the event domains. There are none unless set. */
         public fun domains(domains: List<String>): Builder = apply { this.domains = domains.toList() }
 
-        /** Sets the keys of the model's objects; none unless set. */
+        /** Sets the keys of the model's objects. There are none unless set. */
         public fun modelObjectIds(modelObjectIds: Set<String>): Builder = apply { this.modelObjectIds = modelObjectIds.toSet() }
 
-        /** Sets the declaration locations; none unless set. */
+        /** Sets the declaration locations. There are none unless set. */
         public fun locations(locations: DeclarationLocations): Builder = apply { this.locations = locations }
 
-        /** Sets the warnings and infos of the checks; none unless set. */
+        /** Sets the warnings and infos of the checks. There are none unless set. */
         public fun findings(findings: List<DeployProblem>): Builder = apply { this.findings = findings.toList() }
 
         /**
          * The plan.
          *
-         * @throws IllegalArgumentException if the name or the descriptor is missing; if the uploads are not exactly one
-         *   metamodel upload first, at most one events upload right after it, exactly one model upload after both, and
-         *   then the state machine uploads with distinct keys, matching [attachments] in order by key and file; if a
-         *   domain is blank or repeated; or if a finding is an ERROR.
+         * @throws IllegalArgumentException if the name or the descriptor is missing. It is also thrown if the uploads
+         *   do not have the expected shape. That shape is exactly one metamodel upload first, at most one events upload
+         *   right after it, exactly one model upload after both, and then the state machine uploads with distinct keys.
+         *   The state machine uploads match [attachments] in order by key and file. A blank or repeated domain and a
+         *   finding that is an error throw it as well.
          */
         public fun build(): DeploymentPlan {
             val name = requireNotNull(name) { "a plan needs the name of its context" }

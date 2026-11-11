@@ -34,12 +34,12 @@ public enum class PayloadKind {
 }
 
 /**
- * The findings on an event to inject and its payload, ranges relative to the payload text.
+ * The findings on an event to inject and its payload. The ranges are relative to the payload text.
  *
  * @property diagnostics the findings in order.
  */
 public data class PayloadValidation(public val diagnostics: List<Diagnostic>) {
-    /** True if a finding is an error: the event is not sent. */
+    /** True if a finding is an error. Then the event is not sent. */
     public val hasErrors: Boolean
         get() = diagnostics.any { it.severity == Severity.ERROR }
 
@@ -57,14 +57,17 @@ public data class PayloadValidation(public val diagnostics: List<Diagnostic>) {
 }
 
 /**
- * One way of writing a payload, a strategy chosen by [PayloadKind]: it offers a template, checks a text as the runtime
- * would read it, and encodes it for the event frame.
+ * One way of writing a payload, as a strategy chosen by [PayloadKind]. It offers a template, checks a text as the
+ * runtime would read it, and encodes it for the event frame.
  */
 public interface PayloadFormat {
     /** The kind this format writes. */
     public val kind: PayloadKind
 
-    /** A text to start from for [event]: its payload type with every member at the value the runtime would default to. */
+    /**
+     * A text to start from for [event]. It shows the payload type with every member at the value the runtime would
+     * default to.
+     */
     public fun template(event: InjectableEvent): String
 
     /** The findings on [text] as the payload of [event]. */
@@ -76,20 +79,20 @@ public interface PayloadFormat {
 
 /**
  * The codes of the findings on events and payloads, with their severities. The payload checks mirror the runtime's
- * `JsonToModelConverter` and `KmodelDSLConverter.parseSingleObject`, which turn a payload the runtime cannot read into
- * a null payload without telling anyone; the event still fires by name.
+ * `JsonToModelConverter` and `KmodelDSLConverter.parseSingleObject`. Those turn a payload the runtime cannot read into
+ * a null payload without telling anyone. The event still fires by name.
  */
 public object PayloadDiagnosticCodes {
     /** The payload is not JSON. */
     public const val JSON_SYNTAX: String = "payload-json-syntax"
 
-    /** The payload is no JSON object; the converter refuses anything else and the payload becomes null. */
+    /** The payload is not a JSON object. The converter refuses anything else, and the payload becomes null. */
     public const val NOT_OBJECT: String = "payload-not-object"
 
-    /** A key is repeated; org.json refuses repeated keys and the payload becomes null, silently. */
+    /** A key is repeated. org.json refuses repeated keys, and the payload silently becomes null. */
     public const val DUPLICATE_KEY: String = "payload-duplicate-key"
 
-    /** `__id__` is no string; it is read as a string, so another value makes the payload null. */
+    /** `__id__` is not a string. It is read as a string, so another value makes the payload null. */
     public const val ID_NOT_STRING: String = "payload-id-not-string"
 
     /** A string `__id__` becomes the payload object's id. */
@@ -107,52 +110,57 @@ public object PayloadDiagnosticCodes {
     /** A relation is not given as an object, or a list relation not as an array of objects. */
     public const val OBJECT_EXPECTED: String = "payload-object-expected"
 
-    /** A key the payload type does not declare; the runtime ignores it, so it is likely a typo. */
+    /** A key that the payload type does not declare. The runtime ignores it, so it is likely a typo. */
     public const val UNKNOWN_KEY: String = "payload-unknown-key"
 
-    /** A `knows` member: the runtime builds a new object and never refers to an existing one. */
+    /** A `knows` member. The runtime builds a new object from it and never refers to an existing one. */
     public const val KNOWS_CREATES_OBJECT: String = "payload-knows-creates-object"
 
-    /** No event type of the event's name: the runtime parses the payload against the domain type of that name. */
+    /**
+     * There is no event type of the event's name. The runtime parses the payload against the domain type of that name.
+     */
     public const val DOMAIN_TYPE: String = "payload-domain-type"
 
-    /** No event or domain type of the event's name: the runtime never parses the payload. */
+    /** There is no event type or domain type of the event's name. The runtime never parses the payload. */
     public const val UNTYPED_EVENT: String = "payload-untyped-event"
 
-    /** The environment has no event definitions: payloads are never parsed. */
+    /** The environment has no event definitions, so payloads are never parsed. */
     public const val NOT_PARSED: String = "payload-not-parsed"
 
-    /** A member of the payload type is absent; the runtime fills in `0`, `false`, `""`, an empty list or no object. */
+    /** A member of the payload type is absent. The runtime fills in `0`, `false`, `""`, an empty list or no object. */
     public const val MEMBER_DEFAULTED: String = "payload-member-defaulted"
 
-    /** A member is `null`; the runtime leaves it out. */
+    /** A member is `null`. The runtime leaves it out. */
     public const val MEMBER_OMITTED: String = "payload-member-omitted"
 
-    /** A string property is given another value; the runtime takes its text. */
+    /** A string property is given another kind of value. The runtime takes its text. */
     public const val TEXT_FROM_VALUE: String = "payload-text-from-value"
 
-    /** The KModel snippet has syntax or reader errors; their own findings are reported next to this one. */
+    /** The KModel snippet has syntax or reader errors. Their own findings are reported next to this one. */
     public const val KMODEL_INVALID: String = "payload-kmodel-invalid"
 
     /** The KModel snippet declares no object, so the runtime finds none. */
     public const val KMODEL_NO_OBJECT: String = "payload-kmodel-no-object"
 
-    /** The KModel snippet declares several root objects; the runtime takes the first. */
+    /** The KModel snippet declares several root objects. The runtime takes the first. */
     public const val KMODEL_SEVERAL_OBJECTS: String = "payload-kmodel-several-objects"
 
-    /** The root object's type differs from the event's name; the runtime uses the snippet's type. */
+    /** The root object's type differs from the event's name. The runtime uses the snippet's type. */
     public const val KMODEL_TYPE: String = "payload-kmodel-type"
 
     /** The domain or the name is blank, which matches nothing. */
     public const val EVENT_BLANK_NAME: String = "event-blank-name"
 
-    /** No attached machine listens to the domain and name; the event waits until its time to live expires. */
+    /** No attached machine listens to the domain and name. The event waits until its time to live expires. */
     public const val EVENT_NOT_LISTENED: String = "event-not-listened"
 
-    /** The environment is activated but not started: the event waits, and its time to live runs from receipt. */
+    /**
+     * The environment is activated but not started. The event waits, and its time to live runs from the moment the
+     * runtime receives it.
+     */
     public const val EVENT_QUEUED_UNTIL_START: String = "event-queued-until-start"
 
-    /** The domain is named like an attached object key: forcing that machine's state discards the event. */
+    /** The domain is named like an attached object key. Forcing that machine's state discards the event. */
     public const val EVENT_DOMAIN_IS_ATTACHMENT: String = "event-domain-is-attachment"
 
     /** Every code with its severity. */

@@ -20,9 +20,9 @@ import io.karpfen.ide.runtime.protocol.transport.RuntimeTransports
 import io.karpfen.ide.runtime.protocol.transport.ktor.ktorTransports
 
 /**
- * A client of the runtime at [endpoint] that runs as [options] say and reaches the runtime through [transports], by
- * default the Ktor transports to [endpoint]. Tests hand in the fake runtime's transports and a test dispatcher. The
- * client owns the transports: closing it closes them.
+ * Creates a client of the runtime at [endpoint] that runs as [options] say. It reaches the runtime through
+ * [transports], which by default are the Ktor transports to [endpoint]. Tests hand in the fake runtime's transports and
+ * a test dispatcher. The client owns the transports, so closing it closes them.
  */
 public fun RuntimeClient(
     endpoint: RuntimeEndpoint,

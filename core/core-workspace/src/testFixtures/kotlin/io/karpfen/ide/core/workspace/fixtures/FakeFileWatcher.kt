@@ -23,7 +23,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.filterNot
 import java.nio.file.Path
 
-/** A [FileWatcher] that emits the changes a test hands it (the real watch service polls slowly on macOS). */
+/**
+ * A [FileWatcher] that emits the changes a test hands it. Tests use it because the real watch service polls slowly on
+ * macOS.
+ */
 public class FakeFileWatcher : FileWatcher {
     private val changes = MutableSharedFlow<FileChange>(extraBufferCapacity = 1024)
 

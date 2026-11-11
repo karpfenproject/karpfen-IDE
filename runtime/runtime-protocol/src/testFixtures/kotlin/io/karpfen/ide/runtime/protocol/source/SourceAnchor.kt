@@ -16,8 +16,8 @@
 package io.karpfen.ide.runtime.protocol.source
 
 /**
- * A fact of the client's view of the runtime, tied to the runtime's source: the [snippet] must occur verbatim in the
- * runtime file [file]. When the runtime changes the fact, the snippet no longer occurs and the anchor names the file
+ * A fact of the client's view of the runtime, tied to the runtime's source. The [snippet] must occur verbatim in the
+ * runtime file [file]. When the runtime changes the fact, the snippet no longer occurs, and the anchor names the file
  * and the snippet that went missing.
  *
  * @property file the runtime file, relative to the checkout's root.
@@ -32,20 +32,20 @@ public data class SourceAnchor(public val file: String, public val snippet: Stri
 }
 
 /**
- * The route declarations of a runtime file such as `HTTPRoutes.kt`: every call `get("/…")`, `post("/…")` or `put("/…")`
- * in the order it is written, each with its block, the text from the declaration up to the next declaration or the end
- * of the file. A route reads its query parameters inside its block, so the order of the reads there is the order in
- * which the runtime checks them.
+ * The route declarations of a runtime file such as `HTTPRoutes.kt`. These are the calls `get("/…")`, `post("/…")` and
+ * `put("/…")` in the order they are written. Each comes with its block, which is the text from the declaration up to
+ * the next declaration or the end of the file. A route reads its query parameters inside its block, so the order of the
+ * reads there is the order in which the runtime checks them.
  *
  * @property routes the declarations in source order.
  */
 public class RouteDeclarations private constructor(public val routes: List<RouteDeclaration>) {
 
     public companion object {
-        /** The pattern of a route declaration: the verb and the path. */
+        /** The pattern of a route declaration, which captures the verb and the path. */
         public val DECLARATION: Regex = Regex("""\b(get|post|put)\("(/[^"]+)"\)""")
 
-        /** The pattern of a query parameter read: `call.request.queryParameters["<name>"]`. */
+        /** The pattern of a query parameter read, such as `call.request.queryParameters["<name>"]`. */
         public val PARAMETER_READ: Regex = Regex("""call\.request\.queryParameters\["([^"]+)"]""")
 
         /** The route declarations of the Kotlin source [text]. */

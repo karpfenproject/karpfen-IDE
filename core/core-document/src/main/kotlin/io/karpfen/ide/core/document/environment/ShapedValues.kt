@@ -21,12 +21,12 @@ import io.karpfen.ide.core.document.json.JsonNode
  * A value of a descriptor's JSON tree together with what the schema expects there.
  *
  * @property node the value in the JSON tree, with its range in the descriptor's text.
- * @property shape the shape the schema expects, or null where the schema knows nothing (below an unknown key, or below
- *   a value whose JSON kind does not fit its shape).
- * @property key the key whose value this is or whose list holds it; null for the root.
+ * @property shape the shape the schema expects, or null where the schema knows nothing. That is the case below an
+ *   unknown key and below a value whose JSON kind does not fit its shape.
+ * @property key the key whose value this is or whose list holds it. Null for the root.
  * @property isListItem true for an item of a list, false for the value of a key and for the root.
- * @property location the value's place as messages name it: empty for the root, `observe`, `stateMachines[1]`,
- *   `stateMachines[1].file`.
+ * @property location the value's place as messages name it. It is empty for the root. Other examples are `observe`,
+ *   `stateMachines[1]` and `stateMachines[1].file`.
  */
 public data class ShapedValue(
     public val node: JsonNode,
@@ -37,11 +37,13 @@ public data class ShapedValue(
 )
 
 /**
- * Every value of the tree [root] in document order (a container before what it holds), each with the shape [schema]
- * expects there: the root is checked against [schema], a member's value against the shape of its key, a list item
- * against the item shape of its list. A value whose JSON kind does not fit its shape passes no shape on to its children.
- * The one walk of a descriptor along its schema, shared by the workspace's checks, the semantic highlighting and the
- * language services. Pure.
+ * Every value of the tree [root] in document order, each with the shape that [schema] expects there. A container comes
+ * before what it holds. The root is checked against [schema], the value of a member against the shape of its key, and
+ * a list item against the item shape of its list. A value whose JSON kind does not fit its shape passes no shape on to
+ * its children.
+ *
+ * This is the one walk of a descriptor along its schema. The checks of the workspace, the semantic highlighting and the
+ * language services share it. The function has no side effects.
  */
 public fun shapedValues(root: JsonNode, schema: ValueShape.Record = EnvironmentSchema.ROOT): List<ShapedValue> =
     ArrayList<ShapedValue>().also { visit(ShapedValue(root, schema, key = null, isListItem = false, location = ""), it) }

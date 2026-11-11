@@ -16,12 +16,13 @@
 package io.karpfen.ide.runtime.protocol.golden
 
 /**
- * Exact frames and bodies of the karpfen runtime with IDE support, byte for byte, each with where it comes from: the
- * runtime function that writes it and the example it shows. Tests decode them, program the fake runtime with them and
- * compare the runtime's own templates and [RuntimeWireWriter] with them (`TemplateGoldenTest`); the live contract
- * compares the runtime's actual answers with them. A golden changes only together with the runtime and its anchors.
+ * Exact frames and bodies of the karpfen runtime with IDE support, byte for byte. Each one says where it comes from,
+ * which is the runtime function that writes it and the example it shows. Tests decode them and program the fake runtime
+ * with them. `TemplateGoldenTest` compares the runtime's own templates and [RuntimeWireWriter] with them. The live
+ * contract compares the runtime's actual answers with them. A golden changes only together with the runtime and its
+ * anchors.
  *
- * The push examples belong to the environment [ENVIRONMENT] and the client [CLIENT], the IDE's client id shape.
+ * The push examples belong to the environment [ENVIRONMENT] and the client [CLIENT], whose id has the IDE's shape.
  */
 public object RuntimeGoldens {
 
@@ -33,13 +34,14 @@ public object RuntimeGoldens {
 
     /**
      * The object JSON of `turtlePosition` of the single robot example after a change, as `ModelJsonWriter.write` writes
-     * it: `", "` between entries, `": "` after keys, integral numbers without fraction.
+     * it. Entries are separated by `", "`, keys are followed by `": "`, and integral numbers have no fraction.
      */
     public const val TURTLE_POSITION: String = """{"__id__": "turtlePosition", "__type__": "Vector", "x": 5, "y": 5.3}"""
 
     /**
-     * The `objectChanged` payload of [TURTLE_POSITION] at revision 58, as `ClientSessionManager.notifyObjectChange` writes
-     * it with a revision: `objectId`, `revision`, `value` in this order, the value spliced in.
+     * The `objectChanged` payload of [TURTLE_POSITION] at revision 58, as `ClientSessionManager.notifyObjectChange`
+     * writes it with a revision. The members are `objectId`, `revision` and `value` in this order, and the value is
+     * spliced in.
      */
     public const val OBJECT_CHANGED_PAYLOAD: String = """{"objectId":"turtlePosition","revision":58,"value":$TURTLE_POSITION}"""
 
@@ -59,8 +61,8 @@ public object RuntimeGoldens {
 
     /**
      * The `stateChange` payload of the machine attached to `turtle` with the stack `["observe"]` at revision 60, as
-     * `ObservationRelay.onActiveStackChanged` builds it with org.json 20240303, the runtime's version: org.json writes
-     * the members in the order `stack`, `modelElementId`, `revision`.
+     * `ObservationRelay.onActiveStackChanged` builds it with org.json 20240303, the version the runtime uses. org.json
+     * writes the members in the order `stack`, `modelElementId`, `revision`.
      */
     public const val STATE_CHANGE_PAYLOAD: String = """{"stack":["observe"],"modelElementId":"turtle","revision":60}"""
 
@@ -70,15 +72,15 @@ public object RuntimeGoldens {
 
     /**
      * The published event `start` of the domain `public`, injected over the WebSocket without a payload, as
-     * `ObservationRelay.onPublished` builds it with org.json 20240303: the members in org.json's order `payload`,
+     * `ObservationRelay.onPublished` builds it with org.json 20240303. The members come in org.json's order `payload`,
      * `source`, `ttlMs`, `event`, `payloadFormat`, `timestamp`.
      */
     public const val PUBLISHED_EVENT: String =
         """{"payload":"","source":"EXTERNAL_MESSAGE","ttlMs":3000,"event":"start","payloadFormat":"none","timestamp":1761560130123}"""
 
     /**
-     * The `domainEvent` payload of [PUBLISHED_EVENT], as `ClientSessionManager.notifyDomainEvent` writes it: the domain
-     * quoted, the published event spliced in.
+     * The `domainEvent` payload of [PUBLISHED_EVENT], as `ClientSessionManager.notifyDomainEvent` writes it. The domain
+     * is quoted, and the published event is spliced in.
      */
     public const val DOMAIN_EVENT_PAYLOAD: String = """{"domain":"public","payload":$PUBLISHED_EVENT}"""
 
@@ -87,8 +89,9 @@ public object RuntimeGoldens {
         """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"domainEvent","payload":$DOMAIN_EVENT_PAYLOAD}"""
 
     /**
-     * A handshake the runtime's `/ws` handler accepts: client id, environment key and access key joined by `:`, the
-     * access key in the shape `ak-<clientId>-<millis>-<0..9999>` that `ClientSessionManager` issues.
+     * A handshake that the runtime's `/ws` handler accepts. It is the client id, the environment key and the access key
+     * joined by `:`. The access key has the shape `ak-<clientId>-<millis>-<0..9999>` that `ClientSessionManager`
+     * issues.
      */
     public const val HANDSHAKE: String = "ide-4f2c:env-1761555600000:ak-ide-4f2c-1761555601234-4821"
 
@@ -100,8 +103,8 @@ public object RuntimeGoldens {
         """{"environmentKey":"public","messageType":"start","payload":"","payloadFormat":"none"}"""
 
     /**
-     * The event frame that injects `assignDelivery` of the domain `control` with a JSON payload, the payload text quoted
-     * as a JSON string.
+     * The event frame that injects `assignDelivery` of the domain `control` with a JSON payload. The payload text is
+     * quoted as a JSON string.
      */
     public const val ASSIGN_DELIVERY_EVENT_FRAME: String =
         """{"environmentKey":"control","messageType":"assignDelivery",""" +
@@ -109,8 +112,9 @@ public object RuntimeGoldens {
 
     /**
      * The root object `living room` of the synthesized lamp model before the start, as the runtime parses the lamp's
-     * model and `ModelJsonWriter.write` writes it: only the properties the model writes, the `has` children nested, and
-     * the switch the lamp `knows` written in full where the lamp refers to it and again as the room's own child.
+     * model and `ModelJsonWriter.write` writes it. It holds only the properties the model writes, and the `has`
+     * children are nested. The switch that the lamp `knows` is written in full where the lamp refers to it, and again
+     * as the room's own child.
      */
     public const val LAMP_ROOT: String =
         """{"__id__": "living room", "__type__": "Room", "lamp": {"__id__": "lamp", "__type__": "Lamp", "mode": "off", """ +
@@ -119,16 +123,17 @@ public object RuntimeGoldens {
             """"position": "down"}}, "switch": {"__id__": "wallSwitch", "__type__": "Switch", "position": "down"}}"""
 
     /**
-     * The snapshot of an activated lamp environment [ENVIRONMENT] before its start, as `ModelSnapshot.toJson` writes it:
-     * phase `activated`, revision 0, no active stacks yet and the [LAMP_ROOT].
+     * The snapshot of an activated lamp environment [ENVIRONMENT] before its start, as `ModelSnapshot.toJson` writes
+     * it. It has the phase `activated`, the revision 0, no active stacks yet, and the [LAMP_ROOT].
      */
     public const val LAMP_SNAPSHOT_BEFORE_START: String =
         """{"environmentKey":"$ENVIRONMENT","phase":"activated","revision":0,"activeStates":{},"roots":[$LAMP_ROOT]}"""
 
     /**
-     * The full value of `turtle` of the single robot example, as `ModelJsonWriter.write` writes it (the bytes the
-     * runtime's own `ModelJsonWriterTest` holds for the cleaning robot): nested `has` children, and the `knows` targets
-     * written in full where they are referred to, so `chair` and `wall_top` appear twice in one value.
+     * The full value of `turtle` of the single robot example, as `ModelJsonWriter.write` writes it. These are the bytes
+     * that the runtime's own `ModelJsonWriterTest` holds for the cleaning robot. The `has` children are nested, and the
+     * `knows` targets are written in full where they are referred to. So `chair` and `wall_top` appear twice in one
+     * value.
      */
     public const val TURTLE: String =
         """{"__id__": "turtle", "__type__": "Robot", "d_closest_obstacle": 100, "d_closest_wall": 100, """ +
@@ -159,7 +164,7 @@ public object RuntimeGoldens {
 
     /**
      * An object whose string value holds an escaped newline, backslash and quote and the control character U+0001, as
-     * `ModelJsonWriter.quote` escapes them: the short forms where JSON has them, `\u0001` otherwise.
+     * `ModelJsonWriter.quote` escapes them. It uses the short forms where JSON has them, and `\u0001` otherwise.
      */
     public const val ESCAPES_VALUE: String =
         """{"__id__": "note", "__type__": "Note", "text": "line one\nback\\slash \"quoted\" \u0001 end"}"""
@@ -170,8 +175,8 @@ public object RuntimeGoldens {
             """"payload":{"objectId":"note","revision":62,"value":$ESCAPES_VALUE}}"""
 
     /**
-     * An object with the numbers JSON cannot write, as the runtime writes doubles with `Double.toString`: the bare
-     * literals `NaN`, `Infinity` and `-Infinity`, and `1.0E20`.
+     * An object with numbers that JSON cannot write, written the way the runtime writes doubles with `Double.toString`.
+     * These are the bare literals `NaN`, `Infinity` and `-Infinity`, and `1.0E20`.
      */
     public const val NON_FINITE_VALUE: String =
         """{"__id__": "sensor", "__type__": "Sensor", "nan": NaN, "readings": [Infinity, -Infinity, 1.0E20]}"""
@@ -182,8 +187,8 @@ public object RuntimeGoldens {
             """"payload":{"objectId":"sensor","revision":63,"value":$NON_FINITE_VALUE}}"""
 
     /**
-     * An object with an anonymous nested object (`"__id__": ""`), an empty atomic relation written as `null` and a list
-     * relation with an unresolved entry written as `null`.
+     * An object with an anonymous nested object, whose id is written as `"__id__": ""`. It also has an empty atomic
+     * relation written as `null` and a list relation with an unresolved entry written as `null`.
      */
     public const val RELATIONS_VALUE: String =
         """{"__id__": "robot", "__type__": "Robot", "direction": {"__id__": "", "__type__": "Vector", "x": 1}, "battery": null, """ +
@@ -195,16 +200,18 @@ public object RuntimeGoldens {
             """"payload":{"objectId":"robot","revision":64,"value":$RELATIONS_VALUE}}"""
 
     /**
-     * A `stateChange` push whose payload members stand in another order than org.json writes them (`modelElementId`,
-     * `revision`, `stack`), with a stack of two states, one with a space; readers must not depend on the order.
+     * A `stateChange` push whose payload members come in another order than org.json writes them, namely
+     * `modelElementId`, `revision`, `stack`. The stack has two states, and one of them has a space. Readers must not
+     * depend on the order.
      */
     public const val STATE_CHANGE_REORDERED: String =
         """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"stateChange",""" +
             """"payload":{"modelElementId":"lamp","revision":65,"stack":["on","full power"]}}"""
 
     /**
-     * A `domainEvent` push whose published event lists its members in the documented order (`event`, `payload`,
-     * `payloadFormat`, `source`, `timestamp`, `ttlMs`) rather than in org.json's; readers must not depend on the order.
+     * A `domainEvent` push whose published event lists its members in the documented order `event`, `payload`,
+     * `payloadFormat`, `source`, `timestamp`, `ttlMs`, rather than in org.json's order. Readers must not depend on the
+     * order.
      */
     public const val DOMAIN_EVENT_REORDERED: String =
         """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"domainEvent","payload":{"domain":"switch",""" +

@@ -18,12 +18,12 @@ package io.karpfen.ide.runtime.protocol.transport
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * The two seams through which the client reaches a runtime, and what they hold: the Ktor adapter's HTTP client in
- * production, nothing for a fake.
+ * The two seams through which the client reaches a runtime, and what they hold. In production they hold the Ktor
+ * adapter's HTTP client. For a fake they hold nothing.
  *
  * @property http the HTTP seam.
  * @property webSockets the WebSocket seam.
- * @param release frees what the transports hold; [close] calls it once.
+ * @param release frees what the transports hold. [close] calls it once.
  */
 public class RuntimeTransports(
     public val http: RuntimeHttp,
@@ -34,7 +34,7 @@ public class RuntimeTransports(
     /** Whether [close] ran. */
     private val closed = AtomicBoolean(false)
 
-    /** Frees what the transports hold; idempotent, so [release] runs once. */
+    /** Frees what the transports hold. Calling it again does nothing, so [release] runs once. */
     override fun close() {
         if (closed.compareAndSet(false, true)) release()
     }

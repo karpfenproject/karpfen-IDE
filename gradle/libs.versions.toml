@@ -1,10 +1,11 @@
-# Single source of truth for every external version used by karpfen IDE.
-# Used by the main build (default location) and by build-logic (see build-logic/settings.gradle.kts).
+# Every external version that karpfen IDE uses is declared here and nowhere else.
+# The main build reads this file from its default location. build-logic reads it through its own settings.gradle.kts.
 
 [versions]
 kotlin = "2.4.21"
 compose-multiplatform = "1.12.2"
-# Compose Multiplatform 1.12.2 maps its material3 accessor to this version (material3 is versioned separately).
+# Material 3 is versioned separately from Compose Multiplatform. Compose Multiplatform 1.12.2 maps its material3
+# accessor to this version.
 compose-material3 = "1.9.0"
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.12.0"
@@ -17,11 +18,12 @@ junit = "6.1.3"
 konsist = "0.18.1"
 slf4j = "2.0.20"
 logback = "1.6.5"
-# The JSON library of karpfen-runtime in the version the runtime pins; runtime-protocol's test fixtures write and parse
-# JSON with it exactly as the runtime does.
+# The JSON library of karpfen-runtime, in the version the runtime pins. runtime-protocol's test fixtures write and
+# parse JSON with it exactly as the runtime does.
 org-json = "20240303"
 karpfen-dsl-tools = "2.0.0-SNAPSHOT"
-# Also hard-coded in settings.gradle.kts: version catalogs are not available in the settings plugins block.
+# Also written out in settings.gradle.kts, because the version catalog is not available in the plugins block of the
+# settings. Keep both in sync.
 foojay-resolver = "1.0.0"
 
 [libraries]
@@ -32,8 +34,8 @@ karpfen-dsl-tools = { module = "io.karpfen:karpfen-dsl-tools", version.ref = "ka
 antlr4-runtime = { module = "org.antlr:antlr4-runtime" }
 
 # --- kotlinx -----------------------------------------------------------------------------------
-# The BOMs are applied to every module by karpfen.kotlin-jvm, so transitive dependencies (Compose, Ktor) cannot pull
-# a module down to an older kotlinx version than the one the app ships with.
+# karpfen.kotlin-jvm applies the BOMs to every module, so transitive dependencies such as those of Compose and Ktor
+# cannot pull a module down to an older kotlinx version than the one the app ships with.
 kotlinx-coroutines-bom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-bom = { module = "org.jetbrains.kotlinx:kotlinx-serialization-bom", version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
@@ -58,10 +60,10 @@ docker-java-core = { module = "com.github.docker-java:docker-java-core", version
 docker-java-transport-httpclient5 = { module = "com.github.docker-java:docker-java-transport-httpclient5", version.ref = "docker-java" }
 hivemq-mqtt-client = { module = "com.hivemq:hivemq-mqtt-client", version.ref = "hivemq-mqtt" }
 
-# --- tools (later: tools/lsp-server) -----------------------------------------------------------
+# --- tools, for the planned language server tools/lsp-server ----------------------------------
 lsp4j = { module = "org.eclipse.lsp4j:org.eclipse.lsp4j", version.ref = "lsp4j" }
 
-# --- Compose Multiplatform (desktop); the OS-specific desktop artifact comes from compose.desktop.currentOs
+# --- Compose Multiplatform for desktop. The desktop artifact of the current OS comes from compose.desktop.currentOs.
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
 compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "compose-multiplatform" }
@@ -100,8 +102,8 @@ elk = ["elk-core", "elk-alg-layered"]
 testing = ["kotlin-test-junit5", "junit-jupiter"]
 
 [plugins]
-# The plugin implementations reach the modules through build-logic (karpfen.* convention plugins);
-# these aliases document the versions and are available for one-off use.
+# The plugin implementations reach the modules through the karpfen.* convention plugins of build-logic.
+# These aliases record the versions and are available for one-off use.
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

@@ -39,7 +39,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-/** Tabs: opening, dirty marker, saving, closing with unsaved changes, external-change conflicts. */
+/**
+ * Tests the tab flows. They cover opening, the dirty marker, saving, closing with unsaved changes, and conflicts with
+ * changes on disk.
+ */
 class TabFlowsTest {
 
     @TempDir
@@ -259,7 +262,9 @@ class TabFlowsTest {
         assertNoDialog()
     }
 
-    /** Edits [machine] and [model], activates the model's tab and changes the machine on disk (a `git pull`). */
+    /**
+     * Edits [machine] and [model], activates the model's tab and changes the machine on disk, as a `git pull` would.
+     */
     private fun TestWorkbench.externalChangeInBackgroundTab(): String {
         openEditor(machine)
         edit(machine)
@@ -276,7 +281,7 @@ class TabFlowsTest {
 
     private fun TestWorkbench.conflictOf(path: Path): ExternalChangeKind? = state.tabs.tabs.value.single { it.path == path }.conflict
 
-    /** Asserts that saving over the external change of [path] is to be confirmed, and answers [response]. */
+    /** Asserts that saving over the change on disk of [path] asks for confirmation, and answers with [response]. */
     private fun TestWorkbench.answerOverwrite(path: Path, response: DialogResponse) {
         val asked = answer(DialogRequest.ConfirmOverwrite::class, response)
         assertEquals(listOf(path), asked.paths)

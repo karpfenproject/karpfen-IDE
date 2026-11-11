@@ -21,12 +21,12 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * The JSON tree of a descriptor text, for the environment providers. A descriptor's parse outcome carries outline,
- * spans and diagnostics but not the tree itself, so the providers read the text again with core-document's
- * [JsonParser]; descriptors are a few hundred characters, and the tree always belongs to the request's own text, so the
- * staleness rule of `LanguageDocument` never applies. The tree of the latest text is kept, because completion, hover
- * and bracket matching ask for the same text one after the other. Thread-safe: the kept pair is replaced atomically and
- * both parts are immutable.
+ * The JSON tree of a descriptor text, for the environment providers. The parse outcome of a descriptor carries the
+ * outline, spans and diagnostics but not the tree itself. So the providers read the text again with the [JsonParser]
+ * of core-document. Descriptors are a few hundred characters long. The tree always belongs to the text of the request,
+ * so the staleness rule of `LanguageDocument` never applies. The tree of the latest text is kept, because completion,
+ * hover and bracket matching ask for the same text one after the other. The class is thread-safe. The kept pair of
+ * text and tree is replaced atomically, and both parts are immutable.
  */
 internal class DescriptorTrees {
 

@@ -47,9 +47,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * `karpfen validate` end to end on real folders: the examples (exit 0, nothing printed), broken copies, loose files and
- * the shared descriptor examples, through the real workspace on virtual time, with both process streams captured; what
- * dsl-tools logs stays off unless `--verbose` shows it on standard error.
+ * `karpfen validate` end to end on real folders, through the real workspace on virtual time, with both process streams
+ * captured. The folders are the examples, which exit with 0 and print nothing, broken copies, loose files and the
+ * shared descriptor examples. What dsl-tools logs stays off unless `--verbose` shows it on standard error.
  */
 class ValidateCliTest {
 
@@ -69,8 +69,8 @@ class ValidateCliTest {
 
     /**
      * Proves that nothing prints while a workspace analyzes the examples, so the report needs no guard around the
-     * analysis: the dsl-tools readers report what they find as diagnostics and log only a read that fails, which no
-     * example makes them do, even while what dsl-tools logs is shown at DEBUG, as `--verbose` shows it.
+     * analysis. The dsl-tools readers report what they find as diagnostics and log only a read that fails. No example
+     * makes a read fail, and nothing prints even while what dsl-tools logs is shown at DEBUG, as `--verbose` shows it.
      */
     @Test
     fun `analyzing the examples writes nothing to the console, even with the loggers of dsl-tools at DEBUG`() =
@@ -92,11 +92,11 @@ class ValidateCliTest {
         }
 
     /**
-     * What dsl-tools logs while a workspace analyzes is the failure of a reader, here a real one: a KStates text within
-     * the nesting limit nests deeper than the reader can follow on the small stack it reads with ([SmallStackDslReader]),
-     * while the IDE's syntax analysis follows it on the large stack the validation runs on. The failure is a
-     * `reader.failure` in the report either way; dsl-tools logs it as a warning naming the file, which `--verbose` shows
-     * on standard error and which stays off without it.
+     * What dsl-tools logs while a workspace analyzes is here the failure of a real reader. A KStates text within the
+     * nesting limit nests deeper than the reader can follow on the small stack it reads with, [SmallStackDslReader].
+     * The IDE's syntax analysis still follows it on the large stack the validation runs on. The failure is a
+     * `reader.failure` in the report either way. dsl-tools also logs it as a warning that names the file. `--verbose`
+     * shows that warning on standard error, and without it the warning stays off.
      */
     @Test
     fun `verbose shows what dsl-tools logs on standard error and leaves standard output to the report`() =
@@ -122,8 +122,8 @@ class ValidateCliTest {
         }
 
     /**
-     * A text that nests deeper than the nesting limit of the parsers is an error in the report at the brace that opens
-     * the first level too many, and leaves standard error empty: neither a stack trace nor what dsl-tools logs floods the
+     * A text that nests deeper than the nesting limit of the parsers is an error in the report, at the brace that opens
+     * the first level too many. Standard error stays empty. Neither a stack trace nor what dsl-tools logs floods the
      * console, because nothing parses or reads the text.
      */
     @Test
@@ -360,15 +360,15 @@ class ValidateCliTest {
     }
 
     /**
-     * A modeling context in [folder] of a metamodel and a state machine whose states nest [depth] levels deep
-     * ([DeepNesting.kstates]).
+     * A modeling context in [folder] of a metamodel and a state machine whose states nest [depth] levels deep, built by
+     * [DeepNesting.kstates].
      */
     private fun deeplyNestedContext(depth: Int, folder: String = "deep"): Path =
         nestedContext(DeepNesting.kstates(depth), folder)
 
     /**
      * A modeling context in [folder] of a metamodel and the state machine [stateMachine], which [DeepNesting] makes
-     * nest deep; by default one whose action nests [READER_DEPTH] guards deep, more than a dsl-tools reader follows on
+     * nest deep. By default its action nests [READER_DEPTH] guards deep, more than a dsl-tools reader follows on
      * [DeepNesting.SMALL_STACK].
      */
     private fun nestedContext(stateMachine: String = DeepNesting.guardedKstates(READER_DEPTH), folder: String = "deep"): Path {
@@ -380,7 +380,7 @@ class ValidateCliTest {
 
     /**
      * The one-based `line:col` of the opening brace of [kstates], a [DeepNesting.kstates] document, that opens the first
-     * level beyond the nesting limit: the brace of the state at that level.
+     * level beyond the nesting limit. That is the brace of the state at that level.
      */
     private fun firstBraceBeyondLimit(kstates: Path): String {
         val opening = "STATE \"s${NestingLimit.MAX_DEPTH - DeepNesting.STRUCTURE_DEPTH + 1}\" {"
@@ -407,8 +407,8 @@ class ValidateCliTest {
 
     private companion object {
         /**
-         * How many guards [nestedContext] nests by default: too many for a dsl-tools reader on [DeepNesting.SMALL_STACK],
-         * within the nesting limit of the IDE's syntax analysis.
+         * How many guards [nestedContext] nests by default. That is too many for a dsl-tools reader on
+         * [DeepNesting.SMALL_STACK], but within the nesting limit of the IDE's syntax analysis.
          */
         const val READER_DEPTH = NestingLimit.MAX_DEPTH - DeepNesting.GUARDS_STRUCTURE_DEPTH
 

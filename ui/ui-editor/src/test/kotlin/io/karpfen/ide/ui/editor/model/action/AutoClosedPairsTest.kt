@@ -26,9 +26,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The version-stamped tracker of auto-inserted closers, mapped on query. */
+/** The tracker of auto-inserted closers. It stamps each entry with a text version and maps the entries when queried. */
 class AutoClosedPairsTest {
 
+    /** Applies [edit] to this text as typing. */
     private fun EditableText.edit(edit: TextEdit) = apply(listOf(edit), EditOrigin.Typing)
 
     @Test

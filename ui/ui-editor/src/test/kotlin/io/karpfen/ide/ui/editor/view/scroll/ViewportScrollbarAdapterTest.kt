@@ -24,7 +24,10 @@ import kotlin.test.assertEquals
 /** The scrollbar adapters read one axis of the viewport and scroll it. */
 class ViewportScrollbarAdapterTest {
 
+    /** A viewport 300 px wide and 200 px high with lines of 20 px, over content 1000 px wide and 2000 px high. */
     private val viewport = EditorViewport().apply { updateGeometry(300f, 200f, 20f, 1000f, 2000f) }
+
+    /** The viewport state that the adapters read. Tests copy the current state into it after scrolling. */
     private val snapshot = mutableStateOf(viewport.state.value)
 
     @Test

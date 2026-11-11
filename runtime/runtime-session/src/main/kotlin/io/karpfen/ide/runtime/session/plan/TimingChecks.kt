@@ -19,7 +19,7 @@ import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 
-/** Finds a tick delay below 0 or above the largest `Int`, the type the runtime parses it as. */
+/** Finds a tick delay below 0 or above the largest `Int`. The runtime parses the tick delay as an `Int`. */
 internal class TickDelayRangeCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> {
         val descriptor = subject.environment ?: return emptyList()
@@ -54,8 +54,8 @@ internal class TickDelayZeroCheck : PlanCheck {
 }
 
 /**
- * Finds an event time to live with which events never expire: 0, which the runtime defines so, as an info, and a
- * negative value, which behaves like 0, as a warning.
+ * Finds an event time to live with which events never expire. A value of 0 is reported as an info, because the runtime
+ * defines 0 that way. A negative value behaves like 0 and is reported as a warning.
  */
 internal class EventTtlCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> {

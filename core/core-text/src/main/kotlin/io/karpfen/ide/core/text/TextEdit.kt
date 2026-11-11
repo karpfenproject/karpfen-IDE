@@ -16,15 +16,15 @@
 package io.karpfen.ide.core.text
 
 /**
- * Replaces the text in [range] by [newText]. Ranges are expressed in the coordinates of the text *before* the edit
- * (see [EditableText.apply] for how several edits combine).
+ * Replaces the text in [range] by [newText]. Ranges are expressed in the coordinates of the text *before* the edit.
+ * [EditableText.apply] describes how several edits combine.
  */
 public data class TextEdit(public val range: TextRange, public val newText: String) {
 
     /** Change of the document length caused by this edit. */
     public val lengthDelta: Int get() = newText.length - range.length
 
-    /** True if the edit changes nothing (empty range, empty text). */
+    /** True if the edit changes nothing, because both its range and its text are empty. */
     public val isNoOp: Boolean get() = range.isEmpty && newText.isEmpty()
 
     /** True if the edit only inserts text. */

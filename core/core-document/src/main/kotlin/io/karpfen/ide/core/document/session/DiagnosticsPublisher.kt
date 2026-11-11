@@ -28,11 +28,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * Publishes the merged [diagnostics] of a document: recomputed with [merger] in the session's scope whenever the text,
- * the tokens, the parse outcome or an external set changes.
+ * Publishes the merged [diagnostics] of a document. They are recomputed with [merger] in the session's scope whenever
+ * the text, the tokens, the parse outcome or an external set changes.
  *
- * @param initialTokens the tokens of the initial snapshot; the initial value is their merge (no parse, no externals),
- *   computed synchronously.
+ * @param initialTokens the tokens of the initial snapshot. The initial value is their merge without a parse outcome
+ *   and without external sets, computed synchronously.
  */
 internal class DiagnosticsPublisher(private val merger: DiagnosticsMerger, initialTokens: TokenizeResult) {
 
@@ -41,7 +41,7 @@ internal class DiagnosticsPublisher(private val merger: DiagnosticsMerger, initi
     /** The latest merged diagnostics. */
     val diagnostics: StateFlow<VersionedDiagnostics> = state.asStateFlow()
 
-    /** Starts merging the given sources in [scope]; the returned job ends with the scope. */
+    /** Starts merging the given sources in [scope]. The returned job ends with the scope. */
     fun start(
         scope: CoroutineScope,
         snapshots: Flow<TextSnapshot>,

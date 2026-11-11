@@ -20,9 +20,10 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.caret.Caret
 
 /**
- * The whole lines a line action works on (lines [first]..[last], zero-based): the lines touched by the caret's
- * selection, without a last line the selection only reaches at its column 0 (selecting two full lines with the line
- * break of the second must not affect the third), or the caret's line without selection.
+ * The whole lines a line action works on, from line [first] to line [last], both zero-based. With a selection, these
+ * are the lines the selection touches. A last line that the selection reaches only at its column 0 does not count,
+ * because selecting two full lines including the line break of the second must not affect the third. Without a
+ * selection, the block is the caret's line.
  */
 internal data class LineBlock(val first: Int, val last: Int) {
 
@@ -30,15 +31,16 @@ internal data class LineBlock(val first: Int, val last: Int) {
     fun range(snapshot: TextSnapshot): TextRange =
         TextRange(snapshot.lineIndex.lineStart(first), snapshot.lineIndex.lineEnd(last))
 
-    /** The block's text (lines joined by `\n`, without the final line break). */
+    /** The block's text. Its lines are joined by `\n` and the final line break is not included. */
     fun text(snapshot: TextSnapshot): String = snapshot.substring(range(snapshot))
 
     /** The lines of the block, in order. */
     val lines: IntRange get() = first..last
 
     /**
-     * What deleting the block's lines removes: the lines with their following line break, or — for a block ending on
-     * the last line — with the line break before them; the whole text for a block covering every line.
+     * Returns what deleting the block's lines removes. Usually this is the lines with their following line break. A
+     * block that ends on the last line of the text has no following line break, so the line break before it goes
+     * instead. A block that covers every line removes the whole text.
      */
     fun deletionRange(snapshot: TextSnapshot): TextRange {
         val index = snapshot.lineIndex
@@ -50,9 +52,10 @@ internal data class LineBlock(val first: Int, val last: Int) {
     }
 
     /**
-     * The caret after deleting the block (see [deletionRange]) when it was at [column] of its line: the same column
-     * (clamped) on the line that takes the block's place — the following line, or the previous one for a block at the
-     * end of the text. Offsets of the text after the deletion.
+     * Returns the caret offset after deleting the block with [deletionRange], for a caret that was at [column] of its
+     * line. The caret goes to the same column on the line that takes the block's place, clamped to that line's length.
+     * That line is the following line, or the previous one for a block at the end of the text. The result is an offset
+     * of the text after the deletion.
      */
     fun caretAfterDeletion(snapshot: TextSnapshot, column: Int): Int {
         val index = snapshot.lineIndex
@@ -66,7 +69,7 @@ internal data class LineBlock(val first: Int, val last: Int) {
         }
     }
 
-    /** Creation from a caret. */
+    /** Creates blocks from carets. */
     companion object {
         /** The block of [caret] in [snapshot]. */
         fun of(snapshot: TextSnapshot, caret: Caret): LineBlock {

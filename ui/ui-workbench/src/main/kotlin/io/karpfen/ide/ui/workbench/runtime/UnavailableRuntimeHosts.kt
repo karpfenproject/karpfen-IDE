@@ -32,8 +32,9 @@ import kotlinx.coroutines.flow.flowOf
 import java.nio.file.Path
 
 /**
- * The host factory of a composition without runtime hosts: each host stays stopped and answers every start with
- * [HostProblemCode.ENGINE_UNAVAILABLE]. The workbench services use it unless the composition root hands in the hosts.
+ * The host factory of a composition without runtime hosts. Each host stays stopped and answers every start with
+ * [HostProblemCode.ENGINE_UNAVAILABLE]. The workbench services use it unless the composition root hands in the real
+ * hosts. Tests that run the production wiring therefore never reach Docker or a runtime at a URL.
  */
 internal class UnavailableRuntimeHosts : RuntimeHostFactory {
     override fun create(workspaceRoot: Path, settings: RuntimeHostSettings): RuntimeHost = UnavailableHost(settings.kind)

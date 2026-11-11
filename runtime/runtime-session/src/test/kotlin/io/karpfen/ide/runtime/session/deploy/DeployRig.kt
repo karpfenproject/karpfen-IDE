@@ -35,10 +35,10 @@ import java.nio.file.Path
 import kotlin.test.assertIs
 
 /**
- * The doubles of one deployment test wired together: a scripted client, its environment and connection, a scripted
- * observation, a recording listener and a ledger, all on the virtual time of [scope].
+ * The doubles of one deployment test wired together. These are a scripted client, its environment and connection, a
+ * scripted observation, a recording listener and a ledger, all on the virtual time of [scope].
  *
- * @param scope the test's scope; the connection runs in its background scope.
+ * @param scope the test's scope. The connection runs in its background scope.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class DeployRig(private val scope: TestScope) {
@@ -71,8 +71,8 @@ internal class DeployRig(private val scope: TestScope) {
 }
 
 /**
- * Plans of a lamp with a wall switch, built without a workspace: a metamodel, event definitions, a model with the
- * objects `lamp`, `bulb` and `spare`, and two machines attached to `lamp` and `wallSwitch`.
+ * Plans of a lamp with a wall switch, built without a workspace. They hold a metamodel, event definitions, a model with
+ * the objects `lamp`, `bulb` and `spare`, and two machines attached to `lamp` and `wallSwitch`.
  */
 internal object LampPlans {
     /** The folder of the lamp's files. */
@@ -105,7 +105,7 @@ internal object LampPlans {
     /** The machine of the wall switch. */
     val switchMachine: PlannedUpload = upload(UploadRole.STATE_MACHINE, "switch.kstates", "wallSwitch")
 
-    /** Where the model's objects are declared: at their keys in the model text. */
+    /** Where the model's objects are declared, which is at their keys in the model text. */
     val locations: DeclarationLocations = DeclarationLocations(
         objects = mapOf(modelFile to listOf("lamp", "bulb", "spare").associateWith { rangeOf(it) }),
         snapshots = mapOf(modelFile to modelSnapshot),
@@ -173,8 +173,8 @@ internal object Failures {
 internal fun lampSnapshot(phase: RuntimePhase, activeStates: Map<String, List<String>>): RuntimeModelSnapshot =
     RuntimeModelSnapshot(ENVIRONMENT, phase, activeStates.size.toLong(), activeStates, emptyList())
 
-/** The deployed environment of a successful result, failing the test otherwise. */
+/** The deployed environment of a successful result. It fails the test for any other result. */
 internal fun DeploymentResult.deployed(): DeploymentResult.Deployed = assertIs<DeploymentResult.Deployed>(this, "expected a deployment: $this")
 
-/** The failure of a failed result, failing the test otherwise. */
+/** The failure of a failed result. It fails the test for any other result. */
 internal fun DeploymentResult.failed(): DeploymentResult.Failed = assertIs<DeploymentResult.Failed>(this, "expected a failed deployment: $this")

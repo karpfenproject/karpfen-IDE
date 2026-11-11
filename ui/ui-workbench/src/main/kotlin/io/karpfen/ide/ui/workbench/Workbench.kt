@@ -45,16 +45,24 @@ import io.karpfen.ide.ui.workbench.welcome.view.WelcomeView
 import java.nio.file.Path
 
 /**
- * The workbench window content: Project tree (left), editor tabs with `CodeEditor` and the popups (centre), Outline
- * (right), Problems, the Language Tools Output and the Runtime (bottom), status bar, dialogs; the empty state with
- * "Open Folder…" and recent folders when no folder is open. The status bar's indicator of unseen problems of the
- * language tools shows their output, its runtime status the Runtime tool window. Provides the light/dark
- * `KarpfenTheme` and `LocalEditorTheme` from `state.layout` (theme) and lays out the tool windows from it with
- * size-based `SplitPane`s (`fixedSize = toolWindow.size.dp`, `onFixedSizeChange = { layout.resizeToolWindow(id,
- * it.value) }`; PROJECT is the FIRST pane, OUTLINE, PROBLEMS, OUTPUT and RUNTIME the SECOND). Renders [state]'s
- * sub-states (each feature's view from its `view` package) and calls its non-suspending intents and the sub-states'
- * public UI intents; contains no business logic and launches no coroutines for intents. The pending dialog is modal
- * for the pointer and the keyboard ([ModalDialogLayer]).
+ * The content of the workbench window. The Project tree sits on the left. The editor tabs with the `CodeEditor` and
+ * its popups fill the centre. The Outline sits on the right. Problems, the Language Tools Output and the Runtime tool
+ * window sit at the bottom, above the status bar. Dialogs are shown over all of it. While no folder is open, the window
+ * shows the welcome view with "Open Folder…" and the recent folders instead.
+ *
+ * A click on the status bar's indicator of unseen language tool problems shows the Language Tools Output. A click on
+ * its runtime status shows the Runtime tool window.
+ *
+ * The composable provides the light or dark `KarpfenTheme` and the matching `LocalEditorTheme` from the theme in
+ * `state.layout`. It lays out the tool windows from the same layout with size-based `SplitPane`s. The fixed size of
+ * each split is the tool window's persisted size in dp, and a drag of the divider reports the new size back through
+ * `layout.resizeToolWindow`. The Project tool window is the first pane of its split. Outline, Problems, Output and
+ * Runtime are the second pane of theirs.
+ *
+ * It renders the sub-states of [state], each through the view in that feature's `view` package. It only calls the
+ * non-suspending intents of [state] and the public UI intents of the sub-states. It contains no business logic and
+ * launches no coroutines for intents. The pending dialog is modal for both the pointer and the keyboard, which
+ * [ModalDialogLayer] enforces.
  */
 @Composable
 public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
@@ -101,7 +109,7 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
     }
 }
 
-/** The Project tool window over [state]'s project tree; empty while no tree is loaded. */
+/** The Project tool window over [state]'s project tree. It stays empty while no tree is loaded. */
 @Composable
 private fun ProjectPane(state: WorkbenchState) {
     val tree = state.projectTree
@@ -159,7 +167,7 @@ private fun OutputPane(state: WorkbenchState) {
     )
 }
 
-/** The Runtime tool window of [state]'s workspace; empty while no workspace is open. */
+/** The Runtime tool window of [state]'s workspace. It stays empty while no workspace is open. */
 @Composable
 private fun RuntimePane(state: WorkbenchState) {
     val runtime by state.runtime.collectAsState()

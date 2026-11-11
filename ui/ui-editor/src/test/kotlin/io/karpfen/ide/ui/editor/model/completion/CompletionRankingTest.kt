@@ -24,12 +24,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Filtering and ranking: prefix > camel/word-boundary > subsequence, stable by sortKey and label. */
+/**
+ * Filtering and ranking. A prefix match ranks above a camel-case or word-boundary match, which ranks above a
+ * subsequence match. Equal matches keep a stable order by sort key and label.
+ */
 class CompletionRankingTest {
 
+    /** A keyword item for [label] with an empty replace range. */
     private fun item(label: String, sortKey: String = label, detail: String? = null) =
         CompletionItem(label, CompletionKind.KEYWORD, label, TextRange.EMPTY, null, detail, null, sortKey)
 
+    /** The [labels] that match [filter], in ranked order. */
     private fun ranked(filter: String, vararg labels: String): List<String> =
         CompletionRanking.rank(labels.map { item(it) }, filter).map { it.label }
 

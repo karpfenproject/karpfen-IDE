@@ -29,8 +29,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers the file-system scanner: the tree order (directories first, case-insensitive names), the ignore rules for
- * directories, symbolic links and cycles, and directories that cannot be listed.
+ * Covers the file-system scanner. It checks the tree order, with directories first and names compared ignoring case.
+ * It checks the ignore rules for directories, symbolic links and cycles, and directories that cannot be listed.
  */
 class FileSystemWorkspaceScannerTest {
 

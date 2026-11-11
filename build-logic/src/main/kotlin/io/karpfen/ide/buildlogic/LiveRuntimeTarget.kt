@@ -48,10 +48,10 @@ class LiveRuntimeTarget(
     }
 
     private companion object {
-        /** The URL schemes of a runtime: the client reaches its HTTP routes and derives the WebSocket URL from them. */
+        /** The URL schemes of a runtime. The client reaches its HTTP routes and derives the WebSocket URL from them. */
         val SCHEMES = listOf("http://", "https://")
 
-        /** Why the task cannot run: no URL, or none that names an HTTP endpoint. */
+        /** Why the task cannot run, when there is no URL or none that names an HTTP endpoint. */
         const val MISSING_URL: String = "${LiveRuntimeTesting.TASK_NAME} needs -P${LiveRuntimeTesting.URL_PROPERTY}=" +
             "http://<host>:<port>; runtime/live-runtime.sh test starts a runtime in Docker and passes it"
     }

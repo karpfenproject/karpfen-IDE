@@ -21,8 +21,9 @@ import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Duplicate (primary+D): with a selection, inserts a copy of it after the selection and selects the copy; without,
- * inserts a copy of the caret's line(s) below them and moves the caret into the copy (same column).
+ * Duplicate, bound to primary+D. With a selection, it inserts a copy of the selected text right after the selection
+ * and selects the copy. Without a selection, it inserts a copy of the caret's lines below them and moves the caret into
+ * the copy, at the same column.
  */
 internal class LineDuplication(private val name: String) : LineEdit {
     override fun execute(context: EditorActionContext): Boolean {
@@ -47,8 +48,9 @@ internal class LineDuplication(private val name: String) : LineEdit {
 }
 
 /**
- * Move line up/down (Alt+Shift+Up/Down): swaps the caret's line block with the line above ([up]) or below; the carets
- * move with the block. False at the start (end) of the text.
+ * Move line up or down, bound to Alt+Shift+Up and Alt+Shift+Down. It swaps the caret's line block with the line above
+ * it when [up] is true, or with the line below it otherwise. The caret moves with the block. It returns false when
+ * there is no line to swap with, at the start or the end of the text.
  */
 internal class LineMove(private val up: Boolean, private val name: String) : LineEdit {
     override fun execute(context: EditorActionContext): Boolean {
@@ -76,9 +78,9 @@ internal class LineMove(private val up: Boolean, private val name: String) : Lin
 }
 
 /**
- * Indent (Tab): without a selection spanning lines, replaces the selection by spaces up to the next 4-column stop;
- * with one, inserts one indentation level at the start of every non-empty line of the block (the selection grows over
- * the inserted indentation).
+ * Indent, bound to Tab. If the selection does not span lines, it replaces the selection with spaces up to the next
+ * 4-column stop. If the selection spans lines, it inserts one indentation level at the start of every non-empty line
+ * of the block, and the selection grows over the inserted indentation.
  */
 internal class LineIndent(private val name: String) : LineEdit {
     override fun execute(context: EditorActionContext): Boolean {
@@ -100,8 +102,8 @@ internal class LineIndent(private val name: String) : LineEdit {
 }
 
 /**
- * Outdent (Shift+Tab): removes one indentation level from every line of the block — a leading tab, or the leading
- * spaces back to the previous 4-column stop. False if no line is indented.
+ * Outdent, bound to Shift+Tab. It removes one indentation level from every line of the block. That is a leading tab,
+ * or the leading spaces back to the previous 4-column stop. It returns false if no line is indented.
  */
 internal class LineOutdent(private val name: String) : LineEdit {
     override fun execute(context: EditorActionContext): Boolean {

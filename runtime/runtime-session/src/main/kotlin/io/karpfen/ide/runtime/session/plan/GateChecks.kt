@@ -40,7 +40,7 @@ internal class NoContextCheck : PlanCheck {
 
 /**
  * Finds files of the context and the descriptor that still differ from their saved state, because they were edited
- * while the deployment was prepared: the deployment uploads saved files only.
+ * while the deployment was prepared. The deployment uploads saved files only.
  */
 internal class UnsavedFileCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> =
@@ -56,11 +56,11 @@ internal class UnsavedFileCheck : PlanCheck {
 }
 
 /**
- * Finds the errors in the analyzed texts the deployment would upload: for a file of the context, its own diagnostics
- * and the project diagnostics of the same analysis; for the descriptor, its project diagnostics. These belong to
- * exactly the analyzed snapshots, unlike the workspace's problems, whose entries for open documents may belong to a
- * newer text. One problem per file, at its first error, with the count; a file of the context the analysis could not
- * load is an error too.
+ * Finds the errors in the analyzed texts that the deployment would upload. For a file of the context, it reads the
+ * file's own diagnostics and the project diagnostics of the same analysis. For the descriptor, it reads its project
+ * diagnostics. These belong to exactly the analyzed snapshots. The workspace's problems are different, because their
+ * entries for open documents may belong to a newer text. The check reports one problem per file, at its first error,
+ * with the error count. A file of the context that the analysis could not load is an error too.
  */
 internal class ContextErrorsCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> {
@@ -95,7 +95,7 @@ internal class ContextErrorsCheck : PlanCheck {
     private fun errorsOf(diagnostics: List<Diagnostic>): List<Diagnostic> =
         diagnostics.filter { it.severity == Severity.ERROR }.distinct().sortedWith(Diagnostic.ORDER)
 
-    /** The problem of the file [name] with [errors], at [location], the first error's. */
+    /** The problem of the file [name] with [errors], at [location], which is the location of the first error. */
     private fun problem(name: String, errors: List<Diagnostic>, location: SourceLocation): DeployProblem {
         val count = if (errors.size == 1) "an error" else "${errors.size} errors"
         return DeployProblem(

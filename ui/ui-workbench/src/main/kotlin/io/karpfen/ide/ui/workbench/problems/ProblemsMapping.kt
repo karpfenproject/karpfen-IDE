@@ -22,11 +22,14 @@ import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import java.nio.file.Path
 
 /**
- * Maps `Workspace.problems` onto the Problems view's [ProblemsUiState]: one group per file in the order of
- * [WorkspaceProblems.files], items in diagnostic order with one-based `line:col` from `FileProblems.positionOf` and the
- * snapshot's version and lineage, filtered by severity; the counts are the workspace's, before filtering. Only maps and
- * filters: the diagnostics are combined by `Workspace.problems`, the one problems rule of core-workspace that the
- * Problems view, the status bar and `karpfen validate` share, so they always agree. Pure.
+ * Maps `Workspace.problems` onto the [ProblemsUiState] of the Problems view. It is pure.
+ *
+ * There is one group per file, in the order of [WorkspaceProblems.files]. The items keep the order of the diagnostics.
+ * Each item has a one-based `line:col` from `FileProblems.positionOf` and the version and lineage of the file's
+ * snapshot. Items are filtered by severity. The counts are those of the workspace, taken before filtering.
+ *
+ * The mapping only maps and filters. `Workspace.problems` combines the diagnostics. It is the single problems rule of
+ * core-workspace. The Problems view, the status bar and `karpfen validate` all share it, so they always agree.
  */
 internal object ProblemsMapping {
 
@@ -38,7 +41,7 @@ internal object ProblemsMapping {
         warningCount = problems.warningCount,
     )
 
-    /** True if [filter] shows diagnostics of [severity] (hints count as infos). */
+    /** True if [filter] shows diagnostics of [severity]. Hints count as infos. */
     fun shows(filter: ProblemFilter, severity: Severity): Boolean = when (severity) {
         Severity.ERROR -> filter.showErrors
         Severity.WARNING -> filter.showWarnings
@@ -62,7 +65,10 @@ internal object ProblemsMapping {
         )
     }
 
-    /** [path] relative to [root] with `/` separators, or the whole path for the root itself and paths outside it. */
+    /**
+     * [path] relative to [root] with `/` separators. The root itself and paths outside the root are shown as whole
+     * paths.
+     */
     private fun displayPath(path: Path, root: Path): String =
         if (path.startsWith(root) && path != root) root.relativize(path).joinToString("/") else path.toString()
 }

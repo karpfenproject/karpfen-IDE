@@ -28,7 +28,7 @@ import io.karpfen.ide.runtime.session.states.MachineLayout
  *
  * @property plan what the deployment uploads, sets and registers, with the warnings and infos of its checks.
  * @property schema the types of the domain metamodel, with which the runtime's JSON is read.
- * @property seed the model as the IDE analyzed it: what the runtime is expected to report before anything ran.
+ * @property seed the model as the IDE analyzed it. It is what the runtime is expected to report before anything ran.
  * @property layouts one layout per attached state machine, in descriptor order, with its predicted initial stack.
  * @property catalog the injectable events of every event domain the state machines use.
  */
@@ -40,7 +40,7 @@ public data class PreparedDeployment(
     public val catalog: EventCatalog,
 )
 
-/** What preparing a deployment answers: a prepared deployment, or the problems that block it. Immutable. */
+/** What preparing a deployment returns, which is a prepared deployment or the problems that block it. Immutable. */
 public sealed interface Preparation {
     /**
      * The deployment can be launched.

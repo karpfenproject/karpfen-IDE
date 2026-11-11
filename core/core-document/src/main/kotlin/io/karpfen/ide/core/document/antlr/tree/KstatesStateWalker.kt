@@ -23,10 +23,10 @@ import io.karpfen.ide.core.text.TextRange
 import org.antlr.v4.runtime.ParserRuleContext
 
 /**
- * Walks the `STATES { … }` block of a KStates tree: every `STATE "s" { … }` (also `INITIAL STATE`) is a
- * STATE declaration (container: the parent state, null at top level) with a STATE_NAME span and an outline node whose
- * children are its ENTRY and DO block nodes (named `ENTRY`/`DO`, selecting the keyword; their children are the WITH
- * bindings, see [KstatesActionWalker]) and its nested states.
+ * Walks the `STATES { }` block of a KStates tree. Every `STATE "s" { }`, including `INITIAL STATE`, becomes a STATE
+ * declaration with a STATE_NAME span. Its container is the parent state, or null at the top level. It also gets an
+ * outline node. The children of that node are its ENTRY and DO block nodes and its nested states. A block node is
+ * named `ENTRY` or `DO` and selects its keyword. Its children are the WITH bindings that [KstatesActionWalker] finds.
  */
 internal class KstatesStateWalker(
     private val tree: ParsedTree<*>,
@@ -51,7 +51,10 @@ internal class KstatesStateWalker(
         return node
     }
 
-    /** The outline node of an ENTRY or DO block, named and selected by its keyword, with its WITH bindings as children. */
+    /**
+     * The outline node of an ENTRY or DO block. It is named after its keyword and selects it, and its children are the
+     * WITH bindings of the block.
+     */
     private fun block(
         kind: SymbolKind,
         keywordText: String,

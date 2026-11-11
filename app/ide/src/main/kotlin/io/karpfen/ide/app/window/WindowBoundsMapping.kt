@@ -28,15 +28,15 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapNotNull
 import kotlin.math.roundToInt
 
-/** Size of the main window without persisted bounds (dp). */
+/** Size of the main window without persisted bounds, in dp. */
 internal val DEFAULT_WINDOW_SIZE: DpSize = DpSize(1280.dp, 800.dp)
 
-/** Smallest restored window size (dp); smaller persisted sizes are enlarged to it. */
+/** Smallest restored window size, in dp. Smaller persisted sizes are enlarged to it. */
 internal val MINIMUM_WINDOW_SIZE: DpSize = DpSize(480.dp, 320.dp)
 
 /**
- * The main window's geometry as Compose reports it (a snapshot of the `WindowState`); positions and sizes in dp,
- * which are the window system's units on the desktop (AWT user space).
+ * The main window's geometry as Compose reports it, as a snapshot of the `WindowState`. Positions and sizes are in dp,
+ * which are the window system's units on the desktop, the AWT user space.
  */
 internal data class WindowGeometry(
     val placement: WindowPlacement,
@@ -45,15 +45,15 @@ internal data class WindowGeometry(
     val size: DpSize,
 )
 
-/** The current geometry of this window state (read inside `snapshotFlow` to observe it). */
+/** The current geometry of this window state. Read it inside `snapshotFlow` to observe it. */
 internal fun WindowState.geometry(): WindowGeometry = WindowGeometry(placement, isMinimized, position, size)
 
 /**
- * The window state the main window opens with, from the persisted [bounds] (`LayoutUiState.windowBounds`): maximized if
- * they were, the persisted size (at least [MINIMUM_WINDOW_SIZE]) and position. A position whose title bar would not be
- * reachable on any of [screens] is dropped, so a window saved on a disconnected monitor reopens centred; without bounds
- * the window opens centred with [DEFAULT_WINDOW_SIZE]. An empty [screens] list (unknown, e.g. headless) skips that
- * check.
+ * The window state the main window opens with, from the persisted [bounds], which are `LayoutUiState.windowBounds`.
+ * The window is maximized if it was, and it gets the persisted position and the persisted size, at least
+ * [MINIMUM_WINDOW_SIZE]. A position whose title bar would not be reachable on any of [screens] is dropped, so a window
+ * saved on a disconnected monitor reopens centred. Without bounds the window opens centred with [DEFAULT_WINDOW_SIZE].
+ * An empty [screens] list means the screens are unknown, as in a headless JVM, and skips the check.
  */
 internal fun initialWindowState(bounds: WindowBounds?, screens: List<ScreenArea>): WindowState {
     if (bounds == null) {
@@ -75,11 +75,12 @@ internal fun initialWindowState(bounds: WindowBounds?, screens: List<ScreenArea>
 }
 
 /**
- * Turns the window's geometry into the bounds the layout records (`LayoutState.updateWindowBounds`). Remembers the last
- * floating bounds, so a maximized or full-screen window is recorded as those bounds with `maximized = true` and
- * restores to them; a minimized window and a geometry without a known size record nothing. Used on the UI thread.
+ * Turns the window's geometry into the bounds the layout records through `LayoutState.updateWindowBounds`. It
+ * remembers the last floating bounds. So a maximized or full-screen window is recorded as those bounds with
+ * `maximized = true`, and it restores to them. A minimized window and a geometry without a known size record nothing.
+ * Use it on the UI thread.
  *
- * @param restored the bounds the window opened with (the restore bounds until the window floats).
+ * @param restored the bounds the window opened with. They serve as the restore bounds until the window floats.
  */
 internal class WindowBoundsTracker(restored: WindowBounds?) {
     private var floating: WindowBounds? = restored?.copy(maximized = false)
@@ -93,7 +94,7 @@ internal class WindowBoundsTracker(restored: WindowBounds?) {
         }
     }
 
-    /** The bounds of a floating window of [geometry]; an unspecified position is recorded as none. */
+    /** The bounds of a floating window of [geometry]. An unspecified position is recorded as no position. */
     private fun floatingBoundsOf(geometry: WindowGeometry): WindowBounds {
         val position = geometry.position.takeIf { it.isSpecified && it.x.isSpecified && it.y.isSpecified }
         return WindowBounds(
@@ -105,6 +106,6 @@ internal class WindowBoundsTracker(restored: WindowBounds?) {
     }
 }
 
-/** The distinct bounds to record for this stream of window geometries (see [WindowBoundsTracker]). */
+/** The distinct bounds to record for this stream of window geometries, as [WindowBoundsTracker] decides them. */
 internal fun Flow<WindowGeometry>.boundsToRecord(tracker: WindowBoundsTracker): Flow<WindowBounds> =
     mapNotNull(tracker::boundsOf).distinctUntilChanged()

@@ -23,12 +23,14 @@ import androidx.compose.ui.text.style.TextDecoration
 import io.karpfen.ide.core.lang.HighlightStyle
 
 /**
- * The two editor palettes (immutable constants), matching the window colours of the karpfen theme in ui-foundation:
- * neutral backgrounds, blue selection, the foundation's severity colours. Syntax colours map every [HighlightStyle]:
- * karpfen keywords bold, action operations in their own colour, names by semantic kind (types, states, properties,
- * objects, macros, events), embedded Python in muted variants of the same hues, comments italic, and file paths in
- * environment descriptors underlined like links. Text colours keep a contrast of at least 4.5:1 on the editor
- * background (tested).
+ * The two editor palettes. They are immutable constants and match the window colours of the karpfen theme in
+ * ui-foundation, with neutral backgrounds, a blue selection and the severity colours of ui-foundation.
+ *
+ * The syntax colours cover every [HighlightStyle]. Karpfen keywords are bold, and action operations have a colour of
+ * their own. Names are coloured by their semantic kind, such as types, states, properties, objects, macros and events.
+ * Embedded Python uses muted variants of the same hues. Comments are italic. File paths in environment descriptors are
+ * underlined like links. Text colours keep a contrast of at least 4.5:1 on the editor background, and a test checks
+ * this.
  */
 internal object EditorPalettes {
 
@@ -108,7 +110,10 @@ internal object EditorPalettes {
         ),
     )
 
-    /** The style of every [HighlightStyle] from a handful of hues (one place per palette, no style left out). */
+    /**
+     * Builds the style of every [HighlightStyle] from a handful of hues. So each palette sets its hues in one place,
+     * and no style is left out.
+     */
     @Suppress("LongParameterList")
     private fun styles(
         keyword: Color,

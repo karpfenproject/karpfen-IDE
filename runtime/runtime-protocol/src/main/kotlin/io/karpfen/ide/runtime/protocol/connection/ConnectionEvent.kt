@@ -20,7 +20,7 @@ import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.protocol.transport.LinkClosure
 
 /**
- * What a connection reports, in the order it happened: epoch boundaries travel in one stream with the pushes, so a
+ * What a connection reports, in the order it happened. Epoch boundaries travel in one stream with the pushes, so a
  * consumer sees which pushes came on which link.
  */
 public sealed interface ConnectionEvent {
@@ -39,21 +39,21 @@ public sealed interface ConnectionEvent {
     public data class Received(public val push: RuntimePush) : ConnectionEvent
 
     /**
-     * Something the runtime sent broke the protocol; the link stays open.
+     * Something the runtime sent broke the protocol. The link stays open.
      *
      * @property violation how.
      */
     public data class Violated(public val violation: ProtocolViolation) : ConnectionEvent
 
     /**
-     * The link closed without the client asking; a reconnect follows.
+     * The link closed without the client asking. A reconnect follows.
      *
      * @property closure how it closed.
      */
     public data class Interrupted(public val closure: LinkClosure) : ConnectionEvent
 
     /**
-     * The connection ended for good; the last event.
+     * The connection ended for good. This is always the last event.
      *
      * @property end why.
      */

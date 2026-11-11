@@ -22,7 +22,9 @@ import kotlin.test.assertFailsWith
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/** Covers [RuntimeTimeouts]: the default of every timeout class, the lookup by class and the refusal of empty waits. */
+/**
+ * Covers the default of every timeout class in [RuntimeTimeouts], the lookup by class and the refusal of empty waits.
+ */
 class RuntimeTimeoutsTest {
 
     @Test

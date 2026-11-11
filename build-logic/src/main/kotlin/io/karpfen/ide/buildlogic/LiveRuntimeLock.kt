@@ -19,9 +19,9 @@ import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 
 /**
- * The lock of the one runtime that the live test tasks share. It holds no state: the `karpfen.live-runtime-test`
+ * The lock of the one runtime that the live test tasks share. It holds no state. The `karpfen.live-runtime-test`
  * convention plugin registers it as [LiveRuntimeTesting.LOCK_SERVICE] with one parallel usage, and every live task uses
- * it, so the live tasks of runtime-protocol and runtime-session run one after the other although the repository builds
+ * it. So the live tasks of runtime-protocol and runtime-session run one after the other although the repository builds
  * with parallel projects, and their scenarios never load the runtime at the same time.
  */
 abstract class LiveRuntimeLock : BuildService<BuildServiceParameters.None>

@@ -18,21 +18,22 @@ package io.karpfen.ide.core.text
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Undo/redo history of one [EditableText]. Obtained from [EditableText.undo]; it records every change the
+ * Undo and redo history of one [EditableText]. It is obtained from [EditableText.undo]. It records every change the
  * text applies and is driven from the same single writer thread.
  *
- * Steps and coalescing (MUST):
- * - Every [EditableText.apply] is one step unless it coalesces with the previous step or runs inside [group].
- * - Consecutive [EditOrigin.Typing] single-character insertions contiguous with the previous one, or consecutive
- *   single-character deletions contiguous with the previous one, within 1000 ms (measured with the text's
- *   `TimeSource`), merge into one step. A typed newline, or whitespace typed after a word character, starts a new step.
+ * These rules decide what forms a step:
+ * - Every [EditableText.apply] is one step, unless it coalesces with the previous step or runs inside [group].
+ * - Consecutive [EditOrigin.Typing] insertions of a single character merge into one step if each is contiguous with
+ *   the previous one and follows it within 1000 ms. The same holds for consecutive deletions of a single character.
+ *   The pause is measured with the `TimeSource` of the text. A typed newline, or whitespace typed after a word
+ *   character, starts a new step.
  * - [EditOrigin.Paste], [EditOrigin.Cut], [EditOrigin.Command], [EditOrigin.External] and
  *   [EditOrigin.Programmatic] never coalesce.
  * - Applying a new change clears the redo stack.
  *
- * Caret mementos of a step (MUST): a step made of several changes (a [group] or a coalesced typing run) keeps the
- * `caretsBefore` of its first change and the `caretsAfter` of its last change; undo restores the former, redo the
- * latter (see [UndoResult.carets]). A missing memento stays missing (null), it is not taken from another change.
+ * A step made of several changes, such as a [group] or a coalesced typing run, keeps the `caretsBefore` of its first
+ * change and the `caretsAfter` of its last change. Undo restores the former and redo the latter, as described at
+ * [UndoResult.carets]. A missing memento stays missing, that is null. It is never taken from another change.
  */
 public interface UndoManager {
 
@@ -43,53 +44,62 @@ public interface UndoManager {
     public val canRedo: StateFlow<Boolean>
 
     /**
-     * True iff the current text state is the one recorded by the last [markSavePoint], reached through any sequence of
-     * edits, undos and redos (drives the dirty flag). False if no save point is reachable any more.
+     * True if and only if the current text state is the one recorded by the last [markSavePoint], reached through any
+     * sequence of edits, undos and redos. It drives the dirty flag. False if no save point is reachable any more.
      */
     public val isAtSavePoint: StateFlow<Boolean>
 
     /**
-     * Reverts the most recent step as one new change (origin [EditOrigin.Undo]); the text is restored byte-for-byte.
+     * Reverts the most recent step as one new change with origin [EditOrigin.Undo]. The text is restored byte for byte.
      * Returns null if there is nothing to undo.
      */
     public fun undo(): UndoResult?
 
-    /** Re-applies the most recently undone step (origin [EditOrigin.Redo]); null if there is nothing to redo. */
+    /**
+     * Re-applies the most recently undone step as one new change with origin [EditOrigin.Redo]. Returns null if there
+     * is nothing to redo.
+     */
     public fun redo(): UndoResult?
 
     /**
-     * Runs [block] and records every change it applies as one undo step named [name]. Groups nest; only the outermost
-     * group forms the step. A group that applies no change records nothing. The group is closed even if [block] throws.
+     * Runs [block] and records every change it applies as one undo step named [name]. Groups nest, and only the
+     * outermost group forms the step. A group that applies no change records nothing. The group is closed even if
+     * [block] throws.
      */
     public fun <T> group(name: String, block: () -> T): T
 
     /**
      * Ends the current coalescing run, so the next change starts a new step. The editor's caret model calls it for
-     * every explicit caret move (arrow keys, clicks, selections), so typing at another place is a new step.
+     * every explicit caret move, such as arrow keys, clicks and selections, so typing at another place is a new step.
      */
     public fun breakCoalescing()
 
-    /** Records the current state as the saved state ([isAtSavePoint] becomes true); `markSavePoint(checkpoint())`. */
+    /**
+     * Records the current state as the saved state, so [isAtSavePoint] becomes true. It is the same as
+     * `markSavePoint(checkpoint())`.
+     */
     public fun markSavePoint()
 
     /**
-     * Ends the coalescing run (so the current state stays reachable through undo and redo) and returns the identity of
-     * the current text state, to be recorded as the saved state later with [markSavePoint] — when the text written by a
-     * save running in the background is the one of this moment, not of the moment the write ends.
+     * Ends the coalescing run and returns the identity of the current text state. Ending the run keeps the current
+     * state reachable through undo and redo. The identity can be recorded as the saved state later with
+     * [markSavePoint]. A save running in the background needs this, because the text it writes is the text of this
+     * moment, not of the moment the write ends.
      */
     public fun checkpoint(): HistoryState
 
     /**
-     * Records [state], a [checkpoint] of this manager, as the saved state, also if newer changes were applied since:
-     * [isAtSavePoint] is true whenever undo and redo lead back to it, and stays false if it can no longer be reached
-     * (its step lay on a discarded redo branch, or a group amended it). A state of another manager is never reached.
+     * Records [state], a [checkpoint] of this manager, as the saved state, even if newer changes were applied since.
+     * [isAtSavePoint] is true whenever undo and redo lead back to it. It stays false if the state can no longer be
+     * reached, because its step lay on a discarded redo branch or a group amended it. A state of another manager is
+     * never reached.
      */
     public fun markSavePoint(state: HistoryState)
 
     /**
-     * Makes no text state the saved state: [isAtSavePoint] stays false through any edits, undos and redos until the
-     * next [markSavePoint]. For a file whose content no state of the history matches any more (it changed or vanished
-     * on disk while the buffer was kept).
+     * Makes no text state the saved state. [isAtSavePoint] stays false through any edits, undos and redos until the
+     * next [markSavePoint]. It is meant for a file whose content no state of the history matches any more, because the
+     * file changed or vanished on disk while the buffer was kept.
      */
     public fun invalidateSavePoint()
 

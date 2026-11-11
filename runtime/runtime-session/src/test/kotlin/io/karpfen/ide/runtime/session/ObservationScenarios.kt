@@ -43,18 +43,18 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers observing the model through a session against a real runtime: the read-back of the lamp, the metronome and
- * the single robot equals the seed, and after the start only the initial entry blocks changed it; a pull while
- * observation is off shows the model of a snapshot; while off, no object or stack push reaches the session; switching on
- * in the middle of a burst neither loses nor reorders anything; switching off and on again converges every time;
- * observation belongs to one client; a stopped environment can still be pulled; and domain events keep flowing while
- * observation is off. That every burst raises an internal domain event waits for a fix of the runtime, which skips the
- * entry block of a state that a join leaves in the next tick.
+ * Covers observing the model through a session against a real runtime. The read-back of the lamp, the metronome and
+ * the single robot equals the seed, and after the start only the initial entry blocks changed it. A pull while
+ * observation is off shows the model of a snapshot. While observation is off, no object or stack push reaches the
+ * session. Switching on in the middle of a burst neither loses nor reorders anything. Switching off and on again
+ * converges every time. Observation belongs to one client. A stopped environment can still be pulled. Domain events
+ * keep flowing while observation is off. The check that every burst raises an internal domain event waits for a fix of
+ * the runtime. The runtime skips the entry block of a state that a join leaves in the next tick.
  *
- * Absence is proven by a cause, never by a time window: a revision range and an append-only list whose lengths would
- * show an unwanted push, checked after a later burst on the same connection, which arrives after anything earlier.
- * A dropped push that heals through a revision gap is a failure only a fake can produce and is an ordinary test against
- * the fake runtime.
+ * Absence is proven by a cause, never by a time window. A revision range and an append-only list would show an unwanted
+ * push by their lengths. They are checked after a later burst on the same connection, which arrives after anything
+ * earlier. A dropped push that heals through a revision gap is a failure that only a fake can produce. It is an
+ * ordinary test against the fake runtime.
  */
 abstract class ObservationScenarios {
 
@@ -241,8 +241,8 @@ abstract class ObservationScenarios {
     }
 
     /**
-     * Polls raw snapshots of [session]'s metronome until a burst is done, at rest with [beats] beats, and answers that
-     * snapshot.
+     * Polls raw snapshots of [session]'s metronome until a burst is done and the metronome is at rest with [beats]
+     * beats. Returns that snapshot.
      */
     private suspend fun SessionScenario.burstDone(session: RuntimeSession, beats: Int): RawSnapshot =
         eventually("the metronome at rest with $beats beats", patience.burst) {
@@ -272,13 +272,13 @@ abstract class ObservationScenarios {
         /** The rounds of switching off and on. */
         const val ROUNDS = 3
 
-        /** The beats of the metronome in [mirror], none before the first burst. */
+        /** The beats of the metronome in [mirror]. There are none before the first burst. */
         fun beatsOf(mirror: MirrorSnapshot): List<String> = mirror.objects[METRONOME]?.texts("beats").orEmpty()
 
         /** The number of beats in the pushed value of the metronome. */
         fun beatsLength(value: WireValue.WireObject): Int = (value["beats"] as? WireValue.WireArray)?.items?.size ?: 0
 
-        /** The revision of an object or stack push, 0 for a domain event or an unknown message. */
+        /** The revision of an object or stack push. It is 0 for a domain event or an unknown message. */
         fun revisionOf(push: RuntimePush): Long =
             when (push) {
                 is RuntimePush.ObjectChanged -> push.revision

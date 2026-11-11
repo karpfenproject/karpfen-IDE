@@ -25,12 +25,13 @@ import io.karpfen.ide.ui.editor.model.action.EditorUiPort
 import io.karpfen.ide.ui.editor.model.caret.CaretModel
 
 /**
- * The [EditorActionContext] of one editor (Adapter from the editor state's parts to what actions may use).
+ * The [EditorActionContext] of one editor. It is an Adapter from the parts of the editor state to what actions may use.
  *
- * [tokens] is read lazily as `session.tokensFor(text.snapshot.value)` on every access: the tokens of exactly the
- * current text, tokenized synchronously when the session's pipeline lags (e.g. toggle comment right after Enter), so an
- * action never compares offsets of the current text with EVAL regions of an older version. [pageLines] is the number of
- * fully visible lines of [viewport], [lineComment] the line comment of the session's language support.
+ * [tokens] is read as `session.tokensFor(text.snapshot.value)` on every access. These are the tokens of exactly the
+ * current text. They are computed synchronously when the pipeline of the session lags behind, for example on toggle
+ * comment right after Enter. So an action never compares offsets of the current text with EVAL regions of an older
+ * version. [pageLines] is the number of fully visible lines of [viewport]. [lineComment] is the line comment of the
+ * session's language support.
  */
 internal class EditorActionContextAdapter(
     private val session: DocumentSession,

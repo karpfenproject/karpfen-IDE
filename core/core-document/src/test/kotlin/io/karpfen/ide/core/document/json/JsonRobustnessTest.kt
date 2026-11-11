@@ -29,9 +29,9 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Covers the robustness of the JSON lexer, tokenizer and parser: they never throw on deterministic mutations of every
- * descriptor fixture and on every prefix of the valid one, and every result keeps the documented invariants (see
- * [assertJsonInvariants]).
+ * Covers the robustness of the JSON lexer, tokenizer and parser. They never throw on deterministic mutations of every
+ * descriptor fixture and on every prefix of the valid one. Every result keeps the documented invariants that
+ * [assertJsonInvariants] lists.
  */
 class JsonRobustnessTest {
 
@@ -82,13 +82,17 @@ class JsonRobustnessTest {
 }
 
 /**
- * The invariants of a [JsonDocument] of [text]:
- * - tokens are non-empty, inside the text, sorted, disjoint and cover every character that is not JSON whitespace;
- *   every INVALID token has a LEXER error over exactly its range, and the [JsonTokenizer] yields the same ranges;
- * - diagnostics are sorted, inside the text and come from the lexer or the parser; no diagnostics exactly when the
- *   document is syntax-clean;
- * - every node lies inside the text and inside its parent, members and items are in document order and disjoint, a
- *   member's key comes before its colon and its value, and a string's content lies inside the string.
+ * The invariants of a [JsonDocument] of [text].
+ *
+ * Tokens are non-empty, inside the text, sorted and disjoint, and they cover every character that is not JSON
+ * whitespace. Every INVALID token has a LEXER error over exactly its range, and the [JsonTokenizer] yields the same
+ * ranges.
+ *
+ * Diagnostics are sorted, lie inside the text and come from the lexer or the parser. There are no diagnostics exactly
+ * when the document is syntax-clean.
+ *
+ * Every node lies inside the text and inside its parent. Members and items are in document order and disjoint. The
+ * key of a member comes before its colon and its value, and the content of a string lies inside the string.
  */
 internal fun assertJsonInvariants(text: String, document: JsonDocument, label: String) {
     val covered = IntArray(text.length)
@@ -118,7 +122,7 @@ internal fun assertJsonInvariants(text: String, document: JsonDocument, label: S
     document.root?.let { assertNode(it, TextRange(0, text.length), label) }
 }
 
-/** The tree invariants of [node] inside [parent] (see [assertJsonInvariants]). */
+/** The tree invariants of [node] inside [parent], as [assertJsonInvariants] lists them. */
 private fun assertNode(node: JsonNode, parent: TextRange, label: String) {
     assertTrue(node.range in parent, "${node.range} outside its parent $parent in $label")
     when (node) {

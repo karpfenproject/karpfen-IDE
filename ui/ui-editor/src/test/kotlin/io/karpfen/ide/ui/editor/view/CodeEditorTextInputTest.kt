@@ -35,22 +35,27 @@ import kotlin.test.assertNotNull
 import java.awt.event.KeyEvent as AwtKeyEvent
 
 /**
- * Typed text through the editor's real input path, the proxy text field: the platform delivers a key-down and then a
- * key-typed event carrying the produced character, here synthesized as AWT events — so the characters a keyboard layout
- * produces with Option on macOS (German: Option+8 = `{`, Option+L = `@`) arrive like any other character, a stroke the
- * editor handled does not also type its character, and punctuation shortcuts follow the layout. Dead keys and input
- * methods use the same field's composition support (manual test).
+ * Typed text through the editor's real input path, the proxy text field. The platform delivers a key-down event and
+ * then a key-typed event that carries the produced character. The tests synthesize both as AWT events. The characters
+ * that a keyboard layout produces with Option on macOS arrive like any other character. On a German layout, Option+8
+ * gives `{` and Option+L gives `@`. A stroke the editor handled does not also type its character, and punctuation
+ * shortcuts follow the layout.
+ *
+ * Dead keys and input methods use the composition support of the same field. No automated test covers them, so they
+ * are checked by hand.
  */
 @OptIn(ExperimentalTestApi::class, InternalComposeUiApi::class)
 class CodeEditorTextInputTest {
 
+    /** The AWT component that the synthesized events name as their source. */
     private val source = object : Component() {}
 
+    /** The AWT modifier mask for the given modifier keys. */
     private fun awtModifiers(alt: Boolean, ctrl: Boolean, shift: Boolean, meta: Boolean): Int =
         (if (alt) AwtKeyEvent.ALT_DOWN_MASK else 0) or (if (ctrl) AwtKeyEvent.CTRL_DOWN_MASK else 0) or
             (if (shift) AwtKeyEvent.SHIFT_DOWN_MASK else 0) or (if (meta) AwtKeyEvent.META_DOWN_MASK else 0)
 
-    /** The key-down of [key] (AWT [code]) producing [char] with the given modifiers. */
+    /** The key-down event of [key] with the AWT key code [code], which produces [char] with the given modifiers. */
     private fun keyDown(
         key: Key,
         code: Int,
@@ -136,9 +141,9 @@ class CodeEditorTextInputTest {
         assertEquals("// STATE", ui.plain)
     }
 
-    /** The characters of the tests. */
+    /** Holds the characters of the tests. */
     private companion object {
-        /** The control character a platform reports for Ctrl+M: carriage return, as the terminal convention has it. */
+        /** The control character a platform reports for Ctrl+M. By the terminal convention it is a carriage return. */
         const val CONTROL_M = '\r'
     }
 }

@@ -27,10 +27,15 @@ import io.karpfen.ide.core.lang.overlayHighlights
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * A [LanguageServices] fake for the editor's tests, independent of core-lang's providers: highlighting follows the
- * contract — lexical styles from the tokens (`TokenKind` → the `HighlightStyle` of the same name), overlaid with the
- * semantic spans of the parse only when the parse has the tokens' version — and the other features answer what the test
- * configures. Records the documents of definition and hover requests.
+ * A [LanguageServices] fake for the editor's tests that does not depend on the providers of core-lang. Highlighting
+ * follows the contract. Lexical styles come from the tokens, where each `TokenKind` maps to the `HighlightStyle` of the
+ * same name. The semantic spans of the parse are laid over them only when the parse has the version of the tokens. The
+ * other features answer what the test configures. The fake records the documents of definition and hover requests.
+ *
+ * @property completions the completion answer for a document and an offset.
+ * @property definitions the definition answer for a document and an offset.
+ * @property hovers the hover answer for a document and an offset.
+ * @property brackets the bracket match for a document and an offset.
  */
 class FakeLanguageServices(
     var completions: (LanguageDocument, Int) -> List<CompletionItem> = { _, _ -> emptyList() },

@@ -22,13 +22,13 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 
 /**
- * Lets following yield to the user's scrolling of [listState]: after each scroll of the user, following is on exactly
- * when the newest line is in sight, and [onFollowChange] hears of every change against [isFollowing].
+ * Lets following yield to the user's scrolling of [listState]. After each scroll by the user, following is on exactly
+ * when the newest line is in sight. [onFollowChange] hears of every change compared to [isFollowing].
  *
- * The user scrolls in two ways, and both lead here: the mouse wheel and drags pass through nested scrolling, which this
- * connection observes after the list consumed them; the scrollbar scrolls through the adapter of [scrollbar], which
- * reports after each of its scrolls. The view's own scroll to the newest line takes neither way, so a line that arrives
- * while the list grows never switches following off.
+ * The user scrolls in two ways, and both lead here. The mouse wheel and drags pass through nested scrolling, which
+ * this connection observes after the list consumed them. The scrollbar scrolls through the adapter from [scrollbar],
+ * which reports after each of its scrolls. The view's own scroll to the newest line takes neither path. A line that
+ * arrives while the list grows therefore never switches following off.
  */
 internal class FollowUserScrolling(
     private val listState: LazyListState,
@@ -41,7 +41,9 @@ internal class FollowUserScrolling(
         return Offset.Zero
     }
 
-    /** The scrollbar's view of the list through [adapter], reporting each of its scrolls like a wheel or a drag. */
+    /**
+     * Wraps the scrollbar [adapter] of the list so that each of its scrolls is reported like a wheel scroll or a drag.
+     */
     fun scrollbar(adapter: ScrollbarAdapter): ScrollbarAdapter = object : ScrollbarAdapter by adapter {
         override suspend fun scrollTo(scrollOffset: Double) {
             adapter.scrollTo(scrollOffset)
@@ -56,9 +58,9 @@ internal class FollowUserScrolling(
     }
 
     /**
-     * True if some of the newest line lies inside the list's viewport. This is not the same as the end of the list
-     * being in sight: following shows the newest line from its start, and a line taller than the viewport, such as an
-     * error with its stack trace, keeps its end out of sight while the user scrolls down through it.
+     * True if some part of the newest line lies inside the list's viewport. This is not the same as the end of the list
+     * being in sight. Following shows the newest line from its start. A line taller than the viewport, such as an error
+     * with its stack trace, keeps its end out of sight while the user scrolls down through it.
      */
     private fun isNewestLineInSight(): Boolean {
         val layout = listState.layoutInfo

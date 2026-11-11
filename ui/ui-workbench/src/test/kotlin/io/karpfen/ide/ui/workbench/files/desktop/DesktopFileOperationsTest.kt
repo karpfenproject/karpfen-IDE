@@ -35,13 +35,19 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The desktop adapters: headless-safe in the test JVM, file operations on java.nio, platform actions through the seam. */
+/**
+ * Tests the desktop adapters. They are safe in the headless test JVM. The file operations run on java.nio, and the
+ * platform actions go through the seam.
+ */
 class DesktopFileOperationsTest {
 
     @TempDir
     lateinit var dir: Path
 
-    /** Records the platform actions and supports all of them. */
+    /**
+     * Records the platform actions and supports all of them. The platform refuses to move a file to the trash unless
+     * [trashWorks] is true.
+     */
     private class RecordingDesktop(private val trashWorks: Boolean = true) : DesktopActions {
         val calls = mutableListOf<Pair<DesktopAction, Path>>()
 

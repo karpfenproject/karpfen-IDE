@@ -18,11 +18,11 @@ package io.karpfen.ide.core.document.fixtures
 import kotlin.random.Random
 
 /**
- * A deterministically mutated variant of a text, for the robustness tests: tokenizers, parsers and language services
+ * A deterministically mutated variant of a text, for the robustness tests. Tokenizers, parsers and language services
  * must never throw on any mutation of the examples.
  *
- * @property index position in the generated sequence (0-based).
- * @property operations human-readable description of the applied operations, in order (for failure messages).
+ * @property index the position in the generated sequence, counted from 0.
+ * @property operations a readable description of each applied operation in order, for failure messages.
  * @property text the mutated text.
  */
 public data class Mutation(public val index: Int, public val operations: List<String>, public val text: String) {
@@ -30,15 +30,15 @@ public data class Mutation(public val index: Int, public val operations: List<St
 }
 
 /**
- * Deterministic random mutations of source texts: deletions, insertions of grammar punctuation, keywords and tricky
- * characters, and truncations. The same `(text, seed, count)` always yields the same mutations.
+ * Deterministic random mutations of source texts. A mutation deletes ranges, inserts grammar punctuation, keywords
+ * and tricky characters, or truncates the text. The same `(text, seed, count)` always yields the same mutations.
  */
 public object Mutations {
 
     /**
-     * Punctuation and operators of the three grammars, EVAL markers and characters that stress offset handling: line
-     * separators and blanks, `ä` and `€` (one UTF-16 unit each), `😀` (U+1F600, a surrogate pair) and `\uD83D` (an
-     * unpaired high surrogate).
+     * Punctuation and operators of the three grammars, EVAL markers and characters that stress offset handling. These
+     * characters are line separators and blanks, `ä` and `€` with one UTF-16 unit each, the surrogate pair `😀` of
+     * U+1F600 and the unpaired high surrogate `\uD83D`.
      */
     public val PUNCTUATION: List<String> = listOf(
         "{", "}", "(", ")", ",", ":", "\"", "'", "->", "$(", "@", "#", "//", "/*", "\\", ";", "=",
@@ -65,9 +65,9 @@ public object Mutations {
     public val INSERTIONS: List<String> = PUNCTUATION + KEYWORDS + FRAGMENTS
 
     /**
-     * [count] mutations of [text]. Each applies one to three operations to the original [text]: delete a range of up
-     * to 40 characters (45 %), insert an element of [INSERTIONS] (45 %), or truncate (10 %). Character-level, so
-     * surrogate pairs may be split on purpose.
+     * [count] mutations of [text]. Each applies one to three operations to the original [text]. An operation deletes
+     * a range of up to 40 characters with a chance of 45 %, inserts an element of [INSERTIONS] with 45 %, or truncates
+     * with 10 %. The operations work on single characters, so surrogate pairs may be split on purpose.
      */
     public fun random(text: String, seed: Long, count: Int): List<Mutation> {
         require(count >= 0) { "count must be >= 0, was $count" }

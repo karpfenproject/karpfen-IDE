@@ -17,10 +17,10 @@ package io.karpfen.ide.runtime.protocol.catalogue
 
 /** The HTTP method of a [RuntimeRoute]. */
 public enum class HttpVerb {
-    /** Reads; no request body. */
+    /** Reads and sends no request body. */
     GET,
 
-    /** Acts; no request body, every value travels in the query. */
+    /** Acts and sends no request body. Every value travels in the query. */
     POST,
 
     /** Uploads a modeling text as the request body. */
@@ -32,7 +32,7 @@ public enum class BodyKind {
     /** No body. */
     NONE,
 
-    /** A metamodel text (`.kmeta`): the domain metamodel or the event definitions. */
+    /** A metamodel text (`.kmeta`). It is either the domain metamodel or the event definitions. */
     KMETA,
 
     /** A model text (`.kmodel`). */
@@ -44,7 +44,7 @@ public enum class BodyKind {
 
 /** What the body of a successful answer of a [RuntimeRoute] holds. */
 public enum class ResponseKind {
-    /** Nothing the client reads; the runtime answers with an empty text. */
+    /** Nothing the client reads. The runtime answers with an empty text. */
     EMPTY,
 
     /** A new environment key, `env-<epoch millis>`. */
@@ -62,12 +62,12 @@ public enum class ResponseKind {
     /** The state machine text that was uploaded for a model element, as it was uploaded. */
     STATE_MACHINE_SOURCE,
 
-    /** The model snapshot: phase, revision, active stacks and the root objects of an environment. */
+    /** The model snapshot of an environment, with its phase, revision, active stacks and root objects. */
     MODEL_SNAPSHOT,
 }
 
 /**
- * How long the client waits for an answer of a [RuntimeRoute]; the durations of the classes are configurable on the
+ * How long the client waits for an answer of a [RuntimeRoute]. The duration of each class is configurable on the
  * client's side.
  */
 public enum class TimeoutClass {
@@ -85,12 +85,12 @@ public enum class TimeoutClass {
 }
 
 /**
- * The HTTP routes of the karpfen runtime with IDE support, as data: the 18 routes of its `HTTPRoutes` in their order,
- * followed by the three routes its `ModelObservationRoutes` adds. Everything the client sends is built from an entry,
- * and the fake runtime dispatches by it.
+ * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 18 routes of the runtime's
+ * `HTTPRoutes` in their order, followed by the three routes that its `ModelObservationRoutes` adds. Everything the
+ * client sends is built from an entry, and the fake runtime dispatches by it.
  *
- * Query parameters are listed in the order the runtime checks them: when several are missing, the first of them names
- * the error (`Missing required parameter: <name>`). A parameter that is present but empty counts as present.
+ * Query parameters are listed in the order the runtime checks them. When several are missing, the first of them names
+ * the error `Missing required parameter: <name>`. A parameter that is present but empty counts as present.
  *
  * @property verb the HTTP method.
  * @property path the path below the runtime's base URL.
@@ -107,7 +107,7 @@ public enum class RuntimeRoute(
     public val response: ResponseKind,
     public val timeout: TimeoutClass,
 ) {
-    /** Creates an environment and answers its key, which the runtime never hands out twice. */
+    /** Creates an environment and returns its key. The runtime never hands out a key twice. */
     CREATE_ENVIRONMENT(
         HttpVerb.POST, "/createEnvironment", emptyList(),
         BodyKind.NONE, ResponseKind.ENVIRONMENT_KEY, TimeoutClass.QUICK,
@@ -143,7 +143,7 @@ public enum class RuntimeRoute(
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
     ),
 
-    /** Forces the active state of a machine; answered before the change applies at the next tick. */
+    /** Forces the active state of a machine. The runtime answers before the change applies at the next tick. */
     SET_ACTIVE_STATE(
         HttpVerb.POST, "/setActiveState", listOf("envKey", "modelElement", "state"),
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
@@ -173,7 +173,7 @@ public enum class RuntimeRoute(
         BodyKind.NONE, ResponseKind.ACCESS_KEY, TimeoutClass.QUICK,
     ),
 
-    /** Activates an environment: builds its engine over the uploaded texts; once per environment. */
+    /** Activates an environment by building its engine over the uploaded texts. This works once per environment. */
     RUN_ENVIRONMENT(
         HttpVerb.POST, "/runEnvironment", listOf("envKey"),
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
@@ -209,7 +209,10 @@ public enum class RuntimeRoute(
         BodyKind.NONE, ResponseKind.STATE_MACHINE_SOURCE, TimeoutClass.QUICK,
     ),
 
-    /** Issues an access key and registers the client for the stack changes of one machine, or of every machine with `*`. */
+    /**
+     * Issues an access key and registers the client for the stack changes of one machine. The model element `*`
+     * registers it for every machine.
+     */
     REGISTER_OBSERVATORY_CLIENT(
         HttpVerb.POST, "/observatory/registerClient", listOf("clientId", "envKey", "modelElement"),
         BodyKind.NONE, ResponseKind.ACCESS_KEY, TimeoutClass.QUICK,
@@ -227,7 +230,7 @@ public enum class RuntimeRoute(
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
     ),
 
-    /** Ends the model subscription of a client; its other subscriptions stay. */
+    /** Ends the model subscription of a client. Its other subscriptions stay. */
     UNSUBSCRIBE_MODEL(
         HttpVerb.POST, "/observatory/unsubscribeModel", listOf("envKey", "clientId"),
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,

@@ -27,8 +27,9 @@ import io.karpfen.ide.ui.foundation.icons.IconDrawing.roundedRect
 import io.karpfen.ide.ui.foundation.icons.IconDrawing.stroked
 
 /**
- * The shapes of [KarpfenIcons]. File and severity icons carry their own mid-tone colours (readable on the light and the
- * dark palette); glyph icons (close, chevrons, search) are drawn in [TINTABLE] black and meant to be tinted.
+ * The shapes of [KarpfenIcons]. File and severity icons carry their own mid-tone colours, which are readable on the
+ * light and on the dark palette. Glyph icons, such as close, the chevrons and search, are drawn in [TINTABLE] black and
+ * are meant to be tinted.
  */
 internal object IconShapes {
 

@@ -26,11 +26,12 @@ replay_pid*
 # Kotlin Gradle plugin data, see https://kotlinlang.org/docs/whatsnew20.html#new-directory-for-kotlin-data-in-gradle-projects
 .kotlin/
 
-# Gradle wrapper (must be committed despite *.jar above)
+# Gradle wrapper. It must be committed, although *.jar above ignores jar files.
 !gradle/wrapper/gradle-wrapper.jar
 
-# Gradle / build output: the build directories of the root, of build-logic and of the modules, anchored at the root,
-# so that a source package named build stays in git (see BuildOutput in architecture-tests)
+# Gradle and build output. These are the build directories of the root, of build-logic and of the modules. They are
+# anchored at the root, so that a source package named build stays in git. BuildOutput in architecture-tests follows
+# the same rule.
 .gradle/
 /build/
 /*/build/
@@ -41,7 +42,7 @@ out/
 .idea/
 *.iml
 
-# Per-machine settings (e.g. dslToolsPath for the karpfen-dsl-tools composite build)
+# Per-machine settings, such as dslToolsPath for the karpfen-dsl-tools composite build
 local.properties
 
 # macOS

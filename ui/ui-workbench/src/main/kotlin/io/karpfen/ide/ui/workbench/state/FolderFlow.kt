@@ -29,16 +29,17 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Opening and closing folders: the unsaved-changes flow over every open document, shutting down the old workspace's
- * runtime, closing the tabs and the old workspace, opening the new one through the [WorkspaceFactory] in [scope] (its
- * dispatcher is the documents' single writer) with its runtime state, binding the sub-states and recording the folder
- * as the most recent one. The tree is scanned before the flow ends, so the project tree is filled when the intent's
- * job completes.
+ * Opens and closes folders. Opening a folder runs these steps. The unsaved-changes flow asks about every open document.
+ * The runtime of the old workspace shuts down. The tabs and the old workspace close. The new workspace opens through
+ * the [WorkspaceFactory] in [scope], whose dispatcher is the single writer of the documents. Its runtime state is
+ * created, the sub-states are bound, and the folder is recorded as the most recent one. The tree is scanned before the
+ * flow ends, so the project tree is filled when the intent's job completes.
  *
- * A folder that is no longer a directory (a stale recent folder: deleted, moved, its volume unmounted) or that cannot
- * be listed (permissions, a protected folder) is checked on [ioDispatcher] before anything is closed: the open
- * workspace and its tabs stay, an error dialog says why, and the folder leaves the recent folders. A folder dialog
- * that fails is an error dialog too.
+ * Before anything is closed, the folder is checked on [ioDispatcher]. It may no longer be a directory. That happens to
+ * a stale recent folder that was deleted or moved, or whose volume was unmounted. It may also be impossible to list,
+ * because of its permissions or because it is a protected folder. In both cases the open workspace and its tabs stay,
+ * an error dialog says why, and the folder is removed from the recent folders. A folder dialog that fails also leads
+ * to an error dialog.
  */
 internal class FolderFlow(
     private val scope: CoroutineScope,
@@ -57,9 +58,9 @@ internal class FolderFlow(
 ) {
 
     /**
-     * Opens [path] as the workspace unless it is open already, and records it as the most recent folder. A folder that
-     * passes the check but vanishes before the [WorkspaceFactory] opens it (which rejects it with an
-     * `IllegalArgumentException`) cannot be opened either.
+     * Opens [path] as the workspace unless it is open already, and records it as the most recent folder. A folder can
+     * pass the check and still vanish before the [WorkspaceFactory] opens it. The factory then rejects it with an
+     * `IllegalArgumentException`, and the folder is treated like one that failed the check.
      */
     suspend fun openFolder(path: Path) {
         val root = path.toAbsolutePath().normalize()
@@ -108,7 +109,10 @@ internal class FolderFlow(
         dialogs.showError("Cannot open folder", reason)
     }
 
-    /** Asks the [folderChooser] and opens the chosen folder; a failing dialog becomes an error dialog. */
+    /**
+     * Asks the [folderChooser] for a folder and opens it. The dialog starts in the open workspace, or else in the most
+     * recent folder. A failing dialog leads to an error dialog.
+     */
     suspend fun chooseAndOpenFolder() {
         val initial = holder.workspace.value?.root ?: settings.settings.value.recentFolders.firstOrNull()?.let(Path::of)
         val folder = try {
@@ -121,8 +125,8 @@ internal class FolderFlow(
     }
 
     /**
-     * Closes the runtime state at once, every tab and the current workspace without asking (unsaved changes are
-     * discarded).
+     * Closes the runtime state at once, then every tab and the current workspace. It does not ask, so unsaved changes
+     * are discarded.
      */
     fun closeWorkspace() {
         runtimes.close()

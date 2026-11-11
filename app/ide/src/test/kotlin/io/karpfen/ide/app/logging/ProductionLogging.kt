@@ -23,7 +23,7 @@ import java.io.PrintStream
 import kotlin.test.assertNotNull
 
 /**
- * The production logging configuration of app/ide under test: the tests themselves log through the console-only
+ * The production logging configuration of app/ide under test. The tests themselves log through the console-only
  * `logback-test.xml`, so these helpers configure a logger context of their own from `logback.xml` and capture what
  * would reach the console.
  */
@@ -43,8 +43,8 @@ internal object ProductionLogging {
     }
 
     /**
-     * Runs [block] with `System.out` and `System.err` captured and returns everything written to either: the console
-     * appender of the configuration writes through `System.err` as it is when an event arrives.
+     * Runs [block] with `System.out` and `System.err` captured and returns everything written to either. The console
+     * appender of the configuration writes through whatever `System.err` is when an event arrives.
      */
     fun capturingConsole(block: () -> Unit): String {
         val previousOut = System.out

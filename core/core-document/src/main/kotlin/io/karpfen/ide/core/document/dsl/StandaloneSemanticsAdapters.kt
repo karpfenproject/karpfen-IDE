@@ -21,8 +21,8 @@ import io.karpfen.ide.core.document.parse.StandaloneSemantics
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Standalone semantics of a `.kmeta` file: [DslReader.kmeta] without base types, its model, partial or complete,
- * wrapped as `DslModel.Kmeta`.
+ * Standalone semantics of a `.kmeta` file. It reads with [DslReader.kmeta] without base types and wraps the model,
+ * partial or complete, as `DslModel.Kmeta`.
  */
 internal class KmetaStandaloneSemantics(private val reader: DslReader) : StandaloneSemantics {
     override fun read(snapshot: TextSnapshot): StandaloneResult {
@@ -32,8 +32,8 @@ internal class KmetaStandaloneSemantics(private val reader: DslReader) : Standal
 }
 
 /**
- * Standalone semantics of a `.kstates` file: [DslReader.kstates], its model, partial or complete, wrapped as
- * `DslModel.Kstates`.
+ * Standalone semantics of a `.kstates` file. It reads with [DslReader.kstates] and wraps the model, partial or
+ * complete, as `DslModel.Kstates`.
  */
 internal class KstatesStandaloneSemantics(private val reader: DslReader) : StandaloneSemantics {
     override fun read(snapshot: TextSnapshot): StandaloneResult {

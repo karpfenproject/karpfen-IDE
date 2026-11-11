@@ -19,27 +19,27 @@ import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextSnapshot
 
-/** Chooses the comment marker of each line of a toggled block (Strategy of [LineComments]). */
+/** Chooses the comment marker of each line of a toggled block. It is the strategy that [LineComments] uses. */
 internal fun interface CommentMarkers {
     /**
-     * The marker of the line whose first non-blank offset (its start when blank) is [offset], when the block starting
-     * at offset [blockStart] (the start of its first line) is toggled.
+     * Returns the marker of one line of the toggled block. [offset] is the first non-blank offset of the line, or the
+     * line start for a blank line. [blockStart] is the start of the first line of the block.
      */
     fun markerAt(offset: Int, blockStart: Int): String
 }
 
 /**
- * The edits of toggle comment over the caret's [LineBlock], with the marker of each line given by [markers]
- * ([ToggleCommentAction] answers `#` inside EVAL bodies opened above the block).
+ * Computes and applies the edits of toggle comment over the [LineBlock] of the primary caret. [markers] gives the
+ * marker of each line. [ToggleCommentAction] answers `#` for lines inside EVAL bodies that were opened above the block.
  *
- * The lines considered are the block's non-blank lines, or all of its lines when every one is blank (so toggling an
- * empty line comments it). If every considered line starts with its marker after its indentation, the markers (and
- * one following space) are removed; otherwise `marker + " "` is inserted into every considered line at the smallest
- * indentation of them. One change, origin `Command(name)`.
+ * The lines that count are the non-blank lines of the block. If every line of the block is blank, all of them count,
+ * so toggling an empty line comments it. If every counted line starts with its marker after its indentation, the
+ * markers are removed together with one following space. Otherwise `marker + " "` is inserted into every counted line
+ * at the smallest indentation among them. All edits form one change with origin `Command(name)`.
  */
 internal class LineComments(private val markers: CommentMarkers, private val name: String) : LineEdit {
 
-    /** One line of the block: [start] of the line, [firstNonBlank] offset, its [marker]. */
+    /** One counted line of the block, with its [start] offset, its [firstNonBlank] offset and its [marker]. */
     private class CommentLine(val start: Int, val firstNonBlank: Int, val marker: String)
 
     override fun execute(context: EditorActionContext): Boolean {

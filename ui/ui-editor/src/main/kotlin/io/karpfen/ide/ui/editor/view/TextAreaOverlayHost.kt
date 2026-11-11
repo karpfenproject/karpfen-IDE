@@ -25,18 +25,19 @@ import io.karpfen.ide.ui.editor.theme.EditorTheme
 import io.karpfen.ide.ui.editor.view.geometry.TextAreaFrame
 
 /**
- * The [EditorOverlayHost] of `CodeEditor`: geometry in text-area coordinates from the current [TextAreaFrame]. Every
- * member reads Compose state (theme, style, the frame's geometry and scroll position, the carets, the pending scroll
- * request), so popups that use it recompose when the caret moves, the text scrolls or a reveal is applied.
+ * The [EditorOverlayHost] of `CodeEditor`. It gives geometry in text area coordinates from the current
+ * [TextAreaFrame]. Every member reads Compose state: the theme, the style, the geometry and scroll position of the
+ * frame, the carets and the pending scroll request. So popups that use it recompose when the caret moves, the text
+ * scrolls or a reveal is applied.
  *
- * [isCaretScrolledAway] also asks the viewport's current scroll position ([liveFrame]): a reveal applied after the
- * last composition shows the caret there before the next frame does.
+ * [isCaretScrolledAway] also checks the current scroll position of the viewport through [liveFrame]. A reveal applied
+ * after the last composition shows the caret there before the next frame does.
  *
- * @param frame the text area at the scroll position of the last composition, null before the first layout.
- * @param liveFrame the text area at the viewport's current scroll position, null before the first layout.
- * @param scrollPending true while a scroll request waits to be applied (the caret reveal).
- * @param primaryCaret the primary caret's offset in the frame's text.
- * @param caretWidth the caret's width in pixels.
+ * @param frame the text area at the scroll position of the last composition, or null before the first layout.
+ * @param liveFrame the text area at the current scroll position of the viewport, or null before the first layout.
+ * @param scrollPending true while a scroll request, such as the caret reveal, waits to be applied.
+ * @param primaryCaret the offset of the primary caret in the text of the frame.
+ * @param caretWidth the width of the caret in pixels.
  */
 @Stable
 internal class TextAreaOverlayHost(
@@ -60,7 +61,7 @@ internal class TextAreaOverlayHost(
     override val isCaretScrolledAway: Boolean
         get() = caretBounds == null && !scrollPending() && liveFrame()?.let(::visibleCaret) == null
 
-    /** The primary caret's rectangle in [frame], or null if it is outside the frame's visible area. */
+    /** Returns the rectangle of the primary caret in [frame], or null if it lies outside the visible area of the frame. */
     private fun visibleCaret(frame: TextAreaFrame): Rect? =
         frame.caretRect(primaryCaret(), caretWidth).takeIf(frame::isVisible)
 

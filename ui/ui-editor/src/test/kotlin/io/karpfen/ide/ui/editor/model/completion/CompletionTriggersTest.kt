@@ -26,7 +26,7 @@ import kotlin.test.assertNull
 /** The auto-triggers, decided on the text after the typing action ran. */
 class CompletionTriggersTest {
 
-    /** Types [typed] into [marked] like the editor (auto-close included) and asks for the trigger. */
+    /** Types [typed] into [marked] like the editor does, auto-close included, and asks for the trigger. */
     private fun trigger(marked: String, typed: String): CompletionTrigger? {
         val editor = TestEditor(marked)
         editor.type(typed)

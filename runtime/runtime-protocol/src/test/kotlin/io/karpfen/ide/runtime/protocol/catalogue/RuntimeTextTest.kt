@@ -21,9 +21,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
- * Covers [RuntimeText]: every rejection text of the runtime renders from its placeholder values and matches back to
- * them, a body matches only as a whole, the texts are disjoint (the two texts about a missing execution thread
- * included), an empty environment key matches, and the placeholders match what the runtime can put there.
+ * Covers [RuntimeText]. Every rejection text of the runtime renders from its placeholder values and matches back to
+ * them. A body matches only as a whole. The texts are disjoint, and that includes the two texts about a missing
+ * execution thread. An empty environment key matches, and the placeholders match what the runtime can put there.
  */
 class RuntimeTextTest {
 

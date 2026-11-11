@@ -25,24 +25,29 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
 
 /**
- * Find on a large document stays interactive: matching and expanding replacements over a 5,000-line KStates text. These
- * are the model's own targets (incremental search recomputes on every keystroke in the find field), asserted with 5x
- * slack and reported through [TestReporter].
+ * Find on a large document stays interactive. The tests time matching and the expansion of replacements over a KStates
+ * text of 5,000 lines. The limits are the model's own targets, because incremental search runs again on every keystroke
+ * in the find field. They are asserted with 5x slack and reported through [TestReporter].
  *
- * Tagged `budget`: excluded from every test run, because machine load and sleep cycles make wall-clock limits
- * unreliable; kept for later performance work.
+ * The class is tagged `budget` and is excluded from every test run, because machine load and sleep cycles make
+ * wall-clock limits unreliable. It is kept for later performance work.
  */
 @Tag("budget")
 class FindBudgetTest {
 
+    /** A synthetic KStates text of at least 5,000 lines. */
     private val text = SyntheticKstates.withMinLines(5000)
+
+    /** The matcher under test. */
     private val matcher = FindMatcher()
 
+    /** The mean duration of [block] over [runs] runs, measured after three warm-up runs. */
     private fun average(runs: Int, block: () -> Unit): Duration {
         repeat(3) { block() }
         return measureTime { repeat(runs) { block() } } / runs
     }
 
+    /** Reports [measured] against [budget] and asserts that it stays below five times the budget. */
     private fun check(reporter: TestReporter, name: String, measured: Duration, budget: Duration) {
         reporter.publishEntry(name, "measured ${measured.inWholeMicroseconds} us, budget ${budget.inWholeMilliseconds} ms (asserted x5)")
         assertTrue(measured < budget * 5, "$name took $measured, budget $budget (x5 slack)")

@@ -42,33 +42,35 @@ import java.nio.file.Path
 /**
  * The contexts of a workspace together with the descriptor texts their findings refer to.
  *
- * @property descriptors every readable descriptor's text with the diagnostics of the text itself, by path; the
- *   descriptor's findings in [resolution] refer to that text (e.g. for `FileProblems.snapshot`).
+ * @property descriptors the text of every readable descriptor by path, with the diagnostics of the text itself. The
+ *   findings of a descriptor in [resolution] refer to that text, which `FileProblems.snapshot` needs, for example.
  */
 internal data class ContextState(val resolution: ContextResolution, val descriptors: Map<Path, DescriptorSource>) {
     companion object {
-        /** Before the first scan. */
+        /** The value before the first scan. */
         val EMPTY: ContextState = ContextState(ContextResolution.EMPTY, emptyMap())
     }
 }
 
 /**
- * Keeps the modeling contexts of a workspace up to date: it reads every descriptor of the scanned tree with the
+ * Keeps the modeling contexts of a workspace up to date. It reads every descriptor of the scanned tree with the
  * [descriptorReader] and resolves the contexts with the [resolver].
  *
- * A descriptor open in an editor is read from its editor text ([openDescriptors]), so unsaved edits count: its findings,
- * the contexts and the analysis follow every edit, and closing it without saving falls back to the disk. Every other
- * descriptor is loaded through the workspace's [SourceLoader] (the one loading rule, so ranges refer to the normalized
- * text and loading findings such as malformed UTF-8 are reported on the descriptor); a descriptor that cannot be read
- * is an ERROR `unreadable`, like every file the workspace cannot read, and defines no context.
+ * A descriptor that is open in an editor is read from its editor text, which [openDescriptors] supplies. So unsaved
+ * edits count. Its findings, the contexts and the analysis follow every edit. Closing it without saving falls back to
+ * the disk. Every other descriptor is loaded through the workspace's [SourceLoader]. That is the same loading rule as
+ * for every other file, so ranges refer to the normalized text, and loading findings such as malformed UTF-8 are
+ * reported on the descriptor. A descriptor that cannot be read is an ERROR `unreadable`, like every file the workspace
+ * cannot read, and defines no context.
  *
- * The descriptor's findings (schema and named files) go into the resolution and become its project diagnostics; the
- * syntax errors and loading findings belong to its text ([DescriptorSource]), as a karpfen file's own diagnostics do.
+ * The findings of a descriptor, about its schema and the files it names, go into the resolution and become its project
+ * diagnostics. Its syntax errors and loading findings belong to its text in [DescriptorSource], as the own diagnostics
+ * of a karpfen file do.
  *
- * [update] reads everything after a scan. Once [start]ed, the tracker follows the open descriptors itself: whenever one
- * is opened, edited or closed, it reads the open ones again and reuses what the last scan loaded from disk, so following
- * the edits costs no file I/O (a descriptor closed since is loaded again). Updates and the readings that follow the
- * edits are serialized; loading and reading run on [ioDispatcher].
+ * [update] reads everything after a scan. Once [start] was called, the tracker follows the open descriptors itself.
+ * Whenever one is opened, edited or closed, it reads the open ones again and reuses what the last scan loaded from
+ * disk. So following the edits costs no file I/O. Only a descriptor that was closed since then is loaded again.
+ * Updates and the readings that follow the edits run one at a time. Loading and reading run on [ioDispatcher].
  */
 internal class ContextTracker(
     private val sourceLoader: SourceLoader,
@@ -81,7 +83,10 @@ internal class ContextTracker(
     private val stateFlow = MutableStateFlow(ContextState.EMPTY)
     private val resolutionFlow = MutableStateFlow(ContextResolution.EMPTY)
 
-    /** Serializes [update] and the readings that follow the edits; guards [tree], [editorTexts] and [diskReads]. */
+    /**
+     * Lets [update] and the readings that follow the edits run one at a time. It guards [tree], [editorTexts] and
+     * [diskReads].
+     */
     private val reading = Mutex()
 
     /** The last scanned tree, or null before the first scan. */
@@ -90,16 +95,19 @@ internal class ContextTracker(
     /** The editor texts of the open descriptors by path, as [openDescriptors] last emitted them. */
     private var editorTexts: Map<Path, TextSnapshot> = emptyMap()
 
-    /** The descriptors read from disk since the last scan, by path; open descriptors are never kept here. */
+    /** The descriptors read from disk since the last scan, by path. Open descriptors are never kept here. */
     private val diskReads = HashMap<Path, ReadDescriptor>()
 
-    /** Contexts and descriptor texts, replaced together. */
+    /** The contexts and the descriptor texts. Both are replaced together. */
     val state: StateFlow<ContextState> = stateFlow.asStateFlow()
 
-    /** The contexts alone (`Workspace.contexts`); updated right after [state]. */
+    /** The contexts alone, exposed as `Workspace.contexts`. It is updated right after [state]. */
     val resolution: StateFlow<ContextResolution> = resolutionFlow.asStateFlow()
 
-    /** Reads every descriptor of the scanned [tree] (the disk may have changed) and publishes the contexts. */
+    /**
+     * Reads every descriptor of the scanned [tree] again, because the disk may have changed, and publishes the
+     * contexts.
+     */
     suspend fun update(tree: WorkspaceTree) {
         reading.withLock {
             this.tree = tree
@@ -109,9 +117,9 @@ internal class ContextTracker(
     }
 
     /**
-     * Follows the open descriptors in [scope] until it ends: every emission of [openDescriptors] becomes the editor texts
-     * the descriptors are read from, and the contexts are resolved again (before the first scan there is nothing to
-     * resolve). A newer emission supersedes a reading still running.
+     * Follows the open descriptors in [scope] until the scope ends. Every emission of [openDescriptors] becomes the
+     * editor texts the descriptors are read from, and the contexts are resolved again. Before the first scan there is
+     * nothing to resolve. A newer emission replaces a reading that is still running.
      */
     fun start(scope: CoroutineScope): Job = scope.launch {
         openDescriptors.texts().collectLatest { texts ->
@@ -132,7 +140,7 @@ internal class ContextTracker(
         resolutionFlow.value = resolution
     }
 
-    /** The descriptor at [path] from its editor text if it is open, else from disk (once per scan). */
+    /** The descriptor at [path], read from its editor text if it is open, else from disk at most once per scan. */
     private fun read(path: Path): ReadDescriptor {
         val edited = editorTexts[path]
         if (edited != null) {
@@ -144,8 +152,8 @@ internal class ContextTracker(
     }
 
     /**
-     * Loads and reads the descriptor at [path], its loading findings joining its syntax errors as the text's own; a
-     * descriptor that cannot be loaded yields only an `unreadable` finding and no text.
+     * Loads and reads the descriptor at [path]. Its loading findings join its syntax errors as the own diagnostics of
+     * the text. A descriptor that cannot be loaded yields only an `unreadable` finding and no text.
      */
     private fun readFromDisk(path: Path): ReadDescriptor =
         try {
@@ -160,7 +168,10 @@ internal class ContextTracker(
             ReadDescriptor(DescriptorReadResult(null, listOf(UnreadableFindings.file(ioFailureReason(e))), emptyList()), source = null)
         }
 
-    /** The read [result] of a descriptor and the [source] it was read from, null when it could not be loaded. */
+    /**
+     * The read [result] of a descriptor and the [source] it was read from. [source] is null when it could not be
+     * loaded.
+     */
     private class ReadDescriptor(val result: DescriptorReadResult, val source: DescriptorSource?)
 
     private companion object {

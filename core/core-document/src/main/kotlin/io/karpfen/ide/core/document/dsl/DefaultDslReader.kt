@@ -25,15 +25,16 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * Reads with the dsl-tools readers it is given and turns what they report into the IDE's values with [ReadResults] (see
- * [DslReader] for the contract). The `DslReader` factory function wires the readers of dsl-tools.
+ * Reads with the dsl-tools readers it is given and turns what they report into the IDE's values with [ReadResults].
+ * [DslReader] describes the rules it keeps. The `DslReader` factory function wires the readers of dsl-tools.
  *
- * The readers never throw by their own contract: they turn runtime exceptions and the `StackOverflowError` of deeply
+ * By their own contract the readers never throw. They turn runtime exceptions and the `StackOverflowError` of deeply
  * nested input into a `reader.failure` diagnostic themselves. Any other throwable that escapes a reader, except a fatal
- * VM error, is a defect of dsl-tools; it is logged and becomes the same `reader.failure` diagnostic, so the IDE keeps
- * running.
+ * VM error, is a defect of dsl-tools. It is logged and becomes the same `reader.failure` diagnostic, so the IDE keeps
+ * running. A `StackOverflowError` that escapes anyway is treated the same way, even though it is a VM error.
  *
- * Stateless and thread-safe as long as its readers keep no state between reads, which the readers of dsl-tools do not.
+ * The class holds no state. It is thread-safe as long as its readers keep no state between reads, and the readers of
+ * dsl-tools keep none.
  *
  * @param kmetaReader the KMeta reader over the given base types, created for each read.
  * @param kmodelReader the KModel reader against the given metamodel, created for each read.
@@ -53,7 +54,10 @@ internal class DefaultDslReader(
 
     override fun kstates(source: TextSnapshot): ReadResult<StateMachine> = read(source, kstatesReader)
 
-    /** Reads [source] with [reader]; a throwable that escapes it, except a fatal VM error, becomes a reader failure. */
+    /**
+     * Reads [source] with [reader]. A throwable that escapes the reader becomes a reader failure. A fatal VM error is
+     * rethrown, except a `StackOverflowError`, which also becomes a reader failure.
+     */
     private fun <T : Any> read(source: TextSnapshot, reader: TextReader<T>): ReadResult<T> =
         try {
             ReadResults.of(reader.read(source.text), source)

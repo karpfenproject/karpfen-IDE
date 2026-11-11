@@ -28,10 +28,12 @@ import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
 
 /**
- * The system clipboard as a [ClipboardPort]: the AWT `Toolkit` clipboard, resolved lazily on first use, so creating the
- * port never touches the toolkit. When the JVM is headless (tests, CI) — decided by [headless] at first use — it
- * degrades to an [InMemoryClipboard] and never throws `HeadlessException`. Failures of the platform clipboard (busy, no
- * text flavor) are logged; a failed read is "no text", a failed write is reported as `false`. Used from the UI thread.
+ * The system clipboard as a [ClipboardPort]. It uses the clipboard of the AWT `Toolkit`, resolved on first use, so
+ * creating the port never touches the toolkit. When the JVM is headless, as in tests and CI, it falls back to an
+ * [InMemoryClipboard] and never throws `HeadlessException`. [headless] decides this at first use.
+ *
+ * Failures of the platform clipboard are logged. Examples are a busy clipboard or one without a text flavor. A failed
+ * read counts as "no text", and a failed write is reported as `false`. Use the class from the UI thread.
  */
 internal class LazySystemClipboard(
     private val headless: () -> Boolean = GraphicsEnvironment::isHeadless,
@@ -49,7 +51,7 @@ internal class LazySystemClipboard(
     override fun holdsWholeLine(): Boolean = delegate.holdsWholeLine()
 }
 
-/** A clipboard in memory (headless fallback). */
+/** A clipboard in memory. It is the fallback when the JVM is headless. */
 internal class InMemoryClipboard : ClipboardPort {
     private var content: String? = null
     private var wholeLine = false
@@ -66,8 +68,8 @@ internal class InMemoryClipboard : ClipboardPort {
 }
 
 /**
- * Text on an AWT [clipboard]. A whole line is put there with a JVM-local flavor next to the string flavor
- * ([WholeLineSelection]): other applications see plain text, and the mark disappears as soon as anything else owns the
+ * Text on an AWT [clipboard]. A whole line is put there with a JVM-local flavor next to the string flavor, through
+ * [WholeLineSelection]. Other applications see plain text, and the mark disappears as soon as anything else owns the
  * clipboard.
  */
 private class AwtClipboard(private val clipboard: Clipboard) : ClipboardPort {
@@ -105,7 +107,7 @@ private class AwtClipboard(private val clipboard: Clipboard) : ClipboardPort {
     }
 }
 
-/** A whole line of [text] for the AWT clipboard: the string flavor plus the JVM-local mark [FLAVOR]. */
+/** A whole line of [text] for the AWT clipboard. It offers the string flavor plus the JVM-local mark [FLAVOR]. */
 private class WholeLineSelection(private val text: String) : Transferable, ClipboardOwner {
 
     override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(FLAVOR, DataFlavor.stringFlavor)
@@ -120,9 +122,9 @@ private class WholeLineSelection(private val text: String) : Transferable, Clipb
 
     override fun lostOwnership(clipboard: Clipboard?, contents: Transferable?) = Unit
 
-    /** The mark. */
+    /** Holds the mark. */
     companion object {
-        /** Marks a whole line copied or cut by an editor of this IDE (never exported to other applications). */
+        /** Marks a whole line that an editor of this IDE copied or cut. It is never exported to other applications. */
         val FLAVOR: DataFlavor = DataFlavor("${DataFlavor.javaJVMLocalObjectMimeType};class=java.lang.Boolean", "karpfen whole line")
     }
 }

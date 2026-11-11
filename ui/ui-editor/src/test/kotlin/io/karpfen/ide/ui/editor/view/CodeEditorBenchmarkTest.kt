@@ -28,13 +28,13 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * The rendering benchmark: a 10,000-line KStates document (`SyntheticKstates.withMinLines(10_000)`) with highlighting,
- * scrolled to the middle; after a warm-up, every measured frame scrolls by a few lines (so new lines are laid out and
- * drawn) and is rendered into an image, which also forces the draw phase. The average frame time is reported through
- * JUnit's [TestReporter] and asserted against the budget of 50 ms with 5x slack.
+ * The rendering benchmark. It opens a KStates document of 10,000 lines from `SyntheticKstates.withMinLines(10_000)`
+ * with highlighting and scrolls it to the middle. After a warm-up, every measured frame scrolls by a few lines, so new
+ * lines are laid out and drawn. Each frame is rendered into an image, which also forces the draw phase. The average
+ * frame time is reported through JUnit's [TestReporter] and asserted against the budget of 50 ms with 5x slack.
  *
- * Tagged `budget`: excluded from every test run, because machine load and sleep cycles make wall-clock limits
- * unreliable; kept for later performance work.
+ * The class is tagged `budget` and is excluded from every test run, because machine load and sleep cycles make
+ * wall-clock limits unreliable. It is kept for later performance work.
  */
 @OptIn(ExperimentalTestApi::class)
 @Tag("budget")
@@ -67,13 +67,24 @@ class CodeEditorBenchmarkTest {
         assertTrue(averageMillis < BUDGET_MILLIS * SLACK, "average frame time $averageMillis ms (budget $BUDGET_MILLIS ms, 5x slack)")
     }
 
-    /** The document size, the frames and the budget. */
+    /** Holds the document size, the frame counts and the budget. */
     private companion object {
+        /** The minimum number of lines of the document. */
         const val MIN_LINES = 10_000
+
+        /** How many lines each frame scrolls. */
         const val LINES_PER_FRAME = 7
+
+        /** Frames rendered before the measurement starts. */
         const val WARM_UP_FRAMES = 20
+
+        /** Frames whose time is averaged. */
         const val MEASURED_FRAMES = 60
+
+        /** The frame budget in milliseconds. */
         const val BUDGET_MILLIS = 50.0
+
+        /** The factor by which the average may exceed the budget before the test fails. */
         const val SLACK = 5
     }
 }

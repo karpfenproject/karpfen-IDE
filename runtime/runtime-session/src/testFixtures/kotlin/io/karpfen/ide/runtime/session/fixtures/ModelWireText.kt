@@ -35,13 +35,15 @@ import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 
 /**
- * A dsl-tools 2.0 model as the runtime holds it, so that the runtime's JSON of any analyzed model comes from the one
- * port of the runtime's writers, [RuntimeWireWriter]: the model's root objects as [FakeObject]s with the properties and
- * relations the `.kmodel` writes, in instance order (`has` before `knows`, as the readers create them), numbers as
- * doubles, embedded and anonymous objects nested, `knows` targets referred to by id and resolved through [objects]
- * when written. An unresolved atomic relation is empty and an unresolved list entry `null`, as the runtime writes them.
+ * A dsl-tools 2.0 model as the runtime holds it. With it, the runtime's JSON of any analyzed model comes from the one
+ * port of the runtime's writers, [RuntimeWireWriter].
  *
- * The model is converted when this is built; nothing keeps the dsl-tools model. Immutable.
+ * The model's root objects become [FakeObject]s with the properties and relations that the `.kmodel` writes. They are
+ * in instance order, which puts `has` before `knows`, as the readers create them. Numbers become doubles. Embedded and
+ * anonymous objects are nested. `knows` targets are referred to by id and resolved through [objects] when written. An
+ * unresolved atomic relation is empty and an unresolved list entry is `null`, as the runtime writes them.
+ *
+ * The model is converted when this is built, and nothing keeps the dsl-tools model. Immutable.
  *
  * @param model the analyzed model.
  */
@@ -79,15 +81,18 @@ public class ModelWireText(model: Model) {
     ): String = RuntimeWireWriter.snapshot(environmentKey, phase, revision, activeStates, rootsJson())
 
     /**
-     * Converts one model; confined to the construction.
+     * Converts one model. Confined to the construction.
      *
      * @param byId receives every keyed object.
      */
     private class Converter(private val byId: MutableMap<String, FakeObject>) {
-        /** Keyed targets of `knows` relations, converted after the embedded tree if it does not hold them. */
+        /**
+         * Keyed targets of `knows` relations. They are converted after the embedded tree, if the tree does not hold
+         * them.
+         */
         private val referenced = ArrayDeque<DataObject>()
 
-        /** The root objects of [model], every keyed object recorded. */
+        /** The root objects of [model]. Every keyed object is recorded on the way. */
         fun roots(model: Model): List<FakeObject> {
             val roots = model.objects.map(::convert)
             while (referenced.isNotEmpty()) {
@@ -129,7 +134,10 @@ public class ModelWireText(model: Model) {
             }
         }
 
-        /** The target [obj] of a relation with [association]: nested if embedded or anonymous, else referred to by id. */
+        /**
+         * The target [obj] of a relation with [association]. It is nested if it is embedded or anonymous, and referred
+         * to by id otherwise.
+         */
         private fun target(obj: DataObject, association: FakeAssociation): FakeTarget {
             if (association == FakeAssociation.HAS || obj.id.isEmpty()) return FakeTarget.Nested(convert(obj))
             if (obj.id !in byId) referenced += obj

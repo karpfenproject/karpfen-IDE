@@ -29,19 +29,23 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The caret reveal: every executed action and typed text that changes the carets or the text leaves a pending scroll
- * request for the primary caret — minimal near the viewport, centred for jumps — which the view applies with a 3-line
- * margin; pending requests stay until consumed.
+ * The caret reveal. Every executed action and every typed text that changes the carets or the text leaves a pending
+ * scroll request for the primary caret. Near the viewport the request scrolls as little as possible, and after a jump
+ * it centres the caret. The view applies it with a margin of 3 lines. Pending requests stay until they are consumed.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CaretRevealTest {
 
+    /** 100 lines, where lines 50 and 80 end with `target`. */
     private val lines = (0 until 100).joinToString("\n") { "line $it" + if (it == 50 || it == 80) " target" else "" }
 
+    /** The offset where [line] starts. */
     private fun EditorStateHarness.lineStart(line: Int): Int = text.snapshot.value.lineIndex.lineStart(line)
 
+    /** The line of the primary caret. */
     private fun EditorStateHarness.caretLine(): Int = text.snapshot.value.lineIndex.lineOf(state.caret.primary.position)
 
+    /** True if the line of the primary caret lies completely inside the viewport. */
     private fun EditorStateHarness.isCaretVisible(): Boolean {
         val viewport = state.viewport.state.value
         val top = caretLine() * viewport.lineHeight

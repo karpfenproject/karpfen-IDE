@@ -22,15 +22,15 @@ import io.karpfen.ide.core.text.TextSnapshot
 import org.antlr.v4.runtime.Token
 
 /**
- * BLOCK folding: every brace pair spanning more than one line. Braces are paired lexically on the
- * default-channel tokens of the parser's stream (the same braces the parser sees), so folding also works on broken
- * text; an unmatched brace folds nothing. The range runs from the `{` through the `}`.
+ * BLOCK folding, which folds every brace pair that spans more than one line. Braces are paired lexically on the
+ * default-channel tokens of the parser's stream, which are the braces the parser sees. Folding therefore also works on
+ * broken text. An unmatched brace folds nothing. The range runs from the `{` through the `}`.
  */
 internal object BlockFolding {
 
     /**
-     * The blocks of [tree] whose braces have the token types [open] and [close]; braces at token indices for which
-     * [skip] answers true (e.g. those of EVAL bodies, which fold as embedded code) are ignored.
+     * The blocks of [tree] whose braces have the token types [open] and [close]. Braces at token indices for which
+     * [skip] answers true are ignored. The braces of EVAL bodies are an example, because they fold as embedded code.
      */
     fun of(tree: ParsedTree<*>, open: Int, close: Int, skip: (tokenIndex: Int) -> Boolean = { false }): List<FoldingRange> {
         val folds = ArrayList<FoldingRange>()
@@ -55,13 +55,16 @@ internal object BlockFolding {
 }
 
 /**
- * COMMENT folding: runs of at least two comment lines on consecutive lines. A comment line is a line whose
- * first non-blank character starts a `//` comment; a trailing comment after code and a blank line end a run. The range
- * runs from the first comment's start to the last one's end.
+ * COMMENT folding, which folds runs of at least two comment lines on consecutive lines. A comment line is a line whose
+ * first non-blank character starts a `//` comment. A trailing comment after code ends a run, and so does a blank line.
+ * The range runs from the start of the first comment to the end of the last one.
  */
 internal object CommentFolding {
 
-    /** The runs among [comments] (the `//` comments of [snapshot], sorted, e.g. from `LexerGaps` or hidden tokens). */
+    /**
+     * The runs among [comments]. These are the sorted `//` comments of [snapshot], taken for example from `LexerGaps`
+     * or from hidden tokens.
+     */
     fun of(snapshot: TextSnapshot, comments: List<TextRange>): List<FoldingRange> {
         val folds = ArrayList<FoldingRange>()
         var run = ArrayList<TextRange>()
@@ -85,7 +88,7 @@ internal object CommentFolding {
         return folds
     }
 
-    /** True if only blanks precede [offset] on its line, i.e. a comment there is a comment line. */
+    /** True if only blanks precede [offset] on its line, so that a comment there is a comment line. */
     private fun startsLine(snapshot: TextSnapshot, offset: Int): Boolean {
         val lineStart = snapshot.lineIndex.lineStart(snapshot.lineIndex.lineOf(offset))
         return (lineStart until offset).all { snapshot.text[it].let { char -> char == ' ' || char == '\t' || char == '\r' } }

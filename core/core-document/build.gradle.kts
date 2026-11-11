@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 /**
- * Kotlin/JVM with kotlinx.serialization, because `EnvironmentDescriptor` is serializable, and shared test fixtures: the
- * example files, mutations and synthetic documents, which the tests of this module use and the tests of downstream
- * modules reach through `testFixtures(project(":core:core-document"))`.
+ * The module builds as Kotlin/JVM with kotlinx.serialization, because `EnvironmentDescriptor` is serializable. It also
+ * publishes shared test fixtures: the example files, mutations and synthetic documents. The tests of this module use
+ * them, and the tests of downstream modules reach them through `testFixtures(project(":core:core-document"))`.
  */
 plugins {
     id("karpfen.kotlin-serialization")
@@ -24,19 +24,21 @@ plugins {
 }
 
 /**
- * The public API holds `TextSnapshot` and `EditableText` of core-text, the dsl-tools semantic model types (the packages
- * `io.karpfen.dsl.meta`, `io.karpfen.dsl.instance` and `io.karpfen.dsl.states`) in `DslModel`, `DslReader` and,
- * downstream, the project analysis, and the serializable `EnvironmentDescriptor`, whose JSON shape is the format of the
- * environment descriptors that the IDE reads and its deployment works from (the runtime never reads them).
- * karpfen-dsl-tools is the language core of the IDE; the IDE adds only editor concerns and has no parser of its own for
- * the modeling languages.
+ * The public API exposes three groups of types. The first is `TextSnapshot` and `EditableText` of core-text. The second
+ * is the semantic model types of dsl-tools, from the packages `io.karpfen.dsl.meta`, `io.karpfen.dsl.instance` and
+ * `io.karpfen.dsl.states`. They appear in `DslModel` and `DslReader` and, downstream, in the project analysis. The
+ * third is the serializable `EnvironmentDescriptor`. Its JSON shape is the format of the environment descriptors that
+ * the IDE reads and that its deployment works from. The runtime never reads these descriptors.
+ *
+ * karpfen-dsl-tools is the language core of the IDE. The IDE adds only editor concerns and has no parser of its own
+ * for the modeling languages.
  *
  * core-document declares the ANTLR runtime itself, because its adapter package `io.karpfen.ide.core.document.antlr`
- * uses it directly, but without a version: dsl-tools publishes the runtime as part of its own API, since its generated
- * lexers and parsers are public, and its version is the one those parsers are generated for, so the IDE always runs
- * them with the runtime they expect (`AntlrRuntimeVersionTest` checks it). The runtime also reaches the compile
- * classpath of downstream modules that way; the architecture tests keep every use of ANTLR and of the generated parsers
- * inside that adapter package, and no public signature of the IDE exposes an ANTLR type.
+ * uses it directly. It declares no version, though. dsl-tools publishes the runtime as part of its own API, because
+ * its generated lexers and parsers are public. That version is the one the parsers were generated for, so the IDE
+ * always runs them with the runtime they expect. `AntlrRuntimeVersionTest` checks this. The runtime also reaches the
+ * compile classpath of downstream modules this way. The architecture tests keep every use of ANTLR and of the
+ * generated parsers inside the adapter package, and no public signature of the IDE exposes an ANTLR type.
  */
 dependencies {
     api(project(":core:core-text"))

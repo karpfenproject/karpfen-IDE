@@ -16,16 +16,17 @@
 package io.karpfen.ide.ui.foundation.keys
 
 /**
- * Toolkit-neutral keys for shortcuts. Compose-free on purpose: the editor's keymap and the command lookups live in
- * model code that is unit-tested without Compose; `ComposeKeys.kt` converts Compose key events.
+ * Toolkit-neutral keys for shortcuts. The key model does not depend on Compose on purpose. The editor's keymap and the
+ * command lookups live in model code that is unit-tested without Compose, and `ComposeKeys.kt` converts Compose key
+ * events.
  *
- * Letters, digits, function and navigation keys denote physical keys. The punctuation codes ([SLASH] … [RIGHT_BRACKET])
- * denote the *character* (slash, backslash, minus, equals, comma, period, semicolon, apostrophe, grave accent,
- * brackets) on the current keyboard layout: the key adapter reports the code of the character a key produced, without
- * the Shift the layout needed for it. On a German layout Shift+7 produces `/`, so Cmd+Shift+7 arrives as
- * `KeyStroke(SLASH, {META})` and matches the binding primary+/ (toggle comment) like on a US layout. One binding per
- * shortcut thus works on every layout, without a character field on [KeyStroke] and without layout-specific second
- * bindings.
+ * Letters, digits, function keys and navigation keys denote physical keys. The punctuation codes, from [SLASH] to
+ * [RIGHT_BRACKET], denote a *character* on the current keyboard layout: slash, backslash, minus, equals, comma, period,
+ * semicolon, apostrophe, grave accent and the two brackets. The key adapter reports the code of the character a key
+ * produced, without the Shift the layout needed for it. On a German layout Shift+7 produces `/`, so Cmd+Shift+7
+ * arrives as `KeyStroke(SLASH, {META})`. It matches the binding primary+/ of toggle comment just as on a US layout. So
+ * one binding per shortcut works on every layout. [KeyStroke] needs no character field, and no layout needs a second
+ * binding of its own.
  */
 public enum class KeyCode {
     A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
@@ -41,18 +42,18 @@ public enum class KeyModifier {
     /** Shift. */
     SHIFT,
 
-    /** Control (Ctrl on every platform, including macOS). */
+    /** Control. It is the physical Ctrl key on every platform, macOS included. */
     CTRL,
 
-    /** Alt / Option. */
+    /** Alt, called Option on macOS. */
     ALT,
 
-    /** Meta / Command (macOS) / Windows key. */
+    /** Meta: the Command key on macOS, the Windows key on Windows and the Super key on Linux. */
     META,
 }
 
 /**
- * A key press with the exact set of physical modifiers held (what a key event reports).
+ * A key press with the exact set of physical modifiers held, as a key event reports it.
  *
  * @property key the pressed key, or the produced punctuation character as described on [KeyCode].
  * @property modifiers the physical modifiers held during the press.
@@ -61,7 +62,7 @@ public data class KeyStroke(public val key: KeyCode, public val modifiers: Set<K
     override fun toString(): String = (modifiers.sorted().map { it.name } + key.name).joinToString("+")
 }
 
-/** The desktop platform; decides which physical modifier is the "primary" one (Cmd on macOS, Ctrl elsewhere). */
+/** The desktop platform. It decides which physical modifier is the primary one: Cmd on macOS and Ctrl elsewhere. */
 public enum class HostPlatform {
     /** macOS. */
     MAC_OS,
@@ -81,7 +82,7 @@ public enum class HostPlatform {
         /** The platform of this JVM, from the `os.name` system property. */
         public fun current(): HostPlatform = fromOsName(System.getProperty("os.name").orEmpty())
 
-        /** The platform for an `os.name` value (unknown names count as [LINUX]). */
+        /** The platform for an `os.name` value. Unknown names count as [LINUX]. */
         public fun fromOsName(osName: String): HostPlatform {
             val name = osName.lowercase()
             return when {
@@ -94,12 +95,14 @@ public enum class HostPlatform {
 }
 
 /**
- * A platform-independent shortcut: [primary] means Cmd on macOS and Ctrl elsewhere. [ctrl] requests the physical Ctrl
- * key in addition (only meaningful on macOS, where it differs from the primary modifier).
+ * A platform-independent shortcut. [primary] means Cmd on macOS and Ctrl elsewhere. [ctrl] asks for the physical Ctrl
+ * key in addition. It only matters on macOS, where Ctrl differs from the primary modifier.
  *
  * @property key the key, a physical key or a punctuation character as described on [KeyCode].
+ * @property primary whether the primary modifier is held.
  * @property shift whether Shift is held.
- * @property alt whether Alt (Option on macOS) is held.
+ * @property alt whether Alt is held, which is Option on macOS.
+ * @property ctrl whether the physical Ctrl key is held in addition to the primary modifier.
  */
 public data class KeyShortcut(
     public val key: KeyCode,

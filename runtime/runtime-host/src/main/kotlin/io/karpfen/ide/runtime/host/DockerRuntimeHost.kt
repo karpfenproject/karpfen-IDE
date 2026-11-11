@@ -54,15 +54,21 @@ import java.nio.file.Path
 /**
  * The runtime of one workspace in a Docker container the IDE owns, built from the runtime sources bundled with the IDE.
  *
- * [ensureRunning] answers at once while the container runs; otherwise it checks the engine, adopts a running container
- * of this workspace built from the current sources or removes the workspace's other containers, builds the image if it
- * is missing, creates the container with its configuration, starts it and waits until the runtime answers and supports
- * the IDE. There is at most one start at a time: a call during a start joins it and gets its answer, a failure as well,
- * and only a later call starts again. A start that fails after creating or adopting the container removes it, so the
- * next start begins afresh. While the container runs, a watcher notices when it stops; the next [ensureRunning] starts a
- * new one. [stop] cancels a start under way, which answers every call waiting for it that the runtime was stopped, and
- * removes the container; after [close] the host starts nothing. The host only lists, stops and removes images and
- * containers labelled as the IDE's runtime, and containers only of its own workspace.
+ * [ensureRunning] answers at once while the container runs. Otherwise it starts the runtime in steps. It checks the
+ * engine. It adopts a running container of this workspace that was built from the current sources, and removes the
+ * workspace's other containers. Without a container to adopt, it builds the image if it is missing, creates the
+ * container with its configuration and starts it. Then it waits until the runtime answers and supports the IDE.
+ *
+ * There is at most one start at a time. A call during a start joins it and gets its answer, a failure included. Only a
+ * later call starts again. A start that fails after creating or adopting the container removes it, so the next start
+ * begins afresh. While the container runs, a watcher notices when it stops, and the next [ensureRunning] starts a new
+ * one. [stop] cancels a start under way and removes the container. Every call that waited for the cancelled start gets
+ * the answer that the runtime was stopped. After [close] the host starts nothing.
+ *
+ * The container is named and labelled after the workspace path, as [WorkspaceContainer] describes. It publishes the
+ * runtime on `127.0.0.1` at an ephemeral host port, so only this machine reaches it. After an image build, the host
+ * removes the older images of the runtime that no container uses. The host only lists, stops and removes images and
+ * containers that carry the label [RuntimeLabels.RUNTIME], and containers only of its own workspace.
  *
  * @param workspaceRoot the root folder of the workspace, which names and labels the container.
  * @param options what the host works with.
@@ -93,7 +99,7 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
     /** Guards [starting] and keeps a stop from overlapping a start. */
     private val mutex = Mutex()
 
-    /** The start under way, which every call joins while it runs and [stop] cancels, or the last one; under [mutex]. */
+    /** The start under way, or the last one. Every call joins it while it runs, and [stop] cancels it. Guarded by [mutex]. */
     private var starting: Deferred<HostOutcome>? = null
 
     /** True once [close] began. */
@@ -104,7 +110,7 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
     @Volatile
     private var connection: EngineConnection? = null
 
-    /** The container the host created or adopted, or null; written by a start, or by [stop] once no start runs. */
+    /** The container the host created or adopted, or null. A start writes it, and so does [stop] once no start runs. */
     @Volatile
     private var container: OwnContainer? = null
 
@@ -137,6 +143,11 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
         }
     }
 
+    /**
+     * Marks the host as closed, so no new start begins, and then stops the runtime as [stop] does. It blocks the calling
+     * thread during the stop and cancels the stop after [HostTimings.closeBound]. Afterwards it cancels the host's
+     * coroutines and releases the connection to the engine.
+     */
     override fun close() {
         closed = true
         runBlocking { withTimeoutOrNull(timings.closeBound) { stop() } }
@@ -159,7 +170,7 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
         return if (stillRuns) HostOutcome.Ready(running.endpoint) else null
     }
 
-    /** Stops and removes the container [own] and ends its coroutines; a failure of the engine is only logged. */
+    /** Stops and removes the container [own] and ends its coroutines. A failure of the engine is only logged. */
     private suspend fun discard(own: OwnContainer) {
         try {
             own.engine.stopContainer(own.id, timings.stopTimeout)
@@ -177,8 +188,9 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
     }
 
     /**
-     * Starts the runtime step by step and answers where it is reached, or why there is none; a step that fails after
-     * the container was created or adopted removes it.
+     * Starts the runtime step by step and answers where it is reached, or why there is none. A step that fails after
+     * the container was created or adopted removes the container. A cancellation sets the status to stopped and is
+     * passed on.
      */
     private suspend fun start(): HostOutcome {
         container?.release()
@@ -258,8 +270,9 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
         }
 
     /**
-     * Adopts a running container of this workspace built from the current sources and answers its host port, after
-     * removing every other container of this workspace; answers null if there is none to adopt.
+     * Adopts a running container of this workspace built from the current sources and answers its host port. Every
+     * other container of this workspace is removed first, the stopped ones and those built from other sources. Answers
+     * null if there is no container to adopt.
      */
     private suspend fun adopt(engine: DockerEngine, image: RuntimeImage): Int? {
         val found = containerCall { engine.listContainers(workspace.filter, includeStopped = true) }
@@ -329,7 +342,10 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
         removeOlderImages(engine, image)
     }
 
-    /** Removes the images of the runtime built from other sources that no container uses; a failure is only logged. */
+    /**
+     * Removes the images of the runtime that were built from other sources and that no container uses, stopped
+     * containers included. A failure is only logged.
+     */
     private suspend fun removeOlderImages(engine: DockerEngine, image: RuntimeImage) {
         val older = try {
             val used = engine.listContainers(RuntimeLabels.OURS, includeStopped = true).map { it.imageId }.toSet()
@@ -374,7 +390,7 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
         }
     }
 
-    /** Runs the engine call [block] of a container step; a failure fails the start with [HostProblemCode.CONTAINER_FAILED]. */
+    /** Runs the engine call [block] of a container step. A failure fails the start with [HostProblemCode.CONTAINER_FAILED]. */
     private suspend fun <T> containerCall(block: suspend () -> T): T =
         try {
             block()
@@ -418,8 +434,10 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
         }
 
         /**
-         * Checks the container every watch interval and fails [running] once an inspection shows that it stopped or is
-         * gone, or once [WATCH_ATTEMPTS] inspections in a row failed; a single failed inspection is tried again.
+         * Checks the container every watch interval. It replaces the status [running] with a failure once an inspection
+         * shows that the container stopped or is gone, or once [WATCH_ATTEMPTS] inspections in a row failed. A single
+         * failed inspection is tried again. The status changes only while it is still [running], so the watcher never
+         * overwrites a stop or a newer start.
          */
         fun watch(running: HostStatus.Running) {
             jobs += scope.launch {

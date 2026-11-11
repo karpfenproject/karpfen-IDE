@@ -28,7 +28,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** [DialogState]: one dialog at a time, typed answers, cancellation; [DialogPresentation] offers exactly those answers. */
+/**
+ * Tests [DialogState]. It shows one dialog at a time, accepts only the answers of the request's type, and handles
+ * cancellation. The tests also check that [DialogPresentation] offers exactly those answers.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DialogStateTest {
 

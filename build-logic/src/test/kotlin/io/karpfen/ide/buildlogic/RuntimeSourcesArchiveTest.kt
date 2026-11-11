@@ -29,10 +29,10 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
 /**
- * Covers [RuntimeSourcesArchive] against temporary git repositories: the archive holds exactly the tracked files of the
- * working tree, sorted, with fixed times, owner and modes, packing twice gives identical bytes, the properties record
- * the archive's hash, the commit and the file count, and a checkout that is missing fails with the command that checks
- * it out.
+ * Covers [RuntimeSourcesArchive] against temporary git repositories. The archive holds exactly the tracked files of the
+ * working tree, sorted, with fixed times, owner and modes. Packing twice gives identical bytes. The properties record
+ * the archive's hash, the commit and the file count. A checkout that is missing fails with the command that checks it
+ * out.
  */
 class RuntimeSourcesArchiveTest {
 
@@ -177,7 +177,7 @@ class RuntimeSourcesArchiveTest {
     private fun field(header: ByteArray, offset: Int, length: Int): String =
         String(header, offset, length, Charsets.UTF_8).substringBefore('\u0000').trim()
 
-    /** The standard output of git run in [directory] with [arguments]; fails the test if git fails. */
+    /** The standard output of git run in [directory] with [arguments]. Fails the test if git fails. */
     private fun git(directory: File, vararg arguments: String): String {
         val process = ProcessBuilder(listOf("git", "-C", directory.absolutePath) + arguments).redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().readText()

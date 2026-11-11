@@ -16,12 +16,12 @@
 package io.karpfen.ide.core.text
 
 /**
- * Test oracle for text edits, written independently of the production algorithms: a `StringBuilder` whose edits are
- * applied one by one from the end of the text to its start, so earlier offsets stay valid, and a parallel list of
- * character identities that defines offset mapping by which characters survive an edit.
+ * Test oracle for text edits, written independently of the production algorithms. It is a `StringBuilder` whose edits
+ * are applied one by one from the end of the text to its start, so earlier offsets stay valid. A parallel list of
+ * character identities defines offset mapping by the characters that survive an edit.
  *
- * Mapping rule of the oracle (the meaning of [Bias]): [Bias.RIGHT] keeps an offset in front of the first character at
- * or after it that survives the change, [Bias.LEFT] keeps it behind the last character before it that survives.
+ * The oracle gives [Bias] its meaning. [Bias.RIGHT] keeps an offset in front of the first character at or after it
+ * that survives the change. [Bias.LEFT] keeps it behind the last character before it that survives.
  */
 class ReferenceText(initial: String) {
 
@@ -52,8 +52,8 @@ class ReferenceText(initial: String) {
     val tracked: List<Tracker> get() = trackers
 
     /**
-     * Applies [edits] given in the coordinates of the current text as one change: insertions at the same offset in
-     * list order, an insertion at the start of a replaced range before the replacement.
+     * Applies [edits], given in the coordinates of the current text, as one change. Insertions at the same offset are
+     * applied in list order, and an insertion at the start of a replaced range goes before the replacement.
      */
     fun apply(edits: List<TextEdit>) {
         val order = edits.indices.sortedWith(
@@ -75,7 +75,10 @@ class ReferenceText(initial: String) {
         }
     }
 
-    /** Replaces the whole text by [newText] with one edit covering everything (only used where mapping is not checked). */
+    /**
+     * Replaces the whole text by [newText] with one edit that covers everything. Tests use it only where mapping is not
+     * checked.
+     */
     fun replaceAll(newText: String) {
         if (newText != text) apply(listOf(TextEdit(TextRange(0, builder.length), newText)))
     }

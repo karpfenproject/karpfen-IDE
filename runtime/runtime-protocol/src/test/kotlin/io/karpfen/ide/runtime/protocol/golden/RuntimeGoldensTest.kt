@@ -37,11 +37,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 /**
- * Covers the client's reading and writing against the runtime goldens: every push golden decodes without a violation to
- * the push it shows, its members read by name in whatever order the runtime writes them; every golden is the runtime's
- * JSON for the client's reader, the non-finite numbers included; the lamp's snapshot golden reads as the activated lamp
- * at revision 0; the event frame goldens are exactly what the encoder writes; and the handshake golden holds keys of the
- * client's shapes.
+ * Covers the client's reading and writing against the runtime goldens. Every push golden decodes without a violation to
+ * the push it shows. Its members are read by name in whatever order the runtime writes them. Every golden is the
+ * runtime's JSON for the client's reader, and that includes the non-finite numbers. The lamp's snapshot golden reads as
+ * the activated lamp at revision 0. The event frame goldens are exactly what the encoder writes. The handshake golden
+ * holds keys of the client's shapes.
  */
 class RuntimeGoldensTest {
 

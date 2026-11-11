@@ -18,13 +18,14 @@ package io.karpfen.ide.ui.editor.view.geometry
 import io.karpfen.ide.ui.editor.model.caret.TabStops
 
 /**
- * One line as it is drawn: every tab replaced by the spaces up to its next tab stop, the width of each tab taken from
- * [TabStops] (the one tab rule of the editor), so the monospace cells of [text] are the line's display columns.
- * [displayOffsetOf] maps a column of [source] to the offset in [text] (where highlight spans start and end), with
- * [tabColumns], the columns of the tabs of [source], and [extraAfterTab], the expansion beyond one character summed up
- * to and including each tab. Immutable.
+ * One line as it is drawn. Every tab is replaced by the spaces up to its next tab stop. The width of each tab comes from
+ * [TabStops], the single tab rule of the editor. So the monospace cells of [text] are the display columns of the line.
  *
- * @property source the line's text (without `\n`).
+ * [displayOffsetOf] maps a column of [source] to the offset in [text], which is where highlight spans start and end.
+ * It uses [tabColumns], the columns of the tabs of [source], and [extraAfterTab]. For each tab, [extraAfterTab] holds
+ * the sum of the expansions beyond one character up to and including that tab. Instances are immutable.
+ *
+ * @property source the text of the line, without `\n`.
  * @property text [source] with its tabs expanded.
  */
 internal class DisplayLine private constructor(
@@ -35,8 +36,8 @@ internal class DisplayLine private constructor(
 ) {
 
     /**
-     * The offset in [text] of [column] of [source] (clamped to the line): the column plus the expansion beyond one
-     * character of every tab before it.
+     * Returns the offset in [text] of [column] of [source], clamped to the line. That is the column plus the expansion
+     * beyond one character of every tab before it.
      */
     fun displayOffsetOf(column: Int): Int {
         val clamped = column.coerceIn(0, source.length)
@@ -45,7 +46,7 @@ internal class DisplayLine private constructor(
         return clamped + if (tabs == 0) 0 else extraAfterTab[tabs - 1]
     }
 
-    /** The number of tabs strictly before [column], by binary search over [tabColumns]. */
+    /** Returns the number of tabs strictly before [column], found by binary search over [tabColumns]. */
     private fun tabsBefore(column: Int): Int {
         var low = 0
         var high = tabColumns.size
@@ -56,9 +57,9 @@ internal class DisplayLine private constructor(
         return low
     }
 
-    /** Creation from a line's text. */
+    /** Creates display lines from the text of a line. */
     companion object {
-        /** The display form of [line] with the tab stops of [tabStops]. */
+        /** Returns the display form of [line] with the tab stops of [tabStops]. */
         fun of(line: String, tabStops: TabStops): DisplayLine {
             if ('\t' !in line) return DisplayLine(line, line, IntArray(0), IntArray(0))
             val tabs = line.indices.filter { line[it] == '\t' }.toIntArray()

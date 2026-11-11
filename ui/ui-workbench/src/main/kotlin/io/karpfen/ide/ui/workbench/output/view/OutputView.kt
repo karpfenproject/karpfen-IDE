@@ -57,15 +57,18 @@ import io.karpfen.ide.ui.workbench.output.OutputReadingPosition
 import io.karpfen.ide.ui.workbench.output.OutputUiState
 
 /**
- * The Language Tools Output tool window: a toolbar with the Follow toggle and Clear, above the buffered lines in a
- * monospace font, each with its time, level (coloured by severity), the logger's simple name, the file it read and the
- * message, as [OutputLineFormat] writes them. While [OutputUiState.follow] is on, the list scrolls to the newest line
- * whenever one arrives, showing it from its start. Following yields to the user: scrolling the newest line out of sight
- * switches it off, and scrolling it back into sight switches it on again, both through [onFollowChange]. The view
- * reports where the user reads to [onReadingPositionChange] and, when it enters the composition again, as when its
- * hidden tool window is shown, starts at [readingPosition]. The text can be selected and copied. Without lines it shows
- * [emptyText]; with [errorsInErrorColour], the whole text of an error line is in the error colour, as the runtime log
- * shows standard error.
+ * The Language Tools Output tool window. A toolbar with the Follow toggle and the Clear button sits above the buffered
+ * lines. The lines are in a monospace font. Each shows its time, its level coloured by severity, the logger's simple
+ * name, the file it read and the message, as [OutputLineFormat] writes them.
+ *
+ * While [OutputUiState.follow] is on, the list scrolls to the newest line whenever one arrives and shows it from its
+ * start. Following yields to the user. Scrolling the newest line out of sight switches it off, and scrolling it back
+ * into sight switches it on again. Both changes go through [onFollowChange].
+ *
+ * The view reports where the user reads to [onReadingPositionChange]. When it enters the composition again, for
+ * example when its hidden tool window is shown, it starts at [readingPosition]. The text can be selected and copied.
+ * Without lines the view shows [emptyText]. With [errorsInErrorColour] the whole text of an error line is in the error
+ * colour. The runtime log uses that to show standard error.
  */
 @Composable
 internal fun OutputView(
@@ -110,9 +113,10 @@ internal fun OutputView(
 }
 
 /**
- * The scrollable, selectable list of [lines]; scrolls to the newest line when one arrives while [follow] is on, and
- * reports the user's scrolling to [onFollowChange] ([FollowUserScrolling]). It starts at [readingPosition] and reports
- * every change of the line at its top to [onReadingPositionChange]; [errorsInErrorColour] colours whole error lines.
+ * The scrollable, selectable list of [lines]. It scrolls to the newest line when one arrives while [follow] is on. It
+ * reports the user's scrolling to [onFollowChange] through [FollowUserScrolling]. It starts at [readingPosition] and
+ * reports every change of the line at its top to [onReadingPositionChange]. [errorsInErrorColour] colours whole error
+ * lines.
  */
 @Composable
 private fun OutputLines(
@@ -160,8 +164,8 @@ private fun OutputLines(
 }
 
 /**
- * One [line] as one text: muted time, logger and file, the level in its severity's colour, the message in the text
- * colour, or all of it in the error colour for an error line with [errorsInErrorColour].
+ * One [line] as one text. The time, the logger and the file are muted. The level has its severity's colour, and the
+ * message has the text colour. With [errorsInErrorColour], an error line is in the error colour as a whole.
  */
 @Composable
 private fun OutputLineRow(line: OutputLine, format: OutputLineFormat, errorsInErrorColour: Boolean) {
@@ -175,7 +179,7 @@ private fun OutputLineRow(line: OutputLine, format: OutputLineFormat, errorsInEr
     )
 }
 
-/** The styled text of [line] in [colors]; [inError] writes every part in the error colour. */
+/** The styled text of [line] in [colors]. With [inError] every part is in the error colour. */
 private fun lineText(
     line: OutputLine,
     format: OutputLineFormat,
@@ -193,7 +197,7 @@ private fun lineText(
     append(line.message)
 }
 
-/** The colour of [level]: the severity colours for errors, warnings and information, muted for debugging detail. */
+/** The colour of [level]. Errors, warnings and information get the severity colours. Debugging detail is muted. */
 private fun levelColor(level: OutputLevel, colors: KarpfenColors): Color = when (level) {
     OutputLevel.ERROR -> colors.error
     OutputLevel.WARNING -> colors.warning

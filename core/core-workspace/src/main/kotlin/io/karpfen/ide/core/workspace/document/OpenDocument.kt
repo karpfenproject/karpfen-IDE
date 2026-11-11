@@ -23,47 +23,55 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * A karpfen file (a modeling-language source or an environment descriptor) opened for editing: its [session] plus the
- * file-level state the workbench needs (dirty flag, line separator, external-change conflict). Created and closed by
- * the [DocumentManager].
+ * A karpfen file opened for editing. The file is a modeling-language source or an environment descriptor. The open
+ * document holds its [session] and the file-level state the workbench needs: the dirty flag, the line separator and
+ * the conflict with an external change. The [DocumentManager] creates and closes it.
  */
 public interface OpenDocument {
 
-    /** Identity (absolute, normalized path). */
+    /** The identity, which is the absolute, normalized path. */
     public val id: DocumentId
 
     /** The file path. */
     public val path: Path get() = id.path
 
-    /** Role of the file (KMETA, EVENTS_KMETA, KMODEL, KSTATES, ENV_DESCRIPTOR). */
+    /** The role of the file: KMETA, EVENTS_KMETA, KMODEL, KSTATES or ENV_DESCRIPTOR. */
     public val fileKind: FileKind
 
-    /** Tokens, parse outcome and diagnostics of the edited text. */
+    /** The tokens, the parse outcome and the diagnostics of the edited text. */
     public val session: DocumentSession
 
-    /** True iff the text differs from the last saved/loaded state (`!UndoManager.isAtSavePoint`). */
+    /**
+     * True if and only if the text differs from the last saved or loaded state. It is the negation of
+     * `UndoManager.isAtSavePoint`.
+     */
     public val isDirty: StateFlow<Boolean>
 
-    /** The separator the file uses on disk; restored on save, updated on reload. */
+    /** The line separator the file uses on disk. It is restored on save and updated on reload. */
     public val lineSeparator: StateFlow<LineSeparator>
 
     /**
-     * Set when the file changed on disk while the document was dirty, or was deleted on disk; the UI offers
-     * Reload / Keep mine. Null otherwise (a clean document is reloaded automatically as one undoable
-     * `EditOrigin.External` change).
+     * Set when the file changed on disk while the document was dirty, or when the file was deleted on disk. The UI then
+     * offers Reload and Keep mine. Otherwise it is null. A clean document is reloaded automatically as one undoable
+     * `EditOrigin.External` change.
      */
     public val conflict: StateFlow<ExternalChange?>
 
     /**
-     * Resolves the current [conflict] and reports what happened; never throws (I/O errors are values).
-     * [ConflictResolution.RELOAD] takes the disk state: it replaces the text with the disk content as one undoable
-     * `External` change, marks the save point and replaces the FILE findings (see [DocumentManager]) →
-     * [ConflictResult.Reloaded]; for a file that no longer exists on disk it changes nothing and returns
-     * [ConflictResult.DeletedOnDisk] (the caller decides: the workbench closes the tab without saving); a read failure
-     * keeps buffer and conflict → [ConflictResult.Failed]. [ConflictResolution.KEEP_MINE] keeps the buffer and clears the
-     * conflict; the document is dirty until the next save overwrites or recreates the file (no undo state matches the
-     * disk, `UndoManager.invalidateSavePoint`) → [ConflictResult.Kept]. Without a conflict nothing happens →
-     * [ConflictResult.NoConflict].
+     * Resolves the current [conflict] and reports what happened. It never throws, because I/O errors are returned as
+     * values.
+     *
+     * [ConflictResolution.RELOAD] takes the disk state. It replaces the text with the disk content as one undoable
+     * `External` change, marks the save point and replaces the FILE findings as described on [DocumentManager]. It
+     * returns [ConflictResult.Reloaded]. For a file that no longer exists on disk it changes nothing and returns
+     * [ConflictResult.DeletedOnDisk]. The caller decides what to do then, and the workbench closes the tab without
+     * saving. A read failure keeps the buffer and the conflict and returns [ConflictResult.Failed].
+     *
+     * [ConflictResolution.KEEP_MINE] keeps the buffer, clears the conflict and returns [ConflictResult.Kept]. The
+     * document stays dirty until the next save overwrites or recreates the file. No undo state matches the disk, so
+     * `UndoManager.invalidateSavePoint` is called.
+     *
+     * Without a conflict nothing happens, and it returns [ConflictResult.NoConflict].
      */
     public suspend fun resolveConflict(resolution: ConflictResolution): ConflictResult
 }
@@ -73,23 +81,25 @@ public sealed interface ConflictResult {
     /** The buffer now holds the disk content. */
     public data object Reloaded : ConflictResult
 
-    /** The buffer was kept; the conflict is cleared. */
+    /** The buffer was kept, and the conflict is cleared. */
     public data object Kept : ConflictResult
 
-    /** RELOAD of a file deleted on disk: nothing was loaded, buffer and conflict are unchanged. */
+    /**
+     * A reload of a file that was deleted on disk. Nothing was loaded, and the buffer and the conflict are unchanged.
+     */
     public data object DeletedOnDisk : ConflictResult
 
-    /** Reading the disk content failed ([message]); buffer and conflict are unchanged. */
+    /** Reading the disk content failed, as [message] says. The buffer and the conflict are unchanged. */
     public data class Failed(public val message: String) : ConflictResult
 
-    /** There was no conflict; nothing happened. */
+    /** There was no conflict, so nothing happened. */
     public data object NoConflict : ConflictResult
 }
 
 /** A change on disk that conflicts with an open document. */
 public data class ExternalChange(public val path: Path, public val kind: ExternalChangeKind)
 
-/** Kind of an [ExternalChange]. */
+/** The kind of an [ExternalChange]. */
 public enum class ExternalChangeKind {
     /** The file content changed on disk. */
     MODIFIED,
@@ -98,14 +108,15 @@ public enum class ExternalChangeKind {
     DELETED,
 }
 
-/** User decision for an [ExternalChange]. */
+/** The decision of the user for an [ExternalChange]. */
 public enum class ConflictResolution {
     /**
-     * Take the disk state: discard the buffer and load the disk content (banner "Reload"); for a file deleted on disk
-     * there is nothing to load and the workbench closes the tab (banner "Close", see [ConflictResult.DeletedOnDisk]).
+     * Take the disk state. The buffer is discarded and the disk content is loaded. The banner calls this "Reload". For
+     * a file deleted on disk there is nothing to load, and the workbench closes the tab. The banner then calls it
+     * "Close", and the result is [ConflictResult.DeletedOnDisk].
      */
     RELOAD,
 
-    /** Keep the buffer; the conflict is cleared. */
+    /** Keep the buffer. The conflict is cleared. */
     KEEP_MINE,
 }

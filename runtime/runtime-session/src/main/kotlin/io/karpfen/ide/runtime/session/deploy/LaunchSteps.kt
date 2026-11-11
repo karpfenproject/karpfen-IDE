@@ -30,8 +30,9 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Waits for the connection to be open before a step the pushes of which the session must not miss: an ended
- * connection fails the step with its end, a wait that passes with a lost connection. Stateless.
+ * Waits for the connection to be open before a step whose pushes the session must not miss. An ended connection fails
+ * the step with the reason it ended. A wait that passes without an open connection fails the step as a lost
+ * connection. Stateless.
  */
 internal object ConnectionGate {
     /** The failure of the running step if the connection of [run] is not open within its wait, or null if it is. */
@@ -46,7 +47,7 @@ internal object ConnectionGate {
     }
 }
 
-/** Activates the environment once the connection is open; the runtime freezes its configuration then. */
+/** Activates the environment once the connection is open. The runtime freezes the environment's configuration then. */
 internal class ActivateStep : DeployStep {
     override val kind: DeployStepKind = DeployStepKind.ACTIVATE
     override val title: String = "Activating the environment"
@@ -58,10 +59,10 @@ internal class ActivateStep : DeployStep {
 }
 
 /**
- * Switches observation on, or reads the model back once, and compares the model the runtime read with the model the
- * IDE analyzed: the differences become warnings of the deployment.
+ * Switches observation on, or reads the model back once. Then it compares the model the runtime read with the model
+ * the IDE analyzed. The differences become warnings of the deployment.
  *
- * @param observe switches observation on if true; otherwise the model is read back once.
+ * @param observe true to switch observation on. Otherwise the model is read back once.
  */
 internal class ObserveStep(private val observe: Boolean) : DeployStep {
     override val kind: DeployStepKind = DeployStepKind.OBSERVE
@@ -95,9 +96,9 @@ internal class StartStep : DeployStep {
 
 /**
  * Confirms the start by reading the model until every attached state machine has an active state. It reads once a
- * tick at most, every `max(confirmPoll, tick delay)`, for at most `max(confirmMinimum, confirmTicks × tick delay)`. An
- * engine that halted fails the step; a bound that passes adds an `engine-silent` warning, and the deployment still
- * succeeds. A read that fails is retried, unless the runtime no longer knows the environment.
+ * tick at most, every `max(confirmPoll, tick delay)`, for at most `max(confirmMinimum, confirmTicks * tick delay)`. An
+ * engine that halted fails the step. When the bound passes, the step adds an `engine-silent` warning and the
+ * deployment still succeeds. A read that fails is retried, unless the runtime no longer knows the environment.
  *
  * @param tickDelayMs the tick delay of the deploy configuration.
  */
@@ -117,8 +118,9 @@ internal class ConfirmStartStep(private val tickDelayMs: Int) : DeployStep {
     }
 
     /**
-     * Reads the model every [poll] until every machine of [machines] has an active state, telling [waiting] which have
-     * none yet; answers the outcome of the step once that happened, the engine halted or the environment is gone.
+     * Reads the model every [poll] until every machine of [machines] has an active state. It tells [waiting] which
+     * machines have none yet. It returns the outcome of the step once all machines have a state, the engine halted or
+     * the environment is gone.
      */
     private suspend fun awaitStates(
         run: DeployRun,

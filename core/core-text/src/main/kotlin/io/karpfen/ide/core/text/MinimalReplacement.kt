@@ -16,8 +16,9 @@
 package io.karpfen.ide.core.text
 
 /**
- * The single edit that turns [oldText] into [newText] keeping their common prefix and suffix, or null if the texts
- * are equal. The prefix is taken first, so for ambiguous cases (`"aa"` → `"aaa"`) the edit is an insertion at the end.
+ * The single edit that turns [oldText] into [newText] while it keeps their common prefix and suffix. Returns null if
+ * the texts are equal. The prefix is taken first. In an ambiguous case, such as turning `"aa"` into `"aaa"`, the edit
+ * is therefore an insertion at the end.
  */
 internal fun minimalReplacement(oldText: String, newText: String): TextEdit? {
     if (oldText == newText) return null

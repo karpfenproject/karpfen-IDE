@@ -21,11 +21,12 @@ import io.karpfen.ide.core.lang.modelpath.PathType
 import io.karpfen.ide.core.lang.symbols.TypeExpression
 
 /**
- * The RETURNS and TAKES types of the macros of a document, from its syntax indexes (priority order, name-based).
+ * The RETURNS and TAKES types of the macros of a document. They come from its syntax indexes, which are in priority
+ * order, and are looked up by name.
  */
 internal class MacroSignatures(private val indexes: List<SyntaxIndex>) {
 
-    /** The RETURNS type of [macro] (`reference(T)` is `T`), or null if unknown. */
+    /** The RETURNS type of [macro], or null if unknown. `reference(T)` counts as `T`. */
     fun returns(macro: String): PathType? =
         indexes.firstNotNullOfOrNull { it.declarations(SymbolKind.MACRO, macro).firstOrNull() }?.typeName?.let(::pathTypeOf)
 

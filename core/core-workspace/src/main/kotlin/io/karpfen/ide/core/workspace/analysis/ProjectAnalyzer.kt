@@ -25,61 +25,69 @@ import io.karpfen.ide.core.workspace.context.ContextResolution
 import java.nio.file.Path
 
 /**
- * Analyzes every modeling context with dsl-tools, through the core-document [DslReader] adapter only: metamodel via
- * `kmeta`; events via `kmeta` with the metamodel's types as base types; each model via `kmodel` against the metamodel;
- * each state machine via `kstates`. What the dsl-tools readers find becomes DSL_TOOLS diagnostics on the file they
- * read, at the ranges they report, and the models they read, partial ones included, become the [ContextAnalysis]. No
- * IDE-side validation rules beyond what dsl-tools reports.
+ * Analyzes every modeling context with dsl-tools. It goes through the core-document [DslReader] adapter only. The
+ * metamodel is read with `kmeta`. The events are read with `kmeta` and the types of the metamodel as base types. Each
+ * model is read with `kmodel` against the metamodel. Each state machine is read with `kstates`. What the dsl-tools
+ * readers find becomes DSL_TOOLS diagnostics on the file they read, at the ranges they report. The models they read,
+ * partial ones included, become the [ContextAnalysis]. The IDE adds no validation rules of its own beyond what
+ * dsl-tools reports.
  *
- * Syntax first (MUST): a file is read only when its `AnalyzedFile.parse.isSyntaxClean` (a reader would report the
- * PARSER errors a second time, see [DslReader]). A read that needs a metamodel which was not read without errors
- * (missing, not syntax-clean, or with DSL_TOOLS errors) is skipped: the events file and the models. A skipped read
- * reports nothing of its own — the metamodel reports its own errors — so while the user types, Problems shows PARSER
- * errors only, and DSL_TOOLS errors return once the syntax is clean.
+ * Syntax comes first. A file is read only when its `AnalyzedFile.parse.isSyntaxClean` is true. Otherwise a reader
+ * would report the PARSER errors a second time, as described on [DslReader]. The events file and the models need a
+ * metamodel that was read without errors. If the metamodel is missing, has syntax errors or has DSL_TOOLS errors,
+ * their reads are skipped. A skipped read reports nothing of its own, because the metamodel reports its own errors. So
+ * while the user types, the problems show PARSER errors only, and the DSL_TOOLS errors return once the syntax is clean.
  *
- * Every context file and every loose file (`ContextResolution.looseFiles`) becomes an [AnalyzedFile]: tokenized unless
- * [SourceText.tokens] are given, parsed with `SemanticMode.SYNTAX_ONLY` unless [SourceText.parse] is given, with the
- * source's [SourceText.fileDiagnostics]. Loose files are never read by dsl-tools. A file that cannot be read (see
- * [AnalysisSources.load]) is an ERROR `unreadable` in [ProjectAnalysis.diagnostics], so nothing is skipped silently. The
- * result follows the conventions documented on [ProjectAnalysis] (paths, snapshots, parse modes).
+ * Every context file and every loose file from `ContextResolution.looseFiles` becomes an [AnalyzedFile]. It is
+ * tokenized unless [SourceText.tokens] are given, and parsed with `SemanticMode.SYNTAX_ONLY` unless [SourceText.parse]
+ * is given. It keeps the [SourceText.fileDiagnostics] of its source. dsl-tools never reads loose files. A file that
+ * cannot be read, as described on [AnalysisSources.load], becomes an ERROR `unreadable` in
+ * [ProjectAnalysis.diagnostics], so nothing is skipped silently. The result follows the conventions on
+ * [ProjectAnalysis] for paths, snapshots and parse modes.
  *
- * The default analyzer remembers its reads: a file whose text and metamodel are those of its read in an earlier run is
- * not read again, so an unchanged file that dsl-tools cannot read is reported on every run but read, and logged by
- * dsl-tools, once. What dsl-tools logs while it reads a file names that file (`DslToolsLoggers.FILE_KEY`).
+ * The default analyzer remembers its reads. A file whose text and metamodel are the same as at its read in an earlier
+ * run is not read again. So an unchanged file that dsl-tools cannot read is reported on every run, but it is read, and
+ * logged by dsl-tools, only once. Whatever dsl-tools logs while it reads a file names that file under
+ * `DslToolsLoggers.FILE_KEY`.
  *
- * Cancellable (checks for cancellation between files) and never throws otherwise.
+ * The analysis can be cancelled and checks for cancellation between files. Apart from that it never throws.
  */
 public fun interface ProjectAnalyzer {
     /**
-     * Analyzes the contexts of [resolution], reading files through [sources]; the result carries [generation] and the
-     * resolution's diagnostics merged into [ProjectAnalysis.diagnostics].
+     * Analyzes the contexts of [resolution] and reads the files through [sources]. The result carries [generation],
+     * and the diagnostics of the resolution are merged into its [ProjectAnalysis.diagnostics].
      */
     public suspend fun analyze(resolution: ContextResolution, sources: AnalysisSources, generation: Long): ProjectAnalysis
 }
 
-/** The default [ProjectAnalyzer]; parses files that [AnalysisSources] did not supply a current parse for. */
+/** The default [ProjectAnalyzer]. It parses the files for which [AnalysisSources] supplied no current parse. */
 public fun ProjectAnalyzer(languages: LanguageRegistry, reader: DslReader): ProjectAnalyzer =
     DefaultProjectAnalyzer(languages, reader)
 
 /**
- * Supplies the text to analyze: the editor text of open documents (the session's current snapshot, with its lineage,
- * its tokens from `DocumentSession.tokensFor` and its parse when the parse has that version), the disk text otherwise,
- * loaded through the workspace's `SourceLoader` into a fresh `TextSnapshot(text, 0)` (a lineage of its own per load).
- * Implemented by the workspace; tests supply texts from fixtures the same way.
+ * Supplies the text to analyze. For an open document that is the editor text: the session's current snapshot with its
+ * lineage, its tokens from `DocumentSession.tokensFor`, and its parse when the parse has that version. For any other
+ * file it is the disk text, loaded through the workspace's `SourceLoader` into a fresh `TextSnapshot(text, 0)` with a
+ * lineage of its own for each load. The workspace implements it, and tests supply texts from fixtures the same way.
  */
 public fun interface AnalysisSources {
     /**
-     * The source of [path], or null if it does not exist (any more: the analyzer skips it, a rescan follows).
-     * @throws java.io.IOException if it exists but cannot be read; the analyzer reports an ERROR `unreadable` on it.
+     * The source of [path], or null if the file does not exist or no longer exists. The analyzer skips such a file,
+     * and a rescan follows.
+     *
+     * @throws java.io.IOException if the file exists but cannot be read. The analyzer reports an ERROR `unreadable` on
+     *   it.
      */
     public suspend fun load(path: Path): SourceText?
 }
 
 /**
- * Text to analyze. [parse] (syntax-only) and [tokens] are results for exactly [snapshot] if they are at hand (open
- * documents), so the analyzer does not compute them again; null otherwise.
+ * Text to analyze. [parse] and [tokens] are results for exactly [snapshot] when they are at hand, which is the case
+ * for open documents. Then the analyzer does not compute them again. Otherwise they are null. [parse] is always a
+ * syntax-only parse.
  *
- * @property fileDiagnostics the findings of loading the file (`LoadedSource.diagnostics`); empty for open documents.
+ * @property fileDiagnostics the findings of loading the file, from `LoadedSource.diagnostics`. It is empty for open
+ *   documents.
  */
 public data class SourceText(
     public val snapshot: TextSnapshot,

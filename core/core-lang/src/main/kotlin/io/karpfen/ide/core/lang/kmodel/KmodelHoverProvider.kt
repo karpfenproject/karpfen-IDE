@@ -24,9 +24,9 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * KModel hover: object type → `TypeInfo.hoverText`; property/relation key → `MemberInfo.signature` of the
- * enclosing object's type (`prop x: number`, …), looked up in [types]; an object key or reference → `object k: T`
- * (from the object's declaration).
+ * Hover in KModel. On an object type it shows `TypeInfo.hoverText`. On a property or relation key it shows the
+ * `MemberInfo.signature` from the type of the enclosing object, such as `prop x: number`, looked up in [types]. On an
+ * object key or reference it shows `object k: T`, taken from the declaration of the object.
  */
 internal class KmodelHoverProvider(private val slots: KmodelSlots, private val types: TypeCatalog) : HoverProvider {
 

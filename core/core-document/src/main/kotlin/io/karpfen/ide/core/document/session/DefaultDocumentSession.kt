@@ -29,19 +29,24 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Default [DocumentSession]: tokenize pipeline (mapLatest), debounced parse scheduler, diagnostics merger (maps every
- * source to the newest snapshot, then [mergeDiagnostics]; never a merge rule of its own).
+ * The default [DocumentSession]. It is a coordinator in the role of a Facade. It wires single-purpose collaborators
+ * and implements nothing itself.
  *
- * A coordinator (Facade) that wires single-purpose collaborators and implements nothing itself:
- * - [TokenizePipeline] — [tokens], the initial snapshot synchronously, later versions without debounce, latest wins;
- * - [ParseScheduler] — [parse] and [lastGoodParse], the first snapshot at once, later versions debounced and
- *   cancellable;
- * - [ExternalDiagnosticsStore] — the external sets of [setExternalDiagnostics], thread-safe, other lineages ignored;
- * - [DiagnosticsPublisher] with a [DiagnosticsMerger] — [diagnostics], every source mapped with `EditableText.mapRange`
- *   to the newest snapshot (external sets from their [ExternalDiagnosticsAnchors]) and merged with [mergeDiagnostics].
+ * [TokenizePipeline] provides [tokens] with `mapLatest` semantics. It tokenizes the initial snapshot synchronously and
+ * later versions without debounce, and the latest version wins.
  *
- * All of them run in a child scope of [parentScope] (a [SupervisorJob], so the session never cancels its parent);
- * [close] cancels that scope, and the flows keep their last values.
+ * [ParseScheduler] provides [parse] and [lastGoodParse]. It parses the first snapshot at once and later versions
+ * debounced and cancellable.
+ *
+ * [ExternalDiagnosticsStore] holds the external sets of [setExternalDiagnostics]. It is thread-safe and ignores sets of
+ * other lineages.
+ *
+ * [DiagnosticsPublisher] with a [DiagnosticsMerger] provides [diagnostics]. Every source is mapped with
+ * `EditableText.mapRange` to the newest snapshot and then merged with [mergeDiagnostics]. External sets are mapped
+ * from their [ExternalDiagnosticsAnchors]. The session never has a merge rule of its own.
+ *
+ * All of them run in a child scope of [parentScope]. That scope has a [SupervisorJob], so the session never cancels
+ * its parent. [close] cancels the scope, and the flows keep their last values.
  */
 internal class DefaultDocumentSession(
     override val id: DocumentId,

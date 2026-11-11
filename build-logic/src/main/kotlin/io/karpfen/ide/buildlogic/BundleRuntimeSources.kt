@@ -31,16 +31,21 @@ import org.gradle.api.tasks.TaskAction
 
 /**
  * Packs the karpfen-runtime sources of [checkout] into [outputDirectory] below [resourceDirectory], as
- * [RuntimeSourcesArchive] describes, for the IDE to build its runtime image from. Its inputs are the files git tracks
- * in the checkout, which [TrackedRuntimeFiles] lists, so it is up to date as long as they do not change. It fails with
- * the command that checks the sources out if the checkout or its nested submodule is missing.
+ * [RuntimeSourcesArchive] describes, for the IDE to build its runtime image from. runtime-host registers this task as
+ * `bundleRuntimeSources` and adds its output to the module's resources. The archive and its properties thus end up in
+ * the runtime-host jar, next to the class that reads them. The Docker host tags the image it builds from the archive
+ * with the first 12 hex digits of the archive's SHA-256, so a change to the runtime sources leads to a new image.
+ *
+ * The inputs are the files git tracks in the checkout, which [TrackedRuntimeFiles] lists, so the task is up to date as
+ * long as they do not change. It fails with the command that checks the sources out if the checkout or its nested
+ * submodule is missing.
  */
 abstract class BundleRuntimeSources : DefaultTask() {
-    /** The checkout of the karpfen-runtime submodule. */
+    /** The checkout of the karpfen-runtime submodule. It is no input itself, because [trackedFiles] covers what the task reads. */
     @get:Internal
     abstract val checkout: DirectoryProperty
 
-    /** The files git tracks in [checkout]; their paths and contents decide whether the task is up to date. */
+    /** The files git tracks in [checkout]. Their absolute paths and contents decide whether the task is up to date. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     abstract val trackedFiles: ConfigurableFileCollection

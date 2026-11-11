@@ -17,7 +17,10 @@ package io.karpfen.ide.ui.editor.model.action
 
 import io.karpfen.ide.ui.editor.model.caret.CaretMovement
 
-/** Moves the carets by [movement], extending the selection when [extendSelection] (page size: `context.pageLines`). */
+/**
+ * Moves all carets by [movement]. If [extendSelection] is true, the selection grows with the move. Page moves use
+ * `context.pageLines` as the page size.
+ */
 internal class CaretMoveAction(
     override val id: String,
     private val movement: CaretMovement,

@@ -20,12 +20,12 @@ import io.karpfen.ide.buildlogic.TestTags
 import java.time.Duration
 
 /**
- * Convention for the runtime modules whose tests also run against a real karpfen runtime: the Kotlin/JVM base
- * convention plus the opt-in task [LiveRuntimeTesting.TASK_NAME], which runs only the tests tagged
+ * Convention for the runtime modules whose tests also run against a real karpfen runtime. It adds the opt-in task
+ * [LiveRuntimeTesting.TASK_NAME] to the Kotlin/JVM base convention. The task runs only the tests tagged
  * [TestTags.LIVE_RUNTIME] against the runtime at `-Pkarpfen.runtime.url`. The base convention excludes that tag from
- * every other test task, so the live tests compile in every build and run only here; nothing makes `check`, `build`,
+ * every other test task, so the live tests compile in every build and run only here. Nothing makes `check`, `build`,
  * `test` or any other task depend on the live task. `runtime/live-runtime.sh test` starts a throwaway runtime in Docker
- * and runs the live tasks against it; any runtime with IDE support that is reachable by URL works as well.
+ * and runs the live tasks against it. Any runtime with IDE support that is reachable by URL works as well.
  */
 plugins {
     id("karpfen.kotlin-jvm")
@@ -48,10 +48,11 @@ val testSourceSet = sourceSets.named(SourceSet.TEST_SOURCE_SET_NAME)
 
 /**
  * Runs the tests tagged [TestTags.LIVE_RUNTIME], without the time-budget tests, against the runtime that
- * [LiveRuntimeTarget] hands the test JVM; without a URL the task fails before any test runs. It never counts as up to
- * date and is never taken from the build cache, because its result depends on the runtime it talks to, not on its
- * inputs; it fails when it finds no test, so a lost tag cannot pass silently; and the timeout is a hard upper bound for
- * a hanging run, not an assertion on time.
+ * [LiveRuntimeTarget] hands the test JVM. Without a URL the task fails before any test runs. It never counts as up to
+ * date and is never taken from the build cache, because its result depends on the runtime it talks to and not on its
+ * inputs. It fails when it finds no test, so a lost tag cannot pass silently. The timeout is a hard upper bound for a
+ * hanging run, not an assertion on time. The shared lock keeps it from running at the same time as the live task of
+ * another runtime module.
  */
 tasks.register<Test>(LiveRuntimeTesting.TASK_NAME) {
     group = LiveRuntimeTesting.TASK_GROUP

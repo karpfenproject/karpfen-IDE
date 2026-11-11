@@ -34,8 +34,8 @@ import kotlin.test.assertTrue
 
 /**
  * Where what dsl-tools logs goes in the IDE, through the production `logback.xml` and
- * [LogbackLanguageToolsLogRouting]: every event reaches the Language Tools Output and `dsl-tools.log`, never the
- * console; its warnings and errors are forwarded to `ide.log` as well; and the IDE's own events keep their way to the
+ * [LogbackLanguageToolsLogRouting]. Every event reaches the Language Tools Output and `dsl-tools.log`, and never the
+ * console. Its warnings and errors are forwarded to `ide.log` as well. The IDE's own events keep their way to the
  * console and `ide.log` without entering the output of the language tools.
  */
 class LanguageToolsRoutingTest {
@@ -62,7 +62,7 @@ class LanguageToolsRoutingTest {
         return if (Files.exists(file)) Files.readString(file) else ""
     }
 
-    /** Runs [block] with the output routed and the console captured; returns what reached the console. */
+    /** Runs [block] with the output routed and the console captured. Returns what reached the console. */
     private fun routed(block: () -> Unit): String =
         ProductionLogging.capturingConsole { LogbackLanguageToolsLogRouting(context).attach(output).use { block() } }
 

@@ -32,11 +32,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Covers injecting events into the lamp through a session against a real runtime: two presses toggle both machines and
- * every value they set; a JSON or KModel payload decides the guard of `dim`, and a false guard fires nothing; `smash`
- * deletes the spare bulb from the model; and the session's domains are both declared, with every press announced back
- * as a domain event of an external message. Every event is injected only once the state that listens for it is
- * observed.
+ * Covers injecting events into the lamp through a session against a real runtime. Two presses toggle both machines and
+ * every value they set. A JSON or KModel payload decides the guard of `dim`, and a false guard fires nothing. `smash`
+ * deletes the spare bulb from the model. Both domains of the session are declared, and every press is announced back as
+ * a domain event of an external message. Every event is injected only once the state that listens for it is observed.
  */
 abstract class InjectionScenarios {
 

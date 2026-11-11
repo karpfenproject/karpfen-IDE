@@ -34,6 +34,7 @@ object GitSubmodules {
     /** Separates the directories in the value of [SYSTEM_PROPERTY]. */
     const val SEPARATOR: Char = ','
 
+    /** A `path = <directory>` line of `.gitmodules`, with the directory as its group. */
     private val PATH_ENTRY = Regex("""^\s*path\s*=\s*(.+?)\s*$""")
 
     /**

@@ -24,9 +24,9 @@ import kotlinx.coroutines.launch
 import java.util.IdentityHashMap
 
 /**
- * Collects each editor's `navigationRequests` from opening its tab until closing it and hands every target to
- * [navigate] (the mediator's `navigateTo` intent), so a definition lookup that finishes after a tab switch still
- * navigates and navigation never depends on a composable being on screen.
+ * Collects the `navigationRequests` of each editor from the moment its tab opens until it closes. Every target goes to
+ * [navigate], which is the mediator's `navigateTo` intent. A definition lookup that finishes after a tab switch
+ * therefore still navigates. Navigation never depends on a composable being on screen.
  */
 internal class EditorNavigationCollector(
     private val scope: CoroutineScope,
@@ -34,13 +34,13 @@ internal class EditorNavigationCollector(
 ) {
     private val collectors = IdentityHashMap<EditorHandle, Job>()
 
-    /** Starts collecting [editor]'s navigation requests. */
+    /** Starts collecting the navigation requests of [editor]. Does nothing if they are collected already. */
     fun start(editor: EditorHandle) {
         if (editor in collectors) return
         collectors[editor] = scope.launch(start = CoroutineStart.UNDISPATCHED) { editor.navigationRequests.collect { navigate(it) } }
     }
 
-    /** Stops collecting [editor]'s navigation requests. */
+    /** Stops collecting the navigation requests of [editor]. */
     fun stop(editor: EditorHandle) {
         collectors.remove(editor)?.cancel()
     }

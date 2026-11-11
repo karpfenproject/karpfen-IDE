@@ -25,8 +25,8 @@ import io.karpfen.ide.runtime.session.plan.DeploymentPlan
 import io.karpfen.ide.runtime.session.plan.PlannedUpload
 
 /**
- * The state of one deployment while it runs: the request, what was created so far and the progress. The steps read
- * and record through it; the cleanup reads what was created. Confined to the deploying coroutine.
+ * The state of one deployment while it runs. It holds the request, what was created so far and the progress. The steps
+ * read and record through it. The cleanup reads what was created. Confined to the deploying coroutine.
  *
  * @property request the deployment.
  * @property timing the waits of the deployment.
@@ -66,7 +66,10 @@ internal class DeployRun(
     /** True once a creation call ended without telling whether it created an environment. */
     private var creationLeftOpen: Boolean = false
 
-    /** True if an environment may have been created without the deployment knowing its key. */
+    /**
+     * True if an environment may have been created without the deployment knowing its key. That is the case while the
+     * creation call runs, and after a creation call that failed in a way that may still have applied it.
+     */
     val creationUnknown: Boolean
         get() = environment == null && (creating || creationLeftOpen)
 
@@ -119,8 +122,8 @@ internal class DeployRun(
         StepOutcome.Failed(locator.locate(stepKind, upload, failure), failure)
 
     /**
-     * The outcome of the running step for the call [outcome]: [done] with its value, or the located failure; a
-     * refusal of the handle fails the step too.
+     * The outcome of the running step for the call [outcome]. A call that succeeded leads to [done] with its value. A
+     * failed call leads to the located failure. A refusal of the handle fails the step too.
      */
     fun <T> settle(outcome: CallOutcome<T>, upload: PlannedUpload? = null, done: (T) -> StepOutcome = { StepOutcome.Done() }): StepOutcome =
         when (outcome) {

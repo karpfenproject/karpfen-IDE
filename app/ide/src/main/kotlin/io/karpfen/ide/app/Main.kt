@@ -24,10 +24,13 @@ import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
 
 /**
- * Entry point of the karpfen IDE desktop application: `karpfen-ide [folder]` opens the folder, or the empty state
- * without one. `KARPFEN_IDE_HOME` moves settings and log (copied into `SettingsLocations.HOME_PROPERTY` before the
- * first logger exists, so this file declares no top-level logger); `KARPFEN_IDE_EXIT_AFTER_MS` makes the IDE exit with
- * status 0 after that time (launch smoke tests). Exits with status 1 if the IDE could not start.
+ * Entry point of the karpfen IDE desktop application. `karpfen-ide [folder]` opens the folder. Without a folder the
+ * IDE shows its empty state.
+ *
+ * The environment variable `KARPFEN_IDE_HOME` moves the settings and the log. It is copied into the system property
+ * `SettingsLocations.HOME_PROPERTY` before the first logger exists, which is why this file declares no top-level
+ * logger. `KARPFEN_IDE_EXIT_AFTER_MS` makes the IDE exit with status 0 after that many milliseconds, which the launch
+ * smoke tests use. The process exits with status 1 if the IDE could not start.
  */
 public fun main(args: Array<String>) {
     exitProcess(launch(args))
@@ -35,8 +38,8 @@ public fun main(args: Array<String>) {
 
 /**
  * Starts the IDE with the command-line [args] as [main] describes and returns the exit status, 0 or 1. The IDE is the
- * [application] made for the self-exit delay of the launch options; launches for manual tests pass one with other
- * collaborators.
+ * [application] that the factory makes for the self-exit delay of the launch options. Launches for checks by hand pass
+ * a factory with other collaborators.
  */
 internal fun launch(args: Array<String>, application: (exitAfterMs: Long?) -> IdeApplication = { IdeApplication(it) }): Int {
     val home = applyHomeOverride(System::getenv, System::setProperty)

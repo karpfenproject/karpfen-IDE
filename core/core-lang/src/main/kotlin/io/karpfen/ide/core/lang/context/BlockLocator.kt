@@ -18,12 +18,13 @@ package io.karpfen.ide.core.lang.context
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Finds the brace blocks around a caret: one pass over the brace tokens before the caret with a stack of open blocks,
- * then a pass after it for their closing braces. A block contains the caret from after its `{` through before its `}`.
+ * Finds the brace blocks around a caret. One pass goes over the brace tokens before the caret with a stack of open
+ * blocks. A second pass after the caret finds their closing braces. A block contains the caret from after its `{` up to
+ * before its `}`.
  */
 internal object BlockLocator {
 
-    /** The blocks of [view] that contain [caret], outermost first; an unclosed block runs to the end of the text. */
+    /** The blocks of [view] that contain [caret], outermost first. An unclosed block runs to the end of the text. */
     fun locate(view: TokenView, caret: Int): List<BlockFrame> {
         val tokens = view.tokens
         val open = ArrayList<Int>()

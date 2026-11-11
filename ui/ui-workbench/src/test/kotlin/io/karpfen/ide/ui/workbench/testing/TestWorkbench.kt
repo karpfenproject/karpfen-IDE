@@ -62,13 +62,20 @@ import kotlin.test.assertTrue
 import kotlin.time.TestTimeSource
 
 /**
- * A [WorkbenchState] for tests, wired like the production services but on the virtual time of [scheduler]: every
- * dispatcher (the mediator's scope, the workspace's I/O and analysis, the sessions', the editors' background work, the
- * workbench's I/O) is one test dispatcher, so [settle] runs everything due; a [FakeFileWatcher], a
- * [ControllableFileStore], a [RecordingFileOperations], a [FakeFolderChooser], JSON settings in [settingsDirectory]
- * (counted by [settings]) with a fixed clock, real workspaces, language services and editors (macOS keymap), a
- * [RingOutputBuffer] as the output of the language tools, [FakeRuntimeHosts], and real runtime sessions whose clients
- * reach the [fakeRuntime], or, with [scriptSessions], sessions that launch scriptable fakes ([scriptedSessions]).
+ * A [WorkbenchState] for tests. It is wired like the production services, but runs on the virtual time of
+ * [scheduler]. Every dispatcher is the same test dispatcher. That covers the mediator's scope, the workspace's I/O and
+ * analysis, the runtime sessions, the editors' background work and the workbench's I/O. [settle] therefore runs
+ * everything that is due.
+ *
+ * The collaborators are these:
+ *
+ * - a [FakeFileWatcher], a [ControllableFileStore], a [RecordingFileOperations] and a [FakeFolderChooser].
+ * - JSON settings in [settingsDirectory] with a fixed clock. [settings] counts their writes.
+ * - real workspaces, language services and editors with the macOS keymap.
+ * - a [RingOutputBuffer] as the output of the language tools.
+ * - [FakeRuntimeHosts] for the runtime hosts.
+ * - real runtime sessions whose clients reach [fakeRuntime]. With [scriptSessions] set, the workbench uses
+ *   [scriptedSessions] instead, which launch scriptable fakes.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestWorkbench(
@@ -84,7 +91,7 @@ class TestWorkbench(
     /** The scope of the workbench state. */
     val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
 
-    /** The file watcher; tests deliver external changes through it. */
+    /** The file watcher. Tests deliver changes on disk through it. */
     val watcher = FakeFileWatcher()
 
     /** Answers the folder dialog. */
@@ -105,7 +112,10 @@ class TestWorkbench(
     /** The one editor keymap of the workbench. */
     val keymap = defaultEditorKeymap(HostPlatform.MAC_OS)
 
-    /** The options of every workspace: watching, on [dispatcher], coalescing on [time]. */
+    /**
+     * The options of every workspace. Each workspace watches its files, runs on [dispatcher] and coalesces undo on
+     * [time].
+     */
     val options = WorkspaceOptions(
         watch = true,
         ioDispatcher = dispatcher,
@@ -117,10 +127,12 @@ class TestWorkbench(
     /** The built-in languages. */
     val languages = defaultLanguageRegistry()
 
-    /** The output of the language tools that the Language Tools Output shows; tests append to it as the logging would. */
+    /**
+     * The output of the language tools that the Language Tools Output shows. Tests append to it as the logging would.
+     */
     val languageToolsOutput = RingOutputBuffer()
 
-    /** The runtime the clients of the sessions reach; it answers only what a test programs. */
+    /** The runtime that the clients of the sessions reach. It answers only what a test programs. */
     val fakeRuntime = FakeRuntime(scope)
 
     /** The hosts of the opened workspaces. */
@@ -161,10 +173,10 @@ class TestWorkbench(
     /** The workbench state under test. */
     val state: WorkbenchState = WorkbenchState(scope, services)
 
-    /** The current workspace (fails without one). */
+    /** The current workspace. Fails when no folder is open. */
     val workspace: Workspace get() = assertNotNull(state.workspace.value, "no folder is open")
 
-    /** Runs everything due on the virtual clock (Compose UI tests run their frames on a clock of their own). */
+    /** Runs everything due on the virtual clock. Compose UI tests run their frames on a clock of their own. */
     fun settle() = scheduler.advanceUntilIdle()
 
     /** Opens [root] and settles, including the first analysis. */

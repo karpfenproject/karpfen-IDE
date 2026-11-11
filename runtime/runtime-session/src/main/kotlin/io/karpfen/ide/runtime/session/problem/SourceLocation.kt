@@ -20,13 +20,13 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.nio.file.Path
 
 /**
- * Where a deploy problem points: a file of the workspace and, if known, a range of the text that was analyzed and
- * uploaded. Immutable.
+ * Where a deploy problem points. That is a file of the workspace and, if known, a range of the text that was analyzed
+ * and uploaded. Immutable.
  *
  * @property file the absolute path of the file.
  * @property range the range in [snapshot] the problem concerns, or null for the file as a whole.
- * @property snapshot the text [range] refers to, the analyzed text the deployment uploads, or null if no text of the
- *   file was analyzed, as for an environment descriptor.
+ * @property snapshot the text that [range] refers to, which is the analyzed text the deployment uploads. It is null if
+ *   no text of the file was analyzed, as for an environment descriptor.
  */
 public data class SourceLocation(
     public val file: Path,

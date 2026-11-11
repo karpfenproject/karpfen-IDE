@@ -21,15 +21,18 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
 /**
- * A user-readable message for a failure to read or write [path], for the results that carry I/O errors as values
- * instead of throwing them: the file name and the reason ([ioFailureReason]).
+ * A message for the user about a failure to read or write [path]. The results that carry I/O errors as values instead
+ * of throwing them use it. It consists of the file name and the reason from [ioFailureReason].
  */
 internal fun describeIoFailure(path: Path, failure: Exception): String {
     val name = path.fileName?.toString() ?: path.toString()
     return "$name: ${ioFailureReason(failure)}"
 }
 
-/** Why [failure] happened, readable for users: without stack traces or exception class names where a reason is known. */
+/**
+ * Why [failure] happened, in words for the user. Where a reason is known, it contains no stack trace and no exception
+ * class name.
+ */
 internal fun ioFailureReason(failure: Exception): String = when (failure) {
     is NoSuchFileException -> "the file does not exist"
     is AccessDeniedException -> failure.reason ?: "access denied"

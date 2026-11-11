@@ -50,8 +50,9 @@ import io.karpfen.ide.ui.workbench.layout.isDark
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The application's content for [runState]'s phase: nothing while the session is prepared, the main window while it
- * runs, and the end of the application once the run exited. Rendering only; the lifecycle is [IdeRunState]'s.
+ * The application's content for the phase of [runState]. It shows nothing while the session is prepared and the main
+ * window while it runs, and it ends the application once the run has exited. It only renders. The lifecycle belongs to
+ * [IdeRunState].
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -74,10 +75,11 @@ internal fun ApplicationScope.IdeApplicationContent(
 }
 
 /**
- * The main window of [session]: title from `WorkbenchState.windowTitle`, bounds from and to `WorkbenchState.layout`,
- * the menu bar from [IdeMenus] (with the current number of recent folders), the [Workbench] as content with the
- * [StoppingRuntimeNote] over it while [stoppingRuntime] is true, close requests to [onCloseRequest], and failures
- * inside the window to [windowExceptions] (instead of Compose's default, which closes the window).
+ * The main window of [session]. Its title comes from `WorkbenchState.windowTitle`, and its bounds are read from and
+ * written to `WorkbenchState.layout`. The menu bar comes from [IdeMenus], with the current number of recent folders.
+ * The content is the [Workbench], with the [StoppingRuntimeNote] over it while [stoppingRuntime] is true. Close
+ * requests go to [onCloseRequest]. Failures inside the window go to [windowExceptions] instead of to Compose's default
+ * handler, which would close the window.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable

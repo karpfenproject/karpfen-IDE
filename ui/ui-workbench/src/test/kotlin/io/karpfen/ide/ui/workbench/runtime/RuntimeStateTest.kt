@@ -59,11 +59,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The runtime state of a workspace over a [FakeRuntimeHost][io.karpfen.ide.ui.workbench.testing.FakeRuntimeHost] that
- * answers what each test programs and real sessions whose clients reach the fake runtime, which answers only what each
- * test programs: which descriptor Run picks, saving before preparing, blocked and failed runs, a launch followed until
- * the environment runs, running again, also while the previous run waits for the runtime, stopping, replacing the host
- * when the settings change, closing the workspace, the bound of the sessions' shutdown and the limit of the runs list.
+ * Tests the runtime state of a workspace. The host is a
+ * [FakeRuntimeHost][io.karpfen.ide.ui.workbench.testing.FakeRuntimeHost] that answers what each test programs. The
+ * sessions are real, and their clients reach the fake runtime, which also answers only what each test programs.
+ *
+ * The tests cover which descriptor Run picks, saving before preparing, and blocked and failed runs. They follow a
+ * launch until the environment runs. They run again, also while the previous run waits for the runtime. They cover
+ * stopping, replacing the host when the settings change, and closing the workspace. And they check the bound of the
+ * sessions' shutdown and the limit of the runs list.
  */
 class RuntimeStateTest {
 
@@ -399,7 +402,7 @@ class RuntimeStateTest {
         }
     }
 
-    /** Copies [model] into a folder of its own below the workspace root and answers its descriptor. */
+    /** Copies [model] into a folder of its own below the workspace root and returns its descriptor. */
     private fun copy(model: SynthesizedModel): Path =
         SynthesizedModels.copyTo(root.resolve(model.folder), model, DescriptorTiming.EVENT_SCENARIOS).toAbsolutePath().normalize()
 
@@ -412,8 +415,8 @@ class RuntimeStateTest {
         ModelWireText(workspace.analysis.value.contexts.single { it.context.descriptor == descriptor }.models.values.single()).rootsJson()
 
     /**
-     * Programs the answers a deployment of [descriptor] to [environment] needs beyond the fake runtime's defaults: the
-     * IDE support check, the read-back after the activation, and the snapshot that confirms the start.
+     * Programs the answers that a deployment of [descriptor] to [environment] needs beyond the fake runtime's defaults.
+     * They are the IDE support check, the read-back after the activation, and the snapshot that confirms the start.
      */
     private suspend fun TestWorkbench.programDeployment(descriptor: Path, environment: String) {
         val prepared = assertIs<Preparation.Ready>(realSessions.prepare(workspace, descriptor)).prepared
@@ -436,7 +439,10 @@ class RuntimeStateTest {
         )
     }
 
-    /** Programs what stopping the environment of [entry] needs: the runtime closes the link and reports the final model. */
+    /**
+     * Programs what stopping the environment of [entry] needs. The runtime closes the link and reports the final
+     * model.
+     */
     private fun TestWorkbench.programStop(descriptor: Path, entry: RunEntry, environment: String) {
         val clientId = assertNotNull(entry.session).clientId.value
         fakeRuntime.after(RuntimeRoute.STOP_ENVIRONMENT) {

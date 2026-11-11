@@ -47,20 +47,24 @@ import kotlin.test.assertTrue
 import kotlin.time.measureTime
 
 /**
- * The completion list through the overlay contract (`EditorPopups.Popups` with a fake host and the real completion
- * model): kind badge, label and detail per row, at most 12 rows with the selection kept visible, keys staying with the
- * model while the text area keeps focus, mouse selection and acceptance, and the anchor at the caret.
+ * The completion list through the overlay contract, using `EditorPopups.Popups` with a fake host and the real
+ * completion model. Each row shows a kind badge, a label and a detail. The list shows at most 12 rows and keeps the
+ * selection visible. Keys stay with the model while the text area keeps focus. The mouse selects and accepts items,
+ * and the list is anchored at the caret.
  */
 @OptIn(ExperimentalTestApi::class)
 class CompletionPopupTest {
 
+    /** Opens the completion session of [harness] and waits until the popup is composed. */
     private fun ComposeUiTest.openCompletion(harness: PopupHarness) {
         runOnIdle { harness.model.completion.open() }
         waitForIdle()
     }
 
+    /** The height in dp of the node tagged [tag]. */
     private fun ComposeUiTest.heightOf(tag: String): Float = onNodeWithTag(tag).getUnclippedBoundsInRoot().let { (it.bottom - it.top).value }
 
+    /** [count] labels named `item00`, `item01` and so on. */
     private fun labels(count: Int) = List(count) { "item%02d".format(it) }
 
     @Test

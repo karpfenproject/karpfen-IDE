@@ -32,9 +32,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Covers what the watcher registers and how it maps events, on real trees with symbolic links and fake keys (the real
- * watch service is too slow on macOS for more than one test): every directory the scan lists is watched under its path
- * in the tree, and changes below links are reported under the links' paths.
+ * Covers what the watcher registers and how it maps events. It uses real trees with symbolic links and fake keys,
+ * because the real watch service is too slow on macOS for more than one test. Every directory the scan lists is
+ * watched under its path in the tree, and changes below links are reported under the paths of the links.
  */
 class WatchRegistryTest {
 
@@ -43,7 +43,7 @@ class WatchRegistryTest {
 
     private val base: Path get() = dir.toRealPath()
 
-    /** A key per registration; [directory] is the path it was registered under. */
+    /** A key per registration. [directory] is the path it was registered under. */
     private class FakeKey(val directory: Path) : WatchKey {
         override fun isValid(): Boolean = true
         override fun pollEvents(): List<WatchEvent<*>> = emptyList()

@@ -25,9 +25,9 @@ import io.karpfen.ide.core.lang.modelpath.pathSegmentsOf
 import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 
 /**
- * The file-local references of a KStates document (states and macros, WITH bindings and macro parameters):
- * declarations by name (staleness rule, [DocumentDeclarations]) and the references of the document's latest parse
- * outcome. One instance per request.
+ * The references within one KStates document of states, macros, WITH bindings and macro parameters. Declarations are
+ * found by name with [DocumentDeclarations], following the staleness rule. References come from the latest parse
+ * outcome of the document. Each request makes its own instance.
  */
 internal class KstatesLocalReferences(private val document: LanguageDocument) {
 
@@ -42,9 +42,10 @@ internal class KstatesLocalReferences(private val document: LanguageDocument) {
     }
 
     /**
-     * The uses of the WITH binding or macro parameter [name] in scope at [offset]: the first segments of the model paths
-     * starting with it in the innermost WITH block binding it (after its `AS "x"`) or in the enclosing macro declaring
-     * it. Offset-based, so only with a parse of the current text (staleness rule); empty otherwise.
+     * The uses of the WITH binding or macro parameter [name] in scope at [offset]. These are the first segments of the
+     * model paths that start with it. They are searched in the innermost WITH block that binds it, after its `AS "x"`,
+     * or in the enclosing macro that declares it. The lookup works by offset, so by the staleness rule it needs a parse
+     * of the current text. Otherwise the result is empty.
      */
     fun ofBinding(name: String, offset: Int): List<Location> {
         val source = declarations.latest()?.takeIf { it.outcome.version == document.text.version } ?: return emptyList()

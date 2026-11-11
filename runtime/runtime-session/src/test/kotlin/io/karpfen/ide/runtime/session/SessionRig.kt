@@ -52,10 +52,10 @@ import kotlin.test.fail
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * The parts of an end-to-end test of sessions on the test's virtual time: a [FakeRuntime] that answers only what the
- * test programs, the real client over its transports, the real sessions with a ledger of their own, and workspaces with
- * the synthesized models and the single robot example. The answers a deployment needs are programmed by
- * [programDeployment]; pushes are written with the runtime's writers through [ModelWireText] and [RuntimeWireWriter].
+ * The parts of an end-to-end test of sessions on the test's virtual time. These are a [FakeRuntime] that answers only
+ * what the test programs, the real client over its transports, the real sessions with a ledger of their own, and
+ * workspaces with the synthesized models and the single robot example. [programDeployment] programs the answers a
+ * deployment needs. Pushes are written with the runtime's writers through [ModelWireText] and [RuntimeWireWriter].
  *
  * @property scope the test's scope.
  * @property root the folder the workspaces are copied into.
@@ -68,7 +68,7 @@ internal class SessionRig(
     timing: DeployTiming = DeployTiming(),
     timeouts: RuntimeTimeouts = RuntimeTimeouts(),
 ) {
-    /** The fake runtime; its follow-ups run in the test's background scope. */
+    /** The fake runtime. Its follow-ups run in the test's background scope. */
     val fake = FakeRuntime(scope.backgroundScope)
 
     /** The one test dispatcher of the sessions and the client. */
@@ -77,7 +77,10 @@ internal class SessionRig(
     /** The ledger of the sessions. */
     val ledger = EnvironmentLedger()
 
-    /** The options of the sessions: virtual time and a seeded random, so the client ids are the same in every run. */
+    /**
+     * The options of the sessions. They use virtual time and a seeded random, so the client ids are the same in every
+     * run.
+     */
     val options = RuntimeSessionOptions(
         dispatcher = dispatcher,
         timeSource = scope.testScheduler.timeSource,
@@ -98,13 +101,13 @@ internal class SessionRig(
     /** The workspaces of the test. */
     private val workspaces = TestWorkspaces(scope)
 
-    /** Copies [model] with [timing] into a folder of its own, opens the workspace and answers both. */
+    /** Copies [model] with [timing] into a folder of its own, opens the workspace and returns both. */
     fun open(model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.EVENT_SCENARIOS): Opened {
         val descriptor = SynthesizedModels.copyTo(root.resolve(model.folder), model, timing)
         return Opened(workspaces.open(root), descriptor)
     }
 
-    /** Copies the single robot example into a folder of its own, opens the workspace and answers both. */
+    /** Copies the single robot example into a folder of its own, opens the workspace and returns both. */
     fun openSingleRobot(): Opened {
         val descriptor = DescriptorExamples.copyExplicitContext(root.resolve("robot"))
         return Opened(workspaces.open(root), descriptor)
@@ -128,9 +131,9 @@ internal class SessionRig(
         sessions.launch(deployment.prepared, client, scope.backgroundScope, options)
 
     /**
-     * Programs the answers a deployment of [deployment] to [environment] needs beyond the fake's defaults: the IDE
-     * support check, the read-back after the activation, and, if the deployment starts, the snapshot that confirms the
-     * start with [started] as every machine's stack.
+     * Programs the answers that a deployment of [deployment] to [environment] needs beyond the fake's defaults. These
+     * are the IDE support check and the read-back after the activation. If the deployment starts, it also programs the
+     * snapshot that confirms the start with [started] as every machine's stack.
      */
     fun programDeployment(
         deployment: Deployment,
@@ -143,7 +146,10 @@ internal class SessionRig(
         if (start) programSnapshot(deployment, environment, RuntimePhase.RUNNING, started.size.toLong(), started)
     }
 
-    /** Programs the next snapshot of [environment]: the model of [deployment] with [roots] at [phase] and [revision]. */
+    /**
+     * Programs the next snapshot of [environment]. It holds the model of [deployment] with [roots] at [phase] and
+     * [revision].
+     */
     fun programSnapshot(
         deployment: Deployment,
         environment: String,
@@ -159,7 +165,7 @@ internal class SessionRig(
         )
     }
 
-    /** Waits on virtual time until [session] is in a state [accept] accepts, and answers it. */
+    /** Waits on virtual time until [session] is in a state that [accept] accepts, and returns that state. */
     suspend fun awaitState(session: RuntimeSession, accept: (SessionState) -> Boolean): SessionState =
         withTimeout(PATIENCE) { session.state.first(accept) }
 
@@ -236,7 +242,7 @@ internal class SessionRig(
         /** The object [id] of the model as the runtime holds it. */
         fun objectOf(id: String): FakeObject = checkNotNull(wire.objects[id]) { "the model has no object '$id'" }
 
-        /** The runtime's JSON of the object [id] with the properties of [edits] set, nested objects as modeled. */
+        /** The runtime's JSON of the object [id] with the properties of [edits] set. Nested objects stay as modeled. */
         fun json(id: String, vararg edits: FakeProperty): String {
             val edited = objectOf(id).let { original ->
                 original.copy(properties = original.properties.filter { property -> edits.none { it.key == property.key } } + edits)
@@ -246,7 +252,7 @@ internal class SessionRig(
     }
 
     companion object {
-        /** The runtime the client believes it talks to; the fake answers whatever the URL. */
+        /** The runtime the client believes it talks to. The fake answers whatever the URL is. */
         val ENDPOINT: RuntimeEndpoint = RuntimeEndpoint.parse("http://127.0.0.1:8080")
 
         /** The seed of the sessions' random. */
@@ -270,7 +276,7 @@ internal class SessionRig(
         /** The list property [key] with the strings [values]. */
         fun texts(key: String, vararg values: String): FakeProperty = FakeProperty.Many(key, values.map { FakeScalar.Text(it) })
 
-        /** The runtime's answer to the snapshot route without an environment key: the route exists. */
+        /** The runtime's answer to the snapshot route without an environment key. It shows that the route exists. */
         fun missingEnvironmentKey(): FakeResponse =
             FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.MISSING_PARAMETER, mapOf("name" to ENV_KEY))
     }

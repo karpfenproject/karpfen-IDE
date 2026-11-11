@@ -25,10 +25,10 @@ import kotlinx.coroutines.flow.flowOf
 import java.nio.file.Path
 
 /**
- * The current text of every open document that [accepts], by path: emitted at once, and again whenever such a document
- * is opened, edited or closed (an equal map is not repeated, so opening a document [accepts] rejects emits nothing).
- * The one way the workspace follows what is typed in its editors: the analysis triggers on every open text, the context
- * tracking on the texts of the open descriptors.
+ * The current text of every open document that [accepts], by path. It is emitted at once, and again whenever such a
+ * document is opened, edited or closed. An equal map is not emitted again, so opening a document that [accepts]
+ * rejects emits nothing. This is the only way the workspace follows what is typed in its editors. The analysis is
+ * triggered by every open text, and the context tracking follows the texts of the open descriptors.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal fun DocumentManager.openTexts(accepts: (OpenDocument) -> Boolean = { true }): Flow<Map<Path, TextSnapshot>> =

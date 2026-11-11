@@ -20,9 +20,10 @@ import io.karpfen.ide.ui.editor.model.action.EditorAction
 import io.karpfen.ide.ui.editor.model.action.EditorActionContext
 
 /**
- * Selects a find [match] (caret at its end), run through the editor's executor so the editor reveals it, whoever asked
- * for the selection (the find bar, the find-next keys or the menu). Caret only: no text change, no undo step. Not
- * registered (one instance per selection).
+ * Selects a find [match] and puts the caret at its end. It runs through the editor's executor, so the editor reveals
+ * the match no matter who asked for the selection: the find bar, the find next keys or the menu. It changes only the
+ * caret. There is no text change and no undo step. The action is not registered. Each selection creates a new instance.
+ * It returns false if the match no longer fits into the text.
  */
 internal class SelectMatchAction(val match: TextRange) : EditorAction {
     override val id: String = ID
@@ -34,7 +35,7 @@ internal class SelectMatchAction(val match: TextRange) : EditorAction {
         return true
     }
 
-    /** The shared id. */
+    /** Holds the id that all instances share. */
     companion object {
         /** The id of every select-match action. */
         const val ID: String = "editor.find.selectMatch"

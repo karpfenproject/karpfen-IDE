@@ -18,10 +18,11 @@ package io.karpfen.ide.runtime.protocol.catalogue
 import kotlin.random.Random
 
 /**
- * The key of an environment on the runtime, such as `env-1761560123456` (the runtime hands out `env-<epoch millis>`,
- * each key once). The key travels in query parameters, in the WebSocket handshake `<clientId>:<envKey>:<accessKey>`
- * and in the envelope of every push, so it holds no `:` (the handshake is split at it), no `"` or `\` and no control
- * character, which keeps the envelope's strings plain.
+ * The key of an environment on the runtime, such as `env-1761560123456`. The runtime hands out keys of the form
+ * `env-<epoch millis>` and hands out each key once. The key travels in query parameters, in the WebSocket handshake
+ * `<clientId>:<envKey>:<accessKey>` and in the envelope of every push. So it holds no `:`, because the handshake is
+ * split at that character. It also holds no `"`, no `\` and no control character, which keeps the envelope's strings
+ * plain.
  *
  * @property value the key as the runtime writes it.
  * @throws IllegalArgumentException if [value] is blank or holds one of the characters above.
@@ -39,9 +40,10 @@ public value class EnvironmentKey(public val value: String) {
 }
 
 /**
- * The id under which a client registers with the runtime: its object, domain and model subscriptions and every access
- * key it is issued belong to it. One to 64 letters, digits, `_` and `-`, so it never holds the `:` of the handshake and
- * needs no escaping in the envelope; the IDE's client ids look like `karpfen-ide-4f2c9a1b7e03`.
+ * The id under which a client registers with the runtime. The client's object, domain and model subscriptions and
+ * every access key it is issued belong to this id. An id is one to 64 letters, digits, `_` and `-`. So it never holds
+ * the `:` of the handshake and needs no escaping in the envelope. The IDE's client ids look like
+ * `karpfen-ide-4f2c9a1b7e03`.
  *
  * @property value the id as it travels on the wire.
  * @throws IllegalArgumentException if [value] does not follow the rule above.
@@ -68,8 +70,8 @@ public value class ClientId(public val value: String) {
         private const val RANDOM_DIGITS = 12
 
         /**
-         * A fresh client id of the IDE: `karpfen-ide-` followed by 12 lower-case hexadecimal digits drawn from [random],
-         * so a seeded [Random] gives the same id every time.
+         * Makes a fresh client id of the IDE. It is `karpfen-ide-` followed by 12 lower-case hexadecimal digits drawn
+         * from [random]. A seeded [Random] gives the same id every time.
          */
         public fun random(random: Random): ClientId =
             ClientId(IDE_PREFIX + String(CharArray(RANDOM_DIGITS) { HEX_DIGITS[random.nextInt(HEX_DIGITS.length)] }))
@@ -78,8 +80,8 @@ public value class ClientId(public val value: String) {
 
 /**
  * A single-use key that authenticates one WebSocket connection of a client to one environment, such as
- * `ak-karpfen-ide-4f2c9a1b7e03-1761555601234-4821`. It is the third part of the handshake, which is split at `:`, so it
- * holds no `:` and no whitespace (the runtime does not trim).
+ * `ak-karpfen-ide-4f2c9a1b7e03-1761555601234-4821`. It is the third part of the handshake, which is split at `:`. So
+ * it holds no `:`. It holds no whitespace either, because the runtime does not trim.
  *
  * @property value the key as the runtime issued it.
  * @throws IllegalArgumentException if [value] is blank or holds `:` or whitespace.

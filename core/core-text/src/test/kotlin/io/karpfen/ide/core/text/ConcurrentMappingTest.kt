@@ -29,9 +29,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * `mapOffset` and `mapRange` called from other threads while the single writer applies edits (including undo and
- * redo) never throw, and every answer is the one some published version gives: re-computed on the writer's thread
- * afterwards, it is the same.
+ * Checks that `mapOffset` and `mapRange` never throw when other threads call them while the single writer applies
+ * edits, undo and redo included. Every answer must be the one that some published version gives, so computing it
+ * again on the writer's thread afterwards gives the same result.
  */
 class ConcurrentMappingTest {
 
@@ -40,7 +40,7 @@ class ConcurrentMappingTest {
         /** An offset mapped from version [from] to version [to]. */
         data class Point(val offset: Int, val from: Long, val to: Long, val bias: Bias, val answer: Int?) : Lookup
 
-        /** A range mapped to "the current version"; [lowest]..[highest] bound the versions current during the call. */
+        /** A range mapped to the current version. [lowest] and [highest] bound the versions current during the call. */
         data class Range(val range: TextRange, val from: Long, val lowest: Long, val highest: Long, val answer: TextRange?) : Lookup
     }
 

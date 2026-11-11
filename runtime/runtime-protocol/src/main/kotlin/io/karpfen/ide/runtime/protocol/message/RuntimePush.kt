@@ -21,8 +21,9 @@ package io.karpfen.ide.runtime.protocol.message
  * @property name the event's name.
  * @property payload the raw payload text, never parsed as JSON by the runtime's announcement.
  * @property payloadFormat `none`, `json` or `kmodel`.
- * @property source `INTERNAL` (raised by an action), `EXTERNAL_ENGINE` or `EXTERNAL_MESSAGE` (injected over the
- *   WebSocket).
+ * @property source where the event came from. `INTERNAL` means an action of the same engine raised it.
+ *   `EXTERNAL_ENGINE` means a machine in another engine thread raised it. `EXTERNAL_MESSAGE` means a client injected
+ *   it, for example over the WebSocket.
  * @property timestamp the receipt or raise time in epoch milliseconds.
  * @property ttlMs the effective time to live in milliseconds.
  */
@@ -37,8 +38,8 @@ public data class PublishedEvent(
 
 /**
  * A message the runtime pushed to the client, decoded from its envelope. Object and stack pushes carry the revision of
- * their observation: a model subscriber receives every revision of its environment in order, so a revision above the
- * last one plus one proves that pushes were lost. Domain events carry none.
+ * their observation. A model subscriber receives every revision of its environment in order. So a revision above the
+ * last one plus one proves that pushes were lost. Domain events carry no revision.
  */
 public sealed interface RuntimePush {
     /**
@@ -89,7 +90,7 @@ public sealed interface RuntimePush {
     ) : RuntimePush
 
     /**
-     * A message of a type the client does not know; not a violation, the runtime may add types.
+     * A message of a type the client does not know. It is not a violation, because the runtime may add types.
      *
      * @property messageType the type.
      * @property rawPayload the payload, written again compactly.

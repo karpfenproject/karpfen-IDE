@@ -32,8 +32,9 @@ import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 
 /**
- * The project tree's file operations except rename ([RenameFlow]): new file from a template, delete and reveal in the
- * file manager. Blocking file work runs on [ioDispatcher]; failures become error dialogs.
+ * The file operations of the project tree, except rename, which [RenameFlow] handles. They are a new file from a
+ * template, delete, and show in the file manager. Blocking file work runs on [ioDispatcher]. Failures become error
+ * dialogs.
  */
 internal class FileOperationFlows(
     private val holder: WorkspaceHolder,
@@ -48,8 +49,8 @@ internal class FileOperationFlows(
 ) {
 
     /**
-     * Asks for the name, creates the file with the template's content for the directory's context, refreshes the
-     * workspace, reveals the file in the tree and opens it.
+     * Asks for the name and creates the file with the template's content for the directory's context. Then it
+     * refreshes the workspace, reveals the file in the tree and opens it.
      */
     suspend fun createFile(directory: Path, kind: FileTemplateKind) {
         val workspace = holder.workspace.value ?: return
@@ -69,7 +70,10 @@ internal class FileOperationFlows(
         files.openFile(created.toAbsolutePath().normalize())
     }
 
-    /** Confirms, closes the affected tabs without saving, deletes and refreshes the workspace (not the open folder itself). */
+    /**
+     * Asks for confirmation, closes the affected tabs without saving, deletes [path] and refreshes the workspace. The
+     * open folder itself cannot be deleted. The workspace is refreshed even when the deletion fails.
+     */
     suspend fun delete(path: Path) {
         val workspace = holder.workspace.value?.takeIf { it.root != path } ?: return
         val answer = dialogs.ask(DialogRequest.ConfirmDelete(path, toTrash = fileOperations.supportsTrash))
@@ -83,7 +87,7 @@ internal class FileOperationFlows(
         workspace.refresh()
     }
 
-    /** Shows [path] in Finder/Explorer; a platform failure is logged. */
+    /** Shows [path] in Finder or Explorer. A platform failure is only logged. */
     suspend fun revealInFileManager(path: Path) {
         try {
             withContext(ioDispatcher) { fileOperations.revealInFileManager(path) }
@@ -97,7 +101,7 @@ internal class FileOperationFlows(
     }
 }
 
-/** A user-readable reason of a failed file operation. */
+/** A reason for a failed file operation that a user can read. */
 internal fun IOException.reason(): String = when (this) {
     is FileAlreadyExistsException -> "${file ?: message} already exists."
     is NoSuchFileException -> "${file ?: message} does not exist."

@@ -23,7 +23,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** [ConflictBanner]: the banner per `EditorTab.conflict`, whose Reload and Close both take the disk state. */
+/**
+ * Tests the [ConflictBanner] for each kind of `EditorTab.conflict`. Its Reload and Close buttons both take the state on
+ * disk.
+ */
 class ConflictBannerTest {
 
     private val tab =

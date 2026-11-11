@@ -21,18 +21,18 @@ import io.karpfen.ide.core.text.TextRange
 /**
  * Tokens and lexical diagnostics of one text version.
  *
- * Invariants (checked): [tokens] are sorted by start and do not overlap; so are [embeddedRegions]. By contract of
- * [Tokenizer], every non-whitespace character belongs to exactly one token.
+ * The constructor checks that [tokens] are sorted by start and do not overlap, and the same for [embeddedRegions].
+ * Every [Tokenizer] also makes sure that every non-whitespace character belongs to exactly one token.
  *
  * @property version the [io.karpfen.ide.core.text.TextSnapshot.version] that was tokenized.
  * @property tokens the classified pieces of the text in document order.
- * @property diagnostics LEXER errors and IDE warnings (e.g. `eval-double-slash`), sorted with [Diagnostic.ORDER].
- * @property embeddedRegions the embedded-Python regions: the content ranges of the KStates EVAL bodies (between the
- *   `{` after `EVAL` and its matching `}`, to the end of the text when unclosed), exactly as the tokenizer's EVAL
- *   scanner found them (`EvalBodies`); empty for KMeta and KModel. The one answer to "is this offset embedded
- *   Python?" outside core-document (toggle comment `#` vs `//`, the caret context of completion): consumers use
- *   [embeddedRegionAt] and never re-derive EVAL bodies from the tokens, so a mechanism shared by several layers is
- *   never implemented twice.
+ * @property diagnostics LEXER errors and IDE warnings such as `eval-double-slash`, sorted with [Diagnostic.ORDER].
+ * @property embeddedRegions the regions of embedded Python. These are the content ranges of the KStates EVAL bodies,
+ *   between the `{` after `EVAL` and its matching `}`, or to the end of the text when a body is not closed. They are
+ *   exactly what the tokenizer's EVAL scanner, `EvalBodies`, found. The list is empty for KMeta and KModel. Outside
+ *   core-document it is the one answer to whether an offset lies in embedded Python. Toggle comment uses it to choose
+ *   between `#` and `//`, and completion uses it for the caret context. Consumers use [embeddedRegionAt] and never
+ *   derive EVAL bodies from the tokens again, so a mechanism that several layers share is never implemented twice.
  */
 public data class TokenizeResult(
     public val version: Long,
@@ -54,8 +54,8 @@ public data class TokenizeResult(
     }
 
     /**
-     * The embedded region containing [offset] with inclusive bounds (`start <= offset <= end`, so a caret right after
-     * `{` or right before `}` of an EVAL body is inside it), or null.
+     * The embedded region that contains [offset], or null. The bounds are inclusive, so `start <= offset <= end`. A
+     * caret right after the `{` or right before the `}` of an EVAL body is therefore inside it.
      */
     public fun embeddedRegionAt(offset: Int): TextRange? {
         var low = 0
@@ -67,7 +67,10 @@ public data class TokenizeResult(
         return embeddedRegions.getOrNull(low)?.takeIf { it.containsInclusive(offset) }
     }
 
-    /** The token containing [offset] (`start <= offset < end`), or null if [offset] is in whitespace or out of range. */
+    /**
+     * The token that contains [offset], where `start <= offset < end`. Returns null if [offset] is in whitespace or out
+     * of range.
+     */
     public fun tokenAt(offset: Int): SyntaxToken? {
         val index = indexOfFirstEndingAfter(offset)
         val token = tokens.getOrNull(index) ?: return null
@@ -75,12 +78,12 @@ public data class TokenizeResult(
     }
 
     /**
-     * The token that ends exactly at [offset] or contains `offset - 1`, i.e. the token directly left of a caret at
-     * [offset]; null if the character before [offset] is whitespace or [offset] is 0.
+     * The token that ends exactly at [offset] or contains `offset - 1`. That is the token directly left of a caret at
+     * [offset]. Returns null if the character before [offset] is whitespace or [offset] is 0.
      */
     public fun tokenBefore(offset: Int): SyntaxToken? = if (offset <= 0) null else tokenAt(offset - 1)
 
-    /** Tokens that overlap [range] (for an empty [range]: the token containing it), in document order. */
+    /** The tokens that overlap [range], in document order. For an empty [range] it is the token that contains it. */
     public fun tokensIn(range: TextRange): List<SyntaxToken> {
         if (range.isEmpty) return listOfNotNull(tokenAt(range.start))
         val from = indexOfFirstEndingAfter(range.start)
@@ -93,7 +96,10 @@ public data class TokenizeResult(
         return result
     }
 
-    /** Index of the first token whose end is greater than [offset] (binary search); `tokens.size` if none. */
+    /**
+     * Index of the first token whose end is greater than [offset], found by binary search. Returns `tokens.size` if
+     * there is none.
+     */
     private fun indexOfFirstEndingAfter(offset: Int): Int {
         var low = 0
         var high = tokens.size
@@ -105,7 +111,7 @@ public data class TokenizeResult(
     }
 
     public companion object {
-        /** A result without tokens or diagnostics for [version] (e.g. the empty text). */
+        /** A result without tokens or diagnostics for [version], as for the empty text. */
         public fun empty(version: Long): TokenizeResult = TokenizeResult(version, emptyList(), emptyList())
     }
 }

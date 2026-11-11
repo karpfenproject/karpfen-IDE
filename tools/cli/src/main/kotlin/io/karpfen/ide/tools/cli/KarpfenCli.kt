@@ -26,13 +26,13 @@ import java.nio.file.Files
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * The karpfen command-line tool: parses the arguments ([CliArguments]) and runs the command, returning its exit status
- * ([ExitCodes]). Everything it prints goes through [console]: the report and the usage of `help` to its `output`
- * (stdout), its own messages (`karpfen: …` and the usage after invalid arguments) to its `errorOutput` (stderr). What
- * dsl-tools logs while a folder is validated stays off unless the command asks for it with `--verbose`, which shows it
- * on standard error through [languageToolsLog] for the length of the validation.
+ * The karpfen command-line tool. It parses the arguments with [CliArguments], runs the command and returns its exit
+ * status from [ExitCodes]. Everything it prints goes through [console]. The report and the usage of `help` go to its
+ * `output`, which is standard output. Its own messages, `karpfen: …`, and the usage after invalid arguments go to its
+ * `errorOutput`, which is standard error. What dsl-tools logs while a folder is validated stays off unless the command
+ * asks for it with `--verbose`. Then [languageToolsLog] shows it on standard error for the length of the validation.
  *
- * @param workspaceFactory opens the validated folder (tests pass test dispatchers).
+ * @param workspaceFactory opens the validated folder. Tests pass one with test dispatchers.
  */
 internal class KarpfenCli(
     private val console: CliConsole = CliConsole(),
@@ -56,8 +56,8 @@ internal class KarpfenCli(
     }
 
     /**
-     * Validates the command's directory and prints the report; the exit status tells whether an ERROR was found. A
-     * missing directory is a usage error, an unexpected failure is logged and reported as [ExitCodes.FAILURE].
+     * Validates the command's directory and prints the report. The exit status tells whether an ERROR was found. A
+     * missing directory is a usage error. An unexpected failure is logged and reported as [ExitCodes.FAILURE].
      */
     private suspend fun validate(command: CliCommand.Validate): Int {
         if (!Files.isDirectory(command.directory)) {
@@ -78,7 +78,7 @@ internal class KarpfenCli(
         return if (report.hasErrors) ExitCodes.ERRORS_FOUND else ExitCodes.OK
     }
 
-    /** Runs [block], with what dsl-tools logs shown on standard error while it runs if [verbose]. */
+    /** Runs [block]. If [verbose] is set, what dsl-tools logs is shown on standard error while it runs. */
     private suspend fun <T> showingLanguageToolsLogIf(verbose: Boolean, block: suspend () -> T): T {
         val shown = if (verbose) languageToolsLog.show() else null
         try {

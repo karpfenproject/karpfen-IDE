@@ -25,12 +25,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * A runtime started elsewhere and reached at [url]. [ensureRunning] asks it once for its health and its IDE support;
- * [stop] only forgets it, since the IDE does not own it. Its log is shown where it was started, so [logs] says so in one
- * line.
+ * A runtime started elsewhere and reached at [url]. Each call of [ensureRunning] asks it once for its health and its IDE
+ * support. [stop] and [close] only forget it, since the IDE does not own it. The host cannot read the runtime's log,
+ * which is shown where the runtime was started, so [logs] says so in one line.
  *
  * @param url the base URL of the runtime, such as `http://127.0.0.1:8080`.
- * @param options what the host works with; it uses their clients.
+ * @param options what the host works with. This host uses only their clients.
  */
 internal class UrlRuntimeHost(private val url: String, private val options: HostOptions) : RuntimeHost {
 

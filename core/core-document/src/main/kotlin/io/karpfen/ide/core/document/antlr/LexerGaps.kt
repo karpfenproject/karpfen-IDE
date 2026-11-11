@@ -18,21 +18,22 @@ package io.karpfen.ide.core.document.antlr
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Recovers what the KMeta and KModel lexers drop: both grammars `skip` whitespace (`[ \t\r\n]+`) and line
- * comments (`'//' ~[\r\n]*`), and a lexer error skips the characters it could not match. So the gaps between the
- * emitted tokens contain exactly whitespace, `//` comments and unrecognized characters.
+ * Recovers what the KMeta and KModel lexers drop. Both grammars skip whitespace, `[ \t\r\n]+`, and line comments,
+ * `'//' ~[\r\n]*`. A lexer error skips the characters it could not match. The gaps between the emitted tokens therefore
+ * contain exactly whitespace, `//` comments and unrecognized characters.
  *
  * - The KMeta and KModel tokenizers turn [GapKind.COMMENT] pieces into COMMENT tokens and [GapKind.UNRECOGNIZED]
- *   pieces into ERROR tokens (the LEXER diagnostics come from [IdeErrorListener]).
- * - The syntax analyzers fold runs of comment lines (`FoldingKind.COMMENT`) from the same pieces.
+ *   pieces into ERROR tokens. The LEXER diagnostics come from [IdeErrorListener].
+ * - The syntax analyzers fold runs of comment lines, `FoldingKind.COMMENT`, from the same pieces.
  *
- * Not for KStates, whose lexer keeps comments on the HIDDEN channel and has a catch-all `SYMBOL` token. Pure.
+ * It is not used for KStates, whose lexer keeps comments on the HIDDEN channel and has a catch-all `SYMBOL` token. The
+ * object holds no state and has no side effects.
  */
 internal object LexerGaps {
 
     /** What a [GapPiece] is. */
     enum class GapKind {
-        /** A `//` comment up to (excluding) the end of its line. */
+        /** A `//` comment up to the end of its line, without the line break. */
         COMMENT,
 
         /** A run of characters the lexer could not match, up to the next whitespace, `//` or token. */
@@ -48,8 +49,9 @@ internal object LexerGaps {
     data class GapPiece(val range: TextRange, val kind: GapKind)
 
     /**
-     * The pieces in the gaps of [text] between [tokenRanges] (the emitted tokens, sorted and non-overlapping, IDE
-     * offsets), in document order. Whitespace (space, tab, CR, LF, as in the grammars) is not reported.
+     * The pieces in the gaps of [text] between [tokenRanges], in document order. [tokenRanges] are the ranges of the
+     * emitted tokens in IDE offsets, sorted and without overlaps. Whitespace is not reported. As in the grammars, that
+     * is space, tab, CR and LF.
      */
     fun scan(text: String, tokenRanges: List<TextRange>): List<GapPiece> {
         val pieces = ArrayList<GapPiece>()

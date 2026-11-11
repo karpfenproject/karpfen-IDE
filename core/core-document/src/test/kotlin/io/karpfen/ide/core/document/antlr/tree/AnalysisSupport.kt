@@ -29,7 +29,7 @@ import kotlin.test.fail
 internal val analyzers: Map<KarpfenLanguage, SyntaxAnalyzer> =
     listOf(KmetaSyntaxAnalyzer(), KmodelSyntaxAnalyzer(), KstatesSyntaxAnalyzer()).associateBy { it.language }
 
-/** Analyzes [text] as [language] (version 0). */
+/** Analyzes [text] as [language] at version 0. */
 internal fun analyze(language: KarpfenLanguage, text: String): SyntaxAnalysis =
     analyzers.getValue(language).analyze(TextSnapshot(text, 0))
 
@@ -40,10 +40,10 @@ internal fun String.at(range: TextRange): String = substring(range.start, range.
 internal fun flatten(nodes: List<OutlineNode>): List<OutlineNode> = nodes.flatMap { listOf(it) + flatten(it.children) }
 
 /**
- * Checks the documented invariants of an analysis of [text] (see `ParseOutcome`): every range lies inside the
- * text; outline children lie inside their parent and are in document order; spans are sorted, non-empty and do not
- * overlap; folding ranges are sorted and span more than one line; diagnostics are sorted. ([OutlineNode] and
- * `SymbolDeclaration` check the selection/name containment themselves on construction.)
+ * Checks the documented invariants of an analysis of [text], as `ParseOutcome` describes them. Every range lies inside
+ * the text. Outline children lie inside their parent and are in document order. Spans are sorted, non-empty and do not
+ * overlap. Folding ranges are sorted and span more than one line. Diagnostics are sorted. [OutlineNode] and
+ * `SymbolDeclaration` check on construction that the selection or the name lies inside the range.
  */
 internal fun checkInvariants(text: String, analysis: SyntaxAnalysis, context: Any) {
     fun inside(range: TextRange, what: Any) {

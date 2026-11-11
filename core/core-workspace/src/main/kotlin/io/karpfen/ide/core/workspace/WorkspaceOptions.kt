@@ -23,20 +23,22 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * Configuration of a [Workspace]. Tests inject test dispatchers (virtual time), a `TestTimeSource` and usually disable
- * [watch].
+ * Configuration of a [Workspace]. Tests inject test dispatchers on virtual time and a `TestTimeSource`, and they
+ * usually turn [watch] off.
  *
- * @property watch whether to watch the file system (the CLI and most tests pass false and call `refresh()`).
- * @property watchDebounce quiet time after the last file event before rescanning (200 ms by default).
- * @property analysisDebounce quiet time after the last change before re-analysis (300 ms by default).
- * @property ignoredDirectoryNames directory names never scanned or watched; hidden directories (name starting with
- *   `.`) are always ignored as well.
- * @property ioDispatcher file I/O (scan, read, write).
- * @property analysisDispatcher project analysis (CPU).
- * @property sessionConfig base configuration of the document sessions of opened files (dispatchers, debounce); the
- *   `DocumentManager` always uses it with `SemanticMode.SYNTAX_ONLY` (see `DocumentManager`, Semantic mode).
- * @property timeSource clock of the opened documents' `EditableText`s, which merge typing within one second into one
- *   undo step.
+ * @property watch whether to watch the file system. The command line tool and most tests pass false and call
+ *   `refresh()` instead.
+ * @property watchDebounce the quiet time after the last file event before a rescan. It is 200 ms by default.
+ * @property analysisDebounce the quiet time after the last change before a new analysis. It is 300 ms by default.
+ * @property ignoredDirectoryNames directory names that are never scanned or watched. Hidden directories, whose name
+ *   starts with `.`, are always ignored as well.
+ * @property ioDispatcher runs file I/O: scanning, reading and writing.
+ * @property analysisDispatcher runs the project analysis, which is CPU work.
+ * @property sessionConfig the base configuration of the document sessions of opened files, such as dispatchers and
+ *   debounce. The `DocumentManager` always uses it with `SemanticMode.SYNTAX_ONLY`, because the project analysis owns
+ *   the semantic diagnostics.
+ * @property timeSource the clock of the `EditableText` of each opened document. The text merges typing within one
+ *   second into one undo step.
  */
 public data class WorkspaceOptions(
     public val watch: Boolean = true,

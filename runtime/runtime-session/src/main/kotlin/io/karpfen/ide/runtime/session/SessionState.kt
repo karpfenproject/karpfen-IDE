@@ -20,16 +20,17 @@ import io.karpfen.ide.runtime.session.deploy.LedgerEntry
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 
 /**
- * Where a session stands. It follows the lifecycle phase of its environment once the deployment ended: activated is
- * [Ready], running is [Running], an engine that ended on its own is [Halted], a stopped environment is [Stopped]; a
- * failed deployment and an environment the runtime no longer knows are [Failed]. Immutable.
+ * Where a session stands. Once the deployment ended, it follows the lifecycle phase of its environment. An activated
+ * environment maps to [Ready], a running one to [Running], an engine that ended on its own to [Halted] and a stopped
+ * environment to [Stopped]. A failed deployment and an environment that the runtime no longer knows both lead to
+ * [Failed]. Immutable.
  */
 public sealed interface SessionState {
-    /** The deployment runs; nothing but shutting down and closing is possible yet. */
+    /** The deployment runs. Nothing but shutting down and closing is possible yet. */
     public data object Deploying : SessionState
 
     /**
-     * The environment is activated and not started: events wait until the start.
+     * The environment is activated and not started. Injected events wait until the start.
      *
      * @property environment the environment's key.
      */
@@ -43,7 +44,7 @@ public sealed interface SessionState {
     public data class Running(public val environment: EnvironmentKey) : SessionState
 
     /**
-     * The environment was started, but its engine ended on its own; the runtime's console log has the reason.
+     * The environment was started, but its engine ended on its own. The runtime's console log has the reason.
      *
      * @property environment the environment's key.
      */
@@ -57,7 +58,7 @@ public sealed interface SessionState {
     public data class Stopping(public val environment: EnvironmentKey) : SessionState
 
     /**
-     * The environment is stopped, for good: running again deploys a fresh environment.
+     * The environment is stopped for good. Running again deploys a fresh environment.
      *
      * @property environment the environment's key.
      */
@@ -71,7 +72,7 @@ public sealed interface SessionState {
      */
     public data class Failed(public val problem: DeployProblem, public val leftBehind: LedgerEntry?) : SessionState
 
-    /** The session was closed; it does nothing any more. */
+    /** The session was closed. It does nothing any more. */
     public data object Closed : SessionState
 }
 
@@ -81,10 +82,10 @@ public sealed interface SessionCommandOutcome {
     public data object Done : SessionCommandOutcome
 
     /**
-     * The command was not carried out: the session's state does not allow it, or the runtime refused it.
+     * The command was not carried out, because the session's state does not allow it or the runtime refused it.
      *
      * @property state the session's state when the command was refused.
-     * @property reason why, in a plain sentence, the runtime's own text where it refused.
+     * @property reason why, in a plain sentence. When the runtime refused, this is the runtime's own text.
      */
     public data class Refused(public val state: SessionState, public val reason: String) : SessionCommandOutcome
 

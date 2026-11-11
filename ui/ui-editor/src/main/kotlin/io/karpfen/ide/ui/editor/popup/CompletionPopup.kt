@@ -62,10 +62,12 @@ import io.karpfen.ide.ui.editor.model.completion.CompletionUiState
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The completion list: anchored below (or above, if there is no room) [anchor], at most
- * [CompletionUiState.MAX_VISIBLE_ROWS] visible rows, each with a kind badge, the label (matched prefix emphasized) and
- * the detail; the selected row is kept visible. Mouse: a click selects ([onSelect]), a double click accepts
- * ([onAccept]). The list never takes keyboard focus; keys are handled by the model while the text area keeps focus.
+ * The completion list. It is anchored below [anchor], or above it if there is no room below. It shows at most
+ * [CompletionUiState.MAX_VISIBLE_ROWS] rows at once. Each row has a kind badge, the label with the matched prefix
+ * emphasized, and the detail. The selected row is kept visible.
+ *
+ * A click selects a row through [onSelect], and a double click accepts through [onAccept]. The list never takes
+ * keyboard focus. The text area keeps focus, and the model handles the keys.
  */
 @Composable
 internal fun CompletionPopup(
@@ -87,7 +89,7 @@ private object CompletionListDefaults {
     /** Vertical space added to a text line to make a row. */
     val RowPadding: Dp = 4.dp
 
-    /** Width of the kind badge. */
+    /** The width of the kind badge. */
     val BadgeWidth: Dp = 22.dp
 
     /** Space at the start and end of a row. */
@@ -96,23 +98,26 @@ private object CompletionListDefaults {
     /** Space between the badge and the label. */
     val BadgeGap: Dp = 6.dp
 
-    /** Width reserved for the scrollbar of a long list. */
+    /** The width reserved for the scrollbar of a long list. */
     val ScrollbarAllowance: Dp = 12.dp
 
-    /** The list's smallest width. */
+    /** The smallest width of the list. */
     val MinWidth: Dp = 200.dp
 
-    /** The list's largest width; longer rows are cut with an ellipsis. */
+    /** The largest width of the list. Longer rows are cut with an ellipsis. */
     val MaxWidth: Dp = 640.dp
 
-    /** Font size of the badge text relative to the editor's. */
+    /** The font size of the badge text relative to the editor's font size. */
     const val BADGE_FONT_SCALE = 0.85f
 
-    /** Opacity of the badge's tinted background. */
+    /** The opacity of the tinted background of the badge. */
     const val BADGE_BACKGROUND_ALPHA = 0.18f
 }
 
-/** The list's measures for [textStyle]: one monospace character and line measured once per style and density. */
+/**
+ * Returns the measures of the list for [textStyle]. One monospace character and its line are measured once per style
+ * and density.
+ */
 @Composable
 private fun rememberCompletionListMetrics(textStyle: TextStyle): CompletionListMetrics {
     val measurer = rememberTextMeasurer(cacheSize = 1)
@@ -134,7 +139,7 @@ private fun rememberCompletionListMetrics(textStyle: TextStyle): CompletionListM
     }
 }
 
-/** The scrollable list of [state]'s items in a popup surface sized by [metrics]; keeps the selected row visible. */
+/** The scrollable list of the items of [state] in a popup surface sized by [metrics]. It keeps the selected row visible. */
 @Composable
 private fun CompletionList(
     state: CompletionUiState,
@@ -163,8 +168,8 @@ private fun CompletionList(
 }
 
 /**
- * One row: badge, label (the matched prefix in bold) and detail, highlighted when [selected]; a press selects it and a
- * double tap accepts the selection.
+ * One row with badge, label and detail. The matched prefix of the label is bold. The row is highlighted when
+ * [selected] is true. A press selects it, and a double tap accepts the selection.
  */
 @Composable
 private fun CompletionRow(
@@ -212,7 +217,7 @@ private fun CompletionRow(
     }
 }
 
-/** The kind badge: [badge]'s text in the colour of its highlight style on a tinted background. */
+/** The kind badge. It shows the text of [badge] in the colour of its highlight style on a tinted background. */
 @Composable
 private fun KindBadgeView(badge: KindBadge, theme: EditorTheme, textStyle: TextStyle, rowHeight: Dp) {
     val color = theme.colorOf(badge.style)
@@ -229,5 +234,5 @@ private fun KindBadgeView(badge: KindBadge, theme: EditorTheme, textStyle: TextS
     }
 }
 
-/** The text colour of [style] in this theme, or the foreground if the theme leaves it unstyled. */
+/** Returns the text colour of [style] in this theme, or the foreground colour if the theme sets no colour for it. */
 private fun EditorTheme.colorOf(style: HighlightStyle): Color = styles[style]?.color?.takeIf { it.isSpecified } ?: foreground

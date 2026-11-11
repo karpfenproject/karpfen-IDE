@@ -33,7 +33,10 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** [WorkbenchDialogs] headless: buttons, the text field, Enter for the default button and Escape for dismissing. */
+/**
+ * Headless tests of [WorkbenchDialogs]. They cover the buttons, the text field, Enter for the default button and Escape
+ * for dismissing.
+ */
 @OptIn(ExperimentalTestApi::class)
 class WorkbenchDialogsUiTest {
 

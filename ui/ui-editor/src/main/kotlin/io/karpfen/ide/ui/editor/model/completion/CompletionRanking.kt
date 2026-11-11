@@ -17,12 +17,15 @@ package io.karpfen.ide.ui.editor.model.completion
 
 import io.karpfen.ide.core.lang.CompletionItem
 
-/** How well a label matches the typed filter text; lower is better. */
+/** How well a label matches the typed filter text. Earlier entries are better matches. */
 internal enum class MatchQuality {
-    /** The label starts with the filter (case-insensitive). */
+    /** The label starts with the filter, ignoring case. */
     PREFIX,
 
-    /** The filter's characters start words of the label (camel humps, `_`, `-`, `>`, `.`, spaces, digits). */
+    /**
+     * The filter's characters start words of the label. Words start at camel humps, at digits and after characters
+     * such as `_`, `-`, `>`, `.` and spaces.
+     */
     WORD_BOUNDARY,
 
     /** The filter's characters occur in the label in order. */
@@ -30,20 +33,22 @@ internal enum class MatchQuality {
 }
 
 /**
- * Filtering and ranking of completion items, pure and stateless: case-insensitive prefix matches before
- * camel/word-boundary matches before subsequence matches; items that match none are dropped. The sort is stable — by
- * match quality, then `sortKey`, then label, then the source's order — so equally good items never jump around while
- * the user types.
+ * Filters and ranks completion items. The object holds pure functions and no state. All matching ignores case. Prefix
+ * matches come first, then word boundary and camel hump matches, then subsequence matches. Items that match none of
+ * these are dropped.
+ *
+ * The sort is stable. It orders by match quality, then by `sortKey`, then by label, and finally keeps the source's
+ * order. So equally good items never jump around while the user types.
  */
 internal object CompletionRanking {
 
-    /** The items matching [filter], best first. */
+    /** Returns the items that match [filter], best first. */
     fun rank(items: List<CompletionItem>, filter: String): List<CompletionItem> =
         items.mapNotNull { item -> qualityOf(item.label, filter)?.let { item to it } }
             .sortedWith(compareBy<Pair<CompletionItem, MatchQuality>> { it.second }.thenBy { it.first.sortKey }.thenBy { it.first.label })
             .map { it.first }
 
-    /** How [label] matches [filter], or null if it does not. */
+    /** Returns how [label] matches [filter], or null if it does not match. */
     fun qualityOf(label: String, filter: String): MatchQuality? = when {
         label.startsWith(filter, ignoreCase = true) -> MatchQuality.PREFIX
         matchesWordStarts(label, filter) -> MatchQuality.WORD_BOUNDARY
@@ -52,9 +57,10 @@ internal object CompletionRanking {
     }
 
     /**
-     * True if [filter] can be split into pieces that each match (case-insensitively) a run of [label] starting at a
-     * word start, in order: every filter character either continues the run of the previous one or starts a new run at
-     * a later word start. `sP` matches `simpleProperty`, `pos` matches `robot->position`.
+     * True if [filter] can be split into pieces that each match a run of [label] starting at a word start, in order and
+     * ignoring case. Every filter character either continues the run of the previous one or starts a new run at a later
+     * word start. For example, `sP` matches `simpleProperty` and `pos` matches `robot->position`. Failed states are
+     * remembered, so the search stays fast on long labels.
      */
     private fun matchesWordStarts(label: String, filter: String): Boolean {
         if (filter.isEmpty()) return true
@@ -76,8 +82,9 @@ internal object CompletionRanking {
     }
 
     /**
-     * Whether a word of [label] starts at [index]: at the label start, at a letter or digit after other characters, at
-     * an upper-case letter after a lower-case one (camel hump), or at a digit after a non-digit.
+     * Whether a word of [label] starts at [index]. A word starts at the label start, at a letter or digit after another
+     * kind of character, at an upper-case letter after a lower-case one, which is a camel hump, and at a digit after a
+     * non-digit.
      */
     private fun wordStartsAt(label: String, index: Int): Boolean {
         if (index == 0) return true
@@ -88,7 +95,7 @@ internal object CompletionRanking {
             !previous.isDigit() && current.isDigit()
     }
 
-    /** Whether the characters of [filter] occur in [label] in order (case-insensitively). */
+    /** Whether the characters of [filter] occur in [label] in order, ignoring case. */
     private fun isSubsequence(label: String, filter: String): Boolean {
         var index = 0
         for (char in label) {

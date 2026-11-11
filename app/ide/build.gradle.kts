@@ -20,10 +20,11 @@ plugins {
 }
 
 /**
- * The composition root depends on the workbench, which brings ui-editor, ui-foundation and core-lang (an `api` chain
- * down to core-text), and on logback, the logging backend, whose API the adapters of the `logging` package implement
- * to route what dsl-tools logs into the workbench's Language Tools Output. Test-only: the CLI, because the end-to-end
- * tests show that the Problems view, the status bar and `karpfen validate` agree on one folder.
+ * The composition root depends on the workbench, which brings ui-editor, ui-foundation and core-lang through a chain
+ * of `api` dependencies down to core-text. It also depends on logback, the logging backend. The adapters of the
+ * `logging` package implement logback's API to route what dsl-tools logs into the workbench's Language Tools Output.
+ * The CLI is a test dependency only, because the end-to-end tests show that the Problems view, the status bar and
+ * `karpfen validate` agree on one folder.
  */
 dependencies {
     implementation(project(":ui:ui-workbench"))
@@ -44,11 +45,11 @@ dependencies {
  * (`karpfen.kotlin-jvm`), so `javaHome` is pinned to that toolchain.
  *
  * The extra JDK modules of the jlinked runtime are the ones `./gradlew :app:ide:suggestRuntimeModules` reports beyond
- * the default set; re-run it when adding libraries.
+ * the default set. Run that task again when you add libraries.
  *
- * jpackage on macOS turns the version into `CFBundleVersion` and rejects a MAJOR of 0 ("the first number in app-version
- * cannot be zero or negative"); the Compose plugin does not check this. 0.1.0 stays the version for Msi and Deb; the
- * macOS app image and dmg use 1.0.0 until the product reaches 1.x.
+ * jpackage on macOS turns the version into `CFBundleVersion` and rejects a major version of 0 with "the first number
+ * in app-version cannot be zero or negative". The Compose plugin does not check this. So 0.1.0 stays the version for
+ * Msi and Deb, and the macOS app image and the dmg use 1.0.0 until the product reaches 1.x.
  */
 compose.desktop {
     application {
@@ -68,12 +69,13 @@ compose.desktop {
 }
 
 /**
- * Starts the IDE like `run`, with `--args=<folder>` as well, but with readers of dsl-tools that read on a small stack,
- * so that a state machine nested a few hundred levels deep makes them fail as a real reader failure does: the manual
- * smoke test fills the Language Tools Output this way (`FailingReadersLaunch` of the tests). It runs on the classpath of
- * the tests, whose console-only `logback-test.xml` it sets aside for the production `logback.xml` of this module. That
- * file is named by its URL: the classpath holds the command-line tool's `logback.xml` too, and a name that two resources
- * answer makes logback print its status on the console.
+ * Starts the IDE like `run`, also with `--args=<folder>`, but with readers of dsl-tools that read on a small stack. A
+ * state machine nested a few hundred levels deep then makes them fail as a real reader failure does. This is how a
+ * hands-on check fills the Language Tools Output, through `FailingReadersLaunch` of the tests.
+ *
+ * The task runs on the classpath of the tests. It sets their console-only `logback-test.xml` aside for the production
+ * `logback.xml` of this module. That file is named by its URL, because the classpath holds the command-line tool's
+ * `logback.xml` too, and a name that two resources answer makes logback print its status on the console.
  */
 tasks.register<JavaExec>("runWithFailingReaders") {
     group = "application"

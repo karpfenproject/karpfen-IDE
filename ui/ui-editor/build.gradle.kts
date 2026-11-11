@@ -18,11 +18,12 @@ plugins {
 }
 
 /**
- * The public API holds `KeyStroke`, `KeyShortcut` and `HostPlatform` in the keymap and the completion model
- * (ui-foundation), and `LanguageServices`, `Location`, `DocumentSession`, `EditableText` and the diagnostics in
- * `CodeEditorState` (core-lang and, through its api chain, core-workspace, core-document and core-text). The tests read
- * the example files and the synthetic 10,000-line KStates document of the rendering benchmark from the test fixtures of
- * core-document.
+ * Both project dependencies are api dependencies because their types appear in the public API of this module. The
+ * keymap and the completion model expose `KeyStroke`, `KeyShortcut` and `HostPlatform` from ui-foundation.
+ * `CodeEditorState` exposes `LanguageServices`, `Location`, `DocumentSession`, `EditableText` and the diagnostics.
+ * These come from core-lang, which in turn exposes core-workspace, core-document and core-text as api dependencies.
+ * The tests read the example files and the synthetic 10,000-line KStates document of the rendering benchmark from the
+ * test fixtures of core-document.
  */
 dependencies {
     api(project(":ui:ui-foundation"))

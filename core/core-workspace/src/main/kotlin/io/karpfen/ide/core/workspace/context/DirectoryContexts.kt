@@ -27,20 +27,22 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import java.nio.file.Path
 
 /**
- * The implicit contexts of a workspace (rules on [ContextResolver]): every directory of [tree] without a
- * descriptor (a directory containing a `*.kenv.json`, readable or not, is covered by it) forms one of its karpfen files
- * directly inside that are not [covered] by an explicit context, if any are left; in directory path order. So a file
- * named by a descriptor in another directory is analyzed once, in the descriptor's context, and never reported as a
- * file without metamodel. Within a directory the files are taken in tree order, so "alphabetically first" is the
- * tree's case-insensitive order ([WorkspaceNode.ORDER]).
+ * The implicit contexts of a workspace, built by the rules on [ContextResolver]. Every directory of [tree] without a
+ * descriptor forms one context. A directory that contains a `*.kenv.json`, readable or not, is covered by it and forms
+ * none. The context holds the karpfen files directly inside the directory that are not [covered] by an explicit
+ * context. If none are left, there is no context. The contexts come in directory path order.
  *
- * Findings (source IDE, at the start of the file, since the resolver works without file texts):
- * - several domain metamodels → INFO `context-multiple-metamodels` on each of them;
- * - models or state machines without any domain metamodel → INFO `context-no-metamodel` on each of them.
+ * So a file that a descriptor in another directory names is analyzed once, in the context of that descriptor. It is
+ * never reported as a file without a metamodel. Within a directory the files are taken in tree order. So
+ * "alphabetically first" means the case-insensitive order of the tree, [WorkspaceNode.ORDER].
+ *
+ * The findings have the source IDE and lie at the start of the file, because the resolver works without file texts.
+ * - Several domain metamodels each get an INFO `context-multiple-metamodels`.
+ * - Models or state machines without any domain metamodel each get an INFO `context-no-metamodel`.
  */
 internal class DirectoryContexts(private val tree: WorkspaceTree, private val covered: Set<Path>) {
 
-    /** The implicit contexts; findings go to [diagnostics]. */
+    /** The implicit contexts. Findings go to [diagnostics]. */
     fun resolve(diagnostics: DiagnosticsByFile): List<ModelingContext> =
         directories(tree.root)
             .filter { directory -> directory.children.none { it is WorkspaceNode.File && it.kind == FileKind.ENV_DESCRIPTOR } }

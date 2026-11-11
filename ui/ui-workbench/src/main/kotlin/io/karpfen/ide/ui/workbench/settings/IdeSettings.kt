@@ -20,16 +20,17 @@ import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import kotlinx.serialization.Serializable
 
 /**
- * Persistent IDE settings, stored as JSON by the [SettingsRepository]. Unknown JSON keys are ignored and missing keys
- * take the defaults, so older and newer files load.
+ * The persistent IDE settings, stored as JSON by the [SettingsRepository]. Unknown JSON keys are ignored and missing
+ * keys take their defaults, so files written by older and newer versions load.
  *
- * @property recentFolders absolute paths of recently opened folders, most recent first, at most [MAX_RECENT_FOLDERS].
- * @property theme light, dark or following the system.
- * @property editorFontSize editor font size in sp.
- * @property windowBounds the main window's last bounds, or null for the default placement.
- * @property toolWindows visibility and size of the tool windows by tool-window name (`ToolWindowId.name` of the
- *   workbench's layout package); a missing entry means the default layout, an unknown one is kept but ignored, so a
- *   new tool window needs no schema change.
+ * @property recentFolders the absolute paths of recently opened folders, most recent first. There are at most
+ *   [MAX_RECENT_FOLDERS] of them.
+ * @property theme light, dark, or following the system.
+ * @property editorFontSize the editor font size in sp.
+ * @property windowBounds the last bounds of the main window, or null for the default placement.
+ * @property toolWindows the visibility and size of the tool windows, keyed by tool window name. The key is
+ *   `ToolWindowId.name` from the workbench's layout package. A missing entry means the default layout. An unknown
+ *   entry is kept but ignored. A new tool window therefore needs no change of the settings format.
  * @property runtime how the IDE reaches the karpfen runtime.
  */
 @Serializable
@@ -46,20 +47,23 @@ public data class IdeSettings(
         require(editorFontSize > 0f) { "editorFontSize must be positive" }
     }
 
-    /** These settings with [folder] as the most recent folder (moved to the front, list capped). */
+    /**
+     * These settings with [folder] as the most recent folder. The folder moves to the front if it was listed already,
+     * and the list is capped at [MAX_RECENT_FOLDERS].
+     */
     public fun withRecentFolder(folder: String): IdeSettings =
         copy(recentFolders = (listOf(folder) + recentFolders.filter { it != folder }).take(MAX_RECENT_FOLDERS))
 
-    /** These settings without [folder] among the recent folders (e.g. it no longer exists). */
+    /** These settings without [folder] among the recent folders, for example because it no longer exists. */
     public fun withoutRecentFolder(folder: String): IdeSettings = copy(recentFolders = recentFolders - folder)
 
     public companion object {
-        /** Maximum number of recent folders. */
+        /** The maximum number of recent folders. */
         public const val MAX_RECENT_FOLDERS: Int = 10
     }
 }
 
-/** Theme selection. */
+/** The theme selection. */
 @Serializable
 public enum class ThemeMode {
     /** Always light. */
@@ -72,7 +76,7 @@ public enum class ThemeMode {
     SYSTEM,
 }
 
-/** Window placement in screen pixels; null position means "let the system place it". */
+/** The window placement in screen pixels. A null position lets the system place the window. */
 @Serializable
 public data class WindowBounds(
     public val x: Int? = null,
@@ -82,7 +86,10 @@ public data class WindowBounds(
     public val maximized: Boolean = false,
 )
 
-/** The persisted layout of one tool window: whether it is [visible] and its [size] in dp (width or height). */
+/**
+ * The persisted layout of one tool window. It says whether the window is [visible] and gives its [size] in dp, which
+ * is the width of a side window or the height of a bottom window.
+ */
 @Serializable
 public data class ToolWindowLayout(public val visible: Boolean = true, public val size: Float) {
     init {
@@ -91,7 +98,8 @@ public data class ToolWindowLayout(public val visible: Boolean = true, public va
 }
 
 /**
- * How the IDE reaches the karpfen runtime: the container the IDE owns, or a runtime started elsewhere at [url].
+ * How the IDE reaches the karpfen runtime. Either the IDE owns the runtime in a Docker container, or the runtime was
+ * started elsewhere and is reached at [url].
  *
  * @property host the kind of host.
  * @property url the base URL of a runtime started elsewhere, used when [host] is [RuntimeHostKind.URL].

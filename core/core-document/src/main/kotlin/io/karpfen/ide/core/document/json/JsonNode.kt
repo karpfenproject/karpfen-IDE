@@ -18,34 +18,35 @@ package io.karpfen.ide.core.document.json
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A JSON value with its position in the source text, as [JsonParser] builds it from text that may be broken: values
- * the text lacks are absent ([Member.value] null), containers the text does not close are marked as such. Immutable.
+ * A JSON value with its position in the source text, as [JsonParser] builds it from text that may be broken. Values
+ * that the text lacks are absent, so [Member.value] is null. Containers that the text does not close are marked as
+ * such. Nodes are immutable.
  */
 public sealed interface JsonNode {
 
     /**
-     * The whole value in the source text: for strings including the quotes, for containers from bracket to bracket. A
-     * root object whose `{` is missing runs from its first member to the end of its last one.
+     * The whole value in the source text. For strings it includes the quotes. For containers it runs from bracket to
+     * bracket. A root object whose `{` is missing runs from its first member to the end of its last one.
      */
     public val range: TextRange
 
-    /** An object or an array: a value that holds other values between its brackets. */
+    /** An object or an array, which is a value that holds other values between its brackets. */
     public sealed interface Container : JsonNode {
         /**
-         * False if the text ends or a bracket of an enclosing container follows before the closing bracket, and for a
-         * root object whose `{` is missing, which has no bracket to pair; the container then ends after the last value
-         * it holds.
+         * False if the text ends, or a bracket of an enclosing container follows, before the closing bracket. Also
+         * false for a root object whose `{` is missing, because it has no bracket to pair. Such a container ends after
+         * the last value it holds.
          */
         public val isClosed: Boolean
 
-        /** The values directly inside, in document order: the values of an object's members, an array's items. */
+        /** The values directly inside, in document order: the values of an object's members or an array's items. */
         public val children: List<JsonNode>
     }
 
     /**
      * An object.
      *
-     * @property members the members in document order; a repeated key is kept as often as it occurs.
+     * @property members the members in document order. A repeated key is kept as often as it occurs.
      */
     public data class ObjectNode(
         override val range: TextRange,
@@ -54,7 +55,7 @@ public sealed interface JsonNode {
     ) : Container {
         override val children: List<JsonNode> get() = members.mapNotNull { it.value }
 
-        /** The last member named [key] (a JSON reader decodes the last of repeated keys), or null. */
+        /** The last member named [key], or null. A JSON reader decodes the last of repeated keys, too. */
         public fun member(key: String): Member? = members.lastOrNull { it.key.value == key }
     }
 
@@ -74,7 +75,7 @@ public sealed interface JsonNode {
     /**
      * A string.
      *
-     * @property value the decoded text (escapes resolved; an invalid escape is kept as written).
+     * @property value the decoded text. Escapes are resolved, and an invalid escape is kept as written.
      * @property content the range between the quotes, or to the end of an unterminated string.
      * @property isClosed false for a string that a line break or the end of the text ended.
      */
@@ -91,7 +92,10 @@ public sealed interface JsonNode {
      * @property text the number as written.
      */
     public data class NumberNode(override val range: TextRange, public val text: String) : JsonNode {
-        /** The number as a whole number of the [Long] range, or null if it has a fraction, an exponent or is too large. */
+        /**
+         * The number as a whole number of the [Long] range. Null if it has a fraction or an exponent, or if it is too
+         * large.
+         */
         public val wholeNumber: Long? get() = text.takeIf { WHOLE.matches(it) }?.toLongOrNull()
 
         private companion object {
@@ -106,20 +110,23 @@ public sealed interface JsonNode {
     /**
      * An object member.
      *
-     * @property key the key as a string node: its range includes the quotes, its [StringNode.value] is the name that
-     *   [ObjectNode.member] looks up.
+     * @property key the key as a string node. Its range includes the quotes, and its [StringNode.value] is the name
+     *   that [ObjectNode.member] looks up.
      * @property colon the range of the `:` after the key, or null if the text lacks it.
-     * @property value the value, or null if the text lacks it (or has a token there that is no value).
+     * @property value the value, or null if the text lacks it or has a token there that is no value.
      */
     public data class Member(public val key: StringNode, public val colon: TextRange?, public val value: JsonNode?) {
-        /** From the key to the end of the value, or of the colon or the key when they are the last parts present. */
+        /**
+         * From the key to the end of the value. Without a value it ends at the colon, and without a colon it ends at
+         * the key.
+         */
         public val range: TextRange get() = TextRange(key.range.start, (value?.range ?: colon ?: key.range).end)
     }
 }
 
 /**
- * Every container at or below [this] value in document order, a container before the ones it holds: the structure that
- * bracket matching and folding read, whatever the values mean.
+ * Every container at or below [this] value in document order, with a container before the ones it holds. This is the
+ * structure that bracket matching and folding read, whatever the values mean.
  */
 public fun JsonNode.containers(): List<JsonNode.Container> =
     ArrayList<JsonNode.Container>().also { collectContainers(this, it) }
@@ -147,8 +154,9 @@ public enum class JsonLiteral(public val text: String) {
 public object JsonStrings {
 
     /**
-     * True if the string token at [range] of [text] ends with its closing quote: it is at least two characters long
-     * and its last quote is preceded by an even number of backslashes, so it is not an escaped quote.
+     * True if the string token at [range] of [text] ends with its closing quote. The token must be at least two
+     * characters long, and its last quote must be preceded by an even number of backslashes, so it is not an escaped
+     * quote.
      */
     public fun isClosed(text: String, range: TextRange): Boolean {
         if (range.length < 2 || text[range.end - 1] != '"') return false
@@ -161,13 +169,16 @@ public object JsonStrings {
         return backslashes % 2 == 0
     }
 
-    /** The range between the quotes of the string token at [range], or to its end if it is not [isClosed]. */
+    /**
+     * The range between the quotes of the string token at [range]. It runs to the end of a token that is not
+     * [isClosed].
+     */
     public fun contentOf(text: String, range: TextRange): TextRange =
         TextRange(range.start + 1, if (isClosed(text, range)) range.end - 1 else range.end)
 
     /**
-     * The decoded [content] of [text]: the simple escapes and complete `\u` escapes are resolved, an invalid escape is
-     * kept as written (the lexer reports it).
+     * The decoded [content] of [text]. The simple escapes and the complete `\u` escapes are resolved. An invalid escape
+     * is kept as written, and the lexer reports it.
      */
     public fun decode(text: String, content: TextRange): String {
         val decoded = StringBuilder(content.length)
@@ -201,8 +212,8 @@ public object JsonStrings {
     }
 
     /**
-     * [value] written as the content of a JSON string, the inverse of [decode]: quotes and backslashes escaped,
-     * control characters as `\u` escapes, everything else as it is.
+     * [value] written as the content of a JSON string. It is the inverse of [decode]. Quotes and backslashes are
+     * escaped, control characters become `\u` escapes, and everything else stays as it is.
      */
     public fun encode(value: String): String = buildString(value.length) {
         for (char in value) {
@@ -214,17 +225,19 @@ public object JsonStrings {
         }
     }
 
-    /** The character of the four hexadecimal digits at [start] of [text] before [end], or null if they are not there. */
+    /**
+     * The character of the four hexadecimal digits at [start] of [text] before [end]. Null if the digits are not there.
+     */
     private fun unicodeAt(text: String, start: Int, end: Int): Char? {
         if (start + UNICODE_DIGITS > end) return null
         val digits = text.substring(start, start + UNICODE_DIGITS)
         return if (digits.all { it.digitToIntOrNull(HEX) != null }) digits.toInt(HEX).toChar() else null
     }
 
-    /** The characters after a backslash that form an escape on their own… */
+    /** The characters after a backslash that form an escape on their own. [RESOLVED] holds what they stand for. */
     private const val SIMPLE = "\"\\/bfnrt"
 
-    /** …and what they stand for, in the same order. */
+    /** What the characters of [SIMPLE] stand for, in the same order. */
     private const val RESOLVED = "\"\\/\b\u000C\n\r\t"
 
     /** The number of hexadecimal digits of a `\u` escape. */

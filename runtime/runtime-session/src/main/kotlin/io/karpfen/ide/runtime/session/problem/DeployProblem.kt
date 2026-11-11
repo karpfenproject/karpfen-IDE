@@ -18,10 +18,10 @@ package io.karpfen.ide.runtime.session.problem
 import io.karpfen.ide.core.document.Severity
 
 /**
- * A finding of the deployment or of a running session: a preflight check of the plan, a failed call to the runtime,
- * an ended connection or something observed later. Immutable.
+ * A finding of the deployment or of a running session. It can come from a preflight check of the plan, a failed call
+ * to the runtime, an ended connection or something observed later. Immutable.
  *
- * @property severity how serious it is; an ERROR blocks a deployment or fails it.
+ * @property severity how serious it is. An ERROR blocks a deployment or fails it.
  * @property code one of the stable codes of [DeployProblemCodes].
  * @property message the finding in plain words, naming what it concerns.
  * @property location where it points in the workspace, or null if it concerns no file.

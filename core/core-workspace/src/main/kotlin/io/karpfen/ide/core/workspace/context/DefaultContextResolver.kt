@@ -23,9 +23,10 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import java.nio.file.Path
 
 /**
- * Implements the rules documented on [ContextResolver]: explicit contexts from [DescriptorContexts], implicit ones from
- * [DirectoryContexts] over the files no explicit context contains, the loose files — every karpfen source of the
- * tree that is in no context — and an `unreadable` ERROR on each directory the scan could not list.
+ * Implements the rules described on [ContextResolver]. The explicit contexts come from [DescriptorContexts]. The
+ * implicit ones come from [DirectoryContexts], over the files that no explicit context contains. The loose files are
+ * every karpfen source of the tree that is in no context. Each directory the scan could not list gets an `unreadable`
+ * ERROR.
  */
 internal class DefaultContextResolver : ContextResolver {
 

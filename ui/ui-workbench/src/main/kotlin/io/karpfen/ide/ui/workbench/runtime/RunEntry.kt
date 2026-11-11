@@ -22,12 +22,15 @@ import io.karpfen.ide.runtime.session.SessionState
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import java.nio.file.Path
 
-/** Where a run stands: first its own steps, then, once launched, the state of its session. */
+/**
+ * Where a run stands. The first phases are the run's own steps. Once the run is launched, the phase follows its
+ * session.
+ */
 public enum class RunPhase {
     /** The deployment is being prepared from the saved workspace. */
     PREPARING,
 
-    /** The preparation found errors; the run never reached the runtime. */
+    /** The preparation found errors. The run never reached the runtime. */
     BLOCKED,
 
     /** The run waits for the runtime to start. */
@@ -49,14 +52,15 @@ public enum class RunPhase {
     FAILED,
     ;
 
-    /** True for a run that is over: blocked, stopped or failed. */
+    /** True for a run that is over, which means blocked, stopped or failed. */
     public val isFinished: Boolean
         get() = this == BLOCKED || this == STOPPED || this == FAILED
 
     public companion object {
         /**
-         * The phase of a run whose session is in [state], given the phase [before] it: an environment that ended on its
-         * own counts as failed, a closed session keeps a finished phase and counts as stopped otherwise.
+         * The phase of a run whose session is in [state], given the phase [before] it. An environment that halted on
+         * its own counts as failed. A closed session keeps a phase that is already finished. Otherwise a closed
+         * session counts as stopped.
          */
         public fun of(state: SessionState, before: RunPhase): RunPhase = when (state) {
             SessionState.Deploying -> DEPLOYING
@@ -70,8 +74,8 @@ public enum class RunPhase {
 }
 
 /**
- * One run of an environment descriptor, as the Runtime tool window lists it. Immutable; the runtime state replaces an
- * entry when its run moves on.
+ * One run of an environment descriptor, as the Runtime tool window lists it. It is immutable. The runtime state
+ * replaces the entry when its run moves on.
  *
  * @property id identifies the run within its workspace.
  * @property descriptor the environment descriptor that runs.
@@ -92,7 +96,7 @@ public data class RunEntry(
     public val session: RuntimeSession? = null,
     public val environment: EnvironmentKey? = null,
 ) {
-    /** True while the environment of the run can be stopped: it is activated or runs. */
+    /** True while the environment of the run can be stopped, which is while it is activated or runs. */
     public val isStoppable: Boolean
         get() = phase == RunPhase.READY || phase == RunPhase.RUNNING
 
@@ -104,7 +108,7 @@ public data class RunEntry(
         /** The suffix of environment descriptors, which the name of a run leaves out. */
         public const val DESCRIPTOR_SUFFIX: String = ".kenv.json"
 
-        /** The name of a run of [descriptor]: its file name without [DESCRIPTOR_SUFFIX]. */
+        /** The name of a run of [descriptor], which is its file name without [DESCRIPTOR_SUFFIX]. */
         public fun nameOf(descriptor: Path): String = descriptor.fileName.toString().removeSuffix(DESCRIPTOR_SUFFIX)
     }
 }

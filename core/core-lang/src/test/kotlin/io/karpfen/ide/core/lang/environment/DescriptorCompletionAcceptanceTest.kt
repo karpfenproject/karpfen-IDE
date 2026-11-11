@@ -65,7 +65,7 @@ class DescriptorCompletionAcceptanceTest {
         return if (marked) result.substring(0, caret) + CARET + result.substring(caret) else result
     }
 
-    /** Asserts that [text] (caret marker removed) is one valid JSON value. */
+    /** Asserts that [text], with the caret marker removed, is one valid JSON value. */
     private fun assertClean(text: String) {
         val diagnostics = JsonParser.parse(text.filterNot { it == CARET }).diagnostics.map { it.message }
         assertEquals(emptyList(), diagnostics, text)

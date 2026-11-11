@@ -28,8 +28,9 @@ import java.nio.file.Path
  */
 internal object DeclarationIndex {
     /**
-     * The locations of the declarations in [files] as [analysis] parsed them, each name at its first declaration in a
-     * file, objects without a key left out. A file the analysis does not hold contributes nothing.
+     * The locations of the declarations in [files] as [analysis] parsed them. Each name is located at its first
+     * declaration in a file. Objects without a key are left out. A file that the analysis does not hold contributes
+     * nothing.
      */
     fun locationsOf(analysis: ProjectAnalysis, files: List<Path>): DeclarationLocations {
         val objects = LinkedHashMap<Path, Map<String, TextRange>>()

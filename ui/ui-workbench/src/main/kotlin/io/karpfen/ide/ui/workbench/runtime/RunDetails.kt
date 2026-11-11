@@ -33,15 +33,16 @@ import kotlinx.coroutines.launch
 /**
  * One domain event of a run's event log.
  *
- * @property sequence numbers the events of one run in the order they arrived, from 1 on.
+ * @property sequence numbers the events of one run in the order they arrived, starting at 1.
  * @property event the event as the session observed it.
  */
 public data class DomainEventEntry(public val sequence: Long, public val event: ObservedDomainEvent)
 
 /**
- * What the tabs of a launched run show beyond the flows of its [session]: the domain event log, newest first and at
- * most [EVENT_LOG_LIMIT] events, the model tree and the event injector, which sends through [send]. Everything is
- * collected in a child of [parent] on the UI thread until [close].
+ * What the tabs of a launched run show beyond the flows of its [session]. That is the domain event log, the model tree
+ * and the event injector. The log lists the newest event first and keeps at most [EVENT_LOG_LIMIT] events. The
+ * injector sends through [send]. Everything is collected in a child scope of [parent] on the UI thread until [close].
+ * The child scope has a supervisor job, so a failure in one collector does not cancel the others.
  *
  * @property session the session of the run.
  */

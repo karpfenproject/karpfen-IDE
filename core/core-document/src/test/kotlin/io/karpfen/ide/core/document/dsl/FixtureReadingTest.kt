@@ -24,9 +24,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Baseline for reading the examples: every example context reads without a finding with the dsl-tools readers
- * themselves (called directly, which only this adapter package may do), and so does a synthetic KStates document. If
- * this fails, the fixtures or dsl-tools changed, not the IDE.
+ * Baseline for reading the examples. Every example context reads without a finding with the dsl-tools readers
+ * themselves, and so does a synthetic KStates document. The test calls the readers directly, which only this adapter
+ * package may do. If it fails, the fixtures or dsl-tools changed, not the IDE.
  */
 class FixtureReadingTest {
 

@@ -138,8 +138,8 @@ class TokenizerBuildingBlocksTest {
     }
 
     /**
-     * In `WITH MACRO("m") AS "d" {` the macro call does not replace the pending WITH; a macro definition opens another
-     * block; unbalanced closing braces are ignored.
+     * In `WITH MACRO("m") AS "d" {` the macro call does not replace the pending WITH. A macro definition opens another
+     * block. Unbalanced closing braces are ignored.
      */
     @Test
     fun `the block tracker decides EVENT by the innermost block`() {

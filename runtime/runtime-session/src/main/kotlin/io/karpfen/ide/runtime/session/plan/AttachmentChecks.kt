@@ -20,7 +20,7 @@ import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 
 /**
- * Finds state machines attached to a key that no object of the runtime's index of the model has: the runtime refuses
+ * Finds state machines attached to a key that no object of the runtime's index of the model has. The runtime refuses
  * to activate such an environment.
  */
 internal class UnknownAttachmentCheck : PlanCheck {
@@ -39,7 +39,7 @@ internal class UnknownAttachmentCheck : PlanCheck {
     }
 }
 
-/** Finds keys with more than one state machine attached: the runtime would keep only the last, silently. */
+/** Finds keys with more than one state machine attached. The runtime would silently keep only the last one. */
 internal class DuplicateAttachmentCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> =
         subject.machines.filter { !it.attachedTo.isNullOrBlank() }.groupBy { it.attachedTo.orEmpty() }
@@ -56,8 +56,8 @@ internal class DuplicateAttachmentCheck : PlanCheck {
 }
 
 /**
- * Finds state machines attached to an object whose type differs from the type the machine names after `ATTACHED TO`;
- * the runtime never reads that type, so the machine runs anyway, on an object it may not fit.
+ * Finds state machines attached to an object whose type differs from the type the machine names after `ATTACHED TO`.
+ * The runtime never reads that type, so the machine runs anyway, on an object it may not fit.
  */
 internal class AttachmentTypeCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> {

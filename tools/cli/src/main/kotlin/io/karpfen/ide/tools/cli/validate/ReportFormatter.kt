@@ -21,7 +21,7 @@ import kotlinx.serialization.json.Json
 
 /** Renders a [ValidationReport] for the console. */
 public fun interface ReportFormatter {
-    /** The complete output for [report] (empty for TEXT without problems). */
+    /** The complete output for [report]. The TEXT output is empty when there are no problems. */
     public fun format(report: ValidationReport): String
 }
 
@@ -32,8 +32,9 @@ public fun ReportFormatter(format: OutputFormat): ReportFormatter = when (format
 }
 
 /**
- * One line per problem, `path:line:col: severity: message [code]` (one-based, severity in lower case), each ended by
- * `\n`; nothing at all without problems. A multi-line message is joined into one line, so every line is one problem.
+ * One line per problem in the form `path:line:col: severity: message [code]`, with one-based positions and the
+ * severity in lower case. Each line ends with `\n`. Without problems the output is empty. A multi-line message is
+ * joined into one line, so every line is one problem.
  */
 internal class TextReportFormatter : ReportFormatter {
     override fun format(report: ValidationReport): String = buildString {
@@ -50,9 +51,10 @@ internal class TextReportFormatter : ReportFormatter {
 }
 
 /**
- * A pretty-printed JSON document ended by `\n`:
+ * A pretty-printed JSON document that ends with `\n`. Its shape is
  * `{"root": "<absolute root>", "errorCount": n, "warningCount": n, "problems": [{"path", "line", "column", "severity",
- * "message", "code"}, …]}` with one-based positions, `/` paths relative to the root and lower-case severities.
+ * "message", "code"}, …]}`. Positions are one-based, paths are relative to the root with `/` separators, and
+ * severities are in lower case.
  */
 internal class JsonReportFormatter : ReportFormatter {
     override fun format(report: ValidationReport): String {
@@ -71,7 +73,7 @@ internal class JsonReportFormatter : ReportFormatter {
     @Serializable
     private data class JsonReport(val root: String, val errorCount: Int, val warningCount: Int, val problems: List<JsonProblem>)
 
-    /** The serialized shape of one problem; [severity] in lower case. */
+    /** The serialized shape of one problem, with [severity] in lower case. */
     @Serializable
     private data class JsonProblem(
         val path: String,

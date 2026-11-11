@@ -32,11 +32,12 @@ import java.nio.file.Path
  * UI state of the Outline tool window.
  *
  * @property path the outlined document, or null when nothing is outlined.
- * @property version the version of the parse [nodes] come from (the last good parse while the text has syntax errors),
- *   so navigation maps their ranges into the live text; null when nothing is outlined.
- * @property lineage the document's text lineage (see `TextLineage`); null when nothing is outlined.
- * @property nodes the outline of the active document's latest parse (last good parse while the text has syntax errors).
- * @property highlighted the chain of nodes containing the caret (innermost last), highlighted in the tree.
+ * @property version the version of the parse that [nodes] come from. While the text has syntax errors, that is the last
+ *   good parse. Navigation uses it to map the node ranges into the live text. Null when nothing is outlined.
+ * @property lineage the text lineage of the document, see `TextLineage`. Null when nothing is outlined.
+ * @property nodes the outline of the active document's latest parse. While the text has syntax errors, it is the
+ *   outline of the last good parse.
+ * @property highlighted the chain of nodes that contain the caret, innermost last. The tree highlights them.
  * @property isStale true if [nodes] come from an older version than the current text.
  */
 public data class OutlineUiState(
@@ -52,16 +53,18 @@ public data class OutlineUiState(
     }
 
     /**
-     * Where clicking [node] navigates: its selection range in the parse it comes from (version and lineage of that
-     * parse, mapped into the live text by `WorkbenchState.navigateTo`), or null when nothing is outlined.
+     * Where a click on [node] navigates to. That is the node's selection range in the parse it comes from, together
+     * with the version and lineage of that parse. `WorkbenchState.navigateTo` maps it into the live text. Returns null
+     * when nothing is outlined.
      */
     public fun locationOf(node: OutlineNode): Location? = path?.let { Location(it, node.selectionRange, version, lineage) }
 }
 
 /**
- * Outline of the active document; follows the bound editor's parse and caret (collected in [scope]). The binding is a
- * mediator operation and internal, so no view can bypass the workbench's coordinated flows. The projection of a parse
- * onto [OutlineUiState] is [OutlineProjection]'s, one per binding.
+ * The outline of the active document. It follows the parse and the caret of the bound editor and collects them in
+ * [scope]. Binding an editor is an operation of the mediator and is internal, so no view can bypass the coordinated
+ * flows of the workbench. [OutlineProjection] turns a parse into an [OutlineUiState]. Each binding has its own
+ * projection.
  */
 public class OutlineState(private val scope: CoroutineScope) {
 
@@ -72,8 +75,9 @@ public class OutlineState(private val scope: CoroutineScope) {
     public val state: StateFlow<OutlineUiState> get() = outline.asStateFlow()
 
     /**
-     * Follows [editor] (the active tab's: its session's parse and last good parse, its text and `caret.state`), or shows
-     * nothing for null. Mediator only.
+     * Follows [editor], which is the editor of the active tab. The outline then tracks the parse and the last good
+     * parse of its session, its text and its `caret.state`. For null the outline shows nothing. Only the mediator
+     * calls it.
      */
     internal fun bindEditor(editor: EditorHandle?) {
         binding?.cancel()

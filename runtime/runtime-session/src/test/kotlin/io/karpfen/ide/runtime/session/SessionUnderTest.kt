@@ -67,11 +67,11 @@ import kotlin.test.fail
 import kotlin.time.Duration
 
 /**
- * The runtime the session scenarios deploy to: a [RuntimeUnderTest], usually the real runtime of the live task, with
- * what a session needs on top of it. Every scenario gets a [SessionScenario] with the sessions of the IDE on the
- * runtime's own dispatcher and clock, workspaces with real options, and the synthesized models copied into folders of
- * its own: deployments upload saved files, so every scenario writes its models to disk, with the deploy configuration
- * in the descriptor when it asks for one, and opens them as workspaces.
+ * The runtime the session scenarios deploy to. It is a [RuntimeUnderTest], usually the real runtime of the live task,
+ * with what a session needs on top of it. Every scenario gets a [SessionScenario]. It has the sessions of the IDE on
+ * the runtime's own dispatcher and clock, workspaces with real options, and the synthesized models copied into folders
+ * of its own. Deployments upload saved files, so every scenario writes its models to disk and opens them as
+ * workspaces. When a scenario asks for a deploy configuration, it is written into the descriptor.
  *
  * @param runtime the runtime the scenarios run against.
  * @param endpoint where it listens.
@@ -82,8 +82,8 @@ class SessionUnderTest(private val runtime: RuntimeUnderTest, private val endpoi
         get() = runtime.patience
 
     /**
-     * Runs [scenario] against the runtime with its models below [root]; the sessions it launched are shut down at its
-     * end, so it leaves its environments stopped, and its workspaces are closed.
+     * Runs [scenario] against the runtime with its models below [root]. At its end the sessions it launched are shut
+     * down, so it leaves its environments stopped, and its workspaces are closed.
      */
     fun run(root: Path, scenario: suspend SessionScenario.() -> Unit) {
         runtime.run {
@@ -98,8 +98,8 @@ class SessionUnderTest(private val runtime: RuntimeUnderTest, private val endpoi
 }
 
 /**
- * What a session scenario has while it runs: the scope of the runtime under test, a client and the sessions of the
- * IDE, its models on disk, and the waits and reads the scenarios share. Failure messages name the runtime, its run
+ * What a session scenario has while it runs. That is the scope of the runtime under test, a client and the sessions of
+ * the IDE, its models on disk, and the waits and reads the scenarios share. Failure messages name the runtime, its run
  * folder and every session with its environment, client id, state, stacks and mirror.
  *
  * @param scope the scope of the runtime under test.
@@ -110,7 +110,10 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
     /** Keeps the frames the sessions receive. */
     private val tap = FrameTap(this)
 
-    /** The client of the runtime, over the scenario's transports with their links tapped; the runtime under test closes them. */
+    /**
+     * The client of the runtime, over the scenario's transports with their links tapped. The runtime under test closes
+     * the transports.
+     */
     val client: RuntimeClient = RuntimeClient(endpoint, scope.clientOptions, tap.tapping(scope.transports))
 
     /** The sessions of the IDE, on the runtime's dispatcher and clock. */
@@ -135,7 +138,7 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
                 "${model.sync}, mirror ${model.mirror.objects.values.map { it.id to it.properties.map { p -> p.key to p.value } }}"
         }
 
-    /** Copies [model] with [timing] in its descriptor into a folder of its own and answers the descriptor. */
+    /** Copies [model] with [timing] in its descriptor into a folder of its own and returns the descriptor. */
     fun copy(model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.EVENT_SCENARIOS): Path =
         SynthesizedModels.copyTo(root.resolve("${model.folder}-${folders.incrementAndGet()}"), model, timing)
 
@@ -143,7 +146,7 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
     fun open(descriptor: Path): Workspace =
         Workspace(descriptor.parent, this, WorkspaceOptions(watch = false)).also { workspaces += it }
 
-    /** Prepares the deployment of [descriptor] in [workspace], failing the scenario if it is blocked. */
+    /** Prepares the deployment of [descriptor] in [workspace]. It fails the scenario if the deployment is blocked. */
     suspend fun prepare(workspace: Workspace, descriptor: Path): PreparedDeployment =
         when (val preparation = sessions.prepare(workspace, descriptor)) {
             is Preparation.Ready -> preparation.prepared
@@ -155,8 +158,8 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
         sessions.launch(prepared, client, this, options).also { launched += it }
 
     /**
-     * Deploys [prepared] as [options] say and waits, at most [within], until the deployment ended: the session runs, or
-     * is ready without start; a failed deployment fails the scenario.
+     * Deploys [prepared] as [options] say and waits, at most [within], until the deployment ended. Then the session
+     * runs, or it is ready when the options say not to start. A failed deployment fails the scenario.
      */
     suspend fun deploy(prepared: PreparedDeployment, options: DeployOptions = DeployOptions(), within: Duration = patience.deploy): RuntimeSession {
         val session = launch(prepared, options)
@@ -186,7 +189,7 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
         return deploy(prepare(open(descriptor), descriptor), options)
     }
 
-    /** Waits until the observed model of this session is one [accept] accepts, and answers it. */
+    /** Waits until the observed model of this session is one that [accept] accepts, and returns it. */
     suspend fun RuntimeSession.awaitModel(what: String, within: Duration = patience.reaction, accept: (ObservedModel) -> Boolean): ObservedModel =
         awaitValue("$what in ${environmentOrNull}", model, within, accept)
 
@@ -194,19 +197,25 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
     suspend fun RuntimeSession.awaitStack(machine: String, stack: List<String>, within: Duration = patience.reaction): ObservedModel =
         awaitModel("the stack $stack of $machine", within) { it.stacks[machine] == stack }
 
-    /** Injects the event [name] of [domain] with the payload [text] of [kind] and answers the frame, failing unless sent. */
+    /**
+     * Injects the event [name] of [domain] with the payload [text] of [kind] and returns the frame. It fails unless the
+     * frame was sent.
+     */
     suspend fun RuntimeSession.inject(domain: String, name: String, kind: PayloadKind = PayloadKind.NONE, text: String = ""): String {
         val outcome = events.inject(InjectionRequest(domain, name, kind, text))
         return assertIs<InjectionOutcome.Sent>(outcome, "injecting $name of $domain: $outcome. $diagnostics").frameText
     }
 
-    /** Pulls this session's model, failing unless the pull is done, and answers the model. */
+    /** Pulls this session's model and returns it. It fails unless the pull is done. */
     suspend fun RuntimeSession.pulled(): ObservedModel {
         assertEquals(SessionCommandOutcome.Done, pull(), "a pull of $environmentOrNull. $diagnostics")
         return model.value
     }
 
-    /** Reads a snapshot of this session's environment with a raw request, as the runtime writes it, read like the seed. */
+    /**
+     * Reads a snapshot of this session's environment with a raw request, as the runtime writes it. The roots are read
+     * like the seed.
+     */
     suspend fun RuntimeSession.snapshot(): RawSnapshot = snapshotOf(environment, prepared)
 
     /** Reads a snapshot of [environment] with a raw request and reads its roots with the schema of [prepared]. */
@@ -223,7 +232,10 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
         return RawSnapshot((body["phase"] as WireValue.WireString).value, revision, stacks, mirror)
     }
 
-    /** Sends [route] with the query [parameters] in the order given and [body] for a PUT, failing on a transport failure. */
+    /**
+     * Sends [route] with the query [parameters] in the order given and with [body] for a PUT. It fails on a transport
+     * failure.
+     */
     suspend fun call(route: RuntimeRoute, vararg parameters: Pair<String, String>, body: String = ""): HttpOutcome.Answered {
         val request = TextRequest(route.verb, route.path, parameters.toList(), body.takeIf { route.verb == HttpVerb.PUT })
         return when (val outcome = transports.http.exchange(request)) {
@@ -236,8 +248,8 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
     fun RuntimeSession.received(): List<RuntimePush> = tap.pushes(environment, clientId)
 
     /**
-     * Connects a second client of its own, `ide-live-<random>`, to [environment] with raw requests and a raw link, and
-     * subscribes it to the whole model once the runtime has its session.
+     * Connects a second client of its own, named `ide-live-<random>`, to [environment] with raw requests and a raw
+     * link. It subscribes the client to the whole model once the runtime has its session.
      */
     suspend fun rawObserver(environment: EnvironmentKey): RawObserver {
         val clientId = ClientId("ide-live-" + Random.nextLong(Long.MAX_VALUE).toString(HEX))

@@ -26,8 +26,10 @@ import kotlin.test.assertTrue
 /** Typing, auto-close, over-type and Enter with auto-indent, for braces and for the square brackets of lists. */
 class TypingActionsTest {
 
+    /** The marked text after typing [typed] into [marked]. */
     private fun typed(marked: String, typed: String): String = TestEditor(marked).apply { type(typed) }.marked()
 
+    /** The marked text after pressing Enter in [marked]. */
     private fun enter(marked: String): String = TestEditor(marked).apply { run(EditorActionIds.ENTER) }.marked()
 
     @Test

@@ -24,24 +24,26 @@ import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * The tokenizing algorithm shared by KMeta and KModel, whose lexers `skip` whitespace and `//` comments:
+ * The tokenizing algorithm shared by KMeta and KModel, whose lexers skip whitespace and `//` comments. It has three
+ * steps:
  *
- * 1. lex with `KarpfenLexers.lex` (IDE listener; lexer errors become LEXER diagnostics) and classify every emitted
- *    token with [kinds], ranges from `LexedText.rangeOf`;
- * 2. recover what the lexer dropped with `LexerGaps.scan`: COMMENT pieces become [TokenKind.COMMENT] tokens,
- *    UNRECOGNIZED pieces [TokenKind.ERROR] tokens (their diagnostics are the listener's);
- * 3. merge both by position.
+ * 1. Lex with `KarpfenLexers.lex`, which attaches the IDE listener, so lexer errors become LEXER diagnostics. Classify
+ *    every emitted token with [kinds] and take its range from `LexedText.rangeOf`.
+ * 2. Recover what the lexer dropped with `LexerGaps.scan`. COMMENT pieces become [TokenKind.COMMENT] tokens and
+ *    UNRECOGNIZED pieces become [TokenKind.ERROR] tokens. Their diagnostics come from the listener.
+ * 3. Merge both by position.
  *
- * Every non-whitespace character ends up in exactly one token: the gaps contain only whitespace, comments and
- * unrecognized input by construction of the two grammars.
+ * Every non-whitespace character ends up in exactly one token. By construction of the two grammars, the gaps contain
+ * only whitespace, comments and unrecognized input.
  *
- * One refinement of step 2: a COMMENT piece that overlaps a LEXER error is an [TokenKind.ERROR] token. ANTLR's error
- * recovery consumes the character at which a token failed, so in `ty//pe` the first `/` ends the failed `type` and
- * the lexer never sees a comment, while the gap scanner, which only looks at characters, reports `//pe` as one. With
- * the refinement every ERROR token overlaps a LEXER diagnostic and vice versa (lexer errors always become ERROR tokens
- * plus ERROR diagnostics), which the token-invariant tests check on every mutation.
+ * Step 2 has one refinement. A COMMENT piece that overlaps a LEXER error becomes an [TokenKind.ERROR] token. ANTLR's
+ * error recovery consumes the character at which a token failed. In `ty//pe` the first `/` therefore ends the failed
+ * `type`, and the lexer never sees a comment. The gap scanner only looks at characters and would report `//pe` as a
+ * comment. With the refinement, every ERROR token overlaps a LEXER diagnostic and every LEXER diagnostic overlaps an
+ * ERROR token, because lexer errors always become ERROR tokens plus ERROR diagnostics. The token invariant tests check
+ * this on every mutation.
  *
- * Stateless and thread-safe; the language tokenizers wrap it in a [FailSafeTokenizer].
+ * The class holds no state and is thread-safe. The language tokenizers wrap it in a [FailSafeTokenizer].
  */
 internal class GapRecoveringTokenizer(
     private val grammar: DslGrammar,
@@ -67,7 +69,7 @@ internal class GapRecoveringTokenizer(
         return TokenizeResult(snapshot.version, tokens.toList(), lexed.diagnostics)
     }
 
-    /** The token kind of [gap]: ERROR for unrecognized input and for a comment that overlaps a lexer error. */
+    /** The token kind of [gap]. It is ERROR for unrecognized input and for a comment that overlaps a lexer error. */
     private fun kindOf(gap: LexerGaps.GapPiece, lexerErrors: RangeOverlapIndex): TokenKind = when {
         gap.kind == LexerGaps.GapKind.UNRECOGNIZED -> TokenKind.ERROR
         lexerErrors.overlapsAny(gap.range) -> TokenKind.ERROR

@@ -26,10 +26,10 @@ import io.karpfen.ide.core.lang.feature.LanguageFeatures
 import io.karpfen.ide.core.lang.feature.NavigationProvider
 
 /**
- * The environment descriptor provider family (a concrete factory of [LanguageFeatures]): completion, hover and
- * navigation by the [schema] and the caret's [DescriptorSlot], JSON bracket matching, and the shared [highlight]
- * provider, which styles the semantic spans of the environment language's parse. The providers share one
- * [DescriptorTrees] and one [DescriptorCaret]. Wiring only.
+ * The provider family for environment descriptors, a concrete factory of [LanguageFeatures]. Completion, hover and
+ * navigation work by the [schema] and the [DescriptorSlot] at the caret. Bracket matching works on JSON. The shared
+ * [highlight] provider styles the semantic spans of the parse of the environment language. The providers share one
+ * [DescriptorTrees] and one [DescriptorCaret]. The class only wires them together.
  */
 internal class EnvironmentLanguageFeatures(
     override val highlight: HighlightProvider,

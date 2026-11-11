@@ -38,10 +38,11 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The workbench over the production wiring (`defaultWorkbenchServices` with test values, see [ProductionWorkbench]) on
- * a copy of the examples, as a user drives it: open the folder, edit, see syntax and dsl-tools diagnostics in the
- * session, the Problems view and the status bar, complete with the project's types, save and undo with coalescing on
- * the test time source, and external changes through the fake watcher.
+ * Drives the workbench over the production wiring on a copy of the examples, as a user does. The wiring is
+ * `defaultWorkbenchServices` with test values, as [ProductionWorkbench] describes. The tests open the folder and edit.
+ * They see syntax and dsl-tools diagnostics in the session, the Problems view and the status bar. They complete with
+ * the project's types. They save and undo, with coalescing on the test time source. And they deliver changes made on
+ * disk through the fake watcher.
  */
 class WorkbenchEndToEndTest {
 

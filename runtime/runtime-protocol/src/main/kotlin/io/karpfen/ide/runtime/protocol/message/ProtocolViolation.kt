@@ -37,7 +37,8 @@ public enum class ViolationKind {
 }
 
 /**
- * A departure from the runtime's protocol: what was received, why it does not fit, and what could be salvaged.
+ * A departure from the runtime's protocol. It records what was received, why it does not fit, and what could be
+ * salvaged.
  *
  * @property kind the kind of departure.
  * @property detail what does not fit, in words.
@@ -58,7 +59,7 @@ public data class ProtocolViolation(
     }
 
     internal companion object {
-        /** The longest excerpt; a decoder takes the first this many characters of what it received. */
+        /** The longest excerpt. A decoder keeps this many characters from the start of what it received. */
         const val EXCERPT_LENGTH: Int = 200
     }
 }

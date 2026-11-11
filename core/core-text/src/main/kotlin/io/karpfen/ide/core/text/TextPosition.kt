@@ -16,8 +16,9 @@
 package io.karpfen.ide.core.text
 
 /**
- * A zero-based line/column position in a document. [column] counts UTF-16 code units from the start of the line
- * (tab characters count as one column here; display columns are a UI concern). The UI shows both values one-based.
+ * A zero-based line and column position in a document. [column] counts UTF-16 code units from the start of the line.
+ * A tab character counts as one column here, because display columns are a UI concern. The UI shows both values
+ * one-based.
  */
 public data class TextPosition(public val line: Int, public val column: Int) : Comparable<TextPosition> {
 

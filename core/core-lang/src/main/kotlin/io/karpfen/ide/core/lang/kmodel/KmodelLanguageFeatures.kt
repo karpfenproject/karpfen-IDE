@@ -27,7 +27,8 @@ import io.karpfen.ide.core.lang.navigation.ContextReferences
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
- * The KModel provider family (a concrete factory of [LanguageFeatures]); shared mechanics are injected. Wiring only.
+ * The KModel provider family, a concrete factory of [LanguageFeatures]. The shared mechanics are injected. The class
+ * only wires the providers together.
  */
 internal class KmodelLanguageFeatures(
     caretContexts: CaretContextDetector,

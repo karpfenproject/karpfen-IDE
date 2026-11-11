@@ -16,11 +16,12 @@
 package io.karpfen.ide.ui.workbench.dialog
 
 /**
- * The keyboard focus order of a modal dialog (pure): its focus stops are the text field — or the dialog itself when it
- * has none — followed by the buttons, of which only the [focusable] ones (enabled) take the focus. Tab ([next]) and
- * Shift+Tab ([previous]) cycle through them and never leave the dialog.
+ * The keyboard focus order of a modal dialog. The class is pure and has no UI dependencies. The first focus stop is the
+ * text field, or the dialog itself when it has no text field. The buttons follow. Only the enabled buttons take the
+ * focus, and [focusable] says which those are. Tab moves to [next] and Shift+Tab moves to [previous]. Both cycle
+ * through the stops and never leave the dialog.
  *
- * @param focusable per stop whether it can take the focus; the first stop always can.
+ * @param focusable for each stop, whether it can take the focus. The first stop always can.
  */
 internal class DialogFocusOrder(private val focusable: List<Boolean>) {
 
@@ -37,12 +38,18 @@ internal class DialogFocusOrder(private val focusable: List<Boolean>) {
     /** The stop Shift+Tab moves to from [stop]. */
     fun previous(stop: Int): Int = step(stop, -1)
 
-    /** The first focusable stop after [stop] in [direction], wrapping around (the first stop always qualifies). */
+    /**
+     * The first focusable stop after [stop] in [direction]. The search wraps around at both ends. It always finds a
+     * stop, because the first stop is always focusable.
+     */
     private fun step(stop: Int, direction: Int): Int =
         (1..size).map { Math.floorMod(stop + direction * it, size) }.first { focusable[it] }
 
     companion object {
-        /** The focus order of [presentation] with [text] entered (a button whose answer is not possible is disabled). */
+        /**
+         * The focus order of [presentation] while [text] is entered. A button whose answer is not possible with that
+         * text is disabled and takes no focus.
+         */
         fun of(presentation: DialogPresentation, text: String): DialogFocusOrder =
             DialogFocusOrder(listOf(true) + presentation.buttons.map { presentation.responseFor(it.choice, text) != null })
     }

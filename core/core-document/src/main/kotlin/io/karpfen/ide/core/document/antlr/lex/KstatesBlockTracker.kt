@@ -21,13 +21,14 @@ import io.karpfen.ide.core.document.syntax.KstatesBlockKind
 import io.karpfen.ide.core.document.syntax.TokenKind
 
 /**
- * Follows the block structure of a KStates document on its brace tokens to classify `EVENT`: an action
- * ([TokenKind.OPERATION]) directly inside an action block, a [TokenKind.KEYWORD] in a CONDITION block and anywhere
- * else (also in broken text, where the block is unknown). A block's kind is the one rule of [KstatesBlockHeader], read
- * from the tokens since the previous brace.
+ * Follows the block structure of a KStates document on its brace tokens, so that `EVENT` can be classified. Directly
+ * inside an action block `EVENT` is an action and gets [TokenKind.OPERATION]. In a CONDITION block and anywhere else it
+ * is a [TokenKind.KEYWORD]. That includes broken text, where the block is unknown. The kind of a block comes from the
+ * one rule in [KstatesBlockHeader], applied to the tokens since the previous brace.
  *
- * One instance per tokenization; fed with the default-channel tokens outside EVAL bodies in document order (the
- * body's own `{` and `}` included, so its inner braces, which the tokenizer skips, cannot unbalance the stack).
+ * Use one instance per tokenization. Feed it the default-channel tokens outside EVAL bodies in document order,
+ * including the body's own `{` and `}`. The tokenizer skips the inner braces of a body, so they cannot unbalance the
+ * stack.
  */
 internal class KstatesBlockTracker {
 
@@ -53,7 +54,7 @@ internal class KstatesBlockTracker {
     fun eventKind(): TokenKind = if (open.lastOrNull() == KstatesBlockKind.ACTION) TokenKind.OPERATION else TokenKind.KEYWORD
 
     private companion object {
-        /** The header word of each token type: the introducing keywords (found by name) and the parentheses. */
+        /** The header word of each token type: the introducing keywords, found by name, and the parentheses. */
         val WORDS: Array<String?> = arrayOfNulls<String>(KstatesLexer.VOCABULARY.maxTokenType + 1).also { words ->
             KstatesBlockHeader.INTRODUCERS.forEach { words[kstatesTokenType(it)] = it }
             words[KstatesLexer.LPAREN] = KstatesBlockHeader.OPEN

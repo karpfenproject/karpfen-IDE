@@ -23,9 +23,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers [RejectionClassifier]: every text of the runtime is classified as its kind with its placeholder values, also
- * with an empty environment key; texts only match whole; an unknown text is a content rejection on the upload routes
- * and unclassified everywhere else.
+ * Covers [RejectionClassifier]. Every text of the runtime is classified as its kind with its placeholder values, also
+ * with an empty environment key. Texts only match as a whole. An unknown text is a content rejection on the upload
+ * routes and unclassified everywhere else.
  */
 class RejectionClassifierTest {
 

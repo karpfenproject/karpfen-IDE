@@ -43,7 +43,10 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** [StatusBarState], [CaretPositionText] and [StatusBarSegments]. */
+/**
+ * Tests the status bar state of [StatusBarState], the caret text of [CaretPositionText] and the texts of
+ * [StatusBarSegments].
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class StatusBarStateTest {
 

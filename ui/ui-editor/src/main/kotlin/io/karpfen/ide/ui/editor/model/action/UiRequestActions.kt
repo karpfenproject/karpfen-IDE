@@ -16,9 +16,10 @@
 package io.karpfen.ide.ui.editor.model.action
 
 /**
- * Requests handled by the UI (find bar, find next/previous, go to line, completion, go to definition).
+ * Requests that the editor model cannot carry out alone and hands to the UI. These are the find bar, find next and
+ * find previous, go to line, completion and go to definition.
  *
- * @property actionId the id of the action of this request.
+ * @property actionId the id of the action that sends this request.
  */
 internal enum class UiRequest(val actionId: String) {
     FIND(EditorActionIds.FIND),
@@ -30,7 +31,7 @@ internal enum class UiRequest(val actionId: String) {
     GO_TO_DEFINITION(EditorActionIds.GO_TO_DEFINITION),
 }
 
-/** Forwards a [UiRequest] to `EditorActionContext.ui`. */
+/** Forwards its [UiRequest] to `EditorActionContext.ui`. It always reports that it did something. */
 internal class UiRequestAction(private val request: UiRequest) : EditorAction {
     override val id: String = request.actionId
 

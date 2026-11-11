@@ -35,7 +35,7 @@ class DocumentDeclarationsTest {
     private val good = "STATEMACHINE ATTACHED TO \"R\" {\n STATES {\n  STATE \"a\" { }\n  STATE \"b\" { }\n }\n TRANSITIONS { }\n}\n"
     private val goodDocument = ExampleProject.document(path, good, version = 3)
 
-    /** `STATE "a"` broken (its name is gone), so the latest parse lacks it while the last good one has it. */
+    /** `STATE "a"` broken so that its name is gone. The latest parse lacks it while the last good one has it. */
     private val broken = ExampleProject.document(
         path,
         good.replace("STATE \"a\" { }", "STATE { }"),

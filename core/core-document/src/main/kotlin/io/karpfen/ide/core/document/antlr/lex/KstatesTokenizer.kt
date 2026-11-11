@@ -29,24 +29,26 @@ import io.karpfen.ide.core.text.TextSnapshot
 import org.antlr.v4.runtime.Token
 
 /**
- * [Tokenizer] for KStates on the shared ANTLR mechanics of the `antlr` package: lexes with
- * `KarpfenLexers.lex` (the KStates lexer has a catch-all `SYMBOL` token, so it reports no errors) and converts token
- * indices with `LexedText.rangeOf` (`CodePointOffsets`).
+ * [Tokenizer] for KStates on the shared ANTLR mechanics of the `antlr` package. It lexes with `KarpfenLexers.lex`. The
+ * KStates lexer has a catch-all `SYMBOL` token, so it reports no errors. Token indices are converted with
+ * `LexedText.rangeOf`, which uses `CodePointOffsets`.
  *
- * - Comments are on the HIDDEN channel (`LINE_COMMENT`) and read from the full token list; whitespace is skipped.
- * - EVAL bodies and their content come from `EvalBodies.find`/`scan` (shared with the tree walker, so highlighting and
- *   references agree): CODE → EMBEDDED_CODE, KEYWORD → EMBEDDED_KEYWORD, STRING → EMBEDDED_STRING, NUMBER →
- *   EMBEDDED_NUMBER, COMMENT (`#`) → EMBEDDED_COMMENT, PATH_REFERENCE / MACRO_REFERENCE → the token kinds of the same
- *   name, KARPFEN_COMMENT (`//`) → COMMENT plus an `eval-double-slash` WARNING (source IDE). The bodies' content
- *   ranges (`EvalBody.content`) are published as `TokenizeResult.embeddedRegions`, the one answer to "is this offset
- *   embedded Python?" for the editor and core-lang.
- * - `EVENT` is an OPERATION inside action blocks and a KEYWORD inside CONDITION blocks (block structure tracked on the
- *   brace tokens).
+ * - Comments are `LINE_COMMENT` tokens on the HIDDEN channel and are read from the full token list. Whitespace is
+ *   skipped.
+ * - EVAL bodies and their content come from `EvalBodies.find` and `EvalBodies.scan`. The tree walker shares them, so
+ *   highlighting and references agree. CODE becomes EMBEDDED_CODE, KEYWORD becomes EMBEDDED_KEYWORD, STRING becomes
+ *   EMBEDDED_STRING, NUMBER becomes EMBEDDED_NUMBER, and a `#` COMMENT becomes EMBEDDED_COMMENT. PATH_REFERENCE and
+ *   MACRO_REFERENCE become the token kinds of the same name. A `//` KARPFEN_COMMENT becomes a COMMENT plus an
+ *   `eval-double-slash` WARNING with source IDE.
+ * - The content ranges of the bodies, `EvalBody.content`, are published as `TokenizeResult.embeddedRegions`. They are
+ *   the one answer to whether an offset lies in embedded Python, for the editor and for core-lang.
+ * - `EVENT` is an OPERATION inside action blocks and a KEYWORD inside CONDITION blocks. The block structure is tracked
+ *   on the brace tokens.
  *
- * Outside EVAL bodies the vocabulary is [KSTATES_TOKEN_KINDS]; a `SYMBOL` there (e.g. a stray `#` or `$`) is an ERROR
- * token without a diagnostic of its own: the lexer accepted it, and the parser reports it as a syntax error. The piece
- * mapping is [EmbeddedPieceTokens], the `EVENT` rule [KstatesBlockTracker]. Guarded by a [FailSafeTokenizer]; stateless
- * and thread-safe.
+ * Outside EVAL bodies the vocabulary is [KSTATES_TOKEN_KINDS]. A `SYMBOL` there, such as a stray `#` or `$`, is an
+ * ERROR token without a diagnostic of its own, because the lexer accepted it and the parser reports it as a syntax
+ * error. [EmbeddedPieceTokens] maps the pieces, and [KstatesBlockTracker] implements the `EVENT` rule. A
+ * [FailSafeTokenizer] guards the tokenizer. The class holds no state and is thread-safe.
  */
 internal class KstatesTokenizer : Tokenizer {
 
@@ -55,8 +57,8 @@ internal class KstatesTokenizer : Tokenizer {
     override fun tokenize(snapshot: TextSnapshot): TokenizeResult = tokenizer.tokenize(snapshot)
 
     /**
-     * Tokenizes [snapshot] without the guard. The tokens of an EVAL body are replaced by the body's pieces; its
-     * closing brace is an ordinary token again.
+     * Tokenizes [snapshot] without the guard. The tokens of an EVAL body are replaced by the body's pieces. The closing
+     * brace of the body is an ordinary token again.
      */
     private fun tokenizeUnguarded(snapshot: TextSnapshot): TokenizeResult {
         val text = snapshot.text
@@ -96,11 +98,15 @@ internal class KstatesTokenizer : Tokenizer {
 }
 
 /**
- * The KStates vocabulary outside EVAL bodies: the operations of [KarpfenSyntax.KSTATES_OPERATIONS] (both cases are one
- * token type each, found by name in the lexer's vocabulary), every other grammar keyword (`EVENT` included; the
- * tokenizer turns it into an OPERATION in action blocks), double- and single-quoted strings, identifiers (e.g. `list`
- * in a type expression), numbers, `->`, punctuation and hidden `//` comments. `WS` is skipped; the catch-all `SYMBOL`
- * falls back to ERROR.
+ * The KStates vocabulary outside EVAL bodies. It classifies these token types:
+ * - the operations of [KarpfenSyntax.KSTATES_OPERATIONS]. The grammar accepts each operation in both cases with one
+ *   token type, which is found by name in the lexer's vocabulary.
+ * - every other grammar keyword, including `EVENT`. The tokenizer turns `EVENT` into an OPERATION in action blocks.
+ * - double-quoted and single-quoted strings.
+ * - identifiers, such as `list` in a type expression.
+ * - numbers, `->`, punctuation and the hidden `//` comments.
+ *
+ * `WS` is skipped, and the catch-all `SYMBOL` falls back to ERROR.
  */
 internal val KSTATES_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
     TokenKind.OPERATION to KarpfenSyntax.KSTATES_OPERATIONS.map(::kstatesTokenType).toIntArray(),
@@ -122,7 +128,7 @@ internal val KSTATES_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
     TokenKind.COMMENT to intArrayOf(KstatesLexer.LINE_COMMENT),
 )
 
-/** The KStates token type whose symbolic name is [name]; throws if the lexer has none (a programming error). */
+/** The KStates token type whose symbolic name is [name]. Throws if the lexer has none, which is a programming error. */
 internal fun kstatesTokenType(name: String): Int =
     (1..KstatesLexer.VOCABULARY.maxTokenType).firstOrNull { KstatesLexer.VOCABULARY.getSymbolicName(it) == name }
         ?: error("the KStates lexer has no token $name")

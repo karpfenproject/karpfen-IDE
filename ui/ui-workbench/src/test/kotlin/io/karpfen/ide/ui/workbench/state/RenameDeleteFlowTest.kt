@@ -37,9 +37,9 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Rename and delete from the project tree: open, dirty and directory cases; a rename reopens the affected documents
- * under their new paths in their tab positions. A double-click in the tree is simulated by `openFile` on the tree's
- * path.
+ * Tests rename and delete from the project tree, for open files, dirty files and directories. A rename reopens the
+ * affected documents under their new paths at their tab positions. The test simulates a double-click in the tree by
+ * `openFile` on the tree's path.
  */
 class RenameDeleteFlowTest {
 
@@ -68,7 +68,7 @@ class RenameDeleteFlowTest {
         settle()
     }
 
-    /** Tabs: other, machine (dirty, active), model, events. */
+    /** Opens the tabs other, machine, model and events, in that order. The machine is dirty and active. */
     private fun TestWorkbench.openTabs() {
         openEditor(other)
         openEditor(machine)

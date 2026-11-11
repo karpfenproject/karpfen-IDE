@@ -18,18 +18,19 @@ package io.karpfen.ide.ui.workbench.tabs
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.core.workspace.document.ExternalChangeKind
 
-/** A button of the external-change banner: its [label] and the [resolution] it reports. */
+/** A button of the banner that shows a conflict with a change on disk. It has a [label] and reports a [resolution]. */
 internal data class ConflictBannerAction(val label: String, val resolution: ConflictResolution)
 
 /**
- * The external-change banner of a tab, chosen from [EditorTab.conflict]: a file changed on disk offers Reload / Keep
- * mine, a file deleted on disk Close / Keep mine; both Reload and Close report [ConflictResolution.RELOAD] ("take the
- * disk state"), which for a deleted file the workbench turns into closing the tab.
+ * The banner of a tab whose document conflicts with a change on disk. It is chosen from [EditorTab.conflict]. For a
+ * file changed on disk it offers Reload and Keep mine. For a file deleted on disk it offers Close and Keep mine. Reload
+ * and Close both report [ConflictResolution.RELOAD], which means "take the state on disk". For a deleted file the
+ * workbench turns that into closing the tab.
  */
 internal data class ConflictBanner(val message: String, val actions: List<ConflictBannerAction>) {
 
     companion object {
-        /** The banner for [tab], or null without a conflict. */
+        /** The banner for [tab], or null if the tab has no conflict. */
         fun of(tab: EditorTab): ConflictBanner? = when (tab.conflict) {
             null -> null
             ExternalChangeKind.MODIFIED -> ConflictBanner(

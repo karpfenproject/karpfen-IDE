@@ -49,8 +49,8 @@ import io.karpfen.ide.ui.foundation.keys.compose.toKeyStroke
 import kotlinx.coroutines.flow.first
 
 /**
- * A node of a [TreeView]. [key] identifies the node across recompositions (e.g. a path); [children] is null for a
- * leaf and a (possibly empty) list for an expandable node.
+ * A node of a [TreeView]. [key] identifies the node across recompositions, for example a path. [children] is null for
+ * a leaf and a list, possibly empty, for an expandable node.
  *
  * @property label the text of the node's row.
  * @property icon drawn untinted before the label when the tree has no icon slot, or null for none.
@@ -64,8 +64,8 @@ public data class TreeNode<K>(
 )
 
 /**
- * An entry of a context menu: [label], whether it [isEnabled], and what happens [onClick]. Holds behaviour, so it is a
- * plain class with identity equality (not a data class).
+ * An entry of a context menu: its [label], whether it [isEnabled], and what happens [onClick]. It holds behaviour, so
+ * it is a plain class with identity equality and not a data class.
  */
 @Immutable
 public class ContextMenuAction(
@@ -74,35 +74,37 @@ public class ContextMenuAction(
     public val onClick: () -> Unit,
 )
 
-/** Test tags of [TreeView] (for headless UI tests of the foundation and its users). */
+/** Test tags of [TreeView], for headless UI tests of the foundation and of the modules that use it. */
 public object TreeViewTestTags {
     /** The focusable tree container. */
     public const val TREE: String = "TreeView"
 
-    /** The row of the node [key] (its `toString()` is part of the tag). */
+    /** The row of the node [key]. The key's `toString()` is part of the tag. */
     public fun row(key: Any?): String = "TreeView.row:$key"
 }
 
 /**
- * A lazy tree with expand/collapse, single selection and keyboard navigation (Up/Down move the selection, Left
- * collapses or moves to the parent, Right expands or moves to the first child, Enter opens). Double-click opens.
- * Stateless: [expanded] and [selected] are hoisted.
+ * A lazy tree with expanding and collapsing, single selection and keyboard navigation. Up and Down move the selection.
+ * Left collapses a node or moves to the parent. Right expands a node or moves to the first child. Enter opens a node,
+ * and so does a double click. The tree is stateless, so [expanded] and [selected] are hoisted.
  *
- * Whenever [selected] changes — by keyboard, by click or programmatically (e.g. the workbench revealing a newly created
- * file after expanding its ancestors) — the tree scrolls minimally so the selected row is visible (MUST, tested).
+ * Whenever [selected] changes, the tree scrolls minimally so the selected row is visible. This holds for a change by
+ * keyboard, by click and by the program, for example when the workbench reveals a newly created file after expanding
+ * its ancestors. Tests check this behaviour.
  *
- * Further behaviour: Home/End select the first/last row; a click selects its row on press and focuses the tree, a click
- * on an expandable node's chevron toggles it without selecting; a right-click selects its row and opens the node's
- * [contextMenu] at the pointer (disabled entries greyed out). A context menu closes when its row vanishes (its node
- * removed or collapsed away), so it never reappears with stale entries when a node with the same key shows up again.
- * Keys must be unique within the tree; a [selected] key that is not visible (a collapsed ancestor) is revealed as soon
- * as its row appears. Needs `KarpfenTheme`.
+ * Home and End select the first and the last row. A click selects its row on press and focuses the tree. A click on
+ * the chevron of an expandable node toggles the node without selecting it. A right click selects its row and opens
+ * the node's [contextMenu] at the pointer, with disabled entries greyed out. A context menu closes when its row
+ * vanishes because its node was removed or collapsed away. So the menu never comes back with stale entries when a
+ * node with the same key shows up again. Keys must be unique within the tree. A [selected] key whose row is not
+ * visible, because an ancestor is collapsed, is revealed as soon as its row appears. The tree needs `KarpfenTheme`.
  *
- * @param icon slot rendering a node's icon; null uses [TreeNode.icon].
- * @param contextMenu the context-menu entries of a node (empty: no menu).
- * @param onClick every primary click on a row (not on its chevron; after [onSelect]), also on the selected row, which
- *   [onSelect] does not report — for trees whose selection follows something else (the Outline's node at the caret), so
- *   a click can act although it selects nothing new; keys are no clicks.
+ * @param icon a slot that renders a node's icon. When it is null, the tree draws [TreeNode.icon].
+ * @param contextMenu the context-menu entries of a node. An empty list means the node has no menu.
+ * @param onClick called for every primary click on a row outside its chevron, after [onSelect]. It is called on the
+ *   selected row too, which [onSelect] does not report. This serves trees whose selection follows something else,
+ *   such as the Outline, whose selection follows the node at the caret. There a click can act although it selects
+ *   nothing new. Keys never count as clicks.
  */
 @Composable
 public fun <K> TreeView(
@@ -200,13 +202,13 @@ public fun <K> TreeView(
     }
 }
 
-/** A lazy-list key wrapping a node key (lazy keys must not be null). */
+/** A lazy-list key that wraps a node key, because lazy-list keys must not be null. */
 private data class TreeRowKey(val key: Any?)
 
 /**
- * Scrolls minimally so the row of [selected] is visible, whenever [selected] changes; waits until the row is visible
- * (its ancestors expanded) and the list is laid out. Rows have the fixed height [TreeViewDefaults.RowHeight], so the
- * target offset is exact even for rows that are not composed.
+ * Scrolls minimally so the row of [selected] is visible whenever [selected] changes. It waits until the row exists,
+ * which needs all its ancestors expanded, and until the list is laid out. Rows have the fixed height
+ * [TreeViewDefaults.RowHeight], so the target offset is exact even for rows that are not composed.
  */
 @Composable
 private fun <K> RevealSelectionEffect(selected: K?, rows: List<TreeRow<K>>, listState: LazyListState) {

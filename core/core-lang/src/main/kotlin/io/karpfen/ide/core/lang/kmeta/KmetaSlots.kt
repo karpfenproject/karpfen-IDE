@@ -24,24 +24,26 @@ import io.karpfen.ide.core.lang.context.ContextToken
 import io.karpfen.ide.core.lang.symbols.MemberKind
 import io.karpfen.ide.core.text.TextRange
 
-/** What the caret is on or in, in a KMeta document; the one classification of completion, hover and navigation. */
+/**
+ * What the caret is on or in, in a KMeta document. Completion, hover and navigation all use this one classification.
+ */
 internal sealed interface KmetaSlot {
-    /** Between types: the `type` snippet. */
+    /** Between types, where the `type` snippet goes. */
     data object TopLevel : KmetaSlot
 
-    /** In the body of the type [owner], outside a rule: the rule snippets. */
+    /** In the body of the type [owner] but outside a rule, where the rule snippets go. */
     data class TypeBody(val owner: String?) : KmetaSlot
 
     /** The name of `type "N"`. */
     data class TypeName(val name: String, val range: TextRange) : KmetaSlot
 
-    /** The key of `prop("k"`, `has("k"`, `knows("k"` in the body of [owner]. */
+    /** The key of `prop("k"`, `has("k"` or `knows("k"` in the body of [owner]. */
     data class MemberName(val owner: String?, val kind: MemberKind, val name: String, val range: TextRange) : KmetaSlot
 
     /**
-     * A type argument: [primitive] for `prop(…, "…")` (also inside `list(`), else a type reference of `has`/`knows`.
-     * [inString] is false when the caret is at the argument but not inside quotes yet ([name] is then empty);
-     * [listAllowed] is false inside `list(` itself, where no further `list("…")` is offered.
+     * A type argument. [primitive] is true for `prop(…, "…")`, also inside `list(`. Otherwise the argument is a type
+     * reference of `has` or `knows`. [inString] is false when the caret is at the argument but not inside quotes yet,
+     * and then [name] is empty. [listAllowed] is false inside `list(` itself, where no further `list("…")` is offered.
      */
     data class TypeArgument(
         val primitive: Boolean,
@@ -51,11 +53,11 @@ internal sealed interface KmetaSlot {
         val listAllowed: Boolean,
     ) : KmetaSlot
 
-    /** Anything else (descriptions, comments, broken positions). */
+    /** Anything else, such as descriptions, comments and broken positions. */
     data object None : KmetaSlot
 }
 
-/** Classifies the caret of a KMeta document from its [CaretContext]. Stateless. */
+/** Classifies the caret of a KMeta document from its [CaretContext]. It has no state. */
 internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
 
     /** The caret context at [offset] and its slot. */
@@ -64,7 +66,10 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
         return context to classify(document, context)
     }
 
-    /** The slot of [context]: names in strings by the call or keyword before them, else the block the caret is in. */
+    /**
+     * The slot of [context]. Names in strings are classified by the call or keyword before them. Everything else is
+     * classified by the block the caret is in.
+     */
     private fun classify(document: LanguageDocument, context: CaretContext): KmetaSlot {
         if (context.inComment) return KmetaSlot.None
         val owner = context.blocks.asReversed().firstNotNullOfOrNull { typeNameOf(it.header) }
@@ -102,9 +107,9 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
     }
 
     /**
-     * The rule keyword of the call whose type argument the `list("…")` call [list] is, or null where the rule is
-     * unknown. Inside `prop(` the list holds primitives; inside `has(`/`knows(` and wherever the rule is unknown it
-     * holds types.
+     * The rule keyword of the call whose type argument is the `list("…")` call [list], or null where the rule is
+     * unknown. Inside `prop(` the list holds primitives. Inside `has(` or `knows(`, and wherever the rule is unknown,
+     * it holds types.
      */
     private fun ruleOfList(list: CallContext): String? =
         list.parent?.takeIf { MemberKind.ofKeyword(it.name) != null && it.argumentIndex == 1 }?.name

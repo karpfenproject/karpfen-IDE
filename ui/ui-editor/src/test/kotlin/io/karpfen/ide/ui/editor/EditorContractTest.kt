@@ -41,8 +41,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers the public values and wiring of ui-editor that the workbench relies on: go-to-line input, carets, the default
- * actions with their ids and shared titles, the overlay state, and tab stops with the default tab width.
+ * Covers the public values and wiring of ui-editor that the workbench relies on. These are the go-to-line input, the
+ * carets, the default actions with their ids and shared titles, the overlay state, and the tab stops with the default
+ * tab width.
  */
 class EditorContractTest {
 

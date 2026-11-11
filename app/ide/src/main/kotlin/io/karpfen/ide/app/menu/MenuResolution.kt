@@ -22,32 +22,32 @@ import io.karpfen.ide.ui.foundation.command.MenuSpec
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import kotlinx.coroutines.flow.StateFlow
 
-/** A top-level menu of the window menu bar, resolved against the registered commands; never empty. */
+/** A top-level menu of the window menu bar, resolved against the registered commands. It is never empty. */
 internal data class ResolvedMenu(val title: String, val entries: List<ResolvedMenuEntry>)
 
 /** An entry of a [ResolvedMenu], ready to render. */
 internal sealed interface ResolvedMenuEntry {
 
     /**
-     * The registered [command]. [accelerator] is the shortcut the menu binds for it, or null when the item shows no
-     * shortcut: the command has none, the registry answers another command for that stroke, or the command already has
-     * an item earlier in the menus. So every stroke is bound to at most one menu item, and to the same command the
-     * registry would run for it: one key press runs one command once.
+     * The registered [command]. [accelerator] is the shortcut the menu binds for it. It is null when the item shows
+     * no shortcut. That happens when the command has no shortcut, when the registry answers another command for that
+     * stroke, or when the command already has an item earlier in the menus. So every stroke is bound to at most one
+     * menu item, and to the same command the registry would run for it. One key press runs one command once.
      */
     class Item internal constructor(
         val command: Command,
         val accelerator: KeyShortcut?,
         private val registry: CommandRegistry,
     ) : ResolvedMenuEntry {
-        /** The menu label (the command's title). */
+        /** The menu label, which is the command's title. */
         val title: String get() = command.title
 
-        /** Whether the item is enabled (the command's live enablement). */
+        /** Whether the item is enabled, which follows the command's live enablement. */
         val isEnabled: StateFlow<Boolean> get() = command.isEnabled
 
         /**
-         * Runs the command through the registry: the one dispatch path of a click and of the accelerator. Runs only
-         * if the command is still registered and enabled at that moment; true if it ran.
+         * Runs the command through the registry, which is the one dispatch path of a click and of the accelerator. It
+         * runs only if the command is still registered and enabled at that moment, and returns whether it ran.
          */
         fun invoke(): Boolean = registry.execute(command.id)
 
@@ -57,20 +57,20 @@ internal sealed interface ResolvedMenuEntry {
     /** A separator line between two groups of items. */
     data object Separator : ResolvedMenuEntry
 
-    /** A nested menu; never empty. */
+    /** A nested menu. It is never empty. */
     data class Submenu(val title: String, val entries: List<ResolvedMenuEntry>) : ResolvedMenuEntry
 }
 
 /**
- * Resolves [specs] against the commands of [registry] (Compose-free): items of unregistered command ids are hidden,
- * then submenus and menus left without items are hidden, and separators that would lead, trail or repeat are dropped.
- * Titles, shortcuts and enablement come from the commands, their one source; the shortcut rule is
- * [ResolvedMenuEntry.Item.accelerator]. `IdeMenuBar` only renders the result.
+ * Resolves [specs] against the commands of [registry], without Compose. Items of unregistered command ids are hidden.
+ * Then submenus and menus left without items are hidden, and separators that would lead, trail or repeat are dropped.
+ * Titles, shortcuts and enablement come from the commands, which are their one source. The shortcut rule is described
+ * on [ResolvedMenuEntry.Item.accelerator]. `IdeMenuBar` only renders the result.
  */
 internal fun resolveMenus(specs: List<MenuSpec>, registry: CommandRegistry): List<ResolvedMenu> =
     MenuResolver(registry).resolve(specs)
 
-/** One resolution; remembers the commands placed so far (so a repeated command gets no second accelerator). */
+/** One resolution. It remembers the commands placed so far, so a repeated command gets no second accelerator. */
 private class MenuResolver(private val registry: CommandRegistry) {
     private val placed = mutableSetOf<String>()
 
@@ -89,7 +89,10 @@ private class MenuResolver(private val registry: CommandRegistry) {
         is MenuEntry.Submenu -> entriesOf(entry.entries)?.let { ResolvedMenuEntry.Submenu(entry.title, it) }
     }
 
-    /** The item of [commandId] with its accelerator (see [ResolvedMenuEntry.Item]), or null if it is not registered. */
+    /**
+     * The item of [commandId] with its accelerator, as [ResolvedMenuEntry.Item] describes it, or null if the command is
+     * not registered.
+     */
     private fun item(commandId: String): ResolvedMenuEntry.Item? {
         val command = registry.find(commandId) ?: return null
         val firstPlacement = placed.add(commandId)

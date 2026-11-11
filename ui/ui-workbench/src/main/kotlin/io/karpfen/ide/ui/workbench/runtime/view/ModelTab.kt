@@ -46,9 +46,10 @@ import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 
 /**
- * The Model tab of the launched run [entry]: the observation switch and Pull, a status line with the mode, the sync
- * status and the revision, and the model tree. An object row opens and closes, a link selects its target, which the
- * list scrolls to; objects the runtime created are marked.
+ * The Model tab of the launched run [entry]. A toolbar holds the observation switch, the Pull button and a status line
+ * with the mode, the sync status and the revision. The model tree fills the rest of the tab. A click on an object row
+ * opens or closes it. A click on a link selects its target, and the list scrolls to it. Objects that the runtime
+ * created while the environment ran are marked.
  */
 @Composable
 internal fun ModelTab(runtime: RuntimeState, entry: RunEntry, details: RunDetails) {

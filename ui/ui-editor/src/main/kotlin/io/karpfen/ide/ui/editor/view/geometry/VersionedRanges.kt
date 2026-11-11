@@ -18,14 +18,16 @@ package io.karpfen.ide.ui.editor.view.geometry
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Finds the items of a sorted, non-overlapping list of ranges (highlight spans, find matches) that intersect a window
- * of the drawn text, after mapping each range into the drawn version with [map] — `EditableText.mapRange`, the one
- * range-mapping rule, or the identity when the versions agree. Mapping keeps the order (start `RIGHT`, end `LEFT`), so
- * the first candidate is found by binary search and only the items near the window are mapped: drawing an old version's
- * spans costs O(log n + visible) per frame, not O(n).
+ * Finds the items of a sorted list of ranges that intersect a window of the drawn text. The ranges must not overlap.
+ * Examples are highlight spans and find matches. Each range is first mapped into the drawn version with [map]. That is
+ * `EditableText.mapRange`, the single range-mapping rule, or the identity when the versions agree.
  *
- * Ranges that do not map (another lineage, evicted history) or collapse to empty are left out (decorations never grow
- * over text that was not there).
+ * Mapping keeps the order, because it maps the start with bias `RIGHT` and the end with bias `LEFT`. So the first
+ * candidate is found by binary search, and only the items near the window are mapped. Drawing the spans of an old
+ * version therefore costs O(log n + visible) per frame and not O(n).
+ *
+ * Ranges that do not map are left out. That happens for another lineage or for history that was evicted. Ranges that
+ * collapse to empty are left out too. So decorations never grow over text that was not there.
  */
 internal class VersionedRanges<T>(
     private val items: List<T>,
@@ -36,7 +38,7 @@ internal class VersionedRanges<T>(
     /** An item with its range in the drawn version. */
     data class Mapped<T>(val item: T, val range: TextRange)
 
-    /** The items whose mapped range intersects [window] (or touches it, for empty windows), in order. */
+    /** Returns the items whose mapped range intersects [window], in order. For an empty window, touching it is enough. */
     fun intersecting(window: TextRange): List<Mapped<T>> {
         if (items.isEmpty()) return emptyList()
         if (map(rangeOf(items.first())) == null) return emptyList()

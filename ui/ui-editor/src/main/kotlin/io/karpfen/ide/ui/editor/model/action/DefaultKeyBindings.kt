@@ -19,20 +19,21 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyCode
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 
-/** [shortcut] runs the editor action [actionId]. */
+/** A binding that makes [shortcut] run the editor action [actionId]. */
 internal data class KeyBinding(val shortcut: KeyShortcut, val actionId: String)
 
 /**
- * The default editor bindings of [platform] (the list documented on [EditorKeymap]), in order of preference per action
- * (the first binding of an action is the one menus show). macOS follows the platform conventions (Alt for words, Cmd
- * for line and document ends, Cmd+Backspace deletes the line, Cmd+G finds next, Cmd+L goes to a line); Windows and
- * Linux use Ctrl for words, Ctrl+Home/End, Ctrl+Y, F3 and Ctrl+G.
+ * Returns the default editor bindings of [platform], which are the ones documented on [EditorKeymap]. The bindings of
+ * one action are listed in order of preference, and menus show the first one.
  *
- * Completion is Ctrl+M on every platform, with the physical Control key on macOS too, and it is the first completion
- * binding, so a menu item of completion (the window's Edit ▸ Complete Code) shows Ctrl+M everywhere. Windows binds
- * Ctrl+Space as a second completion key, the one Windows users expect. macOS and Linux leave Ctrl+Space unbound for
- * the system: macOS switches input sources with it, and Linux input-method frameworks commonly toggle the input method
- * with it.
+ * macOS follows the platform conventions. It uses Alt for words and Cmd for line and document ends. Cmd+Backspace
+ * deletes the line, Cmd+G finds next and Cmd+L goes to a line. Windows and Linux use Ctrl for words, Ctrl+Home and
+ * Ctrl+End, Ctrl+Y, F3 and Ctrl+G.
+ *
+ * Completion is Ctrl+M on every platform. On macOS this is the physical Control key too. It is the first completion
+ * binding, so the Complete Code item in the window's Edit menu shows Ctrl+M everywhere. Windows binds Ctrl+Space as a
+ * second completion key, because Windows users expect it. macOS and Linux leave Ctrl+Space to the system. macOS
+ * switches input sources with it, and input method frameworks on Linux commonly use it to toggle the input method.
  */
 internal fun defaultKeyBindings(platform: HostPlatform): List<KeyBinding> = buildList {
     val mac = platform == HostPlatform.MAC_OS

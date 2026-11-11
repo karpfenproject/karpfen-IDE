@@ -24,15 +24,16 @@ import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * [Tokenizer] for KMeta on the shared ANTLR mechanics of the `antlr` package: lexes with
- * `KarpfenLexers.lex` (console listener removed, `IdeErrorListener` collecting LEXER diagnostics) and converts token
- * indices with `LexedText.rangeOf` (`CodePointOffsets`).
+ * [Tokenizer] for KMeta on the shared ANTLR mechanics of the `antlr` package. It lexes with `KarpfenLexers.lex`, which
+ * removes the console listener and lets `IdeErrorListener` collect LEXER diagnostics. It converts token indices with
+ * `LexedText.rangeOf`, which uses `CodePointOffsets`.
  *
- * The KMeta lexer skips whitespace and comments: `LexerGaps.scan` recovers COMMENT pieces (→ COMMENT tokens) and
- * UNRECOGNIZED pieces (→ ERROR tokens; their diagnostics come from the listener) from the gaps between the tokens.
+ * The KMeta lexer skips whitespace and comments. `LexerGaps.scan` recovers them from the gaps between the tokens.
+ * COMMENT pieces become COMMENT tokens, and UNRECOGNIZED pieces become ERROR tokens. The diagnostics of the ERROR
+ * tokens come from the listener.
  *
- * The algorithm is the [GapRecoveringTokenizer] shared with KModel, with the KMeta vocabulary [KMETA_TOKEN_KINDS],
- * guarded by a [FailSafeTokenizer]. Stateless and thread-safe.
+ * The algorithm is the [GapRecoveringTokenizer] shared with KModel, with the KMeta vocabulary [KMETA_TOKEN_KINDS] and
+ * guarded by a [FailSafeTokenizer]. The class holds no state and is thread-safe.
  */
 internal class KmetaTokenizer : Tokenizer {
 
@@ -42,7 +43,10 @@ internal class KmetaTokenizer : Tokenizer {
     override fun tokenize(snapshot: TextSnapshot): TokenizeResult = tokenizer.tokenize(snapshot)
 }
 
-/** The KMeta vocabulary: `type prop has knows list` are keywords; `WS` and `COMMENT` are skipped by the grammar. */
+/**
+ * The KMeta vocabulary. `type`, `prop`, `has`, `knows` and `list` are keywords. The grammar skips `WS` and `COMMENT`,
+ * so they have no entry.
+ */
 internal val KMETA_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
     TokenKind.KEYWORD to intArrayOf(KmetaLexer.TYPE, KmetaLexer.PROP, KmetaLexer.HAS, KmetaLexer.KNOWS, KmetaLexer.LIST),
     TokenKind.PUNCTUATION to

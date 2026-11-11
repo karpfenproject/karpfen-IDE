@@ -16,10 +16,10 @@
 package io.karpfen.ide.ui.foundation.widgets
 
 /**
- * The mouse policy of the rows of a [TreeView] (pure, time from the events): a primary press on an expandable node's chevron
- * toggles it; any other primary press selects the row and is a click on it, and the second press on the same row within
- * the double-click timeout opens it as well (selection happens on the first press, without waiting for a possible second
- * one).
+ * The mouse policy of the rows of a [TreeView]. It is pure and takes the time from the events. A primary press on the
+ * chevron of an expandable node toggles the node. Any other primary press selects the row and counts as a click on it.
+ * The second press on the same row within the double-click timeout also opens the node. A third quick press does not
+ * open it again. Selection happens on the first press, without waiting for a possible second one.
  */
 internal class TreePointerPolicy(private val doubleClickTimeoutMillis: Long) {
     private var lastKey: Any? = null
@@ -27,8 +27,8 @@ internal class TreePointerPolicy(private val doubleClickTimeoutMillis: Long) {
     private var pressCount = 0
 
     /**
-     * The intents of a primary press at [x] px on [row] at [uptimeMillis]; [chevronStart] until [chevronEnd] is the
-     * row's chevron area in px.
+     * The intents of a primary press at [x] px on [row] at [uptimeMillis]. The row's chevron area spans [chevronStart]
+     * to [chevronEnd] px, with the end exclusive.
      */
     fun <K> primaryPress(row: TreeRow<K>, x: Float, uptimeMillis: Long, chevronStart: Float, chevronEnd: Float): List<TreeIntent<K>> {
         val key = row.node.key

@@ -40,7 +40,7 @@ internal class ProgressBoard(steps: List<DeployStep>, private val listener: Depl
         publish()
     }
 
-    /** Sets the step at [index] to [status] with [detail] and publishes, unless the step already stands so. */
+    /** Sets the step at [index] to [status] with [detail] and publishes, unless the step is already in that state. */
     fun update(index: Int, status: StepStatus, detail: String?) {
         val updated = progress.steps[index].copy(status = status, detail = detail)
         if (updated == progress.steps[index]) return

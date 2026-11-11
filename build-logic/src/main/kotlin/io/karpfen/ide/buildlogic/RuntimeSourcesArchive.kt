@@ -27,11 +27,12 @@ import kotlin.concurrent.thread
  * tracks in a checkout of the runtime, those of its nested submodules included, read from the working tree and packed
  * into a deterministic gzip-compressed tar archive, [ARCHIVE_NAME], next to the properties file [PROPERTIES_NAME].
  *
- * The archive holds nothing else, no `.git` and no build output, and leaves out a tracked file deleted from the working
- * tree. Its entries are sorted by path and share one modification time and one owner; a file has the mode 0644, or 0755
- * if git records it as executable, such as the Gradle wrapper. Packing the same files twice gives the same bytes. The
- * properties file records the archive's SHA-256 as `contentHash`, the checkout's commit as `runtimeCommit` (with
- * `-dirty` when its tracked files differ from that commit) and the number of files as `fileCount`.
+ * The archive holds nothing else, no `.git` and no build output, and it leaves out a tracked file that was deleted from
+ * the working tree. Uncommitted edits of tracked files are packed as they are. The entries are sorted by path and share
+ * one modification time and one owner. A file has the mode 0644, or 0755 if git records it as executable, such as the
+ * Gradle wrapper. Packing the same files twice gives the same bytes. The properties file records the archive's SHA-256
+ * as `contentHash`, the checkout's commit as `runtimeCommit` and the number of files as `fileCount`. The commit carries
+ * the suffix `-dirty` when the tracked files differ from it.
  */
 object RuntimeSourcesArchive {
     /** The file name of the archive. */
@@ -77,7 +78,8 @@ object RuntimeSourcesArchive {
 
     /**
      * The paths of the files git tracks in [checkout], those of its nested submodules included, or an empty list if
-     * [checkout] is no checkout. A task declares them as its inputs with this; [pack] checks the checkout itself.
+     * [checkout] is no checkout or git fails. A task declares its inputs with this list, so it never fails. [pack]
+     * checks the checkout itself and reports what is missing.
      */
     fun trackedPathsOrEmpty(checkout: File): List<String> =
         if (isCheckout(checkout)) runCatching { trackedFiles(checkout).map { it.path } }.getOrDefault(emptyList()) else emptyList()
@@ -110,7 +112,8 @@ object RuntimeSourcesArchive {
 
     /**
      * Fails unless [checkout] is a checkout of its own, as an initialized submodule is, and every submodule nested in
-     * it is initialized; an uninitialized submodule is an empty directory of its superproject.
+     * it is initialized. An uninitialized submodule is just an empty directory of its superproject, and
+     * `git submodule status` marks it with a leading `-`.
      */
     private fun requireCheckout(checkout: File) {
         if (!isCheckout(checkout)) {

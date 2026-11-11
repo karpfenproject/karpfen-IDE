@@ -45,7 +45,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.nio.file.Path
 
-/** A [Workspace] whose flows a test sets directly (for the sub-states that only read them). */
+/** A [Workspace] whose flows a test sets directly. It serves the sub-states that only read those flows. */
 class FakeWorkspace(override val root: Path) : Workspace {
     override val languages: LanguageRegistry = defaultLanguageRegistry()
     override val files = MutableStateFlow(WorkspaceTree.empty(root))
@@ -63,8 +63,8 @@ class FakeWorkspace(override val root: Path) : Workspace {
 }
 
 /**
- * An [OpenDocument] over a real [DocumentSession] (the language registry's tokenizer and parser on [dispatcher]) whose
- * dirty flag, separator and conflict a test sets directly.
+ * An [OpenDocument] over a real [DocumentSession]. The session uses the tokenizer and parser of the language registry
+ * and runs them on [dispatcher]. A test sets the dirty flag, the line separator and the conflict directly.
  */
 class FakeOpenDocument(
     path: Path,
@@ -85,7 +85,7 @@ class FakeOpenDocument(
     override val lineSeparator = MutableStateFlow(LineSeparator.LF)
     override val conflict = MutableStateFlow<ExternalChange?>(null)
 
-    /** The resolutions asked for, in call order; each is answered with `ConflictResult.Kept`. */
+    /** The resolutions asked for, in call order. Each one is answered with `ConflictResult.Kept`. */
     val resolutions = mutableListOf<ConflictResolution>()
 
     override suspend fun resolveConflict(resolution: ConflictResolution): ConflictResult {
@@ -106,7 +106,10 @@ class ClosingSpyEditor(private val delegate: CodeEditorState) : CodeEditorState 
     }
 }
 
-/** A real editor (macOS keymap, empty-analysis language services) of [document] on [dispatcher]. */
+/**
+ * A real editor of [document] that runs on [dispatcher]. It uses the macOS keymap and language services over an empty
+ * analysis.
+ */
 fun editorOf(
     document: OpenDocument,
     scope: CoroutineScope,

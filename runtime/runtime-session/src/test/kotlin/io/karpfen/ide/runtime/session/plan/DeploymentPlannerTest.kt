@@ -36,10 +36,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers [DeploymentPlanner] over real workspaces: the single robot and the lamp planned with their uploads in order
- * from the analyzed snapshots, attachments, domains and configuration from the descriptor or the defaults; the ring
- * blocked by its reference loop; the gate reading the diagnostics of the analyzed snapshots rather than those of a newer
- * editor text; unsaved files blocking; and `_` kept as an object key.
+ * Covers [DeploymentPlanner] over real workspaces. The single robot and the lamp are planned with their uploads in
+ * order from the analyzed snapshots. Their attachments, domains and configuration come from the descriptor or the
+ * defaults. The ring is blocked by its reference loop. The gate reads the diagnostics of the analyzed snapshots rather
+ * than those of a newer editor text. Unsaved files block, and `_` is kept as an object key.
  */
 class DeploymentPlannerTest {
 

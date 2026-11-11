@@ -23,10 +23,10 @@ import kotlin.test.fail
 import kotlin.time.Duration
 
 /**
- * Polls [probe] every [Patience.pollEvery] until it answers a value, and answers that value: an eventual assertion with
- * a generous bound, for a runtime whose reactions take an unknown time. The probe answers null, or throws an
- * [AssertionError] such as a failed `assertEquals`, while the awaited state has not come yet; any other exception fails
- * at once.
+ * Polls [probe] every [Patience.pollEvery] until it returns a value, and returns that value. It is an eventual
+ * assertion with a generous bound, for a runtime whose reactions take an unknown time. While the awaited state has not
+ * come yet, the probe returns null or throws an [AssertionError], such as a failed `assertEquals`. Any other exception
+ * fails at once.
  *
  * The wait uses only `delay` and `withTimeoutOrNull`, so it runs on virtual time in a test and on real time against a
  * real runtime, and measures nothing on the wall clock.
@@ -34,7 +34,8 @@ import kotlin.time.Duration
  * @param what the awaited state in words, such as `the lamp's stack ["on"]`.
  * @param within the bound, [Patience.reaction] by default.
  * @throws AssertionError naming [what], the bound, the last answer of the probe and the scope's
- *   [diagnostics][RuntimeScenarioScope.diagnostics] if no value came within the bound.
+ *   [diagnostics][RuntimeScenarioScope.diagnostics] if no value came within the bound. The probe's last
+ *   [AssertionError] becomes the cause.
  */
 public suspend fun <T : Any> RuntimeScenarioScope.eventually(
     what: String,
@@ -61,15 +62,16 @@ public suspend fun <T : Any> RuntimeScenarioScope.eventually(
 }
 
 /**
- * Awaits the first value of [values] that [accept] accepts, and answers it: an eventual assertion on a flow, such as
- * the stacks a connection reports, with the same bound and the same failure as [eventually].
+ * Awaits the first value of [values] that [accept] accepts, and returns it. It is an eventual assertion on a flow, such
+ * as the stacks a connection reports. It has the same bound and the same kind of failure as [eventually].
  *
  * The wait uses only `withTimeoutOrNull`, so it runs on virtual time in a test and on real time against a real runtime.
  *
  * @param what the awaited value in words.
  * @param within the bound, [Patience.reaction] by default.
  * @throws AssertionError naming [what], the bound, the last value the flow emitted and the scope's
- *   [diagnostics][RuntimeScenarioScope.diagnostics] if no accepted value came within the bound or the flow ended before.
+ *   [diagnostics][RuntimeScenarioScope.diagnostics] if no accepted value came within the bound, or if the flow ended
+ *   before one came.
  */
 public suspend fun <T> RuntimeScenarioScope.awaitValue(
     what: String,

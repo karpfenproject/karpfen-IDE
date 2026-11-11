@@ -19,8 +19,9 @@ import io.karpfen.ide.runtime.protocol.conformance.LiveRuntime
 import io.karpfen.ide.runtime.protocol.conformance.LiveRuntimeUnderTest
 
 /**
- * Covers observing objects the runtime creates while it runs ([RunTimeObjectScenarios]) against the real runtime that the live task is given, usually a throwaway
- * container of `runtime/live-runtime.sh test`.
+ * Covers observing objects the runtime creates while it runs against the real runtime that the live task is given. The
+ * scenarios are those of [RunTimeObjectScenarios]. The runtime is usually a throwaway container of
+ * `runtime/live-runtime.sh test`.
  */
 @LiveRuntime
 class LiveRunTimeObjectScenariosTest : RunTimeObjectScenarios() {

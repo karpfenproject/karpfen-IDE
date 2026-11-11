@@ -18,22 +18,25 @@ package io.karpfen.ide.core.document.environment
 import kotlinx.serialization.Serializable
 
 /**
- * An environment descriptor `*.kenv.json` as a typed value: which files form one runnable modeling context and how the
- * IDE deploys them to the runtime. File paths are relative to the descriptor's directory.
+ * An environment descriptor, a `*.kenv.json` file, as a typed value. It says which files form one runnable modeling
+ * context and how the IDE deploys them to the runtime. File paths are relative to the descriptor's directory.
  *
- * This class is the one declaration of the descriptor's shape. Its property names are the JSON keys, its nesting is the
- * nesting of the objects, a property without a default value is a required key, a nullable property a key that may be
- * `null`, and the property types are the value kinds. The annotations add what the types cannot say: what each key
- * means ([KeyDoc], the text that hover and completion show, so the properties carry no `@property` tags of their own),
- * what its strings name ([NamesFile], [NamesObject], [NamesEventDomain]) and which values completion suggests
- * ([Suggests], [SuggestsNumbers]). [EnvironmentSchema.ROOT] is derived from the serial descriptor of this class, so a
- * new key is one property with its annotations.
+ * This class is the one declaration of the descriptor's shape. Its property names are the JSON keys, and its nesting
+ * is the nesting of the objects. A property without a default value is a required key, and a nullable property is a
+ * key that may be `null`. The property types are the value kinds.
  *
- * kotlinx.serialization decodes a descriptor into this class after the workspace checked its text against
- * [EnvironmentSchema.ROOT], and the file templates encode new descriptors from it, so a written descriptor reads back
- * without findings. Renaming a property renames a key of the format the IDE reads: the runtime never reads descriptors;
- * the IDE's deployment uploads the files a descriptor names and sends its tick delay and event time to live, which are
- * the deploy configuration of the environment, with [EnvironmentDefaults] where the descriptor has none.
+ * The annotations add what the types cannot say. [KeyDoc] says what each key means. Hover and completion show that
+ * text, so the properties carry no `@property` tags of their own. [NamesFile], [NamesObject] and [NamesEventDomain] say
+ * what the strings of a key name. [Suggests] and [SuggestsNumbers] give the values that completion suggests.
+ * [EnvironmentSchema.ROOT] is derived from the serial descriptor of this class, so a new key is one property with its
+ * annotations.
+ *
+ * kotlinx.serialization decodes a descriptor into this class after the workspace has checked its text against
+ * [EnvironmentSchema.ROOT]. The file templates encode new descriptors from it, so a written descriptor reads back
+ * without findings. Renaming a property renames a key of the format that the IDE reads. The runtime never reads
+ * descriptors. The IDE's deployment uploads the files that a descriptor names and sends its tick delay and event time
+ * to live. These two values are the deploy configuration of the environment, with [EnvironmentDefaults] where the
+ * descriptor has none.
  */
 @Serializable
 public data class EnvironmentDescriptor(
@@ -82,7 +85,7 @@ public data class EnvironmentDescriptor(
     @NamesFile(DescriptorFileRole.BRIDGE)
     public val bridges: List<String> = emptyList(),
 ) {
-    /** One state machine of the environment: [file] runs attached to the object with the key [attachedTo]. */
+    /** One state machine of the environment. [file] runs attached to the object with the key [attachedTo]. */
     @Serializable
     public data class StateMachineEntry(
         @KeyDoc("The state machine: a .kstates file, relative to this descriptor.")
@@ -98,9 +101,9 @@ public data class EnvironmentDescriptor(
     )
 
     /**
-     * Objects matching [objects] and the event [domains], once meant as what the IDE observes while the environment
-     * runs. Not read by the IDE's deployment: while observation is on, the IDE observes the whole model, and it listens
-     * to every event domain the state machines use.
+     * Objects matching [objects] and the event [domains]. They were once meant as what the IDE observes while the
+     * environment runs. The IDE's deployment does not read them. While observation is on, the IDE observes the whole
+     * model and listens to every event domain that the state machines use.
      */
     @Serializable
     public data class ObserveSpec(
@@ -119,7 +122,7 @@ public data class EnvironmentDescriptor(
         public val domains: List<String> = emptyList(),
     )
 
-    /** How the runtime runs the environment: in the container [image], with the extra [pythonPackages]. */
+    /** How the runtime runs the environment. It runs in the container [image], with the extra [pythonPackages]. */
     @Serializable
     public data class RuntimeSpec(
         @KeyDoc("The container image the runtime runs in, such as ghcr.io/karpfenproject/karpfen-runtime:0.x.")

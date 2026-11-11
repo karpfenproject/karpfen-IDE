@@ -25,9 +25,9 @@ import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 
 /**
- * What the client's seams cannot do, done with Ktor directly for the live scenarios: the client's links only send text,
- * so a probe opens its own WebSocket to send a binary first frame, which the runtime refuses. Lives in the Ktor
- * adapter's package, the only one of the runtime modules that may use Ktor.
+ * What the client's seams cannot do, done with Ktor directly for the live scenarios. The client's links only send
+ * text. So a probe opens its own WebSocket to send a binary first frame, which the runtime refuses. The probe lives in
+ * the Ktor adapter's package, the only package of the runtime modules that may use Ktor.
  */
 internal object RawWebSocketProbe {
 
@@ -35,7 +35,7 @@ internal object RawWebSocketProbe {
     private val BINARY = byteArrayOf(1, 2, 3)
 
     /**
-     * Opens a WebSocket to [webSocketUrl], sends a binary first frame and answers how the runtime closed the socket,
+     * Opens a WebSocket to [webSocketUrl], sends a binary first frame and returns how the runtime closed the socket,
      * waiting at most [within].
      */
     suspend fun closureAfterBinaryFirstFrame(webSocketUrl: String, within: Duration): LinkClosure {

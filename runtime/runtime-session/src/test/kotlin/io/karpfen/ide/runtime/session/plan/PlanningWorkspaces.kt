@@ -30,21 +30,21 @@ import kotlin.test.assertIs
 import kotlin.test.fail
 
 /**
- * Workspaces for planning tests: synthesized models copied into a folder of a temporary root, opened on the virtual
- * time of the test and analyzed, with the text edits the tests make before opening.
+ * Workspaces for planning tests. Synthesized models are copied into a folder of a temporary root, edited as the tests
+ * need before opening, then opened on the virtual time of the test and analyzed.
  *
  * @property scope the test's scope, whose virtual time the workspaces run on.
  * @property root the absolute, normalized root of the workspaces.
  */
 internal class PlanningWorkspaces(private val scope: TestScope, val root: Path) {
-    /** Copies [model] into the folder named like it, with [timing] in its descriptor, and answers the descriptor. */
+    /** Copies [model] into the folder named like it, with [timing] in its descriptor, and returns the descriptor. */
     fun copy(model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.NONE): Path =
         SynthesizedModels.copyTo(root.resolve(model.folder), model, timing)
 
     /** Opens the workspace of [root]. */
     fun open(): Workspace = TestWorkspaces(scope).open(root)
 
-    /** Opens the workspace of [root] and answers its first complete analysis. */
+    /** Opens the workspace of [root] and returns its first complete analysis. */
     suspend fun analyze(): ProjectAnalysis = open().awaitAnalysis()
 
     /** Plans [descriptor] from a fresh analysis of [root], with [unsaved] as the unsaved paths. */
@@ -59,14 +59,14 @@ internal fun Path.replaceText(old: String, new: String) {
     Files.writeString(this, text.replace(old, new))
 }
 
-/** The plan of a ready result, failing the test with the findings of a blocked one. */
+/** The plan of a ready result. A blocked result fails the test with its findings. */
 internal fun PlanResult.ready(): DeploymentPlan =
     when (this) {
         is PlanResult.Ready -> plan
         is PlanResult.Blocked -> fail("expected a plan, but the deployment is blocked: $findings")
     }
 
-/** The findings of a blocked result, failing the test if it is ready. */
+/** The findings of a blocked result. A ready result fails the test. */
 internal fun PlanResult.blocked(): List<DeployProblem> = assertIs<PlanResult.Blocked>(this, "expected a blocked deployment").findings
 
 /** The code and severity of each problem. */

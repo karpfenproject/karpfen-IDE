@@ -26,20 +26,23 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The hover tooltip policy ([EditorViewModel.pointerHover], [EditorPopupModel.pointerOverTooltip]), Compose-free and on
- * the editor's clock: after the pointer rested on one offset for [delay] (a coroutine delay in [scope], so tests use
- * virtual time), the content from [contentAt] is shown through [overlays].
+ * The hover tooltip policy behind [EditorViewModel.pointerHover] and [EditorPopupModel.pointerOverTooltip]. It does
+ * not need Compose and runs on the editor's clock. After the pointer rested on one offset for [delay], the content from
+ * [contentAt] is shown through [overlays]. The delay is a coroutine delay in [scope], so tests use virtual time.
  *
- * The tooltip stays while the pointer is on its range or on the tooltip itself, so its long content can be scrolled.
- * Once the pointer left both — to another offset, out of the text, off the tooltip — the tooltip is hidden after
- * [hideGrace] unless the pointer comes back in time; the grace covers the way from the text onto the tooltip, which
- * leaves the text first. Moving to another offset also restarts the delay there. [hide] (typing, keys, presses, focus
- * loss) hides it at once. Nothing is shown while the context menu is open. Used from the UI thread.
+ * The tooltip stays while the pointer is on its range or on the tooltip itself, so long content can be scrolled. The
+ * pointer can leave both by moving to another offset, out of the text or off the tooltip. The tooltip is then hidden
+ * after [hideGrace], unless the pointer comes back in time. The grace period covers the way from the text onto the
+ * tooltip, because that way leaves the text first. Moving to another offset also starts the delay again there.
  *
- * The tooltip follows the [text]: its range and content describe the text they were computed for, so every change of
- * the text — typing, commands from menus, find and replace, completion accepted by mouse, external reloads — hides it
- * and drops a lookup in progress, like [hide]; the pointer rests again to see the new text's content. A change is every
- * snapshot other than the one current at construction: snapshots are never reused, so identity tells them apart.
+ * [hide] hides the tooltip at once. Typing, keys, presses and focus loss call it. Nothing is shown while the context
+ * menu is open. Use the class from the UI thread.
+ *
+ * The tooltip follows [text], because its range and content describe the text they were computed for. So every change
+ * of the text hides it and drops a lookup in progress, just like [hide]. Such changes are typing, commands from menus,
+ * find and replace, completion accepted by mouse and external reloads. The pointer must rest again to see content for
+ * the new text. Every snapshot other than the one that was current at construction counts as a change. Snapshots are
+ * never reused, so identity tells them apart.
  */
 internal class HoverController(
     private val scope: CoroutineScope,
@@ -61,8 +64,9 @@ internal class HoverController(
     }
 
     /**
-     * The pointer rests over text [offset], or left the text (null). An offset also means that the pointer is not on
-     * the tooltip: the text area reports it, and the tooltip lies over the text area.
+     * Reports that the pointer rests over text [offset], or that it left the text when [offset] is null. An offset also
+     * means that the pointer is not on the tooltip, because the text area reports it and the tooltip lies over the text
+     * area.
      */
     fun pointerAt(offset: Int?) {
         if (offset != null) onTooltip = false
@@ -84,7 +88,7 @@ internal class HoverController(
         }
     }
 
-    /** The pointer moved onto ([on] true) or off the shown tooltip. */
+    /** Reports that the pointer moved onto the shown tooltip when [on] is true, or off it when [on] is false. */
     fun pointerOnTooltip(on: Boolean) {
         onTooltip = on
         if (on) {
@@ -96,7 +100,7 @@ internal class HoverController(
         }
     }
 
-    /** Hides the tooltip at once and forgets the resting position (the next rest starts a new delay). */
+    /** Hides the tooltip at once and forgets the resting position, so the next rest starts a new delay. */
     fun hide() {
         cancelPending()
         keepShown()
@@ -112,7 +116,7 @@ internal class HoverController(
         overlays.showHover(content)
     }
 
-    /** Cancels the lookup waiting for the rest delay or running. */
+    /** Cancels the lookup that waits for the rest delay or is running. */
     private fun cancelPending() {
         pending?.cancel()
         pending = null
@@ -124,7 +128,7 @@ internal class HoverController(
         hiding = null
     }
 
-    /** Hides a shown tooltip after [hideGrace] (unless [keepShown] comes first). */
+    /** Hides a shown tooltip after [hideGrace], unless [keepShown] comes first. */
     private fun hideLater() {
         if (overlays.hover.value == null || hiding != null) return
         hiding = scope.launch {

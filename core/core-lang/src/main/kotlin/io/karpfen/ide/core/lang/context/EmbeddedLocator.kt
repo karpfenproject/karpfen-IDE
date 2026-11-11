@@ -22,9 +22,9 @@ import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Describes a caret inside an EVAL body (found with `TokenizeResult.embeddedRegionAt`): the path before the caret when
- * it is inside a PATH_REFERENCE token (after `$(`, before a closing `)`), the macro name before the caret when it is in a
- * MACRO_REFERENCE token or right after a lone `@`.
+ * Describes a caret inside an EVAL body, which `TokenizeResult.embeddedRegionAt` finds. When the caret is inside a
+ * PATH_REFERENCE token, after `$(` and before a closing `)`, it gives the path before the caret. When the caret is in a
+ * MACRO_REFERENCE token or right after a lone `@`, it gives the macro name before the caret.
  */
 internal object EmbeddedLocator {
 

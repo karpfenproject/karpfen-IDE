@@ -25,20 +25,27 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 /**
- * "Every action is exactly one undo step" and undo/redo restore the carets (`UndoManager` rule): every default action
- * and typed text, run once in a fresh editor (no history), either changes nothing or leaves exactly one undo step whose
- * undo restores text and carets and whose redo restores the result. Checked on hand-picked states and on random caret
- * states over every example file and mutations of them (fixed seeds); no action may throw.
+ * Every action is at most one undo step, and undo and redo restore the carets, as `UndoManager` requires. Each default
+ * action and each typed text runs once in a fresh editor without history. It either changes nothing or leaves exactly
+ * one undo step. Undoing that step restores the text and the carets, and redoing it restores the result.
+ *
+ * The rule is checked on hand-picked states and on random caret states over every example file and mutations of them,
+ * with fixed seeds. No action may throw.
  */
 class ActionUndoStepTest {
 
+    /** The typed texts under test: openers and closers of pairs, a line break, text with a CRLF break and a space. */
     private val typed = listOf("x", "(", "{", "\"", ")", "}", "\n", "ab\r\ncd", " ")
 
-    /** Every action under test as (name, action). */
+    /** Every action under test, paired with its name. These are the default actions except undo and redo, and typing each of [typed]. */
     private val actions: List<Pair<String, EditorAction>> =
         defaultEditorActions().filter { it.id != EditorActionIds.UNDO && it.id != EditorActionIds.REDO }.map { it.id to it } +
             typed.map { "type '$it'" to typeTextAction(it) }
 
+    /**
+     * Hand-picked texts in the [Marked] notation. They cover an empty text, braces, an EVAL body, selections, tabs, a
+     * trailing line break and a string.
+     */
     private val states = listOf(
         "|",
         "STATE \"a\" {|}",
@@ -53,8 +60,8 @@ class ActionUndoStepTest {
     )
 
     /**
-     * Runs [action] once in a fresh editor on [text] with [caret] and checks the one-step rule; returns whether the
-     * text changed.
+     * Runs [action] once in a fresh editor on [text] with [caret] and [clipboard] and checks the one-step rule. Returns
+     * whether the text changed.
      */
     private fun checkOneStep(name: String, action: EditorAction, text: String, caret: Caret, clipboard: String?): Boolean {
         val editor = TestEditor(text, tokensOf = ::evalBodies)
@@ -79,6 +86,7 @@ class ActionUndoStepTest {
         return true
     }
 
+    /** Like the other overload, with text and caret taken from [marked] in the [Marked] notation. */
     private fun checkOneStep(name: String, action: EditorAction, marked: String, clipboard: String?): Boolean {
         val parsed = Marked.parse(marked)
         return checkOneStep("$name on '$marked'", action, parsed.text, parsed.caret, clipboard)

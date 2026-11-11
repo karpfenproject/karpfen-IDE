@@ -18,8 +18,9 @@ package io.karpfen.ide.core.workspace.files
 import java.nio.file.Path
 
 /**
- * The files of a workspace as a tree: ignored and hidden directories are absent; every directory lists
- * its sub-directories first, then its files, each in case-insensitive name order ([WorkspaceNode.ORDER]).
+ * The files of a workspace as a tree. Ignored and hidden directories are absent. Every directory lists its
+ * subdirectories first and then its files, each group in case-insensitive name order as defined by
+ * [WorkspaceNode.ORDER].
  */
 public data class WorkspaceTree(public val root: WorkspaceNode.Directory) {
 
@@ -54,7 +55,7 @@ public data class WorkspaceTree(public val root: WorkspaceNode.Directory) {
     }
 
     public companion object {
-        /** A tree with an empty root directory at [root] (before the first scan). */
+        /** A tree with an empty root directory at [root]. The workspace shows it before the first scan. */
         public fun empty(root: Path): WorkspaceTree =
             WorkspaceTree(WorkspaceNode.Directory(root, root.fileName?.toString() ?: root.toString(), emptyList()))
     }
@@ -63,17 +64,17 @@ public data class WorkspaceTree(public val root: WorkspaceNode.Directory) {
 /** A node of a [WorkspaceTree]. Paths are absolute and normalized. */
 public sealed interface WorkspaceNode {
 
-    /** Absolute, normalized path. */
+    /** The absolute, normalized path. */
     public val path: Path
 
-    /** File or directory name (the last path segment). */
+    /** The file or directory name, which is the last path segment. */
     public val name: String
 
     /**
-     * A directory with its visible [children], sorted with [ORDER] (checked).
+     * A directory with its visible [children]. They must be sorted with [ORDER], and the constructor checks that.
      *
-     * @property isReadable false if the directory could not be listed (permissions): its files are unknown and
-     *   [children] is empty; the workspace reports it as an ERROR `unreadable`.
+     * @property isReadable false if the directory could not be listed, for example because of permissions. Then its
+     *   files are unknown and [children] is empty. The workspace reports it as an ERROR `unreadable`.
      */
     public data class Directory(
         override val path: Path,
@@ -98,7 +99,10 @@ public sealed interface WorkspaceNode {
     ) : WorkspaceNode
 
     public companion object {
-        /** Directories before files; then case-insensitive by name; then case-sensitive as tie-breaker. */
+        /**
+         * The display order. Directories come before files. Within each group the names are compared ignoring case, and
+         * names that are equal then are compared case-sensitively.
+         */
         public val ORDER: Comparator<WorkspaceNode> =
             compareBy<WorkspaceNode> { if (it is Directory) 0 else 1 }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }

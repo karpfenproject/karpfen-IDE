@@ -51,36 +51,38 @@ import java.nio.file.Path
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Composition root of the desktop application: explicit wiring in plain Kotlin, no dependency-injection framework.
+ * Composition root of the desktop application. The wiring is explicit plain Kotlin, without a dependency-injection
+ * framework.
  *
- * [prepare] does all wiring that needs no window — the `WorkbenchState` from [workbenchStateFactory] over [services], a
- * `CommandRegistry` for `WorkbenchServices.platform` (the one source of the platform) with the registered commands,
- * `start()` and the initial folder — so it runs headless in tests with fake or test services. [run] calls it and then
- * shows the Compose `application` with the main window (title from `WorkbenchState.windowTitle`, bounds from and to
- * `WorkbenchState.layout`, menu bar from [IdeMenus] and `IdeMenuBar`, close request through
- * `WorkbenchState.requestExit` launched in the application's scope, uncaught exceptions through [CrashHandling] into
- * `dialogs.ask(DialogRequest.Error(…))`).
+ * [prepare] does all the wiring that needs no window, so it runs headless in tests with fake or test services. It
+ * creates the `WorkbenchState` from [workbenchStateFactory] over [services]. It creates a `CommandRegistry` for
+ * `WorkbenchServices.platform`, which is the one source of the platform, and registers the commands in it. Then it
+ * calls `start()` and opens the initial folder. [run] calls [prepare] and then shows the Compose `application` with
+ * the main window. The window title comes from `WorkbenchState.windowTitle`. The window bounds are read from and
+ * written to `WorkbenchState.layout`. The menu bar comes from [IdeMenus] and `IdeMenuBar`. A close request goes
+ * through `WorkbenchState.requestExit`, launched in the application's scope. Uncaught exceptions go through
+ * [CrashHandling] into `dialogs.ask(DialogRequest.Error(…))`.
  *
- * The output of the language tools: the application owns one `RingOutputBuffer`, hands it to [services] as the
- * workbench's `OutputBuffer`, and, for the life of the prepared session, routes what dsl-tools logs into it as its
- * `OutputSink` through [languageToolsLog]. `logback.xml` keeps the same logging off the console.
+ * The application owns one `RingOutputBuffer` for the output of the language tools. It hands the buffer to [services]
+ * as the workbench's `OutputBuffer`. For the life of the prepared session, it routes what dsl-tools logs into that
+ * buffer, as its `OutputSink`, through [languageToolsLog]. `logback.xml` keeps the same logging off the console.
  *
- * The runtime: the default [services] get the one `RuntimeSessions()` of the process and the IDE's two runtime hosts,
- * `RuntimeHosts()`, the Docker container of each workspace and a runtime at a URL. When the window is closed and
+ * The default [services] get the one `RuntimeSessions()` of the process and the IDE's two runtime hosts from
+ * `RuntimeHosts()`: the Docker container of each workspace and a runtime at a URL. When the window is closed and
  * `WorkbenchState.requestExit` allows it, [IdeRunState] shuts the runtime down before the application exits.
  *
- * The app's `main` resolves the home directory before constructing this class:
- * `SettingsLocations.HOME_ENVIRONMENT_VARIABLE` (if set) is copied into the system property
- * `SettingsLocations.HOME_PROPERTY` before any logger exists, so the default [services] (`defaultWorkbenchServices`:
- * `SettingsLocations.defaultDirectory()`, `HostPlatform.current()`) and `logback.xml` see it. Settings directory and
- * platform are parameters of the services only.
+ * The app's `main` resolves the home directory before it constructs this class. If
+ * `SettingsLocations.HOME_ENVIRONMENT_VARIABLE` is set, its value is copied into the system property
+ * `SettingsLocations.HOME_PROPERTY` before any logger exists. So the default [services] and `logback.xml` see it. The
+ * default services come from `defaultWorkbenchServices`, which uses `SettingsLocations.defaultDirectory()` and
+ * `HostPlatform.current()`. The settings directory and the platform are parameters of the services only.
  *
- * @param exitAfterMs when set (`KARPFEN_IDE_EXIT_AFTER_MS`), the application exits with status 0 after that time.
- * @param services creates the workbench collaborators over the output of the language tools (called once, by
- *   [prepare]); tests pass test services.
- * @param workbenchStateFactory creates the workbench state; tests may pass a fake.
- * @param languageToolsLog routes what dsl-tools logs into the output of the language tools; by default through the
- *   application's logger context, tests may pass one of their own.
+ * @param exitAfterMs when set, from `KARPFEN_IDE_EXIT_AFTER_MS`, the application exits with status 0 after that time.
+ * @param services creates the workbench collaborators over the output of the language tools. [prepare] calls it once.
+ *   Tests pass test services.
+ * @param workbenchStateFactory creates the workbench state. Tests may pass a fake.
+ * @param languageToolsLog routes what dsl-tools logs into the output of the language tools. By default it goes
+ *   through the application's logger context. Tests may pass one of their own.
  */
 public class IdeApplication(
     private val exitAfterMs: Long? = null,
@@ -98,13 +100,16 @@ public class IdeApplication(
     private val languageToolsOutput = RingOutputBuffer()
 
     /**
-     * Wires the IDE without UI in [scope] (the UI scope): routes what dsl-tools logs into the output of the language
-     * tools, creates the services and the workbench state, registers the commands in a new
-     * `CommandRegistry(services.platform)`, starts the state and opens [initialFolder] if given (joining the
-     * `openFolder` job, so the session is ready when this returns — unless the flow asks the user first, e.g. "Cannot
-     * open folder" for a folder that vanished: only the window can show that dialog, so this returns while it is
-     * pending). The returned session ends the routing when it is closed. If anything fails (or the caller is
-     * cancelled), the state is closed, the routing ends and the failure propagates.
+     * Wires the IDE without UI in [scope], the UI scope. It routes what dsl-tools logs into the output of the language
+     * tools, creates the services and the workbench state, and registers the commands in a new
+     * `CommandRegistry(services.platform)`. Then it starts the state and opens [initialFolder] if one is given.
+     *
+     * Opening joins the `openFolder` job, so the session is ready when this returns. The one exception is a flow that
+     * first asks the user something, for example "Cannot open folder" for a folder that vanished. Only the window can
+     * show that dialog, so this returns while the question is pending.
+     *
+     * The returned session ends the routing when it is closed. If anything fails, or the caller is cancelled, the
+     * state is closed, the routing ends and the failure propagates.
      */
     public suspend fun prepare(scope: CoroutineScope, initialFolder: Path?): IdeSession {
         val languageToolsRoute = languageToolsLog.attach(languageToolsOutput)
@@ -116,7 +121,7 @@ public class IdeApplication(
         }
     }
 
-    /** The session of [prepare] over [languageToolsRoute]; closes the state if anything fails after it was created. */
+    /** The session of [prepare] over [languageToolsRoute]. Closes the state if anything fails after it was created. */
     private suspend fun prepareSession(scope: CoroutineScope, initialFolder: Path?, languageToolsRoute: AutoCloseable): IdeSession {
         val workbenchServices = services(languageToolsOutput)
         val state = workbenchStateFactory(scope, workbenchServices)
@@ -133,13 +138,15 @@ public class IdeApplication(
     }
 
     /**
-     * Starts the UI (blocking until the application exits); opens [initialFolder] if given.
+     * Starts the UI and blocks until the application exits. Opens [initialFolder] if one is given.
      *
-     * The application scope runs on the Swing event-dispatch thread; its failures, uncaught exceptions of every thread
-     * and failures inside the main window are logged and shown by [CrashHandling]. The session is closed when the
-     * application exits, on the event-dispatch thread, because its workbench state is used from the UI thread only.
+     * The application scope runs on the Swing event-dispatch thread. [CrashHandling] logs and shows the failures of
+     * that scope, the uncaught exceptions of every thread and the failures inside the main window. The session is
+     * closed on the event-dispatch thread when the application exits, because its workbench state is used from the UI
+     * thread only.
      *
-     * @throws IllegalStateException if the session could not be prepared (the cause is logged, the application ends).
+     * @throws IllegalStateException if the session could not be prepared. The cause is logged, and the application
+     *   ends.
      */
     @OptIn(ExperimentalComposeUiApi::class)
     public fun run(initialFolder: Path?) {
@@ -167,8 +174,8 @@ public class IdeApplication(
 }
 
 /**
- * Joins this intent's job, or returns once its flow waits for an answer to a dialog of [dialogs]: before the window
- * exists, nobody could answer it.
+ * Joins this intent's job, or returns as soon as its flow waits for the answer to a dialog of [dialogs]. Before the
+ * window exists, nobody could answer the dialog.
  */
 private suspend fun Job.joinUnlessAsking(dialogs: DialogState) {
     merge(flow { join(); emit(Unit) }, dialogs.current.filterNotNull().map { }).first()
@@ -177,6 +184,7 @@ private suspend fun Job.joinUnlessAsking(dialogs: DialogState) {
 /**
  * The wired IDE of one application run: the workbench [state] and the [commands] the menus are built from. Closing the
  * session closes its state and then [languageToolsRoute], the routing of what dsl-tools logs into the state's output.
+ * The routing is closed even when closing the state fails.
  */
 public class IdeSession(
     public val state: WorkbenchState,

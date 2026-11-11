@@ -21,16 +21,16 @@ import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.node.ModifierNodeElement
 
 /**
- * Calls [onLost] when this element or one of its children had keyboard focus and none has it any more (focus moved to
- * another component). Nothing happens before the element first gained focus.
+ * Calls [onLost] when this element or one of its children had keyboard focus and none of them has it any more, because
+ * focus moved to another component. Nothing happens before the element first gained focus.
  */
 internal fun Modifier.onFocusLost(onLost: () -> Unit): Modifier = this then FocusLossElement(onLost)
 
-/** The focus history that decides "lost": true once after a focused state is followed by an unfocused one. */
+/** The focus history that decides when focus was lost. That is the case once a focused state is followed by an unfocused one. */
 internal class FocusLossTracker {
     private var hadFocus = false
 
-    /** Records [hasFocus]; returns true if focus was just lost. */
+    /** Records [hasFocus] and returns true if focus was just lost. */
     fun update(hasFocus: Boolean): Boolean {
         val lost = hadFocus && !hasFocus
         hadFocus = hasFocus
@@ -38,7 +38,7 @@ internal class FocusLossTracker {
     }
 }
 
-/** The modifier element of [onFocusLost]; an update hands the new callback to the existing node. */
+/** The modifier element of [onFocusLost]. An update hands the new callback to the existing node. */
 private data class FocusLossElement(val onLost: () -> Unit) : ModifierNodeElement<FocusLossNode>() {
     override fun create(): FocusLossNode = FocusLossNode(onLost)
 
@@ -47,7 +47,7 @@ private data class FocusLossElement(val onLost: () -> Unit) : ModifierNodeElemen
     }
 }
 
-/** The node of [onFocusLost]: feeds every focus event into a [FocusLossTracker] and calls [onLost] on a loss. */
+/** The node of [onFocusLost]. It feeds every focus event into a [FocusLossTracker] and calls [onLost] when focus is lost. */
 private class FocusLossNode(var onLost: () -> Unit) : Modifier.Node(), FocusEventModifierNode {
     private val tracker = FocusLossTracker()
 

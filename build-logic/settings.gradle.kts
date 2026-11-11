@@ -13,6 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Takes the Gradle plugins and libraries from the Gradle Plugin Portal, Maven Central and Google Maven, and a project
+ * must not declare repositories of its own. build-logic shares the version catalog of the main build,
+ * `gradle/libs.versions.toml`, under the same name `libs`, so the plugin versions of the convention plugins and the
+ * library versions of the modules come from one file.
+ */
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {

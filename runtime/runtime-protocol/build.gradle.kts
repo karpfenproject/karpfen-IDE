@@ -16,10 +16,11 @@
 import io.karpfen.ide.buildlogic.GitSubmodules
 
 /**
- * The typed client of the karpfen runtime: its HTTP routes and its WebSocket as data, the runtime's JSON, the
- * environment lifecycle and the authenticated push channel. Its tests also run against a real runtime through the live
- * task of `karpfen.live-runtime-test`, and its test fixtures hold what every test against a runtime shares: the port of
- * the runtime's JSON writers, the synthesized models and the scenario types with their waiting helpers.
+ * This module is the typed client of the karpfen runtime. It models the runtime's HTTP routes and its WebSocket as
+ * data, reads and writes the runtime's JSON, and drives the environment lifecycle and the authenticated push channel.
+ * Its tests also run against a real runtime through the live test task of the `karpfen.live-runtime-test` plugin. Its
+ * test fixtures hold what every test against a runtime shares: a port of the runtime's JSON writers, the synthesized
+ * models, and the scenario types with their waiting helpers.
  */
 plugins {
     id("karpfen.live-runtime-test")
@@ -27,15 +28,19 @@ plugins {
 }
 
 /**
- * The module depends on no other module of the IDE, so the bridges that build on it stay free of the core. Coroutines
- * are `api`, because flows, state flows, channels and deferred values are part of the public API; Ktor is
- * `implementation` and confined to the adapter package `transport.ktor`, so no Ktor type appears in the API. The
- * runtime's JSON is read and quoted by the module itself (strict JSON plus the runtime's bare non-finite numbers, with
- * the field order kept), so neither kotlinx.serialization nor Ktor's content negotiation is needed. Tests use Ktor's
- * mock engine and virtual time. The test fixtures need JUnit for the annotation of the live tests and for the failures
- * of the waiting helpers; the JUnit artifacts have no version of their own in the catalog, so the fixtures declare the
- * BOM platform themselves. org.json, the runtime's own JSON library in the version the runtime pins, is used only by
- * the fixtures, so that they write and parse JSON exactly as the runtime does.
+ * The module depends on no other module of the IDE, so the bridges that build on it stay free of the core.
+ * Coroutines are an `api` dependency, because flows, state flows, channels and deferred values are part of the public
+ * API. Ktor is an `implementation` dependency and is confined to the adapter package `transport.ktor`, so no Ktor type
+ * appears in the API.
+ *
+ * The module reads and quotes the runtime's JSON itself. That JSON is strict JSON plus the runtime's bare non-finite
+ * numbers, and the reader keeps the order of the fields. So neither kotlinx.serialization nor Ktor's content
+ * negotiation is needed. Tests use Ktor's mock engine and virtual time.
+ *
+ * The test fixtures need JUnit for the annotation of the live tests and for the failures of the waiting helpers. The
+ * JUnit artifacts have no version of their own in the catalog, so the fixtures declare the BOM platform themselves.
+ * Only the fixtures use org.json, the runtime's own JSON library, in the version the runtime pins. That way the
+ * fixtures write and parse JSON exactly as the runtime does.
  */
 dependencies {
     api(libs.kotlinx.coroutines.core)
@@ -54,8 +59,9 @@ dependencies {
 }
 
 /**
- * The checkout of the karpfen-runtime submodule: the `.gitmodules` entry whose last segment is `karpfen-runtime`, read
- * with build-logic's `GitSubmodules`, the one reader of that file. Null when the repository has no such submodule.
+ * The checkout of the karpfen-runtime submodule. It is the `.gitmodules` entry whose path ends in the segment
+ * `karpfen-runtime`. The file is read with `GitSubmodules` from build-logic, which is the only reader of that file.
+ * The value is null when the repository has no such submodule.
  */
 val runtimeCheckout: File? =
     GitSubmodules.parse(providers.fileContents(layout.settingsDirectory.file(".gitmodules")).asText.orNull.orEmpty())
@@ -63,9 +69,10 @@ val runtimeCheckout: File? =
         ?.let { layout.settingsDirectory.dir(it).asFile }
 
 /**
- * The tests compare the client's catalogue with the runtime's own sources, so they get the absolute path of the
- * runtime checkout as the system property `karpfen.runtime.checkout`, and the runtime's server and engine sources are
- * inputs of the task by their relative paths: moving the submodule reruns the tests, wherever the repository lies.
+ * The tests compare the client's catalogue with the runtime's own sources. So they get the absolute path of the
+ * runtime checkout as the system property `karpfen.runtime.checkout`. The runtime's server and engine sources are
+ * inputs of the task, tracked by their relative paths. A change to those sources, or a move of the submodule, reruns
+ * the tests, wherever the repository lies.
  */
 tasks.test {
     runtimeCheckout?.let { checkout ->
@@ -79,8 +86,9 @@ tasks.test {
 
 /**
  * `RuntimeContainerScriptTest` runs `runtime/live-runtime.sh`, the script that starts a runtime in Docker for the live
- * tests, with Docker, git and curl replaced by shell functions, so the script reaches the tests as the system property
- * `karpfen.runtime.script` and is an input of the task by its relative path: changing it reruns the tests.
+ * tests. The test replaces Docker, git and curl with shell functions. The script reaches the test as the system
+ * property `karpfen.runtime.script`. It is an input of the task by its relative path, so a change to it reruns the
+ * tests.
  */
 tasks.test {
     val script = layout.settingsDirectory.file("runtime/live-runtime.sh")

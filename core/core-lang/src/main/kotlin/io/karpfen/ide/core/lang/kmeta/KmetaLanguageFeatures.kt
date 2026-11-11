@@ -26,7 +26,10 @@ import io.karpfen.ide.core.lang.feature.NavigationProvider
 import io.karpfen.ide.core.lang.navigation.ContextReferences
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
-/** The KMeta provider family (a concrete factory of [LanguageFeatures]); shared mechanics are injected. Wiring only. */
+/**
+ * The KMeta provider family, a concrete factory of [LanguageFeatures]. The shared mechanics are injected. The class
+ * only wires the providers together.
+ */
 internal class KmetaLanguageFeatures(
     caretContexts: CaretContextDetector,
     types: TypeCatalog,

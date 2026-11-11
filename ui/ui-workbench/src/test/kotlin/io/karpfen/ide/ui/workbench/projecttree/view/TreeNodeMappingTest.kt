@@ -40,7 +40,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** The `TreeView` node mappings of the Project, Outline and Problems views. */
+/** Tests the `TreeView` node mappings of the Project, Outline and Problems views. */
 class TreeNodeMappingTest {
 
     private val root: Path = Path.of("/ws").toAbsolutePath()

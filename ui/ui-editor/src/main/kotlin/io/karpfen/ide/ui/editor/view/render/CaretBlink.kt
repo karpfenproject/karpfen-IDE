@@ -22,13 +22,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
 
-/** Milliseconds per blink phase of the caret. */
+/** The length of one blink phase of the caret, in milliseconds. */
 internal const val CARET_BLINK_MILLIS: Long = 530
 
 /**
- * Whether the caret is drawn now (a blinking caret, solid while typing): visible and blinking every
- * [CARET_BLINK_MILLIS] while [focused]; every change of [activity] (the carets, the text version) restarts the cycle in
- * the visible phase, so the caret stays solid while the user types or moves it. Only the draw phase reads the state.
+ * Whether the caret is drawn now. The caret blinks, but stays solid while the user types. While [focused] is true, it
+ * toggles every [CARET_BLINK_MILLIS]. Without focus the state stays true. Every change of [activity], such as the
+ * carets or the text version, starts the cycle again in the visible phase. So the caret stays solid while the user
+ * types or moves it. Only the draw phase reads the state.
  */
 @Composable
 internal fun rememberCaretVisible(focused: Boolean, activity: Any?): State<Boolean> {

@@ -19,18 +19,18 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import java.nio.file.Path
 
-/** A command of the project tree's context menu; the view hands it to `WorkbenchState.runTreeCommand`. */
+/** A command of the project tree's context menu. The view hands it to `WorkbenchState.runTreeCommand`. */
 public sealed interface ProjectTreeCommand {
-    /** New [kind] file in [directory] (`WorkbenchState.createFile`). */
+    /** Create a new [kind] file in [directory], through `WorkbenchState.createFile`. */
     public data class NewFile(public val directory: Path, public val kind: FileTemplateKind) : ProjectTreeCommand
 
-    /** Rename [path] (`WorkbenchState.rename`). */
+    /** Rename [path], through `WorkbenchState.rename`. */
     public data class Rename(public val path: Path) : ProjectTreeCommand
 
-    /** Delete [path] (`WorkbenchState.delete`). */
+    /** Delete [path], through `WorkbenchState.delete`. */
     public data class Delete(public val path: Path) : ProjectTreeCommand
 
-    /** Show [path] in Finder/Explorer (`WorkbenchState.revealInFileManager`). */
+    /** Show [path] in Finder or Explorer, through `WorkbenchState.revealInFileManager`. */
     public data class RevealInFileManager(public val path: Path) : ProjectTreeCommand
 }
 
@@ -48,11 +48,14 @@ public data class ProjectTreeMenuEntry(
 )
 
 /**
- * The project tree's context menu: New KMeta/KModel/KStates/Environment file (in the node's directory, or the file's
- * parent directory), Rename…, Delete… (both disabled for the workspace root) and Reveal in Finder / Show in Explorer /
- * Show in File Manager (by [platform]; disabled unless [canRevealInFileManager] answers true — asked when a menu is
- * built, so creating the menu never touches a platform toolkit). Compose-free, so the menu is decided here and the view
- * only renders it.
+ * The context menu of the project tree. It does not depend on Compose, so the menu is decided here and the view only
+ * renders it.
+ *
+ * The menu offers a New entry for each file template, such as KMeta, KModel, KStates and Environment. The new file goes
+ * into the node's directory, or into the parent directory of a file node. Rename… and Delete… follow. Both are
+ * disabled for the workspace root. The last entry shows the node in the file manager. Its label depends on [platform]:
+ * Reveal in Finder, Show in Explorer or Show in File Manager. It is disabled unless [canRevealInFileManager] returns
+ * true. That function is asked each time a menu is built, so creating the menu never touches a platform toolkit.
  */
 public class ProjectTreeMenu(
     private val platform: HostPlatform = HostPlatform.current(),
@@ -67,7 +70,10 @@ public class ProjectTreeMenu(
             HostPlatform.LINUX -> "Show in File Manager"
         }
 
-    /** The entries for the node [path] ([isDirectory]: a directory; [isRoot]: the workspace root). */
+    /**
+     * The entries for the node [path]. [isDirectory] is true if the node is a directory, and [isRoot] is true if it is
+     * the workspace root.
+     */
     public fun entries(path: Path, isDirectory: Boolean, isRoot: Boolean): List<ProjectTreeMenuEntry> {
         val directory = if (isDirectory) path else path.parent ?: path
         return FileTemplateKind.entries.map { kind ->

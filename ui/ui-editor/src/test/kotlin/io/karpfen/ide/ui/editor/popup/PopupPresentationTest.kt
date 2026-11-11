@@ -29,11 +29,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Pure presentation rules of the popups: kind badges, label emphasis, list measures, row reveal, hints, icons, focus. */
+/** The pure presentation rules of the popups: kind badges, label emphasis, list measures, row reveal, hints, icons and focus. */
 class PopupPresentationTest {
 
+    /** The emphasis of matched label characters. */
     private val bold = SpanStyle(fontWeight = FontWeight.Bold)
 
+    /** A keyword item for [label] with an optional [detail]. */
     private fun item(label: String, detail: String? = null) =
         CompletionItem(label, CompletionKind.KEYWORD, label, TextRange(0, 0), null, detail, null, label)
 

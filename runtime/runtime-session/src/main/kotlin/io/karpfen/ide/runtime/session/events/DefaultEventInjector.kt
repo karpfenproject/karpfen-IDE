@@ -24,12 +24,13 @@ import kotlinx.coroutines.flow.StateFlow
 import org.slf4j.LoggerFactory
 
 /**
- * The [EventInjector] of a session: checks requests with the event-level rules and the payload format of the request's
- * kind, then sends them through the [sink].
+ * The [EventInjector] of a session. It checks requests with the event-level rules and with the payload format of the
+ * request's kind. Then it sends them through the [sink].
  *
- * An event the catalog does not list (a name typed by hand) is checked like a listed one: its payload type resolves by
- * name in the event metamodel, taking a listed event of the same name as the model; without one the type counts as an
- * events-file type, because the catalog keeps no other record of which types the events file declares.
+ * An event that the catalog does not list, such as a name typed by hand, is checked like a listed one. Its payload type
+ * resolves by name in the event metamodel. A listed event of the same name in another domain serves as the model for
+ * it. Without such an event, the type counts as a type of the events file. The reason is that the catalog keeps no
+ * other record of which types the events file declares.
  *
  * @param catalog the events of the deployment.
  * @param attachedKeys the keys the deployment attaches machines to.

@@ -23,10 +23,11 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.websocket.WebSockets
 
 /**
- * The production transports to the runtime at [endpoint]: the HTTP and the WebSocket seam over one Ktor client with the
- * CIO engine, the `HttpTimeout` plugin (the connect timeout and the request backstop of [options]) and the `WebSockets`
- * plugin (the client's ping interval of [options]). Closing the transports closes the Ktor client. Creating them opens
- * no connection.
+ * Creates the production transports to the runtime at [endpoint]. The HTTP seam and the WebSocket seam share one Ktor
+ * client with the CIO engine. The client has the `HttpTimeout` plugin with the connect timeout and the request backstop
+ * of [options], and the `WebSockets` plugin with the ping interval of [options]. It treats no status as an error, so
+ * every answer reaches the gateway as an answer. Closing the transports closes the Ktor client. Creating them opens no
+ * connection.
  */
 public fun ktorTransports(endpoint: RuntimeEndpoint, options: KtorTransportOptions = KtorTransportOptions()): RuntimeTransports {
     val client = HttpClient(CIO) {

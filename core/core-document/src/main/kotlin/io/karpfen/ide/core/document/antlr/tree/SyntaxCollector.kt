@@ -30,16 +30,16 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Accumulates what the tree walkers of one analysis extract: declarations and references for the
- * [SyntaxIndex] and semantic spans, and assembles the [SyntaxAnalysis]. Names come as [QuotedString]s; a name that is
- * missing in broken text (null) never yields a reference or a span, and a declaration without a name gets the empty
+ * Accumulates what the tree walkers of one analysis extract and assembles the [SyntaxAnalysis]. It collects
+ * declarations and references for the [SyntaxIndex], and semantic spans. Names come as [QuotedString]s. A name that is
+ * missing in broken text is null and never yields a reference or a span. A declaration without a name gets the empty
  * name at the start of its construct, so the structure around it survives while the user types.
  *
- * Embedded code has one owner, the lexical EVAL scanner the tokenizer uses too: whatever a walker reports inside a
- * region for which [isEmbedded] answers true (what error recovery made of Python text) is dropped, and only
- * [embeddedReference]s are recorded there. Not thread-safe; one instance per analysis.
+ * Embedded code has one owner, the lexical EVAL scanner that the tokenizer uses too. Whatever a walker reports inside a
+ * region for which [isEmbedded] answers true is dropped, because it is what error recovery made of Python text. Only
+ * [embeddedReference]s are recorded there. The class is not thread-safe. Use one instance per analysis.
  *
- * @param isEmbedded true for a range that lies inside embedded code (an EVAL body).
+ * @param isEmbedded true for a range that lies inside embedded code, which is an EVAL body.
  */
 internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = { false }) {
 
@@ -48,8 +48,9 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
     private val spans = ArrayList<SemanticSpan>()
 
     /**
-     * Declares a symbol named by the string literal [name] whose whole construct is [construct]; the declaration's
-     * range covers the name as well (clamping for conjured tokens). [span] is the semantic kind of the name, if any.
+     * Declares a symbol named by the string literal [name] whose whole construct is [construct]. The range of the
+     * declaration covers the name as well, which clamps it for conjured tokens. [span] is the semantic kind of the
+     * name, if any.
      */
     fun declare(
         kind: SymbolKind,
@@ -63,7 +64,7 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
         declare(kind, name?.value.orEmpty(), name?.inner ?: TextRange.empty(construct.start), construct, container, typeName)
     }
 
-    /** Declares a symbol whose name is not a string literal (e.g. the `STATEMACHINE` keyword). */
+    /** Declares a symbol whose name is not a string literal, such as the `STATEMACHINE` keyword. */
     fun declare(
         kind: SymbolKind,
         name: String,
@@ -76,20 +77,20 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
         declarations += SymbolDeclaration(kind, name, nameRange, construct.union(nameRange), container, typeName)
     }
 
-    /** Records a reference to the name inside [name] (nothing for a missing name). */
+    /** Records a reference to the name inside [name]. A missing name records nothing. */
     fun reference(kind: ReferenceKind, name: QuotedString?, qualifier: String? = null, span: SemanticKind? = null) {
         if (name != null) reference(kind, name.value, name.inner, qualifier, span)
     }
 
-    /** Records a reference named [name] at [range] (e.g. a model path spelled without blanks). */
+    /** Records a reference named [name] at [range], such as a model path spelled without blanks. */
     fun reference(kind: ReferenceKind, name: String, range: TextRange, qualifier: String? = null, span: SemanticKind? = null) {
         if (!isEmbedded(range)) record(SymbolReference(kind, name, range, qualifier), span)
     }
 
     /**
-     * Records a reference to the type named inside [name]: [ReferenceKind.PRIMITIVE_TYPE] with a
-     * [SemanticKind.PRIMITIVE_TYPE] span for `number`, `string` and `boolean`, else [ReferenceKind.TYPE] with a
-     * [SemanticKind.TYPE_NAME] span. Nothing for a missing name.
+     * Records a reference to the type named inside [name]. For `number`, `string` and `boolean` it is a
+     * [ReferenceKind.PRIMITIVE_TYPE] with a [SemanticKind.PRIMITIVE_TYPE] span. Otherwise it is a [ReferenceKind.TYPE]
+     * with a [SemanticKind.TYPE_NAME] span. A missing name records nothing.
      */
     fun typeReference(name: QuotedString?) {
         val value = name?.value ?: return
@@ -100,12 +101,15 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
         }
     }
 
-    /** Records a reference found by the embedded-code scanner (a piece of an EVAL body), with an optional [span]. */
+    /** Records a reference that the embedded-code scanner found in a piece of an EVAL body, with an optional [span]. */
     fun embeddedReference(kind: ReferenceKind, name: String, range: TextRange, span: SemanticKind? = null) {
         record(SymbolReference(kind, name, range, qualifier = null), span)
     }
 
-    /** Records a semantic span; ignored for a missing or empty [range], a null [kind] and inside embedded code. */
+    /**
+     * Records a semantic span. It is ignored for a missing or empty [range], for a null [kind] and inside embedded
+     * code.
+     */
     fun span(range: TextRange?, kind: SemanticKind?) {
         if (range != null && kind != null && !range.isEmpty && !isEmbedded(range)) spans += SemanticSpan(range, kind)
     }
@@ -113,7 +117,10 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
     /** The index of everything declared and referenced so far. */
     fun index(): SyntaxIndex = SyntaxIndex(declarations.toList(), references.toList())
 
-    /** The spans so far, sorted by start; a span overlapping an earlier one is dropped (they never overlap by grammar). */
+    /**
+     * The spans so far, sorted by start. A span that overlaps an earlier one is dropped. By grammar, spans never
+     * overlap, so this is only a guard.
+     */
     fun spans(): List<SemanticSpan> {
         val sorted = spans.sortedWith(compareBy<SemanticSpan> { it.range.start }.thenBy { it.range.end })
         val result = ArrayList<SemanticSpan>(sorted.size)
@@ -123,7 +130,10 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
         return result
     }
 
-    /** Assembles the analysis: [folding] sorted by start (then end), spans and index from this collector. */
+    /**
+     * Assembles the analysis. [folding] is deduplicated and sorted by start and then by end. Spans and index come from
+     * this collector.
+     */
     fun toAnalysis(diagnostics: List<Diagnostic>, outline: List<OutlineNode>, folding: List<FoldingRange>): SyntaxAnalysis =
         SyntaxAnalysis(
             syntaxDiagnostics = diagnostics.sortedWith(Diagnostic.ORDER),
@@ -133,7 +143,7 @@ internal class SyntaxCollector(private val isEmbedded: (TextRange) -> Boolean = 
             semanticSpans = spans(),
         )
 
-    /** Adds [reference] and, for a non-empty range, its semantic [span]. */
+    /** Adds [reference] and, if its range is not empty, its semantic [span]. */
     private fun record(reference: SymbolReference, span: SemanticKind?) {
         references += reference
         if (span != null && !reference.range.isEmpty) spans += SemanticSpan(reference.range, span)

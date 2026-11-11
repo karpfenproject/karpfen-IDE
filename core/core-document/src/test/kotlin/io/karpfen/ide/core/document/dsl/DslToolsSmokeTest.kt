@@ -20,7 +20,7 @@ import io.karpfen.dsl.reader.kmeta.KmetaReader
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Proves that karpfen-dsl-tools resolves (composite build or artifact) and reads KMeta. */
+/** Proves that karpfen-dsl-tools resolves, as a composite build or as an artifact, and reads KMeta. */
 class DslToolsSmokeTest {
 
     /** By the KMeta convention the last type of a metamodel is its root. */

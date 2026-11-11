@@ -45,23 +45,30 @@ import kotlin.test.assertTrue
 import kotlin.time.TestTimeSource
 
 /**
- * The workbench exactly as the application wires it — `defaultWorkbenchServices(…)`, whose time-, file-system- and
- * toolkit-dependent parameters are its test seams — with the built-in languages, real workspaces, the default language
- * services, real editors sharing the (headless, in-memory) system clipboard, the macOS keymap and the built-in
- * templates — but with test values for everything time-, thread-, file-system- and toolkit-dependent: one test
- * dispatcher on [scheduler] for the mediator, the workspace, the sessions, the editors' background work and the
- * workbench's I/O; a [TestTimeSource] for undo coalescing; a [FakeFileWatcher]; a fixed clock; recording file
- * operations and a fake folder chooser; settings in [settingsDirectory].
+ * The workbench exactly as the application wires it through `defaultWorkbenchServices(…)`. The parameters of that
+ * function that depend on time, the file system or the UI toolkit are its test seams. The wiring brings the built-in
+ * languages, real workspaces, the default language services, real editors that share the system clipboard, the macOS
+ * keymap and the built-in templates. The clipboard is the in-memory fallback, because the test JVM is headless.
+ *
+ * Everything that depends on time, threads, the file system or the toolkit gets a test value instead:
+ *
+ * - One test dispatcher on [scheduler] runs the mediator, the workspace, the sessions, the editors' background work
+ *   and the workbench's I/O.
+ * - A [TestTimeSource] drives undo coalescing.
+ * - A [FakeFileWatcher] delivers file events.
+ * - A fixed clock dates the settings backups.
+ * - Recording file operations and a fake folder chooser replace the desktop adapters.
+ * - The settings live in [settingsDirectory].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProductionWorkbench(val scheduler: TestCoroutineScheduler, settingsDirectory: Path) : AutoCloseable {
-    /** The one test dispatcher on [scheduler] that runs all of the workbench's work. */
+    /** The single test dispatcher on [scheduler] that runs all of the workbench's work. */
     val dispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler)
 
     /** The scope of the workbench state. */
     val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
 
-    /** The file watcher; tests deliver external changes through it. */
+    /** The file watcher. Tests deliver changes made on disk through it. */
     val watcher = FakeFileWatcher()
 
     /** Records the desktop file operations instead of running them. */
@@ -73,7 +80,7 @@ class ProductionWorkbench(val scheduler: TestCoroutineScheduler, settingsDirecto
     /** The time source of the documents' undo coalescing. */
     val time = TestTimeSource()
 
-    /** The output of the language tools; tests append to it as the application's logging would. */
+    /** The output of the language tools. Tests append to it as the application's logging would. */
     val languageToolsOutput = RingOutputBuffer()
 
     /** The production wiring with the test values above. */
@@ -98,10 +105,10 @@ class ProductionWorkbench(val scheduler: TestCoroutineScheduler, settingsDirecto
     /** The workbench state under test. */
     val state: WorkbenchState = WorkbenchState(scope, services)
 
-    /** The current workspace (fails without one). */
+    /** The current workspace. Fails if no folder is open. */
     val workspace: Workspace get() = assertNotNull(state.workspace.value, "no folder is open")
 
-    /** Runs everything due on the virtual clock: debounced parses, file events and analyses included. */
+    /** Runs everything due on the virtual clock, including debounced parses, file events and analyses. */
     fun settle() = scheduler.advanceUntilIdle()
 
     /** Starts the state, opens [root] and settles, including the first analysis. */
@@ -121,7 +128,7 @@ class ProductionWorkbench(val scheduler: TestCoroutineScheduler, settingsDirecto
     /** The open document of [path]. */
     fun document(path: Path): OpenDocument = assertNotNull(workspace.documents.get(normalized(path)), "$path is not open")
 
-    /** Settles and asserts the job completed (no dialog is waiting). */
+    /** Settles and asserts that the job completed, which means that no dialog is waiting. */
     fun Job.joinSettled() {
         settle()
         assertTrue(isCompleted, "the intent did not complete (waiting for a dialog: ${state.dialogs.current.value})")

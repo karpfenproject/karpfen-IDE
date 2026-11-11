@@ -25,14 +25,16 @@ import io.karpfen.ide.core.lang.feature.HoverProvider
 import io.karpfen.ide.core.workspace.environment.NamedFile
 
 /**
- * Hover in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]:
- * - on a key: what its value is, whether it is required, and the key's documentation; on an unknown key, the keys known
- *   there;
- * - on a file path: the file's role and the file it resolves to, and whether the workspace has no such file or one
- *   of another language, by the rule the workspace checks the descriptor with ([DescriptorProject.lookUp]);
- * - on an `attachedTo` value: the object and its type (`object turtle: Robot`), or that the model has no such object;
- * - on an event domain: the domain;
- * - on any other value: the documentation of its key.
+ * Hover in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]. It shows the following.
+ * - On a key, what its value is, whether it is required, and the documentation of the key. On an unknown key it lists
+ *   the keys known there.
+ * - On a file path, the role of the file and the file it resolves to. It also says when the workspace has no such file
+ *   or has one in another language. This follows the rule the workspace checks the descriptor with, through
+ *   [DescriptorProject.lookUp].
+ * - On an `attachedTo` value, the object and its type, such as `object turtle: Robot`, or that the model has no such
+ *   object.
+ * - On an event domain, the domain.
+ * - On any other value, the documentation of its key.
  *
  * The hover covers the key or the string content without quotes, or the whole number or literal.
  */
@@ -93,7 +95,7 @@ internal class EnvironmentHoverProvider(
         return "object $key: ${modelObject.typeName.orEmpty()}"
     }
 
-    /** The documentation of [key]: what its value is, whether it is required, and what it means. */
+    /** The documentation of [key]. It says what its value is, whether it is required, and what it means. */
     private fun documentationOf(key: DescriptorKey): String {
         val required = if (key.isRequired) "required" else "optional"
         return "${key.name}: ${key.shape.description}, $required\n${key.documentation}"

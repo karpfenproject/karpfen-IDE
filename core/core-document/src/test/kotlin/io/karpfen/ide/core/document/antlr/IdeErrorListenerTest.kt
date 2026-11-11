@@ -64,7 +64,7 @@ class IdeErrorListenerTest {
         assertEquals(TextRange.empty(unclosed.length), atEnd.last().range, "<EOF> is an empty range at the end")
     }
 
-    /** The KStates lexer never reports errors; it keeps whitespace and comments on the hidden channel. */
+    /** The KStates lexer never reports errors. It keeps whitespace and comments on the hidden channel. */
     @Test
     fun `examples lex without errors and the KStates lexer never reports any`() {
         Examples.files().forEach { file ->

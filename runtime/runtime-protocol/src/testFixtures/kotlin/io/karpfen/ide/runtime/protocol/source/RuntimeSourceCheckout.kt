@@ -20,9 +20,10 @@ import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
- * The checkout of the karpfen-runtime submodule whose sources the anchor tests read: the runtime with IDE support that
- * the client is written against. runtime-protocol's `test` task hands its absolute path to the tests as the system
- * property [PROPERTY] and declares the server and engine sources as inputs, so moving the submodule reruns the tests.
+ * The checkout of the karpfen-runtime submodule whose sources the anchor tests read. It holds the runtime with IDE
+ * support that the client is written against. The `test` task of runtime-protocol hands its absolute path to the tests
+ * as the system property [PROPERTY]. The task also declares the server and engine sources as inputs, so moving the
+ * submodule reruns the tests.
  *
  * @property root the runtime's directory, the one with `src/` and `execution-engine/`.
  */
@@ -61,8 +62,9 @@ public class RuntimeSourceCheckout(public val root: Path) {
         /**
          * The checkout named by the system property [PROPERTY].
          *
-         * @throws IllegalStateException with a message naming the karpfen-runtime submodule if the property is missing or
-         *   names a directory without the runtime's server sources, such as a submodule that is not checked out.
+         * @throws IllegalStateException with a message naming the karpfen-runtime submodule if the property is
+         *   missing or names a directory without the runtime's server sources, such as a submodule that is not checked
+         *   out.
          */
         public fun fromSystemProperty(): RuntimeSourceCheckout {
             val path = System.getProperty(PROPERTY)

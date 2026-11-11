@@ -24,19 +24,20 @@ import io.karpfen.ide.core.document.parse.SyntaxAnalyzer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Parses KStates with the generated dsl-tools [KstatesParser] (default error recovery) on a `CommonTokenStream` of
- * `KarpfenLexers.create`, with one `IdeErrorListener` attached to lexer and parser, and walks the tree into outline,
- * index, folding and semantic spans. Tolerates conjured "missing" tokens (negative indices) and error
- * nodes; token offsets are converted with `CodePointOffsets`.
+ * Parses KStates with the generated dsl-tools [KstatesParser] and its default error recovery. The parser reads a
+ * `CommonTokenStream` of `KarpfenLexers.create`, and one `IdeErrorListener` is attached to both lexer and parser. The
+ * analyzer then walks the tree into outline, index, folding and semantic spans. It tolerates the "missing" tokens that
+ * ANTLR conjures, which have negative indices, and error nodes. Token offsets are converted with `CodePointOffsets`.
  *
- * Embedded Python is taken from the shared lexical scanner, not from the tree, so references agree with the tokenizer
- * on broken text too: `EvalBodies.find`/`scan` over the stream's tokens (every channel) yield MODEL_PATH references for
- * PATH_REFERENCE pieces (name = `EmbeddedPiece.name`, range = `EmbeddedPiece.inner`), MACRO references for
- * MACRO_REFERENCE pieces and EMBEDDED_CODE folding for multi-line bodies. COMMENT folding uses the hidden
- * `LINE_COMMENT` tokens.
+ * Embedded Python is taken from the shared lexical scanner and not from the tree, so references agree with the
+ * tokenizer on broken text too. `EvalBodies.find` and `EvalBodies.scan` run over the tokens of every channel in the
+ * stream. PATH_REFERENCE pieces yield MODEL_PATH references, named by `EmbeddedPiece.name` at the range
+ * `EmbeddedPiece.inner`. MACRO_REFERENCE pieces yield MACRO references, and multi-line bodies yield EMBEDDED_CODE
+ * folding. COMMENT folding uses the hidden `LINE_COMMENT` tokens.
  *
- * Collaborators: [TreeParser] (parse), [KstatesTreeWalker] (outline, index, spans), [EmbeddedCode] (EVAL bodies),
- * [BlockFolding] (braces outside EVAL bodies) and [CommentFolding]. Stateless and thread-safe.
+ * [TreeParser] parses, and [KstatesTreeWalker] builds outline, index and spans. [EmbeddedCode] handles the EVAL bodies,
+ * [BlockFolding] folds the braces outside EVAL bodies, and [CommentFolding] folds comments. The class holds no state
+ * and is thread-safe.
  */
 internal class KstatesSyntaxAnalyzer : SyntaxAnalyzer {
     override val language: KarpfenLanguage = KarpfenLanguage.KSTATES

@@ -99,7 +99,7 @@ class ContextSymbolsTest {
             statements.lines().joinToString("") { "                $it\n" } +
             "            }\n        }\n    }\n}\n"
 
-    /** An analysis that knows [files] (path and text) as loose files, parsed syntax-only. */
+    /** An analysis that knows [files], given as path and text, as loose files parsed syntax-only. */
     private fun analysisOf(vararg files: Pair<Path, String>): ProjectAnalysis {
         val registry = defaultLanguageRegistry()
         val loose = files.associate { (path, text) ->

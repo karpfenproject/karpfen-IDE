@@ -28,16 +28,16 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
- * One WebSocket the client opened to the [FakeRuntime]. The test plays the runtime's side: it sends frames with [push],
- * closes the link with [closeByRuntime] or drops it without a close frame with [drop]. The link records what the
- * client sent: the first text is the handshake, the texts after it are the client's frames.
+ * One WebSocket that the client opened to the [FakeRuntime]. The test plays the runtime's side. It sends frames with
+ * [push], closes the link with [closeByRuntime], or drops it without a close frame with [drop]. The link records what
+ * the client sent. The first text is the handshake, and the texts after it are the client's frames.
  *
- * The link answers the handshake only if the test programmed a close for it ([FakeRuntime.closeHandshake]): it then
- * closes itself with that code and reason as soon as the handshake arrived, as the runtime refuses a handshake. Any
- * other handshake is accepted silently, as the runtime accepts one. Nothing else happens by itself: the link never
- * answers, checks or forwards a frame of the client.
+ * The link answers the handshake only if the test programmed a close for it with [FakeRuntime.closeHandshake]. The link
+ * then closes itself with that code and reason as soon as the handshake arrived, the way the runtime refuses a
+ * handshake. Any other handshake is accepted silently, the way the runtime accepts one. Nothing else happens by itself.
+ * The link never answers, checks or forwards a frame of the client.
  *
- * Threading: every function may be called from any thread; [incoming] has one collector.
+ * Every function may be called from any thread. [incoming] has one collector.
  *
  * @property url the URL the client connected to.
  * @param handshakeClose the close that answers the handshake, or null to accept it silently.
@@ -69,7 +69,7 @@ public class FakeWebSocketLink internal constructor(
 
     override val closure: Deferred<LinkClosure> get() = closed
 
-    /** The handshake: the first text the client sent, or null before it did. */
+    /** The handshake, which is the first text the client sent, or null before it sent one. */
     public val handshake: String? get() = synchronized(lock) { firstText }
 
     /** The texts the client sent after the handshake, in order. */
@@ -85,21 +85,24 @@ public class FakeWebSocketLink internal constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     public val drained: Boolean get() = inbox.isEmpty
 
-    /** True if the handshake names the client [clientId]: it starts with the id and the handshake separator. */
+    /** True if the handshake names the client [clientId], which means it starts with the id and the separator. */
     public fun belongsTo(clientId: String): Boolean = handshake?.startsWith(clientId + WireNames.HANDSHAKE_SEPARATOR) == true
 
-    /** The runtime sends the text frame [frame]; false if the link is closed and the frame went nowhere. */
+    /** Sends the text frame [frame] as the runtime. Returns false if the link is closed and the frame went nowhere. */
     public fun push(frame: String): Boolean = deliver(LinkFrame.Text(frame))
 
-    /** The runtime sends a binary frame of [size] bytes; false if the link is closed. */
+    /** Sends a binary frame of [size] bytes as the runtime. Returns false if the link is closed. */
     public fun pushBinary(size: Int): Boolean = deliver(LinkFrame.Binary(size))
 
-    /** The runtime closes the link with the close frame [code] and [reason]; nothing if it is closed already. */
+    /** Closes the link as the runtime, with the close frame [code] and [reason]. Does nothing if already closed. */
     public fun closeByRuntime(code: Int, reason: String) {
         end(LinkClosure(code, reason, byClient = false))
     }
 
-    /** The connection breaks without a close frame, as a dropped network or a half-open socket ends; nothing if closed. */
+    /**
+     * Breaks the connection without a close frame, the way a dropped network or a half-open socket ends. Does nothing
+     * if the link is closed already.
+     */
     public fun drop() {
         end(LinkClosure(code = null, reason = null, byClient = false))
     }

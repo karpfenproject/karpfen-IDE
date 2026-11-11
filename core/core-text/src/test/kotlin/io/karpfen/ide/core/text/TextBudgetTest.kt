@@ -27,11 +27,12 @@ import kotlin.time.TestTimeSource
 import kotlin.time.TimeSource
 
 /**
- * Performance budgets of core-text on a 5,000-line document, the size the tokenize and parse budgets of core-document
- * use: each is asserted with 5x slack and the measured value is reported through [TestReporter].
+ * Performance budgets of core-text on a 5,000-line document, the size that the tokenize and parse budgets of
+ * core-document use. Each budget is asserted with 5x slack, and the measured value is reported through
+ * [TestReporter].
  *
- * Tagged `budget`, which the build excludes from every test run: wall-clock time depends on machine load, garbage
- * collection and sleep cycles, so such assertions fail without a code change. The tests stay as executable
+ * The class is tagged `budget`, which the build excludes from every test run. Wall-clock time depends on machine load,
+ * garbage collection and sleep cycles, so such assertions fail without a code change. The tests stay as executable
  * documentation for later performance work.
  */
 @Tag("budget")
@@ -81,7 +82,7 @@ class TextBudgetTest {
         check(reporter, "mapRange across 1000 versions", range, 400.microseconds)
     }
 
-    /** One version as made by Select All + Tab: one action inserting an indent at the start of every line. */
+    /** One version as made by Select All and Tab, which is one action that inserts an indent at every line start. */
     @Test
     fun `mapping ranges across one version made of 10000 edits`(reporter: TestReporter) {
         val lines = 2 * LINES

@@ -33,9 +33,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Covers the checks of KModel payloads as the runtime's single-object parser reads them: syntax and reader errors, a
- * snippet without an object or with several, an object of another type than the event, the event metamodel read once
- * from the uploaded texts, the template and the encoding.
+ * Covers the checks of KModel payloads as the runtime's single-object parser reads them. It checks syntax and reader
+ * errors, a snippet without an object or with several, and an object of another type than the event. It also checks
+ * that the event metamodel is read once from the uploaded texts, the template and the encoding.
  */
 class KmodelPayloadFormatTest {
 

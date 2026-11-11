@@ -37,7 +37,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
-/** [EditorTabsState]: order, activation, removal, moves and the documents' dirty and conflict flags. */
+/**
+ * Tests [EditorTabsState]. It covers the order, activation, removal and moves of tabs, and the dirty and conflict
+ * flags of the documents.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditorTabsStateTest {
 
@@ -51,7 +54,7 @@ class EditorTabsStateTest {
         val documents = LinkedHashMap<String, FakeOpenDocument>()
         val editors = LinkedHashMap<String, ClosingSpyEditor>()
 
-        /** Opens a tab for an empty document [name] below [root], at [index] if given. */
+        /** Opens a tab for an empty document [name] below [root]. The tab goes to [index] if one is given. */
         fun open(name: String, index: Int? = null): FakeOpenDocument {
             val document = FakeOpenDocument(root.resolve(name), "", scope, dispatcher)
             val editor = editorOf(document, scope, dispatcher)

@@ -44,24 +44,29 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * The conductor of a session, a mediator between the session's callers, its deployment, its environment and its
- * router: it takes the commands and the reports of the deployment, the environment's handle, the router and its own
- * stop from one unbounded inbox, one at a time, in arrival order, and answers commands through their replies. It is the
- * single writer of the session's state, progress and problems.
+ * The conductor of a session. It mediates between the session's callers, its deployment, its environment and its
+ * router. It takes messages from one unbounded inbox, one at a time, in arrival order. The messages are the commands,
+ * and the reports of the deployment, the environment's handle, the router and the conductor's own stop. It answers
+ * commands through their replies. It is the single writer of the session's state, progress and problems.
  *
- * - **Deployment.** [SessionDeployment] runs it on a coroutine of its own and reports here, so commands are answered
- *   while it runs (refused, except shutting down, which waits for its end).
- * - **State.** Once the deployment ended, the state follows the environment's phase ([PhaseStates]) until the session
- *   is stopped, failed or closed; the conductor follows the handle's phase and settles the state after every command at
- *   once.
- * - **Commands** ([CommandRules]) are carried out one by one through [SessionCalls]; only the stop runs on its own, in
- *   [EnvironmentStopper], so that the session shows [SessionState.Stopping] and refuses commands meanwhile.
- * - **Connection endings** after the deployment ([ConnectionEndings]): a refused handshake fails the session and stops
- *   the environment; a stop the session did not make is settled by reading the final model; a lost environment fails
- *   the session; a connection that gave up reconnecting is a warning.
- * - **Events** go through the inbox like commands, so an event sent after a stop is refused.
+ * [SessionDeployment] runs the deployment on a coroutine of its own and reports here. So commands are answered while
+ * the deployment runs. They are refused then, except shutting down, which waits for the deployment to end.
  *
- * The router never waits for the conductor; the conductor waits for the router's answers to observation calls.
+ * Once the deployment ended, the state follows the environment's phase as [PhaseStates] maps it, until the session is
+ * stopped, failed or closed. The conductor follows the phase of the environment's handle and settles the state right
+ * after every command.
+ *
+ * Commands are checked against [CommandRules] and carried out one by one through [SessionCalls]. Only the stop runs on
+ * its own, in [EnvironmentStopper]. That way the session shows [SessionState.Stopping] and refuses commands while the
+ * stop runs.
+ *
+ * After the deployment, the end of the connection is handled as [ConnectionEndings] says. A refused handshake fails
+ * the session and stops the environment. A stop that the session did not make is settled by reading the final model. A
+ * lost environment fails the session. A connection that gave up reconnecting is a warning.
+ *
+ * Events go through the inbox like commands, so an event sent after a stop is refused.
+ *
+ * The router never waits for the conductor. The conductor waits for the router's answers to observation calls.
  *
  * @param startsEnvironment true if the deployment starts the environment.
  * @param router the session's router.
@@ -87,7 +92,7 @@ internal class SessionConductor(
     /** Completed when the session is closed, so callers stop waiting for replies. */
     private val closed = CompletableDeferred<Unit>()
 
-    /** The environment once the deployment created it; read by callers whose event is refused. */
+    /** The environment once the deployment created it. Callers whose event is refused read it too. */
     private val created = AtomicReference<RuntimeEnvironment?>(null)
 
     /** The connection once the deployment succeeded. */
@@ -118,7 +123,7 @@ internal class SessionConductor(
         }
     }
 
-    /** Carries out [command] in order and answers its outcome; refused once the session is closed. */
+    /** Carries out [command] in order and returns its outcome. Once the session is closed, the command is refused. */
     suspend fun execute(command: SessionCommand): SessionCommandOutcome {
         val reply = CompletableDeferred<SessionCommandOutcome>()
         if (!inbox.offer(ConductorMessage.Command(command, reply))) return CLOSED
@@ -128,7 +133,10 @@ internal class SessionConductor(
         }
     }
 
-    /** Sends [frame] in order with the commands and answers how it went; refused once the session is closed. */
+    /**
+     * Sends [frame] in order with the commands and returns how it went. Once the session is closed, the frame is
+     * refused.
+     */
     suspend fun inject(frame: EventFrame): SendOutcome {
         val reply = CompletableDeferred<SendOutcome>()
         if (!inbox.offer(ConductorMessage.Inject(frame, reply))) return notAllowed(CLOSED.reason)
@@ -149,9 +157,9 @@ internal class SessionConductor(
     }
 
     /**
-     * Closes the conductor without suspending: seals the state as closed, answers every waiting caller and, if the
-     * deployment succeeded, closes the connection and records the environment as it is left. A deployment that still
-     * runs is cancelled with the session's scope and cleans up itself.
+     * Closes the conductor without suspending. It seals the state as closed and answers every waiting caller. If the
+     * deployment succeeded, it also closes the connection and records the environment as it is left. A deployment that
+     * still runs is cancelled with the session's scope and cleans up after itself.
      */
     fun close() {
         status.seal()
@@ -163,7 +171,10 @@ internal class SessionConductor(
         if (leaving.records) departure.leave(environment.key, environment.phase.value, "Left on the runtime when the session was closed.")
     }
 
-    /** Takes one [message]; an exception it should never have thrown fails the reply it carries and is logged. */
+    /**
+     * Takes one [message]. An exception that should never have been thrown is logged and fails the reply that the
+     * message carries.
+     */
     private suspend fun take(message: ConductorMessage) {
         try {
             when (message) {
@@ -217,7 +228,10 @@ internal class SessionConductor(
             LifecycleRefusal(LifecycleOperation.INJECT_EVENT, created.get()?.phase?.value ?: EnvironmentPhase.Configuring(Uploads.NONE), reason),
         )
 
-    /** Ends the session cleanly once nothing is left to stop: after the deployment, after a stop, or at once. */
+    /**
+     * Ends the session cleanly once nothing is left to stop. That happens after the deployment, after a stop, or at
+     * once.
+     */
     private fun shutdown(reply: CompletableDeferred<Unit>) {
         stop?.let { running ->
             running.waiters += StopWaiter.Shutdown(reply)
@@ -231,8 +245,8 @@ internal class SessionConductor(
     }
 
     /**
-     * Starts stopping the environment, with [waiter] waiting for the end; [failure] is the problem the session failed
-     * with, if it stops because of a failure and keeps its failed state.
+     * Starts stopping the environment, with [waiter] waiting for the end. [failure] is the problem the session failed
+     * with, if it stops because of a failure. In that case the session keeps its failed state.
      */
     private fun beginStop(waiter: StopWaiter, failure: DeployProblem?) {
         val environment = environment()
@@ -242,8 +256,9 @@ internal class SessionConductor(
     }
 
     /**
-     * Takes the end of the session's own stop, which recorded the environment as [leftBehind] if it stopped it: the
-     * waiters hear how it went, and the state follows.
+     * Takes the end of the session's own stop. If the stop stopped the environment, it recorded it as [leftBehind]. The
+     * waiters hear how it went, and the state follows. When the stop took longer than its bound, the session raises
+     * `runtime-no-answer` and goes back to its state from before the stop.
      */
     private fun stopFinished(outcome: CallOutcome<Unit>?, leftBehind: LedgerEntry?) {
         val running = checkNotNull(stop) { "a stop finished that was never started" }
@@ -276,7 +291,10 @@ internal class SessionConductor(
         running.waiters.forEach { it.answer(result) }
     }
 
-    /** The state after a stop that did not stop the environment: as the phase says, or as before the stop. */
+    /**
+     * Sets the state after a stop that did not stop the environment. A session that stopped because it failed stays
+     * failed. Any other session goes back to its state from before the stop and then settles from the phase.
+     */
     private fun restore(running: StopInProgress) {
         val failure = running.failure
         if (failure != null) {
@@ -306,7 +324,10 @@ internal class SessionConductor(
         }
     }
 
-    /** Takes the end of the deployment. */
+    /**
+     * Takes the end of the deployment. A failed deployment fails the session with its problem and with what its
+     * cleanup left behind. Shutdowns that waited for the deployment run afterwards.
+     */
     private suspend fun deployEnded(result: DeploymentResult) {
         when (result) {
             is DeploymentResult.Deployed -> deployed(result)
@@ -319,7 +340,11 @@ internal class SessionConductor(
         shutdownsAfterDeployment.toList().also { shutdownsAfterDeployment.clear() }.forEach(::shutdown)
     }
 
-    /** Takes a deployment that succeeded: its findings, its state from the phase, and a connection that ended meanwhile. */
+    /**
+     * Takes a deployment that succeeded. It raises the deployment's findings and sets the state from the phase. A
+     * phase that keeps the state, such as an uncertain one, leads to running or ready, depending on whether the
+     * deployment starts the environment. A connection end that arrived while the deployment ran is handled last.
+     */
     private suspend fun deployed(result: DeploymentResult.Deployed) {
         connection = result.connection
         result.findings.forEach(::raise)
@@ -340,7 +365,7 @@ internal class SessionConductor(
         }
     }
 
-    /** Takes a deployment that broke: the session fails. */
+    /** Takes a deployment that broke. The session fails, and shutdowns that waited for the deployment return. */
     private fun deployBroke(error: Throwable) {
         val problem = DeployProblem(Severity.ERROR, DeployProblemCodes.RUNTIME_ERROR, "The deployment failed unexpectedly: $error", null)
         raise(problem)
@@ -349,9 +374,10 @@ internal class SessionConductor(
     }
 
     /**
-     * Settles the state from the environment's [phase], unless the phase is the one the state was settled from or the
-     * state no longer follows the phase: while stopping, and once stopped, failed or closed. A stopped session stays
-     * stopped whatever a later read reports, as the runtime reports a stopped engine running while its last tick ends.
+     * Settles the state from the environment's [phase]. Nothing happens when the phase is the one the state was
+     * settled from. Nothing happens either when the state no longer follows the phase, which is the case while
+     * stopping and once stopped, failed or closed. A stopped session stays stopped whatever a later read reports. The
+     * reason is that the runtime reports a stopped engine as running while its last tick ends.
      */
     private fun settle(phase: EnvironmentPhase) {
         val state = status.state.value
@@ -369,7 +395,10 @@ internal class SessionConductor(
         }
     }
 
-    /** Takes the end of the connection, unless the deployment still runs or the session ended it or its environment. */
+    /**
+     * Takes the end of the connection. While the deployment runs, the end is kept and handled once the deployment
+     * succeeded. It is ignored when the session ended the connection or its environment itself.
+     */
     private suspend fun connectionEnded(end: ConnectionEnd) {
         val state = status.state.value
         when {
@@ -389,7 +418,10 @@ internal class SessionConductor(
         }
     }
 
-    /** Settles a stop the session did not make: reads the final model, lets the connection end and records the environment. */
+    /**
+     * Settles a stop that the session did not make. It reads the final model, lets the connection end and records the
+     * environment as stopped.
+     */
     private suspend fun finalizeStop() {
         finalized = true
         val environment = environment()
@@ -401,7 +433,10 @@ internal class SessionConductor(
         record(SessionActivity.Note("The environment ${environment.key} was stopped by somebody else than the session.", clock.elapsed()))
     }
 
-    /** The session lost its environment for good: it fails with [problem] and records it as lost. */
+    /**
+     * The session lost its environment for good. It records the environment as lost, fails with [problem] and closes
+     * the connection. A session that failed already stays as it is.
+     */
     private fun lose(problem: DeployProblem) {
         if (status.state.value is SessionState.Failed) return
         departure.record(environment().key, LedgerDisposition.LOST, "The runtime no longer knows the environment.")
@@ -427,7 +462,7 @@ internal class SessionConductor(
         record(SessionActivity.ProblemRaised(problem, clock.elapsed()))
     }
 
-    /** Records [activity] in the journal, through the router, its one writer. */
+    /** Records [activity] in the journal through the router, which is the journal's only writer. */
     private fun record(activity: SessionActivity) {
         router.record(activity)
     }

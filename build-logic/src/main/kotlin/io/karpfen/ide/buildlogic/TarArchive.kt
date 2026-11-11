@@ -19,9 +19,8 @@ import java.io.OutputStream
 
 /**
  * Writes a tar archive in the POSIX ustar format to [output], entry by entry, with the same owner and modification time
- * for every entry, so that the same entries always give the same bytes. It writes regular files only; the directories
- * of their paths are created by whoever unpacks the archive. [finish] writes the end of the archive and leaves [output]
- * open.
+ * for every entry, so that the same entries always give the same bytes. It writes regular files only. Whoever unpacks
+ * the archive creates the directories of their paths. [finish] writes the end of the archive and leaves [output] open.
  *
  * @param modificationTime the modification time of every entry, in seconds since the epoch.
  */
@@ -91,7 +90,7 @@ class TarArchive(private val output: OutputStream, private val modificationTime:
         return digits.toByteArray(Charsets.US_ASCII) + 0
     }
 
-    /** Copies [bytes] into this block at the start of [field]; the field must be long enough. */
+    /** Copies [bytes] into this block at the start of [field]. It fails if the field is too short. */
     private fun ByteArray.put(field: Field, bytes: ByteArray) {
         require(bytes.size <= field.length) { "a value of ${bytes.size} bytes does not fit a ustar field of ${field.length}" }
         bytes.copyInto(this, field.offset)

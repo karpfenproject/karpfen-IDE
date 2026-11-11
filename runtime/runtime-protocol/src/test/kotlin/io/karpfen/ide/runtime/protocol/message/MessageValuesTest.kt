@@ -22,8 +22,8 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
- * Covers the message values: the lifecycle phases by their wire names, the invariants of snapshots and protocol
- * violations, and the equality of numbers that the runtime writes as non-finite literals.
+ * Covers the message values. The tests check the lifecycle phases by their wire names, the invariants of snapshots and
+ * protocol violations, and the equality of numbers that the runtime writes as non-finite literals.
  */
 class MessageValuesTest {
 

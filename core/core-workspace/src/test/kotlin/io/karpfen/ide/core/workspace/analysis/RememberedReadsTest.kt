@@ -34,11 +34,11 @@ import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The analyzer of a workspace remembers its reads: an unchanged file is read once however often the workspace is
- * analyzed, which also keeps an unchanged file that dsl-tools fails on from being logged again on every analysis, and
- * its findings are reported on every analysis all the same; a changed file, and every model of a changed metamodel, is
- * read again. The end-to-end tests of the application and of the command-line tool show that what dsl-tools logs
- * during a read names the file.
+ * The analyzer of a workspace remembers its reads. An unchanged file is read once, however often the workspace is
+ * analyzed. So an unchanged file that dsl-tools fails on is not logged again on every analysis, while its findings are
+ * still reported on every analysis. A changed file is read again, and so is every model of a changed metamodel. The
+ * end-to-end tests of the application and of the command line tool show that what dsl-tools logs during a read names
+ * the file.
  */
 class RememberedReadsTest {
 
@@ -66,8 +66,8 @@ class RememberedReadsTest {
         }
 
         /**
-         * The names of the files in [directory] whose texts were read, in the order of the reads, from the read with the
-         * index [from] on.
+         * The names of the files in [directory] whose texts were read, in the order of the reads, from the read with
+         * the index [from] on.
          */
         fun filesReadIn(directory: Path, from: Int = 0): List<String> {
             val names = Files.list(directory).use { files -> files.toList().associateBy({ Files.readString(it) }, { it.fileName.toString() }) }
@@ -75,7 +75,7 @@ class RememberedReadsTest {
         }
     }
 
-    /** The files of the single-robot example, written into the folder `robot`; returns the folder. */
+    /** Writes the files of the single-robot example into the folder `robot` and returns the folder. */
     private fun robotContext(): Path {
         val context = Files.createDirectories(root.resolve("robot"))
         Examples.files().filter { it.directory == DescriptorExamples.CONTEXT_DIRECTORY }

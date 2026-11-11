@@ -32,20 +32,20 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * How a deployment ends. Immutable.
  *
- * @property start starts the environment after activating it; without, it stays activated and ready to start.
- * @property observe switches observation on as part of the deployment; without, the model is read back once.
+ * @property start true to start the environment after activating it. Otherwise it stays activated and ready to start.
+ * @property observe true to switch observation on as part of the deployment. Otherwise the model is read back once.
  */
 public data class DeployOptions(public val start: Boolean = true, public val observe: Boolean = true)
 
 /**
- * Hears what a deployment does, while it does it. The deployer calls it in the deploying coroutine; an implementation
+ * Hears what a deployment does, while it does it. The deployer calls it in the deploying coroutine. An implementation
  * returns quickly and does not suspend.
  */
 public interface DeployListener {
-    /** The progress changed: a step started, reported a detail, or ended. */
+    /** The progress changed, because a step started, reported a detail or ended. */
     public fun progress(progress: DeployProgress)
 
-    /** The environment was created; from now on it exists on the runtime. */
+    /** The environment was created. From now on it exists on the runtime. */
     public fun environmentCreated(environment: RuntimeEnvironment)
 
     /** The connection exists and is about to be opened, so its events can be collected from its first opening on. */
@@ -53,23 +53,23 @@ public interface DeployListener {
 }
 
 /**
- * The port through which a deployment reaches the session's observation without depending on it: the session
+ * The port through which a deployment reaches the session's observation without depending on it. The session
  * implements it over its observation of the model.
  *
- * Threading (MUST): the deployer calls it from the deploying coroutine, one call at a time.
+ * The deployer calls it from the deploying coroutine, one call at a time.
  *
- * Contract (MUST): failures are outcomes, never exceptions; a `CancellationException` of the caller is rethrown.
+ * Failures are returned as outcomes, never thrown. A `CancellationException` of the caller is rethrown.
  */
 public interface DeployObservation {
-    /** Switches observation on: subscribes to the whole model and answers the snapshot it starts from. */
+    /** Switches observation on. It subscribes to the whole model and returns the snapshot it starts from. */
     public suspend fun switchOn(): CallOutcome<RuntimeModelSnapshot>
 
     /** Reads a snapshot of the model once and applies it. */
     public suspend fun pull(): CallOutcome<RuntimeModelSnapshot>
 
     /**
-     * How the model in [snapshot], as the runtime read it, differs from the model the IDE analyzed: warnings, one per
-     * differing object, located at its declaration.
+     * How the model in [snapshot], as the runtime read it, differs from the model the IDE analyzed. The result holds
+     * one warning per differing object, located at the object's declaration.
      */
     public fun differences(snapshot: RuntimeModelSnapshot): List<DeployProblem>
 }
@@ -81,7 +81,7 @@ public interface DeployObservation {
  * @property client the client of the runtime to deploy to.
  * @property clientId the client id the deployment registers listeners and connects as.
  * @property options how the deployment ends.
- * @property connectionScope the scope the connection runs in, a supervisor child of it.
+ * @property connectionScope the scope the connection runs in. The connection runs in a supervisor child of it.
  * @property observation the session's observation.
  */
 public data class DeployRequest(
@@ -96,19 +96,19 @@ public data class DeployRequest(
 }
 
 /**
- * The waits of a deployment and the bounds of stopping and disconnecting an environment, in the cleanup of a failed
- * deployment and in the stop of a session. Immutable.
+ * The waits of a deployment, and the bounds of stopping and disconnecting an environment. The bounds apply in the
+ * cleanup of a failed deployment and in the stop of a session. Immutable.
  *
  * @property connectionWait how long activating and starting wait for the connection to be open.
  * @property confirmMinimum the least time the start confirmation waits for every state machine to report a state.
  * @property confirmTicks the number of ticks the start confirmation waits at least, if they take longer than
  *   [confirmMinimum].
- * @property confirmPoll how often the start confirmation reads the model at most; it never reads more often than once a
- *   tick.
+ * @property confirmPoll how often the start confirmation reads the model at most. It never reads more often than once
+ *   a tick.
  * @property stopBound how long stopping an environment may take before it counts as unanswered. Keep it above the
- *   client's stop timeout plus its snapshot timeout, which bounds the probe that may follow an unanswered stop, so that
- *   a stop the client still sees succeed is never cut off; with the client's default timeouts that is 60 seconds, and a
- *   client with longer timeouts needs a longer bound.
+ *   client's stop timeout plus its snapshot timeout. The snapshot timeout bounds the probe that may follow an
+ *   unanswered stop. With a large enough bound, a stop that the client still sees succeed is never cut off. With the
+ *   client's default timeouts that sum is 60 seconds. A client with longer timeouts needs a longer bound.
  * @property disconnectBound how long letting a connection end after a stop, and disconnecting it, may take each.
  */
 public data class DeployTiming(
@@ -146,12 +146,12 @@ public data class DeployFailure(
 /** How a deployment ended. */
 public sealed interface DeploymentResult {
     /**
-     * The environment is deployed, activated and, if asked, started.
+     * The environment is deployed and activated, and started if the options asked for it.
      *
      * @property environment its handle.
-     * @property connection its open connection, now the session's to own.
-     * @property findings the warnings of the deployment itself: the differences of the model the runtime read back, and
-     *   a start that was not confirmed in time. The plan's own findings stay on the plan.
+     * @property connection its open connection. The session owns it from now on.
+     * @property findings the warnings of the deployment itself. These are the differences of the model the runtime
+     *   read back, and a start that was not confirmed in time. The plan's own findings stay on the plan.
      */
     public data class Deployed(
         public val environment: RuntimeEnvironment,
@@ -171,22 +171,21 @@ public sealed interface DeploymentResult {
 /**
  * Deploys a plan to a runtime, step by step, and cleans up after a failure or a cancellation.
  *
- * Threading (MUST): [deploy] runs in the caller's coroutine and suspends until the deployment ended; every wait is a
- * coroutine delay or timeout on the caller's dispatcher.
+ * [deploy] runs in the caller's coroutine and suspends until the deployment ended. Every wait is a coroutine delay or
+ * timeout on the caller's dispatcher.
  *
- * Contract (MUST):
- * - A failure of the runtime is a [DeploymentResult.Failed], never an exception; the deployment stops at the first
- *   failing step and cleans up by the phase the failure left.
- * - On cancellation the cleanup runs, not cancellable and bounded, and then the `CancellationException` is rethrown.
+ * A failure of the runtime is returned as a [DeploymentResult.Failed], never thrown. The deployment stops at the first
+ * failing step and cleans up according to the phase that the failure left. On cancellation the cleanup runs first. It
+ * cannot be cancelled and is bounded in time. Then the `CancellationException` is rethrown.
  */
 public fun interface Deployer {
-    /** Runs [request], reporting progress, the created environment and the connection to [listener]. */
+    /** Runs [request] and reports the progress, the created environment and the connection to [listener]. */
     public suspend fun deploy(request: DeployRequest, listener: DeployListener): DeploymentResult
 }
 
 /**
- * The deployer, recording what stays on a runtime in [ledger] and handing environments that stay to [disposer]; by
- * default they are kept and recorded, since the runtime cannot delete environments.
+ * Creates the deployer. It records what stays on a runtime in [ledger] and hands environments that stay to
+ * [disposer]. By default they are kept and recorded, because the runtime cannot delete environments.
  */
 public fun Deployer(
     ledger: EnvironmentLedger,

@@ -40,16 +40,17 @@ import io.karpfen.ide.ui.editor.state.FindBarMode
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The find/replace bar: query field with toggles Aa (case), W (whole word), .* (regex), an "n/m" counter, an error hint
- * for invalid regexes, Enter/Shift+Enter for next/previous, and in [FindBarMode.REPLACE] a replace field with Replace /
- * Replace All (Enter in it replaces the current match). Escape anywhere in the bar closes it ([onClose]; the caller
- * returns focus to the editor).
+ * The find and replace bar. It has a query field with the toggles `Aa` for case, `W` for whole words and `.*` for
+ * regular expressions. It shows an "n/m" counter and an error hint for an invalid regular expression. Enter and
+ * Shift+Enter run find next and find previous. In [FindBarMode.REPLACE] it adds a replace field with the buttons
+ * Replace and Replace All, and Enter in that field replaces the current match. Escape anywhere in the bar closes it
+ * through [onClose], and the caller returns focus to the editor.
  *
- * Renders [query] (the model's query: field text and toggles), [replacement] (the model's replacement), [state] (the
- * model's matches) and the hoisted [fields] (selection and composition of both fields); [queryFocus] is attached to the
- * query field so the caller can focus it. A changed query text is reported through [onQueryTextChange], a changed
- * replacement through [onReplacementChange], a switched toggle through [onToggle]; [onReplace] and [onReplaceAll]
- * replace by the model's replacement.
+ * The bar renders [query], which gives the field text and the toggles, [replacement] and [state], which holds the
+ * matches. All three come from the model. It also renders the hoisted [fields], which hold the selection and
+ * composition of both text fields. [queryFocus] is attached to the query field, so the caller can focus it. A changed
+ * query text is reported through [onQueryTextChange], a changed replacement through [onReplacementChange] and a
+ * switched toggle through [onToggle]. [onReplace] and [onReplaceAll] replace with the model's replacement.
  */
 @Composable
 internal fun FindReplaceBar(
@@ -123,7 +124,7 @@ internal fun FindReplaceBar(
     }
 }
 
-/** The counter or error text of [status], in the error colour where [FindStatus.isError]. */
+/** Shows the counter or error text of [status]. It uses the error colour when [FindStatus.isError] is true. */
 @Composable
 private fun FindStatusText(status: FindStatus, theme: EditorTheme) {
     val color = if (status.isError) theme.error else theme.foreground

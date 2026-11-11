@@ -21,14 +21,17 @@ import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolKind
 
 /**
- * Walks the `MACROS { … }` block of a KStates tree:
- * - `MACRO "m" { … }` → MACRO declaration (MACRO_NAME span) whose type name and outline detail are the RETURNS
- *   expression as written without quotes (`number`, `Vector`, `list(Obstacle)`, `reference(Obstacle)`);
- * - `TAKES("p", T)` → MACRO_PARAMETER declaration (container: the macro; type name and detail: `T` or `list(T)`) with a
- *   BINDING_NAME span (a parameter is bound like a `WITH … AS` name inside the definition), as a child of the macro's
- *   outline node;
- * - the type strings of TAKES, RETURNS, `list(…)` and `reference(…)` → type references (PRIMITIVE_TYPE for `number`,
- *   `string`, `boolean`, else TYPE). The DEFINITION's EVAL body is read lexically (see [EmbeddedCode]).
+ * Walks the `MACROS { }` block of a KStates tree.
+ * - `MACRO "m" { }` becomes a MACRO declaration with a MACRO_NAME span. Its type name and outline detail are the
+ *   RETURNS expression as written without quotes, such as `number`, `Vector`, `list(Obstacle)` or
+ *   `reference(Obstacle)`.
+ * - `TAKES("p", T)` becomes a MACRO_PARAMETER declaration with the macro as container. Its type name and detail are
+ *   `T` or `list(T)`. It gets a BINDING_NAME span, because inside the definition a parameter is bound like the name of
+ *   a `WITH MACRO("m") AS "x"`. The parameter is a child of the macro's outline node.
+ * - The type strings of TAKES, RETURNS, `list("T")` and `reference("T")` become type references. A reference is a
+ *   PRIMITIVE_TYPE for `number`, `string` and `boolean`, and a TYPE otherwise.
+ *
+ * The EVAL body of the DEFINITION is read lexically by [EmbeddedCode].
  */
 internal class KstatesMacroWalker(private val tree: ParsedTree<*>, private val collector: SyntaxCollector) {
 
@@ -55,13 +58,13 @@ internal class KstatesMacroWalker(private val tree: ParsedTree<*>, private val c
         return node
     }
 
-    /** Records the type reference of a RETURNS expression; returns it as written (null if its type is missing). */
+    /** Records the type reference of a RETURNS expression. Returns it as written, or null if its type is missing. */
     private fun returnType(ctx: KstatesParser.Return_expressionContext?): String? {
         val reference = ctx?.reference_expression() ?: return typeExpression(ctx?.type_expression())
         return typeCall("reference", tree.quoted(tree.terminal(reference, KstatesParser.STRING)))
     }
 
-    /** Records the type reference of `"T"` or `f("T")`; returns it as written (null if its type is missing). */
+    /** Records the type reference of `"T"` or `f("T")`. Returns it as written, or null if its type is missing. */
     private fun typeExpression(ctx: KstatesParser.Type_expressionContext?): String? {
         val call = ctx?.typed_call_expression()
         if (call == null) {
@@ -73,7 +76,7 @@ internal class KstatesMacroWalker(private val tree: ParsedTree<*>, private val c
         return typeCall(function, tree.quoted(tree.terminal(call, KstatesParser.STRING)))
     }
 
-    /** Records the type reference of `function("T")`; returns it as written (null if its type is missing). */
+    /** Records the type reference of `function("T")`. Returns it as written, or null if its type is missing. */
     private fun typeCall(function: String, type: QuotedString?): String? {
         type ?: return null
         collector.typeReference(type)

@@ -33,14 +33,14 @@ import java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY
 import java.nio.file.WatchService
 
 /**
- * [FileWatcher] on `java.nio.file.WatchService`, registering directories recursively through a [WatchRegistry]: every
- * directory below the root that is not ignored is registered when the flow starts, and every directory created later
- * as soon as its creation is reported. Symbolic links are followed like the scan follows them (a linked root, linked
- * directories, the targets of linked files), and changes are reported under the paths the workspace uses. Blocking
- * waits run on [dispatcher] and are interrupted when the collector is cancelled.
+ * [FileWatcher] on `java.nio.file.WatchService`. It registers directories recursively through a [WatchRegistry]. Every
+ * directory below the root that is not ignored is registered when the flow starts. Every directory created later is
+ * registered as soon as its creation is reported. Symbolic links are followed the way the scan follows them, which
+ * covers a linked root, linked directories and the targets of linked files. Changes are reported under the paths the
+ * workspace uses. Blocking waits run on [dispatcher] and are interrupted when the collector is cancelled.
  *
- * Errors of the service (an I/O error while registering, nothing to watch, the root disappearing, the service closing)
- * end the flow with one [FileChangeKind.OVERFLOW] change, as [FileWatcher.watch] documents.
+ * Errors of the service end the flow with one [FileChangeKind.OVERFLOW] change, as described on [FileWatcher.watch].
+ * Such errors are an I/O error while registering, nothing to watch, the root disappearing, or the service closing.
  */
 internal class WatchServiceFileWatcher(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -69,7 +69,10 @@ internal class WatchServiceFileWatcher(
         }.flowOn(dispatcher)
     }
 
-    /** Emits the changes of every signalled key until the root's key becomes invalid or nothing of the tree is left. */
+    /**
+     * Emits the changes of every signalled key until the key of the root becomes invalid or nothing of the tree is left
+     * to watch.
+     */
     private suspend fun FlowCollector<FileChange>.pump(service: WatchService, registry: WatchRegistry, root: Path) {
         while (true) {
             val key = runInterruptible { service.take() }

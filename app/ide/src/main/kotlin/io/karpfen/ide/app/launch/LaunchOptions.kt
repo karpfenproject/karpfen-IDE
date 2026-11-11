@@ -20,9 +20,12 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 /**
- * What one start of the IDE was asked to do: open [initialFolder] (absolute, normalized; null for the empty state) and,
- * for launch smoke tests, exit with status 0 after [exitAfterMs] milliseconds. [warnings] name the inputs that were
- * ignored; `main` logs them once logging is configured.
+ * What one start of the IDE was asked to do.
+ *
+ * @property initialFolder the folder to open, absolute and normalized, or null for the empty state.
+ * @property exitAfterMs the delay in milliseconds after which the IDE exits with status 0, for the launch smoke tests.
+ *   Null means the IDE does not exit by itself.
+ * @property warnings the inputs that were ignored. `main` logs them once logging is configured.
  */
 internal data class LaunchOptions(
     val initialFolder: Path?,
@@ -30,13 +33,13 @@ internal data class LaunchOptions(
     val warnings: List<String> = emptyList(),
 ) {
     companion object {
-        /** Environment variable of the self-exit delay in milliseconds (kept from phase 0). */
+        /** Environment variable of the self-exit delay in milliseconds, which the launch smoke tests set. */
         const val EXIT_AFTER_MS_ENVIRONMENT_VARIABLE: String = "KARPFEN_IDE_EXIT_AFTER_MS"
 
         /**
-         * The options of the command line [args] (`[folder]`) and the [environment]. A folder argument that is not an
-         * existing directory, extra arguments and a delay that is not a non-negative number are ignored with a warning,
-         * so a typo never keeps the IDE from starting.
+         * The options of the command line [args], which is `[folder]`, and of the [environment]. A folder argument that
+         * is not an existing directory, extra arguments and a delay that is not a non-negative number are ignored with a
+         * warning, so a typo never keeps the IDE from starting.
          */
         fun parse(
             args: List<String>,

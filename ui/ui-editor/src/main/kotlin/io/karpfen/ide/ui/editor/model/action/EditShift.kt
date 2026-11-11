@@ -21,19 +21,21 @@ import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.ui.editor.model.caret.Caret
 
 /**
- * Where offsets land after an action's *own* [edits] (non-overlapping, coordinates of the text before them): an
- * action that edits several places (indent, toggle comment, replace all) computes its `caretsAfter` with it before it
- * applies the edits, because `EditableText.apply` records the caret mementos together with the change. Carets of
- * changes made elsewhere are not computed here; the `CaretModel` maps them through the text's history.
+ * Computes where offsets land after an action's own [edits]. The edits must not overlap and use offsets of the text
+ * before them. An action that edits several places, such as indent, toggle comment or replace all, uses this class to
+ * compute its `caretsAfter` before it applies the edits. It has to, because `EditableText.apply` records the caret
+ * mementos together with the change. Carets after changes made elsewhere are not computed here. The `CaretModel` maps
+ * those through the text's history.
  *
- * An offset before an edit stays, one after it shifts by the edit's length delta, one inside a replaced range goes to
- * the start ([Bias.LEFT]) or the end ([Bias.RIGHT]) of the replacement; at an insertion point the bias decides as well.
+ * An offset before an edit stays where it is. An offset after an edit shifts by the edit's length delta. An offset
+ * inside a replaced range moves to the start of the replacement for [Bias.LEFT] or to its end for [Bias.RIGHT]. At an
+ * insertion point the bias decides in the same way.
  */
 internal class EditShift(edits: List<TextEdit>) {
 
     private val sorted = edits.sortedBy { it.range.start }
 
-    /** [offset] after the edits. */
+    /** Returns where [offset] lands after the edits. [bias] decides for offsets at an insertion point or inside a replaced range. */
     fun offset(offset: Int, bias: Bias): Int {
         var delta = 0
         for (edit in sorted) {
@@ -52,9 +54,9 @@ internal class EditShift(edits: List<TextEdit>) {
     }
 
     /**
-     * [caret] after the edits: a selection keeps its direction and grows over text inserted at its bounds (start
-     * [Bias.LEFT], end [Bias.RIGHT], so indenting or commenting whole lines keeps them selected); a caret without
-     * selection moves along ([Bias.RIGHT]).
+     * Returns [caret] after the edits. A selection keeps its direction and grows over text inserted at its bounds. Its
+     * start uses [Bias.LEFT] and its end [Bias.RIGHT], so indenting or commenting whole lines keeps them selected. A
+     * caret without a selection moves along with inserted text, using [Bias.RIGHT].
      */
     fun caret(caret: Caret): CaretMemento {
         if (!caret.hasSelection) return CaretMemento.at(offset(caret.position, Bias.RIGHT))

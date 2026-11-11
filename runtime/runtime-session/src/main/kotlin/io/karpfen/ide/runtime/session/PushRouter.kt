@@ -58,7 +58,7 @@ import kotlin.coroutines.cancellation.CancellationException
 /** What the router of a session takes, in the order it arrives. */
 internal sealed interface RouterMessage {
     /**
-     * The deployment connected: from now on the router reads the connection's events and observes the environment.
+     * The deployment connected. From now on the router reads the connection's events and observes the environment.
      *
      * @property environment the environment's handle.
      * @property connection the connection, not opened yet.
@@ -96,24 +96,28 @@ internal sealed interface RouterMessage {
 }
 
 /**
- * The router of a session, a mediator between the connection and the session's views: the only collector of the
- * connection's events, which it forwards into its own unbounded inbox together with the observation calls of the
- * conductor and the deployment, and with the journal entries of the conductor, and takes in arrival order. It owns the
- * [ModelObserver] and is the single writer of the observed model, the model updates, the domain events, the
- * connection's state as the session shows it and the journal.
+ * The router of a session. It mediates between the connection and the session's views. It is the only collector of
+ * the connection's events. It forwards them into its own unbounded inbox and takes them out in arrival order. The same
+ * inbox also carries the observation calls of the conductor and the deployment, and the journal entries of the
+ * conductor. The router owns the [ModelObserver]. It is the single writer of the observed model, the model updates, the
+ * domain events, the connection's state as the session shows it, and the journal.
  *
- * - Object and stack pushes, openings, interruptions and the end go to the observation; an applied push is journaled.
- * - Domain events go to [domainEvents] and the journal; violations, anomalies and unknown message types to the journal.
- * - The end of the connection, its state and observation problems are reported to the conductor without suspending;
- *   the router never waits for the conductor, so the two never wait for each other.
- * - The model updates and the domain events are published without suspending: a collector that falls behind misses
- *   the oldest of them, so the router never waits for a collector either, and a collector may call the session's
- *   commands, which wait for the router.
+ * - Object pushes, stack pushes, openings, interruptions and the end of the connection go to the observation. A push
+ *   that the observation applied is journaled.
+ * - Domain events go to [domainEvents] and to the journal. Protocol violations, anomalies and unknown message types go
+ *   to the journal only.
+ * - The end of the connection, its state changes and observation problems are reported to the conductor without
+ *   suspending. The router never waits for the conductor, so the two never wait for each other.
+ * - The model updates and the domain events are published without suspending. A collector that falls behind misses the
+ *   oldest of them. So the router never waits for a collector either. This matters because a collector may call the
+ *   session's commands, and those wait for the router.
  *
- * An observation call runs to its end, its snapshot reads and their retries included, before the router takes the next
- * message, so pushes that arrive meanwhile wait in the inbox: that keeps every push after a snapshot in arrival order.
+ * An observation call runs to its end before the router takes the next message. That includes its snapshot reads and
+ * their retries. Pushes that arrive meanwhile wait in the inbox. This keeps every push after a snapshot in arrival
+ * order.
  *
- * @param prepared what the session deploys: the schema, the object keys, the layouts and the seed of the observation.
+ * @param prepared what the session deploys. The router takes the schema, the object keys, the layouts and the seed of
+ *   the observation from it.
  * @param clientId the session's client id, as which the observation subscribes.
  * @param settings the observation's retries and how far a collector of the model updates may fall behind.
  * @param clock the session's clock.
@@ -150,7 +154,7 @@ internal class PushRouter(
     /** The journal. */
     private val journal = SessionJournal(journalCapacity)
 
-    /** The writable domain events, hot and without replay; a collector that falls behind misses the oldest. */
+    /** The writable domain events, hot and without replay. A collector that falls behind misses the oldest. */
     private val domainEventStream = MutableSharedFlow<ObservedDomainEvent>(
         extraBufferCapacity = domainEventBuffer,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -159,7 +163,7 @@ internal class PushRouter(
     /** Guards [sealed] and the writes of [connectionState]. */
     private val lock = Any()
 
-    /** True once the session was closed; the connection's state is final then. */
+    /** True once the session was closed. The connection's state is final from then on. */
     private var sealed = false
 
     /** The writable connection state. */
@@ -172,14 +176,14 @@ internal class PushRouter(
     val model: StateFlow<ObservedModel>
         get() = observer.model
 
-    /** Every change of the observed model, hot and without replay; it never makes the router wait. */
+    /** Every change of the observed model, hot and without replay. It never makes the router wait. */
     val modelUpdates: Flow<ModelUpdate>
         get() = observer.updates
 
-    /** Every domain event, hot and without replay; it never makes the router wait. */
+    /** Every domain event, hot and without replay. It never makes the router wait. */
     val domainEvents: Flow<ObservedDomainEvent> = domainEventStream.asSharedFlow()
 
-    /** The connection's state as the session shows it; idle until the deployment connects. */
+    /** The connection's state as the session shows it. It is idle until the deployment connects. */
     val connection: StateFlow<ConnectionState> = connectionState.asStateFlow()
 
     /** The journal of the session. */
@@ -193,7 +197,7 @@ internal class PushRouter(
         }
     }
 
-    /** Attaches the [connection] of [environment], before it is opened, so its first opening is read. */
+    /** Attaches the [connection] of [environment] before it is opened, so that its first opening is read. */
     fun attach(environment: RuntimeEnvironment, connection: RuntimeConnection) {
         inbox.trySend(RouterMessage.Attach(environment, connection))
     }
@@ -218,7 +222,7 @@ internal class PushRouter(
         observe(LifecycleOperation.READ_SNAPSHOT) { it.environmentStopped() }
 
     /**
-     * Ends the router without suspending: no message is taken any more, and the connection's state as the session
+     * Ends the router without suspending. No message is taken any more, and the connection's state as the session
      * shows it becomes the attached connection's final state.
      */
     fun close() {
@@ -229,7 +233,10 @@ internal class PushRouter(
         }
     }
 
-    /** Runs [call] on the observer in the router's order and answers its outcome; refused once the router is closed. */
+    /**
+     * Runs [call] on the observer in the router's order and returns its outcome. Once the router is closed, the call
+     * is refused.
+     */
     private suspend fun <T> observe(operation: LifecycleOperation, call: suspend (ModelObserver) -> CallOutcome<T>): CallOutcome<T> {
         val reply = CompletableDeferred<CallOutcome<T>>()
         if (inbox.trySend(RouterMessage.Observe(call, reply)).isFailure) {
@@ -238,7 +245,10 @@ internal class PushRouter(
         return reply.await()
     }
 
-    /** Takes one [message]; an exception it should never have thrown fails the reply it carries and is logged. */
+    /**
+     * Takes one [message]. An exception that should never have been thrown is logged and fails the reply that the
+     * message carries.
+     */
     private suspend fun take(message: RouterMessage) {
         try {
             when (message) {
@@ -303,8 +313,8 @@ internal class PushRouter(
     }
 
     /**
-     * Hands the object or stack push of [event] to the observation and journals it if the observation applied it; a
-     * push a snapshot covers or one that reveals a gap is not applied.
+     * Hands the object or stack push of [event] to the observation and journals it if the observation applied it. A
+     * push that a snapshot already covers is not applied, and neither is a push that reveals a gap.
      */
     private suspend fun applied(event: ConnectionEvent.Received, messageType: String, ids: List<String>, revision: Long) {
         if (observer.handle(event)) {
@@ -312,7 +322,10 @@ internal class PushRouter(
         }
     }
 
-    /** Takes the connection's new [state]: shows it, journals it and reports it to the conductor. */
+    /**
+     * Takes the connection's new [state]. It shows the state, journals it and reports it to the conductor. After the
+     * session was closed, it ignores the state.
+     */
     private fun stateSeen(state: ConnectionState) {
         synchronized(lock) {
             if (sealed) return

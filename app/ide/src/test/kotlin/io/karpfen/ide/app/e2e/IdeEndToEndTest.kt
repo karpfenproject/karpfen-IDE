@@ -68,14 +68,14 @@ import kotlin.time.Duration.Companion.seconds
 import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
 
 /**
- * The composition root over the production wiring: `IdeApplication.prepare` opens the folder given on the command line
- * into the real workbench, the menus resolve against its commands, and the Problems view, the status bar and
- * `karpfen validate` report the same problems for the examples plus the shared descriptor examples, before and after
- * opening and closing files (descriptors included), because all three map `Workspace.problems`, the one problems
- * rule. A command-line folder that `main` saw as a directory may be gone (unmounted, deleted) by the time `prepare`
- * opens it. On every platform the Edit menu resolves Complete Code with the accelerator Ctrl+M, written in that
- * platform's notation, and the stroke finds that command. What dsl-tools logs while the IDE analyzes, the failure of a
- * reader, reaches the Language Tools Output through the composition root, and the View menu opens it.
+ * The composition root over the production wiring. `IdeApplication.prepare` opens the folder given on the command line
+ * into the real workbench, and the menus resolve against its commands. The Problems view, the status bar and
+ * `karpfen validate` report the same problems for the examples plus the shared descriptor examples. They agree before
+ * and after files are opened and closed, descriptors included, because all three map `Workspace.problems`, the one
+ * rule for problems. A command-line folder that `main` saw as a directory may be gone, unmounted or deleted, by the
+ * time `prepare` opens it. On every platform the Edit menu resolves Complete Code with the accelerator Ctrl+M, written
+ * in that platform's notation, and the stroke finds that command. What dsl-tools logs while the IDE analyzes, here the
+ * failure of a reader, reaches the Language Tools Output through the composition root, and the View menu opens it.
  */
 class IdeEndToEndTest {
 
@@ -199,11 +199,11 @@ class IdeEndToEndTest {
         }
 
     /**
-     * What dsl-tools logs while the IDE analyzes is the failure of a reader, here a real one: a KStates text within the
-     * nesting limit nests deeper than the reader can follow on the small stack it reads with ([SmallStackDslReader]),
-     * while the IDE's syntax analysis follows it on the large stack the scenario runs on. dsl-tools logs the failure as
-     * a warning, which reaches the Language Tools Output through the composition root and, while that is hidden, the
-     * status bar's indicator.
+     * What dsl-tools logs while the IDE analyzes is here the failure of a real reader. A KStates text within the
+     * nesting limit nests deeper than the reader can follow on the small stack it reads with, [SmallStackDslReader].
+     * The IDE's syntax analysis still follows it on the large stack the scenario runs on. dsl-tools logs the failure as
+     * a warning. The warning reaches the Language Tools Output through the composition root, and while the output is
+     * hidden, it also reaches the status bar's indicator.
      */
     @Test
     fun `what dsl-tools logs is shown in the Language Tools Output, which the View menu opens`() =
@@ -257,8 +257,8 @@ class IdeEndToEndTest {
 
     /**
      * Writes a modeling context into the folder `deep` of the workspace: a metamodel and a state machine whose action
-     * nests [READER_DEPTH] guards deep, more than a reader of dsl-tools follows on [DeepNesting.SMALL_STACK]; returns the
-     * folder.
+     * nests [READER_DEPTH] guards deep, more than a reader of dsl-tools follows on [DeepNesting.SMALL_STACK]. Returns
+     * the folder.
      */
     private fun deepContext(): Path {
         val folder = Files.createDirectories(root.resolve("deep"))
@@ -267,7 +267,7 @@ class IdeEndToEndTest {
         return folder
     }
 
-    /** `karpfen validate` of [folder] as text lines (the CLI's own report, through its `ValidateCommand`). */
+    /** `karpfen validate` of [folder] as text lines. This is the CLI's own report, made by its `ValidateCommand`. */
     private suspend fun EndToEndIde.validate(folder: Path): List<String> {
         val report = ValidateCommand(cliWorkspaces()).run(folder)
         return report.lines()
@@ -317,8 +317,8 @@ class IdeEndToEndTest {
         const val READER_FAILURE = "reader.failure"
 
         /**
-         * How many guards the action of the reader's failure nests in: too many for a dsl-tools reader on
-         * [DeepNesting.SMALL_STACK], within the nesting limit of the IDE's syntax analysis.
+         * How many guards the action of the reader's failure nests in. That is too many for a dsl-tools reader on
+         * [DeepNesting.SMALL_STACK], but within the nesting limit of the IDE's syntax analysis.
          */
         const val READER_DEPTH = NestingLimit.MAX_DEPTH - DeepNesting.GUARDS_STRUCTURE_DEPTH
 

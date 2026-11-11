@@ -21,18 +21,20 @@ import io.karpfen.ide.core.text.TextRange
  * A declared symbol.
  *
  * @property kind what the symbol is.
- * @property name the declared name without quotes (empty for anonymous objects).
- * @property nameRange the name inside the quotes (may be empty for `""`); lies within [range].
- * @property range the whole declaring construct (e.g. the full `STATE "s" { … }`).
- * @property container name of the enclosing symbol where the language nests declarations, null at top level:
- *   SIMPLE_PROPERTY/HAS_RELATION/KNOWS_RELATION → the type; OBJECT → the enclosing object's outline name (its key, or
- *   `:T` for an anonymous object; null for the root object); STATE → the parent state; MACRO_PARAMETER → the macro;
- *   BINDING → the state whose action block contains it.
- * @property typeName the declared type as written, without quotes, where the construct names one: OBJECT → its type
- *   (`T` of `"key":"T"`); SIMPLE_PROPERTY → the primitive (`number`); HAS_RELATION/KNOWS_RELATION → the target
- *   (`Vector`, or `list(Obstacle)`); MACRO_PARAMETER → the parameter type (`Vector`, `number`, `list(Obstacle)`);
- *   MACRO → its RETURNS expression (`number`, `reference(Obstacle)`); STATEMACHINE → the `ATTACHED TO` type. Null
- *   for every other kind and when the type is missing in broken text.
+ * @property name the declared name without quotes. It is empty for anonymous objects.
+ * @property nameRange the name inside the quotes. It may be empty for `""`, and it lies within [range].
+ * @property range the whole declaring construct, such as the full `STATE "s" { ... }`.
+ * @property container the name of the enclosing symbol where the language nests declarations, or null at top level.
+ *   For a SIMPLE_PROPERTY, HAS_RELATION or KNOWS_RELATION it is the type. For an OBJECT it is the outline name of the
+ *   enclosing object. That name is the key of the object, or `:T` for an anonymous object. The root object has null.
+ *   For a STATE it is the parent state. For a MACRO_PARAMETER it is the macro. For a BINDING it is the state whose
+ *   action block contains it.
+ * @property typeName the declared type as written, without quotes, where the construct names one. For an OBJECT it is
+ *   its type, such as `T` of `"key":"T"`. For a SIMPLE_PROPERTY it is the primitive, such as `number`. For a
+ *   HAS_RELATION or KNOWS_RELATION it is the target, such as `Vector` or `list(Obstacle)`. For a MACRO_PARAMETER it is
+ *   the parameter type, such as `Vector`, `number` or `list(Obstacle)`. For a MACRO it is its RETURNS expression, such
+ *   as `number` or `reference(Obstacle)`. For a STATEMACHINE it is the `ATTACHED TO` type. It is null for every other
+ *   kind, and when the type is missing in broken text.
  */
 public data class SymbolDeclaration(
     public val kind: SymbolKind,
@@ -48,17 +50,18 @@ public data class SymbolDeclaration(
 }
 
 /**
- * A reference to a symbol by name; resolution happens in core-lang.
+ * A reference to a symbol by name. Resolution happens in core-lang.
  *
  * @property kind what the name refers to.
- * @property name the referenced name without quotes; for [ReferenceKind.MODEL_PATH] the whole path with blanks
- *   removed (e.g. `a->b->c`, also for `$( a -> b )` in EVAL bodies).
- * @property range the name inside the quotes (or the path inside `$( … )` without surrounding blanks, or the name after
- *   `@`, in EVAL bodies).
- * @property qualifier context needed to resolve the name, null where none applies:
- *   KModel PROPERTY_KEY/RELATION_KEY → the enclosing object's type name; KStates RELATION_KEY (the relation argument of
- *   `SETOBJ`/`APPENDOBJ`) → the source model path (the first argument, e.g. `self->room`), whose type declares the
- *   relation; EVENT_NAME → the event domain; every other kind → null.
+ * @property name the referenced name without quotes. For [ReferenceKind.MODEL_PATH] it is the whole path with blanks
+ *   removed, such as `a->b->c`. This also holds for `$( a -> b )` in EVAL bodies.
+ * @property range the name inside the quotes. In EVAL bodies it is the path inside `$( ... )` without surrounding
+ *   blanks, or the name after `@`.
+ * @property qualifier the context needed to resolve the name, or null where none applies. For a KModel PROPERTY_KEY or
+ *   RELATION_KEY it is the type name of the enclosing object. A KStates RELATION_KEY is the relation argument of
+ *   `SETOBJ` or `APPENDOBJ`. Its qualifier is the source model path, which is the first argument, such as
+ *   `self->room`. The type of that path declares the relation. For an EVENT_NAME the qualifier is the event domain.
+ *   Every other kind has null.
  */
 public data class SymbolReference(
     public val kind: ReferenceKind,
@@ -67,7 +70,7 @@ public data class SymbolReference(
     public val qualifier: String?,
 )
 
-/** Kind of a [FoldingRange]. */
+/** The kind of a [FoldingRange]. */
 public enum class FoldingKind {
     /** A brace block spanning more than one line. */
     BLOCK,
@@ -82,7 +85,7 @@ public enum class FoldingKind {
 /**
  * A foldable region.
  *
- * @property range the region; it starts on one line and ends on a later one.
+ * @property range the region. It starts on one line and ends on a later one.
  * @property kind what the region holds.
  */
 public data class FoldingRange(public val range: TextRange, public val kind: FoldingKind)

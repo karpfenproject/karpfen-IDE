@@ -24,21 +24,22 @@ import kotlinx.serialization.descriptors.StructureKind
 
 /**
  * Derives the [ValueShape]s of a descriptor from the serial descriptor of a `@Serializable` class, so the class is the
- * one declaration of the shape (see [EnvironmentDescriptor]).
+ * one declaration of the shape. [EnvironmentDescriptor] is that class.
  *
- * A class becomes a [ValueShape.Record] with one key per property: its serial name, required when the property has no
- * default value, nullable when its type is, documented by its [KeyDoc]. A list becomes a [ValueShape.ListOf] whose items
- * take the annotations of the list's property. A string becomes what its property's annotations say it names
- * ([NamesFile], [NamesObject], [NamesEventDomain]) or else [ValueShape.Text] with the [Suggests] values, and a 64-bit
- * integer a [ValueShape.WholeNumber] with the [SuggestsNumbers] values. Pure.
+ * A class becomes a [ValueShape.Record] with one key per property. The key has the serial name of the property. It is
+ * required when the property has no default value and nullable when the property type is. Its [KeyDoc] documents it.
+ * A list becomes a [ValueShape.ListOf] whose items take the annotations of the list's property. A string becomes what
+ * the annotations of its property say it names, through [NamesFile], [NamesObject] or [NamesEventDomain]. Otherwise it
+ * becomes [ValueShape.Text] with the [Suggests] values. A 64-bit integer becomes a [ValueShape.WholeNumber] with the
+ * [SuggestsNumbers] values. The object has no state and no side effects.
  */
 internal object SerialShapes {
 
     /**
-     * The record of the class [descriptor] describes.
+     * The record of the class that [descriptor] describes.
      *
-     * @throws IllegalArgumentException if [descriptor] is no class, if a property lacks its [KeyDoc], or if a property has
-     *   a kind a descriptor key cannot have (programming errors of the descriptor class).
+     * @throws IllegalArgumentException if [descriptor] is no class, if a property lacks its [KeyDoc], or if a property
+     *   has a kind that a descriptor key cannot have. These are programming errors of the descriptor class.
      */
     fun recordOf(descriptor: SerialDescriptor): ValueShape.Record {
         require(descriptor.kind == StructureKind.CLASS) { "${descriptor.serialName} is no class" }
@@ -71,7 +72,7 @@ internal object SerialShapes {
             else -> throw IllegalArgumentException("$location has the kind ${descriptor.kind}, which no descriptor key has")
         }
 
-    /** The shape of a string under a property with [annotations]: what it names, or text with its suggestions. */
+    /** The shape of a string under a property with [annotations]. It is what the string names, or else text. */
     private fun stringShapeOf(annotations: List<Annotation>): ValueShape {
         val file = annotations.filterIsInstance<NamesFile>().firstOrNull()
         return when {

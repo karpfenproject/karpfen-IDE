@@ -42,10 +42,10 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * The WebSocket seam over a Ktor [client] with the WebSockets plugin: opens a session to the URL and wraps it in a
- * [KtorWebSocketLink]. A failure to open is classified by [TransportFailures]; a cancellation of the caller is rethrown.
+ * The WebSocket seam over a Ktor [client] with the WebSockets plugin. It opens a session to the URL and wraps it in a
+ * [KtorWebSocketLink]. [TransportFailures] classifies a failure to open. A cancellation of the caller is rethrown.
  *
- * @param client the Ktor client, shared with the HTTP seam; its owner closes it.
+ * @param client the Ktor client, shared with the HTTP seam. Its owner closes it.
  */
 internal class KtorWebSocketConnector(private val client: HttpClient) : WebSocketConnector {
 
@@ -61,10 +61,15 @@ internal class KtorWebSocketConnector(private val client: HttpClient) : WebSocke
 }
 
 /**
- * One open Ktor WebSocket session as a link. A forwarding coroutine in the session's scope maps its text and binary
- * frames into [incoming] without ever suspending on the reader (the channel is unbounded). When the session's frames
- * end, it completes [closure] from the session's close reason, null without a close frame, and only then closes
- * [incoming], so a reader that sees the end of the frames finds the closure complete.
+ * One open Ktor WebSocket session as a link. A forwarding coroutine in the session's scope maps the session's text and
+ * binary frames into [incoming]. The channel is unbounded, so the coroutine never suspends on the reader. When the
+ * session's frames end, the coroutine completes [closure] from the session's close reason, which is null without a
+ * close frame. Only then does it close [incoming]. So a reader that sees the end of the frames finds the closure
+ * complete. The coroutine starts atomically, so it reaches this cleanup even when the session's scope was cancelled
+ * before it started.
+ *
+ * A send that fails with a cancellation while the caller is still active reports [TransportFailure.Interrupted]. A
+ * close of a link that has already closed does nothing, and a close that fails is only logged at debug level.
  *
  * @param session the open session.
  */
@@ -128,6 +133,7 @@ internal class KtorWebSocketLink(private val session: DefaultClientWebSocketSess
     }
 
     private companion object {
+        /** The logger of session ends without a close reason and of failed closes, at debug level. */
         private val logger = LoggerFactory.getLogger(KtorWebSocketLink::class.java)
     }
 }

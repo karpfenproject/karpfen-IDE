@@ -21,11 +21,13 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 internal const val APPLICATION_NAME: String = "karpfen IDE"
 
 /**
- * The system properties the desktop integration needs before AWT starts: on macOS the window menu bar goes into the
- * native screen menu bar (`apple.laf.useScreenMenuBar`) under the application's name, and Quit (Cmd+Q, the application
- * menu, logout) closes the windows (`apple.eawt.quitStrategy` = `CLOSE_ALL_WINDOWS`) instead of AWT's default
- * `System.exit(0)`, so it runs the main window's close request — the unsaved-changes flow and the settings — like the
- * close button, and Cancel keeps the IDE running; other platforms need none.
+ * The system properties the desktop integration needs before AWT starts. Only macOS needs any.
+ *
+ * On macOS, `apple.laf.useScreenMenuBar` puts the window menu bar into the native screen menu bar, under the
+ * application's name. `apple.eawt.quitStrategy` set to `CLOSE_ALL_WINDOWS` makes Quit close the windows instead of
+ * calling AWT's default `System.exit(0)`. This covers Cmd+Q, the Quit item of the application menu and logout. So Quit
+ * runs the main window's close request just like the close button, with the unsaved-changes flow and the saving of
+ * the settings, and Cancel keeps the IDE running.
  */
 internal fun desktopProperties(platform: HostPlatform): Map<String, String> = when (platform) {
     HostPlatform.MAC_OS -> mapOf(
@@ -37,8 +39,8 @@ internal fun desktopProperties(platform: HostPlatform): Map<String, String> = wh
 }
 
 /**
- * Sets every property of [desktopProperties] for [platform] that is not set yet ([getProperty] null), so an explicit
- * `-D` on the command line wins. `main` calls it before anything touches AWT.
+ * Sets every property of [desktopProperties] for [platform] that is not set yet, which means [getProperty] returns
+ * null for it. So an explicit `-D` on the command line wins. `main` calls it before anything touches AWT.
  */
 internal fun applyDesktopProperties(
     platform: HostPlatform,

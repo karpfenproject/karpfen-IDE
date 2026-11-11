@@ -37,11 +37,13 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Randomized session test (fixed seeds): random edits (typing, deletions, replacements around diagnostics, undo),
- * random pauses around the parse debounce and random external sets. After every step the merged diagnostics refer to
- * the newest snapshot, lie inside it, and equal [mergeDiagnostics] of the current sources, each mapped with
- * `EditableText.mapRange` from the version it was computed for — the external sets from the snapshot of the previous
- * step, where the session re-anchored them (`ExternalDiagnosticsAnchors`), so they never expire with the short history.
+ * Randomized session test with fixed seeds. It makes random edits, which are typing, deletions, replacements around
+ * diagnostics and undo. It pauses for random times around the parse debounce and sets random external sets.
+ *
+ * After every step the merged diagnostics refer to the newest snapshot and lie inside it. They also equal
+ * [mergeDiagnostics] of the current sources, each mapped with `EditableText.mapRange` from the version it was computed
+ * for. The external sets are mapped from the snapshot of the previous step, where the session re-anchored them with
+ * `ExternalDiagnosticsAnchors`. So they never expire with the short history.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DocumentSessionPropertyTest {
@@ -105,7 +107,10 @@ class DocumentSessionPropertyTest {
         reporter.publishEntry("seed $seed", "$STEPS steps, $parsesSeen with a current parse")
     }
 
-    /** [diagnostics] valid in [from], mapped to the current version of [text] with mapRange (unmappable ones dropped). */
+    /**
+     * [diagnostics] valid in [from], mapped to the current version of [text] with mapRange. Those that cannot be mapped
+     * are dropped.
+     */
     private fun mapped(text: EditableText, diagnostics: List<Diagnostic>, from: TextSnapshot): List<Diagnostic> =
         diagnostics.mapNotNull { d -> text.mapRange(d.range, from)?.let { d.copy(range = it) } }
 
@@ -128,8 +133,8 @@ class DocumentSessionPropertyTest {
     }
 
     /**
-     * Applies one random edit: typing, a deletion, a replacement by a string, a closing brace at the end of the text
-     * (the offset of the empty "missing }" diagnostic), or an undo.
+     * Applies one random edit. It is typing, a deletion, a replacement by a string, an undo, or a closing brace at the
+     * end of the text, where the empty "missing }" diagnostic sits.
      */
     private fun edit(text: EditableText, random: Random) {
         val length = text.snapshot.value.length

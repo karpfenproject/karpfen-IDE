@@ -36,7 +36,9 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-/** The words the Runtime tool window and the status bar show for the runtime, the runs and their sessions. Pure. */
+/**
+ * The words that the Runtime tool window and the status bar show for the runtime, the runs and their sessions. Pure.
+ */
 public object RuntimeTexts {
 
     /** How many characters of a payload the event log shows on one line. */
@@ -71,7 +73,7 @@ public object RuntimeTexts {
         HostStatus.Stopping -> "stopping"
     }
 
-    /** [problem] with its hint. */
+    /** The message of [problem], followed by its hint if it has one. */
     public fun hostProblem(problem: HostProblem): String = listOfNotNull(problem.message, problem.hint).joinToString(" ")
 
     /** The label of [phase]. */
@@ -86,7 +88,7 @@ public object RuntimeTexts {
         RunPhase.FAILED -> "failed"
     }
 
-    /** A deploy [step] with its status and detail. */
+    /** A deploy [step] with its status and, if it has one, its detail, joined by a middle dot. */
     public fun step(step: StepProgress): String {
         val status = when (step.status) {
             StepStatus.PENDING -> "pending"
@@ -98,7 +100,10 @@ public object RuntimeTexts {
         return listOfNotNull("${step.title}: $status", step.detail).joinToString(" · ")
     }
 
-    /** A deploy [problem] with the file and the one-based position it points to, relative to [root]. */
+    /**
+     * A deploy [problem] with the file it points to, relative to [root], and the one-based position in that file. The
+     * position is only shown when the problem carries a range and a text snapshot to resolve it.
+     */
     public fun problem(problem: DeployProblem, root: Path): String {
         val location = problem.location ?: return problem.message
         val file = runCatching { root.relativize(location.file) }.getOrDefault(location.file)
@@ -107,7 +112,10 @@ public object RuntimeTexts {
         return "$where: ${problem.message}"
     }
 
-    /** The active states of [machine]: its attachment key, then its stack as a path, such as `turtle: drive › drive fast`. */
+    /**
+     * The active states of [machine]. The text starts with the machine's attachment key and then lists its state
+     * stack as a path, for example `turtle: drive › drive fast`.
+     */
     public fun activeStates(machine: MachineActivity): String = "${machine.attachedTo}: ${machine.stack.joinToString(" › ")}"
 
     /** The connection [state] in words. */
@@ -152,7 +160,10 @@ public object RuntimeTexts {
         is InjectionOutcome.Unavailable -> "not sent: ${availability(outcome.availability)}"
     }
 
-    /** When the event of [entry] was published, in local time, or its time since the launch if the runtime left it out. */
+    /**
+     * When the event of [entry] was published, in local time. If the runtime left the time out, it is the time since
+     * the launch instead.
+     */
     public fun time(entry: DomainEventEntry): String =
         entry.event.event?.let { TIME.format(Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault())) }
             ?: "+${entry.event.elapsed}"
@@ -160,14 +171,20 @@ public object RuntimeTexts {
     /** The event name of [entry], or a dash if the runtime left it out. */
     public fun eventName(entry: DomainEventEntry): String = entry.event.event?.name ?: "–"
 
-    /** Who raised the event of [entry]: a state machine (internal) or something outside the environment (external). */
+    /**
+     * Who raised the event of [entry]. It is "internal" for a state machine and "external" for something outside the
+     * environment. A dash stands for an event without a known source.
+     */
     public fun source(entry: DomainEventEntry): String = when (entry.event.event?.source) {
         null -> "–"
         "INTERNAL" -> "internal"
         else -> "external"
     }
 
-    /** The payload of [entry] on one line, cut to [PAYLOAD_LINE_LIMIT] characters. */
+    /**
+     * The payload of [entry] on one line. Line breaks and the blanks around them become one space. A longer payload is
+     * cut to [PAYLOAD_LINE_LIMIT] characters, the last of which is an ellipsis.
+     */
     public fun payloadLine(entry: DomainEventEntry): String {
         val line = payload(entry).replace(Regex("\\s*\\R\\s*"), " ")
         return if (line.length <= PAYLOAD_LINE_LIMIT) line else line.take(PAYLOAD_LINE_LIMIT - 1) + "…"

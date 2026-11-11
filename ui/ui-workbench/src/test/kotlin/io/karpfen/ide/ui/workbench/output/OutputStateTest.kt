@@ -28,10 +28,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * [OutputState], the state holder of the Language Tools Output, [OutputReadingPosition] and [OutputLineFormat]: the
- * state follows the buffer, counts the errors and warnings that arrive while the tool window is hidden until it is
- * shown, reads a burst of output as one snapshot, clears the buffer, keeps the follow toggle and the reading position,
- * and follows the newest lines when the tool window is shown with unseen problems.
+ * Tests [OutputState], which holds the state of the Language Tools Output, together with [OutputReadingPosition] and
+ * [OutputLineFormat]. The state follows the buffer. It counts the errors and warnings that arrive while the tool window
+ * is hidden, until the window is shown. It reads a burst of output as one snapshot and clears the buffer. It keeps the
+ * follow toggle and the reading position. And it follows the newest lines when the tool window is shown with unseen
+ * problems.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OutputStateTest {

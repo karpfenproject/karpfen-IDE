@@ -31,17 +31,18 @@ import org.antlr.v4.runtime.Token
 import org.antlr.v4.runtime.TokenStream
 
 /**
- * Runs a dsl-tools parser the IDE way: a `CommonTokenStream` over [KarpfenLexers.create], one
- * [IdeErrorListener] attached to the lexer and the parser (no console output), ANTLR's default error recovery, so
- * broken text still yields a partial tree, and no parse at all of a text beyond the [NestingLimit]. The generated
- * parser and its entry rule are the per-language strategy.
+ * Runs a dsl-tools parser the way the IDE needs it. The parser reads a `CommonTokenStream` over
+ * [KarpfenLexers.create]. One [IdeErrorListener] is attached to the lexer and the parser, so nothing goes to the
+ * console. ANTLR's default error recovery stays on, so broken text still yields a partial tree. A text that nests
+ * beyond the [NestingLimit] is not parsed at all. The generated parser and its entry rule are the strategy that each
+ * language supplies.
  *
- * Stateless and thread-safe (every call creates its own lexer, stream and parser; the generated parsers share only
- * ANTLR's thread-safe prediction caches).
+ * The class holds no state and is thread-safe. Every call creates its own lexer, stream and parser, and the generated
+ * parsers share only ANTLR's thread-safe prediction caches.
  *
  * @param grammar selects the generated lexer.
- * @param newParser creates the generated parser over a token stream, e.g. `::KmetaParser`.
- * @param entryRule invokes the grammar's entry rule, e.g. `KmetaParser::kmeta_file`.
+ * @param newParser creates the generated parser over a token stream, for example `::KmetaParser`.
+ * @param entryRule invokes the grammar's entry rule, for example `KmetaParser::kmeta_file`.
  */
 internal class TreeParser<P : Parser, T : ParserRuleContext>(
     private val grammar: DslGrammar,
@@ -49,11 +50,11 @@ internal class TreeParser<P : Parser, T : ParserRuleContext>(
     private val entryRule: (P) -> T,
 ) {
     /**
-     * Parses [snapshot]; errors become the tree's diagnostics. The stream is filled before the parse, which then reads
-     * the tokens from it: the nesting is measured on every token first, and the walkers and the EVAL scanner need every
-     * token, also where error recovery stops before the end of the input.
+     * Parses [snapshot]. Errors become the diagnostics of the tree. The stream is filled before the parse, which then
+     * reads the tokens from it. The nesting is measured on every token first. The walkers and the EVAL scanner also
+     * need every token, even where error recovery stops before the end of the input.
      *
-     * @throws NestingLimitExceeded instead of parsing a text that nests deeper than [NestingLimit.MAX_DEPTH]; never
+     * @throws NestingLimitExceeded instead of parsing a text that nests deeper than [NestingLimit.MAX_DEPTH]. Never
      *   throws otherwise.
      */
     fun parse(snapshot: TextSnapshot): ParsedTree<T> {
@@ -66,7 +67,10 @@ internal class TreeParser<P : Parser, T : ParserRuleContext>(
         return ParsedTree(snapshot, offsets, stream.tokens.toList(), root, listener.diagnostics)
     }
 
-    /** Throws [NestingLimitExceeded] at the first brace among [tokens] that opens a level beyond the limit, if any. */
+    /**
+     * Throws [NestingLimitExceeded] at the first brace among [tokens] that opens a level beyond the limit. Does nothing
+     * if there is no such brace.
+     */
     private fun requireWithinNestingLimit(tokens: List<Token>, offsets: CodePointOffsets) {
         val beyond = NestingDepth.firstBeyond(tokens, grammar, NestingLimit.MAX_DEPTH) ?: return
         throw NestingLimitExceeded(checkNotNull(offsets.range(beyond.startIndex, beyond.stopIndex)))

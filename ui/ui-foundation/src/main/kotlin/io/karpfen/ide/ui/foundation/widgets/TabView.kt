@@ -53,9 +53,9 @@ import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 
 /**
- * One tab of a [TabStrip]: icon, title, dirty dot, close button; the selected tab has the window background and an
- * accent underline. A primary click selects, a middle click (consumed before the selection sees it) or the close
- * button closes.
+ * One tab of a [TabStrip] with its icon, title, dirty dot and close button. The selected tab has the window background
+ * and an accent underline. A primary click selects the tab. A middle click or the close button closes it. The middle
+ * click is consumed in the initial pointer pass, before the selection sees it.
  */
 @Composable
 internal fun TabView(

@@ -37,34 +37,51 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Find/replace over the real text and carets, with virtual time for the background matching. */
+/** Find and replace over the real text and carets, with virtual time for the background matching. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FindModelTest {
 
     /**
-     * An editor with a find model whose executor records every action it runs. The model's scope and background
-     * dispatcher run on the test's scheduler (foreground work, so `advanceUntilIdle` runs it); [close] cancels it.
+     * An editor with a find model whose executor records every action it runs. The model's scope and its background
+     * dispatcher run on the test's scheduler as foreground work, so `advanceUntilIdle` runs them. [close] cancels the
+     * scope.
      */
     private class Fixture(scope: TestScope, marked: String) {
+        /** The job of the model's scope. */
         private val job = Job()
+
+        /** The edited text and carets. */
         val editor = TestEditor(marked)
+
+        /** Every action the model ran through [executor], in order. */
         val executed = mutableListOf<EditorAction>()
+
+        /** Records each action and runs it in [editor] while it is enabled. */
         val executor = EditorActionExecutor { action ->
             executed += action
             action.isEnabled(editor) && action.execute(editor)
         }
+
+        /** The model under test. */
         val find = FindModel(
             editor.text, editor.caret, executor,
             CoroutineScope(StandardTestDispatcher(scope.testScheduler) + job), StandardTestDispatcher(scope.testScheduler),
         )
 
+        /** Cancels the scope of the model. */
         fun close() = job.cancel()
 
+        /** The selection of the primary caret. */
         val selection: TextRange get() = editor.caret.primary.selection
+
+        /** The matches the model selected through [SelectMatchAction], in order. */
         val selected: List<TextRange> get() = executed.filterIsInstance<SelectMatchAction>().map { it.match }
+
+        /** The current find result. */
         val state: FindResult get() = find.state.value
     }
 
+    /** Runs [block] with a [Fixture] on [marked] in `runTest` and closes the fixture afterwards. */
     private fun findTest(marked: String, block: suspend TestScope.(Fixture) -> Unit) = runTest {
         val fixture = Fixture(this, marked)
         try {
@@ -74,7 +91,10 @@ class FindModelTest {
         }
     }
 
+    /** A text with three matches of `foo`. */
     private val foo = "foo bar foo baz foo"
+
+    /** The ranges of the three matches of `foo` in [foo]. */
     private val fooMatches = listOf(TextRange(0, 3), TextRange(8, 11), TextRange(16, 19))
 
     @Test
@@ -384,6 +404,7 @@ class FindModelTest {
 
     /** A dispatcher that counts the blocks it runs for [delegate]. */
     private class CountingDispatcher(private val delegate: CoroutineDispatcher) : CoroutineDispatcher() {
+        /** How many blocks were dispatched. */
         var dispatches = 0
 
         override fun dispatch(context: CoroutineContext, block: Runnable) {

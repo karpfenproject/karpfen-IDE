@@ -20,15 +20,17 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.caret.WordBoundaries
 
 /**
- * What a deletion key removes at a caret without selection, as a range of the current text, or null when there is
- * nothing to delete. Pure functions without state; [DeletionAction] applies the result.
+ * Decides what a deletion key removes at a caret without a selection. Each function returns a range of the current
+ * text, or null when there is nothing to delete. The object holds pure functions and no state. [DeletionAction]
+ * applies the result.
  */
 internal object DeletionRules {
 
     /**
-     * Backspace at [position]: a tracked auto-closed pair around the caret (both characters); inside leading
-     * whitespace the spaces back to the previous 4-column stop (smart unindent, at least one character); else the
-     * character before the caret (a surrogate pair as a whole).
+     * Returns what Backspace at [position] removes. If the caret sits between the two characters of a tracked
+     * auto-closed pair, both characters go. Inside leading whitespace, the spaces back to the previous 4-column stop go,
+     * at least one character. This is smart unindent. Otherwise the character before the caret goes, and a surrogate
+     * pair goes as a whole.
      */
     fun backspace(snapshot: TextSnapshot, position: Int, autoPairs: AutoClosedPairs): TextRange? {
         if (position <= 0) return null
@@ -43,7 +45,7 @@ internal object DeletionRules {
         return TextRange(start, position)
     }
 
-    /** Delete at [position]: the character after the caret (a surrogate pair as a whole). */
+    /** Returns what Delete at [position] removes: the character after the caret. A surrogate pair goes as a whole. */
     fun forward(snapshot: TextSnapshot, position: Int): TextRange? {
         val text = snapshot.text
         if (position >= text.length) return null

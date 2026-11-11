@@ -16,18 +16,19 @@
 package io.karpfen.ide.core.text
 
 /**
- * One undo step (Memento): what one or more consecutive changes did to the text, as a [forward] script on the text
- * before the step and a [backward] script on the text after it, plus the carets to restore.
+ * One undo step, a memento in the sense of the Memento pattern. It records what one or more consecutive changes did to
+ * the text, as a [forward] script on the text before the step and a [backward] script on the text after it. It also
+ * holds the carets to restore.
  *
- * A step made of several changes (a group, a coalesced typing run) is still one forward and one backward script, so
- * undo and redo each apply exactly one change. Immutable: [extendedBy] returns a new step; the undo history uses the
- * step's identity as the identity of the text state it leads to.
+ * A step made of several changes, such as a group or a coalesced typing run, is still one forward and one backward
+ * script, so undo and redo each apply exactly one change. A step is immutable, and [extendedBy] returns a new step.
+ * The undo history uses the step's identity as the identity of the text state it leads to.
  *
- * @property label what the step was made by (the group name or the origin of its first change), for diagnostics.
- * @property forward redoes the step; edits in the coordinates of the text before it.
- * @property backward undoes the step; edits in the coordinates of the text after it.
- * @property caretsBefore the `caretsBefore` of the step's first change (restored by undo).
- * @property caretsAfter the `caretsAfter` of the step's last change (restored by redo).
+ * @property label what made the step, for diagnostics. It is the group name or the origin of its first change.
+ * @property forward redoes the step. Its edits are in the coordinates of the text before the step.
+ * @property backward undoes the step. Its edits are in the coordinates of the text after the step.
+ * @property caretsBefore the `caretsBefore` of the step's first change. Undo restores them.
+ * @property caretsAfter the `caretsAfter` of the step's last change. Redo restores them.
  */
 internal class UndoStep private constructor(
     val label: String,
@@ -39,12 +40,13 @@ internal class UndoStep private constructor(
     val caretsAfter: List<CaretMemento>?,
 ) {
 
-    /** True if the changes of this step cancelled each other out (the text is the same as before the step). */
+    /** True if the changes of this step cancelled each other out, so the text is the same as before the step. */
     val isEmpty: Boolean get() = forward.isEmpty
 
     /**
-     * This step followed by [change] (applied to the text after this step) as one step: the carets before stay, the
-     * carets after become [caretsAfter] (also when null: a missing memento is not taken from another change).
+     * This step followed by [change] as one step. [change] was applied to the text after this step. The carets before
+     * stay, and the carets after become [caretsAfter]. That holds even when [caretsAfter] is null, because a missing
+     * memento is never taken from another change.
      */
     fun extendedBy(change: TextChange, caretsAfter: List<CaretMemento>?): UndoStep {
         require(change.before.length == lengthAfter) { "the change does not continue this step" }

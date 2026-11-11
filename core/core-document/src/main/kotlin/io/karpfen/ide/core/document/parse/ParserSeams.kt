@@ -26,24 +26,24 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * Parses one language and walks the tree: the modeling languages with the dsl-tools ANTLR parsers (implemented in
- * `antlr.tree`), environment descriptors with the IDE's JSON parser (implemented in `environment`). One of the two
- * module-internal seams a [ComposedDocumentParser] is made of.
+ * Parses one language and walks the tree. The modeling languages use the dsl-tools ANTLR parsers, through the
+ * analyzers in `antlr.tree`. Environment descriptors use the IDE's JSON parser, through the analyzer in `environment`.
+ * This is one of the two module-internal seams that a [ComposedDocumentParser] is made of.
  */
 internal interface SyntaxAnalyzer {
     /** The language this analyzer parses. */
     val language: KarpfenLanguage
 
     /**
-     * Analyzes [snapshot]; see [DocumentParser] for the contract.
+     * Analyzes [snapshot] under the same rules as [DocumentParser.parse].
      *
      * @throws NestingLimitExceeded instead of parsing a text of a modeling language that nests deeper than
-     *   [NestingLimit.MAX_DEPTH]; never throws otherwise.
+     *   [NestingLimit.MAX_DEPTH]. It never throws otherwise.
      */
     fun analyze(snapshot: TextSnapshot): SyntaxAnalysis
 }
 
-/** The syntax part of a [ParseOutcome]; its properties mean what the same properties of [ParseOutcome] mean. */
+/** The syntax part of a [ParseOutcome]. Each property means the same as the property of [ParseOutcome] of that name. */
 internal data class SyntaxAnalysis(
     val syntaxDiagnostics: List<Diagnostic>,
     val outline: List<OutlineNode>,
@@ -53,8 +53,8 @@ internal data class SyntaxAnalysis(
 )
 
 /**
- * Reads a syntactically clean file with a dsl-tools reader. Implemented in `dsl`; one of the two module-internal seams
- * a [ComposedDocumentParser] is made of. Never throws.
+ * Reads a syntactically clean file with a dsl-tools reader. It is implemented in `dsl` and never throws. This is the
+ * other module-internal seam that a [ComposedDocumentParser] is made of.
  */
 internal fun interface StandaloneSemantics {
     /** Reads [snapshot] into its model and the DSL_TOOLS diagnostics at the places the reader reports. */
@@ -64,32 +64,36 @@ internal fun interface StandaloneSemantics {
 /**
  * Result of [StandaloneSemantics.read].
  *
- * @property model the model read, partial if [diagnostics] hold an error; null if the text yields no model.
+ * @property model the model read, or null if the text yields no model. It is partial if [diagnostics] hold an error.
  * @property diagnostics the DSL_TOOLS diagnostics of the read.
  */
 internal data class StandaloneResult(val model: DslModel?, val diagnostics: List<Diagnostic>)
 
 /**
- * The [DocumentParser] of every language, composed (Strategy) of a syntax analyzer (the ANTLR adapter in `antlr.tree`,
- * or the environment analyzer for descriptors) and optional standalone semantics (the dsl-tools adapter in `dsl`), so
- * neither part knows the other and the composition rule lives in this one class.
+ * The [DocumentParser] of every language. It is composed as a Strategy of a syntax analyzer and optional standalone
+ * semantics. The syntax analyzer is the ANTLR adapter in `antlr.tree`, or the environment analyzer for descriptors. The
+ * standalone semantics are the dsl-tools adapter in `dsl`. Neither part knows the other, and the rule that composes
+ * them lives in this one class.
  *
- * It runs [syntax]; if the outcome has no syntax diagnostics, the mode is [SemanticMode.STANDALONE] and [semantics] is
- * not null, it runs [semantics]; then it assembles the [ParseOutcome]. Parsing never throws: a text beyond the
- * [NestingLimit] and a failure of a collaborator each become one diagnostic, from [syntax] a PARSER diagnostic with an
- * empty analysis (the outcome is not syntax-clean, the session shows it and nothing is read), from [semantics] a
- * DSL_TOOLS one without a model.
+ * It first runs [syntax]. It then runs [semantics] if the outcome has no syntax diagnostics, the mode is
+ * [SemanticMode.STANDALONE] and [semantics] is not null. Last, it assembles the [ParseOutcome].
  *
- * - [NestingLimitExceeded] answers a text that nests deeper than [NestingLimit.MAX_DEPTH]: it becomes a
- *   `nesting-too-deep` error at the brace that opens the first level too many, the same on every parse.
- * - An exception is a defect: it becomes an `internal-error` at the start of the text and is logged as an error with
- *   its stack trace.
- * - A `StackOverflowError` comes from a text within the limit that still nests deeper than the recursive parsers and
- *   tree walkers can follow on the stack of the parsing thread, which only a thread with a stack far smaller than the
- *   default one meets: it becomes a `nesting-too-deep` error at the start of the text and is logged as one line at INFO,
- *   without its stack trace, which would otherwise be repeated on every reparse of the text. At INFO it reaches the IDE
- *   log but neither the IDE's console nor the command-line tool's standard error, which show warnings and errors
- *   only.
+ * Parsing never throws. A text beyond the [NestingLimit] and a failure of a collaborator each become one diagnostic.
+ * A failure in [syntax] gives a PARSER diagnostic with an empty analysis. That outcome is not syntax-clean, so the
+ * session shows it and nothing is read. A failure in [semantics] gives a DSL_TOOLS diagnostic without a model.
+ *
+ * [NestingLimitExceeded] answers a text that nests deeper than [NestingLimit.MAX_DEPTH]. It becomes a
+ * `nesting-too-deep` error at the brace that opens the first level too many, the same on every parse.
+ *
+ * Any other exception is a defect. It becomes an `internal-error` at the start of the text and is logged as an error
+ * with its stack trace.
+ *
+ * A `StackOverflowError` comes from a text within the limit that still nests deeper than the recursive parsers and
+ * tree walkers can follow on the stack of the parsing thread. Only a thread with a stack far smaller than the default
+ * one meets this. The error becomes a `nesting-too-deep` error at the start of the text. It is logged as one line at
+ * INFO and without its stack trace, which would otherwise repeat on every reparse of the text. At INFO it reaches the
+ * IDE log. It reaches neither the IDE's console nor the standard error of the command-line tool, because those two show
+ * only warnings and errors.
  *
  * @throws IllegalArgumentException if [syntax] parses another language than [language].
  */
@@ -123,7 +127,7 @@ internal class ComposedDocumentParser(
         )
     }
 
-    /** The syntax analysis; a failure of the analyzer becomes a PARSER diagnostic, so the outcome is not clean. */
+    /** The syntax analysis. A failure of the analyzer becomes a PARSER diagnostic, so the outcome is not clean. */
     private fun analyzeSyntax(snapshot: TextSnapshot): SyntaxAnalysis =
         try {
             syntax.analyze(snapshot)
@@ -147,7 +151,7 @@ internal class ComposedDocumentParser(
             semanticSpans = emptyList(),
         )
 
-    /** The standalone read; a failure of the adapter becomes a DSL_TOOLS diagnostic and no model. */
+    /** The standalone read. A failure of the adapter becomes a DSL_TOOLS diagnostic and no model. */
     private fun read(semantics: StandaloneSemantics, snapshot: TextSnapshot): StandaloneResult =
         try {
             semantics.read(snapshot)
@@ -178,8 +182,8 @@ internal class ComposedDocumentParser(
         )
 
     /**
-     * The `nesting-too-deep` diagnostic reported by [source] at [range], for a text that nests deeper than [reach]. By
-     * default at the start of the text, because a parser that runs out of stack gives no position.
+     * The `nesting-too-deep` diagnostic reported by [source] at [range], for a text that nests deeper than [reach].
+     * The range defaults to the start of the text, because a parser that runs out of stack gives no position.
      */
     private fun nestingTooDeep(
         source: DiagnosticSource,

@@ -19,8 +19,8 @@ import io.karpfen.ide.runtime.protocol.conformance.LiveRuntime
 import io.karpfen.ide.runtime.protocol.conformance.LiveRuntimeUnderTest
 
 /**
- * Covers observing the model through a session ([ObservationScenarios]) against the real runtime that the live task is given, usually a throwaway
- * container of `runtime/live-runtime.sh test`.
+ * Covers observing the model through a session against the real runtime that the live task is given. The scenarios are
+ * those of [ObservationScenarios]. The runtime is usually a throwaway container of `runtime/live-runtime.sh test`.
  */
 @LiveRuntime
 class LiveObservationScenariosTest : ObservationScenarios() {

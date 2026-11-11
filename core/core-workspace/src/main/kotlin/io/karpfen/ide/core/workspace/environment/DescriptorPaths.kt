@@ -19,15 +19,15 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
 /**
- * How a descriptor names files: by paths relative to its own directory, with `/` as separator on every platform. The
- * one rule for the contexts the workspace resolves, for the paths completion offers and hover and navigation follow, and
- * for the paths the file templates write.
+ * How a descriptor names files. It uses paths relative to its own directory, with `/` as the separator on every
+ * platform. This single rule serves the contexts the workspace resolves, the paths that completion offers and that
+ * hover and navigation follow, and the paths that the file templates write.
  */
 public object DescriptorPaths {
 
     /**
-     * The file [value] names in a descriptor in [directory]: absolute and normalized (sub-directories and `..` are
-     * allowed), or null if [value] is no valid path on this platform.
+     * The file that [value] names in a descriptor in [directory], absolute and normalized. Subdirectories and `..` are
+     * allowed. It is null if [value] is not a valid path on this platform.
      */
     public fun resolve(directory: Path, value: String): Path? =
         try {
@@ -37,8 +37,8 @@ public object DescriptorPaths {
         }
 
     /**
-     * How a descriptor in [directory] names [file]: relative, with `/` separators. A file on another file-system root,
-     * which `relativize` rejects, can only be named by its absolute path.
+     * How a descriptor in [directory] names [file]. The path is relative and uses `/` separators. A file on another
+     * file-system root, which `relativize` rejects, can only be named by its absolute path.
      */
     public fun relative(directory: Path, file: Path): String =
         try {

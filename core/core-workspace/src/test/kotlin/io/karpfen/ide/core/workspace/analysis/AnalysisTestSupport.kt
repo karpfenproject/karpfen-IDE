@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /** The production analyzer. */
 internal fun analyzer(): ProjectAnalyzer = ProjectAnalyzer(defaultLanguageRegistry(), DslReader())
 
-/** Sources reading every file from disk like the workspace does for unopened files; counts the loads. */
+/** Sources that read every file from disk, as the workspace does for files that are not open. They count the loads. */
 internal class DiskSources : AnalysisSources {
     /** The number of [load] calls so far. */
     val loads = AtomicInteger()
@@ -45,7 +45,7 @@ internal class DiskSources : AnalysisSources {
     }
 }
 
-/** The contexts of the folder [root] as the workspace resolves them (no descriptors). */
+/** The contexts of the folder [root] as the workspace resolves them without descriptors. */
 internal fun resolve(root: Path): ContextResolution {
     val tree = WorkspaceScanner(WorkspaceOptions.DEFAULT_IGNORED_DIRECTORIES).scan(root)
     return ContextResolver().resolve(tree, emptyMap())

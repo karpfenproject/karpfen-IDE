@@ -32,31 +32,36 @@ import java.nio.file.Path
 import kotlin.time.TimeSource
 
 /**
- * The document side of a workspace: the public [DocumentManager] plus the workspace's debounced file changes. The
- * workspace depends on this interface (not on [DefaultDocumentManager]), so its watch pipeline can be tested with a
- * fake.
+ * The document side of a workspace. It is the public [DocumentManager] plus the debounced file changes of the
+ * workspace. The workspace depends on this interface and not on [DefaultDocumentManager], so its watch pipeline can be
+ * tested with a fake.
  */
 internal interface WorkspaceDocuments : DocumentManager {
-    /** Called by the workspace for every debounced change of a file: reload, conflict, or nothing (self-induced). */
+    /**
+     * Called by the workspace for every debounced change of a file. The change leads to a reload, a conflict, or
+     * nothing when the change came from the document's own save.
+     */
     suspend fun onFileChanged(path: Path, deleted: Boolean)
 
-    /** Closes every open document (unsaved changes are discarded); used by `Workspace.close`. */
+    /** Closes every open document and discards unsaved changes. `Workspace.close` uses it. */
     fun closeAll()
 }
 
 /**
- * Default [WorkspaceDocuments] (reload / conflict handling, ignoring self-induced events after a save; FILE findings
- * and the semantic mode as documented on [DocumentManager]).
+ * Default [WorkspaceDocuments]. It handles reloads and conflicts and ignores the events that its own saves cause. The
+ * FILE findings and the semantic mode work as described on [DocumentManager].
  *
- * The registry of open documents; the work is delegated to single-purpose collaborators: [OpenDocumentFactory]
- * (sessions, FILE findings), [DocumentSaver] (atomic save, save point) and [DiskSynchronizer] (external changes and
- * conflicts). Every mutation of a document runs on the [SingleWriter] of [scope].
+ * The class is the registry of open documents. It hands the work to collaborators with one purpose each.
+ * [OpenDocumentFactory] creates the sessions and the FILE findings. [DocumentSaver] does the atomic save and marks the
+ * save point. [DiskSynchronizer] handles external changes and conflicts. Every change to a document runs on the
+ * [SingleWriter] of [scope].
  *
- * @param scope the workspace's scope; its dispatcher is the single writer of every document's text.
+ * @param scope the workspace's scope. Its dispatcher is the single writer of every document's text.
  * @param sourceLoader loads files for opening and reloading.
  * @param fileStore writes files when saving.
- * @param sessionConfig base configuration of every session; used with `semanticMode = SemanticMode.SYNTAX_ONLY`.
- * @param timeSource clock of every document's `EditableText`.
+ * @param sessionConfig the base configuration of every session. It is used with
+ *   `semanticMode = SemanticMode.SYNTAX_ONLY`.
+ * @param timeSource the clock of every document's `EditableText`.
  */
 internal class DefaultDocumentManager(
     scope: CoroutineScope,

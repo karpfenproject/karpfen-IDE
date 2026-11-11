@@ -24,27 +24,27 @@ import kotlinx.coroutines.job
 import java.nio.file.Path
 
 /**
- * `karpfen validate <dir>`: [run] opens a `Workspace` of the directory through [workspaceFactory] (no watching), runs
- * `refresh()` and `awaitAnalysis()`, and reports `Workspace.problems`: the same single rule as the IDE's Problems view
- * (every karpfen file's own LEXER/PARSER/IDE diagnostics, loose files included, plus the project's DSL_TOOLS and
- * descriptor/context diagnostics), so the CLI and the IDE never disagree. Positions come from
- * `FileProblems.positionOf`, shown one-based; a file or a directory the workspace cannot read is its ERROR `unreadable`
- * at 1:1, so a tree the CLI could not read never passes.
+ * The command `karpfen validate <dir>`. [run] opens a `Workspace` of the directory through [workspaceFactory], without
+ * watching, runs `refresh()` and `awaitAnalysis()`, and reports `Workspace.problems`. That is the same single rule the
+ * IDE's Problems view uses, so the CLI and the IDE never disagree. It covers the LEXER, PARSER and IDE diagnostics of
+ * every karpfen file, loose files included, plus the project's DSL_TOOLS, descriptor and context diagnostics.
+ * Positions come from `FileProblems.positionOf` and are shown one-based. A file or a directory the workspace cannot
+ * read gets the ERROR `unreadable` at 1:1, so a tree the CLI could not read never passes.
  *
- * Nothing of the workspace run prints to standard output: dsl-tools logs through SLF4J, and the tool's logging
- * configuration writes to standard error only, so the caller prints the report on standard output afterwards.
+ * Nothing of the workspace run prints to standard output. dsl-tools logs through SLF4J, and the tool's logging
+ * configuration writes to standard error only. So the caller prints the report on standard output afterwards.
  *
- * @param workspaceFactory creates the workspace; the default uses the built-in languages and options without watching.
- *   Tests pass `WorkspaceFactory(WorkspaceOptions(watch = false, …test dispatchers…))` or a fake.
+ * @param workspaceFactory creates the workspace. The default uses the built-in languages and options without
+ *   watching. Tests pass `WorkspaceFactory(WorkspaceOptions(watch = false, …))` with test dispatchers, or a fake.
  */
 public class ValidateCommand(
     private val workspaceFactory: WorkspaceFactory = WorkspaceFactory(WorkspaceOptions(watch = false)),
 ) {
     /**
-     * Validates [directory]: every problem of the workspace, with paths relative to the directory (see
-     * [ValidationReport]). The returned report is complete; printing it is the caller's job.
+     * Validates [directory] and returns every problem of the workspace as a [ValidationReport], with paths relative
+     * to the directory. The returned report is complete. Printing it is the caller's job.
      *
-     * @throws IllegalArgumentException if [directory] is not a directory (from the workspace factory).
+     * @throws IllegalArgumentException if [directory] is not a directory. The workspace factory throws it.
      */
     public suspend fun run(directory: Path): ValidationReport {
         val root = directory.toAbsolutePath().normalize()
@@ -52,8 +52,8 @@ public class ValidateCommand(
     }
 
     /**
-     * One workspace run in a child scope: the workspace is closed and every coroutine it started is cancelled before
-     * this returns (also on failure), so no analysis keeps running after the report.
+     * One workspace run in a child scope. The workspace is closed and every coroutine it started is cancelled before
+     * this returns, also on failure, so no analysis keeps running after the report.
      */
     private suspend fun collect(root: Path): WorkspaceProblems = coroutineScope {
         val workspace = workspaceFactory.open(root, this)

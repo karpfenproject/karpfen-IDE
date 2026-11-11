@@ -21,13 +21,13 @@ import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The ERROR [WorkspaceDiagnosticCodes.UNREADABLE] of everything the workspace cannot read, so a file the analysis could
- * not load, a descriptor and a directory the scan could not list read alike. At the start of the file: without its
- * text there is no other position.
+ * The ERROR [WorkspaceDiagnosticCodes.UNREADABLE] of everything the workspace cannot read. So a file the analysis
+ * could not load, a descriptor, and a directory the scan could not list all read alike. The finding lies at the start
+ * of the file, because without the text there is no other position.
  */
 internal object UnreadableFindings {
 
-    /** A file that cannot be read, for the given [reason] (e.g. "access denied"). */
+    /** A file that cannot be read, for the given [reason], such as "access denied". */
     fun file(reason: String): Diagnostic = error("Cannot read this file ($reason), so it was not analyzed.")
 
     /** A directory that cannot be listed. */

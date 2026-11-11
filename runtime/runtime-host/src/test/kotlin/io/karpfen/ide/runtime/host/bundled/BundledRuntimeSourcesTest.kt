@@ -25,8 +25,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers [BundledRuntimeSources]: the build bundles the tracked runtime sources with their properties, which describe
- * the archive exactly, and missing or unreadable resources are reported as missing sources.
+ * Covers [BundledRuntimeSources]. The build bundles the tracked runtime sources with their properties, which describe the
+ * archive exactly. Missing or unreadable resources are reported as missing sources.
  */
 class BundledRuntimeSourcesTest {
 

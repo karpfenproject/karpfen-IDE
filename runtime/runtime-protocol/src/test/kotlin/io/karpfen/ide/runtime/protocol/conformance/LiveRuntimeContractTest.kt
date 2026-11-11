@@ -18,7 +18,7 @@ package io.karpfen.ide.runtime.protocol.conformance
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 
 /**
- * Covers the runtime's contract ([RuntimeContract]) against the real runtime that the live task is given, usually a
+ * Runs the scenarios of [RuntimeContract] against the real runtime that the live task is given. That is usually a
  * throwaway container of `runtime/live-runtime.sh test`.
  */
 @LiveRuntime

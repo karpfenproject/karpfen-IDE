@@ -46,7 +46,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @OptIn(ExperimentalCoroutinesApi::class)
 class AnalysisSchedulerTest {
 
-    /** Records every run; runs may be held at a gate to test cancellation. */
+    /** Records every run. Runs may be held at a gate to test cancellation. */
     private class FakeAnalyzer : ProjectAnalyzer {
         val started = ArrayList<Long>()
         val resolutions = ArrayList<ContextResolution>()

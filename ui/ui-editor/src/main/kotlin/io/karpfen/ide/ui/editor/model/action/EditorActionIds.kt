@@ -16,12 +16,13 @@
 package io.karpfen.ide.ui.editor.model.action
 
 /**
- * Ids of the editor actions. Menus (app), context menus (popups), keymaps and the workbench's command forwarding use
- * these constants, so every surface reaches the same action.
+ * The ids of the editor actions. The menus of the app, the editor context menu, the keymaps and the command forwarding
+ * of the workbench all use these constants, so every one of them reaches the same action.
  *
- * The ids come in groups: caret movement (`editor.caret.*`, whose `.select` variants extend the selection instead of
- * collapsing it), typing and deletion, line operations, clipboard and history, and UI requests (find, go to line,
- * completion, go to definition), which the editor state fulfils.
+ * The ids come in groups. Caret movement ids start with `editor.caret.`, and their `.select` variants extend the
+ * selection instead of collapsing it. Then come typing and deletion, line operations, and clipboard and history. The
+ * last group are the UI requests, which the editor state carries out: find, go to line, completion and go to
+ * definition.
  */
 public object EditorActionIds {
     /** Moves the caret one character left. */
@@ -36,13 +37,13 @@ public object EditorActionIds {
     /** Moves the caret one line down, keeping its preferred display column. */
     public const val CARET_DOWN: String = "editor.caret.down"
 
-    /** Moves the caret to the start of the word left of it (identifier, punctuation and whitespace runs are words). */
+    /** Moves the caret to the start of the word left of it. Runs of identifier characters, punctuation and whitespace are words. */
     public const val CARET_WORD_LEFT: String = "editor.caret.wordLeft"
 
     /** Moves the caret to the end of the word right of it. */
     public const val CARET_WORD_RIGHT: String = "editor.caret.wordRight"
 
-    /** Smart Home: moves the caret to the first non-blank character of its line, then to column 0. */
+    /** Smart Home. Moves the caret to the first non-blank character of its line, or to column 0 if it is already there. */
     public const val CARET_LINE_START: String = "editor.caret.lineStart"
 
     /** Moves the caret to the end of its line. */
@@ -99,7 +100,10 @@ public object EditorActionIds {
     /** Selects the whole document. */
     public const val SELECT_ALL: String = "editor.selectAll"
 
-    /** Id shared by every [typeTextAction] instance (not key-bound; typed text arrives through text input). */
+    /**
+     * The id that every [typeTextAction] instance shares. No key is bound to it, because typed text arrives through
+     * text input.
+     */
     public const val TYPE_TEXT: String = "editor.typeText"
 
     /** Breaks the line with auto-indent. */
@@ -130,8 +134,8 @@ public object EditorActionIds {
     public const val MOVE_LINE_DOWN: String = "editor.moveLineDown"
 
     /**
-     * Indents every non-empty line of a selection spanning lines by one level; otherwise replaces the selection by
-     * spaces up to the next indentation stop.
+     * Indents every non-empty line of a selection that spans lines by one level. Otherwise it replaces the selection
+     * with spaces up to the next indentation stop.
      */
     public const val INDENT: String = "editor.indent"
 
@@ -147,7 +151,7 @@ public object EditorActionIds {
     /** Cuts the selection, or the caret's whole line without a selection. */
     public const val CUT: String = "editor.cut"
 
-    /** Pastes the clipboard text (a copied whole line above the caret's line). */
+    /** Pastes the clipboard text. A copied whole line goes above the caret's line. */
     public const val PASTE: String = "editor.paste"
 
     /** Undoes the last undo step and restores its carets. */
@@ -162,10 +166,10 @@ public object EditorActionIds {
     /** Opens the find bar with its replace row. */
     public const val REPLACE: String = "editor.replace"
 
-    /** Selects the next match of the find query (opens the find bar while the query is empty). */
+    /** Selects the next match of the find query. While the query is empty, it opens the find bar instead. */
     public const val FIND_NEXT: String = "editor.findNext"
 
-    /** Selects the previous match of the find query (opens the find bar while the query is empty). */
+    /** Selects the previous match of the find query. While the query is empty, it opens the find bar instead. */
     public const val FIND_PREVIOUS: String = "editor.findPrevious"
 
     /** Opens the go-to-line popup. */
@@ -179,13 +183,13 @@ public object EditorActionIds {
 }
 
 /**
- * User-visible titles of the editor actions: the one source of the labels shown by the editor context menu (popups)
- * and by the window menu (the workbench registers the editor commands with these titles), so both always agree.
+ * The titles of the editor actions that users see. This is the only source of the labels in the editor context menu
+ * and in the window menu, where the workbench registers the editor commands with these titles. So both always agree.
  * Every id of [EditorActionIds] has a title.
  */
 public object EditorActionTitles {
 
-    /** Title by action id. */
+    /** The titles, keyed by action id. */
     public val titles: Map<String, String> = mapOf(
         EditorActionIds.CARET_LEFT to "Move Left",
         EditorActionIds.CARET_RIGHT to "Move Right",
@@ -240,8 +244,9 @@ public object EditorActionTitles {
     )
 
     /**
-     * The title of [actionId].
-     * @throws IllegalArgumentException for an id without a title (programming error).
+     * Returns the title of [actionId].
+     *
+     * @throws IllegalArgumentException for an id without a title, which is a programming error.
      */
     public fun of(actionId: String): String = requireNotNull(titles[actionId]) { "no title for editor action $actionId" }
 }

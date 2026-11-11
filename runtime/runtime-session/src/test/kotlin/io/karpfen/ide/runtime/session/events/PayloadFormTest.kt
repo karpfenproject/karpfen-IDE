@@ -29,8 +29,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Covers payload forms: the fields of a payload type from the event metamodel, nested forms down to a depth limit, and
- * the JSON a filled-in draft becomes, which the JSON format then checks like typed text.
+ * Covers payload forms. It checks the fields of a payload type from the event metamodel and nested forms down to a
+ * depth limit. It also checks the JSON that a filled-in draft becomes, which the JSON format then checks like typed
+ * text.
  */
 class PayloadFormTest {
 
@@ -139,7 +140,10 @@ class PayloadFormTest {
         assertFalse(JsonPayloadFormat(OrderEvents.schema).validate("{\"count\":1.0E20}", OrderEvents.order).hasErrors)
     }
 
-    /** The schema of the event metamodel of the runtime's example in [directory] whose domain metamodel is [metamodelFile]. */
+    /**
+     * The schema of the event metamodel of the runtime's example in [directory], whose domain metamodel is
+     * [metamodelFile].
+     */
     private fun eventSchema(directory: String, metamodelFile: String): TypeSchema {
         val domain = DslTexts.metamodel(Examples.file("karpfen-runtime/$directory/$metamodelFile").text)
         return TypeSchema.of(DslTexts.metamodel(Examples.file("karpfen-runtime/$directory/EVENTS.kmeta").text, domain.types))

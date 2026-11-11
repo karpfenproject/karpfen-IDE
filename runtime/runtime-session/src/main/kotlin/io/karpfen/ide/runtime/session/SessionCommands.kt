@@ -62,13 +62,16 @@ internal sealed interface SessionCommand {
  *
  * | State | Allowed |
  * |---|---|
- * | deploying | none (shutting down and closing are no commands of the conductor's table) |
- * | ready | start, stop, force state, observation on and off, pull, injecting events (queued until the start) |
+ * | deploying | none |
+ * | ready | start, stop, force state, observation on and off, pull, injecting events |
  * | running | stop, force state, observation on and off, pull, injecting events |
  * | halted | stop, observation off, pull |
  * | stopping | none |
  * | stopped | pull |
  * | failed, closed | none |
+ *
+ * Events injected while the session is ready are queued until the start. Shutting down and closing are not commands of
+ * this table. The conductor handles them on their own.
  */
 internal object CommandRules {
     /** Why [command] is refused in [state], or null if it is allowed. */
@@ -103,8 +106,9 @@ internal object CommandRules {
 }
 
 /**
- * Whether events can be injected, following the session's state: not yet while deploying, queued until the start while
- * ready, live while running, in both cases only with an open connection, and unavailable otherwise. Stateless.
+ * Whether events can be injected, following the session's state. While the session deploys, injection is not possible
+ * yet. While it is ready, events are queued until the start. While it runs, events go out live. Ready and running both
+ * need an open connection. In every other state injection is unavailable. Stateless.
  */
 internal object InjectionAvailabilities {
     /** The availability in [state], with a connection that is open if [linkOpen]. */

@@ -26,10 +26,10 @@ application {
 }
 
 /**
- * `validate` needs the workspace, the project analysis and the per-file tokenizing and parsing (core-workspace has
- * core-document as an `api` dependency). The runtime session is the base of a later `deploy` command; the CLI has
- * none yet. logback is the logging backend, whose API `LogbackLanguageToolsLog` uses to show what dsl-tools logs with
- * `--verbose`.
+ * `validate` needs the workspace, the project analysis and the tokenizing and parsing of each file. core-workspace
+ * brings core-document as an `api` dependency. The runtime session is there for a possible `deploy` command, which the
+ * CLI does not have yet. logback is the logging backend. `LogbackLanguageToolsLog` uses its API to show what dsl-tools
+ * logs with `--verbose`.
  */
 dependencies {
     implementation(project(":core:core-workspace"))

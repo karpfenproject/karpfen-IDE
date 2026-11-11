@@ -36,12 +36,12 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.launch
 
 /**
- * Keeps every frame a real runtime sends on the links of one scenario, so that after the scenario every frame can be
- * decoded with the client's [RuntimeFrameDecoder]: the broadest check that the runtime's writers and the client's reader
- * still agree. Each link is recorded with its handshake, the first text the client sent on it, which names the
- * environment and the client the frames belong to.
+ * Keeps every frame that a real runtime sends on the links of one scenario. After the scenario every frame can then be
+ * decoded with the client's [RuntimeFrameDecoder]. That is the broadest check that the runtime's writers and the
+ * client's reader still agree. Each link is recorded with its handshake. The handshake is the first text the client
+ * sent on the link, and it names the environment and the client that the frames belong to.
  *
- * Threading: links may be opened and used from any coroutine.
+ * Links may be opened and used from any coroutine.
  */
 internal class FrameRecorder {
 
@@ -52,15 +52,15 @@ internal class FrameRecorder {
     private val links = ArrayList<LinkRecord>()
 
     /**
-     * [transports] with a WebSocket seam whose links are recorded; closing them closes [transports]. The links forward
-     * the runtime's frames from coroutines in [scope], which must live as long as the scenario.
+     * Wraps [transports] so that the links of the WebSocket seam are recorded. Closing the result closes [transports].
+     * The links forward the runtime's frames from coroutines in [scope], which must live as long as the scenario.
      */
     fun recording(transports: RuntimeTransports, scope: CoroutineScope): RuntimeTransports =
         RuntimeTransports(transports.http, RecordingConnector(transports.webSockets, scope), transports::close)
 
     /**
-     * The violations of the recorded frames, one line each: frames the decoder of their link rejects or reports,
-     * binary frames, and frames on a link whose handshake names no environment and client.
+     * The violations of the recorded frames, one line each. A violation is a frame that the decoder of its link
+     * rejects or reports, a binary frame, or a frame on a link whose handshake names no environment and client.
      */
     fun violations(): List<String> = synchronized(lock) { links.toList() }.flatMap { it.violations() }
 
@@ -137,15 +137,15 @@ private class LinkRecord(private val url: String) {
     }
 
     private companion object {
-        /** The parts of a handshake: client id, environment key, access key. */
+        /** The number of parts of a handshake, which are the client id, the environment key and the access key. */
         const val HANDSHAKE_PARTS = 3
     }
 }
 
 /**
- * A link that records what passes through [link] into [record]: the texts the client sends, and the frames the runtime
- * sends, which a coroutine in [scope] forwards into [incoming] without ever suspending on the reader. The closure is the
- * recorded link's, complete before [incoming] ends.
+ * A link that records into [record] what passes through [link]. It records the texts the client sends and the frames
+ * the runtime sends. A coroutine in [scope] forwards the runtime's frames into [incoming] without ever suspending on
+ * the reader. The closure is the one of the recorded link, and it is complete before [incoming] ends.
  */
 private class RecordingLink(
     private val link: WebSocketLink,

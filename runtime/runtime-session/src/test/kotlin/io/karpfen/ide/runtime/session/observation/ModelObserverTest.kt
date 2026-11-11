@@ -55,11 +55,11 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers the model observer with a port that answers as each test programs it, on virtual time: switching on with
- * retries while the runtime has no session for the client, pushes that wait in the router's inbox while a snapshot is
- * read, a gap, a reconnect, failed snapshots and the out-of-sync report, switching off with late pushes, pulls (also
- * while the link is down) and the final snapshot after the stop, which pushes count as applied, and a collector that
- * never takes its updates.
+ * Covers the model observer with a port that answers as each test programs it, on virtual time. It checks switching on
+ * with retries while the runtime has no session for the client, and pushes that wait in the router's inbox while a
+ * snapshot is read. It checks a gap, a reconnect, failed snapshots and the out-of-sync report. It checks switching off
+ * with late pushes, pulls, also while the link is down, and the final snapshot after the stop. It also checks which
+ * pushes count as applied and a collector that never takes its updates.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ModelObserverTest {
@@ -451,8 +451,8 @@ class ModelObserverTest {
     private fun answer(snapshot: RuntimeModelSnapshot): suspend () -> CallOutcome<RuntimeModelSnapshot> = { CallOutcome.Done(snapshot) }
 
     /**
-     * A port whose answers each test programs, in order; without a programmed answer a subscription or unsubscription
-     * succeeds, and a snapshot fails the test. It records every call with the virtual time it was made at.
+     * A port whose answers each test programs, in order. Without a programmed answer, a subscription or unsubscription
+     * succeeds and a snapshot fails the test. It records every call with the virtual time it was made at.
      *
      * @param scope the test, whose virtual time the calls record.
      */
@@ -494,8 +494,8 @@ class ModelObserverTest {
     }
 
     /**
-     * The session's router as far as the observer needs it: one coroutine takes connection events and commands from an
-     * unbounded inbox, one at a time, so events that arrive while a command waits for the runtime queue up.
+     * The session's router as far as the observer needs it. One coroutine takes connection events and commands from an
+     * unbounded inbox, one at a time. So events that arrive while a command waits for the runtime queue up.
      *
      * @param scope where the router's coroutine runs.
      * @param observer the observer it drives.
@@ -513,7 +513,7 @@ class ModelObserverTest {
             inbox.trySend { observer.handle(event) }
         }
 
-        /** Puts the command [block] into the inbox and answers its outcome when it ran. */
+        /** Puts the command [block] into the inbox and returns its outcome once it ran. */
         fun <T> command(block: suspend ModelObserver.() -> T): Deferred<T> {
             val outcome = CompletableDeferred<T>()
             inbox.trySend { outcome.complete(observer.block()) }

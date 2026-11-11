@@ -39,7 +39,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import kotlin.time.Duration
 
-/** An operation of [FindModel] that acts on the matches of the current text and query (Command). */
+/** An operation of [FindModel] that acts on the matches of the current text and query. Each one is a command. */
 internal sealed interface FindOperation {
     /** [FindModel.next]. */
     data object Next : FindOperation
@@ -47,25 +47,28 @@ internal sealed interface FindOperation {
     /** [FindModel.previous]. */
     data object Previous : FindOperation
 
-    /** [FindModel.replaceCurrent] ([all] false) or [FindModel.replaceAll]. */
+    /** [FindModel.replaceAll] if [all] is true, otherwise [FindModel.replaceCurrent]. */
     data class Replace(val replacement: String, val all: Boolean) : FindOperation
 }
 
 /**
- * Default [FindModel], a coordinator: [FindSearch] computes matches and expands regex replacements off the UI thread,
- * [SelectMatchAction] and `CommandEditAction` carry every selection and edit to the executor; this class owns the
- * query, the published [FindResult] and the operations waiting for it.
+ * The default [FindModel]. It is a coordinator. [FindSearch] computes matches and expands regex replacements off the
+ * UI thread. [SelectMatchAction] and `CommandEditAction` carry every selection and edit to the executor. This class
+ * owns the query, the published [FindResult] and the operations that wait for it.
  *
- * Pipeline: the newest text snapshot and query are matched by [search] (latest wins: a running search stops when a
- * newer one starts) and published in [scope] while they are still current. Operations ([FindOperation]) run at once
- * while the published result is current ([isFresh]) and otherwise wait in [pending] until the next publish; a regex
- * replacement suspends the queue while it is expanded in the background ([expanding]) and runs again for the current
- * text if the text changed meanwhile. The current match is always the first match at or after the start of the primary
- * selection (wrapping to the first match), so it follows the caret ([CaretModel.state] is observed) and stays on a
- * match the model selected. A pending selection ([setQuery], replace current) is made by the publish of the matches it
- * waits for, before the waiting operations run.
+ * The newest text snapshot and query are matched by [search]. The latest one wins, so a running search stops when a
+ * newer one starts. The result is published in [scope] if it is still current then.
  *
- * @param searchBudget how long one search or expansion may take (see [FindSearch]).
+ * Operations ([FindOperation]) run at once while the published result is current ([isFresh]). Otherwise they wait in
+ * [pending] until the next publish. A regex replacement holds the queue while it is expanded in the background
+ * ([expanding]). If the text changed in the meantime, the replacement runs again for the current text.
+ *
+ * The current match is always the first match at or after the start of the primary selection, wrapping around to the
+ * first match. So it follows the caret, because [CaretModel.state] is observed, and it stays on a match the model
+ * selected. A pending selection from [setQuery] or from replace current is made when the matches it waits for are
+ * published, before the waiting operations run.
+ *
+ * @param searchBudget how long one search or expansion may take. See [FindSearch].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class DefaultFindModel(
@@ -83,10 +86,13 @@ internal class DefaultFindModel(
     private val result = MutableStateFlow(FindResult(FindQuery(), text.snapshot.value.version, emptyList(), null, null))
     private val pending = ArrayDeque<FindOperation>()
 
-    /** The background expansion of a regex replacement; operations wait for it. */
+    /** The background expansion of a regex replacement. Queued operations wait until it is done. */
     private var expanding: Job? = null
 
-    /** True from [setQuery] (or a replace current) until the current match was selected (or found to be absent). */
+    /**
+     * True from [setQuery] or a replace current until the current match was selected, or until it turned out that there
+     * is none.
+     */
     private var selectPending = false
 
     init {
@@ -131,8 +137,9 @@ internal class DefaultFindModel(
     }
 
     /**
-     * Runs the waiting operations in order while the published matches belong to the current text and query; stops
-     * while they lag (the next publish continues) and while a replacement is expanded (its end continues).
+     * Runs the waiting operations in order while the published matches belong to the current text and query. It stops
+     * while the matches lag behind, and the next publish continues. It also stops while a replacement is expanded, and
+     * the end of the expansion continues.
      */
     private fun runPending() {
         while (expanding == null && isFresh()) {
@@ -146,7 +153,10 @@ internal class DefaultFindModel(
         }
     }
 
-    /** [next] or [previous]: select the current match if it is not selected yet, else the following (preceding) one. */
+    /**
+     * Runs [next] or [previous]. It selects the current match if it is not selected yet. Otherwise it selects the
+     * following match when [forward] is true, or the preceding one.
+     */
     private fun step(forward: Boolean) {
         val current = result.value
         val index = current.currentIndex ?: return
@@ -159,8 +169,11 @@ internal class DefaultFindModel(
     }
 
     /**
-     * Replaces the current match or all matches: at once for a literal replacement, else after a background expansion.
-     * The expansion job starts only after it was assigned to [expanding], so a dispatcher that runs it at once never
+     * Replaces the current match or all matches. A literal replacement is applied at once. A regex replacement is
+     * applied after a background expansion. If the expansion exceeds the budget, the replacement is given up and
+     * logged.
+     *
+     * The expansion job starts only after it was assigned to [expanding]. So a dispatcher that runs it at once never
      * leaves a finished job in [expanding].
      */
     private fun replace(operation: FindOperation.Replace) {
@@ -187,7 +200,10 @@ internal class DefaultFindModel(
         job.start()
     }
 
-    /** Applies the replacement [texts] of [targets] in [snapshot] as one replace action; replace current moves on. */
+    /**
+     * Applies the replacement [texts] of [targets] in [snapshot] as one replace action. After replace current, the next
+     * current match is selected.
+     */
     private fun apply(operation: FindOperation.Replace, snapshot: TextSnapshot, targets: List<TextRange>, texts: List<String>) {
         val edits = targets.zip(texts) { match, newText -> TextEdit(match, newText) }
         val action = if (operation.all) {
@@ -199,7 +215,7 @@ internal class DefaultFindModel(
         if (executor.execute(action) && !operation.all) selectCurrentMatch()
     }
 
-    /** Selects the current match now if the matches are current, else once they are published. */
+    /** Selects the current match now if the matches are current, or else once they are published. */
     private fun selectCurrentMatch() {
         selectPending = true
         if (isFresh()) {
@@ -208,7 +224,7 @@ internal class DefaultFindModel(
         }
     }
 
-    /** Selects match [index] of the published result through the executor (revealed by the editor). */
+    /** Selects match [index] of the published result through the executor, so the editor reveals it. */
     private fun select(index: Int) {
         val current = result.value
         result.value = current.copy(currentIndex = index)
@@ -226,7 +242,7 @@ internal class DefaultFindModel(
         runPending()
     }
 
-    /** Makes a pending selection of the current match, if any; without a current match nothing is selected. */
+    /** Makes a pending selection of the current match, if one is pending. Without a current match nothing is selected. */
     private fun selectPendingMatch() {
         if (!selectPending) return
         selectPending = false
@@ -242,8 +258,8 @@ internal class DefaultFindModel(
     }
 
     /**
-     * The index of the first of [matches] at or after the start of the primary selection, wrapping to the first match;
-     * a binary search, since the matches are in document order.
+     * Returns the index of the first of [matches] at or after the start of the primary selection. If there is none, it
+     * wraps around to the first match. It uses a binary search, because the matches are in document order.
      */
     private fun currentIndexIn(matches: List<TextRange>): Int? {
         if (matches.isEmpty()) return null
@@ -259,7 +275,7 @@ internal class DefaultFindModel(
 
     /** The ids of the replace edits and the logger. */
     private companion object {
-        /** The id of the internal action that replaces the current match (not registered, not key-bound). */
+        /** The id of the internal action that replaces the current match. It is neither registered nor bound to a key. */
         const val REPLACE_ID = "editor.find.replace"
 
         /** The id of the internal action that replaces every match as one undo step. */

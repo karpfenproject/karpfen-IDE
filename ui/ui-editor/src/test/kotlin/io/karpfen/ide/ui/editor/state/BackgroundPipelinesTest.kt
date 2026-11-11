@@ -41,13 +41,15 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The editor state's background work on virtual time, with the real tokenizer and parser: highlighting with the
- * semantic carry-over while the parse lags, the tokens of the action context (always those of the current text),
- * bracket matching, go to definition with the bounded wait for a current parse, and closing.
+ * The background work of the editor state on virtual time, with the real tokenizer and parser. The tests cover
+ * highlighting with the semantic carry-over while the parse lags behind, and the tokens of the action context, which
+ * always belong to the current text. They also cover bracket matching, go to definition with its bounded wait for a
+ * current parse, and closing.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class BackgroundPipelinesTest {
 
+    /** A small state machine with two states. */
     private val machine = """
         STATEMACHINE ATTACHED TO "Robot" {
             STATES {

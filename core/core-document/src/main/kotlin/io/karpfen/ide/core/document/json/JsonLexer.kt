@@ -24,25 +24,26 @@ import io.karpfen.ide.core.text.TextRange
 /**
  * The tokens of a JSON text and the lexical errors found in it.
  *
- * @property tokens every token in text order; together they cover every character that is not JSON whitespace.
- * @property diagnostics LEXER errors (`lexer-error`), sorted with [Diagnostic.ORDER].
+ * @property tokens every token in text order. Together they cover every character that is not JSON whitespace.
+ * @property diagnostics LEXER errors with code `lexer-error`, sorted with [Diagnostic.ORDER].
  */
 public data class LexedJson(public val tokens: List<JsonToken>, public val diagnostics: List<Diagnostic>)
 
 /**
- * Splits a text into JSON tokens, written for the IDE instead of taken from a JSON library because the editor needs
- * every token with its range and keeps going after every error. Never throws; stateless.
+ * Splits a text into JSON tokens. It is written for the IDE instead of taken from a JSON library, because the editor
+ * needs every token with its range and must keep going after every error. It never throws and holds no state.
  *
- * Rules (RFC 8259, strict like the runtime's reader, tolerant in what it keeps):
- * - whitespace is space, tab, line feed and carriage return;
- * - a string runs from `"` to the next unescaped `"`; a line break or the end of the text ends an unterminated string
- *   before it (one error on the whole token). Unknown escapes, `\u` escapes with fewer than four hexadecimal digits and
- *   raw control characters are errors inside the token, which stays a [JsonTokenKind.STRING];
- * - a number is the longest run of `0-9 + - . e E` starting with a digit or `-`; a run that is no JSON number (`01`,
- *   `1.`, `-`) is [JsonTokenKind.INVALID];
- * - a word is the longest run of letters, digits and `_`; `true`, `false` and `null` are literals, every other word is
- *   [JsonTokenKind.INVALID] (strings need double quotes);
- * - any other run of characters that start no token is one [JsonTokenKind.INVALID] token.
+ * The rules follow RFC 8259. They are as strict as the runtime's reader in what they accept, but tolerant in what they
+ * keep.
+ * - Whitespace is space, tab, line feed and carriage return.
+ * - A string runs from `"` to the next unescaped `"`. A line break or the end of the text ends an unterminated string
+ *   before it, with one error on the whole token. Unknown escapes, `\u` escapes with fewer than four hexadecimal digits
+ *   and raw control characters are errors inside the token, which stays a [JsonTokenKind.STRING].
+ * - A number is the longest run of `0-9 + - . e E` that starts with a digit or `-`. A run that is no JSON number, such
+ *   as `01`, `1.` or `-`, is [JsonTokenKind.INVALID].
+ * - A word is the longest run of letters, digits and `_`. `true`, `false` and `null` are literals. Every other word is
+ *   [JsonTokenKind.INVALID], because strings need double quotes.
+ * - Any other run of characters that start no token is one [JsonTokenKind.INVALID] token.
  *
  * Every INVALID token carries exactly one LEXER error over its range.
  */
@@ -56,7 +57,8 @@ public object JsonLexer {
 }
 
 /**
- * The scanner behind [JsonLexer]: one instance per text, used once. Implements the rules documented on [JsonLexer].
+ * The scanner behind [JsonLexer]. Each instance scans one text, once. It implements the rules documented on
+ * [JsonLexer].
  */
 private class JsonScanner(private val text: String) {
 
@@ -142,7 +144,10 @@ private class JsonScanner(private val text: String) {
         }
     }
 
-    /** A `\u` escape starting at [start]: four hexadecimal digits, or an error over the digits that are there. */
+    /**
+     * A `\u` escape starting at [start]. It needs four hexadecimal digits. Otherwise it reports an error over the
+     * digits that are there.
+     */
     private fun unicodeEscape(start: Int) {
         position += 2
         var digits = 0
@@ -204,7 +209,10 @@ private class JsonScanner(private val text: String) {
 
     private fun isLineBreak(char: Char): Boolean = char == '\n' || char == '\r'
 
-    /** True for a character that starts no token: no whitespace, quote, number, word or structural character. */
+    /**
+     * True for a character that starts no token. It is not whitespace, not a quote and not the start of a number, a
+     * word or a structural character.
+     */
     private fun startsNothing(char: Char): Boolean =
         !JsonLexer.isWhitespace(char) && char != '"' && !startsNumber(char) && !isWordChar(char) && char !in STRUCTURAL
 

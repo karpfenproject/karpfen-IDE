@@ -20,14 +20,19 @@ import io.karpfen.ide.ui.editor.model.caret.Caret
 import io.karpfen.ide.ui.editor.model.caret.TabStops
 
 /**
- * The caret part of the status bar: one-based [line] and [column], where the column is the display column with tabs
- * expanded by `TabStops` — the one conversion between line and display columns, which the caret model and the editor
- * view use too — so `Col y` matches what the user sees; [selectionLength] in characters (UTF-16 code units).
+ * The caret part of the status bar. It holds the one-based [line] and [column] and the [selectionLength].
+ *
+ * The column is the display column, with tabs expanded by `TabStops`. `TabStops` is the single conversion between line
+ * columns and display columns, and the caret model and the editor view use it too. `Col y` therefore matches what the
+ * user sees. The selection length counts characters as UTF-16 code units.
  */
 internal data class CaretPositionText(val line: Int, val column: Int, val selectionLength: Int) {
 
     companion object {
-        /** The position of [caret] in [snapshot] (offsets clamped to the text) with tab stops every [tabWidth] columns. */
+        /**
+         * The position of [caret] in [snapshot], with tab stops every [tabWidth] columns. Offsets beyond the text are
+         * clamped to it.
+         */
         fun of(snapshot: TextSnapshot, caret: Caret, tabWidth: Int): CaretPositionText {
             val offset = caret.position.coerceIn(0, snapshot.length)
             val position = snapshot.positionOf(offset)

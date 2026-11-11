@@ -26,8 +26,9 @@ import io.karpfen.ide.core.workspace.analysis.AnalyzedFile
 import java.nio.file.Path
 
 /**
- * A parse outcome together with where its ranges live: the file and the [TextLineage] its version counts in, so every
- * range taken from it becomes a [Location] with the outcome's version, which navigation maps into the live text.
+ * A parse outcome together with where its ranges live. That is the file and the [TextLineage] its version counts in.
+ * So every range taken from it becomes a [Location] with the version of the outcome, which navigation maps into the
+ * live text.
  */
 internal class LocatedOutcome(val path: Path, val outcome: ParseOutcome, val lineage: TextLineage) {
 
@@ -35,7 +36,7 @@ internal class LocatedOutcome(val path: Path, val outcome: ParseOutcome, val lin
     fun location(range: TextRange): Location = Location(path, range, outcome.version, lineage)
 
     companion object {
-        /** The outcome of an analyzed file of the modeling context (its snapshot's version and lineage). */
+        /** The outcome of an analyzed file of the modeling context, with the version and lineage of its snapshot. */
         fun of(file: AnalyzedFile): LocatedOutcome = LocatedOutcome(file.path, file.parse, file.snapshot.lineage)
     }
 }
@@ -47,10 +48,10 @@ internal class DeclaredSymbol(val declaration: SymbolDeclaration, val source: Lo
 }
 
 /**
- * The declarations of a document by the staleness rule of [LanguageDocument]: name-based knowledge from its latest
- * parse, completed by its last good parse for what the latest (broken) one lost, each with the version of the outcome
- * it came from (so a declaration only known from the last good parse navigates with that parse's version). Never makes
- * offset lookups. One instance per request.
+ * The declarations of a document by the staleness rule of [LanguageDocument]. Knowledge by name comes from its latest
+ * parse. The last good parse adds what the latest parse lost when it is broken. Each declaration carries the version of
+ * the outcome it came from. So a declaration that only the last good parse knows navigates with the version of that
+ * parse. The class never makes offset lookups. Each request makes its own instance.
  */
 internal class DocumentDeclarations(private val document: LanguageDocument) {
 
@@ -59,10 +60,10 @@ internal class DocumentDeclarations(private val document: LanguageDocument) {
             .distinctBy { it.version }
             .map { LocatedOutcome(document.path, it, document.text.lineage) }
 
-    /** The document's parse outcomes, latest first. */
+    /** The parse outcomes of the document, latest first. */
     fun located(): List<LocatedOutcome> = outcomes
 
-    /** The outcome for references in the document: the current parse, else the latest, else the last good one. */
+    /** The outcome for references in the document. It is the current parse, else the latest, else the last good one. */
     fun latest(): LocatedOutcome? =
         outcomes.firstOrNull { it.outcome.version == document.text.version } ?: outcomes.firstOrNull()
 
@@ -76,8 +77,8 @@ internal class DocumentDeclarations(private val document: LanguageDocument) {
     }
 
     /**
-     * Every declaration of [kind] (non-empty names): those of the latest outcome, then those of older outcomes whose
-     * name and container the latest one lacks.
+     * Every declaration of [kind] with a name that is not empty. First come those of the latest outcome. Then come
+     * those of older outcomes whose name and container the latest one lacks.
      */
     fun all(kind: SymbolKind): List<DeclaredSymbol> {
         val seen = HashSet<Pair<String, String?>>()

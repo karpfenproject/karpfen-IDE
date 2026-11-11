@@ -39,20 +39,23 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * The go-to-line popup through the overlay contract: `line[:col]` input, the hint, Enter / Go through
- * `EditorPopupModel.goToLine`, invalid input, Escape returning focus and dismissal on focus loss.
+ * The go-to-line popup through the overlay contract. The tests cover `line[:col]` input, the hint, Enter and Go through
+ * `EditorPopupModel.goToLine`, invalid input, Escape returning focus, and dismissal when focus is lost.
  */
 @OptIn(ExperimentalTestApi::class)
 class GoToLinePopupTest {
 
+    /** Five lines of growing length. */
     private val text = "a\nbb\nccc\ndddd\neeeee"
 
+    /** Runs a popup test on [text] with the caret inside `ccc`, opens the popup and then runs [block]. */
     private fun goToLineTest(block: ComposeUiTest.(PopupHarness) -> Unit) = popupTest(text, caretAt = text.indexOf("ccc") + 1) { harness ->
         runOnIdle { harness.model.overlays.openGoToLine() }
         waitForIdle()
         block(harness)
     }
 
+    /** The input field of the popup. */
     private fun ComposeUiTest.field() = onNodeWithTag(EditorPopupTags.GO_TO_LINE_FIELD)
 
     @Test

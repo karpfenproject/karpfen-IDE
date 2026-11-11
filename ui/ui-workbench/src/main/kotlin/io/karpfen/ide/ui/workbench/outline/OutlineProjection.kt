@@ -23,18 +23,24 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.nio.file.Path
 
 /**
- * Projects the parse outcomes of one document onto what the Outline shows: the latest parse while it is free of syntax
- * diagnostics, otherwise the last good parse (or the broken parse when there never was a good one), and the chain of
- * nodes containing the caret. The nodes keep the ranges of the parse they come from (navigation maps them, see
- * [OutlineUiState.locationOf]); for the highlight they are taken in the caret's text from [OutlineRanges], which keeps
- * them anchored at the previous projection, so a projection's cost does not grow with the edits since the last good
- * parse. One per binding (the anchors are its state); used by the binding's collector only.
+ * Projects the parse outcomes of one document onto what the Outline shows.
+ *
+ * The Outline shows the latest parse while it is free of syntax diagnostics. Otherwise it shows the last good parse.
+ * If there never was a good parse, it shows the broken one. It also highlights the chain of nodes that contain the
+ * caret.
+ *
+ * The nodes keep the ranges of the parse they come from. Navigation maps those ranges into the live text, as
+ * [OutlineUiState.locationOf] describes. The highlight needs the ranges in the caret's text instead. [OutlineRanges]
+ * provides them and keeps them anchored at the previous projection, so the cost of a projection does not grow with the
+ * number of edits since the last good parse.
+ *
+ * There is one instance per editor binding, because the anchors are its state. Only that binding's collector uses it.
  */
 internal class OutlineProjection(private val path: Path, text: EditableText) {
 
     private val ranges = OutlineRanges(text)
 
-    /** The outline of [parse] / [lastGoodParse] for the text [snapshot] with the caret at [caret]. */
+    /** The outline of [parse] or [lastGoodParse] for the text [snapshot] with the caret at [caret]. */
     fun of(parse: ParseOutcome?, lastGoodParse: ParseOutcome?, snapshot: TextSnapshot, caret: Int): OutlineUiState {
         val source = chooseOutcome(parse, lastGoodParse) ?: return OutlineUiState(path = path)
         val offset = caret.coerceIn(0, snapshot.length)
@@ -48,11 +54,17 @@ internal class OutlineProjection(private val path: Path, text: EditableText) {
         )
     }
 
-    /** The latest [parse] while it is free of syntax diagnostics, else [lastGoodParse], else the broken [parse]. */
+    /**
+     * Picks the outcome to show. That is the latest [parse] while it is free of syntax diagnostics, otherwise
+     * [lastGoodParse], and otherwise the broken [parse].
+     */
     private fun chooseOutcome(parse: ParseOutcome?, lastGoodParse: ParseOutcome?): ParseOutcome? =
         if (parse != null && parse.syntaxDiagnostics.isEmpty()) parse else lastGoodParse ?: parse
 
-    /** The chain of nodes whose range in the caret's text ([rangeOf]) contains [offset], outermost first. */
+    /**
+     * The chain of nodes whose range in the caret's text contains [offset], outermost first. [rangeOf] gives that
+     * range.
+     */
     private fun pathAt(nodes: List<OutlineNode>, offset: Int, rangeOf: (OutlineNode) -> TextRange?): List<OutlineNode> {
         val chain = ArrayList<OutlineNode>()
         var level = nodes

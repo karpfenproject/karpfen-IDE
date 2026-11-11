@@ -31,7 +31,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The lazy system clipboard: no toolkit access on creation, in-memory when headless, AWT otherwise. */
+/** The lazy system clipboard. It does not touch the toolkit on creation, keeps the text in memory when headless and uses AWT otherwise. */
 class SystemClipboardTest {
 
     @Test
@@ -84,7 +84,7 @@ class SystemClipboardTest {
         assertNull(port.getText())
     }
 
-    /** A platform clipboard that another application holds (AWT throws `IllegalStateException` then). */
+    /** A platform clipboard that another application holds. AWT throws `IllegalStateException` in that case. */
     private class BusyClipboard : Clipboard("busy") {
         override fun setContents(contents: Transferable?, owner: ClipboardOwner?) {
             throw IllegalStateException("cannot open system clipboard")

@@ -40,22 +40,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The collaborators of the [WorkbenchState] (constructor injection); tests replace any of them with fakes. A plain
- * holder of services, without value semantics.
+ * The collaborators of the [WorkbenchState], passed in through the constructor. Tests replace any of them with fakes.
+ * The class is a plain holder of services and has no value semantics.
  *
- * @property workspaceFactory opens folders (core-workspace's seam, shared with the CLI); a workspace's languages come
- *   from it (`Workspace.languages`), so the services hold no language registry of their own.
- * @property editorKeymap the one editor keymap of the workbench: every editor is created with it
- *   ([EditorStateFactory.create]) and the editor commands of the menu take their shortcuts from it, so the menu and the
- *   editors always bind the same strokes. Its platform is [platform].
- * @property ioDispatcher where the workbench runs blocking file work ([fileOperations]); tests pass a test dispatcher.
- * @property languageToolsOutput the output of the language tools, which the Language Tools Output tool window shows:
- *   the buffer the application's logging fills, which the composition root hands over.
- * @property runtimeSessions prepares the deployments of the Run command and launches their sessions; one per process,
- *   with the one ledger of the environments left on a runtime.
- * @property runtimeHosts creates the runtime host of each opened workspace from the runtime settings; without one from
- *   the composition root, no host ever has a runtime.
- * @property runtimeClients creates the client of a runtime endpoint; tests hand in clients of the fake runtime.
+ * @property workspaceFactory opens folders. It is the seam of core-workspace, which the CLI shares. A workspace gets
+ *   its languages from it as `Workspace.languages`, so the services hold no language registry of their own.
+ * @property editorKeymap the single editor keymap of the workbench. Every editor is created with it through
+ *   [EditorStateFactory.create], and the editor commands of the menu take their shortcuts from it. The menu and the
+ *   editors therefore always bind the same keystrokes. Its platform is [platform].
+ * @property ioDispatcher where the workbench runs blocking file work through [fileOperations]. Tests pass a test
+ *   dispatcher.
+ * @property languageToolsOutput the output of the language tools, which the Language Tools Output tool window shows.
+ *   It is the buffer that the application's logging fills, handed over by the composition root.
+ * @property runtimeSessions prepares the deployments of the Run command and launches their sessions. There is one per
+ *   process. It holds the single ledger of the environments left on a runtime.
+ * @property runtimeHosts creates the runtime host of each opened workspace from the runtime settings. Unless the
+ *   composition root hands one in, no host ever has a runtime.
+ * @property runtimeClients creates the client of a runtime endpoint. Tests hand in clients of the fake runtime.
  */
 public class WorkbenchServices(
     public val settings: SettingsRepository,
@@ -73,26 +74,28 @@ public class WorkbenchServices(
     public val runtimeClients: (RuntimeEndpoint) -> RuntimeClient = { RuntimeClient(it) },
 ) {
     /**
-     * The platform of the whole workbench, the one source of truth for it: the [editorKeymap]'s, which the editors'
-     * pointer gestures and the menu shortcuts use too; the composition root creates its `CommandRegistry` with it.
+     * The platform of the whole workbench and the single source of truth for it. It is the platform of the
+     * [editorKeymap], which the editors' pointer gestures and the menu shortcuts use too. The composition root creates
+     * its `CommandRegistry` with it.
      */
     public val platform: HostPlatform get() = editorKeymap.platform
 }
 
 /** Creates the [LanguageServices] of a workspace. */
 public fun interface LanguageServicesFactory {
-    /** Services reading [workspace]'s project analysis. */
+    /** Creates the services that read the project analysis of [workspace]. */
     public fun create(workspace: Workspace): LanguageServices
 }
 
 /**
- * Creates the editor state of an opened document. Implementations decide the editor's background dispatcher (the
- * production one passes its background dispatcher, tests a test dispatcher).
+ * Creates the editor state of an opened document. Implementations decide the editor's background dispatcher. The
+ * production factory passes its background dispatcher, and tests pass a test dispatcher.
  */
 public fun interface EditorStateFactory {
     /**
-     * The editor state of [session] in [scope] (the UI thread) with display [settings] and the workbench's [keymap]
-     * (`WorkbenchServices.editorKeymap`), which the state must use.
+     * Creates the editor state of [session] in [scope], which runs on the UI thread. The state gets the display
+     * [settings] and the workbench's [keymap], which is `WorkbenchServices.editorKeymap`. The state must use that
+     * keymap.
      */
     public fun create(
         session: DocumentSession,

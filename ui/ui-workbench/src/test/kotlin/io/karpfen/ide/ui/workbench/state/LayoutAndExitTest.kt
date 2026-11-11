@@ -41,8 +41,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Layout persistence (restored on start, written debounced and on exit by the mediator) and the exit flow (unsaved
- * changes, waiting for a running intent).
+ * Tests the layout persistence and the exit flow. The mediator restores the layout on start and writes it, debounced
+ * and once more on exit. The exit flow asks about unsaved changes and waits for a running intent.
  */
 class LayoutAndExitTest {
 

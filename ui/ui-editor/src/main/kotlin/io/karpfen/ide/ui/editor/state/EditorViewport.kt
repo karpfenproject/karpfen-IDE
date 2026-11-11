@@ -23,16 +23,16 @@ import kotlin.math.ceil
 import kotlin.math.floor
 
 /**
- * Scroll position and geometry of the editor, in pixels. Compose-free: the view reports measured geometry and renders
- * from [state]; the scrollbar adapters and mouse wheel scroll through it. Scroll offsets are always clamped to
- * `0..max`.
+ * The scroll position and geometry of the editor, in pixels. It does not need Compose. The view reports the measured
+ * geometry and renders from [state]. The scrollbar adapters and the mouse wheel scroll through it. Scroll offsets are
+ * always clamped to `0..max`.
  */
 public interface EditorViewport {
 
-    /** Current scroll offsets and geometry. */
+    /** The current scroll offsets and geometry. */
     public val state: StateFlow<ViewportSnapshot>
 
-    /** Reports the measured viewport size, line height and content size (after layout or text changes). */
+    /** Reports the measured viewport size, line height and content size. The view calls it after layout and text changes. */
     public fun updateGeometry(
         viewportWidth: Float,
         viewportHeight: Float,
@@ -48,30 +48,31 @@ public interface EditorViewport {
     public fun scrollTo(x: Float, y: Float)
 
     /**
-     * Scrolls minimally so that the rectangle (content coordinates) is visible with a margin of three lines above and
-     * below, or centres it vertically when [center]. In a viewport too small for the margin the margin shrinks to what
-     * fits around the rectangle, so the rectangle itself is always revealed.
+     * Scrolls as little as possible so that the rectangle is visible with a margin of three lines above and below it.
+     * The rectangle is given in content coordinates. If [center] is true, it centres the rectangle vertically instead.
+     * In a viewport too small for the margin, the margin shrinks to what fits around the rectangle, so the rectangle
+     * itself is always revealed.
      */
     public fun reveal(left: Float, top: Float, right: Float, bottom: Float, center: Boolean)
 
-    /** The lines to lay out: the visible lines of a [lineCount]-line text plus [overscan] lines on each side. */
+    /** Returns the lines to lay out. These are the visible lines of a text with [lineCount] lines plus [overscan] lines on each side. */
     public fun visibleLines(lineCount: Int, overscan: Int = DEFAULT_OVERSCAN): IntRange
 
     /** Constants of [EditorViewport]. */
     public companion object {
-        /** Lines laid out above and below the visible area. */
+        /** The number of lines laid out above and below the visible area. */
         public const val DEFAULT_OVERSCAN: Int = 5
 
-        /** Lines kept visible above and below the caret when revealing it. */
+        /** The number of lines kept visible above and below the caret when it is revealed. */
         public const val CARET_MARGIN_LINES: Int = 3
     }
 }
 
-/** A new [EditorViewport] at scroll position (0, 0) with empty geometry. */
+/** Creates an [EditorViewport] at scroll position 0, 0 with empty geometry. */
 public fun EditorViewport(): EditorViewport = DefaultEditorViewport()
 
 /**
- * Scroll offsets (px) and geometry (px) of an [EditorViewport].
+ * The scroll offsets and geometry of an [EditorViewport], all in pixels.
  *
  * @property scrollX the content offset at the viewport's left edge.
  * @property scrollY the content offset at the viewport's top edge.
@@ -90,17 +91,18 @@ public data class ViewportSnapshot(
     public val contentWidth: Float = 0f,
     public val contentHeight: Float = 0f,
 ) {
-    /** Largest horizontal scroll offset. */
+    /** The largest horizontal scroll offset. */
     public val maxScrollX: Float get() = maxOf(0f, contentWidth - viewportWidth)
 
-    /** Largest vertical scroll offset. */
+    /** The largest vertical scroll offset. */
     public val maxScrollY: Float get() = maxOf(0f, contentHeight - viewportHeight)
 }
 
 /**
- * Default [EditorViewport]: one immutable [ViewportSnapshot] in a state flow, replaced by every geometry report and
- * scroll; offsets are clamped to `0..max` after every change (also when the content shrinks). Lines are laid out
- * uniformly: line `n` occupies `n * lineHeight until (n + 1) * lineHeight` in content coordinates.
+ * The default [EditorViewport]. It keeps one immutable [ViewportSnapshot] in a state flow and replaces it on every
+ * geometry report and every scroll. Offsets are clamped to `0..max` after every change, also when the content shrinks.
+ * All lines have the same height. Line `n` occupies `n * lineHeight until (n + 1) * lineHeight` in content
+ * coordinates.
  */
 internal class DefaultEditorViewport : EditorViewport {
 
@@ -151,8 +153,8 @@ internal class DefaultEditorViewport : EditorViewport {
     override fun visibleLines(lineCount: Int, overscan: Int): IntRange = snapshot.value.visibleLines(lineCount, overscan)
 
     /**
-     * The smallest change of [scroll] (a viewport of [size]) that shows `start until end`; when the span is larger than
-     * the viewport, its start wins.
+     * Returns the smallest change of [scroll] for a viewport of [size] that shows `start until end`. When the span is
+     * larger than the viewport, its start wins.
      */
     private fun revealAxis(scroll: Float, size: Float, start: Float, end: Float): Float {
         var result = scroll
@@ -162,8 +164,8 @@ internal class DefaultEditorViewport : EditorViewport {
     }
 
     /**
-     * The [preferred] margin, reduced so that a rectangle of [extent] with the margin on both sides fits into a viewport
-     * of [size] (never negative).
+     * Returns the [preferred] margin, reduced so that a rectangle of [extent] with the margin on both sides fits into a
+     * viewport of [size]. The result is never negative.
      */
     private fun fittingMargin(preferred: Float, size: Float, extent: Float): Float =
         minOf(preferred, ((size - extent) / 2f).coerceAtLeast(0f))
@@ -174,14 +176,15 @@ internal class DefaultEditorViewport : EditorViewport {
 
     /** The horizontal reveal margin. */
     private companion object {
-        /** Horizontal context kept around a revealed caret, in line heights (about three characters). */
+        /** The horizontal space kept around a revealed caret, in line heights. That is about three characters. */
         const val HORIZONTAL_MARGIN_LINES = 2
     }
 }
 
 /**
- * The lines to lay out at this scroll position: the visible lines of a [lineCount]-line text plus [overscan] lines on
- * each side ([EditorViewport.visibleLines]); empty while no geometry is known.
+ * Returns the lines to lay out at this scroll position, as described on [EditorViewport.visibleLines]. These are the
+ * visible lines of a text with [lineCount] lines plus [overscan] lines on each side. The range is empty while no
+ * geometry is known.
  */
 internal fun ViewportSnapshot.visibleLines(lineCount: Int, overscan: Int): IntRange {
     if (lineCount <= 0 || lineHeight <= 0f || viewportHeight <= 0f) return IntRange.EMPTY
@@ -192,9 +195,9 @@ internal fun ViewportSnapshot.visibleLines(lineCount: Int, overscan: Int): IntRa
     return from..to
 }
 
-/** The top of [line] in content coordinates (lines are [ViewportSnapshot.lineHeight] tall, line 0 at y = 0). */
+/** Returns the top of [line] in content coordinates. Every line is [ViewportSnapshot.lineHeight] tall, and line 0 starts at y = 0. */
 internal fun ViewportSnapshot.lineTop(line: Int): Float = line * lineHeight
 
-/** Number of lines that fit completely into the visible area (page size), at least 1. */
+/** Returns the number of lines that fit completely into the visible area, which is the page size. It is at least 1. */
 internal fun ViewportSnapshot.fullyVisibleLines(): Int =
     if (lineHeight <= 0f) 1 else floor(viewportHeight / lineHeight).toInt().coerceAtLeast(1)

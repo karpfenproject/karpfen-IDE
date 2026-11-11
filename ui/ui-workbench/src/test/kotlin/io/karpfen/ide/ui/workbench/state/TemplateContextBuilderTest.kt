@@ -29,7 +29,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.seconds
 
-/** [TemplateContextBuilder]: the template context from the contexts and the syntax indexes of the analysis. */
+/**
+ * Tests that [TemplateContextBuilder] builds the template context from the contexts and the syntax indexes of the
+ * analysis.
+ */
 class TemplateContextBuilderTest {
 
     @TempDir

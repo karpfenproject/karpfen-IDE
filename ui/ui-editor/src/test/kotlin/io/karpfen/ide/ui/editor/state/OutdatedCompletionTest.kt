@@ -29,15 +29,15 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
- * A completion result that arrives after the text moved on opens nothing where no trigger fired: completion
- * auto-triggers only on an identifier character after one, `"`, `$(` and `->`, and a re-requested outdated result must
- * not open a list anywhere else. The editor's background dispatcher is the test scheduler, so an auto-triggered request
- * is still running when the next key arrives, as during fast typing in the app.
+ * A completion result that arrives after the text moved on opens nothing where no trigger fired. Completion triggers on
+ * its own only on an identifier character typed after another one, and after `"`, `$(` and `->`. A result that went out
+ * of date and was requested again must not open a list anywhere else. The editor's background dispatcher is the test
+ * scheduler, so an auto-triggered request is still running when the next key arrives, as during fast typing in the app.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OutdatedCompletionTest {
 
-    /** A source that offers STATE at every offset (an empty replace range there), like the keyword list of a body. */
+    /** A source that offers `STATE` at every offset with an empty replace range there, like the keyword list of a body. */
     private fun everywhere() = FakeLanguageServices(
         completions = { _, offset -> listOf(CompletionItem("STATE", CompletionKind.KEYWORD, "STATE", TextRange.empty(offset), null, null, null, "STATE")) },
     )

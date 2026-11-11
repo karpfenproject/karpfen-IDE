@@ -16,10 +16,10 @@
 package io.karpfen.ide.runtime.protocol.catalogue
 
 /**
- * The names of the runtime's WebSocket protocol and its JSON, as the runtime writes them: the path and the handshake,
- * the message types, the members of envelopes, payloads, domain events, snapshots and inbound event frames, the payload
- * formats, the close codes and reasons, and the prefixes of the keys the runtime issues. Constants only, so every
- * name has one declaration in the client.
+ * The names of the runtime's WebSocket protocol and its JSON, as the runtime writes them. They cover the path and the
+ * handshake, the message types, and the members of envelopes, payloads, domain events, snapshots and inbound event
+ * frames. They also cover the payload formats, the close codes and reasons, and the prefixes of the keys the runtime
+ * issues. The object holds constants only, so every name has exactly one declaration in the client.
  */
 public object WireNames {
     /** The path of the WebSocket on the runtime's HTTP host and port. */
@@ -44,20 +44,21 @@ public object WireNames {
     public const val DOMAIN_EVENT: String = "domainEvent"
 
     /**
-     * The environment key: a member of the push envelope and of the snapshot; in an inbound event frame the member of
-     * this name holds the event's domain.
+     * The environment key, a member of the push envelope and of the snapshot. In an inbound event frame, the member of
+     * this name holds the event's domain instead.
      */
     public const val ENVIRONMENT_KEY: String = "environmentKey"
 
     /** The client id, a member of the push envelope. */
     public const val CLIENT_ID: String = "clientId"
 
-    /** The message type: a member of the push envelope; in an inbound event frame it holds the event's name. */
+    /** The message type, a member of the push envelope. In an inbound event frame it holds the event's name instead. */
     public const val MESSAGE_TYPE: String = "messageType"
 
     /**
-     * The payload: a member of the push envelope, of the `domainEvent` payload (the event's own fields), of a published
-     * event (its raw payload text) and of an inbound event frame (the payload text).
+     * The payload. It is a member of the push envelope and of the `domainEvent` payload, where it holds the event's
+     * own fields. It is also a member of a published event, where it holds the raw payload text, and of an inbound
+     * event frame, where it holds the payload text.
      */
     public const val PAYLOAD: String = "payload"
 
@@ -88,7 +89,7 @@ public object WireNames {
     /** The event's name, a member of a published event. */
     public const val EVENT: String = "event"
 
-    /** The format of the payload: a member of a published event and of an inbound event frame. */
+    /** The format of the payload, a member of a published event and of an inbound event frame. */
     public const val PAYLOAD_FORMAT: String = "payloadFormat"
 
     /** Where the event came from (`INTERNAL`, `EXTERNAL_ENGINE`, `EXTERNAL_MESSAGE`), a member of a published event. */

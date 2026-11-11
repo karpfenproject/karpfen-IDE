@@ -37,8 +37,9 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The event injector of a run over a [FakeRuntimeSession] of a really prepared deployment: the domains and events it
- * offers, the payload template it prefills, the findings after every edit, and when Send is enabled.
+ * Tests the event injector of a run over a [FakeRuntimeSession] of a deployment that was really prepared. The tests
+ * cover the domains and events it offers, the payload template it starts with, the findings after every edit, and
+ * when Send is enabled.
  */
 class InjectorStateTest {
 

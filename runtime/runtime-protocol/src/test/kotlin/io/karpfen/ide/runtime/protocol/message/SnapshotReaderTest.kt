@@ -24,9 +24,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers the snapshot reader and the compact writer: a snapshot as the runtime writes it is read with its phase,
- * revision, stacks in order and roots; every departure from that shape is an unexpected body with an excerpt; and
- * values written again compactly read back to themselves, numbers as the runtime writes its doubles.
+ * Covers the snapshot reader and the compact writer. A snapshot as the runtime writes it is read with its phase,
+ * revision, stacks in order and roots. Every departure from that shape is an unexpected body with an excerpt. Values
+ * written again compactly read back to themselves, with numbers written as the runtime writes its doubles.
  */
 class SnapshotReaderTest {
 

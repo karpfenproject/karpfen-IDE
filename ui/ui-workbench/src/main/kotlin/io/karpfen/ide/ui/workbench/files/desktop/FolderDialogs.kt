@@ -21,13 +21,20 @@ import java.awt.Frame
 import java.nio.file.Path
 import javax.swing.JFileChooser
 
-/** A modal native folder dialog; called on the AWT event dispatch thread, returns the chosen folder or null if cancelled. */
+/**
+ * A modal native folder dialog. Call it on the AWT event dispatch thread. It returns the chosen folder, or null if
+ * cancelled.
+ */
 internal fun interface FolderDialog {
-    /** Shows the dialog with [title], starting in [initialDirectory]; the chosen folder, or null if cancelled. */
+    /**
+     * Shows the dialog with [title], starting in [initialDirectory]. Returns the chosen folder, or null if cancelled.
+     */
     fun show(title: String, initialDirectory: Path?): Path?
 
     companion object {
-        /** The platform's folder dialog: the system folder panel on macOS, a Swing `JFileChooser` elsewhere. */
+        /**
+         * The folder dialog of [platform]. It is the system folder panel on macOS and a Swing `JFileChooser` elsewhere.
+         */
         fun of(platform: HostPlatform): FolderDialog = when (platform) {
             HostPlatform.MAC_OS -> MacFolderDialog
             HostPlatform.WINDOWS, HostPlatform.LINUX -> SwingFolderDialog
@@ -35,7 +42,10 @@ internal fun interface FolderDialog {
     }
 }
 
-/** The AWT `FileDialog` in directory mode (the macOS folder panel). */
+/**
+ * The AWT `FileDialog` in directory mode, which shows the macOS folder panel. Directory mode is a JVM-wide system
+ * property. The dialog sets it only while it is shown and then restores the previous value.
+ */
 private object MacFolderDialog : FolderDialog {
     /** Switches the macOS `FileDialog` to choosing directories. */
     private const val DIRECTORY_MODE = "apple.awt.fileDialogForDirectories"
@@ -56,7 +66,7 @@ private object MacFolderDialog : FolderDialog {
     }
 }
 
-/** A Swing `JFileChooser` in directories-only mode (Windows, Linux). */
+/** A Swing `JFileChooser` in directories-only mode, used on Windows and Linux. */
 private object SwingFolderDialog : FolderDialog {
     override fun show(title: String, initialDirectory: Path?): Path? {
         val chooser = JFileChooser(initialDirectory?.toFile())

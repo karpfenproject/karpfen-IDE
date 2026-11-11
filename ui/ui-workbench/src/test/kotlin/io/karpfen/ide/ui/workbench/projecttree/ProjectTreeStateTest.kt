@@ -27,7 +27,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** [ProjectTreeState] and [ProjectTreeMenu]. */
+/** Tests the tree state of [ProjectTreeState] and the context menu entries of [ProjectTreeMenu]. */
 class ProjectTreeStateTest {
 
     private val root: Path = Path.of("/ws").toAbsolutePath()

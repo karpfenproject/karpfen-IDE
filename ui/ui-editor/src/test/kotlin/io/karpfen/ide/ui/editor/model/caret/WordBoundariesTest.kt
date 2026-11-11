@@ -22,7 +22,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The one word rule: identifier characters `[A-Za-z0-9_]`, punctuation runs, whitespace runs. */
+/** The single word rule of the editor. A word is a run of identifier characters `[A-Za-z0-9_]`, of punctuation or of whitespace. */
 class WordBoundariesTest {
 
     @Test

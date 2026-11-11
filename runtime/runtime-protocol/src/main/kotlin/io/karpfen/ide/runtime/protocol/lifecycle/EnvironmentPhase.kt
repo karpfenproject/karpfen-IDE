@@ -20,29 +20,30 @@ public enum class PhaseKind {
     /** Created and being configured. */
     CONFIGURING,
 
-    /** Activated, not started. */
+    /** Activated but not started. */
     ACTIVATED,
 
-    /** Started; the engine runs. */
+    /** Started, and the engine runs. */
     RUNNING,
 
     /** Started, but the engine ended on its own. */
     HALTED,
 
-    /** Stopped; final. */
+    /** Stopped. This phase is final. */
     STOPPED,
 }
 
 /**
- * What a configuring environment has received so far, as far as the client knows: which texts were uploaded, which
- * values were set and how many observers and listeners were registered. Immutable.
+ * What a configuring environment has received so far, as far as the client knows. It records which texts were
+ * uploaded, which values were set and how many observers and listeners were registered. Values of this type are
+ * immutable.
  *
- * @property metamodel the domain metamodel was uploaded.
- * @property events the event definitions were uploaded.
- * @property model the model was uploaded.
+ * @property metamodel true if the domain metamodel was uploaded.
+ * @property events true if the event definitions were uploaded.
+ * @property model true if the model was uploaded.
  * @property machines the `attachedTo` keys of the uploaded state machines.
- * @property tickDelay the tick delay was set.
- * @property eventTtl the event time to live was set.
+ * @property tickDelay true if the tick delay was set.
+ * @property eventTtl true if the event time to live was set.
  * @property observers the number of object observers registered.
  * @property listeners the number of domain listeners registered.
  */
@@ -57,7 +58,7 @@ public data class Uploads(
     public val listeners: Int,
 ) {
     public companion object {
-        /** Nothing received yet: the uploads of a new environment. */
+        /** The uploads of a new environment, which has received nothing yet. */
         public val NONE: Uploads = Uploads(
             metamodel = false,
             events = false,
@@ -72,8 +73,8 @@ public data class Uploads(
 }
 
 /**
- * The lifecycle phase of an environment as the client keeps it: what the client's own successful calls and the
- * runtime's reports established, or what it could not establish. Immutable.
+ * The lifecycle phase of an environment as the client keeps it. It is what the client's own successful calls and the
+ * runtime's reports established, or what the client could not establish. Values of this type are immutable.
  */
 public sealed interface EnvironmentPhase {
     /**
@@ -83,23 +84,24 @@ public sealed interface EnvironmentPhase {
      */
     public data class Configuring(public val uploads: Uploads) : EnvironmentPhase
 
-    /** Activated: the engine is built and frozen; it was not started. */
+    /** Activated. The engine is built and frozen, but it was not started. */
     public data object Activated : EnvironmentPhase
 
-    /** Started; the engine runs. */
+    /** Started, and the engine runs. */
     public data object Running : EnvironmentPhase
 
     /** Started, but the engine ended on its own, as a snapshot revealed. */
     public data object Halted : EnvironmentPhase
 
     /**
-     * Stopped. Final: the client never restarts a stopped environment, and a snapshot that reports it running while the
-     * engine's last tick ends changes nothing; only a runtime that no longer knows it makes it lost.
+     * Stopped. This phase is final. The client never restarts a stopped environment. A snapshot that reports it
+     * running while the engine's last tick ends changes nothing. Only a runtime that no longer knows the environment
+     * turns it into [Lost].
      */
     public data object Stopped : EnvironmentPhase
 
     /**
-     * A call may or may not have been applied and the runtime could not be asked which; the next call that reads the
+     * A call may or may not have been applied, and the runtime could not be asked which. The next call that reads the
      * phase resolves it.
      *
      * @property candidates the phases the environment may be in.
@@ -113,7 +115,7 @@ public sealed interface EnvironmentPhase {
     ) : EnvironmentPhase
 
     /**
-     * The runtime no longer knows the environment, for example because it restarted. Final.
+     * The runtime no longer knows the environment, for example because it restarted. This phase is final.
      *
      * @property reason why the client concluded so, in words.
      */

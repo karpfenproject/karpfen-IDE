@@ -26,9 +26,9 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * The workbench as a run sees it: the active tab, Save All through the [saving] flow and the descriptor choice, both
- * in the [runner]'s turn so they never interleave with another intent's dialog, the error dialog and the Runtime tool
- * window of the [layout].
+ * The workbench as a run sees it. A run gets the active tab, Save All through the [saving] flow, the choice of the
+ * descriptor, the error dialog and the Runtime tool window of the [layout]. Save All and the descriptor choice run in
+ * the turn of the [runner], so they never interleave with the dialog of another intent.
  */
 internal class WorkbenchRunSupport(
     private val runner: IntentRunner,

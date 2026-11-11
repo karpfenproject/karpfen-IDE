@@ -35,7 +35,7 @@ public data class CleanupReport(public val actions: List<String>, public val lef
 /**
  * The bounds of the calls of a cleanup and of a session's stop. Immutable.
  *
- * @property stop how long stopping the environment may take, its probe included.
+ * @property stop how long stopping the environment may take, including the probe that may follow the stop call.
  * @property disconnect how long closing the connection may take.
  */
 internal data class CleanupBounds(val stop: Duration, val disconnect: Duration) {
@@ -46,19 +46,20 @@ internal data class CleanupBounds(val stop: Duration, val disconnect: Duration) 
 }
 
 /**
- * Cleans up after a deployment that failed or was cancelled, by the phase it left the environment in, without being
- * cancellable and with every call bounded:
+ * Cleans up after a deployment that failed or was cancelled. What it does depends on the phase the deployment left the
+ * environment in. The cleanup cannot be cancelled, and every call it makes is bounded in time.
  *
- * - nothing created: nothing to do, nothing recorded;
- * - the creation's outcome unknown: nothing to do, an [LedgerDisposition.UNKNOWN] entry without a key, since an empty
- *   environment may exist;
- * - configuring: disconnect, then the [disposer] records it as left configured;
- * - activated, running, halted or uncertain: stop, then disconnect, then the [disposer] records what the stop resolved;
- * - lost: disconnect, recorded as [LedgerDisposition.LOST];
- * - stopped: disconnect, then the [disposer] records it as stopped.
+ * - When nothing was created, there is nothing to do and nothing is recorded.
+ * - When the outcome of the creation is unknown, there is nothing to do either. The ledger gets an
+ *   [LedgerDisposition.UNKNOWN] entry without a key, because an empty environment may exist.
+ * - A configuring environment is disconnected. Then the [disposer] records it as left configured.
+ * - An activated, running, halted or uncertain environment is stopped and then disconnected. Then the [disposer]
+ *   records the phase that the stop resolved.
+ * - A lost environment is disconnected and recorded as [LedgerDisposition.LOST].
+ * - A stopped environment is disconnected. Then the [disposer] records it as stopped.
  *
- * Disconnecting closes the connection afterwards as well, so that nothing of a failed deployment keeps running in the
- * connection's scope.
+ * After disconnecting, the cleanup also closes the connection, so that nothing of a failed deployment keeps running in
+ * the connection's scope.
  *
  * @param ledger the ledger an unknown creation and a lost environment are recorded in.
  * @param disposer what happens to an environment that stays.
@@ -69,7 +70,7 @@ internal class EnvironmentCleanup(
     private val disposer: EnvironmentDisposer,
     private val bounds: CleanupBounds,
 ) {
-    /** Cleans up after [run], whatever state the cancellation of the caller is in. */
+    /** Cleans up after [run]. It runs to its end even when the caller is cancelled. */
     suspend fun clean(run: DeployRun): CleanupReport = withContext(NonCancellable) {
         val environment = run.environment
         when {
@@ -109,7 +110,7 @@ internal class EnvironmentCleanup(
         return CleanupReport(actions, entry)
     }
 
-    /** Stops [environment], bounded, and answers what happened in words. */
+    /** Stops [environment] within the stop bound and returns what happened, in words. */
     private suspend fun stop(environment: RuntimeEnvironment): String =
         when (val outcome = withTimeoutOrNull(bounds.stop) { environment.stop() }) {
             null -> "Stopping ${environment.key} took too long"

@@ -21,12 +21,12 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 
 /**
- * The monospace cell of the editor's text style: the advance of one character ([charWidth], fractional) and the height
- * of one line ([lineHeight]), both in pixels.
+ * The monospace cell of the editor's text style. [charWidth] is the advance of one character and may be fractional.
+ * [lineHeight] is the height of one line. Both are in pixels.
  */
 internal data class EditorMetrics(val charWidth: Float, val lineHeight: Float)
 
-/** Measures the [EditorMetrics] of [style] once per measurer (density) and style. */
+/** Measures the [EditorMetrics] of [style] once per measurer and style. The measurer stands for the density. */
 @Composable
 internal fun rememberEditorMetrics(measurer: TextMeasurer, style: TextStyle): EditorMetrics = remember(measurer, style) {
     val layout = measurer.measure(METRICS_SAMPLE, style, softWrap = false, maxLines = 1)
@@ -36,5 +36,5 @@ internal fun rememberEditorMetrics(measurer: TextMeasurer, style: TextStyle): Ed
     )
 }
 
-/** Measured to average out rounding of a single glyph's advance. */
+/** The sample text that is measured. A long run of glyphs averages out the rounding of a single glyph's advance. */
 private val METRICS_SAMPLE = "M".repeat(64)

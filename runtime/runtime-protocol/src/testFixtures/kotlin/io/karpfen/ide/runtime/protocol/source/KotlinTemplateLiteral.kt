@@ -16,16 +16,17 @@
 package io.karpfen.ide.runtime.protocol.source
 
 /**
- * A string template of a runtime Kotlin file, quoted (`"…"`) or triple-quoted (`"""…"""`), split into its literal text
- * and its placeholders `$name` and `${expression}`, so a test can fill the placeholders with sample values and compare
- * the result with a golden: the runtime's own template, interpolated, must write the golden's bytes.
+ * A string template of a runtime Kotlin file, split into its literal text and its placeholders `$name` and
+ * `${expression}`. The template is quoted (`"…"`) or triple-quoted (`"""…"""`). A test fills the placeholders with
+ * sample values and compares the result with a golden. The runtime's own template, once interpolated, must write the
+ * golden's bytes.
  *
- * The literal text of a quoted string is unescaped as Kotlin does (`\t`, `\b`, `\n`, `\r`, `\'`, `\"`, `\\`, `\$` and
- * `\uXXXX`); a triple-quoted string is taken as written, including the quotes Kotlin adds to its content before the
- * closing delimiter.
+ * The literal text of a quoted string is unescaped as Kotlin does. This covers `\t`, `\b`, `\n`, `\r`, `\'`, `\"`,
+ * `\\`, `\$` and `\uXXXX`. A triple-quoted string is taken as written. That includes the quotes Kotlin adds to its
+ * content before the closing delimiter.
  *
- * A template may also be a concatenation of literals joined by `+`, such as a long template written over several lines
- * ([concatenationStartingWith]); its parts are then the parts of its literals in order.
+ * A template may also be a concatenation of literals joined by `+`, such as a long template written over several
+ * lines. [concatenationStartingWith] finds such a template. Its parts are then the parts of its literals in order.
  *
  * @property written the literal as written in the file, from its opening to its closing delimiter, or the whole
  *   concatenation.
@@ -38,7 +39,7 @@ public class KotlinTemplateLiteral private constructor(
     private val range: IntRange,
 ) {
 
-    /** The placeholders in order: the name of a `$name`, the expression of a `${expression}` as written. */
+    /** The placeholders in order. Each is the name of a `$name` or the expression of a `${expression}` as written. */
     public val placeholders: List<String>
         get() = parts.filterIsInstance<TemplatePart.Placeholder>().map { it.expression }
 
@@ -71,12 +72,12 @@ public class KotlinTemplateLiteral private constructor(
         /** The delimiter of a quoted string. */
         private const val QUOTE = "\""
 
-        /** Every string literal of the Kotlin source [text] that stands in code, in order; nested templates excluded. */
+        /** Every string literal of the Kotlin source [text] that stands in code, in order, without nested templates. */
         public fun all(text: String): List<KotlinTemplateLiteral> = KotlinStringScanner(text).literals()
 
         /**
          * The one string literal of [text] whose content as written starts with [prefix], joined with the literals that
-         * follow it with `+`: a template written as a concatenation of literals over several lines.
+         * follow it with `+`. This is a template written as a concatenation of literals over several lines.
          *
          * @throws IllegalArgumentException if no literal or more than one starts so.
          */
@@ -96,7 +97,7 @@ public class KotlinTemplateLiteral private constructor(
             return joined
         }
 
-        /** What stands between two literals of a concatenation: a plus and blanks. */
+        /** What stands between two literals of a concatenation, which is a plus and blanks. */
         private val CONCATENATION = Regex("""\s*\+\s*""")
 
         /**
@@ -111,7 +112,7 @@ public class KotlinTemplateLiteral private constructor(
             return found.single()
         }
 
-        /** The literal at [range] of a file, written as [written], with [parts]; for the scanner. */
+        /** The literal at [range] of a file, written as [written], with [parts]. The scanner uses it. */
         internal fun of(written: String, parts: List<TemplatePart>, range: IntRange): KotlinTemplateLiteral =
             KotlinTemplateLiteral(written, parts, range)
     }
@@ -122,13 +123,14 @@ internal sealed interface TemplatePart {
     /** Literal text, unescaped. */
     data class Text(val text: String) : TemplatePart
 
-    /** A placeholder: a name or an expression as written. */
+    /** A placeholder, which is a name or an expression as written. */
     data class Placeholder(val expression: String) : TemplatePart
 }
 
 /**
- * Finds the string literals of a Kotlin source: skips line and block comments and character literals, reads quoted and
- * triple-quoted strings with their placeholders, and skips the strings nested in a placeholder's expression.
+ * Finds the string literals of a Kotlin source. It skips line comments, block comments and character literals. It
+ * reads quoted and triple-quoted strings with their placeholders, and skips the strings nested in a placeholder's
+ * expression.
  *
  * @param text the Kotlin source.
  */
@@ -238,7 +240,7 @@ private class KotlinStringScanner(private val text: String) {
         return KotlinTemplateLiteral.of(text.substring(start, position), parts, start until position)
     }
 
-    /** Reads an escape of a quoted string at the position and answers the character it stands for. */
+    /** Reads an escape of a quoted string at the position and returns the character it stands for. */
     private fun readEscape(): Char {
         val escaped = text[position + 1]
         position += 2

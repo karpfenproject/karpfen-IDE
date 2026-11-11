@@ -31,9 +31,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
- * What the conductor of a session takes, in the order it arrives: the public commands with their replies, and the
- * reports of the deployment, the environment handle, the router and the conductor's own stop. Immutable as far as its
- * values are.
+ * What the conductor of a session takes, in the order it arrives. These are the public commands with their replies,
+ * and the reports of the deployment, the environment handle, the router and the conductor's own stop. Immutable as far
+ * as its values are.
  */
 internal sealed interface ConductorMessage {
     /** The reply a caller awaits, or null for a report. */
@@ -79,7 +79,7 @@ internal sealed interface ConductorMessage {
     data class DeployEnded(val result: DeploymentResult) : ConductorMessage
 
     /**
-     * The deployment broke with an exception it should never have thrown; it cleaned up before.
+     * The deployment broke with an exception it should never have thrown. It cleaned up before it reported this.
      *
      * @property error the exception.
      */
@@ -123,7 +123,7 @@ internal sealed interface ConductorMessage {
 }
 
 /**
- * The unbounded inbox of a session's conductor. Everybody hands messages in without suspending; only the conductor
+ * The unbounded inbox of a session's conductor. Everybody hands messages in without suspending. Only the conductor
  * takes them out.
  */
 internal class ConductorInbox {
@@ -134,10 +134,10 @@ internal class ConductorInbox {
     val messages: ReceiveChannel<ConductorMessage>
         get() = channel
 
-    /** Hands [message] in; false once the inbox is closed. */
+    /** Hands [message] in. Returns false once the inbox is closed. */
     fun offer(message: ConductorMessage): Boolean = channel.trySend(message).isSuccess
 
-    /** Closes the inbox: no message is taken any more. */
+    /** Closes the inbox. After that no message is taken any more. */
     fun close() {
         channel.close()
     }

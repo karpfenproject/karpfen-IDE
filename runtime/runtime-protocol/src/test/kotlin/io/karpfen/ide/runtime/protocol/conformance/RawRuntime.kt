@@ -57,10 +57,10 @@ internal fun RuntimeUnderTest.runRaw(webSocketUrl: String, body: suspend RawRunt
 }
 
 /**
- * The runtime as the contract scenarios drive it: raw requests built from the catalogue's routes and raw links, through
- * the transports of the scenario, without the client's gateway, lifecycle or connection, so that the scenarios check
- * the runtime's behaviour itself. It remembers the environments it asked to activate or start until a stop of them
- * succeeds, so that [stopLaunched] can stop them after the scenario.
+ * The runtime as the contract scenarios drive it. The scenarios use raw requests built from the catalogue's routes and
+ * raw links, through the transports of the scenario. They bypass the client's gateway, lifecycle and connection, so
+ * that they check the runtime's behaviour itself. The object remembers the environments it asked to activate or start
+ * until a stop of them succeeds, so that [stopLaunched] can stop them after the scenario.
  *
  * @property scope the scenario's scope, whose transports reach the runtime and whose patience bounds every wait.
  * @property webSocketUrl the URL of the runtime's WebSocket.
@@ -71,8 +71,8 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
     private val launched = MutableStateFlow<Set<String>>(emptySet())
 
     /**
-     * Sends [route] with the query [parameters] in the order given and, for a PUT, [body], and answers the runtime's
-     * answer; fails the scenario on a transport failure.
+     * Sends [route] with the query [parameters] in the order given, and with [body] for a PUT. Returns the runtime's
+     * answer. A transport failure fails the scenario.
      */
     suspend fun call(route: RuntimeRoute, vararg parameters: Pair<String, String>, body: String = ""): HttpOutcome.Answered {
         val request = TextRequest(route.verb, route.path, parameters.toList(), body.takeIf { route.verb == HttpVerb.PUT })
@@ -87,8 +87,8 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
     }
 
     /**
-     * Stops every environment asked to activate or start and not stopped since, each stop bounded by the patience for
-     * a reaction, whatever the runtime answers: the cleanup after a scenario, also after one that failed.
+     * Stops every environment asked to activate or start and not stopped since, whatever the runtime answers. Each stop
+     * is bounded by the patience for a reaction. This is the cleanup after a scenario, also after one that failed.
      */
     suspend fun stopLaunched() {
         launched.value.forEach { environment ->
@@ -121,7 +121,7 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
         expect(status, text.render(values), route, *parameters, upload = upload)
     }
 
-    /** Creates an environment and answers its key. */
+    /** Creates an environment and returns its key. */
     suspend fun create(): String {
         val answer = call(RuntimeRoute.CREATE_ENVIRONMENT)
         assertEquals(OK, answer.status, answer.body)
@@ -150,7 +150,7 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
         ok(RuntimeRoute.SET_EVENT_TTL, ENV_KEY to environment, "ttlMs" to "30000")
     }
 
-    /** Issues an access key for [client] in [environment] and answers it. */
+    /** Issues an access key for [client] in [environment] and returns it. */
     suspend fun accessKey(client: String, environment: String): String {
         val answer = call(RuntimeRoute.REGISTER_CLIENT_FOR_WEB_SOCKET, CLIENT_ID to client, ENV_KEY to environment)
         assertEquals(OK, answer.status, answer.body)
@@ -169,9 +169,9 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
         connect(listOf(client, environment, accessKey(client, environment)).joinToString(WireNames.HANDSHAKE_SEPARATOR))
 
     /**
-     * Subscribes [client] to the whole model of [environment] once its session is attached: the subscribe route is
-     * the only proof that the runtime processed the handshake, so it is repeated while it answers that the client has
-     * no session.
+     * Subscribes [client] to the whole model of [environment] once its session is attached. The subscribe route is the
+     * only proof that the runtime processed the handshake. So the call is repeated while the runtime answers that the
+     * client has no session.
      */
     suspend fun subscribe(client: String, environment: String) {
         scope.eventually("an attached session of $client in $environment") {

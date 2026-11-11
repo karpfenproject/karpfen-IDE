@@ -16,9 +16,9 @@
 package io.karpfen.ide.core.text
 
 /**
- * Identity of the `core-text` module, kept from the phase-0 skeleton: the text of one document, with atomic edits,
- * immutable snapshots, line and column positions, undo and redo, and the mapping of positions between versions. Start
- * at [EditableText] and [TextSnapshot]; the module list of the README places the module among the others.
+ * Identity of the `core-text` module. The module holds the text of one document, with atomic edits, immutable
+ * snapshots, line and column positions, undo and redo, and the mapping of positions between versions. Start reading at
+ * [EditableText] and [TextSnapshot].
  */
 public object CoreTextModule {
     /** The module's name, which is also the name of its directory. */

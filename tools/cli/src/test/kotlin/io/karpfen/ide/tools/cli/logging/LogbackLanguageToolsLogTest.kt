@@ -26,8 +26,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * [LogbackLanguageToolsLog] on a logger context of its own, configured like the tool's: the dsl-tools logger is off
- * and passes its events on to the root logger's appender; showing raises it to DEBUG until the handle is closed.
+ * [LogbackLanguageToolsLog] on a logger context of its own, configured like the tool's. The dsl-tools logger is off
+ * and passes its events on to the root logger's appender. Showing raises it to DEBUG until the handle is closed.
  */
 class LogbackLanguageToolsLogTest {
 

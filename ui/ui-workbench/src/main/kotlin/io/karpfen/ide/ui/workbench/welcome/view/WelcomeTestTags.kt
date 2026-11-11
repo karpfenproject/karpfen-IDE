@@ -15,9 +15,9 @@
  */
 package io.karpfen.ide.ui.workbench.welcome.view
 
-/** Test tags of the empty state ([WelcomeView]). */
+/** Test tags of the welcome view, [WelcomeView], which the window shows while no folder is open. */
 public object WelcomeTestTags {
-    /** The empty state shown without a folder. */
+    /** The welcome view as a whole. */
     public const val VIEW: String = "Workbench.welcome"
 
     /** The "Open Folder…" button. */

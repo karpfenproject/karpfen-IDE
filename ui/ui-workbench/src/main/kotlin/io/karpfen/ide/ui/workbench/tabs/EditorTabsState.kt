@@ -29,17 +29,18 @@ import kotlinx.coroutines.launch
 import java.nio.file.Path
 
 /**
- * UI state of one editor tab.
+ * The UI state of one editor tab.
  *
  * @property path the path of the open document, which identifies the tab.
  * @property title the file name.
  * @property tooltip the path relative to the workspace root, or the whole path of a file outside it.
- * @property kind the kind of the file, by its name as everywhere in the workspace ([FileKind.of]), so the tab shows the
- *   icon the project tree shows for the file; its [FileKind.language] is the document's language.
+ * @property kind the kind of the file. It is derived from the file name with [FileKind.of], as everywhere in the
+ *   workspace, so the tab shows the same icon as the project tree. Its [FileKind.language] is the document's language.
  * @property isDirty true while the document has unsaved changes.
- * @property conflict the kind of the document's external-change conflict, or null: the editor area renders the banner
- *   from it — [ExternalChangeKind.MODIFIED] → Reload / Keep mine, [ExternalChangeKind.DELETED] → Close / Keep mine —
- *   and calls `WorkbenchState.resolveConflict`, never the `OpenDocument` itself; the tab strip marks the tab.
+ * @property conflict the kind of the document's conflict with a change on disk, or null if there is none. The editor
+ *   area renders the banner from it. [ExternalChangeKind.MODIFIED] offers Reload and Keep mine.
+ *   [ExternalChangeKind.DELETED] offers Close and Keep mine. The banner calls `WorkbenchState.resolveConflict` and
+ *   never the `OpenDocument` itself. The tab strip marks the tab as well.
  */
 public data class EditorTab(
     public val path: Path,
@@ -49,21 +50,23 @@ public data class EditorTab(
     public val isDirty: Boolean,
     public val conflict: ExternalChangeKind? = null,
 ) {
-    /** True while the document has an external-change conflict. */
+    /** True while the document conflicts with a change on disk. */
     public val hasConflict: Boolean get() = conflict != null
 }
 
 /**
- * The open editor tabs: order, active tab, and the [CodeEditorState] of each tab (kept across tab switches, closed with
- * the tab). Tab UI state follows the documents' dirty and conflict flows (collected in [scope]).
+ * The open editor tabs. The class holds their order, the active tab and the [CodeEditorState] of each tab. An editor
+ * state is kept across tab switches and closed together with its tab. The UI state of each tab follows the dirty and
+ * conflict flows of its document, collected in [scope].
  *
- * Public: the read flows and the pure UI intents ([activate], [move]). Opening and removing tabs and the documents are
- * coordination concerns of the mediator (unsaved-changes dialog, closing the `OpenDocument`, conflicts, collecting the
- * editor's navigation requests), so [open], [remove] and [documentFor] are internal; views close tabs through
- * `WorkbenchState.closeTab`. The editor states are the full `CodeEditorState` because the editor area renders them;
- * everything else in the workbench uses them as `EditorHandle`.
+ * The read flows and the pure UI intents [activate] and [move] are public. Opening and removing tabs and handling the
+ * documents are coordination concerns of the mediator. They involve the unsaved-changes dialog, closing the
+ * `OpenDocument`, conflicts, and collecting the editor's navigation requests. [open], [remove] and [documentFor] are
+ * therefore internal, and views close tabs through `WorkbenchState.closeTab`. The editor states are exposed as the full
+ * `CodeEditorState`, because the editor area renders them. Everything else in the workbench uses them as
+ * `EditorHandle`.
  *
- * Used from the UI thread (the dispatcher of [scope]).
+ * Use the class from the UI thread only, which is the dispatcher of [scope].
  */
 public class EditorTabsState(private val scope: CoroutineScope) {
 
@@ -72,34 +75,34 @@ public class EditorTabsState(private val scope: CoroutineScope) {
     private val activePath = MutableStateFlow<Path?>(null)
     private val activeEditorState = MutableStateFlow<CodeEditorState?>(null)
 
-    /** Tabs in display order. */
+    /** The tabs in display order. */
     public val tabs: StateFlow<List<EditorTab>> get() = tabList.asStateFlow()
 
-    /** Path of the active tab, or null. */
+    /** The path of the active tab, or null if no tab is open. */
     public val active: StateFlow<Path?> get() = activePath.asStateFlow()
 
-    /** The editor state of the active tab, or null. */
+    /** The editor state of the active tab, or null if no tab is open. */
     public val activeEditor: StateFlow<CodeEditorState?> get() = activeEditorState.asStateFlow()
 
-    /** The editor state of the tab of [path], or null. */
+    /** The editor state of the tab of [path], or null if there is no such tab. */
     public fun editorFor(path: Path): CodeEditorState? = entryOf(path)?.editor
 
     /**
-     * The open document of the tab of [path], or null. Mediator only: views see the document's state through
-     * [EditorTab] and change it through the `WorkbenchState` intents.
+     * The open document of the tab of [path], or null if there is no such tab. Only the mediator calls it. Views see
+     * the document's state through [EditorTab] and change it through the `WorkbenchState` intents.
      */
     internal fun documentFor(path: Path): OpenDocument? = entryOf(path)?.document
 
-    /** The open documents of all tabs, in tab order. Mediator only. */
+    /** The open documents of all tabs, in tab order. Only the mediator calls it. */
     internal fun documents(): List<OpenDocument> = entries.map { it.document }
 
-    /** The index of the tab of [path] in display order, or -1. Mediator only. */
+    /** The index of the tab of [path] in display order, or -1 if there is no such tab. Only the mediator calls it. */
     internal fun indexOf(path: Path): Int = entries.indexOfFirst { it.path == path }
 
     /**
-     * Adds a tab (or activates an existing tab of the same path) and activates it: at [index] (clamped) if given, else
-     * after the active tab (at the end without one). The caller creates [editor] only for a path without a tab.
-     * Mediator only.
+     * Adds a tab and activates it. If a tab of the same path exists already, that tab is activated instead. The new tab
+     * goes to [index], clamped to the valid range. Without an [index] it goes after the active tab, or to the end if
+     * no tab is active. The caller creates [editor] only for a path without a tab. Only the mediator calls it.
      */
     internal fun open(document: OpenDocument, editor: CodeEditorState, workspaceRoot: Path, index: Int? = null) {
         val path = document.path
@@ -121,7 +124,10 @@ public class EditorTabsState(private val scope: CoroutineScope) {
         activeEditorState.value = entry.editor
     }
 
-    /** Removes the tab of [path] and closes its editor state; the neighbour becomes active. Mediator only. */
+    /**
+     * Removes the tab of [path] and closes its editor state. If it was the active tab, its right neighbour becomes
+     * active, or its left neighbour if it was the last tab. Only the mediator calls it.
+     */
     internal fun remove(path: Path) {
         val index = indexOf(path)
         if (index < 0) return
@@ -135,7 +141,7 @@ public class EditorTabsState(private val scope: CoroutineScope) {
         }
     }
 
-    /** Moves a tab from index [from] to index [to] (drag in the tab strip). */
+    /** Moves a tab from index [from] to index [to], as a drag in the tab strip does. */
     public fun move(from: Int, to: Int) {
         if (from !in entries.indices || to !in entries.indices || from == to) return
         entries.add(to, entries.removeAt(from))
@@ -147,7 +153,7 @@ public class EditorTabsState(private val scope: CoroutineScope) {
         activeEditorState.value = null
     }
 
-    /** Keeps [entry]'s tab state in step with its document's dirty flag and conflict. */
+    /** Keeps the tab state of [entry] in step with its document's dirty flag and conflict. */
     private suspend fun follow(entry: TabEntry) {
         combine(entry.document.isDirty, entry.document.conflict) { dirty, conflict -> dirty to conflict?.kind }
             .collect { (dirty, conflict) ->
@@ -156,14 +162,16 @@ public class EditorTabsState(private val scope: CoroutineScope) {
             }
     }
 
-    /** Publishes the tabs' UI states in display order. */
+    /** Publishes the UI states of the tabs in display order. */
     private fun publish() {
         tabList.value = entries.map { it.tab }
     }
 
     private fun entryOf(path: Path): TabEntry? = entries.firstOrNull { it.path == path }
 
-    /** The first UI state of [document]'s tab; the tooltip is the path relative to [workspaceRoot] where possible. */
+    /**
+     * The first UI state of the tab of [document]. The tooltip is the path relative to [workspaceRoot] where possible.
+     */
     private fun initialTab(document: OpenDocument, workspaceRoot: Path): EditorTab {
         val path = document.path
         val title = path.fileName?.toString() ?: path.toString()
@@ -182,12 +190,12 @@ public class EditorTabsState(private val scope: CoroutineScope) {
         )
     }
 
-    /** One tab: its document, editor, current UI state and the job following the document's flows. */
+    /** One tab with its document, its editor, its current UI state and the job that follows the document's flows. */
     private class TabEntry(val document: OpenDocument, val editor: CodeEditorState, var tab: EditorTab) {
-        /** The document's path, the tab's identity. */
+        /** The document's path, which is the tab's identity. */
         val path: Path get() = document.path
 
-        /** The job following the document's dirty and conflict flows; cancelled when the tab is removed. */
+        /** The job that follows the document's dirty and conflict flows. It is cancelled when the tab is removed. */
         var watcher: Job? = null
     }
 }

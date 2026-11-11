@@ -24,8 +24,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers the production transports: the options' defaults and their refusal of durations that are not positive, and
- * transports that are made without opening a connection and closed as often as wanted.
+ * Covers the production transports. The options have their defaults and refuse durations that are not positive. The
+ * transports are made without opening a connection and can be closed as often as wanted.
  */
 class KtorTransportsTest {
 

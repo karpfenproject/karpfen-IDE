@@ -34,10 +34,10 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * The bracket pair at the primary caret ([EditorViewModel.bracketMatch]): follows the caret model's state (which also
- * changes with every text version), asks `LanguageServices.matchingBracket` on [backgroundDispatcher] (latest wins) and
- * publishes the versioned result in [scope]. Carets that lag the text are skipped; the caret model catches up and
- * publishes again.
+ * Tracks the bracket pair at the primary caret for [EditorViewModel.bracketMatch]. It follows the state of the caret
+ * model, which also changes with every text version. For each state it asks `LanguageServices.matchingBracket` on
+ * [backgroundDispatcher], and the latest request wins. It publishes the result with its version in [scope]. Carets
+ * that lag behind the text are skipped, because the caret model catches up and publishes again.
  */
 internal class BracketTracker(
     private val session: DocumentSession,
@@ -64,7 +64,10 @@ internal class BracketTracker(
         }
     }
 
-    /** The bracket pair at [offset] of [snapshot]; null if there is none or the language services failed (logged). */
+    /**
+     * Returns the bracket pair at [offset] of [snapshot]. Returns null if there is none, or if the language services
+     * failed. A failure is logged.
+     */
     private fun matchAt(snapshot: TextSnapshot, offset: Int): BracketMatch? =
         try {
             languageServices.matchingBracket(LanguageDocument.of(session, snapshot), offset)
@@ -77,7 +80,7 @@ internal class BracketTracker(
 
     /** The logger. */
     private companion object {
-        /** Reports failures of the language services; bracket matching then shows nothing. */
+        /** Reports failures of the language services. Bracket matching then shows nothing. */
         val logger: Logger = LoggerFactory.getLogger(BracketTracker::class.java)
     }
 }

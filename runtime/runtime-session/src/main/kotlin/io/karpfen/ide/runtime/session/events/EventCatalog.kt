@@ -36,8 +36,8 @@ public enum class PayloadTypeOrigin {
     EVENT_TYPE,
 
     /**
-     * A domain type named like the event: the events file declares none, and the runtime appends the domain types to
-     * the event metamodel, so it parses the payload against that domain type.
+     * A domain type named like the event. The events file declares no type of that name. The runtime appends the
+     * domain types to the event metamodel, so it parses the payload against that domain type.
      */
     DOMAIN_TYPE,
 }
@@ -45,8 +45,8 @@ public enum class PayloadTypeOrigin {
 /**
  * An event that can be injected into a domain of the environment.
  *
- * @property domain the event's domain, verbatim (matching is exact and case-sensitive).
- * @property name the event's name, verbatim; names may contain spaces.
+ * @property domain the event's domain, verbatim. Matching is exact and case-sensitive.
+ * @property name the event's name, verbatim. Names may contain spaces.
  * @property declared true if the events file declares a type of this name, which the user interface highlights.
  * @property payloadType the type the runtime parses a payload against, or null if it parses none.
  * @property payloadTypeOrigin where [payloadType] comes from, or null without one.
@@ -75,7 +75,7 @@ public enum class DomainOrigin {
 }
 
 /**
- * An event domain of the deployment: the deploy registers a listener for it.
+ * An event domain of the deployment. The deployment registers a listener for it.
  *
  * @property name the domain's name.
  * @property origin whether the events file declares one of its events.
@@ -84,8 +84,8 @@ public enum class DomainOrigin {
 public data class EventDomain(public val name: String, public val origin: DomainOrigin, public val events: List<InjectableEvent>)
 
 /**
- * The texts the runtime builds its event metamodel from, exactly as uploaded: the domain metamodel and the events file.
- * KModel payloads are checked against a metamodel read from these texts.
+ * The texts the runtime builds its event metamodel from, exactly as uploaded. These are the domain metamodel and the
+ * events file. KModel payloads are checked against a metamodel read from these texts.
  *
  * @property metamodel the domain metamodel's text.
  * @property events the events file's text, or null if the deployment has none.
@@ -96,8 +96,8 @@ public data class EventSources(public val metamodel: TextSnapshot, public val ev
  * The events of a deployment by domain, with the schema their payloads are checked against. Immutable.
  *
  * @property domains the deployment's domains in the plan's order.
- * @property schema the schema of the event metamodel (the events file's types followed by the domain types), or null
- *   if the deployment has no event definitions, so the runtime never parses payloads.
+ * @property schema the schema of the event metamodel. It holds the events file's types followed by the domain types.
+ *   It is null if the deployment has no event definitions. In that case the runtime never parses payloads.
  * @property sources the texts the event metamodel is read from.
  */
 public data class EventCatalog(
@@ -121,6 +121,6 @@ public data class EventCatalog(
  *
  * @property attachedTo the key of the object it runs attached to.
  * @property file its file.
- * @property machine the analyzed machine; read during the preparation only.
+ * @property machine the analyzed machine. It is read during the preparation only.
  */
 public data class ListeningMachine(public val attachedTo: String, public val file: Path, public val machine: StateMachine)

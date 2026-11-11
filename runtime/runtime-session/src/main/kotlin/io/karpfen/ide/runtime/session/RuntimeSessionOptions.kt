@@ -25,22 +25,23 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * How the sessions run, with the production defaults; tests hand in a test dispatcher, its time source and a seeded
- * random, so every wait runs on virtual time and every client id is the same in every run. Immutable.
+ * How the sessions run. The defaults are the production values. Tests hand in a test dispatcher, its time source and a
+ * seeded random. Then every wait runs on virtual time and every client id is the same in every run. Immutable.
  *
  * @property dispatcher where the preparation, the conductor, the router and every wait of a session run.
  * @property timeSource the clock the journal measures the elapsed time of a session with.
  * @property random where the client ids of the sessions come from.
- * @property journalCapacity how many entries the journal of a session keeps for a late collector; older ones are dropped.
+ * @property journalCapacity how many entries the journal of a session keeps for a late collector. Older entries are
+ *   dropped.
  * @property deployTiming the waits of the deployments and the bounds of their cleanups and of the sessions' stops.
- * @property subscribeAttempts how often switching observation on subscribes in all while the runtime has not processed
- *   the WebSocket handshake yet.
+ * @property subscribeAttempts how many subscription attempts switching observation on makes in all. It retries while
+ *   the runtime has not processed the WebSocket handshake yet.
  * @property subscribeRetryDelay the pause between two such subscriptions.
- * @property snapshotAttempts how often a snapshot the observation needs is read in all before the model counts as out
- *   of sync.
+ * @property snapshotAttempts how many times in all the observation reads a snapshot it needs before the model counts
+ *   as out of sync.
  * @property snapshotRetryDelay the pause between two such reads.
  * @property collectorBuffer how many model updates, and how many domain events, a collector of a session may fall
- *   behind before it misses the oldest of them; the session never waits for its collectors.
+ *   behind before it misses the oldest of them. The session never waits for its collectors.
  * @throws IllegalArgumentException if a capacity or a number of attempts is below 1 or a delay is negative.
  */
 public data class RuntimeSessionOptions(

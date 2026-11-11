@@ -16,14 +16,14 @@
 package io.karpfen.ide.buildlogic
 
 /**
- * The names of the opt-in task of runtime-host that runs the tests against the local Docker engine
- * ([TestTags.LIVE_DOCKER]): the module's build script registers it, and the `karpfen.kotlin-jvm` convention exempts it,
- * and only it, from the exclusion of that tag.
+ * The names of the opt-in task of runtime-host that runs the tests against the local Docker engine, the tests tagged
+ * [TestTags.LIVE_DOCKER]. The module's build script registers the task. The `karpfen.kotlin-jvm` convention exempts
+ * this task, and only this one, from the exclusion of that tag.
  */
 object LiveDockerTesting {
-    /** The task that runs only the tests tagged [TestTags.LIVE_DOCKER]; nothing depends on it. */
+    /** The task that runs only the tests tagged [TestTags.LIVE_DOCKER]. No other task depends on it. */
     const val TASK_NAME: String = "liveDockerTest"
 
-    /** The group of [TASK_NAME]: a group of its own, so that the task is not listed among the verification tasks. */
+    /** The group of [TASK_NAME]. It is a group of its own, so the task is not listed among the verification tasks. */
     const val TASK_GROUP: String = "live docker"
 }

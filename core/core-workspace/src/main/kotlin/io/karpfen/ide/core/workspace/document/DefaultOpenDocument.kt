@@ -31,24 +31,27 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /**
- * Resolves the conflicts of open documents ([OpenDocument.resolveConflict] delegates here, so the document stays a
- * state holder without I/O).
+ * Resolves the conflicts of open documents. [OpenDocument.resolveConflict] delegates here, so the document stays a
+ * state holder without I/O.
  */
 internal fun interface ConflictResolver {
-    /** Resolves the conflict of [document] with [resolution]; never throws. */
+    /** Resolves the conflict of [document] with [resolution]. It never throws. */
     suspend fun resolve(document: DefaultOpenDocument, resolution: ConflictResolution): ConflictResult
 }
 
 /**
- * Default [OpenDocument]: the file-level state of one open document. A state holder only — loading, saving and
- * conflict handling are done by the document manager's collaborators ([DiskSynchronizer], [DocumentSaver]), which
- * mutate it on the single writer (see [SingleWriter]).
+ * Default [OpenDocument]. It holds the file-level state of one open document and nothing else. Loading, saving and
+ * conflict handling are done by the collaborators of the document manager, [DiskSynchronizer] and [DocumentSaver].
+ * They change the document on the single writer described on [SingleWriter].
  *
- * The disk state is the [LoadedSource] the buffer was last synchronized with (opened, saved, reloaded, or acknowledged
- * with Keep mine), or null when the file is known to be absent; an external change is a disk content that differs from
- * it ([knowsContentOf]), which also makes the watch event of the document's own save a no-op.
+ * The disk state is the [LoadedSource] that the buffer was last synchronized with. That happens when the document is
+ * opened, saved or reloaded, or when a conflict is acknowledged with Keep mine. The disk state is null when the file
+ * is known to be absent. An external change is disk content that differs from the disk state, as [knowsContentOf]
+ * decides. The same check makes the watch event of the document's own save do nothing.
  *
- * @param scope the document's own scope (parent of the session's scope), cancelled by [close].
+ * Members marked "writer only" may only be used on the single writer.
+ *
+ * @param scope the document's own scope, the parent of the session's scope. [close] cancels it.
  */
 internal class DefaultOpenDocument(
     override val session: DocumentSession,
@@ -63,12 +66,12 @@ internal class DefaultOpenDocument(
 
     override val id: DocumentId get() = session.id
 
-    /** The edited text (the session's). */
+    /** The edited text, which is the text of the session. */
     val text: EditableText get() = session.text
 
     /**
-     * Derived from the save point; collected unconfined, so it is updated synchronously with every edit and save point
-     * (a dirty check right after an edit never sees a stale value).
+     * Derived from the save point. It is collected unconfined, so it is updated synchronously with every edit and every
+     * save point. A dirty check right after an edit never sees a stale value.
      */
     override val isDirty: StateFlow<Boolean> = text.undo.isAtSavePoint
         .map { atSavePoint -> !atSavePoint }
@@ -82,27 +85,30 @@ internal class DefaultOpenDocument(
     var hasBom: Boolean = loaded.hasBom
         private set
 
-    /** The disk state the buffer is synchronized with, null if the file is known to be absent. Writer only. */
+    /** The disk state the buffer is synchronized with, or null if the file is known to be absent. Writer only. */
     var diskState: LoadedSource? = loaded
         private set
 
-    /** The disk state that raised the current [conflict] (null for a deletion). Writer only. */
+    /** The disk state that raised the current [conflict]. It is null for a deletion. Writer only. */
     private var observedDiskState: LoadedSource? = null
 
     /**
-     * True if [source] holds the content of the [diskState]: the same text, line separator and byte order mark. Findings
-     * are derived from the content and take no part, so a loader whose findings a save cannot foresee still recognizes
-     * the save's own watch event. Writer only.
+     * True if [source] holds the content of the [diskState], which means the same text, line separator and byte order
+     * mark. Findings are derived from the content and take no part. So a loader whose findings a save cannot foresee
+     * still recognizes the watch event of the save itself. Writer only.
      */
     fun knowsContentOf(source: LoadedSource): Boolean =
         diskState?.let { it.text == source.text && it.lineSeparator == source.lineSeparator && it.hasBom == source.hasBom } == true
 
-    /** True if the text differs from its save point, read from the undo manager itself (never stale). */
+    /** True if the text differs from its save point. It is read from the undo manager itself and is never stale. */
     val isDirtyNow: Boolean get() = !text.undo.isAtSavePoint.value
 
     override suspend fun resolveConflict(resolution: ConflictResolution): ConflictResult = conflicts.resolve(this, resolution)
 
-    /** The buffer now equals [source] on disk (opened, reloaded or saved): adopts its separator and BOM, clears the conflict. */
+    /**
+     * The buffer now equals [source] on disk, after an open, a reload or a save. The document adopts its line separator
+     * and byte order mark and clears the conflict.
+     */
     fun synchronizedWith(source: LoadedSource) {
         diskState = source
         separatorState.value = source.lineSeparator
@@ -111,30 +117,37 @@ internal class DefaultOpenDocument(
         conflictState.value = null
     }
 
-    /** A save wrote the buffer; the disk now holds [written] (the self-induced watch event will find it unchanged). */
+    /**
+     * A save wrote the buffer, and the disk now holds [written]. The watch event that the save causes will find the
+     * file unchanged.
+     */
     fun saved(written: LoadedSource) {
         diskState = written
         observedDiskState = null
         conflictState.value = null
     }
 
-    /** The disk changed to [observed] (null: deleted) while the buffer could not follow; the UI offers a resolution. */
+    /**
+     * The disk changed to [observed] while the buffer could not follow. [observed] is null when the file was deleted.
+     * The UI offers a resolution.
+     */
     fun raiseConflict(kind: ExternalChangeKind, observed: LoadedSource?) {
         observedDiskState = observed
         conflictState.value = ExternalChange(path, kind)
     }
 
-    /** The disk is back in the known [diskState]; a pending conflict is void. */
+    /** The disk is back in the known [diskState], so a pending conflict no longer applies. */
     fun clearConflict() {
         observedDiskState = null
         conflictState.value = null
     }
 
     /**
-     * Keep mine: the buffer stays, the observed disk state (null for a deletion) becomes the known one. No state of the
-     * undo history matches that disk state, so the save point is invalidated: the document stays dirty until a save
-     * overwrites or recreates the file, is covered by Save All and the unsaved-changes prompt, and a later change on
-     * disk is a conflict, never a silent reload over the kept buffer.
+     * Resolves a conflict with Keep mine. The buffer stays, and the observed disk state becomes the known one. For a
+     * deletion that state is null. No state of the undo history matches that disk state, so the save point is
+     * invalidated. The document then stays dirty until a save overwrites or recreates the file. Save All and the
+     * unsaved-changes prompt cover it. A later change on disk is a conflict and never a silent reload over the kept
+     * buffer.
      */
     fun keepMine() {
         diskState = observedDiskState

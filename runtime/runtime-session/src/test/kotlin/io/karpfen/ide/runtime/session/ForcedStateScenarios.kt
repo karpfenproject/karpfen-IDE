@@ -22,8 +22,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers forcing the states of the lamp's machines through a session against a real runtime: a forced state runs no
- * entry block, the machine continues from it with the next event, the second machine can be forced on its own, and an
+ * Covers forcing the states of the lamp's machines through a session against a real runtime. A forced state runs no
+ * entry block, and the machine continues from it with the next event. The second machine can be forced on its own. An
  * unknown state comes back as the session's refusal with the runtime's text.
  */
 abstract class ForcedStateScenarios {

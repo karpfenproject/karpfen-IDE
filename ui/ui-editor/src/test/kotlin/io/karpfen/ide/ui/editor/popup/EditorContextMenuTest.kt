@@ -41,15 +41,17 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The editor context menu through the overlay contract: the entries by action id with their shared titles at the
- * request position, disabled entries greyed out, choosing an entry runs its action by id and returns focus, Escape
- * dismisses.
+ * The editor context menu through the overlay contract. It shows the entries by action id with their shared titles at
+ * the request position, and disabled entries are greyed out. Choosing an entry runs its action by id and returns focus
+ * to the text area. Escape dismisses the menu.
  */
 @OptIn(ExperimentalTestApi::class)
 class EditorContextMenuTest {
 
+    /** The shared titles of the default menu entries, in order. */
     private val titles = listOf("Cut", "Copy", "Paste", "Go to Definition", "Toggle Comment")
 
+    /** Opens the context menu for offset 0 at [x], [y] and waits until it is composed. */
     private fun ComposeUiTest.openMenu(harness: PopupHarness, x: Float = 120f, y: Float = 64f) {
         runOnIdle { harness.model.overlays.openContextMenu(ContextMenuRequest(0, x, y)) }
         waitForIdle()
@@ -86,7 +88,7 @@ class EditorContextMenuTest {
         assertTrue(disabled > enabled + 0.2f, "disabled text is greyed out: darkest luminance $disabled vs $enabled")
     }
 
-    /** The luminance of the darkest pixel of the node showing [text] (its glyphs on the menu background). */
+    /** The luminance of the darkest pixel of the node that shows [text]. That pixel belongs to its glyphs on the menu background. */
     private fun ComposeUiTest.darkestLuminance(text: String): Float {
         val pixels = onNodeWithText(text).captureToImage().toPixelMap()
         var darkest = 1f

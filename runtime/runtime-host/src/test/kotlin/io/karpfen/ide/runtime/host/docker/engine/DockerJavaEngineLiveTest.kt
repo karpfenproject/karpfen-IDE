@@ -28,9 +28,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Runs [DockerJavaEngine] against the local Docker engine with a tiny image built `FROM scratch`, so nothing is pulled:
- * building, listing, creating, copying into, inspecting and removing, and a failing build. Every image and container
- * it makes carries the label `io.karpfen.ide.test=true` and is removed in `finally`.
+ * Runs [DockerJavaEngine] against the local Docker engine with a tiny image built `FROM scratch`, so nothing is pulled.
+ * It covers building, listing, creating, copying into, inspecting and removing, and a failing build. Every image and
+ * container it makes carries the label `io.karpfen.ide.test=true` and is removed in `finally`. The test runs only in
+ * the opt-in task `liveDockerTest`.
  */
 @Tag("live-docker")
 class DockerJavaEngineLiveTest {
@@ -116,7 +117,7 @@ class DockerJavaEngineLiveTest {
         return header + content + ByteArray((512 - content.size % 512) % 512) + ByteArray(1024)
     }
 
-    /** The endpoint of the local engine; fails the test if it is not local. */
+    /** The endpoint of the local engine. Fails the test if the engine is not local. */
     private fun localEndpoint(): String {
         val endpoint = DockerEndpointResolver().resolve()
         assertTrue(endpoint is DockerEndpoint.Local, "the Docker engine is not local: ${endpoint.uri}")

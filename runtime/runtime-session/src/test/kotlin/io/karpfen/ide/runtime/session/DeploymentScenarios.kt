@@ -41,14 +41,15 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * Covers deploying through a session against a real runtime: a deployment with the descriptor format's default
- * configuration runs both machines of the lamp, reports its steps in order, shows the reported stacks in place of the
- * predictions, is listed with its machines and serves the saved state machine; a dirty document is saved before the
- * deployment, so the runtime reads the edited value; a deployment without start can force a state and start; a stop is
- * final and running again deploys a fresh environment; and the realistic single robot reads back equal to the seed.
+ * Covers deploying through a session against a real runtime. A deployment with the descriptor format's default
+ * configuration runs both machines of the lamp and reports its steps in order. It shows the reported stacks in place of
+ * the predictions, is listed with its machines and serves the saved state machine. A dirty document is saved before the
+ * deployment, so the runtime reads the edited value. A deployment without start can force a state and then start. A
+ * stop is final, and running again deploys a fresh environment. The realistic single robot reads back equal to the
+ * seed.
  *
- * Failures only a fake runtime can produce, an engine that halts at start and a runtime without IDE support, are
- * ordinary tests against the fake runtime.
+ * Some failures only a fake runtime can produce. These are an engine that halts at start and a runtime without IDE
+ * support. They are ordinary tests against the fake runtime.
  */
 abstract class DeploymentScenarios {
 

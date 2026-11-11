@@ -40,8 +40,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers the event injector: the event-level findings, availability (not yet, queued, live, unavailable), refusal on
- * errors, the frames handed to the sink for every payload kind, and what becomes of a send the connection cannot take.
+ * Covers the event injector. It checks the event-level findings and the availability, which is not yet, queued, live
+ * or unavailable. It also checks the refusal on errors, the frames handed to the sink for every payload kind, and what
+ * becomes of a send that the connection cannot take.
  */
 class EventInjectorTest {
 
@@ -161,7 +162,10 @@ class EventInjectorTest {
         assertEquals(availability, injector.availability)
     }
 
-    /** The catalog of one machine attached to `robot` that listens to `order` and `ping` in `ops` and `poke` in `robot`, and raises `done`. */
+    /**
+     * The catalog of one machine attached to `robot`. The machine listens to `order` and `ping` in `ops` and to `poke`
+     * in `robot`, and it raises `done`.
+     */
     private fun catalog(): EventCatalog {
         val state = State("idle", ActionBlock(mutableListOf()), ActionBlock(mutableListOf(raise("ops", "done"))), mutableListOf())
         val machine = StateMachine(
@@ -186,7 +190,10 @@ class EventInjectorTest {
     /** The action that raises [name] in [domain]. */
     private fun raise(domain: String, name: String): ActionRule = ActionRule(ActionOperationType.EVENT, domain, ValueActionRightSide(name))
 
-    /** A sink that records every frame and answers the programmed outcomes in order, else that the frame was written. */
+    /**
+     * A sink that records every frame and answers the programmed outcomes in order. When none is left, it answers that
+     * the frame was written.
+     */
     private class RecordingSink : EventSink {
         /** The frames handed over so far. */
         val frames = ArrayList<EventFrame>()

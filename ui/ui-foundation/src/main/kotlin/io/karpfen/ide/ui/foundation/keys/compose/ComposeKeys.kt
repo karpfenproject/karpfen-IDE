@@ -31,16 +31,22 @@ import io.karpfen.ide.ui.foundation.keys.LayoutAwareStrokes
 import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
 
 /**
- * The [KeyStroke] of a Compose key-down event (physical modifiers as reported by the event), or null for key-up
- * events, unmapped keys and lone modifier presses. The Compose adapter of the Compose-free key model in
- * `ui.foundation.keys` (which never depends on this package).
+ * The [KeyStroke] of a Compose key-down event, with the physical modifiers the event reports. Returns null for key-up
+ * events, unmapped keys and lone modifier presses. This is the Compose adapter of the key model in
+ * `ui.foundation.keys`, which itself never depends on this package.
  *
- * Layout-aware punctuation (MUST, see `KeyCode`): when the event produces one of the punctuation characters of
- * `KeyCode` on the current layout — from the event's code point, or, where modifiers suppress it (Cmd/Ctrl held), from
- * the native AWT event (`nativeKeyEvent`: key char or extended key code) — the stroke's key is that punctuation code
- * and SHIFT is dropped if the layout needed it for the character (German Cmd+Shift+7 → `SLASH` + META); otherwise the
- * physical key and modifiers are reported unchanged (US Shift+/ produces `?` and stays `SLASH` + SHIFT). Headless
- * tests cover both layouts with synthesized events; "Cmd+/ on a German layout" is in the manual test.
+ * Punctuation is layout-aware, as described on `KeyCode`. The adapter first finds the character the event produced on
+ * the current layout. It takes the event's code point. When modifiers suppress the code point, as a held Cmd or Ctrl
+ * does, it falls back to the native AWT event (`nativeKeyEvent`) and uses its key char or its extended key code. If
+ * that character is one of the punctuation characters of `KeyCode`, the stroke's key is its punctuation code. SHIFT is
+ * then dropped when the layout needed it for the character, so German Cmd+Shift+7 becomes `SLASH` with META.
+ * Otherwise the physical key and the modifiers are reported unchanged, so US Shift+/ produces `?` and stays `SLASH`
+ * with SHIFT. Headless tests cover both layouts with synthesized events. Cmd+/ on a real German layout can only be
+ * checked by hand.
+ *
+ * A native event can carry no character at all. Ctrl+Shift+7 on a German Windows layout is such a case, and its key's
+ * own character is `7`. The adapter then reports the physical key, so Toggle Comment cannot be reached with that stroke
+ * on that layout. This is a known limitation.
  */
 public fun KeyEvent.toKeyStroke(): KeyStroke? {
     if (type != KeyEventType.KeyDown) return null
@@ -53,7 +59,7 @@ public fun KeyEvent.toKeyStroke(): KeyStroke? {
     return LayoutAwareStrokes.resolve(ComposeKeyTable.codeOf(key), modifiers, ProducedCharacter.of(this))
 }
 
-/** The Compose window-menu shortcut for this shortcut on [platform] (for `MenuBar` items). */
+/** The Compose shortcut of this shortcut on [platform], for the items of the window's `MenuBar`. */
 public fun KeyShortcut.toMenuShortcut(platform: HostPlatform): ComposeKeyShortcut {
     val stroke = strokeFor(platform)
     return ComposeKeyShortcut(

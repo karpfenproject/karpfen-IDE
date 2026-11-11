@@ -18,10 +18,10 @@ package io.karpfen.ide.ui.editor.view.input
 import kotlin.math.abs
 
 /**
- * Counts consecutive clicks (1, 2, 3, …) from press times and positions: a press within [timeoutMillis] of the previous
- * one and within [slop] pixels of it continues the series, anything else starts a new one. Counted from the pointer
- * events themselves (their uptime), so synthesized test events and every platform behave alike. Used from the UI
- * thread.
+ * Counts consecutive clicks from press times and positions. A press within [timeoutMillis] of the previous one and
+ * within [slop] pixels of it continues the series, so the count goes 1, 2, 3 and on. Any other press starts a new
+ * series. The count comes from the uptime of the pointer events themselves, so synthesized test events and every
+ * platform behave alike. Use it from the UI thread.
  */
 internal class ClickCounter(private val timeoutMillis: Long, private val slop: Float) {
 
@@ -30,7 +30,7 @@ internal class ClickCounter(private val timeoutMillis: Long, private val slop: F
     private var lastY = 0f
     private var count = 0
 
-    /** Registers a press at [timeMillis] at ([x], [y]); returns its click count. */
+    /** Registers a press at [timeMillis] at [x] and [y], and returns its click count. */
     fun press(timeMillis: Long, x: Float, y: Float): Int {
         val continues = lastTime != Long.MIN_VALUE && timeMillis - lastTime <= timeoutMillis &&
             abs(x - lastX) <= slop && abs(y - lastY) <= slop

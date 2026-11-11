@@ -40,19 +40,23 @@ import java.nio.file.Path
 import kotlin.time.Duration
 
 /**
- * The file side of a workspace: scans the folder into [files], keeps the contexts in step through the
- * [contexts] tracker, and routes changes on disk to the open documents ([WorkspaceDocuments.onFileChanged], which
- * decides between reload, conflict and nothing).
+ * The file side of a workspace. It scans the folder into [files] and keeps the contexts in step through the [contexts]
+ * tracker. It routes changes on disk to the open documents through [WorkspaceDocuments.onFileChanged], which decides
+ * between a reload, a conflict and nothing.
  *
- * - [refresh] rescans now and checks every open document against its file (the explicit alternative to watching);
- * - [watch] collects the [watcher]'s raw changes, debounced into batches by [watchDebounce] (200 ms by default), and
- *   for each batch rescans and checks the open documents at or below a changed path (all of them after an overflow).
+ * There are two ways in.
+ * - [refresh] rescans now and checks every open document against its file. It is the explicit alternative to
+ *   watching.
+ * - [watch] collects the raw changes of the [watcher] and debounces them into batches by [watchDebounce], which is
+ *   200 ms by default. For each batch it rescans and checks the open documents at or below a changed path. After an
+ *   overflow it checks all of them.
  *
- * Checking a document means handing it to the document side, which reads the file and compares it with what the
- * document last saw on disk; so a check without a real change (a touch, the document's own save) changes nothing.
+ * Checking a document means handing it to the document side. That side reads the file and compares it with what the
+ * document last saw on disk. So a check without a real change, such as a touch or the document's own save, changes
+ * nothing.
  *
- * Rescans are serialized; [revision] counts the completed ones, so the analysis also follows content changes of files
- * the tree shows unchanged.
+ * Rescans run one at a time. [revision] counts the completed ones. The analysis listens to it, so it also follows
+ * content changes of files whose entry in the tree stays the same.
  */
 internal class TreeRefresher(
     private val root: Path,
@@ -81,7 +85,10 @@ internal class TreeRefresher(
         documents.openDocuments.value.forEach { documents.onFileChanged(it.path, deleted = false) }
     }
 
-    /** Starts watching in [scope]; the returned job ends with the scope or when the watcher gives up. */
+    /**
+     * Starts watching in [scope]. The returned job ends with the scope or when the watcher gives up. After that,
+     * changes on disk only show up through an explicit [refresh].
+     */
     fun watch(scope: CoroutineScope): Job = scope.launch {
         watcher.watch(root) { scanner.isIgnored(root, it) }
             .batchedBy(watchDebounce)
@@ -89,7 +96,7 @@ internal class TreeRefresher(
         logger.warn("Watching {} ended; changes on disk are picked up by an explicit refresh only", root)
     }
 
-    /** Rescans and checks the open documents a [batch] concerns; a failure is logged and the watching goes on. */
+    /** Rescans and checks the open documents a [batch] concerns. A failure is logged, and the watching goes on. */
     private suspend fun applyBatch(batch: List<FileChange>) {
         try {
             rescan()
@@ -107,14 +114,14 @@ internal class TreeRefresher(
     }
 
     /**
-     * Whether the last change of [document] itself in [batch] is its deletion. Only such a deletion is known for sure;
-     * in every other case the document side reads the file, so a deleted directory or a lost event shows up there as a
+     * Whether the last change of [document] itself in [batch] is its deletion. Only such a deletion is known for sure.
+     * In every other case the document side reads the file, so a deleted directory or a lost event shows up there as a
      * missing file.
      */
     private fun isDeletedIn(batch: List<FileChange>, document: Path): Boolean =
         batch.lastOrNull { it.path == document }?.kind == FileChangeKind.DELETED
 
-    /** Scans the folder (one scan at a time), publishes the tree, updates the contexts and counts the scan. */
+    /** Scans the folder, publishes the tree, updates the contexts and counts the scan. Only one scan runs at a time. */
     private suspend fun rescan() {
         scanning.withLock {
             val scanned = withContext(ioDispatcher) { scanner.scan(root) }

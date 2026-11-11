@@ -24,9 +24,12 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 /**
- * Go to definition ([CodeEditorState.goToDefinition]): looks the target up with [definitionsAt] in [scope] and emits
- * the first location on [navigationRequests] (no replay: its owner collects it for the editor's whole life, so no
- * lookup is lost on a tab switch); no-op if there is none. A newer request cancels a running one.
+ * Carries out go to definition for [CodeEditorState.goToDefinition]. It looks the target up with [definitionsAt] in
+ * [scope] and emits the first location on [navigationRequests]. If there is no location, it does nothing. A newer
+ * request cancels a running one.
+ *
+ * The stream has no replay. Its owner collects it for the whole life of the editor, so no lookup is lost on a tab
+ * switch.
  */
 internal class DefinitionNavigator(
     private val scope: CoroutineScope,
@@ -47,7 +50,7 @@ internal class DefinitionNavigator(
 
     /** The buffer size of the request stream. */
     private companion object {
-        /** Targets kept for slow collectors; navigation requests are rare, so a few suffice. */
+        /** The number of targets kept for slow collectors. Navigation requests are rare, so a few are enough. */
         const val BUFFER = 8
     }
 }

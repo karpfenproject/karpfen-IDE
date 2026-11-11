@@ -22,12 +22,12 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The Docker engine as the runtime host uses it: the few calls that build the runtime image and run, watch and remove
- * its container. The host talks to Docker only through this port, so its behaviour is tested against a fake, and the
- * Docker client stays in this package ([DockerJavaEngine]).
+ * its container. The host talks to Docker only through this port. That keeps the host's behaviour testable against a
+ * fake, and it keeps the Docker client inside this package, in [DockerJavaEngine].
  *
- * Threading (MUST): every suspending function may be called from any coroutine and never blocks its thread; the adapter
- * runs the blocking calls on `Dispatchers.IO`. Failures (MUST): every call that fails throws [DockerEngineException];
- * a `CancellationException` of the caller is rethrown.
+ * Every suspending function may be called from any coroutine and never blocks its thread. The adapter runs the blocking
+ * calls on `Dispatchers.IO`. Every call that fails throws [DockerEngineException]. A `CancellationException` of the
+ * caller is rethrown as it is.
  */
 internal interface DockerEngine : AutoCloseable {
     /** Checks that the engine answers. */
@@ -45,7 +45,7 @@ internal interface DockerEngine : AutoCloseable {
      */
     suspend fun buildImage(context: InputStream, tag: String, labels: Map<String, String>, onLine: (String) -> Unit)
 
-    /** Removes the image [id]; fails if a container still uses it. */
+    /** Removes the image [id]. It fails if a container still uses the image. */
     suspend fun removeImage(id: String)
 
     /** The images that carry every label of [labelFilter] with its value. */
@@ -64,7 +64,7 @@ internal interface DockerEngine : AutoCloseable {
     suspend fun startContainer(id: String)
 
     /**
-     * The state of the container [id] and the host port published for its container port; a container that no longer
+     * The state of the container [id] and the host port published for its container port. A container that no longer
      * exists answers as not running, without exit code and port.
      */
     suspend fun inspectContainer(id: String): ContainerInspection
@@ -75,10 +75,10 @@ internal interface DockerEngine : AutoCloseable {
      */
     fun followLogs(id: String): Flow<ContainerOutputLine>
 
-    /** Stops the container [id], killing it if it is still running after [timeout]; a stopped container stays as it is. */
+    /** Stops the container [id] and kills it if it still runs after [timeout]. A container that already stopped stays as it is. */
     suspend fun stopContainer(id: String, timeout: Duration)
 
-    /** Removes the container [id] with its anonymous volumes, killing it first if it still runs; a missing one is no error. */
+    /** Removes the container [id] with its anonymous volumes and kills it first if it still runs. A missing one is no error. */
     suspend fun removeContainer(id: String)
 
     /** Releases the connection to the engine. */
@@ -93,7 +93,8 @@ internal interface DockerEngine : AutoCloseable {
  * @property labels the labels of the container.
  * @property hostIp the host address its container port is published on, only reachable from this machine.
  * @property containerPort the port the runtime listens on inside the container, published on an ephemeral host port.
- * @property autoRemove false: the host removes the container after it stopped, so its log stays readable until then.
+ * @property autoRemove whether the engine removes the container when it stops. The host leaves it false and removes the
+ *   container itself, so the container's log stays readable until then.
  * @property stopTimeout how long the engine waits for the runtime to stop before it kills it.
  */
 internal data class ContainerSpec(

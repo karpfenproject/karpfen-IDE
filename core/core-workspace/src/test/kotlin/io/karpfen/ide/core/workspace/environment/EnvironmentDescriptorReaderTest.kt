@@ -37,8 +37,9 @@ import kotlin.test.assertTrue
 import org.junit.jupiter.api.TestReporter
 
 /**
- * Covers reading environment descriptors: the shared examples, test-local edge cases (missing, unknown, nested and
- * repeated keys, values of the wrong type, references) and robustness on mutated and truncated examples.
+ * Covers reading environment descriptors. It uses the shared examples, edge cases of its own and mutated and truncated
+ * examples for robustness. The edge cases are missing, unknown, nested and repeated keys, values of the wrong type and
+ * references.
  */
 class EnvironmentDescriptorReaderTest {
 

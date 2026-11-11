@@ -61,7 +61,7 @@ class ReadModel(val metamodel: Metamodel, val model: Model) {
             return ReadModel(metamodel, DslTexts.model(modelText, metamodel))
         }
 
-        /** The model of the runtime's example in [directory], one of [AnalyzedContexts.RUNTIME_EXAMPLES]. */
+        /** The model of the runtime's example in [directory], which is one of [AnalyzedContexts.RUNTIME_EXAMPLES]. */
         fun runtimeExample(directory: String): ReadModel {
             val context = Examples.contexts().single { it.directory == "${ExampleOrigin.KARPFEN_RUNTIME.directoryName}/$directory" }
             return of(checkNotNull(context.metamodel).text, context.models.single().text)

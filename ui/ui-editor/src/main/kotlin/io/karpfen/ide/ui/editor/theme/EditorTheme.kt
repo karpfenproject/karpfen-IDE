@@ -23,13 +23,13 @@ import androidx.compose.ui.text.SpanStyle
 import io.karpfen.ide.core.lang.HighlightStyle
 
 /**
- * Colours of the code editor and its popups. [styles] maps every [HighlightStyle] to a span style (colour, font
- * weight/style); a missing style renders with [foreground].
+ * The colours of the code editor and its popups. [styles] maps every [HighlightStyle] to a span style with colour,
+ * font weight and font style. A style that is missing from the map renders with [foreground].
  *
- * @property background the text area's background.
- * @property foreground text without a highlight style.
- * @property gutterBackground the gutter's background.
- * @property gutterForeground the line numbers.
+ * @property background the background of the text area.
+ * @property foreground the colour of text without a highlight style.
+ * @property gutterBackground the background of the gutter.
+ * @property gutterForeground the colour of the line numbers.
  * @property currentLine the background of the caret's line.
  * @property selection the background of selected text.
  * @property caret the vertical bar of every caret.
@@ -70,5 +70,5 @@ public fun lightEditorTheme(): EditorTheme = EditorPalettes.light
 /** The dark editor theme. */
 public fun darkEditorTheme(): EditorTheme = EditorPalettes.dark
 
-/** The editor theme for the current composition; the workbench provides light or dark. */
+/** The editor theme for the current composition. The workbench provides the light or the dark theme. */
 public val LocalEditorTheme: ProvidableCompositionLocal<EditorTheme> = staticCompositionLocalOf { lightEditorTheme() }

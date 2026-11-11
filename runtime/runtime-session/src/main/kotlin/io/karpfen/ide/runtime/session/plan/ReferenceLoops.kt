@@ -21,18 +21,18 @@ import java.util.Collections
 import java.util.IdentityHashMap
 
 /**
- * A reference loop of a model: objects, each reaching the next through a `has` or `knows` relation, the last reaching
- * the first. Immutable.
+ * A reference loop of a model. Each object of the loop reaches the next through a `has` or `knows` relation, and the
+ * last one reaches the first. Immutable.
  *
- * @property path the objects of the loop from the object found on it, which is first and last, as keyed objects;
- *   an object without a key appears with the empty key.
+ * @property path the objects of the loop as keyed objects, starting from the object found on it. That object is both
+ *   first and last. An object without a key appears with the empty key.
  */
 internal data class ReferenceLoop(val path: List<KeyedObject>) {
     /** The object found on the loop, at which the loop is reported. */
     val start: KeyedObject
         get() = path.first()
 
-    /** The first object of the loop with a key, the one a finding can point at, or null if none has one. */
+    /** The first object of the loop with a key, which a finding can point at. It is null if no object has a key. */
     val firstKeyed: KeyedObject?
         get() = path.firstOrNull { it.key.isNotEmpty() }
 }
@@ -43,7 +43,10 @@ internal data class ReferenceLoop(val path: List<KeyedObject>) {
  * cannot write a model with such a loop. Stateless.
  */
 internal object ReferenceLoops {
-    /** The first loop the search from the roots of [model] finds, in root and relation order, or null if there is none. */
+    /**
+     * The first loop that the search from the roots of [model] finds, in root and relation order. Returns null if
+     * there is none.
+     */
     fun firstIn(model: Model): ReferenceLoop? {
         val finished: MutableSet<DataObject> = Collections.newSetFromMap(IdentityHashMap())
         val onPath = IdentityHashMap<DataObject, Int>()

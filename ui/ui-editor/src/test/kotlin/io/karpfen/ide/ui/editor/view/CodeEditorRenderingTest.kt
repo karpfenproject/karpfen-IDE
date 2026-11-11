@@ -40,14 +40,18 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * What the text area paints, checked on the pixels of a headless capture: the selection, find matches only while the
- * find bar is open, diagnostic underlines that follow their text, the current line and the matching-bracket box.
- * (Mapping ranges of older versions is covered by `VersionedRangesTest` and the state's pipeline tests.)
+ * What the text area paints, checked on the pixels of a headless capture. The tests cover the selection, find matches
+ * only while the find bar is open, diagnostic underlines that follow their text, the current line and the box around a
+ * matching bracket. The mapping of ranges from older versions is covered by `VersionedRangesTest` and by the pipeline
+ * tests of the state.
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorRenderingTest {
 
+    /** The light theme, whose colours the pixels are compared with. */
     private val theme = lightEditorTheme()
+
+    /** A small state machine with two states. */
     private val text = """
         STATEMACHINE ATTACHED TO "Robot" {
             STATES {
@@ -57,21 +61,23 @@ class CodeEditorRenderingTest {
         }
     """.trimIndent()
 
+    /** Captures the text area as a pixel map. */
     private fun EditorUi.capture(): PixelMap = textArea.captureToImage().toPixelMap()
 
-    /** The colour just inside the top-left corner of the cell at [offset] (above the glyphs). */
+    /** The colour just inside the top-left corner of the cell at [offset], above the glyphs. */
     private fun EditorUi.cellCorner(pixels: PixelMap, offset: Int): Color {
         val bounds = host.boundsOf(offset)!!
         return pixels[(bounds.left + 2f).roundToInt(), (bounds.top + 1f).roundToInt()]
     }
 
+    /** Asserts that [actual] matches [expected] within 0.02 in each colour channel. */
     private fun assertColor(expected: Color, actual: Color, message: String) {
         val close = abs(expected.red - actual.red) < 0.02f && abs(expected.green - actual.green) < 0.02f &&
             abs(expected.blue - actual.blue) < 0.02f
         assertTrue(close, "$message: expected $expected, was $actual")
     }
 
-    /** True if some pixel in the bottom rows of [cell] is clearly reddish (an error underline). */
+    /** True if some pixel in the bottom five rows of [cell] is clearly reddish, as an error underline is. */
     private fun PixelMap.hasRedUnderline(cell: Rect): Boolean {
         val rows = (cell.bottom - 5f).roundToInt() until cell.bottom.roundToInt()
         val columns = cell.left.roundToInt() until cell.right.roundToInt()

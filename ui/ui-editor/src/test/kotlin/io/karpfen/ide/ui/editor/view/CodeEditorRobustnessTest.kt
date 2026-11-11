@@ -33,9 +33,9 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Robustness of the composed editor (fixed seeds): the text replaced by deterministic mutations of a KStates example
- * while the find bar highlights matches, the view renders, clicks land at random places and the overlay geometry is
- * queried — nothing throws and the caret stays in the text.
+ * Robustness of the composed editor, with fixed seeds. The text is replaced by deterministic mutations of a KStates
+ * example while the find bar highlights matches, the view renders, clicks land at random places and the overlay
+ * geometry is queried. Nothing throws, and the caret stays inside the text.
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorRobustnessTest {

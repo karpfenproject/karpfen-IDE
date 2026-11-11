@@ -49,13 +49,13 @@ class EnvironmentFeaturesTest {
     @AfterTest
     fun noProviderFailed() = assertEquals(emptyList(), failures.map { "${it.operation}: ${it.error}" })
 
-    /** The completion items at the caret `‸` of [textWithCaret], in the editor's order for an empty filter. */
+    /** The completion items at the caret `‸` of [textWithCaret], in the order the editor uses for an empty filter. */
     private fun complete(textWithCaret: String): List<CompletionItem> {
         val (document, offset) = DescriptorFixture.at(textWithCaret)
         return services.complete(document, offset).sortedWith(compareBy({ it.sortKey }, { it.label }))
     }
 
-    /** The labels of [items] with the best rank (the ones the list shows first). */
+    /** The labels of [items] with the best rank, which the list shows first. */
     private fun firstRanked(items: List<CompletionItem>): List<String> {
         val best = items.minOfOrNull { it.sortKey.substringBefore(':') } ?: return emptyList()
         return items.filter { it.sortKey.substringBefore(':') == best }.map { it.label }

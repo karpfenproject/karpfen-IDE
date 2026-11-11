@@ -33,10 +33,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Hover content and definition targets at an offset of the current text, internal to the editor state (its public roles
- * offer intents only). Language requests wait (at most [parseWait], on the caller's virtual or real clock) for a parse
- * of the text version they refer to, so providers normally see a current parse, then run on [backgroundDispatcher].
- * Never throws (failures are logged and yield no result).
+ * Looks up hover content and definition targets at an offset of the current text. It is internal to the editor state,
+ * whose public roles offer intents only.
+ *
+ * A language request first waits for a parse of the text version it refers to, so providers normally see a current
+ * parse. The wait is at most [parseWait] on the caller's clock, which is virtual in tests. Then the request runs on
+ * [backgroundDispatcher]. Nothing here throws. Failures are logged and yield no result.
  */
 internal class SymbolLookup(
     private val session: DocumentSession,
@@ -45,7 +47,7 @@ internal class SymbolLookup(
     private val parseWait: Duration = PARSE_WAIT,
 ) {
 
-    /** The declarations of the symbol at [offset] of the current text (empty if none). */
+    /** Returns the declarations of the symbol at [offset] of the current text, or an empty list if there are none. */
     suspend fun definitions(offset: Int): List<Location> {
         val snapshot = session.text.snapshot.value
         val document = currentDocument(snapshot)
@@ -53,8 +55,8 @@ internal class SymbolLookup(
     }
 
     /**
-     * What the hover tooltip shows at [offset] of the current text: the diagnostics there if there are any (no parse
-     * wait needed), otherwise the language hover; null if there is neither.
+     * Returns what the hover tooltip shows at [offset] of the current text. If there are diagnostics at the offset, it
+     * shows them, and no parse wait is needed. Otherwise it shows the language hover. Returns null if there is neither.
      */
     suspend fun hoverAt(offset: Int): HoverContent? {
         val snapshot = session.text.snapshot.value
@@ -69,9 +71,10 @@ internal class SymbolLookup(
     }
 
     /**
-     * The session's diagnostics whose range, mapped into [snapshot] with `EditableText.mapRange`, covers [offset]: the
-     * character at [offset] for a non-empty range; the character at or before the position for an empty one (a
-     * "missing `}`" marker is drawn there). Diagnostics of a newer text than [snapshot] do not map and are skipped.
+     * Returns the session's diagnostics whose range covers [offset] after it is mapped into [snapshot] with
+     * `EditableText.mapRange`. A non-empty range covers [offset] when it contains the character at [offset]. An empty
+     * range covers the character at its position and the one before it, because a marker such as "missing `}`" is drawn
+     * there. Diagnostics of a newer text than [snapshot] do not map and are skipped.
      */
     private fun diagnosticsAt(snapshot: TextSnapshot, offset: Int): List<Diagnostic> {
         val current = session.diagnostics.value
@@ -82,13 +85,13 @@ internal class SymbolLookup(
         }
     }
 
-    /** [snapshot] as a language document, after waiting (bounded) for a parse of its version. */
+    /** Returns [snapshot] as a language document, after waiting a bounded time for a parse of its version. */
     private suspend fun currentDocument(snapshot: TextSnapshot): LanguageDocument {
         withTimeoutOrNull(parseWait) { session.parse.first { it != null && it.version >= snapshot.version } }
         return withContext(backgroundDispatcher) { LanguageDocument.of(session, snapshot) }
     }
 
-    /** Runs [request] on the background dispatcher; a failure is logged and yields [fallback]. */
+    /** Runs [request] on the background dispatcher. A failure is logged and yields [fallback]. */
     private suspend fun <T> safely(fallback: T, request: () -> T): T = withContext(backgroundDispatcher) {
         try {
             request()
@@ -105,7 +108,7 @@ internal class SymbolLookup(
         /** How long hover and definition wait for a parse of the current text before using what is there. */
         val PARSE_WAIT: Duration = 1.seconds
 
-        /** Reports failed language requests; they yield no result. */
+        /** Reports failed language requests. They yield no result. */
         private val logger: Logger = LoggerFactory.getLogger(SymbolLookup::class.java)
     }
 }

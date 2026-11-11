@@ -33,24 +33,27 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import java.nio.file.Path
 
 /**
- * What the workspace knows about the files an environment descriptor names, for one request: the request's file tree
- * and latest project analysis, seen from the descriptor's directory. Paths are resolved and written by the workspace's
- * one rule ([DescriptorPaths]), and whether a named file is there is decided by the rule the workspace checks the
- * descriptor with ([DescriptorFiles], over the request's file tree), so hover, go to definition and completion never
- * treat a file as there that the descriptor's findings report missing. Without a file tree (services that know no
- * workspace) no named file is there. What a file declares comes from the workspace's [ContextSymbols], which read the
- * syntax index of each analyzed parse (the editor text of an open file), so it is known even while the descriptor or
- * the model has errors. Immutable; one per request.
+ * What the workspace knows about the files an environment descriptor names, for one request. It holds the file tree
+ * and the latest project analysis of the request, seen from the directory of the descriptor.
+ *
+ * Paths are resolved and written by the single rule of the workspace in [DescriptorPaths]. Whether a named file exists
+ * is decided by [DescriptorFiles] over the file tree of the request. That is the same rule the workspace checks the
+ * descriptor with. So hover, go to definition and completion never treat a file as present when the findings of the
+ * descriptor report it missing. Services that know no workspace have no file tree, and then no named file exists.
+ *
+ * What a file declares comes from the [ContextSymbols] of the workspace. They read the syntax index of each analyzed
+ * parse, which for an open file is the editor text. So the declarations are known even while the descriptor or the
+ * model has errors. An instance is immutable and serves one request.
  */
 internal class DescriptorProject(private val request: FeatureRequest) {
 
-    /** The descriptor's directory, against which its paths are resolved. */
+    /** The directory of the descriptor, against which its paths are resolved. */
     private val directory: Path? = request.document.path.parent
 
-    /** The rule for the files the descriptor names, over the request's file tree or, without one, an empty tree. */
+    /** The rule for the files the descriptor names, over the file tree of the request or else an empty tree. */
     private val files = DescriptorFiles(request.files ?: WorkspaceTree.empty(directory ?: request.document.path))
 
-    /** What the analyzed files declare and use: objects, `ATTACHED TO` types, event domains. */
+    /** What the analyzed files declare and use, such as objects, `ATTACHED TO` types and event domains. */
     val symbols: ContextSymbols = ContextSymbols(request.project)
 
     /** The file the descriptor names as [value], absolute and normalized, or null if [value] is no valid path. */
@@ -61,8 +64,9 @@ internal class DescriptorProject(private val request: FeatureRequest) {
         directory?.let { files.lookUp(it, value, role) } ?: NamedFile.NoPath
 
     /**
-     * The file the descriptor names as [value] for [role], as a navigation target at its start, or null if the
-     * workspace has no such file. A file of another language than the role's is a target too: it is there.
+     * The file the descriptor names as [value] for [role], as a navigation target at its start. It is null if the
+     * workspace has no such file. A file in a language other than the one of the role is a target too, because it
+     * exists.
      */
     fun locationOf(value: String, role: DescriptorFileRole): Location? {
         val path = lookUp(value, role).file?.path ?: return null
@@ -70,10 +74,10 @@ internal class DescriptorProject(private val request: FeatureRequest) {
     }
 
     /**
-     * The workspace files a key of [role] can name, as the descriptor names them (relative to its directory with `/`):
-     * the files of the tree that fit the role ([DescriptorFiles.candidates]), each marked as the usual choice or not
-     * ([FileKind.isUsualFor]). For a role that accepts any file, a bridge configuration, only the usual files are
-     * offered, because a list of every file of the workspace would help nobody.
+     * The workspace files a key of [role] can name, written as the descriptor names them, relative to its directory
+     * with `/`. These are the files of the tree that fit the role, as [DescriptorFiles.candidates] finds them. Each is
+     * marked by [FileKind.isUsualFor] as the usual choice or not. A bridge configuration accepts any file. For such a
+     * role only the usual files are offered, because a list of every file of the workspace would help nobody.
      */
     fun candidates(role: DescriptorFileRole): List<FileCandidate> {
         val base = directory ?: return emptyList()
@@ -82,17 +86,17 @@ internal class DescriptorProject(private val request: FeatureRequest) {
             .map { FileCandidate(DescriptorPaths.relative(base, it.path), it.kind.isUsualFor(role)) }
     }
 
-    /** The first file of [role] named below [node] (expected to have [shape]), resolved, or null. */
+    /** The first file of [role] named below [node], which should have [shape], resolved, or null. */
     fun fileNamed(role: DescriptorFileRole, node: JsonNode, shape: ValueShape.Record): Path? = filesNamed(role, node, shape).firstOrNull()
 
-    /** Every file of [role] named below [node] (expected to have [shape]), resolved, in document order. */
+    /** Every file of [role] named below [node], which should have [shape], resolved and in document order. */
     fun filesNamed(role: DescriptorFileRole, node: JsonNode, shape: ValueShape.Record): List<Path> =
         shapedValues(node, shape).mapNotNull { value ->
             val string = value.node as? JsonNode.StringNode
             if (string != null && (value.shape as? ValueShape.FilePath)?.role == role) resolve(string.value) else null
         }
 
-    /** The object [key] declared in the model at [model], as a navigation target at its key, or null. */
+    /** The object [key] declared in the model file [model], as a navigation target at its key, or null. */
     fun objectLocation(model: Path, key: String): Location? {
         val file = analyzed(model) ?: return null
         val declaration = file.parse.index.declarations(SymbolKind.OBJECT, key).firstOrNull() ?: return null

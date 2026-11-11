@@ -38,7 +38,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-/** New files from templates: names, contents per template context, reveal, open, failures. */
+/**
+ * Tests new files from templates. It covers their names, their contents for each template context, revealing and
+ * opening them, and failures.
+ */
 class CreateFileFlowTest {
 
     @TempDir

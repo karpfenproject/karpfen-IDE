@@ -35,13 +35,15 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 
 /**
- * The environment handle over the gateway: every call runs on [dispatcher] under the handle's mutex, asks
- * [LifecycleRules] for the verdict before anything is sent (a refusal sends nothing) and for the phase after the outcome.
- * When the rules ask for a probe, the handle reads a snapshot through [api] directly, not through [snapshot], which would
- * take the mutex a second time; the gateway bounds the probe by the snapshot timeout.
+ * The environment handle over the gateway. Every call runs on [dispatcher] under the handle's mutex. The handle asks
+ * [LifecycleRules] for the verdict before anything is sent, and a refusal sends nothing. After the outcome it asks the
+ * rules for the next phase. When the rules ask for a probe, the handle reads a snapshot through [api] directly. It does
+ * not go through [snapshot], which would take the mutex a second time. The gateway bounds the probe by the snapshot
+ * timeout.
  *
- * Activation, start and stop, with their probes, run in a non-cancellable context, bounded by the timeouts of their
- * routes: a cancelled caller waits for the outcome, the phase is recorded, and then the cancellation is rethrown.
+ * Activation, start and stop run in a non-cancellable context together with their probes, bounded by the timeouts of
+ * their routes. A cancelled caller waits for the outcome. The phase is recorded, and then the cancellation is
+ * rethrown.
  *
  * @param key the environment's key.
  * @param api the gateway.
@@ -53,7 +55,7 @@ internal class DefaultRuntimeEnvironment(
     private val dispatcher: CoroutineDispatcher,
 ) : RuntimeEnvironment {
 
-    /** The phase; written only under [mutex]. */
+    /** The phase. It is written only under [mutex]. */
     private val mutablePhase = MutableStateFlow<EnvironmentPhase>(EnvironmentPhase.Configuring(Uploads.NONE))
 
     /** Serializes the calls, so they never overlap on the wire and the phase changes in call order. */
@@ -127,10 +129,10 @@ internal class DefaultRuntimeEnvironment(
         perform(LifecycleOperation.UNSUBSCRIBE_MODEL) { api.unsubscribeModel(key, client) }
 
     /**
-     * Performs [operation] with [call] under the mutex: refuses it by the verdict, or answers [localAnswer] when the
-     * verdict answers it locally, otherwise calls and records the phase that follows the outcome, a success settled by
-     * [settle]. With [completesWhenCancelled] the call and its probe run to their end even when the caller is cancelled,
-     * and the cancellation is rethrown after the phase was recorded.
+     * Performs [operation] with [call] under the mutex. A refusing verdict refuses the operation. A verdict to answer
+     * locally returns [localAnswer]. Otherwise the handle calls the runtime and records the phase that follows the
+     * outcome, and [settle] decides the phase after a success. With [completesWhenCancelled], the call and its probe
+     * run to their end even when the caller is cancelled. The cancellation is rethrown after the phase was recorded.
      */
     private suspend fun <T> perform(
         operation: LifecycleOperation,
@@ -157,8 +159,8 @@ internal class DefaultRuntimeEnvironment(
     }
 
     /**
-     * Calls [call] for [operation] and records the phase that follows its outcome: [settle] for a success, the rules
-     * for a failure, probing when they ask for it.
+     * Calls [call] for [operation] and records the phase that follows its outcome. After a success [settle] decides
+     * the phase. After a failure the rules decide it, and the handle probes first when the rules ask for it.
      */
     private suspend fun <T> callAndRecord(
         operation: LifecycleOperation,
@@ -197,6 +199,7 @@ internal class DefaultRuntimeEnvironment(
     }
 
     private companion object {
+        /** The logger of phase changes, at debug level. */
         private val logger = LoggerFactory.getLogger(DefaultRuntimeEnvironment::class.java)
     }
 }

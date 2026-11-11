@@ -38,7 +38,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
-/** Opening folders: workspace, tree, problems, recent folders, window title and the unsaved-changes flow. */
+/**
+ * Tests opening folders. It covers the workspace, the tree, the problems, the recent folders, the window title and the
+ * unsaved-changes flow.
+ */
 class FolderFlowTest {
 
     @TempDir

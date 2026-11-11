@@ -18,13 +18,14 @@ package io.karpfen.ide.ui.foundation.icons
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
- * Small vector icons drawn with `ImageVector.Builder`, so the IDE needs no material-icons-extended dependency.
- * Constants: each icon is built once on first access.
+ * Small vector icons drawn with `ImageVector.Builder`, so the IDE needs no material-icons-extended dependency. Each
+ * icon is a constant that is built once, on first access.
  *
- * All icons are 16 × 16 dp. File-type icons ([Folder], [File], [Kmeta], [Kmodel], [Kstates], [Json]) and severity icons
- * ([Error], [Warning], [Info]) carry their own colours: render them untinted (`Image`, or `Icon` with
- * `tint = Color.Unspecified`). Glyph icons ([Close], [ChevronRight], [ChevronDown], [Search]) are black and meant to be
- * tinted with a palette colour (`Icon(…, tint = KarpfenTheme.colors.textMuted)`).
+ * All icons are 16 by 16 dp. The file-type icons [Folder], [File], [Kmeta], [Kmodel], [Kstates] and [Json] and the
+ * severity icons [Error], [Warning] and [Info] carry their own colours. Render them untinted, with `Image` or with
+ * `Icon` and `tint = Color.Unspecified`. The glyph icons [Close], [ChevronRight], [ChevronDown] and [Search] are black
+ * and meant to be tinted with a palette colour, for example
+ * `Icon(KarpfenIcons.Close, null, tint = KarpfenTheme.colors.textMuted)`.
  */
 public object KarpfenIcons {
 

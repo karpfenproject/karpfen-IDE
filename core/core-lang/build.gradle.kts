@@ -13,11 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/** Kotlin/JVM through the shared convention plugin of the build. */
 plugins {
     id("karpfen.kotlin-jvm")
 }
 
-/** The language services take document types as parameters and read the workspace's project analysis. */
+/**
+ * The language services take document types as parameters and read the workspace's project analysis, so the
+ * workspace module is an API dependency. Through it the services also see `core-document`.
+ */
 dependencies {
     api(project(":core:core-workspace"))
     implementation(libs.slf4j.api)

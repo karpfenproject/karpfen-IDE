@@ -19,8 +19,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers [RuntimeRoute]: the 21 routes of the runtime with IDE support in the order of its route files, each with its
- * verb, path, parameters in the order the runtime checks them, body, answer and timeout class.
+ * Covers the 21 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
+ * has its verb, path, parameters in the order the runtime checks them, body, answer and timeout class.
  */
 class RuntimeRouteTest {
 

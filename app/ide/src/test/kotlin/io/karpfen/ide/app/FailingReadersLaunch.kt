@@ -22,11 +22,11 @@ import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
 import kotlin.system.exitProcess
 
 /**
- * Starts the IDE as the application's `main` does, but with readers of dsl-tools that read on a small stack
- * ([SmallStackDslReader]): a state machine whose actions nest a few hundred levels, within the nesting limit of the
- * parsers, makes them fail as a real reader failure does, and dsl-tools logs a warning that reaches the Language Tools
- * Output. No text a user writes makes the readers of the real IDE fail, so the manual smoke test fills the output this
- * way; the Gradle task `runWithFailingReaders` of this module starts it.
+ * Starts the IDE as the application's `main` does, but with readers of dsl-tools that read on a small stack,
+ * [SmallStackDslReader]. A state machine whose actions nest a few hundred levels, within the nesting limit of the
+ * parsers, then makes them fail as a real reader failure does. dsl-tools logs a warning that reaches the Language Tools
+ * Output. No text a user writes makes the readers of the real IDE fail, so a hands-on check fills the output this way.
+ * The Gradle task `runWithFailingReaders` of this module starts it.
  */
 public fun main(args: Array<String>) {
     val status = launch(args) { exitAfterMs ->

@@ -18,7 +18,7 @@ package io.karpfen.ide.core.lang.environment
 /**
  * Text that descriptor completion writes, with the place the caret goes to after writing it.
  *
- * @property caret the caret's offset in [text]: the first place to fill, or the end of the text.
+ * @property caret the offset of the caret in [text]. It is the first place to fill, or the end of the text.
  * @throws IllegalArgumentException if [caret] lies outside [text].
  */
 internal data class Template(val text: String, val caret: Int = text.length) {

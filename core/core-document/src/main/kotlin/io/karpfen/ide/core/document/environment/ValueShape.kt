@@ -18,17 +18,21 @@ package io.karpfen.ide.core.document.environment
 import io.karpfen.ide.core.document.json.JsonNode
 
 /**
- * What the value of a descriptor key looks like: its JSON kind and, for strings, what they name. The shapes of
- * [EnvironmentSchema] drive the descriptor's checks in the workspace, its semantic highlighting and its completion and
- * hover, so all of them agree on every key. There is a shape for each kind of value a key of [EnvironmentDescriptor]
- * has, and no other: a kind such as a boolean gets its shape together with the first key that needs it.
+ * What the value of a descriptor key looks like. A shape gives the JSON kind of the value and, for strings, what they
+ * name. The shapes of [EnvironmentSchema] drive the checks of the descriptor in the workspace, its semantic
+ * highlighting, and its completion and hover, so all of them agree on every key. There is a shape for each kind of
+ * value that a key of [EnvironmentDescriptor] has, and no other. A kind such as a boolean gets its shape together with
+ * the first key that needs it.
  */
 public sealed interface ValueShape {
 
-    /** How a value of this shape is written, for messages ("a string", "a whole number"). */
+    /** How a value of this shape is written, for messages, such as "a string" or "a whole number". */
     public val description: String
 
-    /** True if [node] is written as this shape requires; `null` is no value of any shape (see [DescriptorKey.isNullable]). */
+    /**
+     * True if [node] is written as this shape requires. `null` is no value of any shape. [DescriptorKey.isNullable]
+     * says whether a key allows it.
+     */
     public fun accepts(node: JsonNode): Boolean
 
     /**
@@ -77,7 +81,7 @@ public sealed interface ValueShape {
         override fun accepts(node: JsonNode): Boolean = node is JsonNode.StringNode
     }
 
-    /** Any other string; [suggestions] are typical values that completion offers. */
+    /** Any other string. [suggestions] are typical values that completion offers. */
     public data class Text(public val suggestions: List<String> = emptyList()) : ValueShape {
         override val description: String get() = "a string"
 
@@ -85,8 +89,8 @@ public sealed interface ValueShape {
     }
 
     /**
-     * A whole number (no fraction, no exponent, within the range of a 64-bit integer, as the runtime reads it);
-     * [suggestions] are typical values that completion offers.
+     * A whole number without fraction or exponent, within the range of a 64-bit integer, which is how the runtime
+     * reads it. [suggestions] are typical values that completion offers.
      */
     public data class WholeNumber(public val suggestions: List<Long> = emptyList()) : ValueShape {
         override val description: String get() = "a whole number"

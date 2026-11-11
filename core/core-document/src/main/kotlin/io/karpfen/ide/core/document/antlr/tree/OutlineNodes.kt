@@ -20,9 +20,9 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * An [OutlineNode] whose range is widened to cover [selection] and every child, so the outline's invariants hold on
- * partial trees of broken text too: the selection lies within the node, and every child lies within its parent (which
- * `pathAt` relies on).
+ * An [OutlineNode] whose range is widened to cover [selection] and every child. The invariants of the outline then
+ * hold on partial trees of broken text too. The selection lies within the node, and every child lies within its
+ * parent, which `pathAt` relies on.
  */
 internal fun outlineNode(
     kind: SymbolKind,

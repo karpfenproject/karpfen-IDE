@@ -33,30 +33,32 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.slf4j.LoggerFactory
 
 /**
- * The live switch of one session: owns the [ObservedModel] and the stream of [ModelUpdate]s, feeds the
- * [ObservationReducer] with connection events and with the outcomes of its own runtime calls, and executes the
+ * The live switch of one session. It owns the [ObservedModel] and the stream of [ModelUpdate]s. It feeds the
+ * [ObservationReducer] with connection events and with the outcomes of its own runtime calls. It executes the
  * reducer's requests through the [ObservationPort].
  *
- * Confined to one coroutine, the session's router: its functions are called one at a time, and it is the single writer
- * of [model] and [updates]. Every function executes the requests its input caused, and feeds their results back, before
- * it returns, so the caller takes the next connection event only afterwards: pushes that arrive meanwhile wait in the
- * caller's unbounded inbox. That, and the runtime's guarantees (the subscription is in place before the snapshot is
- * read, and pushes arrive in revision order), is why switching on, a gap and a reconnect neither lose nor reorder
- * updates. Publishing never suspends, so the observer never waits for the collectors of [updates].
+ * The observer is confined to one coroutine, which is the session's router. Its functions are called one at a time,
+ * and it is the single writer of [model] and [updates]. Every function executes the requests its input caused, and
+ * feeds their results back, before it returns. So the caller takes the next connection event only afterwards. Pushes
+ * that arrive meanwhile wait in the caller's unbounded inbox. The runtime also guarantees two things. The subscription
+ * is in place before the snapshot is read, and pushes arrive in revision order. Together this is why switching on, a
+ * gap and a reconnect neither lose nor reorder updates. Publishing never suspends, so the observer never waits for the
+ * collectors of [updates].
  *
- * - [switchOn] subscribes; a refusal because the runtime has no open WebSocket session for the client yet (it may not
- *   have processed the handshake) is retried [ObservationSettings.subscribeAttempts] times in all,
- *   [ObservationSettings.subscribeRetryDelay] apart. Then it switches on and reads the first snapshot.
- * - Snapshots the reducer requests while observation is on are read up to [ObservationSettings.snapshotAttempts] times
- *   in all, [ObservationSettings.snapshotRetryDelay] apart; if none succeeds, the listener hears
- *   [ObservationNotice.OutOfSync] and the mirror stays as it was until the next pull. A subscription the reducer
- *   requests after a reconnect uses the subscription's retries; if it fails, the listener hears the same notice and the
- *   snapshot is not read.
- * - [pull], and the final read after the stop, read one snapshot, once.
+ * - [switchOn] subscribes. The runtime may not have processed the WebSocket handshake yet, and then it refuses because
+ *   it has no open session for the client. Such a refusal is retried, with [ObservationSettings.subscribeAttempts]
+ *   attempts in all, [ObservationSettings.subscribeRetryDelay] apart. Then it switches on and reads the first
+ *   snapshot.
+ * - Snapshots that the reducer requests while observation is on are read up to [ObservationSettings.snapshotAttempts]
+ *   times in all, [ObservationSettings.snapshotRetryDelay] apart. If none succeeds, the listener hears
+ *   [ObservationNotice.OutOfSync], and the mirror stays as it was until the next pull. A subscription that the reducer
+ *   requests after a reconnect uses the subscription's retries. If it fails, the listener hears the same notice and
+ *   the snapshot is not read.
+ * - [pull] and the final read after the stop read one snapshot, once.
  *
  * @param reducer the rules.
  * @param port the runtime calls.
- * @param seed the mirror before anything was read: the seed of the deployed model.
+ * @param seed the mirror before anything was read, which is the seed of the deployed model.
  * @param settings the retries and how far a collector of the updates may fall behind.
  * @param listener hears synchronizations, out-of-sync reports and anomalies.
  */
@@ -79,21 +81,21 @@ internal class ModelObserver(
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
-    /** The observed model; it starts with the seed, observation off and the predicted states. */
+    /** The observed model. It starts with the seed, observation off and the predicted states. */
     val model: StateFlow<ObservedModel> = modelState.asStateFlow()
 
     /**
-     * Every change of the observed model, hot and without replay. The observer never waits for a collector: one that
-     * falls more than [ObservationSettings.updateBuffer] updates behind misses the oldest of them, while [model] always
-     * shows the latest state.
+     * Every change of the observed model, hot and without replay. The observer never waits for a collector. A
+     * collector that falls more than [ObservationSettings.updateBuffer] updates behind misses the oldest of them, while
+     * [model] always shows the latest state.
      */
     val updates: Flow<ModelUpdate> = updateStream.asSharedFlow()
 
     /**
-     * Takes one event of the connection and answers true if it was an object or stack push that was applied to the
-     * model: an open after the first and an interruption or end make the observation re-synchronize while it is on;
-     * object and stack pushes are applied by the rules, unless a snapshot covers them or they reveal a gap; other pushes
-     * and violations are not the observation's business.
+     * Takes one event of the connection. Returns true if it was an object or stack push that was applied to the model.
+     * An opening after the first one, an interruption and an end make the observation re-synchronize while it is on.
+     * The rules apply object and stack pushes, unless a snapshot covers them or they reveal a gap. Other pushes and
+     * protocol violations are not the observation's business.
      */
     suspend fun handle(event: ConnectionEvent): Boolean {
         val input = when (event) {
@@ -111,8 +113,9 @@ internal class ModelObserver(
     }
 
     /**
-     * Switches observation on: subscribes (with retries while the runtime has no session for the client), then reads
-     * the first snapshot and answers its outcome; a failed subscription is answered as it is and leaves observation off.
+     * Switches observation on. It subscribes, with retries while the runtime has no session for the client. Then it
+     * reads the first snapshot and returns its outcome. A failed subscription is returned as it is and leaves
+     * observation off.
      */
     suspend fun switchOn(): CallOutcome<RuntimeModelSnapshot> {
         when (val subscribed = subscribe()) {
@@ -123,7 +126,9 @@ internal class ModelObserver(
         return feed(ObservationInput.SwitchedOn) ?: readSnapshot(attempts = 1)
     }
 
-    /** Switches observation off; a failed unsubscription is answered as it is and leaves observation as it was. */
+    /**
+     * Switches observation off. A failed unsubscription is returned as it is and leaves observation as it was.
+     */
     suspend fun switchOff(): CallOutcome<Unit> {
         val outcome = port.unsubscribe()
         if (outcome is CallOutcome.Done) feed(ObservationInput.SwitchedOff)
@@ -132,7 +137,7 @@ internal class ModelObserver(
 
     /**
      * Reads one snapshot and applies it, whether observation is on or off. A failed pull while the model is live leaves
-     * it live: the mirror is still complete up to its revision and the pushes after it keep coming.
+     * it live, because the mirror is still complete up to its revision and the pushes after it keep coming.
      */
     suspend fun pull(): CallOutcome<RuntimeModelSnapshot> {
         val outcome = port.snapshot()
@@ -141,15 +146,15 @@ internal class ModelObserver(
     }
 
     /**
-     * Settles the model after the environment stopped: switches observation off and reads the final snapshot once, and
-     * answers its outcome. The runtime dropped the pushes still queued for the environment, so only the snapshot shows
-     * its final state; a failed read leaves the model as it was until the next pull.
+     * Settles the model after the environment stopped. It switches observation off, reads the final snapshot once and
+     * returns its outcome. The runtime dropped the pushes still queued for the environment, so only the snapshot shows
+     * its final state. A failed read leaves the model as it was until the next pull.
      */
     suspend fun environmentStopped(): CallOutcome<RuntimeModelSnapshot> =
         feed(ObservationInput.EnvironmentStopped) ?: readSnapshot(attempts = 1)
 
     /**
-     * Applies [input], publishes the result and executes the requests it caused; answers the outcome of the last
+     * Applies [input], publishes the result and executes the requests it caused. Returns the outcome of the last
      * snapshot read among them, or null if none was read.
      */
     private suspend fun feed(input: ObservationInput): CallOutcome<RuntimeModelSnapshot>? = execute(advance(input))
@@ -158,8 +163,9 @@ internal class ModelObserver(
     private fun advance(input: ObservationInput): ObservationStep = reducer.apply(state, input).also(::publish)
 
     /**
-     * Executes the requests of [step], feeding their results back; answers the outcome of the last snapshot read among
-     * them, or null if none was read.
+     * Executes the requests of [step] and feeds their results back. Returns the outcome of the last snapshot read
+     * among them, or null if none was read. A failed resubscription reports the model out of sync and skips the
+     * remaining requests.
      */
     private suspend fun execute(step: ObservationStep): CallOutcome<RuntimeModelSnapshot>? {
         var snapshot: CallOutcome<RuntimeModelSnapshot>? = null
@@ -179,16 +185,17 @@ internal class ModelObserver(
     }
 
     /**
-     * Reads a snapshot up to [attempts] times while observation is on (once while it is off), feeding every outcome to
-     * the rules, and answers the last outcome.
+     * Reads a snapshot up to [attempts] times while observation is on, and once while it is off. Every outcome is fed
+     * to the rules. Returns the last outcome.
      */
     private suspend fun readSnapshot(attempts: Int): CallOutcome<RuntimeModelSnapshot> = applySnapshot(port.snapshot(), attempts)
 
     /**
-     * Feeds the [outcome] of a first read, and of the reads after it, to the rules: a snapshot is applied and reported as
-     * a synchronization, with the reason the observation was synchronizing for if the model is live afterwards, as a
-     * plain read otherwise; a failure while observation is on is read again after the retry delay until [attempts] reads
-     * were made, then reported out of sync. Answers the last outcome.
+     * Feeds the [outcome] of a first read, and of the reads after it, to the rules. A snapshot is applied and reported
+     * as a synchronization. If the model is live afterwards, the report carries the reason the observation was
+     * synchronizing for. Otherwise it is reported as a plain read. After a failure while observation is on, the
+     * snapshot is read again after the retry delay, until [attempts] reads were made. Then the model is reported out of
+     * sync. Returns the last outcome.
      */
     private suspend fun applySnapshot(outcome: CallOutcome<RuntimeModelSnapshot>, attempts: Int): CallOutcome<RuntimeModelSnapshot> {
         val reason = (state.model.sync as? SyncStatus.Synchronizing)?.reason
@@ -232,8 +239,8 @@ internal class ModelObserver(
     }
 
     /**
-     * Takes over the state of [step], publishes the model and the update, and reports the anomalies; never suspends,
-     * since the update stream drops the oldest update a slow collector has not taken yet.
+     * Takes over the state of [step], publishes the model and the update, and reports the anomalies. It never suspends,
+     * because the update stream drops the oldest update that a slow collector has not taken yet.
      */
     private fun publish(step: ObservationStep) {
         state = step.state

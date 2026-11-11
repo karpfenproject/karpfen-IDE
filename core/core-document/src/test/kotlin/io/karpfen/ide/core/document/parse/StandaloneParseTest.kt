@@ -32,10 +32,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The parsers as `registry/KarpfenLanguageSupports.kt` wires them (syntax analyzer + dsl-tools standalone semantics),
- * on the examples: zero PARSER diagnostics everywhere; with [SemanticMode.STANDALONE] every example `.kmeta` except
- * `EVENTS.kmeta` (whose payloads reference domain types) and every `.kstates` reads without findings, and a semantic
- * error is reported where the reader finds it, next to the partial model.
+ * The parsers as `registry/KarpfenLanguageSupports.kt` wires them, with the syntax analyzer and the dsl-tools
+ * standalone semantics, run on the examples. No example has PARSER diagnostics. With [SemanticMode.STANDALONE] every
+ * example `.kmeta` and every `.kstates` reads without findings. The exception is `EVENTS.kmeta`, whose payloads
+ * reference domain types. A semantic error is reported where the reader finds it, next to the partial model.
  */
 class StandaloneParseTest {
 

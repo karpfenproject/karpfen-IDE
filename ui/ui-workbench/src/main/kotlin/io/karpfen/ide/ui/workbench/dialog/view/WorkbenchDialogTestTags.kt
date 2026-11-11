@@ -15,17 +15,17 @@
  */
 package io.karpfen.ide.ui.workbench.dialog.view
 
-/** Test tags of the modal dialog ([WorkbenchDialogs]). */
+/** Test tags of the modal dialog that [WorkbenchDialogs] renders. */
 public object WorkbenchDialogTestTags {
     /** The dialog. */
     public const val DIALOG: String = "Workbench.dialog"
 
-    /** The dialog's text field (rename, new file). */
+    /** The dialog's text field, as shown by the rename and new file dialogs. */
     public const val INPUT: String = "Workbench.dialog.input"
 
-    /** The entry at [index] of the dialog's list (the descriptor to run). */
+    /** The entry at [index] of the dialog's list, as shown when the user picks the descriptor to run. */
     public fun choice(index: Int): String = "Workbench.dialog.choice:$index"
 
-    /** The dialog's button [label]. */
+    /** The dialog's button with the text [label]. */
     public fun button(label: String): String = "Workbench.dialog.button:$label"
 }

@@ -28,8 +28,8 @@ import kotlin.test.Test
 import kotlin.time.TimeSource
 
 /**
- * Covers the robustness of the tokenizers: they never throw and keep every token invariant ([assertTokenInvariants]) on
- * 10,000 deterministic mutations of every example and on every prefix of one KStates example.
+ * Covers the robustness of the tokenizers. They never throw and keep every token invariant of [assertTokenInvariants]
+ * on 10,000 deterministic mutations of every example and on every prefix of one KStates example.
  */
 class TokenizerRobustnessTest {
 
@@ -63,14 +63,17 @@ class TokenizerRobustnessTest {
         reporter.publishEntry(file.path, "$prefixes prefixes in ${mark.elapsedNow()}")
     }
 
-    /** The largest KStates example (most EVAL bodies, comments and nested blocks), so prefixes cut through all of them. */
+    /**
+     * The largest KStates example, with the most EVAL bodies, comments and nested blocks, so the prefixes cut through
+     * all of them.
+     */
     private fun prefixExample(): ExampleFile = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates")
 
     companion object {
         private const val SEED = 20_261_020L
         private const val MUTATIONS = 10_000
 
-        /** Every example file (the parameters of the mutation test). */
+        /** Every example file. These are the parameters of the mutation test. */
         @JvmStatic
         fun examples(): List<ExampleFile> = Examples.files()
     }

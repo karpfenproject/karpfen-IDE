@@ -62,15 +62,19 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The runtime of one opened workspace and its runs, as the Runtime tool window shows and steers them: the host with its
- * status and log, the runs with the selected one, and the commands. A run resolves the descriptor, saves every open
- * file, stops the runs of the same descriptor that still prepare, wait for the runtime or are live, prepares the
- * deployment, waits for the runtime and launches a session that deploys, starts and observes the environment; from then
- * on its entry follows the session. Changing the runtime settings stops the live runs and replaces the host. The
- * workbench creates one per opened workspace and shuts it down when the workspace closes or the IDE exits.
+ * The runtime of one opened workspace and its runs, as the Runtime tool window shows and steers them. It holds the host
+ * with its status and log, the runs with the selected one, and the commands.
  *
- * Used from the UI thread: the commands launch their work in [scope] and return its job; the sessions run on their own
- * dispatcher and their flows are collected in [scope].
+ * A run goes through these steps. It resolves the descriptor and saves every open file. It stops the earlier runs of
+ * the same descriptor that still prepare, still wait for the runtime, or are live. It prepares the deployment from the
+ * saved workspace and waits for the runtime. Then it launches a session that deploys, starts and observes the
+ * environment. From then on the run's entry follows the session.
+ *
+ * Changing the runtime settings stops the live runs and replaces the host. The workbench creates one instance per
+ * opened workspace and shuts it down when the workspace closes or the IDE exits.
+ *
+ * Use the class from the UI thread only. The commands launch their work in [scope] and return its job. The sessions
+ * run on their own dispatcher, and their flows are collected in [scope].
  *
  * @param workspace the opened workspace.
  * @param sessions prepares deployments and launches sessions.
@@ -114,10 +118,13 @@ public class RuntimeState internal constructor(
     /** The runs, newest first. */
     public val runs: StateFlow<List<RunEntry>> get() = list.runs
 
-    /** The selected run, or null. */
+    /** The selected run, or null if no run is selected. */
     public val selected: StateFlow<RunEntry?> get() = list.selected
 
-    /** The run that Stop stops: the selected run if it can be stopped, else the only run that can. */
+    /**
+     * The run that Stop stops. That is the selected run if it can be stopped. Otherwise it is the only run that can be
+     * stopped, and null if there are several or none.
+     */
     public val stopTarget: StateFlow<RunEntry?> = combine(list.runs, list.selected) { runs, selected ->
         selected?.takeIf { it.isStoppable } ?: runs.filter { it.isStoppable }.singleOrNull()
     }.stateIn(scope, SharingStarted.Eagerly, null)
@@ -127,7 +134,9 @@ public class RuntimeState internal constructor(
         DescriptorResolver.pick(active, descriptorsOf(tree))
     }.stateIn(scope, SharingStarted.Eagerly, DescriptorResolver.pick(support.activeFile.value, descriptorsOf(workspace.files.value)))
 
-    /** The runtime's log and the host's account of preparing it, at most [LOG_LINES] lines. */
+    /**
+     * The runtime's log together with the host's account of preparing the runtime. It keeps at most [LOG_LINES] lines.
+     */
     public val logs: OutputBuffer get() = buffer
 
     /** The Log tab over [logs]. */
@@ -145,10 +154,10 @@ public class RuntimeState internal constructor(
     /** Runs the descriptor of [entry] again. */
     public fun rerun(entry: RunEntry): Job = run(entry.descriptor)
 
-    /** Stops the environment of [entry]; the entry turns stopped. */
+    /** Stops the environment of [entry]. The entry then shows the run as stopped. */
     public fun stop(entry: RunEntry): Job = scope.launch { stopRun(entry.id) }
 
-    /** Stops the [stopTarget], if there is one. */
+    /** Stops the [stopTarget], if there is one. Otherwise returns a job that is already complete. */
     public fun stopSelected(): Job = stopTarget.value?.let(::stop) ?: DONE
 
     /** Selects [entry]. */
@@ -166,10 +175,10 @@ public class RuntimeState internal constructor(
     public suspend fun inject(entry: RunEntry, request: InjectionRequest): InjectionOutcome =
         entry.session?.events?.inject(request) ?: InjectionOutcome.Unavailable(InjectionAvailability.NotYet)
 
-    /** Starts the runtime unless it runs. */
+    /** Starts the runtime unless it already runs. */
     public fun startRuntime(): Job = scope.launch { binding.ensureRunning() }
 
-    /** Stops every live run, then the runtime. */
+    /** Stops every live run and then the runtime. */
     public fun stopRuntime(): Job = scope.launch {
         shutDownLiveRuns()
         binding.stop()
@@ -180,19 +189,19 @@ public class RuntimeState internal constructor(
         list.clearFinished().forEach(::release)
     }
 
-    /** What the tabs of the launched [entry] show, or null before it was launched. */
+    /** What the tabs of the launched [entry] show, or null before the run was launched. */
     public fun details(entry: RunEntry): RunDetails? = launched[entry.id]?.details
 
     /** Chooses how the runtime is reached and writes it to the settings. */
     public fun selectHost(kind: RuntimeHostKind): Job =
         scope.launch { settings.update { it.copy(runtime = it.runtime.copy(host = kind)) } }
 
-    /** Sets the URL of a runtime reached by URL and writes it to the settings. */
+    /** Sets the URL of a runtime reached by URL and writes it to the settings. Surrounding blanks are trimmed. */
     public fun setUrl(url: String): Job = scope.launch { settings.update { it.copy(runtime = it.runtime.copy(url = url.trim())) } }
 
     /**
-     * Shuts down every session, closing those still busy after [SESSIONS_BOUND] at once, then closes the host; the
-     * state is closed afterwards.
+     * Shuts down every session and then closes the host. Sessions still busy after [SESSIONS_BOUND] are closed at once.
+     * The state is closed afterwards.
      */
     public suspend fun shutdown() {
         withTimeoutOrNull(SESSIONS_BOUND) {
@@ -202,18 +211,21 @@ public class RuntimeState internal constructor(
         binding.close()
     }
 
-    /** Closes every session and the host at once; the fallback when [shutdown] took too long or never ran. */
+    /**
+     * Closes every session and the host at once, without waiting. This is the fallback when [shutdown] took too long
+     * or never ran.
+     */
     internal fun close() {
         list.runs.value.forEach(::release)
         binding.closeNow()
     }
 
-    /** Wires the Log tab to whether the Runtime tool window is [visible]. Mediator only. */
+    /** Wires the Log tab to whether the Runtime tool window is [visible]. Only the mediator calls it. */
     internal fun bindLogVisibility(visible: Flow<Boolean>) {
         log.bindVisibility(visible)
     }
 
-    /** The steps of a run of [given], or of the descriptor picked without one. */
+    /** The steps of a run of [given], or of the picked descriptor when [given] is null. */
     private suspend fun runFlow(given: Path?) {
         val pick = DescriptorResolver.pick(support.activeFile.value, descriptorsOf(workspace.files.value))
         val descriptor = resolver.resolve(given, pick) ?: return
@@ -266,8 +278,8 @@ public class RuntimeState internal constructor(
     }
 
     /**
-     * Cancels the runs of [descriptor] that are not launched yet and shuts down the sessions of its live runs; their
-     * entries stay listed as stopped.
+     * Cancels the runs of [descriptor] that are not launched yet and shuts down the sessions of its live runs. Their
+     * entries stay in the list as stopped.
      */
     private suspend fun stopRunsOf(descriptor: Path) {
         val runs = list.runs.value.filter { it.descriptor == descriptor }
@@ -280,7 +292,7 @@ public class RuntimeState internal constructor(
         shutDown(runs.filter { it.isLive })
     }
 
-    /** Shuts down the sessions of every live run; their entries stay listed as stopped. */
+    /** Shuts down the sessions of every live run. Their entries stay in the list as stopped. */
     private suspend fun shutDownLiveRuns() {
         shutDown(list.runs.value.filter { it.isLive })
     }
@@ -291,13 +303,16 @@ public class RuntimeState internal constructor(
         entries.forEach { entry -> list.update(entry.id) { it.copy(phase = RunPhase.STOPPED) } }
     }
 
-    /** Stops the live runs and replaces the host by one for [next]. */
+    /** Stops the live runs and replaces the host with one for [next]. */
     private suspend fun replaceHost(next: RuntimeSettings) {
         shutDownLiveRuns()
         binding.replace(next)
     }
 
-    /** True if [next] reaches the runtime differently from the current host. */
+    /**
+     * True if [next] reaches the runtime differently from the current host. A change of the URL only counts when the
+     * runtime is reached by URL.
+     */
     private fun needsNewHost(next: RuntimeSettings): Boolean {
         val current = binding.settings
         return next.host != current.host || (next.host == RuntimeHostKind.URL && next.url != current.url)
@@ -309,7 +324,10 @@ public class RuntimeState internal constructor(
         support.showRuntimeToolWindow()
     }
 
-    /** Stops following the run of [entry] and closes its session, which leaves an environment as it is. */
+    /**
+     * Stops following the run of [entry] and closes its session. Closing a session leaves its environment on the
+     * runtime as it is.
+     */
     private fun release(entry: RunEntry) {
         launched.remove(entry.id)?.let { run ->
             run.follower.cancel()
@@ -332,7 +350,7 @@ public class RuntimeState internal constructor(
     }
 
     /**
-     * A launched run: what its tabs show and the job that follows its session.
+     * A launched run. It holds what the run's tabs show and the job that follows its session.
      *
      * @property details what the tabs show.
      * @property follower follows the session in the run's entry.
@@ -343,7 +361,10 @@ public class RuntimeState internal constructor(
         /** How many lines the runtime log keeps. */
         public const val LOG_LINES: Int = 5_000
 
-        /** How long shutting down the sessions may take before they are closed at once, leaving the host time to stop. */
+        /**
+         * How long shutting down the sessions may take before they are closed at once. The bound leaves the host time
+         * to stop afterwards.
+         */
         internal val SESSIONS_BOUND: Duration = 5.seconds
 
         /** The job of a command with nothing to do. */

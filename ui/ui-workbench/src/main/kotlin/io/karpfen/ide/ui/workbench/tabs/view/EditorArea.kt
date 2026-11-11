@@ -42,14 +42,20 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTab
 import java.nio.file.Path
 
 /**
- * The editor area: `TabStrip` of [tabs] (items from [tabItemOf], which marks tabs in conflict), the external-change
- * banner of the active tab rendered from `EditorTab.conflict` ([ConflictBanner]: MODIFIED: Reload / Keep mine; DELETED:
- * Close / Keep mine; both report a `ConflictResolution`, RELOAD for Reload and Close), and the `CodeEditor` of
- * [activeEditor] with the editor popups. Navigation requests of the editors are collected by the mediator, not relayed
- * through this view. The callbacks call the non-suspending `WorkbenchState` intents directly (no coroutine launched
- * here).
+ * The editor area. It shows the `TabStrip` of [tabs], whose items come from [tabItemOf], which marks tabs in conflict.
+ * Below the strip it shows the conflict banner of the active tab, rendered by [ConflictBanner] from
+ * `EditorTab.conflict`. For a modified file the banner offers Reload and Keep mine, and for a deleted file Close and
+ * Keep mine. Each button reports a `ConflictResolution`, and both Reload and Close report RELOAD. The `CodeEditor` of
+ * [activeEditor] with the editor popups fills the rest.
  *
- * @param onClose closes a tab through `WorkbenchState.closeTab` (unsaved-changes flow).
+ * The editor is composed inside `key(activePath)`. So switching tabs disposes the composition of the old editor and
+ * its popups, the text fields of the popups included. State that must survive a tab switch, such as the replacement
+ * text of find and replace, therefore lives in the editor's models and not in the composables.
+ *
+ * The mediator collects the navigation requests of the editors. They are not relayed through this view. The callbacks
+ * call the non-suspending `WorkbenchState` intents directly, and no coroutine is launched here.
+ *
+ * @param onClose closes a tab through `WorkbenchState.closeTab`, which runs the unsaved-changes flow.
  */
 @Composable
 internal fun EditorArea(
@@ -96,7 +102,7 @@ internal fun EditorArea(
     }
 }
 
-/** The external-change [banner] with one button per action, each reporting its resolution to [onResolve]. */
+/** The conflict [banner] with one button per action. Each button reports its resolution to [onResolve]. */
 @Composable
 private fun ConflictBannerView(banner: ConflictBanner, onResolve: (ConflictResolution) -> Unit) {
     val colors = KarpfenTheme.colors

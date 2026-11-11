@@ -22,17 +22,19 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Tuning of a [DocumentSession]. Tests inject a `StandardTestDispatcher` for both dispatchers so debounce runs on
- * virtual time (`kotlinx-coroutines-test`).
+ * Tuning of a [DocumentSession]. Tests inject a `StandardTestDispatcher` for both dispatchers, so the debounce runs on
+ * the virtual time of `kotlinx-coroutines-test`.
  *
- * @property parseDebounce quiet time after the last change before re-parsing ([DEFAULT_PARSE_DEBOUNCE] by default).
- * @property semanticMode passed to the parser. [SemanticMode.SYNTAX_ONLY] (the default) is what every product path uses:
- *   in a workspace the project analysis is the only place that reads files with dsl-tools, so each file is read once
- *   and opening a file never changes what is reported; sessions created without an explicit config (editor tests,
- *   embeddings) run the same diagnostics pipeline as the product. [SemanticMode.STANDALONE] is opt-in, for a document
- *   read on its own (and the tests of the standalone semantics and of the session).
- * @property tokenizeDispatcher where tokenizing runs (CPU work).
- * @property parseDispatcher where parsing and the standalone read run (CPU work).
+ * @property parseDebounce the quiet time after the last change before the text is parsed again. It is
+ *   [DEFAULT_PARSE_DEBOUNCE] by default.
+ * @property semanticMode the mode passed to the parser. Every product path uses the default,
+ *   [SemanticMode.SYNTAX_ONLY]. In a workspace the project analysis is the only place that reads files with dsl-tools.
+ *   Each file is then read once, and opening a file never changes what is reported. Sessions created without an
+ *   explicit config, such as editor tests and embeddings, run the same diagnostics pipeline as the product.
+ *   [SemanticMode.STANDALONE] is opt-in. It serves a document read on its own, and the tests of the standalone
+ *   semantics and of the session.
+ * @property tokenizeDispatcher where tokenizing runs. It is CPU work.
+ * @property parseDispatcher where parsing and the standalone read run. Both are CPU work.
  */
 public data class DocumentSessionConfig(
     public val parseDebounce: Duration = DEFAULT_PARSE_DEBOUNCE,
@@ -45,7 +47,10 @@ public data class DocumentSessionConfig(
     }
 
     public companion object {
-        /** Default parse debounce: 120 ms, short enough to feel live, long enough to skip most keystrokes. */
+        /**
+         * The default parse debounce of 120 ms. It is short enough to feel live and long enough to skip most
+         * keystrokes.
+         */
         public val DEFAULT_PARSE_DEBOUNCE: Duration = 120.milliseconds
     }
 }

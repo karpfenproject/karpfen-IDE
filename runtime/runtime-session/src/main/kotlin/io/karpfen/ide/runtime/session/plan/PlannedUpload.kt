@@ -20,7 +20,10 @@ import java.nio.file.Path
 
 /** What an uploaded text is to the runtime, which decides the route it goes to. */
 public enum class UploadRole {
-    /** The domain metamodel, uploaded first: the event definitions and the model are read against its types. */
+    /**
+     * The domain metamodel. It is uploaded first, because the event definitions and the model are read against its
+     * types.
+     */
     METAMODEL,
 
     /** The event definitions, read with the domain types as base types. */
@@ -38,9 +41,9 @@ public enum class UploadRole {
  *
  * @property role what the text is to the runtime.
  * @property file the file the text was analyzed from.
- * @property snapshot the analyzed text, line separators normalized to `\n` and without a byte order mark; after the
- *   preparation saved every open document, it is the saved text.
- * @property attachedTo the object key a state machine is attached to; null for every other role.
+ * @property snapshot the analyzed text, with line separators normalized to `\n` and without a byte order mark. After
+ *   the preparation saved every open document, it is the saved text.
+ * @property attachedTo the object key a state machine is attached to. It is null for every other role.
  */
 public data class PlannedUpload(
     public val role: UploadRole,
@@ -64,8 +67,8 @@ public data class PlannedUpload(
  *
  * @property attachedTo the key of the model object the machine runs attached to.
  * @property file the machine's file.
- * @property objectType the type of the object with that key in the runtime's index of the model, the last of equal
- *   keys, or null if the model has no such object.
+ * @property objectType the type of the object with that key in the runtime's index of the model. For equal keys it is
+ *   the type of the last object. It is null if the model has no such object.
  * @property machineType the type the machine names after `ATTACHED TO`, which the runtime never reads.
  */
 public data class AttachedMachine(

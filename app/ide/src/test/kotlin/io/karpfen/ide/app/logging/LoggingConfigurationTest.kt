@@ -36,9 +36,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The IDE's logging configuration: the tests run on the module's console-only `logback-test.xml`, while the production
+ * The IDE's logging configuration. The tests run on the module's console-only `logback-test.xml`. The production
  * `logback.xml` writes WARN and above to the console and INFO and above to `ide.log` below the IDE home. Where what
- * dsl-tools logs goes is `LanguageToolsRoutingTest`'s subject.
+ * dsl-tools logs goes is the subject of `LanguageToolsRoutingTest`.
  */
 class LoggingConfigurationTest {
 

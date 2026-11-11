@@ -16,19 +16,23 @@
 package io.karpfen.ide.ui.workbench.command
 
 /**
- * Ids of the runtime commands the workbench registers (`WorkbenchState.registerCommands`), referenced by the
- * application's Run menu. The Runtime tool window's toggle is a tool-window toggle of `WorkbenchCommandIds`.
+ * Ids of the runtime commands that `WorkbenchState.registerCommands` registers. The application's Run menu refers to
+ * them. The command that shows or hides the Runtime tool window is an ordinary tool window toggle of
+ * `WorkbenchCommandIds`.
  */
 public object RuntimeCommandIds {
-    /** Run menu: Run, which deploys the environment descriptor of the workspace that the active editor or the user picks. */
+    /**
+     * Run in the Run menu. It deploys the environment descriptor of the workspace that the active editor or the user
+     * picks.
+     */
     public const val RUN: String = "runtime.run"
 
-    /** Run menu: Stop of the selected run, or of the only run that can be stopped. */
+    /** Stop in the Run menu. It stops the selected run, or the only run that can be stopped. */
     public const val STOP: String = "runtime.stop"
 
-    /** Run menu: Start runtime, which starts the runtime of the workspace without deploying anything. */
+    /** Start runtime in the Run menu. It starts the runtime of the workspace without deploying anything. */
     public const val START_RUNTIME: String = "runtime.startRuntime"
 
-    /** Run menu: Stop runtime, which stops every live run and then the runtime. */
+    /** Stop runtime in the Run menu. It stops every live run and then the runtime. */
     public const val STOP_RUNTIME: String = "runtime.stopRuntime"
 }

@@ -87,7 +87,7 @@ class TypeCatalogTest {
 
     /**
      * The primitive member types are named as dsl-tools names its primitive types, so hover and completion treat every
-     * one of them as primitive, whatever the names of the constants of dsl-tools' enum are.
+     * one of them as primitive, whatever the constants of the dsl-tools enum are called.
      */
     @Test
     fun `a property of each primitive type of dsl-tools is a primitive member named by its keyword`() {

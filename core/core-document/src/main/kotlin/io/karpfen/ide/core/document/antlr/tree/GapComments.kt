@@ -20,8 +20,9 @@ import io.karpfen.ide.core.text.TextRange
 import org.antlr.v4.runtime.Token
 
 /**
- * The `//` comments of a KMeta or KModel tree, whose lexers skip them: the [LexerGaps.GapKind.COMMENT] pieces of
- * [LexerGaps.scan] between the stream's tokens (the same pieces the tokenizer turns into COMMENT tokens).
+ * The `//` comments of a KMeta or KModel tree, whose lexers skip them. They are the [LexerGaps.GapKind.COMMENT] pieces
+ * that [LexerGaps.scan] finds between the tokens of the stream. The tokenizer turns the same pieces into COMMENT
+ * tokens.
  */
 internal object GapComments {
 

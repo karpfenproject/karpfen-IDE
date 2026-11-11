@@ -34,9 +34,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Covers the robustness of the analyzer: it never throws on mutated contexts (fixed seeds), lets dsl-tools read only
- * syntax-clean files (a read of broken text would report DSL_TOOLS findings on it), reads models only against a
- * metamodel without errors, and keeps every diagnostic inside its file's text.
+ * Covers the robustness of the analyzer. It never throws on mutated contexts, which use fixed seeds. It lets dsl-tools
+ * read only files without syntax errors, because a read of broken text would report DSL_TOOLS findings on it. It reads
+ * models only against a metamodel without errors. It keeps every diagnostic inside the text of its file.
  */
 class ProjectAnalyzerRobustnessTest {
 

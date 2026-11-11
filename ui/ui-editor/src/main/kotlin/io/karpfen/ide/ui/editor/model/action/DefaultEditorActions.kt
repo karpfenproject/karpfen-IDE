@@ -18,8 +18,9 @@ package io.karpfen.ide.ui.editor.model.action
 import io.karpfen.ide.ui.editor.model.caret.CaretMovement
 
 /**
- * Every key-bound/menu editor action, one instance per id. Wiring only: the action classes below group cohesive
- * behaviour (one class per group, parameterized by kind).
+ * Creates every editor action that keys and menus can run, one instance per action id. This function only wires the
+ * actions together. The behaviour lives in the action classes, where one class covers a group of related actions and
+ * takes the kind of action as a parameter.
  */
 public fun defaultEditorActions(): List<EditorAction> = buildList {
     val movements = listOf(

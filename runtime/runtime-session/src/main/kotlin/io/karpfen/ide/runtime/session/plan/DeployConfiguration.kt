@@ -19,15 +19,15 @@ import io.karpfen.ide.core.document.environment.EnvironmentDefaults
 import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 
 /**
- * The deploy configuration: the tick delay and the event time to live a deployment sends. Immutable.
+ * The deploy configuration. It holds the tick delay and the event time to live that a deployment sends. Immutable.
  *
- * Its one home is the environment descriptor: its `tickDelayMs` and `eventTtlMs` keys are the configuration, and an
- * absent key means the default the descriptor format defines in [EnvironmentDefaults]. A deployment always sends both
- * values, so the runtime's own configured defaults never apply to a deployment from the IDE. Nothing else stores or
- * overrides them.
+ * The configuration lives only in the environment descriptor. Its `tickDelayMs` and `eventTtlMs` keys are the
+ * configuration. An absent key means the default that the descriptor format defines in [EnvironmentDefaults]. A
+ * deployment always sends both values, so the runtime's own configured defaults never apply to a deployment from the
+ * IDE. Nothing else stores or overrides them.
  *
- * @property tickDelayMs the delay between two ticks of the engine, in milliseconds; never negative.
- * @property eventTtlMs how long an event stays available, in milliseconds; 0 or a negative value keeps events until
+ * @property tickDelayMs the delay between two ticks of the engine, in milliseconds. It is never negative.
+ * @property eventTtlMs how long an event stays available, in milliseconds. 0 or a negative value keeps events until
  *   they are consumed.
  */
 public data class DeployConfiguration(public val tickDelayMs: Int, public val eventTtlMs: Long) {
@@ -36,16 +36,19 @@ public data class DeployConfiguration(public val tickDelayMs: Int, public val ev
     }
 
     public companion object {
-        /** The tick delays the runtime accepts: it parses the value as an `Int`, and a negative delay makes no sense. */
+        /**
+         * The tick delays the runtime accepts. The runtime parses the value as an `Int`, and a negative delay makes no
+         * sense.
+         */
         public val TICK_DELAY_RANGE: LongRange = 0L..Int.MAX_VALUE.toLong()
 
-        /** The configuration of a descriptor without timing keys: the defaults of the descriptor format. */
+        /** The configuration of a descriptor without timing keys, which is the defaults of the descriptor format. */
         public val DEFAULT: DeployConfiguration =
             DeployConfiguration(EnvironmentDefaults.TICK_DELAY_MS.toInt(), EnvironmentDefaults.EVENT_TTL_MS)
 
         /**
-         * The configuration [descriptor] states, its absent keys replaced by the defaults of the descriptor format. The
-         * planner checks the tick delay's range first and reports a value outside it as a problem.
+         * The configuration that [descriptor] states, with its absent keys replaced by the defaults of the descriptor
+         * format. The planner checks the tick delay's range first and reports a value outside it as a problem.
          *
          * @throws IllegalArgumentException if the tick delay lies outside [TICK_DELAY_RANGE].
          */
@@ -55,11 +58,13 @@ public data class DeployConfiguration(public val tickDelayMs: Int, public val ev
             return DeployConfiguration(tickDelay.toInt(), eventTtlOf(descriptor))
         }
 
-        /** The tick delay [descriptor] states, or the default of the descriptor format; not range-checked. */
+        /**
+         * The tick delay that [descriptor] states, or the default of the descriptor format. It is not range-checked.
+         */
         public fun tickDelayOf(descriptor: EnvironmentDescriptor): Long =
             descriptor.tickDelayMs ?: EnvironmentDefaults.TICK_DELAY_MS
 
-        /** The event time to live [descriptor] states, or the default of the descriptor format. */
+        /** The event time to live that [descriptor] states, or the default of the descriptor format. */
         public fun eventTtlOf(descriptor: EnvironmentDescriptor): Long =
             descriptor.eventTtlMs ?: EnvironmentDefaults.EVENT_TTL_MS
     }

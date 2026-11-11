@@ -21,9 +21,10 @@ import io.karpfen.ide.buildlogic.TrackedRuntimeFiles
 import java.time.Duration
 
 /**
- * The runtime of a workspace: the container the IDE builds from the runtime sources bundled with it and runs in the local
- * Docker engine, or a runtime attached by URL. Its tests talk to Docker through a fake engine; the tests against the
- * local Docker engine run only in the opt-in task [LiveDockerTesting.TASK_NAME].
+ * The runtime of a workspace. It is either a container that the IDE builds from the runtime sources bundled with it and
+ * runs in the local Docker engine, or a runtime started elsewhere that the IDE attaches to by URL. The IDE never runs the
+ * runtime as a local Java process. The ordinary tests talk to Docker through a fake engine. The tests against the local
+ * Docker engine run only in the opt-in task [LiveDockerTesting.TASK_NAME].
  */
 plugins {
     id("karpfen.kotlin-jvm")
@@ -41,8 +42,9 @@ dependencies {
 }
 
 /**
- * The checkout of the karpfen-runtime submodule: the `.gitmodules` entry whose last segment is `karpfen-runtime`, read
- * with build-logic's `GitSubmodules`, or the directory of that name if the repository records no such submodule.
+ * The checkout of the karpfen-runtime submodule. Its path is the `.gitmodules` entry whose last segment is
+ * `karpfen-runtime`, as build-logic's `GitSubmodules` reads it. If the repository records no such submodule, it is the
+ * directory `karpfen-runtime` at the repository root.
  */
 val runtimeCheckout: Directory = layout.settingsDirectory.dir(
     GitSubmodules.parse(providers.fileContents(layout.settingsDirectory.file(".gitmodules")).asText.orNull.orEmpty())
@@ -50,9 +52,14 @@ val runtimeCheckout: Directory = layout.settingsDirectory.dir(
 )
 
 /**
- * Packs the files git tracks in the runtime checkout into the resources of the module, below the package of the
- * bundled sources, where `BundledRuntimeSources` reads them; the IDE builds its runtime image from them. The resources
- * include the task's output, so `processResources` runs it.
+ * Packs the files git tracks in the runtime checkout, those of its nested karpfen-dsl-tools submodule included, into the
+ * resources of this module. The task writes the archive `runtime-sources.tar.gz` and the file
+ * `runtime-sources.properties` below the package of the bundled sources, where `BundledRuntimeSources` reads them. The
+ * properties record the archive's SHA-256, the runtime commit and the number of files. The archive is deterministic, so
+ * the same sources always give the same hash. The Docker host builds the runtime image from this archive and tags the
+ * image with the start of that hash. The resources of the main source set include the task's output, so
+ * `processResources` runs it. Without the runtime submodule checked out, the task fails and names the git command that
+ * checks it out.
  */
 val bundleRuntimeSources = tasks.register<BundleRuntimeSources>("bundleRuntimeSources") {
     description = "Packs the tracked files of the karpfen-runtime checkout as the Docker build context of the runtime image."
@@ -73,11 +80,17 @@ sourceSets.main {
 val testSourceSet = sourceSets.named(SourceSet.TEST_SOURCE_SET_NAME)
 
 /**
- * Runs the tests tagged [TestTags.LIVE_DOCKER], without the time-budget tests, against the local Docker engine: they
- * build the runtime image from the bundled sources unless it exists, start and adopt a container and remove it again.
+ * Runs the tests tagged [TestTags.LIVE_DOCKER] against the local Docker engine, without the time-budget tests. Start it
+ * with `./gradlew :runtime:runtime-host:liveDockerTest`. It needs a local Docker engine. The engine test builds a tiny
+ * image `FROM scratch`, labelled `io.karpfen.ide.test=true`, and removes it again. The host test builds the runtime
+ * image from the bundled sources unless it exists, which takes minutes the first time. It then starts a container for a
+ * workspace in a temporary folder, adopts it from a second host, stops it and removes every container it made. The
+ * runtime image stays, because it is the IDE's own image.
+ *
  * The task never counts as up to date and is never taken from the build cache, because its result depends on the
- * engine; it fails when it finds no test, so a lost tag cannot pass silently; and the timeout is a hard upper bound
- * for a hanging run, not an assertion on time. Nothing depends on it.
+ * engine and not on its inputs. It fails when it finds no test, so a lost tag cannot pass silently. The timeout is a
+ * hard upper bound for a hanging run, not an assertion on time. No other task depends on this one, so `test`, `check`
+ * and `build` never run it.
  */
 tasks.register<Test>(LiveDockerTesting.TASK_NAME) {
     group = LiveDockerTesting.TASK_GROUP

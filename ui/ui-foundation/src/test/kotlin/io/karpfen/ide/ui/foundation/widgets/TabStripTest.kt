@@ -44,11 +44,14 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Headless UI tests of [TabStrip]: select, close (button and middle click), dirty dot, tooltip and overflow scrolling. */
+/**
+ * Headless UI tests of [TabStrip]: selecting, closing with the button and with a middle click, the dirty dot, the
+ * tooltip and scrolling when the tabs overflow.
+ */
 @OptIn(ExperimentalTestApi::class)
 class TabStripTest {
 
-    /** The hoisted state of a strip under test; selecting applies the selection, closing only records it. */
+    /** The hoisted state of a strip under test. Selecting applies the selection, and closing only records it. */
     private class Harness(tabs: List<TabItem>, selectedId: String?) {
         var tabs by mutableStateOf(tabs)
         var selectedId by mutableStateOf(selectedId)

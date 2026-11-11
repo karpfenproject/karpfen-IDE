@@ -26,15 +26,18 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 
 /**
- * Saves open documents: the current snapshot is converted back to file form (the document's line separator,
- * its byte order mark) and written atomically through the [fileStore] on [ioDispatcher]; then, on the [writer]:
- * - the written state becomes the save point (an undo checkpoint taken with the snapshot): typing during the write
- *   keeps the document dirty, because the disk holds the older text, and undoing that typing makes it clean again;
- * - the disk state the write leaves becomes the document's, so the watch event the write causes is recognized as
- *   self-induced, and a pending conflict is cleared (the disk now holds the buffer); the state comes from the
- *   [sourceLoader] (`SourceLoader.loadWritten`), the one loading rule, never from a rule of the saver's own;
- * - its findings become the FILE findings of the written snapshot (none for the default rule: the file is valid UTF-8
- *   with one separator now).
+ * Saves open documents. The current snapshot is converted back to file form, with the document's line separator and
+ * byte order mark. It is written atomically through the [fileStore] on [ioDispatcher]. Then three things happen on the
+ * [writer].
+ * - The written state becomes the save point. That is an undo checkpoint taken together with the snapshot. Typing
+ *   during the write keeps the document dirty, because the disk holds the older text. Undoing that typing makes the
+ *   document clean again.
+ * - The disk state that the write leaves becomes the document's disk state. So the watch event that the write causes
+ *   is recognized as the save's own, and a pending conflict is cleared, because the disk now holds the buffer. The
+ *   state comes from the [sourceLoader] through `SourceLoader.loadWritten`. That is the single loading rule, so the
+ *   saver never uses a rule of its own.
+ * - The findings of that disk state become the FILE findings of the written snapshot. The default rule finds none,
+ *   because the file is now valid UTF-8 with one kind of line separator.
  *
  * A failed write changes nothing and is reported as [SaveResult.Failed].
  */
@@ -45,7 +48,7 @@ internal class DocumentSaver(
     private val writer: SingleWriter,
 ) {
 
-    /** Saves [document]; never throws (except for cancellation). */
+    /** Saves [document]. It never throws, except for a cancellation. */
     suspend fun save(document: DefaultOpenDocument): SaveResult {
         val pending = writer.run { PendingWrite(document.text.snapshot.value, document.text.undo.checkpoint(), document) }
         try {
@@ -67,13 +70,15 @@ internal class DocumentSaver(
 
     /**
      * The FILE findings of the [written] disk state for the snapshot of [pending]. Their ranges refer to the written
-     * text, which is the snapshot's unless the write changed it (an unpaired surrogate is written as `?`); then none of
-     * them can be anchored and the list is empty.
+     * text. That is the text of the snapshot, unless the write changed it, as it does when it writes an unpaired
+     * surrogate as `?`. Then none of the findings can be anchored, and the list is empty.
      */
     private fun findingsOf(written: LoadedSource, pending: PendingWrite): List<Diagnostic> =
         written.diagnostics.takeIf { written.text == pending.snapshot.text }.orEmpty()
 
-    /** What one save writes: [snapshot] in file form; [state] is the undo history's state of [snapshot]. */
+    /**
+     * What one save writes, which is [snapshot] in file form. [state] is the state of the undo history at [snapshot].
+     */
     private class PendingWrite(val snapshot: TextSnapshot, val state: HistoryState, document: DefaultOpenDocument) {
         val withBom: Boolean = document.hasBom
         val content: String = LineSeparators.restore(snapshot.text, document.lineSeparator.value)

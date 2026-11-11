@@ -19,7 +19,11 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 
-/** Where the editor opens a deploy problem: its file at its range, the file's start without one; null without a file. */
+/**
+ * Where the editor opens this deploy problem. That is its file at its range, or the start of the file when the problem
+ * has no range. When the problem names a text snapshot, the location carries it, so navigation can map the range into
+ * the live text. Returns null for a problem without a file.
+ */
 public fun DeployProblem.navigationTarget(): Location? {
     val location = location ?: return null
     val range = location.range ?: TextRange(0, 0)

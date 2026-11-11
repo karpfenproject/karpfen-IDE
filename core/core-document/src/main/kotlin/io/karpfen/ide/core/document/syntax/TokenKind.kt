@@ -16,14 +16,17 @@
 package io.karpfen.ide.core.document.syntax
 
 /**
- * Lexical classification of a [SyntaxToken]. The `EMBEDDED_*`, [PATH_REFERENCE] and [MACRO_REFERENCE]
- * kinds only occur inside EVAL bodies (embedded Python).
+ * Lexical classification of a [SyntaxToken]. The `EMBEDDED_*`, [PATH_REFERENCE] and [MACRO_REFERENCE] kinds only occur
+ * inside EVAL bodies, which hold embedded Python.
  */
 public enum class TokenKind {
-    /** Grammar keywords other than operations (`type`, `STATE`, `TRANSITION`, `EVAL`, `EVENT` in conditions, …). */
+    /** Grammar keywords other than operations, such as `type`, `STATE`, `EVAL` and `EVENT` inside conditions. */
     KEYWORD,
 
-    /** Action operations `SET APPEND SETLIST DROPLIST SETOBJ APPENDOBJ DROPOBJ` (both cases) and `EVENT` as an action. */
+    /**
+     * The action operations `SET`, `APPEND`, `SETLIST`, `DROPLIST`, `SETOBJ`, `APPENDOBJ` and `DROPOBJ` in either case,
+     * and `EVENT` as an action.
+     */
     OPERATION,
 
     /** A quoted string literal of the karpfen grammar, including its quotes. */
@@ -32,10 +35,10 @@ public enum class TokenKind {
     /** A number literal of the karpfen grammar. */
     NUMBER,
 
-    /** An identifier of the karpfen grammar (e.g. `list` in a KStates type expression). */
+    /** An identifier of the karpfen grammar, such as `list` in a KStates type expression. */
     IDENTIFIER,
 
-    /** Braces, parentheses, commas, colons. */
+    /** Braces, parentheses, commas and colons. */
     PUNCTUATION,
 
     /** `->` and other operators. */
@@ -59,7 +62,7 @@ public enum class TokenKind {
     /** A number inside an EVAL body. */
     EMBEDDED_NUMBER,
 
-    /** A `$( … )` model-path reference inside an EVAL body, including `$(` and `)`. */
+    /** A model-path reference such as `$(position)` inside an EVAL body, including `$(` and `)`. */
     PATH_REFERENCE,
 
     /** An `@name` macro reference inside an EVAL body, including the `@`. */

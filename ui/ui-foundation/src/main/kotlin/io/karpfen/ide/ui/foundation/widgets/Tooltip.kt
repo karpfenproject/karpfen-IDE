@@ -29,9 +29,9 @@ import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 
 /**
- * Shows [tooltip] near the pointer after hovering [content] for [TooltipDefaults.DELAY_MILLIS]; none when null.
- * [modifier] applies to the box wrapping [content] in both cases. Uses the desktop `TooltipArea`, which Compose still
- * marks experimental (no stable desktop tooltip exists).
+ * Shows [tooltip] near the pointer after the pointer has rested on [content] for [TooltipDefaults.DELAY_MILLIS]. No
+ * tooltip is shown when [tooltip] is null. [modifier] applies to the box around [content] in both cases. It uses the
+ * desktop `TooltipArea`, which Compose still marks experimental, because no stable desktop tooltip exists.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

@@ -27,11 +27,11 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Covers the robustness of the parser, outline and index of the modeling languages (environment descriptors have tests
- * of their own in the `environment` package): the analyzers never throw on 10,000 deterministic mutations of
- * each language's examples (spread over its files) and on every prefix of a KStates example, and every outcome keeps
- * the documented invariants (ranges inside the text, outline nesting, sorted non-overlapping spans, multi-line folds,
- * names inside their quotes).
+ * Covers the robustness of the parser, outline and index of the modeling languages. Environment descriptors have tests
+ * of their own in the `environment` package. The analyzers never throw on 10,000 deterministic mutations of the
+ * examples of each language, spread over its files, and on every prefix of a KStates example. Every outcome keeps the
+ * documented invariants. Ranges lie inside the text, the outline nests, spans are sorted without overlaps, folds span
+ * several lines and names lie inside their quotes.
  */
 class SyntaxRobustnessTest {
 

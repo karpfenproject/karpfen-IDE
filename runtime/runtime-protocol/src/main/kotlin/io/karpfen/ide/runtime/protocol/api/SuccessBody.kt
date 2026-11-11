@@ -52,16 +52,17 @@ internal fun interface SuccessBody<out T> {
 }
 
 /**
- * The readers of the success bodies, one per [ResponseKind]:
+ * The readers of the success bodies, one per [ResponseKind].
  *
- * - [EMPTY]: any body; the runtime answers with an empty text, and a non-empty one is only logged at debug level.
- * - [ENVIRONMENT_KEY]: `env-` followed by digits.
- * - [accessKey]: `ak-<the requested client id>-<digits>-<one to four digits>`.
- * - [HEALTH]: a JSON object whose member `status` is the string `ok`.
- * - [ENVIRONMENT_LIST]: a JSON array of objects, each with a string `envKey` and an array of strings `modelElements`,
- *   in any member order, other members ignored.
- * - [STATE_MACHINE_SOURCE]: the body as it is.
- * - [snapshot]: the snapshot as [SnapshotReader] reads it, whose environment must be the requested one.
+ * - [EMPTY] accepts any body. The runtime answers with an empty text. A body that is not empty is only logged at debug
+ *   level.
+ * - [ENVIRONMENT_KEY] expects `env-` followed by digits.
+ * - [accessKey] expects `ak-<the requested client id>-<digits>-<one to four digits>`.
+ * - [HEALTH] expects a JSON object whose member `status` is the string `ok`.
+ * - [ENVIRONMENT_LIST] expects a JSON array of objects. Each object has a string `envKey` and an array of strings
+ *   `modelElements`. The members may come in any order, and other members are ignored.
+ * - [STATE_MACHINE_SOURCE] takes the body as it is.
+ * - [snapshot] reads the snapshot as [SnapshotReader] does. The snapshot's environment must be the requested one.
  */
 internal object SuccessBodies {
 
@@ -83,7 +84,7 @@ internal object SuccessBodies {
     /** An environment key as the runtime issues it. */
     private val ENVIRONMENT_KEY_PATTERN = Regex(Regex.escape(WireNames.ENVIRONMENT_KEY_PREFIX) + """\d+""")
 
-    /** Any body; nothing is read. */
+    /** Any body. Nothing is read. */
     val EMPTY: SuccessBody<Unit> = SuccessBody { body ->
         if (body.isNotEmpty()) logger.debug("The runtime answered a call without a result with the body '{}'", body.take(LOGGED_LENGTH))
         BodyReading.Read(Unit)

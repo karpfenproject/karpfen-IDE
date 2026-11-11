@@ -31,8 +31,8 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The project tree's intents of the mediator: opening a node (a directory toggles, a file opens — decided from the
- * tree's state, not by the view) and the context-menu commands, each run through its intent.
+ * Tests the intents of the mediator for the project tree. Opening a node toggles a directory and opens a file. The
+ * tree's state decides which, not the view. The context menu commands each run through their intent.
  */
 class ProjectTreeIntentsTest {
 

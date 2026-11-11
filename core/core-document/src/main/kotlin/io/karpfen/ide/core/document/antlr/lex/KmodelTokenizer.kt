@@ -24,15 +24,16 @@ import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * [Tokenizer] for KModel on the shared ANTLR mechanics of the `antlr` package: lexes with
- * `KarpfenLexers.lex` (console listener removed, `IdeErrorListener` collecting LEXER diagnostics) and converts token
- * indices with `LexedText.rangeOf` (`CodePointOffsets`).
+ * [Tokenizer] for KModel on the shared ANTLR mechanics of the `antlr` package. It lexes with `KarpfenLexers.lex`, which
+ * removes the console listener and lets `IdeErrorListener` collect LEXER diagnostics. It converts token indices with
+ * `LexedText.rangeOf`, which uses `CodePointOffsets`.
  *
- * The KModel lexer skips whitespace and comments: `LexerGaps.scan` recovers COMMENT pieces (→ COMMENT tokens) and
- * UNRECOGNIZED pieces (→ ERROR tokens; their diagnostics come from the listener) from the gaps between the tokens.
+ * The KModel lexer skips whitespace and comments. `LexerGaps.scan` recovers them from the gaps between the tokens.
+ * COMMENT pieces become COMMENT tokens, and UNRECOGNIZED pieces become ERROR tokens. The diagnostics of the ERROR
+ * tokens come from the listener.
  *
- * The algorithm is the [GapRecoveringTokenizer] shared with KMeta, with the KModel vocabulary [KMODEL_TOKEN_KINDS],
- * guarded by a [FailSafeTokenizer]. Stateless and thread-safe.
+ * The algorithm is the [GapRecoveringTokenizer] shared with KMeta, with the KModel vocabulary [KMODEL_TOKEN_KINDS] and
+ * guarded by a [FailSafeTokenizer]. The class holds no state and is thread-safe.
  */
 internal class KmodelTokenizer : Tokenizer {
 
@@ -43,8 +44,9 @@ internal class KmodelTokenizer : Tokenizer {
 }
 
 /**
- * The KModel vocabulary: `make object prop has knows` are keywords, `->` an operator, `:` punctuation; double- and
- * single-quoted strings are one token type; `WS` and `COMMENT` are skipped by the grammar.
+ * The KModel vocabulary. `make`, `object`, `prop`, `has` and `knows` are keywords, `->` is an operator and `:` is
+ * punctuation. Double-quoted and single-quoted strings are one token type. The grammar skips `WS` and `COMMENT`, so
+ * they have no entry.
  */
 internal val KMODEL_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
     TokenKind.KEYWORD to

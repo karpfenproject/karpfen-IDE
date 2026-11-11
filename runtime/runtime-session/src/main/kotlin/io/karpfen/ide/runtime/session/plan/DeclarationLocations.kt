@@ -21,13 +21,13 @@ import io.karpfen.ide.runtime.session.problem.SourceLocation
 import java.nio.file.Path
 
 /**
- * Where the objects, types and states of the uploaded files are declared, copied from the syntax index of each
- * analyzed file, so that a finding about an object, a type or a state points at its declaration without holding the
- * analysis. Immutable; the maps are copied.
+ * Where the objects, types and states of the uploaded files are declared. The locations are copied from the syntax
+ * index of each analyzed file. That way a finding about an object, a type or a state points at its declaration without
+ * holding the analysis. Immutable. The maps are copied.
  *
- * Each map goes from a file to the names declared in it and the range of each name in the file's analyzed text; of
- * equal names in one file the map holds whichever its builder chose (the planner keeps the first, the declaration an
- * editor navigates to). An object without a key is not in it.
+ * Each map goes from a file to the names declared in it and the range of each name in the file's analyzed text. When a
+ * file declares the same name twice, the map holds whichever declaration its builder chose. The planner keeps the
+ * first one, which is the declaration an editor navigates to. An object without a key is not in the map.
  *
  * @param objects the object keys of each model file.
  * @param types the type names of each metamodel file.

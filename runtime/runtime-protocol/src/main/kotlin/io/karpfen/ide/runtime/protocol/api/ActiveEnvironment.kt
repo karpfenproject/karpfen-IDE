@@ -18,7 +18,8 @@ package io.karpfen.ide.runtime.protocol.api
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 
 /**
- * An environment the runtime lists: activated, running, halted or stopped (configuring environments are not listed).
+ * An environment the runtime lists. The list holds activated, running, halted and stopped environments. Environments
+ * that are still configuring are not listed.
  *
  * @property key the environment.
  * @property modelElements the `attachedTo` keys of its state machines, in the order the runtime lists them.

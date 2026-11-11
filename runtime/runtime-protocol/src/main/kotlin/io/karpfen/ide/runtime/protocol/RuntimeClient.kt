@@ -25,17 +25,16 @@ import io.karpfen.ide.runtime.protocol.lifecycle.RuntimeEnvironment
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * The client of one karpfen runtime with IDE support: checks the runtime, lists and creates environments and opens
+ * The client of one karpfen runtime with IDE support. It checks the runtime, lists and creates environments, and opens
  * connections to them. Everything that concerns one environment goes through its [RuntimeEnvironment] handle, which
- * keeps the environment's lifecycle; pushes and injected events go through a [RuntimeConnection].
+ * keeps track of the environment's lifecycle. Pushes and injected events go through a [RuntimeConnection].
  *
- * Threading (MUST): every function may be called from any coroutine; the client runs its calls on the dispatcher of
- * its options, so every delay and timeout runs there (virtual time in tests). It owns the transports and no coroutines.
+ * Every function may be called from any coroutine. The client runs its calls on the dispatcher of its options, so every
+ * delay and timeout runs there. In tests that is virtual time. The client owns the transports and no coroutines.
  *
- * Contract (MUST):
- * - No function throws for a runtime or transport failure; failures are results.
- * - [close] closes the transports and leaves the environments on the runtime as they are; it is idempotent.
- * - A `CancellationException` of the caller is always rethrown.
+ * No function throws for a runtime or transport failure. Failures are results. A `CancellationException` of the
+ * caller is always rethrown. [close] closes the transports and leaves the environments on the runtime as they are.
+ * Calling it twice is harmless.
  */
 public interface RuntimeClient : AutoCloseable {
     /** The runtime the client talks to. */
@@ -45,20 +44,25 @@ public interface RuntimeClient : AutoCloseable {
     public suspend fun health(): RuntimeResult<Unit>
 
     /**
-     * Checks that the runtime has the IDE's routes: the snapshot route answers a call without parameters with its text
-     * for a missing `envKey`. Any other answer, a 404 among them, is a failure: the runtime lacks IDE support.
+     * Checks that the runtime has the IDE's routes. The probe calls the snapshot route without parameters. A runtime
+     * with IDE support answers with its text for a missing `envKey`. Any other answer, a 404 among them, is a failure
+     * that means the runtime lacks IDE support.
      */
     public suspend fun checkIdeSupport(): RuntimeResult<Unit>
 
     /** The environments the runtime lists: activated, running, halted and stopped ones. */
     public suspend fun activeEnvironments(): RuntimeResult<List<ActiveEnvironment>>
 
-    /** Creates an environment and answers its handle, in the phase `Configuring` with nothing uploaded. */
+    /**
+     * Creates an environment and returns its handle. The handle starts in the phase `Configuring` with nothing
+     * uploaded.
+     */
     public suspend fun createEnvironment(): RuntimeResult<RuntimeEnvironment>
 
     /**
-     * A connection of [clientId] to [environment], not opened yet, running in a supervisor child of [scope]. Its access
-     * keys come from [issuer], by default from the handle without an observatory registration.
+     * Returns a connection of [clientId] to [environment] that is not opened yet. It runs in a supervisor child of
+     * [scope]. Its access keys come from [issuer]. Without an issuer, the keys come from the handle and register no
+     * observatory.
      */
     public fun connection(
         environment: RuntimeEnvironment,

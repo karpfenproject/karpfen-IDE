@@ -31,12 +31,15 @@ import io.karpfen.ide.ui.foundation.widgets.TreeView
 import io.karpfen.ide.ui.workbench.outline.OutlineUiState
 
 /**
- * The Outline tool window: outline tree; the node containing the caret is highlighted (selected); every click on a node
- * — also on the highlighted one, to get back to it after scrolling the editor away — and Enter (or a double-click) call
- * [onNavigate] with `state.locationOf(node)` (versioned, so `WorkbenchState.navigateTo` maps it into the live text).
- * The arrow keys browse: they move the selection without navigating, so the focus stays in the outline; the browsed
- * node is view-local and gives way to the highlight whenever the caret's node changes. Nodes start expanded; collapsing
- * is view-local state too.
+ * The Outline tool window. It shows the outline tree and selects the node that contains the caret.
+ *
+ * Every click on a node calls [onNavigate] with `state.locationOf(node)`. That also holds for the highlighted node, so
+ * the user can get back to it after scrolling the editor away. Enter and a double-click navigate too. The location
+ * carries the parse version, so `WorkbenchState.navigateTo` can map it into the live text.
+ *
+ * The arrow keys browse. They move the selection without navigating, so the focus stays in the outline. The browsed
+ * node is local to the view. It gives way to the highlight whenever the node that contains the caret changes. Nodes
+ * start expanded. Which nodes are collapsed is local view state too.
  */
 @Composable
 internal fun OutlineView(state: OutlineUiState, onNavigate: (Location) -> Unit, modifier: Modifier = Modifier) {

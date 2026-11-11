@@ -21,24 +21,28 @@ import org.json.JSONObject
 import java.util.IdentityHashMap
 
 /**
- * The one port of the runtime's JSON writers on the branch with IDE support, byte for byte: everything the fake runtime
- * sends and every golden frame comes from here, so the IDE's tests read exactly what the runtime writes. Each function
- * names the runtime function it ports; the template goldens compare this port with the runtime's own templates.
+ * The one port of the runtime's JSON writers on the branch with IDE support, byte for byte. Everything the fake
+ * runtime sends and every golden frame comes from here, so the IDE's tests read exactly what the runtime writes. Each
+ * function names the runtime function it ports. The template goldens compare this port with the runtime's own
+ * templates.
  *
- * Hand-written JSON (the envelope, the object and deletion payloads, the object JSON and the snapshot) quotes its
- * strings with [quote], the rule of the runtime's `ModelJsonWriter.quote`, which is ported here on its own rather than
- * borrowed from the client, so the tests can hold the client's reader and quoting against it. The `stateChange` and
- * `domainEvent` payloads are written by org.json in the version the runtime pins, as the runtime builds them, so their
- * member order is that of org.json (`{"stack":…,"modelElementId":…,"revision":…}`; the published event's members in
- * the order `payload`, `source`, `ttlMs`, `event`, `payloadFormat`, `timestamp`).
+ * Some JSON is written by hand. This is the envelope, the object and deletion payloads, the object JSON and the
+ * snapshot. It quotes its strings with [quote], which follows the rule of the runtime's `ModelJsonWriter.quote`. That
+ * rule is ported here on its own rather than borrowed from the client, so the tests can hold the client's reader and
+ * quoting against it.
  *
- * Stateless.
+ * The `stateChange` and `domainEvent` payloads are written by org.json in the version the runtime pins, as the runtime
+ * builds them. So their member order is that of org.json. A `stateChange` payload has the order `stack`,
+ * `modelElementId`, `revision`. A published event has the order `payload`, `source`, `ttlMs`, `event`,
+ * `payloadFormat`, `timestamp`.
+ *
+ * The object holds no state.
  */
 public object RuntimeWireWriter {
 
     /**
-     * The push envelope `{"environmentKey":…,"clientId":…,"messageType":…,"payload":…}` with no whitespace, the three
-     * strings quoted and [payload] spliced in as it is (the runtime's `OutgoingMessage.toJson`).
+     * The push envelope `{"environmentKey":…,"clientId":…,"messageType":…,"payload":…}` with no whitespace, as the
+     * runtime's `OutgoingMessage.toJson` writes it. The three strings are quoted and [payload] is spliced in as it is.
      */
     public fun envelope(environmentKey: String, clientId: String, messageType: String, payload: String): String =
         "{\"environmentKey\":${quote(environmentKey)},\"clientId\":${quote(clientId)},\"messageType\":${quote(messageType)}," +
@@ -46,14 +50,14 @@ public object RuntimeWireWriter {
 
     /**
      * The `objectChanged` payload `{"objectId":…,"revision":…,"value":…}` in this fixed member order, with the object's
-     * JSON [value] spliced in (the runtime's `ClientSessionManager.notifyObjectChange` with a revision).
+     * JSON [value] spliced in. It ports the runtime's `ClientSessionManager.notifyObjectChange` with a revision.
      */
     public fun objectChangedPayload(objectId: String, revision: Long, value: String): String =
         "{\"objectId\":${quote(objectId)},\"revision\":$revision,\"value\":$value}"
 
     /**
-     * The `objectDeleted` payload `{"objectId":…,"revision":…}` (the runtime's `ClientSessionManager.notifyObjectDeleted`
-     * with a revision).
+     * The `objectDeleted` payload `{"objectId":…,"revision":…}`. It ports the runtime's
+     * `ClientSessionManager.notifyObjectDeleted` with a revision.
      */
     public fun objectDeletedPayload(objectId: String, revision: Long): String =
         "{\"objectId\":${quote(objectId)},\"revision\":$revision}"
@@ -70,9 +74,9 @@ public object RuntimeWireWriter {
             .toString()
 
     /**
-     * The `domainEvent` payload `{"domain":…,"payload":…}`: the domain quoted, the published event an org.json object
-     * with `event`, `payload`, `payloadFormat`, `source`, `timestamp` and `ttlMs` in org.json's member order (the
-     * runtime's `ObservationRelay.onPublished` and `ClientSessionManager.notifyDomainEvent`).
+     * The `domainEvent` payload `{"domain":…,"payload":…}`. The domain is quoted. The published event is an org.json
+     * object with `event`, `payload`, `payloadFormat`, `source`, `timestamp` and `ttlMs` in org.json's member order. It
+     * ports the runtime's `ObservationRelay.onPublished` and `ClientSessionManager.notifyDomainEvent`.
      */
     public fun domainEventPayload(
         domain: String,
@@ -95,14 +99,15 @@ public object RuntimeWireWriter {
     }
 
     /**
-     * The JSON of [obj] as the runtime's `ModelJsonWriter.write` writes a `DataObject`: entries joined with `", "`, each
-     * key followed by `": "`; first `__id__`, then `__type__`, then every property in instance order (a list as `[…]`
-     * with `", "` between its values), then every relation in instance order, `has` and `knows` alike as full nested
-     * objects, an empty atomic relation and an unresolved list entry as `null`. Ids, type names, keys and strings are
-     * quoted with [quote]; numbers are written by [number]; booleans as `true` and `false`.
+     * The JSON of [obj] as the runtime's `ModelJsonWriter.write` writes a `DataObject`. Entries are joined with `", "`,
+     * and each key is followed by `": "`. The entries are `__id__` first, then `__type__`, then every property in
+     * instance order, then every relation in instance order. A list property is written as `[…]` with `", "` between
+     * its values. Relations of kind `has` and `knows` alike are written as full nested objects. An empty atomic
+     * relation and an unresolved list entry are written as `null`. Ids, type names, keys and strings are quoted with
+     * [quote]. Numbers are written by [number], and booleans as `true` and `false`.
      *
-     * [known] resolves the [FakeTarget.Known] targets, the objects of the model by id; an id it does not resolve is
-     * written as `null`. Objects shared without a loop are written once per reference.
+     * [known] resolves the [FakeTarget.Known] targets, which are the objects of the model by id. An id it does not
+     * resolve is written as `null`. Objects shared without a loop are written once per reference.
      *
      * @throws IllegalStateException with the runtime's text `Reference loop through object '<id>' cannot be written as
      *   JSON` if an object is reachable from itself, naming the object met again.
@@ -111,9 +116,10 @@ public object RuntimeWireWriter {
         writeObject(obj, known, WritePath())
 
     /**
-     * The model snapshot body as the runtime's `ModelSnapshot.toJson` writes it: `{"environmentKey":…,"phase":…,
-     * "revision":…,"activeStates":{…},"roots":[…]}` with no whitespace, the strings quoted with [quote], the stacks in
-     * the order of [activeStates] and every root's JSON from [roots] spliced in as written, separated by commas.
+     * The model snapshot body as the runtime's `ModelSnapshot.toJson` writes it. Its shape is `{"environmentKey":…,
+     * "phase":…,"revision":…,"activeStates":{…},"roots":[…]}` with no whitespace. The strings are quoted with [quote]
+     * and the stacks come in the order of [activeStates]. Every root's JSON from [roots] is spliced in as written,
+     * separated by commas.
      */
     public fun snapshot(
         environmentKey: String,
@@ -130,9 +136,9 @@ public object RuntimeWireWriter {
     }
 
     /**
-     * [text] as a JSON string literal by the runtime's `ModelJsonWriter.quote`: in quotes, with exactly `"`, `\` and
-     * U+0000 to U+001F escaped (`\b`, `\f`, `\n`, `\r`, `\t`, otherwise `\u00XX` with lower-case digits) and every other
-     * character as it is.
+     * [text] as a JSON string literal by the rule of the runtime's `ModelJsonWriter.quote`. The text is put in quotes.
+     * Exactly `"`, `\` and U+0000 to U+001F are escaped. The escapes are `\b`, `\f`, `\n`, `\r` and `\t` where they
+     * exist, and `\u00XX` with lower-case digits otherwise. Every other character stays as it is.
      */
     public fun quote(text: String): String {
         val quoted = StringBuilder("\"")
@@ -155,9 +161,9 @@ public object RuntimeWireWriter {
     }
 
     /**
-     * A number as the runtime writes a double: without fraction when it is integral (`5.0` as `5`, `-0.0` as `0`,
-     * `1.0E18` as `1000000000000000000`), otherwise as `Double.toString` writes it (`0.2`, `1.0E20`, `NaN`, `Infinity`,
-     * `-Infinity`).
+     * A number as the runtime writes a double. An integral number is written without fraction, so `5.0` becomes `5`,
+     * `-0.0` becomes `0` and `1.0E18` becomes `1000000000000000000`. Any other number is written as `Double.toString`
+     * writes it, for example `0.2`, `1.0E20`, `NaN`, `Infinity` and `-Infinity`.
      */
     public fun number(value: Double): String =
         if (value == value.toLong().toDouble()) value.toLong().toString() else value.toString()
@@ -189,7 +195,7 @@ public object RuntimeWireWriter {
         return entries.joinToString(", ", "{", "}")
     }
 
-    /** The JSON of a relation [target]: the nested or known object, or `null`. */
+    /** The JSON of a relation [target]. It is the nested or known object, or `null`. */
     private fun target(target: FakeTarget?, known: (String) -> FakeObject?, path: WritePath): String {
         val obj = when (target) {
             null -> null
@@ -200,15 +206,18 @@ public object RuntimeWireWriter {
     }
 
     /**
-     * The objects on the path from the written root to the object being written, by identity as the runtime tracks
-     * them, and by id for the targets of `knows` references, so that a loop is found even when the objects the
-     * references resolve to are copies.
+     * The objects on the path from the written root to the object being written. They are tracked by identity, as the
+     * runtime tracks them, and by id for the targets of `knows` references. So a loop is found even when the objects
+     * that the references resolve to are copies.
      */
     private class WritePath {
+        /** The objects on the path, by identity. */
         private val objects: MutableMap<FakeObject, Int> = IdentityHashMap()
+
+        /** How many objects on the path carry each id. */
         private val ids = HashMap<String, Int>()
 
-        /** Puts [obj] on the path; false if it is on it already. */
+        /** Puts [obj] on the path. Returns false if it is on the path already. */
         fun enter(obj: FakeObject): Boolean {
             if (objects.containsKey(obj)) return false
             objects[obj] = 1

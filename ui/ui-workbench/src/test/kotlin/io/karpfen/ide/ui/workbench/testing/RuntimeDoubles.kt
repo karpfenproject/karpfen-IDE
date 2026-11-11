@@ -42,8 +42,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.nio.file.Path
 
 /**
- * A runtime host that shows the status, answers the start outcome and emits the log lines its test programs, and counts
- * what it was asked. It starts and stops nothing.
+ * A runtime host that shows the status, answers the start outcome and emits the log lines that its test programs. It
+ * counts what it was asked. It starts and stops nothing.
  *
  * @property settings the settings it was created with.
  * @param lifecycle where it records that it was closed.
@@ -56,10 +56,12 @@ class FakeRuntimeHost(
     /** The status the test sets. */
     val statusFlow = MutableStateFlow<HostStatus>(HostStatus.Stopped)
 
-    /** When set, [ensureRunning] answers [outcome] only once the test completes it, as a host that is still starting. */
+    /**
+     * When set, [ensureRunning] answers [outcome] only once the test completes it, as a host that is still starting.
+     */
     var held: CompletableDeferred<Unit>? = null
 
-    /** Where the test emits log lines; recent ones are replayed. */
+    /** Where the test emits log lines. Recent lines are replayed to new collectors. */
     val logLines = MutableSharedFlow<HostLogLine>(replay = LOG_REPLAY)
 
     /** How often [ensureRunning] was called. */
@@ -125,8 +127,8 @@ class FakeRuntimeHosts(var outcome: HostOutcome = HostOutcome.Ready(FakeRuntimeH
 }
 
 /**
- * Sessions that prepare like [real] and launch a [FakeRuntimeSession] each, which the test then drives through its
- * writable flows; the launches are recorded.
+ * Sessions that prepare like [real] and launch a [FakeRuntimeSession] each time. The test then drives each session
+ * through its writable flows. The launches are recorded.
  */
 class ScriptedRuntimeSessions(private val real: RuntimeSessions) : RuntimeSessions {
     /** The sessions launched so far, oldest first. */

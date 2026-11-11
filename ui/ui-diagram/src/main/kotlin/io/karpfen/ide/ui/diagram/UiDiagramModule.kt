@@ -16,9 +16,9 @@
 package io.karpfen.ide.ui.diagram
 
 /**
- * Placeholder of the `ui-diagram` module, kept from the phase-0 skeleton until a later increment builds it. The module
- * is to hold the diagram canvas, its rendering and its interaction for notation-diagram. The README lists it among the
- * modules of later increments.
+ * Placeholder of the `ui-diagram` module, which has no content yet. The module is meant to hold the diagram canvas,
+ * its rendering and its interaction for `notation-diagram`. Until that work starts, this object keeps the module in
+ * the build.
  */
 public object UiDiagramModule {
     /** The module's name, which is also the name of its directory. */

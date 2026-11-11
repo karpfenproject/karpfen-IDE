@@ -27,17 +27,18 @@ import org.antlr.v4.runtime.Recognizer
 import org.antlr.v4.runtime.Token
 
 /**
- * The IDE's ANTLR error listener: collects lexer and parser errors as [Diagnostic]s instead of printing them to the
- * console, which is what ANTLR's default `ConsoleErrorListener` does. Parsing never throws; ANTLR's default recovery
- * goes on, and the errors it reports end up here.
+ * The IDE's ANTLR error listener. It collects lexer and parser errors as [Diagnostic]s. ANTLR's default
+ * `ConsoleErrorListener` would print them to the console instead. Parsing never throws. ANTLR's default recovery goes
+ * on, and the errors it reports end up here.
  *
- * - Lexer errors (unrecognized input) become ERROR [DiagnosticCodes.LEXER_ERROR] diagnostics with source
- *   [DiagnosticSource.LEXER], covering the characters the lexer could not match (at least one character).
- * - Parser errors become ERROR [DiagnosticCodes.SYNTAX_ERROR] diagnostics with source [DiagnosticSource.PARSER],
- *   covering the offending token (an empty range at the end of the text for `<EOF>`).
+ * - Lexer errors for unrecognized input become ERROR diagnostics with code [DiagnosticCodes.LEXER_ERROR] and source
+ *   [DiagnosticSource.LEXER]. They cover the characters the lexer could not match, at least one character.
+ * - Parser errors become ERROR diagnostics with code [DiagnosticCodes.SYNTAX_ERROR] and source
+ *   [DiagnosticSource.PARSER]. They cover the offending token. For `<EOF>` the range is the empty range at the end of
+ *   the text.
  *
- * Ranges are converted with [offsets] (code points to UTF-16). One instance per lexing or parsing run; not thread-safe.
- * The tokenizers in `antlr.lex` and the tree parser in `antlr.tree` both use it.
+ * Ranges are converted from code points to UTF-16 with [offsets]. Use one instance per lexing or parsing run. The class
+ * is not thread-safe. The tokenizers in `antlr.lex` and the tree parser in `antlr.tree` both use it.
  */
 internal class IdeErrorListener(private val offsets: CodePointOffsets) : BaseErrorListener() {
 
@@ -49,7 +50,7 @@ internal class IdeErrorListener(private val offsets: CodePointOffsets) : BaseErr
     /** Everything reported so far, sorted with [Diagnostic.ORDER] and without duplicates. */
     val diagnostics: List<Diagnostic> get() = collected.distinct().sortedWith(Diagnostic.ORDER)
 
-    /** Replaces every listener of [recognizer] (lexer or parser) by this one; returns [recognizer]. */
+    /** Replaces every listener of [recognizer], a lexer or a parser, by this one. Returns [recognizer]. */
     fun <R : Recognizer<*, *>> attachTo(recognizer: R): R {
         recognizer.removeErrorListeners()
         recognizer.addErrorListener(this)
@@ -74,7 +75,8 @@ internal class IdeErrorListener(private val offsets: CodePointOffsets) : BaseErr
 
     /**
      * When the lexer reports an error, the unmatched input runs from the start of the attempted token to the current
-     * index inclusive (ANTLR's `Lexer.notifyListeners`); at the end of the input that is the empty end of the text.
+     * index inclusive. ANTLR's `Lexer.notifyListeners` reports the same range. At the end of the input the result is
+     * the empty range at the end of the text.
      */
     private fun lexerRange(lexer: Lexer): TextRange {
         val start = lexer._tokenStartCharIndex
@@ -82,7 +84,7 @@ internal class IdeErrorListener(private val offsets: CodePointOffsets) : BaseErr
         return offsets.range(start, stop) ?: TextRange.empty(textLength)
     }
 
-    /** The range of the offending [token]; the empty range at the end of the text for EOF or an unknown token. */
+    /** The range of the offending [token]. EOF and an unknown token get the empty range at the end of the text. */
     private fun tokenRange(token: Token?): TextRange {
         if (token == null) return TextRange.empty(textLength)
         if (token.type == Token.EOF) return TextRange.empty(textLength)

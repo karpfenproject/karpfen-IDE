@@ -47,10 +47,11 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * An environment descriptor open in an editor counts with its unsaved text: its findings appear in its session at the
- * edited ranges and in the problems, and the contexts and the analysis follow its edits, also an edit of a value that
- * names no file, which the context carries in its typed descriptor and which the analysis follows without reading a
- * file again; syntax errors are reported once; closing it without saving falls back to the disk.
+ * An environment descriptor that is open in an editor counts with its unsaved text. Its findings appear in its session
+ * at the edited ranges and in the problems. The contexts and the analysis follow its edits. That includes an edit of a
+ * value that names no file. The context carries such a value in its typed descriptor, and the analysis follows it
+ * without reading a file again. Syntax errors are reported once. Closing the descriptor without saving falls back to
+ * the disk.
  */
 class WorkspaceDescriptorEditingTest {
 

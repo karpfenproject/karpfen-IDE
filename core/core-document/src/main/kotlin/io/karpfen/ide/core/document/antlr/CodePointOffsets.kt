@@ -21,23 +21,23 @@ import io.karpfen.ide.core.text.TextRange
  * Converts ANTLR character indices to IDE offsets.
  *
  * `CharStreams.fromString` indexes the input by Unicode *code point*, while IDE offsets are UTF-16 code-unit indices
- * into the document `String`. The two agree until the first supplementary character (e.g. an emoji in a comment).
- * Every ANTLR adapter (tokenizers in `antlr.lex`, tree walkers in `antlr.tree`) converts token indices through one
- * instance per snapshot. Unpaired surrogates count as one code point, as in [String.codePointAt] and ANTLR's
- * `CodePointBuffer`.
+ * into the document `String`. The two agree until the first supplementary character, such as an emoji in a comment.
+ * Every ANTLR adapter converts token indices through one instance per snapshot. That covers the tokenizers in
+ * `antlr.lex` and the tree walkers in `antlr.tree`. Unpaired surrogates count as one code point, as in
+ * [String.codePointAt] and in ANTLR's `CodePointBuffer`.
  */
 internal class CodePointOffsets private constructor(
     private val textLength: Int,
-    /** UTF-16 offset of every code point index plus one entry for the end; null when the mapping is the identity. */
+    /** UTF-16 offset of every code point index, plus one entry for the end. Null when the mapping is the identity. */
     private val utf16ByCodePoint: IntArray?,
 ) {
 
-    /** Number of code points (the size of the ANTLR char stream). */
+    /** Number of code points, which is the size of the ANTLR char stream. */
     val codePointCount: Int get() = utf16ByCodePoint?.let { it.size - 1 } ?: textLength
 
     /**
-     * UTF-16 offset of the code point at [codePointIndex]; `codePointCount` maps to the text length. Indices outside
-     * `0..codePointCount` are clamped (ANTLR's conjured "missing" tokens carry index -1).
+     * UTF-16 offset of the code point at [codePointIndex]. `codePointCount` maps to the text length. Indices outside
+     * `0..codePointCount` are clamped, because the "missing" tokens that ANTLR conjures carry index -1.
      */
     fun toUtf16(codePointIndex: Int): Int {
         val index = codePointIndex.coerceIn(0, codePointCount)
@@ -45,8 +45,9 @@ internal class CodePointOffsets private constructor(
     }
 
     /**
-     * The IDE range of an ANTLR token or interval with inclusive [startIndex] and [stopIndex] (code points); null for
-     * conjured tokens (`startIndex < 0`). A stop before the start (EOF, empty intervals) yields an empty range.
+     * The IDE range of an ANTLR token or interval. [startIndex] and [stopIndex] are inclusive code point indices.
+     * Returns null for conjured tokens, whose `startIndex < 0`. A stop before the start, as for EOF and for empty
+     * intervals, yields an empty range.
      */
     fun range(startIndex: Int, stopIndex: Int): TextRange? {
         if (startIndex < 0) return null
@@ -56,7 +57,10 @@ internal class CodePointOffsets private constructor(
     }
 
     companion object {
-        /** The mapping for [text]; O(length), identity (no allocation) when [text] has no surrogates. */
+        /**
+         * The mapping for [text], built in O(length). When [text] has no surrogates, the mapping is the identity and
+         * allocates no array.
+         */
         fun of(text: String): CodePointOffsets {
             if (text.none { it.isSurrogate() }) return CodePointOffsets(text.length, null)
             val offsets = IntArray(text.codePointCount(0, text.length) + 1)

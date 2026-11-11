@@ -26,10 +26,12 @@ import org.antlr.v4.runtime.Token
  *
  * @property keyword the `EVAL` keyword.
  * @property open the opening `{`.
- * @property content the embedded Python between the braces (to the end of the text when unclosed).
+ * @property content the embedded Python between the braces. It runs to the end of the text when the body is not
+ *   closed.
  * @property close the closing `}`, or null if the body is not closed.
- * @property firstToken index (into the token list given to [EvalBodies.find]) of the first token after [open].
- * @property endToken index of [close] in that list, or its size when unclosed (exclusive end of the body's tokens).
+ * @property firstToken index of the first token after [open] in the token list given to [EvalBodies.find].
+ * @property endToken index of [close] in that list, or the list size when the body is not closed. It is the exclusive
+ *   end of the body's tokens.
  */
 internal data class EvalBody(
     val keyword: TextRange,
@@ -42,28 +44,28 @@ internal data class EvalBody(
 
 /** Classification of an [EmbeddedPiece]. */
 internal enum class EmbeddedKind {
-    /** Python code without a more specific kind (one piece per karpfen token). */
+    /** Python code without a more specific kind. There is one piece per karpfen token. */
     CODE,
 
     /** A Python keyword of [EvalBodies.PYTHON_KEYWORDS]. */
     KEYWORD,
 
-    /** A quoted string (a karpfen `STRING` or `SSTRING` token). */
+    /** A quoted string, which is a karpfen `STRING` or `SSTRING` token. */
     STRING,
 
-    /** A number (a karpfen `NUMBER` token). */
+    /** A number, which is a karpfen `NUMBER` token. */
     NUMBER,
 
-    /** A Python `#` comment up to the end of its line (trailing blanks excluded) or the end of the body. */
+    /** A Python `#` comment. It runs to the end of its line or of the body, without trailing blanks. */
     COMMENT,
 
     /**
-     * A `//` comment: the karpfen lexer's `LINE_COMMENT`, which drops the rest of the line from the Python code. The
-     * tokenizer emits it as a COMMENT token plus an `eval-double-slash` WARNING.
+     * A `//` comment. It is the karpfen lexer's `LINE_COMMENT`, which drops the rest of the line from the Python code.
+     * The tokenizer emits it as a COMMENT token together with an `eval-double-slash` WARNING.
      */
     KARPFEN_COMMENT,
 
-    /** A model-path reference `$( … )`, including `$(` and `)`. */
+    /** A model-path reference such as `$(position)`, including `$(` and `)`. */
     PATH_REFERENCE,
 
     /** A macro reference `@name`, including the `@`. */
@@ -75,11 +77,12 @@ internal enum class EmbeddedKind {
  *
  * @property range the piece in the document.
  * @property kind what the piece is.
- * @property inner for [EmbeddedKind.PATH_REFERENCE] the path between the parentheses without surrounding blanks (an
- *   empty range after `$(` if there is no path); for [EmbeddedKind.MACRO_REFERENCE] the name after `@`; else null.
- * @property name for [EmbeddedKind.PATH_REFERENCE] the path with blanks removed (e.g. `boundingBox->position`); for
- *   [EmbeddedKind.MACRO_REFERENCE] the macro name; else null.
- * @property closed for [EmbeddedKind.PATH_REFERENCE] false if no `)` follows the path; true otherwise.
+ * @property inner for [EmbeddedKind.PATH_REFERENCE], the path between the parentheses without surrounding blanks. It is
+ *   an empty range after `$(` if there is no path. For [EmbeddedKind.MACRO_REFERENCE], the name after `@`. Null for
+ *   every other kind.
+ * @property name for [EmbeddedKind.PATH_REFERENCE], the path with blanks removed, such as `boundingBox->position`. For
+ *   [EmbeddedKind.MACRO_REFERENCE], the macro name. Null for every other kind.
+ * @property closed for [EmbeddedKind.PATH_REFERENCE], false if no `)` follows the path. True otherwise.
  */
 internal data class EmbeddedPiece(
     val range: TextRange,
@@ -90,28 +93,33 @@ internal data class EmbeddedPiece(
 )
 
 /**
- * The single implementation of "where is embedded Python and what is in it", shared by the KStates tokenizer (the
- * EMBEDDED_*, PATH_REFERENCE and MACRO_REFERENCE tokens and the `//` warnings) and the KStates tree walkers (MODEL_PATH
- * and MACRO references, their semantic spans, EMBEDDED_CODE folding), so highlighting, navigation and folding agree on
- * every input, broken ones included. Both consumers use these lexical results, not the parse tree.
+ * The single implementation that finds embedded Python and classifies what is in it. Two consumers share it. The
+ * KStates tokenizer builds the EMBEDDED_*, PATH_REFERENCE and MACRO_REFERENCE tokens and the `//` warnings from it.
+ * The KStates tree walkers build the MODEL_PATH and MACRO references, their semantic spans and the EMBEDDED_CODE
+ * folding from it. Highlighting, navigation and folding therefore agree on every input, broken ones included. Both
+ * consumers use these lexical results, not the parse tree.
  *
- * Rules:
- * - Bodies: an `EVAL` token followed by an `LBRACE` token (hidden tokens in between are ignored, as by the parser);
- *   braces are balanced on default-channel `LBRACE`/`RBRACE` tokens exactly as the dsl-tools parser counts them, so a
- *   `{` inside a Python `#` comment counts, while braces inside strings or `//` comments do not. A body without its
- *   closing brace runs to the end of the text. Bodies nested in a body are part of the outer body's content.
- * - Pieces (in token order; whitespace yields none): a `#` symbol starts a COMMENT to the end of its line (or the body)
- *   and swallows every token on the way (`//`, strings, `$(…)` included); a `LINE_COMMENT` token is a
- *   KARPFEN_COMMENT; `$` directly followed by `(` starts a PATH_REFERENCE whose path consists of `[A-Za-z0-9_]`,
- *   blanks and `->`; it is closed by a directly following `)`, otherwise it ends after the path (and after every token
- *   the path cut into); `@` directly followed by an identifier is a MACRO_REFERENCE; `STRING`/`SSTRING` tokens are
- *   STRING; `NUMBER` tokens are NUMBER; tokens whose text is in [PYTHON_KEYWORDS] are KEYWORD; everything else is CODE.
- * - Invariants: pieces are sorted, do not overlap, lie inside the body's content and cover every non-whitespace
- *   character of it.
+ * A body is an `EVAL` token followed by an `LBRACE` token. Hidden tokens in between are ignored, as the parser ignores
+ * them. Braces are balanced on default-channel `LBRACE` and `RBRACE` tokens, exactly as the dsl-tools parser counts
+ * them. A `{` inside a Python `#` comment therefore counts, while braces inside strings or `//` comments do not. A body
+ * without its closing brace runs to the end of the text. Bodies nested in a body are part of the outer body's content.
+ *
+ * The pieces of a body follow token order, and whitespace yields none. They are classified like this:
+ * - A `#` symbol starts a COMMENT that runs to the end of its line or of the body. It swallows every token on the way,
+ *   including `//`, strings and path references.
+ * - A `LINE_COMMENT` token is a KARPFEN_COMMENT.
+ * - `$` directly followed by `(` starts a PATH_REFERENCE. Its path consists of `[A-Za-z0-9_]`, blanks and `->`. A
+ *   directly following `)` closes it. Otherwise it ends after the path and after every token that the path cut into.
+ * - `@` directly followed by an identifier is a MACRO_REFERENCE.
+ * - `STRING` and `SSTRING` tokens are STRING, and `NUMBER` tokens are NUMBER.
+ * - Tokens whose text is in [PYTHON_KEYWORDS] are KEYWORD.
+ * - Everything else is CODE.
+ *
+ * The pieces are sorted, do not overlap, lie inside the body's content and cover every non-whitespace character of it.
  */
 internal object EvalBodies {
 
-    /** The Python keywords highlighted as EMBEDDED_KEYWORD: exactly this list, no other word. */
+    /** The Python keywords highlighted as EMBEDDED_KEYWORD. Exactly these words are highlighted and no others. */
     val PYTHON_KEYWORDS: Set<String> = setOf(
         "def", "return", "for", "in", "if", "elif", "else", "while", "import", "from", "as", "and", "or", "not",
         "None", "True", "False", "lambda", "pass", "break", "continue", "endif", "endfor",
@@ -121,8 +129,8 @@ internal object EvalBodies {
     private val IDENTIFIER = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
     /**
-     * The EVAL bodies of a KStates token list (every channel, in input order, EOF allowed), e.g. [LexedText.tokens] or
-     * the tokens of the parser's `CommonTokenStream`. Never throws.
+     * The EVAL bodies of a KStates token list. The list holds the tokens of every channel in input order and may end
+     * with EOF. Examples are [LexedText.tokens] and the tokens of the parser's `CommonTokenStream`. Never throws.
      */
     fun find(tokens: List<Token>, offsets: CodePointOffsets): List<EvalBody> {
         val bodies = ArrayList<EvalBody>()
@@ -152,8 +160,8 @@ internal object EvalBodies {
     }
 
     /**
-     * The pieces of [body], which must come from [find] over the same [tokens] (every channel: `//` comments are
-     * hidden tokens) of [text]. Never throws.
+     * The pieces of [body]. The body must come from [find] over the same [tokens] of [text]. The tokens must include
+     * every channel, because `//` comments are hidden tokens. Never throws.
      */
     fun scan(text: String, tokens: List<Token>, offsets: CodePointOffsets, body: EvalBody): List<EmbeddedPiece> {
         val pieces = ArrayList<EmbeddedPiece>()
@@ -216,7 +224,10 @@ internal object EvalBodies {
         else -> EmbeddedKind.CODE
     }
 
-    /** `$(` at [dollar] with the path starting at [afterParen]; see the class documentation for the path syntax. */
+    /**
+     * The path reference whose `$` sits at [dollar] and whose path starts at [afterParen]. The documentation of
+     * [EvalBodies] describes the path syntax.
+     */
     private fun pathReference(text: String, dollar: Int, afterParen: Int, limit: Int): EmbeddedPiece {
         var p = afterParen
         while (p < limit) {
@@ -243,8 +254,9 @@ internal object EvalBodies {
     }
 
     /**
-     * Skips the tokens from [from] (exclusive [end]) that start before [until]; returns the index of the first token
-     * not skipped and the end of the swallowed region, extended over non-whitespace tokens that cross [until].
+     * Skips the tokens from index [from] up to the exclusive index [end] that start before [until]. Returns the index
+     * of the first token not skipped and the end of the swallowed region. That end grows over non-whitespace tokens
+     * that cross [until].
      */
     private fun swallow(tokens: List<Token>, offsets: CodePointOffsets, from: Int, end: Int, until: Int): Pair<Int, Int> {
         var index = from
@@ -273,8 +285,8 @@ internal object EvalBodies {
     }
 
     /**
-     * The index of the `}` that closes the `{` at [openIndex], counting default-channel braces only; -1 if the body is
-     * not closed.
+     * The index of the `}` that closes the `{` at [openIndex]. Only default-channel braces count. Returns -1 if the
+     * body is not closed.
      */
     private fun matchingClose(tokens: List<Token>, openIndex: Int): Int {
         var depth = 1
@@ -289,7 +301,7 @@ internal object EvalBodies {
         return -1
     }
 
-    /** The index of the first default-channel token at or after [from]; -1 if that is EOF or there is none. */
+    /** The index of the first default-channel token at or after [from]. Returns -1 if that is EOF or there is none. */
     private fun nextDefault(tokens: List<Token>, from: Int): Int {
         for (j in from until tokens.size) {
             if (isDefault(tokens[j])) return if (tokens[j].type == Token.EOF) -1 else j
@@ -299,7 +311,7 @@ internal object EvalBodies {
 
     private fun isDefault(token: Token): Boolean = token.channel == Token.DEFAULT_CHANNEL
 
-    /** The range of [token]; the empty range at 0 for a conjured token without a position. */
+    /** The range of [token]. A conjured token without a position gets the empty range at 0. */
     private fun rangeOf(token: Token, offsets: CodePointOffsets): TextRange =
         offsets.range(token.startIndex, token.stopIndex) ?: TextRange.empty(0)
 

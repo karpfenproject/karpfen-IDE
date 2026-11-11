@@ -23,10 +23,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Placement of anchored popups in the overlay area (pure). */
+/** Placement of anchored popups in the overlay area, as pure functions. */
 class PopupPlacementTest {
 
+    /** The overlay area. */
     private val area = IntSize(400, 300)
+
+    /** The caret bounds, one pixel wide and one line high. */
     private val caret = Rect(40f, 100f, 41f, 116f)
 
     @Test

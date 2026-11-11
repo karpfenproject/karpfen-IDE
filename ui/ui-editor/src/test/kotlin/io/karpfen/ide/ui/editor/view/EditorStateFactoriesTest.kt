@@ -41,7 +41,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 
-/** `rememberCodeEditorState`: one state per session in the composition, closed when it leaves. */
+/** `rememberCodeEditorState` keeps one state per session in the composition and closes it when it leaves. */
 @OptIn(ExperimentalTestApi::class)
 class EditorStateFactoriesTest {
 

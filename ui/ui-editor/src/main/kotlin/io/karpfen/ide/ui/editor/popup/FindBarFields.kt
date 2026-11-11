@@ -23,11 +23,11 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import io.karpfen.ide.ui.editor.model.find.FindQuery
 
-/** The toggles of the find bar (Aa / W / .*), each one flag of [FindQuery]. */
+/** The toggles of the find bar, labelled `Aa`, `W` and `.*`. Each one switches one flag of [FindQuery]. */
 internal enum class FindOption(
-    /** The toggle's label. */
+    /** The label of the toggle. */
     val label: String,
-    /** Its accessible description (also the tooltip-like name tests find it by). */
+    /** The accessible description of the toggle. Tests also find the toggle by this name. */
     val description: String,
 ) {
     /** [FindQuery.caseSensitive]. */
@@ -47,7 +47,7 @@ internal enum class FindOption(
         REGEX -> query.regex
     }
 
-    /** [query] with this option switched. */
+    /** Returns [query] with this option switched. */
     fun toggle(query: FindQuery): FindQuery = when (this) {
         MATCH_CASE -> query.copy(caseSensitive = !query.caseSensitive)
         WHOLE_WORD -> query.copy(wholeWord = !query.wholeWord)
@@ -56,18 +56,19 @@ internal enum class FindOption(
 }
 
 /**
- * Hoisted state of the find/replace bar's text fields (Compose-side helper state of the popup; the texts themselves
- * are the `FindModel`'s [query][io.karpfen.ide.ui.editor.model.find.FindModel.query] and
- * [replacement][io.karpfen.ide.ui.editor.model.find.FindModel.replacement], which the bar renders): the selection and
- * input-method composition of the query field and the replacement field, which are view state. One instance per
- * editor composition; a new composition (e.g. after switching tabs) starts with fresh selections over the model's
- * texts.
+ * The hoisted state of the text fields of the find and replace bar. It holds the selection and the input method
+ * composition of the query field and the replacement field. That is view state, kept on the Compose side of the popup.
+ * The texts themselves belong to the `FindModel`, as its [query][io.karpfen.ide.ui.editor.model.find.FindModel.query]
+ * and [replacement][io.karpfen.ide.ui.editor.model.find.FindModel.replacement], and the bar renders them. There is one
+ * instance per editor composition. A new composition, for example after switching tabs, starts with fresh selections
+ * over the texts of the model.
  *
- * Both fields always show the model's text: a field keeps its value as the user edited it while it shows that text, and
- * shows a text the editor set (e.g. a query seeded from the selection) selected as a whole.
+ * Both fields always show the text of the model. While a field shows that text, it keeps its value as the user edited
+ * it. A text that the editor set, such as a query seeded from the selection, is shown selected as a whole.
  *
- * @param focusRequest the value of `EditorOverlayState.findFocusRequests` at creation: requests up to it are handled
- *   (a bar composed again, e.g. after switching tabs, does not take focus from the text area).
+ * @param focusRequest the value of `EditorOverlayState.findFocusRequests` at creation. Requests up to this value count
+ *   as handled. So a bar that is composed again, for example after switching tabs, does not take focus from the text
+ *   area.
  */
 @Stable
 internal class FindBarFields(focusRequest: Long) {
@@ -76,25 +77,25 @@ internal class FindBarFields(focusRequest: Long) {
     private val replacement = ModelTextField()
     private var handledFocusRequest = focusRequest
 
-    /** The query field showing the model's query [text]. */
+    /** Returns the query field showing the model's query [text]. */
     fun queryField(text: String): TextFieldValue = query.value(text)
 
     /**
-     * The user edited the query field (showing [shownText]) to [value]; returns the new query text to send to the model,
-     * or null if only the selection or composition changed.
+     * Records that the user edited the query field, which showed [shownText], to [value]. Returns the new query text to
+     * send to the model, or null if only the selection or composition changed.
      */
     fun editQuery(value: TextFieldValue, shownText: String): String? = query.edit(value, shownText)
 
-    /** The replacement field showing the model's replacement [text]. */
+    /** Returns the replacement field showing the model's replacement [text]. */
     fun replacementField(text: String): TextFieldValue = replacement.value(text)
 
-    /** Like [editQuery] for the replacement field: returns the new replacement to send to the model, or null. */
+    /** Works like [editQuery] for the replacement field. Returns the new replacement to send to the model, or null. */
     fun editReplacement(value: TextFieldValue, shownText: String): String? = replacement.edit(value, shownText)
 
     /**
-     * Handles the focus request number [request] (the current `findFocusRequests`) for the model's query [text]: returns
-     * false if that request was handled already; otherwise selects the whole query and returns true (the caller then
-     * focuses the query field).
+     * Handles the focus request number [request], which is the current value of `findFocusRequests`, for the model's
+     * query [text]. Returns false if that request was handled already. Otherwise it selects the whole query and returns
+     * true, and the caller then focuses the query field.
      */
     fun takeFocusRequest(request: Long, text: String): Boolean {
         if (request == handledFocusRequest) return false
@@ -105,17 +106,18 @@ internal class FindBarFields(focusRequest: Long) {
 }
 
 /**
- * One text field over a text the model owns: the field as last edited or selected (text, selection, IME composition),
- * shown while it holds the model's text; any other text of the model is shown selected as a whole.
+ * One text field over a text that the model owns. It keeps the field as it was last edited or selected, with text,
+ * selection and input method composition. That value is shown while it holds the model's text. Any other text of the
+ * model is shown selected as a whole.
  */
 @Stable
 private class ModelTextField {
     private var edited: TextFieldValue by mutableStateOf(TextFieldValue())
 
-    /** The field showing the model's [text]. */
+    /** Returns the field showing the model's [text]. */
     fun value(text: String): TextFieldValue = if (edited.text == text) edited else whole(text)
 
-    /** Records the user's [value] of the field that showed [shownText]; returns the changed text, or null. */
+    /** Records the user's [value] of the field that showed [shownText]. Returns the changed text, or null if the text is unchanged. */
     fun edit(value: TextFieldValue, shownText: String): String? {
         edited = value
         return value.text.takeIf { it != shownText }
@@ -126,6 +128,6 @@ private class ModelTextField {
         edited = whole(text)
     }
 
-    /** [text] selected as a whole. */
+    /** Returns [text] selected as a whole. */
     private fun whole(text: String) = TextFieldValue(text, TextRange(0, text.length))
 }

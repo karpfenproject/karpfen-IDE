@@ -33,11 +33,12 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [RuntimeState] of the opened workspace: created when a workspace opens, in a scope of its own below [scope], and
- * shut down when it closes or the IDE exits. Shutting down ends every session and closes the host within
- * [shutdownBound]; whatever is left then is closed at once. The bound holds also while a host blocks a thread to stop
- * its container: the shutdown runs in the runtime state's own scope, and the caller waits for it no longer than the
- * bound.
+ * Holds the [RuntimeState] of the opened workspace. The state is created when a workspace opens, in a scope of its own
+ * below [scope]. It is shut down when the workspace closes or the IDE exits.
+ *
+ * Shutting down ends every session and closes the host within [shutdownBound]. Whatever is left after that is closed
+ * at once. The bound also holds while a host blocks a thread to stop its container. The shutdown runs in the runtime
+ * state's own scope, and the caller waits for it no longer than the bound.
  */
 internal class RuntimeHolder(
     private val scope: CoroutineScope,
@@ -50,10 +51,13 @@ internal class RuntimeHolder(
     private val current = MutableStateFlow<Opened?>(null)
     private val runtime = MutableStateFlow<RuntimeState?>(null)
 
-    /** The runtime state of the opened workspace, or null. */
+    /** The runtime state of the opened workspace, or null while no workspace is open. */
     val state: StateFlow<RuntimeState?> get() = runtime.asStateFlow()
 
-    /** Creates the runtime state of [workspace], replacing none: the previous one was closed with its workspace. */
+    /**
+     * Creates the runtime state of [workspace]. It replaces nothing, because the previous state was closed together
+     * with its workspace.
+     */
     fun open(workspace: Workspace) {
         val own = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
         val state = RuntimeState(
@@ -65,7 +69,7 @@ internal class RuntimeHolder(
         bindings.bindRuntime(state)
     }
 
-    /** Shuts the runtime state down within the bound, then closes it. */
+    /** Shuts the runtime state down within the bound and then closes it. */
     suspend fun shutdown() {
         val opened = current.value ?: return
         val shutdown = opened.scope.async { opened.state.shutdown() }

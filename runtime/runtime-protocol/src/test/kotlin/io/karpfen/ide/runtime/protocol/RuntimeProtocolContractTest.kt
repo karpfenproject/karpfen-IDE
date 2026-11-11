@@ -75,11 +75,11 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Contract test of the runtime protocol's public surface: the catalogue equals the runtime's 21 routes, the options and
- * policies have their documented defaults, the public values are immutable and compared by value, and the factory wires
- * a client to the transports it is given, runs every call on the options' dispatcher, hands out handles in the phase
- * `Configuring` with nothing uploaded, connects with keys from the handle or from a given issuer, and closes the
- * transports once.
+ * Contract test of the public surface of the runtime protocol. The catalogue equals the runtime's 21 routes. The
+ * options and policies have their documented defaults. The public values are immutable and compared by value. The
+ * factory wires a client to the transports it is given. That client runs every call on the dispatcher of the options
+ * and hands out handles in the phase `Configuring` with nothing uploaded. It connects with keys from the handle or from
+ * a given issuer, and it closes the transports once.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeProtocolContractTest {
@@ -104,7 +104,7 @@ class RuntimeProtocolContractTest {
             RuntimeTransports(http, connector) { releases++ },
         )
 
-    /** The public value classes of the protocol: every value that crosses threads. */
+    /** The public value classes of the protocol, which are all the values that cross threads. */
     private val publicValues: List<Class<*>> = listOf(
         RuntimeClientOptions::class.java, RuntimeTimeouts::class.java, ReconnectPolicy::class.java, KtorTransportOptions::class.java,
         RuntimeEndpoint::class.java, TextRequest::class.java, HttpOutcome.Answered::class.java, HttpOutcome.Failed::class.java,

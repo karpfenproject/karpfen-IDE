@@ -22,7 +22,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Covers the schema of a metamodel: every type with its members in declaration order, read once into plain values. */
+/**
+ * Covers the schema of a metamodel. It holds every type with its members in declaration order, read once into plain
+ * values.
+ */
 class TypeSchemaTest {
 
     @Test

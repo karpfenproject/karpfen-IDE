@@ -40,9 +40,11 @@ import io.karpfen.ide.ui.workbench.problems.ProblemFilter
 import io.karpfen.ide.ui.workbench.problems.ProblemsUiState
 
 /**
- * The Problems tool window: problems grouped by file with severity icon, message and `line:col`; error / warning / info
- * filter (with the counts before filtering); double-click or Enter calls [onNavigate] with the item's
- * `ProblemItem.location` (versioned). Groups start expanded; collapsing is view-local state.
+ * The Problems tool window. It shows the problems grouped by file, each with its severity icon, its message and its
+ * `line:col`. A row of filter chips switches errors, warnings and infos on and off. The chips show the counts taken
+ * before filtering. A double-click or Enter on a problem calls [onNavigate] with `ProblemItem.location`, which carries
+ * the text version. On a group, they expand or collapse it. Groups start expanded. Which groups are collapsed is local
+ * view state.
  */
 @Composable
 internal fun ProblemsView(
@@ -91,7 +93,7 @@ internal fun ProblemsView(
     }
 }
 
-/** The severity filter chip [name] showing [label], [selected] while that severity is shown. */
+/** The severity filter chip [name] with the text [label]. It is [selected] while that severity is shown. */
 @Composable
 private fun FilterToggle(name: String, label: String, selected: Boolean, onChange: (Boolean) -> Unit) {
     FilterChip(

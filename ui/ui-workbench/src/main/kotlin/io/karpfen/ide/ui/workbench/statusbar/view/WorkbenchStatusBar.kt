@@ -26,10 +26,11 @@ import io.karpfen.ide.ui.workbench.statusbar.StatusSegment
 import io.karpfen.ide.ui.workbench.statusbar.StatusSegmentKind
 
 /**
- * The status bar content: `Ln x, Col y`, selection length, language, line separator, `UTF-8`, error and warning counts,
- * "Analyzing…", the runtime's status, whose click calls [onShowRuntime], and the indicator of unseen problems of the
- * language tools, whose click calls [onShowOutput]. The texts come from [StatusBarSegments]; each item's id is its
- * segment's id (`StatusBarTestTags.item(id)`).
+ * The content of the status bar. It shows `Ln x, Col y`, the selection length, the language, the line separator,
+ * `UTF-8`, the error and warning counts and "Analyzing…". It also shows the runtime's status, and a click on it calls
+ * [onShowRuntime]. And it shows the indicator of unseen problems of the language tools, and a click on it calls
+ * [onShowOutput]. The texts come from [StatusBarSegments]. The id of each item is its segment's id, which also gives
+ * its test tag `StatusBarTestTags.item(id)`.
  */
 @Composable
 internal fun WorkbenchStatusBar(
@@ -46,8 +47,8 @@ internal fun WorkbenchStatusBar(
 }
 
 /**
- * The status-bar item of [segment]; the error and warning counts and the language tools' indicator carry their
- * severity icon, the indicator is a button that calls [onShowOutput] and the runtime's status one that calls
+ * The status bar item of [segment]. The error and warning counts and the language tools' indicator carry their
+ * severity icon. The indicator is a button that calls [onShowOutput]. The runtime's status is a button that calls
  * [onShowRuntime].
  */
 private fun item(segment: StatusSegment, onShowOutput: () -> Unit, onShowRuntime: () -> Unit): StatusBarItem = StatusBarItem(

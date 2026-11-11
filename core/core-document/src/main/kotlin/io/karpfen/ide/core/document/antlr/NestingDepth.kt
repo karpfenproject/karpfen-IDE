@@ -18,14 +18,20 @@ package io.karpfen.ide.core.document.antlr
 import org.antlr.v4.runtime.Token
 
 /**
- * Measures how deep the braces of a lexed text nest, for the nesting limit of the parsers
- * ([io.karpfen.ide.core.document.parse.NestingLimit]): every opening brace token of the grammar goes one level deeper
- * and every closing one back up, never above the top level, so a closing brace too many counts as nothing. String
- * literals and comments are tokens of their own, so the braces inside them never count.
+ * Measures how deep the braces of a lexed text nest. The parsers need it for their nesting limit, which
+ * [io.karpfen.ide.core.document.parse.NestingLimit] defines.
+ *
+ * Every opening brace token of the grammar goes one level deeper, and every closing one goes back up. The depth never
+ * drops below zero, so a closing brace too many counts as nothing. String literals and `//` comments are tokens of
+ * their own, so the braces inside them never count. A Python `#` comment in a KStates EVAL body is not a token,
+ * though, so a `{` inside it is a brace token and counts.
  */
 internal object NestingDepth {
 
-    /** The first opening brace among [tokens], lexed with [grammar], that opens a level deeper than [limit]; or null. */
+    /**
+     * The first opening brace among [tokens], lexed with [grammar], that opens a level deeper than [limit]. Returns
+     * null if there is none.
+     */
     fun firstBeyond(tokens: List<Token>, grammar: DslGrammar, limit: Int): Token? {
         var depth = 0
         for (token in tokens) {

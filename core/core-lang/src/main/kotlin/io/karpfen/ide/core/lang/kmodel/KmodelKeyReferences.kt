@@ -24,8 +24,9 @@ import io.karpfen.ide.core.lang.navigation.ReferenceScope
 import io.karpfen.ide.core.lang.navigation.SearchFile
 
 /**
- * The KModel part of cross-file member references: `prop("k")`, `has("k")` and `knows("k")` keys whose qualifier (the
- * enclosing object's type, `SymbolReference.qualifier`) is the member's owner.
+ * The KModel part of cross-file member references. These are `prop("k")`, `has("k")` and `knows("k")` keys whose
+ * qualifier is the owner of the member. The qualifier is the type of the enclosing object, in
+ * `SymbolReference.qualifier`.
  */
 internal class KmodelKeyReferences : ReferenceContributor {
     override fun references(symbol: ContextSymbol, file: SearchFile, scope: ReferenceScope): List<Location> {

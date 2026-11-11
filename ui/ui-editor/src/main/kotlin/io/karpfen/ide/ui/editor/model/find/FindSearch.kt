@@ -24,12 +24,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Runs the search rules of a [FindMatcher] off the UI thread, because long-running work runs on a background dispatcher
- * and is cancellable, so the UI never waits for a search. Matching and the expansion of regex replacements run on
- * [backgroundDispatcher] and stop when their coroutine is cancelled (a newer text or query) or when they exceed
- * [budget]: a pathological regular expression (catastrophic backtracking) ends in the error [TOO_SLOW] instead of
- * keeping a thread busy. The budget runs on the caller's dispatcher clock (`withTimeoutOrNull`), so tests measure it on
- * virtual time. Stateless; callers suspend.
+ * Runs the search rules of a [FindMatcher] off the UI thread. Long-running work runs on a background dispatcher and can
+ * be cancelled, so the UI never waits for a search.
+ *
+ * Matching and the expansion of regex replacements run on [backgroundDispatcher]. They stop when their coroutine is
+ * cancelled because of a newer text or query, or when they exceed [budget]. So a pathological regular expression with
+ * catastrophic backtracking ends in the error [TOO_SLOW] instead of keeping a thread busy. The budget runs on the clock
+ * of the caller's dispatcher through `withTimeoutOrNull`, so tests measure it in virtual time. The class has no state,
+ * and callers suspend.
  */
 internal class FindSearch(
     private val backgroundDispatcher: CoroutineDispatcher,
@@ -37,7 +39,7 @@ internal class FindSearch(
     private val matcher: FindMatcher = FindMatcher(),
 ) {
 
-    /** The matches of [query] in [text]; the error outcome [TOO_SLOW] when the search exceeds the budget. */
+    /** Returns the matches of [query] in [text], or the error outcome [TOO_SLOW] when the search exceeds the budget. */
     suspend fun matches(text: String, query: FindQuery): MatchOutcome {
         if (query.text.isEmpty()) return MatchOutcome(emptyList(), null)
         return withTimeoutOrNull(budget) {
@@ -45,20 +47,23 @@ internal class FindSearch(
         } ?: MatchOutcome(emptyList(), TOO_SLOW)
     }
 
-    /** The texts replacing [matches] when they need no search — the literal [replacement] outside regex mode — else null. */
+    /**
+     * Returns the texts that replace [matches] when they need no search, or null. Outside regex mode each text is the
+     * literal [replacement]. In regex mode the result is null, because group references need [replacements].
+     */
     fun literalReplacements(query: FindQuery, matches: List<TextRange>, replacement: String): List<String>? =
         if (query.regex) null else matches.map { replacement }
 
     /**
-     * The texts replacing [matches] (the matches of [query] in [text]) with group references expanded
-     * ([FindMatcher.replacements]); null when the expansion exceeds the budget.
+     * Returns the texts that replace [matches], with group references expanded by [FindMatcher.replacements]. [matches]
+     * are the matches of [query] in [text]. Returns null when the expansion exceeds the budget.
      */
     suspend fun replacements(text: String, query: FindQuery, matches: List<TextRange>, replacement: String): List<String>? =
         withTimeoutOrNull(budget) {
             withContext(backgroundDispatcher) { matcher.replacements(text, query, matches, replacement) { ensureActive() } }
         }
 
-    /** The budget and its error. */
+    /** Holds the default budget and its error message. */
     companion object {
         /** How long one search or expansion may take before it is given up. */
         val DEFAULT_BUDGET: Duration = 2.seconds

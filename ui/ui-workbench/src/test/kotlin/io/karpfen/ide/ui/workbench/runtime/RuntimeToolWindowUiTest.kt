@@ -49,9 +49,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * The composed Runtime tool window over a [FakeRuntimeHost] and runs whose sessions are [FakeRuntimeSession]s the test
- * drives: the empty window's explanation, the runs list with the selected run, the event injector's Send, and the
- * header with the host's status, its buttons and the host selector, and the status bar's runtime segment.
+ * Tests the composed Runtime tool window over a [FakeRuntimeHost] and runs whose sessions are [FakeRuntimeSession]s
+ * that the test drives. The tests cover the explanation in the empty window, the runs list with the selected run, and
+ * the Send button of the event injector. They also cover the header with the host's status, its buttons and the host
+ * selector, and the runtime segment of the status bar.
  */
 @OptIn(ExperimentalTestApi::class)
 class RuntimeToolWindowUiTest {
@@ -179,7 +180,7 @@ class RuntimeToolWindowUiTest {
         settle()
     }
 
-    /** Runs the lamp and answers the session the run launched. */
+    /** Runs the lamp and returns the session that the run launched. */
     private fun WorkbenchUi.launched(): FakeRuntimeSession {
         assertNotNull(workbench.state.runtime.value).run(lamp)
         settle()

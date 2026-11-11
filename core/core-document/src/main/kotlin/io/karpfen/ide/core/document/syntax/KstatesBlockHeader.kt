@@ -15,36 +15,41 @@
  */
 package io.karpfen.ide.core.document.syntax
 
-/** What a KStates brace block holds, by the keyword that introduces it (see [KstatesBlockHeader]). */
+/** What a KStates brace block holds, by the keyword that introduces it. [KstatesBlockHeader] holds that rule. */
 public enum class KstatesBlockKind {
-    /** Actions: `ENTRY`, `DO`, `IF IN SCOPE(…)`, `WITH MACRO(…) AS "x"` ([KarpfenSyntax.KSTATES_ACTION_BLOCKS]). */
+    /**
+     * Actions. The blocks of `ENTRY`, `DO`, `IF IN SCOPE(STATE)` and `WITH MACRO("m") AS "x"` hold them. The
+     * introducing keywords are [KarpfenSyntax.KSTATES_ACTION_BLOCKS].
+     */
     ACTION,
 
     /** A `CONDITION` block. */
     CONDITION,
 
-    /** Any other block, also one whose header has no introducing keyword (broken text). */
+    /** Any other block, also one whose header has no introducing keyword in broken text. */
     OTHER,
 }
 
 /**
- * The KStates block rule, the one answer to "which keyword introduces this `{` block": the last
- * block-introducing keyword of the block's header outside parentheses, where `MACRO` introduces a block only as a
- * definition (`MACRO "m" {`), never as a call (`MACRO` directly followed by `(`, as in `WITH MACRO(…) AS "x" {`). The
- * keywords and the kinds they open are [KarpfenSyntax]'s. The KStates tokenizer classifies `EVENT` by it and the
- * language services (core-lang) read blocks by it, so highlighting (`EVENT` as an operation) and completion (action
- * snippets) agree on every block, also in broken text such as `WITH MACRO {` or `IF IN SCOPE(STATE) {`.
+ * The KStates block rule. It is the one answer to which keyword introduces a `{` block. The introducer is the last
+ * block-introducing keyword of the block's header outside parentheses. `MACRO` introduces a block only as a definition,
+ * as in `MACRO "m" {`. It never does as a call, where `MACRO` is directly followed by `(`, as in
+ * `WITH MACRO("m") AS "x" {`. The keywords and the kinds they open come from [KarpfenSyntax].
  *
- * A header is a block's tokens before its `{`, back to the previous brace (or to the start of the call argument the
- * block is), fed in order to [accept]; [introducer], [introducerIndex] and [kind] then describe the block. One instance
- * per header; not thread-safe.
+ * The KStates tokenizer classifies `EVENT` by this rule, and the language services in core-lang read blocks by it.
+ * Highlighting of `EVENT` as an operation and the action snippets of completion therefore agree on every block. That
+ * holds in broken text too, such as `WITH MACRO {` or `IF IN SCOPE(STATE) {`.
+ *
+ * A header is the block's tokens before its `{`, back to the previous brace or to the start of the call argument that
+ * the block is. Feed them in order to [accept]. [introducer], [introducerIndex] and [kind] then describe the block. Use
+ * one instance per header. The class is not thread-safe.
  */
 public class KstatesBlockHeader {
 
     /** The number of tokens accepted so far. */
     private var accepted = 0
 
-    /** The parenthesis depth at the current token; keywords inside parentheses introduce nothing. */
+    /** The parenthesis depth at the current token. Keywords inside parentheses introduce nothing. */
     private var depth = 0
 
     /** The last introducing keyword found so far, or null. */
@@ -54,13 +59,13 @@ public class KstatesBlockHeader {
     private var keywordIndex = -1
 
     /**
-     * The index of a `MACRO` whose role the next token decides (a call if it is `(`, else a definition), or -1. While
-     * it is pending, a header that ends here counts it as the introducer.
+     * The index of a `MACRO` whose role the next token decides, or -1. If the next token is `(`, the `MACRO` is a call,
+     * otherwise it is a definition. While it is pending, a header that ends here counts it as the introducer.
      */
     private var macroIndex = -1
 
     /**
-     * Feeds the next token of the header: [word] is its keyword in upper case, `(` or `)` for a parenthesis, and null
+     * Feeds the next token of the header. [word] is its keyword in upper case, `(` or `)` for a parenthesis, and null
      * for any other token.
      */
     public fun accept(word: String?) {
@@ -77,7 +82,7 @@ public class KstatesBlockHeader {
         accepted++
     }
 
-    /** The keyword that introduces the block (upper case), or null if the header has none. */
+    /** The keyword in upper case that introduces the block, or null if the header has none. */
     public val introducer: String? get() = if (macroIndex >= 0) MACRO else keyword
 
     /** The index of [introducer] among the accepted tokens, or -1 if there is none. */
@@ -107,11 +112,11 @@ public class KstatesBlockHeader {
         /** The keyword that introduces a block as a definition and none as a call. */
         private const val MACRO = "MACRO"
 
-        /** Every keyword that may introduce a block (upper case), for callers that map their tokens to words. */
+        /** Every keyword in upper case that may introduce a block, for callers that map their tokens to words. */
         public val INTRODUCERS: Set<String> =
             KarpfenSyntax.KSTATES_ACTION_BLOCKS + KarpfenSyntax.KSTATES_CONDITION_BLOCK + KarpfenSyntax.KSTATES_STRUCTURE_BLOCKS
 
-        /** The header of [words] (each as [accept] takes it). */
+        /** The header of [words], each given as [accept] takes it. */
         public fun of(words: List<String?>): KstatesBlockHeader = KstatesBlockHeader().apply { words.forEach(::accept) }
     }
 }

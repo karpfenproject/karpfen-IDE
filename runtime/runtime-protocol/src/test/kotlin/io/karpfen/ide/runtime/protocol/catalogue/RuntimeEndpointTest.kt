@@ -20,8 +20,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * Covers [RuntimeEndpoint]: parsing a runtime URL with or without a port and a trailing slash, the default ports, IPv6
- * hosts, the refusal of everything else, and the HTTP base and WebSocket URL derived from an endpoint.
+ * Covers [RuntimeEndpoint]. The tests parse runtime URLs with or without a port and a trailing slash, with the default
+ * ports and with IPv6 hosts. Everything else is refused. They also check the HTTP base and the WebSocket URL derived
+ * from an endpoint.
  */
 class RuntimeEndpointTest {
 

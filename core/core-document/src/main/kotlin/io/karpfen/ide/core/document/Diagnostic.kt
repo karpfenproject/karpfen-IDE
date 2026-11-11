@@ -19,10 +19,11 @@ import io.karpfen.ide.core.text.TextRange
 
 /**
  * A problem reported for a range of a document. Library code never lets an exception from parsing or analysis escape
- * to the UI; it turns every such failure into a diagnostic. Only programming errors (violated preconditions) throw.
+ * to the UI. It turns every such failure into a diagnostic. Only programming errors, that is violated preconditions,
+ * throw.
  *
- * @property range the affected range in the coordinates of the document version the diagnostic was computed for; may
- *   be empty (e.g. "missing `}`" at end of file).
+ * @property range the affected range in the coordinates of the document version the diagnostic was computed for. It
+ *   may be empty, for example for a "missing `}`" at the end of the file.
  * @property severity how serious the problem is.
  * @property message the text shown to the user.
  * @property code a stable machine-readable code, see [DiagnosticCodes].
@@ -37,8 +38,9 @@ public data class Diagnostic(
 ) {
     public companion object {
         /**
-         * Document order: by range start, then range end, then severity (most severe first), source, code and message.
-         * Lists of diagnostics handed out by the core modules are sorted with this comparator.
+         * Document order. Diagnostics are ordered by range start, then by range end, then by severity with the most
+         * severe first, and then by source, code and message. Lists of diagnostics handed out by the core modules are
+         * sorted with this comparator.
          */
         public val ORDER: Comparator<Diagnostic> =
             compareBy<Diagnostic> { it.range.start }
@@ -50,75 +52,79 @@ public data class Diagnostic(
     }
 }
 
-/** Severity of a [Diagnostic]; declaration order is from most to least severe. */
+/** Severity of a [Diagnostic]. The entries are declared from most to least severe. */
 public enum class Severity {
-    /** The file is invalid (red). */
+    /** The file is invalid. Shown in red. */
     ERROR,
 
-    /** Probably a mistake (yellow). */
+    /** Probably a mistake. Shown in yellow. */
     WARNING,
 
-    /** Noteworthy, not a problem (blue). */
+    /** Noteworthy, but not a problem. Shown in blue. */
     INFO,
 
-    /** A suggestion; not shown in the Problems view by default. */
+    /** A suggestion. The Problems view does not show it by default. */
     HINT,
 }
 
 /** Which stage produced a [Diagnostic]. */
 public enum class DiagnosticSource {
     /**
-     * The lexer of the document's language: the dsl-tools ANTLR lexer, run with an IDE error listener, for the modeling
-     * languages, and the IDE's own JSON lexer for environment descriptors.
+     * The lexer of the document's language. For the modeling languages this is the dsl-tools ANTLR lexer, run with an
+     * IDE error listener. For environment descriptors it is the IDE's own JSON lexer.
      */
     LEXER,
 
     /**
-     * The parser of the document's language: the dsl-tools ANTLR parser, run with an IDE error listener, for the
-     * modeling languages, and the IDE's own JSON tree builder for environment descriptors.
+     * The parser of the document's language. For the modeling languages this is the dsl-tools ANTLR parser, run with
+     * an IDE error listener. For environment descriptors it is the IDE's own JSON tree builder.
      */
     PARSER,
 
     /**
-     * A dsl-tools reader (semantic model construction): a finding at the place the reader reports, whose code is the
-     * stable id of the dsl-tools diagnostic code, such as `kmodel.unknown-property` or `kstates.initial-state-count`.
+     * A dsl-tools reader, which builds the semantic model. The finding sits at the place the reader reports. Its code
+     * is the stable id of the dsl-tools diagnostic code, such as `kmodel.unknown-property` or
+     * `kstates.initial-state-count`.
      */
     DSL_TOOLS,
 
     /**
-     * The IDE itself (EVAL warnings here; file encoding, line separators, environment descriptors and modeling contexts
-     * in core-workspace).
+     * The IDE itself. In this module that covers the EVAL warnings. core-workspace uses this source for its findings
+     * about file encoding, line separators, environment descriptors and modeling contexts.
      */
     IDE,
 }
 
 /**
- * Stable diagnostic codes ([Diagnostic.code]) produced by core-document: lexer, parser, EVAL scanning and internal
- * failures. The findings of the dsl-tools readers ([DiagnosticSource.DSL_TOOLS]) carry the stable ids of their
- * dsl-tools codes instead, so a new kind of finding in dsl-tools needs no constant here. Codes of findings that only
- * core-workspace produces (file loading, environment descriptors, modeling contexts) are `WorkspaceDiagnosticCodes` of
- * core-workspace, so a new workspace finding never edits this file.
+ * Stable diagnostic codes for [Diagnostic.code] that core-document produces. They cover the lexer, the parser, the
+ * EVAL scanning and internal failures.
+ *
+ * The findings of the dsl-tools readers, with source [DiagnosticSource.DSL_TOOLS], carry the stable ids of their
+ * dsl-tools codes instead, so a new kind of finding in dsl-tools needs no constant here. Findings that only
+ * core-workspace produces, such as those about file loading, environment descriptors and modeling contexts, have their
+ * codes in `WorkspaceDiagnosticCodes` of core-workspace. A new workspace finding therefore never edits this file.
  */
 public object DiagnosticCodes {
-    /** Lexer error (unrecognized input); source [DiagnosticSource.LEXER]. */
+    /** Lexer error for unrecognized input, with source [DiagnosticSource.LEXER]. */
     public const val LEXER_ERROR: String = "lexer-error"
 
-    /** Parser error (unexpected or missing token); source [DiagnosticSource.PARSER]. */
+    /** Parser error for an unexpected or a missing token, with source [DiagnosticSource.PARSER]. */
     public const val SYNTAX_ERROR: String = "syntax-error"
 
     /**
-     * `//` inside an EVAL body starts a karpfen comment, so the rest of the line never reaches Python (a WARNING,
-     * source [DiagnosticSource.IDE]).
+     * `//` inside an EVAL body starts a karpfen comment, so the rest of the line never reaches Python. It is a WARNING
+     * with source [DiagnosticSource.IDE].
      */
     public const val EVAL_DOUBLE_SLASH: String = "eval-double-slash"
 
-    /** An unexpected internal failure that was caught and reported instead of crashing (ERROR). */
+    /** An unexpected internal failure that was caught and reported instead of crashing. It is an ERROR. */
     public const val INTERNAL_ERROR: String = "internal-error"
 
     /**
-     * The text nests deeper than the parser follows: an ERROR at the brace that opens the first level beyond
-     * [io.karpfen.ide.core.document.parse.NestingLimit.MAX_DEPTH], or at the start of the text when a parser runs out
-     * of stack before. A limit of the parser that the user can type, and remove again, rather than a defect.
+     * The text nests deeper than the parser follows. The ERROR sits at the brace that opens the first level beyond
+     * [io.karpfen.ide.core.document.parse.NestingLimit.MAX_DEPTH]. If a parser runs out of stack before that level, it
+     * sits at the start of the text. It reports a limit of the parser that the user can type and remove again, not a
+     * defect.
      */
     public const val NESTING_TOO_DEEP: String = "nesting-too-deep"
 }

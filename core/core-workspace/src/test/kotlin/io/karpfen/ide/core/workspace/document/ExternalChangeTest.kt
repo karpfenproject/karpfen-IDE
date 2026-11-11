@@ -204,7 +204,10 @@ class ExternalChangeTest {
         assertEquals(ExternalChangeKind.DELETED, document.conflict.value?.kind)
     }
 
-    /** Saves [path] while typing goes on, then reports the save's own watch event; the document must neither reload nor conflict. */
+    /**
+     * Saves [path] while typing goes on, then reports the watch event of the save itself. The document must neither
+     * reload nor get a conflict.
+     */
     private suspend fun TestScope.ownSaveWhileTyping(manager: DefaultDocumentManager, path: Path, typed: String) {
         val document = manager.openOrFail(path)
         document.type(0, typed)

@@ -33,9 +33,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * Publishes `Workspace.problems`: the [aggregator]'s rule applied to the latest analysis (with its descriptors)
- * and the current diagnostics of every open document, recomputed on [dispatcher] whenever one of them changes.
- * [WorkspaceProblems.EMPTY] until the first analysis.
+ * Publishes `Workspace.problems`. It applies the rule of the [aggregator] to the latest analysis with its descriptors
+ * and to the current diagnostics of every open document. It recomputes the problems on [dispatcher] whenever one of
+ * them changes. Until the first analysis the problems are [WorkspaceProblems.EMPTY].
  */
 internal class ProblemsPublisher(
     private val aggregator: WorkspaceProblemsAggregator,
@@ -60,7 +60,8 @@ internal class ProblemsPublisher(
         }
 
     /**
-     * The current diagnostics of every open document, re-emitted whenever the set or one document's diagnostics change.
+     * The current diagnostics of every open document. They are emitted again whenever the set of documents or the
+     * diagnostics of one document change.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun openDiagnostics(documents: StateFlow<List<OpenDocument>>): Flow<List<OpenDocumentDiagnostics>> =

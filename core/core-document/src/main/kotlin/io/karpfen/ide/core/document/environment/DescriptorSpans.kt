@@ -21,11 +21,14 @@ import io.karpfen.ide.core.document.parse.SemanticSpan
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The semantic spans of a descriptor, from its [shapedValues]: every key ([SemanticKind.PROPERTY_NAME], inside its
- * quotes), the strings the schema gives a role (file paths [SemanticKind.FILE_PATH], object keys
- * [SemanticKind.OBJECT_NAME], event domains [SemanticKind.EVENT_DOMAIN], inside their quotes). Other strings, the
- * numbers and the literals keep their lexical style, which already tells them apart. The spans are sorted and
- * disjoint, because keys and values are disjoint tokens; empty ones are left out. Pure.
+ * The semantic spans of a descriptor, computed from its [shapedValues]. Every key gets a [SemanticKind.PROPERTY_NAME]
+ * span inside its quotes. The strings that the schema gives a role get a span inside their quotes too. File paths get
+ * [SemanticKind.FILE_PATH], object keys get [SemanticKind.OBJECT_NAME] and event domains get
+ * [SemanticKind.EVENT_DOMAIN]. Other strings, the numbers and the literals keep their lexical style, which already
+ * tells them apart.
+ *
+ * The spans are sorted and disjoint, because keys and values are disjoint tokens. Empty spans are left out. The object
+ * has no state and no side effects.
  */
 internal object DescriptorSpans {
 
@@ -40,7 +43,7 @@ internal object DescriptorSpans {
         return spans.sortedBy { it.range.start }
     }
 
-    /** The semantic kind of a string of [shape], or null for a string without a role. */
+    /** The semantic kind of a string of [shape]. Null for a string without a role. */
     private fun roleOf(shape: ValueShape?): SemanticKind? = when (shape) {
         is ValueShape.FilePath -> SemanticKind.FILE_PATH
         ValueShape.ObjectKey -> SemanticKind.OBJECT_NAME

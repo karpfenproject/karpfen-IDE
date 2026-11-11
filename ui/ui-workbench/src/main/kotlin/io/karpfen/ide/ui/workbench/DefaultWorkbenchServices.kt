@@ -44,25 +44,33 @@ import java.nio.file.Path
 import java.time.Clock
 
 /**
- * The production collaborators: JSON settings in [settingsDirectory], the built-in languages, real workspaces, the
- * default language services, editors sharing one [clipboard] and one keymap for [platform], desktop file operations,
- * the native folder chooser and the built-in templates. CPU work (tokenizing, parsing, analysis, highlighting, find,
- * completion, hover) runs on [backgroundDispatcher], file I/O on [ioDispatcher]. Wiring only.
+ * Builds the production collaborators of the workbench. They are JSON settings in [settingsDirectory], the built-in
+ * languages, real workspaces, the default language services, editors that share one [clipboard] and one keymap for
+ * [platform], the desktop file operations, the native folder chooser and the built-in templates. CPU work such as
+ * tokenizing, parsing, analysis, highlighting, find, completion and hover runs on [backgroundDispatcher]. File I/O runs
+ * on [ioDispatcher]. The function only wires things together and holds no logic of its own.
  *
- * Every time-, file-system- and toolkit-dependent collaborator is a parameter with a production default, so end-to-end
- * tests run exactly this wiring with test values: [workspaceOptions] (dispatchers, `timeSource` for undo coalescing,
- * `watch`), [fileWatcher] (a fake instead of the slow macOS `WatchService`), [clock] (settings backups),
- * [fileOperations] / [folderChooser] (the desktop adapters are headless-safe, but tests usually record calls),
- * [clipboard] (the system clipboard, created once: every editor of the workbench gets this one port, so text and the
- * whole-line mark copied in one tab are pasted in another also where the port is not the global AWT clipboard — its
- * headless in-memory fallback, a test's fake) and [dslReader] (the readers of dsl-tools, which every workspace reads its
- * files with; end-to-end tests make them fail on purpose). [languageToolsOutput] has no default: it is the buffer the
- * application's logging fills with what the language tools log, and the composition root passes the one it routes that
- * logging into, so no caller can end up with an output that nothing fills.
+ * Every collaborator that depends on time, the file system or the UI toolkit is a parameter with a production default.
+ * End-to-end tests therefore run exactly this wiring and only swap in test values:
  *
- * The runtime is the composition root's choice: the application passes the one [runtimeSessions] of the process and
- * the IDE's runtime hosts as [runtimeHosts]. Without them the wiring has sessions of its own and hosts that never have
- * a runtime, so a test that runs this wiring never reaches Docker or a runtime at a URL.
+ * - [workspaceOptions] carries the dispatchers, the `timeSource` for undo coalescing and the `watch` switch.
+ * - [fileWatcher] is replaced by a fake, because the macOS `WatchService` is slow.
+ * - [clock] dates the settings backups.
+ * - [fileOperations] and [folderChooser] are the desktop adapters. They are safe in a headless JVM, but tests usually
+ *   replace them with doubles that record the calls.
+ * - [clipboard] is the system clipboard and is created once. Every editor of the workbench gets this one port. Text
+ *   and the whole-line mark copied in one tab can then be pasted in another, also where the port is not the global
+ *   AWT clipboard, such as its in-memory fallback in a headless JVM or a test's fake.
+ * - [dslReader] holds the readers of dsl-tools that every workspace reads its files with. End-to-end tests make them
+ *   fail on purpose.
+ *
+ * [languageToolsOutput] has no default. It is the buffer that the application's logging fills with what the language
+ * tools log. The composition root passes the buffer it routes that logging into, so no caller can end up with an
+ * output that nothing fills.
+ *
+ * The runtime is the composition root's choice. The application passes the single [runtimeSessions] of the process and
+ * the IDE's runtime hosts as [runtimeHosts]. Without them the wiring creates sessions of its own and uses hosts that
+ * never have a runtime, so a test that runs this wiring never reaches Docker or a runtime at a URL.
  */
 public fun defaultWorkbenchServices(
     languageToolsOutput: OutputBuffer,

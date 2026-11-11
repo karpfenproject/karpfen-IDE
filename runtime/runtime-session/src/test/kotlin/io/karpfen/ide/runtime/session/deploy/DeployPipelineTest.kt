@@ -40,10 +40,11 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers the deploy pipeline with doubles of the client, the environment handle, the connection and the observation:
- * the steps in order with their titles and calls, the configuration always sent, the progress after every transition,
- * skipped steps, waiting for the open connection before activating and starting, observation on and off, read-back
- * differences as warnings, and the start confirmation's success, halt, silence and bounds on virtual time.
+ * Covers the deploy pipeline with doubles of the client, the environment handle, the connection and the observation.
+ * It checks the steps in order with their titles and calls, that the configuration is always sent, and the progress
+ * after every transition. It also checks skipped steps, the wait for the open connection before activating and
+ * starting, observation on and off, and read-back differences as warnings. The start confirmation is checked for
+ * success, halt, silence and its bounds on virtual time.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeployPipelineTest {

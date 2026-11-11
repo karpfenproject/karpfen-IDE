@@ -62,17 +62,17 @@ import java.util.Collections
 
 /** Test tags of the end-to-end editor. */
 object EditorE2eTags {
-    /** The `CodeEditor` node (carries the text-input semantics). */
+    /** The `CodeEditor` node. It carries the text-input semantics. */
     const val EDITOR = "e2e.editor"
 
-    /** A box filling the text area (the overlay host's space), below the popups. */
+    /** A box that fills the text area, which is the space of the overlay host. It lies below the popups. */
     const val TEXT_AREA = "e2e.textArea"
 }
 
 /**
- * The real [EditorPopups] as the editor's overlays, decorated so tests learn the [host] (for click positions) and find
- * the text area by [EditorE2eTags.TEXT_AREA]. The tagged box is composed first, so the popups lie above it, and it has
- * no pointer input of its own, so clicks reach the text area.
+ * The real [EditorPopups] as the editor's overlays, decorated for tests. Tests learn the [host] from it to compute click
+ * positions, and they find the text area by [EditorE2eTags.TEXT_AREA]. The tagged box is composed first, so the popups
+ * lie above it. The box has no pointer input of its own, so clicks reach the text area.
  */
 class HostRecordingPopups(private val popups: EditorOverlays = EditorPopups()) : EditorOverlays {
     /** The host of the last composition. */
@@ -91,19 +91,22 @@ class HostRecordingPopups(private val popups: EditorOverlays = EditorPopups()) :
 }
 
 /**
- * A composed `CodeEditor` together with the real `EditorPopups`, the end-to-end setup that the view's and the popups'
- * own tests, each with a fake of the other side, do not cover: a real KStates [DocumentSession] (registry tokenizer and
- * parser), the real language services of core-lang over an empty project analysis (state names, macros and keywords
- * come from the file itself), the real models, the macOS keymap. Session pipelines and the editor's background work run
- * inline; delays (parse debounce, hover, caret blink) run on the composition's clock, i.e. the test's main clock.
+ * A composed `CodeEditor` together with the real `EditorPopups`. This is the end-to-end setup that the tests of the view
+ * and of the popups do not cover, because each of them uses a fake of the other side.
  *
- * Key events that the editor does not consume reach a parent handler and are recorded in [unconsumedKeys] — the strokes
- * a window-menu accelerator would see.
+ * It uses a real KStates [DocumentSession] with the registry's tokenizer and parser. The language services are the real
+ * ones of core-lang over an empty project analysis, so state names, macros and keywords come from the file itself. The
+ * models are real and the keymap is the macOS one. Session pipelines and the editor's background work run inline.
+ * Delays such as the parse debounce, the hover delay and the caret blink run on the composition's clock, which is the
+ * test's main clock.
+ *
+ * Key events that the editor does not consume reach a parent handler and are recorded in [unconsumedKeys]. These are
+ * the strokes a window-menu accelerator would see.
  */
 @OptIn(ExperimentalTestApi::class)
 class EditorWithPopups(private val test: ComposeUiTest) {
 
-    /** The overlays: the real popups plus host recording. */
+    /** The overlays. These are the real popups with host recording. */
     val overlays = HostRecordingPopups()
 
     /** The clipboard. */
@@ -112,13 +115,13 @@ class EditorWithPopups(private val test: ComposeUiTest) {
     /** Targets passed to `onNavigate`. */
     val navigated: MutableList<Location> = mutableListOf()
 
-    /** Key-down events nobody consumed (modifier keys on their own are never consumed and not recorded). */
+    /** Key-down events that nobody consumed. Modifier keys on their own are never consumed and are not recorded. */
     val unconsumedKeys: MutableList<Key> = mutableListOf()
 
-    /** Provider failures behind the language-services facade (must stay empty). */
+    /** Provider failures behind the language-services facade. The tests expect this list to stay empty. */
     val providerFailures: MutableList<ProviderFailure> = Collections.synchronizedList(mutableListOf())
 
-    /** The editor state (set by the composition). */
+    /** The editor state. The composition sets it. */
     lateinit var state: CodeEditorState
         private set
 
@@ -128,17 +131,17 @@ class EditorWithPopups(private val test: ComposeUiTest) {
     /** The editor node. */
     val editor: SemanticsNodeInteraction get() = test.onNodeWithTag(EditorE2eTags.EDITOR)
 
-    /** The text-area node (positions in its coordinates are host coordinates). */
+    /** The text-area node. Positions in its coordinates are host coordinates. */
     val textArea: SemanticsNodeInteraction get() = test.onNodeWithTag(EditorE2eTags.TEXT_AREA)
 
     /** The overlay host. */
     val host: EditorOverlayHost get() = checkNotNull(overlays.host) { "not composed yet" }
 
-    /** A point inside the character at [offset], in host coordinates (left half, vertically centred). */
+    /** A point inside the character at [offset] in host coordinates, one pixel right of its left edge and vertically centred. */
     fun pointAt(offset: Int): Offset =
         checkNotNull(host.boundsOf(offset)) { "offset $offset is not laid out" }.let { Offset(it.left + 1f, it.center.y) }
 
-    /** Types [text] one character at a time, like a keyboard (each character is one `performTextInput`). */
+    /** Types [text] one character at a time like a keyboard. Each character is one `performTextInput`. */
     fun typeChars(text: String) {
         text.forEach { character ->
             editor.performTextInput(character.toString())
@@ -146,7 +149,7 @@ class EditorWithPopups(private val test: ComposeUiTest) {
         }
     }
 
-    /** The text of the line that contains [offset] (without its separator). */
+    /** The text of the line that contains [offset], without its line separator. */
     fun lineAt(offset: Int): String {
         val snapshot = state.session.text.snapshot.value
         return snapshot.lineText(snapshot.lineIndex.lineOf(offset))
@@ -160,7 +163,7 @@ class EditorWithPopups(private val test: ComposeUiTest) {
         return top >= viewport.scrollY && top + viewport.lineHeight <= viewport.scrollY + viewport.viewportHeight
     }
 
-    /** Composes the editor over [initialText] in a box of [width] x [height]. */
+    /** Composes the editor over [initialText] in a box of [width] by [height]. */
     fun compose(initialText: String, width: Dp = 640.dp, height: Dp = 320.dp) {
         test.setContent {
             val scope = rememberCoroutineScope()
@@ -202,9 +205,9 @@ class EditorWithPopups(private val test: ComposeUiTest) {
         test.waitForIdle()
     }
 
-    /** The modifier keys. */
+    /** Holds the set of modifier keys. */
     private companion object {
-        /** Keys that only hold a modifier; pressing them alone is no stroke of interest. */
+        /** Keys that only hold a modifier. Pressing one of them alone is not a stroke the tests care about. */
         val MODIFIER_KEYS: Set<Key> = setOf(
             Key.MetaLeft, Key.MetaRight, Key.CtrlLeft, Key.CtrlRight, Key.ShiftLeft, Key.ShiftRight, Key.AltLeft, Key.AltRight,
         )

@@ -16,11 +16,11 @@
 package io.karpfen.ide.runtime.protocol.transport.ktor
 
 /**
- * The percent-encoding of query names and values, done by the client itself so that it never depends on a library's
- * idea of a query: the unreserved characters of RFC 3986 (letters, digits, `-`, `.`, `_`, `~`) stay as they are, and
- * every other byte of the UTF-8 encoding becomes `%XX` with upper-case digits. A space is therefore `%20` and a `+` is
- * `%2B`, so the runtime never reads a `+` as a space. Object keys and state names contain spaces (`APB 2101`,
- * `living room`, `full power`). Stateless.
+ * The percent-encoding of query names and values. The client does it itself so that it never depends on a library's
+ * idea of a query. The unreserved characters of RFC 3986 stay as they are. Those are letters, digits, `-`, `.`, `_` and
+ * `~`. Every other byte of the UTF-8 encoding becomes `%XX` with upper-case digits. So a space becomes `%20` and a `+`
+ * becomes `%2B`, and the runtime never reads a `+` as a space. This matters because object keys and state names contain
+ * spaces, such as `APB 2101`, `living room` or `full power`. The object holds no state.
  */
 internal object QueryEncoding {
 

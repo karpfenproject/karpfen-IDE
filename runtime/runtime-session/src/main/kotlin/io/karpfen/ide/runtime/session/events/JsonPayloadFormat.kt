@@ -31,17 +31,19 @@ import io.karpfen.ide.runtime.session.schema.TypeSchema
 import io.karpfen.ide.runtime.session.schema.TypeShape
 
 /**
- * JSON payloads, checked as the runtime's `JsonToModelConverter` (the version the runtime pins, with org.json 20240303)
- * reads them against the event metamodel, with the event's name as the payload type:
+ * JSON payloads. They are checked the way the runtime's `JsonToModelConverter` reads them against the event metamodel,
+ * with the event's name as the payload type. That is the converter version the runtime pins, with org.json 20240303.
  *
- * - the payload must be a JSON object, without repeated keys (org.json refuses them, which makes the payload null);
- * - `__id__` is read as a string at every level, so another value makes the payload null and a string becomes the
- *   object's id; `__type__` is not read;
- * - number properties must be JSON numbers and boolean properties JSON booleans, or the whole payload becomes null;
- *   string properties take the text of any value; list properties must be arrays;
- * - relations, `has` and `knows` alike, must be objects (arrays of objects for lists) and become new objects;
- * - missing members get defaults (`0`, `false`, `""`, empty lists, no object), `null` members are left out, unknown keys
- *   are ignored.
+ * - The payload must be a JSON object without repeated keys. org.json refuses repeated keys, which makes the payload
+ *   null.
+ * - `__id__` is read as a string at every level. Another value makes the payload null, and a string becomes the
+ *   object's id. `__type__` is not read.
+ * - Number properties must be JSON numbers and boolean properties must be JSON booleans. Otherwise the whole payload
+ *   becomes null. String properties take the text of any value. List properties must be arrays.
+ * - Relations must be objects, or arrays of objects for lists, and they become new objects. This holds for `has` and
+ *   `knows` alike.
+ * - Missing members get defaults. These are `0`, `false`, `""`, empty lists and no object. `null` members are left
+ *   out. Unknown keys are ignored.
  *
  * The checks use core-document's JSON parser, which gives every node its range and keeps repeated keys.
  *
@@ -51,7 +53,10 @@ internal class JsonPayloadFormat(private val schema: TypeSchema?) : PayloadForma
     /** The kind this format writes. */
     override val kind: PayloadKind = PayloadKind.JSON
 
-    /** The payload type of [event] with every scalar at its default and every `has` relation nested; `{}` without one. */
+    /**
+     * The payload type of [event] with every scalar at its default and every `has` relation nested. Without a payload
+     * type the template is `{}`.
+     */
     override fun template(event: InjectableEvent): String {
         val type = event.payloadType?.let { schema?.type(it) } ?: return "{}"
         return TemplateWriter().obj(type, depth = 1, indent = "")
@@ -78,7 +83,7 @@ internal class JsonPayloadFormat(private val schema: TypeSchema?) : PayloadForma
     override fun encode(text: String): EventPayload = EventPayload.Json(text)
 
     /**
-     * Checks one payload; confined to one call of [validate].
+     * Checks one payload. Confined to one call of [validate].
      *
      * @param schema the schema of the event metamodel.
      * @param text the payload.
@@ -261,10 +266,14 @@ internal class JsonPayloadFormat(private val schema: TypeSchema?) : PayloadForma
     }
 
     /**
-     * Writes the template of a payload type, two spaces per level; confined to one call of [template].
+     * Writes the template of a payload type, two spaces per level. Confined to one call of [template].
      */
     private inner class TemplateWriter {
-        /** The object of [type] at [depth], its members indented by [indent] plus one level. */
+        /**
+         * The object of [type] at [depth], with its members indented by [indent] plus one level. Only `has` relations
+         * are written. A `has` list is written empty. A single nested object is left out when the schema does not know
+         * its type or when [depth] reached the default depth limit of the payload form.
+         */
         fun obj(type: TypeShape, depth: Int, indent: String): String {
             val inner = "$indent  "
             val members = type.properties.map { "$inner${RuntimeJson.quote(it.key)}: ${defaultJson(it)}" } +

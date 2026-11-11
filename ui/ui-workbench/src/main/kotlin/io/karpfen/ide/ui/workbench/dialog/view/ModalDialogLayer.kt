@@ -30,13 +30,14 @@ import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 
 /**
- * Lays the pending dialog ([WorkbenchDialogs]) over [content] and makes it modal for the keyboard as it is for the
- * pointer: while [request] is shown, the focus cannot enter [content] — neither by Tab nor by a focus request — so no key
- * reaches the workbench behind the dialog (the dialog itself cycles Tab through its controls); when it is answered, the
- * element of [content] that had the focus before the dialog took it gets it back (the editor after Cmd+W → Cancel).
+ * Lays the pending dialog of [WorkbenchDialogs] over [content] and makes it modal for the keyboard, just as it is for
+ * the pointer. While [request] is shown, the focus cannot enter [content], neither by Tab nor by a focus request. No
+ * key therefore reaches the workbench behind the dialog. The dialog itself cycles Tab through its own controls. Once
+ * the dialog is answered, the element of [content] that had the focus before the dialog took it gets the focus back.
+ * For example, the editor gets it back after the user presses Cmd+W and then cancels the unsaved-changes dialog.
  *
- * The covered focus is saved in a [DisposableEffect], which is applied before the dialog's own effect requests the
- * dialog's focus, so it still sees the element that had the focus before the dialog appeared.
+ * The covered focus is saved in a [DisposableEffect]. Compose applies it before the dialog's own effect requests the
+ * focus for the dialog, so it still sees the element that had the focus before the dialog appeared.
  */
 @Composable
 internal fun ModalDialogLayer(
@@ -66,13 +67,13 @@ internal fun ModalDialogLayer(
     }
 }
 
-/** The focus of the content a dialog covers: which of its elements had the focus when the dialog took it. */
+/** The focus of the content a dialog covers. It remembers which element had the focus when the dialog took it. */
 private class CoveredFocus {
-    /** Attached to the covered content's focus group. */
+    /** The requester attached to the focus group of the covered content. */
     val requester = FocusRequester()
     private var saved = false
 
-    /** Remembers the focused element of the content (nothing if the focus is elsewhere). */
+    /** Remembers the focused element of the content. Remembers nothing if the focus is outside the content. */
     fun save() {
         saved = requester.saveFocusedChild()
     }

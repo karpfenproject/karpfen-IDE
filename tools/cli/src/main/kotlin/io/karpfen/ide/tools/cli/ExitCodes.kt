@@ -20,12 +20,12 @@ public object ExitCodes {
     /** The usage was printed, or the validation found no ERROR. */
     public const val OK: Int = 0
 
-    /** The validation found at least one ERROR (also: a karpfen file or a directory could not be read). */
+    /** The validation found at least one ERROR. A karpfen file or directory that could not be read is an ERROR too. */
     public const val ERRORS_FOUND: Int = 1
 
     /** Invalid command line, or the directory to validate does not exist. */
     public const val USAGE: Int = 2
 
-    /** The validation failed unexpectedly (a defect; the cause is logged). */
+    /** The validation failed unexpectedly, which is a defect. The cause is logged. */
     public const val FAILURE: Int = 3
 }

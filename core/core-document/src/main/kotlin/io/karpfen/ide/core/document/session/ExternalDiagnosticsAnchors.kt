@@ -20,28 +20,30 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Re-anchors the external diagnostic sets of one document as its text advances: each set is
- * mapped from where the previous merge left it, not from the snapshot it was reported for. A set reported once — the
- * FILE findings live until the next save or reload — therefore never falls out of the text's retained edit history
- * (`EditableText.mapRange` answers null for evicted versions), and each merge maps only the versions since the
- * previous one. Mapping step by step differs from mapping from the reported version only for a range that collapsed to
- * an empty one: it then stays behind text typed at it, like any empty range.
+ * Re-anchors the external diagnostic sets of one document as its text advances. Each set is mapped from where the
+ * previous merge left it, not from the snapshot it was reported for. A set may be reported once and live long. The
+ * FILE findings, for example, live until the next save or reload. Such a set never falls out of the retained edit
+ * history of the text, where `EditableText.mapRange` answers null for evicted versions. Each merge also maps only the
+ * versions since the previous one.
  *
- * Thread-safe: the anchors are an immutable map replaced atomically. An anchor newer than a merge's target is not used
- * (that set is mapped from its own snapshot), so a merge never maps backwards.
+ * Mapping step by step differs from mapping from the reported version only for a range that collapsed to an empty
+ * one. Such a range then stays behind text typed at it, like any empty range.
+ *
+ * The class is thread-safe, because the anchors are an immutable map replaced atomically. An anchor newer than the
+ * target of a merge is not used, and that set is mapped from its own snapshot. So a merge never maps backwards.
  */
 internal class ExternalDiagnosticsAnchors {
 
-    /** The set [reported] by a source and its diagnostics mapped to a later snapshot ([anchored]). */
+    /** The set [reported] by a source, and as [anchored] its diagnostics mapped to a later snapshot. */
     private class Anchor(val reported: ExternalDiagnosticSet, val anchored: ExternalDiagnosticSet)
 
     /** The anchors by source, replaced as a whole by every [mapAll]. */
     private val anchors = AtomicReference<Map<String, Anchor>>(emptyMap())
 
     /**
-     * Maps every set of [sets] (by source) to [target] with [mapToTarget], starting from the set's anchor if it has one
-     * for exactly this reported set, and keeps the results as the new anchors (sources that are no longer reported are
-     * forgotten). Returns the mapped diagnostics in the iteration order of [sets].
+     * Maps every set of [sets] to [target] with [mapToTarget]. A set starts from its anchor if the anchor belongs to
+     * exactly this reported set. The results become the new anchors, and sources that are no longer reported are
+     * forgotten. Returns the mapped diagnostics in the iteration order of [sets].
      */
     fun mapAll(
         sets: Map<String, ExternalDiagnosticSet>,

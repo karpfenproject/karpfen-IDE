@@ -20,18 +20,18 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * The example files copied from karpfen-runtime and karpfen-dsl-tools (origins, commits and license in
- * `examples/NOTICE.md`), loaded from the test-fixture resources below [RESOURCE_ROOT]. The file list comes from
- * `examples/index.txt`, so loading works from a directory and from the test-fixtures jar alike.
+ * The example files copied from karpfen-runtime and karpfen-dsl-tools, loaded from the test-fixture resources below
+ * [RESOURCE_ROOT]. They are unmodified copies, and [ExampleOrigin] names the repository and the commit of each. The
+ * file list comes from `examples/index.txt`, so loading works from a directory and from the test-fixtures jar alike.
  *
- * The loaded files are immutable constants; every function is deterministic.
+ * The loaded files are immutable constants, and every function is deterministic.
  */
 public object Examples {
 
-    /** Classpath directory of the examples. */
+    /** The classpath directory of the examples. */
     public const val RESOURCE_ROOT: String = "examples"
 
-    /** Classpath location of the file list. */
+    /** The classpath location of the file list. */
     public const val INDEX_RESOURCE: String = "$RESOURCE_ROOT/index.txt"
 
     /** Every example file, loaded on first use. */
@@ -44,7 +44,8 @@ public object Examples {
     public fun files(language: KarpfenLanguage): List<ExampleFile> = all.filter { it.language == language }
 
     /**
-     * The example file at [path] (below the fixture root, e.g. `karpfen-runtime/single_robot_example/EVENTS.kmeta`).
+     * The example file at [path] below the fixture root, such as `karpfen-runtime/single_robot_example/EVENTS.kmeta`.
+     *
      * @throws IllegalArgumentException if there is no such example.
      */
     public fun file(path: String): ExampleFile =
@@ -55,8 +56,8 @@ public object Examples {
         all.groupBy { it.directory }.toSortedMap().map { (directory, files) -> ExampleContext(directory, files) }
 
     /**
-     * Writes every example file below [target] (keeping the `<origin>/<example>/` layout) and returns [target]; for
-     * workspace, CLI and application tests that need a real folder.
+     * Writes every example file below [target] in the layout `<origin>/<example>/` and returns [target]. Workspace,
+     * CLI and application tests use it when they need a real folder.
      */
     public fun copyTo(target: Path): Path {
         for (file in all) {
@@ -67,7 +68,7 @@ public object Examples {
         return target
     }
 
-    /** The paths listed in the index (comments and blank lines skipped), in index order. */
+    /** The paths listed in the index, in index order. Comments and blank lines are skipped. */
     public fun indexedPaths(): List<String> =
         readResource(INDEX_RESOURCE).lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
 

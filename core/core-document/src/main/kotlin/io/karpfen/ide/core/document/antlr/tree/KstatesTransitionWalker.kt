@@ -25,12 +25,15 @@ import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.tree.TerminalNode
 
 /**
- * Walks the `TRANSITIONS { … }` block of a KStates tree: every state string of a TRANSITION, SPLIT or JOIN
- * is a STATE reference (STATE_NAME span); each transition is an outline node (no declaration) named `a -> b`,
- * `a -> b, c` or `a, b -> c` and selecting its state strings. The strings before the arrow are the sources; while the
- * arrow is missing, the grammar's shape decides (the last string of a JOIN is its target, the first string of the others
- * its source). Conditions: `EVENT("d", "n")` → event domain and name, `VALUE("p")` → MODEL_PATH (see
- * [KstatesReferences]); EVAL conditions are read lexically (see [EmbeddedCode]).
+ * Walks the `TRANSITIONS { }` block of a KStates tree. Every state string of a TRANSITION, SPLIT or JOIN becomes a
+ * STATE reference with a STATE_NAME span. Each transition becomes an outline node, but not a declaration. The node is
+ * named `a -> b`, `a -> b, c` or `a, b -> c` and selects its state strings.
+ *
+ * The strings before the arrow are the sources. While the arrow is missing, the shape of the grammar decides. The last
+ * string of a JOIN is its target, and the first string of the other transitions is their source.
+ *
+ * In conditions, `EVENT("d", "n")` names an event domain and an event, and `VALUE("p")` names a MODEL_PATH. Both are
+ * recorded by [KstatesReferences]. EVAL conditions are read lexically by [EmbeddedCode].
  */
 internal class KstatesTransitionWalker(
     private val tree: ParsedTree<*>,
@@ -41,7 +44,7 @@ internal class KstatesTransitionWalker(
     fun walk(block: KstatesParser.Transitions_blockContext?): List<OutlineNode> =
         block?.transition_definition().orEmpty().mapNotNull(::transition)
 
-    /** The outline node of a TRANSITION, SPLIT or JOIN; null for a definition the parser could not classify. */
+    /** The outline node of a TRANSITION, SPLIT or JOIN. Null for a definition that the parser could not classify. */
     private fun transition(ctx: KstatesParser.Transition_definitionContext): OutlineNode? {
         ctx.normal_transition()?.let { return transition(SymbolKind.TRANSITION, it, KstatesParser.TRANSITION, it.condition_block()) }
         ctx.split_transition()?.let { return transition(SymbolKind.SPLIT, it, KstatesParser.SPLIT, it.condition_block()) }
@@ -69,7 +72,7 @@ internal class KstatesTransitionWalker(
         return outlineNode(kind, name, null, range, selection)
     }
 
-    /** Records the references of an `EVENT(…)` or `VALUE(…)` condition clause. */
+    /** Records the references of an `EVENT("d", "n")` or `VALUE("p")` condition clause. */
     private fun clause(ctx: KstatesParser.Condition_clauseContext) {
         ctx.event_condition()?.let { event ->
             val strings = tree.quotedStrings(event, KstatesParser.STRING)
@@ -78,7 +81,7 @@ internal class KstatesTransitionWalker(
         ctx.value_condition()?.let { value -> references.modelPath(tree.quoted(tree.terminal(value, KstatesParser.STRING))) }
     }
 
-    /** Splits the state strings into sources and targets at the arrow (see the class documentation). */
+    /** Splits the state strings into sources and targets at the arrow, as the class documentation describes. */
     private fun sides(kind: SymbolKind, states: List<TerminalNode>, arrow: TerminalNode?): Pair<List<TerminalNode>, List<TerminalNode>> {
         val arrowIndex = arrow?.symbol?.tokenIndex ?: -1
         return when {
@@ -88,6 +91,6 @@ internal class KstatesTransitionWalker(
         }
     }
 
-    /** The state names of [states], comma-separated; missing (conjured) strings are left out. */
+    /** The state names of [states], separated by commas. Missing strings, which ANTLR conjured, are left out. */
     private fun names(states: List<TerminalNode>): String = states.mapNotNull { tree.quoted(it)?.value }.joinToString(", ")
 }

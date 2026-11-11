@@ -23,15 +23,15 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import java.nio.file.Path
 
 /**
- * Whether the files descriptors name are there: the one rule that the workspace checks a descriptor and builds its
- * modeling context by, and that the editor's hover, go to definition and completion follow, so none of them treats a
- * file as present that the descriptor's findings report missing.
+ * Decides whether the files that descriptors name are there. The workspace checks a descriptor and builds its
+ * modeling context by this rule. The editor's hover, go to definition and completion follow the same rule. So none of
+ * them treats a file as present that the findings of the descriptor report as missing.
  *
- * A descriptor names a file by a path relative to its own directory ([DescriptorPaths.resolve]). The file is there only
- * if it is a file of the workspace [tree]: a file that is missing, lies in an ignored directory or outside the
- * workspace, or is a directory, is missing even where it exists on disk, because the workspace neither shows, watches
- * nor analyzes it. A file of the tree fits a role if it is written in the role's language ([FileKind.fits]). Pure;
- * one per tree.
+ * A descriptor names a file by a path relative to its own directory, resolved by [DescriptorPaths.resolve]. The file
+ * is there only if it is a file of the workspace [tree]. A file that is missing, lies in an ignored directory or
+ * outside the workspace, or is a directory, counts as missing even where it exists on disk. The reason is that the
+ * workspace neither shows, watches nor analyzes it. A file of the tree fits a role if it is written in the language of
+ * the role, as [FileKind.fits] decides. The class has no side effects, and there is one instance per tree.
  */
 public class DescriptorFiles(private val tree: WorkspaceTree) {
 
@@ -43,20 +43,20 @@ public class DescriptorFiles(private val tree: WorkspaceTree) {
         return if (language != null && !file.kind.fits(role)) NamedFile.WrongLanguage(file, language) else NamedFile.Present(file)
     }
 
-    /** Every file of the tree a key of [role] can name without a finding, in the tree's order. */
+    /** Every file of the tree that a key of [role] can name without a finding, in the order of the tree. */
     public fun candidates(role: DescriptorFileRole): List<WorkspaceNode.File> = tree.files().filter { it.kind.fits(role) }
 }
 
 /** What a file path in a descriptor refers to, as [DescriptorFiles.lookUp] finds it. */
 public sealed interface NamedFile {
 
-    /** The file of the workspace tree the path names, or null where it names none. */
+    /** The file of the workspace tree that the path names, or null where it names none. */
     public val file: WorkspaceNode.File? get() = null
 
-    /** The value is no valid path on this platform. */
+    /** The value is not a valid path on this platform. */
     public data object NoPath : NamedFile
 
-    /** The value names [path], which is no file of the workspace tree. */
+    /** The value names [path], which is not a file of the workspace tree. */
     public data class Missing(public val path: Path) : NamedFile
 
     /** The value names [file] of the tree, which is not written in the [language] its role needs. */

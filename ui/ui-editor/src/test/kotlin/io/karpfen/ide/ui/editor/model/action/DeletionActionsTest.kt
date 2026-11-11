@@ -19,9 +19,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-/** Backspace (smart unindent, pair deletion), Delete, word and line deletion. */
+/** Backspace with smart unindent and pair deletion, Delete, and the deletion of words and lines. */
 class DeletionActionsTest {
 
+    /** The marked text after the action [actionId] ran once on [marked]. */
     private fun after(marked: String, actionId: String): String = TestEditor(marked).apply { run(actionId) }.marked()
 
     @Test

@@ -27,8 +27,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers [UrlRuntimeHost] against the fake runtime with programmed answers: one health check and one IDE support check
- * make it run, each failure has its problem code, its log is one line, and stopping only forgets the runtime.
+ * Covers [UrlRuntimeHost] against the fake runtime with programmed answers. One health check and one IDE support check
+ * make it run. Each failure has its problem code, its log is one line, and stopping only forgets the runtime.
  */
 class UrlRuntimeHostTest {
 

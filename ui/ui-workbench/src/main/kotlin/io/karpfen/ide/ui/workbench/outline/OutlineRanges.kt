@@ -24,28 +24,36 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.util.IdentityHashMap
 
 /**
- * The ranges of an outline's nodes in the current text, anchored at the latest projected version (the way a document
- * session anchors its external diagnostics): when the outlined parse changes, every node's range is mapped once from
- * the parse's version; for each later text version the anchored ranges are mapped on from the previous one only, with
- * [EditableText.mapRange], the one rule for mapping ranges between versions. So a projection maps across the versions
- * since the previous projection — one keystroke, usually — instead of across every edit since the last good parse,
- * which made each keystroke of a document with a syntax error more expensive than the one before and lost the highlight
- * once the text no longer retained those edits. A range that cannot be mapped is dropped until the parse changes.
+ * The ranges of an outline's nodes in the current text. They are anchored at the latest projected version, the same
+ * way a document session anchors its external diagnostics.
  *
- * Mutable, for one binding: used by its collector only.
+ * When the outlined parse changes, the range of every node is mapped once from the parse's version. For each later
+ * text version, the anchored ranges are mapped on from the previous version only. The mapping always goes through
+ * [EditableText.mapRange], which is the single rule for mapping ranges between versions.
+ *
+ * A projection therefore maps across the versions since the previous projection, which is usually one keystroke.
+ * Mapping across every edit since the last good parse instead would make each keystroke in a document with a syntax
+ * error more expensive than the one before. It would also lose the highlight once the text no longer keeps those
+ * edits. A range that cannot be mapped is dropped until the parse changes.
+ *
+ * The class is mutable and belongs to one editor binding. Only that binding's collector uses it.
  */
 internal class OutlineRanges(private val text: EditableText) {
     private var source: ParseOutcome? = null
     private var lineage: TextLineage? = null
     private var version = -1L
 
-    /** The node ranges at [version]; null while that is the source's own version (its ranges as parsed). */
+    /**
+     * The node ranges at [version]. Null while [version] is the source's own version, because the ranges are then
+     * those of the parse itself.
+     */
     private var anchored: Map<OutlineNode, TextRange>? = null
 
     /**
-     * Each node's range of [source]'s outline in the text of [snapshot]; null for a node that cannot be mapped there. A
-     * parse ahead of the text it is projected onto ([snapshot] older than [source]) maps nothing back: every node
-     * answers null, and the ranges are anchored afresh on the next call.
+     * Returns a lookup from each node of the outline of [source] to its range in the text of [snapshot]. The lookup
+     * returns null for a node that cannot be mapped there. A parse can be ahead of the text it is projected onto, when
+     * [snapshot] is older than [source]. Nothing is mapped back in that case. Every node then answers null, and the
+     * ranges are anchored afresh on the next call.
      */
     fun at(source: ParseOutcome, snapshot: TextSnapshot): (OutlineNode) -> TextRange? {
         if (snapshot.version < source.version) {
@@ -60,7 +68,10 @@ internal class OutlineRanges(private val text: EditableText) {
         return { node -> ranges[node] }
     }
 
-    /** Maps every node's range from [source]'s version into [snapshot] (as parsed when the versions agree). */
+    /**
+     * Maps the range of every node from the version of [source] into [snapshot]. When both versions agree, the ranges
+     * stay as parsed.
+     */
     private fun anchor(source: ParseOutcome, snapshot: TextSnapshot) {
         anchored = if (source.version == snapshot.version) {
             null
@@ -88,7 +99,10 @@ internal class OutlineRanges(private val text: EditableText) {
         version = snapshot.version
     }
 
-    /** The ranges [map] gives the nodes of [outline] (all levels; identity keys: equal nodes may repeat). */
+    /**
+     * The ranges that [map] gives the nodes of [outline], on all levels. The map uses identity keys, because equal
+     * nodes may occur more than once.
+     */
     private fun mapNodes(outline: List<OutlineNode>, map: (OutlineNode) -> TextRange?): Map<OutlineNode, TextRange> {
         val ranges = IdentityHashMap<OutlineNode, TextRange>()
         val pending = ArrayDeque(outline)

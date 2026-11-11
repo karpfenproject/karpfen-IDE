@@ -23,7 +23,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers [ReconnectPolicy]: the exponential backoff from the first delay, its cap, a constant backoff with factor 1,
+ * Covers the exponential backoff of [ReconnectPolicy] from the first delay, its cap, a constant backoff with factor 1,
  * very late retries without overflow, and the refusal of policies that make no sense.
  */
 class ReconnectPolicyTest {

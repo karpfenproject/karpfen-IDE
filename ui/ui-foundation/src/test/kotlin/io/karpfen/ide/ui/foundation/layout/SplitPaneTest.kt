@@ -50,7 +50,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalTestApi::class)
 class SplitPaneTest {
 
-    /** A split in a box of [width] × [height] whose hoisted size is [size]; records every reported size. */
+    /** A split in a box of [width] by [height] whose hoisted size is [size]. It records every reported size. */
     private class Harness(width: Dp, height: Dp, size: Dp) {
         var width by mutableStateOf(width)
         var height by mutableStateOf(height)

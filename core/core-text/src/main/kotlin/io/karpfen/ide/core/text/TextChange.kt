@@ -16,10 +16,11 @@
 package io.karpfen.ide.core.text
 
 /**
- * One applied change: [before] became [after] by [edits].
+ * One applied change. [before] became [after] by [edits].
  *
- * Invariants: `after.version == before.version + 1`; [edits] are non-empty, non-overlapping, sorted by range start
- * (insertions at the same offset keep their original relative order) and expressed in [before] coordinates.
+ * The constructor checks that `after.version == before.version + 1` and that [edits] is not empty. The edits never
+ * overlap, are sorted by range start and are expressed in the coordinates of [before]. Insertions at the same offset
+ * keep their original order.
  *
  * @property before the text before the change.
  * @property after the text the change produced.

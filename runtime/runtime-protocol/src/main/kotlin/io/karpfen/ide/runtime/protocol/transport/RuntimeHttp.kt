@@ -22,9 +22,11 @@ import io.karpfen.ide.runtime.protocol.catalogue.HttpVerb
  *
  * @property verb the HTTP method.
  * @property path the route's path below the runtime's base URL, such as `/setModel`.
- * @property query the query parameters in the order they are sent, with unencoded values; the transport percent-encodes
- *   every value itself (unreserved characters kept, every other byte of the UTF-8 encoding as `%XX`, a space as `%20`).
- * @property body the UTF-8 text of the request body, sent as `text/plain; charset=UTF-8`; present exactly for [HttpVerb.PUT].
+ * @property query the query parameters in the order they are sent, with unencoded values. The transport percent-encodes
+ *   every value itself. It keeps unreserved characters and writes every other byte of the UTF-8 encoding as `%XX`, so a
+ *   space becomes `%20`.
+ * @property body the UTF-8 text of the request body, sent as `text/plain; charset=UTF-8`. It is present exactly for
+ *   [HttpVerb.PUT].
  * @throws IllegalArgumentException if a body is given for a GET or POST, or none for a PUT.
  */
 public data class TextRequest(
@@ -45,7 +47,7 @@ public sealed interface HttpOutcome {
      *
      * @property status the HTTP status code.
      * @property body the response body, read as UTF-8 text.
-     * @property contentType the `Content-Type` header, or null if the answer had none; the client never relies on it.
+     * @property contentType the `Content-Type` header, or null if the answer had none. The client never relies on it.
      */
     public data class Answered(public val status: Int, public val body: String, public val contentType: String?) : HttpOutcome
 
@@ -58,18 +60,17 @@ public sealed interface HttpOutcome {
 }
 
 /**
- * The HTTP seam of the client: sends one [TextRequest] to the runtime and reports how the exchange ended. The Ktor
- * adapter implements it in production, the fake runtime and test doubles in tests.
+ * The HTTP seam of the client. It sends one [TextRequest] to the runtime and reports how the exchange ended. The Ktor
+ * adapter implements it in production. The fake runtime and test doubles implement it in tests.
  *
- * Threading (MUST): implementations may be called from any coroutine, concurrently; they never block a thread while
- * they wait for the network and never hold a lock across the exchange.
+ * Implementations may be called from any coroutine, also concurrently. They never block a thread while they wait for
+ * the network, and they never hold a lock across the exchange.
  *
- * Contract (MUST):
- * - A transport failure is an [HttpOutcome.Failed], never an exception; [TransportFailure.Unreachable] means nothing was
- *   sent, [TransportFailure.Interrupted] that the request may have reached the runtime.
- * - A `CancellationException` of the caller is rethrown, never turned into an outcome.
- * - Every answer is reported as it is, whatever its status; interpreting statuses and bodies is the caller's business.
- * - The query values are encoded by the transport exactly once, and the body is sent as UTF-8 `text/plain`.
+ * A transport failure is an [HttpOutcome.Failed], never an exception. [TransportFailure.Unreachable] means nothing was
+ * sent. [TransportFailure.Interrupted] means the request may have reached the runtime. A `CancellationException` of the
+ * caller is rethrown and never turned into an outcome. Every answer is reported as it is, whatever its status, and the
+ * caller interprets statuses and bodies. The transport encodes the query values exactly once, and it sends the body as
+ * UTF-8 `text/plain`.
  */
 public fun interface RuntimeHttp {
     /** Sends [request] and reports the answer or the failure. */

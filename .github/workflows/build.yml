@@ -34,14 +34,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          # The default ('enhanced') loads the proprietary gradle-actions-caching component under the Gradle
-          # Technologies Terms of Use (a paid tier is announced for private repositories). 'basic' caches the Gradle
-          # User Home with the MIT-licensed actions/cache. Switching is an owner decision.
+          # The default provider, 'enhanced', loads the proprietary gradle-actions-caching component under the
+          # Gradle Technologies Terms of Use, and a paid tier is announced for private repositories. 'basic' caches
+          # the Gradle User Home with the MIT-licensed actions/cache. Switching means accepting those terms, so it is
+          # a deliberate project decision and not a tuning detail.
           cache-provider: basic
 
       - name: Build
         run: ./gradlew build
 
-      # jpackage rejects some settings only when it runs (e.g. a 0.x app version on macOS), so build the app image.
+      # jpackage rejects some settings only when it runs, for example a 0.x app version on macOS, so CI also builds
+      # the app image.
       - name: Package app image
         run: ./gradlew :app:ide:createDistributable

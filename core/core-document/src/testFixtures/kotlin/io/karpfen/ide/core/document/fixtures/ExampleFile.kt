@@ -18,57 +18,59 @@ package io.karpfen.ide.core.document.fixtures
 import io.karpfen.ide.core.document.KarpfenLanguage
 
 /**
- * The repository an example file was copied from (see `examples/NOTICE.md`).
+ * The repository an example file was copied from.
  *
  * @property directoryName the first path segment of the examples copied from it.
  * @property commit the commit they were copied at.
  */
 public enum class ExampleOrigin(public val directoryName: String, public val commit: String) {
-    /** karpfenproject/karpfen-runtime, `examples/`. */
+    /** The folder `examples/` of karpfenproject/karpfen-runtime. */
     KARPFEN_RUNTIME("karpfen-runtime", "d4c2059"),
 
-    /** karpfenproject/karpfen-dsl-tools, `example/`. */
+    /** The folder `example/` of karpfenproject/karpfen-dsl-tools. */
     KARPFEN_DSL_TOOLS("karpfen-dsl-tools", "859a95d"),
 }
 
 /**
  * One example file from the test fixtures.
  *
- * @property path path below the fixture root, `/`-separated, e.g. `karpfen-runtime/single_robot_example/EVENTS.kmeta`.
- * @property language the file's language (by extension).
- * @property text the file content, decoded as UTF-8 (unmodified; the examples use `\n` separators).
+ * @property path the path below the fixture root, separated by `/`, such as
+ *   `karpfen-runtime/single_robot_example/EVENTS.kmeta`.
+ * @property language the language of the file, taken from its extension.
+ * @property text the unmodified content of the file, decoded as UTF-8. The examples use `\n` separators.
  */
 public data class ExampleFile(public val path: String, public val language: KarpfenLanguage, public val text: String) {
 
-    /** The origin repository (the first path segment). */
+    /** The origin repository, named by the first path segment. */
     public val origin: ExampleOrigin
         get() = ExampleOrigin.entries.first { path.startsWith(it.directoryName + "/") }
 
-    /** The file name, e.g. `EVENTS.kmeta`. */
+    /** The file name, such as `EVENTS.kmeta`. */
     public val fileName: String get() = path.substringAfterLast('/')
 
-    /** The directory below the fixture root, e.g. `karpfen-runtime/single_robot_example`. */
+    /** The directory below the fixture root, such as `karpfen-runtime/single_robot_example`. */
     public val directory: String get() = path.substringBeforeLast('/', missingDelimiterValue = "")
 
-    /** True for an event metamodel (`EVENTS.kmeta`, case-insensitive). */
+    /** True for an event metamodel, which is a file named `EVENTS.kmeta` in any letter case. */
     public val isEventsMetamodel: Boolean get() = fileName.equals("EVENTS.kmeta", ignoreCase = true)
 
-    /** Number of lines (`\n`-separated; a trailing newline adds an empty last line). */
+    /** The number of lines separated by `\n`. A trailing newline adds an empty last line. */
     public val lineCount: Int get() = text.count { it == '\n' } + 1
 
     override fun toString(): String = path
 }
 
 /**
- * The example files of one directory, which form one implicit modeling context (a directory not covered by an
- * environment descriptor): the domain metamodel, the optional event metamodel, models and state machines.
+ * The example files of one directory. They form one implicit modeling context, which is a directory not covered by an
+ * environment descriptor. Such a context holds the domain metamodel, the optional event metamodel, models and state
+ * machines.
  *
  * @property directory the directory below the fixture root.
  * @property files the example files of [directory], sorted by path.
  */
 public data class ExampleContext(public val directory: String, public val files: List<ExampleFile>) {
 
-    /** The domain metamodel: the alphabetically first `.kmeta` that is not `EVENTS.kmeta`, or null. */
+    /** The domain metamodel, or null. It is the alphabetically first `.kmeta` file that is not `EVENTS.kmeta`. */
     public val metamodel: ExampleFile?
         get() = files.filter { it.language == KarpfenLanguage.KMETA && !it.isEventsMetamodel }.minByOrNull { it.fileName }
 

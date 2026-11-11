@@ -28,16 +28,17 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * [AwtFolderChooser] bridges the modal dialog on the AWT event dispatch thread to the suspended caller: it resumes it
- * with the answer or, whatever the dialog throws, with an `IOException`, never leaving the intent waiting forever.
+ * Tests that [AwtFolderChooser] bridges the modal dialog on the AWT event dispatch thread to the suspended caller. It
+ * resumes the caller with the answer. Whatever the dialog throws, it resumes the caller with an `IOException`. It never
+ * leaves the intent waiting forever.
  */
 class AwtFolderChooserTest {
 
     private val folder: Path = Path.of("/ws/robot").toAbsolutePath()
 
     /**
-     * True if [failure] is [original] or caused by it: coroutines may recover an exception as a copy with the original
-     * as its cause.
+     * True if [failure] is [original] or was caused by it. Coroutines may recover an exception as a copy with the
+     * original as its cause.
      */
     private fun causedBy(failure: Throwable, original: Throwable): Boolean =
         generateSequence(failure) { it.cause }.any { it === original }

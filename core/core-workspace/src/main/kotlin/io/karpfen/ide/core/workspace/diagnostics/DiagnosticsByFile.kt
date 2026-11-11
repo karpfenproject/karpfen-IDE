@@ -19,9 +19,9 @@ import io.karpfen.ide.core.document.Diagnostic
 import java.nio.file.Path
 
 /**
- * Collects diagnostics per file and hands them out in the form the workspace's values promise
- * (`ContextResolution.diagnostics`, `ProjectAnalysis.diagnostics`): every list sorted with [Diagnostic.ORDER], without
- * duplicates, files without diagnostics absent. A mutable builder confined to the computation that owns it.
+ * Collects diagnostics per file and hands them out in the form that `ContextResolution.diagnostics` and
+ * `ProjectAnalysis.diagnostics` promise. Every list is sorted with [Diagnostic.ORDER] and has no duplicates, and files
+ * without diagnostics are absent. It is a mutable builder that only the computation owning it uses.
  */
 internal class DiagnosticsByFile {
 
@@ -42,7 +42,10 @@ internal class DiagnosticsByFile {
         diagnostics.forEach { (path, list) -> add(path, list) }
     }
 
-    /** The collected diagnostics: sorted, distinct, non-empty lists in the order the files were first added. */
+    /**
+     * The collected diagnostics. The lists are sorted, distinct and not empty, and the files keep the order in which
+     * they were first added.
+     */
     fun build(): Map<Path, List<Diagnostic>> =
         byFile.mapValues { (_, list) -> list.distinct().sortedWith(Diagnostic.ORDER) }.filterValues { it.isNotEmpty() }
 }

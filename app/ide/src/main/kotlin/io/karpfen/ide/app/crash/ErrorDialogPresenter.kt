@@ -24,13 +24,17 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
-/** File name of the IDE log in `SettingsLocations.logDirectory()`; the app's `logback.xml` writes the same file. */
+/** File name of the IDE log in `SettingsLocations.logDirectory()`. The app's `logback.xml` writes the same file. */
 internal const val IDE_LOG_FILE_NAME: String = "ide.log"
 
 /** Title of the dialog that reports an uncaught error. */
 internal const val ERROR_DIALOG_TITLE: String = "Unexpected Error"
 
-/** The error dialog for an uncaught [error]: what failed, and which log has the details (the stack trace). */
+/**
+ * The error dialog for an uncaught [error]. It names what failed, with the exception's simple class name and its
+ * message, or with the full class name when the message is blank. It also names [logFile], which holds the details,
+ * such as the stack trace.
+ */
 internal fun errorDialogFor(error: Throwable, logFile: Path): DialogRequest.Error {
     val what = error.message?.takeIf { it.isNotBlank() }?.let { "${error::class.java.simpleName}: $it" }
         ?: error::class.java.name
@@ -38,12 +42,13 @@ internal fun errorDialogFor(error: Throwable, logFile: Path): DialogRequest.Erro
 }
 
 /**
- * Shows uncaught errors in the workbench's error dialog once the workbench runs: [attach] passes the dialog port
- * (`WorkbenchState.dialogs.ask`). Before that, and while an error dialog is open, [show] declines (the error is logged
- * by `CrashHandling` anyway), so a burst of errors — e.g. one per frame — never queues a dialog per error.
+ * Shows uncaught errors in the workbench's error dialog once the workbench runs. [attach] passes the dialog port,
+ * `WorkbenchState.dialogs.ask`. Before that, and while an error dialog is open, [show] declines, because
+ * `CrashHandling` logs the error anyway. So a burst of errors, for example one per frame, never queues one dialog per
+ * error.
  *
- * Thread-safe: [show] may be called from any thread; the dialog is asked in [scope] (the UI scope). A failure of the
- * dialog itself is logged, never rethrown, so it cannot report itself again.
+ * The presenter is thread-safe. [show] may be called from any thread, and the dialog is asked in [scope], the UI
+ * scope. A failure of the dialog itself is logged and never rethrown, so it cannot report itself again.
  *
  * @param logFile named in the dialog as the place of the details.
  */
@@ -51,12 +56,15 @@ internal class ErrorDialogPresenter(private val scope: CoroutineScope, private v
     private val ask = AtomicReference<(suspend (DialogRequest.Error) -> Unit)?>(null)
     private val dialogOpen = AtomicBoolean(false)
 
-    /** From now on, errors are shown through [ask] (suspending until the dialog is answered). */
+    /** From now on, errors are shown through [ask], which suspends until the dialog is answered. */
     fun attach(ask: suspend (DialogRequest.Error) -> Unit) {
         this.ask.set(ask)
     }
 
-    /** Shows [error] unless no dialog port is attached yet or an error dialog is already open; true if it is shown. */
+    /**
+     * Shows [error] unless no dialog port is attached yet or an error dialog is already open. Returns whether it is
+     * shown.
+     */
     fun show(error: Throwable): Boolean {
         val target = ask.get() ?: return false
         if (!dialogOpen.compareAndSet(false, true)) return false

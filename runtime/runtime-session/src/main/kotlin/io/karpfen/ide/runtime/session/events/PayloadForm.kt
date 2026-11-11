@@ -19,7 +19,7 @@ import io.karpfen.dsl.meta.AssociationType
 import io.karpfen.dsl.meta.SimplePropertyType
 import io.karpfen.ide.runtime.session.schema.TypeSchema
 
-/** A field of a [PayloadForm]: a member of the payload type. */
+/** A field of a [PayloadForm]. It stands for one member of the payload type. */
 public sealed interface PayloadField {
     /** The member's key. */
     public val key: String
@@ -33,12 +33,12 @@ public sealed interface PayloadField {
     public data class Scalar(override val key: String, public val type: SimplePropertyType, public val isList: Boolean) : PayloadField
 
     /**
-     * A relation, filled in as nested objects: the runtime builds new objects for `has` and `knows` members alike.
+     * A relation, filled in as nested objects. The runtime builds new objects for `has` and `knows` members alike.
      *
      * @property typeName the type of its targets.
      * @property association `has` or `knows`.
      * @property isList true for a list relation.
-     * @property form the form of a target, built when it is asked for, so recursive types stay finite.
+     * @property form the form of a target. It is built when it is asked for, so that recursive types stay finite.
      */
     public data class Nested(
         override val key: String,
@@ -53,20 +53,21 @@ public sealed interface PayloadField {
  * The fields of a payload type, for a form the user fills in instead of typing JSON.
  *
  * @property typeName the payload type.
- * @property fields its members in declaration order; empty for a type the schema does not know.
+ * @property fields its members in declaration order. It is empty for a type the schema does not know.
  */
 public data class PayloadForm(public val typeName: String, public val fields: List<PayloadField>) {
     /**
-     * The JSON object [draft] fills in: numbers as JSON numbers, booleans, strings, arrays for list values, nested
-     * objects for relations (`has` and `knows` alike); fields the draft leaves out are left out, and draft values for
-     * keys the form does not have are ignored. A number that is not finite has no JSON form and is written as a string,
-     * which the payload checks report. The JSON then goes through the JSON format's checks like typed text.
+     * The JSON object that [draft] fills in. Numbers become JSON numbers, and booleans and strings become their JSON
+     * forms. List values become arrays. Relations become nested objects, for `has` and `knows` alike. Fields the draft
+     * leaves out are left out, and draft values for keys the form does not have are ignored. A number that is not
+     * finite has no JSON form and is written as a string, which the payload checks then report. The JSON goes through
+     * the JSON format's checks like typed text.
      */
     public fun toJson(draft: PayloadDraft): String = DraftEncoder.encode(this, draft)
 
     public companion object {
         /**
-         * The form of [typeName] in [schema]. Nested forms go [depthLimit] levels deep in all; below that a nested form
+         * The form of [typeName] in [schema]. Nested forms go [depthLimit] levels deep in all. Below that a nested form
          * has no fields.
          *
          * @throws IllegalArgumentException if [depthLimit] is less than 1.
@@ -91,7 +92,10 @@ public data class PayloadForm(public val typeName: String, public val fields: Li
     }
 }
 
-/** A value of a simple property in a draft; `events` keeps its own values, independent of the mirror's. */
+/**
+ * A value of a simple property in a draft. This package keeps its own value types, independent of those of the
+ * mirror.
+ */
 public sealed interface PayloadScalar {
     /**
      * A number.
@@ -133,9 +137,9 @@ public sealed interface PayloadDraftValue {
 }
 
 /**
- * The values a user filled into a [PayloadForm], by path: the keys from the payload object down to the simple property,
- * with the decimal index of the entry after the key of a list relation (`["destination", "x"]`,
- * `["stops", "0", "x"]`). Immutable.
+ * The values a user filled into a [PayloadForm], by path. A path holds the keys from the payload object down to the
+ * simple property. After the key of a list relation it holds the decimal index of the entry. Examples are
+ * `["destination", "x"]` and `["stops", "0", "x"]`. Immutable.
  *
  * @property values the values by path.
  */

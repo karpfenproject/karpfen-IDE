@@ -23,6 +23,7 @@ import kotlin.test.assertNull
 /** Every [CaretMovement] with and without selection extension. */
 class CaretMovementTest {
 
+    /** The marked text after moving the caret of [marked] by [movement], extending the selection when [extend] is set. */
     private fun moved(marked: String, movement: CaretMovement, extend: Boolean = false, pageLines: Int = 1): String {
         val editor = TestEditor(marked)
         editor.caret.move(movement, extend, pageLines)

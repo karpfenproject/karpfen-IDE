@@ -35,11 +35,12 @@ import kotlin.test.assertTrue
 import kotlin.time.TimeSource
 
 /**
- * Covers the robustness of highlight, completion, definition and hover (references and bracket matching included): the
- * services never throw — and no provider fails behind the facade's catch-all — on 10,000 deterministic mutations of
- * each modeling language's examples (spread over its files, in their modeling contexts) and on every prefix of a
- * KStates example (environment descriptors have a robustness test of their own in the `environment` package); every
- * result keeps the documented invariants (ranges inside the text, highlight spans sorted and disjoint).
+ * Covers the robustness of highlight, completion, definition, hover, references and bracket matching. The services
+ * never throw, and no provider fails behind the catch-all of the facade. This holds on 10,000 deterministic mutations
+ * of the examples of each modeling language, spread over its files and run in their modeling contexts. It also holds
+ * on every prefix of a KStates example. Environment descriptors have a robustness test of their own in the
+ * `environment` package. Every result keeps the documented invariants. Ranges lie inside the text, and highlight spans
+ * are sorted and disjoint.
  */
 class LanguageServicesRobustnessTest {
 
@@ -84,7 +85,7 @@ class LanguageServicesRobustnessTest {
     }
 
     /**
-     * Runs every feature on [document] at [offsets] and checks the invariants of the results; [label] names the case.
+     * Runs every feature on [document] at [offsets] and checks the invariants of the results. [label] names the case.
      */
     private fun exercise(document: LanguageDocument, offsets: List<Int>, label: String) {
         val length = document.text.length
@@ -105,7 +106,7 @@ class LanguageServicesRobustnessTest {
         check(failures.isEmpty()) { "$label: provider failures ${failures.map { "${it.operation}: ${it.error}" }}" }
     }
 
-    /** A location of the document itself in its text's version lies inside its text. */
+    /** A location in the document itself, at the version of its text, lies inside its text. */
     private fun isValid(document: LanguageDocument, path: Path, version: Long?, range: TextRange): Boolean =
         path != document.path || version != document.text.version || range.end <= document.text.length
 

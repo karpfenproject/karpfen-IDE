@@ -25,7 +25,7 @@ internal sealed interface Verdict {
     /** Send it. */
     data object Send : Verdict
 
-    /** Answer it locally with success and send nothing: stopping a stopped environment. */
+    /** Answer it locally with success and send nothing. This is the verdict for stopping a stopped environment. */
     data object AnswerLocally : Verdict
 
     /**
@@ -49,7 +49,7 @@ internal sealed interface OutcomeResolution {
     data object Probe : OutcomeResolution
 }
 
-/** What a probe, a snapshot read through the gateway after a call whose effect is unknown, found. */
+/** What a probe found. A probe is a snapshot read through the gateway after a call whose effect is unknown. */
 internal sealed interface ProbeResult {
     /**
      * The runtime answered with a snapshot.
@@ -67,31 +67,35 @@ internal sealed interface ProbeResult {
 }
 
 /**
- * The environment lifecycle as pure functions: which operation may be sent in which phase, and which phase follows
- * each outcome. The environment handle asks [verdict] before every call and the other functions after it.
+ * The environment lifecycle as pure functions. They decide which operation may be sent in which phase, and which phase
+ * follows each outcome. The environment handle asks [verdict] before every call and the other functions after it.
  *
- * Verdicts: configuring calls (uploads, the tick delay, the time to live, observers and listeners) only while
- * configuring, since the runtime freezes them at activation; the metamodel only before the event definitions and the
- * model, which are bound to its types, and those two only after it; access keys in every phase but stopped, uncertain and
- * lost; activation once, while configuring with a metamodel and a model; a start only of an activated environment (a
- * halted or stopped one is never restarted); a stop of an activated, running, halted or uncertain environment, answered
- * locally for a stopped one; a forced state while activated or running; reading the source or a snapshot unless lost;
- * subscribing while configuring, activated, running or halted; unsubscribing unless lost; injecting an event while
- * activated or running.
+ * The verdicts work as follows. The configuring calls are the uploads, the tick delay, the time to live, the observers
+ * and the listeners. They are allowed only while configuring, because the runtime freezes them at activation. The
+ * metamodel is allowed only before the event definitions and the model, because those two are bound to its types.
+ * Those two are allowed only after the metamodel. Access keys are allowed in every phase except stopped, uncertain and
+ * lost. Activation is allowed once, while configuring with a metamodel and a model. A start is allowed only for an
+ * activated environment, so a halted or stopped environment is never restarted. A stop is allowed for an activated,
+ * running, halted or uncertain environment, and the handle answers it locally for a stopped one. A forced state is
+ * allowed while activated or running. Reading the source or a snapshot is allowed unless the environment is lost.
+ * Subscribing is allowed while configuring, activated, running or halted. Unsubscribing is allowed unless the
+ * environment is lost. Injecting an event is allowed while activated or running.
  *
- * Transitions: a success of a configuring call adds to the uploads, a success of activate, start and stop moves to
- * activated, running and stopped, a snapshot reports its phase, and other successes change nothing. A failure that
- * leaves open whether the call was applied (no answer, an internal error of the runtime, an unexpected status or body)
- * changes nothing, except for activate, start and stop, whose phase is then probed. A rejection is reconciled: an
- * unknown environment is lost, a rejection that shows the runtime's phase differs from the believed one is probed, any
- * other changes nothing; activate, start, stop and the snapshot have rules of their own. A probe's snapshot settles the
- * phase; a probe that fails leaves the phase uncertain between the phases the operation could have left.
+ * The transitions work as follows. A success of a configuring call adds to the uploads. A success of activate, start
+ * and stop moves to activated, running and stopped. A snapshot reports its phase. Other successes change nothing. Some
+ * failures leave open whether the call was applied: no answer, an internal error of the runtime, an unexpected status
+ * and an unexpected body. Such a failure changes nothing, except for activate, start and stop, whose phase is then
+ * probed. A rejection is reconciled. An unknown environment becomes lost. A rejection that shows the runtime's phase
+ * differs from the believed one leads to a probe. Any other rejection changes nothing. Activate, start, stop and the
+ * snapshot have rules of their own. A probe's snapshot settles the phase. A probe that fails leaves the phase uncertain
+ * between the phases the operation could have left.
  *
- * A stopped environment stays stopped, whatever a later snapshot or probe reports, until the runtime no longer knows it:
- * while the engine's last tick still ends, for good if a call in it never returns, the runtime reports the stopped
- * environment as running or finds no tick boundary in it, and the client never restarts a stopped environment.
+ * A stopped environment stays stopped, whatever a later snapshot or probe reports, until the runtime no longer knows
+ * it. While the engine's last tick still ends, the runtime reports the stopped environment as running or finds no tick
+ * boundary in it. If a call in that tick never returns, this lasts for good. The client never restarts a stopped
+ * environment.
  *
- * Stateless.
+ * The object holds no state.
  */
 internal object LifecycleRules {
 
@@ -107,7 +111,10 @@ internal object LifecycleRules {
             is EnvironmentPhase.Lost -> Verdict.Refuse("the runtime no longer knows the environment (${phase.reason})")
         }
 
-    /** The phase after a success of [operation] in [phase]; [attachedTo] is the machine a state machine upload attached. */
+    /**
+     * The phase after a success of [operation] in [phase]. [attachedTo] is the object key that a state machine upload
+     * attached its machine to.
+     */
     fun afterSuccess(phase: EnvironmentPhase, operation: LifecycleOperation, attachedTo: String? = null): EnvironmentPhase =
         when (operation) {
             LifecycleOperation.ACTIVATE -> EnvironmentPhase.Activated
@@ -166,8 +173,8 @@ internal object LifecycleRules {
         }
 
     /**
-     * The phase that [snapshot] reports, keeping the known uploads of [phase] for a configuring environment; a stopped
-     * environment stays stopped.
+     * The phase that [snapshot] reports. For a configuring environment it keeps the known uploads of [phase]. A
+     * stopped environment stays stopped.
      */
     fun afterSnapshot(phase: EnvironmentPhase, snapshot: RuntimeModelSnapshot): EnvironmentPhase =
         reportedOver(
@@ -181,7 +188,7 @@ internal object LifecycleRules {
             },
         )
 
-    /** The kind of [phase]; null for the phases that are not one of the runtime's. */
+    /** The kind of [phase], or null for the phases that the runtime does not have. */
     fun kindOf(phase: EnvironmentPhase): PhaseKind? =
         when (phase) {
             is EnvironmentPhase.Configuring -> PhaseKind.CONFIGURING
@@ -281,13 +288,17 @@ internal object LifecycleRules {
     /** The refusal of a configuring call after activation. */
     private fun frozen(): Verdict = Verdict.Refuse("the configuration is frozen at activation")
 
-    /** The resolution of a [failure] that leaves open whether the call was applied; [probes] for activate, start and stop. */
+    /**
+     * The resolution of a [failure] that leaves open whether the call was applied. [probes] is true for activate, start
+     * and stop. Even then an unreachable runtime leaves the phase unchanged, because nothing was sent.
+     */
     private fun unknownOutcome(phase: EnvironmentPhase, failure: RuntimeFailure, probes: Boolean): OutcomeResolution =
         if (probes && failure !is RuntimeFailure.Unreachable) OutcomeResolution.Probe else OutcomeResolution.Settled(phase)
 
     /**
-     * The resolution of a [rejection] by the general rule: an unknown environment is lost, a rejection that shows the
-     * runtime's phase differs from the believed one is probed, every other leaves the phase unchanged.
+     * The resolution of a [rejection] by the general rule. An unknown environment becomes lost. A rejection that shows
+     * the runtime's phase differs from the believed one leads to a probe. Every other rejection leaves the phase
+     * unchanged.
      */
     private fun reconcile(phase: EnvironmentPhase, rejection: RuntimeFailure.Rejected): OutcomeResolution =
         when (rejection.kind) {
@@ -297,9 +308,9 @@ internal object LifecycleRules {
         }
 
     /**
-     * The phase a report of the runtime establishes over the believed [phase]: [reported], unless [phase] is stopped and
-     * [reported] is not lost. The runtime reports a stopped environment as running, or finds no tick boundary in it,
-     * while the engine's last tick ends, and a stopped environment is final for the client.
+     * The phase that a report of the runtime establishes over the believed [phase]. It is [reported], unless [phase] is
+     * stopped and [reported] is not lost. While the engine's last tick ends, the runtime reports a stopped environment
+     * as running or finds no tick boundary in it. A stopped environment is final for the client.
      */
     private fun reportedOver(phase: EnvironmentPhase, reported: EnvironmentPhase): EnvironmentPhase =
         if (phase == EnvironmentPhase.Stopped && reported !is EnvironmentPhase.Lost) phase else reported
@@ -309,9 +320,10 @@ internal object LifecycleRules {
         OutcomeResolution.Settled(EnvironmentPhase.Lost(rejection.describe()))
 
     /**
-     * The phases [operation] could have left, believed to be in [phase]: activation configuring or activated, a start
-     * activated, running or halted, a stop the believed phase or stopped; for any other operation, whose rejection showed
-     * that the runtime's phase differs from the believed one, every phase but the believed one.
+     * The phases that [operation] could have left, when the environment was believed to be in [phase]. Activation
+     * leaves configuring or activated. A start leaves activated, running or halted. A stop leaves the believed phase or
+     * stopped. Any other operation only gets here after a rejection showed that the runtime's phase differs from the
+     * believed one. So its candidates are every phase except the believed one.
      */
     private fun candidates(phase: EnvironmentPhase, operation: LifecycleOperation): Set<PhaseKind> {
         val believed = believedKinds(phase)
@@ -323,14 +335,14 @@ internal object LifecycleRules {
         }
     }
 
-    /** The phases [phase] stands for: its own kind, or the candidates of an uncertain phase. */
+    /** The phases that [phase] stands for. That is its own kind, or the candidates of an uncertain phase. */
     private fun believedKinds(phase: EnvironmentPhase): Set<PhaseKind> =
         when (phase) {
             is EnvironmentPhase.Uncertain -> phase.candidates
             else -> setOfNotNull(kindOf(phase))
         }
 
-    /** The uploads the client knows of in this phase: those of a configuring or uncertain phase, else none. */
+    /** The uploads the client knows of in this phase. Only a configuring or an uncertain phase has any. */
     private fun EnvironmentPhase.knownUploads(): Uploads =
         when (this) {
             is EnvironmentPhase.Configuring -> uploads

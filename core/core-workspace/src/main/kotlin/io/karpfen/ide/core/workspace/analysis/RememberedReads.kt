@@ -24,25 +24,26 @@ import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The last read of each file of one kind of model, kept from one analysis of a workspace to the next, so that a file is
- * read again only when its text or the input it is read against changed: [read] answers with the remembered result for
- * the same text and the same input, and reads otherwise. An unchanged file that a reader cannot read thus fails, and is
- * logged by dsl-tools, once, not on every analysis.
+ * The last read of each file of one kind of model. It is kept from one analysis of a workspace to the next, so that a
+ * file is read again only when its text or the input it is read against changed. [read] answers with the remembered
+ * result for the same text and the same input, and reads otherwise. So an unchanged file that a reader cannot read
+ * fails, and is logged by dsl-tools, only once and not on every analysis.
  *
- * A read depends on nothing but its text and its input, so its result holds for any snapshot of the same text: its
- * findings lie at offsets of that text, and the models are never changed after reading (see [ProjectAnalysis]). The
- * input, the metamodel a model is read against, is compared by identity: an unchanged metamodel is itself a remembered
- * result, so it is the same object.
+ * A read depends on nothing but its text and its input. So its result holds for any snapshot of the same text. Its
+ * findings lie at offsets of that text, and the models are never changed after reading, as [ProjectAnalysis] states.
+ * The input is the metamodel a model is read against, and it is compared by identity. That works because an unchanged
+ * metamodel is itself a remembered result and so the same object.
  *
- * Thread-safe; an analysis runs one read of a file at a time.
+ * The class is thread-safe. An analysis runs one read of a file at a time.
  */
 internal class RememberedReads<T : Any> {
 
     private val last = ConcurrentHashMap<Path, RememberedRead<T>>()
 
     /**
-     * The result of reading [snapshot], the text of the file at [path], against [input]: the remembered one if the last
-     * read of the file had the same text and input, else what [read] returns, which is remembered in its place.
+     * The result of reading [snapshot], the text of the file at [path], against [input]. If the last read of the file
+     * had the same text and input, the remembered result is returned. Otherwise it returns what [read] returns and
+     * remembers that in its place.
      */
     fun read(path: Path, snapshot: TextSnapshot, input: Any?, read: (TextSnapshot) -> ReadResult<T>): ReadResult<T> {
         val remembered = last[path]
@@ -57,17 +58,17 @@ internal class RememberedReads<T : Any> {
 }
 
 /**
- * One remembered read: the [result] of reading [text] against [input].
+ * One remembered read, the [result] of reading [text] against [input].
  *
  * @property text the text that was read.
- * @property input what the text was read against, null if nothing.
+ * @property input what the text was read against, or null if nothing.
  * @property result what the reader returned.
  */
 private class RememberedRead<T : Any>(val text: String, val input: Any?, val result: ReadResult<T>)
 
 /**
- * What the analyses of one workspace remember of their reads, one [RememberedReads] per kind of model: the metamodels,
- * events included, the models and the state machines.
+ * What the analyses of one workspace remember of their reads. There is one [RememberedReads] per kind of model: the
+ * metamodels including the events, the models and the state machines.
  */
 internal class ReadMemory {
     /** The reads of metamodels and events. */

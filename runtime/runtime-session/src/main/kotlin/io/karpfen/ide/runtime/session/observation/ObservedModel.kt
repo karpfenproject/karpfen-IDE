@@ -21,35 +21,38 @@ import io.karpfen.ide.runtime.session.states.ActiveStates
 
 /** The position of the observation switch. */
 public enum class ObservationMode {
-    /** No observation traffic: the model changes only when it is pulled. */
+    /** There is no observation traffic. The model changes only when it is pulled. */
     OFF,
 
-    /** The runtime pushes every object and stack change, applied in revision order after a first snapshot. */
+    /**
+     * The runtime pushes every object and stack change. The changes are applied in revision order after a first
+     * snapshot.
+     */
     ON,
 }
 
 /** Why the observed model is being re-read from a snapshot. */
 public enum class SyncReason {
-    /** Observation was switched on: the first snapshot after subscribing. */
+    /** Observation was switched on, and this is the first snapshot after subscribing. */
     SWITCHED_ON,
 
-    /** A push skipped revisions: pushes were lost. */
+    /** A push skipped revisions, so pushes were lost. */
     GAP,
 
     /**
-     * The connection was interrupted or opened again: pushes may have been lost meanwhile. The model is live again only
-     * once the connection is open and a snapshot was read after it; a pull meanwhile updates the model but leaves it
-     * synchronizing, and so does every pull after the connection gave up for good.
+     * The connection was interrupted or opened again, so pushes may have been lost meanwhile. The model is live again
+     * only once the connection is open and a snapshot was read after that. A pull meanwhile updates the model but
+     * leaves it synchronizing. So does every pull after the connection gave up for good.
      */
     RECONNECTED,
 
-    /** Reading a snapshot failed; it is tried again. */
+    /** Reading a snapshot failed. It is tried again. */
     SNAPSHOT_FAILED,
 }
 
 /** How far the observed model is in step with the runtime. */
 public sealed interface SyncStatus {
-    /** Nothing was read from the runtime yet: the mirror is the seed and the states are predictions. */
+    /** Nothing was read from the runtime yet. The mirror is the seed and the states are predictions. */
     public data object Predicted : SyncStatus
 
     /**
@@ -60,8 +63,8 @@ public sealed interface SyncStatus {
     public data class Pulled(public val revision: Long) : SyncStatus
 
     /**
-     * Observation is on, but the model is not in step with the pushes: a snapshot is pending, or the connection has to
-     * open again first; pushes are not applied meanwhile, because the snapshot that follows covers them.
+     * Observation is on, but the model is not in step with the pushes. A snapshot is pending, or the connection has to
+     * open again first. Pushes are not applied meanwhile, because the snapshot that follows covers them.
      *
      * @property reason why the model is re-read.
      */
@@ -75,7 +78,7 @@ public sealed interface SyncStatus {
     public data class Live(public val revision: Long) : SyncStatus
 
     /**
-     * The model as read after the environment stopped; it no longer changes.
+     * The model as read after the environment stopped. It no longer changes.
      *
      * @property revision the revision of the final snapshot.
      */

@@ -29,12 +29,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlin.time.TimeSource
 
 /**
- * Creates the [DefaultOpenDocument] of a loaded file: an `EditableText` on the injected [timeSource], a
- * `SemanticMode.SYNTAX_ONLY` session (whatever [sessionConfig] says) in a child scope of [scope], and the loading
- * findings as external source `ExternalDiagnosticSources.FILE` of the initial snapshot.
+ * Creates the [DefaultOpenDocument] of a loaded file. It creates an `EditableText` on the injected [timeSource] and a
+ * `SemanticMode.SYNTAX_ONLY` session in a child scope of [scope], whatever [sessionConfig] says about the mode. The
+ * loading findings become the external source `ExternalDiagnosticSources.FILE` of the initial snapshot.
  *
- * Sessions never read with dsl-tools: the project analysis is the only place that reads files with dsl-tools, so each
- * file is read once, open or not, and opening a file never changes what is reported.
+ * Sessions never read with dsl-tools. The project analysis is the only place that reads files with dsl-tools. So each
+ * file is read once, whether it is open or not, and opening a file never changes what is reported.
  */
 internal class OpenDocumentFactory(
     private val scope: CoroutineScope,
@@ -43,7 +43,9 @@ internal class OpenDocumentFactory(
     private val conflicts: ConflictResolver,
 ) {
 
-    /** The document of [loaded] (absolute, normalized path) with [support]'s tokenizer and parser. */
+    /**
+     * The document of [loaded], whose path is absolute and normalized, with the tokenizer and parser of [support].
+     */
     fun create(loaded: LoadedSource, kind: FileKind, support: LanguageSupport): DefaultOpenDocument {
         val documentScope = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
         val text = EditableText(loaded.text, timeSource)

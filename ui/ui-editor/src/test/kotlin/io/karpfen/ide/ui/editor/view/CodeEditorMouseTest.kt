@@ -43,13 +43,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Headless mouse tests of `CodeEditor`: click positioning (also behind tabs), drag selection, double click,
- * Shift+click, Cmd+click navigation, the hover after 600 ms with diagnostics, the context menu and wheel scrolling.
- * Positions come from the overlay host's geometry, in text-area coordinates.
+ * Headless mouse tests of `CodeEditor`. They cover click positioning, also behind tabs, drag selection, double click,
+ * Shift+click, Cmd+click navigation, the hover with diagnostics after 600 ms, the context menu and wheel scrolling.
+ * Positions come from the geometry of the overlay host, in text-area coordinates.
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorMouseTest {
 
+    /** Three lines, the second one indented by a tab. */
     private val text = "alpha beta\n\tgamma delta\nepsilon\n"
 
     @Test

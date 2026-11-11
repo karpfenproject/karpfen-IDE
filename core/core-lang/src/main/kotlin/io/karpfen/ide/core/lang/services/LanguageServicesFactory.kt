@@ -37,14 +37,14 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The [LanguageServices] of one workspace: delegates to the [features] of each document's language and reads project
- * knowledge from [analysis] (the workspace's `Workspace.analysis`; tests pass a `MutableStateFlow` of a hand-built
- * analysis) and [files] (the workspace's `Workspace.files`, null where no file tree is known). Construction only wires
- * objects.
+ * The [LanguageServices] of one workspace. They delegate to the [features] of the language of each document. They
+ * read project knowledge from [analysis] and [files]. In the IDE [analysis] is `Workspace.analysis`, and tests pass a
+ * `MutableStateFlow` of an analysis built by hand. [files] is `Workspace.files`, or null where no file tree is known.
+ * Construction only wires objects.
  *
- * @param onProviderFailure called (on the calling thread) with every provider exception the facade caught and logged
- *   instead of letting it escape; the robustness tests pass a recorder and assert it stays empty, so the catch-all
- *   never hides a provider exception.
+ * @param onProviderFailure called on the calling thread with every provider exception that the facade caught and
+ *   logged instead of letting it escape. The robustness tests pass a recorder and assert that it stays empty, so the
+ *   catch-all never hides a provider exception.
  * @throws IllegalArgumentException if two [features] declare the same language.
  */
 public fun defaultLanguageServices(
@@ -59,10 +59,10 @@ public fun defaultLanguageServices(
 }
 
 /**
- * The feature bundles of KMeta, KModel, KStates and environment descriptors. The modeling languages share one
- * caret-context detector, type catalog, model-path resolver, KStates path scopes, cross-file reference search (types in
- * every language, KModel keys, KStates paths and event names) and bracket matcher; every language shares the highlight
- * provider. Wiring only.
+ * The feature bundles of KMeta, KModel, KStates and environment descriptors. The modeling languages share one caret
+ * context detector, type catalog, model path resolver, set of KStates path scopes, cross-file reference search and
+ * bracket matcher. The reference search covers types in every language, KModel keys, KStates paths and event names.
+ * Every language shares the highlight provider. The function only wires objects.
  */
 public fun karpfenLanguageFeatures(): List<LanguageFeatures> {
     val caretContexts = CaretContextDetector()
@@ -81,8 +81,9 @@ public fun karpfenLanguageFeatures(): List<LanguageFeatures> {
 }
 
 /**
- * A provider exception that [defaultLanguageServices] caught: the facade [operation] (`highlight`, `complete`,
- * `definition`, `references`, `hover`, `matchingBracket`), the document's [language] and the [error].
+ * A provider exception that [defaultLanguageServices] caught. [operation] is the facade operation, one of `highlight`,
+ * `complete`, `definition`, `references`, `hover` and `matchingBracket`. [language] is the language of the document,
+ * and [error] is what was thrown.
  */
 public data class ProviderFailure(
     public val operation: String,

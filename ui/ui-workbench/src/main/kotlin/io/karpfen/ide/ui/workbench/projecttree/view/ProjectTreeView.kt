@@ -26,12 +26,13 @@ import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeMenuEntry
 import java.nio.file.Path
 
 /**
- * The Project tool window: `TreeView` of [tree] with file-kind icons; double-click/Enter reports [onOpen]
- * (`WorkbenchState.openNode`: toggles a directory, opens a file); the context menu shows [menuFor] (New
- * KMeta/KModel/KStates/Environment file, Rename, Delete, Reveal in Finder/Explorer, decided by `ProjectTreeState`) and
- * hands the chosen command to [onCommand]. Renders and forwards only: the callbacks are the non-suspending
- * `WorkbenchState` intents and `ProjectTreeState` intents (no coroutine launched here, so a flow survives the row that
- * started it).
+ * The Project tool window. It shows a `TreeView` of [tree] with an icon for each file kind. A double-click or Enter
+ * reports the node to [onOpen], which is `WorkbenchState.openNode`. That toggles a directory and opens a file. The
+ * context menu shows the entries of [menuFor], which `ProjectTreeState` decides. They are the New entries for each
+ * file template, Rename, Delete, and Reveal in Finder or Show in Explorer. The chosen command goes to [onCommand].
+ *
+ * The view only renders and forwards. The callbacks are non-suspending intents of `WorkbenchState` and
+ * `ProjectTreeState`. No coroutine is launched here, so a flow keeps running after the row that started it is gone.
  */
 @Composable
 internal fun ProjectTreeView(

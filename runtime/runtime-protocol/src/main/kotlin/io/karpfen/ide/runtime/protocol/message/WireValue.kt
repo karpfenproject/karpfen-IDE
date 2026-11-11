@@ -16,15 +16,15 @@
 package io.karpfen.ide.runtime.protocol.message
 
 /**
- * A JSON value as the runtime wrote it, read by [RuntimeJson]: objects keep their fields in the written order, repeated
- * names included, and every number is a [Double], as the runtime's numbers are, including the non-finite ones it writes
- * as bare `NaN`, `Infinity` and `-Infinity`. Immutable.
+ * A JSON value as the runtime wrote it, read by [RuntimeJson]. Objects keep their fields in the written order, repeated
+ * names included. Every number is a [Double], as the runtime's numbers are. That includes the non-finite numbers the
+ * runtime writes as bare `NaN`, `Infinity` and `-Infinity`. Values of this type are immutable.
  */
 public sealed interface WireValue {
     /**
      * A JSON object.
      *
-     * @property fields its members in the written order; a name may occur more than once.
+     * @property fields its members in the written order. A name may occur more than once.
      */
     public data class WireObject(public val fields: List<WireField>) : WireValue {
         /** The value of the first field named [name], or null if the object has none. */

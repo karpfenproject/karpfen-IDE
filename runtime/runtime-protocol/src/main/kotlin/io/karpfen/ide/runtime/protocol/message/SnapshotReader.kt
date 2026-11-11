@@ -30,16 +30,22 @@ internal sealed interface SnapshotReading {
     /**
      * The body is not a snapshot as the runtime writes it.
      *
-     * @property violation an [ViolationKind.UNEXPECTED_BODY] that says why, with the start of the body.
+     * @property violation a violation of the kind [ViolationKind.UNEXPECTED_BODY] that says why, with the start of the
+     *   body.
      */
     data class Unexpected(val violation: ProtocolViolation) : SnapshotReading
 }
 
 /**
- * Reads the body of the model snapshot route by member name: `environmentKey` a string that is a valid
- * [EnvironmentKey], `phase` the wire name of a [RuntimePhase], `revision` an integral number of at least 0,
- * `activeStates` an object whose members are arrays of strings (their order kept), and `roots` an array of objects that
- * each have a string `__id__` and a string `__type__`. Anything else is an [ViolationKind.UNEXPECTED_BODY]. Stateless.
+ * Reads the body of the model snapshot route by member name.
+ *
+ * - `environmentKey` is a string that is a valid [EnvironmentKey].
+ * - `phase` is the wire name of a [RuntimePhase].
+ * - `revision` is an integral number of at least 0.
+ * - `activeStates` is an object whose members are arrays of strings. Their order is kept.
+ * - `roots` is an array of objects that each have a string `__id__` and a string `__type__`.
+ *
+ * Anything else becomes a violation of the kind [ViolationKind.UNEXPECTED_BODY]. The object holds no state.
  */
 internal object SnapshotReader {
 
@@ -62,7 +68,10 @@ internal object SnapshotReader {
         return SnapshotReading.Read(RuntimeModelSnapshot(EnvironmentKey(key), phase, revision, activeStates, roots))
     }
 
-    /** The stacks of [states] by machine in their order, or null if a member is not an array of strings. */
+    /**
+     * The stacks of [states] by machine in their order, or null if a member is not an array of strings. A machine that
+     * occurs twice keeps its first stack.
+     */
     private fun activeStates(states: WireValue.WireObject): Map<String, List<String>>? {
         val stacks = LinkedHashMap<String, List<String>>()
         states.fields.forEach { field ->

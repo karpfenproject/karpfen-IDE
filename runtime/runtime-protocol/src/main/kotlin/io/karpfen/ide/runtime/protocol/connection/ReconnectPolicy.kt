@@ -22,8 +22,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
 
 /**
- * How a connection retries: an exponential backoff from [firstDelay], multiplied by [factor] for every further retry
- * and never longer than [maxDelay], for at most [maxAttempts] failed attempts in a row.
+ * How a connection retries. It uses an exponential backoff that starts at [firstDelay]. Each further retry multiplies
+ * the delay by [factor], and no delay is longer than [maxDelay]. The connection gives up after [maxAttempts] failed
+ * attempts in a row.
  *
  * @property firstDelay the delay before the first retry.
  * @property factor what each further retry's delay is multiplied by.
@@ -46,9 +47,9 @@ public data class ReconnectPolicy(
     }
 
     /**
-     * The delay before the retry with the number [attempt], counting from 1: [firstDelay] before the first retry,
-     * multiplied by [factor] for every further one, never longer than [maxDelay]. The first connection attempt waits for
-     * nothing.
+     * The delay before the retry with the number [attempt], counting from 1. The first retry waits [firstDelay]. Each
+     * further retry multiplies that by [factor], up to [maxDelay]. The first connection attempt is not a retry and
+     * waits for nothing.
      *
      * @throws IllegalArgumentException if [attempt] is below 1.
      */

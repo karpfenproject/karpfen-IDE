@@ -179,9 +179,9 @@ public data class HostLogLine(public val text: String, public val stream: LogStr
  * The runtime of one workspace and its lifecycle. The UI asks it for a runtime before each deployment, shows its
  * [status] and [logs], and stops it when the workspace closes or the IDE exits.
  *
- * Threading (MUST): every member is safe to call from any thread; the suspending members never block the caller's
- * thread. Contract (MUST): [ensureRunning] is idempotent while a runtime runs and joins a start already under way
- * instead of starting a second one; [stop] and [close] never touch anything the host did not create.
+ * Every member is safe to call from any thread, and the suspending members never block the caller's thread.
+ * [ensureRunning] is idempotent while a runtime runs. A call while a start is under way joins that start instead of
+ * starting a second one. [stop] and [close] never touch anything the host did not create.
  */
 public interface RuntimeHost : AutoCloseable {
     /** How this host reaches its runtime. */
@@ -199,7 +199,7 @@ public interface RuntimeHost : AutoCloseable {
     /** Starts the runtime if it does not run yet, and answers where it is reached or why there is none. */
     public suspend fun ensureRunning(): HostOutcome
 
-    /** Stops the runtime if this host owns it; a host attached by URL only forgets its runtime. */
+    /** Stops the runtime if this host owns it. A host attached by URL only forgets its runtime. */
     public suspend fun stop()
 
     /** Stops the runtime as [stop] does, within a short bound, and releases the host's resources. */

@@ -38,12 +38,15 @@ internal sealed interface DockerEndpoint {
 }
 
 /**
- * Finds the Docker engine as the Docker command line does: `DOCKER_HOST` if it is set; else the endpoint of the current
- * Docker context, named by `currentContext` in `~/.docker/config.json` and described by the context's
- * `~/.docker/contexts/meta/<digest>/meta.json` whose `Name` matches (`Endpoints.docker.Host`); else the platform's
- * default socket: `~/.docker/run/docker.sock` on macOS when it exists, Docker Desktop's socket, the named pipe
- * `npipe:////./pipe/docker_engine` on Windows, and `unix:///var/run/docker.sock` otherwise. Only `unix://` and
- * `npipe://` endpoints are local.
+ * Finds the Docker engine as the Docker command line does. `DOCKER_HOST` wins if it is set. Otherwise the endpoint of
+ * the current Docker context applies. `currentContext` in `~/.docker/config.json` names that context, and the file
+ * `~/.docker/contexts/meta/<digest>/meta.json` whose `Name` matches describes it, with the endpoint under
+ * `Endpoints.docker.Host`. Without a described context the platform's default applies. On macOS that is Docker
+ * Desktop's socket `~/.docker/run/docker.sock` when it exists. On Windows it is the named pipe
+ * `npipe:////./pipe/docker_engine`. In every other case it is `unix:///var/run/docker.sock`. Only `unix://` and
+ * `npipe://` endpoints count as local.
+ *
+ * A missing or unreadable configuration file counts as absent and leads to the next fallback, so resolving never fails.
  *
  * @param environment reads an environment variable.
  * @param home the user's home folder.

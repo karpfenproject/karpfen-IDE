@@ -26,10 +26,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers [RuntimeFrameDecoder]: the runtime's push examples decode to their pushes, the members org.json writes are read
- * in any order, a revision is required, an id mismatch is reported alongside the push applied under the value's id,
- * unknown types are unrecognized rather than violations, and every malformed, foreign or undecodable frame becomes a
- * violation with an excerpt and whatever could be salvaged.
+ * Covers [RuntimeFrameDecoder]. The runtime's push examples decode to their pushes. The members org.json writes are
+ * read in any order, and a revision is required. An id mismatch is reported alongside the push applied under the
+ * value's id. Unknown types are unrecognized rather than violations. Every malformed, foreign or undecodable frame
+ * becomes a violation with an excerpt and whatever could be salvaged.
  */
 class RuntimeFrameDecoderTest {
 

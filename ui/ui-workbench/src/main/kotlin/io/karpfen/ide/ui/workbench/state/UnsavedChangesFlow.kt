@@ -21,10 +21,12 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 
 /**
- * The unsaved-changes dialog before closing documents (tab close, folder switch, rename, exit): asks about the dirty
- * ones among them (no dialog when none is dirty) and answers whether the caller may go on — Save saves them first
- * through [saving] (a failed save, or a declined overwrite of an external change, stops), Discard goes on without
- * saving, Cancel stops.
+ * The unsaved-changes dialog before documents close. That happens when a tab closes, the folder switches, a file is
+ * renamed or the IDE exits. The flow asks about the dirty documents among them. If none is dirty, there is no dialog.
+ * It returns whether the caller may go on.
+ *
+ * Save saves the documents through [saving] first. A failed save, or an overwrite of a change on disk that the user
+ * declined, stops the caller. Discard goes on without saving. Cancel stops.
  */
 internal class UnsavedChangesFlow(private val saving: SaveFlow, private val dialogs: DialogState) {
 

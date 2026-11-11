@@ -25,9 +25,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 /**
- * The model tree of a run's Model tab: the rows of the observed model, the objects the user opened and the selected
- * one. The open objects and the selection are kept by key, so they survive every update of the model. Collected in
- * [scope] on the UI thread.
+ * The model tree of a run's Model tab. It holds the rows of the observed model, the objects the user opened and the
+ * selected object. The open objects and the selection are kept by key, so they survive every update of the model. The
+ * state is collected in [scope] on the UI thread.
  *
  * @param model the observed model of the run's session.
  */
@@ -45,7 +45,7 @@ public class ModelTreeState internal constructor(scope: CoroutineScope, private 
         expanded.update { if (key in it) it - key else it + key }
     }
 
-    /** Selects the object [id] and opens the objects that hold it, so its row shows. */
+    /** Selects the object [id] and opens the objects that hold it, so that its row is visible. */
     public fun select(id: String) {
         expanded.update { it + ModelTreeProjection.ownersOf(model.value.mirror, id) }
         selected.value = ModelTreeProjection.keyOf(id)

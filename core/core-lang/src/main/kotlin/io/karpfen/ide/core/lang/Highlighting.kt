@@ -18,14 +18,14 @@ package io.karpfen.ide.core.lang
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Visual style classes for highlighting. The editor maps each style to colours through its `EditorTheme`.
- * Lexical styles come from token kinds, semantic styles from the parse outcome's semantic spans.
+ * Visual style classes for highlighting. The editor maps each style to colours through its `EditorTheme`. Lexical
+ * styles come from token kinds. Semantic styles come from the semantic spans of the parse outcome.
  */
 public enum class HighlightStyle {
     /** Grammar keyword. */
     KEYWORD,
 
-    /** Action operation (`SET`, `APPEND`, …, `EVENT` as action). */
+    /** Action operation, such as `SET`, `APPEND` or `EVENT` used as an action. */
     OPERATION,
 
     /** String literal without a more specific semantic style. */
@@ -76,7 +76,7 @@ public enum class HighlightStyle {
     /** Type description. */
     DESCRIPTION,
 
-    /** `WITH … AS` binding name. */
+    /** `WITH ... AS` binding name. */
     BINDING_NAME,
 
     /** File path in an environment descriptor. */
@@ -97,7 +97,7 @@ public enum class HighlightStyle {
     /** Embedded Python number. */
     EMBEDDED_NUMBER,
 
-    /** `$( … )` model-path reference in EVAL. */
+    /** `$( ... )` model-path reference in EVAL. */
     PATH_REFERENCE,
 
     /** `@name` macro reference in EVAL. */
@@ -108,11 +108,11 @@ public enum class HighlightStyle {
     ;
 
     /**
-     * True for the semantic styles, the ones that come from the parse outcome's semantic spans (one per `SemanticKind`:
-     * type, primitive type, property, object, state, macro, event and binding names, event domains, model paths,
-     * descriptions, and the file paths of environment descriptors); false for the lexical styles from token kinds. The
-     * editor carries the semantic layer of an older snapshot forward while the parse lags the tokens (see
-     * [overlayHighlights]).
+     * True for the semantic styles, which come from the semantic spans of the parse outcome. There is one per
+     * `SemanticKind`: type, primitive type, property, object, state, macro, event and binding names, event domains,
+     * model paths, descriptions, and the file paths of environment descriptors. False for the lexical styles, which
+     * come from token kinds. The editor carries the semantic layer of an older snapshot forward while the parse lags
+     * behind the tokens, as described on [overlayHighlights].
      */
     public val isSemantic: Boolean
         get() = when (this) {
@@ -127,14 +127,16 @@ public enum class HighlightStyle {
 public data class HighlightSpan(public val range: TextRange, public val style: HighlightStyle)
 
 /**
- * Overlays [overlay] on [base] — the one overlay rule of highlighting: the highlight provider lays the semantic spans
- * of a current parse over the lexical spans, and the editor lays the previous snapshot's semantic spans (mapped
- * forward) over fresh lexical spans while the parse lags, so semantic highlighting does not flicker while the user
- * types. Inside every overlay span its style wins; base spans partly covered are split and keep their style outside;
- * overlay spans are kept whole. Empty spans are dropped. Never throws.
+ * Overlays [overlay] on [base]. This is the single overlay rule of highlighting. The highlight provider lays the
+ * semantic spans of a current parse over the lexical spans. While the parse lags behind, the editor lays the semantic
+ * spans of the previous snapshot, mapped forward, over fresh lexical spans. So semantic highlighting does not flicker
+ * while the user types.
  *
- * Precondition: each input is sorted by start and non-overlapping (as highlight results and semantic spans are); the
- * result is then sorted and non-overlapping too.
+ * Inside every overlay span its style wins. Base spans that are partly covered are split and keep their style outside
+ * the cover. Overlay spans are kept whole. Empty spans are dropped. It never throws.
+ *
+ * Each input must be sorted by start and free of overlaps, as highlight results and semantic spans are. The result is
+ * then sorted and free of overlaps too.
  */
 public fun overlayHighlights(base: List<HighlightSpan>, overlay: List<HighlightSpan>): List<HighlightSpan> {
     val covers = overlay.filterNot { it.range.isEmpty }

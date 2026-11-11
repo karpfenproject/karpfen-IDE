@@ -25,11 +25,13 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The search rules: case, whole word, regex, invalid regex, replacement expansion. */
+/** The search rules for case, whole word, regex and invalid regex, and the expansion of replacements. */
 class FindMatcherTest {
 
+    /** The matcher under test. */
     private val matcher = FindMatcher()
 
+    /** Each match of [query] in [text] as its matched text and start offset, written as `text@start`. */
     private fun ranges(text: String, query: FindQuery): List<String> =
         matcher.find(text, query).matches.map { text.substring(it.start, it.end) + "@" + it.start }
 

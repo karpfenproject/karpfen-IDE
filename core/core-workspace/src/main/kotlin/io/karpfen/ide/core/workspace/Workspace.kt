@@ -39,80 +39,93 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Facade over one opened folder: file tree and watching, documents, modeling contexts, project analysis and problems.
- * It coordinates its collaborators (scanner, watcher, [DocumentManager], [SourceLoader], descriptor reader, context
- * resolver, project analyzer, problems aggregator) and implements no domain logic itself.
+ * Facade over one opened folder. It offers the file tree and its watching, the open documents, the modeling contexts,
+ * the project analysis and the problems of all files. It coordinates its collaborators and implements no domain logic
+ * itself. The collaborators are the scanner, the file watcher, the [DocumentManager], the [SourceLoader], the
+ * descriptor reader, the context resolver, the project analyzer and the problems aggregator.
  *
- * Pipelines (all in a child scope of the factory's scope, cancelled by [close]):
- * - scan → [files]; watch events are debounced (`WorkspaceOptions.watchDebounce`) and trigger a rescan plus reload or
- *   conflict handling of open documents;
- * - tree + descriptors (loaded with the [SourceLoader], or the editor text of an open descriptor, which is read again on
- *   every edit) → [contexts];
- * - contexts + text of open documents (on every change) → debounced (`analysisDebounce`), cancellable re-analysis →
- *   [analysis]; afterwards the per-file project diagnostics are pushed into the open sessions with
- *   `setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, analyzedFile.snapshot, …)` (the session ignores a
- *   snapshot of another lineage, e.g. of a document closed and reopened during the analysis);
- * - analysis + the open documents' diagnostics + the read descriptors' texts with their syntax errors → [problems].
+ * The workspace runs four pipelines. All of them live in a child scope of the factory's scope, and [close] cancels
+ * them.
+ * - The scan fills [files]. Watch events are debounced by `WorkspaceOptions.watchDebounce`. They lead to a rescan and
+ *   to a reload or a conflict for each affected open document.
+ * - The tree and the environment descriptors give [contexts]. A descriptor is loaded with the [SourceLoader]. While it
+ *   is open in the editor, its editor text is used instead and read again on every edit.
+ * - The contexts and the texts of the open documents give [analysis]. Every change schedules a new analysis after the
+ *   `analysisDebounce` delay, and a newer request cancels a running one. After each analysis the project diagnostics
+ *   of each file go into its open session through `setExternalDiagnostics(ExternalDiagnosticSources.PROJECT,
+ *   analyzedFile.snapshot, ...)`. The session ignores a snapshot of another lineage. That happens, for example, when a
+ *   document was closed and reopened while the analysis ran.
+ * - The analysis, the diagnostics of the open documents and the texts of the read descriptors with their syntax errors
+ *   give [problems].
  *
- * Threading (MUST): the workspace and its [DocumentManager] are used from the dispatcher of the scope given to the
- * factory (the UI thread in the app, the test thread in tests). Every mutation of an open document's `EditableText`
- * (reload as an `External` change, conflict RELOAD, `markSavePoint` after a save) runs on that dispatcher, because an
- * `EditableText` is mutated from one thread only; `WorkspaceOptions.ioDispatcher` and `analysisDispatcher` only do
- * file I/O and read the immutable snapshots.
+ * Use the workspace and its [DocumentManager] from the dispatcher of the scope given to the factory. In the app that
+ * is the UI thread, in tests the test thread. Every change to the `EditableText` of an open document runs on that
+ * dispatcher, because an `EditableText` may only be changed from one thread. Such changes are a reload as an
+ * `External` change, the reload that resolves a conflict, and `markSavePoint` after a save.
+ * `WorkspaceOptions.ioDispatcher` and `WorkspaceOptions.analysisDispatcher` only do file I/O and read immutable
+ * snapshots.
  */
 public interface Workspace : AutoCloseable {
 
-    /** The opened folder (absolute, normalized). */
+    /** The opened folder, absolute and normalized. */
     public val root: Path
 
-    /** Language supports used for documents and analysis. */
+    /** The language supports used for the documents and for the analysis. */
     public val languages: LanguageRegistry
 
-    /** The current file tree; [WorkspaceTree.empty] until the first scan completes. */
+    /** The current file tree. It is [WorkspaceTree.empty] until the first scan completes. */
     public val files: StateFlow<WorkspaceTree>
 
-    /** The current modeling contexts, loose files and resolution diagnostics. */
+    /** The current modeling contexts, the loose files and the diagnostics of the context resolution. */
     public val contexts: StateFlow<ContextResolution>
 
-    /** The latest completed project analysis ([ProjectAnalysis.EMPTY] before the first one). */
+    /** The latest completed project analysis. It is [ProjectAnalysis.EMPTY] before the first one. */
     public val analysis: StateFlow<ProjectAnalysis>
 
     /**
-     * Every diagnostic of every file under one rule (see [WorkspaceProblems]); updated after every analysis and
-     * whenever the diagnostics of an open document change. [WorkspaceProblems.EMPTY] before the first analysis.
+     * Every diagnostic of every file, ordered and filtered by the rules of [WorkspaceProblems]. It is updated after
+     * every analysis and whenever the diagnostics of an open document change. It is [WorkspaceProblems.EMPTY] before
+     * the first analysis.
      */
     public val problems: StateFlow<WorkspaceProblems>
 
-    /** True while an analysis is scheduled or running (status bar "Analyzing…"). */
+    /** True while an analysis is scheduled or running. The status bar shows "Analyzing..." from it. */
     public val isAnalyzing: StateFlow<Boolean>
 
-    /** Opening, saving and closing documents of this workspace. */
+    /** Opens, saves and closes the documents of this workspace. */
     public val documents: DocumentManager
 
-    /** Rescans the folder now (bypassing the watch debounce) and suspends until [files] and [contexts] are updated. */
+    /**
+     * Rescans the folder now, without waiting for the watch debounce, and suspends until [files] and [contexts] are
+     * updated.
+     */
     public suspend fun refresh()
 
     /**
-     * Runs an analysis of the current state now (bypassing the debounce, superseding a scheduled one) and returns it
-     * once [analysis] and [problems] reflect it. Used by the CLI and by tests.
+     * Runs an analysis of the current state now and returns it once [analysis] and [problems] reflect it. It does not
+     * wait for the debounce and replaces an analysis that is only scheduled. The command line tool and the tests use
+     * it.
      */
     public suspend fun awaitAnalysis(): ProjectAnalysis
 
-    /** Stops watching and analysis and closes every open document (unsaved changes are discarded). Idempotent. */
+    /**
+     * Stops watching and analysis and closes every open document. Unsaved changes are discarded. Calling it again does
+     * nothing.
+     */
     override fun close()
 }
 
 /**
- * Opens the folder [root] as a workspace and starts scanning (and watching, unless disabled in [options]). Every
- * collaborator is injectable; the defaults are the production implementations. The factory creates the workspace's own
- * scope (a supervisor child of [scope]) and the [DocumentManager] in it, and hands every collaborator to the workspace,
- * which never creates one itself.
+ * Opens the folder [root] as a workspace and starts scanning. It also starts watching, unless [options] turn that
+ * off. Every collaborator can be injected, and the defaults are the production implementations. The factory creates
+ * the workspace's own scope as a supervisor child of [scope] and creates the [DocumentManager] in it. It hands every
+ * collaborator to the workspace, which never creates one itself.
  *
  * @param root an existing directory.
- * @param scope parent scope of all workspace work; its dispatcher is the single writer of the documents' texts (see
- *   [Workspace], Threading). Cancelling it has the effect of [Workspace.close].
+ * @param scope the parent scope of all workspace work. Its dispatcher is the single writer of the documents' texts,
+ *   as described on [Workspace]. Cancelling it has the same effect as [Workspace.close].
  * @param reader the dsl-tools adapter of the default [analyzer].
- * @param fileStore reads (through the default [sourceLoader]) and writes (saving) files.
+ * @param fileStore reads files through the default [sourceLoader] and writes them when a document is saved.
  * @throws IllegalArgumentException if [root] is not a directory.
  */
 public fun Workspace(
@@ -148,18 +161,21 @@ public fun Workspace(
 }
 
 /**
- * Opens folders as workspaces: the seam through which the workbench and the CLI create their [Workspace]s, so tests
- * pass a fake or a factory with test options (dispatchers, time source, file watcher).
+ * Opens folders as workspaces. The workbench and the command line tool create their [Workspace]s through this seam.
+ * Tests pass a fake, or a factory with test options such as dispatchers, a time source or a file watcher.
  */
 public fun interface WorkspaceFactory {
-    /** The workspace of [root]; [scope]'s dispatcher is the documents' single writer (see [Workspace], Threading). */
+    /**
+     * The workspace of [root]. The dispatcher of [scope] becomes the single writer of the documents' texts, as
+     * described on [Workspace].
+     */
     public fun open(root: Path, scope: CoroutineScope): Workspace
 }
 
 /**
- * The default [WorkspaceFactory]: production workspaces with [options], [fileWatcher] and [reader], with which both the
- * standalone semantics of the default languages and the project analysis read (every other collaborator as in the
- * [Workspace] factory). Wiring only.
+ * The default [WorkspaceFactory]. It opens production workspaces with [options], [fileWatcher] and [reader]. The same
+ * [reader] serves both the standalone semantics of the default languages and the project analysis. Every other
+ * collaborator is the default of the [Workspace] factory. The function only wires things together.
  */
 public fun WorkspaceFactory(
     options: WorkspaceOptions = WorkspaceOptions(),

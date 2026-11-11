@@ -30,8 +30,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Proves that the shared test fixtures (example files, mutations, synthetic documents, environment descriptors) load and
- * behave deterministically. Uses only the fixture helpers and value types, never the tokenizers, parsers or sessions.
+ * Proves that the shared test fixtures load and behave deterministically. They are the example files, mutations,
+ * synthetic documents and environment descriptors. The test uses only the fixture helpers and value types, never the
+ * tokenizers, parsers or sessions.
  */
 class ExamplesFixtureTest {
 

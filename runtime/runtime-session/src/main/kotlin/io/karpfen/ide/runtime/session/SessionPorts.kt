@@ -35,9 +35,9 @@ import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 
 /**
- * The observation's calls for one session: the model subscription and the snapshots of the environment, as the
- * session's client id. The environment is bound once the deployment created it; calls before that are refused.
- * Confined to the session's router, which binds it and whose observation calls it.
+ * The observation's calls for one session. These are the model subscription and the snapshots of the environment,
+ * made as the session's client id. The environment is bound once the deployment created it. Calls before that are
+ * refused. Confined to the session's router, which binds the port and whose observation calls it.
  *
  * @param clientId the session's client id.
  */
@@ -65,9 +65,10 @@ internal class BoundObservationPort(private val clientId: ClientId) : Observatio
 }
 
 /**
- * The deployment's way into the session's observation: switching on and pulling go through the session's router, so
- * the deployment's reads of the model are the observation's reads; the differences of the model the runtime read back
- * compare it with the seed, object by object, located at the objects' declarations in the uploaded model.
+ * The deployment's way into the session's observation. Switching on and pulling go through the session's router, so
+ * the deployment's reads of the model are the observation's reads. The differences compare the model that the runtime
+ * read back with the seed, object by object. Each difference is located at the object's declaration in the uploaded
+ * model.
  *
  * @param router the session's router.
  * @param prepared what the session deploys.
@@ -95,7 +96,7 @@ internal class SessionDeployObservation(private val router: PushRouter, private 
 }
 
 /**
- * The event sink of a session: every frame goes through the conductor, in order with the commands, so an injected
+ * The event sink of a session. Every frame goes through the conductor, in order with the commands, so an injected
  * event never overtakes a stop.
  *
  * @param conductor the session's conductor.

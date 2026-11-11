@@ -23,8 +23,8 @@ import kotlin.time.Duration
 import kotlin.time.TimeSource
 
 /**
- * The clock of one session: the time since it was launched, on the time source of the options (virtual time in tests).
- * Immutable and thread-safe.
+ * The clock of one session. It measures the time since the session was launched, on the time source of the options.
+ * In tests that time source runs on virtual time. Immutable and thread-safe.
  *
  * @param timeSource the clock.
  */
@@ -37,8 +37,8 @@ internal class SessionClock(timeSource: TimeSource) {
 }
 
 /**
- * The journal of one session: the latest [capacity] entries are replayed to every new collector, older ones dropped,
- * and recording never suspends. The session's router is its one writer.
+ * The journal of one session. The latest [capacity] entries are replayed to every new collector, and older ones are
+ * dropped. Recording never suspends. The session's router is the journal's only writer.
  *
  * @param capacity how many entries are kept for a late collector.
  */
@@ -49,7 +49,7 @@ internal class SessionJournal(capacity: Int) {
     /** The kept entries, then every new one. */
     val activity: Flow<SessionActivity> = entries.asSharedFlow()
 
-    /** Records [activity]; never suspends, the oldest kept entry gives way when the journal is full. */
+    /** Records [activity]. It never suspends. When the journal is full, the oldest kept entry gives way. */
     fun record(activity: SessionActivity) {
         entries.tryEmit(activity)
     }

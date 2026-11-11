@@ -23,41 +23,45 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
 /**
- * Every diagnostic of every file of a workspace, under one rule. The Problems view, the status-bar counts and
- * `karpfen validate` consume it unchanged (they only map and filter), so the IDE and the CLI always agree.
+ * Every diagnostic of every file of a workspace, collected by one rule. The Problems view, the counts in the status
+ * bar and `karpfen validate` use it unchanged. They only map and filter it. So the IDE and the command line tool
+ * always agree.
  *
- * The rule, per file:
- * - an open document: its session's merged diagnostics (`DocumentSession.diagnostics`: lexer, parser and the external
- *   sources `"file"` and `"project"`; sessions of a workspace are syntax-only, so dsl-tools reads nothing there);
- * - any other karpfen source of the tree, in a context or loose: `AnalyzedFile.ownDiagnostics` of the latest analysis
- *   plus the file's project diagnostics (`ProjectAnalysis.diagnosticsFor`);
- * - any other environment descriptor the workspace read: the diagnostics of its text (syntax errors, loading findings)
- *   plus its project diagnostics (its findings against the schema and about the files it names);
- * - any other path with project diagnostics (files and directories that cannot be read, as ERROR `unreadable`): those.
+ * The rule decides for each file where its diagnostics come from.
+ * - For an open document they are the merged diagnostics of its session, `DocumentSession.diagnostics`. These are the
+ *   lexer and parser diagnostics and the external sources `"file"` and `"project"`. Sessions of a workspace are
+ *   syntax-only, so dsl-tools reads nothing there.
+ * - For any other karpfen source of the tree, in a context or loose, they are the `AnalyzedFile.ownDiagnostics` of the
+ *   latest analysis plus the project diagnostics of the file from `ProjectAnalysis.diagnosticsFor`.
+ * - For any other environment descriptor that the workspace read, they are the diagnostics of its text plus its
+ *   project diagnostics. The diagnostics of the text are its syntax errors and loading findings. The project
+ *   diagnostics are its findings against the schema and about the files it names.
+ * - For any other path with project diagnostics, they are those project diagnostics. These are files and directories
+ *   that cannot be read, reported as ERROR `unreadable`.
  *
- * Every case merges with the same function (`mergeDiagnostics` of core-document), and project diagnostics never hold
- * a file's own diagnostics; karpfen files get DSL_TOOLS diagnostics only from the project analysis (context files
- * read, loose files never). So opening or closing a file changes no finding: a closed descriptor's syntax errors
- * are those the reader found in its text, an open one's session computes the same.
+ * Every case merges with the same function, `mergeDiagnostics` of core-document. Project diagnostics never hold the
+ * own diagnostics of a file. Karpfen files get DSL_TOOLS diagnostics only from the project analysis, which reads the
+ * context files and never the loose files. So opening or closing a file changes no finding. The syntax errors of a
+ * closed descriptor are those the reader found in its text, and the session of an open one computes the same.
  *
  * Files without diagnostics are absent.
  *
- * @property generation the generation of the analysis the diagnostics of unopened files come from.
+ * @property generation the generation of the analysis that the diagnostics of files that are not open come from.
  * @property files one entry per file with diagnostics, sorted by path.
  */
 public data class WorkspaceProblems(public val generation: Long, public val files: List<FileProblems>) {
 
-    /** Number of ERROR diagnostics over all files. */
+    /** The number of ERROR diagnostics over all files. */
     public val errorCount: Int get() = files.sumOf { it.errorCount }
 
-    /** Number of WARNING diagnostics over all files. */
+    /** The number of WARNING diagnostics over all files. */
     public val warningCount: Int get() = files.sumOf { it.warningCount }
 
     /** The problems of [path], or null if it has none. */
     public fun of(path: Path): FileProblems? = files.firstOrNull { it.path == path }
 
     public companion object {
-        /** No problems (before the first analysis). */
+        /** No problems. This is the value before the first analysis. */
         public val EMPTY: WorkspaceProblems = WorkspaceProblems(0, emptyList())
     }
 }
@@ -65,10 +69,13 @@ public data class WorkspaceProblems(public val generation: Long, public val file
 /**
  * The diagnostics of one file.
  *
- * @property diagnostics non-empty, sorted with [Diagnostic.ORDER], without duplicates.
- * @property snapshot the `\n`-normalized text the ranges refer to: the open document's `VersionedDiagnostics.snapshot`,
- *   the analyzed snapshot, or the loaded descriptor text; null if the text is unavailable (unreadable file).
- * @property isOpen true if the diagnostics come from an open document's session (their ranges follow the live text).
+ * @property diagnostics the diagnostics. The list is not empty, is sorted with [Diagnostic.ORDER] and has no
+ *   duplicates.
+ * @property snapshot the `\n`-normalized text the ranges refer to. It is the `VersionedDiagnostics.snapshot` of an open
+ *   document, the analyzed snapshot, or the loaded descriptor text. It is null if the text is not available, as for a
+ *   file that cannot be read.
+ * @property isOpen true if the diagnostics come from the session of an open document. Their ranges then follow the
+ *   live text.
  */
 public data class FileProblems(
     public val path: Path,
@@ -81,15 +88,15 @@ public data class FileProblems(
         require(diagnostics.isNotEmpty()) { "files without diagnostics are not listed" }
     }
 
-    /** Number of ERROR diagnostics. */
+    /** The number of ERROR diagnostics. */
     public val errorCount: Int get() = diagnostics.count { it.severity == Severity.ERROR }
 
-    /** Number of WARNING diagnostics. */
+    /** The number of WARNING diagnostics. */
     public val warningCount: Int get() = diagnostics.count { it.severity == Severity.WARNING }
 
     /**
-     * Zero-based position of the start of [diagnostic]'s range in [snapshot] (clamped to the text);
-     * [TextPosition.ORIGIN] without a snapshot. The UI and the CLI show it one-based.
+     * The zero-based position of the start of the range of [diagnostic] in [snapshot], clamped to the text. Without a
+     * snapshot it is [TextPosition.ORIGIN]. The UI and the command line tool show it one-based.
      */
     public fun positionOf(diagnostic: Diagnostic): TextPosition =
         snapshot?.let { it.positionOf(diagnostic.range.start.coerceAtMost(it.length)) } ?: TextPosition.ORIGIN

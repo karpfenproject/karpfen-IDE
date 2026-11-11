@@ -30,9 +30,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * `karpfen validate` on deterministic random mutations of a modeling context (fixed seed): it always answers 0 or 1,
- * prints only well-formed report lines whose one-based positions lie inside the reported file, writes nothing to
- * stderr, and exits 1 exactly when a line is an error.
+ * `karpfen validate` on deterministic random mutations of a modeling context, with a fixed seed. It always answers 0
+ * or 1 and prints only well-formed report lines whose one-based positions lie inside the reported file. It writes
+ * nothing to stderr, and it exits with 1 exactly when a line is an error.
  */
 class ValidateRobustnessTest {
 

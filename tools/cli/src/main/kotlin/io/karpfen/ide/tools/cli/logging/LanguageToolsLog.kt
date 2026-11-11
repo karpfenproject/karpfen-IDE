@@ -21,9 +21,9 @@ import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 import org.slf4j.LoggerFactory
 
 /**
- * What dsl-tools logs, as the command-line tool shows it: off by default, so the tool's console carries the report and
- * the tool's own messages only, while every problem dsl-tools finds still reaches the report as a diagnostic; shown on
- * standard error for the length of a command run with `--verbose`.
+ * Shows what dsl-tools logs in the command-line tool. The log is off by default, so the tool's console carries only
+ * the report and the tool's own messages. Every problem dsl-tools finds still reaches the report as a diagnostic. A
+ * command run with `--verbose` shows the log on standard error for the length of the run.
  */
 internal fun interface LanguageToolsLog {
     /**
@@ -34,13 +34,14 @@ internal fun interface LanguageToolsLog {
 }
 
 /**
- * The [LanguageToolsLog] of logback, the tool's logging backend: `logback.xml` turns the parent logger of dsl-tools
- * ([DslToolsLoggers.PARENT]) off and lets it pass its events on to the root logger, whose only appender writes to
+ * The [LanguageToolsLog] of logback, the tool's logging backend. `logback.xml` turns the parent logger of dsl-tools,
+ * [DslToolsLoggers.PARENT], off and lets it pass its events on to the root logger, whose only appender writes to
  * standard error. [show] raises that logger to DEBUG, the finest level dsl-tools logs at, so everything dsl-tools logs
- * takes that way, and closing the handle restores the level it had.
+ * takes that way. Closing the handle restores the level the logger had.
  */
 internal class LogbackLanguageToolsLog(private val context: LoggerContext) : LanguageToolsLog {
 
+    /** Raises the parent logger of dsl-tools to DEBUG until the returned handle is closed. */
     override fun show(): AutoCloseable {
         val logger = context.getLogger(DslToolsLoggers.PARENT)
         val previous = logger.level
@@ -52,8 +53,8 @@ internal class LogbackLanguageToolsLog(private val context: LoggerContext) : Lan
         private val log = LoggerFactory.getLogger(LogbackLanguageToolsLog::class.java)
 
         /**
-         * The [LanguageToolsLog] of the tool's logger context; one that shows nothing, after a warning, if SLF4J does
-         * not log through logback.
+         * The [LanguageToolsLog] of the tool's logger context. If SLF4J does not log through logback, it returns one
+         * that shows nothing and logs a warning each time it is asked to show.
          */
         fun ofApplication(): LanguageToolsLog {
             val context = LoggerFactory.getILoggerFactory() as? LoggerContext

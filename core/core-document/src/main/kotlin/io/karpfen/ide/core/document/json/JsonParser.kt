@@ -21,9 +21,10 @@ import io.karpfen.ide.core.document.Diagnostic
  * A JSON text as [JsonParser] reads it.
  *
  * @property root the value the text holds, as far as it is there, or null if the text holds none.
- * @property tokens every token of the text ([JsonLexer]), in text order.
- * @property diagnostics the LEXER errors of the tokens and the PARSER errors (`syntax-error`) of the structure, sorted
- *   with [Diagnostic.ORDER]; empty exactly for a text that is one valid JSON value.
+ * @property tokens every token of the text as [JsonLexer] found it, in text order.
+ * @property diagnostics the LEXER errors of the tokens and the PARSER errors of the structure, which have the code
+ *   `syntax-error`. They are sorted with [Diagnostic.ORDER]. The list is empty exactly for a text that is one valid
+ *   JSON value.
  */
 public data class JsonDocument(
     public val root: JsonNode?,
@@ -33,7 +34,7 @@ public data class JsonDocument(
     /** True if the text is one valid JSON value. */
     public val isSyntaxClean: Boolean get() = diagnostics.isEmpty()
 
-    /** The token containing [offset] (`start <= offset < end`), or null. */
+    /** The token that contains [offset], where `start <= offset < end`, or null. */
     public fun tokenAt(offset: Int): JsonToken? = tokens.getOrNull(firstEndingAfter(offset))?.takeIf { offset in it.range }
 
     /** The last token that ends at or before [offset], or null if none does. */
@@ -42,7 +43,10 @@ public data class JsonDocument(
         return tokens.getOrNull(index - 1)
     }
 
-    /** The index of the first token whose end is greater than [offset] (binary search); `tokens.size` if none. */
+    /**
+     * The index of the first token whose end is greater than [offset], found by binary search. Returns `tokens.size` if
+     * there is none.
+     */
     private fun firstEndingAfter(offset: Int): Int {
         var low = 0
         var high = tokens.size
@@ -55,9 +59,10 @@ public data class JsonDocument(
 }
 
 /**
- * Reads JSON text into a [JsonDocument], written for the IDE instead of taken from a JSON library: the editor needs the
- * position of every value and a tree of every text, also of a broken one while the user types. Never throws, stateless
- * and thread-safe; the tree is built by [JsonTreeBuilder], which documents how it recovers from errors.
+ * Reads JSON text into a [JsonDocument]. It is written for the IDE instead of taken from a JSON library, because the
+ * editor needs the position of every value and a tree of every text, also of a broken one while the user types. It
+ * never throws, holds no state and is thread-safe. [JsonTreeBuilder] builds the tree and documents how it recovers
+ * from errors.
  */
 public object JsonParser {
 

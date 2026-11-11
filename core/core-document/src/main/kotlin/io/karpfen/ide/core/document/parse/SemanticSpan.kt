@@ -17,12 +17,12 @@ package io.karpfen.ide.core.document.parse
 
 import io.karpfen.ide.core.text.TextRange
 
-/** The role of a string or identifier as determined from the parse tree; drives semantic highlighting. */
+/** The role of a string or an identifier, as the parse tree shows it. It drives semantic highlighting. */
 public enum class SemanticKind {
     /** A declared or referenced type name. */
     TYPE_NAME,
 
-    /** `number`, `string`, `boolean`. */
+    /** One of the primitive types `number`, `string` and `boolean`. */
     PRIMITIVE_TYPE,
 
     /** A property or relation key, or a key of an environment descriptor. */
@@ -49,7 +49,7 @@ public enum class SemanticKind {
     /** The description string of a KMeta type. */
     DESCRIPTION,
 
-    /** The name of a `WITH … AS "x"` binding. */
+    /** The name that a `WITH` block binds with `AS`. */
     BINDING_NAME,
 
     /** A file path in an environment descriptor, relative to the descriptor's directory. */
@@ -57,8 +57,8 @@ public enum class SemanticKind {
 }
 
 /**
- * A range with a [SemanticKind]. Ranges of names point *inside* the quotes; spans of one [ParseOutcome] are sorted by
- * start and do not overlap.
+ * A range with a [SemanticKind]. The range of a name lies inside its quotes. The spans of one [ParseOutcome] are
+ * sorted by start and do not overlap.
  *
  * @property range the highlighted range.
  * @property kind the role of the text in [range].

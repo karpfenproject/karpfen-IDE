@@ -38,8 +38,10 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import java.awt.Cursor
 
 /**
- * The drag handle of a [SplitPane]: draws the 1 dp divider line at its centre, shows a resize cursor and reports the
- * pointer movement along the main axis from the press on (primary button or touch; other buttons are ignored).
+ * The drag handle of a [SplitPane]. It draws the 1 dp divider line at its centre and shows a resize cursor. On a
+ * press it calls [onDragStart] once, and from then on it reports the pointer movement along the main axis through
+ * [onDrag]. Only the primary button and touch start a drag. A press with the secondary or the tertiary button is
+ * ignored.
  */
 @Composable
 internal fun SplitDivider(orientation: SplitOrientation, onDragStart: () -> Unit, onDrag: (Float) -> Unit) {

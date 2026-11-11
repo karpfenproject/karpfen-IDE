@@ -28,7 +28,9 @@ internal val WS_ROOT: Path = Path.of("/ws").toAbsolutePath().normalize()
 /** The absolute path of [relative] below [WS_ROOT]. */
 internal fun ws(relative: String): Path = WS_ROOT.resolve(relative).normalize()
 
-/** A tree below [WS_ROOT] holding exactly [files] (`/`-separated relative paths), sorted like a scan. */
+/**
+ * A tree below [WS_ROOT] that holds exactly [files], sorted like a scan. [files] are relative paths separated by `/`.
+ */
 internal fun treeOf(vararg files: String): WorkspaceTree {
     fun build(directory: Path, entries: List<List<String>>): WorkspaceNode.Directory {
         val (here, nested) = entries.partition { it.size == 1 }

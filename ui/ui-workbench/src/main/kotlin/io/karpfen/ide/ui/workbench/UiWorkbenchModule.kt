@@ -16,9 +16,9 @@
 package io.karpfen.ide.ui.workbench
 
 /**
- * Identity of the `ui-workbench` module, kept from the phase-0 skeleton: the window content, with the project tree,
- * editor tabs, outline, problems, status bar, dialogs, settings and file templates. Start at `WorkbenchState` (package
- * `state`); the module list of the README places the module among the others.
+ * Identity of the `ui-workbench` module. The module holds the window content: the project tree, the editor tabs, the
+ * outline, the problems, the output, the runtime tool window, the status bar, the dialogs, the settings and the file
+ * templates. A reader new to the module starts at `WorkbenchState` in the package `state`, which owns all of it.
  */
 public object UiWorkbenchModule {
     /** The module's name, which is also the name of its directory. */

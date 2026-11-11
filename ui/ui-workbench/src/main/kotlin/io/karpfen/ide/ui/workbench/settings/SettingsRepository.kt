@@ -22,27 +22,29 @@ import java.nio.file.Path
 import java.time.Clock
 
 /**
- * Loads and stores [IdeSettings] (Repository pattern) as `settings.json` in an injectable directory. A corrupt file
- * (also one that is not UTF-8) is backed up (`settings.json.corrupt-<yyyyMMdd-HHmmss>`, the time taken from the
- * injected clock, with `-2`, `-3`, … appended if that name exists) and replaced by defaults; a file that exists but
- * cannot be read is left as it is (the defaults are used and not written over it). I/O errors are logged and never
- * thrown to the UI.
+ * Loads and stores [IdeSettings] as `settings.json` in a directory that the caller chooses. It follows the Repository
+ * pattern.
+ *
+ * A corrupt file is backed up and replaced by the defaults. A file that is not UTF-8 also counts as corrupt. The backup
+ * is named `settings.json.corrupt-<yyyyMMdd-HHmmss>`, with the time taken from the injected clock. If that name exists,
+ * `-2`, `-3` and so on are appended. A file that exists but cannot be read is left as it is. The defaults are used
+ * then, and they are not written over the file. I/O errors are logged and never thrown to the UI.
  */
 public interface SettingsRepository {
 
-    /** The current settings ([IdeSettings] defaults until [load] completes). */
+    /** The current settings. They are the [IdeSettings] defaults until [load] completes. */
     public val settings: StateFlow<IdeSettings>
 
-    /** Reads the settings file (defaults if absent) and publishes it through [settings]. */
+    /** Reads the settings file and publishes the result through [settings]. Uses the defaults if the file is absent. */
     public suspend fun load(): IdeSettings
 
-    /** Applies [transform], publishes the result and writes it to disk; returns the new settings. */
+    /** Applies [transform], publishes the result, writes it to disk and returns the new settings. */
     public suspend fun update(transform: (IdeSettings) -> IdeSettings): IdeSettings
 }
 
 /**
- * A JSON-file [SettingsRepository] in [directory] (created on first write); file I/O runs on [ioDispatcher]; [clock]
- * names corrupt-file backups (tests pass `Clock.fixed`).
+ * Creates a [SettingsRepository] that stores a JSON file in [directory]. The directory is created on the first write.
+ * File I/O runs on [ioDispatcher]. [clock] names the backups of corrupt files. Tests pass `Clock.fixed` there.
  */
 public fun SettingsRepository(
     directory: Path = SettingsLocations.defaultDirectory(),
@@ -50,28 +52,31 @@ public fun SettingsRepository(
     clock: Clock = Clock.systemDefaultZone(),
 ): SettingsRepository = JsonSettingsRepository(directory, ioDispatcher, clock)
 
-/** Where the IDE keeps its per-user files (settings and logs). Pure functions over system properties. */
+/**
+ * Where the IDE keeps its per-user files, which are the settings and the logs. Pure functions over system properties.
+ */
 public object SettingsLocations {
-    /** Name of the settings file. */
+    /** The name of the settings file. */
     public const val SETTINGS_FILE_NAME: String = "settings.json"
 
     /**
-     * System property naming the IDE's home directory (settings and logs). The app's `logback.xml` reads the same
-     * property (`${karpfen.ide.home:-${user.home}/.karpfen-ide}`), so settings and log move together.
+     * The system property that names the IDE's home directory, which holds the settings and the logs. The app's
+     * `logback.xml` reads the same property as `${karpfen.ide.home:-${user.home}/.karpfen-ide}`, so the settings and
+     * the log always move together.
      */
     public const val HOME_PROPERTY: String = "karpfen.ide.home"
 
     /**
-     * Environment variable the app's `main` copies into [HOME_PROPERTY] before the first logger is created, so launch
-     * smoke tests run with a temporary home instead of the owner's real one.
+     * The environment variable that the app's `main` copies into [HOME_PROPERTY] before the first logger is created.
+     * Launch smoke tests use it to run with a temporary home instead of the user's real one.
      */
     public const val HOME_ENVIRONMENT_VARIABLE: String = "KARPFEN_IDE_HOME"
 
-    /** The directory named by [HOME_PROPERTY] if set (and not blank), else `~/.karpfen-ide`. */
+    /** The directory named by [HOME_PROPERTY] if it is set and not blank, and `~/.karpfen-ide` otherwise. */
     public fun defaultDirectory(): Path =
         System.getProperty(HOME_PROPERTY)?.takeIf { it.isNotBlank() }?.let { Path.of(it) }
             ?: Path.of(System.getProperty("user.home"), ".karpfen-ide")
 
-    /** `<directory>/logs`, where `logback.xml` of the app writes `ide.log`. */
+    /** The directory `<directory>/logs`, where the app's `logback.xml` writes `ide.log`. */
     public fun logDirectory(directory: Path = defaultDirectory()): Path = directory.resolve("logs")
 }

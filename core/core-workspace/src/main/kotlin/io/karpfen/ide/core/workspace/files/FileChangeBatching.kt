@@ -28,13 +28,14 @@ import kotlinx.coroutines.selects.select
 import kotlin.time.Duration
 
 /**
- * Debounces raw file changes into batches, the workspace's watch debounce: a batch starts with the first change after a
- * quiet period and collects every further change until no change arrived for [quiet]; it is then emitted with all of
- * its changes in arrival order (unlike `debounce`, which would keep only the last one). When the upstream completes,
- * a pending batch is emitted at once. Works on virtual time in tests.
+ * Debounces raw file changes into batches. This is the watch debounce of the workspace. A batch starts with the first
+ * change after a quiet period and collects every further change until no change arrived for [quiet]. Then it is
+ * emitted with all of its changes in arrival order. The `debounce` operator would keep only the last one. When the
+ * upstream completes, a pending batch is emitted at once. It works on virtual time in tests.
  *
- * No change is ever lost: the next change and the end of the quiet period are awaited in one `select`, which takes
- * an element only in the branch that wins (a receive cancelled by a timeout could drop the element just handed to it).
+ * No change is ever lost. The next change and the end of the quiet period are awaited in one `select`, which takes an
+ * element only in the branch that wins. A receive that a timeout cancels could drop the element that was just handed
+ * to it.
  */
 internal fun Flow<FileChange>.batchedBy(quiet: Duration): Flow<List<FileChange>> {
     val upstream = this
@@ -58,7 +59,10 @@ internal fun Flow<FileChange>.batchedBy(quiet: Duration): Flow<List<FileChange>>
     }
 }
 
-/** The next element (or the channel's close) if one arrives within [quiet], else null; atomic with respect to the element. */
+/**
+ * The next element, or the close of the channel, if one arrives within [quiet]. Otherwise null. Either the element is
+ * taken and returned, or it stays in the channel.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 private suspend fun <E> ReceiveChannel<E>.receiveWithin(quiet: Duration): ChannelResult<E>? = select {
     onReceiveCatching { it }

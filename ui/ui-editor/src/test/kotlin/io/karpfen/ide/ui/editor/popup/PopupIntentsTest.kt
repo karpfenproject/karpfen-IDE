@@ -35,9 +35,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The popups' intents on the editor and the popup key policy, Compose-free over the fake model. */
+/** The intents of the popups on the editor and the popup key policy, tested without Compose over the fake model. */
 class PopupIntentsTest {
 
+    /** Runs [block] with a fake model of [text] and the intents over it, and closes the model afterwards. */
     private fun intentsTest(text: String, caretAt: Int = 0, block: (FakePopupModel, PopupIntents) -> Unit) =
         FakePopupModel(text, caretAt).use { model -> block(model, PopupIntents(model)) }
 

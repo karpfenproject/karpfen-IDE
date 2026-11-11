@@ -22,9 +22,10 @@ import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * The [Tokenizer] of JSON documents over [JsonLexer]: strings become [TokenKind.STRING], numbers [TokenKind.NUMBER],
- * `true`, `false` and `null` [TokenKind.KEYWORD], brackets and separators [TokenKind.PUNCTUATION] and INVALID tokens
- * [TokenKind.ERROR], each with its LEXER error. JSON has no comments and no embedded code. Stateless and thread-safe.
+ * The [Tokenizer] of JSON documents over [JsonLexer]. Strings become [TokenKind.STRING] and numbers become
+ * [TokenKind.NUMBER]. `true`, `false` and `null` become [TokenKind.KEYWORD]. Brackets and separators become
+ * [TokenKind.PUNCTUATION]. INVALID tokens become [TokenKind.ERROR], each with its LEXER error. JSON has no comments and
+ * no embedded code. The class holds no state and is thread-safe.
  */
 public class JsonTokenizer : Tokenizer {
 

@@ -25,29 +25,30 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 
 /**
- * The editor's decoration primitives, drawn in text-area coordinates: filled backgrounds (current line, selection, find
- * matches), bracket boxes, the caret and the diagnostic underlines — wavy for errors and warnings, dotted for
- * information. Stateless drawing functions; what to draw where is decided by the caller.
+ * The decoration primitives of the editor, drawn in text area coordinates. They draw filled backgrounds for the
+ * current line, the selection and find matches. They also draw bracket boxes, the caret and the diagnostic underlines.
+ * Underlines are wavy for errors and warnings, and dotted for information. These are drawing functions without state.
+ * The caller decides what to draw where.
  */
 internal object Decorations {
 
-    /** A filled background of [rect]. */
+    /** Draws a filled background of [rect]. Empty rectangles are skipped. */
     fun DrawScope.background(rect: Rect, color: Color) {
         if (rect.width <= 0f || rect.height <= 0f) return
         drawRect(color, topLeft = rect.topLeft, size = rect.size)
     }
 
-    /** The outline of [rect] (matching-bracket box). */
+    /** Draws the outline of [rect]. The matching bracket box uses it. */
     fun DrawScope.box(rect: Rect, color: Color, strokeWidth: Float) {
         drawRect(color, topLeft = rect.topLeft, size = rect.size, style = Stroke(width = strokeWidth))
     }
 
-    /** The caret: a bar of [width] at [x] from [top], [height] tall. */
+    /** Draws the caret as a bar of [width], centred at [x], starting at [top] and [height] tall. */
     fun DrawScope.caret(x: Float, top: Float, height: Float, width: Float, color: Color) {
         drawRect(color, topLeft = Offset(x - width / 2f, top), size = Size(width, height))
     }
 
-    /** A wavy underline from [left] to [right] around [y] (errors, warnings). */
+    /** Draws a wavy underline from [left] to [right] around [y]. Errors and warnings use it. */
     fun DrawScope.wavyUnderline(left: Float, right: Float, y: Float, amplitude: Float, color: Color, strokeWidth: Float) {
         if (right <= left) return
         val halfWave = amplitude * 2f
@@ -64,7 +65,7 @@ internal object Decorations {
         drawPath(path, color, style = Stroke(width = strokeWidth))
     }
 
-    /** A dotted underline from [left] to [right] at [y] (information, hints). */
+    /** Draws a dotted underline from [left] to [right] at [y]. Information and hints use it. */
     fun DrawScope.dottedUnderline(left: Float, right: Float, y: Float, dot: Float, color: Color) {
         if (right <= left) return
         drawLine(

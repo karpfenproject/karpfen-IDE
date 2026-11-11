@@ -47,10 +47,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * `CodeEditor` and `EditorPopups` together: completion opened by typing and driven by the text area's keys through
- * `handleKey`, the find bar's Escape returning focus, find next — from the find bar and by key — to an off-screen match
- * revealing it, the context menu by right-click, and Cmd+click navigation and the hover tooltip with the real language
- * services and parser.
+ * Tests `CodeEditor` and `EditorPopups` together. Completion opens by typing and is driven by the text area's keys
+ * through `handleKey`. Escape in the find bar returns focus to the editor. Find next, from the find bar and by key,
+ * reveals a match that lies off screen. The context menu opens by right-click. Cmd+click navigation and the hover
+ * tooltip work with the real language services and parser.
  */
 @OptIn(ExperimentalTestApi::class)
 class EditorWithPopupsTest {
@@ -97,8 +97,9 @@ class EditorWithPopupsTest {
     }
 
     /**
-     * Types [keyword] at [offset] of [STATE_BODY] (after a line break when [lineBreakFirst]), checks that it opened the
-     * list, types ` {` and Enter, and asserts the block Enter opens between braces at [indent]: `}` on its own line.
+     * Types [keyword] at [offset] of [STATE_BODY] and checks that it opened the completion list. With [lineBreakFirst]
+     * it presses Enter before typing. Then it types ` {` and Enter and asserts that Enter opened a block between the
+     * braces at [indent], with `}` on a line of its own.
      */
     private fun ComposeUiTest.assertEnterOpensBlock(ui: EditorWithPopups, keyword: String, offset: Int, indent: String, lineBreakFirst: Boolean = false) {
         ui.compose(STATE_BODY)
@@ -268,12 +269,12 @@ class EditorWithPopupsTest {
         onNodeWithText(diagnostic.message, substring = true).assertIsDisplayed()
     }
 
-    /** The texts of the tests. */
+    /** Holds the texts of the tests. */
     private companion object {
-        /** The cleaning robot of the runtime's examples: a real KStates file with transitions and EVAL bodies. */
+        /** The cleaning robot from the runtime's examples. It is a real KStates file with transitions and EVAL bodies. */
         val MACHINE: String = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kstates").text
 
-        /** A state machine whose initial state has an empty body line ([EMPTY_BODY_LINE]). */
+        /** A state machine whose initial state has an empty body line, see [EMPTY_BODY_LINE]. */
         const val STATE_BODY = "STATEMACHINE ATTACHED TO \"Robot\" {\n    STATES {\n        INITIAL STATE \"a\" {\n            \n        }\n    }\n}\n"
 
         /** The line break before the empty body line of [STATE_BODY] and the line itself. */
@@ -284,7 +285,7 @@ class EditorWithPopupsTest {
             if (line in setOf(5, 120, 190)) "    // line $line: needle" else "    // line $line"
         }
 
-        /** The titles of the default context menu: Cut, Copy, Paste, Go to Definition, Toggle Comment. */
+        /** The titles of the default context menu. These are Cut, Copy, Paste, Go to Definition and Toggle Comment. */
         val CONTEXT_MENU_TITLES: List<String> = listOf(
             EditorActionIds.CUT,
             EditorActionIds.COPY,

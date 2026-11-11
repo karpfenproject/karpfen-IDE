@@ -22,19 +22,22 @@ import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolKind
 
 /**
- * Walks a KModel tree:
- * - `make object "key":"T" { … }` → OBJECT declaration (type name and outline detail T; container: the enclosing
- *   object's outline name, null for the root) with an OBJECT_NAME span, plus a type reference to T. An object whose key
- *   is empty, `_` or missing is anonymous: declared with the empty name (its name range is still the key) and shown as
- *   `:T` in the outline.
- * - `prop("k") -> "v"` → PROPERTY_KEY reference, `has("k") -> …` and `knows("k") -> …` → RELATION_KEY references, each
- *   qualified with the enclosing object's type and with a PROPERTY_NAME span; `knows(…) -> "obj"` → OBJECT reference with
- *   an OBJECT_NAME span. They appear in the outline as PROPERTY_ASSIGNMENT (detail: the value), HAS_ASSIGNMENT (child:
- *   the nested object) and KNOWS_ASSIGNMENT (detail: the target key) nodes; they are not declarations.
+ * Walks a KModel tree and records what it declares and references.
+ * - `make object "key":"T" { }` becomes an OBJECT declaration with an OBJECT_NAME span, plus a type reference to T.
+ *   Its type name and outline detail are T. Its container is the outline name of the enclosing object, or null for the
+ *   root. An object whose key is empty, `_` or missing is anonymous. It is declared with the empty name, its name range
+ *   is still the key, and the outline shows it as `:T`.
+ * - In `prop("k") -> "v"` the key becomes a PROPERTY_KEY reference. In `has("k") -> make object` and
+ *   `knows("k") -> "obj"` the key becomes a RELATION_KEY reference. Each key reference is qualified with the type of
+ *   the enclosing object and gets a PROPERTY_NAME span. The target `"obj"` of `knows` becomes an OBJECT reference with
+ *   an OBJECT_NAME span.
+ * - These statements are not declarations. The outline shows them as PROPERTY_ASSIGNMENT nodes with the value as
+ *   detail, HAS_ASSIGNMENT nodes with the nested object as child, and KNOWS_ASSIGNMENT nodes with the target key as
+ *   detail.
  */
 internal class KmodelTreeWalker(private val tree: ParsedTree<*>, private val collector: SyntaxCollector) {
 
-    /** The outline of [file]: the root object, if the text has one. */
+    /** The outline of [file], which is the root object if the text has one. */
     fun walk(file: KmodelParser.Kmodel_fileContext): List<OutlineNode> =
         listOfNotNull(file.make_object_block()?.let { block(it, container = null) })
 
@@ -53,7 +56,7 @@ internal class KmodelTreeWalker(private val tree: ParsedTree<*>, private val col
         return node
     }
 
-    /** The outline node of a `prop`, `has` or `knows` statement of an object; null for a statement of another kind. */
+    /** The outline node of a `prop`, `has` or `knows` statement of an object. Null for a statement of another kind. */
     private fun statement(ctx: KmodelParser.StatementContext, objectType: String?, objectName: String): OutlineNode? {
         ctx.prop_statement()?.let { return prop(it, objectType) }
         ctx.has_statement()?.let { return has(it, objectType, objectName) }
@@ -87,7 +90,7 @@ internal class KmodelTreeWalker(private val tree: ParsedTree<*>, private val col
     }
 
     private companion object {
-        /** The key dsl-tools treats as "no key" besides the empty one. */
+        /** The key that dsl-tools treats as "no key", besides the empty one. */
         const val ANONYMOUS_KEY = "_"
     }
 }

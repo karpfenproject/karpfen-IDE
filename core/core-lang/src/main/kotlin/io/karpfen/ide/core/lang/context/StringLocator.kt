@@ -20,10 +20,11 @@ import io.karpfen.ide.core.document.syntax.TokenizeResult
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Finds the string literal around a caret: a STRING token the caret is strictly inside of (after the opening quote,
- * before the closing one), or an unterminated string — the last ERROR token on the caret's line that starts with a
- * quote (the KStates lexer emits a lone quote, the KMeta/KModel lexers drop the failed string, which the tokenizer
- * reports as ERROR tokens), running to the end of the line.
+ * Finds the string literal around a caret. This is either a STRING token the caret is strictly inside of, after the
+ * opening quote and before the closing one, or an unterminated string. An unterminated string is the last ERROR token
+ * on the line of the caret that starts with a quote, and it runs to the end of the line. Such ERROR tokens appear
+ * because the KStates lexer emits a lone quote and the KMeta and KModel lexers drop the failed string, which the
+ * tokenizer then reports as ERROR tokens.
  */
 internal object StringLocator {
 

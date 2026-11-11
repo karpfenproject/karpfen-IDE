@@ -46,10 +46,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers what a failed or cancelled deployment leaves: a failure at every step with the cleanup of the phase it left
- * (nothing, stop and disconnect, or disconnect) and the ledger entry recorded; a creation without an answer; a lost
- * environment; an activation and a stop whose outcome is unknown; a stop bounded as the deploy timing says; an injected
- * disposer; and a cancellation at every step, which cleans up and is rethrown.
+ * Covers what a failed or cancelled deployment leaves. A failure at every step gets the cleanup of the phase it left,
+ * which is nothing, a stop and a disconnect, or only a disconnect. The ledger entry is recorded. Further cases are a
+ * creation without an answer, a lost environment, an activation and a stop whose outcome is unknown, a stop bounded as
+ * the deploy timing says and an injected disposer. A cancellation at every step cleans up and is rethrown.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DeployCleanupTest {
@@ -180,8 +180,8 @@ class DeployCleanupTest {
     }
 
     /**
-     * A failure provoked at one step: the call that fails, how the doubles are set up for it, the problem code it
-     * becomes, the calls of the cleanup and what the ledger records.
+     * A failure provoked at one step. It holds the call that fails, how the doubles are set up for it, the problem code
+     * it becomes, the calls of the cleanup and what the ledger records.
      */
     enum class FailingStep(
         val kind: DeployStepKind,
@@ -306,8 +306,9 @@ class DeployCleanupTest {
     }
 
     /**
-     * A cancellation at one step: the call held until the deployment is cancelled, the calls of the cleanup and what
-     * the ledger records. A held activation or start completes on cancellation, as the real handle's does.
+     * A cancellation at one step. It holds the call that is held until the deployment is cancelled, the calls of the
+     * cleanup and what the ledger records. A held activation or start completes on cancellation, as the real handle's
+     * does.
      */
     enum class CancelledStep(
         val kind: DeployStepKind,

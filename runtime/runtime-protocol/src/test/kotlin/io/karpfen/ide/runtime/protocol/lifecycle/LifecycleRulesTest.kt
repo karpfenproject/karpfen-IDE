@@ -47,10 +47,10 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers [LifecycleRules] exhaustively: the verdict of every operation in every phase against the lifecycle's verdict
- * table, the phase after every success, the resolution of every kind of failure and every rejection kind for every
- * operation against the transition table, every probe result, the reconciliation with a snapshot's phase, and a stopped
- * environment that stays stopped.
+ * Covers [LifecycleRules] exhaustively. The tests check the verdict of every operation in every phase against the
+ * lifecycle's verdict table, and the phase after every success. They check the resolution of every kind of failure and
+ * every rejection kind for every operation against the transition table. They also check every probe result, the
+ * reconciliation with a snapshot's phase, and a stopped environment that stays stopped.
  */
 class LifecycleRulesTest {
 
@@ -72,7 +72,10 @@ class LifecycleRulesTest {
     /** The reads, allowed unless the environment is lost. */
     private val reads = setOf(READ_STATE_MACHINE_SOURCE, READ_SNAPSHOT)
 
-    /** The verdict table: per phase, the operations that are sent; every other one is refused, a stop of a stopped one answered locally. */
+    /**
+     * The verdict table. For each phase it lists the operations that are sent. Every other operation is refused, and a
+     * stop of a stopped environment is answered locally.
+     */
     private val sent: Map<EnvironmentPhase, Set<LifecycleOperation>> = mapOf(
         EnvironmentPhase.Configuring(nothing) to
             configuringCalls + reads + setOf(SET_METAMODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),

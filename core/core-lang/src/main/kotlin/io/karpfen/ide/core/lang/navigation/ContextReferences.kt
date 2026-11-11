@@ -25,35 +25,37 @@ import io.karpfen.ide.core.lang.symbols.LocatedOutcome
 
 /** A symbol that the files of a modeling context reference by name, the subject of cross-file references. */
 internal sealed interface ContextSymbol {
-    /** The symbol's name. */
+    /** The name of the symbol. */
     val name: String
 
-    /** A KMeta type (domain or event type). */
+    /** A KMeta type, which is a domain type or an event type. */
     data class Type(override val name: String) : ContextSymbol
 
-    /** The member [name] (`prop`, `has`, `knows`) of the type [owner]. */
+    /** The member [name] of the type [owner]. It is a `prop`, `has` or `knows` member. */
     data class Member(val owner: String, override val name: String) : ContextSymbol
 }
 
 /**
- * A file searched for references: its parse outcome with locations, its language and — when known for the outcome's
- * version — its text (model paths need it to locate segments of paths written with blanks).
+ * A file searched for references. It holds the parse outcome with locations and the language of the file. It also holds
+ * the text when it is known for the version of the outcome. Model paths need the text to locate segments of paths
+ * written with blanks.
  */
 internal class SearchFile(val language: KarpfenLanguage, val source: LocatedOutcome, val text: String?)
 
 /**
- * The files of the requesting document's modeling context (the document itself with its own latest outcome, the other
- * context files with their analyzed outcomes), and facts about the context shared by the contributors.
+ * The files of the modeling context of the requesting document, and facts about the context that the contributors
+ * share. The document itself comes with its own latest outcome. The other files of the context come with their
+ * analyzed outcomes.
  */
 internal class ReferenceScope(val request: FeatureRequest, val files: List<SearchFile>) {
 
-    /** The context's events file (or the document itself if it is one), among [files]; null if it is none of them. */
+    /** The events file of the context among [files], or the document itself if it is one. Null if none of them is. */
     private val eventsFile: SearchFile? = run {
         val events = request.contextAnalysis?.context?.events ?: request.document.path.takeIf { request.isEventsDocument }
         files.firstOrNull { it.source.path == events }
     }
 
-    /** True if [name] is declared as a type in the context's event metamodel (an event name). */
+    /** True if [name] is declared as a type in the event metamodel of the context, which makes it an event name. */
     fun isEventType(name: String): Boolean =
         eventsFile?.source?.outcome?.index?.declarations(SymbolKind.TYPE, name)?.isNotEmpty() == true
 
@@ -72,26 +74,29 @@ internal class ReferenceScope(val request: FeatureRequest, val files: List<Searc
     }
 }
 
-/** Finds the references of a [ContextSymbol] in one file (Strategy per language, wired by the features factory). */
+/**
+ * Finds the references of a [ContextSymbol] in one file. Each language has its own strategy, wired by the features
+ * factory.
+ */
 internal fun interface ReferenceContributor {
     /** The locations in [file] that reference [symbol]. */
     fun references(symbol: ContextSymbol, file: SearchFile, scope: ReferenceScope): List<Location>
 }
 
 /**
- * Cross-file reference search of a modeling context: asks every [ReferenceContributor] about every file of
- * the [ReferenceScope]; duplicates are dropped. The declaration itself is not included (the providers add it).
+ * Cross-file reference search in a modeling context. It asks every [ReferenceContributor] about every file of the
+ * [ReferenceScope] and drops duplicates. The declaration itself is not included, because the providers add it.
  */
 internal class ContextReferences(private val contributors: List<ReferenceContributor>) {
 
-    /** The references of [symbol] in the modeling context of [request] (the document alone if it has none). */
+    /** The references of [symbol] in the modeling context of [request], or in the document alone if it has none. */
     fun find(symbol: ContextSymbol, request: FeatureRequest): List<Location> {
         val scope = ReferenceScope.of(request)
         return scope.files.flatMap { file -> contributors.flatMap { it.references(symbol, file, scope) } }.distinct()
     }
 }
 
-/** Type references (`ReferenceKind.TYPE`) by name, in files of every language. */
+/** Type references of kind `ReferenceKind.TYPE` by name, in files of every language. */
 internal class TypeReferences : ReferenceContributor {
     override fun references(symbol: ContextSymbol, file: SearchFile, scope: ReferenceScope): List<Location> =
         if (symbol is ContextSymbol.Type) {

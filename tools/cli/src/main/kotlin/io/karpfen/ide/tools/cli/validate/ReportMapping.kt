@@ -20,10 +20,11 @@ import java.nio.file.Path
 import kotlin.io.path.invariantSeparatorsPathString
 
 /**
- * The [ValidationReport] of these problems below [root] (absolute, normalized): one [ReportedProblem] per diagnostic,
- * nothing filtered or merged (the workspace's single problems rule decided what is reported), with the path relative
- * to [root] in `/` form ([reportPath]) and the one-based position of `FileProblems.positionOf`. Sorted by path, line
- * and column; ties keep the files' diagnostic order (`Diagnostic.ORDER`).
+ * The [ValidationReport] of these problems below [root], which is absolute and normalized. There is one
+ * [ReportedProblem] per diagnostic, and nothing is filtered or merged, because the workspace's single rule for
+ * problems already decided what is reported. Each problem has its path relative to [root] in `/` form, from
+ * [reportPath], and the one-based position of `FileProblems.positionOf`. The problems are sorted by path, line and
+ * column. Ties keep the files' diagnostic order, `Diagnostic.ORDER`.
  */
 internal fun WorkspaceProblems.toValidationReport(root: Path): ValidationReport {
     val problems = files.flatMap { file ->
@@ -44,8 +45,8 @@ internal fun WorkspaceProblems.toValidationReport(root: Path): ValidationReport 
 }
 
 /**
- * [path] relative to [root] with `/` separators (`.` for the root itself, e.g. an unreadable root); an absolute `/`
- * path if it is not below [root].
+ * [path] relative to [root] with `/` separators. The root itself, for example an unreadable root, is written as `.`.
+ * A path that is not below [root] is written as an absolute path with `/` separators.
  */
 internal fun reportPath(root: Path, path: Path): String {
     val normalized = path.toAbsolutePath().normalize()
@@ -53,6 +54,6 @@ internal fun reportPath(root: Path, path: Path): String {
     return shown.invariantSeparatorsPathString.ifEmpty { "." }
 }
 
-/** Path, then line, then column (a stable sort keeps the diagnostic order for ties). */
+/** Path, then line, then column. A stable sort keeps the diagnostic order for ties. */
 private val REPORT_ORDER: Comparator<ReportedProblem> =
     compareBy<ReportedProblem> { it.path }.thenBy { it.line }.thenBy { it.column }

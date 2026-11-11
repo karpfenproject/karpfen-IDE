@@ -51,20 +51,23 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The find/replace bar through the overlay contract (`EditorPopups.Header` with a fake host and the real find model):
- * incremental search with the "n/m" counter, the Aa / W / .* toggles, Enter / Shift+Enter, Escape returning focus,
- * refocusing on a repeated open, and replace.
+ * The find and replace bar through the overlay contract, using `EditorPopups.Header` with a fake host and the real find
+ * model. The tests cover incremental search with the "n/m" counter, the `Aa`, `W` and `.*` toggles, Enter and
+ * Shift+Enter, Escape returning focus, focus on a repeated open, and replace.
  */
 @OptIn(ExperimentalTestApi::class)
 class FindReplaceBarTest {
 
+    /** Runs a popup test on [text] and passes the fake model to [block]. */
     private fun findBarTest(text: String, block: ComposeUiTest.(FakePopupModel) -> Unit) = popupTest(text) { block(it.model) }
 
+    /** Opens the find bar in [mode] and waits until it is composed. */
     private fun ComposeUiTest.open(model: FakePopupModel, mode: FindBarMode = FindBarMode.FIND) {
         runOnIdle { model.overlays.openFind(mode) }
         waitForIdle()
     }
 
+    /** The text selection of the query field, read from its semantics. */
     private fun ComposeUiTest.selectionOfQueryField(): UiTextRange =
         onNodeWithTag(EditorPopupTags.FIND_QUERY).fetchSemanticsNode().config[SemanticsProperties.TextSelectionRange]
 
@@ -236,7 +239,7 @@ class FindReplaceBarTest {
     }
 
     /**
-     * The workbench composes `CodeEditor` in `key(activePath)`, so switching tabs disposes the bar's fields; the
+     * The workbench composes `CodeEditor` in `key(activePath)`, so switching tabs disposes the fields of the bar. The
      * replacement lives in the model and comes back.
      */
     @Test

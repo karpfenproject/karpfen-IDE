@@ -79,9 +79,9 @@ internal fun diagnostic(
 }
 
 /**
- * A [DocumentParser] fake returning hand-built outcomes, so the session tests control every parse result: answers
- * [outcomeFor] (by default a clean outcome of the snapshot's version) and records the parsed versions and modes. Used
- * on the test thread only.
+ * A [DocumentParser] fake that returns hand-built outcomes, so the session tests control every parse result. It
+ * answers with [outcomeFor], which by default gives a clean outcome of the snapshot's version. It records the parsed
+ * versions and modes. Use it on the test thread only.
  */
 internal class FakeParser(private val outcomeFor: (TextSnapshot) -> ParseOutcome = { outcome(it.version) }) : DocumentParser {
 
@@ -98,7 +98,7 @@ internal class FakeParser(private val outcomeFor: (TextSnapshot) -> ParseOutcome
     }
 }
 
-/** A tokenizer delegating to [delegate] that records the tokenized versions (test thread only). */
+/** A tokenizer that delegates to [delegate] and records the tokenized versions. Use it on the test thread only. */
 internal class RecordingTokenizer(
     private val delegate: Tokenizer = realTokenizer(),
     private val onTokenize: (TextSnapshot) -> Unit = {},
@@ -135,7 +135,7 @@ internal fun TestScope.session(
 
 /**
  * Runs everything due within the next second of virtual time. The session runs in `backgroundScope`, whose work
- * `advanceUntilIdle` does not wait for; `advanceTimeBy` and `runCurrent` run it.
+ * `advanceUntilIdle` does not wait for. `advanceTimeBy` and `runCurrent` do run it.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal fun TestScope.settle() {
@@ -144,8 +144,8 @@ internal fun TestScope.settle() {
 }
 
 /**
- * A dispatcher that holds back what is dispatched to it until [runHeld], like a busy background thread (used to let
- * one pipeline lag behind the others). Test thread only.
+ * A dispatcher that holds back what is dispatched to it until [runHeld], like a busy background thread. Tests use it
+ * to let one pipeline lag behind the others. Use it on the test thread only.
  */
 internal class HeldDispatcher : CoroutineDispatcher() {
     private val held = ArrayDeque<Runnable>()
@@ -154,7 +154,7 @@ internal class HeldDispatcher : CoroutineDispatcher() {
         held.addLast(block)
     }
 
-    /** Runs the held tasks (and those they dispatch here) on the calling thread. */
+    /** Runs the held tasks, and those they dispatch here, on the calling thread. */
     fun runHeld() {
         while (held.isNotEmpty()) held.removeFirst().run()
     }

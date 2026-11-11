@@ -29,7 +29,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** [IntentRunner]: one flow at a time in call order, coalesced flows, jobs, failures reported without cancelling the scope. */
+/**
+ * Tests [IntentRunner]. It runs one flow at a time in call order, merges repeated flows and returns their jobs. It
+ * reports failures without cancelling the scope.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class IntentRunnerTest {
 

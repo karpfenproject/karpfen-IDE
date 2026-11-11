@@ -16,9 +16,9 @@
 package io.karpfen.ide.runtime.host.docker
 
 /**
- * The progress of an image build as one short line for the status: the latest `Step x/y` of the build output once the
- * build reports steps, before that the latest line, shortened to [MAX_LENGTH] characters. Fed from the thread that reads
- * the build output; not safe for concurrent use.
+ * The progress of an image build as one short line for the status. Once the build reports steps, the line is the
+ * latest `Step x/y` of the build output. Before that it is the latest output line, shortened to [MAX_LENGTH]
+ * characters. It is fed from the thread that reads the build output and is not safe for concurrent use.
  */
 internal class BuildProgress {
     /** The latest step the build reported, or null before the first one. */

@@ -16,16 +16,17 @@
 package io.karpfen.ide.runtime.protocol.golden
 
 /**
- * An object of a model on the runtime, as a test value: the runtime's `DataObject` with its id, its type name, the
- * simple properties present on the instance and its relations, each in instance order. [RuntimeWireWriter] writes it
- * exactly as the runtime's `ModelJsonWriter.write` writes a `DataObject`. Immutable.
+ * An object of a model on the runtime, as a test value. It mirrors the runtime's `DataObject` with its id, its type
+ * name, the simple properties present on the instance and its relations, each in instance order. [RuntimeWireWriter]
+ * writes it exactly as the runtime's `ModelJsonWriter.write` writes a `DataObject`. Values of this type are immutable.
  *
- * A relation target is either a [FakeTarget.Nested] object, which the relation holds itself (an embedded `has` child or
- * an anonymous object), or a [FakeTarget.Known] object of the model referred to by id, which the writer resolves through
- * the model's objects when it writes. The runtime writes both as full nested objects; a model with references can form
- * a reference loop, which the writer refuses as the runtime does.
+ * A relation target is either a [FakeTarget.Nested] or a [FakeTarget.Known] object. A nested object is one that the
+ * relation holds itself, which is an embedded `has` child or an anonymous object. A known object is an object of the
+ * model referred to by id, and the writer resolves it through the model's objects when it writes. The runtime writes
+ * both as full nested objects. So a model with references can form a reference loop, which the writer refuses as the
+ * runtime does.
  *
- * @property id the object's id, `__id__` in its JSON; empty for an anonymous object.
+ * @property id the object's id, `__id__` in its JSON. It is empty for an anonymous object.
  * @property typeName the name of its type, `__type__` in its JSON.
  * @property properties the simple properties present on the instance, in instance order.
  * @property relations the relations present on the instance, in instance order.
@@ -46,7 +47,7 @@ public data class FakeObject(
 /** A value of a simple property, of one of the three simple types of a metamodel. */
 public sealed interface FakeScalar {
     /**
-     * A number; the runtime keeps every number as a double.
+     * A number. The runtime keeps every number as a double.
      *
      * @property value the number.
      */
@@ -89,25 +90,25 @@ public sealed interface FakeProperty {
 
 /** How a relation holds its targets, as the metamodel declares it. */
 public enum class FakeAssociation {
-    /** Embedded: the target belongs to the object and is removed with it. */
+    /** Embedded. The target belongs to the object and is removed with it. */
     HAS,
 
-    /** Referred to: the target is an object of the model in its own right. */
+    /** Referred to. The target is an object of the model in its own right. */
     KNOWS,
 }
 
 /** The target of a relation. */
 public sealed interface FakeTarget {
     /**
-     * An object the relation holds itself: an embedded child or an anonymous object.
+     * An object that the relation holds itself, which is an embedded child or an anonymous object.
      *
      * @property value the object.
      */
     public data class Nested(public val value: FakeObject) : FakeTarget
 
     /**
-     * An object of the model referred to by its id; the writer resolves it when it writes, and writes `null` for an id
-     * the model does not have, as the runtime writes an unresolved reference.
+     * An object of the model referred to by its id. The writer resolves it when it writes. For an id the model does not
+     * have, it writes `null`, as the runtime writes an unresolved reference.
      *
      * @property id the id of the object.
      */
@@ -136,7 +137,7 @@ public sealed interface FakeRelation {
     /**
      * A list relation.
      *
-     * @property targets its targets in order; a null entry is an unresolved entry, which the runtime writes as `null`.
+     * @property targets its targets in order. A null entry is an unresolved entry, which the runtime writes as `null`.
      */
     public data class Many(
         override val key: String,
@@ -149,9 +150,12 @@ public sealed interface FakeRelation {
 public fun fakeObject(id: String, typeName: String, build: FakeObjectBuilder.() -> Unit = {}): FakeObject =
     FakeObjectBuilder().apply(build).build(id, typeName)
 
-/** Adds properties and relations to a [FakeObject] in instance order; used through [fakeObject]. */
+/** Adds properties and relations to a [FakeObject] in instance order. It is used through [fakeObject]. */
 public class FakeObjectBuilder {
+    /** The properties added so far, in order. */
     private val properties = ArrayList<FakeProperty>()
+
+    /** The relations added so far, in order. */
     private val relations = ArrayList<FakeRelation>()
 
     /** Adds the number property [key]. */
@@ -189,12 +193,14 @@ public class FakeObjectBuilder {
         relations += FakeRelation.One(key, FakeAssociation.HAS, target?.let { FakeTarget.Nested(it) })
     }
 
-    /** Adds the `has` list relation [key] holding [targets]; a null entry is unresolved. */
+    /** Adds the `has` list relation [key] holding [targets]. A null entry is unresolved. */
     public fun hasMany(key: String, vararg targets: FakeObject?) {
         relations += FakeRelation.Many(key, FakeAssociation.HAS, targets.map { target -> target?.let { FakeTarget.Nested(it) } })
     }
 
-    /** Adds the atomic `knows` relation [key] referring to the object with the id [targetId], or an empty one for null. */
+    /**
+     * Adds the atomic `knows` relation [key] referring to the object with the id [targetId], or an empty one for null.
+     */
     public fun knows(key: String, targetId: String?) {
         relations += FakeRelation.One(key, FakeAssociation.KNOWS, targetId?.let { FakeTarget.Known(it) })
     }

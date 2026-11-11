@@ -15,7 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.output.view
 
-/** Test tags of the Language Tools Output view ([OutputView]). */
+/** Test tags of the Language Tools Output view, [OutputView]. */
 public object OutputViewTestTags {
     /** The list of lines. */
     public const val LINES: String = "Workbench.output.lines"

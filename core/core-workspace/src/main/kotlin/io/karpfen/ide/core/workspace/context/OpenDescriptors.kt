@@ -22,15 +22,17 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import kotlinx.coroutines.flow.Flow
 import java.nio.file.Path
 
-/** The environment descriptors open in editors, as the context tracking sees unsaved edits. */
+/**
+ * The environment descriptors that are open in editors. Through this seam the context tracking sees unsaved edits.
+ */
 internal fun interface OpenDescriptors {
     /**
-     * The current editor text of every open descriptor by path: emitted at once, and again whenever a descriptor is
-     * opened, edited or closed.
+     * The current editor text of every open descriptor by path. It is emitted at once, and again whenever a descriptor
+     * is opened, edited or closed.
      */
     fun texts(): Flow<Map<Path, TextSnapshot>>
 }
 
-/** The [OpenDescriptors] of [documents]: its open documents that are environment descriptors. */
+/** The [OpenDescriptors] of [documents], which are its open documents that are environment descriptors. */
 internal fun OpenDescriptors(documents: DocumentManager): OpenDescriptors =
     OpenDescriptors { documents.openTexts { it.fileKind == FileKind.ENV_DESCRIPTOR } }

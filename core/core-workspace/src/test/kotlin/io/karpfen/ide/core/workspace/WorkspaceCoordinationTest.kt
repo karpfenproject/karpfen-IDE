@@ -65,7 +65,7 @@ class WorkspaceCoordinationTest {
 
     private val root: Path get() = dir.toAbsolutePath().normalize()
 
-    /** Always answers [tree]; ignores everything below `ignored/`. */
+    /** Always answers [tree]. It ignores everything below `ignored/`. */
     private class FakeScanner(var tree: WorkspaceTree) : WorkspaceScanner {
         var scans = 0
 
@@ -90,7 +90,7 @@ class WorkspaceCoordinationTest {
         }
     }
 
-    /** Counts runs; analyses nothing. */
+    /** Counts runs and analyses nothing. */
     private class CountingAnalyzer : ProjectAnalyzer {
         var runs = 0
 

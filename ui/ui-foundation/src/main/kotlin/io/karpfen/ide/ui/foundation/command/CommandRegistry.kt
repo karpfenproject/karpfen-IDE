@@ -22,9 +22,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * The application's commands. Compose-free: lookups take [KeyStroke]s (convert Compose events with
- * `KeyEvent.toKeyStroke()`); the window menu bar is built from [MenuSpec]s whose items reference command ids.
- * Used from the UI thread only.
+ * The application's commands. The registry does not depend on Compose. Lookups take [KeyStroke]s, and a Compose key
+ * event becomes one through `KeyEvent.toKeyStroke()`. The window menu bar is built from [MenuSpec]s whose items refer
+ * to command ids. Use the registry from the UI thread only.
  */
 public interface CommandRegistry {
 
@@ -37,7 +37,7 @@ public interface CommandRegistry {
     /** Registers [command], replacing a command with the same id. */
     public fun register(command: Command)
 
-    /** Removes the command [id]; no-op if absent. */
+    /** Removes the command [id]. Does nothing if no such command is registered. */
     public fun unregister(id: String)
 
     /** The command [id], or null. */
@@ -46,7 +46,7 @@ public interface CommandRegistry {
     /** The command whose shortcut produces [stroke] on [platform], or null. */
     public fun commandFor(stroke: KeyStroke): Command?
 
-    /** Runs the command [id] if it is registered and enabled; returns whether it ran. */
+    /** Runs the command [id] if it is registered and enabled, and returns whether it ran. */
     public fun execute(id: String): Boolean
 }
 
@@ -55,16 +55,16 @@ public fun CommandRegistry(platform: HostPlatform = HostPlatform.current()): Com
     DefaultCommandRegistry(platform)
 
 /**
- * The default registry. [commands] lists the commands in registration order (a replaced command counts as registered
- * anew). When several commands share a shortcut, the most recently registered one answers [commandFor]; unregistering
- * it makes the previous one answer again. [commandFor] returns disabled commands too (the caller decides whether a
- * stroke bound to a disabled command is consumed); [execute] runs only enabled ones.
+ * The default registry. [commands] lists the commands in registration order, and a replaced command counts as
+ * registered anew. When several commands share a shortcut, the most recently registered one answers [commandFor].
+ * Unregistering it makes the previous one answer again. [commandFor] returns disabled commands too, because the caller
+ * decides whether a stroke bound to a disabled command is consumed. [execute] runs only enabled commands.
  */
 internal class DefaultCommandRegistry(override val platform: HostPlatform) : CommandRegistry {
 
     private val registered = MutableStateFlow<Map<String, Command>>(emptyMap())
 
-    /** Derived from [registered] on every change; read and written on the UI thread only. */
+    /** The command of each stroke, derived from [registered] on every change. Used on the UI thread only. */
     private var byStroke: Map<KeyStroke, Command> = emptyMap()
 
     override val commands: StateFlow<Map<String, Command>> = registered.asStateFlow()

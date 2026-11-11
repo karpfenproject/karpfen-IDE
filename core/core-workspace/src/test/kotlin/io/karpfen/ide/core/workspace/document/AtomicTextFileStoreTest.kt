@@ -225,7 +225,7 @@ class AtomicTextFileStoreTest {
     }
 }
 
-/** A [FileChannel] that forwards everything to [delegate]; tests override what they observe. */
+/** A [FileChannel] that forwards everything to [delegate]. Tests override what they observe. */
 private open class ForwardingFileChannel(private val delegate: FileChannel) : FileChannel() {
     override fun read(dst: ByteBuffer): Int = delegate.read(dst)
     override fun read(dsts: Array<out ByteBuffer>, offset: Int, length: Int): Long = delegate.read(dsts, offset, length)

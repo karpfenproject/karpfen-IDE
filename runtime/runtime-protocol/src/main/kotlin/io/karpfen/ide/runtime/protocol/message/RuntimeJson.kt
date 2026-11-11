@@ -34,13 +34,13 @@ public sealed interface JsonReading {
 }
 
 /**
- * The runtime's JSON: reading it strictly and quoting strings by the runtime writer's rule.
+ * The runtime's JSON. This object reads it strictly and quotes strings by the rule of the runtime's writer.
  *
  * The runtime writes valid JSON except for the non-finite numbers, which it writes as the bare literals `NaN`,
- * `Infinity` and `-Infinity`. [read] accepts exactly that and nothing more, so drift in the runtime's writers shows as a
- * [JsonReading.Malformed] instead of being guessed around. The runtime's JSON comes from three writers: its hand-written
- * envelope, payload and object writers, org.json for the `stateChange` and `domainEvent` payloads and the environment
- * list, and the snapshot writer.
+ * `Infinity` and `-Infinity`. [read] accepts exactly that and nothing more. So drift in the runtime's writers shows as
+ * a [JsonReading.Malformed] instead of being guessed around. The runtime's JSON comes from three writers. The first
+ * are its hand-written envelope, payload and object writers. The second is org.json, which writes the `stateChange` and
+ * `domainEvent` payloads and the environment list. The third is the snapshot writer.
  */
 public object RuntimeJson {
 
@@ -50,16 +50,16 @@ public object RuntimeJson {
      * Whitespace between tokens is space, tab, carriage return and line feed. Strings take every standard escape,
      * `\uXXXX` and surrogate pairs included, and no unescaped control character. Numbers have the JSON form
      * (`-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?`) and are read as [Double]. Objects keep their fields in order,
-     * repeated names included. Comments, unquoted names, single quotes, trailing commas, leading zeros and anything after
-     * the value are malformed, as is nesting deeper than [MAX_DEPTH] arrays and objects, the limit RFC 8259 allows a
-     * reader to set, which keeps the reader's recursion off the bottom of the stack. Never throws.
+     * repeated names included. Comments, unquoted names, single quotes, trailing commas, leading zeros and anything
+     * after the value are malformed. So is nesting deeper than [MAX_DEPTH] arrays and objects. RFC 8259 allows a reader
+     * to set such a limit, and it keeps the reader's recursion from running out of stack. The function never throws.
      */
     public fun read(text: String): JsonReading = JsonTextReader(text).read()
 
     /**
-     * [text] as a JSON string literal by the runtime writer's rule: in quotes, with `"`, `\` and the control characters
-     * U+0000 to U+001F escaped (`\b`, `\f`, `\n`, `\r` and `\t` by their short forms, the others as `\u00XX` with
-     * lower-case digits) and every other character as it is.
+     * Quotes [text] as a JSON string literal by the rule of the runtime's writer. The text goes in quotes. `"`, `\` and
+     * the control characters U+0000 to U+001F are escaped. `\b`, `\f`, `\n`, `\r` and `\t` use their short forms, and
+     * the other control characters become `\u00XX` with lower-case digits. Every other character stays as it is.
      */
     public fun quote(text: String): String = buildString(text.length + 2) {
         append('"')
@@ -94,15 +94,18 @@ public object RuntimeJson {
 }
 
 /**
- * One pass of [RuntimeJson.read] over [text]: a recursive-descent reader that stops at the first offset at which the
- * text departs from the grammar.
+ * One pass of [RuntimeJson.read] over [text]. It is a recursive-descent reader that stops at the first offset at which
+ * the text departs from the grammar.
  */
 internal class JsonTextReader(private val text: String) {
 
     /** The offset of the next character to read. */
     private var position = 0
 
-    /** Thrown inside the reader at the first malformed offset; [read] turns it into a [JsonReading.Malformed]. */
+    /**
+     * Thrown inside the reader at the first malformed offset. [read] turns it into a [JsonReading.Malformed]. It
+     * carries no stack trace, so failing stays cheap.
+     */
     private class MalformedText(val offset: Int, val reason: String) : RuntimeException(reason, null, false, false)
 
     /** Reads the whole text as one value. */
@@ -194,7 +197,7 @@ internal class JsonTextReader(private val text: String) {
         }
     }
 
-    /** Reads a string whose opening quote is at [position] and answers its text with every escape resolved. */
+    /** Reads a string whose opening quote is at [position] and returns its text with every escape resolved. */
     private fun readString(): String {
         position++
         val result = StringBuilder()
@@ -215,7 +218,7 @@ internal class JsonTextReader(private val text: String) {
         }
     }
 
-    /** Reads the escape whose backslash is at [position] and answers the character it stands for. */
+    /** Reads the escape whose backslash is at [position] and returns the character it stands for. */
     private fun readEscape(): Char {
         val start = position
         position++
@@ -301,17 +304,17 @@ internal class JsonTextReader(private val text: String) {
     /** The character at [position], or [END] at the end of the text. */
     private fun peek(): Char = if (position < text.length) text[position] else END
 
-    /** Stops reading: the text is malformed at [position]. */
+    /** Stops reading, because the text is malformed at [position]. */
     private fun fail(reason: String): Nothing = throw MalformedText(position, reason)
 
-    /** [char] as a failure reason shows it: a control character by its code. */
+    /** [char] as a failure reason shows it. A control character is shown by its code. */
     private fun printable(char: Char): String = if (char < ' ') "U+%04X".format(char.code) else char.toString()
 
     private companion object {
         /** The whitespace of JSON: space, tab, line feed and carriage return. */
         const val WHITESPACE = " \t\n\r"
 
-        /** Stands for the end of the text; it never occurs in a valid JSON text outside a string. */
+        /** Stands for the end of the text. It never occurs in a valid JSON text outside a string. */
         const val END = '\u0000'
 
         /** The number of digits of a `\uXXXX` escape. */

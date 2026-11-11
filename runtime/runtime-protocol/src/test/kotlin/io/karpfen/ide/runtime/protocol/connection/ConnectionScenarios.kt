@@ -43,15 +43,19 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers the client's connection against a real runtime, the only test of the Ktor WebSocket adapter with a live
- * socket: the silent handshake and the first stacks after the start; an injected event coming back as pushes; refused
- * handshakes (a used key ends the connection as rejected, a malformed handshake and a binary first frame close the
- * socket with their reasons); a link the client closes replaced on a fresh key with the same client id, receiving
- * pushes again after the subscription is confirmed; the runtime's close at a stop ending the connection as stopped; and
- * text with spaces and an en dash surviving the wire in snapshots, stacks, forced-state requests and pushed values.
+ * Covers the client's connection against a real runtime. This is the only test of the Ktor WebSocket adapter with a
+ * live socket. The scenarios cover these cases.
+ * - The handshake is silent, and the first stacks come after the start.
+ * - An injected event comes back as pushes.
+ * - Handshakes are refused. A used key ends the connection as rejected. A malformed handshake and a binary first frame
+ *   close the socket with their reasons.
+ * - A link the client closes is replaced on a fresh key with the same client id. It receives pushes again after the
+ *   subscription is confirmed.
+ * - The runtime's close at a stop ends the connection as stopped.
+ * - Text with spaces and an en dash survives the wire in snapshots, stacks, forced-state requests and pushed values.
  *
- * The scenarios run only against a real runtime ([LiveConnectionScenariosTest]); a half-open old link that heals
- * through a revision gap is a failure only a fake can produce and is an ordinary test against the fake runtime. Every
+ * The scenarios run only against a real runtime, in [LiveConnectionScenariosTest]. A half-open old link that heals
+ * through a revision gap is a failure only a fake can produce. It is an ordinary test against the fake runtime. Every
  * scenario stops the environments it deployed when it ends, also when it fails.
  */
 abstract class ConnectionScenarios {
@@ -179,7 +183,10 @@ abstract class ConnectionScenarios {
         assertIs<CallOutcome.Done<Unit>>(environment.stop())
     }
 
-    /** Runs [body] as a scenario against [runtime] with a real client over its transports, which stops what it deployed at the end. */
+    /**
+     * Runs [body] as a scenario against [runtime] with a real client over its transports. The scenario stops what it
+     * deployed at the end.
+     */
     private fun scenario(body: suspend ScenarioClient.() -> Unit) {
         runtime.runClient(endpoint, body)
     }

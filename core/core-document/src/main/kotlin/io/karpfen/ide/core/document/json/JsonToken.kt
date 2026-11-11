@@ -17,7 +17,7 @@ package io.karpfen.ide.core.document.json
 
 import io.karpfen.ide.core.text.TextRange
 
-/** The lexical classes of JSON (RFC 8259), plus [INVALID] for input that is no JSON token. */
+/** The lexical classes of JSON as RFC 8259 defines them, plus [INVALID] for input that is no JSON token. */
 public enum class JsonTokenKind {
     /** `{`. */
     BEGIN_OBJECT,
@@ -37,10 +37,10 @@ public enum class JsonTokenKind {
     /** `,` between members or items. */
     VALUE_SEPARATOR,
 
-    /** A string with its quotes; an unterminated string ends before the line break or at the end of the text. */
+    /** A string with its quotes. An unterminated string ends before the line break or at the end of the text. */
     STRING,
 
-    /** A number in JSON syntax (`-12`, `0.5`, `1e3`). */
+    /** A number in JSON syntax, such as `-12`, `0.5` or `1e3`. */
     NUMBER,
 
     /** `true`. */
@@ -52,7 +52,10 @@ public enum class JsonTokenKind {
     /** `null`. */
     NULL,
 
-    /** Anything else: a bare word, a malformed number or characters JSON does not know. Always a LEXER error. */
+    /**
+     * Anything else, such as a bare word, a malformed number or characters that JSON does not know. Always a LEXER
+     * error.
+     */
     INVALID,
     ;
 

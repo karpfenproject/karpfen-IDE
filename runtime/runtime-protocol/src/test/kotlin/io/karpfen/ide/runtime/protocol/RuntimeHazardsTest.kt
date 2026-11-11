@@ -52,12 +52,18 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers the client against the failures of a runtime that only a fake can produce on demand, each a hardcoded
- * response or link event of the fake runtime: a half-open old link that swallows pushes until it drops, after which the
- * new link's first push shows the revision gap; a push lost on an open link, visible as a gap; a runtime without IDE
- * support; a runtime that restarted and forgot the environment; an unreachable runtime; and a consumer that does not
- * read, which never stalls the link's reader and so never the runtime's one broadcaster. The real client (gateway,
- * environment handle, connection) runs on virtual time over the fake's two seams.
+ * Covers the client against failures of a runtime that only a fake can produce on demand. Each failure is a hardcoded
+ * response or link event of the fake runtime. The tests cover these cases.
+ * - A half-open old link swallows pushes until it drops. After that, the new link's first push shows the revision gap.
+ * - A push is lost on an open link, which shows as a gap.
+ * - The runtime has no IDE support.
+ * - The runtime restarted and forgot the environment.
+ * - The runtime is unreachable.
+ * - A consumer does not read. This never stalls the link's reader, and so it never stalls the runtime's one
+ *   broadcaster.
+ *
+ * The real client runs on virtual time over the fake's two seams. The real client here means the gateway, the
+ * environment handle and the connection.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeHazardsTest {
@@ -222,7 +228,10 @@ class RuntimeHazardsTest {
     private suspend fun created(client: RuntimeClient): RuntimeEnvironment =
         assertIs<RuntimeResult.Ok<RuntimeEnvironment>>(client.createEnvironment()).value
 
-    /** An open connection of [CLIENT] to a new environment of the fake and the events it emitted, collected as they come. */
+    /**
+     * An open connection of [CLIENT] to a new environment of the fake, and the events it emitted, collected as they
+     * come.
+     */
     private suspend fun TestScope.openConnection(fake: FakeRuntime): Pair<RuntimeConnection, List<ConnectionEvent>> {
         val client = client(fake)
         return openConnection(client, created(client))
@@ -252,7 +261,7 @@ class RuntimeHazardsTest {
         ConnectionEvent.Received(RuntimePush.StateChanged("lamp", listOf(state), revision))
 
     private companion object {
-        /** The runtime the client believes it talks to; the fake answers whatever the URL. */
+        /** The runtime the client believes it talks to. The fake answers whatever the URL is. */
         val ENDPOINT = RuntimeEndpoint.parse("http://127.0.0.1:8080")
 
         /** The client id of the connections. */

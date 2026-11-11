@@ -26,10 +26,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers the robustness of the environment descriptor features: highlight, completion, hover, definition, references
- * and bracket matching never throw, and no provider fails behind the facade's catch-all, on deterministic mutations of
- * every descriptor fixture and on every prefix of the valid one (at the typing position and one more offset); every
- * result lies inside the text.
+ * Covers the robustness of the environment descriptor features. Highlight, completion, hover, definition, references
+ * and bracket matching never throw, and no provider fails behind the catch-all of the facade. This holds on
+ * deterministic mutations of every descriptor fixture and on every prefix of the valid one. Each prefix is checked at
+ * the typing position and at one more offset. Every result lies inside the text.
  */
 class EnvironmentServicesRobustnessTest {
 

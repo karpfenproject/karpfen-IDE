@@ -25,8 +25,8 @@ import kotlinx.coroutines.withContext
 import java.nio.file.Path
 
 /**
- * The sessions: preparation on the dispatcher of the options, and sessions that record in one ledger and deploy with
- * one deployer.
+ * The default [RuntimeSessions]. It prepares deployments on the dispatcher of the options. All sessions it launches
+ * record in one ledger and deploy with one deployer.
  *
  * @param options how the sessions run.
  * @param ledger where the sessions record the environments they leave.

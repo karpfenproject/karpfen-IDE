@@ -43,13 +43,23 @@ import java.nio.file.Path
 import kotlin.time.TestTimeSource
 
 /**
- * An editor state for Compose-free tests, wired like the product: a real [EditableText] (test time source), a real
- * [DocumentSession] with the language registry's tokenizer and parser, the real models, a [FakeLanguageServices] and an
- * in-memory clipboard. Every coroutine — the session's pipelines, the editor's scope and its background dispatcher —
- * runs on [testScope]'s scheduler in [scope] (foreground work, so `advanceUntilIdle` settles everything; the test
- * scope's `backgroundScope` would not be advanced by it). [close] cancels the scope; [editorTest] does so.
+ * An editor state for tests without Compose, wired like the product. It has a real [EditableText] with a test time
+ * source, a real [DocumentSession] with the language registry's tokenizer and parser, the real models, a
+ * [FakeLanguageServices] and an in-memory clipboard.
+ *
+ * Every coroutine runs on the scheduler of [testScope] in [scope]. This covers the session's pipelines, the editor's
+ * scope and its background dispatcher. They run as foreground work, so `advanceUntilIdle` settles everything. The
+ * `backgroundScope` of the test scope would not be advanced by it. [close] cancels the scope, and [editorTest] calls
+ * [close] at the end.
  *
  * The view is simulated with [layOut], which reports a viewport like `CodeEditor` does.
+ *
+ * @property testScope the test scope whose scheduler runs all coroutines.
+ * @param initialText the text the editor starts with.
+ * @param platform the platform whose keymap the editor uses.
+ * @property services the fake language services of the editor.
+ * @param language the karpfen language of the document. It selects the tokenizer, the parser and the file extension.
+ * @param actions the action registry of the editor.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditorStateHarness(
@@ -60,7 +70,7 @@ class EditorStateHarness(
     language: KarpfenLanguage = KarpfenLanguage.KSTATES,
     actions: EditorActionRegistry = EditorActionRegistry(),
 ) {
-    /** The background dispatcher of the session and the editor (the test scheduler). */
+    /** The dispatcher of the session and of the editor's background work. It runs on the test scheduler. */
     val dispatcher = StandardTestDispatcher(testScope.testScheduler)
 
     /** The clock of the text's undo coalescing. */
@@ -124,7 +134,10 @@ class EditorStateHarness(
         )
     }
 
-    /** Applies the pending scroll request like the view does (vertical only) and consumes it. */
+    /**
+     * Applies the pending scroll request like the view does, but only vertically, and consumes it. Returns the request,
+     * or null if none was pending.
+     */
     fun applyScrollRequest(): ScrollRequest? {
         val request = state.scrollRequest.value ?: return null
         val geometry = state.viewport.state.value
@@ -134,7 +147,7 @@ class EditorStateHarness(
         return request
     }
 
-    /** The offset of the first occurrence of [marker] (must exist). */
+    /** The offset of the first occurrence of [marker]. The marker must occur in the text. */
     fun offsetOf(marker: String): Int = plain.indexOf(marker).also { require(it >= 0) { "no '$marker' in the text" } }
 
     /** The range of the first occurrence of [marker]. */
@@ -143,13 +156,14 @@ class EditorStateHarness(
     /** Presses [key] with [modifiers] through the editor's key routing. */
     fun press(key: KeyCode, vararg modifiers: KeyModifier): Boolean = state.handleKey(KeyStroke(key, modifiers.toSet()))
 
+    /** Holds the geometry that the harness reports. */
     companion object {
         /** The line height reported by [layOut]. */
         const val LINE_HEIGHT: Float = 20f
     }
 }
 
-/** A clipboard in memory; setting [content] directly (another application) drops the whole-line mark. */
+/** A clipboard in memory. Setting [content] directly stands for another application and drops the whole-line mark. */
 class TestClipboard(content: String? = null) : ClipboardPort {
     /** The clipboard text. */
     var content: String? = content
@@ -158,6 +172,7 @@ class TestClipboard(content: String? = null) : ClipboardPort {
             wholeLine = false
         }
 
+    /** Whether the content was put there as a whole line. */
     private var wholeLine = false
 
     override fun getText(): String? = content
@@ -172,7 +187,7 @@ class TestClipboard(content: String? = null) : ClipboardPort {
 }
 
 /**
- * Runs [block] with an [EditorStateHarness] over [text] in `runTest` (virtual time) and closes the harness afterwards.
+ * Runs [block] with an [EditorStateHarness] over [text] in `runTest` on virtual time, and closes the harness afterwards.
  */
 fun editorTest(
     text: String,

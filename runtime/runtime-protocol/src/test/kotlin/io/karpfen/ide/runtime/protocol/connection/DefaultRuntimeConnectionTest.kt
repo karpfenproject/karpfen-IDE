@@ -60,13 +60,18 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers [DefaultRuntimeConnection] over scripted links on virtual time: the exact handshake and an open state without
- * any acknowledgement; pushes, violations and binary frames in order without closing the link; a reader that drains the
- * link while the collector is suspended; the ends by a close 1003 (also late), by the runtime's stop, by the handle's
- * phase, by a key the runtime refuses for an unknown environment, by the client, by a scope cancelled before the open
- * and by the attempt limit; reconnects after the policy's delay with a fresh key, the same client id, the old link
- * closed first and the next epoch; failed attempts with their backoff; [RuntimeConnection.awaitOpen]; and the checks of
- * [RuntimeConnection.send].
+ * Covers [DefaultRuntimeConnection] over scripted links on virtual time. The tests cover these cases.
+ * - The handshake is exact, and the connection is open without any acknowledgement.
+ * - Pushes, violations and binary frames arrive in order without closing the link.
+ * - The reader drains the link while the collector is suspended.
+ * - The connection ends by a close 1003, also a late one, and by the runtime's stop. It also ends by the handle's
+ *   phase, by a key the runtime refuses for an unknown environment, by the client, by a scope cancelled before the
+ *   open, and by the attempt limit.
+ * - A reconnect comes after the policy's delay. It uses a fresh key and the same client id, closes the old link first
+ *   and starts the next epoch.
+ * - Failed attempts are retried with their backoff.
+ *
+ * The tests also cover [RuntimeConnection.awaitOpen] and the checks of [RuntimeConnection.send].
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultRuntimeConnectionTest {
@@ -89,7 +94,7 @@ class DefaultRuntimeConnectionTest {
     /** The environment's handle, whose phase the tests set. */
     private val handle = PhaseOnlyEnvironment(environment, EnvironmentPhase.Running)
 
-    /** The outcomes the issuer answers first, in order; once they are used up it issues fresh keys. */
+    /** The outcomes the issuer returns first, in order. Once they are used up, it issues fresh keys. */
     private val issuances = ArrayDeque<CallOutcome<AccessKey>>()
 
     /** The number of keys asked for so far. */

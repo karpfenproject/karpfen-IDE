@@ -27,10 +27,13 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * The ids of the enabled registered actions ([EditorPopupModel.enabledActions]): `EditorAction.isEnabled` in the
- * editor's context, which depends only on the carets, the text and the undo history (never on the clipboard or the
- * tokens). Recomputed when one of those changes (observed in [scope]) and synchronously by [refresh] after every intent
- * of the editor, so a context menu opened right after a click sees the new enablement. Used from the UI thread.
+ * Tracks the ids of the registered actions that are enabled, for [EditorPopupModel.enabledActions]. An action is
+ * enabled when `EditorAction.isEnabled` is true in the editor's context. That check depends only on the carets, the
+ * text and the undo history, and never on the clipboard or the tokens.
+ *
+ * The set is computed again when one of those inputs changes, which is observed in [scope]. [refresh] also computes it
+ * synchronously after every intent of the editor. So a context menu opened right after a click sees the new
+ * enablement. Use it from the UI thread.
  */
 internal class ActionEnablement(
     private val actions: EditorActionRegistry,

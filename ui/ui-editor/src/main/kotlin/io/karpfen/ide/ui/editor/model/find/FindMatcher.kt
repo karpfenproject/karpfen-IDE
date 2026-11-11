@@ -20,21 +20,25 @@ import java.util.regex.Matcher
 import java.util.regex.Pattern
 import java.util.regex.PatternSyntaxException
 
-/** The matches of a query in one text, or the [error] of an invalid regular expression (then [matches] is empty). */
+/** The matches of a query in one text. For an invalid regular expression, [error] holds the message and [matches] is empty. */
 internal data class MatchOutcome(val matches: List<TextRange>, val error: String?)
 
 /**
- * The search rules of find/replace, pure and stateless: one [Pattern] per query — the literal text unless
- * [FindQuery.regex] (then multi-line mode, `^`/`$` at line bounds), case-insensitive (Unicode) unless
- * [FindQuery.caseSensitive], and with [FindQuery.wholeWord] bounded by non-identifier characters (`[A-Za-z0-9_]`, the
- * word rule of the caret model). Matches are non-overlapping, in document order; empty matches are skipped. An invalid
- * regular expression is an [MatchOutcome.error], never an exception.
+ * The search rules of find and replace. The class holds pure functions and no state.
+ *
+ * Each query becomes one [Pattern]. It searches for the literal text, unless [FindQuery.regex] is set. Then the text is
+ * a regular expression in multi-line mode, where `^` and `$` match at line bounds. Matching ignores case with Unicode
+ * rules, unless [FindQuery.caseSensitive] is set. With [FindQuery.wholeWord], a match must not have an identifier
+ * character right before or after it. Identifier characters are `[A-Za-z0-9_]`, the word rule of the caret model.
+ *
+ * Matches do not overlap and come in document order. Empty matches are skipped. An invalid regular expression becomes
+ * a [MatchOutcome.error] and never an exception.
  */
 internal class FindMatcher {
 
     /**
-     * The matches of [query] in [text]. [checkCancelled] is called regularly while matching (the background search
-     * passes `ensureActive`, so a newer query or version stops a long regular-expression search).
+     * Returns the matches of [query] in [text]. [checkCancelled] is called regularly while matching. The background
+     * search passes `ensureActive`, so a newer query or text version stops a long regular expression search.
      */
     fun find(text: String, query: FindQuery, checkCancelled: () -> Unit = {}): MatchOutcome {
         if (query.text.isEmpty()) return MatchOutcome(emptyList(), null)
@@ -53,10 +57,11 @@ internal class FindMatcher {
     }
 
     /**
-     * The texts replacing [matches] (the matches of [query] in [text], in order): [replacement] as is, or in regex mode
-     * with `$n`/`${name}` group references expanded (`\` escapes). A replacement that cannot be expanded (a reference
-     * to a missing group, a trailing `\`) is inserted literally everywhere. One pass over [text], which repeats the
-     * search; [checkCancelled] is called regularly like in [find].
+     * Returns the texts that replace [matches], in order. [matches] are the matches of [query] in [text]. Outside regex
+     * mode every text is [replacement] as it is. In regex mode the group references `$n` and `${name}` are expanded,
+     * and `\` escapes a character. A replacement that cannot be expanded, such as one with a reference to a missing
+     * group or a trailing `\`, is inserted literally everywhere. The expansion makes one pass over [text] and repeats
+     * the search. [checkCancelled] is called regularly, as in [find].
      */
     fun replacements(
         text: String,
@@ -77,7 +82,10 @@ internal class FindMatcher {
         }
     }
 
-    /** Expands [replacement] for each of [matches] while [matcher] walks the text once (`appendReplacement`). */
+    /**
+     * Expands [replacement] for each of [matches] while [matcher] walks the text once with `appendReplacement`. Matches
+     * that the walk does not meet keep the unexpanded [replacement].
+     */
     private fun expandAll(matcher: Matcher, matches: List<TextRange>, replacement: String): List<String> {
         val result = ArrayList<String>(matches.size)
         val buffer = StringBuilder()
@@ -97,8 +105,8 @@ internal class FindMatcher {
     }
 
     /**
-     * The pattern of [query]: the quoted text or the regular expression, wrapped in look-arounds that reject identifier
-     * characters on either side for a whole-word query.
+     * Compiles the pattern of [query]. It is the quoted text or the regular expression. For a whole-word query, it is
+     * wrapped in look-arounds that reject identifier characters on either side.
      */
     private fun compile(query: FindQuery): Pattern {
         val body = if (query.regex) query.text else Pattern.quote(query.text)
@@ -108,11 +116,11 @@ internal class FindMatcher {
         return Pattern.compile(bounded, flags)
     }
 
-    /** The message shown for an invalid regular expression: its description and, if known, the index of the error. */
+    /** Returns the message shown for an invalid regular expression. It holds the description and, if known, the index of the error. */
     private fun describe(e: PatternSyntaxException): String =
         if (e.index >= 0) "${e.description} near index ${e.index}" else e.description
 
-    /** [text] for the regex engine, calling [checkCancelled] every [CHECK_INTERVAL] reads. */
+    /** Wraps [text] for the regex engine and calls [checkCancelled] every [CHECK_INTERVAL] character reads. */
     private class CheckedText(private val text: String, private val checkCancelled: () -> Unit) : CharSequence {
         private var reads = 0
 
@@ -130,7 +138,7 @@ internal class FindMatcher {
 
     /** How often matching checks for cancellation. */
     private companion object {
-        /** Character reads (and matches) between two cancellation checks. */
+        /** The number of character reads, and of matches, between two cancellation checks. */
         const val CHECK_INTERVAL = 4096
     }
 }

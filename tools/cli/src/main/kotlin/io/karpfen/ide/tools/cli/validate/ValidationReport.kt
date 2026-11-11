@@ -20,14 +20,26 @@ import java.nio.file.Path
 
 /** Output format of `karpfen validate`. */
 public enum class OutputFormat {
-    /** One line per problem: `path:line:col: severity: message [code]` (one-based, severity in lower case). */
+    /**
+     * One line per problem in the form `path:line:col: severity: message [code]`, with one-based positions and the
+     * severity in lower case.
+     */
     TEXT,
 
     /** A JSON document with the root and the list of problems. */
     JSON,
 }
 
-/** One reported problem; [path] is relative to the validated root with `/` separators; [line]/[column] are one-based. */
+/**
+ * One reported problem.
+ *
+ * @property path the file, relative to the validated root with `/` separators.
+ * @property line the one-based line.
+ * @property column the one-based column.
+ * @property severity the severity of the diagnostic.
+ * @property message the diagnostic's message.
+ * @property code the diagnostic's code, such as `unreadable`.
+ */
 public data class ReportedProblem(
     public val path: String,
     public val line: Int,
@@ -37,8 +49,8 @@ public data class ReportedProblem(
     public val code: String,
 )
 
-/** Everything `karpfen validate` found below [root], sorted by path, line, column. */
+/** Everything `karpfen validate` found below [root], sorted by path, line and column. */
 public data class ValidationReport(public val root: Path, public val problems: List<ReportedProblem>) {
-    /** True if any problem is an ERROR (exit status 1). */
+    /** True if any problem is an ERROR. The tool then exits with status 1. */
     public val hasErrors: Boolean get() = problems.any { it.severity == Severity.ERROR }
 }

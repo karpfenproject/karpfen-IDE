@@ -35,9 +35,9 @@ import kotlinx.coroutines.test.TestScope
 import java.nio.file.Path
 
 /**
- * One analyzed context of a test workspace, with the inputs the session's packages take, derived as the preparation of
- * a deployment derives them: the schema of the domain metamodel, the seed, one layout per attached machine and the
- * domains the machines use.
+ * One analyzed context of a test workspace, with the inputs that the session's packages take. They are derived as the
+ * preparation of a deployment derives them. These are the schema of the domain metamodel, the seed, one layout per
+ * attached machine and the domains the machines use.
  *
  * @property analysis the analysis of the whole workspace.
  * @property context the analysis of the context.
@@ -63,7 +63,10 @@ class AnalyzedContext(val analysis: ProjectAnalysis, val context: ContextAnalysi
     val seed: MirrorSnapshot
         get() = MirrorSeeder.seed(model, schema)
 
-    /** The attached machines: the attachment of the descriptor, or the first object of the machine's type. */
+    /**
+     * The attached machines. Each runs attached to the object the descriptor names, or else to the first object of the
+     * machine's type.
+     */
     val machines: List<AnalyzedMachine>
         get() {
             val symbols = ContextSymbols(analysis)
@@ -128,7 +131,9 @@ object AnalyzedContexts {
         return AnalyzedContext(analysis, analysis.contexts.single { it.context.descriptor?.fileName == descriptor.fileName })
     }
 
-    /** The analyzed contexts of every synthesized model, each copied into its own folder below [root], in enum order. */
+    /**
+     * The analyzed contexts of every synthesized model, each copied into its own folder below [root], in enum order.
+     */
     suspend fun allSynthesized(scope: TestScope, root: Path): List<AnalyzedContext> {
         val descriptors = SynthesizedModel.entries.map { SynthesizedModels.copyTo(root.resolve(it.folder), it, DescriptorTiming.NONE) }
         val analysis = TestWorkspaces(scope).open(root).awaitAnalysis()

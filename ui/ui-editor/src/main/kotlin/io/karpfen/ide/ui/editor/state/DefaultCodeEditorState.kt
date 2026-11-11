@@ -41,27 +41,35 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Default [CodeEditorState]. A coordinator only (no god class of more than about 300 lines): it creates the models
- * (`CaretModel` with the settings' tab width, `AutoClosedPairs`, `FindModel` with [backgroundDispatcher] and
- * `CompletionSessionModel`, both with [ActionRunner] as their executor) and delegates to internal collaborators, each
- * with one responsibility. The per-editor models are created here rather than injected: they are bound to this editor's
- * text, caret and executor, Compose-free and deterministic (time and threads come from the injected scope and
- * background dispatcher), so the editor's tests use the real ones and a models factory would only add a parameter
- * nobody fakes. The collaborators:
- * - [EditorActionContextAdapter] (the actions' `EditorActionContext`, tokens read lazily through `session.tokensFor`)
- *   with [EditorUiRequests] (its `EditorUiPort`: find bar seeding, find next/previous through the `FindModel`, go to
- *   line, completion, go to definition);
- * - [ActionRunner] (the executor of every action, followed by the [CaretReveal] and the [ActionEnablement] refresh);
- * - [EditorCompletionSource] (the suspending completion source on [backgroundDispatcher]);
- * - [HighlightPipeline] (incl. the semantic carry-over documented on [EditorViewModel.highlights]) and [BracketTracker]
- *   on [backgroundDispatcher];
- * - [SymbolLookup] (bounded wait for a current parse, hover content, definitions) with [HoverController] (the
- *   [CodeEditorState.HOVER_DELAY] and the hide grace in the editor's scope) and [DefinitionNavigator]
- *   ([navigationRequests]);
- * - [PointerGestures] (click and drag policy) and [ViewRequests] (pending scroll and focus requests).
+ * The default [CodeEditorState]. It is only a coordinator and should not grow into a god class of more than about 300
+ * lines. It creates the models and delegates to internal collaborators, each with one responsibility.
  *
- * All work runs in a child scope of [parentScope] (its dispatcher is the UI thread, the single writer of the text);
- * [close] cancels it.
+ * The models are the `CaretModel` with the tab width of the settings, the `AutoClosedPairs`, the `FindModel` with
+ * [backgroundDispatcher], and the `CompletionSessionModel`. The find and completion models use [ActionRunner] as their
+ * executor. These models are created here and not injected. They are bound to this editor's text, caret and executor.
+ * They do not need Compose and are deterministic, because time and threads come from the injected scope and background
+ * dispatcher. So the editor's tests use the real models, and a factory for them would only add a parameter nobody
+ * fakes.
+ *
+ * [EditorActionContextAdapter] is the `EditorActionContext` of the actions and reads tokens lazily through
+ * `session.tokensFor`. Its `EditorUiPort` is [EditorUiRequests], which handles find bar seeding, find next and find
+ * previous through the `FindModel`, go to line, completion and go to definition.
+ *
+ * [ActionRunner] executes every action. After each run it triggers the [CaretReveal] and refreshes the
+ * [ActionEnablement].
+ *
+ * [EditorCompletionSource] is the suspending completion source on [backgroundDispatcher]. [HighlightPipeline] and
+ * [BracketTracker] run on [backgroundDispatcher] too. The highlight pipeline includes the semantic carry-over described
+ * on [EditorViewModel.highlights].
+ *
+ * [SymbolLookup] waits a bounded time for a current parse and looks up hover content and definitions. It feeds
+ * [HoverController], which runs the [CodeEditorState.HOVER_DELAY] and the hide grace in the editor's scope. It also
+ * feeds [DefinitionNavigator], which emits [navigationRequests].
+ *
+ * [PointerGestures] holds the click and drag policy. [ViewRequests] holds the pending scroll and focus requests.
+ *
+ * All work runs in a child scope of [parentScope]. Its dispatcher is the UI thread, which is the only writer of the
+ * text. [close] cancels the scope.
  */
 internal class DefaultCodeEditorState(
     override val session: DocumentSession,

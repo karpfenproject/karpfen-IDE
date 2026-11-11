@@ -18,16 +18,16 @@ package io.karpfen.ide.core.document.syntax
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Splits a document into classified tokens. One implementation per language, reached through
+ * Splits a document into classified tokens. Each language has one implementation, reached through
  * [io.karpfen.ide.core.document.language.LanguageSupport.tokenizer].
  *
- * Contract (MUST):
- * - Never throws, for any input; lexer errors become [TokenKind.ERROR] tokens plus LEXER diagnostics.
- * - The result's version equals [TextSnapshot.version]; tokens are sorted, non-overlapping, and cover every
+ * Every implementation keeps these rules:
+ * - It never throws, for any input. Lexer errors become [TokenKind.ERROR] tokens plus LEXER diagnostics.
+ * - The version of the result equals [TextSnapshot.version]. The tokens are sorted, do not overlap and cover every
  *   non-whitespace character exactly once.
- * - Stateless and thread-safe: may be called concurrently for different snapshots.
- * - Budget: a 5,000-line KStates document tokenizes in < 30 ms. This is a target that a time-budget test documents;
- *   no test run executes it.
+ * - It holds no state and is thread-safe, so it may be called concurrently for different snapshots.
+ * - A 5,000-line KStates document should tokenize in less than 30 ms. A time-budget test documents this target, but no
+ *   test run executes it.
  */
 public fun interface Tokenizer {
     /** Tokenizes [snapshot]. */

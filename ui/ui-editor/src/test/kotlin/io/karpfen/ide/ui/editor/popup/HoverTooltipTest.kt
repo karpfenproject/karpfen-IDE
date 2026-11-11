@@ -33,15 +33,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * The hover tooltip through the overlay contract: diagnostics with severity icons, otherwise the language hover, placed
- * at the hovered range, dismissed by a click.
+ * The hover tooltip through the overlay contract. It shows diagnostics with severity icons, or else the language hover.
+ * It is placed at the hovered range, and a click dismisses it.
  */
 @OptIn(ExperimentalTestApi::class)
 class HoverTooltipTest {
 
+    /** A state with an EVAL body. */
     private val text = "state Idle {\n    EVAL { x }\n}"
+
+    /** The range of `Idle` in [text]. */
     private val idle = TextRange(6, 10)
 
+    /** A parser diagnostic on [idle] with [severity] and [message]. */
     private fun diagnostic(severity: Severity, message: String) =
         Diagnostic(idle, severity, message, DiagnosticCodes.SYNTAX_ERROR, DiagnosticSource.PARSER)
 

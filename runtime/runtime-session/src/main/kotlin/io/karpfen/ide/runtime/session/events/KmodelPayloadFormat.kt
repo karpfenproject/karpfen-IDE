@@ -32,21 +32,23 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * KModel payloads, checked as the runtime's `KmodelDSLConverter.parseSingleObject` reads them: the snippet is parsed as
- * a model against the event metamodel, and its first root object is the payload, of its own type, which the runtime
- * does not compare with the event's name.
+ * KModel payloads. They are checked the way the runtime's `KmodelDSLConverter.parseSingleObject` reads them. The
+ * snippet is parsed as a model against the event metamodel. Its first root object is the payload. The payload has its
+ * own type, and the runtime does not compare that type with the event's name.
  *
- * The snippet is first parsed syntax-only with core-document's KModel parser; only syntax-clean text is read with
- * dsl-tools against the event metamodel. A KModel text holds exactly one root object, in the IDE's grammar and in the
- * runtime's; the runtime's parser recovers from further root objects after the first and takes the first. A snippet
- * that is nothing but root objects one after the other is therefore checked as its first root object, with a warning
- * on the others, and a blank snippet holds no object at all. The event metamodel is read by this format itself from the
- * uploaded texts, the events file with the domain metamodel's types as base types, as the runtime builds it: lazily on
- * the first check, and confined behind a lock together with every read against it, so no dsl-tools object leaves the
- * format.
+ * The snippet is first parsed syntax-only with core-document's KModel parser. Only syntax-clean text is then read with
+ * dsl-tools against the event metamodel. A KModel text holds exactly one root object, both in the IDE's grammar and in
+ * the runtime's. The runtime's parser recovers from further root objects after the first and takes the first. So a
+ * snippet that is nothing but root objects one after the other is checked as its first root object, with a warning on
+ * the others. A blank snippet holds no object at all.
+ *
+ * This format reads the event metamodel itself from the uploaded texts, the same way the runtime builds it. That is the
+ * events file with the domain metamodel's types as base types. It is read lazily on the first check. It is kept behind
+ * a lock together with every read against it, so no dsl-tools object leaves the format.
  *
  * @param sources the texts the event metamodel is read from.
- * @param schema the schema of the event metamodel, for the template; null if the deployment has no event definitions.
+ * @param schema the schema of the event metamodel, used for the template. It is null if the deployment has no event
+ *   definitions.
  * @param parser the syntax-only KModel parser.
  * @param reader the dsl-tools reader adapter.
  */
@@ -62,10 +64,13 @@ internal class KmodelPayloadFormat(
     /** Guards the event metamodel and every read against it. */
     private val lock = ReentrantLock()
 
-    /** The event metamodel once read; guarded by [lock]. */
+    /** The event metamodel once it was read. Guarded by [lock]. */
     private var eventMetamodel: MetamodelRead? = null
 
-    /** The payload type of [event] as one object with every atomic property at its default and every `has` relation nested. */
+    /**
+     * The payload type of [event] as one object, with every atomic property at its default and every `has` relation
+     * nested.
+     */
     override fun template(event: InjectableEvent): String {
         val typeName = event.payloadType ?: event.name
         val type = schema?.type(typeName)
@@ -117,9 +122,9 @@ internal class KmodelPayloadFormat(
     override fun encode(text: String): EventPayload = EventPayload.Kmodel(text)
 
     /**
-     * The root objects [text] consists of, one after the other, or the syntax findings of [text] if it is anything else:
-     * each round parses the rest of the text, takes its first root object and goes on after it while the only syntax
-     * errors lie behind that object.
+     * The root objects that [text] consists of, one after the other. If [text] is anything else, the result is its
+     * syntax findings. Each round parses the rest of the text and takes its first root object. It goes on after that
+     * object as long as the only syntax errors lie behind it.
      */
     private fun splitRoots(text: String): RootSplit {
         val whole = parser.parse(TextSnapshot(text, 0), SemanticMode.SYNTAX_ONLY)
@@ -140,7 +145,7 @@ internal class KmodelPayloadFormat(
     private fun single(code: String, range: TextRange, message: String): PayloadValidation =
         PayloadValidation(listOf(PayloadDiagnosticCodes.finding(code, range, message)))
 
-    /** The event metamodel, read on first use; called under [lock]. */
+    /** The event metamodel, read on first use. Called under [lock]. */
     private fun metamodel(): MetamodelRead =
         eventMetamodel ?: readMetamodel().also { eventMetamodel = it }
 
@@ -155,7 +160,10 @@ internal class KmodelPayloadFormat(
         return if (read.hasErrors || eventModel == null) MetamodelRead.Failed(read.diagnostics) else MetamodelRead.Read(eventModel)
     }
 
-    /** The validation of an invalid snippet: the summary at [range] followed by the [own] findings of parser or reader. */
+    /**
+     * The validation of an invalid snippet. It holds the summary at [range], followed by the [own] findings of the
+     * parser or the reader.
+     */
     private fun invalid(range: TextRange, message: String, own: List<Diagnostic>): PayloadValidation =
         PayloadValidation(listOf(PayloadDiagnosticCodes.finding(PayloadDiagnosticCodes.KMODEL_INVALID, range, message)) + own)
 
@@ -201,11 +209,11 @@ internal class KmodelPayloadFormat(
         data class Failed(val diagnostics: List<Diagnostic>) : MetamodelRead
     }
 
-    /** Writes the KModel template of a payload type, four spaces per level; confined to one call of [template]. */
+    /** Writes the KModel template of a payload type, four spaces per level. Confined to one call of [template]. */
     private inner class TemplateWriter {
         /**
-         * The object [id] of [typeName], whose shape is [type] if the schema knows it, at [depth], indented by [indent];
-         * a nested object's id is its owner's id and its relation's key, joined by a dash.
+         * The object [id] of [typeName] at [depth], indented by [indent]. Its shape is [type] if the schema knows it. A
+         * nested object's id is its owner's id and its relation's key, joined by a dash.
          */
         fun obj(id: String, typeName: String, type: TypeShape?, depth: Int, indent: String): String {
             val inner = "$indent    "

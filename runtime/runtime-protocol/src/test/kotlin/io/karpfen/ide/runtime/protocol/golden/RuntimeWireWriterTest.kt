@@ -26,9 +26,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 /**
- * Covers [RuntimeWireWriter], the port of the runtime's writers: the push examples of the runtime's wire format byte for
- * byte, the object JSON with its number, escape and relation rules, the refusal of reference loops with the runtime's
- * text, the snapshot body, and agreement with the client's reader and quoting.
+ * Covers [RuntimeWireWriter], the port of the runtime's writers. The tests cover the push examples of the runtime's
+ * wire format byte for byte, and the object JSON with its number, escape and relation rules. They cover the refusal of
+ * reference loops with the runtime's text, the snapshot body, and agreement with the client's reader and quoting.
  */
 class RuntimeWireWriterTest {
 

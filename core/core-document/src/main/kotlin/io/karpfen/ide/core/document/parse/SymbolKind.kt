@@ -17,61 +17,61 @@ package io.karpfen.ide.core.document.parse
 
 /** What a [SymbolDeclaration] or [OutlineNode] declares. */
 public enum class SymbolKind {
-    /** KMeta `type "N" "D" { … }`. */
+    /** KMeta `type "N" "D" { ... }`. */
     TYPE,
 
     /** KMeta `prop("k", "number")`. */
     SIMPLE_PROPERTY,
 
-    /** KMeta `has("k", "T")` (containment). */
+    /** KMeta `has("k", "T")`, a containment relation. */
     HAS_RELATION,
 
-    /** KMeta `knows("k", "T")` (reference). */
+    /** KMeta `knows("k", "T")`, a reference relation. */
     KNOWS_RELATION,
 
-    /** KModel `make object "key":"T" { … }`. */
+    /** KModel `make object "key":"T" { ... }`. */
     OBJECT,
 
     /** KModel `prop("k") -> "v"`. */
     PROPERTY_ASSIGNMENT,
 
-    /** KModel `has("k") -> make object …`. */
+    /** KModel `has("k") -> make object ...`. */
     HAS_ASSIGNMENT,
 
     /** KModel `knows("k") -> "obj"`. */
     KNOWS_ASSIGNMENT,
 
-    /** KStates `STATEMACHINE ATTACHED TO "T" { … }`. */
+    /** KStates `STATEMACHINE ATTACHED TO "T" { ... }`. */
     STATEMACHINE,
 
-    /** KStates `STATE "s" { … }` (also `INITIAL STATE`). */
+    /** KStates `STATE "s" { ... }`, and also `INITIAL STATE`. */
     STATE,
 
-    /** KStates `ENTRY { … }`. */
+    /** KStates `ENTRY { ... }`. */
     ENTRY_BLOCK,
 
-    /** KStates `DO { … }`. */
+    /** KStates `DO { ... }`. */
     DO_BLOCK,
 
-    /** KStates `TRANSITION "a" -> "b" { … }`. */
+    /** KStates `TRANSITION "a" -> "b" { ... }`. */
     TRANSITION,
 
-    /** KStates `SPLIT "a" -> "b", "c" { … }`. */
+    /** KStates `SPLIT "a" -> "b", "c" { ... }`. */
     SPLIT,
 
-    /** KStates `JOIN "a", "b" -> "c" { … }`. */
+    /** KStates `JOIN "a", "b" -> "c" { ... }`. */
     JOIN,
 
-    /** KStates `MACRO "m" { … }` in the MACROS block. */
+    /** KStates `MACRO "m" { ... }` in the MACROS block. */
     MACRO,
 
     /** KStates `TAKES("p", "T")`. */
     MACRO_PARAMETER,
 
-    /** KStates `WITH MACRO(…) AS "x" { … }`. */
+    /** KStates `WITH MACRO(...) AS "x" { ... }`. */
     BINDING,
 
-    /** An environment descriptor key with its value, `"model": "robot.kmodel"`. */
+    /** An environment descriptor key with its value, such as `"model": "robot.kmodel"`. */
     KEY,
 
     /** An entry of a list in an environment descriptor, such as one state machine of `stateMachines`. */
@@ -89,19 +89,22 @@ public enum class ReferenceKind {
     /** A state name in a transition, SPLIT or JOIN. */
     STATE,
 
-    /** A macro name in `MACRO("m", …)` or `@m(` inside EVAL. */
+    /** A macro name in `MACRO("m", ...)`, or in `@m(` inside EVAL. */
     MACRO,
 
-    /** An object key in a KModel `knows(…) -> "obj"`. */
+    /** An object key in a KModel `knows(...) -> "obj"`. */
     OBJECT,
 
-    /** A simple property key in KModel `prop("k")`; qualifier = the enclosing object's type. */
+    /** A simple property key in KModel `prop("k")`. Its qualifier is the type of the enclosing object. */
     PROPERTY_KEY,
 
-    /** A relation key in KModel `has("k")`/`knows("k")` or the relation argument of SETOBJ/APPENDOBJ. */
+    /** A relation key in KModel `has("k")` or `knows("k")`, or the relation argument of SETOBJ or APPENDOBJ. */
     RELATION_KEY,
 
-    /** A `->`-separated model path (action left sides, `VALUE`, `IF IN SCOPE`, macro arguments, `$(…)`). */
+    /**
+     * A model path whose steps are separated by `->`. Model paths stand on the left side of actions, in `VALUE`, in
+     * `IF IN SCOPE`, in macro arguments and in `$(...)` inside EVAL.
+     */
     MODEL_PATH,
 
     /** The event name argument of `EVENT("d", "n")`. */

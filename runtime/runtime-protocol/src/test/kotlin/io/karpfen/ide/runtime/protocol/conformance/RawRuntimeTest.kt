@@ -30,9 +30,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.fail
 
 /**
- * Covers the cleanup of the raw scenarios against the fake runtime on virtual time: a scenario that fails stops every
- * environment it asked to activate or start and did not stop, each stop bounded and whatever comes of it, and a
- * scenario that stopped what it launched sends no stop after it.
+ * Covers the cleanup of the raw scenarios against the fake runtime on virtual time. A scenario that fails stops every
+ * environment it asked to activate or start and did not stop. Each stop is bounded, whatever comes of it. A scenario
+ * that stopped what it launched sends no stop after it.
  */
 class RawRuntimeTest {
 
@@ -97,7 +97,7 @@ class RawRuntimeTest {
     }
 
     private companion object {
-        /** The WebSocket the raw scenarios would connect to; these never connect. */
+        /** The WebSocket the raw scenarios would connect to. The scenarios of these tests never connect. */
         const val WEB_SOCKET_URL = "ws://127.0.0.1:8080/ws"
     }
 }

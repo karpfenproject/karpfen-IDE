@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * Takes the karpfen.* convention plugins from the included build `build-logic` and the other Gradle plugins from the
+ * Gradle Plugin Portal, Maven Central and Google Maven.
+ */
 pluginManagement {
     includeBuild("build-logic")
     repositories {
@@ -32,10 +36,10 @@ plugins {
 }
 
 /**
- * The repositories of every module; a module must not declare its own. karpfen-dsl-tools comes from its submodule, or
- * in artifact mode from GitHub Packages, which the resolution below adds; the build never reads from or writes to the
- * local Maven repository in `~/.m2`. The version catalog `libs` is picked up from `gradle/libs.versions.toml`, its
- * default location.
+ * The repositories of every module, Maven Central and Google Maven. A module must not declare its own.
+ * karpfen-dsl-tools comes from its submodule, or in artifact mode from GitHub Packages, which the resolution below adds.
+ * The build never reads from or writes to the local Maven repository in `~/.m2`. The version catalog `libs` is picked
+ * up from `gradle/libs.versions.toml`, its default location.
  */
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
@@ -58,16 +62,18 @@ val DEFAULT_DSL_TOOLS_PATH = "karpfen-dsl-tools"
 val DSL_TOOLS_PACKAGES = "https://maven.pkg.github.com/karpfenproject/karpfen-dsl-tools"
 
 /**
- * The source directory below which dsl-tools 2.0 and newer keep their Kotlin packages, `io.karpfen.dsl`; version 1.0
+ * The source directory below which dsl-tools 2.0 and newer keep their Kotlin packages, `io.karpfen.dsl`. Version 1.0
  * kept them in root packages such as `dsl.textual` and `meta`, which the IDE no longer compiles against.
  */
 val DSL_TOOLS_TWO_SOURCES = "src/main/kotlin/io/karpfen/dsl"
 
 /**
- * Fails the build with a message that names [dir] and the way out when the dsl-tools checkout there is older than
- * version 2.0 ([DSL_TOOLS_TWO_SOURCES]), such as a submodule that `git submodule update` has not moved yet or a
- * configured checkout of version 1.0: compiling against it would otherwise end in many unresolved references and name
- * neither the version nor the checkout.
+ * Fails the build when the dsl-tools checkout at [dir] is older than version 2.0, which shows as a missing
+ * [DSL_TOOLS_TWO_SOURCES]. That happens with a submodule that `git submodule update` has not moved yet, or with a
+ * configured checkout of version 1.0. The message names [dir] and the way out. [explicitlyConfigured] tells whether the
+ * path was configured. The way out for a configured path is to point it at a newer checkout or to remove it. For the
+ * default submodule it is to update the submodule. Without this check, compiling against the old checkout would end in
+ * many unresolved references that name neither the version nor the checkout.
  */
 fun requireDslToolsTwo(dir: File, explicitlyConfigured: Boolean) {
     if (dir.resolve(DSL_TOOLS_TWO_SOURCES).isDirectory) return
@@ -85,33 +91,36 @@ fun requireDslToolsTwo(dir: File, explicitlyConfigured: Boolean) {
 /**
  * Resolves karpfen-dsl-tools, the language core of the IDE, in one of two modes.
  *
- * - Composite build: karpfen-dsl-tools is a git submodule of this repository in the directory `karpfen-dsl-tools`, and
- *   that checkout is the default. If `dslToolsPath` names a directory that holds a Gradle build (`settings.gradle` or
- *   `settings.gradle.kts`), that build is included and substitutes the module `io.karpfen:karpfen-dsl-tools`, so a
- *   change that spans both repositories is a single local iteration. The included build is always named
- *   `karpfen-dsl-tools`, whatever its directory is called, so its tasks keep one path, such as `:karpfen-dsl-tools:test`.
- *   The checkout must hold dsl-tools 2.0 or newer; an older one fails the build at once ([requireDslToolsTwo]).
- * - Artifact: a blank `dslToolsPath` switches the composite build off, and the version declared in the version catalog
- *   is resolved from GitHub Packages ([DSL_TOOLS_PACKAGES]), where dsl-tools publishes, with the credentials named
- *   there; without them the build stops at once and names the missing properties. It resolves only once dsl-tools has
- *   published the version that the catalog names. The group `io.karpfen` comes from that repository only: Maven
- *   Central and Google Maven are never asked for it, so no artifact of the same coordinates elsewhere can take its
- *   place.
+ * In composite mode the build includes a checkout of dsl-tools. karpfen-dsl-tools is a git submodule of this repository
+ * in the directory `karpfen-dsl-tools`, and that checkout is the default. If `dslToolsPath` names a directory that
+ * holds a Gradle build, with `settings.gradle` or `settings.gradle.kts`, that build is included and substitutes the
+ * module `io.karpfen:karpfen-dsl-tools`. A change that spans both repositories can then be built and tested in one local
+ * build. The included build is always named `karpfen-dsl-tools`, whatever its directory is called, so its tasks keep
+ * one path, such as `:karpfen-dsl-tools:test`. The checkout must hold dsl-tools 2.0 or newer. An older one fails the
+ * build at once, see [requireDslToolsTwo].
  *
- * Any other path stops the build with a message that names the way out: an uninitialized submodule, the default, with
- * the command that checks it out, and a configured path that holds no Gradle build with the setting to change. Neither
- * falls back to the artifact, which would fail later and less clearly in dependency resolution.
+ * In artifact mode, which a blank `dslToolsPath` selects, the version declared in the version catalog is resolved from
+ * GitHub Packages, [DSL_TOOLS_PACKAGES], where dsl-tools publishes. It needs the credentials named there. Without them
+ * the build stops at once and names the missing properties. It resolves only once dsl-tools has published the version
+ * that the catalog names. The group `io.karpfen` comes from that repository only. Maven Central and Google Maven are
+ * never asked for it, so no artifact with the same coordinates from elsewhere can take its place.
+ *
+ * Any other path stops the build with a message that names the way out. For an uninitialized submodule, the default,
+ * the message gives the command that checks it out. For a configured path that holds no Gradle build, it names the
+ * setting to change. Neither case falls back to the artifact, which would fail later and less clearly in dependency
+ * resolution.
  *
  * `dslToolsPath` is read from, in this order, the Gradle property `-PdslToolsPath=<path>`, the git-ignored per-machine
- * `local.properties` (`dslToolsPath=<path>`) and the default, the submodule directory `karpfen-dsl-tools`. A relative
- * path is resolved against the repository root. `local.properties` is read with `java.util.Properties`, where a
- * backslash is an escape character, so Windows paths are written with forward slashes (`C:/work/karpfen-dsl-tools`) or
- * with doubled backslashes.
+ * file `local.properties` with a line `dslToolsPath=<path>`, and the default, the submodule directory
+ * `karpfen-dsl-tools`. A relative path is resolved against the repository root. `local.properties` is read with
+ * `java.util.Properties`, where a backslash is an escape character. Windows paths are therefore written with forward
+ * slashes, as in `C:/work/karpfen-dsl-tools`, or with doubled backslashes.
  *
- * The settings log the active mode (`karpfen-dsl-tools: composite build from <path>` or `karpfen-dsl-tools: resolving
- * <module> from GitHub Packages`), though not on a configuration-cache hit, where `--no-configuration-cache` or
- * `./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools --configuration compileClasspath`
- * shows it. CI checks the submodule out together with this repository and builds in composite mode.
+ * The settings log the active mode, as `karpfen-dsl-tools: composite build from <path>` or as
+ * `karpfen-dsl-tools: resolving <module> from GitHub Packages`. They do not log it on a configuration-cache hit. Then
+ * `--no-configuration-cache` or `./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools
+ * --configuration compileClasspath` shows the mode. CI checks the submodule out together with this repository and
+ * builds in composite mode.
  */
 run {
     val settingsLogger = Logging.getLogger("karpfen-settings")

@@ -22,12 +22,12 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 
 /**
- * The pure mappings between Ktor's WebSocket values and the client's link values, kept apart from the live session so
- * they are tested on their own. Stateless.
+ * The pure mappings between Ktor's WebSocket values and the client's link values. They are kept apart from the live
+ * session so that they can be tested on their own. The object holds no state.
  */
 internal object WebSocketFrames {
 
-    /** The link frame of [frame]: text and binary frames; null for the control frames, which Ktor answers itself. */
+    /** The link frame of a text or binary [frame]. It is null for the control frames, which Ktor answers itself. */
     fun linkFrameOf(frame: Frame): LinkFrame? =
         when (frame) {
             is Frame.Text -> LinkFrame.Text(frame.readText())
@@ -35,7 +35,10 @@ internal object WebSocketFrames {
             else -> null
         }
 
-    /** How the link closed, from the close [reason] Ktor reports (null without a close frame) and who closed it. */
+    /**
+     * How the link closed, from the close [reason] that Ktor reports and from who closed it. [reason] is null without a
+     * close frame.
+     */
     fun closureOf(reason: CloseReason?, byClient: Boolean): LinkClosure =
         LinkClosure(code = reason?.code?.toInt(), reason = reason?.message, byClient = byClient)
 

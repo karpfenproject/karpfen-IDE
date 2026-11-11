@@ -26,8 +26,8 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Covers [RuntimeResult] and [RuntimeFailure]: the extension functions on successes and failures, the reach of every
- * failure, and its description as one plain sentence that names the route.
+ * Covers [RuntimeResult] and [RuntimeFailure]. The tests cover the extension functions on successes and failures, the
+ * reach of every failure, and its description as one plain sentence that names the route.
  */
 class RuntimeResultTest {
 

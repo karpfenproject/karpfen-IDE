@@ -21,8 +21,9 @@ import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 
 /**
  * Finds an object reachable from itself through `has` and `knows` relations. The runtime writes the targets of `knows`
- * relations as nested objects, so it cannot write such a model: snapshots are refused and changes that reach the loop
- * fail. The first object found on a loop is reported, at its declaration.
+ * relations as nested objects, so it cannot write such a model. Snapshots are refused, and changes that reach the loop
+ * fail. The first keyed object found on a loop is reported at its declaration. If no object on the loop has a key, the
+ * problem points at the model file.
  */
 internal class ReferenceLoopCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> {
@@ -44,7 +45,7 @@ internal class ReferenceLoopCheck : PlanCheck {
 }
 
 /**
- * Finds keys that several objects of the runtime's index share: the runtime keeps the last, and observation cannot
+ * Finds keys that several objects of the runtime's index share. The runtime keeps the last one, and observation cannot
  * tell them apart.
  */
 internal class DuplicateObjectKeyCheck : PlanCheck {

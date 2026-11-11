@@ -32,7 +32,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** [FileTemplates]: file names, parse-clean sources for any name, and the environment template's attach rule. */
+/**
+ * Tests [FileTemplates]. It covers the file names, sources that parse cleanly for any name, and the rule by which the
+ * environment template attaches state machines.
+ */
 class FileTemplatesTest {
 
     private val templates = FileTemplates()

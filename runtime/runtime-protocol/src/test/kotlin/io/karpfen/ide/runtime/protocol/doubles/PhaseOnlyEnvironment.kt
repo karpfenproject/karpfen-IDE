@@ -31,7 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * An environment handle whose phase the test sets: [allows] answers the lifecycle's verdicts for that phase, and every
+ * An environment handle whose phase the test sets. [allows] returns the lifecycle's verdicts for that phase, and every
  * call is refused without a runtime behind it. The connection only reads the phase and the verdicts of a handle.
  *
  * @property key the environment's key.
@@ -96,7 +96,7 @@ class PhaseOnlyEnvironment(
 
     override suspend fun unsubscribeModel(client: ClientId): CallOutcome<Unit> = refuse(LifecycleOperation.UNSUBSCRIBE_MODEL)
 
-    /** The refusal of [operation]: this double has no runtime behind it. */
+    /** The refusal of [operation], since this double has no runtime behind it. */
     private fun refuse(operation: LifecycleOperation): CallOutcome<Nothing> =
         CallOutcome.Refused(LifecycleRefusal(operation, mutablePhase.value, "the double has no runtime"))
 }

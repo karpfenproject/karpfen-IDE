@@ -28,14 +28,16 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * Makes the workbench dialogs modal for commands (Decorator of [delegate]): every command registered through it is
- * disabled while a dialog is shown ([dialog] not null) and does nothing if it is run anyway. The dialogs are overlays
- * inside the window, so the menu bar and its accelerators stay live; without this a shortcut typed into a dialog's text
- * field would act on the workbench behind it (Cmd+F moving the focus into an editor's find bar, Cmd+W queueing a Close
- * Tab that runs once the dialog is answered).
+ * Makes the workbench dialogs modal for commands. It decorates [delegate], following the Decorator pattern. Every
+ * command registered through it is disabled while a dialog is shown, which is while [dialog] is not null. If such a
+ * command runs anyway, it does nothing.
  *
- * Each command's enablement follows its own `isEnabled` and [dialog] in [scope] (re-registering or unregistering an id
- * stops following the replaced command). Used from the UI thread, like the registry.
+ * The dialogs are overlays inside the window, so the menu bar and its accelerators stay live. Without this class, a
+ * shortcut typed into a dialog's text field would act on the workbench behind it. Cmd+F would move the focus into an
+ * editor's find bar. Cmd+W would queue a Close Tab that runs once the dialog is answered.
+ *
+ * The enablement of each command follows its own `isEnabled` and [dialog] in [scope]. Registering an id again, or
+ * unregistering it, stops following the replaced command. Use the class from the UI thread only, like the registry.
  */
 internal class ModalCommandRegistry(
     private val scope: CoroutineScope,

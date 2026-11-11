@@ -22,10 +22,10 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import java.nio.file.Path
 
 /**
- * The flows of open tabs: saving (through [saving], which asks before writing over an external change), closing with
- * the unsaved-changes dialog, and resolving the external-change conflict of the editor area's banner. RELOAD means
- * "take the disk state", which for a file deleted on disk means closing the tab without saving; a failure becomes an
- * error dialog.
+ * The flows of open tabs. They save through [saving], which asks before it writes over a change made on disk. They
+ * close tabs after the unsaved-changes dialog. And they resolve the conflict with a change on disk that the editor
+ * area's banner shows. Reload means "take the state on disk". For a file deleted on disk, that means closing the tab
+ * without saving. A failure leads to an error dialog.
  */
 internal class TabFlows(
     private val tabs: EditorTabsState,
@@ -52,7 +52,10 @@ internal class TabFlows(
         if (unsaved.confirm(listOf(document))) lifecycle.close(path)
     }
 
-    /** Resolves the conflict of [path]'s document with [resolution]; a file deleted on disk closes its tab. */
+    /**
+     * Resolves the conflict of the document at [path] with [resolution]. When the file was deleted on disk, its tab
+     * closes.
+     */
     suspend fun resolveConflict(path: Path, resolution: ConflictResolution) {
         val document = tabs.documentFor(path) ?: return
         when (val result = document.resolveConflict(resolution)) {

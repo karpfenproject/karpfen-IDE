@@ -21,10 +21,13 @@ import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolKind
 
 /**
- * Walks a KMeta tree: `type "N" "D" { … }` → TYPE declaration (outline detail: the description) with a
- * TYPE_NAME span on N and a DESCRIPTION span on D; `prop/has/knows("k", V)` → SIMPLE_PROPERTY / HAS_RELATION /
- * KNOWS_RELATION declarations (container: the type; type name and outline detail: `V` or `list(V)`) with a
- * PROPERTY_NAME span on k and a type reference to V (PRIMITIVE_TYPE for `number`, `string`, `boolean`, else TYPE).
+ * Walks a KMeta tree and records what it declares.
+ * - `type "N" "D" { }` becomes a TYPE declaration with a TYPE_NAME span on N and a DESCRIPTION span on D. The outline
+ *   detail is the description.
+ * - `prop("k", V)`, `has("k", V)` and `knows("k", V)` become SIMPLE_PROPERTY, HAS_RELATION and KNOWS_RELATION
+ *   declarations with a PROPERTY_NAME span on k. Their container is the type. Their type name and outline detail are
+ *   `V` or `list(V)`. Each also records a type reference to V. The reference is a PRIMITIVE_TYPE for `number`,
+ *   `string` and `boolean`, and a TYPE otherwise.
  */
 internal class KmetaTreeWalker(private val tree: ParsedTree<*>, private val collector: SyntaxCollector) {
 
@@ -43,7 +46,7 @@ internal class KmetaTreeWalker(private val tree: ParsedTree<*>, private val coll
         return node
     }
 
-    /** Records the property or relation of [ctx] in the type [typeName]; null for a rule of another kind. */
+    /** Records the property or relation of [ctx] in the type [typeName]. Returns null for a rule of another kind. */
     private fun rule(ctx: KmetaParser.RuleContext, typeName: String): OutlineNode? {
         val (kind, body) = when {
             ctx.prop_rule() != null -> SymbolKind.SIMPLE_PROPERTY to ctx.prop_rule()
@@ -58,7 +61,10 @@ internal class KmetaTreeWalker(private val tree: ParsedTree<*>, private val coll
         return node
     }
 
-    /** Records the type reference of [value] and returns the type as written: `T` or `list(T)`; null if missing. */
+    /**
+     * Records the type reference of [value] and returns the type as written, `T` or `list(T)`. Returns null if the type
+     * is missing.
+     */
     private fun targetType(value: KmetaParser.Rule_valueContext?): String? {
         val type = tree.quoted(tree.terminal(value, KmetaParser.STRING)) ?: return null
         collector.typeReference(type)

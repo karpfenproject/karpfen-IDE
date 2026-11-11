@@ -21,12 +21,15 @@ import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.MemberInfo
 
 /**
- * The texts KStates completion and hover show for its symbols: macro signatures, state hierarchy paths and
- * type texts. Pure functions over declarations.
+ * The texts that KStates completion and hover show for its symbols. These are macro signatures, state hierarchy paths
+ * and type texts. The functions work on declarations and have no side effects.
  */
 internal object KstatesTexts {
 
-    /** `macro m(p1: TwoDObject, p2: list(Obstacle)): number` from the macro's TAKES and RETURNS declarations. */
+    /**
+     * `macro m(p1: TwoDObject, p2: list(Obstacle)): number`, built from the TAKES and RETURNS declarations of the
+     * macro.
+     */
     fun macro(declarations: DocumentDeclarations, name: String): String {
         val parameters = declarations.all(SymbolKind.MACRO_PARAMETER).map { it.declaration }.filter { it.container == name }
             .joinToString(", ") { "${it.name}: ${it.typeName.orEmpty()}" }
@@ -34,7 +37,7 @@ internal object KstatesTexts {
         return "macro $name($parameters)" + (returns?.let { ": $it" } ?: "")
     }
 
-    /** `state observe > react to obstacle`: the state's parents (by `container`) and the state. */
+    /** `state observe > react to obstacle`, which is the parents of the state by `container` and then the state. */
     fun state(declarations: DocumentDeclarations, name: String): String {
         val chain = ArrayList<String>()
         var current: String? = name
@@ -45,18 +48,18 @@ internal object KstatesTexts {
         return "state " + chain.asReversed().joinToString(" > ")
     }
 
-    /** `Vector`, `list(Obstacle)`, `number`; `?` for an unknown type. */
+    /** The type text, such as `Vector`, `list(Obstacle)` or `number`. It is `?` for an unknown type. */
     fun typeText(type: PathType): String = written(type.name, type.isList)
 
-    /** The member's type as written: `Vector`, `list(Obstacle)`. */
+    /** The type of the member as written, such as `Vector` or `list(Obstacle)`. */
     fun typeText(member: MemberInfo): String = written(member.typeName, member.isList)
 
-    /** The type [name] as written, wrapped in `list(…)` if [isList]; `?` for an unknown name. */
+    /** The type [name] as written, wrapped in `list(…)` if [isList]. It is `?` for an unknown name. */
     private fun written(name: String, isList: Boolean): String {
         val shown = name.ifEmpty { "?" }
         return if (isList) "list($shown)" else shown
     }
 
-    /** Bound of the parent chain of a state hierarchy path, which also stops a cycle in broken text. */
+    /** The longest parent chain of a state hierarchy path. The bound also stops a cycle in broken text. */
     private const val MAX_DEPTH = 64
 }

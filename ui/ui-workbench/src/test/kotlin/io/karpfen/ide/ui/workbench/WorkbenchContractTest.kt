@@ -43,8 +43,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers the public values of ui-workbench: the settings with their recent folders, location and layout, the answers
- * dialogs accept, and the versioned locations that problems and outline nodes navigate to.
+ * Tests the public values of ui-workbench. These are the settings with their recent folders, location and layout, the
+ * answers that dialogs accept, and the versioned locations that problems and outline nodes navigate to.
  */
 class WorkbenchContractTest {
 

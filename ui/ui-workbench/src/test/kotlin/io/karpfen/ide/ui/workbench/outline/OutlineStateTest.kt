@@ -44,7 +44,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** [OutlineState] and [OutlineProjection]: parse choice, staleness, versioned locations and the caret highlight. */
+/**
+ * Tests [OutlineState] and [OutlineProjection]. They cover which parse is shown, staleness, versioned locations and
+ * the caret highlight.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class OutlineStateTest {
 
@@ -69,7 +72,7 @@ class OutlineStateTest {
 
     private val kstatesParser = defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).parser
 
-    /** An [EditableText] that counts the version steps its ranges are mapped across ([steps]). */
+    /** An [EditableText] that counts in [steps] the version steps its ranges are mapped across. */
     private class CountingText(private val delegate: EditableText) : EditableText by delegate {
         var steps = 0L
 

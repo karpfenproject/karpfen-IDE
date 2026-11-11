@@ -46,10 +46,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers [HttpRuntimeApi], the gateway: the request of every route built from its catalogue entry, every kind of
- * success body and the violations of bodies that do not fit, the check for IDE support, rejections by text and
- * status, internal errors and unexpected statuses, transport failures by how far they got, the gateway's own timeouts
- * on virtual time and the caller's cancellation, which is always rethrown.
+ * Covers the gateway [HttpRuntimeApi]. The request of every route is built from its catalogue entry. The tests cover
+ * every kind of success body, the violations of bodies that do not fit, and the check for IDE support. They cover
+ * rejections by text and status, internal errors, unexpected statuses, and transport failures by how far they got.
+ * They also cover the gateway's own timeouts on virtual time and the caller's cancellation, which is always rethrown.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HttpRuntimeApiTest {

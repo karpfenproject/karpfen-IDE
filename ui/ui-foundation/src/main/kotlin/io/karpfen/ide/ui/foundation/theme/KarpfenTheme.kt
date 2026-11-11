@@ -76,11 +76,11 @@ public fun darkKarpfenColors(): KarpfenColors = KarpfenPalettes.dark
 /** Default typography (platform UI font, a monospace font for code). */
 public fun defaultKarpfenTypography(): KarpfenTypography = KarpfenPalettes.typography
 
-/** The current palette; provided by [KarpfenTheme]. */
+/** The current palette, provided by [KarpfenTheme]. Reading it outside [KarpfenTheme] content fails. */
 public val LocalKarpfenColors: ProvidableCompositionLocal<KarpfenColors> =
     staticCompositionLocalOf { error("No KarpfenColors provided; wrap the content in KarpfenTheme") }
 
-/** The current typography; provided by [KarpfenTheme]. */
+/** The current typography, provided by [KarpfenTheme]. Reading it outside [KarpfenTheme] content fails. */
 public val LocalKarpfenTypography: ProvidableCompositionLocal<KarpfenTypography> =
     staticCompositionLocalOf { error("No KarpfenTypography provided; wrap the content in KarpfenTheme") }
 
@@ -98,9 +98,10 @@ public object KarpfenTheme {
 }
 
 /**
- * Applies the karpfen theme: provides [LocalKarpfenColors] (light or dark palette) and [LocalKarpfenTypography], and
- * configures the Material 3 theme used by basic widgets to match. Inside [content], Material's content colour is the
- * palette's text colour, its default text style the UI style, and the desktop scrollbars are styled from the palette.
+ * Applies the karpfen theme. It provides [LocalKarpfenColors] with the light or the dark palette and
+ * [LocalKarpfenTypography], and it configures the Material 3 theme of the basic widgets to match. Inside [content],
+ * Material's content colour is the palette's text colour and its default text style is the UI style. The desktop
+ * scrollbars are styled from the palette.
  */
 @Composable
 public fun KarpfenTheme(darkTheme: Boolean, content: @Composable () -> Unit) {

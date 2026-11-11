@@ -30,7 +30,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
- * A scripted WebSocket link: the test plays the runtime's side by sending frames and closing it, and reads what the
+ * A scripted WebSocket link. The test plays the runtime's side by sending frames and closing it, and reads what the
  * client sent and how it closed the link. Every step is also written to [journal], so a test can check the order of
  * steps across links and the connector.
  *
@@ -117,8 +117,8 @@ class ScriptedLink(
 }
 
 /**
- * A scripted WebSocket connector: answers each connect with the next scripted outcome (a new [ScriptedLink], a failure,
- * or a connect that never completes) and records the URLs and the steps in the [journal].
+ * A scripted WebSocket connector. It answers each connect with the next scripted outcome, which is a new
+ * [ScriptedLink], a failure, or a connect that never completes. It records the URLs and the steps in the [journal].
  *
  * @property journal the shared record of steps.
  */
@@ -156,7 +156,7 @@ class ScriptedConnector(private val journal: Journal = Journal()) : WebSocketCon
     val connectedUrls: List<String> get() = synchronized(urls) { urls.toList() }
 
     /**
-     * The next connect opens a link whose sends fail with [sendFailure], or succeed without one; once the script is
+     * The next connect opens a link whose sends fail with [sendFailure], or succeed without one. Once the script is
      * used up, every connect opens a link whose sends succeed.
      */
     fun link(sendFailure: TransportFailure? = null): ScriptedConnector =

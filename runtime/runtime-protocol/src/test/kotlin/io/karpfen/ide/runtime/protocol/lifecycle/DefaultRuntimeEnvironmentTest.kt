@@ -49,12 +49,12 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers [DefaultRuntimeEnvironment], the environment handle, over the real gateway and a scripted HTTP seam on virtual
- * time: refused calls send nothing, the uploads are kept, lifecycle calls move the phase, calls never overlap on the
- * wire, a cancelled activation completes and records its phase before the cancellation is rethrown, unknown outcomes and
- * rejections that show another phase are probed with a snapshot, a failed probe leaves the phase uncertain, a halted
- * engine shows only through a snapshot, a stopped environment stays stopped while the runtime still reports its last
- * tick, and an environment the runtime forgot is lost.
+ * Covers the environment handle [DefaultRuntimeEnvironment] over the real gateway and a scripted HTTP seam on virtual
+ * time. Refused calls send nothing. The uploads are kept. Lifecycle calls move the phase. Calls never overlap on the
+ * wire. A cancelled activation completes and records its phase before the cancellation is rethrown. Unknown outcomes
+ * and rejections that show another phase are probed with a snapshot. A failed probe leaves the phase uncertain. A
+ * halted engine shows only through a snapshot. A stopped environment stays stopped while the runtime still reports its
+ * last tick. An environment the runtime forgot is lost.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultRuntimeEnvironmentTest {
@@ -65,7 +65,7 @@ class DefaultRuntimeEnvironmentTest {
     /** The client of the calls that name one. */
     private val client = ClientId("karpfen-ide-4f2c9a1b7e03")
 
-    /** The runtime's answers, scripted per test; unscripted calls are answered with 200 and an empty body. */
+    /** The runtime's answers, scripted per test. Unscripted calls are answered with 200 and an empty body. */
     private val http = ScriptedHttp()
 
     /** A handle over the gateway to [http] whose calls, timeouts included, run on the test's virtual time. */

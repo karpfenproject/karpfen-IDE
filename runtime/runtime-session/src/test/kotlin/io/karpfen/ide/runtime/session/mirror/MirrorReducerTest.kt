@@ -26,9 +26,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Covers the mirror reducer with hand-written runtime JSON and the output of the runtime's writers: snapshots, pushes
- * of whole trees and of single objects, removal by absence, deletions with scrubbing, anonymous objects, unknown types
- * and keys, and origins.
+ * Covers the mirror reducer with hand-written runtime JSON and with the output of the runtime's writers. It checks
+ * snapshots, pushes of whole trees and of single objects, removal by absence and deletions with scrubbing. It also
+ * checks anonymous objects, unknown types and keys, and origins.
  */
 class MirrorReducerTest {
 

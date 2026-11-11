@@ -25,18 +25,20 @@ import io.karpfen.ide.core.text.TextSnapshot
 import java.nio.file.Path
 
 /**
- * A document as seen by [LanguageServices]: immutable inputs only, so services can run off the UI thread.
+ * A document as [LanguageServices] see it. It holds immutable inputs only, so the services can run off the UI thread.
  *
- * Staleness rule for the providers (MUST): [parse] and [lastGoodParse] may be older than [text]. Offset-based lookups
- * in a parse outcome (`SyntaxIndex.referenceAt`, `declarationAt`, `enclosingDeclarations`, `OutlineNode.pathAt`) are
- * only made when that outcome's version equals `text.version`; an older outcome is used for name-based knowledge only
- * (e.g. "the states declared in this file"). Token-based context detection always works on [tokens]. The editor waits
- * (bounded) for a parse of the current version before definition and hover, so those normally see a current parse.
+ * Providers follow a staleness rule. [parse] and [lastGoodParse] may be older than [text]. Lookups by offset in a parse
+ * outcome, such as `SyntaxIndex.referenceAt`, `declarationAt`, `enclosingDeclarations` and `OutlineNode.pathAt`, are
+ * only made when the version of that outcome equals `text.version`. An older outcome is used only for knowledge by
+ * name, such as "the states declared in this file". Context detection from tokens always works on [tokens]. Before
+ * definition and hover, the editor waits a bounded time for a parse of the current version, so those normally see a
+ * current parse.
  *
- * @property text the text the request refers to (offsets are in its coordinates).
- * @property tokens tokens, of [text]'s version when [isConsistent] (see the [LanguageServices] contract).
+ * @property text the text the request refers to. Offsets are in its coordinates.
+ * @property tokens the tokens. They have the version of [text] when [isConsistent] is true, as the contract on
+ *   [LanguageServices] requires.
  * @property parse the latest parse outcome, possibly of an older version, or null.
- * @property lastGoodParse the latest parse outcome without syntax diagnostics, possibly older, or null; it keeps the
+ * @property lastGoodParse the latest parse outcome without syntax diagnostics, possibly older, or null. It keeps the
  *   declarations of the file known while the current text is broken.
  */
 public data class LanguageDocument(
@@ -47,20 +49,26 @@ public data class LanguageDocument(
     public val parse: ParseOutcome?,
     public val lastGoodParse: ParseOutcome? = null,
 ) {
-    /** True if [tokens] belong to [text] (required by every [LanguageServices] method but `highlight`). */
+    /**
+     * True if [tokens] belong to [text]. Every [LanguageServices] method except `highlight` requires it.
+     */
     public val isConsistent: Boolean get() = tokens.version == text.version
 
-    /** [parse] if it belongs to [text], else null (for offset-based lookups, see the staleness rule). */
+    /**
+     * [parse] if it belongs to [text], else null. Lookups by offset use it, following the staleness rule on the class.
+     */
     public val currentParse: ParseOutcome? get() = parse?.takeIf { it.version == text.version }
 
     public companion object {
         /**
-         * [session] as seen at [text] (default: its current snapshot; the completion source passes the snapshot a
-         * request was made for): the tokens of exactly that text (`DocumentSession.tokensFor`), the latest parse and the
-         * last good parse (possibly of other versions, see the staleness rule). The result is always [isConsistent].
+         * [session] as seen at [text]. By default [text] is the current snapshot. The completion source passes the
+         * snapshot a request was made for. The result holds the tokens of exactly that text from
+         * `DocumentSession.tokensFor`, the latest parse and the last good parse. The parses may be of other versions,
+         * following the staleness rule on the class. The result is always [isConsistent].
          *
-         * @param text a snapshot of `session.text` (same lineage).
-         * @throws IllegalArgumentException if [text] is not a version of the session's text (programming error).
+         * @param text a snapshot of `session.text` with the same lineage.
+         * @throws IllegalArgumentException if [text] is not a version of the session's text. That is a programming
+         *   error.
          */
         public fun of(session: DocumentSession, text: TextSnapshot = session.text.snapshot.value): LanguageDocument {
             val tokens = session.tokensFor(text)
@@ -77,16 +85,18 @@ public data class LanguageDocument(
 }
 
 /**
- * A range in a file: the target of navigation (definition, references, problems, outline).
+ * A range in a file. It is the target of navigation, as for definitions, references, problems and the outline.
  *
- * @property version the version of the text [range] was computed in: the version of the outcome the range came from —
- *   the request's `text.version` for tokens or the current parse, the `lastGoodParse` version for a declaration only
- *   known from the last good parse, `AnalyzedFile.snapshot.version` for another file of the modeling context, the
- *   diagnostics' snapshot for a problem; null if unknown.
- * @property lineage the [TextLineage] [version] counts in (the document's `text.lineage` for its own parses, the analyzed
- *   snapshot's for other files); null if unknown. Navigation maps the range into the open document's current text
- *   with `EditableText.mapRange(range, version, lineage)`, which answers null for another lineage (e.g. of a document
- *   that was closed and reopened since), a newer version or evicted history; navigation then clamps the range.
+ * @property version the version of the text that [range] was computed in, which is the version of the outcome the
+ *   range came from. For tokens or the current parse it is the request's `text.version`. For a declaration only known
+ *   from the last good parse it is the version of `lastGoodParse`. For another file of the modeling context it is
+ *   `AnalyzedFile.snapshot.version`. For a problem it is the version of the snapshot of the diagnostics. It is null if
+ *   unknown.
+ * @property lineage the [TextLineage] in which [version] counts, or null if unknown. For the document's own parses it
+ *   is the document's `text.lineage`, and for other files it is the lineage of the analyzed snapshot. Navigation maps
+ *   the range into the current text of the open document with `EditableText.mapRange(range, version, lineage)`. That
+ *   answers null for another lineage, a newer version or evicted history. Another lineage arises, for example, when the
+ *   document was closed and reopened since. Navigation then clamps the range.
  */
 public data class Location(
     public val path: Path,
@@ -98,13 +108,13 @@ public data class Location(
         require(lineage == null || version != null) { "a lineage needs a version" }
     }
 
-    /** A location of [range] in [snapshot] of the file [path] (version and lineage from [snapshot]). */
+    /** A location of [range] in [snapshot] of the file [path]. The version and the lineage come from [snapshot]. */
     public constructor(path: Path, range: TextRange, snapshot: TextSnapshot) :
         this(path, range, snapshot.version, snapshot.lineage)
 }
 
-/** Hover content for [range]: plain text, possibly several lines (no markup). */
+/** Hover content for [range]. It is plain text without markup and may have several lines. */
 public data class Hover(public val range: TextRange, public val text: String)
 
-/** A matching bracket pair: the one-character ranges of the [open] and [close] bracket. */
+/** A matching bracket pair, given as the one-character ranges of the [open] and the [close] bracket. */
 public data class BracketMatch(public val open: TextRange, public val close: TextRange)

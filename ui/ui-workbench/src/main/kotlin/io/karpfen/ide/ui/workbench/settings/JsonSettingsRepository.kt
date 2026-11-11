@@ -30,14 +30,19 @@ import java.nio.file.Path
 import java.time.Clock
 
 /**
- * [SettingsRepository] storing `settings.json` with kotlinx.serialization (atomic write, corrupt-file backup).
+ * A [SettingsRepository] that stores `settings.json` with kotlinx.serialization. Writes are atomic, and a corrupt file
+ * is backed up before it is replaced.
  *
- * The file I/O is [SettingsFile]'s; this class decodes, publishes and serializes the updates (one at a time, so
- * concurrent updates never lose each other's changes). A file that does not decode — text that is not UTF-8, invalid
- * JSON, a wrong value type, a value the [IdeSettings] invariants reject — is corrupt: it is moved aside (see
- * [SettingsRepository]) and the defaults are written in its place. Unknown keys are ignored and unknown enum values fall
- * back to the default, so older and newer files load. I/O errors are logged, never thrown; a file that exists but
- * cannot be read is never written over: the defaults are used until a later [load] reads it.
+ * [SettingsFile] does the file I/O. This class decodes the file, publishes the settings and serializes the updates. A
+ * mutex runs the updates one at a time, so concurrent updates never lose each other's changes.
+ *
+ * A file that does not decode is corrupt. That covers text that is not UTF-8, invalid JSON, a value of the wrong type,
+ * and a value that the [IdeSettings] invariants reject. A corrupt file is moved aside, as [SettingsRepository]
+ * describes, and the defaults are written in its place. Unknown keys are ignored, and unknown enum values fall back to
+ * the default, so files written by older and newer versions load.
+ *
+ * I/O errors are logged and never thrown. A file that exists but cannot be read is never written over. The defaults
+ * are used until a later [load] reads it.
  */
 internal class JsonSettingsRepository(
     directory: Path,
@@ -50,8 +55,8 @@ internal class JsonSettingsRepository(
     private val writes = Mutex()
 
     /**
-     * True while the existing file could not be read: it holds settings we do not know, so it is not replaced. Guarded
-     * by [writes].
+     * True while the existing file could not be read. It may hold settings that are unknown here, so it is not
+     * replaced. Guarded by [writes].
      */
     private var keepUnreadableFile = false
 
@@ -72,10 +77,11 @@ internal class JsonSettingsRepository(
     }
 
     /**
-     * Reads and decodes the file; the defaults if it does not exist. A file that was read but is not UTF-8 (e.g.
-     * hand-edited and saved as Latin-1) is corrupt like invalid JSON. Decoding failures are caught as
-     * `IllegalArgumentException`, which covers kotlinx.serialization's `SerializationException` and the [IdeSettings]
-     * invariants alike. A file that cannot be read sets [keepUnreadableFile].
+     * Reads and decodes the file. Returns the defaults if the file does not exist. A file that was read but is not
+     * UTF-8 is corrupt, just like invalid JSON. That happens, for example, when the file was edited by hand and saved
+     * as Latin-1. Decoding failures are caught as `IllegalArgumentException`. That type covers both the
+     * `SerializationException` of kotlinx.serialization and the [IdeSettings] invariants. A file that cannot be read
+     * sets [keepUnreadableFile].
      */
     private fun read(): IdeSettings {
         keepUnreadableFile = false
@@ -95,7 +101,7 @@ internal class JsonSettingsRepository(
         }
     }
 
-    /** Moves the corrupt file aside (logging [cause]) and writes and returns the defaults. */
+    /** Moves the corrupt file aside, logs [cause], and writes and returns the defaults. */
     private fun recoverFromCorruptFile(cause: Exception): IdeSettings {
         try {
             val backup = file.backUpCorruptFile()
@@ -106,7 +112,7 @@ internal class JsonSettingsRepository(
         return IdeSettings().also(::write)
     }
 
-    /** Writes [settings] unless an unreadable file is kept; failures are logged. */
+    /** Writes [settings] unless an unreadable file is kept. Failures are logged. */
     private fun write(settings: IdeSettings) {
         if (keepUnreadableFile) {
             logger.debug("Not writing the settings over the unreadable {}", file.path)

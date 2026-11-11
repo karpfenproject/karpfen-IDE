@@ -16,10 +16,10 @@
 package io.karpfen.ide.core.text
 
 /**
- * A line separator as found in files on disk. In memory every document uses [LF] only; the dominant original separator
- * is remembered per document and restored on save, and a file with mixed separators is normalized and reported once.
+ * A line separator as found in files on disk. In memory every document uses [LF] only. The dominant original separator
+ * is remembered per document and restored on save. A file with mixed separators is normalized and reported once.
  *
- * The entries are declared in the tie-breaking order of [LineSeparators.normalize] (LF, CRLF, CR): when two
+ * The entries are declared in the tie-breaking order of [LineSeparators.normalize], which is LF, CRLF, CR. When two
  * separators occur equally often, the one declared first is the dominant one.
  *
  * @property chars the separator's characters as written to disk.
@@ -40,10 +40,10 @@ public enum class LineSeparator(public val chars: String, public val displayName
  * Result of normalizing raw file text to `\n` separators.
  *
  * @property text the text with every `\r\n` and lone `\r` replaced by `\n`.
- * @property dominant the separator that occurred most often in the raw text ([LineSeparator.LF] for text without
- *   separators; ties are broken in the order LF, CRLF, CR).
- * @property mixed true if the raw text contained more than one kind of separator (reported once as an INFO
- *   diagnostic by the workspace).
+ * @property dominant the separator that occurred most often in the raw text. Text without separators gets
+ *   [LineSeparator.LF]. Ties are broken in the order LF, CRLF, CR.
+ * @property mixed true if the raw text contained more than one kind of separator. The workspace reports this once as
+ *   an INFO diagnostic.
  */
 public data class NormalizedText(
     public val text: String,
@@ -54,7 +54,7 @@ public data class NormalizedText(
 /** Pure functions converting between file text and the `\n`-only in-memory form. */
 public object LineSeparators {
 
-    /** Normalizes [raw] to `\n` separators and reports the dominant separator (see [NormalizedText]). */
+    /** Normalizes [raw] to `\n` separators and reports the dominant separator, as described at [NormalizedText]. */
     public fun normalize(raw: String): NormalizedText {
         if (raw.indexOf('\r') < 0) {
             return NormalizedText(raw, LineSeparator.LF, mixed = false)
@@ -83,8 +83,8 @@ public object LineSeparators {
     }
 
     /**
-     * The separator with the highest of [counts] (indexed by ordinal). `maxBy` keeps the first of equal maxima, so
-     * ties go to the separator declared first in [LineSeparator] (LF, then CRLF, then CR).
+     * The separator with the highest count in [counts], which is indexed by ordinal. `maxBy` keeps the first of equal
+     * maxima, so ties go to the separator declared first in [LineSeparator]: LF, then CRLF, then CR.
      */
     private fun dominantSeparator(counts: IntArray): LineSeparator = LineSeparator.entries.maxBy { counts[it.ordinal] }
 

@@ -61,8 +61,8 @@ private enum class RunTab(val title: String) {
 }
 
 /**
- * The tabs of the selected run [entry]: Overview, Model, Events and Log. The Model and Events tabs need the run's
- * session; before it was launched they say so.
+ * The tabs of the selected run [entry], which are Overview, Model, Events and Log. The Model and Events tabs need the
+ * run's session. Before the run was launched, they say so.
  */
 @Composable
 internal fun RunTabs(runtime: RuntimeState, entry: RunEntry, root: Path, onNavigate: (Location) -> Unit, modifier: Modifier = Modifier) {
@@ -91,9 +91,10 @@ internal fun RunTabs(runtime: RuntimeState, entry: RunEntry, root: Path, onNavig
 }
 
 /**
- * The Overview: the run's phase, its host problem and blocking findings, and once launched the deploy steps, the
- * session's problems, the active states per state machine, the environment key, the connection and the sync status.
- * A finding with a file calls [onNavigate].
+ * The Overview tab. It shows the run's phase, the host problem if there is one, and the findings that block the run.
+ * Once the run is launched, it also shows the environment key, the connection, the sync status, the active states of
+ * each state machine, the deploy steps and the session's problems. A click on a finding with a file calls
+ * [onNavigate].
  */
 @Composable
 private fun OverviewTab(entry: RunEntry, root: Path, onNavigate: (Location) -> Unit) {
@@ -136,7 +137,10 @@ private fun SessionOverview(session: RuntimeSession, root: Path, onNavigate: (Lo
     }
 }
 
-/** [problems], each with its file and position; one with a file opens it through [onNavigate] when clicked. */
+/**
+ * Lists [problems], each with its file and position, coloured by severity. A click on a problem with a file opens the
+ * file through [onNavigate].
+ */
 @Composable
 private fun Problems(problems: List<DeployProblem>, root: Path, onNavigate: (Location) -> Unit) {
     val colors = KarpfenTheme.colors
@@ -159,7 +163,7 @@ private fun Problems(problems: List<DeployProblem>, root: Path, onNavigate: (Loc
     }
 }
 
-/** The Log tab: the runtime's log over the state's output buffer, standard error in the error colour. */
+/** The Log tab. It shows the runtime's log from the state's output buffer, with standard error in the error colour. */
 @Composable
 private fun LogTab(runtime: RuntimeState) {
     val log by runtime.log.state.collectAsState()

@@ -21,8 +21,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 /**
- * The log of a host: the host's own lines about its work and the lines of its runtime, in one hot stream that replays
- * the last [capacity] lines to a new collector and then follows. Safe to write from any thread.
+ * The log of a host. It carries the host's own lines about its work and the lines of its runtime in one hot stream. A
+ * new collector first receives the last [capacity] lines and then follows the new ones. Writing is safe from any thread
+ * and never blocks. Once the log holds [capacity] lines, each new line drops the oldest one.
  *
  * @param capacity how many lines are replayed.
  */

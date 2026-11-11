@@ -24,18 +24,19 @@ import io.karpfen.ide.core.lang.HighlightStyle
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 import io.karpfen.ide.ui.editor.view.geometry.DisplayLine
 
-/** A styled piece of one line, in columns of the line's text (`startColumn < endColumn`). */
+/** A styled piece of one line, in columns of the line's text. [startColumn] is less than [endColumn]. */
 internal data class LineSpan(val startColumn: Int, val endColumn: Int, val style: HighlightStyle)
 
 /**
- * Lays out single lines for drawing: the line's display text (tabs expanded, [DisplayLine]) with the [EditorTheme]
- * style of each [LineSpan], measured with [measurer] on one unwrapped line and kept in [cache] (keyed by line text +
- * spans + font settings), so only lines that changed or scrolled in are measured. A cached layout is used only if it
- * was measured for exactly the same styled text and style (a hash collision of the spans re-measures).
+ * Lays out single lines for drawing. It takes the display text of the line from [DisplayLine], with tabs expanded, and
+ * applies the [EditorTheme] style of each [LineSpan]. The result is measured with [measurer] as one line without
+ * wrapping and kept in [cache]. The cache key is the line text together with the spans and the font settings. So only
+ * lines that changed or scrolled in are measured. A cached layout is used only if it was measured for exactly the same
+ * styled text and style, so a hash collision of the spans leads to a new measurement.
  */
 internal class LineLayouter(private val measurer: TextMeasurer, private val cache: LineLayoutCache) {
 
-    /** The layout of [line] with [spans] in [style] (font size [fontSize] sp, tab width [tabWidth]). */
+    /** Returns the layout of [line] with [spans] in [style]. [fontSize] is in sp, and [tabWidth] is the tab display width. */
     fun layout(
         line: DisplayLine,
         spans: List<LineSpan>,
@@ -54,7 +55,10 @@ internal class LineLayouter(private val measurer: TextMeasurer, private val cach
         return measured
     }
 
-    /** The display text of [line] with the theme's style of every span, span columns mapped to display offsets. */
+    /**
+     * Returns the display text of [line] with the theme's style of every span. The span columns are mapped to display
+     * offsets.
+     */
     private fun styledText(line: DisplayLine, spans: List<LineSpan>, theme: EditorTheme): AnnotatedString {
         if (spans.isEmpty()) return AnnotatedString(line.text)
         val builder = AnnotatedString.Builder(line.text)
@@ -67,9 +71,9 @@ internal class LineLayouter(private val measurer: TextMeasurer, private val cach
         return builder.toAnnotatedString()
     }
 
-    /** The key hashing. */
+    /** Holds the constant of the key hashing. */
     private companion object {
-        /** Multiplier combining the spans' hash with the theme's identity. */
+        /** The multiplier that combines the hash of the spans with the identity of the theme. */
         const val HASH_FACTOR = 31
     }
 }

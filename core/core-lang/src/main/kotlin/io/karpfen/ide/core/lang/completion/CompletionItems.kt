@@ -20,9 +20,9 @@ import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A completion template: [label] as shown (e.g. `STATE "…" { }`) and the [template] to insert, in which [CARET] marks
- * where the caret goes after accepting (e.g. `STATE "$0" { }`). Immutable; the per-language keyword tables are lists of
- * snippets.
+ * A completion template. [label] is what the list shows, such as `STATE "…" { }`. [template] is what gets inserted. In
+ * it, [CARET] marks where the caret goes after accepting, as in `STATE "$0" { }`. Snippets are immutable, and the
+ * keyword tables of each language are lists of snippets.
  */
 internal data class Snippet(
     val label: String,
@@ -30,7 +30,7 @@ internal data class Snippet(
     val kind: CompletionKind = CompletionKind.SNIPPET,
     val detail: String? = null,
 ) {
-    /** The item replacing [replaceRange]; [rank] orders it before items with a greater rank. */
+    /** The item that replaces [replaceRange]. [rank] orders it before items with a greater rank. */
     fun item(replaceRange: TextRange, rank: Int = 1): CompletionItem {
         val caret = template.indexOf(CARET)
         return CompletionItem(
@@ -49,14 +49,14 @@ internal data class Snippet(
         /** The caret marker of [template]. */
         const val CARET: String = "\$0"
 
-        /** A plain keyword (inserted as written, caret after it). */
+        /** A plain keyword. It is inserted as written, with the caret after it. */
         fun keyword(keyword: String, detail: String? = null): Snippet = Snippet(keyword, keyword, CompletionKind.KEYWORD, detail)
     }
 }
 
 /**
- * A named proposal (a type, member, state, macro, event, object or path segment): inserted as [name], or quoted when
- * the caret is not inside a string literal yet.
+ * A named proposal, such as a type, member, state, macro, event, object or path segment. It is inserted as [name], or
+ * in quotes when [quoted] is true because the caret is not inside a string literal yet.
  */
 internal fun nameItem(
     name: String,
@@ -77,5 +77,5 @@ internal fun nameItem(
     sortKey = sortKey(rank, name),
 )
 
-/** The sort key of [label] at [rank]: lower ranks first, then the label ignoring case. */
+/** The sort key of [label] at [rank]. Lower ranks come first, then the label ignoring case. */
 internal fun sortKey(rank: Int, label: String): String = "$rank:${label.lowercase()}"

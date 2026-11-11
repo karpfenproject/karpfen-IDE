@@ -37,9 +37,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Covers the rules of the observation switch row by row: switching on and off, pushes while off, while synchronizing
- * and while live (dropped, applied, a gap), snapshots read and failed, a reconnect, an interruption, snapshots while
- * the link is down and the stop.
+ * Covers the rules of the observation switch row by row. It checks switching on and off and pushes while off, while
+ * synchronizing and while live. Such a push is dropped, applied or shows a gap. It also checks snapshots read and
+ * failed, a reconnect, an interruption, snapshots while the link is down and the stop.
  */
 class ObservationReducerTest {
 

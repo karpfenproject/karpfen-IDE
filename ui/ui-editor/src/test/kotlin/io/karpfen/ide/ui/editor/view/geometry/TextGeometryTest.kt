@@ -23,10 +23,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
-/** Caret x, hit-testing and range segments in monospace cells with tab stops (the editor's one tab rule). */
+/** Caret x, hit-testing and range segments in monospace cells with tab stops, which follow the single tab rule of the editor. */
 class TextGeometryTest {
 
-    /** Cells of 10 px, lines of 20 px, text starting at x = 5. */
+    /** A geometry over [text] with cells of 10 px and lines of 20 px, where the text starts at x = 5. */
     private fun geometry(text: String, tabWidth: Int = 4) = TextGeometry(TextSnapshot(text, 0), TabStops(tabWidth), 10f, 20f, 5f)
 
     @Test

@@ -29,12 +29,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TestTimeSource
 
 /**
- * Random edit sequences (typing with coalescing, multi-edit applies of every origin, groups, replaceAll) checked
- * against a `StringBuilder` reference after every operation, followed by undo-all and redo-all.
+ * Checks random edit sequences against a `StringBuilder` reference after every operation, followed by undo-all and
+ * redo-all. The sequences mix typing with coalescing, applies of several edits with every origin, groups and
+ * replaceAll.
  */
 class EditableTextPropertyTest {
 
-    /** One run of random operations from [seed]: the text under test, its reference and the state of the run. */
+    /** One run of random operations from [seed], with the text under test, its reference and the state of the run. */
     private class Session(seed: Long) {
         val random = Random(seed)
         val edits = RandomEdits(random)
@@ -130,7 +131,10 @@ class EditableTextPropertyTest {
         assertEquals(current.text, ReferenceText.applied(before.text, change.edits), "the change's edits describe it")
     }
 
-    /** Undoes every step; every state reached is an earlier state of the history. Returns the number of steps. */
+    /**
+     * Undoes every step and checks that each state reached is an earlier state of the history. Returns the number of
+     * steps it undid.
+     */
     private fun Session.undoAll(): Int {
         var position = history.lastIndex
         var steps = 0

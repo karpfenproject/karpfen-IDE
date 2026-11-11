@@ -64,10 +64,11 @@ internal fun RuntimeUnderTest.runClient(endpoint: RuntimeEndpoint, body: suspend
 }
 
 /**
- * The real client of a connection scenario: a [RuntimeClient] over the scenario's transports, whose WebSocket seam keeps
- * every link the client opens so a scenario can close one or read how it closed, and the steps the scenarios share:
- * deploying the lamp through an environment handle, opening an observed connection and subscribing it to the model. It
- * keeps the handles it deployed, so that [stopDeployed] can stop them after the scenario.
+ * The real client of a connection scenario. It is a [RuntimeClient] over the scenario's transports. Its WebSocket seam
+ * keeps every link the client opens, so a scenario can close one or read how it closed. It also offers the steps the
+ * scenarios share. These are deploying the lamp through an environment handle, opening an observed connection and
+ * subscribing it to the model. It keeps the handles it deployed, so that [stopDeployed] can stop them after the
+ * scenario.
  *
  * @property scope the scenario's scope.
  * @param endpoint where the runtime listens.
@@ -83,7 +84,9 @@ internal class ScenarioClient(val scope: RuntimeScenarioScope, endpoint: Runtime
     /** The handles of the environments deployed so far, in order. */
     private val deployed = MutableStateFlow<List<RuntimeEnvironment>>(emptyList())
 
-    /** Creates an environment and uploads the lamp with a tick delay of 50 ms and an event time to live of 30 000 ms. */
+    /**
+     * Creates an environment and uploads the lamp with a tick delay of 50 ms and an event time to live of 30 000 ms.
+     */
     suspend fun deployLamp(): RuntimeEnvironment {
         val environment = assertIs<RuntimeResult.Ok<RuntimeEnvironment>>(client.createEnvironment()).value
         deployed.update { it + environment }
@@ -118,9 +121,9 @@ internal class ScenarioClient(val scope: RuntimeScenarioScope, endpoint: Runtime
     }
 
     /**
-     * Stops every environment deployed so far, whatever comes of it: the cleanup after a scenario, also after one that
-     * failed. A handle bounds its stop and sends nothing for an environment that is stopped already or was never
-     * activated.
+     * Stops every environment deployed so far, whatever comes of it. This is the cleanup after a scenario, also after
+     * one that failed. A handle bounds its stop and sends nothing for an environment that is stopped already or was
+     * never activated.
      */
     suspend fun stopDeployed() {
         deployed.value.forEach { it.stop() }

@@ -48,7 +48,7 @@ import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
 
 /**
- * One tab of a [TabStrip]. [id] is stable across recompositions (e.g. the document path).
+ * One tab of a [TabStrip]. [id] is stable across recompositions, for example the document path.
  *
  * @property title the tab's label.
  * @property tooltip shown while the pointer rests on the tab, or null for none.
@@ -64,7 +64,7 @@ public data class TabItem(
     public val icon: ImageVector? = null,
 )
 
-/** Test tags of [TabStrip] (for headless UI tests of the foundation and its users). */
+/** Test tags of [TabStrip], for headless UI tests of the foundation and of the modules that use it. */
 public object TabStripTestTags {
     /** The scrollable strip. */
     public const val STRIP: String = "TabStrip"
@@ -75,17 +75,18 @@ public object TabStripTestTags {
     /** The close button of the tab [id]. */
     public fun close(id: String): String = "TabStrip.close:$id"
 
-    /** The dirty dot of the tab [id] (present only while the tab is dirty). */
+    /** The dirty dot of the tab [id]. It exists only while the tab is dirty. */
     public fun dirty(id: String): String = "TabStrip.dirty:$id"
 }
 
 /**
- * A horizontal strip of tabs: title, tooltip, dirty dot, close button, middle-click closes, horizontal scrolling when
- * the tabs overflow; the selected tab is scrolled into view. Stateless.
+ * A horizontal strip of tabs. Each tab shows its title, its tooltip, a dot for unsaved changes and a close button. The
+ * strip is stateless.
  *
- * A primary click selects a tab ([onSelect]), its close button or a middle click closes it ([onClose], without
- * selecting it). The strip scrolls with the horizontal wheel or trackpad and, when it overflows, with the vertical
- * wheel; whenever [selectedId] changes, it scrolls minimally so that tab is fully visible. Needs `KarpfenTheme`.
+ * A primary click on a tab selects it through [onSelect]. Its close button or a middle click closes it through
+ * [onClose] without selecting it. When the tabs overflow, the strip scrolls with the horizontal wheel or the trackpad
+ * and also with the vertical wheel. Whenever [selectedId] changes, the strip scrolls minimally so that the tab is fully
+ * visible. The strip needs `KarpfenTheme`.
  */
 @Composable
 public fun TabStrip(
@@ -128,7 +129,7 @@ public fun TabStrip(
     }
 }
 
-/** The horizontal extent of a tab inside the scrolled row, in px (end exclusive). */
+/** The horizontal extent of a tab inside the scrolled row, in px, with the end exclusive. */
 internal data class TabExtent(val start: Int, val end: Int)
 
 /** Fixed measures of [TabStrip]. */
@@ -138,14 +139,14 @@ internal object TabStripDefaults {
 }
 
 /**
- * Lets the vertical mouse wheel scroll the strip too: wheel down moves towards the last tab, reversed like the
- * scrollable of `verticalScroll`. Mouse drags never scroll on desktop, so this adds no drag gesture.
+ * Lets the vertical mouse wheel scroll the strip too. Wheel down moves towards the last tab, with the direction
+ * reversed as in the scrollable of `verticalScroll`. Mouse drags never scroll on desktop, so this adds no drag gesture.
  */
 private fun Modifier.verticalWheelScroll(scroll: ScrollState): Modifier =
     scrollable(scroll, Orientation.Vertical, reverseDirection = true)
 
 /**
- * Scrolls minimally so the tab [selectedId] is visible whenever [selectedId] changes; waits until the tab is placed
+ * Scrolls minimally so the tab [selectedId] is visible whenever [selectedId] changes. It waits until the tab is placed
  * and the strip is laid out.
  */
 @Composable

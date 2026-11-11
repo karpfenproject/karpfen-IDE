@@ -25,9 +25,9 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 
 /**
- * A context menu with [actions], shown below-right of [offset] relative to its anchor's bottom-left corner (the
- * composable it is placed in). Choosing an enabled entry closes the menu ([onDismiss]) and runs the entry; disabled
- * entries are shown greyed out.
+ * A context menu with [actions]. It opens below and to the right of [offset], which is relative to the bottom-left
+ * corner of its anchor, the composable it is placed in. Choosing an enabled entry first closes the menu through
+ * [onDismiss] and then runs the entry. Disabled entries are shown greyed out.
  */
 @Composable
 internal fun ContextMenuPopup(actions: List<ContextMenuAction>, offset: DpOffset, onDismiss: () -> Unit) {
@@ -48,6 +48,6 @@ internal fun ContextMenuPopup(actions: List<ContextMenuAction>, offset: DpOffset
 
 /** Fixed measures of [ContextMenuPopup]. */
 internal object ContextMenuDefaults {
-    /** Height of one entry (compact desktop menus instead of Material's 48 dp touch targets). */
+    /** Height of one entry. Desktop menus are compact, so an entry is lower than Material's 48 dp touch target. */
     val ItemHeight = 28.dp
 }

@@ -21,7 +21,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 /** How an attempt to open a WebSocket to the runtime ended. */
 public sealed interface ConnectOutcome {
     /**
-     * The WebSocket is open; nothing was sent on it yet.
+     * The WebSocket is open, and nothing was sent on it yet.
      *
      * @property link the open link.
      */
@@ -36,13 +36,12 @@ public sealed interface ConnectOutcome {
 }
 
 /**
- * The WebSocket seam of the client: opens one WebSocket to a URL such as `ws://127.0.0.1:8080/ws`. The Ktor adapter
- * implements it in production, the fake runtime in tests.
+ * The WebSocket seam of the client. It opens one WebSocket to a URL such as `ws://127.0.0.1:8080/ws`. The Ktor adapter
+ * implements it in production, and the fake runtime implements it in tests.
  *
- * Threading (MUST): may be called from any coroutine, concurrently; never blocks a thread.
- *
- * Contract (MUST): a failure to connect is a [ConnectOutcome.Failed], never an exception; a `CancellationException` of
- * the caller is rethrown. A connected link has sent nothing: the handshake is the caller's first [WebSocketLink.send].
+ * It may be called from any coroutine, also concurrently, and it never blocks a thread. A failure to connect is a
+ * [ConnectOutcome.Failed], never an exception. A `CancellationException` of the caller is rethrown. A connected link
+ * has sent nothing. The handshake is the caller's first [WebSocketLink.send].
  */
 public fun interface WebSocketConnector {
     /** Opens a WebSocket to [url]. */
@@ -52,23 +51,21 @@ public fun interface WebSocketConnector {
 /**
  * One open WebSocket to the runtime, as text frames.
  *
- * Threading (MUST): [incoming] has one collector; [send] and [close] may be called from any coroutine, and the caller
- * serializes its sends. Nothing blocks a thread.
+ * [incoming] has one collector. [send] and [close] may be called from any coroutine, and the caller serializes its
+ * sends. Nothing blocks a thread.
  *
- * Contract (MUST):
- * - [incoming] delivers the frames the runtime sent, in order, and is closed when the link closes.
- * - [closure] completes exactly once, when the link closed for any reason, with the close code and reason of the close
- *   frame (both null without one) and whether the client closed it.
- * - [send] reports a failure as a [LinkSendResult.Failed], never as an exception, except a `CancellationException` of
- *   the caller.
- * - [close] sends a close frame with the given code and reason, if the link is still open, and returns once the close
- *   frame was handed over; closing a closed link does nothing.
+ * [incoming] delivers the frames the runtime sent, in order, and is closed when the link closes. [closure] completes
+ * exactly once, when the link closed for any reason. It holds the close code and the reason of the close frame, both
+ * null without a close frame, and whether the client closed the link. [send] reports a failure as a
+ * [LinkSendResult.Failed], never as an exception. Only a `CancellationException` of the caller is thrown. [close]
+ * sends a close frame with the given code and reason if the link is still open. It returns once the close frame was
+ * handed over. Closing a closed link does nothing.
  */
 public interface WebSocketLink {
-    /** The frames the runtime sends, in order; closed when the link closes. */
+    /** The frames the runtime sends, in order. The channel is closed when the link closes. */
     public val incoming: ReceiveChannel<LinkFrame>
 
-    /** How the link closed; completes once, when it does. */
+    /** How the link closed. It completes once, when the link closes. */
     public val closure: Deferred<LinkClosure>
 
     /** Sends [text] as one text frame. */
@@ -88,7 +85,7 @@ public sealed interface LinkFrame {
     public data class Text(public val text: String) : LinkFrame
 
     /**
-     * A binary frame, which the runtime never sends; only its size is kept.
+     * A binary frame, which the runtime never sends. Only its size is kept.
      *
      * @property size its size in bytes.
      */
@@ -98,7 +95,7 @@ public sealed interface LinkFrame {
 /**
  * How a link closed.
  *
- * @property code the code of the close frame, or null if the link closed without one (a broken connection).
+ * @property code the code of the close frame, or null if the link closed without one, as a broken connection does.
  * @property reason the reason of the close frame, or null without one.
  * @property byClient true if the client closed the link, false if the runtime or the network did.
  */

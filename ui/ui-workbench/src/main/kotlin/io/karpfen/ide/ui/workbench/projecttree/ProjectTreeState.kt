@@ -23,16 +23,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.nio.file.Path
 
 /**
- * State of the Project tool window: the workspace tree, expanded directories and the selection, and what the tree's
- * nodes are ([isDirectory]) and offer ([menuFor]). Opening a node and the commands of the context menu are intents of
- * the `WorkbenchState` (`openNode` — which toggles a directory here and opens a file —, `runTreeCommand`); this class
- * holds tree state and decides from it, so the view only renders and forwards.
+ * The state of the Project tool window. It holds the workspace tree, the expanded directories and the selection. It
+ * also answers what a node is through [isDirectory] and what it offers through [menuFor].
  *
- * Public: the read flows, the queries and the pure UI intents ([toggle], [select], [reveal]). The mediator's
- * coordination operation ([setTree]) is internal, so views cannot bypass the mediator's coordinated flows.
+ * Opening a node and running a command of the context menu are intents of the `WorkbenchState`. `openNode` toggles a
+ * directory here and opens a file. `runTreeCommand` runs a menu command. This class holds the tree state and decides
+ * from it, so the view only renders and forwards.
  *
- * Expansion is remembered across tree updates for the directories that still exist; a new tree root (another folder)
- * starts with only the root expanded. The context [menu] is decided Compose-free as well. Used from the UI thread.
+ * The read flows, the queries and the pure UI intents [toggle], [select] and [reveal] are public. The coordination
+ * operation [setTree] of the mediator is internal, so views cannot bypass the coordinated flows of the mediator.
+ *
+ * Expansion is remembered across tree updates for the directories that still exist. A new tree root, which means
+ * another folder was opened, starts with only the root expanded. The context [menu] is decided without Compose as
+ * well. Use the class from the UI thread only.
  */
 public class ProjectTreeState(
     /** The context menu of the tree's nodes. */
@@ -46,20 +49,26 @@ public class ProjectTreeState(
     /** The tree of the current workspace, or null without a workspace. */
     public val tree: StateFlow<WorkspaceTree?> get() = currentTree.asStateFlow()
 
-    /** Expanded directories (the root is expanded initially). */
+    /** The expanded directories. The root starts expanded. */
     public val expanded: StateFlow<Set<Path>> get() = expandedPaths.asStateFlow()
 
-    /** The selected node, or null. */
+    /** The selected node, or null if nothing is selected. */
     public val selected: StateFlow<Path?> get() = selection.asStateFlow()
 
-    /** True if [path] is a directory of the current tree (opening it toggles it instead of opening a file). */
+    /** True if [path] is a directory of the current tree. Opening a directory toggles it instead of opening a file. */
     public fun isDirectory(path: Path): Boolean = currentTree.value?.find(path) is WorkspaceNode.Directory
 
-    /** The context-menu entries of the node [path] of the current tree ([menu], knowing directories and the root). */
+    /**
+     * The context menu entries of the node [path] of the current tree. [menu] builds them and is told whether the node
+     * is a directory and whether it is the root.
+     */
     public fun menuFor(path: Path): List<ProjectTreeMenuEntry> =
         menu.entries(path, isDirectory(path), isRoot = path == currentTree.value?.root?.path)
 
-    /** Shows [tree] (null clears); expansion and selection of vanished paths are dropped. Mediator only. */
+    /**
+     * Shows [tree], or clears the tree for null. Expansion and selection of paths that no longer exist are dropped.
+     * Only the mediator calls it.
+     */
     internal fun setTree(tree: WorkspaceTree?) {
         val previous = currentTree.value
         currentTree.value = tree
@@ -86,7 +95,9 @@ public class ProjectTreeState(
         selection.value = path
     }
 
-    /** Expands the ancestors of [path] and selects it (e.g. the active or a newly created file). */
+    /**
+     * Expands the ancestors of [path] and selects it. Used, for example, for the active file or a newly created one.
+     */
     public fun reveal(path: Path) {
         val root = currentTree.value?.root?.path
         if (root != null && path.startsWith(root)) {
@@ -97,8 +108,9 @@ public class ProjectTreeState(
     }
 
     /**
-     * [paths] with [path] removed if present, else added. Uses `minusElement`/`plusElement` because a [Path] is an
-     * `Iterable<Path>` of its names, so `paths - path` would remove the path's names instead of the path.
+     * Returns [paths] with [path] removed if it is present, or added if it is not. This uses `minusElement` and
+     * `plusElement`, because a [Path] is an `Iterable<Path>` of its names. `paths - path` would remove the path's names
+     * instead of the path.
      */
     private fun toggled(paths: Set<Path>, path: Path): Set<Path> =
         if (path in paths) paths.minusElement(path) else paths.plusElement(path)

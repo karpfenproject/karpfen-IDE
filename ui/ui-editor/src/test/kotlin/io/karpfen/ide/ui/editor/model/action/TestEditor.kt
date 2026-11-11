@@ -30,13 +30,16 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlin.time.TestTimeSource
 
 /**
- * An editor for model tests: the real [EditableText], [CaretModel] and [AutoClosedPairs] with a fake clipboard, a
- * recording UI port and hand-built tokens. Texts are written with markers: `|` is the caret, `^` the anchor of a
- * selection (both absent from the text itself).
+ * An editor for model tests. It uses the real [EditableText], [CaretModel] and [AutoClosedPairs] with a fake clipboard,
+ * a recording UI port and hand-built tokens. Texts are written with markers. `|` is the caret and `^` is the anchor of
+ * a selection. Neither marker is part of the text itself.
  *
- * @param scope where the caret model follows the text; unconfined by default (no virtual time needed).
- * @param tokensOf the tokens of a snapshot (default: none, i.e. no EVAL bodies).
- * @param lineComment the line comment of the edited language (default: the karpfen one).
+ * @param marked the initial text in the [Marked] notation.
+ * @param scope the scope in which the caret model follows the text. It is unconfined by default, so the tests need no
+ *   virtual time.
+ * @param tabWidth the tab width the caret model uses for display columns.
+ * @param tokensOf the tokens of a snapshot. By default there are none, so there are no EVAL bodies.
+ * @param lineComment the line comment of the edited language. By default it is the karpfen one.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestEditor(
@@ -58,7 +61,7 @@ class TestEditor(
 
     override val autoPairs: AutoClosedPairs = AutoClosedPairs(text)
 
-    /** How often [tokens] was read (actions read tokens only when they need them). */
+    /** How often [tokens] was read. Actions read tokens only when they need them, and tests check that with this count. */
     var tokenReads: Int = 0
         private set
 
@@ -77,7 +80,7 @@ class TestEditor(
     /** The default actions. */
     val registry: EditorActionRegistry = EditorActionRegistry()
 
-    /** Runs actions in this context like the editor state does (only when enabled). */
+    /** Runs actions in this context like the editor state does, which means only while they are enabled. */
     val executor: EditorActionExecutor = EditorActionExecutor { action -> action.isEnabled(this) && action.execute(this) }
 
     init {
@@ -93,19 +96,19 @@ class TestEditor(
     /** Types every character of [typed] separately, like key presses. */
     fun typeEach(typed: String) = typed.forEach { type(it.toString()) }
 
-    /** The text with the caret (and anchor) markers. */
+    /** The text with the caret marker, and with the anchor marker when there is a selection. */
     fun marked(): String = Marked.render(text.snapshot.value.text, caret.primary)
 
     /** The plain text. */
     val plain: String get() = text.snapshot.value.text
 }
 
-/** The `|` (caret) and `^` (anchor) notation of [TestEditor]. */
+/** The notation of [TestEditor], where `|` marks the caret and `^` marks the anchor of a selection. */
 object Marked {
     /** A text with its caret. */
     data class Parsed(val text: String, val caret: Caret)
 
-    /** Splits [marked] into text and caret; without `|` the caret is at 0. */
+    /** Splits [marked] into text and caret. Without `|` the caret is at 0, and without `^` nothing is selected. */
     fun parse(marked: String): Parsed {
         val text = StringBuilder()
         var position = -1
@@ -135,8 +138,8 @@ object Marked {
 }
 
 /**
- * A clipboard in memory. Setting [content] directly (another application) drops the whole-line mark; while [failing],
- * writes fail like a system clipboard another application holds.
+ * A clipboard in memory. Setting [content] directly stands for another application and drops the whole-line mark.
+ * While [failing] is set, writes fail like on a system clipboard that another application holds.
  */
 class FakeClipboard(content: String? = null) : ClipboardPort {
     /** The clipboard text. */
@@ -196,10 +199,11 @@ class RecordingUiPort : EditorUiPort {
 }
 
 /**
- * The tokens of a KStates test text from the registry's KStates tokenizer, whose embedded regions are the EVAL bodies
- * of the one scanner (`EvalBodies`): a body opens only at an `EVAL {` that is code, so a commented-out `// EVAL {`
- * opens none, exactly as in the editor.
+ * The tokens of a KStates test text from the registry's KStates tokenizer. Its embedded regions are the EVAL bodies
+ * found by the shared scanner `EvalBodies`. A body opens only at an `EVAL {` that is code, so a commented-out
+ * `// EVAL {` opens none, just as in the editor.
  */
 fun evalBodies(snapshot: TextSnapshot): TokenizeResult = KSTATES_TOKENIZER.tokenize(snapshot)
 
+/** The KStates tokenizer of the default language registry, created once for all tests. */
 private val KSTATES_TOKENIZER = defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).tokenizer

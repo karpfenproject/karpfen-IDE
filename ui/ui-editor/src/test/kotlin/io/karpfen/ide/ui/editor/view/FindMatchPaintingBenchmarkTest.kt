@@ -31,13 +31,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Painting find matches costs what the visible matches cost: with the find bar open over a long line full of matches, a
- * frame takes about as long as with the bar closed. Painting used to compute every match's x from the start of its line
- * (O(matches × line length) per frame: a 40,000-character line with 8,000 matches cost many times a frame without
- * find).
+ * Painting find matches costs only what the visible matches cost. With the find bar open over a long line full of
+ * matches, a frame takes about as long as with the bar closed. Painting used to compute the x of every match from the
+ * start of its line. That cost grew with the number of matches times the line length on every frame, and a line of
+ * 40,000 characters with 8,000 matches cost many times a frame without find.
  *
- * Tagged `budget`: excluded from every test run, because machine load and sleep cycles make wall-clock limits
- * unreliable; kept for later performance work.
+ * The class is tagged `budget` and is excluded from every test run, because machine load and sleep cycles make
+ * wall-clock limits unreliable. It is kept for later performance work.
  */
 @OptIn(ExperimentalTestApi::class)
 @Tag("budget")
@@ -78,12 +78,21 @@ class FindMatchPaintingBenchmarkTest {
         return (System.nanoTime() - start) / 1e6 / MEASURED_FRAMES
     }
 
-    /** The text, the frames and the allowed difference. */
+    /** Holds the text, the frame counts and the allowed difference. */
     private companion object {
+        /** The number of matches on the long line. */
         const val MATCHES = 8_000
+
+        /** Frames rendered before the measurement starts. */
         const val WARM_UP_FRAMES = 5
+
+        /** Frames whose time is averaged. */
         const val MEASURED_FRAMES = 20
+
+        /** How many times longer a frame with the find bar open may take. */
         const val FACTOR = 3
+
+        /** The fixed time in milliseconds that a frame with the find bar open may take on top of [FACTOR]. */
         const val SLACK_MILLIS = 10.0
 
         /** 20 short lines and one comment line of 40,003 characters with [MATCHES] quotes. */

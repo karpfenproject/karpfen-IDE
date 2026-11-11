@@ -39,17 +39,22 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The Compose-free pointer policy of the editor state: clicks by count and modifiers per platform, drag selection by
- * characters, words and lines, the context-menu caret rule and focus.
+ * The pointer policy of the editor state, tested without Compose. The tests cover clicks by count and by the modifiers
+ * of each platform, drag selection by characters, words and lines, the caret rule of the context menu, and focus.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PointerPolicyTest {
 
+    /** Two lines of two words each. */
     private val text = "alpha beta\ngamma delta\n"
+
+    /** The definition target that [navigating] answers. */
     private val target = Location(Path.of("target.kstates").toAbsolutePath(), TextRange(1, 2))
 
+    /** Language services whose definition requests always answer [target]. */
     private fun navigating() = FakeLanguageServices(definitions = { _, _ -> listOf(target) })
 
+    /** Language services that offer `x` at every offset with an empty replace range. */
     private fun completingX() = FakeLanguageServices(
         completions = { _, offset ->
             listOf(CompletionItem("x", CompletionKind.KEYWORD, "x", TextRange.empty(offset), null, null, null, "x"))

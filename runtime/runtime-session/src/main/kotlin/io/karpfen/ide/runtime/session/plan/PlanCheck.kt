@@ -18,9 +18,10 @@ package io.karpfen.ide.runtime.session.plan
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 
 /**
- * One check of a planned deployment, a specification the subject must satisfy: it answers the problems it finds, none
- * if the subject satisfies it. Checks are pure and independent of each other; a check whose input is missing (no
- * context, a model that was not read) finds nothing and leaves the report to the check that covers the missing input.
+ * One check of a planned deployment. It is a rule that the subject must satisfy, in the style of the specification
+ * design pattern. It returns the problems it finds, and none if the subject satisfies it. Checks are pure and
+ * independent of each other. A check whose input is missing finds nothing. Examples are a missing context or a model
+ * that was not read. The check that covers the missing input reports it.
  */
 internal fun interface PlanCheck {
     /** The problems of [subject] this check finds, in a stable order. */
@@ -30,8 +31,8 @@ internal fun interface PlanCheck {
 /** The checks the planner runs, in the order their findings are reported. Stateless. */
 internal object PlanChecks {
     /**
-     * The problems gate: a context to deploy, the saved state of its files and the descriptor, no error in the
-     * analyzed texts, and a metamodel and a model that were read. Only a subject that passes the gate is checked
+     * The problems gate. It requires a context to deploy, the saved state of its files and the descriptor, no error
+     * in the analyzed texts, and a metamodel and a model that were read. Only a subject that passes the gate is checked
      * further.
      */
     fun gate(): List<PlanCheck> = listOf(NoContextCheck(), UnsavedFileCheck(), ContextErrorsCheck(), MissingInputsCheck())

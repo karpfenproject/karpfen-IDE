@@ -24,19 +24,27 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Covers the client's catalogue of the runtime against the runtime's own source, the karpfen-runtime submodule at the
- * branch with IDE support: every fact the client relies on occurs verbatim in the runtime's Kotlin files. The routes
- * and the order in which each reads its parameters, every rejection text as the runtime writes it, the mapping of
- * exceptions to statuses, the WebSocket path, handshake and close reasons, the shapes of the keys, the reads of inbound
- * event frames and the detection of their payload format, the observatory's eviction and wildcard, the members and
- * phases of the snapshot with its wait for a tick boundary, the decisive lines of the runtime's JSON writer, and the
- * members of the `stateChange` and `domainEvent` payloads. A failure names the file and the snippet that no longer
- * occurs. The texts of the runtime's older dsl-tools parser are not anchored; the live runs cover them.
+ * Covers the client's catalogue of the runtime against the runtime's own source. That source is the karpfen-runtime
+ * submodule at the branch with IDE support. Every fact the client relies on occurs verbatim in the runtime's Kotlin
+ * files. The anchored facts are these.
+ * - The routes and the order in which each reads its parameters.
+ * - Every rejection text as the runtime writes it.
+ * - The mapping of exceptions to statuses.
+ * - The WebSocket path, handshake and close reasons.
+ * - The shapes of the keys.
+ * - The reads of inbound event frames and the detection of their payload format.
+ * - The observatory's eviction and wildcard.
+ * - The members and phases of the snapshot with its wait for a tick boundary.
+ * - The decisive lines of the runtime's JSON writer.
+ * - The members of the `stateChange` and `domainEvent` payloads.
+ *
+ * A failure names the file and the snippet that no longer occurs. The texts of the runtime's older dsl-tools parser
+ * are not anchored. The live runs cover them.
  *
  * Moving the karpfen-runtime submodule makes these anchors, the route completeness and the template goldens fail
- * exactly where facts changed. The procedure: update the catalogue, the fake runtime's defaults and the runtime
- * goldens together with the client, run the live suite against the moved runtime with `runtime/live-runtime.sh test`,
- * and only then update the anchors here.
+ * exactly where facts changed. Then update the catalogue, the fake runtime's defaults and the runtime goldens together
+ * with the client. Run the live suite against the moved runtime with `runtime/live-runtime.sh test`. Only then update
+ * the anchors here.
  */
 class RuntimeSourceAnchorTest {
 

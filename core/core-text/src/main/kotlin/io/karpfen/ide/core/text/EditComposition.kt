@@ -16,12 +16,13 @@
 package io.karpfen.ide.core.text
 
 /**
- * Composes two scripts into one: the result, applied to a text of length [baseLength], gives the same text as applying
- * this script and then [next] (whose edits are in the coordinates of this script's result).
+ * Composes two scripts into one. Applied to a text of length [baseLength], the result gives the same text as applying
+ * this script and then [next]. The edits of [next] are in the coordinates of this script's result.
  *
- * The undo history uses it to keep a step that consists of several changes (a group, a coalesced typing run) as one
- * forward and one backward script, so undo and redo apply it as exactly one change. The result is minimal with respect
- * to the characters of the base text that survive both scripts: everything in between becomes one edit.
+ * The undo history uses it to keep a step that consists of several changes, such as a group or a coalesced typing run,
+ * as one forward and one backward script. Undo and redo then apply the step as exactly one change. The result is
+ * minimal with respect to the characters of the base text that survive both scripts. Everything between two surviving
+ * parts becomes one edit.
  *
  * @throws IllegalArgumentException if [next] reaches past the end of this script's result.
  */
@@ -64,7 +65,7 @@ private sealed interface Piece {
     }
 }
 
-/** The result of this script described as pieces of the base text (of length [baseLength]) and inserted text. */
+/** The result of this script, described as pieces of the base text of length [baseLength] and as inserted text. */
 private fun EditScript.piecesOver(baseLength: Int): List<Piece> {
     val pieces = ArrayList<Piece>(2 * edits.size + 1)
     var position = 0

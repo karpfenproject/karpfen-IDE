@@ -24,9 +24,10 @@ import androidx.compose.ui.focus.FocusRequester
 import io.karpfen.ide.ui.editor.overlay.EditorOverlayHost
 
 /**
- * The find/replace bar while `overlays.findBar` is open, rendering the model's query, replacement and matches. Only
- * the fields' selection and composition live in the editor's composition ([FindBarFields]); every change of
- * `overlays.findFocusRequests` focuses the query field and selects the query ([FindBarFields.takeFocusRequest]).
+ * Shows the find and replace bar while `overlays.findBar` is open. The bar renders the query, the replacement and the
+ * matches of the model. Only the selection and composition of the fields live in the editor's composition, in
+ * [FindBarFields]. Every change of `overlays.findFocusRequests` focuses the query field and selects the query through
+ * [FindBarFields.takeFocusRequest].
  */
 @Composable
 internal fun FindBarSlot(host: EditorOverlayHost, intents: PopupIntents) {
@@ -63,10 +64,11 @@ internal fun FindBarSlot(host: EditorOverlayHost, intents: PopupIntents) {
 }
 
 /**
- * The completion list while a session is open, anchored at the caret. While the caret is out of view the list cannot
- * be shown: a caret about to be revealed (the keystroke or request that opened the list scrolls to it) only delays the
- * list, while a caret the user scrolled away ([EditorOverlayHost.isCaretScrolledAway]) makes the session hidden
- * ([PopupIntents.completionHidden]), so a list nobody sees never takes the keys (Enter, Tab, arrows) of the text area.
+ * Shows the completion list while a session is open, anchored at the caret. While the caret is out of view, the list
+ * cannot be shown. There are two cases. A caret that is about to be revealed only delays the list, because the
+ * keystroke or request that opened the list scrolls to it. A caret the user scrolled away
+ * ([EditorOverlayHost.isCaretScrolledAway]) closes the session through [PopupIntents.completionHidden]. So a list
+ * nobody sees never takes keys such as Enter, Tab and the arrows from the text area.
  */
 @Composable
 internal fun CompletionSlot(host: EditorOverlayHost, intents: PopupIntents) {
@@ -80,7 +82,7 @@ internal fun CompletionSlot(host: EditorOverlayHost, intents: PopupIntents) {
     CompletionPopup(open, anchor, host.theme, host.textStyle, intents::selectCompletion, intents::acceptCompletion)
 }
 
-/** The hover tooltip while `overlays.hover` is set and the start of its range is on screen (the anchor). */
+/** Shows the hover tooltip while `overlays.hover` is set and the start of its range, which is the anchor, is on screen. */
 @Composable
 internal fun HoverSlot(host: EditorOverlayHost, intents: PopupIntents) {
     val content by host.state.overlays.hover.collectAsState()
@@ -89,7 +91,7 @@ internal fun HoverSlot(host: EditorOverlayHost, intents: PopupIntents) {
     HoverTooltip(shown, anchor, host.theme, host.textStyle, intents::dismissHover, intents::pointerOverTooltip)
 }
 
-/** The go-to-line popup while `overlays.goToLine` is open, with the caret's line and the line count as hint. */
+/** Shows the go-to-line popup while `overlays.goToLine` is open. The hint shows the caret's line and the line count. */
 @Composable
 internal fun GoToLineSlot(host: EditorOverlayHost, intents: PopupIntents) {
     val model = host.state
@@ -109,8 +111,8 @@ internal fun GoToLineSlot(host: EditorOverlayHost, intents: PopupIntents) {
 }
 
 /**
- * The context menu while `overlays.contextMenu` is open. Enablement is `EditorPopupModel.isEnabled`, re-evaluated
- * whenever `enabledActions` changes (the menu recomposes with a new predicate).
+ * Shows the context menu while `overlays.contextMenu` is open. Enablement comes from `EditorPopupModel.isEnabled`. It
+ * is evaluated again whenever `enabledActions` changes, because the menu then recomposes with a new predicate.
  */
 @Composable
 internal fun ContextMenuSlot(host: EditorOverlayHost, items: List<EditorContextMenuItem>, intents: PopupIntents) {

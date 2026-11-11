@@ -21,8 +21,9 @@ import io.karpfen.ide.runtime.session.examples.DslTexts
 import io.karpfen.ide.runtime.session.schema.TypeSchema
 
 /**
- * A small event metamodel with a member of every kind, read from its texts as the analysis reads them: the domain types
- * `Point` and `Crate`, and the events `order` (every kind of member) and `ping` (no members).
+ * A small event metamodel with a member of every kind, read from its texts as the analysis reads them. It has the
+ * domain types `Point` and `Crate` and the events `order` and `ping`. `order` has a member of every kind, and `ping`
+ * has no members.
  */
 object OrderEvents {
     /** The domain metamodel's text. */
@@ -49,7 +50,7 @@ type "ping" "Asks for an answer" {
 }
 """
 
-    /** The event metamodel: the events file's types followed by the domain types. */
+    /** The event metamodel, with the events file's types followed by the domain types. */
     val metamodel: Metamodel
         get() = DslTexts.metamodel(EVENTS_TEXT, DslTexts.metamodel(DOMAIN_TEXT).types)
 

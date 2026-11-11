@@ -29,17 +29,18 @@ import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * A [FileWatcher] that reports nothing (the end-to-end tests change no file behind the workspace's back). Its flow
- * stays open until the workspace cancels it, like a real watcher: a completed flow would mean "watching ended".
+ * A [FileWatcher] that reports nothing, because the end-to-end tests change no file behind the workspace's back. Its
+ * flow stays open until the workspace cancels it, like the flow of a real watcher. A completed flow would mean that
+ * watching ended.
  */
 internal class SilentFileWatcher : FileWatcher {
     override fun watch(root: Path, isIgnored: (Path) -> Boolean): Flow<FileChange> = flow { awaitCancellation() }
 }
 
 /**
- * [ProjectFileOperations] on the real file system that records the platform calls (reveal, open externally) instead
- * of making them, so no test starts Finder or another application. Creating and renaming are the production adapter's
- * (headless, so it makes no platform calls itself).
+ * [ProjectFileOperations] on the real file system. It records the platform calls for revealing a file and for opening
+ * it externally instead of making them, so no test starts Finder or another application. Creating and renaming use the
+ * production adapter, which makes no platform calls itself.
  */
 internal class RecordingFileOperations : ProjectFileOperations {
     private val fileSystem = desktopProjectFileOperations()
@@ -73,7 +74,7 @@ internal class RecordingFileOperations : ProjectFileOperations {
     }
 }
 
-/** A [FolderChooser] that is never expected to be asked (the folder comes from the command line). */
+/** A [FolderChooser] that is never expected to be asked, because the folder comes from the command line. */
 internal class UnusedFolderChooser : FolderChooser {
     override suspend fun chooseFolder(title: String, initialDirectory: Path?): Path? =
         throw AssertionError("the end-to-end tests open their folder through prepare")

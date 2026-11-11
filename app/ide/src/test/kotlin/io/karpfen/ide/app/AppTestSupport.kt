@@ -58,14 +58,14 @@ import java.nio.file.Path
 import kotlin.time.Duration
 
 /**
- * A scripted [WorkbenchState], so the app tests check the composition root on its own: records the calls of the
- * composition root, registers one command, and lets a test decide how long `openFolder` takes and whether it asks a
+ * A scripted [WorkbenchState], so the app tests check the composition root on its own. It records the calls of the
+ * composition root and registers one command. A test decides how long `openFolder` takes and whether it asks a
  * dialog, whether `start` fails, how `requestExit` answers and how long `shutdownRuntime` takes. The composition root
  * never touches the sub-states outside the window, so the fake fails on access instead of constructing the workbench's
  * sub-states.
  */
 internal class FakeWorkbenchState(val scope: CoroutineScope, val services: WorkbenchServices) : WorkbenchState {
-    /** The calls of the composition root, in order (`openFolder` with its path). */
+    /** The calls of the composition root, in order. A call of `openFolder` is recorded with its path. */
     val calls = mutableListOf<String>()
 
     /** The registry the commands were registered in, or null before `registerCommands`. */
@@ -80,7 +80,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     /** When set, `start` throws it. */
     var startFailure: Exception? = null
 
-    /** When set, `openFolder` asks this dialog (and waits for the answer) before the folder counts as opened. */
+    /** When set, `openFolder` asks this dialog and waits for the answer before the folder counts as opened. */
     var openFolderAsks: DialogRequest<*>? = null
 
     /** `requestExit` waits for this answer. */
@@ -165,9 +165,9 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
 }
 
 /**
- * A services factory that counts its calls and builds [WorkbenchServices] of fakes for [platform] (the keymap's
- * platform is the services' platform) over the output of the language tools that the composition root passes; none of
- * the other collaborators is used by the composition root.
+ * A services factory that counts its calls and builds [WorkbenchServices] of fakes for [platform], over the output of
+ * the language tools that the composition root passes. The keymap's platform is the services' platform. The
+ * composition root uses none of the other collaborators.
  */
 internal class RecordingServicesFactory(
     private val platform: HostPlatform,
@@ -198,7 +198,7 @@ internal class RecordingServicesFactory(
         return services
     }
 
-    /** Settings the composition root never loads or writes (the workbench state does). */
+    /** Settings the composition root never loads or writes. The workbench state does that. */
     private object UnusedSettings : SettingsRepository {
         override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
         override suspend fun load(): IdeSettings = throw AssertionError("settings are loaded by the workbench state")

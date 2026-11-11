@@ -16,9 +16,9 @@
 package io.karpfen.ide.bridges.api
 
 /**
- * Placeholder of the `bridge-api` module, kept from the phase-0 skeleton until a later increment builds it. The module
- * is to hold bridge lifecycle, sources and sinks, codecs and the mapping SPI. The README lists it among the modules of
- * later increments.
+ * Placeholder of the `bridge-api` module, which holds no code yet. The module will hold the bridge lifecycle, sources
+ * and sinks, codecs and the mapping SPI. A bridge connects a running karpfen model to an external system, and its
+ * mappings translate between external messages and the karpfen events and object changes of the runtime protocol.
  */
 public object BridgeApiModule {
     /** The module's name, which is also the name of its directory. */

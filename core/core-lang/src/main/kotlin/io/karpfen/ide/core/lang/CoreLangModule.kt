@@ -16,9 +16,9 @@
 package io.karpfen.ide.core.lang
 
 /**
- * Identity of the `core-lang` module, kept from the phase-0 skeleton: the language services (highlighting, completion,
- * navigation, hover, bracket matching) over the documents and the workspace's project analysis. Start at
- * [LanguageServices]; the module list of the README places the module among the others.
+ * Identity of the `core-lang` module. The module holds the language services: highlighting, completion, navigation,
+ * hover and bracket matching. They work on the documents of `core-document` and on the project analysis of
+ * `core-workspace`. Start reading at [LanguageServices].
  */
 public object CoreLangModule {
     /** The module's name, which is also the name of its directory. */

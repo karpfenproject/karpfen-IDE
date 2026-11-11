@@ -69,7 +69,7 @@ public sealed interface ModelTreeRow {
      * A relation whose targets are held elsewhere, shown as links to their ids.
      *
      * @property relation the relation's key.
-     * @property targets the ids of the targets in order, empty ones for entries that refer to no object.
+     * @property targets the ids of the targets in order. An entry that refers to no keyed object has an empty id.
      */
     public data class Link(
         override val key: String,
@@ -80,10 +80,13 @@ public sealed interface ModelTreeRow {
 }
 
 /**
- * Projects the mirror of an observed model to the rows of its tree: the roots first, then the objects no root holds,
- * each with its simple properties, its links and the objects it holds through containment, those only while it is
- * expanded. A keyed object is held by the owner the mirror's containment names; every other target of a relation is a
- * link. Pure.
+ * Projects the mirror of an observed model to the rows of its tree. It is pure.
+ *
+ * The roots come first, then the objects that no root holds. While an object is expanded, its rows follow it. They are
+ * its simple properties, its links and the objects it holds through containment. A keyed object is held by the owner
+ * that the mirror's containment names. An anonymous object is always held by the object that refers to it. Every other
+ * target of a relation is a link, including an entry that refers to no object. Each keyed object shows once, even if
+ * it is reachable in several ways.
  */
 internal object ModelTreeProjection {
 
@@ -94,7 +97,10 @@ internal object ModelTreeProjection {
     /** The key of the object row of the object [id]. */
     fun keyOf(id: String): String = "$OBJECT$id"
 
-    /** The keys of the objects that hold the object [id], outermost first, following the mirror's containment. */
+    /**
+     * The keys of the objects that hold the object [id], outermost first. It follows the mirror's containment and stops
+     * at a cycle.
+     */
     fun ownersOf(mirror: MirrorSnapshot, id: String): List<String> {
         val owners = ArrayList<String>()
         var current = mirror.containment[id]
@@ -105,7 +111,7 @@ internal object ModelTreeProjection {
         return owners
     }
 
-    /** The words for [value]: numbers without a needless fraction, texts in quotes, lists in brackets. */
+    /** The words for [value]. Numbers have no needless fraction, texts are in quotes and lists are in brackets. */
     fun text(value: PropertyValue): String = when (value) {
         is PropertyValue.Single -> text(value.value)
         is PropertyValue.Many -> value.values.joinToString(", ", "[", "]") { text(it) }
@@ -118,7 +124,7 @@ internal object ModelTreeProjection {
         is ScalarValue.Flag -> value.value.toString()
     }
 
-    /** The words for [number]: a whole number without its fraction. */
+    /** The words for [number]. A whole number below 1e15 in magnitude is written without its fraction. */
     private fun number(number: Double): String =
         if (number % 1.0 == 0.0 && abs(number) < WHOLE) number.toLong().toString() else number.toString()
 

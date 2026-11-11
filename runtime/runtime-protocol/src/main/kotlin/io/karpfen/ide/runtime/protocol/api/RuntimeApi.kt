@@ -22,17 +22,17 @@ import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 
 /**
- * The raw gateway to the runtime: one function per [RuntimeRoute] with typed parameters, without any lifecycle guard.
- * Only the client's own environment handles and the client facade call it; the handles guard it.
+ * The raw gateway to the runtime. It has one function per [RuntimeRoute] with typed parameters and applies no
+ * lifecycle guard. Only the client's own environment handles and the client facade call it, and the handles do the
+ * guarding.
  *
- * Threading (MUST): every function may be called from any coroutine, concurrently; each waits at most the timeout of
- * its route's timeout class.
+ * Every function may be called from any coroutine, also concurrently. Each waits at most the timeout of its route's
+ * timeout class.
  *
- * Contract (MUST):
- * - No function throws for a runtime or transport failure; failures are [RuntimeResult.Failed].
- * - Parameter values must not be blank (the runtime would read an empty value as present and fail later); a blank value
- *   is a programming error and throws [IllegalArgumentException] before anything is sent.
- * - A `CancellationException` of the caller is always rethrown.
+ * No function throws for a runtime or transport failure. Failures are [RuntimeResult.Failed]. A
+ * `CancellationException` of the caller is always rethrown. Parameter values must not be blank, because the runtime
+ * would read an empty value as present and fail later. A blank value is a programming error and throws
+ * [IllegalArgumentException] before anything is sent.
  */
 internal interface RuntimeApi {
     /** `POST /createEnvironment`: a new environment key. */
@@ -65,7 +65,10 @@ internal interface RuntimeApi {
     /** `POST /registerDomainListener`: registers [client] as a listener of the event [domain] of [environment]. */
     suspend fun registerDomainListener(environment: EnvironmentKey, client: ClientId, domain: String): RuntimeResult<Unit>
 
-    /** `POST /registerClientForWebSocket`: an access key of [client] for [environment], without an observatory element. */
+    /**
+     * `POST /registerClientForWebSocket`: an access key of [client] for [environment], without an observatory
+     * registration.
+     */
     suspend fun registerClientForWebSocket(client: ClientId, environment: EnvironmentKey): RuntimeResult<AccessKey>
 
     /** `POST /runEnvironment`: activates [environment]. */
@@ -87,8 +90,8 @@ internal interface RuntimeApi {
     suspend fun stateMachineSource(environment: EnvironmentKey, modelElement: String): RuntimeResult<String>
 
     /**
-     * `POST /observatory/registerClient`: an access key of [client] for [environment] that also registers the stack
-     * changes of [modelElement], `*` for every machine.
+     * `POST /observatory/registerClient`: an access key of [client] for [environment]. The call also registers the
+     * client for the stack changes of the machine on [modelElement]. The value `*` stands for every machine.
      */
     suspend fun registerObservatoryClient(client: ClientId, environment: EnvironmentKey, modelElement: String): RuntimeResult<AccessKey>
 
@@ -102,9 +105,9 @@ internal interface RuntimeApi {
     suspend fun unsubscribeModel(environment: EnvironmentKey, client: ClientId): RuntimeResult<Unit>
 
     /**
-     * Checks that the runtime has the routes of IDE support: `GET /observatory/model` without parameters, which such a
-     * runtime answers with 400 and exactly `Missing required parameter: envKey`. That answer is [RuntimeResult.Ok]; any
-     * other, a 404 of a runtime without the route among them, is a failure.
+     * Checks that the runtime has the routes of IDE support. It calls `GET /observatory/model` without parameters. A
+     * runtime with IDE support answers that with 400 and exactly `Missing required parameter: envKey`, and that answer
+     * becomes [RuntimeResult.Ok]. Any other answer is a failure, among them the 404 of a runtime without the route.
      */
     suspend fun probeSnapshotRoute(): RuntimeResult<Unit>
 }

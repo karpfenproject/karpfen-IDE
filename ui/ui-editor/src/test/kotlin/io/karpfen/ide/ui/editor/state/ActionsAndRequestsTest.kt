@@ -32,13 +32,16 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Action execution and the UI requests of actions: enablement follows the carets, the text and the undo history; the
- * find, go-to-line and completion requests reach the models and the overlay state; paste uses the editor's clipboard.
+ * Action execution and the UI requests of actions. Enablement follows the carets, the text and the undo history. The
+ * find, go-to-line and completion requests reach the models and the overlay state. Paste uses the editor's clipboard.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ActionsAndRequestsTest {
 
-    /** Enabled only while text is selected (the default actions' enablement does not depend on the selection). */
+    /**
+     * An action that is enabled only while text is selected. The enablement of the default actions does not depend on
+     * the selection, so the test needs an action of its own.
+     */
     private class SelectionOnlyAction : EditorAction {
         override val id: String = "test.selectionOnly"
 

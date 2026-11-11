@@ -46,12 +46,12 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers what a running session observes, end to end against the fake runtime, which answers only what each test
- * programs: object and stack pushes reach the observed model, the states and the model updates in revision order;
- * injected events leave as the exact frames the runtime reads; observation switched off ignores pushes and switched on
- * reads a snapshot first; a dropped link reconnects with a fresh key, a second epoch and a re-synchronization; a lost
- * push shows as a revision gap and is healed by a snapshot, and only applied pushes are journaled as applied; domain
- * events flow whatever the switch; a pull applies a snapshot, and while the link is down it leaves the model
- * synchronizing; and collectors that call commands while they collect, or never return, never stall the session.
+ * programs. Object and stack pushes reach the observed model, the states and the model updates in revision order.
+ * Injected events leave as the exact frames the runtime reads. Observation switched off ignores pushes, and switched on
+ * it reads a snapshot first. A dropped link reconnects with a fresh key, a second epoch and a re-synchronization. A
+ * lost push shows as a revision gap and is healed by a snapshot. Only applied pushes are journaled as applied. Domain
+ * events flow whatever the switch says. A pull applies a snapshot, and while the link is down it leaves the model
+ * synchronizing. Collectors that call commands while they collect, or that never return, never stall the session.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionObservationTest {
@@ -329,7 +329,10 @@ class RuntimeSessionObservationTest {
         session.close()
     }
 
-    /** Pushes [BURST] stack changes of the lamp to [session], from revision [FIRST_PUSH] on, without letting them be taken. */
+    /**
+     * Pushes [BURST] stack changes of the lamp to [session], from revision [FIRST_PUSH] on, without letting them be
+     * taken.
+     */
     private fun pushBurst(rig: SessionRig, session: RuntimeSession) {
         val link = rig.linkOf(session)
         for (revision in FIRST_PUSH until FIRST_PUSH + BURST) {

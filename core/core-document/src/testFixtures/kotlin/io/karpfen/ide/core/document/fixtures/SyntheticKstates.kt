@@ -19,24 +19,25 @@ package io.karpfen.ide.core.document.fixtures
  * Generates large, syntactically valid KStates documents for the time-budget tests and benchmarks of the parse
  * pipeline and the editor.
  *
- * A document with `n` states contains: states `s0` … `s(n-1)` (`s0` is the single INITIAL state; every state whose
- * index is divisible by 10 nests the following up to nine states), ENTRY and DO blocks with SET/APPEND/EVENT actions
- * and multi-line EVAL bodies (Python with `$(…)` paths, `#` comments and `@macro(…)` calls), `IF IN SCOPE` and
- * `WITH … AS` blocks, one transition per state (EVENT, VALUE or EVAL conditions), SPLIT/JOIN pairs and a MACROS
- * block. The output is deterministic and also converts with dsl-tools' `KstatesDSLConverter`.
+ * A document with `n` states contains the states `s0` to `s(n-1)`. `s0` is the single INITIAL state. Every state whose
+ * index is divisible by 10 nests up to nine of the states that follow it. The states have ENTRY and DO blocks with
+ * SET, APPEND and EVENT actions and multi-line EVAL bodies. These bodies hold Python with `$(...)` paths, `#` comments
+ * and `@macro(...)` calls. The document also has `IF IN SCOPE` and `WITH ... AS` blocks, one transition per state with
+ * an EVENT, VALUE or EVAL condition, SPLIT and JOIN pairs and a MACROS block. The output is deterministic and also
+ * converts with the `KstatesDSLConverter` of dsl-tools.
  */
 public object SyntheticKstates {
 
     /** The type the generated machine is attached to. */
     public const val ATTACHED_TYPE: String = "Robot"
 
-    /** Same as [generate]: `SyntheticKstates(5000)`. */
+    /** Same as [generate]. It lets callers write `SyntheticKstates(5000)`. */
     public operator fun invoke(stateCount: Int): String = generate(stateCount)
 
-    /** Name of the state with [index]. */
+    /** The name of the state with [index]. */
     public fun stateName(index: Int): String = "s$index"
 
-    /** A document with [stateCount] states (`>= 1`). */
+    /** A document with [stateCount] states. [stateCount] must be at least 1. */
     public fun generate(stateCount: Int): String {
         require(stateCount >= 1) { "stateCount must be >= 1, was $stateCount" }
         val out = StringBuilder()
@@ -61,7 +62,10 @@ public object SyntheticKstates {
         return out.toString()
     }
 
-    /** The smallest generated document (by state count, searched upwards) with at least [minLines] lines. */
+    /**
+     * The smallest generated document with at least [minLines] lines. The search counts the states upwards until the
+     * document is long enough.
+     */
     public fun withMinLines(minLines: Int): String {
         require(minLines >= 1) { "minLines must be >= 1, was $minLines" }
         var count = maxOf(1, minLines / LINES_PER_STATE_ESTIMATE)
@@ -73,7 +77,7 @@ public object SyntheticKstates {
         return text
     }
 
-    /** Number of `\n`-separated lines of [text]. */
+    /** The number of lines of [text], separated by `\n`. */
     public fun lineCount(text: String): Int = text.count { it == '\n' } + 1
 
     private const val LINES_PER_STATE_ESTIMATE = 30

@@ -16,9 +16,9 @@
 package io.karpfen.ide.ui.editor.model.action
 
 /**
- * Undo or redo, restoring the carets recorded with the step (`UndoResult.carets`); enabled only while the text's
- * `UndoManager.canUndo`/`canRedo` is true. A step recorded without carets leaves them to the caret model, which maps
- * them through the change.
+ * Undo or redo. The action restores the carets that were recorded with the undo step (`UndoResult.carets`). It is
+ * enabled only while `UndoManager.canUndo` or `UndoManager.canRedo` of the text is true. If a step was recorded without
+ * carets, the action leaves the carets alone and the caret model maps them through the change.
  */
 internal class HistoryAction(private val redo: Boolean) : EditorAction {
     override val id: String = if (redo) EditorActionIds.REDO else EditorActionIds.UNDO

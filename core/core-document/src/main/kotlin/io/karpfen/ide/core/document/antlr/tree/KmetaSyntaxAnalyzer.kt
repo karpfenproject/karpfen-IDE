@@ -23,14 +23,15 @@ import io.karpfen.ide.core.document.parse.SyntaxAnalyzer
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Parses KMeta with the generated dsl-tools [KmetaParser] (default error recovery) on a `CommonTokenStream` of
- * `KarpfenLexers.create`, with one `IdeErrorListener` attached to lexer and parser, and walks the tree into outline,
- * index, folding and semantic spans. Tolerates conjured "missing" tokens (negative indices) and error
- * nodes; token offsets are converted with `CodePointOffsets`. COMMENT folding (runs of ≥ 2 comment lines) uses the
- * comment pieces of `LexerGaps.scan`, the same ones the tokenizer turns into COMMENT tokens.
+ * Parses KMeta with the generated dsl-tools [KmetaParser] and its default error recovery. The parser reads a
+ * `CommonTokenStream` of `KarpfenLexers.create`, and one `IdeErrorListener` is attached to both lexer and parser. The
+ * analyzer then walks the tree into outline, index, folding and semantic spans. It tolerates the "missing" tokens that
+ * ANTLR conjures, which have negative indices, and error nodes. Token offsets are converted with `CodePointOffsets`.
+ * COMMENT folding of runs of two or more comment lines uses the comment pieces of `LexerGaps.scan`, the same pieces
+ * that the tokenizer turns into COMMENT tokens.
  *
- * Collaborators: [TreeParser] (parse), [KmetaTreeWalker] (outline, index, spans), [BlockFolding] and [CommentFolding].
- * Stateless and thread-safe.
+ * [TreeParser] parses, [KmetaTreeWalker] builds outline, index and spans, and [BlockFolding] and [CommentFolding] fold.
+ * The class holds no state and is thread-safe.
  */
 internal class KmetaSyntaxAnalyzer : SyntaxAnalyzer {
     override val language: KarpfenLanguage = KarpfenLanguage.KMETA

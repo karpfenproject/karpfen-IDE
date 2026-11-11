@@ -16,10 +16,11 @@
 import io.karpfen.ide.buildlogic.LiveRuntimeTesting
 
 /**
- * Deployment of a workspace's environment descriptor to the karpfen runtime and the session around it: the plan and
- * its preflight checks, the deploy pipeline, the observed model and active states, and the event injector. Its
- * scenarios also run against a real runtime through the live task of `karpfen.live-runtime-test`, and its test fixtures
- * turn analyzed models into the runtime's JSON for the fake runtime and offer a scriptable session for the UI tests.
+ * Deployment of a workspace's environment descriptor to the karpfen runtime, and the session around it. The module
+ * holds the plan with its preflight checks, the deploy pipeline, the observed model and active states, and the event
+ * injector. Its scenarios also run against a real runtime through the live task of `karpfen.live-runtime-test`. Its
+ * test fixtures turn analyzed models into the runtime's JSON for the fake runtime and offer a scriptable session for
+ * the UI tests.
  */
 plugins {
     id("karpfen.live-runtime-test")
@@ -46,8 +47,8 @@ dependencies {
 }
 
 /**
- * The live scenarios of the session run after those of the protocol when both live tasks run in one build: the
- * protocol's scenarios check the wire the session builds on, so a drift shows there first.
+ * The live scenarios of the session run after those of the protocol when both live tasks run in one build. The
+ * protocol's scenarios check the wire that the session builds on, so a drift shows there first.
  */
 tasks.named(LiveRuntimeTesting.TASK_NAME) {
     mustRunAfter(":runtime:runtime-protocol:liveRuntimeTest")

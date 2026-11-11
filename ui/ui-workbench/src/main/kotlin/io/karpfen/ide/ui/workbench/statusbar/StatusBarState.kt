@@ -37,11 +37,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * What the status bar shows: `Ln x, Col y` (one-based; [column] is the display column with tabs expanded by `TabStops`
- * of the editor's `tabDisplayWidth`, so it matches what the user sees), selection length, language, line separator,
- * encoding, error and warning counts of the workspace (`WorkspaceProblems.errorCount`/`warningCount`), "Analyzing…",
- * the errors and warnings of the language tools that arrived while their output was hidden ([unseenOutput]), and what
- * the runtime of the workspace is doing ([runtime], null without a workspace).
+ * What the status bar shows.
+ *
+ * [line] and [column] are one-based and appear as `Ln x, Col y`. The column is the display column, with tabs expanded
+ * by `TabStops` of the editor's `tabDisplayWidth`, so it matches what the user sees. The state also holds the selection
+ * length, the language, the line separator and the encoding. The error and warning counts of the workspace come from
+ * `WorkspaceProblems.errorCount` and `WorkspaceProblems.warningCount`. [isAnalyzing] shows "Analyzing…".
+ * [unseenOutput] holds the errors and warnings of the language tools that arrived while their output was hidden.
+ * [runtime] tells what the runtime of the workspace is doing. It is null while no workspace is open.
  */
 public data class StatusBarUiState(
     public val line: Int? = null,
@@ -58,9 +61,9 @@ public data class StatusBarUiState(
 )
 
 /**
- * Status bar state; follows the active editor and the workspace (collected in [scope]) and shows what the mediator
- * passes on from the Language Tools Output. The bindings are mediator operations and internal, so no view can bypass
- * the mediator. The caret position is [CaretPositionText]'s.
+ * The state of the status bar. It follows the active editor and the workspace, collected in [scope]. It also shows
+ * what the mediator passes on from the Language Tools Output and the runtime. The bindings are operations of the
+ * mediator and are internal, so no view can bypass the mediator. [CaretPositionText] computes the caret position.
  */
 public class StatusBarState(private val scope: CoroutineScope) {
 
@@ -71,7 +74,10 @@ public class StatusBarState(private val scope: CoroutineScope) {
     /** What the status bar shows. */
     public val state: StateFlow<StatusBarUiState> get() = status.asStateFlow()
 
-    /** Follows the active [document] and its [editor] (null: no editor). Mediator only. */
+    /**
+     * Follows the active [document] and its [editor]. Null for either clears the editor's part. Only the mediator
+     * calls it.
+     */
     internal fun bindEditor(document: OpenDocument?, editor: EditorHandle?) {
         editorBinding?.cancel()
         editorBinding = null
@@ -98,7 +104,10 @@ public class StatusBarState(private val scope: CoroutineScope) {
         }
     }
 
-    /** Follows [workspace] for the problem counts (`Workspace.problems`) and the analyzing flag. Mediator only. */
+    /**
+     * Follows [workspace] for the problem counts from `Workspace.problems` and for the analyzing flag. Only the
+     * mediator calls it.
+     */
     internal fun bindWorkspace(workspace: Workspace?) {
         workspaceBinding?.cancel()
         workspaceBinding = null
@@ -115,17 +124,23 @@ public class StatusBarState(private val scope: CoroutineScope) {
         }
     }
 
-    /** Shows [unseen] errors and warnings of the language tools, as the Language Tools Output counts them. Mediator only. */
+    /**
+     * Shows the [unseen] errors and warnings of the language tools, as the Language Tools Output counts them. Only the
+     * mediator calls it.
+     */
     internal fun showUnseenOutput(unseen: UnseenOutputProblems) {
         status.update { it.copy(unseenOutput = unseen) }
     }
 
-    /** Shows what the runtime of the workspace is doing; null without a workspace. Mediator only. */
+    /**
+     * Shows what the runtime of the workspace is doing. Null removes the segment, which happens while no workspace is
+     * open. Only the mediator calls it.
+     */
     internal fun showRuntime(runtime: HostStatus?) {
         status.update { it.copy(runtime = runtime) }
     }
 
-    /** This state without the editor's part (caret, selection, language, line separator). */
+    /** This state without the editor's part, which is the caret, the selection, the language and the line separator. */
     private fun StatusBarUiState.withoutEditor(): StatusBarUiState =
         copy(line = null, column = null, selectionLength = 0, language = null, lineSeparator = null)
 }

@@ -22,24 +22,24 @@ package io.karpfen.ide.buildlogic
  * and the functional test of the plugin share.
  */
 object LiveRuntimeTesting {
-    /** The task that runs only the tests tagged [TestTags.LIVE_RUNTIME]; nothing depends on it. */
+    /** The task that runs only the tests tagged [TestTags.LIVE_RUNTIME]. No other task depends on it. */
     const val TASK_NAME: String = "liveRuntimeTest"
 
     /**
-     * The group of [TASK_NAME]: a group of its own, so that the task is not listed among the ordinary verification
+     * The group of [TASK_NAME]. It is a group of its own, so the task is not listed among the ordinary verification
      * tasks, which a build runs as part of `check`.
      */
     const val TASK_GROUP: String = "live runtime"
 
     /**
-     * The URL of the runtime the live tests talk to, such as `http://127.0.0.1:49153`: the Gradle property that the
-     * task reads and the system property under which the test JVM receives it.
+     * The URL of the runtime the live tests talk to, such as `http://127.0.0.1:49153`. It is the name of both the Gradle
+     * property that the task reads and the system property under which the test JVM receives the URL.
      */
     const val URL_PROPERTY: String = "karpfen.runtime.url"
 
     /**
-     * The folder of the runtime's logs of a live run, which failure messages of the live tests name: the Gradle
-     * property and the system property of the test JVM, both optional.
+     * The folder of the runtime's logs of a live run, which the failure messages of the live tests name. It is the name
+     * of both the Gradle property and the system property of the test JVM, and both are optional.
      */
     const val LOGS_PROPERTY: String = "karpfen.runtime.logs"
 

@@ -34,18 +34,22 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * The key routing of the editor state: `handleKey` asks the completion session first, then the keymap, and returns true
- * exactly for the strokes it handled. The completion keys per platform: Ctrl+M everywhere, Ctrl+Space on Windows only.
+ * The key routing of the editor state. `handleKey` asks the completion session first and then the keymap, and it
+ * returns true exactly for the strokes it handled. The completion keys depend on the platform. Ctrl+M works everywhere,
+ * and Ctrl+Space works only on Windows.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class KeyRoutingTest {
 
+    /** The items `alpha`, `beta` and `gamma` with an empty replace range at [offset]. */
     private fun items(offset: Int) = listOf("alpha", "beta", "gamma").map {
         CompletionItem(it, CompletionKind.KEYWORD, it, TextRange.empty(offset), null, null, null, it)
     }
 
+    /** Language services that offer [items] at every offset. */
     private fun completing() = FakeLanguageServices(completions = { _, offset -> items(offset) })
 
+    /** Language services that offer `alpha` and replace everything from the start of the text to the offset. */
     private fun typingAlpha() = FakeLanguageServices(
         completions = { _, offset ->
             listOf(CompletionItem("alpha", CompletionKind.KEYWORD, "alpha", TextRange(0, offset), null, null, null, "a"))

@@ -42,8 +42,9 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `navigateTo`: opening the target, versioned ranges mapped into the live text with `EditableText.mapRange`, clamping,
- * files the editor cannot open, and navigation requests of editors collected for their whole life.
+ * Tests `navigateTo`. It covers opening the target, mapping versioned ranges into the live text with
+ * `EditableText.mapRange`, and clamping. It also covers files the editor cannot open, and that the navigation requests
+ * of editors are collected for their whole life.
  */
 class NavigationTest {
 

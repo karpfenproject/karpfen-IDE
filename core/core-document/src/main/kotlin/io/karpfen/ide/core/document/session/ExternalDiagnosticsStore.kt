@@ -25,18 +25,18 @@ import kotlinx.coroutines.flow.update
 import org.slf4j.LoggerFactory
 
 /**
- * The [diagnostics] an external source reported for [snapshot] (immutable).
+ * The [diagnostics] that an external source reported for [snapshot]. The set is immutable.
  *
  * @property snapshot the text the ranges of [diagnostics] refer to.
  */
 internal data class ExternalDiagnosticSet(val snapshot: TextSnapshot, val diagnostics: List<Diagnostic>)
 
 /**
- * The external diagnostic sets of one document by source (`DocumentSession.setExternalDiagnostics`). Thread-safe: the
- * sets are an immutable map in a [MutableStateFlow] replaced atomically, so any thread may [set] while the session's
- * merger observes [sets].
+ * The external diagnostic sets of one document by source, as [DocumentSession.setExternalDiagnostics] reports them.
+ * The store is thread-safe. The sets are an immutable map in a [MutableStateFlow] that is replaced atomically. So any
+ * thread may [set] while the session's merger observes [sets].
  *
- * @param lineage the lineage of the document's text; sets computed for a snapshot of another lineage are ignored,
+ * @param lineage the lineage of the document's text. Sets computed for a snapshot of another lineage are ignored,
  *   because their ranges cannot be mapped into this text.
  */
 internal class ExternalDiagnosticsStore(private val lineage: TextLineage) {
@@ -47,8 +47,8 @@ internal class ExternalDiagnosticsStore(private val lineage: TextLineage) {
     val sets: StateFlow<Map<String, ExternalDiagnosticSet>> = state.asStateFlow()
 
     /**
-     * Replaces the set of [source] by [diagnostics] computed for [snapshot] (a copy is kept); an empty list removes it.
-     * Returns false, changing nothing, if [snapshot] belongs to another lineage.
+     * Replaces the set of [source] by [diagnostics] computed for [snapshot]. The store keeps a copy of the list. An
+     * empty list removes the set. Returns false and changes nothing if [snapshot] belongs to another lineage.
      */
     fun set(source: String, snapshot: TextSnapshot, diagnostics: List<Diagnostic>): Boolean {
         if (snapshot.lineage !== lineage) {

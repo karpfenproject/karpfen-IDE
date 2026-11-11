@@ -26,11 +26,12 @@ import io.karpfen.ide.runtime.protocol.message.EventFrame
 import io.karpfen.ide.runtime.session.deploy.FailureLocator
 
 /**
- * The calls behind a session's commands and events, and how their outcomes become the session's: the conductor decides
- * whether a command is allowed and settles the state afterwards; this class makes the call through the environment's
- * handle, the router or the connection and answers its outcome. A rejection by the runtime is a refusal with the
- * runtime's text; every failure is journaled. It also keeps the events sent without an observed reaction since the
- * last start or forced state, and notes before forcing a state that they may be discarded. Confined to the conductor.
+ * The calls behind a session's commands and events, and how their outcomes become the session's outcomes. The
+ * conductor decides whether a command is allowed and settles the state afterwards. This class makes the call through
+ * the environment's handle, the router or the connection, and returns its outcome. A rejection by the runtime becomes a
+ * refusal with the runtime's text. A rejection for an unknown environment is a failure instead. Every failure is
+ * journaled. The class also tracks the events sent without an observed reaction since the last start or forced state.
+ * Before it forces a state, it notes in the journal that those events may be discarded. Confined to the conductor.
  *
  * @param router the session's router, for the observation calls and the journal.
  * @param locator turns failures of the runtime into problems.
@@ -46,7 +47,10 @@ internal class SessionCalls(
     /** The events sent without an observed reaction since the last start or forced state. */
     private val unanswered = UnansweredEvents()
 
-    /** Calls what [command] does for [environment]; never the stop, which the conductor runs on its own. */
+    /**
+     * Makes the call that [command] stands for on [environment]. It never handles the stop, because the conductor runs
+     * the stop on its own.
+     */
     suspend fun perform(command: SessionCommand, environment: RuntimeEnvironment): SessionCommandOutcome =
         when (command) {
             SessionCommand.Start -> outcomeOf(environment.start()) { unanswered.reset() }
@@ -59,7 +63,10 @@ internal class SessionCalls(
             SessionCommand.Stop -> error("the conductor stops the environment on its own")
         }
 
-    /** Sends [frame] over [connection], journaling it and counting it as unanswered once written. */
+    /**
+     * Sends [frame] over [connection]. Once the frame is written, it is journaled and counted as unanswered. Without a
+     * connection the outcome is not connected.
+     */
     suspend fun send(frame: EventFrame, connection: RuntimeConnection?): SendOutcome {
         val outcome = connection?.send(frame) ?: return SendOutcome.NotConnected(ConnectionState.Idle)
         if (outcome is SendOutcome.Written) {
@@ -69,7 +76,10 @@ internal class SessionCalls(
         return outcome
     }
 
-    /** The outcome of a command whose call failed with [failure], journaled. */
+    /**
+     * The outcome of a command whose call failed with [failure]. The failure is journaled. A rejection by the runtime
+     * becomes a refusal with the runtime's text, unless the runtime no longer knows the environment.
+     */
     fun failed(failure: RuntimeFailure): SessionCommandOutcome {
         val problem = locator.unlocated(failure)
         router.record(SessionActivity.CallFailed(problem, clock.elapsed()))
@@ -80,7 +90,7 @@ internal class SessionCalls(
         }
     }
 
-    /** The outcome of a command whose call ended with [call]; [done] runs on success. */
+    /** The outcome of a command whose call ended with [call]. [done] runs on success. */
     private fun outcomeOf(call: CallOutcome<*>, done: () -> Unit = {}): SessionCommandOutcome =
         when (call) {
             is CallOutcome.Done -> {
@@ -110,8 +120,9 @@ internal class SessionCalls(
 }
 
 /**
- * The events sent since the last start or forced state that got no observed reaction: as long as no machine changes its
- * active stack, every sent event counts; a change starts the count again with the next event. Confined to the conductor.
+ * Counts the events sent since the last start or forced state that got no observed reaction. As long as no machine
+ * changes its active stack, every sent event counts. A change of a stack starts the count again with the next event.
+ * Confined to the conductor.
  */
 internal class UnansweredEvents {
     /** The active stacks when the first counted event was sent, or null if none is counted. */
@@ -130,7 +141,9 @@ internal class UnansweredEvents {
         }
     }
 
-    /** The counted events if the machines still have [stacks], else 0: a change of a stack is a reaction. */
+    /**
+     * The counted events if the machines still have [stacks], otherwise 0. A change of a stack counts as a reaction.
+     */
     fun count(stacks: Map<String, List<String>>): Int = if (since == stacks) sent else 0
 
     /** Forgets the counted events, after a start or a forced state. */

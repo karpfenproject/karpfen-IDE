@@ -23,8 +23,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers [DockerEndpointResolver] with a temporary home folder: `DOCKER_HOST` wins, then the endpoint of the current
- * context, then the platform's default socket, and only `unix://` and `npipe://` endpoints are local.
+ * Covers [DockerEndpointResolver] with a temporary home folder. `DOCKER_HOST` wins, then the endpoint of the current
+ * context, then the platform's default socket. Only `unix://` and `npipe://` endpoints are local.
  */
 class DockerEndpointResolverTest {
 

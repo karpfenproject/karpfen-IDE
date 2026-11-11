@@ -15,7 +15,10 @@
  */
 package io.karpfen.ide.runtime.protocol.api
 
-/** The result of a call to the runtime: its value, or why there is none. Calls never throw for runtime failures. */
+/**
+ * The result of a call to the runtime. It holds the value, or the reason why there is none. Calls never throw for
+ * runtime failures.
+ */
 public sealed interface RuntimeResult<out T> {
     /**
      * The call succeeded.
@@ -32,14 +35,17 @@ public sealed interface RuntimeResult<out T> {
     public data class Failed(public val failure: RuntimeFailure) : RuntimeResult<Nothing>
 }
 
-/** The value of a success turned by [transform]; a failure stays as it is. */
+/** Maps the value of a success with [transform]. A failure stays as it is. */
 public inline fun <T, R> RuntimeResult<T>.map(transform: (T) -> R): RuntimeResult<R> =
     when (this) {
         is RuntimeResult.Ok -> RuntimeResult.Ok(transform(value))
         is RuntimeResult.Failed -> this
     }
 
-/** The result of [transform] for the value of a success, which may fail itself; a failure stays as it is. */
+/**
+ * Returns the result of [transform] for the value of a success. The transform may fail itself. A failure stays as it
+ * is.
+ */
 public inline fun <T, R> RuntimeResult<T>.flatMap(transform: (T) -> RuntimeResult<R>): RuntimeResult<R> =
     when (this) {
         is RuntimeResult.Ok -> transform(value)
@@ -53,7 +59,7 @@ public fun <T> RuntimeResult<T>.getOrNull(): T? =
         is RuntimeResult.Failed -> null
     }
 
-/** Runs [action] with the failure if this is one, and answers this result unchanged. */
+/** Runs [action] with the failure if this result is one, and returns this result unchanged. */
 public inline fun <T> RuntimeResult<T>.onFailure(action: (RuntimeFailure) -> Unit): RuntimeResult<T> {
     if (this is RuntimeResult.Failed) action(failure)
     return this

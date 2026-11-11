@@ -22,7 +22,7 @@ import io.karpfen.ide.runtime.session.mirror.ScalarValue
 import io.karpfen.ide.runtime.session.observation.ObservedModel
 import kotlinx.coroutines.flow.SharedFlow
 
-/** The object [id] of the mirror, failing if it has none. */
+/** The object [id] of the mirror. It fails if the mirror has no such object. */
 internal fun MirrorSnapshot.objectOf(id: String): MirrorObject = checkNotNull(objects[id]) { "the mirror has no object '$id': ${objects.keys}" }
 
 /** The text of the single string property [key], or null if the object has none. */

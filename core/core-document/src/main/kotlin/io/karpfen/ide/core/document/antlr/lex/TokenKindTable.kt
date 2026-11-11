@@ -18,12 +18,13 @@ package io.karpfen.ide.core.document.antlr.lex
 import io.karpfen.ide.core.document.syntax.TokenKind
 
 /**
- * The [TokenKind] of each token type of one generated lexer, i.e. the language's vocabulary. Immutable; one constant
- * per language next to its tokenizer.
+ * The [TokenKind] of each token type of one generated lexer, which is the language's vocabulary. A table is immutable.
+ * Each language has one constant next to its tokenizer.
  *
- * Token types without an entry get [fallback] ([TokenKind.ERROR] unless stated otherwise): for the KStates lexer that
- * is its catch-all `SYMBOL` outside EVAL bodies. Types a tokenizer never classifies (skipped whitespace, KMeta/KModel
- * comments) simply have no entry; `TokenKindTableTest` checks that every other type of each vocabulary has one.
+ * Token types without an entry get [fallback], which is [TokenKind.ERROR] unless stated otherwise. For the KStates
+ * lexer that applies to its catch-all `SYMBOL` outside EVAL bodies. Types that a tokenizer never classifies have no
+ * entry, such as skipped whitespace and the comments of KMeta and KModel. `TokenizerBuildingBlocksTest` checks that
+ * every other type of each vocabulary has one.
  */
 internal class TokenKindTable private constructor(
     private val kinds: Map<Int, TokenKind>,
@@ -33,13 +34,13 @@ internal class TokenKindTable private constructor(
     /** The kind of a token of [tokenType]. */
     fun kindOf(tokenType: Int): TokenKind = kinds[tokenType] ?: fallback
 
-    /** True if [tokenType] has an entry of its own (not only the fallback). */
+    /** True if [tokenType] has an entry of its own and does not only get the fallback. */
     fun classifies(tokenType: Int): Boolean = tokenType in kinds
 
     companion object {
         /**
-         * A table from [groups] (a kind and the token types it applies to).
-         * @throws IllegalArgumentException if a token type is listed twice (programming error).
+         * A table from [groups]. Each group pairs a kind with the token types it applies to.
+         * @throws IllegalArgumentException if a token type is listed twice, which is a programming error.
          */
         fun of(vararg groups: Pair<TokenKind, IntArray>, fallback: TokenKind = TokenKind.ERROR): TokenKindTable {
             val kinds = HashMap<Int, TokenKind>()

@@ -18,10 +18,13 @@ package io.karpfen.ide.ui.editor.model.action
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * The editor's lexical guess whether an offset is inside a `"…"` string, from the current line alone (karpfen strings
- * and the Python strings in EVAL bodies do not span lines): an odd number of `"` (not escaped by `\`) before the
- * offset on its line. Typing `"` auto-closes only outside a string (inside one it closes the string), and completion's
- * quote trigger fires only when the typed `"` opened a string. Pure functions without state.
+ * The editor's lexical guess whether an offset lies inside a `"..."` string. It looks at the current line only,
+ * because karpfen strings and the Python strings in EVAL bodies never span lines. An offset is inside a string when an
+ * odd number of `"` precede it on its line, not counting quotes escaped by `\`.
+ *
+ * Two features depend on this guess. Typing `"` auto-closes only outside a string, because inside one the quote closes
+ * the string. The quote trigger of completion fires only when the typed `"` opened a string. The object holds pure
+ * functions and no state.
  */
 internal object StringLiterals {
 

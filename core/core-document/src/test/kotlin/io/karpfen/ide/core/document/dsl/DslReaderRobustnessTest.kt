@@ -28,10 +28,10 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Covers the robustness of the dsl-tools adapter: on deterministic mutations of every example file, syntax errors
- * included, no exception escapes a read, every diagnostic is a DSL_TOOLS diagnostic inside the read text, and a read
- * without a model reports an error. Models are read against the metamodel of their example context, event metamodels
- * with its types as base types, like the project analysis does.
+ * Covers the robustness of the dsl-tools adapter on deterministic mutations of every example file, including syntax
+ * errors. No exception escapes a read, every diagnostic is a DSL_TOOLS diagnostic inside the read text, and a read
+ * without a model reports an error. Models are read against the metamodel of their example context. Event metamodels
+ * are read with its types as base types. This is how the project analysis reads them.
  */
 class DslReaderRobustnessTest {
 
@@ -82,7 +82,9 @@ class DslReaderRobustnessTest {
         /** Mutations of each example file. */
         const val MUTATIONS_PER_FILE = 400
 
-        /** The seed of the first file's mutations; each file's seed is offset by the reads before it. */
+        /**
+         * The seed of the mutations of the first file. The seed of each later file is offset by the reads before it.
+         */
         const val SEED = 20_261_022L
     }
 }

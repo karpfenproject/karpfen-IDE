@@ -22,29 +22,30 @@ import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The handle of one environment on the runtime: every call that concerns the environment goes through it, and it keeps
- * the environment's lifecycle phase on the client's side. Handles have no public constructor; they come from the
- * client's `createEnvironment()` in the phase `Configuring` with nothing uploaded, so nobody reaches the unguarded routes
- * and repeats a lifecycle call.
+ * The handle of one environment on the runtime. Every call that concerns the environment goes through it, and it keeps
+ * the environment's lifecycle phase on the client's side. Handles have no public constructor. They come from the
+ * client's `createEnvironment()` in the phase `Configuring` with nothing uploaded. So nobody reaches the unguarded
+ * routes and repeats a lifecycle call.
  *
- * Before every call the handle checks the operation against the phase (the verdict that [allows] answers) and refuses
- * what the runtime would mishandle, sending nothing: configuring calls only while configuring, the metamodel before the
- * event definitions and the model, activation once both are there, a start only of an activated environment, no
- * restart of a stopped one (a stopped environment is final; running again deploys a fresh one). After every call it
- * updates the phase from the outcome; a rejection that shows the runtime's phase differs from the believed one, and an
- * outcome that leaves open whether the call was applied, are settled by reading a snapshot, whose phase the runtime
- * reports. What cannot be settled becomes [EnvironmentPhase.Uncertain], a key the runtime no longer knows
- * [EnvironmentPhase.Lost]. A stopped environment stays stopped whatever a later snapshot reports, unless it is lost.
+ * Before every call the handle checks the operation against the phase. That check is the verdict [allows] returns. The
+ * handle refuses what the runtime would mishandle and then sends nothing. Configuring calls are allowed only while
+ * configuring. The metamodel comes before the event definitions and the model. Activation needs both the metamodel and
+ * the model. A start needs an activated environment. A stopped environment is never restarted, because a stopped
+ * environment is final. Running the model again deploys a fresh environment.
  *
- * Threading (MUST): every function may be called from any coroutine. The handle serializes its calls, so two calls
- * never overlap on the wire and the phase changes in call order; [phase] has the handle as its one writer.
+ * After every call the handle updates the phase from the outcome. Two cases are settled by reading a snapshot, whose
+ * phase the runtime reports. The first is a rejection that shows the runtime's phase differs from the one the handle
+ * believes. The second is an outcome that leaves open whether the call was applied. What cannot be settled becomes
+ * [EnvironmentPhase.Uncertain]. A key the runtime no longer knows becomes [EnvironmentPhase.Lost]. A stopped
+ * environment stays stopped whatever a later snapshot reports, unless it is lost.
  *
- * Contract (MUST):
- * - A refused operation answers [CallOutcome.Refused] and sends nothing; a failed call answers [CallOutcome.Failed]; no
- *   function throws for a runtime or transport failure.
- * - [activate], [start] and [stop] complete even when the caller is cancelled: the outcome is recorded in [phase],
- *   then the cancellation is rethrown.
- * - A `CancellationException` of the caller is always rethrown.
+ * Every function may be called from any coroutine. The handle serializes its calls, so two calls never overlap on the
+ * wire and the phase changes in call order. The handle is the only writer of [phase].
+ *
+ * A refused operation returns [CallOutcome.Refused] and sends nothing. A failed call returns [CallOutcome.Failed]. No
+ * function throws for a runtime or transport failure. [activate], [start] and [stop] complete even when the caller is
+ * cancelled. They record the outcome in [phase] and then rethrow the cancellation. A `CancellationException` of the
+ * caller is always rethrown.
  */
 public interface RuntimeEnvironment {
     /** The environment's key on the runtime. */
@@ -54,79 +55,90 @@ public interface RuntimeEnvironment {
     public val phase: StateFlow<EnvironmentPhase>
 
     /**
-     * The refusal the next call of [operation] would get in the current phase, or null if it would be sent, so that a
-     * user interface can enable its commands with it.
+     * Returns the refusal that the next call of [operation] would get in the current phase, or null if the call would
+     * be sent. A user interface can enable its commands with it.
      */
     public fun allows(operation: LifecycleOperation): LifecycleRefusal?
 
     /**
-     * Uploads the domain metamodel [text]; allowed while configuring, before the event definitions and the model, which
-     * the runtime reads against the metamodel's types.
+     * Uploads the domain metamodel [text]. It is allowed while configuring, before the event definitions and the
+     * model, because the runtime reads those against the metamodel's types.
      */
     public suspend fun setMetamodel(text: String): CallOutcome<Unit>
 
-    /** Uploads the event definitions [text]; allowed while configuring, after the metamodel. */
+    /** Uploads the event definitions [text]. It is allowed while configuring, after the metamodel. */
     public suspend fun setEventDefinitions(text: String): CallOutcome<Unit>
 
-    /** Uploads the model [text]; allowed while configuring, after the metamodel. */
+    /** Uploads the model [text]. It is allowed while configuring, after the metamodel. */
     public suspend fun setModel(text: String): CallOutcome<Unit>
 
     /**
-     * Attaches the state machine [text] to the object with the key [attachedTo]; allowed while configuring. Machines run
-     * in the order they were attached.
+     * Attaches the state machine [text] to the object with the key [attachedTo]. It is allowed while configuring.
+     * Machines run in the order they were attached.
      */
     public suspend fun setStateMachine(attachedTo: String, text: String): CallOutcome<Unit>
 
-    /** Sets the tick delay to [milliseconds]; allowed while configuring. */
+    /** Sets the tick delay to [milliseconds]. It is allowed while configuring. */
     public suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit>
 
-    /** Sets the event time to live to [milliseconds], 0 for events that never expire; allowed while configuring. */
+    /** Sets the event time to live to [milliseconds]. 0 means events never expire. It is allowed while configuring. */
     public suspend fun setEventTtl(milliseconds: Long): CallOutcome<Unit>
 
-    /** Registers [client] as an observer of the object [objectId]; allowed while configuring (frozen at activation). */
+    /**
+     * Registers [client] as an observer of the object [objectId]. It is allowed while configuring, because activation
+     * freezes the observers.
+     */
     public suspend fun registerObjectObserver(client: ClientId, objectId: String): CallOutcome<Unit>
 
-    /** Registers [client] as a listener of the event [domain]; allowed while configuring (frozen at activation). */
+    /**
+     * Registers [client] as a listener of the event [domain]. It is allowed while configuring, because activation
+     * freezes the listeners.
+     */
     public suspend fun registerDomainListener(client: ClientId, domain: String): CallOutcome<Unit>
 
     /**
      * Has a single-use access key issued for a WebSocket connection of [client], with the stack changes [observatory]
-     * asks for; allowed while configuring, activated, running or halted (the runtime closes the sockets of a stopped
-     * environment).
+     * asks for. It is allowed while configuring, activated, running or halted. It is refused for a stopped environment,
+     * because the runtime closes the sockets of a stopped environment.
      */
     public suspend fun issueAccessKey(client: ClientId, observatory: Observatory): CallOutcome<AccessKey>
 
     /**
-     * Activates the environment: the runtime builds its engine over the uploaded texts and freezes the tick delay, the
-     * time to live, the observers and the listeners. Allowed once, while configuring with a metamodel and a model.
-     * Completes even when the caller is cancelled.
+     * Activates the environment. The runtime builds its engine over the uploaded texts and freezes the tick delay, the
+     * time to live, the observers and the listeners. It is allowed once, while configuring with a metamodel and a
+     * model. It completes even when the caller is cancelled.
      */
     public suspend fun activate(): CallOutcome<Unit>
 
-    /** Starts the activated environment's engine. Completes even when the caller is cancelled. */
+    /** Starts the activated environment's engine. It completes even when the caller is cancelled. */
     public suspend fun start(): CallOutcome<Unit>
 
     /**
-     * Stops the environment; the runtime closes its WebSocket sessions with `Environment stopped`. Answered locally for
-     * a stopped environment. Completes even when the caller is cancelled.
+     * Stops the environment. The runtime closes its WebSocket sessions with `Environment stopped`. For an environment
+     * that is already stopped, the handle answers locally. It completes even when the caller is cancelled.
      */
     public suspend fun stop(): CallOutcome<Unit>
 
     /**
-     * Forces the machine attached to [modelElement] into [state], at the next tick; allowed while activated or running.
+     * Forces the machine attached to [modelElement] into [state] at the next tick. It is allowed while activated or
+     * running.
      *
-     * The runtime's side effects: it discards every queued external event of the whole environment and, at the next
-     * tick, the event-bus bucket of the domain named like [modelElement]; and a state forced before the first tick
-     * suppresses the `ENTRY` blocks of the initial states.
+     * The runtime has side effects here. It discards every queued external event of the whole environment. At the next
+     * tick it also discards the event-bus bucket of the domain named like [modelElement]. A state forced before the
+     * first tick suppresses the `ENTRY` blocks of the initial states.
      */
     public suspend fun forceState(modelElement: String, state: String): CallOutcome<Unit>
 
-    /** Reads the state machine text uploaded for [modelElement], as it was uploaded; allowed unless the environment is lost. */
+    /**
+     * Reads the state machine text uploaded for [modelElement], as it was uploaded. It is allowed unless the
+     * environment is lost.
+     */
     public suspend fun stateMachineSource(modelElement: String): CallOutcome<String>
 
     /**
-     * Reads a snapshot of the model, between two ticks of a running environment; its phase settles the handle's phase,
-     * except that a stopped environment stays stopped while the runtime still reports its last tick as running.
+     * Reads a snapshot of the model, taken between two ticks of a running environment. The snapshot's phase settles the
+     * handle's phase. The exception is a stopped environment, which stays stopped while the runtime still reports its
+     * last tick as running.
      */
     public suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot>
 
@@ -137,6 +149,9 @@ public interface RuntimeEnvironment {
      */
     public suspend fun subscribeModel(client: ClientId): CallOutcome<Unit>
 
-    /** Ends the model subscription of [client]; its other subscriptions stay. Allowed unless the environment is lost. */
+    /**
+     * Ends the model subscription of [client]. Its other subscriptions stay. It is allowed unless the environment is
+     * lost.
+     */
     public suspend fun unsubscribeModel(client: ClientId): CallOutcome<Unit>
 }

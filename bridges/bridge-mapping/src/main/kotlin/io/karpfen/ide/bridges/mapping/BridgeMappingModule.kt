@@ -16,9 +16,8 @@
 package io.karpfen.ide.bridges.mapping
 
 /**
- * Placeholder of the `bridge-mapping` module, kept from the phase-0 skeleton until a later increment builds it. The
- * module is to hold the declarative mapping engine (routes, path expressions, templates). The README lists it among the
- * modules of later increments.
+ * Placeholder of the `bridge-mapping` module, which holds no code yet. The module will hold the declarative mapping
+ * engine with its routes, path expressions and templates. It will implement the mapping SPI of bridge-api.
  */
 public object BridgeMappingModule {
     /** The module's name, which is also the name of its directory. */

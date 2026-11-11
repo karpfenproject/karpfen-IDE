@@ -24,9 +24,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The large synthetic KStates document used by the (excluded) parse budget test and by the editor benchmarks is
- * syntactically valid, so those measurements time the normal path and not error recovery. This functional part runs
- * in every build; the timing itself is tagged `budget`, and no test run executes it.
+ * The large synthetic KStates document is syntactically valid. The excluded parse budget test and the editor
+ * benchmarks use it, so their measurements time the normal path and not error recovery. This functional part runs in
+ * every build. The timing itself is tagged `budget`, and no test run executes it.
  */
 class SyntheticDocumentParseTest {
 

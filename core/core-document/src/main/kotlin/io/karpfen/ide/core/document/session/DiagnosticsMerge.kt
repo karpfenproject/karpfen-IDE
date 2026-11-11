@@ -20,16 +20,18 @@ import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.parse.ParseOutcome
 
 /**
- * The one merge rule for the diagnostics of a document, used by `DocumentSession.diagnostics` and by core-workspace's
- * `AnalyzedFile.ownDiagnostics`, so an open and an unopened file are merged identically and the IDE and the CLI report
- * the same:
- * - [lexical]: the tokenizer's diagnostics (LEXER errors, `eval-double-slash` warnings);
- * - from [parse]: its PARSER diagnostics and its standalone DSL_TOOLS diagnostics. Its LEXER diagnostics come from the
- *   parser's own lexer and repeat the tokenizer's, so they are dropped and nothing is reported twice;
- * - every list of [external] (e.g. the sources of `ExternalDiagnosticSources`).
+ * The one merge rule for the diagnostics of a document. [DocumentSession.diagnostics] and `AnalyzedFile.ownDiagnostics`
+ * in core-workspace both use it. So an open and an unopened file are merged the same way, and the IDE and the CLI
+ * report the same.
  *
- * All ranges must already refer to the same text (the session maps older ones forward before merging). The result is
- * sorted with [Diagnostic.ORDER] and without duplicates. Pure.
+ * The merge takes [lexical] whole. These are the tokenizer's diagnostics, which are LEXER errors and
+ * `eval-double-slash` warnings. From [parse] it takes the PARSER diagnostics and the standalone DSL_TOOLS diagnostics.
+ * The LEXER diagnostics of [parse] come from the parser's own lexer and repeat the tokenizer's, so they are dropped
+ * and nothing is reported twice. Last, it takes every list of [external], such as the sources of
+ * [ExternalDiagnosticSources].
+ *
+ * All ranges must already refer to the same text. The session maps older ones forward before merging. The result is
+ * sorted with [Diagnostic.ORDER] and has no duplicates. The function is pure.
  */
 public fun mergeDiagnostics(
     lexical: List<Diagnostic>,

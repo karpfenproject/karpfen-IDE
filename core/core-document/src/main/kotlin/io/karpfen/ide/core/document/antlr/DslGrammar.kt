@@ -23,9 +23,9 @@ import org.antlr.v4.runtime.CharStream
 import org.antlr.v4.runtime.Lexer
 
 /**
- * The ANTLR grammars of karpfen-dsl-tools, one per modeling language, each with its generated lexer. The only place
- * that maps a language to its generated lexer class; environment descriptors have no grammar here, because the JSON
- * tokenizer of the `json` package reads them.
+ * The ANTLR grammars of karpfen-dsl-tools, one per modeling language, each with its generated lexer. This is the only
+ * place that maps a language to its generated lexer class. Environment descriptors have no grammar here, because the
+ * JSON tokenizer of the `json` package reads them.
  *
  * @property language the language the grammar describes.
  * @property openBrace the token type of `{`, which opens a block one level deeper.

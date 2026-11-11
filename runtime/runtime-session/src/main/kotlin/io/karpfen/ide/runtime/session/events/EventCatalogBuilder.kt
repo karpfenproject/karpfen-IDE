@@ -36,34 +36,40 @@ import java.nio.file.Path
 /**
  * Builds the [EventCatalog] of a deployment from its analyzed state machines during the preparation.
  *
- * - **Domains** are the plan's domains, in that order (the deploy registers a listener for each). The events metamodel
- *   declares event types, not domains, so the origin is derived from the events: an event is declared when the events
- *   file declares a type of its name, and a domain is [DomainOrigin.DECLARED] when at least one of the events its
- *   machines use is declared, else [DomainOrigin.USED_ONLY].
- * - **Listened events:** for every transition, split and join, the condition's clauses are flattened recursively in
- *   order and the first event condition is taken, the only one the runtime evaluates; domain and name are kept
- *   verbatim, and the listening states are the transition's source states.
- * - **Raised events:** every `EVENT` action in the entry and do blocks of every state, inner states and the bodies of
- *   scope and macro blocks included; the left side is the domain, a literal right side the name. A macro or `EVAL`
- *   right side names its event only at run time, so it contributes nothing beyond its domain. Raised events are
- *   injectable too.
- * - **Declared events no machine names:** the events file's types that no `EVENT` call names are listed in every
- *   declared domain, in the events file's order, so they can be injected into the domains the events file speaks for;
- *   they do not change a domain's origin.
- * - **Payload types** resolve as the runtime resolves them: the events file's type of the event's name
- *   ([PayloadTypeOrigin.EVENT_TYPE]), else a domain type of that name ([PayloadTypeOrigin.DOMAIN_TYPE]), else none;
- *   without an events metamodel the runtime parses no payload at all.
+ * The domains are the plan's domains, in that order, because the deployment registers a listener for each. The events
+ * metamodel declares event types, not domains, so a domain's origin is derived from its events. An event is declared
+ * when the events file declares a type of its name. A domain is [DomainOrigin.DECLARED] when at least one of the events
+ * its machines use is declared. Otherwise it is [DomainOrigin.USED_ONLY].
  *
- * Every event found belongs to one of the plan's domains, because both come from the same `EVENT(…)` calls; an event of
- * another domain is left out. Within a domain, the events come in the order the machines name them first.
+ * Listened events come from every transition, split and join. The condition's clauses are flattened recursively in
+ * order, and the first event condition is taken, because it is the only one the runtime evaluates. Domain and name are
+ * kept verbatim. The listening states are the transition's source states.
  *
- * Stateless; the dsl-tools objects it reads stay in the call.
+ * Raised events come from every `EVENT` action in the entry and do blocks of every state. This includes inner states
+ * and the bodies of scope and macro blocks. The left side is the domain, and a literal right side is the name. A macro
+ * or `EVAL` right side names its event only at run time, so it contributes nothing beyond its domain. Raised events are
+ * injectable too.
+ *
+ * Declared events that no machine names are the events file's types that no `EVENT` call names. They are listed in
+ * every declared domain, in the events file's order. That way they can be injected into the domains the events file
+ * speaks for. They do not change a domain's origin.
+ *
+ * Payload types resolve as the runtime resolves them. The first choice is the events file's type of the event's name,
+ * which is [PayloadTypeOrigin.EVENT_TYPE]. The second is a domain type of that name, which is
+ * [PayloadTypeOrigin.DOMAIN_TYPE]. Otherwise there is none. Without an events metamodel the runtime parses no payload
+ * at all.
+ *
+ * Every event found belongs to one of the plan's domains, because both come from the same `EVENT` calls. An event of
+ * another domain is left out. Within a domain, the events come in the order the machines first name them.
+ *
+ * Stateless. The dsl-tools objects it reads stay in the call.
  */
 public object EventCatalogBuilder {
     /**
-     * The catalog of [domains], the events [machines] listen to and raise, the payload types of [eventsMetamodel] (the
-     * events file's types followed by the domain types, or null without event definitions), the type names
-     * [eventTypeNames] the events file declares itself, and the [sources] of the event metamodel.
+     * Builds the catalog of [domains] from the events that [machines] listen to and raise. [eventsMetamodel] gives the
+     * payload types. It holds the events file's types followed by the domain types, and it is null without event
+     * definitions. [eventTypeNames] are the type names that the events file declares itself. [sources] are the texts
+     * of the event metamodel.
      */
     public fun build(
         domains: List<String>,
@@ -122,7 +128,7 @@ public object EventCatalogBuilder {
 
     /** States collected per machine, each machine and state once, in the order they were met. */
     private class StatesByMachine {
-        /** The states by machine (attachment key and file). */
+        /** The states by machine. A machine is keyed by its attachment key and its file. */
         private val states = LinkedHashMap<Pair<String, Path>, LinkedHashSet<String>>()
 
         /** Adds [stateNames] of [machine]. */

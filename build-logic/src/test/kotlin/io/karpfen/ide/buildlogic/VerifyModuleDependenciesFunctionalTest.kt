@@ -26,10 +26,10 @@ import java.io.File
 /**
  * Applies `karpfen.kotlin-jvm` to a small fixture build and proves that verifyModuleDependencies also sees project
  * dependencies that are added late. In the fixture, `core-late` declares its forbidden dependency on a UI module in its
- * own `afterEvaluate` block, which is registered after the convention plugin's callbacks; `core-resolution` adds it
- * through `withDependencies`, so it only appears when a classpath that extends `implementation` is resolved;
- * `core-clean` and `ui-clean` follow the rules. It runs with the configuration cache to prove that the inputs can be
- * stored.
+ * own `afterEvaluate` block, which is registered after the convention plugin's callbacks. `core-resolution` adds the
+ * same kind of dependency through `withDependencies`, so it only appears when a classpath that extends `implementation`
+ * is resolved. `core-clean` and `ui-clean` follow the rules. The test runs with the configuration cache to prove that
+ * the inputs can be stored.
  */
 class VerifyModuleDependenciesFunctionalTest {
 
@@ -37,7 +37,7 @@ class VerifyModuleDependenciesFunctionalTest {
     @TempDir
     lateinit var projectDir: File
 
-    /** The shared version catalog; the test task runs in build-logic/ (see build-logic/build.gradle.kts). */
+    /** The shared version catalog. The test task runs in the build-logic directory, so the catalog is one level up. */
     private val versionCatalog: File = File("../gradle/libs.versions.toml").absoluteFile.normalize()
 
     /** Writes [content], without its common indentation, to [path] below the fixture directory. */

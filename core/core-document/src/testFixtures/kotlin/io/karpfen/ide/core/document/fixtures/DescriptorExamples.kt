@@ -19,30 +19,36 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * IDE-authored environment descriptors (`*.kenv.json`, which tie a metamodel, events, a model and state machines into
- * one modeling context) for the files of `karpfen-runtime/single_robot_example`, loaded from the test-fixture
- * resources below [RESOURCE_ROOT]. Each constant names one descriptor and the findings the workspace reports for it.
- * Shared by core-workspace (descriptor reading, explicit contexts), the CLI and the end-to-end tests, so nobody invents
- * descriptors of their own.
+ * Environment descriptors written for the tests of karpfen IDE. A descriptor is a `*.kenv.json` file that ties a
+ * metamodel, events, a model and state machines into one modeling context. These descriptors name the files of
+ * `karpfen-runtime/single_robot_example`. They are loaded from the test-fixture resources below [RESOURCE_ROOT]. Each
+ * constant names one descriptor and says what it holds and which findings the workspace reports for it.
+ *
+ * The files below `ide-examples` were written for karpfen IDE's own tests. They are under the Apache License 2.0,
+ * like the rest of the repository. The files below `examples` are different. They are unmodified copies of example
+ * files from the karpfen repositories, and [Examples] loads them.
+ *
+ * core-workspace uses these descriptors to test descriptor reading and explicit contexts. The CLI and the end-to-end
+ * tests use them too, so nobody invents descriptors of their own.
  */
 public object DescriptorExamples {
 
-    /** Classpath directory of the descriptors. */
+    /** The classpath directory of the descriptors. */
     public const val RESOURCE_ROOT: String = "ide-examples/descriptors"
 
     /**
-     * A valid descriptor with every top-level key (of the nested keys, it leaves out the runtime's `image`); it names
-     * the four single-robot example files. No findings.
+     * A valid descriptor that has every top-level key. Of the nested keys, it leaves out the runtime's `image`. It
+     * names the four single-robot example files and has no findings.
      */
     public const val VALID: String = "single_robot.kenv.json"
 
     /**
-     * Valid JSON with the unknown key `tickDelay` (WARNING `descriptor-unknown-key`) and a `model` naming the missing
-     * file `missing.kmodel` (ERROR `descriptor-missing-file`).
+     * Valid JSON with the unknown key `tickDelay` and a `model` that names the missing file `missing.kmodel`. The
+     * workspace reports the WARNING `descriptor-unknown-key` and the ERROR `descriptor-missing-file`.
      */
     public const val UNKNOWN_KEY_AND_MISSING_FILE: String = "unknown_key_and_missing_file.kenv.json"
 
-    /** Truncated JSON (ERROR `syntax-error` at the end of the text, no context). */
+    /** Truncated JSON. The workspace reports the ERROR `syntax-error` at the end of the text and forms no context. */
     public const val INVALID_JSON: String = "invalid_json.kenv.json"
 
     /** The example directory whose files the descriptors name. */
@@ -55,7 +61,8 @@ public object DescriptorExamples {
     public fun names(): List<String> = listOf(VALID, UNKNOWN_KEY_AND_MISSING_FILE, INVALID_JSON)
 
     /**
-     * The text of the descriptor [name] (one of [names]).
+     * The text of the descriptor [name], which is one of [names].
+     *
      * @throws IllegalArgumentException for an unknown name.
      */
     public fun text(name: String): String {
@@ -67,8 +74,8 @@ public object DescriptorExamples {
     }
 
     /**
-     * Writes the files of [CONTEXT_DIRECTORY] and the descriptor [name] into the directory [target] (an explicit
-     * modeling context: the directory is covered by the descriptor) and returns the descriptor's path.
+     * Writes the files of [CONTEXT_DIRECTORY] and the descriptor [name] into the directory [target], and returns the
+     * path of the descriptor. The result is an explicit modeling context, because the descriptor covers the directory.
      */
     public fun copyExplicitContext(target: Path, name: String = VALID): Path {
         Files.createDirectories(target)

@@ -28,21 +28,23 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 
 /**
- * Checks the JSON tree of a syntactically valid descriptor against [schema], walking it with `shapedValues`:
- * - a value of the wrong kind becomes an ERROR `descriptor-invalid` at the value (`null` is allowed only as the value of
- *   a nullable key, never as a list item); nothing below it is checked;
- * - an unknown key becomes a WARNING `descriptor-unknown-key` at the key, listing the keys known there (unknown keys are
- *   warnings, never errors, so a descriptor of a newer runtime still opens);
- * - a required key missing from an object becomes an ERROR `descriptor-invalid` at the object's opening brace;
- * - a known key repeated in one object becomes an ERROR `descriptor-invalid` at the repetition: kotlinx.serialization
- *   would silently decode the last value while other JSON readers take the first or fail, so the IDE and the runtime
- *   could analyze different files.
+ * Checks the JSON tree of a syntactically valid descriptor against [schema]. It walks the tree with `shapedValues`.
+ * - A value of the wrong kind becomes an ERROR `descriptor-invalid` at the value. `null` is allowed only as the value
+ *   of a nullable key, never as a list item. Nothing below a wrong value is checked.
+ * - An unknown key becomes a WARNING `descriptor-unknown-key` at the key, which lists the keys known there. Unknown
+ *   keys are warnings and never errors, so a descriptor written for a newer runtime still opens.
+ * - A required key that is missing from an object becomes an ERROR `descriptor-invalid` at the opening brace of the
+ *   object.
+ * - A known key that is repeated in one object becomes an ERROR `descriptor-invalid` at the repetition.
+ *   kotlinx.serialization would silently decode the last value, while other JSON readers take the first or fail. So the
+ *   IDE and the runtime could otherwise analyze different files.
  *
- * A tree without errors is one that kotlinx.serialization decodes into `EnvironmentDescriptor`. Pure.
+ * A tree without errors is one that kotlinx.serialization decodes into `EnvironmentDescriptor`. The class has no side
+ * effects.
  */
 internal class DescriptorValidator(private val schema: ValueShape.Record = EnvironmentSchema.ROOT) {
 
-    /** The findings of [root], in document order of the values visited. */
+    /** The findings of [root], in the document order of the values visited. */
     fun check(root: JsonNode): List<Diagnostic> {
         val findings = ArrayList<Diagnostic>()
         for (value in shapedValues(root, schema)) {
@@ -76,7 +78,7 @@ internal class DescriptorValidator(private val schema: ValueShape.Record = Envir
         }
     }
 
-    /** The WARNING `descriptor-unknown-key` at [member]'s key, listing the keys [shape] knows. */
+    /** The WARNING `descriptor-unknown-key` at the key of [member]. It lists the keys that [shape] knows. */
     private fun unknownKey(member: JsonNode.Member, shape: ValueShape.Record, location: String): Diagnostic =
         Diagnostic(
             range = member.key.content,
@@ -101,12 +103,13 @@ internal class DescriptorValidator(private val schema: ValueShape.Record = Envir
         is JsonNode.LiteralNode -> node.literal.text
     }
 
+    /** True if [node] is the JSON literal `null`. */
     private fun isNull(node: JsonNode): Boolean = node is JsonNode.LiteralNode && node.literal == JsonLiteral.NULL
 
     /** An ERROR `descriptor-invalid` at [range]. */
     private fun error(range: TextRange, message: String): Diagnostic =
         Diagnostic(range, Severity.ERROR, message, WorkspaceDiagnosticCodes.DESCRIPTOR_INVALID, DiagnosticSource.IDE)
 
-    /** The phrase naming [location] in a message, empty for the root object. */
+    /** The phrase that names [location] in a message. It is empty for the root object. */
     private fun where(location: String): String = if (location.isEmpty()) "" else " in '$location'"
 }

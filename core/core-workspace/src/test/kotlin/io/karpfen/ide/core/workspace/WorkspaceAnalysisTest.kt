@@ -47,9 +47,9 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Covers end-to-end workspace scenarios on real folders: contexts, analysis and problems. Every example context
- * analyzes without findings; descriptors, unreadable files and directories, several metamodels in one directory,
- * broken metamodels and refreshes produce the findings the workspace documents.
+ * Covers end-to-end workspace scenarios on real folders, with contexts, analysis and problems. Every example context
+ * analyzes without findings. Descriptors, unreadable files and directories, several metamodels in one directory,
+ * broken metamodels and refreshes produce the findings that the workspace describes.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkspaceAnalysisTest {

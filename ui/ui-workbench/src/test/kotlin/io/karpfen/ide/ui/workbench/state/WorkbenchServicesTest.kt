@@ -40,9 +40,9 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * The collaborators of the workbench keep one source per fact: a workspace's languages come from the workspace factory,
- * every editor gets the one clipboard the services are given, and the workbench shows the one output of the language
- * tools it is given.
+ * Tests that the collaborators of the workbench keep one source per fact. A workspace's languages come from the
+ * workspace factory. Every editor gets the single clipboard that the services are given. The workbench shows the
+ * single output of the language tools that it is given.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkbenchServicesTest {

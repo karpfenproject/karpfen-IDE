@@ -20,11 +20,12 @@ import io.karpfen.dsl.states.StateMachine
 import java.nio.file.Path
 
 /**
- * What the IDE knows of one attached state machine before the runtime reports anything: its top-level states and the
- * stack the runtime will enter first. Immutable; built during the preparation of a deployment, so nothing launched
- * later holds the dsl-tools machine.
+ * What the IDE knows of one attached state machine before the runtime reports anything. That is its top-level states
+ * and the stack the runtime will enter first. Immutable. It is built during the preparation of a deployment, so
+ * nothing launched later holds the dsl-tools machine.
  *
- * @property attachedTo the key of the object the machine runs attached to, the `modelElementId` of its stack pushes.
+ * @property attachedTo the key of the object the machine runs attached to. It is the `modelElementId` of the machine's
+ *   stack pushes.
  * @property file the machine's file.
  * @property topLevelStates the names of the machine's top-level states in file order.
  * @property initialStack the stack the runtime enters at the start.
@@ -43,11 +44,12 @@ public data class MachineLayout(
 }
 
 /**
- * The runtime's rule for the first stack of a machine (`StateMachineQueryHelper.getInitialStateStack`): at every level
- * the state marked initial, or else the first state, recursively into its inner states. Stateless.
+ * The runtime's rule for the first stack of a machine, as in `StateMachineQueryHelper.getInitialStateStack`. At every
+ * level it enters the state marked initial, or else the first state, and goes on recursively into its inner states.
+ * Stateless.
  */
 internal object InitialStackPredictor {
-    /** The initial stack of a machine whose top-level states are [states]; empty for a machine without states. */
+    /** The initial stack of a machine whose top-level states are [states]. It is empty for a machine without states. */
     fun predict(states: List<State>): List<String> {
         val stack = ArrayList<String>()
         var level = states

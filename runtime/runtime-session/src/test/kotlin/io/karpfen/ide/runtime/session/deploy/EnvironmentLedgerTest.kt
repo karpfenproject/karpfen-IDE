@@ -30,8 +30,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers the environment ledger (order, publication, records from many threads), keeping environments with the phase
- * they were left in, and the info that an environment stays on the runtime.
+ * Covers the environment ledger with its order, its publication and records from many threads. It also covers keeping
+ * environments with the phase they were left in, and the info that an environment stays on the runtime.
  */
 class EnvironmentLedgerTest {
 

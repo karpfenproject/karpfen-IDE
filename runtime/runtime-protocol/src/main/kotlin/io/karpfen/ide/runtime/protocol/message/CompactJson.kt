@@ -16,11 +16,12 @@
 package io.karpfen.ide.runtime.protocol.message
 
 /**
- * Writes a [WireValue] again as compact JSON: no whitespace, fields in their order with repeated names kept, strings
- * quoted with [RuntimeJson.quote], and numbers as the runtime writes its doubles, without a fraction when integral
- * (`5`, `1761560130123`) and otherwise as `Double.toString` writes them (`0.2`, `1.0E20`, `NaN`, `Infinity`,
- * `-Infinity`). Reading the result with [RuntimeJson.read] gives the same value back, except that `-0.0` is written
- * as `0`, as the runtime writes it. Stateless.
+ * Writes a [WireValue] back as compact JSON. The output has no whitespace. Fields keep their order, and repeated names
+ * are kept. Strings are quoted with [RuntimeJson.quote]. Numbers are written the way the runtime writes its doubles. An
+ * integral number has no fraction, for example `5` or `1761560130123`. Every other number is written as
+ * `Double.toString` writes it, for example `0.2`, `1.0E20`, `NaN`, `Infinity` or `-Infinity`. Reading the result with
+ * [RuntimeJson.read] gives the same value back. The one exception is `-0.0`, which is written as `0`, as the runtime
+ * writes it. The object holds no state.
  */
 internal object CompactJson {
 

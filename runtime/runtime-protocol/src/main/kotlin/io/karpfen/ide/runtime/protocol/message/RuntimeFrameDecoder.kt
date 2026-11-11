@@ -20,39 +20,44 @@ import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 
 /**
- * Decodes the text frames the runtime pushes to one client of one environment.
+ * Decodes the text frames that the runtime pushes to one client of one environment.
  *
- * A frame is read whole with [RuntimeJson.read], so a frame that is not the runtime's JSON is an
- * [ViolationKind.UNDECODABLE_FRAME]. Its envelope is read by member name: `environmentKey`, `clientId` and
- * `messageType` must be strings and `payload` must be present ([ViolationKind.MALFORMED_PAYLOAD] otherwise), and the
- * environment and the client must be those of the connection ([ViolationKind.FOREIGN_ENVELOPE]). The payload is read
- * by member name too, so the members of `stateChange` and of a published event, which org.json writes, may come in any
- * order:
+ * A frame is read whole with [RuntimeJson.read]. So a frame that is not the runtime's JSON becomes a violation of the
+ * kind [ViolationKind.UNDECODABLE_FRAME]. The envelope is read by member name. `environmentKey`, `clientId` and
+ * `messageType` must be strings, and `payload` must be present. Otherwise the frame is a
+ * [ViolationKind.MALFORMED_PAYLOAD]. The environment and the client must be those of the connection. Otherwise the
+ * frame is a [ViolationKind.FOREIGN_ENVELOPE]. The payload is read by member name too. The runtime writes the members
+ * of `stateChange` and of a published event with org.json, so they may come in any order.
  *
- * - `objectChanged`: a string `objectId`, an integral `revision` and an object `value` with a string `__id__` and a
- *   string `__type__`. An `objectId` that differs from the `__id__` is reported as an [ViolationKind.ID_MISMATCH]
- *   alongside the push, which carries the `__id__`: the value is what the runtime wrote, so it is applied under its own
- *   id.
- * - `objectDeleted`: a string `objectId` and an integral `revision`.
- * - `stateChange`: a string `modelElementId`, an array of strings `stack` and an integral `revision`.
- * - `domainEvent`: a string `domain` and an object `payload`, whose members `event`, `payload`, `payloadFormat` and
- *   `source` (strings) and `timestamp` and `ttlMs` (integral numbers) make the [PublishedEvent]; a missing or mistyped
- *   member leaves the event null and adds a [ViolationKind.MALFORMED_PAYLOAD] to the push.
- * - any other type: [RuntimePush.Unrecognized], not a violation, since the runtime may add types.
+ * - An `objectChanged` payload has a string `objectId`, an integral `revision` and an object `value` with a string
+ *   `__id__` and a string `__type__`. An `objectId` that differs from the `__id__` is reported as a
+ *   [ViolationKind.ID_MISMATCH] alongside the push. The push carries the `__id__`, because the value is what the
+ *   runtime wrote, so it is applied under its own id.
+ * - An `objectDeleted` payload has a string `objectId` and an integral `revision`.
+ * - A `stateChange` payload has a string `modelElementId`, an array of strings `stack` and an integral `revision`.
+ * - A `domainEvent` payload has a string `domain` and an object `payload`. The members of that inner object make the
+ *   [PublishedEvent]. `event`, `payload`, `payloadFormat` and `source` are strings, and `timestamp` and `ttlMs` are
+ *   integral numbers. A missing or mistyped member leaves the event null and adds a [ViolationKind.MALFORMED_PAYLOAD]
+ *   to the push.
+ * - Any other type becomes [RuntimePush.Unrecognized]. That is not a violation, because the runtime may add types.
  *
- * A missing revision is a [ViolationKind.MALFORMED_PAYLOAD]: the client requires the runtime with IDE support, which
- * numbers every observation. Raw payloads are written again compactly with [CompactJson]. Every violation keeps the
- * first 200 characters of the frame and the message type and object id, as far as they could be read, also from a frame
- * that is not JSON.
+ * A missing revision is a [ViolationKind.MALFORMED_PAYLOAD], because the client requires the runtime with IDE support,
+ * which numbers every observation. Raw payloads are written again compactly with [CompactJson]. Every violation keeps
+ * the first 200 characters of the frame. It also keeps the message type and the object id as far as they could be
+ * read, even from a frame that is not JSON.
  *
- * Stateless apart from the connection's environment and client, so one decoder may decode frames from any thread.
+ * The decoder holds no state apart from the connection's environment and client, so one decoder may decode frames from
+ * any thread.
  *
  * @param environment the environment of the connection.
  * @param client the client id of the connection.
  */
 public class RuntimeFrameDecoder(private val environment: EnvironmentKey, private val client: ClientId) {
 
-    /** Decodes one text frame [text]: a push, possibly with violations that did not prevent it, or a violation. */
+    /**
+     * Decodes one text frame [text]. The result is a push, possibly with violations that did not prevent it, or a
+     * violation.
+     */
     public fun decode(text: String): DecodedFrame =
         when (val reading = RuntimeJson.read(text)) {
             is JsonReading.Malformed -> DecodedFrame.Violation(
@@ -68,8 +73,8 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
         }
 
     /**
-     * The reading of one decodable frame: knows the frame's text for excerpts and the message type and object id once
-     * they could be read.
+     * The reading of one decodable frame. It knows the frame's text for excerpts, and it knows the message type and
+     * the object id once they could be read.
      */
     private inner class FrameReading(private val text: String) {
 
@@ -159,7 +164,7 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
             return DecodedFrame.Push(RuntimePush.StateChanged(element, stack, revision), emptyList())
         }
 
-        /** Reads a `domainEvent` payload; a published event that cannot be read leaves the event null. */
+        /** Reads a `domainEvent` payload. A published event that cannot be read leaves the event null. */
         private fun domainEvent(payload: WireValue): DecodedFrame {
             val members = payload as? WireValue.WireObject ?: return malformed("the payload is not an object")
             val domain = members.stringMember(WireNames.DOMAIN) ?: return missing(WireNames.DOMAIN, "a string")
@@ -193,7 +198,7 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
                 ttlMs = inner.integralMember(WireNames.TTL_MS) ?: return null,
             )
 
-        /** A malformed payload: the member [name] is not [what]. */
+        /** A malformed payload whose member [name] is missing or not [what]. */
         private fun missing(name: String, what: String): DecodedFrame =
             malformed("the payload's member '$name' is missing or not $what")
 

@@ -32,15 +32,20 @@ internal enum class ClipboardOperation(val actionId: String) {
 }
 
 /**
- * Copy/cut (whole line without selection) and paste (separators normalized to `\n`).
+ * Copy, cut and paste.
  *
- * Without a selection, copy and cut take the caret's line with a line break (`line + "\n"`), marked as a whole line on
- * the clipboard; cut removes the line like delete line ([LineBlock.deletionRange]) with origin `Cut`. Cut deletes only
- * after the clipboard took the text, so a clipboard that cannot be written loses nothing. Paste replaces the selection
- * with origin `Paste` and puts the caret after the pasted text; a whole line on the clipboard is pasted without a
- * selection at the start of the caret's line instead (the IntelliJ convention: copy + paste duplicates a line, cut +
- * paste moves it), the caret keeping its place in its line. Copy and cut are enabled while there is a selection or any
- * text; paste is always enabled (enablement never reads the clipboard) and returns false for an empty clipboard.
+ * Without a selection, copy and cut take the caret's whole line plus a line break (`line + "\n"`) and mark it as a
+ * whole line on the clipboard. Cut then removes the line the same way delete line does ([LineBlock.deletionRange]),
+ * with origin `Cut`. Cut deletes only after the clipboard took the text, so a clipboard that cannot be written loses
+ * nothing.
+ *
+ * Paste normalizes line separators to `\n`. It replaces the selection with origin `Paste` and puts the caret after the
+ * pasted text. A whole line on the clipboard is handled differently when there is no selection. It is inserted at the
+ * start of the caret's line, and the caret keeps its place in its line. This follows the IntelliJ convention, where
+ * copy and paste duplicates a line and cut and paste moves it.
+ *
+ * Copy and cut are enabled while there is a selection or any text at all. Paste is always enabled, because enablement
+ * never reads the clipboard. It returns false for an empty clipboard.
  */
 internal class ClipboardAction(private val operation: ClipboardOperation) : EditorAction {
     override val id: String = operation.actionId

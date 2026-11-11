@@ -37,8 +37,8 @@ import kotlin.time.Duration.Companion.seconds
 public fun RuntimeHosts(): RuntimeHostFactory = DefaultRuntimeHosts(HostOptions())
 
 /**
- * Creates a [DockerRuntimeHost] or a [UrlRuntimeHost] as the settings choose, both working with [options]; tests hand in
- * a fake engine, the fake runtime's clients, their own sources and a test dispatcher.
+ * Creates a [DockerRuntimeHost] or a [UrlRuntimeHost], as the settings choose, both working with [options]. Tests hand
+ * in a fake engine, the fake runtime's clients, their own sources and a test dispatcher.
  *
  * @param options what the hosts work with.
  */
@@ -57,9 +57,10 @@ internal class DefaultRuntimeHosts(private val options: HostOptions) : RuntimeHo
  * @property resolveEndpoint finds the Docker engine.
  * @property connectEngine connects to the Docker engine at an endpoint URI.
  * @property sources reads the runtime sources the image is built from.
- * @property clients creates a client of the runtime at an endpoint, for the health checks; the host closes it.
- * @property dispatcher where the hosts' own coroutines run, the container watcher and the log follower, and so their
- *   clock: a test dispatcher runs them on virtual time.
+ * @property clients creates a client of the runtime at an endpoint for the health checks. The host closes the client
+ *   when it is done with it.
+ * @property dispatcher where the hosts' own coroutines run, such as the start, the container watcher and the log
+ *   follower. It also gives them their clock, so a test dispatcher runs them on virtual time.
  * @property timings the intervals and bounds of the hosts.
  */
 internal data class HostOptions(
@@ -75,7 +76,8 @@ internal data class HostOptions(
  * The intervals and bounds of the hosts.
  *
  * @property healthPoll how often the Docker host asks a starting runtime for its health.
- * @property healthTimeout how long a starting runtime may take to answer; the JVM and the first Python start are slow.
+ * @property healthTimeout how long a starting runtime may take to answer. It is generous because the JVM and the first
+ *   Python start are slow.
  * @property watchInterval how often the Docker host checks that its container still runs.
  * @property stopTimeout how long the engine waits for the runtime to stop before it kills the container.
  * @property closeBound how long closing a host may take to stop its runtime.

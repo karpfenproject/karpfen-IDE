@@ -29,9 +29,9 @@ import java.nio.charset.Charset
 import kotlin.time.TestTimeSource
 
 /**
- * Real workspaces without watching on the virtual time of [scope], reading with [reader], the real readers of dsl-tools
- * unless a test makes them fail: `WorkspaceFactory(WorkspaceOptions(watch = false, …test dispatchers…), reader)`, the
- * factory `ValidateCommand` takes in tests.
+ * Real workspaces without watching on the virtual time of [scope]. They read with [reader], the real readers of
+ * dsl-tools unless a test makes them fail. This is `WorkspaceFactory(WorkspaceOptions(watch = false, …), reader)`
+ * with test dispatchers, the factory `ValidateCommand` takes in tests.
  */
 internal fun testWorkspaceFactory(scope: TestScope, reader: DslReader = DslReader()): WorkspaceFactory {
     val dispatcher = StandardTestDispatcher(scope.testScheduler)
@@ -49,9 +49,9 @@ internal fun testWorkspaceFactory(scope: TestScope, reader: DslReader = DslReade
 
 /**
  * Replaces the process streams `System.out` and `System.err` by captures until [close], so a test sees everything the
- * process would have printed (the CLI's console, created inside, takes the captures as its process streams). The
- * captures encode text written to them as [encoding] (the console's, e.g. US-ASCII under `LANG=C`); [stdout] and
- * [stderr] decode the captured bytes as UTF-8.
+ * process would have printed. The CLI's console, created inside, takes the captures as its process streams. The
+ * captures encode text written to them as [encoding], which stands for the console's encoding, for example US-ASCII
+ * under `LANG=C`. [stdout] and [stderr] decode the captured bytes as UTF-8.
  */
 internal class ProcessStreams(encoding: Charset = Charsets.UTF_8) : AutoCloseable {
     private val previousOut: PrintStream = System.out
@@ -78,13 +78,14 @@ internal class ProcessStreams(encoding: Charset = Charsets.UTF_8) : AutoCloseabl
 
 /** The exit status and the process output of one CLI run. */
 internal data class CliRun(val status: Int, val stdout: String, val stderr: String) {
-    /** The standard output's lines (without the final line break). */
+    /** The lines of the standard output, without the final line break. */
     val lines: List<String> get() = stdout.lines().filter { it.isNotEmpty() }
 }
 
 /**
- * Runs the command line [args] like `main` does, capturing the process streams (encoding text as [consoleEncoding]) for
- * the whole run; `--verbose` shows what dsl-tools logs through [languageToolsLog], by default the real one of logback.
+ * Runs the command line [args] like `main` does and captures the process streams for the whole run, encoding text as
+ * [consoleEncoding]. `--verbose` shows what dsl-tools logs through [languageToolsLog], which by default is the real one
+ * of logback.
  */
 internal suspend fun runCli(
     workspaceFactory: WorkspaceFactory,

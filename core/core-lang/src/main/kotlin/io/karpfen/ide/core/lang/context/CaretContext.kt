@@ -20,35 +20,37 @@ import io.karpfen.ide.core.lang.LanguageDocument
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The shared mechanic of context detection around the caret: what surrounds an offset, determined from the tokens,
- * which always belong to the request's text and are robust on broken text. Language-neutral and shared by all
- * languages instead of being copied per language; the per-language slot detectors interpret it (the parse outcome
- * contributes name-based knowledge there, see the staleness rule of [LanguageDocument]).
+ * The shared mechanic of context detection around the caret. It finds what surrounds an offset from the tokens. The
+ * tokens always belong to the request's text and work on broken text. The detector does not depend on a language and
+ * is shared by all languages instead of being copied for each one. The slot detectors of each language interpret its
+ * result. There the parse outcome adds knowledge by name, following the staleness rule on [LanguageDocument].
  */
 public fun interface CaretContextDetector {
-    /** The context of [offset] (clamped to the text) in [document]. Never throws. */
+    /** The context of [offset] in [document]. The offset is clamped to the text. It never throws. */
     public fun detect(document: LanguageDocument, offset: Int): CaretContext
 }
 
-/** The default token-based [CaretContextDetector]. */
+/** The default [CaretContextDetector], which works on tokens. */
 public fun CaretContextDetector(): CaretContextDetector = TokenCaretContextDetector()
 
 /**
  * The surroundings of a caret.
  *
- * @property offset the caret offset (clamped to the text).
- * @property replaceRange what a completion item replaces: the content of the string around the caret (for an
- *   unterminated string from its first character to the end of the word at the caret), else [wordRange].
- * @property wordRange the identifier characters (`A-Z a-z 0-9 _`) touching the caret, empty at the caret if there are
- *   none (e.g. the path segment `pos` in `"boundingBox->pos"`).
- * @property string set when the caret is inside a string literal (also an unterminated one).
- * @property call the innermost unclosed call around the caret (or around the string the caret is in), e.g. `prop(` or
- *   `MACRO(`.
+ * @property offset the caret offset, clamped to the text.
+ * @property replaceRange what a completion item replaces. Inside a string it is the content of the string around the
+ *   caret. For an unterminated string it runs from the first character of the content to the end of the word at the
+ *   caret. Outside a string it is [wordRange].
+ * @property wordRange the identifier characters `A-Z a-z 0-9 _` that touch the caret. If there are none, it is empty
+ *   at the caret. An example is the path segment `pos` in `"boundingBox->pos"`.
+ * @property string set when the caret is inside a string literal, also an unterminated one.
+ * @property call the innermost unclosed call around the caret, or around the string the caret is in, such as `prop(`
+ *   or `MACRO(`.
  * @property blocks the enclosing brace blocks, outermost first.
- * @property statement the tokens before the word at the caret (or before the string the caret is in), by the rule of
- *   [BlockFrame.header]; e.g. `TRANSITION a ->` before `"b"` of `TRANSITION "a" -> "b"`.
- * @property embedded set exactly when `document.tokens.embeddedRegionAt(offset)` finds an EVAL body (the tokenizer's
- *   scanner is the only definition of "inside embedded Python"; the detector never re-derives EVAL bodies from tokens).
+ * @property statement the tokens before the word at the caret, or before the string the caret is in, collected by the
+ *   rule of [BlockFrame.header]. For example, it is `TRANSITION a ->` before `"b"` of `TRANSITION "a" -> "b"`.
+ * @property embedded set exactly when `document.tokens.embeddedRegionAt(offset)` finds an EVAL body. The scanner of the
+ *   tokenizer is the only definition of "inside embedded Python". The detector never derives EVAL bodies from tokens
+ *   again.
  * @property inComment true if the caret is inside or at the end of a `//` comment.
  */
 public data class CaretContext(
@@ -66,16 +68,20 @@ public data class CaretContext(
     public val innermostBlock: BlockFrame? get() = blocks.lastOrNull()
 }
 
-/** A string literal around the caret: [contentRange] excludes the quotes; [closed] is false for an unterminated one. */
+/**
+ * A string literal around the caret. [contentRange] excludes the quotes. [closed] is false for an unterminated string.
+ */
 public data class StringContext(public val contentRange: TextRange, public val closed: Boolean)
 
 /**
- * A call around the caret: [name] is the token before `(` (e.g. `prop`, `has`, `EVENT`, `MACRO`, `TAKES`, `SCOPE` for
- * `IF IN SCOPE(`), [argumentIndex] the zero-based index of the argument the caret is in (counted by top-level commas).
+ * A call around the caret. [name] is the token before `(`, such as `prop`, `has`, `EVENT`, `MACRO`, `TAKES`, or
+ * `SCOPE` for `IF IN SCOPE(`. [argumentIndex] is the zero-based index of the argument the caret is in, counted by
+ * top-level commas.
  *
- * @property arguments the arguments before the caret's one: the content of an argument that is exactly one string
- *   literal, else null (e.g. `["self"]` for the relation argument of `SETOBJ("self", "rel…`).
- * @property parent the next enclosing unclosed call (e.g. `prop(` around `list(` in `prop("k", list("…`), or null.
+ * @property arguments the arguments before the one the caret is in. Each entry is the content of an argument that is
+ *   exactly one string literal, or null for any other argument. For the relation argument of `SETOBJ("self", "rel…`
+ *   it is `["self"]`.
+ * @property parent the next enclosing unclosed call, or null. For `list(` in `prop("k", list("…` it is `prop(`.
  */
 public data class CallContext(
     public val name: String,
@@ -86,28 +92,29 @@ public data class CallContext(
 )
 
 /**
- * A token as the caret context sees it: [text] is the token's text, without the quotes for a string literal.
+ * A token as the caret context sees it. [text] is the text of the token, without the quotes for a string literal.
  */
 public data class ContextToken(public val text: String, public val kind: TokenKind, public val range: TextRange)
 
 /**
- * An enclosing `{ … }` block.
+ * An enclosing `{ ... }` block.
  *
- * @property header the tokens before its `{` (comments excluded) back to the previous brace, or — when the block is an
- *   argument of an unclosed call, as in `SET("p", EVAL {` — back to the call's last top-level comma or its `(`; at most 64
- *   tokens. E.g. `STATE s1`, `type Vector A vector`, `EVAL`, `TRANSITION a -> b`.
- *   Languages without statement separators keep the block's earlier statements in front (`SET ( a , b ) IF IN SCOPE (
- *   p )`, `prop ( k ) -> v has ( r ) -> make object k : T`), so each language finds the keyword that introduces the
- *   block itself (as the KStates tokenizer's block tracker does).
- * @property range spans from the opening brace to the closing one (or to the end of the text when unclosed).
+ * @property header the tokens before its `{`, without comments, back to the previous brace. When the block is an
+ *   argument of an unclosed call, as in `SET("p", EVAL {`, the header goes back to the last top-level comma of the call
+ *   or to its `(`. It holds at most 64 tokens. Examples are `STATE s1`, `type Vector A vector`, `EVAL` and
+ *   `TRANSITION a -> b`. In languages without statement separators the earlier statements of the block stay in
+ *   front, as in `SET ( a , b ) IF IN SCOPE ( p )` or `prop ( k ) -> v has ( r ) -> make object k : T`. So each
+ *   language finds the keyword that introduces the block itself, as the block tracker of the KStates tokenizer does.
+ * @property range the span from the opening brace to the closing one, or to the end of the text when the block is
+ *   unclosed.
  */
 public data class BlockFrame(public val header: List<ContextToken>, public val range: TextRange)
 
 /**
- * The caret is inside an EVAL body: [bodyRange] is `TokenizeResult.embeddedRegionAt(offset)`. [pathPrefix] is the text
- * between `$(` and the caret when the caret is inside a `$( … )` reference (e.g. `boundingBox->pos`, from the
- * PATH_REFERENCE token; blanks removed); [macroPrefix] the text after `@` when it is in a macro reference
- * (MACRO_REFERENCE token, or a lone `@` before the caret).
+ * The caret is inside an EVAL body. [bodyRange] is `TokenizeResult.embeddedRegionAt(offset)`. [pathPrefix] is the
+ * text between `$(` and the caret when the caret is inside a `$( ... )` reference, such as `boundingBox->pos`. It comes
+ * from the PATH_REFERENCE token, with blanks removed. [macroPrefix] is the text after `@` when the caret is in a macro
+ * reference. That is a MACRO_REFERENCE token, or a lone `@` before the caret.
  */
 public data class EmbeddedContext(
     public val bodyRange: TextRange,
@@ -116,8 +123,8 @@ public data class EmbeddedContext(
 )
 
 /**
- * Token-based [CaretContextDetector]: coordinates the locators of strings, calls, blocks, statements and embedded
- * references over one [TokenView] of the document.
+ * The [CaretContextDetector] that works on tokens. It coordinates the locators of strings, calls, blocks, statements
+ * and embedded references over one [TokenView] of the document.
  */
 internal class TokenCaretContextDetector : CaretContextDetector {
 
@@ -143,13 +150,14 @@ internal class TokenCaretContextDetector : CaretContextDetector {
     }
 
     /**
-     * The offset the call and the statement around the caret end before: the opening quote of the [string] the caret
-     * is in, else the start of the [word] being typed.
+     * The offset before which the call and the statement around the caret end. It is the opening quote of the
+     * [string] the caret is in, or else the start of the [word] being typed.
      */
     private fun anchorOf(string: StringContext?, word: TextRange): Int = string?.let { it.contentRange.start - 1 } ?: word.start
 
     /**
-     * The content of a closed [string]; for an unterminated one, its content up to the end of the [word] at the caret.
+     * The content of a closed [string]. For an unterminated one it is the content up to the end of the [word] at the
+     * caret.
      */
     private fun replaceRangeIn(string: StringContext, word: TextRange): TextRange =
         if (string.closed) string.contentRange else TextRange(string.contentRange.start, maxOf(string.contentRange.start, word.end))

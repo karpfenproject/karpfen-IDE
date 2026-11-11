@@ -31,9 +31,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Remembers a [CodeEditorState] for [session] in the composition (scope from `rememberCoroutineScope`, closed when it
- * leaves the composition or [session] changes). For simple embeddings and tests; the workbench creates states with
- * the `CodeEditorState` factory so they survive tab switches.
+ * Remembers a [CodeEditorState] for [session] in the composition. Its scope comes from `rememberCoroutineScope`. The
+ * state is closed when it leaves the composition or when [session] changes. This is meant for simple embeddings and
+ * tests. The workbench creates its states with the `CodeEditorState` factory, so they survive tab switches.
  */
 @Composable
 public fun rememberCodeEditorState(
@@ -59,9 +59,9 @@ public fun rememberCodeEditorState(
 }
 
 /**
- * The system clipboard (AWT `Toolkit` clipboard or the non-deprecated Compose clipboard API). Creating the port never
- * touches the toolkit: the platform clipboard is resolved lazily on first use, and when
- * `GraphicsEnvironment.isHeadless()` (headless tests, CI) the port degrades to an in-memory clipboard, so editors built
- * with the default workbench services never throw `HeadlessException`.
+ * Creates the port to the system clipboard, which is the clipboard of the AWT `Toolkit`. Creating the port never
+ * touches the toolkit. The platform clipboard is resolved on first use. When `GraphicsEnvironment.isHeadless()` is
+ * true, as in headless tests and CI, the port falls back to an in-memory clipboard. So editors built with the default
+ * workbench services never throw `HeadlessException`.
  */
 public fun systemClipboard(): ClipboardPort = LazySystemClipboard()

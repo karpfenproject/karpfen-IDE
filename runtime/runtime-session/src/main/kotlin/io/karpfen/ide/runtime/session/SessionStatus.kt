@@ -24,14 +24,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * What a session publishes about itself: its state with the injection availability that follows from it, the progress
- * of its deployment and its problems. The conductor is the one writer; closing the session seals the status, after
- * which the state stays [SessionState.Closed] whatever the conductor still publishes.
+ * What a session publishes about itself. That is its state with the injection availability that follows from it, the
+ * progress of its deployment and its problems. The conductor is the only writer. Closing the session seals the status.
+ * After that the state stays [SessionState.Closed], whatever the conductor still publishes.
  *
- * Threading: every function may be called from any thread; the state and the availability change together, under one
- * lock, so a sealed status never shows a stale availability.
+ * Every function may be called from any thread. The state and the availability change together under one lock, so a
+ * sealed status never shows a stale availability.
  *
- * @param planFindings the warnings and infos of the plan, the first problems of the session.
+ * @param planFindings the warnings and infos of the plan. They are the first problems of the session.
  */
 internal class SessionStatus(planFindings: List<DeployProblem>) {
     /** Guards [sealed] and the writes of the state and the availability. */
@@ -83,7 +83,9 @@ internal class SessionStatus(planFindings: List<DeployProblem>) {
         mutableProblems.update { it + problem }
     }
 
-    /** Seals the status as closed and answers the state it had before; a second call answers [SessionState.Closed]. */
+    /**
+     * Seals the status as closed and returns the state it had before. A second call returns [SessionState.Closed].
+     */
     fun seal(): SessionState =
         synchronized(lock) {
             val before = mutableState.value

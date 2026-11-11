@@ -24,15 +24,16 @@ import java.nio.file.Path
 internal enum class DesktopAction { MOVE_TO_TRASH, REVEAL, OPEN }
 
 /**
- * The platform side of the file operations (a seam, so the java.nio part is testable with a fake). Its calls fail like
- * `java.awt.Desktop`'s: besides `IOException`, unchecked exceptions (`IllegalArgumentException` for a file that does not
- * exist, `SecurityException`, `UnsupportedOperationException`); [DesktopProjectFileOperations] translates them.
+ * The platform side of the file operations. It is a seam, so tests can check the java.nio part with a fake. Its calls
+ * fail the same way as those of `java.awt.Desktop`. Besides `IOException` they throw unchecked exceptions: an
+ * `IllegalArgumentException` for a file that does not exist, a `SecurityException` or an
+ * `UnsupportedOperationException`. [DesktopProjectFileOperations] translates them.
  */
 internal interface DesktopActions {
-    /** True if [action] is available on this platform (never touches the toolkit when headless). */
+    /** True if [action] is available on this platform. Never touches the toolkit in a headless JVM. */
     fun supports(action: DesktopAction): Boolean
 
-    /** Moves [path] to the trash; false if the platform refused. */
+    /** Moves [path] to the trash. Returns false if the platform refused. */
     fun moveToTrash(path: Path): Boolean
 
     /** Shows [path] in the file manager. */
@@ -40,15 +41,16 @@ internal interface DesktopActions {
 
     /**
      * Opens [path] in the default application.
+     *
      * @throws IOException if the platform fails to launch the application.
-     * @throws IllegalArgumentException if [path] does not exist (checked by `java.awt.Desktop`).
+     * @throws IllegalArgumentException if [path] does not exist. `java.awt.Desktop` checks this.
      */
     fun open(path: Path)
 }
 
 /**
- * [DesktopActions] over `java.awt.Desktop`. Headless-safe: the toolkit is only asked (once, lazily) when the JVM is not
- * headless and `Desktop.isDesktopSupported()`; otherwise nothing is supported.
+ * [DesktopActions] over `java.awt.Desktop`. It is safe in a headless JVM. The toolkit is asked only once, lazily, and
+ * only when the JVM is not headless and `Desktop.isDesktopSupported()` returns true. Otherwise no action is supported.
  */
 internal class AwtDesktopActions : DesktopActions {
 

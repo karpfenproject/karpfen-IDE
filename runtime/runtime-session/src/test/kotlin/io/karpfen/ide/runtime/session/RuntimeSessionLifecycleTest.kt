@@ -64,15 +64,20 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers the lifecycle of a session after its deployment, end to end against the fake runtime, which answers only what
- * each test programs: a stop ends the connection, finalizes the model and records the environment once, and an event
- * sent after it never overtakes it; closing and shutting down in every state leave the ledger entry the state calls
- * for, closing right when a stop begins still stops, and cancelling the scope a session was launched in closes it; a
- * stop is bounded as the deploy timing says; the environment's phase drives the state (halted from a snapshot,
- * uncertain after a call without answer, lost after a restart) until the session stopped, which stays stopped whatever
- * a later read reports; a stop the session did not make is settled by reading the final model; a connection that gives
- * up is a warning, after which pulls never make the model live; forcing a state reaches the runtime, a refusal comes
- * back with the runtime's text, and events that got no reaction are noted; and commands the state does not allow are
- * refused.
+ * each test programs.
+ *
+ * A stop ends the connection, finalizes the model and records the environment once. An event sent after the stop never
+ * overtakes it. Closing and shutting down in every state leave the ledger entry that the state calls for. Closing right
+ * when a stop begins still stops. Cancelling the scope a session was launched in closes it. A stop is bounded as the
+ * deploy timing says.
+ *
+ * The environment's phase drives the state until the session stopped. A snapshot can show the engine halted, a call
+ * without answer makes the phase uncertain, and a restart loses the environment. A stopped session stays stopped,
+ * whatever a later read reports. A stop that the session did not make is settled by reading the final model. A
+ * connection that gives up is a warning, and after it pulls never make the model live.
+ *
+ * Forcing a state reaches the runtime. A refusal comes back with the runtime's text, and events that got no reaction
+ * are noted. Commands that the state does not allow are refused.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionLifecycleTest {
@@ -435,7 +440,9 @@ class RuntimeSessionLifecycleTest {
         session.close()
     }
 
-    /** Programs the answers of a stop of [session]: the runtime closes its link, and the final model at revision 3. */
+    /**
+     * Programs the answers of a stop of [session]. The runtime closes the link, and the final model is at revision 3.
+     */
     private fun programStop(rig: SessionRig, deployment: SessionRig.Deployment, session: RuntimeSession) {
         closeLinkOnStop(rig, session)
         rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 3)

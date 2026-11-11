@@ -31,15 +31,15 @@ import org.slf4j.LoggerFactory
 import kotlin.time.TimeSource
 
 /**
- * The gateway over the HTTP seam: builds every request from the route's catalogue entry alone, with the parameters in
- * catalogue order, sends it through [http] within the timeout of the route's timeout class, and interprets the answer
- * with [ResponseInterpreter].
+ * The gateway over the HTTP seam. It builds every request from the route's catalogue entry alone, with the parameters
+ * in catalogue order. It sends the request through [http] within the timeout of the route's timeout class and
+ * interprets the answer with [ResponseInterpreter].
  *
- * The timeout is the gateway's own: when it expires, the call is a [RuntimeFailure.NoAnswer] with `timedOut`; a
- * cancellation of the caller, an enclosing timeout included, is rethrown. Transport failures map by how far the request
- * got: [TransportFailure.Unreachable] and a timeout while connecting to [RuntimeFailure.Unreachable] (nothing was sent),
- * a timeout while awaiting the answer and [TransportFailure.Interrupted] to [RuntimeFailure.NoAnswer] (it may have been
- * applied).
+ * The timeout is the gateway's own. When it expires, the call becomes a [RuntimeFailure.NoAnswer] with `timedOut` set.
+ * A cancellation of the caller is rethrown, and that includes an enclosing timeout. Transport failures map by how far
+ * the request got. [TransportFailure.Unreachable] and a timeout while connecting become [RuntimeFailure.Unreachable],
+ * because nothing was sent. A timeout while awaiting the answer and [TransportFailure.Interrupted] become
+ * [RuntimeFailure.NoAnswer], because the runtime may have applied the call.
  *
  * @param http the HTTP seam.
  * @param timeouts the timeouts of the timeout classes.
@@ -138,7 +138,8 @@ internal class HttpRuntimeApi(
 
     /**
      * Calls [route] with the parameter [values] in catalogue order and the request [body], and reads a success with
-     * [success].
+     * [success]. A wrong number of values or a blank value is a programming error. It throws
+     * [IllegalArgumentException] before anything is sent.
      */
     private suspend fun <T> call(route: RuntimeRoute, values: List<String>, body: String?, success: SuccessBody<T>): RuntimeResult<T> {
         require(values.size == route.parameters.size) { "$route takes ${route.parameters}, not $values" }
@@ -185,6 +186,7 @@ internal class HttpRuntimeApi(
     }
 
     private companion object {
+        /** The logger of the call durations, at debug level. */
         private val logger = LoggerFactory.getLogger(HttpRuntimeApi::class.java)
 
         /** The placeholder of [RuntimeText.MISSING_PARAMETER] that names the parameter. */

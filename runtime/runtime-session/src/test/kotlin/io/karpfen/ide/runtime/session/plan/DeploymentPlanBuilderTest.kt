@@ -29,9 +29,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 /**
- * Covers the invariants [DeploymentPlan.Builder] checks without a workspace (upload order, machines matching the
- * attachments, domains, no error among the findings), [DeployConfiguration] from a descriptor, [DeclarationLocations]
- * and the values of the plan package.
+ * Covers the invariants that [DeploymentPlan.Builder] checks without a workspace. These are the upload order, machines
+ * that match the attachments, the domains and no error among the findings. It also covers [DeployConfiguration] from a
+ * descriptor, [DeclarationLocations] and the values of the plan package.
  */
 class DeploymentPlanBuilderTest {
 

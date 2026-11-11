@@ -22,15 +22,19 @@ import io.karpfen.ide.ui.workbench.templates.TemplateContext
 import java.nio.file.Path
 
 /**
- * Builds the [TemplateContext] of a new file from the workspace's contexts and the [ContextSymbols] of its latest
- * analysis, the same queries the descriptor's language features ask, so the mediator never walks the models dsl-tools
- * read and the context is also known while a metamodel has errors: the directory's context (its explicit
- * context if a descriptor covers it, else its implicit one), the types of the context's metamodel, the objects of its
- * first model, each state machine's `ATTACHED TO` type and the event domains the state machines use. Pure.
+ * Builds the [TemplateContext] of a new file. It is pure.
+ *
+ * The builder reads the workspace's contexts and the [ContextSymbols] of its latest analysis. These are the same
+ * queries that the language features of the descriptor use. The mediator therefore never walks the models that
+ * dsl-tools read, and the context is known even while a metamodel has errors.
+ *
+ * The template context holds the directory's context. That is its explicit context if a descriptor covers the
+ * directory, and its implicit context otherwise. It also holds the types of the context's metamodel, the objects of
+ * its first model, the `ATTACHED TO` type of each state machine and the event domains that the state machines use.
  */
 internal object TemplateContextBuilder {
 
-    /** The template context of a new file in [directory]; without a context there, only the directory is known. */
+    /** The template context of a new file in [directory]. Without a context there, only the directory is known. */
     fun build(directory: Path, resolution: ContextResolution, analysis: ProjectAnalysis): TemplateContext {
         val context = resolution.contexts.firstOrNull { it.directory == directory } ?: return TemplateContext(directory)
         val symbols = ContextSymbols(analysis)

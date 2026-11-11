@@ -25,9 +25,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The parsers of the modeling languages keep the [NestingLimit]: a text that nests exactly [NestingLimit.MAX_DEPTH]
- * levels deep parses, one level more is a `nesting-too-deep` error at the brace that opens it, the same on every parse,
- * whatever the state of the JIT compiler; braces of string literals and comments do not count, those of EVAL code do.
+ * The parsers of the modeling languages keep the [NestingLimit]. A text that nests exactly [NestingLimit.MAX_DEPTH]
+ * levels deep parses. One level more is a `nesting-too-deep` error at the brace that opens it. The error is the same
+ * on every parse, whatever the state of the JIT compiler. Braces of string literals and comments do not count, but
+ * those of EVAL code do.
  */
 class NestingLimitTest {
 

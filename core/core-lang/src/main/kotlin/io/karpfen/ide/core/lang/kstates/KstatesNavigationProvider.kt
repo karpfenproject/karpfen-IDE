@@ -29,12 +29,18 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
 /**
- * KStates navigation: state references ↔ state declarations; macro references ↔ macro declarations;
- * `ATTACHED TO` and TAKES/RETURNS types → TYPE declaration in the context's metamodel ([types]); event names → the event
- * type; model-path segments → member declarations in the metamodel ([paths], `PathMember.declaration`), WITH bindings
- * and macro parameters → their declarations, `self`/`event` → the type. Declarations known only from the last good
- * parse are returned with that parse's version and the document's lineage (see `Location`); references of types and
- * members span the modeling context ([references]), the others are file-local ([KstatesLocalReferences]).
+ * Navigation in KStates.
+ * - State references and state declarations lead to each other, and so do macro references and macro declarations.
+ * - `ATTACHED TO`, TAKES and RETURNS types lead to the TYPE declaration in the metamodel of the context, through
+ *   [types].
+ * - Event names lead to the event type.
+ * - Model path segments lead to the member declarations in the metamodel, through [paths] and
+ *   `PathMember.declaration`. WITH bindings and macro parameters lead to their declarations, and `self` and `event`
+ *   lead to the type.
+ *
+ * Declarations that only the last good parse knows are returned with the version of that parse and the lineage of the
+ * document, as `Location` describes. References of types and members span the modeling context through [references].
+ * The others stay within the file through [KstatesLocalReferences].
  */
 internal class KstatesNavigationProvider(
     private val slots: KstatesSlots,
@@ -97,8 +103,8 @@ internal class KstatesNavigationProvider(
     }
 
     /**
-     * The target of the path segment under the caret: a member of the type so far, the type of a root (none for an
-     * `event` root of undeterminable type), or a binding.
+     * The target of the path segment under the caret. It is a member of the type so far, the type of a root, or a
+     * binding. An `event` root whose type cannot be determined has no target.
      */
     private fun pathTarget(request: FeatureRequest, context: CaretContext, slot: KstatesSlot.ModelPath): Target? {
         val hit = paths.segmentAt(request, context, slot.range) ?: return null
@@ -114,7 +120,10 @@ internal class KstatesNavigationProvider(
     private fun typeTarget(request: FeatureRequest, name: String): Target =
         Target.Shared(ContextSymbol.Type(name), types.type(request, name)?.declaration)
 
-    /** Where the binding or macro parameter of [hit] is declared: the enclosing `WITH … AS`, else the macro's TAKES. */
+    /**
+     * Where the binding or macro parameter of [hit] is declared. This is the enclosing `WITH … AS`, or else the TAKES
+     * of the macro.
+     */
     private fun bindingDeclaration(request: FeatureRequest, hit: PathHit): Location? {
         val name = hit.segment.name
         return hit.scope.facts.bindings.lastOrNull { it.name == name }?.declaration

@@ -20,35 +20,37 @@ import io.karpfen.ide.core.document.parse.DocumentParser
 import io.karpfen.ide.core.document.syntax.Tokenizer
 
 /**
- * Everything core-document knows about one language, the product family of an Abstract Factory per language: its
- * [tokenizer], its [parser] and its [lineComment]. Adding a language adds a support and edits no existing language class. The product
- * family is split by layer: the editor features of a language live in core-lang
- * (`LanguageFeatures`, registered by `karpfenLanguageFeatures()`), so core-document stays free of project knowledge;
- * a test in core-lang checks that every registered language has features.
+ * Everything core-document knows about one language: its [tokenizer], its [parser] and its [lineComment]. Each
+ * support is the product family of an Abstract Factory for one language. Adding a language adds a support and changes
+ * no existing language class.
+ *
+ * The product family is split by layer. The editor features of a language live in core-lang as `LanguageFeatures`,
+ * registered by `karpfenLanguageFeatures()`. This keeps core-document free of project knowledge. A test in core-lang
+ * checks that every registered language has features.
  */
 public interface LanguageSupport {
     /**
-     * The supported language. File names map to languages by one closed rule, `KarpfenLanguage.fromFileName` (the
-     * enum's extension), used by the registry and by core-workspace's `FileKind` alike, so the two never disagree about
-     * a file.
+     * The supported language. File names map to languages by one closed rule, `KarpfenLanguage.fromFileName`, which
+     * matches the extension of each language. The registry and `FileKind` in core-workspace both use it, so the two
+     * never disagree about a file.
      */
     public val language: KarpfenLanguage
 
-    /** Tokenizer for highlighting (never throws). */
+    /** The tokenizer for highlighting. It never throws. */
     public val tokenizer: Tokenizer
 
-    /** Parser for outline, index, folding, semantic spans and standalone semantics (never throws). */
+    /** The parser for the outline, the index, folding, semantic spans and standalone semantics. It never throws. */
     public val parser: DocumentParser
 
     /**
-     * The marker of a line comment, which toggle comment inserts and removes, or null for a language without comments
-     * (environment descriptors are JSON). Every language states its own, so the editor never comments a language with
-     * the marker of another.
+     * The marker of a line comment, which the toggle comment action inserts and removes. It is null for a language
+     * without comments, such as the JSON of environment descriptors. Every language states its own marker, so the
+     * editor never comments a language with the marker of another.
      */
     public val lineComment: String?
 }
 
-/** A [LanguageSupport] made of the given parts (for tests and for languages contributed from outside). */
+/** A [LanguageSupport] made of the given parts. Tests use it, and so do languages contributed from outside. */
 public fun LanguageSupport(
     language: KarpfenLanguage,
     tokenizer: Tokenizer,

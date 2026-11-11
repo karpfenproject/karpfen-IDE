@@ -31,9 +31,9 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 
 /**
- * Covers the rules of a session as tables: the session's state for every phase of its environment, the reaction to every
- * end of its connection, the commands every state allows, and the injection availability of every state with and
- * without an open connection.
+ * Covers the rules of a session as tables. The tables hold the session's state for every phase of its environment, the
+ * reaction to every end of its connection, the commands every state allows, and the injection availability of every
+ * state with and without an open connection.
  */
 class SessionRulesTest {
 

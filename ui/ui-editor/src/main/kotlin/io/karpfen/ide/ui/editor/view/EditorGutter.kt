@@ -28,9 +28,9 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import io.karpfen.ide.ui.editor.view.input.wheelScroll
 
 /**
- * The gutter of `CodeEditor`: one-based line numbers and diagnostic markers next to the laid-out lines, painted by
- * [GutterPainter], scrolling with the text (the wheel scrolls the text here too). Its width fits the line count's
- * digits.
+ * The gutter of `CodeEditor`. It shows one-based line numbers and diagnostic markers next to the laid-out lines, and
+ * [GutterPainter] paints them. It scrolls with the text, and the mouse wheel scrolls the text here too. Its width fits
+ * the digits of the line count.
  */
 @Composable
 internal fun EditorGutter(render: EditorRenderState, modifier: Modifier = Modifier) {
@@ -64,5 +64,5 @@ internal fun EditorGutter(render: EditorRenderState, modifier: Modifier = Modifi
     }
 }
 
-/** Number layouts kept (a few screens of line numbers). */
+/** The number of line number layouts kept. That is a few screens of line numbers. */
 private const val NUMBER_CACHE_SIZE = 256

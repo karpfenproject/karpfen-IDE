@@ -41,11 +41,11 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * Covers the context tracker: descriptors are loaded through the source loader (normalized text, loading findings),
- * published with the contexts, and an unreadable descriptor is an error that defines no context. Syntax errors and
- * loading findings belong to the descriptor's text, never to the resolution. An open descriptor is read from its editor
- * text, which the started tracker follows by itself, so unsaved edits change findings and contexts, and closing it
- * falls back to the disk.
+ * Covers the context tracker. Descriptors are loaded through the source loader with normalized text and loading
+ * findings, and they are published with the contexts. An unreadable descriptor is an error that defines no context.
+ * Syntax errors and loading findings belong to the descriptor's text, never to the resolution. An open descriptor is
+ * read from its editor text, which the started tracker follows by itself, so unsaved edits change findings and
+ * contexts, and closing it falls back to the disk.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ContextTrackerTest {

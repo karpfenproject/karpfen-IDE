@@ -28,13 +28,13 @@ import io.karpfen.ide.runtime.session.states.ActiveStates
 import io.karpfen.ide.runtime.session.states.ActiveStatesReducer
 
 /**
- * The state of the observation: the observed model and the facts its rules need besides it.
+ * The state of the observation. It holds the observed model and the facts its rules need besides it.
  *
  * @property model the observed model.
- * @property lastRevision the revision of the last applied snapshot or push; 0 before anything was read.
+ * @property lastRevision the revision of the last applied snapshot or push. It is 0 before anything was read.
  * @property hasRead true once a snapshot was applied.
- * @property stopped true once the environment stopped; the next snapshot is final.
- * @property linkDown true while the connection is interrupted or ended: no push arrives until it opens again, so the
+ * @property stopped true once the environment stopped. The next snapshot is final.
+ * @property linkDown true while the connection is interrupted or ended. No push arrives until it opens again, so the
  *   model cannot be live meanwhile.
  */
 internal data class ObservationState(
@@ -47,14 +47,14 @@ internal data class ObservationState(
 
 /** What the observation reacts to. */
 internal sealed interface ObservationInput {
-    /** The model subscription answered 200: observation is on. */
+    /** The model subscription answered 200, so observation is on. */
     data object SwitchedOn : ObservationInput
 
-    /** The model unsubscription answered 200: observation is off. */
+    /** The model unsubscription answered 200, so observation is off. */
     data object SwitchedOff : ObservationInput
 
     /**
-     * A push of the runtime arrived; only object and stack pushes concern the observation.
+     * A push of the runtime arrived. Only object and stack pushes concern the observation.
      *
      * @property push the push.
      */
@@ -75,16 +75,16 @@ internal sealed interface ObservationInput {
     data class SnapshotFailed(val reason: String) : ObservationInput
 
     /**
-     * The connection opened; every open after the first is a reconnect.
+     * The connection opened. Every opening after the first one is a reconnect.
      *
-     * @property epoch the number of the open, starting at 1.
+     * @property epoch the number of the opening, starting at 1.
      */
     data class LinkOpened(val epoch: Int) : ObservationInput
 
-    /** The connection was interrupted or ended; pushes may be lost until it opens again. */
+    /** The connection was interrupted or ended. Pushes may be lost until it opens again. */
     data object LinkInterrupted : ObservationInput
 
-    /** The environment stopped; the runtime dropped the pushes still queued for it. */
+    /** The environment stopped. The runtime dropped the pushes still queued for it. */
     data object EnvironmentStopped : ObservationInput
 }
 
@@ -113,31 +113,43 @@ internal data class ObservationStep(
 )
 
 /**
- * The rules of the observation switch, pure: every input answers the next state, the model update it caused, the
- * requests the owner executes before it takes the next input, and anomalies.
+ * The rules of the observation switch. They are pure. Every input returns the next state, the model update it caused,
+ * the requests the owner executes before it takes the next input, and anomalies.
  *
- * | Input | Effect |
- * |---|---|
- * | switched on | mode on, synchronizing because it was switched on, read a snapshot |
- * | switched off | mode off, pulled at the last revision (predicted if nothing was read yet); the mirror keeps its state |
- * | object or stack push, mode off | ignored (pushes enqueued before the unsubscription may still arrive) |
- * | object or stack push, synchronizing | ignored (the pending snapshot is read later, so it covers the push) |
- * | object or stack push, live at L | at most L ignored; L + 1 applied, live at L + 1, an update; above L + 1 a gap: synchronizing, read a snapshot, an anomaly naming the missed revisions |
- * | snapshot read | when at least the last applied revision: mirror and states replaced, phase set, live when on, still synchronizing because of the reconnect when on while the link is down, pulled when off, final after the stop; one update listing what differs from before. An older snapshot is ignored |
- * | snapshot failed | when on, synchronizing because the snapshot failed, or because of the reconnect while the link is down; unchanged when off |
- * | connection opened | the link is up again; when on and not the first open, synchronizing because of the reconnect, subscribe again, then read a snapshot |
- * | connection interrupted or ended | the link is down until the next open; when on, synchronizing because of the reconnect, no request (the next open brings them) |
- * | environment stopped | mode off, read a snapshot, which is final |
+ * - Switching on sets the mode to on. The model synchronizes because it was switched on, and a snapshot is requested.
+ * - Switching off sets the mode to off. The model counts as pulled at the last revision, or as predicted if nothing
+ *   was read yet. The mirror keeps its state.
+ * - An object or stack push is ignored while the mode is off. Pushes that were enqueued before the unsubscription may
+ *   still arrive.
+ * - An object or stack push is also ignored while the model synchronizes. The pending snapshot is read later, so it
+ *   covers the push.
+ * - While the model is live at revision L, a push at L or below is ignored. A push at L + 1 is applied, the model
+ *   becomes live at L + 1, and there is an update. A push above L + 1 reveals a gap. The model then synchronizes, a
+ *   snapshot is requested, and an anomaly names the missed revisions.
+ * - A snapshot read at the last applied revision or later replaces the mirror and the states and sets the phase. The
+ *   model becomes live when observation is on. It still synchronizes because of the reconnect when observation is on
+ *   while the link is down. It counts as pulled when observation is off, and as final after the stop. There is one
+ *   update that lists what differs from before. An older snapshot is ignored.
+ * - A failed snapshot read leaves the model unchanged when observation is off. When it is on, the model synchronizes
+ *   because the snapshot failed, or because of the reconnect while the link is down.
+ * - When the connection opens, the link is up again. When observation is on and this is not the first opening, the
+ *   model synchronizes because of the reconnect. The owner then subscribes again and reads a snapshot.
+ * - When the connection is interrupted or ends, the link is down until the next opening. When observation is on, the
+ *   model synchronizes because of the reconnect. There is no request yet, because the next opening brings the
+ *   requests.
+ * - When the environment stopped, the mode becomes off and a snapshot is requested. That snapshot is final.
  *
- * After the stop, switching on or off changes nothing. Domain events, violations and unrecognized pushes are not the
- * observation's business.
+ * After the stop, switching on or off changes nothing. Domain events, protocol violations and unrecognized pushes are
+ * not the observation's business.
  *
  * @param mirror applies snapshots and object pushes to the mirror.
  * @param states applies snapshots and stack pushes to the active states.
  */
 internal class ObservationReducer(private val mirror: MirrorReducer, private val states: ActiveStatesReducer) {
 
-    /** The state before anything was read: observation off, the [seed] as mirror and the predicted states. */
+    /**
+     * The state before anything was read. Observation is off, the mirror is the [seed] and the states are predicted.
+     */
     fun initial(seed: MirrorSnapshot): ObservationState =
         ObservationState(
             model = ObservedModel(ObservationMode.OFF, SyncStatus.Predicted, null, seed, states.initial()),
@@ -283,7 +295,9 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
         return ObservationStep(state.copy(model = model, stopped = true), null, listOf(ObservationRequest.ReadSnapshot), emptyList())
     }
 
-    /** The status of a model that is not observed: pulled at the last revision, or predicted if nothing was read. */
+    /**
+     * The status of a model that is not observed. It is pulled at the last revision, or predicted if nothing was read.
+     */
     private fun offStatus(state: ObservationState): SyncStatus =
         if (state.hasRead) SyncStatus.Pulled(state.lastRevision) else SyncStatus.Predicted
 

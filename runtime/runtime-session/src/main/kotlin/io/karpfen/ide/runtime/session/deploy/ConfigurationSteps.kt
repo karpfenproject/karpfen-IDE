@@ -20,9 +20,9 @@ import io.karpfen.ide.runtime.session.plan.PlannedUpload
 import io.karpfen.ide.runtime.session.plan.UploadRole
 
 /**
- * Uploads the metamodel, the event definitions or the model, the analyzed snapshot of its file.
+ * Uploads the metamodel, the event definitions or the model. It uploads the analyzed snapshot of the file.
  *
- * @param upload what to upload; its role is not a state machine's.
+ * @param upload what to upload. Its role is never that of a state machine, because state machines have their own step.
  */
 internal class UploadStep(private val upload: PlannedUpload) : DeployStep {
     init {
@@ -49,7 +49,7 @@ internal class UploadStep(private val upload: PlannedUpload) : DeployStep {
 }
 
 /**
- * Attaches one state machine to its object key; the order of the attachments becomes the runtime's tick order.
+ * Attaches one state machine to its object key. The order of the attachments becomes the runtime's tick order.
  *
  * @param upload the state machine.
  */
@@ -65,7 +65,7 @@ internal class AttachStep(private val upload: PlannedUpload) : DeployStep {
 }
 
 /**
- * Sets the tick delay of the deploy configuration, always, so the runtime's own default never applies.
+ * Sets the tick delay of the deploy configuration. The step always runs, so the runtime's own default never applies.
  *
  * @param milliseconds the tick delay.
  */
@@ -77,7 +77,8 @@ internal class TickDelayStep(private val milliseconds: Int) : DeployStep {
 }
 
 /**
- * Sets the event time to live of the deploy configuration, always, so the runtime's own default never applies.
+ * Sets the event time to live of the deploy configuration. The step always runs, so the runtime's own default never
+ * applies.
  *
  * @param milliseconds the time to live.
  */
@@ -89,8 +90,8 @@ internal class EventTtlStep(private val milliseconds: Long) : DeployStep {
 }
 
 /**
- * Registers a listener of the deployment's client for every event domain the state machines use, reporting each as
- * it goes.
+ * Registers a listener of the deployment's client for every event domain the state machines use. It reports each
+ * domain as it goes and stops at the first registration that does not succeed.
  *
  * @param domains the domains, at least one.
  */

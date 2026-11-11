@@ -21,19 +21,20 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The outline of a descriptor's JSON tree: every member is a [SymbolKind.KEY] node named by its key (detail: its value
- * when that is a string, a number or a literal; selection: the key), every list item an [SymbolKind.ENTRY] node, and
- * objects and lists nest their members and items.
+ * The outline of a descriptor's JSON tree. Every member becomes a [SymbolKind.KEY] node named by its key. Its detail
+ * is its value when that is a string, a number or a literal, and its selection is the key. Every list item becomes a
+ * [SymbolKind.ENTRY] node. Objects and lists nest their members and items.
  *
- * An entry is named by the file it names: the first of its strings that the schema expects to be a file path, so a
- * state machine entry is named by its file whatever the order of its keys. An entry that names no file is named by its
- * first string, or by its position (`[0]`) when it has none. Pure; one instance per tree.
+ * An entry is named by the file it names. That is the first of its strings that the schema expects to be a file path,
+ * so a state machine entry is named by its file whatever the order of its keys. An entry that names no file is named by
+ * its first string, or by its position such as `[0]` when it has none. The class has no side effects. Use one instance
+ * per tree.
  *
- * @param filePaths the ranges of the strings the schema expects to be file paths.
+ * @param filePaths the ranges of the strings that the schema expects to be file paths.
  */
 internal class DescriptorOutline private constructor(private val filePaths: Set<TextRange>) {
 
-    /** The nodes of the members or items of [value]; none for a string, number or literal. */
+    /** The nodes of the members or items of [value]. A string, number or literal has none. */
     private fun childrenOf(value: JsonNode?): List<OutlineNode> = when (value) {
         is JsonNode.ObjectNode -> value.members.map(::keyNode)
         is JsonNode.ArrayNode -> value.items.mapIndexed(::entryNode)
@@ -64,7 +65,10 @@ internal class DescriptorOutline private constructor(private val filePaths: Set<
         )
     }
 
-    /** The string that names an entry: the item itself, or the file path or else the first string of an object item. */
+    /**
+     * The string that names an entry. For a string item it is the item itself. For an object item it is the file path,
+     * or else the first string.
+     */
     private fun labelOf(item: JsonNode): JsonNode.StringNode? = when (item) {
         is JsonNode.StringNode -> item
         is JsonNode.ObjectNode -> {
@@ -74,7 +78,7 @@ internal class DescriptorOutline private constructor(private val filePaths: Set<
         else -> null
     }
 
-    /** The text of a string, number or literal; null for a container. */
+    /** The text of a string, number or literal. Null for a container. */
     private fun scalarText(value: JsonNode): String? = when (value) {
         is JsonNode.StringNode -> value.value
         is JsonNode.NumberNode -> value.text
@@ -83,7 +87,10 @@ internal class DescriptorOutline private constructor(private val filePaths: Set<
     }
 
     companion object {
-        /** The top-level outline nodes of the tree whose [shapedValues] are [values], the root first; none without a root. */
+        /**
+         * The top-level outline nodes of the tree whose [shapedValues] are [values], with the root first. There are
+         * none without a root.
+         */
         fun of(values: List<ShapedValue>): List<OutlineNode> {
             val root = values.firstOrNull()?.node ?: return emptyList()
             val filePaths = values.filter { it.shape is ValueShape.FilePath }.mapTo(HashSet()) { it.node.range }

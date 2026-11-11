@@ -94,7 +94,7 @@ public object RuntimeViewTestTags {
     /** The link to the object [id] in the model tree. */
     public fun link(id: String): String = "Runtime.model.link:$id"
 
-    /** The event log's entry [sequence]. */
+    /** The entry of the event log with the sequence number [sequence]. */
     public fun event(sequence: Long): String = "Runtime.events.event:$sequence"
 
     /** The injector's option for the domain [name]. */

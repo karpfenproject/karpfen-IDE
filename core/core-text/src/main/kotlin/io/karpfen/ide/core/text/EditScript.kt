@@ -18,23 +18,24 @@ package io.karpfen.ide.core.text
 import java.util.Collections
 
 /**
- * A normalized list of [TextEdit]s in the coordinates of one text: no no-op edits, sorted by range start and then by
- * range end (stable, so insertions at the same offset keep their order and an insertion at the start of a replaced
- * range goes before the replacement), no two edits overlapping and no insertion inside a replaced range.
+ * A normalized list of [TextEdit]s in the coordinates of one text. It holds no no-op edits. The edits are sorted by
+ * range start and then by range end. The sort is stable, so insertions at the same offset keep their order, and an
+ * insertion at the start of a replaced range goes before the replacement. No two edits overlap, and no insertion lies
+ * inside a replaced range.
  *
- * It is the one representation of "what a change did" inside core-text: [TextChange.edits] of every applied change,
- * the entries of the [EditLog] used for offset mapping, and the forward/backward edits of every undo step. Immutable
- * and therefore safe to share between threads.
+ * It is the one representation of what a change did inside core-text. It backs [TextChange.edits] of every applied
+ * change, the entries of the [EditLog] used for offset mapping, and the forward and backward edits of every undo step.
+ * A script is immutable and therefore safe to share between threads.
  */
 internal class EditScript private constructor(edits: List<TextEdit>) {
 
-    /** The edits, sorted and non-overlapping (read-only view). */
+    /** The edits, sorted and without overlaps, as a read-only view. */
     val edits: List<TextEdit> = Collections.unmodifiableList(edits)
 
     /** True if the script changes nothing. */
     val isEmpty: Boolean get() = edits.isEmpty()
 
-    /** The index [mapOffset] searches, built on first use (most scripts are never mapped across). */
+    /** The index that [mapOffset] searches. It is built on first use, because most scripts are never mapped across. */
     private val mapper: OffsetMapper by lazy(LazyThreadSafetyMode.PUBLICATION) { OffsetMapper(edits) }
 
     /** Applies the script to [text], the text whose coordinates it uses. */
@@ -64,15 +65,16 @@ internal class EditScript private constructor(edits: List<TextEdit>) {
     }
 
     /**
-     * Maps [offset] (in the coordinates before the script) to the coordinates after it, with [bias] deciding at edit
-     * points (see [Bias]). Offsets past the end of the text are shifted like every offset after the last edit.
+     * Maps [offset] from the coordinates before the script to the coordinates after it. At edit points [bias] decides,
+     * as described at [Bias]. Offsets past the end of the text are shifted like every offset after the last edit.
      *
      * - [Bias.RIGHT] keeps the offset in front of the first character at or after it that survives the script, so it
      *   moves behind text inserted at the offset and to the end of a replacement it lies in.
      * - [Bias.LEFT] keeps the offset behind the last character before it that survives the script, so it stays in
      *   front of text inserted at the offset and moves to the start of a replacement it lies in.
      *
-     * O(log n) in the number of edits ([OffsetMapper]).
+     * A call costs O(log n) in the number of edits, because [OffsetMapper] finds the edits around the offset by binary
+     * search.
      */
     fun mapOffset(offset: Int, bias: Bias): Int = when {
         edits.isEmpty() -> offset
@@ -89,8 +91,8 @@ internal class EditScript private constructor(edits: List<TextEdit>) {
         private val BY_RANGE: Comparator<TextEdit> = compareBy<TextEdit> { it.range.start }.thenBy { it.range.end }
 
         /**
-         * Normalizes [edits] given in the coordinates of a text of length [textLength]: drops no-op edits and sorts
-         * the rest (see [EditScript]).
+         * Normalizes [edits] given in the coordinates of a text of length [textLength]. It drops no-op edits and sorts
+         * the rest as described at [EditScript].
          *
          * @throws IllegalArgumentException if an edit reaches past [textLength], two edits overlap or an insertion
          *   lies strictly inside a replaced range.

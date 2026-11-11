@@ -58,9 +58,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Keyboard focus of the composed workbench: modal dialogs keep the focus (Tab cycles inside them, no key reaches the
- * workbench behind them) and give it back when they are answered; the find bar keeps it on Find Next; the editor keeps
- * it while tool windows are shown and hidden.
+ * Tests the keyboard focus of the composed workbench. Modal dialogs keep the focus. Tab cycles inside them, and no key
+ * reaches the workbench behind them. They give the focus back when they are answered. The find bar keeps the focus on
+ * Find Next. The editor keeps the focus while tool windows are shown and hidden.
  *
  * Menu shortcuts are simulated by what they run: Cmd+W by the Close Tab command's intent on the active tab, and Cmd+G
  * typed into the find bar's query field by Find Next run through the command registry, which is where a menu
@@ -229,7 +229,9 @@ class WorkbenchFocusUiTest {
         /** The focus stops of the unsaved-changes dialog: the dialog itself and its three buttons. */
         const val DIALOG_FOCUS_STOPS = 4
 
-        /** The focus stops of the rename dialog, so Tab cycles field → Rename → Cancel → field. */
+        /**
+         * The focus stops of the rename dialog. Tab cycles from the field to Rename, to Cancel and back to the field.
+         */
         const val RENAME_FOCUS_STOPS = 3
     }
 }

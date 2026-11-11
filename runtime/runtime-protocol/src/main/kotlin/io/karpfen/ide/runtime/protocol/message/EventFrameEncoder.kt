@@ -19,11 +19,11 @@ import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 
 /**
  * Writes the text frame of an [EventFrame] exactly as
- * `{"environmentKey":<domain>,"messageType":<name>,"payload":<text>,"payloadFormat":<format>}`: in this member order,
- * without whitespace, every value a string quoted with [RuntimeJson.quote]. The payload is always a JSON string, never a
- * spliced object, and the format is always explicit (`json`, `kmodel`, or `none` with an empty payload), so the runtime
- * never has to detect it. The runtime reads the frame's `environmentKey` as the event's domain and its `messageType` as
- * the event's name. Stateless.
+ * `{"environmentKey":<domain>,"messageType":<name>,"payload":<text>,"payloadFormat":<format>}`. The members come in
+ * this order, without whitespace. Every value is a string quoted with [RuntimeJson.quote]. The payload is always a JSON
+ * string, never a spliced object. The format is always explicit, so the runtime never has to detect it. It is `json`,
+ * `kmodel`, or `none` with an empty payload. The runtime reads the frame's `environmentKey` as the event's domain and
+ * its `messageType` as the event's name. The object holds no state.
  */
 public object EventFrameEncoder {
 

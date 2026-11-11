@@ -39,11 +39,16 @@ import java.nio.file.Path
 import java.time.Clock
 
 /**
- * The runtime host of one workspace and what hangs on it: the host created through [hosts] from the settings, its
- * status, its log lines written to [log], and one client per endpoint of the runtime, created when the host reports it
- * running and closed when the endpoint changes or the binding closes. Replacing the settings creates the new host and
- * makes it current at once, then closes the old host, which stops its container, so nothing reaches the old host while
- * it closes. Used from the UI thread; collected in [scope]; the blocking close of a host runs on [ioDispatcher].
+ * The runtime host of one workspace and what depends on it. The host is created through [hosts] from the settings.
+ * The binding publishes the host's status and writes its log lines to [log]. It keeps one client for the runtime's
+ * current endpoint. The client is created when the host reports the runtime as running. It is closed when the
+ * endpoint changes or the binding closes.
+ *
+ * Replacing the settings creates the new host and makes it current at once. Only then is the old host closed, which
+ * stops its container. Nothing therefore reaches the old host while it closes.
+ *
+ * Use the class from the UI thread only. The flows are collected in [scope]. Closing a host blocks, so it runs on
+ * [ioDispatcher].
  *
  * @param root the root folder of the workspace.
  * @param settings the settings the first host is created from.
@@ -73,7 +78,7 @@ internal class RuntimeHostBinding(
     /** What the current host is doing. */
     val status: StateFlow<HostStatus> get() = hostStatus.asStateFlow()
 
-    /** Starts the runtime unless it runs, and answers where it is reached or why there is none. */
+    /** Starts the runtime unless it already runs. Returns where the runtime is reached, or why there is none. */
     suspend fun ensureRunning(): HostOutcome = host.ensureRunning()
 
     /** Stops the runtime of the current host. */
@@ -81,14 +86,20 @@ internal class RuntimeHostBinding(
         host.stop()
     }
 
-    /** The client of the runtime at [endpoint]: the one created for it, or a new one that replaces the client before. */
+    /**
+     * The client of the runtime at [endpoint]. It is the client already created for that endpoint, or a new one that
+     * replaces and closes the previous client.
+     */
     fun clientFor(endpoint: RuntimeEndpoint): RuntimeClient {
         client?.takeIf { it.endpoint == endpoint }?.let { return it }
         client?.close()
         return clients(endpoint).also { client = it }
     }
 
-    /** Creates the host of [next] and makes it current, then closes the host before and its client. */
+    /**
+     * Creates the host of [next] and makes it current. Then it closes the previous host and its client. A binding that
+     * was closed before is open again afterwards.
+     */
     suspend fun replace(next: RuntimeSettings) {
         val previous = host.takeIf { open }
         detach()
@@ -99,14 +110,18 @@ internal class RuntimeHostBinding(
         previous?.let { withContext(ioDispatcher) { it.close() } }
     }
 
-    /** Closes the host, which stops its runtime within the host's bound, and the client; once only. */
+    /**
+     * Closes the host and the client. Closing the host stops its runtime within the time bound of the host. Only the
+     * first call has an effect.
+     */
     suspend fun close() {
         release()
     }
 
     /**
-     * Closes the client at once and hands the close of the host, which may block until the host stopped its container,
-     * to [ioDispatcher] without waiting for it, so the calling thread never blocks; once only.
+     * Closes the client at once and hands the close of the host to [ioDispatcher] without waiting for it. Closing the
+     * host may block until the host has stopped its container. The calling thread therefore never blocks. Only the
+     * first call has an effect.
      */
     fun closeNow() {
         if (!open) return
@@ -133,7 +148,10 @@ internal class RuntimeHostBinding(
         client = null
     }
 
-    /** Follows the status of [host], creating the client of a running runtime, and writes its log lines to [log]. */
+    /**
+     * Follows the status of [host] and writes its log lines to [log]. When the host reports a running runtime, the
+     * client for its endpoint is created.
+     */
     private fun follow(host: RuntimeHost): List<Job> = listOf(
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             host.status.collect { status ->
@@ -144,7 +162,10 @@ internal class RuntimeHostBinding(
         scope.launch(start = CoroutineStart.UNDISPATCHED) { host.logs.collect(::write) },
     )
 
-    /** Writes [line] to the log: standard error as errors, everything else as information. */
+    /**
+     * Writes [line] to the log. Standard error becomes an error and everything else becomes information. The logger
+     * name is the stream's name in lower case.
+     */
     private fun write(line: HostLogLine) {
         val level = if (line.stream == LogStream.STDERR) OutputLevel.ERROR else OutputLevel.INFO
         log.append(clock.instant(), level, line.stream.name.lowercase(), line.text, null)

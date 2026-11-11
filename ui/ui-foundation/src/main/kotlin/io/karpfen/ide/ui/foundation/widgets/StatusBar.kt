@@ -40,13 +40,13 @@ import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 
 /**
- * A segment of the [StatusBar]; clickable when [onClick] is set. Holds behaviour, so it is a plain class with identity
- * equality (not a data class).
+ * A segment of the [StatusBar]. It is clickable when [onClick] is set. It holds behaviour, so it is a plain class with
+ * identity equality and not a data class.
  *
  * @property id identifies the segment in test tags.
  * @property text the segment's label.
  * @property tooltip shown while the pointer rests on the segment, or null for none.
- * @property icon drawn untinted before the text (e.g. a severity icon), or null for none.
+ * @property icon drawn untinted before the text, such as a severity icon, or null for none.
  * @property onClick runs when the segment is clicked, or null for a segment that is no button.
  */
 @Immutable
@@ -58,7 +58,7 @@ public class StatusBarItem(
     public val onClick: (() -> Unit)? = null,
 )
 
-/** Test tags of [StatusBar] (for headless UI tests of the foundation and its users). */
+/** Test tags of [StatusBar], for headless UI tests of the foundation and of the modules that use it. */
 public object StatusBarTestTags {
     /** The bar. */
     public const val BAR: String = "StatusBar"
@@ -68,11 +68,11 @@ public object StatusBarTestTags {
 }
 
 /**
- * The window status bar: [left] items aligned left, [right] items aligned right. Stateless.
+ * The window status bar, with the [left] items aligned left and the [right] items aligned right. It is stateless.
  *
- * Each item shows its icon (untinted, e.g. a severity icon) and text in the small UI style; it has a tooltip when
- * [StatusBarItem.tooltip] is set and is a button that never takes the keyboard focus when [StatusBarItem.onClick] is
- * set. Needs `KarpfenTheme`.
+ * Each item shows its icon untinted and its text in the small UI style. It has a tooltip when
+ * [StatusBarItem.tooltip] is set. When [StatusBarItem.onClick] is set, the item is a button that never takes the
+ * keyboard focus. The bar needs `KarpfenTheme`.
  */
 @Composable
 public fun StatusBar(

@@ -29,13 +29,15 @@ import io.karpfen.ide.core.text.TextSnapshot
 import org.slf4j.LoggerFactory
 
 /**
- * Decorator that makes a [Tokenizer] keep its "never throws" contract (highlighting must work on every text, and no
- * exception from analysis may reach the editor): an exception of [delegate] is logged and turned into a degraded result
- * of one ERROR token per run of non-whitespace characters (so the token invariants still hold) and one ERROR
- * [DiagnosticCodes.INTERNAL_ERROR] diagnostic (source IDE) at the start of the text. The robustness tests assert that
- * this diagnostic never occurs, so a defect is still found by the tests rather than hidden by this guard.
+ * Decorator that makes a [Tokenizer] keep its promise never to throw. Highlighting must work on every text, and no
+ * exception from analysis may reach the editor.
  *
- * Stateless and thread-safe if [delegate] is.
+ * An exception of [delegate] is logged and turned into a degraded result. The result has one ERROR token per run of
+ * non-whitespace characters, so the token invariants still hold. It also has one ERROR diagnostic with code
+ * [DiagnosticCodes.INTERNAL_ERROR] and source IDE at the start of the text. The robustness tests assert that this
+ * diagnostic never occurs, so the tests still find a defect instead of this guard hiding it.
+ *
+ * The class holds no state and is thread-safe if [delegate] is.
  */
 internal class FailSafeTokenizer(
     private val language: KarpfenLanguage,
@@ -50,7 +52,7 @@ internal class FailSafeTokenizer(
             degraded(snapshot, failure)
         }
 
-    /** One ERROR token per run of non-whitespace characters plus the internal-error diagnostic for [failure]. */
+    /** One ERROR token per run of non-whitespace characters, plus the internal-error diagnostic for [failure]. */
     private fun degraded(snapshot: TextSnapshot, failure: Exception): TokenizeResult {
         val text = snapshot.text
         val tokens = ArrayList<SyntaxToken>()
@@ -74,7 +76,7 @@ internal class FailSafeTokenizer(
         return TokenizeResult(snapshot.version, tokens, listOf(diagnostic))
     }
 
-    /** The whitespace of the karpfen grammars (`[ \t\r\n]`). */
+    /** The whitespace of the karpfen grammars, which is `[ \t\r\n]`. */
     private fun isWhitespace(char: Char): Boolean = char == ' ' || char == '\t' || char == '\r' || char == '\n'
 
     private companion object {

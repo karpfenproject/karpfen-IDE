@@ -38,12 +38,12 @@ import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * The session facade: composes the deployment, the conductor with its calls and its stopper, the router, the published
- * status and the event injector of one deployment, and delegates every function to the one that owns it. It runs in its
- * own supervisor child of the scope it was launched in, on the dispatcher of the options; the conductor's, the router's
- * and the deployment's coroutines and the connection live in it. When that child ends because the scope it was
- * launched in was cancelled, the session closes itself, so nobody waits for an answer that never comes and the
- * environment is recorded as it is left.
+ * The session facade. It composes the parts of one deployment. These are the deployment itself, the conductor with its
+ * calls and its stopper, the router, the published status and the event injector. Every function delegates to the part
+ * that owns it. The session runs in its own supervisor child of the scope it was launched in, on the dispatcher of the
+ * options. The coroutines of the conductor, the router and the deployment live in that child, and so does the
+ * connection. When the child ends because the scope it was launched in was cancelled, the session closes itself. That
+ * way nobody waits for an answer that never comes, and the environment is recorded as it is left.
  *
  * @param prepared what the session deploys.
  * @param client the client of the runtime.
@@ -104,7 +104,7 @@ internal class DefaultRuntimeSession(
     /** Records the environment once and settles a close that races the deployment or a stop. */
     private val departure = EnvironmentDeparture(ledger, client.endpoint)
 
-    /** The bounds of stopping and disconnecting, those of a deployment's cleanup. */
+    /** The time bounds of stopping and disconnecting. They are the same as those of a deployment's cleanup. */
     private val bounds = CleanupBounds.of(options.deployTiming)
 
     /** The conductor of the commands. */

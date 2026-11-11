@@ -18,7 +18,8 @@ package io.karpfen.ide.runtime.session.events
 import io.karpfen.ide.runtime.protocol.message.RuntimeJson
 
 /**
- * Writes a [PayloadDraft] as the compact JSON object its [PayloadForm] describes, fields in form order. Stateless.
+ * Writes a [PayloadDraft] as the compact JSON object that its [PayloadForm] describes. The fields come in form order.
+ * Stateless.
  */
 internal object DraftEncoder {
     /** The JSON object of [draft] filled into [form]. */
@@ -53,7 +54,7 @@ internal object DraftEncoder {
             is PayloadDraftValue.Many -> value.values.joinToString(",", "[", "]", transform = ::scalar)
         }
 
-    /** The JSON of a scalar; a number that is not finite is written as a string. */
+    /** The JSON of a scalar. A number that is not finite is written as a string. */
     private fun scalar(value: PayloadScalar): String =
         when (value) {
             is PayloadScalar.Number -> number(value.value)
@@ -61,7 +62,10 @@ internal object DraftEncoder {
             is PayloadScalar.Flag -> value.value.toString()
         }
 
-    /** A finite number without fraction when it is integral, otherwise as Kotlin writes a double; others as a string. */
+    /**
+     * The JSON of a number. An integral finite number below [LONG_SAFE] is written without a fraction. Any other finite
+     * number is written as Kotlin writes a double. A number that is not finite is written as a string.
+     */
     private fun number(value: Double): String =
         when {
             !value.isFinite() -> RuntimeJson.quote(value.toString())

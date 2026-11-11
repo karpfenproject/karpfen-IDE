@@ -18,9 +18,10 @@ package io.karpfen.ide.core.document.antlr.lex
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Answers "does a range overlap any of [ranges]?" in O(log n) per query (`TextRange.overlaps` semantics: empty ranges
- * overlap nothing). Works for any input order and for overlapping [ranges]: they are sorted by start, and a prefix
- * maximum of their ends finds an overlap among all ranges starting before the query's end. Immutable.
+ * Answers whether a range overlaps any of [ranges], in O(log n) per query. Overlap means the same as in
+ * `TextRange.overlaps`, so empty ranges overlap nothing. The index works for any input order and for [ranges] that
+ * overlap each other. The ranges are sorted by start, and a prefix maximum of their ends finds an overlap among all
+ * ranges that start before the end of the query. The index is immutable.
  */
 internal class RangeOverlapIndex(ranges: List<TextRange>) {
 

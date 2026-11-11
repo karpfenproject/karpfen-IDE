@@ -40,10 +40,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Covers pushing project diagnostics into open sessions: diagnostics of a version of the document's text are mapped
- * forward, those of the identical disk text reach a document opened later, and those of another text or of another
- * lineage of the text (a document closed and reopened since) are never pushed. A descriptor's findings are pushed for
- * the descriptor text they were read from.
+ * Covers pushing project diagnostics into open sessions. Diagnostics of a version of the document's text are mapped
+ * forward. Those of the identical disk text reach a document that is opened later. Those of another text, or of another
+ * lineage of the text, are never pushed. Another lineage arises when the document was closed and reopened since. The
+ * findings of a descriptor are pushed for the descriptor text they were read from.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProjectDiagnosticsPublisherTest {

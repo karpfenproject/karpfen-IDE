@@ -17,7 +17,7 @@ package io.karpfen.ide.app.crash
 
 import java.awt.EventQueue
 
-/** Where the JVM reports uncaught exceptions; the seam that keeps `CrashHandling` testable without touching the JVM. */
+/** Where the JVM reports uncaught exceptions. This seam keeps `CrashHandling` testable without touching the JVM. */
 internal fun interface UncaughtExceptionHooks {
     /** Routes uncaught exceptions to [handler]. */
     fun install(handler: Thread.UncaughtExceptionHandler)
@@ -27,10 +27,10 @@ internal fun interface UncaughtExceptionHooks {
 internal class JvmUncaughtExceptionHooks : UncaughtExceptionHooks {
 
     /**
-     * Makes [handler] the default uncaught-exception handler, which every thread without its own uses (worker threads
-     * included), and the event-dispatch thread's own handler. The latter is set on that thread, so exceptions thrown by
-     * event handlers reach [handler] even if a library installed a thread-specific one; the event-dispatch thread keeps
-     * running after reporting them.
+     * Makes [handler] the default uncaught-exception handler, which every thread without a handler of its own uses,
+     * worker threads included. It also makes [handler] the event-dispatch thread's own handler. That one is set on the
+     * event-dispatch thread itself, so exceptions thrown by event handlers reach [handler] even if a library installed
+     * a thread-specific handler. The event-dispatch thread keeps running after reporting them.
      */
     override fun install(handler: Thread.UncaughtExceptionHandler) {
         Thread.setDefaultUncaughtExceptionHandler(handler)

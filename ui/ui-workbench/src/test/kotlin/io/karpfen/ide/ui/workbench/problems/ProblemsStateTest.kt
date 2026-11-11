@@ -36,7 +36,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** [ProblemsState]: maps `Workspace.problems` into groups and one-based items, filters, counts before filtering. */
+/**
+ * Tests that [ProblemsState] maps `Workspace.problems` into groups and items with one-based positions, that it
+ * filters, and that it counts before filtering.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProblemsStateTest {
 

@@ -31,8 +31,8 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How the mediator binds the Language Tools Output: it reads the services' buffer, counts problems as seen while its
- * tool window is visible in the layout, and passes the unseen ones on to the status bar.
+ * Tests how the mediator binds the Language Tools Output. It reads the buffer of the services. It counts problems as
+ * seen while the output's tool window is visible in the layout. And it passes the unseen problems on to the status bar.
  */
 class LanguageToolsOutputTest {
 

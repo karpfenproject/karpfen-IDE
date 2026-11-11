@@ -35,10 +35,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * An environment descriptor edited in the IDE over the production wiring ([ProductionWorkbench]), as a user does it:
- * open it from the project tree into an editor tab, edit it (the workspace reports what the unsaved text names
- * wrongly), complete a file path and an attached object, and save; go from a named file or the attached object to its
- * definition; and type values by hand that completion leaves as they are.
+ * Edits an environment descriptor in the IDE over the production wiring of [ProductionWorkbench], as a user does it.
+ * The test opens the descriptor from the project tree into an editor tab and edits it. The workspace reports what the
+ * unsaved text names wrongly. The test completes a file path and an attached object and saves. It goes from a named
+ * file or the attached object to its definition. And it types values by hand, which completion leaves as they are.
  */
 class DescriptorEditingEndToEndTest {
 
@@ -71,8 +71,8 @@ class DescriptorEditingEndToEndTest {
     }
 
     /**
-     * Selects the value after [key] (`"key": ` up to the next `,`), types [value] over it one character at a time, as a
-     * user does, and presses Enter.
+     * Selects the value after [key], from `"key": ` up to the next `,`. Then it types [value] over it one character at
+     * a time, as a user does, and presses Enter.
      */
     private fun ProductionWorkbench.typeValueAndEnter(editor: CodeEditorState, key: String, value: String) {
         val text = textOf(editor)

@@ -13,6 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/**
+ * build-logic is an included build that holds the karpfen.* convention plugins of the modules. They are precompiled
+ * script plugins in the Kotlin DSL, next to plain Kotlin classes for the tasks, rules and names they share.
+ */
 plugins {
     `kotlin-dsl`
 }
@@ -34,11 +38,11 @@ dependencies {
 
 /**
  * Runs the tests on the JUnit Platform without the time-budget tests, like every test task of the modules. The tag is
- * written out here because a build script cannot use the classes of its own build; it is the value of
+ * written out here because a build script cannot use the classes of its own build. It is the value of
  * `TestTags.BUDGET`, and the architecture test `BudgetTestTaggingTest` checks that every test task of the repository
- * excludes that tag. `VerifyModuleDependenciesFunctionalTest` builds a fixture with TestKit that reads the shared
- * version catalog relative to the working directory (this project's directory), so the catalog is a declared input and
- * a change to it reruns the tests.
+ * excludes that tag. The functional tests build fixtures with TestKit that read the shared version catalog relative to
+ * the working directory, which is this project's directory. The catalog is therefore a declared input, and a change to
+ * it reruns the tests.
  */
 tasks.test {
     useJUnitPlatform {

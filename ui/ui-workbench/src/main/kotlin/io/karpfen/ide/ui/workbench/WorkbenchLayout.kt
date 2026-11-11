@@ -29,12 +29,14 @@ import io.karpfen.ide.ui.workbench.layout.LayoutUiState
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 
 /**
- * The tool windows around the editor area: Project left (the FIRST pane), Outline right, Problems at the bottom, the
- * Language Tools Output below Problems and the Runtime below the output (SECOND panes), each in a size-based
- * `SplitPane` whose fixed size is the tool window's persisted size in dp (`fixedSize = size.dp`,
- * `onFixedSizeChange = { resizeToolWindow(id, it.value) }`), so the workbench never converts between split fractions
- * and the persisted sizes. A hidden tool window takes no space, and the editor area keeps its place in the composition
- * while tool windows are shown and hidden.
+ * Arranges the tool windows around the editor area. Project sits on the left as the first pane of its split. Outline
+ * sits on the right. Problems sits at the bottom, the Language Tools Output below Problems and the Runtime below the
+ * output. These four are the second pane of their splits.
+ *
+ * Each tool window lives in a size-based `SplitPane`. Its fixed size is the tool window's persisted size in dp, and a
+ * drag of the divider stores the new size through `LayoutState.resizeToolWindow`. The workbench therefore never
+ * converts between split fractions and persisted sizes. A hidden tool window takes no space. The editor area keeps its
+ * place in the composition while tool windows are shown and hidden.
  */
 @Composable
 internal fun WorkbenchLayout(
@@ -68,9 +70,9 @@ internal class WorkbenchPanes(
 )
 
 /**
- * [main] with the tool window [id] on its [side] when visible, else [main] alone. The split is there either way, so
- * [main] keeps its place in the composition and showing or hiding the tool window keeps the state of everything in it,
- * such as the editor's keyboard focus.
+ * Shows [main] with the tool window [id] on its [side] while that tool window is visible, and [main] alone otherwise.
+ * The split exists in both cases. [main] therefore keeps its place in the composition, and showing or hiding the tool
+ * window keeps the state of everything inside [main], such as the editor's keyboard focus.
  */
 @Composable
 private fun ToolWindowSplit(

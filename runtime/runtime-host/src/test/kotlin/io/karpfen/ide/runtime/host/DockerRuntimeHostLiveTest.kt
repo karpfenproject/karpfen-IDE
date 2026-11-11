@@ -35,11 +35,12 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Runs [DockerRuntimeHost] end to end against the local Docker engine with the runtime sources bundled with the IDE:
- * it builds the runtime image unless it exists (the first build takes minutes), starts the container, waits for the
- * runtime, adopts the container from a second host of the same workspace, stops it, and the container is gone. The
- * workspace lies in the test's temporary folder, so the test never adopts or removes a container of a real workspace;
- * it removes its containers in `finally`. The image stays: it is the IDE's own image.
+ * Runs [DockerRuntimeHost] end to end against the local Docker engine with the runtime sources bundled with the IDE. It
+ * builds the runtime image unless it exists, which takes minutes the first time. It starts the container, waits for the
+ * runtime, adopts the container from a second host of the same workspace and stops it, and then the container must be
+ * gone. The workspace lies in the test's temporary folder, so the test never adopts or removes a container of a real
+ * workspace. It removes its containers in `finally`. The image stays, because it is the IDE's own image. The test runs
+ * only in the opt-in task `liveDockerTest`.
  */
 @Tag("live-docker")
 class DockerRuntimeHostLiveTest {

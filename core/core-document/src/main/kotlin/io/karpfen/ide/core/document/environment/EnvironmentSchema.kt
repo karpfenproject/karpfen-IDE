@@ -16,14 +16,14 @@
 package io.karpfen.ide.core.document.environment
 
 /**
- * The schema of environment descriptors (`*.kenv.json`): which keys an object has, how they nest, what kind of value
- * each holds, which are required and what role each named file plays. [ROOT] is derived from the typed
- * [EnvironmentDescriptor] ([SerialShapes]), the one declaration of the descriptor's shape, and everything that knows
- * about descriptor keys reads them here:
- * - the descriptor reader of the workspace checks every descriptor against [ROOT] and then decodes it into the typed
- *   class;
- * - the environment language of this module highlights keys, file paths, object keys and event domains by [ROOT];
- * - the language services offer and explain keys and values by [ROOT].
+ * The schema of environment descriptors, the `*.kenv.json` files. It says which keys an object has, how they nest,
+ * what kind of value each holds, which keys are required and what role each named file plays. [SerialShapes] derives
+ * [ROOT] from the typed [EnvironmentDescriptor], which is the one declaration of the descriptor's shape. Everything
+ * that knows about descriptor keys reads them here.
+ * - The descriptor reader of the workspace checks every descriptor against [ROOT] and then decodes it into the typed
+ *   class.
+ * - The environment language of this module highlights keys, file paths, object keys and event domains by [ROOT].
+ * - The language services offer and explain keys and values by [ROOT].
  *
  * A descriptor looks like this:
  *
@@ -42,22 +42,27 @@ package io.karpfen.ide.core.document.environment
  */
 public object EnvironmentSchema {
 
-    /** The pattern of `observe.objects` that observes every object; completion suggests it, new descriptors use it. */
+    /**
+     * The pattern of `observe.objects` that observes every object. Completion suggests it, and new descriptors use it.
+     */
     public const val EVERY_OBJECT: String = "*"
 
     /** The descriptor object, the root of every descriptor. */
     public val ROOT: ValueShape.Record = SerialShapes.recordOf(EnvironmentDescriptor.serializer().descriptor)
 
     /**
-     * The path of the key whose values name files of [role] in [schema], as messages name it: `metamodel`,
-     * `stateMachines[].file`, `bridges[]`.
+     * The path of the key whose values name files of [role] in [schema], as messages name it. Examples are
+     * `metamodel`, `stateMachines[].file` and `bridges[]`.
      *
-     * @throws IllegalArgumentException if no key of [schema] names files of [role] (programming error).
+     * @throws IllegalArgumentException if no key of [schema] names files of [role], which is a programming error.
      */
     public fun keyPathOf(role: DescriptorFileRole, schema: ValueShape.Record = ROOT): String =
         requireNotNull(pathIn(schema, role, prefix = "")) { "no key of the schema names files of role $role" }
 
-    /** The path below [shape] (written after [prefix]) to the key whose values name files of [role], or null. */
+    /**
+     * The path below [shape] to the key whose values name files of [role], written after [prefix]. Null if there is no
+     * such key.
+     */
     private fun pathIn(shape: ValueShape, role: DescriptorFileRole, prefix: String): String? = when (shape) {
         is ValueShape.FilePath -> prefix.takeIf { shape.role == role }
         is ValueShape.ListOf -> pathIn(shape.item, role, "$prefix[]")

@@ -18,13 +18,13 @@ package io.karpfen.ide.core.document.environment
 import io.karpfen.ide.core.document.KarpfenLanguage
 
 /**
- * What a file named in an environment descriptor is for. [EnvironmentSchema] says which key holds a file of which role
- * ([ValueShape.FilePath]); [EnvironmentSchema.keyPathOf] names that key.
+ * What a file named in an environment descriptor is for. [EnvironmentSchema] says which key holds a file of which role,
+ * through [ValueShape.FilePath]. [EnvironmentSchema.keyPathOf] names that key.
  *
- * @property language the language a file in this role is written in: KMeta for the metamodel and the events, KModel for
- *   the model, KStates for a state machine; null for a bridge configuration, which may be any file. The workspace
- *   checks a referenced file against it and reads a context's file only in the language of its role.
- * @property description the role in words, for hovers and messages ("the domain metamodel").
+ * @property language the language a file in this role is written in. It is KMeta for the metamodel and the events,
+ *   KModel for the model and KStates for a state machine. It is null for a bridge configuration, which may be any file.
+ *   The workspace checks a referenced file against it and reads a context's file only in the language of its role.
+ * @property description the role in words for hovers and messages, such as "the domain metamodel".
  */
 public enum class DescriptorFileRole(public val language: KarpfenLanguage?, public val description: String) {
     /** The domain metamodel. */
@@ -39,6 +39,6 @@ public enum class DescriptorFileRole(public val language: KarpfenLanguage?, publ
     /** A state machine. */
     STATE_MACHINE(KarpfenLanguage.KSTATES, "a state machine"),
 
-    /** A bridge configuration (`*.kbridge.json`). */
+    /** A bridge configuration, a `*.kbridge.json` file. */
     BRIDGE(null, "a bridge configuration"),
 }

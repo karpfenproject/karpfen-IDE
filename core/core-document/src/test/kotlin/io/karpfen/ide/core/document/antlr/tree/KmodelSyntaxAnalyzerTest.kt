@@ -27,7 +27,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers [KmodelSyntaxAnalyzer]: object declarations (anonymous ones included), qualified key references, outline,
+ * Covers [KmodelSyntaxAnalyzer]: object declarations including anonymous ones, qualified key references, outline,
  * semantic spans and folding of KModel, and the objects and references of the examples.
  */
 class KmodelSyntaxAnalyzerTest {

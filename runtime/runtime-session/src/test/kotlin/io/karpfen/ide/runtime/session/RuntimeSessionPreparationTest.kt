@@ -47,11 +47,12 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers preparing a deployment from a workspace: every synthesized model but the ring prepares without errors, the
- * ring is blocked by its reference loop; the event catalog lists exactly the plan's domains for every synthesized model,
- * the single robot and the runtime's four examples; preparing saves open documents first, so what is uploaded, checked
- * and seeded is the edited text, and an edited descriptor's configuration is deployed, while an analysis that still
- * holds the descriptor's earlier text blocks the deployment; and a document that cannot be saved blocks the deployment.
+ * Covers preparing a deployment from a workspace. Every synthesized model but the ring prepares without errors, and
+ * the ring is blocked by its reference loop. The event catalog lists exactly the plan's domains for every synthesized
+ * model, for the single robot and for the runtime's four examples. Preparing saves open documents first, so what is
+ * uploaded, checked and seeded is the edited text. An edited descriptor's configuration is deployed. An analysis that
+ * still holds the descriptor's earlier text blocks the deployment. A document that cannot be saved blocks the
+ * deployment as well.
  */
 class RuntimeSessionPreparationTest {
 
@@ -177,8 +178,9 @@ class RuntimeSessionPreparationTest {
         RuntimeSessions(RuntimeSessionOptions(dispatcher = TestWorkspaces(scope).dispatcher, timeSource = scope.testScheduler.timeSource, random = Random(1)))
 
     /**
-     * Copies the runtime's examples below [target] and writes a descriptor into each of the four example folders, naming
-     * its files and attaching each machine to the best candidate object, as the template of a new descriptor does.
+     * Copies the runtime's examples below [target] and writes a descriptor into each of the four example folders. Each
+     * descriptor names its files and attaches each machine to the best candidate object, as the template of a new
+     * descriptor does.
      */
     private suspend fun describeRuntimeExamples(scope: TestScope, target: Path) {
         Examples.copyTo(target)

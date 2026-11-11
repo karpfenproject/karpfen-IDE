@@ -54,13 +54,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Headless UI tests of [TreeView]: expand/collapse, selection, keyboard and mouse navigation, the context menu and the
- * icon slot, and the rule that every change of `selected` scrolls the selected row into view.
+ * Headless UI tests of [TreeView]: expanding and collapsing, selection, keyboard and mouse navigation, the context menu
+ * and the icon slot, and the rule that every change of `selected` scrolls the selected row into view.
  */
 @OptIn(ExperimentalTestApi::class)
 class TreeViewTest {
 
-    /** The hoisted state of a tree under test; the callbacks record what the tree asked for and apply it. */
+    /** The hoisted state of a tree under test. The callbacks record what the tree asked for and apply it. */
     private class Harness(roots: List<TreeNode<String>>, expanded: Set<String> = emptySet(), selected: String? = null) {
         var roots by mutableStateOf(roots)
         var expanded by mutableStateOf(expanded)

@@ -35,11 +35,11 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
- * Covers deploying through a session end to end against the fake runtime, which answers only what each test programs:
- * the requests of a deployment of the lamp and of the single robot arrive in the order of the deployment's steps, with
- * the deploy configuration and a listener per domain; the progress reaches its end; the session runs with the reported
- * stacks in place of the predictions, observation on and events injectable; and a deployment without start or without
- * observation ends ready or with a pulled model.
+ * Covers deploying through a session end to end against the fake runtime, which answers only what each test programs.
+ * The requests of a deployment of the lamp and of the single robot arrive in the order of the deployment's steps. They
+ * carry the deploy configuration and a listener per domain. The progress reaches its end. The session runs with the
+ * reported stacks in place of the predictions, with observation on and with events injectable. A deployment without
+ * start ends ready, and a deployment without observation ends with a pulled model.
  */
 class RuntimeSessionDeploymentTest {
 

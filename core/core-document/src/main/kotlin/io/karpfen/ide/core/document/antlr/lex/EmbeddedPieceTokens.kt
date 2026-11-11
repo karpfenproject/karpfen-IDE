@@ -24,20 +24,24 @@ import io.karpfen.ide.core.document.antlr.EmbeddedPiece
 import io.karpfen.ide.core.document.syntax.TokenKind
 
 /**
- * How the pieces of an EVAL body (`EvalBodies.scan`) become tokens and diagnostics. Pure functions over the closed
- * [EmbeddedKind] vocabulary; no state.
+ * How the pieces of an EVAL body, as found by `EvalBodies.scan`, become tokens and diagnostics. The functions are pure
+ * and work over the closed [EmbeddedKind] vocabulary. The object holds no state.
  */
 internal object EmbeddedPieceTokens {
 
     /**
-     * The message of the `eval-double-slash` warning. It names the consequence (the rest of the line never reaches
-     * Python) and the usual cause, Python's floor division, with replacements that the karpfen lexer leaves alone.
+     * The message of the `eval-double-slash` warning. It names the consequence, which is that the rest of the line
+     * never reaches Python. It also names the usual cause, Python's floor division, and offers replacements that the
+     * karpfen lexer leaves alone.
      */
     const val EVAL_DOUBLE_SLASH_MESSAGE: String =
         "`//` inside EVAL starts a karpfen comment; the rest of the line is dropped. " +
             "For Python floor division use int(a / b) or math.floor(a / b)."
 
-    /** The token kind of a piece of [kind]: a `//` comment is a karpfen [TokenKind.COMMENT], the rest embedded kinds. */
+    /**
+     * The token kind of a piece of [kind]. A `//` comment is a karpfen [TokenKind.COMMENT]. Every other piece gets one
+     * of the embedded kinds.
+     */
     fun kindOf(kind: EmbeddedKind): TokenKind = when (kind) {
         EmbeddedKind.CODE -> TokenKind.EMBEDDED_CODE
         EmbeddedKind.KEYWORD -> TokenKind.EMBEDDED_KEYWORD
@@ -50,9 +54,9 @@ internal object EmbeddedPieceTokens {
     }
 
     /**
-     * The diagnostic a piece causes: a `//` comment ([EmbeddedKind.KARPFEN_COMMENT]) is an `eval-double-slash` WARNING
-     * (source IDE) over the comment, i.e. over everything the karpfen lexer drops from the Python code; other pieces
-     * cause none.
+     * The diagnostic a piece causes. A `//` comment, [EmbeddedKind.KARPFEN_COMMENT], causes an `eval-double-slash`
+     * WARNING with source IDE. The warning covers the comment, which is everything the karpfen lexer drops from the
+     * Python code. Other pieces cause none, and neither does an empty comment piece.
      */
     fun diagnosticOf(piece: EmbeddedPiece): Diagnostic? =
         if (piece.kind != EmbeddedKind.KARPFEN_COMMENT || piece.range.isEmpty) {

@@ -35,11 +35,11 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.launch
 
 /**
- * Keeps every text frame the runtime sends on the links a scenario's sessions open, with each link's handshake, so a
- * scenario can check what a session received, not only what it applied: absence needs proof that a push never came.
- * The frames are handed on without suspending, so the tap never stalls the runtime.
+ * Keeps every text frame the runtime sends on the links that a scenario's sessions open, together with each link's
+ * handshake. So a scenario can check what a session received, and not only what it applied. A check of absence needs
+ * proof that a push never came. The frames are handed on without suspending, so the tap never stalls the runtime.
  *
- * Threading: links may be opened and used from any coroutine.
+ * Links may be opened and used from any coroutine.
  *
  * @param scope where the forwarders of the links run.
  */
@@ -50,11 +50,14 @@ class FrameTap(private val scope: CoroutineScope) {
     /** The tapped links in the order they were opened. */
     private val links = ArrayList<TappedLink>()
 
-    /** [transports] with a WebSocket seam whose links are tapped; the HTTP seam is theirs. */
+    /** [transports] with a WebSocket seam whose links are tapped. The HTTP seam stays the one of [transports]. */
     fun tapping(transports: RuntimeTransports): RuntimeTransports =
         RuntimeTransports(http = transports.http, webSockets = TappedConnector(transports.webSockets))
 
-    /** Every push received on the links of [clientId] to [environment], in the order the links were opened and the pushes came. */
+    /**
+     * Every push received on the links of [clientId] to [environment], in the order the links were opened and the
+     * pushes came.
+     */
     fun pushes(environment: EnvironmentKey, clientId: ClientId): List<RuntimePush> {
         val decoder = RuntimeFrameDecoder(environment, clientId)
         val prefix = clientId.value + WireNames.HANDSHAKE_SEPARATOR + environment.value + WireNames.HANDSHAKE_SEPARATOR
@@ -72,7 +75,7 @@ class FrameTap(private val scope: CoroutineScope) {
     }
 
     /**
-     * One tapped link: its frames are kept and handed on, its first sent text is kept as its handshake.
+     * One tapped link. Its frames are kept and handed on. Its first sent text is kept as its handshake.
      *
      * @param link the link tapped.
      */

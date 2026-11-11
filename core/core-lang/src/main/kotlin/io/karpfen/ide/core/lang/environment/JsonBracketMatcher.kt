@@ -23,9 +23,9 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Bracket matching in JSON: `{}` and `[]` pair as the parser closed them ([containers], the structure of the tree
- * whatever its values mean), so brackets inside strings never pair and a bracket the text does not close has no match.
- * The bracket right of the offset is preferred, then the one left of it.
+ * Bracket matching in JSON. `{}` and `[]` pair as the parser closed them. [containers] gives that structure of the
+ * tree, whatever its values mean. So brackets inside strings never pair, and a bracket the text does not close has no
+ * match. The bracket right of the offset is preferred, then the one left of it.
  */
 internal class JsonBracketMatcher(private val trees: DescriptorTrees) : BracketMatcher {
 

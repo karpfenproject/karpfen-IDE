@@ -23,18 +23,18 @@ import io.karpfen.ide.core.document.KarpfenLanguage
  *
  * @property language the language the text was parsed as.
  * @property version the parsed text version.
- * @property syntaxDiagnostics errors reported while parsing: PARSER errors plus LEXER errors seen by the parser's own
- *   lexer, sorted with [Diagnostic.ORDER]. (The document session shows LEXER errors from the tokenizer and only the
- *   PARSER ones from here, so nothing is reported twice.)
- * @property outline top-level outline nodes in document order.
- * @property index declarations and references.
- * @property folding foldable regions sorted by start.
- * @property semanticSpans sorted, non-overlapping semantic spans.
- * @property standaloneModel the dsl-tools model of this file alone, if [SemanticMode.STANDALONE] was requested, the
- *   language supports it (KMeta, KStates), there were no syntax diagnostics and the text yields a model; partial if
- *   [standaloneDiagnostics] hold an error; null otherwise.
- * @property standaloneDiagnostics DSL_TOOLS diagnostics of the standalone read, at the places the dsl-tools reader
- *   reports (empty if it did not run).
+ * @property syntaxDiagnostics the errors reported while parsing, sorted with [Diagnostic.ORDER]. They are the PARSER
+ *   errors plus the LEXER errors that the parser's own lexer saw. The document session shows the LEXER errors of the
+ *   tokenizer and only the PARSER errors from here, so nothing is reported twice.
+ * @property outline the top-level outline nodes in document order.
+ * @property index the declarations and references.
+ * @property folding the foldable regions, sorted by start.
+ * @property semanticSpans the semantic spans, sorted and without overlaps.
+ * @property standaloneModel the dsl-tools model of this file alone, or null. It is present if [SemanticMode.STANDALONE]
+ *   was requested, the language supports it, there were no syntax diagnostics and the text yields a model. Only KMeta
+ *   and KStates support it. The model is partial if [standaloneDiagnostics] hold an error.
+ * @property standaloneDiagnostics the DSL_TOOLS diagnostics of the standalone read, at the places the dsl-tools reader
+ *   reports. The list is empty if the read did not run.
  */
 public data class ParseOutcome(
     public val language: KarpfenLanguage,

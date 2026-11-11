@@ -24,10 +24,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * dsl-tools findings land on the offending element, where the reader reports them, also in the broken inputs on which
- * the search for quoted names that the IDE used before the readers chose the wrong place: a name that appears earlier
- * in the file, an unresolved `knows` reference, an unknown property in a nested object, a second `INITIAL` state, and
- * findings whose message quotes no name of the file at all.
+ * dsl-tools findings land on the offending element, where the reader reports them. A search for quoted names would
+ * choose the wrong place in the broken inputs of this test. These inputs have a name that appears earlier in the file,
+ * an unresolved `knows` reference, an unknown property in a nested object, a second `INITIAL` state, or findings whose
+ * message quotes no name of the file at all.
  */
 class DiagnosticPlacementTest {
 

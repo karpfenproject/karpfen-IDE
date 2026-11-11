@@ -23,14 +23,14 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
 /**
- * Plans a deployment in two stages: the [gate] checks first; only a subject without an error there goes through the
- * [preflight] checks; a subject without an error in either becomes a plan, built from the analyzed snapshots the gate
- * read.
+ * Plans a deployment in two stages. The [gate] checks run first. Only a subject without an error there goes through
+ * the [preflight] checks. A subject without an error in either stage becomes a plan, built from the analyzed snapshots
+ * that the gate read.
  *
- * Inputs of the plan: the context whose descriptor is the given path; the typed descriptor of that context; the
- * analyzed snapshots of its files as the texts to upload; the runtime's index of the dsl-tools model for the object
- * keys and the attached objects' types; the event domains of the machines from the syntax index; the declaration
- * ranges of the uploaded files' syntax index.
+ * The plan is built from these inputs. The context is the one whose descriptor is the given path, and the plan takes
+ * the typed descriptor of that context. The analyzed snapshots of the context's files are the texts to upload. The
+ * runtime's index of the dsl-tools model gives the object keys and the types of the attached objects. The syntax index
+ * gives the event domains of the machines and the declaration ranges of the uploaded files.
  *
  * @param gate the checks of the problems gate, in report order.
  * @param preflight the preflight checks, in report order.
@@ -100,7 +100,7 @@ internal class DefaultDeploymentPlanner(
     /** True if one of the findings is an ERROR. */
     private fun List<DeployProblem>.hasError(): Boolean = any { it.severity == Severity.ERROR }
 
-    /** [path] as the workspace keeps paths: absolute and normalized. */
+    /** [path] as the workspace keeps paths, which is absolute and normalized. */
     private fun normalized(path: Path): Path = path.toAbsolutePath().normalize()
 
     private companion object {

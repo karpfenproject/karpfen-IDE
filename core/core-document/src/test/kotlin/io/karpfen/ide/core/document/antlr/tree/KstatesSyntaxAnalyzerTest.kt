@@ -26,7 +26,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Covers [KstatesSyntaxAnalyzer]: declarations, references (EVAL bodies included), outline, semantic spans and
+ * Covers [KstatesSyntaxAnalyzer]: declarations, references including those in EVAL bodies, outline, semantic spans and
  * folding of KStates, a state without a name, and the states, transitions and macros of the examples.
  */
 class KstatesSyntaxAnalyzerTest {

@@ -17,7 +17,10 @@ package io.karpfen.ide.runtime.protocol.lifecycle
 
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 
-/** What a client can do with an environment; the handle checks each against the environment's phase before it calls. */
+/**
+ * What a client can do with an environment. The handle checks each operation against the environment's phase before it
+ * calls the runtime.
+ */
 public enum class LifecycleOperation {
     /** Upload the domain metamodel. */
     SET_METAMODEL,
@@ -97,7 +100,7 @@ public sealed interface CallOutcome<out T> {
     public data class Done<out T>(public val value: T) : CallOutcome<T>
 
     /**
-     * The handle refused the operation in the environment's phase; nothing was sent.
+     * The handle refused the operation in the environment's phase, and nothing was sent.
      *
      * @property refusal why.
      */
@@ -123,6 +126,6 @@ public sealed interface Observatory {
      */
     public data class Machine(public val modelElement: String) : Observatory
 
-    /** None: the key is issued without an observatory registration (`/registerClientForWebSocket`). */
+    /** No machine. The key is issued without an observatory registration, through `/registerClientForWebSocket`. */
     public data object NoMachine : Observatory
 }

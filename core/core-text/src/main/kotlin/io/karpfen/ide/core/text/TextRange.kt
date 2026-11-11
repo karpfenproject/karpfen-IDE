@@ -18,10 +18,10 @@ package io.karpfen.ide.core.text
 /**
  * A half-open range `[start, end)` of UTF-16 code-unit offsets into a document text.
  *
- * Invariant: `0 <= start <= end`. An empty range (`start == end`) denotes a position between two characters, e.g. an
- * insertion point. Ranges are only meaningful together with the text version (and [TextLineage]) they were computed
- * for; [EditableText.mapRange] carries them across edits (the one range-mapping rule; never map the two bounds
- * yourself).
+ * The constructor checks `0 <= start <= end`. An empty range, where `start == end`, denotes a position between two
+ * characters, such as an insertion point. Ranges are only meaningful together with the text version and the
+ * [TextLineage] they were computed for. [EditableText.mapRange] carries them across edits. It is the one range-mapping
+ * rule of the IDE, so never map the two bounds yourself.
  */
 public data class TextRange(public val start: Int, public val end: Int) : Comparable<TextRange> {
 
@@ -36,16 +36,16 @@ public data class TextRange(public val start: Int, public val end: Int) : Compar
     /** True if the range covers no characters. */
     public val isEmpty: Boolean get() = start == end
 
-    /** True if [offset] lies inside the half-open range (`start <= offset < end`); always false for an empty range. */
+    /** True if [offset] lies inside the half-open range, where `start <= offset < end`. False for an empty range. */
     public operator fun contains(offset: Int): Boolean = offset in start until end
 
     /**
-     * True if [offset] lies inside the range or on one of its bounds (`start <= offset <= end`). Caret-oriented
-     * lookups use this form so that a caret directly after a name still counts as "on" the name.
+     * True if [offset] lies inside the range or on one of its bounds, so `start <= offset <= end`. Lookups at the caret
+     * use this form, so that a caret directly after a name still counts as being on the name.
      */
     public fun containsInclusive(offset: Int): Boolean = offset in start..end
 
-    /** True if [other] lies completely inside this range (an empty [other] may sit on either bound). */
+    /** True if [other] lies completely inside this range. An empty [other] may sit on either bound. */
     public operator fun contains(other: TextRange): Boolean = other.start >= start && other.end <= end
 
     /** True if both ranges share at least one character. Empty ranges never overlap anything. */
@@ -68,7 +68,7 @@ public data class TextRange(public val start: Int, public val end: Int) : Compar
         /** The empty range at offset 0. */
         public val EMPTY: TextRange = TextRange(0, 0)
 
-        /** The empty range (insertion point) at [offset]. */
+        /** The empty range at [offset], which is an insertion point. */
         public fun empty(offset: Int): TextRange = TextRange(offset, offset)
 
         /** The range `[start, start + length)`. */

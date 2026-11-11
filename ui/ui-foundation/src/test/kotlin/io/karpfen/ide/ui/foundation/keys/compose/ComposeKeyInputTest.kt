@@ -45,10 +45,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The key adapter inside a composed, focused component (headless `runComposeUiTest`): key input injected by the test
- * framework (a US layout) and synthesized events of other layouts sent to the focused node. Synthesizing a key event
- * with a code point needs Compose's `KeyEvent(…)` factory, which is marked internal-unstable (the test framework uses
- * it the same way); production code never constructs key events.
+ * The key adapter inside a composed, focused component, run headless with `runComposeUiTest`. The tests use key input
+ * that the test framework injects, which follows a US layout, and synthesized events of other layouts sent to the
+ * focused node. Synthesizing a key event with a code point needs Compose's `KeyEvent(…)` factory, which is marked
+ * internal and unstable. The test framework uses it the same way, and production code never constructs key events.
  */
 @OptIn(ExperimentalTestApi::class, InternalComposeUiApi::class)
 class ComposeKeyInputTest {

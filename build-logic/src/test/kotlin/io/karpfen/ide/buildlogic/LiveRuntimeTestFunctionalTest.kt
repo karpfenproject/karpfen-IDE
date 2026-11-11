@@ -26,13 +26,13 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 /**
- * Applies `karpfen.kotlin-jvm` and `karpfen.live-runtime-test` to a small fixture module with three tests, one
- * untagged, one tagged live-runtime and one tagged budget, and proves the wiring of the live tag: the ordinary `test`
- * task runs only the untagged test, `check` never includes the live task, the live task without a runtime URL fails
- * before any test runs with the message that names the property and the script, and with a URL it runs exactly the live
- * test, which reads the URL from its system property (it never connects). The fixture tests are written in Java, so the
- * fixture build needs no Kotlin compiler. Every run uses the configuration cache to prove that the live task can be
- * stored.
+ * Applies `karpfen.kotlin-jvm` and `karpfen.live-runtime-test` to a small fixture module and proves the wiring of the
+ * live tag. The module has three tests. One is untagged, one is tagged live-runtime and one is tagged budget. The
+ * ordinary `test` task runs only the untagged test, and `check` never includes the live task. Without a runtime URL the
+ * live task fails before any test runs, with the message that names the property and the script. With a URL it runs
+ * exactly the live test, which reads the URL from its system property but never connects. The fixture tests are written
+ * in Java, so the fixture build needs no Kotlin compiler. Every run uses the configuration cache to prove that the live
+ * task can be stored.
  */
 class LiveRuntimeTestFunctionalTest {
 
@@ -40,7 +40,7 @@ class LiveRuntimeTestFunctionalTest {
     @TempDir
     lateinit var projectDir: File
 
-    /** The shared version catalog; the test task runs in build-logic/ (see build-logic/build.gradle.kts). */
+    /** The shared version catalog. The test task runs in the build-logic directory, so the catalog is one level up. */
     private val versionCatalog: File = File("../gradle/libs.versions.toml").absoluteFile.normalize()
 
     /** Writes [content], without its common indentation, to [path] below the fixture directory. */
@@ -155,7 +155,7 @@ class LiveRuntimeTestFunctionalTest {
         /** The live task of the fixture module. */
         const val LIVE_TASK: String = ":runtime:runtime-fixture:${LiveRuntimeTesting.TASK_NAME}"
 
-        /** A runtime URL that nothing listens on; the live fixture test only reads it. */
+        /** A runtime URL that nothing listens on. The live fixture test only reads it. */
         const val FIXTURE_URL: String = "http://127.0.0.1:1"
 
         /** The message of a live task without a usable runtime URL. */

@@ -27,7 +27,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Copy, cut, paste through the clipboard port and undo/redo restoring carets. */
+/** Copy, cut and paste through the clipboard port, and undo and redo that restore the carets. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ClipboardAndHistoryActionsTest {
 

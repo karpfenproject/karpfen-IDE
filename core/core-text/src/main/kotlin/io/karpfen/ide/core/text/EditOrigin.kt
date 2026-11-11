@@ -18,12 +18,12 @@ package io.karpfen.ide.core.text
 /**
  * Why a change was made. The origin drives undo coalescing and lets observers tell user edits from reloads.
  *
- * Coalescing (implemented by the [UndoManager]): only [Typing] changes coalesce; [Paste], [Cut], [Command] and
- * [External] never do; [Undo]/[Redo] are produced by the undo manager itself; [Programmatic] never coalesces.
+ * The [UndoManager] implements the coalescing. Only [Typing] changes coalesce. [Paste], [Cut], [Command], [External]
+ * and [Programmatic] changes never do. [Undo] and [Redo] changes are produced by the undo manager itself.
  */
 public sealed interface EditOrigin {
 
-    /** Keyboard text input, including Backspace/Delete of single characters and auto-inserted closers. */
+    /** Keyboard text input, including Backspace or Delete of single characters and auto-inserted closers. */
     public data object Typing : EditOrigin
 
     /** Text inserted from the clipboard. */
@@ -38,12 +38,12 @@ public sealed interface EditOrigin {
     /** A change produced by [UndoManager.redo]. */
     public data object Redo : EditOrigin
 
-    /** A change from outside the editor, e.g. reloading a file that changed on disk. */
+    /** A change from outside the editor, for example the reload of a file that changed on disk. */
     public data object External : EditOrigin
 
     /** An editor command such as "duplicate line", "toggle comment", "replace all" or "accept completion". */
     public data class Command(public val name: String) : EditOrigin
 
-    /** A change made by code without a user gesture (tests, refactorings, generated edits). */
+    /** A change made by code without a user gesture, such as a test, a refactoring or a generated edit. */
     public data class Programmatic(public val name: String) : EditOrigin
 }

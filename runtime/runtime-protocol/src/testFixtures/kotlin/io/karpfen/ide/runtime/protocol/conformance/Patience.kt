@@ -21,13 +21,13 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How long a scenario waits for the runtime, per kind of wait. Every bound is generous on purpose: a real runtime is
- * slower than its tick delay (Python, container scheduling, port forwarding, a loaded machine), and a bound that passes
- * fails the scenario naming what it awaited, never as a wrong assertion. The bounds are upper limits, never asserted
- * durations.
+ * How long a scenario waits for the runtime, per kind of wait. Every bound is generous on purpose. A real runtime is
+ * slower than its tick delay, because of Python, container scheduling, port forwarding or a loaded machine. A bound
+ * that passes fails the scenario with a message that names what it awaited, never with a wrong assertion. The bounds
+ * are upper limits and never asserted durations.
  *
  * @property deploy a deployment, from creating the environment to the confirmed start.
- * @property reaction the reaction to one call or one event: a push, a stack, a changed snapshot.
+ * @property reaction the reaction to one call or one event, such as a push, a stack or a changed snapshot.
  * @property burst a sequence of reactions over several ticks, such as a burst of the metronome.
  * @property crowd a step of a scenario with several environments at once.
  * @property scenario a whole scenario.
@@ -50,9 +50,9 @@ public data class Patience(
 
     public companion object {
         /**
-         * The patience with a real runtime, which tests on virtual time may use too because waits cost nothing there:
-         * 60 s for a deployment, 30 s for a reaction, 60 s for a burst, 180 s for a step with several environments, 5 min
-         * for a scenario, polling every 250 ms.
+         * The patience with a real runtime. Tests on virtual time may use it too, because waits cost nothing there. It
+         * allows 60 s for a deployment, 30 s for a reaction, 60 s for a burst, 180 s for a step with several
+         * environments and 5 min for a scenario, and it polls every 250 ms.
          */
         public val LIVE: Patience = Patience(
             deploy = 60.seconds,

@@ -52,13 +52,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Tab and Shift+Tab are the editor's indent keys and never move keyboard focus out of it, also when there is nothing to
- * indent or outdent: the editor sits between two focusable components, like the project tree and the tool windows in
- * the workbench.
+ * Tab and Shift+Tab are the indent keys of the editor and never move keyboard focus out of it, also when there is
+ * nothing to indent or outdent. In the tests the editor sits between two focusable components, like it sits between
+ * the project tree and the tool windows in the workbench.
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorFocusTraversalTest {
 
+    /**
+     * Composes an editor over [text] between two focusable boxes, focuses it and returns its state. The session and
+     * the editor's background work run on `Dispatchers.Unconfined`.
+     */
     private fun ComposeUiTest.composeBetweenFocusables(text: String): CodeEditorState {
         lateinit var state: CodeEditorState
         setContent {
@@ -92,6 +96,7 @@ class CodeEditorFocusTraversalTest {
         return state
     }
 
+    /** Asserts that the editor of [state] still has keyboard focus and that neither neighbour took it. */
     private fun ComposeUiTest.assertEditorKeepsFocus(state: CodeEditorState) {
         waitForIdle()
         assertTrue(state.isFocused.value, "the editor kept keyboard focus")
@@ -132,9 +137,12 @@ class CodeEditorFocusTraversalTest {
         assertEquals("abc", state.session.text.snapshot.value.text)
     }
 
-    /** The test tags of the focusable neighbours. */
+    /** Holds the test tags of the focusable neighbours. */
     private companion object {
+        /** The focusable box before the editor. */
         const val BEFORE = "focus.before"
+
+        /** The focusable box after the editor. */
         const val AFTER = "focus.after"
     }
 }

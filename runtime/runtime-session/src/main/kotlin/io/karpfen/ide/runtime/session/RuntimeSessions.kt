@@ -26,19 +26,20 @@ import kotlinx.coroutines.CoroutineScope
 import java.nio.file.Path
 
 /**
- * Prepares deployments from a workspace and launches sessions that deploy them: the entry point of deploying and
- * observing an environment.
+ * Prepares deployments from a workspace and launches sessions that deploy them. This is the entry point for deploying
+ * and observing an environment.
  *
- * Threading (MUST): every function may be called from any coroutine; [prepare] runs on the dispatcher of the options.
+ * Every function may be called from any coroutine. [prepare] runs on the dispatcher of the options.
  *
- * Contract (MUST): failures are results, never exceptions; a `CancellationException` of the caller is rethrown.
+ * Failures are returned as results, never thrown. A `CancellationException` of the caller is rethrown.
  */
 public interface RuntimeSessions {
     /**
-     * Prepares the deployment of [descriptor] from [workspace]: saves every open document, because a deployment uploads
-     * the saved files; awaits the analysis; refuses when a file of the context or the descriptor still differs from its
-     * saved state; plans the deployment, with the problems gate on exactly the analyzed texts it uploads; and turns the
-     * analysis into the immutable values a session needs. Nothing it answers holds a dsl-tools object.
+     * Prepares the deployment of [descriptor] from [workspace]. It first saves every open document, because a
+     * deployment uploads the saved files. Then it awaits the analysis. It refuses when a file of the context or the
+     * descriptor still differs from its saved state. Otherwise it plans the deployment, and the problems gate checks
+     * exactly the analyzed texts that the deployment uploads. Last, it turns the analysis into the immutable values a
+     * session needs. Nothing it returns holds a dsl-tools object.
      */
     public suspend fun prepare(workspace: Workspace, descriptor: Path): Preparation
 
@@ -55,9 +56,9 @@ public interface RuntimeSessions {
 }
 
 /**
- * The sessions that run as [options] say, record every environment they leave on a runtime in [ledger], plan with
- * [planner] and deploy with [deployer], by default one that records in [ledger] with the deploy timing of [options].
- * The composition root holds one [ledger] per process.
+ * Creates the sessions. They run as [options] say and record every environment they leave on a runtime in [ledger].
+ * They plan with [planner] and deploy with [deployer]. The default deployer records in [ledger] and uses the deploy
+ * timing of [options]. The composition root holds one [ledger] per process.
  */
 public fun RuntimeSessions(
     options: RuntimeSessionOptions = RuntimeSessionOptions(),

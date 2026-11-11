@@ -19,8 +19,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers [QueryEncoding]: the unreserved characters stay, a space is `%20` and a `+` is `%2B`, the characters that
- * structure a query are escaped, and every byte of a non-ASCII character's UTF-8 encoding becomes `%XX` in upper case.
+ * Covers [QueryEncoding]. The unreserved characters stay, a space is `%20` and a `+` is `%2B`. The characters that
+ * structure a query are escaped. Every byte of a non-ASCII character's UTF-8 encoding becomes `%XX` in upper case.
  */
 class QueryEncodingTest {
 

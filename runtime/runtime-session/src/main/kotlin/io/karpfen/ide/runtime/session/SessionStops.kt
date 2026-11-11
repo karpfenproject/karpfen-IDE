@@ -34,17 +34,21 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Stops the environment of a session on a coroutine of its own and reports the end to the conductor's inbox, so the
- * conductor shows the session as stopping and keeps answering commands meanwhile. A stop that was begun always runs:
- * its coroutine starts at once, even if the session is closed right after, and the stop call itself cannot be
- * cancelled, so closing during a stop never leaves the environment both running and unrecorded.
+ * Stops the environment of a session on a coroutine of its own and reports the end to the conductor's inbox. Meanwhile
+ * the conductor shows the session as stopping and keeps answering commands. A stop that was begun always runs. Its
+ * coroutine starts at once, even if the session is closed right after, and the stop call itself cannot be cancelled.
+ * So closing during a stop never leaves the environment both running and unrecorded.
  *
- * 1. stops the environment, not cancellable and bounded; the runtime closes the connection with `Environment stopped`;
- * 2. records the environment as stopped once it stopped, or, if the session was closed during a stop that failed, as
- *    the stop left it;
- * 3. lets the connection end by itself, then disconnects it, which does nothing if it ended, both bounded;
- * 4. has the router read the final model, which shows the observed model as final;
- * 5. reports [ConductorMessage.StopFinished] with the stop's outcome and the ledger entry.
+ * 1. It stops the environment. This call cannot be cancelled and is bounded in time. The runtime then closes the
+ *    connection with `Environment stopped`.
+ * 2. It records the environment as stopped once it stopped. If the session was closed during a stop that failed, it
+ *    records the environment as the stop left it.
+ * 3. It lets the connection end by itself and then disconnects it. Disconnecting does nothing if the connection ended
+ *    already. Both waits are bounded.
+ * 4. It has the router read the final model, which marks the observed model as final.
+ * 5. It reports [ConductorMessage.StopFinished] with the stop's outcome and the ledger entry.
+ *
+ * Steps 3 and 4 run only when the stop succeeded.
  *
  * @param router the session's router.
  * @param inbox the conductor's inbox.
@@ -61,8 +65,8 @@ internal class EnvironmentStopper(
 ) {
     /**
      * Stops [environment], whose connection is [connection], and reports the end. The coroutine runs in the caller's
-     * thread up to its first suspension, inside the stop call, before this function returns, so a close that follows
-     * cannot cancel it before the stop call is made.
+     * thread up to its first suspension, which is inside the stop call, before this function returns. So a close that
+     * follows cannot cancel it before the stop call is made.
      */
     fun launch(environment: RuntimeEnvironment, connection: RuntimeConnection?) {
         departure.stopStarts()
@@ -88,8 +92,8 @@ internal class EnvironmentStopper(
     }
 
     /**
-     * Lets [connection] end by itself after a stop, as the runtime closes it and the environment's phase ends it, then
-     * disconnects it, which does nothing if it ended already; both bounded.
+     * Lets [connection] end by itself after a stop, because the runtime closes it and the environment's phase ends it.
+     * Then it disconnects the connection, which does nothing if it ended already. Both waits are bounded.
      */
     suspend fun letEnd(connection: RuntimeConnection) {
         withTimeoutOrNull(bounds.disconnect) { connection.state.first { it is ConnectionState.Ended } }
@@ -133,7 +137,7 @@ internal sealed interface StopWaiter {
         }
     }
 
-    /** Nobody: the session stops because it failed. */
+    /** Nobody waits, because the session stops after it failed. */
     data object None : StopWaiter {
         override fun answer(outcome: SessionCommandOutcome) = Unit
     }

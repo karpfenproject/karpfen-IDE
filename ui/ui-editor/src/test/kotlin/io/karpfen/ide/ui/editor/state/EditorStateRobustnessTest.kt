@@ -31,15 +31,17 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Robustness of the editor state (fixed seeds): external replacements of the text by deterministic mutations of a
- * KStates example, interleaved with key strokes, pointer gestures, hovering and typing, never throw; the published
- * highlights always refer to a text version that has them in bounds and the carets stay inside the text.
+ * Robustness of the editor state, with fixed seeds. The text is replaced from outside by deterministic mutations of a
+ * KStates example, interleaved with key strokes, pointer gestures, hovering and typing. Nothing throws. The published
+ * highlights always refer to a text version whose bounds contain them, and the carets stay inside the text.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EditorStateRobustnessTest {
 
+    /** The first KStates example file. */
     private val example = Examples.files(KarpfenLanguage.KSTATES).first().text
 
+    /** The key strokes the test picks from at random, with macOS modifiers. */
     private val strokes = listOf(
         KeyStroke(KeyCode.ENTER), KeyStroke(KeyCode.BACKSPACE), KeyStroke(KeyCode.DELETE), KeyStroke(KeyCode.TAB),
         KeyStroke(KeyCode.UP, setOf(KeyModifier.SHIFT)), KeyStroke(KeyCode.PAGE_DOWN), KeyStroke(KeyCode.END),

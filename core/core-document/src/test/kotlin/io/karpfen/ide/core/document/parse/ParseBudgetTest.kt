@@ -28,11 +28,12 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * The parse budget of the [DocumentParser] contract: a 5,000-line KStates document parses (syntax only, the default
- * mode) in < 150 ms, asserted with 5x slack; the measured value is reported through [TestReporter].
+ * The parse budget of the [DocumentParser] contract. A 5,000-line KStates document should parse in less than 150 ms
+ * in the default mode, which is syntax only. The test asserts this with 5x slack and reports the measured value
+ * through [TestReporter].
  *
- * Tagged `budget`, which the build excludes from every test run: wall-clock time depends on machine load, garbage
- * collection and sleep cycles, so such assertions fail without a code change. The test stays as executable
+ * The test is tagged `budget`, which the build excludes from every test run. Wall-clock time depends on machine load,
+ * garbage collection and sleep cycles, so such assertions fail without a code change. The test stays as executable
  * documentation for later performance work.
  */
 @Tag("budget")

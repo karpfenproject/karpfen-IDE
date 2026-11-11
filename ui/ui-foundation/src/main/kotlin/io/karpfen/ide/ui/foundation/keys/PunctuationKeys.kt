@@ -16,8 +16,8 @@
 package io.karpfen.ide.ui.foundation.keys
 
 /**
- * The characters denoted by the punctuation codes of [KeyCode]: the one table shared by the display text of shortcuts
- * and the layout-aware key adapter in `keys.compose`.
+ * The characters that the punctuation codes of [KeyCode] denote. This is the one table that the display text of
+ * shortcuts and the layout-aware key adapter in `keys.compose` share.
  */
 internal object PunctuationKeys {
 

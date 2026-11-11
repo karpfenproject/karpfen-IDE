@@ -63,7 +63,7 @@ internal val CLIENT: ClientId = ClientId("karpfen-ide-4f2c9a1b7e03")
 
 /**
  * What the doubles of one deployment answer and what they received. Every call of a double is recorded in [log] by
- * its name, with its arguments in parentheses where it has any, and succeeds unless the test failed or held it; the
+ * its name, with its arguments in parentheses where it has any. A call succeeds unless the test failed or held it. The
  * listener records what it hears in the same log, so the order of calls and reports shows. Confined to the test's
  * thread.
  *
@@ -86,12 +86,15 @@ internal class DeployScript(private val clock: () -> Long) {
     var openAnswer: ConnectionState = ConnectionState.Open(1)
 
     /**
-     * What the waits for an open connection answer, in turn: a state, or null for a connection that stays reconnecting
-     * until the wait passes. Once used up, a wait answers the connection's state.
+     * What the waits for an open connection answer, in turn. Each is a state, or null for a connection that stays
+     * reconnecting until the wait passes. Once they are used up, a wait answers the connection's state.
      */
     val awaitOpenAnswers: ArrayDeque<ConnectionState?> = ArrayDeque()
 
-    /** What the reads of the model answer, in turn; once used up, the model with every attached machine in a state. */
+    /**
+     * What the reads of the model answer, in turn. Once they are used up, a read answers the model with every attached
+     * machine in a state.
+     */
     val pullAnswers: ArrayDeque<CallOutcome<RuntimeModelSnapshot>> = ArrayDeque()
 
     /** The virtual times of the reads of the model, in milliseconds. */
@@ -124,7 +127,7 @@ internal class DeployScript(private val clock: () -> Long) {
     fun now(): Long = clock()
 
     /**
-     * Records [call] with [arguments], suspends until cancelled if the call is held, and answers the failure the call
+     * Records [call] with [arguments] and suspends until cancelled if the call is held. Returns the failure the call
      * fails with, or null if it succeeds.
      */
     suspend fun enter(call: String, vararg arguments: Any): RuntimeFailure? {
@@ -138,7 +141,7 @@ internal class DeployScript(private val clock: () -> Long) {
 }
 
 /**
- * A double of the runtime client: checks and creations answer as scripted, and connections are doubles too.
+ * A double of the runtime client. Checks and creations answer as scripted, and connections are doubles too.
  *
  * @param script what it answers and where it records.
  */
@@ -174,9 +177,10 @@ internal class ScriptedClient(private val script: DeployScript) : RuntimeClient 
 }
 
 /**
- * A double of an environment handle: calls answer as scripted and move the phase as the real handle would on success;
- * a failing call leaves the phase where the test chose, loses the environment on an unknown-environment rejection and
- * otherwise keeps it. A held activation, start or stop completes when cancelled, as the real handle's do.
+ * A double of an environment handle. Calls answer as scripted and move the phase as the real handle would on success.
+ * A failing call leaves the phase where the test chose. Without such a choice, it loses the environment on an
+ * unknown-environment rejection and otherwise keeps the phase. A held activation, start or stop completes when
+ * cancelled, as the real handle's do.
  *
  * @property key the environment's key.
  * @param script what it answers and where it records.
@@ -237,7 +241,10 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
 
     override suspend fun unsubscribeModel(client: ClientId): CallOutcome<Unit> = outcome("unsubscribeModel", client) { }
 
-    /** The model as the runtime would read it now: no objects, and a state for every attached machine once running. */
+    /**
+     * The model as the runtime would read it now. It has no objects, and a state for every attached machine once the
+     * environment runs.
+     */
     fun modelAsRead(): RuntimeModelSnapshot {
         val running = current.value == EnvironmentPhase.Running
         return RuntimeModelSnapshot(
@@ -259,7 +266,7 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
             else -> RuntimePhase.RUNNING
         }
 
-    /** The scripted outcome of [call] with [arguments]; on success [effect] runs and its value is answered. */
+    /** The scripted outcome of [call] with [arguments]. On success [effect] runs and its value is answered. */
     private suspend fun <T> outcome(call: String, vararg arguments: Any, effect: () -> T): CallOutcome<T> {
         val failure = script.enter(call, *arguments) ?: return CallOutcome.Done(effect())
         current.value = script.phaseAfterFailure(call) ?: phaseAfter(failure)
@@ -285,7 +292,7 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
 }
 
 /**
- * A double of a connection: opening and waiting answer as scripted; it never receives anything.
+ * A double of a connection. Opening and waiting answer as scripted. It never receives anything.
  *
  * @property environment the environment it belongs to.
  * @property clientId the client it connects as.
@@ -338,8 +345,8 @@ internal class ScriptedConnection(
 }
 
 /**
- * A double of the session's observation: switching on answers the model as the environment double reads it, reads
- * answer as scripted, and both move the environment's phase to the one read, as reading through the real handle does.
+ * A double of the session's observation. Switching on answers the model as the environment double reads it, and reads
+ * answer as scripted. Both move the environment's phase to the one read, as reading through the real handle does.
  *
  * @param script what it answers and where it records.
  */

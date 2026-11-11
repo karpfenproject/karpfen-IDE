@@ -19,9 +19,9 @@ import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.ui.editor.model.caret.TabStops
 
 /**
- * The indentation rules of the editing actions: one indentation level is [SIZE] spaces; auto-indent, smart Backspace,
- * Tab and Shift+Tab work in columns of [stops] (tabs in existing indentation expand to the same 4-column stops). Pure
- * functions without state.
+ * The indentation rules of the editing actions. One indentation level is [SIZE] spaces. Auto-indent, smart Backspace,
+ * Tab and Shift+Tab count display columns with [stops]. Tabs that already exist in the indentation expand to the same
+ * 4-column stops. The object holds pure functions and no state.
  */
 internal object Indentation {
 

@@ -23,12 +23,13 @@ import io.karpfen.ide.ui.workbench.files.view.fileIconOf
 import java.nio.file.Path
 
 /**
- * The `TreeView` nodes of a [WorkspaceTree]: one root node for the folder, children in the tree's order, keyed by path,
- * with the icon of each file's kind ([fileIconOf]). What a node is and offers is the `ProjectTreeState`'s.
+ * The `TreeView` nodes of a [WorkspaceTree]. There is one root node for the folder. The children keep the order of the
+ * tree and are keyed by path. Each file gets the icon of its kind from [fileIconOf]. What a node is and what it offers
+ * is decided by `ProjectTreeState`.
  */
 internal class ProjectTreeNodes(tree: WorkspaceTree) {
 
-    /** The root node (the opened folder). */
+    /** The single root node, which is the opened folder. */
     val roots: List<TreeNode<Path>> = listOf(node(tree.root))
 
     private fun node(node: WorkspaceNode): TreeNode<Path> = when (node) {

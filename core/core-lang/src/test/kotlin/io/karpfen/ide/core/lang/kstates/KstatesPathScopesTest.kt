@@ -33,8 +33,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers the KStates path scope: attached type, event type of the enclosing transition, WITH bindings and macro
- * parameters — read from the tokens at the caret and from the outline of a parse outcome, which must agree.
+ * Covers the KStates path scope with the attached type, the event type of the enclosing transition, WITH bindings and
+ * macro parameters. The scope is read from the tokens at the caret and from the outline of a parse outcome, and both
+ * readings must agree.
  */
 class KstatesPathScopesTest {
 

@@ -19,23 +19,23 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * What a run needs from the workbench around the runtime state: the active editor, the save-all flow, the dialogs and
- * the Runtime tool window. The mediator implements it over its sub-states, so the runtime state never sees them. Used
- * from the UI thread.
+ * What a run needs from the workbench around the runtime state. That is the active editor, the save-all flow, the
+ * dialogs and the Runtime tool window. The mediator implements it over its sub-states, so the runtime state never sees
+ * them. Use it from the UI thread only.
  */
 internal interface RunSupport {
-    /** The file of the active editor tab, or null without one. */
+    /** The file of the active editor tab, or null if there is none. */
     val activeFile: StateFlow<Path?>
 
     /**
-     * Saves every open file through the workbench's save-all flow, which asks before writing over a change made on disk
-     * and shows a failed save in an error dialog; true if every file was saved.
+     * Saves every open file through the workbench's save-all flow. That flow asks before it writes over a change made
+     * on disk, and it shows a failed save in an error dialog. Returns true if every file was saved.
      */
     suspend fun saveAll(): Boolean
 
     /**
-     * Asks the user which of [descriptors] of the workspace at [root] to run, with [preselected] selected at first, and
-     * answers the chosen one, or null if the user cancelled.
+     * Asks the user which of the [descriptors] of the workspace at [root] to run. [preselected] is selected when the
+     * dialog opens. Returns the chosen descriptor, or null if the user cancelled.
      */
     suspend fun chooseDescriptor(root: Path, descriptors: List<Path>, preselected: Path?): Path?
 

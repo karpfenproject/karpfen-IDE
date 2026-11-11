@@ -84,17 +84,18 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Contract test of the runtime session's public API: the public values are immutable and compared by value, the
- * options have their documented defaults and refuse what makes no sense, and the factory wires what it is given: the
- * planner prepares, the deployer deploys with the session's client id, plan, options and scope, the ledger records, and
- * a launched session starts deploying at once with a client id from the options' random and the prepared catalog.
+ * Contract test of the runtime session's public API. The public values are immutable and compared by value. The
+ * options have their documented defaults and refuse what makes no sense. The factory wires what it is given. The
+ * planner prepares, and the deployer deploys with the session's client id, plan, options and scope. The ledger records.
+ * A launched session starts deploying at once, with a client id from the options' random and with the prepared
+ * catalog.
  */
 class RuntimeSessionContractTest {
 
     @TempDir
     lateinit var root: Path
 
-    /** The public value classes of the session: every value that crosses threads. */
+    /** The public value classes of the session. These are all values that cross threads. */
     private val publicValues: List<Class<*>> = listOf(
         PreparedDeployment::class.java, Preparation.Ready::class.java, Preparation.Blocked::class.java,
         RuntimeSessionOptions::class.java, SessionState.Ready::class.java, SessionState.Running::class.java,

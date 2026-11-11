@@ -46,17 +46,22 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * The mouse input of the text area: hit-testing plus the drag auto-scroll timer only, everything else is a Compose-free
- * intent of [model], with positions in text-area coordinates (the `EditorOverlayHost` space):
- * - primary press → `pointerPressed(offset, clickCount, modifiers)` (clicks counted by [ClickCounter]), drag →
- *   `pointerDragged(offset)` with auto-scroll while the pointer is outside the area, release → `pointerReleased()`;
- * - secondary press → `openContextMenuAt(offset, x, y)`;
- * - movement without buttons → `pointerHover(character offset or null)`, leaving the area → `pointerHover(null)`;
- * - the mouse wheel scrolls the viewport (Shift+wheel horizontally, [wheelScroll]).
+ * The mouse input of the text area. It only hit-tests and runs the timer for automatic scrolling during a drag.
+ * Everything else is an intent of [model], which does not need Compose. Positions are in text area coordinates, the
+ * `EditorOverlayHost` space.
+ *
+ * A primary press calls `pointerPressed(offset, clickCount, modifiers)`, and [ClickCounter] counts the clicks. A drag
+ * calls `pointerDragged(offset)` and scrolls automatically while the pointer is outside the area. A release calls
+ * `pointerReleased()`. A secondary press calls `openContextMenuAt(offset, x, y)`.
+ *
+ * Movement without buttons calls `pointerHover` with the offset of the character under the pointer, or with null
+ * outside the text. Leaving the area calls `pointerHover(null)`. The mouse wheel scrolls the viewport through
+ * [wheelScroll], and Shift+wheel scrolls horizontally.
  *
  * Presses are taken in the initial pass and consumed, so the proxy text field below them never reacts to the mouse.
  *
- * @param frame the text area at the current scroll position (null before the first layout); read at every event.
+ * @param frame returns the text area at the current scroll position, or null before the first layout. It is read at
+ *   every event.
  */
 internal fun Modifier.textAreaPointerInput(model: EditorViewModel, frame: () -> TextAreaFrame?): Modifier =
     pointerInput(model) {
@@ -117,8 +122,8 @@ internal fun Modifier.textAreaPointerInput(model: EditorViewModel, frame: () -> 
     }.wheelScroll(model.viewport) { frame()?.geometry?.lineHeight ?: 0f }
 
 /**
- * The mouse wheel scrolls [viewport] by [WHEEL_LINES] lines of [lineHeight] per notch (Shift+wheel horizontally); used
- * by the text area and the gutter.
+ * Lets the mouse wheel scroll [viewport] by [WHEEL_LINES] lines of [lineHeight] per notch. Shift+wheel scrolls
+ * horizontally. The text area and the gutter both use it.
  */
 internal fun Modifier.wheelScroll(viewport: EditorViewport, lineHeight: () -> Float): Modifier =
     pointerInput(viewport) {
@@ -140,8 +145,8 @@ internal fun Modifier.wheelScroll(viewport: EditorViewport, lineHeight: () -> Fl
     }
 
 /**
- * The next event in which a pointer went down, with any button (`awaitFirstDown` reports only the primary mouse button
- * on desktop), taken in the initial pass.
+ * Waits for the next event in which a pointer went down with any button, taken in the initial pass. `awaitFirstDown`
+ * cannot be used, because it reports only the primary mouse button on desktop.
  */
 private suspend fun AwaitPointerEventScope.awaitDownWithAnyButton(): PointerEvent {
     var event = awaitPointerEvent(PointerEventPass.Initial)
@@ -149,7 +154,10 @@ private suspend fun AwaitPointerEventScope.awaitDownWithAnyButton(): PointerEven
     return event
 }
 
-/** Scrolls while the drag position [last] is outside the area, extending the selection to the point after each step. */
+/**
+ * Scrolls while the drag position [last] is outside the area. After each step it extends the selection to the point
+ * under the pointer.
+ */
 private suspend fun CoroutineScope.autoScroll(
     model: EditorViewModel,
     frame: () -> TextAreaFrame?,
@@ -168,7 +176,7 @@ private suspend fun CoroutineScope.autoScroll(
     }
 }
 
-/** The physical modifiers of a pointer event. */
+/** Returns the physical modifiers of a pointer event. */
 internal fun PointerKeyboardModifiers.toKeyModifiers(): Set<KeyModifier> = buildSet {
     if (isShiftPressed) add(KeyModifier.SHIFT)
     if (isCtrlPressed) add(KeyModifier.CTRL)
@@ -176,8 +184,8 @@ internal fun PointerKeyboardModifiers.toKeyModifiers(): Set<KeyModifier> = build
     if (isMetaPressed) add(KeyModifier.META)
 }
 
-/** Lines scrolled per wheel notch. */
+/** The number of lines scrolled per wheel notch. */
 private const val WHEEL_LINES = 3f
 
-/** The largest auto-scroll step per tick, in lines. */
+/** The largest step of the automatic drag scrolling per tick, in lines. */
 private const val AUTO_SCROLL_MAX_LINES = 2f

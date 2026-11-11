@@ -32,8 +32,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers the seed: the analyzed model as the mirror's first snapshot, for the runtime's four examples, the synthesized
- * models and hand-written models with anonymous objects and unresolved references.
+ * Covers the seed, which is the analyzed model as the mirror's first snapshot. It checks the runtime's four examples,
+ * the synthesized models and hand-written models with anonymous objects and unresolved references.
  */
 class MirrorSeederTest {
 

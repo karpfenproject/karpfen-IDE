@@ -18,15 +18,15 @@ package io.karpfen.ide.core.text
 /**
  * Maps between offsets and line/column positions of one immutable text.
  *
- * Only `\n` separates lines, because documents are normalized on load (see [LineSeparators]). Text with `n` newlines
- * has `n + 1` lines; the empty text has one empty line, and a trailing newline yields a final empty line. Instances are
- * immutable and thread-safe; [TextSnapshot.lineIndex] creates one lazily per snapshot.
+ * Only `\n` separates lines, because documents are normalized on load by [LineSeparators]. Text with `n` newlines has
+ * `n + 1` lines. The empty text has one empty line, and a trailing newline yields a final empty line. Instances are
+ * immutable and thread-safe. [TextSnapshot.lineIndex] creates one lazily per snapshot.
  *
- * Performance contract: construction is O(length) and every query is O(log lineCount) or better.
+ * Construction is O(length), and every query is O(log lineCount) or better.
  */
 public class LineIndex(private val text: String) {
 
-    /** Start offset of every line, ascending; `lineStarts[0] == 0`. Never mutated after construction. */
+    /** Start offset of every line in ascending order, with `lineStarts[0] == 0`. Never mutated after construction. */
     private val lineStarts: IntArray = computeLineStarts(text)
 
     /** Number of lines, always `>= 1`. */
@@ -52,8 +52,8 @@ public class LineIndex(private val text: String) {
     }
 
     /**
-     * Line containing [offset]; an offset on a `\n` belongs to the line it terminates, `offset == text.length` to the
-     * last line.
+     * Line containing [offset]. An offset on a `\n` belongs to the line it terminates, and `offset == text.length`
+     * belongs to the last line.
      * @throws IllegalArgumentException if [offset] is not in `0..text.length`.
      */
     public fun lineOf(offset: Int): Int {
@@ -72,13 +72,13 @@ public class LineIndex(private val text: String) {
     }
 
     /**
-     * Offset of [position], clamped: a line beyond the last line maps to the end of the text, a column beyond the end
-     * of its line maps to [lineEnd] of that line. Never throws.
+     * Offset of [position], clamped to the text. A line beyond the last line maps to the end of the text. A column
+     * beyond the end of its line maps to [lineEnd] of that line. Never throws.
      */
     public fun offsetOf(position: TextPosition): Int = offsetOf(position.line, position.column)
 
     /**
-     * Same as [offsetOf] with a [TextPosition]; negative arguments are clamped to 0. Never throws.
+     * Same as [offsetOf] with a [TextPosition]. Negative arguments are clamped to 0. Never throws.
      *
      * The column is compared with the length of the line before it is added to the line start, so a huge column
      * cannot overflow.
@@ -96,7 +96,7 @@ public class LineIndex(private val text: String) {
 
     private fun endOf(line: Int): Int = if (line + 1 < lineStarts.size) lineStarts[line + 1] - 1 else text.length
 
-    /** The last line whose start is `<= offset` (binary search; [offset] is in bounds). */
+    /** The last line whose start is `<= offset`, found by binary search. [offset] must be in bounds. */
     private fun lineContaining(offset: Int): Int {
         var low = 0
         var high = lineStarts.size - 1
@@ -116,7 +116,7 @@ public class LineIndex(private val text: String) {
     }
 
     private companion object {
-        /** The start offset of every line of [text], in two passes (count the lines, then fill the array). */
+        /** The start offset of every line of [text]. One pass counts the lines, and a second pass fills the array. */
         fun computeLineStarts(text: String): IntArray {
             var newlines = 0
             for (char in text) if (char == '\n') newlines++

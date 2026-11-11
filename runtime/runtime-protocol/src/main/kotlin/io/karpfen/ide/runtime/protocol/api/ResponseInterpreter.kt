@@ -22,10 +22,13 @@ import io.karpfen.ide.runtime.protocol.message.excerpt
 import io.karpfen.ide.runtime.protocol.transport.HttpOutcome
 
 /**
- * Interprets the runtime's answer to a call of a route: 200 is a success whose body the route's [SuccessBody] reads
- * (a body it cannot read is a [RuntimeFailure.ProtocolViolated] with [ViolationKind.UNEXPECTED_BODY]); 400 and 409 are
- * rejections classified by [RejectionClassifier]; 500 is a [RuntimeFailure.ServerFault]; every other status, such as the
- * 404 of a path the runtime lacks or the 405 of a wrong method, is a [RuntimeFailure.UnexpectedStatus]. Stateless.
+ * Interprets the runtime's answer to a call of a route.
+ *
+ * A 200 is a success, and the route's [SuccessBody] reads its body. A body it cannot read becomes a
+ * [RuntimeFailure.ProtocolViolated] with [ViolationKind.UNEXPECTED_BODY]. A 400 or 409 is a rejection that
+ * [RejectionClassifier] classifies. A 500 is a [RuntimeFailure.ServerFault]. Every other status becomes a
+ * [RuntimeFailure.UnexpectedStatus], for example the 404 of a path the runtime lacks or the 405 of a wrong method. The
+ * object holds no state.
  */
 internal object ResponseInterpreter {
 

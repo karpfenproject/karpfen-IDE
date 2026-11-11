@@ -22,19 +22,20 @@ import io.karpfen.ide.core.text.TextRange
 import java.nio.file.Path
 
 /**
- * Reads environment descriptors. Pure: does not touch the file system (missing referenced files are detected by the
- * `ContextResolver`, which uses [DescriptorReadResult.references] for ranges).
+ * Reads environment descriptors. It does not touch the file system. Missing referenced files are detected by the
+ * `ContextResolver`, which takes the ranges from [DescriptorReadResult.references].
  *
- * Never throws. Findings, all with ranges in the text passed to [read] (the `\n`-normalized text loaded by the
- * workspace's `SourceLoader`, or the editor text of an open descriptor, so `line:col` in the Problems view and the CLI
- * is computed like for every other file), come in two kinds:
- * - the syntax errors of the text ([DescriptorReadResult.syntaxDiagnostics]) are the LEXER and PARSER errors
- *   (`lexer-error`, `syntax-error`) of the environment language, exactly what the editor computes for the same text;
- *   they belong to the text, as a karpfen file's own diagnostics do, and the descriptor is then not read any further;
- * - the descriptor's findings ([DescriptorReadResult.diagnostics]) are its checks against `EnvironmentSchema`: unknown
- *   keys are WARNINGs `descriptor-unknown-key` at the key; missing required keys, repeated keys and values of the wrong
- *   kind are ERRORs `descriptor-invalid`. With the findings about the files it names, they are the descriptor's project
- *   diagnostics.
+ * It never throws. All findings have ranges in the text passed to [read]. That text is the `\n`-normalized text that
+ * the workspace's `SourceLoader` loaded, or the editor text of an open descriptor. So `line:col` in the Problems view
+ * and in the command line tool is computed as for every other file. There are two kinds of findings.
+ * - The syntax errors of the text, in [DescriptorReadResult.syntaxDiagnostics], are the LEXER and PARSER errors of the
+ *   environment language, with the codes `lexer-error` and `syntax-error`. They are exactly what the editor computes
+ *   for the same text. They belong to the text, as the own diagnostics of a karpfen file do. If there are any, the
+ *   descriptor is not read any further.
+ * - The findings of the descriptor, in [DescriptorReadResult.diagnostics], are its checks against `EnvironmentSchema`.
+ *   An unknown key is a WARNING `descriptor-unknown-key` at the key. A missing required key, a repeated key and a value
+ *   of the wrong kind are ERRORs `descriptor-invalid`. Together with the findings about the files it names, they are
+ *   the project diagnostics of the descriptor.
  *
  * A descriptor with an error of either kind yields no [DescriptorReadResult.descriptor] and no references.
  */
@@ -50,12 +51,12 @@ public fun EnvironmentDescriptorReader(): EnvironmentDescriptorReader = JsonEnvi
  * Result of reading a descriptor.
  *
  * @property descriptor the descriptor, or null if it could not be decoded.
- * @property diagnostics the descriptor's findings against the schema, sorted with [Diagnostic.ORDER]; empty while the
- *   text has syntax errors.
- * @property references every file named by the descriptor, with the range of its JSON string value (inside the
- *   quotes), in document order.
- * @property syntaxDiagnostics the syntax errors of the text, sorted with [Diagnostic.ORDER]: what the editor of an open
- *   descriptor computes itself, so they are never among its project diagnostics.
+ * @property diagnostics the findings of the descriptor against the schema, sorted with [Diagnostic.ORDER]. It is empty
+ *   while the text has syntax errors.
+ * @property references every file the descriptor names, with the range of its JSON string value inside the quotes, in
+ *   document order.
+ * @property syntaxDiagnostics the syntax errors of the text, sorted with [Diagnostic.ORDER]. The editor of an open
+ *   descriptor computes them itself, so they are never among its project diagnostics.
  */
 public data class DescriptorReadResult(
     public val descriptor: EnvironmentDescriptor?,
@@ -65,8 +66,8 @@ public data class DescriptorReadResult(
 )
 
 /**
- * A file named in a descriptor: [value] as written (relative path, escapes decoded), its [role] and its [range] in the
- * descriptor text.
+ * A file named in a descriptor. [value] is the path as written, relative and with escapes decoded. [role] is what the
+ * file is for, and [range] is where the value lies in the descriptor text.
  */
 public data class DescriptorFileReference(
     public val role: DescriptorFileRole,

@@ -26,13 +26,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Toggle comment: `//`, and `#` per line inside EVAL bodies (by `embeddedRegionAt`) whose `EVAL {` line lies above the
- * toggled block; EVAL bodies come from the real KStates tokenizer. Nothing in a language without comments.
+ * Toggle comment uses `//`. Inside an EVAL body whose `EVAL {` line lies above the toggled block it uses `#` on each
+ * line. The body is found by `embeddedRegionAt`, and the EVAL bodies come from the real KStates tokenizer. In a
+ * language without comments the action does nothing.
  */
 class ToggleCommentTest {
 
     /**
-     * The fixture, a state with an EVAL body in its DO block; the tests address its lines by these numbers:
+     * The fixture is a state with an EVAL body in its DO block. The tests address its lines by these numbers:
      * ```
      * 0  STATE "a" {
      * 1      DO {
@@ -58,6 +59,8 @@ class ToggleCommentTest {
         "    }",
         "}",
     )
+
+    /** The fixture [lines] joined into one text. */
     private val kstates = lines.joinToString("\n")
 
     /** An editor on [kstates] with the caret at [column] of [line] and EVAL bodies as embedded regions. */
@@ -67,11 +70,13 @@ class ToggleCommentTest {
         return editor
     }
 
+    /** Runs toggle comment once in [editor] and returns the lines of the result. */
     private fun toggledLines(editor: TestEditor): List<String> {
         editor.run(EditorActionIds.TOGGLE_COMMENT)
         return editor.plain.split("\n")
     }
 
+    /** The fixture [lines] with some lines replaced, each given as a pair of line number and new text. */
     private fun expect(vararg replaced: Pair<Int, String>): List<String> =
         lines.toMutableList().apply { replaced.forEach { (line, text) -> set(line, text) } }
 
@@ -197,6 +202,7 @@ class ToggleCommentTest {
         assertEquals(machine, editor.plain, "toggling again restores the macro")
     }
 
+    /** The messages of the syntax errors that the KStates parser reports for [text]. */
     private fun syntaxErrors(text: String): List<String> =
         defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).parser.parse(TestEditor(text).text.snapshot.value)
             .syntaxDiagnostics.map { it.message }

@@ -42,23 +42,26 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
-/** Shared building blocks of the popups, all coloured by the [EditorTheme] the host passes. */
+/** Shared style values of the popups. The popup widgets take their colours from the [EditorTheme] the host passes. */
 internal object PopupStyle {
-    /** Corner shape of popup surfaces, fields and buttons. */
+    /** The corner shape of popup surfaces, fields and buttons. */
     val shape = RoundedCornerShape(4.dp)
 
-    /** Alpha of secondary text (details, hints) and of disabled entries. */
+    /** The alpha of secondary text, such as details, hints and placeholders. */
     const val MUTED_ALPHA = 0.6f
 
-    /** Alpha of disabled controls (Material's disabled content alpha). */
+    /** The alpha of disabled controls and menu entries. It is the disabled content alpha of Material. */
     const val DISABLED_ALPHA = 0.38f
 }
 
-/** The UI text style of popup labels (the ambient UI font, e.g. the workbench theme's) in [theme]'s foreground. */
+/**
+ * Returns the text style of popup labels. It uses the ambient UI font, such as the one of the workbench theme, in the
+ * foreground colour of [theme].
+ */
 @Composable
 internal fun popupLabelStyle(theme: EditorTheme): TextStyle = LocalTextStyle.current.merge(TextStyle(color = theme.foreground))
 
-/** A popup's surface: popup background, 1 dp popup border, small corners and a shadow, around [content]. */
+/** The surface of a popup around [content]. It has the popup background, a 1 dp popup border, small corners and a shadow. */
 @Composable
 internal fun PopupSurface(theme: EditorTheme, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
     Box(
@@ -71,8 +74,9 @@ internal fun PopupSurface(theme: EditorTheme, modifier: Modifier = Modifier, con
 }
 
 /**
- * A single-line text field of a popup: [value] in [textStyle] with [theme]'s foreground and caret colours, a border, and
- * [placeholder] in muted colour while empty. [modifier] applies to the field itself (focus requester, key handling).
+ * A single-line text field of a popup. It shows [value] in [textStyle] with the foreground and caret colours of [theme]
+ * and a border. While it is empty, it shows [placeholder] in a muted colour. [modifier] applies to the field itself,
+ * for example for a focus requester and key handling.
  */
 @Composable
 internal fun PopupTextField(
@@ -107,8 +111,8 @@ internal fun PopupTextField(
 }
 
 /**
- * A compact button labelled [label] (e.g. an arrow glyph), described by [description] for accessibility and tests.
- * Never takes keyboard focus, so a click keeps the caret in the popup's text field.
+ * A compact button labelled [label], for example with an arrow glyph. [description] describes it for accessibility and
+ * tests. It never takes keyboard focus, so a click keeps the caret in the text field of the popup.
  */
 @Composable
 internal fun BarButton(
@@ -133,8 +137,8 @@ internal fun BarButton(
 }
 
 /**
- * A compact on/off toggle labelled [label] (e.g. `Aa`), described by [description]; highlighted while [checked]. Never
- * takes keyboard focus.
+ * A compact on and off toggle labelled [label], for example `Aa`. [description] describes it. It is highlighted while
+ * [checked] is true. It never takes keyboard focus.
  */
 @Composable
 internal fun BarToggle(label: String, description: String, checked: Boolean, theme: EditorTheme, onToggle: () -> Unit) {

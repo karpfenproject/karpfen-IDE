@@ -21,14 +21,14 @@ import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
- * The single writer of the documents' texts: runs every mutation of an open document — reload, save point, conflict
- * state — on the dispatcher of the workspace's [scope], because an `EditableText` is mutated from one thread only.
- * Callers already on that dispatcher (the UI thread in the app, the test thread in tests) run in place without a
- * dispatch; I/O always happens outside.
+ * The single writer of the documents' texts. It runs every change of an open document on the dispatcher of the
+ * workspace's [scope], because an `EditableText` may only be changed from one thread. Such changes are a reload, a new
+ * save point and a change of the conflict state. Callers that are already on that dispatcher run in place without a
+ * dispatch. In the app that is the UI thread, in tests the test thread. I/O always happens outside the writer.
  */
 internal class SingleWriter(scope: CoroutineScope) {
 
-    /** The dispatcher of the workspace's scope, or no context change if the scope has none. */
+    /** The dispatcher of the workspace's scope. If the scope has none, the context does not change. */
     private val context = scope.coroutineContext[ContinuationInterceptor] ?: EmptyCoroutineContext
 
     /** Runs [mutation] on the writer's dispatcher and returns its result. */

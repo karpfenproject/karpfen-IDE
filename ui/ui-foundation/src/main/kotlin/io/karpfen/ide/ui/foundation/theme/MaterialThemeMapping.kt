@@ -27,13 +27,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Maps the karpfen theme onto the Material 3 theme and the desktop scrollbars, so basic Material widgets (menus,
- * buttons, text fields, dialogs) match the IDE palette: accent → primary, window → background, panel → surface,
- * border → outline. Menus and dialogs use the window colour in the light theme and the panel colour in the dark one.
+ * Maps the karpfen theme onto the Material 3 theme and the desktop scrollbars, so that basic Material widgets such as
+ * menus, buttons, text fields and dialogs match the IDE palette. The accent becomes Material's primary colour, the
+ * window colour its background, the panel colour its surface and the border colour its outline. Menus and dialogs use
+ * the window colour in the light theme and the panel colour in the dark one.
  */
 internal object MaterialThemeMapping {
 
-    /** The Material colour scheme of [colors]; [darkTheme] picks the base scheme and the container colour. */
+    /** The Material colour scheme of [colors]. [darkTheme] picks the base scheme and the container colour. */
     fun colorScheme(colors: KarpfenColors, darkTheme: Boolean): ColorScheme {
         val container = if (darkTheme) colors.panel else colors.window
         val base = if (darkTheme) darkColorScheme() else lightColorScheme()

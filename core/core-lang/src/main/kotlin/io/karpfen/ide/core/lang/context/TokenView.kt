@@ -21,19 +21,19 @@ import io.karpfen.ide.core.document.syntax.TokenKind
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The tokens of one text with the lookups the caret locators share: token texts, brackets, the statement before a
- * token and the word at an offset. Immutable; one instance per detection.
+ * The tokens of one text with the lookups the caret locators share. These are token texts, brackets, the statement
+ * before a token and the word at an offset. A view is immutable, and each detection makes its own.
  *
- * Tokens may come from a broken text, so every lookup clamps to the text (a token never reaches past it when tokens
- * and text belong together, which the `LanguageServices` contract guarantees).
+ * Tokens may come from a broken text, so every lookup clamps to the text. When tokens and text belong together, a
+ * token never reaches past the text. The contract of `LanguageServices` guarantees that they do.
  */
 internal class TokenView(val text: String, val tokens: List<SyntaxToken>) {
 
-    /** The text of [token] (clamped to the text). */
+    /** The text of [token], clamped to the text. */
     fun textOf(token: SyntaxToken): String =
         text.substring(token.range.start.coerceAtMost(text.length), token.range.end.coerceAtMost(text.length))
 
-    /** [token] as a [ContextToken]: string literals without their quotes. */
+    /** [token] as a [ContextToken]. String literals lose their quotes. */
     fun contextToken(token: SyntaxToken): ContextToken {
         val raw = textOf(token)
         val text = if (token.kind == TokenKind.STRING) unquote(raw) else raw
@@ -48,7 +48,7 @@ internal class TokenView(val text: String, val tokens: List<SyntaxToken>) {
             null
         }
 
-    /** Index of the first token starting at or after [offset]; `tokens.size` if none. */
+    /** The index of the first token that starts at or after [offset], or `tokens.size` if there is none. */
     fun firstIndexStartingAtOrAfter(offset: Int): Int {
         var low = 0
         var high = tokens.size
@@ -59,7 +59,7 @@ internal class TokenView(val text: String, val tokens: List<SyntaxToken>) {
         return low
     }
 
-    /** The identifier characters touching [offset] (empty at [offset] if there are none). */
+    /** The identifier characters that touch [offset]. If there are none, the range is empty at [offset]. */
     fun wordRange(offset: Int): TextRange {
         var start = offset
         while (start > 0 && KarpfenSyntax.isIdentifierChar(text[start - 1])) start--
@@ -69,9 +69,10 @@ internal class TokenView(val text: String, val tokens: List<SyntaxToken>) {
     }
 
     /**
-     * The tokens of the construct that ends before the token at [index] (exclusive), in document order, comments and
-     * embedded pieces excluded: everything after the previous brace; if an unclosed `(` comes first (the construct is
-     * an argument of a call), everything after that call's last top-level comma or its `(`.
+     * The tokens of the construct that ends before the token at [index], in document order. The token at [index] is
+     * not included, and neither are comments and embedded pieces. The construct is everything after the previous
+     * brace. If an unclosed `(` comes first, the construct is an argument of a call. Then it is everything after the
+     * last top-level comma of that call, or after its `(`.
      */
     fun statementBefore(index: Int): List<ContextToken> {
         val collected = ArrayList<SyntaxToken>()
@@ -100,7 +101,10 @@ internal class TokenView(val text: String, val tokens: List<SyntaxToken>) {
     }
 
     companion object {
-        /** Bound of [statementBefore] (constructs are short; broken text without braces must not cost more). */
+        /**
+         * The most tokens [statementBefore] collects. Constructs are short, and broken text without braces must not
+         * cost more.
+         */
         const val MAX_STATEMENT_TOKENS: Int = 64
 
         /** [raw] without its opening quote and, if present, its matching closing quote. */

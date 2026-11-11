@@ -60,7 +60,7 @@ class DocumentSessionDiagnosticsTest {
     private val standalone = diagnostic(rangeOf("Robot"), DiagnosticSource.DSL_TOOLS)
     private val project = diagnostic(rangeOf("STATE \"a\""), DiagnosticSource.DSL_TOOLS, "project finding")
 
-    /** The parser outcome of version 0 with every kind of diagnostic; later versions are clean. */
+    /** The parser outcome of version 0 with every kind of diagnostic. Later versions are clean. */
     private fun richParser() = FakeParser { snapshot ->
         if (snapshot.version == 0L) outcome(0, syntax = listOf(parserError, parserLexerCopy), standalone = listOf(standalone)) else outcome(snapshot.version)
     }

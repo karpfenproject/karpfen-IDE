@@ -21,14 +21,15 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Walks a KStates tree into one STATEMACHINE outline node whose children are the states, the transitions
- * and the macros, in document order (the `STATES`, `TRANSITIONS` and `MACROS` blocks themselves are not nodes). The
- * machine is declared as STATEMACHINE named after its keyword (`STATEMACHINE`, selecting the keyword) with the
- * `ATTACHED TO` type as type name and outline detail; that type string is a type reference.
+ * Walks a KStates tree into one STATEMACHINE outline node. Its children are the states, the transitions and the
+ * macros, in document order. The `STATES`, `TRANSITIONS` and `MACROS` blocks themselves are not nodes. The machine is
+ * declared as a STATEMACHINE named after its keyword `STATEMACHINE`, and the declaration selects that keyword. The
+ * `ATTACHED TO` type is its type name and outline detail, and that type string is recorded as a type reference.
  *
- * Coordinates one walker per block ([KstatesStateWalker] with [KstatesActionWalker], [KstatesTransitionWalker],
- * [KstatesMacroWalker]) over the shared [KstatesReferences] rules; the walkers are the structure of this one walk,
- * created per analysis.
+ * The class coordinates one walker per block over the shared [KstatesReferences] rules. [KstatesStateWalker] walks the
+ * states together with [KstatesActionWalker], [KstatesTransitionWalker] walks the transitions, and
+ * [KstatesMacroWalker] walks the macros. The walkers make up the structure of this one walk and are created per
+ * analysis.
  */
 internal class KstatesTreeWalker(private val tree: ParsedTree<*>, private val collector: SyntaxCollector) {
 
@@ -37,7 +38,7 @@ internal class KstatesTreeWalker(private val tree: ParsedTree<*>, private val co
     private val transitions = KstatesTransitionWalker(tree, collector, references)
     private val macros = KstatesMacroWalker(tree, collector)
 
-    /** The outline of [file]: the state machine, if the text has one. */
+    /** The outline of [file], which is the state machine if the text has one. */
     fun walk(file: KstatesParser.Kstates_fileContext): List<OutlineNode> = listOfNotNull(file.statemachine()?.let(::machine))
 
     /** Records the state machine of [ctx] and returns its outline node. */
@@ -53,7 +54,10 @@ internal class KstatesTreeWalker(private val tree: ParsedTree<*>, private val co
     }
 
     private companion object {
-        /** The name of the STATEMACHINE declaration and outline node: its keyword (the grammar gives it no name). */
+        /**
+         * The name of the STATEMACHINE declaration and outline node. It is the keyword, because the grammar gives the
+         * machine no name.
+         */
         const val MACHINE_NAME = "STATEMACHINE"
     }
 }

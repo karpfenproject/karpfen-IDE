@@ -22,40 +22,76 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * The small karpfen models the scenarios run against a real runtime, each in a folder of its own with a descriptor
- * `<folder>.kenv.json` that names its files and attachments (and no tick delay or time to live: those come from the
- * deploy configuration, and [SynthesizedModels.copyTo] adds them when a scenario asks). Every model has one root object
- * and writes every scalar its machines set; no event domain equals an attached key. All but [DEPOT] run without Python.
+ * The small karpfen models that the scenarios run against a real runtime. They were written for the IDE's tests and
+ * are licensed under the Apache License 2.0, like the rest of the repository. [SynthesizedModels] reads them.
+ *
+ * Each model lives in a folder of its own below [SynthesizedModels.RESOURCE_ROOT]. The folder holds a descriptor
+ * `<folder>.kenv.json` that names only the files and the attachments. It names no tick delay and no time to live,
+ * because those come from the deploy configuration. [SynthesizedModels.copyTo] adds them when a scenario asks. The
+ * files carry no comments, so the texts stay exactly what is uploaded.
+ *
+ * Every model follows the same rules. It has one root object. Its model gives a value to every scalar that its machines
+ * set. It uses no event domain that is named like an attached object key. All models except [DEPOT] run without
+ * Python.
+ *
+ * Each entry lists the model's files, its machines and its event domains, and says what the model exercises.
+ * `SynthesizedModelsTest` checks the rules. Only the depot mentions `EVAL` or `MACRO`, and only in its two creating
+ * actions. Every descriptor names files that exist and names no timing. The descriptors attach the machines the
+ * scenarios rely on. No event domain is named like an attached object key.
  *
  * @property folder the folder of the model below [SynthesizedModels.RESOURCE_ROOT].
  */
 public enum class SynthesizedModel(public val folder: String) {
     /**
-     * A lamp in a living room with a bulb, a spare bulb and the wall switch it knows, and two machines, one on the lamp
-     * and one on the switch, that both react to every `press` of the domain `switch`. It covers deploying, the
-     * lifecycle, injected events with JSON and KModel payloads that decide a guard (`dim` with `bright`), forced states,
-     * the deletion of a model object (`smash` of the domain `service` deletes `spare`), two machines, `knows` inlining
-     * and text with spaces and an en dash on the wire. Both domains are declared by the events file.
+     * A lamp in a living room with a bulb, a spare bulb and the wall switch it knows. Two machines, one on the lamp and
+     * one on the switch, both react to every `press` of the domain `switch`.
+     *
+     * The folder holds `lamp.kmeta`, `lamp-events.kmeta`, `lamp.kmodel`, `lamp.kstates` and `switch.kstates`.
+     * `lamp.kstates` is attached to `lamp`, and `switch.kstates` is attached to `wallSwitch`. The event domains are
+     * `switch` with `press` and `dim`, and `service` with `smash`. The events file declares every event of both
+     * domains.
+     *
+     * The model covers deploying and the lifecycle. It covers injected events with JSON and KModel payloads that decide
+     * a guard, which is `dim` with `bright`. It covers forced states and the deletion of a model object, because
+     * `smash` of the domain `service` deletes `spare`. It also covers two machines that react to one event, `knows`
+     * inlining, and text with spaces and an en dash on the wire.
+     *
+     * The folder also holds the failure input [SynthesizedModels.LAMP_UNKNOWN_TYPE].
      */
     LAMP("lamp"),
 
     /**
-     * A metronome whose `go` of the domain `beat` runs one burst over several ticks, appending exactly `1, 2, 3, a, b`
-     * (two parallel lanes, `a` first) to a list that only grows, and raising `burst done` in the domain `tick`, which
-     * the events file does not declare. It covers observation, ordering, raised events and load.
+     * A metronome whose `go` of the domain `beat` runs one burst over several ticks. The burst appends exactly
+     * `1, 2, 3, a, b` to a list that only grows. `a` and `b` come from two parallel lanes, and `a` comes first. At the
+     * end the machine raises `burst done` in the domain `tick`, which the events file does not declare.
+     *
+     * The folder holds `metronome.kmeta`, `metronome-events.kmeta`, `metronome.kmodel` and `metronome.kstates`.
+     * `metronome.kstates` is attached to `metronome`. The event domains are `beat` with `go`, and `tick` with the
+     * raised `burst done`.
+     *
+     * The model covers continuous change in bursts over several ticks, a parallel split and join, observation,
+     * ordering, raised events and load. The list that only grows shows lost or misordered updates.
      */
     METRONOME("metronome"),
 
     /**
-     * A depot that creates crates at run time with Python (`receive` into its atomic `slot`, `stack` into its list),
-     * relabels the crate in the slot and scraps it without Python, all in the domain `dock`. The one model that needs
-     * Python, for objects created at run time; its `label` and `scrap` serve as Python-free reactions.
+     * A depot that creates crates at run time with Python. `receive` creates a crate in its atomic `slot`, and `stack`
+     * appends one to its list. Without Python, `label` relabels the crate in the slot and `scrap` scraps it.
+     *
+     * The folder holds `depot.kmeta`, `depot-events.kmeta`, `depot.kmodel` and `depot.kstates`. `depot.kstates` is
+     * attached to `depot`. The event domain is `dock` with `receive`, `stack`, `label` and `scrap`.
+     *
+     * It is the only model that needs Python. It uses `EVAL` in its two creating actions, for objects created at run
+     * time and for their own changes and deletion. Its `label` and `scrap` serve as reactions that need no Python.
      */
     DEPOT("depot"),
 
     /**
-     * Two nodes that know each other, a reference loop, with a machine on `a` that sets a scalar on entry. The runtime
-     * refuses to write the model as JSON and the IDE refuses to deploy it, so it is uploaded through raw requests only.
+     * Two nodes that know each other and so form a reference loop. A machine on `a` sets a scalar on entry. The runtime
+     * cannot write the model as JSON, and the IDE refuses to deploy it. So it is uploaded through raw requests only.
+     *
+     * The folder holds `ring.kmeta`, `ring.kmodel` and `ring.kstates`, and no events file. `ring.kstates` is attached
+     * to `a`. The model uses no event domain.
      */
     RING("ring"),
     ;
@@ -79,7 +115,7 @@ public data class ModelFiles(
     public val model: String,
     public val machines: List<AttachedMachineFile>,
 ) {
-    /** Every named file: metamodel, events, model, then the machines. */
+    /** Every named file, in the order metamodel, events, model and then the machines. */
     public val all: List<String>
         get() = listOfNotNull(metamodel, events, model) + machines.map { it.file }
 }
@@ -93,20 +129,20 @@ public data class ModelFiles(
 public data class AttachedMachineFile(public val file: String, public val attachedTo: String)
 
 /**
- * The timing a copied descriptor states, the deploy configuration of a scenario; a null value leaves its key out, so
- * the descriptor format's default applies.
+ * The timing that a copied descriptor states, which is the deploy configuration of a scenario. A null value leaves its
+ * key out, so the default of the descriptor format applies.
  *
  * @property tickDelayMs the `tickDelayMs` of the descriptor, or null for none.
  * @property eventTtlMs the `eventTtlMs` of the descriptor, or null for none.
  */
 public data class DescriptorTiming(public val tickDelayMs: Long? = null, public val eventTtlMs: Long? = null) {
     public companion object {
-        /** No timing keys: the defaults of the descriptor format apply. */
+        /** No timing keys, so the defaults of the descriptor format apply. */
         public val NONE: DescriptorTiming = DescriptorTiming()
 
         /**
-         * The timing of scenarios that inject events: a tick delay of 50 ms and a time to live of 30 000 ms, so that a
-         * slow first tick of a real runtime cannot expire an event.
+         * The timing of scenarios that inject events. It has a tick delay of 50 ms and a time to live of 30 000 ms, so
+         * that a slow first tick of a real runtime cannot expire an event.
          */
         public val EVENT_SCENARIOS: DescriptorTiming = DescriptorTiming(tickDelayMs = 50, eventTtlMs = 30_000)
     }
@@ -114,17 +150,21 @@ public data class DescriptorTiming(public val tickDelayMs: Long? = null, public 
 
 /**
  * The texts of the [SynthesizedModel]s and of the failure inputs, as test-fixture resources below [RESOURCE_ROOT], and
- * copies of them on disk: a deployment uploads saved files, so every scenario that deploys writes a model into a
- * folder of its own with [copyTo] and opens it as a workspace. The models are IDE-authored and Apache 2.0 licensed; the
- * README of the folder describes them.
+ * copies of them on disk. A deployment uploads saved files. So every scenario that deploys writes a model into a folder
+ * of its own with [copyTo] and opens it as a workspace. [copyTo] can add a tick delay and an event time to live to the
+ * copied descriptor.
+ *
+ * Failure inputs lie next to the models in the same folders. They are never copied with a model. The only one is
+ * [LAMP_UNKNOWN_TYPE].
  */
 public object SynthesizedModels {
     /** The classpath folder of the models, one sub-folder per [SynthesizedModel.folder]. */
     public const val RESOURCE_ROOT: String = "io/karpfen/ide/runtime/protocol/conformance/models"
 
     /**
-     * A failure input next to the lamp: the lamp's model with `spare` typed `Bulbb`, which the runtime's parser refuses
-     * with 400 `Unknown class type 'Bulbb' for object 'spare'`. Uploaded raw; never copied by [copyTo].
+     * A failure input in the lamp's folder. It is the lamp's model with the spare bulb `spare` typed `Bulbb`, which the
+     * runtime's parser refuses with 400 `Unknown class type 'Bulbb' for object 'spare'`. Otherwise it equals
+     * `lamp.kmodel`. Scenarios upload it raw, and [copyTo] never copies it.
      */
     public const val LAMP_UNKNOWN_TYPE: String = "lamp-unknown-type.kmodel"
 
@@ -175,9 +215,9 @@ public object SynthesizedModels {
     }
 
     /**
-     * Writes the descriptor of [model] and the files it names into [directory], which is created if needed, and answers
-     * the path of the copied descriptor. The descriptor gains the keys of [timing] that are set; every other file is
-     * written exactly as the resource holds it. Failure inputs are not copied.
+     * Writes the descriptor of [model] and the files it names into [directory], which is created if needed. Returns
+     * the path of the copied descriptor. The descriptor gains the keys of [timing] that are set, as its last members.
+     * Every other file is written exactly as the resource holds it. Failure inputs are not copied.
      */
     public fun copyTo(directory: Path, model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.NONE): Path {
         Files.createDirectories(directory)

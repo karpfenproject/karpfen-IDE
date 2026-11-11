@@ -22,12 +22,12 @@ import io.karpfen.ide.core.lang.feature.BracketMatcher
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 
 /**
- * Matches `{}` and `()` over PUNCTUATION tokens (brackets inside strings, comments and embedded code are ignored),
- * preferring the bracket right of the offset, then the one left of it. Stateless.
+ * Matches `{}` and `()` over PUNCTUATION tokens. Brackets inside strings, comments and embedded code are ignored. It
+ * prefers the bracket right of the offset, then the one left of it. It has no state.
  *
- * Pairing on broken text: brackets nest; a `)` pairs with an open `(` directly before it, a `}` with the nearest open
- * `{` (open parentheses inside the block stay unmatched: a call never spans a brace), anything else is unmatched and
- * has no match.
+ * On broken text the brackets pair like this. Brackets nest. A `)` pairs with an open `(` directly before it. A `}`
+ * pairs with the nearest open `{`, and open parentheses inside the block stay unmatched, because a call never spans a
+ * brace. Every other bracket is unmatched and has no match.
  */
 internal class TokenBracketMatcher : BracketMatcher {
 
@@ -49,7 +49,7 @@ internal class TokenBracketMatcher : BracketMatcher {
         return null
     }
 
-    /** The partner index of every bracket in [brackets] (-1 for an unmatched one). */
+    /** The partner index of every bracket in [brackets]. An unmatched bracket has -1. */
     private fun pair(text: String, brackets: List<SyntaxToken>): IntArray {
         val partners = IntArray(brackets.size) { -1 }
         val open = ArrayList<Int>()

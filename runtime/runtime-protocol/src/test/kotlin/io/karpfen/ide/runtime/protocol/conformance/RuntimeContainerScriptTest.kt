@@ -28,12 +28,12 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Covers the health wait of `runtime/live-runtime.sh`, the script that runs the runtime in Docker for the live tests,
- * on a virtual clock: [ScriptSandbox] runs the script's `up` command with Docker, git, curl, `sleep` and the clock
- * `date +%s` replaced by shell functions, against a runtime whose port accepts connections but never answers, so every
+ * Covers the health wait of `runtime/live-runtime.sh` on a virtual clock. This is the script that runs the runtime in
+ * Docker for the live tests. [ScriptSandbox] runs the script's `up` command with Docker, git, curl, `sleep` and the
+ * clock `date +%s` replaced by shell functions. The runtime's port accepts connections but never answers, so every
  * health probe lasts as long as its `--max-time` lets it. The wait gives up once its timeout has passed, however long
- * each probe takes, probes about once a second for at most five seconds each, and cuts the last probe to the time that
- * is left.
+ * each probe takes. It probes about once a second for at most five seconds each, and it cuts the last probe to the time
+ * that is left.
  */
 class RuntimeContainerScriptTest {
 
@@ -59,8 +59,8 @@ class RuntimeContainerScriptTest {
     }
 
     /**
-     * One health probe the script made: it began [startSecond] virtual seconds after the wait began and curl allowed it
-     * [maxTimeSeconds], all of which it took, since the runtime never answers.
+     * One health probe the script made. It began [startSecond] virtual seconds after the wait began. Curl allowed it
+     * [maxTimeSeconds], and it took all of that time, since the runtime never answers.
      */
     private data class Probe(val startSecond: Long, val maxTimeSeconds: Long) {
         /** The virtual second at which the probe ended. */
@@ -68,18 +68,19 @@ class RuntimeContainerScriptTest {
     }
 
     /**
-     * What one run of the script left: its [exitStatus], its standard output and error in [transcript], the [probes] it
-     * made, and the virtual seconds that passed from the start of the health wait until it ended, [elapsedSeconds].
+     * What one run of the script left. That is its [exitStatus], its standard output and error in [transcript], and the
+     * [probes] it made. [elapsedSeconds] holds the virtual seconds that passed from the start of the health wait until
+     * it ended.
      */
     private class ScriptRun(val exitStatus: Int, val transcript: String, val probes: List<Probe>, val elapsedSeconds: Long)
 
     /**
-     * A throwaway copy of the repository's layout in [directory] in which the script runs without Docker: the script
-     * copied to `repository/runtime/`, so that its run folders stay in the sandbox, a runtime checkout with nothing but
-     * the files the script checks for, and shell functions that stand in for Docker, git, curl, `sleep` and
-     * `date +%s`, defined before the script is sourced. The functions keep the virtual clock in a file, which `sleep`
-     * and every probe advance, and log each probe. `DOCKER_HOST` names a socket nobody listens on and the search path
-     * holds only the system's own directories, so a call that slipped past the functions could not reach a Docker
+     * A throwaway copy of the repository's layout in [directory], in which the script runs without Docker. The script
+     * is copied to `repository/runtime/`, so that its run folders stay in the sandbox. A runtime checkout holds nothing
+     * but the files the script checks for. Shell functions stand in for Docker, git, curl, `sleep` and `date +%s`, and
+     * they are defined before the script is sourced. The functions keep the virtual clock in a file, which `sleep` and
+     * every probe advance, and they log each probe. `DOCKER_HOST` names a socket nobody listens on, and the search path
+     * holds only the system's own directories. So a call that slipped past the functions could not reach a Docker
      * engine.
      */
     private class ScriptSandbox(private val directory: Path) {
@@ -92,7 +93,7 @@ class RuntimeContainerScriptTest {
 
         /**
          * Runs `up` with the health timeout [healthTimeoutSeconds] in `KARPFEN_LIVE_HEALTH_TIMEOUT_S`, or with the
-         * script's default if it is null, and answers what the run left.
+         * script's default if it is null. Returns what the run left.
          */
         fun up(healthTimeoutSeconds: Int?): ScriptRun {
             val script = System.getProperty(SCRIPT_PROPERTY)
@@ -137,11 +138,13 @@ class RuntimeContainerScriptTest {
         }
 
         /**
-         * The shell functions that stand in for the outside commands: `date +%s` reads the virtual clock and any other
-         * `date` is the real one; `sleep` advances the clock; `curl` logs the probe, advances the clock by its whole
-         * `--max-time` and fails as curl does on a timeout; git names a clean commit; Docker answers only what the way
-         * to the health wait reads (the image's label, the published port and the running container) and does nothing
-         * else.
+         * The shell functions that stand in for the outside commands.
+         * - `date +%s` reads the virtual clock, and any other `date` is the real one.
+         * - `sleep` advances the clock.
+         * - `curl` logs the probe, advances the clock by its whole `--max-time` and fails as curl does on a timeout.
+         * - git names a clean commit.
+         * - Docker answers only what the script reads on its way to the health wait. That is the image's label, the
+         *   published port and the running container. Docker does nothing else.
          */
         private fun stubs(): String = """
             advance() { echo "$(( $(cat '$clock') + $1 ))" >'$clock'; }
@@ -182,7 +185,7 @@ class RuntimeContainerScriptTest {
             /** The virtual clock's reading when the script starts, in seconds. */
             const val CLOCK_START = 1_000_000L
 
-            /** The bound after which a run that never ends counts as hanging; it is no assertion on time. */
+            /** The bound after which a run that never ends counts as hanging. It is no assertion on time. */
             const val HANG_GUARD_MINUTES = 5L
         }
     }

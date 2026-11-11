@@ -33,9 +33,12 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /**
- * Registers the runtime commands (`RuntimeCommandIds`) over the [runtime] of the opened workspace: Run (Shift+F10),
- * Stop (Ctrl+F2, Cmd+F2 on macOS), Start runtime and Stop runtime. Run needs an opened workspace, Stop a run it can
- * stop, Start runtime a host without a runtime and Stop runtime a host that has or prepares one.
+ * Registers the runtime commands of `RuntimeCommandIds` over the [runtime] of the opened workspace. They are Run with
+ * Shift+F10, Stop with Ctrl+F2 or Cmd+F2 on macOS, Start runtime and Stop runtime.
+ *
+ * Run is enabled while a workspace is open. Stop is enabled while there is a run it can stop. Start runtime is enabled
+ * while the host has no runtime, that is, while it is stopped or failed. Stop runtime is enabled while the host has a
+ * runtime or prepares one.
  */
 internal class RuntimeCommands(private val scope: CoroutineScope, private val runtime: StateFlow<RuntimeState?>) {
 
@@ -55,7 +58,7 @@ internal class RuntimeCommands(private val scope: CoroutineScope, private val ru
         )
     }
 
-    /** What [select] answers for the current runtime state, [none] without one. */
+    /** What [select] returns for the current runtime state, or [none] while there is no runtime state. */
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun follow(none: Boolean, select: (RuntimeState) -> Flow<Boolean>): StateFlow<Boolean> =
         runtime.flatMapLatest { state -> state?.let(select) ?: flowOf(none) }.eagerly(none)
@@ -64,10 +67,10 @@ internal class RuntimeCommands(private val scope: CoroutineScope, private val ru
     private fun <T> Flow<T>.eagerly(initial: T): StateFlow<T> = stateIn(scope, SharingStarted.Eagerly, initial)
 
     companion object {
-        /** The shortcut of Run. */
+        /** The shortcut of Run, which is Shift+F10. */
         val RUN_SHORTCUT: KeyShortcut = KeyShortcut(KeyCode.F10, shift = true)
 
-        /** The shortcut of Stop: Ctrl+F2, Cmd+F2 on macOS. */
+        /** The shortcut of Stop, which is Ctrl+F2, or Cmd+F2 on macOS. */
         val STOP_SHORTCUT: KeyShortcut = KeyShortcut(KeyCode.F2, primary = true)
     }
 }

@@ -21,23 +21,24 @@ import java.nio.file.Path
 
 /**
  * A set of files analyzed together: one domain metamodel, an optional event metamodel, models and state machines. All
- * paths are absolute and normalized, and every one is a file of the scanned workspace tree (an explicit context leaves
- * out what its descriptor names but the tree lacks, which the resolver reports); a file may still vanish from disk
- * before the next scan.
+ * paths are absolute and normalized. Every one of them is a file of the scanned workspace tree, because an explicit
+ * context leaves out what its descriptor names but the tree lacks, and the resolver reports that. A file may still
+ * vanish from disk before the next scan.
  *
- * An explicit context also carries the typed descriptor it was resolved from, so that everything else the descriptor
- * says, such as the tick delay and the event time to live of a deployment, has one source: the descriptor's text as
- * the workspace read it. The descriptor is part of the context's equality, so editing only such a value yields a new
- * resolution and a new analysis, which reads no file again because the analyzer remembers its reads by text.
+ * An explicit context also carries the typed descriptor it was resolved from. So everything else the descriptor says,
+ * such as the tick delay and the event time to live of a deployment, has one source: the text of the descriptor as
+ * the workspace read it. The descriptor is part of the equality of the context. So editing only such a value yields a
+ * new resolution and a new analysis. That analysis reads no file again, because the analyzer remembers its reads by
+ * text.
  *
  * @property directory the directory the context belongs to.
- * @property descriptor the `*.kenv.json` defining the context, or null for an implicit (directory) context.
+ * @property descriptor the `*.kenv.json` that defines the context, or null for an implicit context of a directory.
  * @property metamodel the domain metamodel, or null if the context has none.
- * @property events the event metamodel (`EVENTS.kmeta` in an implicit context), or null.
- * @property models the models of the context, at most one in an explicit context.
- * @property stateMachines the state machines of the context, with their attachments in an explicit context.
- * @property environment the typed descriptor the context was resolved from, decoded from the same text as [descriptor];
- *   null for an implicit context.
+ * @property events the event metamodel, or null. In an implicit context it is `EVENTS.kmeta`.
+ * @property models the models of the context. An explicit context has at most one.
+ * @property stateMachines the state machines of the context. In an explicit context they carry their attachments.
+ * @property environment the typed descriptor the context was resolved from, decoded from the same text as
+ *   [descriptor]. It is null for an implicit context.
  */
 public data class ModelingContext(
     public val directory: Path,
@@ -48,16 +49,16 @@ public data class ModelingContext(
     public val stateMachines: List<StateMachineBinding>,
     public val environment: EnvironmentDescriptor? = null,
 ) {
-    /** True for a context formed by a directory without descriptor. */
+    /** True for a context formed by a directory without a descriptor. */
     public val isImplicit: Boolean get() = descriptor == null
 
-    /** Display name: the descriptor name without `.kenv.json`, or the directory name. */
+    /** The display name. It is the descriptor name without `.kenv.json`, or else the directory name. */
     public val name: String
         get() = descriptor?.fileName?.toString()?.removeSuffix(FileKind.DESCRIPTOR_SUFFIX)
             ?: directory.fileName?.toString()
             ?: directory.toString()
 
-    /** Every karpfen file of the context: metamodel, events, models, state machines (in that order). */
+    /** Every karpfen file of the context, in this order: metamodel, events, models and state machines. */
     public val files: List<Path>
         get() = listOfNotNull(metamodel, events) + models + stateMachines.map { it.file }
 
@@ -66,7 +67,7 @@ public data class ModelingContext(
 }
 
 /**
- * A state machine of a context. [attachedTo] is the object key from the descriptor (`stateMachines[].attachedTo`);
- * null in implicit contexts (the `ATTACHED TO` type in the file still applies).
+ * A state machine of a context. [attachedTo] is the object key from the descriptor, `stateMachines[].attachedTo`. It
+ * is null in implicit contexts, where the `ATTACHED TO` type in the file still applies.
  */
 public data class StateMachineBinding(public val file: Path, public val attachedTo: String?)

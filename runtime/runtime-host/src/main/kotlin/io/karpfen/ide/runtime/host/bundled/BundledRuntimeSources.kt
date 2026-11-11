@@ -23,10 +23,10 @@ import java.util.Properties
  * The karpfen-runtime sources bundled with the IDE as the Docker build context of its runtime image, and what the
  * build recorded about them.
  *
- * @property contentHash the SHA-256 of the archive, lower-case hex; it names and labels the image built from it.
+ * @property contentHash the SHA-256 of the archive in lower-case hex. It tags and labels the image built from the archive.
  * @property runtimeCommit the runtime commit the sources come from, with `-dirty` if they differ from it.
  * @property fileCount the number of files in the archive.
- * @param openArchive opens the gzip-compressed tar archive of the sources; the caller closes the stream.
+ * @param openArchive opens the gzip-compressed tar archive of the sources. The caller closes the stream.
  */
 internal class RuntimeSources(
     val contentHash: String,
@@ -34,7 +34,7 @@ internal class RuntimeSources(
     val fileCount: Int,
     private val openArchive: () -> InputStream,
 ) {
-    /** The gzip-compressed tar archive of the sources, a Docker build context; the caller closes it. */
+    /** Opens the gzip-compressed tar archive of the sources, which is a Docker build context. The caller closes the stream. */
     fun open(): InputStream = openArchive()
 }
 
@@ -56,8 +56,15 @@ internal sealed interface SourcesLookup {
 }
 
 /**
- * Reads the runtime sources that the build bundles as resources of this module: the archive [ARCHIVE] and its
- * properties [PROPERTIES], both in this package, as the build task `bundleRuntimeSources` writes them.
+ * Reads the runtime sources that the build bundles as resources of this module. They are the archive [ARCHIVE] and its
+ * properties [PROPERTIES], both in this package, as the build task `bundleRuntimeSources` of this module writes them.
+ * The archive holds the files git tracks in the karpfen-runtime submodule, its nested karpfen-dsl-tools included, and
+ * nothing else. It is deterministic, so the same sources always give the same SHA-256. The properties record that hash
+ * as [CONTENT_HASH], the runtime commit as [RUNTIME_COMMIT] and the number of files as [FILE_COUNT]. The commit carries
+ * the suffix `-dirty` when the tracked files of the checkout differed from it.
+ *
+ * Missing resources and unreadable properties are reported as [SourcesLookup.Missing], never thrown. [read] only checks
+ * that the archive exists. Each image build opens it again.
  *
  * @param resource opens the resource of a name in this package, or answers null if there is none.
  */

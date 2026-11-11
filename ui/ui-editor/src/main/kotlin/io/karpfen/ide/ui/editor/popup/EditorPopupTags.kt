@@ -16,20 +16,21 @@
 package io.karpfen.ide.ui.editor.popup
 
 /**
- * Test tags of the editor popups (`Modifier.testTag`), so headless UI tests — the popups' own and the end-to-end tests
- * of the editor and the workbench — can find them. Stateless constants.
+ * The test tags of the editor popups, set with `Modifier.testTag`. Headless UI tests use them to find the popups. These
+ * are the tests of the popups themselves and the end-to-end tests of the editor and the workbench. The object holds
+ * constants only.
  */
 public object EditorPopupTags {
-    /** The find/replace bar. */
+    /** The find and replace bar. */
     public const val FIND_BAR: String = "editor.popup.findBar"
 
-    /** The find bar's query field. */
+    /** The query field of the find bar. */
     public const val FIND_QUERY: String = "editor.popup.findBar.query"
 
-    /** The find bar's "n/m" counter (or the error of an invalid regular expression). */
+    /** The "n/m" counter of the find bar. It shows the error of an invalid regular expression instead when there is one. */
     public const val FIND_STATUS: String = "editor.popup.findBar.status"
 
-    /** The replace field (replace mode only). */
+    /** The replace field. It exists only in replace mode. */
     public const val REPLACE_FIELD: String = "editor.popup.findBar.replacement"
 
     /** The completion list. */
@@ -41,7 +42,7 @@ public object EditorPopupTags {
     /** The go-to-line input field. */
     public const val GO_TO_LINE_FIELD: String = "editor.popup.goToLine.field"
 
-    /** The go-to-line hint (current line and line count). */
+    /** The go-to-line hint, which shows the current line and the line count. */
     public const val GO_TO_LINE_HINT: String = "editor.popup.goToLine.hint"
 
     /** The hover tooltip. */
@@ -50,6 +51,6 @@ public object EditorPopupTags {
     /** The context menu. */
     public const val CONTEXT_MENU: String = "editor.popup.contextMenu"
 
-    /** Row [index] of the completion list (index into `CompletionUiState.items`). */
+    /** Returns the tag of row [index] of the completion list. [index] is an index into `CompletionUiState.items`. */
     public fun completionRow(index: Int): String = "editor.popup.completion.row.$index"
 }

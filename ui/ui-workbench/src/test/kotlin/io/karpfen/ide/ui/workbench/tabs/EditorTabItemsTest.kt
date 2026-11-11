@@ -29,8 +29,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
 /**
- * The tab-strip items of the editor tabs: a tab shows the project tree's icon of its file, and a tab in conflict is
- * marked on the strip, also when it is not active.
+ * Tests the tab strip items of the editor tabs. A tab shows the same icon for its file as the project tree. A tab in
+ * conflict is marked on the strip, also when it is not active.
  */
 class EditorTabItemsTest {
 

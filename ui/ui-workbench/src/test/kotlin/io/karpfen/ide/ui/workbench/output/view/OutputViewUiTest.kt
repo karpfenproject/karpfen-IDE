@@ -49,11 +49,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * [OutputView] headless: each line shows its level, the logger's simple name and the message; while following, the
- * newest line is scrolled into sight when it arrives, and without following the view stays where it is; following
- * yields to the user, who stops it by scrolling or dragging the scrollbar away from the newest line, keeps it by
- * scrolling within a newest line taller than the view, and resumes it by scrolling back to the end; Follow and Clear
- * report to their callbacks, and Clear is disabled without output.
+ * Headless tests of [OutputView]. Each line shows its level, the logger's simple name and the message. While the view
+ * follows, the newest line is scrolled into sight when it arrives. Without following, the view stays where it is.
+ *
+ * Following yields to the user. The user stops it by scrolling, or by dragging the scrollbar, away from the newest
+ * line. Scrolling within a newest line that is taller than the view keeps it on. Scrolling back to the end resumes it.
+ * Follow and Clear report to their callbacks, and Clear is disabled without output.
  */
 @OptIn(ExperimentalTestApi::class)
 class OutputViewUiTest {
@@ -72,7 +73,9 @@ class OutputViewUiTest {
         var clears = 0
     }
 
-    /** Shows the view over [initial] in a small box; returns the state holder for changes and the recorded calls. */
+    /**
+     * Shows the view over [initial] in a small box. Returns a function that changes the state, and the recorded calls.
+     */
     private fun ComposeUiTest.view(initial: OutputUiState): Pair<(OutputUiState) -> Unit, Calls> {
         var state by mutableStateOf(initial)
         val calls = Calls()
@@ -87,8 +90,8 @@ class OutputViewUiTest {
     }
 
     /**
-     * Shows the view over [initial] in a small box with Follow switched as the view asks, the way the workbench's
-     * output state switches it; returns the state, which the test changes as output arrives.
+     * Shows the view over [initial] in a small box. Follow is switched whenever the view asks, the way the workbench's
+     * output state switches it. Returns the state, which the test changes as output arrives.
      */
     private fun ComposeUiTest.followingView(initial: OutputUiState): MutableState<OutputUiState> {
         val state = mutableStateOf(initial)
@@ -190,8 +193,8 @@ class OutputViewUiTest {
     }
 
     /**
-     * While following, the view shows the start of the newest line; when that line, such as an error with its stack
-     * trace, is taller than the view, scrolling down through it keeps the newest line in sight and following on.
+     * While following, the view shows the start of the newest line. That line can be taller than the view, such as an
+     * error with its stack trace. Scrolling down through it then keeps the newest line in sight and following on.
      */
     @Test
     fun `scrolling down within a newest line taller than the view keeps following`() = runComposeUiTest {
@@ -232,8 +235,8 @@ class OutputViewUiTest {
     }
 
     /**
-     * Hiding the tool window takes the view out of the composition, and showing it puts it back: it opens at the line
-     * where the user left it, not at the oldest line.
+     * Hiding the tool window takes the view out of the composition, and showing the window puts it back. The view then
+     * opens at the line where the user left it, not at the oldest line.
      */
     @Test
     fun `hiding and showing the view keeps the line the user reads`() = runComposeUiTest {

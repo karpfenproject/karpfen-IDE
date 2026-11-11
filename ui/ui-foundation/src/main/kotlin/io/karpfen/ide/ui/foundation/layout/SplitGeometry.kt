@@ -19,10 +19,10 @@ package io.karpfen.ide.ui.foundation.layout
 internal data class SplitSizes(val first: Float, val second: Float)
 
 /**
- * The size rules of a [SplitPane] along its main axis, in px (pure; unit-tested without Compose): the [fixedSide] pane
- * keeps its requested size, clamped so that neither pane shrinks below its minimum and both fit next to the divider
- * of [divider] px; the other pane takes the rest. When the container cannot hold both minimums, the fixed pane keeps
- * its minimum as long as it fits into the container and the other pane shrinks.
+ * The size rules of a [SplitPane] along its main axis, in px. They are pure and unit-tested without Compose. The
+ * [fixedSide] pane keeps its requested size, clamped so that neither pane shrinks below its minimum and both fit next
+ * to the divider of [divider] px. The other pane takes the rest. When the container cannot hold both minimums, the
+ * fixed pane keeps its minimum as long as it fits into the container, and the other pane shrinks.
  *
  * @property fixedSide the pane whose size is hoisted.
  * @property minFirst the minimum size of the first pane.
@@ -53,22 +53,25 @@ internal data class SplitGeometry(
     }
 
     /**
-     * The fixed pane's size after the divider moved by [delta] px from where it was when the fixed pane had [start] px
-     * (positive [delta]: right or down), clamped to the minimums in a container of [container] px.
+     * The fixed pane's size after the divider moved by [delta] px from where it was when the fixed pane had [start] px,
+     * clamped to the minimums in a container of [container] px. A positive [delta] moves the divider right or down.
      */
     fun dragged(container: Float, start: Float, delta: Float): Float {
         val requested = if (fixedSide == SplitSide.FIRST) start + delta else start - delta
         return fixedSize(container, requested)
     }
 
-    /** The container size that holds a fixed pane of [fixed] px at minimum (used on an unbounded main axis). */
+    /**
+     * The container size that holds a fixed pane of [fixed] px, but at least of its minimum, and the other pane at its
+     * minimum. The split uses it on an unbounded main axis.
+     */
     fun naturalContainer(fixed: Float): Float = fixed.coerceAtLeast(minFixed) + divider + minOther
 }
 
 /**
- * Tracks one divider drag of a [SplitPane] (Compose-side helper state, used on the UI thread only): remembers the
- * last layout and accumulates the pointer movement since the press, so the divider follows the pointer exactly and
- * snaps back when the pointer returns from beyond a minimum.
+ * Tracks one divider drag of a [SplitPane]. It is helper state on the Compose side and is used on the UI thread only.
+ * It remembers the last layout and adds up the pointer movement since the press. So the divider follows the pointer
+ * exactly, and it snaps back when the pointer returns from beyond a minimum.
  */
 internal class SplitDragTracker {
     private var container = 0f
@@ -90,7 +93,7 @@ internal class SplitDragTracker {
         lastReported = laidOutFixed
     }
 
-    /** Adds [delta] px of pointer movement; returns the new fixed size in px, or null if it did not change. */
+    /** Adds [delta] px of pointer movement and returns the new fixed size in px, or null if the size did not change. */
     fun drag(delta: Float, geometry: SplitGeometry): Float? {
         total += delta
         val target = geometry.dragged(container, start, total)

@@ -23,10 +23,11 @@ import org.slf4j.LoggerFactory
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * The steps of deploying a plan, in the order they run: check the runtime, create, connect, upload the metamodel, the
- * event definitions and the model, attach each state machine in descriptor order, set the tick delay and the time to
- * live, listen to the event domains, activate, observe, start and confirm the start. Steps the plan or the options do
- * not need are present and skipped, so the progress always shows the same steps. Stateless.
+ * The steps of deploying a plan, in the order they run. The deployment checks the runtime, creates the environment and
+ * connects. It uploads the metamodel, the event definitions and the model, and attaches each state machine in
+ * descriptor order. It sets the tick delay and the event time to live and listens to the event domains. Then it
+ * activates, observes, starts and confirms the start. Steps that the plan or the options do not need are still present
+ * and are skipped, so the progress always shows the same steps. Stateless.
  */
 internal object DeploySteps {
     /** The steps of deploying [plan] to [endpoint] with [options]. */
@@ -61,9 +62,9 @@ internal object DeploySteps {
 }
 
 /**
- * Runs the steps of one deployment one by one, publishing progress after every transition, and stops at the first
- * failure. After a failure, and after a cancellation, it hands the run to the [cleanup]; a cancellation is rethrown
- * once the cleanup is done, and so is an exception a step should never have thrown.
+ * Runs the steps of one deployment one by one, publishes progress after every transition, and stops at the first
+ * failure. After a failure, and after a cancellation, it hands the run to the [cleanup]. A cancellation is rethrown
+ * once the cleanup is done. So is an exception that a step should never have thrown.
  *
  * @param steps the steps, in order.
  * @param cleanup cleans up after a failure or a cancellation.
@@ -111,7 +112,8 @@ internal class DeployPipeline(private val steps: List<DeployStep>, private val c
 }
 
 /**
- * The deployer: builds the steps of each request and runs them in a [DeployPipeline] in the caller's coroutine.
+ * The default deployer. It builds the steps of each request and runs them in a [DeployPipeline] in the caller's
+ * coroutine.
  *
  * @param timing the waits of every deployment.
  * @param cleanup cleans up after a failed or cancelled deployment.

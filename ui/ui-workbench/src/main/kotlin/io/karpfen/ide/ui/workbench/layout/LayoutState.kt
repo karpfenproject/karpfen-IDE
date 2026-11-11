@@ -25,34 +25,41 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * The tool windows around the editor area, with their [title] (tool-window header and View menu), default size in dp
- * (width for side windows, height for bottom ones) and whether they are [visibleByDefault]. A new tool window is a new
- * entry here: the persisted form is a map by [name] (no schema change), the toggle command id is
- * `WorkbenchCommandIds.toggleToolWindow(id)` and the View menu iterates the entries.
+ * The tool windows around the editor area. Each has a [title], which the tool window header and the View menu show. It
+ * has a default size in dp, which is the width for a side window and the height for a bottom window. And it says
+ * whether it is [visibleByDefault].
+ *
+ * A new tool window only needs a new entry here. The settings store the layout as a map keyed by [name], so the
+ * settings format does not change. The id of its toggle command is `WorkbenchCommandIds.toggleToolWindow(id)`, and the
+ * View menu iterates over the entries.
  */
 public enum class ToolWindowId(public val title: String, public val defaultSize: Float, public val visibleByDefault: Boolean = true) {
-    /** Project tree (left). */
+    /** The project tree, on the left. */
     PROJECT("Project", 260f),
 
-    /** Outline of the active document (right). */
+    /** The outline of the active document, on the right. */
     OUTLINE("Outline", 240f),
 
-    /** Problems (bottom). */
+    /** The problems, at the bottom. */
     PROBLEMS("Problems", 200f),
 
-    /** What the language tools log (bottom, below Problems); hidden until the user opens it. */
+    /** What the language tools log, at the bottom below Problems. It is hidden until the user opens it. */
     OUTPUT("Language Tools Output", 180f, visibleByDefault = false),
 
-    /** The runtime and the runs of the workspace (bottom, below the output); hidden until the user opens it or runs. */
+    /**
+     * The runtime and the runs of the workspace, at the bottom below the output. It is hidden until the user opens it
+     * or starts a run.
+     */
     RUNTIME("Runtime", 320f, visibleByDefault = false),
     ;
 
-    /** The layout of a tool window nobody changed: its default visibility and size. */
+    /** The layout of a tool window that nobody changed, with its default visibility and size. */
     public val defaultLayout: ToolWindowLayout get() = ToolWindowLayout(visible = visibleByDefault, size = defaultSize)
 }
 
 /**
- * The live window layout: tool-window visibility and sizes, the theme and the main window's bounds.
+ * The live window layout. It holds the visibility and size of each tool window, the theme and the bounds of the main
+ * window.
  *
  * @property toolWindows the layout of every [ToolWindowId].
  */
@@ -61,10 +68,13 @@ public data class LayoutUiState(
     public val theme: ThemeMode = ThemeMode.SYSTEM,
     public val windowBounds: WindowBounds? = null,
 ) {
-    /** The layout of [id] (its default if absent). */
+    /** The layout of the tool window [id], or its default layout if none is stored. */
     public fun toolWindow(id: ToolWindowId): ToolWindowLayout = toolWindows[id] ?: id.defaultLayout
 
-    /** [settings] with this layout written into it (tool windows by `ToolWindowId.name`). */
+    /**
+     * Returns [settings] with this layout written into it. The tool windows are stored under `ToolWindowId.name`.
+     * Entries of tool windows this version does not know are kept.
+     */
     public fun applyTo(settings: IdeSettings): IdeSettings = settings.copy(
         theme = theme,
         windowBounds = windowBounds,
@@ -72,7 +82,10 @@ public data class LayoutUiState(
     )
 
     public companion object {
-        /** The layout stored in [settings]; unknown keys are ignored, missing tool windows take their default. */
+        /**
+         * The layout stored in [settings]. Unknown tool window keys are ignored. A tool window without a stored entry
+         * gets its default layout.
+         */
         public fun of(settings: IdeSettings): LayoutUiState = LayoutUiState(
             toolWindows = ToolWindowId.entries.associateWith { id -> settings.toolWindows[id.name] ?: id.defaultLayout },
             theme = settings.theme,
@@ -82,10 +95,11 @@ public data class LayoutUiState(
 }
 
 /**
- * The window layout as live UI state: a Compose-free sub-state of the workbench. Its intents change only this state, at
- * any rate (e.g. every frame of a split-pane drag); persistence is the mediator's job: it writes [state] into the
- * settings through the `SettingsRepository` debounced and once more in `requestExit`, and restores it after loading the
- * settings ([restore]).
+ * The window layout as live UI state. It is a sub-state of the workbench and does not depend on Compose. Its intents
+ * change only this state, and they may be called at any rate, for example on every frame of a split pane drag.
+ *
+ * Persistence is the job of the workbench mediator. It writes [state] into the settings through the
+ * `SettingsRepository`, debounced, and once more in `requestExit`. After loading the settings it calls [restore].
  */
 public class LayoutState {
 
@@ -99,15 +113,16 @@ public class LayoutState {
         updateToolWindow(id) { it.copy(visible = !it.visible) }
     }
 
-    /** Shows a tool window; a visible one stays as it is. */
+    /** Shows a tool window. A visible tool window stays as it is. */
     public fun showToolWindow(id: ToolWindowId) {
         updateToolWindow(id) { it.copy(visible = true) }
     }
 
     /**
-     * Sets a tool window's size in dp (width for PROJECT/OUTLINE, height for PROBLEMS/OUTPUT/RUNTIME), clamped to a minimum.
-     * The workbench passes the value of the size-based `SplitPane`'s `onFixedSizeChange` unchanged (`Dp.value`), so the
-     * composable converts nothing.
+     * Sets the size of a tool window in dp and clamps it to [MIN_TOOL_WINDOW_SIZE]. A NaN size also becomes the
+     * minimum. The size is the width for Project and Outline and the height for Problems, Output and Runtime. The
+     * workbench passes the `Dp.value` from the `onFixedSizeChange` callback of the size-based `SplitPane` unchanged, so
+     * the composable converts nothing.
      */
     public fun resizeToolWindow(id: ToolWindowId, size: Float) {
         val clamped = if (size.isNaN()) MIN_TOOL_WINDOW_SIZE else size.coerceAtLeast(MIN_TOOL_WINDOW_SIZE)
@@ -124,7 +139,9 @@ public class LayoutState {
         layout.update { it.copy(windowBounds = bounds) }
     }
 
-    /** Replaces the layout by the one stored in [settings] (`LayoutUiState.of`). Mediator only. */
+    /**
+     * Replaces the layout with the one stored in [settings], as read by `LayoutUiState.of`. Only the mediator calls it.
+     */
     internal fun restore(settings: IdeSettings) {
         layout.value = LayoutUiState.of(settings)
     }
@@ -134,12 +151,12 @@ public class LayoutState {
     }
 
     public companion object {
-        /** The smallest size of a tool window in dp; [resizeToolWindow] clamps to it. */
+        /** The smallest size of a tool window in dp. [resizeToolWindow] clamps to it. */
         public const val MIN_TOOL_WINDOW_SIZE: Float = 80f
     }
 }
 
-/** True if this theme renders dark, given whether the operating system currently uses a dark theme ([systemDark]). */
+/** True if this theme renders dark. [systemDark] tells whether the operating system currently uses a dark theme. */
 public fun ThemeMode.isDark(systemDark: Boolean): Boolean = when (this) {
     ThemeMode.LIGHT -> false
     ThemeMode.DARK -> true

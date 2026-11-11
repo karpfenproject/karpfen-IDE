@@ -68,24 +68,25 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 
 /**
- * The push channel of [clientId] to the environment of [handle], run by one supervisor coroutine in a supervisor child
- * scope of [parent] named after the client id.
+ * The push channel of [clientId] to the environment of [handle]. One supervisor coroutine runs it, in a supervisor
+ * child scope of [parent] that is named after the client id.
  *
- * The supervisor coroutine is the one writer of [state]. It makes attempts until a link is open: each attempt takes a
- * fresh key from [issuer], closes the previous link with a normal close (the runtime keeps pushing to the first session
- * of a client id), connects to [webSocketUrl] through [connector] and sends the handshake `<clientId>:<envKey>:<key>`.
- * Nothing acknowledges the handshake, so the link is open as soon as it was sent. A failed attempt is retried after the
- * [policy]'s delay, up to its limit. While a link is open, one reader coroutine decodes its frames synchronously and
- * hands the events on without suspending, into an unbounded channel, so the runtime's one broadcaster is never stalled
- * by this client.
+ * The supervisor coroutine is the only writer of [state]. It makes attempts until a link is open. Each attempt takes a
+ * fresh key from [issuer] and closes the previous link with a normal close, because the runtime keeps pushing to the
+ * first session of a client id. Then it connects to [webSocketUrl] through [connector] and sends the handshake
+ * `<clientId>:<envKey>:<key>`. Nothing acknowledges the handshake, so the link counts as open as soon as the handshake
+ * was sent. A failed attempt is retried after the [policy]'s delay, up to its limit. While a link is open, one reader
+ * coroutine decodes its frames synchronously. It hands the events on without suspending, into an unbounded channel, so
+ * this client never stalls the runtime's single broadcaster.
  *
- * The connection ends with a close 1003 (a rejected handshake, whenever it comes), with the close `Environment stopped`
- * or the handle's phase becoming stopped, with a key issuance the runtime rejects for an unknown environment or the
- * handle's phase becoming lost, with [disconnect] or [close], with a cancellation of [parent]'s scope, also before the
- * first [open], and after the policy's limit of failed attempts in a row.
- * Any other close the client did not ask for is an interruption, followed by a reconnect after the policy's delay.
+ * The connection ends when the runtime closes the link with 1003, which means a rejected handshake, whenever that close
+ * comes. It ends with the close `Environment stopped`, and when the handle's phase becomes stopped. It ends when the
+ * runtime rejects a key issuance for an unknown environment, and when the handle's phase becomes lost. It ends with
+ * [disconnect] or [close], and with a cancellation of [parent]'s scope, also before the first [open]. It also ends
+ * after the policy's limit of failed attempts in a row. Any other close the client did not ask for is an interruption,
+ * and a reconnect follows after the policy's delay.
  *
- * @param handle the environment's handle: its phase ends the connection and its verdict guards [send].
+ * @param handle the environment's handle. Its phase can end the connection, and its verdict guards [send].
  * @param clientId the client id of every attempt.
  * @param webSocketUrl where the runtime's WebSocket is.
  * @param connector the WebSocket seam.
@@ -107,16 +108,16 @@ internal class DefaultRuntimeConnection(
 
     override val environment: EnvironmentKey = handle.key
 
-    /** The connection's scope: a supervisor child of the parent's scope, named after the client id. */
+    /** The connection's scope. It is a supervisor child of the parent's scope and is named after the client id. */
     private val scope = CoroutineScope(
         parent.coroutineContext + SupervisorJob(parent.coroutineContext[Job]) + CoroutineName("$NAME_PREFIX${clientId.value}") +
             dispatcher,
     )
 
-    /** The state; written by the supervisor coroutine, and set to its end once by whoever ends the connection. */
+    /** The state. The supervisor coroutine writes it, and whoever ends the connection sets the end once. */
     private val mutableState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
 
-    /** The events in order; unbounded, so nobody ever suspends on the one collector. */
+    /** The events in order. The channel is unbounded, so no writer ever suspends on the single collector. */
     private val channel = Channel<ConnectionEvent>(Channel.UNLIMITED)
 
     /** The link of the current or the last attempt, until it is closed by the client. */
@@ -125,7 +126,7 @@ internal class DefaultRuntimeConnection(
     /** Completed with the end the client asked for, by [disconnect] or [close]. */
     private val endRequest = CompletableDeferred<ConnectionEnd>()
 
-    /** Serializes the frames the client writes: the handshake and the events. */
+    /** Serializes the frames the client writes, which are the handshake and the events. */
     private val sendMutex = Mutex()
 
     /** Whether [close] ran. */
@@ -189,9 +190,9 @@ internal class DefaultRuntimeConnection(
     }
 
     /**
-     * The supervisor coroutine: runs the attempts until the connection ends by itself, by the handle's phase or by the
-     * client's request, then closes the current link and ends the connection. A cancellation of the connection's scope
-     * closes the link without suspending the cancellation and ends it as disconnected.
+     * The body of the supervisor coroutine. It runs the attempts until the connection ends by itself, by the handle's
+     * phase or by the client's request. Then it closes the current link and ends the connection. A cancellation of the
+     * connection's scope closes the link without suspending the cancellation and ends the connection as disconnected.
      */
     private suspend fun supervise() {
         try {
@@ -219,7 +220,7 @@ internal class DefaultRuntimeConnection(
         }
     }
 
-    /** Suspends until the handle's phase is stopped or lost, and answers the end that follows. */
+    /** Suspends until the handle's phase is stopped or lost, and returns the end that follows from it. */
     private suspend fun phaseEnd(): ConnectionEnd =
         when (val phase = handle.phase.first { it is EnvironmentPhase.Stopped || it is EnvironmentPhase.Lost }) {
             is EnvironmentPhase.Lost -> ConnectionEnd.EnvironmentLost(phase.reason)
@@ -227,8 +228,8 @@ internal class DefaultRuntimeConnection(
         }
 
     /**
-     * Makes attempts and runs the links they open until one of them ends the connection, and answers that end. An
-     * attempt that fails counts towards the policy's limit; an open link resets the count.
+     * Makes attempts and runs the links they open until one of them ends the connection, and returns that end. An
+     * attempt that fails counts towards the policy's limit. An open link resets the count.
      */
     private suspend fun attempt(): ConnectionEnd {
         var epoch = 0
@@ -261,7 +262,11 @@ internal class DefaultRuntimeConnection(
         }
     }
 
-    /** One attempt: a fresh key, the previous link closed, a new link, the handshake. */
+    /**
+     * Makes one attempt. It takes a fresh key, closes the previous link, opens a new link and sends the handshake. A
+     * key issuance that shows the environment stopped or lost ends the connection. A runtime rejection for an unknown
+     * environment counts as lost. Any other refusal or failure only fails the attempt.
+     */
     private suspend fun attemptOnce(): Attempt {
         val key = when (val issued = issuer.issue()) {
             is CallOutcome.Done -> issued.value
@@ -293,8 +298,8 @@ internal class DefaultRuntimeConnection(
     }
 
     /**
-     * Runs one open [link]: a reader coroutine decodes its frames into the events until the link's frames end, and the
-     * link's closure is answered.
+     * Runs one open [link]. A reader coroutine decodes its frames into events until the link's frames end. Then the
+     * function returns the link's closure.
      */
     private suspend fun runLink(link: WebSocketLink): LinkClosure {
         coroutineScope {
@@ -303,7 +308,10 @@ internal class DefaultRuntimeConnection(
         return link.closure.await()
     }
 
-    /** Decodes the frames of [link] and hands the events on without suspending. */
+    /**
+     * Decodes the frames of [link] and hands the events on without suspending. A binary frame becomes a violation of
+     * the kind [ViolationKind.BINARY_FRAME].
+     */
     private suspend fun read(link: WebSocketLink) {
         for (frame in link.incoming) {
             when (frame) {
@@ -350,7 +358,10 @@ internal class DefaultRuntimeConnection(
         currentLink.getAndSet(null)?.close(WireNames.CLOSE_NORMAL, CLIENT_CLOSE_REASON)
     }
 
-    /** Ends the connection with [end], unless it ended already: the state, the last event, and the end of the events. */
+    /**
+     * Ends the connection with [end], unless it ended already. It sets the state, sends the last event and closes the
+     * event channel.
+     */
     private fun finish(end: ConnectionEnd) {
         while (true) {
             val current = mutableState.value
@@ -382,7 +393,7 @@ internal class DefaultRuntimeConnection(
         /** A link is open and the handshake was sent. */
         data class Opened(val link: WebSocketLink) : Attempt
 
-        /** The attempt failed; another may follow. */
+        /** The attempt failed. Another may follow. */
         data class Failed(val reason: String) : Attempt
 
         /** The attempt showed that the connection must end. */
@@ -390,6 +401,7 @@ internal class DefaultRuntimeConnection(
     }
 
     private companion object {
+        /** The logger of failed attempts and of the end of a connection, at debug level. */
         private val logger = LoggerFactory.getLogger(DefaultRuntimeConnection::class.java)
 
         /** The prefix of the name of a connection's scope. */

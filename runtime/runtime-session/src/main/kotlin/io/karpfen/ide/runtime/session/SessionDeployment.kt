@@ -36,14 +36,14 @@ import org.slf4j.LoggerFactory
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * The deployment of one session, run in a coroutine of its own in the session's scope, so that the conductor answers
- * commands while it runs. Everything it learns goes to the conductor's inbox in order: the progress, the created
- * environment and the end; the connection goes to the router before it is opened, so the router reads its events from
- * the first opening on. The deployment reaches the observation through [SessionDeployObservation].
+ * The deployment of one session. It runs in a coroutine of its own in the session's scope, so that the conductor
+ * answers commands while it runs. Everything it learns goes to the conductor's inbox in order. That is the progress,
+ * the created environment and the end. The connection goes to the router before it is opened, so the router reads its
+ * events from the first opening on. The deployment reaches the observation through [SessionDeployObservation].
  *
- * Closing the session cancels the deployment, whose own cleanup then runs. A deployment that succeeded although the
- * session was closed meanwhile (the close came after the last suspension) is stopped, disconnected and recorded here,
- * as that cleanup would have done.
+ * Closing the session cancels the deployment, and the deployment's own cleanup then runs. A deployment can still
+ * succeed although the session was closed meanwhile. That happens when the close came after the deployment's last
+ * suspension. Such an environment is stopped, disconnected and recorded here, as the cleanup would have done.
  *
  * @param prepared what the session deploys.
  * @param client the client of the runtime.
@@ -73,7 +73,10 @@ internal class SessionDeployment(
         scope.launch(CoroutineName("session-deployment")) { deploy() }
     }
 
-    /** Runs the deployment and hands its end to the inbox. */
+    /**
+     * Runs the deployment and hands its end to the inbox. An exception that the deployer should never have thrown is
+     * logged and reported as a broken deployment.
+     */
     private suspend fun deploy() {
         val request = DeployRequest(prepared.plan, client, clientId, options, scope, SessionDeployObservation(router, prepared))
         val result = try {
@@ -92,8 +95,9 @@ internal class SessionDeployment(
     }
 
     /**
-     * Takes care of an environment the deployment finished after the session was closed: stops it, as the cleanup of
-     * a cancelled deployment would, disconnects and records it.
+     * Takes care of an environment that the deployment finished after the session was closed. It stops the
+     * environment, as the cleanup of a cancelled deployment would. Then it disconnects and records the environment.
+     * The stop and the disconnect are each bounded in time.
      */
     private suspend fun abandon(deployed: DeploymentResult.Deployed) {
         val environment = deployed.environment
@@ -104,8 +108,8 @@ internal class SessionDeployment(
     }
 
     /**
-     * The deployment's listener: hands the progress and the created environment to the inbox and the connection, before
-     * it is opened, to the router. Confined to the deploying coroutine.
+     * The deployment's listener. It hands the progress and the created environment to the inbox. It hands the
+     * connection to the router before the connection is opened. Confined to the deploying coroutine.
      */
     private inner class Listener : DeployListener {
         /** The created environment, which the connection belongs to. */

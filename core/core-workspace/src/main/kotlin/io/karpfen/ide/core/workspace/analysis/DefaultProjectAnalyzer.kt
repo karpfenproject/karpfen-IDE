@@ -22,13 +22,13 @@ import io.karpfen.ide.core.workspace.diagnostics.DiagnosticsByFile
 import java.nio.file.Path
 
 /**
- * Reads every context in dependency order (metamodel, events, models, state machines), following the rules on
- * [ProjectAnalyzer]. A coordinator over two collaborators per run: [AnalyzedFiles] (loading, tokenizing and parsing
- * each file once) and [ContextReader] (the dsl-tools reads of one context). The project diagnostics start with the
- * resolution's diagnostics; the reads add their DSL_TOOLS diagnostics.
+ * Reads every context in dependency order, following the rules on [ProjectAnalyzer]. The order is metamodel, events,
+ * models and then state machines. It coordinates two collaborators per run. [AnalyzedFiles] loads, tokenizes and
+ * parses each file once. [ContextReader] does the dsl-tools reads of one context. The project diagnostics start with
+ * the diagnostics of the resolution, and the reads add their DSL_TOOLS diagnostics.
  *
- * The analyzer of a workspace remembers the reads of its runs ([ReadMemory]), so a run reads only the files whose text
- * or metamodel changed since; each run forgets the reads of the files that no context names any more.
+ * The analyzer of a workspace remembers the reads of its runs in a [ReadMemory]. So a run reads only the files whose
+ * text or metamodel changed since. Each run forgets the reads of the files that no context names any more.
  */
 internal class DefaultProjectAnalyzer(
     private val languages: LanguageRegistry,

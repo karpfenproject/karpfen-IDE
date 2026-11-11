@@ -22,27 +22,30 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 
 /**
- * The shared mechanic of the types of a modeling context, one collaborator for all languages instead of a copy per
- * language: the types visible from a document with their members and declaration [Location]s, as IDE-owned values, so
- * the dsl-tools metamodel (`io.karpfen.dsl.meta`) stays behind this interface. Used by completion, navigation and hover
- * of all three languages and by the `ModelPathResolver`.
+ * The shared mechanic of the types of a modeling context. It is one collaborator for all languages instead of a copy
+ * for each language. It gives the types visible from a document with their members and declaration [Location]s. These
+ * are values the IDE owns, so the dsl-tools metamodel in `io.karpfen.dsl.meta` stays behind this interface. Completion,
+ * navigation and hover of all three languages use it, and so does the `ModelPathResolver`.
  *
- * Implementations are thread-safe and convert the dsl-tools metamodels of a context into [TypeInfo]s once per analysis
- * (memoized by `ContextAnalysis` identity, which changes with every analysis generation, keeping only the latest), so a
- * hover, a completion or a path segment never walks the mutable dsl-tools objects again: only immutable values cross
- * threads. The document's own declarations come from its parse and are not memoized.
+ * Implementations are thread-safe. They convert the dsl-tools metamodels of a context into [TypeInfo]s once per
+ * analysis. The result is memoized by the identity of the `ContextAnalysis`, which changes with every analysis
+ * generation, and only the latest is kept. So a hover, a completion or a path segment never walks the mutable dsl-tools
+ * objects again, and only immutable values cross threads. The document's own declarations come from its parse and
+ * are not memoized.
  */
 public interface TypeCatalog {
 
     /**
-     * The types visible from [request]'s document, in this order (a name appears once, the first wins): the types
-     * declared in the document itself when it is a `.kmeta` file (from its parse, so they are known before the
-     * analysis reads it), then the context's domain metamodel, then its event types. Never throws.
+     * The types visible from the document of [request]. Each name appears once, and the first one wins. First come the
+     * types declared in the document itself when it is a `.kmeta` file. They come from its parse, so they are known
+     * before the analysis reads the file. Then come the types of the domain metamodel of the context, and then its
+     * event types. It never throws.
      *
-     * Event types ([TypeOrigin.EVENTS]) are the TYPE declarations of the context's events file itself (its
-     * `AnalyzedFile.parse` syntax index), with members from the events metamodel that dsl-tools read
-     * (`ContextAnalysis.events`) — never all of `events.types`, which dsl-tools fills with the domain base types too.
-     * So a provider listing event names or event types offers no domain type.
+     * The event types of origin [TypeOrigin.EVENTS] are the TYPE declarations of the events file of the context
+     * itself, taken from the syntax index of its `AnalyzedFile.parse`. Their members come from the events metamodel
+     * that dsl-tools read, which is `ContextAnalysis.events`. They are never all of `events.types`, because dsl-tools
+     * fills that with the domain base types too. So a provider that lists event names or event types offers no domain
+     * type.
      */
     public fun types(request: FeatureRequest): List<TypeInfo>
 
@@ -50,15 +53,16 @@ public interface TypeCatalog {
     public fun type(request: FeatureRequest, name: String): TypeInfo? = types(request).firstOrNull { it.name == name }
 
     /**
-     * The types of [request]'s modeling context alone — its domain types, then its event types, a name once — without
-     * the requesting document's own declarations; what the analyzed files of the context see (e.g. when resolving the
-     * model paths of another `.kstates` file). The default filters [types]; implementations that shadow context types
-     * by document types return the shadowed ones too. Never throws.
+     * The types of the modeling context of [request] alone, without the requesting document's own declarations.
+     * The domain types come first, then the event types, and each name appears once. These are the types the analyzed
+     * files of the context see, for example when the model paths of another `.kstates` file are resolved. The default
+     * filters [types]. Implementations that shadow context types by document types return the shadowed ones too. It
+     * never throws.
      */
     public fun contextTypes(request: FeatureRequest): List<TypeInfo> = types(request).filter { it.origin != TypeOrigin.DOCUMENT }
 }
 
-/** The default [TypeCatalog] over the project analysis and the document's parse. */
+/** The default [TypeCatalog] over the project analysis and the parse of the document. */
 public fun TypeCatalog(): TypeCatalog = ContextTypeCatalog()
 
 /** Where a [TypeInfo] comes from. */
@@ -66,10 +70,13 @@ public enum class TypeOrigin {
     /** Declared in the requesting `.kmeta` document itself. */
     DOCUMENT,
 
-    /** The context's domain metamodel. */
+    /** The domain metamodel of the context. */
     DOMAIN,
 
-    /** Declared in the context's event metamodel file (`EVENTS.kmeta`) itself; not the domain types it reuses. */
+    /**
+     * Declared in the event metamodel file `EVENTS.kmeta` of the context itself. The domain types it reuses are not
+     * included.
+     */
     EVENTS,
 }
 
@@ -77,7 +84,7 @@ public enum class TypeOrigin {
  * A type and its members.
  *
  * @property description the KMeta description string, or null.
- * @property declaration the TYPE declaration's name range, or null if unknown.
+ * @property declaration the name range of the TYPE declaration, or null if unknown.
  */
 public data class TypeInfo(
     public val name: String,
@@ -90,8 +97,9 @@ public data class TypeInfo(
     public fun member(name: String): MemberInfo? = members.firstOrNull { it.name == name }
 
     /**
-     * Hover text, the type with its description and members: `type <name>`, the description on the next line if
-     * there is one, then a blank line and one [MemberInfo.signature] per line if there are members.
+     * The hover text, which shows the type with its description and members. It starts with `type <name>`. The
+     * description follows on the next line if there is one. If there are members, a blank line follows and then one
+     * [MemberInfo.signature] per line.
      */
     public val hoverText: String
         get() = buildString {
@@ -105,11 +113,11 @@ public data class TypeInfo(
 }
 
 /**
- * A member of a type: `prop`, `has` or `knows`.
+ * A `prop`, `has` or `knows` member of a type.
  *
- * @property typeName the element type (`number`, `Vector`, `Obstacle` for `list("Obstacle")`).
- * @property isList true for `list(…)`.
- * @property declaration the member declaration's name range, or null if unknown.
+ * @property typeName the element type, such as `number`, `Vector`, or `Obstacle` for `list("Obstacle")`.
+ * @property isList true for `list(...)`.
+ * @property declaration the name range of the member declaration, or null if unknown.
  */
 public data class MemberInfo(
     public val name: String,
@@ -118,39 +126,40 @@ public data class MemberInfo(
     public val isList: Boolean,
     public val declaration: Location?,
 ) {
-    /** True if [typeName] is a primitive (`number`, `string`, `boolean`, [KarpfenSyntax.PRIMITIVE_TYPES]). */
+    /** True if [typeName] is one of the [KarpfenSyntax.PRIMITIVE_TYPES] `number`, `string` and `boolean`. */
     public val isPrimitive: Boolean get() = typeName in KarpfenSyntax.PRIMITIVE_TYPES
 
-    /** The hover signature: `prop x: number`, `has position: Vector`, `knows obstacles: list(Obstacle)`. */
+    /** The hover signature, such as `prop x: number`, `has position: Vector` or `knows obstacles: list(Obstacle)`. */
     public val signature: String
         get() = "${kind.keyword} $name: ${if (isList) "list($typeName)" else typeName}"
 }
 
 /**
- * Kind of a [MemberInfo]; [keyword] is how KMeta declares it. The keywords of the relations are the ones dsl-tools
+ * The kind of a [MemberInfo]. [keyword] is how KMeta declares it. The keywords of the relations are the ones dsl-tools
  * publishes as [AssociationType.keyword], so the IDE names them exactly as dsl-tools reads them.
  */
 public enum class MemberKind(public val keyword: String) {
-    /** `prop(…)`. */
+    /** `prop(...)`. */
     PROPERTY("prop"),
 
-    /** `has(…)` (containment). */
+    /** `has(...)`, a containment. */
     HAS(AssociationType.EMBEDDED.keyword),
 
-    /** `knows(…)` (reference). */
+    /** `knows(...)`, a reference. */
     KNOWS(AssociationType.LINK.keyword),
     ;
 
     public companion object {
-        /** The kind declared with [keyword] (`prop`, `has`, `knows`), or null for any other word. */
+        /** The kind declared with [keyword], which is `prop`, `has` or `knows`, or null for any other word. */
         public fun ofKeyword(keyword: String): MemberKind? = entries.firstOrNull { it.keyword == keyword }
     }
 }
 
 /**
- * [TypeCatalog] reading the document's own TYPE declarations (a `.kmeta` document, from its parse outcomes by the
- * staleness rule, see [DocumentDeclarations]) and the context's types, converted once per `ContextAnalysis` by
- * [ContextTypesMemo] (see [ContextTypes] for the conversion, its completion by the syntax and its syntax fallback).
+ * The [TypeCatalog] that reads a `.kmeta` document's own TYPE declarations and the types of the context. The
+ * declarations of the document come from its parse outcomes by the staleness rule, through [DocumentDeclarations].
+ * The types of the context are converted once per `ContextAnalysis` by [ContextTypesMemo]. [ContextTypes] describes
+ * the conversion, how the syntax completes it and how it falls back to the syntax.
  */
 internal class ContextTypeCatalog(private val memo: ContextTypesMemo = ContextTypesMemo()) : TypeCatalog {
 

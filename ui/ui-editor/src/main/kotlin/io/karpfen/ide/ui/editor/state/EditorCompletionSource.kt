@@ -25,9 +25,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 /**
- * The editor's [CompletionSource]: switches to [backgroundDispatcher] and asks [languageServices] for the items at the
- * requested offset of `LanguageDocument.of(session, snapshot)`, which tokenizes [snapshot] when the session's tokens
- * lag. The dispatcher is injected here only; the completion model never names one.
+ * The [CompletionSource] of the editor. It switches to [backgroundDispatcher] and asks [languageServices] for the items
+ * at the requested offset of `LanguageDocument.of(session, snapshot)`. That call tokenizes the snapshot when the tokens
+ * of the session lag behind. The dispatcher is injected only here, so the completion model never names one.
  */
 internal class EditorCompletionSource(
     private val session: DocumentSession,

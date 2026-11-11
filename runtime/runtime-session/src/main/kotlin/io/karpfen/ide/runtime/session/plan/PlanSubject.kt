@@ -28,9 +28,9 @@ import io.karpfen.ide.runtime.session.problem.SourceLocation
 import java.nio.file.Path
 
 /**
- * What the checks of one planning run look at: the analysis, the descriptor's explicit context in it and the facts
- * derived from them, each computed once on first use. Confined to the planning call; it reads dsl-tools models and is
- * never shared.
+ * What the checks of one planning run look at. That is the analysis, the descriptor's explicit context in it and the
+ * facts derived from them. Each fact is computed once on first use. Confined to the planning call. It reads dsl-tools
+ * models and is never shared.
  *
  * @property analysis the analysis the plan is read from.
  * @property descriptor the absolute, normalized path of the environment descriptor.
@@ -56,7 +56,7 @@ internal class PlanSubject(
     val metamodelFile: Path?
         get() = modelingContext?.metamodel
 
-    /** The model file of the context; an explicit context names at most one. */
+    /** The model file of the context. An explicit context names at most one. */
     val modelFile: Path?
         get() = modelingContext?.models?.firstOrNull()
 
@@ -68,20 +68,23 @@ internal class PlanSubject(
     val machines: List<StateMachineBinding>
         get() = modelingContext?.stateMachines.orEmpty()
 
-    /** The files of the context and the descriptor: everything the gate reads. */
+    /** The files of the context and the descriptor, which is everything the gate reads. */
     val gatedFiles: List<Path>
         get() = modelingContext?.files.orEmpty() + listOf(descriptor)
 
     /** The runtime's index of the model, or null if the model was not read. */
     val keyedObjects: KeyedObjects? by lazy { model?.let(KeyedObjects::of) }
 
-    /** Every event domain of the state machines' conditions and actions, sorted, once each, blank ones left out. */
+    /**
+     * Every event domain of the state machines' conditions and actions, sorted and once each. Blank domains are left
+     * out.
+     */
     val domains: List<String> by lazy { ContextSymbols(analysis).eventDomainsOf(machines.map { it.file }) }
 
     /** Where the objects, types and states of the context's files are declared. */
     val locations: DeclarationLocations by lazy { DeclarationIndex.locationsOf(analysis, modelingContext?.files.orEmpty()) }
 
-    /** The descriptor as a whole; it has no analyzed text. */
+    /** The descriptor as a whole. It has no analyzed text. */
     val descriptorLocation: SourceLocation
         get() = SourceLocation(descriptor, null, null)
 

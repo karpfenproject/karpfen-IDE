@@ -19,7 +19,7 @@ import java.nio.file.Path
 
 /** Where the stack a machine shows comes from. */
 public enum class StackOrigin {
-    /** The IDE's prediction of the initial stack: the runtime has not reported the machine yet. */
+    /** The IDE's prediction of the initial stack. The runtime has not reported the machine yet. */
     PREDICTED,
 
     /** The runtime reported the stack, in a push or in a snapshot. */
@@ -31,10 +31,11 @@ public enum class StackOrigin {
  *
  * @property attachedTo the key of the object the machine runs attached to.
  * @property file the machine's file.
- * @property stack the flat stack as the runtime writes it: the plain state names of every parallel branch, outermost
- *   first, the branches concatenated in split-target order.
- * @property regions the stack split into its branches, each starting at a top-level state.
- * @property previous the stack the machine showed before this one, or null if it showed none, kept for animation.
+ * @property stack the flat stack as the runtime writes it. It holds the plain state names of every parallel branch,
+ *   outermost first. The branches are concatenated in split-target order.
+ * @property regions the stack split into its branches. Each branch starts at a top-level state.
+ * @property previous the stack the machine showed before this one, or null if it showed none. It is kept for
+ *   animation.
  * @property origin whether the stack is predicted or reported.
  */
 public data class MachineActivity(
@@ -62,12 +63,12 @@ public data class ActiveStates(
  * Applies the runtime's stack reports to the [ActiveStates] of the machines [layouts] describes. Pure and stateless
  * apart from the layouts, so it can be shared.
  *
- * Before the first report each machine shows its predicted initial stack ([StackOrigin.PREDICTED]); a report replaces
- * it ([StackOrigin.REPORTED]) and keeps the stack shown before it as [MachineActivity.previous], for animation; a
- * report or snapshot that shows the same stack again keeps the previous stack as it was. A report for a key the
- * deployment attaches no machine to goes to [ActiveStates.unknownElements].
+ * Before the first report, each machine shows its predicted initial stack with [StackOrigin.PREDICTED]. A report
+ * replaces it with [StackOrigin.REPORTED] and keeps the stack shown before as [MachineActivity.previous], for
+ * animation. A report or snapshot that shows the same stack again keeps the previous stack as it was. A report for a
+ * key that the deployment attaches no machine to goes to [ActiveStates.unknownElements].
  *
- * @param layouts the layouts of the attached machines; a key attached twice keeps its first layout.
+ * @param layouts the layouts of the attached machines. A key attached twice keeps its first layout.
  */
 public class ActiveStatesReducer(layouts: List<MachineLayout>) {
     /** The layouts by attachment key, in deployment order. */
@@ -89,9 +90,9 @@ public class ActiveStatesReducer(layouts: List<MachineLayout>) {
     }
 
     /**
-     * [states] after a snapshot's `activeStates` [reported]: listed machines become reported, machines the snapshot does
-     * not list (they had no tick since the start) return to their prediction, and the unknown elements become exactly
-     * the listed keys the deployment does not attach.
+     * [states] after a snapshot's `activeStates` [reported]. Listed machines become reported. Machines that the
+     * snapshot does not list return to their prediction, because they had no tick since the start. The unknown
+     * elements become exactly the listed keys that the deployment does not attach.
      */
     public fun replaced(states: ActiveStates, reported: Map<String, List<String>>): ActiveStates {
         val machines = layouts.mapValues { (key, layout) ->
@@ -108,8 +109,8 @@ public class ActiveStatesReducer(layouts: List<MachineLayout>) {
         MachineActivity(layout.attachedTo, layout.file, layout.initialStack, regionsOf(layout, layout.initialStack), null, StackOrigin.PREDICTED)
 
     /**
-     * The activity of [layout] showing [stack] with [origin] after [before]: the stack shown before becomes
-     * [MachineActivity.previous], unless the stack stays the same, which keeps the previous stack of [before].
+     * The activity of [layout] showing [stack] with [origin] after [before]. The stack shown before becomes
+     * [MachineActivity.previous]. When the stack stays the same, the previous stack of [before] is kept instead.
      */
     private fun activity(layout: MachineLayout, stack: List<String>, before: MachineActivity?, origin: StackOrigin): MachineActivity {
         val previous = if (before?.stack == stack) before.previous else before?.stack

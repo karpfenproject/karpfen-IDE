@@ -20,12 +20,12 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * How the Ktor transports talk to the runtime, with the production defaults. The client's own timeouts per route run
- * above the transport; the transport's limits only bound what the client's timeouts cannot see.
+ * above the transport. The transport's limits only bound what the client's timeouts cannot see.
  *
  * @property connectTimeout how long connecting to the runtime may take before the call is unreachable.
- * @property requestTimeoutBackstop the longest any HTTP exchange may take; it lies above every timeout of the client, so
- *   it only ends exchanges that the client's own timeouts somehow missed.
- * @property pingInterval how often the client pings an open WebSocket, so that a dead runtime is noticed without waiting
+ * @property requestTimeoutBackstop the longest any HTTP exchange may take. It lies above every timeout of the client,
+ *   so it only ends exchanges that the client's own timeouts somehow missed.
+ * @property pingInterval how often the client pings an open WebSocket. A dead runtime is then noticed without waiting
  *   for the runtime's own 60-second ping.
  * @throws IllegalArgumentException if a duration is not positive.
  */

@@ -28,8 +28,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * Covers the round trip from an analyzed model through the runtime's JSON back into the mirror: what the runtime would
- * write of a deployed model reads back as exactly its seed, for the runtime's examples and the synthesized models.
+ * Covers the round trip from an analyzed model through the runtime's JSON back into the mirror. What the runtime would
+ * write of a deployed model reads back as exactly its seed. This holds for the runtime's examples and the synthesized
+ * models.
  */
 class MirrorRoundTripTest {
 

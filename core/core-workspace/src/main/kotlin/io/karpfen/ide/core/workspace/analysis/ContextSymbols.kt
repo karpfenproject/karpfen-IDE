@@ -21,17 +21,17 @@ import io.karpfen.ide.core.document.parse.SyntaxIndex
 import java.nio.file.Path
 
 /**
- * What the analyzed files of a workspace declare and use that environment descriptors refer to: the types of a
- * metamodel, the objects of a model, the type a state machine names after `ATTACHED TO`, and the event domains state
- * machines use.
+ * Answers what the analyzed files of a workspace declare and use, as far as environment descriptors refer to it. That
+ * is the types of a metamodel, the objects of a model, the type a state machine names after `ATTACHED TO`, and the
+ * event domains that state machines use.
  *
- * The answers come from the IDE's own syntax index of each file of the [analysis] ([AnalyzedFile.parse]), never from
- * the models dsl-tools read, so they are known also while a metamodel or a model has errors or is not read at all. A
- * file the analysis does not know declares nothing.
+ * The answers come from the IDE's own syntax index of each file of the [analysis], found in [AnalyzedFile.parse]. They
+ * never come from the models that dsl-tools read. So they are known even while a metamodel or a model has errors or
+ * was not read at all. A file the analysis does not know declares nothing.
  *
- * These queries have their one home here: the language features of descriptors and the template of new descriptors both
- * ask this class, and both propose objects for a state machine by the one rule of [AttachmentCandidate.rank]. Immutable
- * and thread-safe, like the analysis it reads.
+ * These queries live only here. The language features of descriptors and the template of new descriptors both ask
+ * this class. Both propose objects for a state machine by the single rule of [AttachmentCandidate.rank]. The class is
+ * immutable and thread-safe, like the analysis it reads.
  */
 public class ContextSymbols(private val analysis: ProjectAnalysis) {
 
@@ -52,8 +52,8 @@ public class ContextSymbols(private val analysis: ProjectAnalysis) {
         indexOf(machine)?.declarationsOf(SymbolKind.STATEMACHINE)?.firstOrNull()?.typeName
 
     /**
-     * The event domains the state machines at [machines] use in `EVENT("domain", …)`: sorted, each one once, blank
-     * ones left out.
+     * The event domains the state machines at [machines] use in `EVENT("domain", ...)`. They are sorted, each appears
+     * once, and blank ones are left out.
      */
     public fun eventDomainsOf(machines: List<Path>): List<String> =
         machines
@@ -63,8 +63,9 @@ public class ContextSymbols(private val analysis: ProjectAnalysis) {
             .sorted()
 
     /**
-     * The objects of the model at [model] to propose for the state machine at [machine] to run attached to, best first
-     * by [AttachmentCandidate.rank]; without a known [machine], every object ranks the same.
+     * The objects of the model at [model] that may be proposed for the state machine at [machine] to run attached to.
+     * They are ordered best first by [AttachmentCandidate.rank]. Without a known [machine], every object ranks the
+     * same.
      */
     public fun attachmentCandidates(model: Path, machine: Path?): List<AttachmentCandidate> =
         AttachmentCandidate.rank(objectsOf(model), machine?.let(::attachedTypeOf))
@@ -82,9 +83,10 @@ public class ContextSymbols(private val analysis: ProjectAnalysis) {
 public data class ModelObject(public val key: String, public val typeName: String?)
 
 /**
- * An object proposed for a state machine to run attached to, the `attachedTo` of a state machine entry of a descriptor.
+ * An object proposed for a state machine to run attached to. In a descriptor this is the `attachedTo` value of a state
+ * machine entry.
  *
- * @property modelObject the proposed object; its key is the value `attachedTo` takes.
+ * @property modelObject the proposed object. Its key is the value that `attachedTo` takes.
  * @property suitsMachine true if the object's type is the type the state machine names after `ATTACHED TO`.
  */
 public data class AttachmentCandidate(public val modelObject: ModelObject, public val suitsMachine: Boolean) {
@@ -92,12 +94,13 @@ public data class AttachmentCandidate(public val modelObject: ModelObject, publi
     /** The ranking rule of candidates. */
     public companion object {
         /**
-         * [objects] as candidates for a state machine attached to [attachedType] (null if unknown), best first: the
-         * objects of that type, then the others, each group in the order of [objects]. Objects without a key are left
-         * out, and a key that occurs more than once is proposed once, at its best place.
+         * [objects] as candidates for a state machine attached to [attachedType], best first. [attachedType] is null
+         * if it is unknown. The objects of that type come first, then the others, and each group keeps the order of
+         * [objects]. Objects without a key are left out. A key that occurs more than once is proposed once, at its best
+         * place.
          *
-         * This is the one rule by which the descriptor completion ranks objects and the template of new descriptors
-         * chooses the object a state machine runs attached to: the first candidate.
+         * The descriptor completion ranks objects by this rule. The template of new descriptors uses it too and picks
+         * the first candidate as the object a state machine runs attached to.
          */
         public fun rank(objects: List<ModelObject>, attachedType: String?): List<AttachmentCandidate> =
             objects

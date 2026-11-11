@@ -22,26 +22,27 @@ import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Builds the [JsonNode] tree of a token list by recursive descent and recovers from every error, so a broken text still
- * yields the tree of everything around the error; one instance per text, used once.
+ * Builds the [JsonNode] tree of a token list by recursive descent and recovers from every error. A broken text
+ * therefore still yields the tree of everything around the error. Each instance reads one text, once.
  *
- * Recovery rules:
- * - a missing `,` between members or items is reported at the member or item that follows, which is then read;
- * - a key without `:` is reported at the key; if a value follows that does not start the next member (a string
- *   followed by `:`), it is read as the key's value;
- * - a missing value is reported at the `:` and leaves [JsonNode.Member.value] null; an INVALID token in the place of a
- *   value or member is consumed silently, because the lexer reported it already, and an unquoted key with its value is
- *   skipped the same way;
- * - a closing bracket of an enclosing container ends every container opened since, each one reported once as not
- *   closed; a closing bracket that closes nothing is reported and skipped;
- * - the end of the text ends every open container and missing part with one error at the end of the last token;
- * - tokens before the root value are skipped, so one stray keystroke at the top of a file keeps the tree; [JsonRootStart]
- *   documents where the root starts, also after a stray string, number or literal. An INVALID token is skipped
- *   silently, any other one is reported once as standing before the value; a text without any value is one error, at
- *   its first stray token or, for an empty text, at its end;
- * - members at the top level, whose `{` is missing, are read as the root object ([bracelessObject]);
- * - content after the root value is one error;
- * - containers nested deeper than [MAX_DEPTH] are skipped as one error, so the recursion stays far from the stack limit.
+ * These rules govern the recovery:
+ * - A missing `,` between members or items is reported at the member or item that follows, which is then read.
+ * - A key without `:` is reported at the key. If a value follows that does not start the next member, it is read as the
+ *   key's value. A string followed by `:` starts the next member.
+ * - A missing value is reported at the `:` and leaves [JsonNode.Member.value] null. An INVALID token in the place of a
+ *   value or member is consumed silently, because the lexer reported it already. An unquoted key with its value is
+ *   skipped the same way.
+ * - A closing bracket of an enclosing container ends every container opened since, and each of them is reported once
+ *   as not closed. A closing bracket that closes nothing is reported and skipped.
+ * - The end of the text ends every open container and missing part, with one error at the end of the last token.
+ * - Tokens before the root value are skipped, so one stray keystroke at the top of a file keeps the tree.
+ *   [JsonRootStart] documents where the root starts, also after a stray string, number or literal. An INVALID token is
+ *   skipped silently. Any other token is reported once as standing before the value. A text without any value is one
+ *   error, at its first stray token or, for an empty text, at its end.
+ * - Members at the top level whose `{` is missing are read as the root object by [bracelessObject].
+ * - Content after the root value is one error.
+ * - Containers nested deeper than [MAX_DEPTH] are skipped as one error, so the recursion stays far from the stack
+ *   limit.
  *
  * Errors are PARSER diagnostics with the code `syntax-error`.
  */
@@ -82,11 +83,11 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
     }
 
     /**
-     * The root object whose members stand at the top level without `{` ([JsonRootStart.isBraceless]), from its first
-     * member to the end of its last one. It is never [JsonNode.Container.isClosed], because no `{` pairs with the `}`
-     * that ends it; that `}` is consumed as the partner of the missing brace. The missing brace is reported at the first
-     * member, unless tokens stand before it ([afterStrays]): their error points at the cause, often a quote typed in
-     * front of the `{`, which turned the brace into a string.
+     * The root object whose members stand at the top level without `{`, as [JsonRootStart.isBraceless] says. It runs
+     * from its first member to the end of its last one. It is never [JsonNode.Container.isClosed], because no `{` pairs
+     * with the `}` that ends it. That `}` is consumed as the partner of the missing brace. The missing brace is
+     * reported at the first member, unless tokens stand before it, as [afterStrays] says. Their error then points at
+     * the cause, which is often a quote typed in front of the `{` that turned the brace into a string.
      */
     private fun bracelessObject(afterStrays: Boolean): JsonNode.ObjectNode {
         val firstKey = tokens[index]
@@ -96,8 +97,9 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
     }
 
     /**
-     * Reports that the text holds no value: at [firstStray], the first token that is no value, or at the end of an
-     * empty text. A text of INVALID tokens only gets no error of its own, because the lexer reported each of them.
+     * Reports that the text holds no value. The error sits at [firstStray], the first token that is no value, or at
+     * the end of an empty text. A text of only INVALID tokens gets no error of its own, because the lexer reported each
+     * of them.
      */
     private fun reportMissingRoot(firstStray: JsonToken?) {
         when {
@@ -121,7 +123,7 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
         }
     }
 
-    /** The object opened by [open]; [closers] are the closing brackets of the enclosing containers. */
+    /** The object opened by [open]. [closers] are the closing brackets of the enclosing containers. */
     private fun objectNode(open: JsonToken, depth: Int, closers: Set<JsonTokenKind>): JsonNode {
         if (depth >= MAX_DEPTH) return tooDeep(open)
         val read = members(depth, closers)
@@ -129,8 +131,9 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
     }
 
     /**
-     * The members of an object, read up to the `}` that closes it, which is consumed, or up to the end of the text or a
-     * bracket of [closers], the closing brackets of the enclosing containers, which is reported and left in place.
+     * The members of an object. They are read up to the `}` that closes the object, which is consumed. Reading also
+     * stops at the end of the text or at a bracket of [closers], the closing brackets of the enclosing containers. Such
+     * a bracket is reported and left in place.
      */
     private fun members(depth: Int, closers: Set<JsonTokenKind>): MembersRead {
         val members = ArrayList<JsonNode.Member>()
@@ -204,7 +207,7 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
         }
     }
 
-    /** The array opened by [open]; [closers] are the closing brackets of the enclosing containers. */
+    /** The array opened by [open]. [closers] are the closing brackets of the enclosing containers. */
     private fun arrayNode(open: JsonToken, depth: Int, closers: Set<JsonTokenKind>): JsonNode {
         if (depth >= MAX_DEPTH) return tooDeep(open)
         val items = ArrayList<JsonNode>()
@@ -258,7 +261,10 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
         return JsonNode.StringNode(token.range, JsonStrings.decode(text, content), content, JsonStrings.isClosed(text, token.range))
     }
 
-    /** Skips an unquoted key (the current INVALID token) and, after a `:`, its value; the lexer reported the key. */
+    /**
+     * Skips an unquoted key, which is the current INVALID token, and after a `:` also its value. The lexer reported the
+     * key already.
+     */
     private fun skipUnquotedMember(depth: Int, closers: Set<JsonTokenKind>) {
         next()
         if (peek()?.kind != JsonTokenKind.NAME_SEPARATOR) return
@@ -266,13 +272,13 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
         if (peek()?.kind?.isValueStart == true && !tokens.startsMemberAt(index)) value(depth + 1, closers)
     }
 
-    /** Skips the current token; a bracket that opens a container skips the whole container. */
+    /** Skips the current token. A bracket that opens a container skips the whole container. */
     private fun skip(depth: Int, closers: Set<JsonTokenKind>) {
         val kind = peek()?.kind ?: return
         if (kind.opensContainer) value(depth + 1, closers) else next()
     }
 
-    /** Skips the container opened by [open] (already consumed) and everything nested in it, as one error. */
+    /** Skips the container opened by [open], which is already consumed, and everything nested in it, as one error. */
     private fun tooDeep(open: JsonToken): JsonNode {
         report(open.range, "The value is nested more than $MAX_DEPTH levels deep.")
         var level = 1
@@ -318,7 +324,7 @@ internal class JsonTreeBuilder(private val text: String, private val tokens: Lis
     private class MembersRead(val members: List<JsonNode.Member>, val isClosed: Boolean)
 
     private companion object {
-        /** The deepest nesting read; environment descriptors nest three levels. */
+        /** The deepest nesting that is read. Environment descriptors nest three levels. */
         const val MAX_DEPTH = 64
     }
 }

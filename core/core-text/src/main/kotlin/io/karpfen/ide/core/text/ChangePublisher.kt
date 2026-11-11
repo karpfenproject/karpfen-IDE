@@ -25,18 +25,21 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * Publishes the committed changes of one text to its observers: the [snapshot] state and the [changes] events.
  *
- * Publication is two-phase so observers only ever see a consistent text: the writer [enqueue]s a change right after
- * committing it and [flush]es once its own bookkeeping (the undo history) is done. Collectors may run inline while a
- * flow is updated (immediate or unconfined dispatchers) and may even apply further edits from there; such reentrant
- * changes are queued behind the current one and published by the outermost flush, so snapshots and change events
- * always arrive in version order. Only the writer thread calls [enqueue] and [flush].
+ * Publication happens in two steps, so observers only ever see a consistent text. The writer calls [enqueue] right
+ * after it commits a change, and it calls [flush] once its own bookkeeping, the undo history, is done.
+ *
+ * Collectors may run inline while a flow is updated, for example on an immediate or unconfined dispatcher. They may
+ * even apply further edits from there. Such reentrant changes are queued behind the current one and published by the
+ * outermost flush, so snapshots and change events always arrive in version order.
+ *
+ * Only the writer thread calls [enqueue] and [flush].
  */
 internal class ChangePublisher(initial: TextSnapshot) {
 
     private val snapshotState = MutableStateFlow(initial)
 
     /**
-     * The change events, with an unlimited buffer: `tryEmit` never fails and never suspends the writer, and slow
+     * The change events. The buffer is unlimited, so `tryEmit` never fails and never suspends the writer, and slow
      * collectors are buffered.
      */
     private val changeEvents = MutableSharedFlow<TextChange>(extraBufferCapacity = Int.MAX_VALUE)
@@ -47,15 +50,18 @@ internal class ChangePublisher(initial: TextSnapshot) {
     /** The newest published snapshot. */
     val snapshot: StateFlow<TextSnapshot> = snapshotState.asStateFlow()
 
-    /** Every published change, exactly once and in version order (no replay). */
+    /** Every published change, exactly once and in version order. There is no replay. */
     val changes: SharedFlow<TextChange> = changeEvents.asSharedFlow()
 
-    /** Queues a committed [change]; it becomes visible with the next [flush]. */
+    /** Queues a committed [change]. It becomes visible with the next [flush]. */
     fun enqueue(change: TextChange) {
         pending.addLast(change)
     }
 
-    /** Publishes every queued change in order. A reentrant call returns at once; the outer call publishes its changes. */
+    /**
+     * Publishes every queued change in order. A reentrant call returns at once, and the outer call publishes its
+     * changes.
+     */
     fun flush() {
         if (flushing) return
         flushing = true

@@ -26,6 +26,6 @@ public enum class Bias {
     /** Stick to the text before the edit point. */
     LEFT,
 
-    /** Stick to the text after the edit point (default: carets move along with typed text). */
+    /** Stick to the text after the edit point. This is the default, so carets move along with typed text. */
     RIGHT,
 }

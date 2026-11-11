@@ -19,9 +19,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-/** Duplicate, move line up/down, indent and outdent. */
+/** Duplicate, move line up and down, indent and outdent. */
 class LineActionsTest {
 
+    /** The marked text after the action [actionId] ran once on [marked]. */
     private fun after(marked: String, actionId: String): String = TestEditor(marked).apply { run(actionId) }.marked()
 
     @Test

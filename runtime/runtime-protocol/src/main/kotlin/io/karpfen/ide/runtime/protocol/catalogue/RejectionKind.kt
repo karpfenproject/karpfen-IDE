@@ -16,17 +16,17 @@
 package io.karpfen.ide.runtime.protocol.catalogue
 
 /**
- * Why the runtime rejected a call with 400 or 409: one kind per text of [RuntimeText], plus [CONTENT_REJECTED] for an
- * upload the runtime's parser refused and [UNCLASSIFIED] for any other text.
+ * Why the runtime rejected a call with 400 or 409. There is one kind per text of [RuntimeText]. Two kinds come on top.
+ * [CONTENT_REJECTED] stands for an upload the runtime's parser refused, and [UNCLASSIFIED] stands for any other text.
  */
 public enum class RejectionKind {
-    /** A query parameter is missing; the text names the first missing one in check order. */
+    /** A query parameter is missing. The text names the first missing one in the order the runtime checks them. */
     MISSING_PARAMETER,
 
     /** The tick delay or the time to live is missing or not a number. */
     INVALID_PARAMETER,
 
-    /** The runtime does not know the environment (it never existed, or the runtime restarted). */
+    /** The runtime does not know the environment. Either it never existed, or the runtime restarted. */
     UNKNOWN_ENVIRONMENT,
 
     /** The environment is active, so it cannot be configured or activated again. */
@@ -38,7 +38,7 @@ public enum class RejectionKind {
     /** The environment was activated without a metamodel or without a model. */
     MODELS_REQUIRED,
 
-    /** A state machine is attached to an object key the model does not have; the activation was refused. */
+    /** A state machine is attached to an object key the model does not have, so the activation was refused. */
     UNKNOWN_ATTACHMENT,
 
     /** The environment was started or stopped before it was activated. */
@@ -63,7 +63,7 @@ public enum class RejectionKind {
     NO_MODEL,
 
     /**
-     * The snapshot found no tick boundary within the runtime's wait: a tick of a running environment, or the last tick
+     * The snapshot found no tick boundary within the runtime's wait. A tick of a running environment, or the last tick
      * of a stopped one, did not end.
      */
     TICK_BOUNDARY_TIMEOUT,

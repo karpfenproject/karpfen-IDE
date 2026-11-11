@@ -37,13 +37,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The hover policy on virtual time: the tooltip appears after [CodeEditorState.HOVER_DELAY] of rest, shows the
- * diagnostics at the position or else the language hover, stays while the pointer is on its range or on the tooltip, is
- * hidden [HoverController.HIDE_GRACE] after the pointer left both, and at once when the user types.
+ * The hover policy on virtual time. The tooltip appears after the pointer rested for [CodeEditorState.HOVER_DELAY]. It
+ * shows the diagnostics at the position, or else the language hover. It stays while the pointer is on its range or on
+ * the tooltip. It hides [HoverController.HIDE_GRACE] after the pointer left both, and at once when the user types.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HoverPolicyTest {
 
+    /** A small state machine with the states `idle` and `busy`. */
     private val text = """
         STATEMACHINE ATTACHED TO "Robot" {
             STATES {
@@ -53,24 +54,29 @@ class HoverPolicyTest {
         }
     """.trimIndent()
 
+    /** An IDE error diagnostic on [range]. */
     private fun error(range: TextRange) =
         Diagnostic(range, Severity.ERROR, "broken", DiagnosticCodes.INTERNAL_ERROR, DiagnosticSource.IDE)
 
+    /** Rests the pointer at [offset], or off the text when it is null, and runs what is due now. */
     private fun TestScope.rest(harness: EditorStateHarness, offset: Int?) {
         harness.state.pointerHover(offset)
         runCurrent()
     }
 
+    /** Advances virtual time by the hover delay and runs what is due. */
     private fun TestScope.waitHoverDelay() {
         advanceTimeBy(CodeEditorState.HOVER_DELAY)
         runCurrent()
     }
 
+    /** Advances virtual time by the hide grace and runs what is due. */
     private fun TestScope.waitHideGrace() {
         advanceTimeBy(HoverController.HIDE_GRACE)
         runCurrent()
     }
 
+    /** Advances virtual time by [duration] and runs what is due. */
     private fun TestScope.wait(duration: Duration) {
         advanceTimeBy(duration)
         runCurrent()

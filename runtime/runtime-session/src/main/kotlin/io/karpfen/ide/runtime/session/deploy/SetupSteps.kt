@@ -20,8 +20,9 @@ import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 
 /**
- * Checks the runtime before anything is created: that it is up (`GET /health`) and that it has the IDE's routes (the
- * snapshot route without parameters), so a runtime without IDE support fails fast.
+ * Checks the runtime before anything is created. It checks that the runtime is up with `GET /health`. Then it checks
+ * that the runtime has the IDE's routes by calling the snapshot route without parameters. That way a runtime without
+ * IDE support fails fast.
  *
  * @param endpoint the runtime, named in the title.
  */
@@ -38,7 +39,7 @@ internal class CheckRuntimeStep(endpoint: RuntimeEndpoint) : DeployStep {
     }
 }
 
-/** Creates the environment and reports it, so that from now on the cleanup knows it. */
+/** Creates the environment and reports it, so that the cleanup knows it from now on. */
 internal class CreateEnvironmentStep : DeployStep {
     override val kind: DeployStepKind = DeployStepKind.CREATE
     override val title: String = "Creating the environment"
@@ -59,9 +60,9 @@ internal class CreateEnvironmentStep : DeployStep {
 }
 
 /**
- * Connects to the environment right after its creation: the runtime never acknowledges the handshake, so the many
- * calls before the activation separate it from the first push. The connection is reported before it is opened, so
- * that the session collects its events from the first opening on.
+ * Connects to the environment right after its creation. The runtime never acknowledges the handshake. Connecting this
+ * early means that the many calls before the activation separate the handshake from the first push. The connection is
+ * reported before it is opened, so that the session collects its events from the first opening on.
  */
 internal class ConnectStep : DeployStep {
     override val kind: DeployStepKind = DeployStepKind.CONNECT

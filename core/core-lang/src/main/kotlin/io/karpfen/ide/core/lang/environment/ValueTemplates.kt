@@ -20,11 +20,11 @@ import io.karpfen.ide.core.document.environment.ValueShape
 import io.karpfen.ide.core.document.json.JsonStrings
 
 /**
- * The JSON text completion proposes for descriptor keys and values, derived from their [ValueShape]s, so a new key
- * arrives with a value of the right kind: a string is `""` with the caret inside, a whole number its first suggestion,
- * an object `{ … }` with its required keys, a list `[ … ]` with one item. The caret goes to the first place to fill
- * ([Template.caret]). Every proposal is JSON as it stands outside a string; [SlotEdit.fit] adapts it to the caret's
- * place. Pure.
+ * The JSON text that completion proposes for descriptor keys and values. It is derived from their [ValueShape]s, so a
+ * new key arrives with a value of the right kind. A string is `""` with the caret inside. A whole number is its first
+ * suggestion. An object is `{ … }` with its required keys. A list is `[ … ]` with one item. The caret goes to the first
+ * place to fill, which is [Template.caret]. Every proposal is JSON as it stands outside a string. [SlotEdit.fit] adapts
+ * it to the place of the caret. The object has no side effects.
  */
 internal object ValueTemplates {
 
@@ -38,16 +38,16 @@ internal object ValueTemplates {
         return Template(name + value.text, name.length + value.caret)
     }
 
-    /** `"key":`, the name of [key] with the colon a key needs in front of its value. */
+    /** `"key":`, which is the name of [key] with the colon a key needs in front of its value. */
     fun nameAndColon(key: DescriptorKey): Template = Template("${quoted(key.name)}:")
 
-    /** `"key"`, the name of [key] alone. */
+    /** `"key"`, which is the name of [key] alone. */
     fun name(key: DescriptorKey): Template = Template(quoted(key.name))
 
     /** [value] as a JSON string with its quotes. */
     fun string(value: String): Template = Template(quoted(value))
 
-    /** The label of a value template in the completion list: `{ … }` for an object, `[ … ]` for a list. */
+    /** The label of a value template in the completion list. It is `{ … }` for an object and `[ … ]` for a list. */
     fun label(shape: ValueShape): String = when (shape) {
         is ValueShape.Record -> "{ … }"
         is ValueShape.ListOf -> "[ … ]"
@@ -57,12 +57,12 @@ internal object ValueTemplates {
     /** [value] as a JSON string literal with its quotes. */
     private fun quoted(value: String): String = "\"${JsonStrings.encode(value)}\""
 
-    /** Writes one template; the first [hole] gets the caret. */
+    /** Writes one template. The first [hole] gets the caret. */
     private class TemplateWriter {
         private val out = StringBuilder()
         private var caret: Int? = null
 
-        /** The template written so far, the caret at its first hole or at its end. */
+        /** The template written so far, with the caret at its first hole or at its end. */
         fun template(): Template = Template(out.toString(), caret ?: out.length)
 
         /** Writes the template of [shape]. */

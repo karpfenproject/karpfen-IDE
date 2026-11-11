@@ -30,17 +30,20 @@ import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.problem.SourceLocation
 
 /**
- * Turns the runtime's failures during a deployment into problems, located in the workspace where the failure points:
+ * Turns the runtime's failures during a deployment into problems. Each problem is located in the workspace where the
+ * failure points.
  *
- * - a rejection of an uploaded text or an internal error while reading it points at that upload's file, or, for a
- *   known text of the runtime's parser that names an object, at that object's declaration in the model; only a
- *   rejection saying that the environment does not exist is about the environment instead;
- * - an internal error on an upload says that the runtime's older parser could not read the file and quotes its text;
- * - an activation refused because a machine is attached to a key the model lacks points at the descriptor;
- * - a failure while checking the runtime makes the runtime unreachable or incompatible;
- * - every other failure has no location and is described by the failure itself ([unlocated]).
+ * - A rejection of an uploaded text, or an internal error while reading it, points at that upload's file. When the
+ *   text is a known text of the runtime's parser that names an object, it points at that object's declaration in the
+ *   model instead. A rejection saying that the environment does not exist is the one exception. It is about the
+ *   environment, not about the upload.
+ * - An internal error on an upload says that the runtime's older parser could not read the file, and it quotes the
+ *   parser's text.
+ * - An activation refused because a machine is attached to a key that the model lacks points at the descriptor.
+ * - A failure while checking the runtime means the runtime is unreachable or incompatible.
+ * - Every other failure has no location and is described by the failure itself, see [unlocated].
  *
- * The parser texts are those of the runtime's dsl-tools 1.0 converters, `KmetaDSLConverter`, `KmodelDSLConverter` and
+ * The parser texts are those of the runtime's dsl-tools 1.0 converters `KmetaDSLConverter`, `KmodelDSLConverter` and
  * `KstatesDSLConverter` in `dsl/textual`, at the commit the runtime pins.
  *
  * @param plan the plan deployed, whose declarations locate the subjects of the parser's texts.
@@ -97,8 +100,8 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
         }
 
     /**
-     * The problem of [failure] without a location: the problem of every failure that no file or declaration explains,
-     * also of the calls a session makes after the deployment.
+     * The problem of [failure] without a location. It is used for every failure that no file or declaration explains,
+     * and also for the calls a session makes after the deployment.
      */
     fun unlocated(failure: RuntimeFailure): DeployProblem =
         when (failure) {

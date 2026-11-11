@@ -24,27 +24,30 @@ import io.karpfen.ide.core.document.json.JsonTokenKind
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * Finds the [DescriptorSlot] at a caret: it descends from the root into the object or list that holds the caret,
- * carrying the shape the [schema] expects there, until it reaches a key string, a value, or blank space between them.
+ * Finds the [DescriptorSlot] at a caret. It descends from the root into the object or list that holds the caret and
+ * carries along the shape the [schema] expects there. It stops at a key string, a value, or blank space between them.
  *
- * Rules, in the order they are tried inside an object or list:
- * - inside a key string, from after its opening quote to before its closing quote (or the end of an unterminated
- *   string), the caret is on that key;
- * - inside a member's value, or a list item, the caret is on that value (descending into objects and lists);
- * - after the `:` of a member without value, up to the next token, the caret is on that member's value, also within a
- *   bare word typed there;
- * - in blank space or a bare word right after `{` or `,` of an object it is on a new key, after `[` or `,` of a list on
- *   a new item; a bare word with a `:` behind it is a key the user forgot to quote, whose `:` and value the parser left
- *   out of the tree together with the word, so only its name is written there ([KeyPart.NAME]) and they stay;
- * - after the last complete member of an object or the last item of a list, with nothing but its closing bracket (or
- *   the end of the text) after the caret, it is on a new key or item that needs a `,` in front ([SlotEdit.leading]), so
- *   one can be added at the end without typing the comma first;
- * - anywhere else (between a value and the `,` after it, before the root) on nothing.
+ * Inside an object or list these rules are tried in order.
+ * - Inside a key string the caret is on that key. This runs from after the opening quote to before the closing quote,
+ *   or to the end of an unterminated string.
+ * - Inside the value of a member, or inside a list item, the caret is on that value. Objects and lists are descended
+ *   into.
+ * - After the `:` of a member without a value, up to the next token, the caret is on the value of that member. This
+ *   also holds within a bare word typed there.
+ * - In blank space or a bare word right after `{` or `,` of an object, the caret is on a new key. After `[` or `,` of
+ *   a list it is on a new item. A bare word with a `:` behind it is a key the user forgot to quote. The parser left
+ *   its `:` and value out of the tree together with the word. So only the name is written there, as [KeyPart.NAME]
+ *   says, and the `:` and value stay.
+ * - After the last complete member of an object or the last item of a list, when only the closing bracket or the end
+ *   of the text follows the caret, the caret is on a new key or item. That one needs a `,` in front, which
+ *   [SlotEdit.leading] provides. So a key can be added at the end without typing the comma first.
+ * - Anywhere else the caret is on nothing. Examples are the space between a value and the `,` after it, and the space
+ *   before the root.
  *
  * In a text of blanks only, which holds no root, the caret is on the [DescriptorSlot.Root]. Containers that the text
- * does not close reach as far as their parent does, the root to the end of the text, so the caret at the end of an
- * unfinished descriptor is still inside it. How completion writes at the slot is the business of [SlotEdits]. Works on
- * broken text; pure.
+ * does not close reach as far as their parent does, and the root reaches to the end of the text. So the caret at the
+ * end of an unfinished descriptor is still inside it. How completion writes at the slot is the job of [SlotEdits]. The
+ * class works on broken text and has no side effects.
  */
 internal class DescriptorCaret(private val schema: ValueShape.Record) {
 
@@ -62,8 +65,9 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
     }
 
     /**
-     * Whose value a node is: the [key] it belongs to and the object [owner] (with [ownerShape]) that holds the key, and
-     * the [container] it is a member value or item of (null for the root).
+     * Whose value a node is. [key] is the key it belongs to. [owner] is the object that holds the key, and [ownerShape]
+     * is what the schema expects of that object. [container] is what the node is a member value or item of. It is null
+     * for the root.
      */
     private data class Place(
         val key: DescriptorKey?,
@@ -72,10 +76,12 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
         val container: Container?,
     )
 
-    /** One search for the slot at [offset] in [document], whose root is [root]; [edits] works out the slot's edit. */
+    /**
+     * One search for the slot at [offset] in [document], whose root is [root]. [edits] works out the edit of the slot.
+     */
     private class Walk(val document: JsonDocument, val root: JsonNode, val offset: Int, val edits: SlotEdits) {
 
-        /** The slot in or at [node] (expected to have [shape]), or null if the caret is not there. */
+        /** The slot in or at [node], which should have [shape], or null if the caret is not there. */
         fun inValue(node: JsonNode, shape: ValueShape?, place: Place, limit: Int): DescriptorSlot? {
             val fitting = shape?.takeIf { it.accepts(node) }
             return when (node) {
@@ -99,7 +105,7 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
             }
         }
 
-        /** The slot in the object [node] (expected to have [shape]); its content reaches to [limit]. */
+        /** The slot in the object [node], which should have [shape]. Its content reaches to [limit]. */
         private fun inObject(node: JsonNode.ObjectNode, shape: ValueShape.Record?, limit: Int): DescriptorSlot {
             for (member in node.members) {
                 val key = member.key
@@ -124,9 +130,10 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
         }
 
         /**
-         * The slot of a new key of the object [owner] (expected to have [shape]) at [range], blank space or a bare word
-         * right after the object's `{` or a `,`: the whole member, or only the quoted name where a `:` follows the bare
-         * word, so the `:` and the value the user wrote behind it stay theirs.
+         * The slot of a new key of the object [owner], which should have [shape]. [range] is blank space or a bare word
+         * right after the `{` of the object or after a `,`. Completion writes the whole member there. Where a `:`
+         * follows the bare word, it writes only the quoted name, so the `:` and the value the user wrote behind it
+         * stay.
          */
         private fun newKey(owner: JsonNode.ObjectNode, shape: ValueShape.Record?, range: TextRange): DescriptorSlot.Key {
             val next = document.tokens.firstOrNull { it.range.start >= range.end }
@@ -138,8 +145,8 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
         }
 
         /**
-         * The slot on the key string of [member] of the object [owner] (expected to have [shape]): what completion
-         * writes there ([KeyPart]) decides whether it ends at the key and whether a `,` may be missing behind it.
+         * The slot on the key string of [member] of the object [owner], which should have [shape]. The [KeyPart] that
+         * completion writes there decides whether the edit ends at the key and whether a `,` may be missing behind it.
          */
         private fun keyOf(owner: JsonNode.ObjectNode, shape: ValueShape.Record?, member: JsonNode.Member): DescriptorSlot.Key {
             val part = KeyPart.of(member)
@@ -147,7 +154,7 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
             return DescriptorSlot.Key(owner, shape, member, edits.inString(member.key, container, continues = part != KeyPart.NAME), part)
         }
 
-        /** The slot in the list [node] (expected to have [shape]), which is the value of [place]. */
+        /** The slot in the list [node], which should have [shape] and is the value of [place]. */
         private fun inList(node: JsonNode.ArrayNode, shape: ValueShape.ListOf?, place: Place, limit: Int): DescriptorSlot {
             val item = shape?.item
             val itemPlace = place.copy(container = Container.LIST)
@@ -163,22 +170,26 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
         }
 
         /**
-         * The caret's place between the tokens of a container: the token before it, and the range a proposal replaces
-         * there, the bare word at the caret or the empty range at the caret.
+         * The place of the caret between the tokens of a container. It is the token before the caret, paired with the
+         * range a proposal replaces there. That range is the bare word at the caret or the empty range at the caret.
          */
         private fun gap(): Pair<JsonToken?, TextRange> {
             val word = bareWordAtCaret()
             return document.tokenBefore(word?.range?.start ?: offset) to (word?.range ?: TextRange.empty(offset))
         }
 
-        /** True if [before], the token before the caret, is the [open] bracket of the container at [range] or a `,` in it. */
+        /**
+         * True if [before], the token before the caret, is the [open] bracket of the container at [range] or a `,` in
+         * it.
+         */
         private fun opens(before: JsonToken?, range: TextRange, open: JsonTokenKind): Boolean =
             before != null && before.range.start >= range.start &&
                 (before.kind == open || before.kind == JsonTokenKind.VALUE_SEPARATOR)
 
         /**
-         * True if [before], the token before the caret, ends [last], the last member value or item of the container at
-         * [range], and nothing but the container's closing bracket (or the end of the text) follows [from].
+         * True if [before], the token before the caret, ends [last]. [last] is the last member value or item of the
+         * container at [range]. In addition, only the closing bracket of the container or the end of the text may
+         * follow [from].
          */
         private fun isAfterLast(last: JsonNode?, range: TextRange, isClosed: Boolean, before: JsonToken?, from: Int): Boolean {
             if (last == null || before == null || before.range.end != last.range.end) return false
@@ -187,8 +198,8 @@ internal class DescriptorCaret(private val schema: ValueShape.Record) {
         }
 
         /**
-         * The slot of a member without value whose colon ends at [colonEnd]: the caret is on the value up to the next
-         * token, or within a bare word right there; null if the caret lies beyond.
+         * The slot of a member without a value whose colon ends at [colonEnd]. The caret is on the value up to the next
+         * token, or within a bare word right there. It is null if the caret lies beyond.
          */
         private fun missingValue(colonEnd: Int, place: Place, shape: ValueShape?): DescriptorSlot? {
             val next = document.tokens.firstOrNull { it.range.start >= colonEnd }

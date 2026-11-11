@@ -20,19 +20,22 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Default [UndoManager] with transactions (groups), coalescing of typing and caret mementos (Memento pattern).
- * Owned by a [DefaultEditableText], which reports every applied change through [record]; undo and redo apply the
- * step's backward or forward script through the [target] as exactly one change.
+ * Default [UndoManager] with groups as transactions, coalescing of typing, and caret mementos in the sense of the
+ * Memento pattern. A [DefaultEditableText] owns it and reports every applied change through [record]. Undo and redo
+ * apply the backward or forward script of a step through the [target] as exactly one change.
  *
- * Collaborators: [UndoHistory] (stacks and save point), [UndoStep] (the mementos), [coalescer] (when typing merges).
- * The step being built — the open group's step or the current typing run's step — is always the top of the undo
- * stack, and every change to it replaces that top with a new [UndoStep].
+ * [UndoHistory] holds the stacks and the save point, [UndoStep] is the memento, and the [coalescer] decides when typing
+ * merges. The step being built is always the top of the undo stack. It is either the open group's step or the step of
+ * the current typing run. Every change to it replaces that top with a new [UndoStep].
  *
- * Refinements of [UndoManager]: a new text is at its save point (the initial text counts as saved); [markSavePoint]
- * and [checkpoint] end the coalescing run so the state stays reachable (inside a group it is unreachable once the group
- * applies another change); a group whose changes cancel out leaves no step; [undo], [redo] and [clear] must not be called
- * inside [group] (they throw [IllegalStateException]). Like the text, it is driven from the single writer thread; its
- * flows may be read from anywhere.
+ * The class adds these rules to [UndoManager]:
+ * - A new text is at its save point, because the initial text counts as saved.
+ * - [markSavePoint] and [checkpoint] end the coalescing run, so the state stays reachable. Inside a group the state
+ *   becomes unreachable once the group applies another change.
+ * - A group whose changes cancel out leaves no step.
+ * - [undo], [redo] and [clear] must not be called inside [group]. They throw [IllegalStateException] there.
+ *
+ * Like the text, it is driven from the single writer thread. Its flows may be read from anywhere.
  */
 internal class DefaultUndoManager(
     private val target: EditTarget,
@@ -44,7 +47,7 @@ internal class DefaultUndoManager(
     private val canRedoState = MutableStateFlow(false)
     private val savePointState = MutableStateFlow(true)
 
-    /** The last keystroke of the typing run the top step may still absorb, or null. */
+    /** The last keystroke of the typing run that the top step may still absorb, or null. */
     private var lastKeystroke: Keystroke? = null
 
     private var groupDepth = 0
@@ -60,8 +63,8 @@ internal class DefaultUndoManager(
     override val isAtSavePoint: StateFlow<Boolean> = savePointState.asStateFlow()
 
     /**
-     * Records [change], just applied to the text, with the carets the caller passed to `apply`: it becomes a new
-     * step, extends the open group's step, or coalesces with the current typing run.
+     * Records [change], which was just applied to the text, with the carets the caller passed to `apply`. The change
+     * becomes a new step, extends the open group's step, or coalesces with the current typing run.
      */
     fun record(change: TextChange, caretsBefore: List<CaretMemento>?, caretsAfter: List<CaretMemento>?) {
         if (groupDepth > 0) {
@@ -142,8 +145,8 @@ internal class DefaultUndoManager(
     }
 
     /**
-     * Records [change] inside the open group: the first change pushes the group's step, every further one extends it.
-     * Changes that cancel each other out leave no step, and the group's next change then starts a new one.
+     * Records [change] inside the open group. The first change pushes the group's step, and every further change
+     * extends it. Changes that cancel each other out leave no step, and the group's next change then starts a new one.
      */
     private fun recordInGroup(change: TextChange, caretsBefore: List<CaretMemento>?, caretsAfter: List<CaretMemento>?) {
         val top = history.undoTop
@@ -157,7 +160,7 @@ internal class DefaultUndoManager(
         }
     }
 
-    /** Applies a step's script; a step is never empty, so the text always changes. */
+    /** Applies the script of a step. A step is never empty, so the text always changes. */
     private fun commit(script: EditScript, origin: EditOrigin): TextChange {
         lastKeystroke = null
         return checkNotNull(target.commit(script.edits, origin)) { "an undo step changed nothing" }

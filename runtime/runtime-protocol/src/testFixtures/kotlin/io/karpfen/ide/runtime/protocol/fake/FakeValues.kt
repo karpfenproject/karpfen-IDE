@@ -20,9 +20,9 @@ import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 
 /**
- * An answer a test programs for the [FakeRuntime], exactly as the runtime would send it: a status, a body and a content
- * type. The body is a literal text, usually one of the runtime goldens, written with the runtime wire writer or
- * rendered from a [RuntimeText].
+ * An answer that a test programs for the [FakeRuntime], exactly as the runtime would send it. It has a status, a body
+ * and a content type. The body is a literal text, usually one of the runtime goldens, written with the runtime wire
+ * writer or rendered from a [RuntimeText].
  *
  * @property status the HTTP status.
  * @property body the response body.
@@ -45,7 +45,7 @@ public data class FakeResponse(public val status: Int, public val body: String =
         /** The status of any other exception on the runtime. */
         public const val SERVER_ERROR: Int = 500
 
-        /** The content type of the runtime's text answers, `call.respond(status, <String>)`. */
+        /** The content type of the runtime's text answers, which it sends with `call.respond(status, <String>)`. */
         public const val TEXT: String = "text/plain; charset=UTF-8"
 
         /** The content type of the model snapshot. */

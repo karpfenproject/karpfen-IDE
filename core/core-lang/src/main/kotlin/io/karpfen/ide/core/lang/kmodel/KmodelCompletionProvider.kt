@@ -28,11 +28,17 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
 /**
- * KModel completion: object body → `prop("…") -> "…"`, `has("…") -> make object "…":"…" { }`, `knows("…")
- * -> "…"` snippets; inside `prop("` → simple properties of the enclosing object's type; inside `has("`/`knows("` →
- * relation keys of that type (has only for has, knows only for knows); `make object "k":"` → types (for a has value
- * the relation's target type first); `knows("r") -> "` → keys of objects in the same model whose type matches (object
- * types from `SymbolDeclaration.typeName`, members from [types]). Before the root object: the `make object` snippet.
+ * Completion in KModel.
+ * - In an object body it offers the snippets `prop("…") -> "…"`, `has("…") -> make object "…":"…" { }` and
+ *   `knows("…") -> "…"`.
+ * - Inside `prop("` it offers the simple properties of the type of the enclosing object.
+ * - Inside `has("` or `knows("` it offers the relation keys of that type. `has` offers only `has` relations, and
+ *   `knows` offers only `knows` relations.
+ * - At `make object "k":"` it offers types. For the value of a `has` relation the target type of the relation comes
+ *   first.
+ * - At `knows("r") -> "` it offers the keys of the objects in the same model whose type matches. Object types come
+ *   from `SymbolDeclaration.typeName`, and members come from [types].
+ * - Before the root object it offers the `make object` snippet.
  */
 internal class KmodelCompletionProvider(
     private val slots: KmodelSlots,
@@ -51,7 +57,10 @@ internal class KmodelCompletionProvider(
         }
     }
 
-    /** The members of the enclosing object's type of the slot's kind (properties, `has` or `knows` relations). */
+    /**
+     * The members of the type of the enclosing object that have the kind of the slot. These are properties, `has`
+     * relations or `knows` relations.
+     */
     private fun keys(request: FeatureRequest, slot: KmodelSlot.Key): List<CompletionItem> {
         val type = slot.objectType?.let { types.type(request, it) } ?: return emptyList()
         return type.members.filter { it.kind == slot.kind }.map { member ->
@@ -61,7 +70,7 @@ internal class KmodelCompletionProvider(
         }
     }
 
-    /** The domain types, the target type of the `has` relation the object is the value of first. */
+    /** The domain types. The target type of the `has` relation whose value the object is comes first. */
     private fun objectTypes(request: FeatureRequest, slot: KmodelSlot.ObjectType): List<CompletionItem> {
         val preferred = slot.relation?.let { relation -> slot.ownerType?.let { types.type(request, it) }?.member(relation)?.typeName }
         return types.contextTypes(request).filter { it.origin == TypeOrigin.DOMAIN }.map { type ->
@@ -76,7 +85,9 @@ internal class KmodelCompletionProvider(
         }
     }
 
-    /** The objects of the file whose type is the target type of the `knows` relation (all of them if it is unknown). */
+    /**
+     * The objects of the file whose type is the target type of the `knows` relation, or all of them if it is unknown.
+     */
     private fun objects(request: FeatureRequest, slot: KmodelSlot.ObjectReference): List<CompletionItem> {
         val target = slot.ownerType?.let { types.type(request, it) }?.member(slot.relation)?.typeName?.takeIf { it.isNotEmpty() }
         return DocumentDeclarations(request.document).all(SymbolKind.OBJECT)

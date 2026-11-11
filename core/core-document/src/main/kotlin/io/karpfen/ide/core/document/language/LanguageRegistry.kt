@@ -18,9 +18,9 @@ package io.karpfen.ide.core.document.language
 import io.karpfen.ide.core.document.KarpfenLanguage
 
 /**
- * Resolves the [LanguageSupport] for a language or file name. The built-in registry of the karpfen
- * languages is created by `io.karpfen.ide.core.document.registry.defaultLanguageRegistry()`; tests build registries
- * from fakes with the [LanguageRegistry] factory function.
+ * Resolves the [LanguageSupport] for a language or a file name. The registry of the built-in karpfen languages is
+ * created by `io.karpfen.ide.core.document.registry.defaultLanguageRegistry()`. Tests build registries from fakes
+ * with the [LanguageRegistry] factory function.
  */
 public interface LanguageRegistry {
 
@@ -29,13 +29,13 @@ public interface LanguageRegistry {
 
     /**
      * The support for [language].
-     * @throws IllegalArgumentException if [language] is not registered (programming error).
+     * @throws IllegalArgumentException if [language] is not registered. That is a programming error.
      */
     public fun support(language: KarpfenLanguage): LanguageSupport
 
     /**
-     * The language of a file named [fileName] (`KarpfenLanguage.fromFileName`, the one file-name rule) if it is
-     * registered, else null.
+     * The language of a file named [fileName] if that language is registered, else null. The language comes from
+     * `KarpfenLanguage.fromFileName`, the only rule that maps file names to languages.
      */
     public fun languageOf(fileName: String): KarpfenLanguage?
 
@@ -44,7 +44,7 @@ public interface LanguageRegistry {
 }
 
 /**
- * A registry of [supports].
+ * A registry that holds [supports].
  * @throws IllegalArgumentException if two supports declare the same language.
  */
 public fun LanguageRegistry(supports: Collection<LanguageSupport>): LanguageRegistry {
@@ -53,7 +53,7 @@ public fun LanguageRegistry(supports: Collection<LanguageSupport>): LanguageRegi
     return MapLanguageRegistry(byLanguage)
 }
 
-/** Supports by language; file names are resolved with `KarpfenLanguage.fromFileName`. */
+/** Holds the supports by language. It resolves file names with `KarpfenLanguage.fromFileName`. */
 private class MapLanguageRegistry(private val byLanguage: Map<KarpfenLanguage, LanguageSupport>) : LanguageRegistry {
 
     override val languages: Set<KarpfenLanguage> = byLanguage.keys

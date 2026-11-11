@@ -32,10 +32,11 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
 import java.awt.event.KeyEvent as AwtKeyEvent
 
 /**
- * The Compose key adapter on synthesized events: the physical key table, modifiers, and the layout-aware punctuation
- * rule fed from the event's code point and from its native AWT event. [ComposeKeyInputTest] runs the same adapter
- * through a composed, focused component. Synthesizing events needs Compose's `KeyEvent(…)` factory, which is marked
- * internal-unstable (the test framework uses it the same way); production code never constructs key events.
+ * The Compose key adapter on synthesized events: the physical key table, the modifiers, and the layout-aware
+ * punctuation rule fed from the event's code point and from its native AWT event. [ComposeKeyInputTest] runs the same
+ * adapter through a composed, focused component. Synthesizing events needs Compose's `KeyEvent(…)` factory, which is
+ * marked internal and unstable. The test framework uses it the same way, and production code never constructs key
+ * events.
  */
 @OptIn(InternalComposeUiApi::class)
 class ComposeKeysTest {
@@ -61,7 +62,7 @@ class ComposeKeysTest {
 
     private val source = object : Component() {}
 
-    /** A synthesized AWT key press; AWT leaves its extended key code unset (only native events carry one). */
+    /** A synthesized AWT key press. AWT leaves its extended key code unset, because only native events carry one. */
     private fun awtPressed(keyCode: Int, keyChar: Char, modifiers: Int): AwtKeyEvent =
         AwtKeyEvent(source, AwtKeyEvent.KEY_PRESSED, 0L, modifiers, keyCode, keyChar, AwtKeyEvent.KEY_LOCATION_STANDARD)
 
@@ -132,7 +133,9 @@ class ComposeKeysTest {
         assertEquals(KeyStroke(KeyCode.SLASH, setOf(KeyModifier.META)), stroke)
     }
 
-    /** On Windows, Ctrl+/ reports the control character 0x1F as key char; the key code still names the slash key. */
+    /**
+     * On Windows, Ctrl+/ reports the control character 0x1F as its key char. The key code still names the slash key.
+     */
     @Test
     fun `the native key code is used when Ctrl turns the key char into a control character`() {
         val native = awtPressed(AwtKeyEvent.VK_SLASH, '\u001f', AwtKeyEvent.CTRL_DOWN_MASK)
@@ -163,8 +166,9 @@ class ComposeKeysTest {
     }
 
     /**
-     * Ctrl+Shift+7 on a German Windows layout carries no key char, and the key's own character is `7`; the manual test
-     * lists this limitation.
+     * Ctrl+Shift+7 on a German Windows layout carries no key char, and the key's own character is `7`. So the adapter
+     * reports the physical key, and toggle comment cannot be reached this way on that layout. This is a known
+     * limitation.
      */
     @Test
     fun `a native event without any character falls back to the physical key`() {

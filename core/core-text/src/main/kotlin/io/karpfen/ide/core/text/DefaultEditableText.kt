@@ -20,15 +20,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.TimeSource
 
 /**
- * Default [EditableText]: applies edits to a `String` (karpfen files are small, so a piece table or rope would not pay
- * off), keeps a bounded edit log for [mapOffset] (published together with each snapshot as an immutable value, so
- * mapping is thread-safe while the single writer edits) and delegates history to a [DefaultUndoManager]. Every snapshot
- * it publishes carries the one [TextLineage] created with the instance. `mapRange` is the interface's own
- * implementation on top of [mapOffset].
+ * Default [EditableText]. It applies edits to a `String`. Karpfen files are small, so a piece table or a rope would not
+ * pay off. It keeps a bounded edit log for [mapOffset]. The log is published together with each snapshot as an
+ * immutable value, so mapping is thread-safe while the single writer edits. The history is delegated to a
+ * [DefaultUndoManager]. Every snapshot it publishes carries the one [TextLineage] created with the instance.
+ * `mapRange` is the interface's own implementation on top of [mapOffset].
  *
- * A facade over three collaborators: [TextVersions] (current version, edit log, mapping), [DefaultUndoManager]
- * (history) and [ChangePublisher] (flows). An [apply] commits the edits, records them in the history and only then
- * publishes the change, so observers always see a text whose history is up to date.
+ * The class is a facade over three collaborators. [TextVersions] holds the current version and the edit log and does
+ * the mapping. [DefaultUndoManager] keeps the history. [ChangePublisher] feeds the flows. An [apply] commits the edits,
+ * records them in the history and only then publishes the change, so observers always see a text whose history is up
+ * to date.
  */
 internal class DefaultEditableText(
     initialText: String,
@@ -74,7 +75,10 @@ internal class DefaultEditableText(
 
     override fun toString(): String = "EditableText(${versions.current})"
 
-    /** The undo manager's access to the text: commits without recording and publishes through the same queue. */
+    /**
+     * The undo manager's access to the text. It commits without recording history and publishes through the same queue
+     * as [apply].
+     */
     private class PublishingTarget(
         private val versions: TextVersions,
         private val publisher: ChangePublisher,

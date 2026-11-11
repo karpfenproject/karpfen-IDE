@@ -33,8 +33,9 @@ import kotlin.coroutines.ContinuationInterceptor
 
 /**
  * A composed [Workbench] over a [TestWorkbench] for headless UI tests. The workbench state runs on the virtual time of
- * the test body's scheduler, which Compose's frame clock does not advance: [settle] runs the state's work and then
- * lets Compose catch up, a few times, so intents started by clicks and the recompositions they cause both complete.
+ * the test body's scheduler, which Compose's frame clock does not advance. [settle] therefore runs the state's work and
+ * then lets Compose catch up, and it does both a few times. Intents started by clicks and the recompositions they cause
+ * then both complete.
  */
 @OptIn(ExperimentalTestApi::class)
 class WorkbenchUi(val test: ComposeUiTest, val workbench: TestWorkbench) {
@@ -47,7 +48,7 @@ class WorkbenchUi(val test: ComposeUiTest, val workbench: TestWorkbench) {
         }
     }
 
-    /** The project-tree row of [path]. */
+    /** The project tree row of [path]. */
     fun treeRow(path: Path): SemanticsNodeInteraction = test.onNodeWithTag(TreeViewTestTags.row(path.toAbsolutePath().normalize()))
 
     /** The node tagged [tag]. */
@@ -55,8 +56,8 @@ class WorkbenchUi(val test: ComposeUiTest, val workbench: TestWorkbench) {
 }
 
 /**
- * Runs [block] with a composed workbench (1280 x 860 dp) whose settings live below [directory]; with [scriptSessions],
- * runs launch scriptable sessions.
+ * Runs [block] with a composed workbench of 1280 by 860 dp whose settings live below [directory]. With
+ * [scriptSessions], runs launch scriptable sessions.
  */
 @OptIn(ExperimentalTestApi::class)
 fun workbenchUiTest(directory: Path, scriptSessions: Boolean = false, block: suspend WorkbenchUi.() -> Unit) = runComposeUiTest {

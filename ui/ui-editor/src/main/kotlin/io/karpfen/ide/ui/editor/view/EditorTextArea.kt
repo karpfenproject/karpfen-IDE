@@ -41,10 +41,12 @@ import io.karpfen.ide.ui.editor.view.render.rememberCaretVisible
 import kotlin.math.roundToInt
 
 /**
- * The text layer of `CodeEditor`: paints the laid-out lines with [TextAreaPainter], reports its size and the content
- * size to the viewport, sends mouse input to the editor state ([textAreaPointerInput]) and hosts the [ProxyTextInput]
- * at the caret, which owns keyboard focus. Fills its parent, the overlay host's coordinate space. Its size is read in
- * composition, so a resize recomposes and reports the new geometry to the viewport.
+ * The text layer of `CodeEditor`. It paints the laid-out lines with [TextAreaPainter] and reports its size and the
+ * content size to the viewport. It sends mouse input to the editor state through [textAreaPointerInput]. It hosts the
+ * [ProxyTextInput] at the caret, which owns keyboard focus. It fills its parent, which is the coordinate space of the
+ * overlay host. Its size is read in composition, so a resize recomposes and reports the new geometry to the viewport.
+ * The content height includes [EditorViewport.CARET_MARGIN_LINES] extra lines, so the last line can be revealed with
+ * its margin.
  */
 @Composable
 internal fun EditorTextArea(render: EditorRenderState, focusRequester: FocusRequester, modifier: Modifier = Modifier) {
@@ -120,17 +122,17 @@ internal fun EditorTextArea(render: EditorRenderState, focusRequester: FocusRequ
     }
 }
 
-/** Layouts kept by the line layout cache (several screens of lines). */
+/** The number of layouts the line layout cache keeps. That is several screens of lines. */
 private const val LINE_LAYOUT_CACHE_SIZE = 512
 
-/** Cells of space right of the longest line. */
+/** The cells of space right of the longest line. */
 private const val RIGHT_PADDING_CELLS = 4
 
-/** Width of the drawn caret, in dp. */
+/** The width of the drawn caret, in dp. */
 private const val CARET_WIDTH = 2f
 
-/** Width of underlines and bracket boxes, in dp. */
+/** The width of underlines and bracket boxes, in dp. */
 private const val STROKE = 1f
 
-/** Amplitude of the wavy underlines of errors and warnings, in dp. */
+/** The amplitude of the wavy underlines of errors and warnings, in dp. */
 private const val WAVE_AMPLITUDE = 1.5f

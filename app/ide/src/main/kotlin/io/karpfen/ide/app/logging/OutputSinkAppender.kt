@@ -25,17 +25,21 @@ import io.karpfen.ide.ui.workbench.output.OutputLine
 import io.karpfen.ide.ui.workbench.output.OutputSink
 
 /**
- * The adapter from logback to the workbench's [OutputSink]: hands every event it receives to [sink] with its time,
- * level, logger name and message, and the file that the event's mapped diagnostic context names under
- * [DslToolsLoggers.FILE_KEY], the file dsl-tools read when it logged. The message is formatted with its arguments and followed by the stack trace of the
- * event's exception, if it has one, so the output shows what a log file would. Its lines are separated by
- * [OutputLine.LINE_BREAK] whatever the platform's line separator, which logback writes into stack traces, and it ends
- * without a line break, which a stack trace of logback otherwise ends with, so the output view shows no empty last line.
+ * The adapter from logback to the workbench's [OutputSink]. It hands every event it receives to [sink] with its time,
+ * level, logger name and message. It also passes the file that the event's mapped diagnostic context names under
+ * [DslToolsLoggers.FILE_KEY], which is the file dsl-tools was reading when it logged.
  *
- * logback calls [append] on the thread that logged, under the appender's lock; the sink is thread-safe and quick.
+ * The message is formatted with its arguments. If the event has an exception, the message is followed by its stack
+ * trace, so the output shows what a log file would. The lines are separated by [OutputLine.LINE_BREAK], whatever line
+ * separator the platform uses, because logback writes the platform's separator into stack traces. The message ends
+ * without a line break, although a stack trace from logback otherwise ends with one, so the output view shows no empty
+ * last line.
+ *
+ * logback calls [append] on the thread that logged, under the appender's lock. The sink is thread-safe and quick.
  */
 internal class OutputSinkAppender(private val sink: OutputSink) : AppenderBase<ILoggingEvent>() {
 
+    /** Hands [event] to the sink with its time, output level, logger name, message and file. */
     override fun append(event: ILoggingEvent) {
         sink.append(event.instant, outputLevelOf(event.level), event.loggerName, messageOf(event), event.mdcPropertyMap[DslToolsLoggers.FILE_KEY])
     }
@@ -52,7 +56,7 @@ internal class OutputSinkAppender(private val sink: OutputSink) : AppenderBase<I
         text.lineSequence().joinToString(OutputLine.LINE_BREAK).trimEnd(*OutputLine.LINE_BREAK.toCharArray())
 
     companion object {
-        /** The output level of the logback [level]: TRACE and anything finer count as [OutputLevel.TRACE]. */
+        /** The output level of the logback [level]. TRACE and anything finer count as [OutputLevel.TRACE]. */
         fun outputLevelOf(level: Level): OutputLevel = when {
             level.isGreaterOrEqual(Level.ERROR) -> OutputLevel.ERROR
             level.isGreaterOrEqual(Level.WARN) -> OutputLevel.WARNING

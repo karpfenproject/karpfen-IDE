@@ -19,15 +19,15 @@ import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.language.LanguageRegistry
 
 /**
- * The registry of the built-in karpfen languages (KMeta, KModel, KStates and environment descriptors). Construction
- * only wires objects; it never tokenizes or parses. [reader] is shared by the standalone semantics of KMeta and
- * KStates.
+ * The registry of the built-in karpfen languages: KMeta, KModel, KStates and environment descriptors. Building it only
+ * wires objects and never tokenizes or parses. The standalone semantics of KMeta and KStates share [reader].
  *
  * The supports are the concrete factories of the [io.karpfen.ide.core.document.language.LanguageSupport] product
- * family. The three modeling languages instantiate their tokenizer (package `antlr.lex`) and compose their parser from
- * the ANTLR syntax analyzer (`antlr.tree`) and the dsl-tools standalone semantics (`dsl`); environment descriptors
- * combine the JSON tokenizer (`json`) with the environment syntax analyzer (`environment`). A further language is a
- * new support class in this package plus one entry here; no existing language class changes.
+ * family. Each of the three modeling languages creates its tokenizer from the package `antlr.lex`. Its parser is
+ * composed of the ANTLR syntax analyzer from `antlr.tree`. KMeta and KStates add the dsl-tools standalone semantics
+ * from `dsl`. Environment descriptors combine the JSON tokenizer from `json` with the environment syntax analyzer from
+ * `environment`. A further language needs a new support class in this package and one entry here. No existing
+ * language class changes.
  */
 public fun defaultLanguageRegistry(reader: DslReader = DslReader()): LanguageRegistry =
     LanguageRegistry(

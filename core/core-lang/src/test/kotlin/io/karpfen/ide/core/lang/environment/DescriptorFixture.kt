@@ -32,22 +32,22 @@ import java.nio.file.Path
 import java.util.Collections
 
 /**
- * The example workspace of [ExampleProject] with an environment descriptor next to the single-robot files and a bridge
- * configuration, as the descriptor features see it: the analysis of the examples and a file tree of every example file
- * plus [BRIDGE] (the descriptor itself is the document under test, at [PATH]).
+ * The example workspace of [ExampleProject] with an environment descriptor and a bridge configuration next to the
+ * single-robot files, as the descriptor features see it. It holds the analysis of the examples and a file tree of every
+ * example file plus [BRIDGE]. The descriptor itself is the document under test, at [PATH].
  */
 internal object DescriptorFixture {
 
-    /** Where the descriptor under test lives: in the single-robot example directory. */
+    /** Where the descriptor under test lives, which is the single-robot example directory. */
     val PATH: Path = ExampleProject.pathOf("${ExamplePaths.ROBOT_DIR}/single_robot.kenv.json")
 
     /** A bridge configuration in the single-robot example directory. */
     val BRIDGE: Path = ExampleProject.pathOf("${ExamplePaths.ROBOT_DIR}/mqtt-sim.kbridge.json")
 
-    /** The valid descriptor fixture's text. */
+    /** The text of the valid descriptor fixture. */
     val VALID: String = DescriptorExamples.text(DescriptorExamples.VALID)
 
-    /** The file tree: every example file, [PATH] and [BRIDGE]. */
+    /** The file tree with every example file, [PATH] and [BRIDGE]. */
     val tree: WorkspaceTree by lazy { treeWith() }
 
     /** The file tree of every example file, [PATH], [BRIDGE] and the [extra] files. */
@@ -57,8 +57,8 @@ internal object DescriptorFixture {
     fun treeWithout(vararg missing: Path): WorkspaceTree = treeOf(exampleFiles() - missing.toSet())
 
     /**
-     * The default services over the examples' analysis and [files], by default [tree]; [failures] collects every
-     * provider failure.
+     * The default services over the analysis of the examples and [files], which defaults to [tree]. [failures]
+     * collects every provider failure.
      */
     fun services(
         failures: MutableList<ProviderFailure> = Collections.synchronizedList(ArrayList()),
@@ -71,7 +71,7 @@ internal object DescriptorFixture {
     /** The descriptor document with [text] at [PATH]. */
     fun document(text: String, version: Long = 1): LanguageDocument = ExampleProject.document(PATH, text, version)
 
-    /** The document of [textWithCaret] (the caret marked with `‸`) and the caret's offset. */
+    /** The document of [textWithCaret], in which `‸` marks the caret, and the offset of the caret. */
     fun at(textWithCaret: String): Pair<LanguageDocument, Int> {
         val offset = textWithCaret.indexOf(CARET)
         require(offset >= 0) { "no caret marker" }
@@ -81,7 +81,7 @@ internal object DescriptorFixture {
     /** Every example file, [PATH] and [BRIDGE]. */
     private fun exampleFiles(): List<Path> = Examples.files().map { ExampleProject.pathOf(it.path) } + listOf(PATH, BRIDGE)
 
-    /** The tree below the examples' root holding exactly [files]. */
+    /** The tree below the root of the examples that holds exactly [files]. */
     private fun treeOf(files: List<Path>): WorkspaceTree = WorkspaceTree(directory(ExampleProject.ROOT, files))
 
     /** The directory node of [path] with every file of [files] below it. */

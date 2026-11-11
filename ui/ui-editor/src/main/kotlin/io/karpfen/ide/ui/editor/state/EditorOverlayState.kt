@@ -24,16 +24,16 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /** Which find bar is open. */
 public enum class FindBarMode {
-    /** Find only (Cmd/Ctrl+F). */
+    /** Find only, opened with primary+F. */
     FIND,
 
-    /** Find and replace (Cmd/Ctrl+R). */
+    /** Find and replace, opened with primary+R. */
     REPLACE,
 }
 
 /**
- * What the hover tooltip shows for [range]: the [diagnostics] at the position if there are any, otherwise the language
- * [hover]. At least one of them is present.
+ * What the hover tooltip shows for [range]. It shows the [diagnostics] at the position if there are any, and the
+ * language [hover] otherwise. At least one of the two is present.
  */
 public data class HoverContent(public val range: TextRange, public val diagnostics: List<Diagnostic>, public val hover: Hover?) {
     init {
@@ -42,21 +42,25 @@ public data class HoverContent(public val range: TextRange, public val diagnosti
 }
 
 /**
- * A context-menu request at text [offset], shown at ([x], [y]) px in the coordinate space of the `EditorOverlayHost`
- * (the text area, i.e. the Box the `EditorOverlays.Popups` slot is placed in; neither the gutter nor the header slot
- * is included), so the view reports and the popups place it in the same space.
+ * A request to open the context menu at text [offset]. The menu is shown at [x] and [y], in pixels, in the coordinate
+ * space of the `EditorOverlayHost`. That space is the text area, which is the Box the `EditorOverlays.Popups` slot is
+ * placed in. It includes neither the gutter nor the header slot. So the view reports the position and the popups place
+ * the menu in the same space.
  */
 public data class ContextMenuRequest(public val offset: Int, public val x: Float, public val y: Float)
 
 /**
- * Which editor overlays are open (find bar, go-to-line, hover, context menu). The completion popup's state lives in
- * `CompletionSessionModel`. This is the state the overlay slot (`EditorOverlays`) renders; the editor state opens
- * overlays from gestures and actions, the popups close them. Compose-free and shared by the view and the popups. A
- * concrete class, not an interface: a plain state holder without collaborators is its own fake, so tests use the real
- * one. Like `CodeEditorState` it is a mutable state holder outside the editor model and therefore named `*State`.
+ * Which editor overlays are open: the find bar, go-to-line, the hover tooltip and the context menu. The state of the
+ * completion popup lives in `CompletionSessionModel` instead.
  *
- * Find matches are drawn by the view only while [findBar] is open; closing the bar ends the highlights without
- * touching the find query.
+ * The overlay slot `EditorOverlays` renders this state. The editor state opens overlays from gestures and actions, and
+ * the popups close them. The class does not need Compose and is shared by the view and the popups. It is a concrete
+ * class, not an interface, because a plain state holder without collaborators is its own fake. So tests use the real
+ * one. Like `CodeEditorState`, it is a mutable state holder outside the editor model, and that is why its name ends in
+ * `State`.
+ *
+ * The view draws find matches only while [findBar] is open. Closing the bar ends the highlights without touching the
+ * find query.
  */
 public class EditorOverlayState {
 
@@ -70,8 +74,9 @@ public class EditorOverlayState {
     public val findBar: StateFlow<FindBarMode?> = findBarState.asStateFlow()
 
     /**
-     * Counts [openFind] calls. The find bar focuses its query field and selects the query whenever the value changes,
-     * so a second Cmd/Ctrl+F while the bar is open in the same mode (no change of [findBar]) still refocuses it.
+     * Counts the calls of [openFind]. The find bar focuses its query field and selects the query whenever this value
+     * changes. So a second primary+F while the bar is open in the same mode still focuses the field again, although
+     * [findBar] does not change.
      */
     public val findFocusRequests: StateFlow<Long> = findFocusState.asStateFlow()
 
@@ -85,9 +90,9 @@ public class EditorOverlayState {
     public val contextMenu: StateFlow<ContextMenuRequest?> = contextMenuState.asStateFlow()
 
     /**
-     * Opens the find bar in [mode] (switches mode if already open) and requests focus for its query field
-     * ([findFocusRequests]). Seeding the query (e.g. from a one-line selection) is done before through
-     * `FindModel.setQuery`.
+     * Opens the find bar in [mode], or switches its mode if it is already open. It also requests focus for the query
+     * field through [findFocusRequests]. Seeding the query, for example from a selection on one line, happens before
+     * this call through `FindModel.setQuery`.
      */
     public fun openFind(mode: FindBarMode) {
         findBarState.value = mode
@@ -99,7 +104,7 @@ public class EditorOverlayState {
         findBarState.value = null
     }
 
-    /** Opens the go-to-line popup (closing hover and context menu). */
+    /** Opens the go-to-line popup and closes the hover tooltip and the context menu. */
     public fun openGoToLine() {
         hoverState.value = null
         contextMenuState.value = null
@@ -121,7 +126,7 @@ public class EditorOverlayState {
         hoverState.value = null
     }
 
-    /** Opens the context menu for [request] (hiding the hover tooltip). */
+    /** Opens the context menu for [request] and hides the hover tooltip. */
     public fun openContextMenu(request: ContextMenuRequest) {
         hoverState.value = null
         contextMenuState.value = request
@@ -132,7 +137,7 @@ public class EditorOverlayState {
         contextMenuState.value = null
     }
 
-    /** Closes every overlay (e.g. when the editor is disposed). */
+    /** Closes every overlay, for example when the editor is disposed. */
     public fun closeAll() {
         findBarState.value = null
         goToLineState.value = false

@@ -21,7 +21,7 @@ import io.karpfen.ide.runtime.protocol.conformance.LiveRuntimeUnderTest
 import io.karpfen.ide.runtime.protocol.conformance.RuntimeUnderTest
 
 /**
- * Covers the client's connection ([ConnectionScenarios]) against the real runtime that the live task is given, usually a
+ * Runs the scenarios of [ConnectionScenarios] against the real runtime that the live task is given. That is usually a
  * throwaway container of `runtime/live-runtime.sh test`.
  */
 @LiveRuntime

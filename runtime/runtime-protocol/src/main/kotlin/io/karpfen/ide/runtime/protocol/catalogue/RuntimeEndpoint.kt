@@ -16,11 +16,11 @@
 package io.karpfen.ide.runtime.protocol.catalogue
 
 /**
- * Where a karpfen runtime listens: its HTTP routes below [httpBase] and its WebSocket at [webSocketUrl], on the same
- * host and port.
+ * Where a karpfen runtime listens. Its HTTP routes lie below [httpBase] and its WebSocket at [webSocketUrl], on the
+ * same host and port.
  *
  * @property secure true for `https` and `wss`, false for `http` and `ws`.
- * @property host the host name or IP address; an IPv6 address without its brackets.
+ * @property host the host name or IP address. An IPv6 address is given without its brackets.
  * @property port the TCP port, from 1 to 65535.
  * @throws IllegalArgumentException if [host] is blank or [port] is out of range.
  */
@@ -31,7 +31,7 @@ public data class RuntimeEndpoint(public val secure: Boolean, public val host: S
         require(port in PORTS) { "the port of a runtime endpoint must be in $PORTS, not $port" }
     }
 
-    /** The host as a URL writes it: an IPv6 address in brackets, any other host as it is. */
+    /** The host and port as a URL writes them. An IPv6 address goes in brackets, and any other host stays as it is. */
     private val authority: String
         get() = if (':' in host) "[$host]:$port" else "$host:$port"
 
@@ -39,16 +39,27 @@ public data class RuntimeEndpoint(public val secure: Boolean, public val host: S
     public val httpBase: String
         get() = "${if (secure) HTTPS else HTTP}://$authority"
 
-    /** The URL of the runtime's WebSocket, such as `ws://127.0.0.1:8080/ws` (`wss` for a secure endpoint). */
+    /** The URL of the runtime's WebSocket, such as `ws://127.0.0.1:8080/ws`. A secure endpoint uses `wss`. */
     public val webSocketUrl: String
         get() = "${if (secure) WSS else WS}://$authority${WireNames.WEB_SOCKET_PATH}"
 
     public companion object {
+        /** The scheme of a plain HTTP endpoint. */
         private const val HTTP = "http"
+
+        /** The scheme of a secure HTTP endpoint. */
         private const val HTTPS = "https"
+
+        /** The scheme of a plain WebSocket. */
         private const val WS = "ws"
+
+        /** The scheme of a secure WebSocket. */
         private const val WSS = "wss"
+
+        /** What follows the scheme in a URL. */
         private const val SCHEME_END = "://"
+
+        /** The valid TCP ports. */
         private val PORTS = 1..65_535
 
         /** A host name or an IPv4 address: letters, digits, dots and hyphens. */
@@ -58,8 +69,9 @@ public data class RuntimeEndpoint(public val secure: Boolean, public val host: S
         private val IPV6_ADDRESS = Regex("[0-9A-Fa-f:.]+")
 
         /**
-         * The endpoint of [url]: `http` or `https`, a host, an optional port (80 or 443 when absent) and no path other
-         * than `/`, no query, no fragment and no user information, such as `http://127.0.0.1:8080` or
+         * Parses [url] into an endpoint. The URL has the scheme `http` or `https`, a host and an optional port.
+         * Without a port, the default is 80 for `http` and 443 for `https`. The URL has no path other than `/`, no
+         * query, no fragment and no user information. Examples are `http://127.0.0.1:8080` and
          * `https://runtime.example.org/`.
          *
          * @throws IllegalArgumentException if [url] is not such a URL.

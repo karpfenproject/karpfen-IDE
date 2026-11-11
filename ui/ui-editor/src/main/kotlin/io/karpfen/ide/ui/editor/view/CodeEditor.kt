@@ -49,34 +49,44 @@ import io.karpfen.ide.ui.editor.view.scroll.ScrollAxis
 import io.karpfen.ide.ui.editor.view.scroll.ViewportScrollbarAdapter
 
 /**
- * The code editor. Renders [state] and sends user intents to it; contains no editing logic.
+ * The code editor. It renders [state] and sends user intents to it. It contains no editing logic.
  *
- * - Rendering: virtualized (visible lines + overscan) with `TextMeasurer`/`drawText` and a per-line layout LRU cache
- *   keyed by line text + spans + font settings; gutter with one-based line numbers and diagnostic markers; current
- *   line, selection, blinking caret (solid while typing), wavy (ERROR, WARNING) and dotted (INFO) underlines,
- *   matching-bracket boxes, find matches (only while `overlays.findBar` is open); tabs at `EditorSettings.tabDisplayWidth`
- *   stops with `TabStops` (also for hit-testing and the caret x); ranges of older versions (highlight spans,
- *   diagnostics while `VersionedDiagnostics` lags, bracket matches) mapped with `EditableText.mapRange` — never by
- *   mapping their bounds separately; a range that does not map is not drawn.
- * - Input: key events become `KeyStroke`s for `state.handleKey`, and the event is consumed exactly when it returns true
- *   (unhandled strokes reach the window's menu accelerators); typed text goes to `state.type` through a hidden proxy
- *   text field at the caret (works for every layout, macOS Option combinations, dead keys, IME; the approach and why
- *   it was chosen are documented on the internal `ProxyTextInput`); exposes `SemanticsActions.InsertTextAtCursor` (and
- *   `RequestFocus`) on this composable's node so `performTextInput` works in tests. `SetText` is exposed as well,
- *   because text input in tests requires it next to `InsertTextAtCursor`, but it refuses: replacing the whole document
- *   is not an editor gesture. Focus changes of the text area go to `state.onFocusChanged`.
- * - Mouse: hit-testing only — primary press → `state.pointerPressed(offset, clickCount, modifiers)`, drag →
- *   `state.pointerDragged(offset)` (plus the edge auto-scroll timer), release → `state.pointerReleased()`; the state
- *   decides caret move, word/line selection, Shift-extension and primary-modifier go-to-definition. Pointer movement →
- *   `state.pointerHover(offset)` (the state owns the 600 ms delay); right-click → `state.openContextMenuAt(offset, x, y)`
- *   with x/y in the `EditorOverlayHost` space. The wheel and the desktop scrollbars scroll `state.viewport`.
- * - Pending requests: applies `state.scrollRequest` (the state also issues the caret reveal after actions, typing and
- *   find navigation) and `state.focusRequested` when composed, then consumes them.
- * - Overlays: [overlays] hosts the popups (see [EditorOverlays]).
+ * Rendering is virtualized. Only the visible lines plus some overscan are laid out, with `TextMeasurer` and `drawText`.
+ * A least recently used cache keeps the layout of each line, keyed by line text, spans and font settings. The gutter
+ * shows one-based line numbers and diagnostic markers. The text area draws the current line, the selection and a
+ * blinking caret that stays solid while the user types. Errors and warnings get wavy underlines, and information gets
+ * dotted ones. Matching brackets get boxes. Find matches are drawn only while `overlays.findBar` is open. Tabs advance
+ * to stops of `EditorSettings.tabDisplayWidth` through `TabStops`, which hit-testing and the caret x use as well.
  *
- * @param onNavigate for simple embeddings without a workbench: collects `state.navigationRequests` while composed and
- *   calls this with each target. The workbench collects the requests itself (for the editor's whole life) and leaves
- *   the default.
+ * Ranges of older text versions are mapped with `EditableText.mapRange` before they are drawn. Such ranges are
+ * highlight spans, diagnostics while `VersionedDiagnostics` lags behind, and bracket matches. They are never mapped by
+ * mapping their bounds separately. A range that does not map is not drawn.
+ *
+ * Key events become `KeyStroke`s for `state.handleKey`. The event is consumed exactly when that call returns true, so
+ * unhandled strokes reach the menu accelerators of the window. Typed text goes to `state.type` through a hidden proxy
+ * text field at the caret. This works for every keyboard layout, the Option combinations of macOS, dead keys and input
+ * methods. The internal `ProxyTextInput` documents this approach and why it was chosen. Focus changes of the text area
+ * go to `state.onFocusChanged`.
+ *
+ * The node of this composable exposes `SemanticsActions.InsertTextAtCursor` and `RequestFocus`, so `performTextInput`
+ * works in tests. It exposes `SetText` as well, because text input in tests requires it next to
+ * `InsertTextAtCursor`. But `SetText` refuses, because replacing the whole document is not an editor gesture.
+ *
+ * The mouse handling only hit-tests. A primary press calls `state.pointerPressed(offset, clickCount, modifiers)`. A
+ * drag calls `state.pointerDragged(offset)` and runs a timer for automatic scrolling at the edges. A release calls
+ * `state.pointerReleased()`. The state decides about caret moves, word and line selection, extending with Shift and go
+ * to definition with the primary modifier. Pointer movement calls `state.pointerHover(offset)`, and the state owns the
+ * 600 ms hover delay. A right-click calls `state.openContextMenuAt(offset, x, y)` with x and y in the
+ * `EditorOverlayHost` space. The wheel and the desktop scrollbars scroll `state.viewport`.
+ *
+ * When composed, the editor applies `state.scrollRequest` and `state.focusRequested` and then consumes them. The state
+ * also issues the caret reveal after actions, typing and find navigation as a scroll request.
+ *
+ * [overlays] hosts the popups, as described on [EditorOverlays].
+ *
+ * @param onNavigate is for simple embeddings without a workbench. While the editor is composed, it collects
+ *   `state.navigationRequests` and calls this with each target. The workbench collects the requests itself for the
+ *   whole life of the editor and leaves the default.
  */
 @Composable
 public fun CodeEditor(
@@ -144,5 +154,5 @@ public fun CodeEditor(
     }
 }
 
-/** Width of the caret rectangle reported to the overlays. */
+/** The width of the caret rectangle reported to the overlays, in dp. */
 private const val CARET_HOST_WIDTH = 2f

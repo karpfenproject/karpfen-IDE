@@ -37,18 +37,22 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 /**
- * The highlight pipeline of one editor ([EditorViewModel.highlights]).
+ * The highlight pipeline of one editor, which feeds [EditorViewModel.highlights].
  *
- * Follows the session's tokens and parse; whenever the tokens belong to the current text, it computes on
- * [backgroundDispatcher] (latest wins) and publishes in [scope]:
- * - parse of the tokens' version: `LanguageServices.highlight` (lexical styles overlaid with the semantic ones);
- * - parse lagging (every keystroke until the debounced parse arrives): the fresh lexical spans, overlaid
- *   ([overlayHighlights], the one overlay rule) with the semantic-style spans of the previously published snapshot,
- *   mapped to the tokens' version with `EditableText.mapRange` (null or empty results dropped), so the semantic colours
- *   of untouched names do not flicker while typing.
+ * It follows the tokens and the parse of the session. Whenever the tokens belong to the current text, it computes the
+ * highlights on [backgroundDispatcher] and publishes them in [scope]. The latest computation wins.
  *
- * Tokens of an older version than the text are skipped: the session's tokenizer always catches up with the newest
- * version, and spans are only ever computed for a text whose tokens they came from.
+ * If the parse has the same version as the tokens, the result is `LanguageServices.highlight`, which overlays the
+ * lexical styles with the semantic ones.
+ *
+ * If the parse lags behind, which happens on every keystroke until the debounced parse arrives, the result is
+ * different. The fresh lexical spans are overlaid with the semantic spans of the previously published snapshot. Those
+ * spans are mapped to the tokens' version with `EditableText.mapRange`, and spans that do not map or become empty are
+ * dropped. The overlay uses [overlayHighlights], the single overlay rule. So the semantic colours of untouched names
+ * do not flicker while the user types.
+ *
+ * Tokens of a version older than the text are skipped. The tokenizer of the session always catches up with the newest
+ * version, and spans are only ever computed for the text their tokens came from.
  */
 internal class HighlightPipeline(
     private val session: DocumentSession,
@@ -59,7 +63,7 @@ internal class HighlightPipeline(
 
     private val published = MutableStateFlow(HighlightSnapshot(session.tokens.value.version, emptyList()))
 
-    /** The latest highlight result (initially empty for the initial tokens' version). */
+    /** The latest highlight result. At the start it is empty and has the version of the initial tokens. */
     val highlights: StateFlow<HighlightSnapshot> = published.asStateFlow()
 
     init {
@@ -76,8 +80,9 @@ internal class HighlightPipeline(
     }
 
     /**
-     * The highlights of [snapshot] from [tokens] and [parse]; with a lagging parse the lexical spans carry the semantic
-     * spans of [previous] over. Null when the language services failed (logged), so the previous result stays.
+     * Computes the highlights of [snapshot] from [tokens] and [parse]. With a lagging parse, the lexical spans carry
+     * the semantic spans of [previous] over. Returns null when the language services failed, so the previous result
+     * stays. A failure is logged.
      */
     private fun compute(
         snapshot: TextSnapshot,
@@ -105,7 +110,7 @@ internal class HighlightPipeline(
         return HighlightSnapshot(tokens.version, overlayHighlights(spans, carriedSemantics(previous, tokens.version)))
     }
 
-    /** The semantic-style spans of [previous] mapped to [version] (spans that do not map or collapse are dropped). */
+    /** Returns the semantic spans of [previous] mapped to [version]. Spans that do not map or collapse are dropped. */
     private fun carriedSemantics(previous: HighlightSnapshot, version: Long): List<HighlightSpan> {
         val text = session.text
         return previous.spans.mapNotNull { span ->
@@ -117,7 +122,7 @@ internal class HighlightPipeline(
 
     /** The logger. */
     private companion object {
-        /** Reports failures of the language services; the previous highlights then stay. */
+        /** Reports failures of the language services. The previous highlights then stay. */
         val logger: Logger = LoggerFactory.getLogger(HighlightPipeline::class.java)
     }
 }

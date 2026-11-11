@@ -36,10 +36,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers how the failure locator turns the runtime's failures during a deployment into problems: the known texts of the
- * runtime's model parser located at the object they name, other parser texts and internal errors at the uploaded file,
- * an unknown attachment at the descriptor, failures of the runtime check, failures without a location described by
- * themselves, and refusals of the environment handle.
+ * Covers how the failure locator turns the runtime's failures during a deployment into problems. The known texts of the
+ * runtime's model parser are located at the object they name. Other parser texts and internal errors are located at the
+ * uploaded file, and an unknown attachment at the descriptor. The tests also cover failures of the runtime check,
+ * failures without a location, which are described by themselves, and refusals of the environment handle.
  */
 class FailureLocatorTest {
 

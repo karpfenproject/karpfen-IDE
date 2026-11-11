@@ -31,8 +31,8 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers each finding code of the planner's gate and preflight checks on a workspace edited to provoke it: its
- * severity, whether it blocks, and where it points.
+ * Covers each finding code of the planner's gate and preflight checks on a workspace edited to provoke it. It checks
+ * the code's severity, whether it blocks, and where it points.
  */
 class PlanChecksTest {
 

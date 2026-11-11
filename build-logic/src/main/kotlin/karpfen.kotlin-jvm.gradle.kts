@@ -63,11 +63,12 @@ dependencies {
 }
 
 /**
- * Runs the tests on the JUnit Platform, reports failures with their full stack traces and excludes the time-budget
- * tests ([TestTags.BUDGET]) from every test task; [TestTags] explains why they are never run. The tests against a real
- * runtime ([TestTags.LIVE_RUNTIME]) are excluded from every test task but the live task of the runtime modules
- * ([LiveRuntimeTesting.TASK_NAME]), and the tests against the local Docker engine ([TestTags.LIVE_DOCKER]) from every
- * test task but runtime-host's [LiveDockerTesting.TASK_NAME]; neither live task may inherit the exclusion of its tag.
+ * Runs the tests on the JUnit Platform and reports failures with their full stack traces. Every test task excludes the
+ * time-budget tests ([TestTags.BUDGET]), and [TestTags] explains why they never run. The tests against a real runtime
+ * ([TestTags.LIVE_RUNTIME]) are excluded from every test task except the live task of the runtime modules,
+ * [LiveRuntimeTesting.TASK_NAME]. The tests against the local Docker engine ([TestTags.LIVE_DOCKER]) are excluded from
+ * every test task except runtime-host's [LiveDockerTesting.TASK_NAME]. A live task must not inherit the exclusion of its
+ * own tag, or it would find no test.
  */
 tasks.withType<Test>().configureEach {
     val runsLiveRuntimeTests = name == LiveRuntimeTesting.TASK_NAME
@@ -91,9 +92,10 @@ tasks.withType<Test>().configureEach {
 val modulePath: String = path
 
 /**
- * Checks the project dependencies of this module against [ModuleDependencyRules]. The task gets two plain string lists,
- * so it never touches the project model and no other project is accessed: the project dependencies declared on the
- * module's configurations and the first-level project dependencies of its resolved classpaths, both wired below.
+ * Checks the project dependencies of this module against [ModuleDependencyRules]. The task gets two plain lists of
+ * strings, so it never touches the project model and never accesses another project. One list holds the project
+ * dependencies declared on the module's configurations. The other holds the first-level project dependencies of its
+ * resolved classpaths. Both are wired below.
  */
 val verifyModuleDependencies = tasks.register<VerifyModuleDependencies>("verifyModuleDependencies") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -141,6 +143,7 @@ sourceSets.configureEach {
     }
 }
 
+/** Makes `check` run the dependency check, so `./gradlew build` and CI fail on a forbidden project dependency. */
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
     dependsOn(verifyModuleDependencies)
 }

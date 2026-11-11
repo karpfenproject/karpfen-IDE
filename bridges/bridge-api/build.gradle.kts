@@ -18,8 +18,8 @@ plugins {
 }
 
 /**
- * The runtime protocol is part of the API: mappings translate between external messages and the karpfen events and
- * object changes of the protocol.
+ * The API of the bridges, which holds no code yet. The runtime protocol is part of this API, because mappings translate
+ * between external messages and the karpfen events and object changes of the protocol.
  */
 dependencies {
     api(project(":runtime:runtime-protocol"))

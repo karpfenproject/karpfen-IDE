@@ -24,9 +24,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Covers [WebSocketFrames], the pure part of the WebSocket adapter: text frames keep their UTF-8 text, binary frames
- * their size, control frames are left to Ktor; a close reason becomes the link's closure with its code and message, no
- * close frame a closure without code; the client's close becomes Ktor's close reason.
+ * Covers [WebSocketFrames], the pure part of the WebSocket adapter. Text frames keep their UTF-8 text, and binary
+ * frames keep their size. Control frames are left to Ktor. A close reason becomes the link's closure with its code and
+ * message. A missing close frame becomes a closure without code. The client's close becomes Ktor's close reason.
  */
 class WebSocketFramesTest {
 

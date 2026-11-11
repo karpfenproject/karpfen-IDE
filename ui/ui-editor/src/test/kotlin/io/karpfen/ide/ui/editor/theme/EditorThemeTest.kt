@@ -25,8 +25,10 @@ import kotlin.test.assertTrue
 /** The editor palettes: complete syntax styles and readable text in both themes. */
 class EditorThemeTest {
 
+    /** The light and the dark editor theme by name. */
     private val themes = mapOf("light" to lightEditorTheme(), "dark" to darkEditorTheme())
 
+    /** The WCAG contrast ratio of [a] and [b], from 1 to 21. */
     private fun contrast(a: Color, b: Color): Float {
         val (light, dark) = listOf(a.luminance(), b.luminance()).sortedDescending()
         return (light + 0.05f) / (dark + 0.05f)

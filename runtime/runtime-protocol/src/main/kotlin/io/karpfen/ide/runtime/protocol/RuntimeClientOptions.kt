@@ -22,8 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlin.time.TimeSource
 
 /**
- * How a [RuntimeClient] runs, with the production defaults; tests hand in a test dispatcher and its time source, so
- * every delay, timeout and backoff runs on virtual time.
+ * How a [RuntimeClient] runs. The defaults are the production values. Tests hand in a test dispatcher and its time
+ * source, so every delay, timeout and backoff runs on virtual time.
  *
  * @property dispatcher where the client runs its calls, delays and timeouts.
  * @property timeSource the clock of the client's measurements.

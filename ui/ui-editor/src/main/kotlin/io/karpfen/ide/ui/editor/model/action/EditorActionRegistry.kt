@@ -19,56 +19,61 @@ import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import io.karpfen.ide.ui.foundation.keys.KeyStroke
 
-/** The key-bound and menu actions of an editor by id. */
+/** The actions of an editor that keys and menus run, looked up by id. */
 public interface EditorActionRegistry {
 
     /** All registered actions. */
     public val actions: Collection<EditorAction>
 
-    /** The action [id], or null. */
+    /** Returns the action with [id], or null if there is none. */
     public fun get(id: String): EditorAction?
 
-    /** Runs the action [id] in [context] if it is registered and enabled; returns whether it did something. */
+    /** Runs the action with [id] in [context] if it is registered and enabled. Returns whether it did something. */
     public fun execute(id: String, context: EditorActionContext): Boolean
 }
 
 /**
- * A registry of [actions].
+ * Creates a registry of [actions]. By default these are all actions of [defaultEditorActions].
+ *
  * @throws IllegalArgumentException if two actions share an id.
  */
 public fun EditorActionRegistry(actions: Collection<EditorAction> = defaultEditorActions()): EditorActionRegistry =
     DefaultEditorActionRegistry(actions)
 
 /**
- * Maps key strokes to action ids for one platform. Includes at least: caret movement with and without Shift, word
- * movement (Alt on macOS, Ctrl elsewhere), smart Home/End, Page Up/Down, document start/end, Select All, Enter,
- * Backspace, Delete, delete word, delete line (primary+Backspace on macOS, Ctrl+Y elsewhere), duplicate (primary+D),
- * move line (Alt+Shift+Up/Down), Tab/Shift+Tab, toggle comment (primary+/), copy/cut/paste, undo (primary+Z), redo
- * (primary+Shift+Z), find (primary+F), replace (primary+R), find next / previous (Cmd+G / Shift+Cmd+G on macOS, F3 /
- * Shift+F3 elsewhere), go to line (Cmd+L on macOS, Ctrl+G elsewhere), completion (Ctrl+M on every platform, on
- * Windows also Ctrl+Space), go to definition (primary+B).
+ * Maps key strokes to action ids for one platform. "Primary" below means Cmd on macOS and Ctrl elsewhere.
  *
- * Bindings are key strokes (`KeyStroke` equality per platform). Punctuation bindings such as primary+/ work on every
- * keyboard layout because the key adapter reports punctuation by the character it produces (`KeyCode` documents the
- * rule; on a German layout Cmd+Shift+7 arrives as Cmd+/), so no layout-specific second binding is needed.
+ * The keymap covers at least these bindings. Caret movement works with and without Shift. Word movement uses Alt on
+ * macOS and Ctrl elsewhere. There are smart Home and End, Page Up and Page Down, document start and end, Select All,
+ * Enter, Backspace, Delete and delete word. Delete line is primary+Backspace on macOS and Ctrl+Y elsewhere. Duplicate
+ * is primary+D. Move line is Alt+Shift+Up and Alt+Shift+Down. Tab indents and Shift+Tab outdents. Toggle comment is
+ * primary+/. Copy, cut and paste use the usual keys. Undo is primary+Z and redo is primary+Shift+Z. Find is primary+F
+ * and replace is primary+R. Find next and find previous are Cmd+G and Shift+Cmd+G on macOS, and F3 and Shift+F3
+ * elsewhere. Go to line is Cmd+L on macOS and Ctrl+G elsewhere. Completion is Ctrl+M on every platform, and on Windows
+ * also Ctrl+Space. Go to definition is primary+B.
+ *
+ * Bindings are key strokes, compared with `KeyStroke` equality per platform. Punctuation bindings such as primary+/
+ * work on every keyboard layout, because the key adapter reports a punctuation key by the character it produces. On a
+ * German layout, for example, Cmd+Shift+7 arrives as Cmd+/. `KeyCode` documents this rule. So no second binding per
+ * layout is needed.
  */
 public interface EditorKeymap {
 
     /** The platform the bindings are for. */
     public val platform: HostPlatform
 
-    /** The action id bound to [stroke], or null. */
+    /** Returns the action id bound to [stroke], or null if the stroke is unbound. */
     public fun actionFor(stroke: KeyStroke): String?
 
-    /** The (first) shortcut bound to [actionId], for menus and tooltips; null if unbound. */
+    /** Returns the first shortcut bound to [actionId], for menus and tooltips, or null if the action is unbound. */
     public fun shortcutFor(actionId: String): KeyShortcut?
 }
 
-/** The default keymap of [platform] (bindings listed on [EditorKeymap]). */
+/** Creates the default keymap of [platform], with the bindings listed on [EditorKeymap]. */
 public fun defaultEditorKeymap(platform: HostPlatform = HostPlatform.current()): EditorKeymap =
     DefaultEditorKeymap(platform)
 
-/** Default [EditorActionRegistry]: the actions by id. */
+/** The default [EditorActionRegistry]. It indexes the actions by id and rejects duplicate ids. */
 internal class DefaultEditorActionRegistry(actions: Collection<EditorAction>) : EditorActionRegistry {
     override val actions: Collection<EditorAction> = actions
 
@@ -88,8 +93,9 @@ internal class DefaultEditorActionRegistry(actions: Collection<EditorAction>) : 
 }
 
 /**
- * Default [EditorKeymap]: the bindings of [defaultKeyBindings] for [platform], resolved to physical key strokes once.
- * Every stroke has at most one action (checked); [shortcutFor] answers an action's first binding.
+ * The default [EditorKeymap]. It resolves the bindings of [defaultKeyBindings] for [platform] to physical key strokes
+ * once. The constructor checks that every stroke has at most one action. [shortcutFor] answers the first binding of an
+ * action.
  */
 internal class DefaultEditorKeymap(override val platform: HostPlatform) : EditorKeymap {
 

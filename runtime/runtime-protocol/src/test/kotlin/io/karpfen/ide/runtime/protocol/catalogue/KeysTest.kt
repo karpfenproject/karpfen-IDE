@@ -23,7 +23,7 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * Covers the keys of the wire: [EnvironmentKey], [ClientId] and [AccessKey] accept what the runtime issues and refuse
+ * Covers the keys of the wire. [EnvironmentKey], [ClientId] and [AccessKey] accept what the runtime issues and refuse
  * what would break the handshake or the envelope, and [ClientId.random] draws the IDE's client ids from the given
  * random source.
  */

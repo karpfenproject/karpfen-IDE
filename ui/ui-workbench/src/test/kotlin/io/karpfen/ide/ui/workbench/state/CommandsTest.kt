@@ -44,9 +44,10 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * `registerCommands`: workbench commands, recent folders, view toggles, and editor commands with the shortcuts of the
- * one editor keymap, which act only on a focused editor except for find and go-to. The find bar's query field taking
- * the focus is simulated by consuming the editor's focus request.
+ * Tests `registerCommands`. It covers the workbench commands, the recent folders, the view toggles and the editor
+ * commands. The editor commands carry the shortcuts of the single editor keymap. They act only on a focused editor,
+ * except for find and go-to. The test simulates the find bar's query field taking the focus by consuming the editor's
+ * focus request.
  */
 class CommandsTest {
 

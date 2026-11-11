@@ -35,8 +35,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * The model tree of the Model tab over a hand-built mirror: a house that holds its kitchen through containment and
- * knows its owner, a kitchen with an anonymous lamp, and the owner the runtime created, which no object holds.
+ * Tests the model tree of the Model tab over a mirror built by hand. A house holds its kitchen through containment and
+ * knows its owner. The kitchen has an anonymous lamp. The owner was created by the runtime, and no object holds it.
  */
 class ModelTreeTest {
 

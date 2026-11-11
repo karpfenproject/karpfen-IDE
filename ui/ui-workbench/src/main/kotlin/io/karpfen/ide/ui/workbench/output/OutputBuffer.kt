@@ -19,8 +19,9 @@ import kotlinx.coroutines.flow.StateFlow
 import java.time.Instant
 
 /**
- * Where the events the language tools log arrive: the port that the application's logging adapter writes to. Called
- * from any thread, such as the analysis thread, so implementations are thread-safe and do not block for long.
+ * Where the events that the language tools log arrive. This is the port that the application's logging adapter writes
+ * to. It is called from any thread, such as the analysis thread. Implementations are therefore thread-safe and do not
+ * block for long.
  */
 public fun interface OutputSink {
     /**
@@ -31,8 +32,8 @@ public fun interface OutputSink {
 }
 
 /**
- * The buffered output of the language tools as the workbench reads it: the port behind the Language Tools Output tool
- * window. Thread-safe.
+ * The buffered output of the language tools, as the workbench reads it. This is the port behind the Language Tools
+ * Output tool window. Implementations are thread-safe.
  *
  * A reader follows [revision] and reads a [snapshot] for each new value. The revision only says that something changed,
  * so appending stays cheap however large the buffer is, and a slow reader skips intermediate revisions instead of
@@ -45,7 +46,7 @@ public interface OutputBuffer {
     /** The current contents, an immutable copy. */
     public fun snapshot(): OutputSnapshot
 
-    /** Removes every buffered line; the counts of [OutputSnapshot] keep counting the lines appended before. */
+    /** Removes every buffered line. The counts of [OutputSnapshot] still include the lines appended before. */
     public fun clear()
 }
 

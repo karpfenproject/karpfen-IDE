@@ -37,9 +37,10 @@ import kotlinx.coroutines.launch
 import java.nio.file.Path
 
 /**
- * Registers the workbench's own commands (`WorkbenchCommandIds`): Open Folder…, one Open Recent command per recent
- * folder (kept up to date with the settings), Save, Save All, Close Tab, one toggle per `ToolWindowId` and the theme
- * switches. Each command calls a non-suspending intent of [intents] or a [layout] intent.
+ * Registers the workbench's own commands from `WorkbenchCommandIds`. They are Open Folder…, one Open Recent command
+ * per recent folder, Save, Save All, Close Tab, one toggle per `ToolWindowId` and the theme switches. The Open Recent
+ * commands are kept up to date with the settings. Each command calls a non-suspending intent of [intents] or an intent
+ * of [layout].
  */
 internal class WorkbenchCommands(
     private val scope: CoroutineScope,
@@ -49,7 +50,7 @@ internal class WorkbenchCommands(
     private val settings: SettingsRepository,
 ) {
 
-    /** Registers the commands in [registry]; Save and Close Tab need an active tab, Save All a dirty one. */
+    /** Registers the commands in [registry]. Save and Close Tab need an active tab. Save All needs a dirty tab. */
     fun register(registry: CommandRegistry) {
         val hasActiveTab = tabs.active.map { it != null }.eagerly(tabs.active.value != null)
         val hasDirtyTab = tabs.tabs.map { list -> list.any { it.isDirty } }.eagerly(tabs.tabs.value.any { it.isDirty })
@@ -72,8 +73,8 @@ internal class WorkbenchCommands(
     }
 
     /**
-     * Registers one Open Recent command per recent folder and keeps them in step with the settings: the n-th folder is
-     * the command `OPEN_RECENT_PREFIX + n`, and the ids of folders that dropped out are unregistered.
+     * Registers one Open Recent command per recent folder and keeps the commands in step with the settings. The folder
+     * at index n is the command `OPEN_RECENT_PREFIX + n`. The ids of folders that dropped out are unregistered.
      */
     private fun registerRecentFolders(registry: CommandRegistry) {
         var registered = 0
@@ -89,7 +90,7 @@ internal class WorkbenchCommands(
         }
     }
 
-    /** [key] with the platform's primary modifier (Cmd on macOS, Ctrl elsewhere). */
+    /** [key] with the platform's primary modifier, which is Cmd on macOS and Ctrl elsewhere. */
     private fun primary(key: KeyCode): KeyShortcut = KeyShortcut(key, primary = true)
 
     /** This flow as a state flow in [scope], starting with [initial]. */

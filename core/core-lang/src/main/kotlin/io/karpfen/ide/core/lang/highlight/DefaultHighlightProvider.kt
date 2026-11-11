@@ -24,14 +24,15 @@ import io.karpfen.ide.core.lang.feature.HighlightProvider
 import io.karpfen.ide.core.lang.overlayHighlights
 
 /**
- * Language-neutral highlighting shared by all languages: maps every `TokenKind` to a `HighlightStyle` and, when the
- * parse outcome has the tokens' version, overlays its `SemanticSpan`s (`SemanticKind` → the `HighlightStyle` of the
- * same name, all `isSemantic`) with `overlayHighlights` (splitting lexical spans where a semantic span covers part of
- * them, e.g. the name inside a string's quotes). Result sorted and non-overlapping. Stateless.
+ * Highlighting that does not depend on a language and is shared by all languages. It maps every `TokenKind` to a
+ * `HighlightStyle`. When the parse outcome has the version of the tokens, it overlays the `SemanticSpan`s of the
+ * outcome with `overlayHighlights`. Each `SemanticKind` maps to the `HighlightStyle` of the same name, and all of those
+ * are `isSemantic`. The overlay splits lexical spans where a semantic span covers part of them, such as the name inside
+ * the quotes of a string. The result is sorted and has no overlaps. The provider has no state.
  *
- * Version handling: the semantic layer comes from `document.parse`, or from `document.lastGoodParse` if only that one
- * has the tokens' version; an outcome of any other version contributes nothing (its ranges are in other coordinates —
- * the editor carries the previous semantic layer forward itself, so the semantic colours do not flicker).
+ * The semantic layer comes from `document.parse`, or from `document.lastGoodParse` if only that one has the version
+ * of the tokens. An outcome of any other version contributes nothing, because its ranges are in other coordinates. The
+ * editor carries the previous semantic layer forward itself, so the semantic colours do not flicker.
  */
 internal class DefaultHighlightProvider : HighlightProvider {
 
@@ -44,7 +45,7 @@ internal class DefaultHighlightProvider : HighlightProvider {
     }
 
     internal companion object {
-        /** The lexical style of a token kind (one style per kind, same name). */
+        /** The lexical style of a token kind. Each kind has one style of the same name. */
         fun styleOf(kind: TokenKind): HighlightStyle = when (kind) {
             TokenKind.KEYWORD -> HighlightStyle.KEYWORD
             TokenKind.OPERATION -> HighlightStyle.OPERATION
@@ -64,7 +65,9 @@ internal class DefaultHighlightProvider : HighlightProvider {
             TokenKind.ERROR -> HighlightStyle.ERROR
         }
 
-        /** The semantic style of a semantic kind (one style per kind, same name; all `isSemantic`). */
+        /**
+         * The semantic style of a semantic kind. Each kind has one style of the same name, and all are `isSemantic`.
+         */
         fun styleOf(kind: SemanticKind): HighlightStyle = when (kind) {
             SemanticKind.TYPE_NAME -> HighlightStyle.TYPE_NAME
             SemanticKind.PRIMITIVE_TYPE -> HighlightStyle.PRIMITIVE_TYPE

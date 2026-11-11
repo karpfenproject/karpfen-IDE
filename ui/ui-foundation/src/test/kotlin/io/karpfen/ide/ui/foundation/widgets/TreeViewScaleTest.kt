@@ -38,10 +38,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * The [TreeView] is lazy: a large expanded tree composes only the rows near the viewport, and flattening it stays cheap.
- * Laziness is checked by counting composed rows. The time budgets (asserted with 5x slack, measured values written to the
- * test report) are tagged `budget` and excluded from every test run, because machine load and sleep cycles make
- * wall-clock limits unreliable.
+ * The [TreeView] is lazy. A large expanded tree composes only the rows near the viewport, and flattening it stays
+ * cheap. Laziness is checked by counting composed rows. The time budgets are asserted with 5x slack, and the measured
+ * values are written to the test report. These budget tests are tagged `budget` and excluded from every test run,
+ * because machine load and sleep cycles make wall-clock limits unreliable.
  */
 @OptIn(ExperimentalTestApi::class)
 class TreeViewScaleTest {

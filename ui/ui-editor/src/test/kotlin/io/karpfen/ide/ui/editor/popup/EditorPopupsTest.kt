@@ -42,12 +42,14 @@ import kotlin.test.assertEquals
 import kotlin.time.measureTime
 
 /**
- * The overlay contract of [EditorPopups] as a whole: the slots emit nothing while closed, every popup follows its state
- * (also all at once), and random interleavings of overlay changes, edits and model operations never break the popups.
+ * The overlay contract of [EditorPopups] as a whole. The slots emit nothing while every popup is closed. Each popup
+ * follows its state, also when all of them are open at once. Random interleavings of overlay changes, edits and model
+ * operations never break the popups.
  */
 @OptIn(ExperimentalTestApi::class)
 class EditorPopupsTest {
 
+    /** A small text with two states, a transition and an EVAL body. */
     private val text = "state Idle {\n    ON EVENT(\"d\", \"go\") -> Busy\n}\nstate Busy {\n    EVAL { x = 1 }\n}\n"
 
     /** Which popups are shown, by tag. */
@@ -56,7 +58,7 @@ class EditorPopupsTest {
             .filter { tag -> onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty() }
             .toSet()
 
-    /** Which popups the state says are shown (with the host's geometry deciding the anchored ones). */
+    /** Which popups the state says are shown. For the anchored popups the geometry of the host decides. */
     private fun expected(harness: PopupHarness): Set<String> {
         val model = harness.model
         return buildSet {
@@ -118,6 +120,10 @@ class EditorPopupsTest {
             reporter.publishEntry("random popup interleavings: $steps steps (ms)", elapsed.inWholeMilliseconds.toString())
         }
 
+    /**
+     * Runs one random step on [harness]. A step is an edit, a caret move, an overlay change, a find or completion
+     * operation, a hover, a context menu, a change of the caret bounds or a change of the enabled actions.
+     */
     private fun randomStep(harness: PopupHarness, random: Random) {
         val model = harness.model
         val length = model.plain.length

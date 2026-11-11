@@ -23,11 +23,14 @@ import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 
 /**
- * Saving open documents (Save, Save All, and Save in the unsaved-changes dialog) without silently writing over a change
- * made on disk: a document whose external-change conflict is unresolved (`OpenDocument.conflict`, the banner's Reload /
- * Keep mine) is only saved once the user confirmed overwriting ([DialogRequest.ConfirmOverwrite], one dialog for all of
- * them). On Cancel they stay unsaved and in conflict, and the first of them becomes the active tab, so its banner
- * shows; the others are saved. A failed save becomes an error dialog.
+ * Saves open documents for Save, Save All and Save in the unsaved-changes dialog. It never silently writes over a
+ * change made on disk.
+ *
+ * A document may have an unresolved conflict with a change on disk. That is `OpenDocument.conflict`, which the banner
+ * offers to resolve with Reload or Keep mine. Such a document is only saved after the user confirmed the overwrite
+ * through [DialogRequest.ConfirmOverwrite]. One dialog covers all of them. On Cancel they stay unsaved and in
+ * conflict, and the first of them becomes the active tab, so its banner shows. The other documents are saved anyway.
+ * A failed save leads to an error dialog.
  */
 internal class SaveFlow(
     private val holder: WorkspaceHolder,
@@ -35,7 +38,7 @@ internal class SaveFlow(
     private val dialogs: DialogState,
 ) {
 
-    /** Saves [documents] (also clean ones); true if every one of them was saved. */
+    /** Saves [documents], clean ones included. Returns true if every one of them was saved. */
     suspend fun save(documents: List<OpenDocument>): Boolean {
         val workspace = holder.workspace.value ?: return false
         val inConflict = documents.filter { it.conflict.value != null }
@@ -48,7 +51,7 @@ internal class SaveFlow(
         return overwrite && failures.isEmpty()
     }
 
-    /** The error dialog's title: names the file when a single save failed. */
+    /** The title of the error dialog. It names the file when a single save failed. */
     private fun failureTitle(failures: List<SaveResult.Failed>): String =
         failures.singleOrNull()?.let { "Could not save ${it.path.fileName}" } ?: "Could not save"
 }

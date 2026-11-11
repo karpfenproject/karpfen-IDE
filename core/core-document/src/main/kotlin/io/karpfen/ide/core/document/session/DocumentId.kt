@@ -18,8 +18,8 @@ package io.karpfen.ide.core.document.session
 import java.nio.file.Path
 
 /**
- * Identity of an open document: its absolute, normalized file path. Two ids are equal iff their paths are equal (no
- * symlink resolution).
+ * The identity of an open document, which is its absolute, normalized file path. Two ids are equal exactly when their
+ * paths are equal. Symbolic links are not resolved.
  *
  * @property path the absolute, normalized path of the document's file.
  */
@@ -29,7 +29,7 @@ public data class DocumentId(public val path: Path) {
         require(path.normalize() == path) { "document paths are normalized, was $path" }
     }
 
-    /** The file name, e.g. `cleaning_robot.kstates`. */
+    /** The file name, such as `cleaning_robot.kstates`. */
     public val fileName: String get() = path.fileName?.toString() ?: path.toString()
 
     override fun toString(): String = path.toString()

@@ -33,12 +33,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * Binds the read-only sub-states to what they follow: the project tree to `Workspace.files`, Problems and the
- * status-bar counts to the workspace ([bindWorkspace], called by the folder flow), the Outline and the status bar's
- * caret part to the active tab's editor (followed from [EditorTabsState.activeEditor] once [start]ed, since views
- * switch tabs directly), the Language Tools Output to its tool window's visibility in the [layout], the status bar's
- * indicator to the output's unseen problems, and the status bar's runtime segment and the runtime log to the runtime
- * state of the workspace ([bindRuntime]). Collected in [scope].
+ * Binds the read-only sub-states to what they follow. Everything is collected in [scope].
+ *
+ * - [bindWorkspace] binds the project tree to `Workspace.files`, and Problems and the status bar counts to the
+ *   workspace. The folder flow calls it.
+ * - After [start], the Outline and the caret part of the status bar follow the editor of the active tab. They follow
+ *   [EditorTabsState.activeEditor] directly, because views switch tabs without going through the mediator.
+ * - After [start], the Language Tools Output follows the visibility of its tool window in the [layout], and the status
+ *   bar's indicator follows the output's unseen problems.
+ * - [bindRuntime] binds the status bar's runtime segment and the runtime log to the runtime state of the workspace.
  */
 internal class SubStateBindings(
     private val scope: CoroutineScope,
@@ -53,7 +56,9 @@ internal class SubStateBindings(
     private var treeBinding: Job? = null
     private var runtimeBinding: Job? = null
 
-    /** Follows the active editor, the output's tool window and the output's unseen problems from now on. */
+    /**
+     * Starts following the active editor, the visibility of the output's tool window and the output's unseen problems.
+     */
     fun start() {
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             tabs.activeEditor.collect { editor ->
@@ -69,8 +74,8 @@ internal class SubStateBindings(
     }
 
     /**
-     * Binds the status bar's runtime segment to the host of [runtime] and its log to the Runtime tool window's
-     * visibility (null removes the segment).
+     * Binds the status bar's runtime segment to the host of [runtime], and the runtime log to the visibility of the
+     * Runtime tool window. Null removes the segment.
      */
     fun bindRuntime(runtime: RuntimeState?) {
         runtimeBinding?.cancel()
@@ -81,7 +86,7 @@ internal class SubStateBindings(
         }
     }
 
-    /** Binds the tree, Problems and the status-bar counts to [workspace] (null clears them). */
+    /** Binds the tree, Problems and the status bar counts to [workspace]. Null clears them. */
     fun bindWorkspace(workspace: Workspace?) {
         treeBinding?.cancel()
         projectTree.setTree(workspace?.files?.value)

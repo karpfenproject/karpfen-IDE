@@ -20,11 +20,13 @@ import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
 
 /**
- * Applies [edits] (coordinates of the current text) as exactly one change — one undo step — with the current carets as
- * `caretsBefore` and [caretsAfter] (coordinates of the new text) as `caretsAfter`, then places the carets there
- * (`CaretModel.restore`, which keeps the typing run going). Returns false, changing nothing, if the edits are no-ops.
+ * Applies [edits] as exactly one change, which is one undo step. The edits use offsets of the current text. The change
+ * records the current carets as `caretsBefore` and [caretsAfter] as `caretsAfter`. [caretsAfter] uses offsets of the
+ * new text. After the change the carets are placed at [caretsAfter] through `CaretModel.restore`, which keeps the
+ * current typing run going. If the edits change nothing, the function changes nothing and returns false.
  *
- * The one way the editor actions change text, so every action records its caret mementos (Memento).
+ * Editor actions change text only through this function. That way every action records its caret mementos, which is
+ * the Memento pattern.
  */
 internal fun EditorActionContext.applyEdits(
     edits: List<TextEdit>,
@@ -41,12 +43,14 @@ internal fun EditorActionContext.applyEdit(edit: TextEdit, origin: EditOrigin, c
     applyEdits(listOf(edit), origin, listOf(CaretMemento.at(caretAfter)))
 
 /**
- * An edit prepared by a model — a find/replace replacement, an accepted completion — and run through the editor's
- * [EditorActionExecutor] (Command pattern): applies [edits], computed for text [version], as one change with origin
- * `Command(name)` and the carets [caretsAfter]. Not registered (one instance per use, identified by [id]).
+ * An edit that a model prepared and that runs through the editor's [EditorActionExecutor]. Examples are a find and
+ * replace replacement and an accepted completion. This is the Command pattern. The action applies [edits], which were
+ * computed for text [version], as one change with origin `Command(name)` and places the carets at [caretsAfter]. It is
+ * not registered. Each use creates a new instance, identified by [id].
  *
- * Does nothing and returns false if the text moved past [version] before the executor ran it (stale offsets are never
- * applied). If the edits change nothing (e.g. the accepted text is already there), only the carets are placed.
+ * If the text moved past [version] before the executor ran the action, it does nothing and returns false. Stale offsets
+ * are never applied. If the edits change nothing, for example because the accepted text is already there, only the
+ * carets are placed.
  */
 internal class CommandEditAction(
     override val id: String,

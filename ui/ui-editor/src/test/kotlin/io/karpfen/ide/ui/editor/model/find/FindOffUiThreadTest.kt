@@ -32,34 +32,43 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * Find never matches on the UI thread: long-running work runs on `Dispatchers.Default` and is cancellable, so the UI
- * never waits for a search. Real threads: a single-thread "UI" dispatcher runs the editor's scope and
- * `Dispatchers.Default` the background search, as in the app. The query is a catastrophic-backtracking regular
- * expression whose search takes seconds on this short text, so the background result is not published yet when the find
- * bar's Enter, Replace or Replace All arrive; the search gives up at its time budget.
+ * Find never matches on the UI thread. Long-running work runs on `Dispatchers.Default` and can be cancelled, so the UI
+ * never waits for a search. The tests use real threads, as in the app. A single-thread dispatcher stands for the UI
+ * thread and runs the editor's scope, and `Dispatchers.Default` runs the background search.
+ *
+ * The query is a regular expression with catastrophic backtracking. Its search takes seconds on this short text, so
+ * the background result is not published yet when the find bar's Enter, Replace or Replace All arrive. The search gives
+ * up when it reaches its time budget.
  */
 class FindOffUiThreadTest {
 
+    /** The single thread that stands for the UI thread. */
     private val ui = Executors.newSingleThreadExecutor { Thread(it, "test-ui").apply { isDaemon = true } }
+
+    /** The editor's scope, which runs on [ui]. */
     private val scope = CoroutineScope(ui.asCoroutineDispatcher() + SupervisorJob())
 
+    /** A short text in the marker notation of [TestEditor] whose search for [slowQuery] takes seconds. */
     private val slowText = "|" + "a".repeat(40) + "!"
+
+    /** A regular expression with catastrophic backtracking on [slowText]. */
     private val slowQuery = FindQuery("(.*a){8}x", regex = true)
 
+    /** Cancels the scope and stops the UI thread. */
     @AfterTest
     fun tearDown() {
         scope.cancel()
         ui.shutdownNow()
     }
 
-    /** Runs [block] on the UI thread; null if it did not finish within [millis]. */
+    /** Runs [block] on the UI thread and returns its result, or null if it did not finish within [millis]. */
     private fun <T> onUi(millis: Long, block: () -> T): T? = try {
         ui.submit(Callable(block)).get(millis, TimeUnit.MILLISECONDS)
     } catch (e: TimeoutException) {
         null
     }
 
-    /** An editor over [slowText] with a find model created on the UI thread, the slow query set. */
+    /** An editor over [slowText] with a find model that was created on the UI thread and has the slow query set. */
     private fun slowFind(): Pair<TestEditor, FindModel> = checkNotNull(
         onUi(5_000) {
             val editor = TestEditor(slowText, scope)
@@ -69,6 +78,7 @@ class FindOffUiThreadTest {
         },
     )
 
+    /** Asserts that [block] returns on the UI thread within [RETURN_MILLIS] and that the thread answers again right after. */
     private fun assertReturnsAtOnce(operation: String, block: () -> Unit) {
         val returned = onUi(RETURN_MILLIS) { block(); true }
         assertEquals(true, returned, "$operation returned within $RETURN_MILLIS ms (no regex search on the calling thread)")
@@ -113,9 +123,9 @@ class FindOffUiThreadTest {
         assertEquals(slowText.removePrefix("|"), onUi(500) { editor.plain }, "the waiting operations found nothing to do")
     }
 
-    /** The time limit of the UI thread. */
+    /** Holds the time limit of the UI thread. */
     private companion object {
-        /** How long an operation on the UI thread may take to return; a search on it would take far longer. */
+        /** How long an operation on the UI thread may take to return. A search on that thread would take far longer. */
         const val RETURN_MILLIS = 2_000L
     }
 }

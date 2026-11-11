@@ -22,10 +22,11 @@ import io.karpfen.ide.ui.foundation.keys.LayoutAwareStrokes
 import java.awt.event.KeyEvent as AwtKeyEvent
 
 /**
- * The character a key press produced on the current keyboard layout, as far as the event tells: its code point;
- * otherwise (Cmd/Ctrl may suppress the character) the native AWT event's key char; otherwise the character of the
- * native event's extended key code (the key's unshifted character on the layout; its key code where AWT did not set
- * one, as in synthesized events). Null if none is printable.
+ * The character a key press produced on the current keyboard layout, as far as the event tells. The lookup tries
+ * three sources in order. The first is the event's code point. A held Cmd or Ctrl may suppress it, so the second is
+ * the key char of the native AWT event. The third is the character of the native event's extended key code, which is
+ * the key's unshifted character on the layout. Where AWT did not set an extended key code, as in synthesized events,
+ * the plain key code is used instead. The result is null if none of these is printable.
  */
 internal object ProducedCharacter {
 
@@ -37,6 +38,7 @@ internal object ProducedCharacter {
             ?: awtEvent?.let { ofExtendedKeyCode(keyCodeOf(it)) }
     }
 
+    /** The extended key code of [event], or its plain key code where AWT left the extended one undefined. */
     private fun keyCodeOf(event: AwtKeyEvent): Int =
         event.extendedKeyCode.takeIf { it != AwtKeyEvent.VK_UNDEFINED } ?: event.keyCode
 
@@ -48,12 +50,14 @@ internal object ProducedCharacter {
             charByVirtualKey[extendedKeyCode]
         }
 
+    /** The character of [codePoint] if it is a printable character of the basic multilingual plane, else null. */
     private fun printable(codePoint: Int): Char? =
         codePoint.takeIf { it in 1..Char.MAX_VALUE.code }?.toChar()?.takeIf(LayoutAwareStrokes::isPrintable)
 
     /** AWT marks extended key codes of keys without a VK constant with this bit (`KeyEvent.getExtendedKeyCodeForChar`). */
     private const val UNICODE_KEY_FLAG = 0x01000000
 
+    /** The punctuation characters of the AWT virtual-key constants, with the keypad's divide and subtract keys. */
     private val charByVirtualKey: Map<Int, Char> = mapOf(
         AwtKeyEvent.VK_SLASH to '/',
         AwtKeyEvent.VK_DIVIDE to '/',

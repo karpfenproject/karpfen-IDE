@@ -21,7 +21,7 @@ import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.dsl.meta.SimplePropertyType
 
 /**
- * A simple property of a type: a number, string or boolean, atomic or a list.
+ * A simple property of a type. It is a number, string or boolean, either atomic or a list.
  *
  * @property key the property's key.
  * @property type its simple type.
@@ -33,7 +33,8 @@ public data class PropertyShape(public val key: String, public val type: SimpleP
  * A relation of a type to objects of another type.
  *
  * @property key the relation's key.
- * @property association `has` (embedded, the target belongs to the owner) or `knows` (a reference).
+ * @property association `has` or `knows`. With `has` the target is embedded and belongs to the owner. With `knows` the
+ *   target is a reference.
  * @property isList true for a list relation.
  * @property targetType the name of the type of its targets, as the metamodel writes it.
  */
@@ -66,9 +67,9 @@ public data class TypeShape(
 }
 
 /**
- * An immutable view of a dsl-tools metamodel, built during the preparation of a deployment, so that nothing launched
- * later holds a dsl-tools object. The mirror reads the domain metamodel through it; the event catalog reads the events
- * metamodel, whose types are the events file's own types followed by every domain type.
+ * An immutable view of a dsl-tools metamodel. It is built during the preparation of a deployment, so that nothing
+ * launched later holds a dsl-tools object. The mirror reads the domain metamodel through it. The event catalog reads
+ * the events metamodel through it, whose types are the events file's own types followed by every domain type.
  *
  * A name that several types share resolves to the first of them, as the runtime's `getTypeByName` resolves it.
  *
@@ -103,7 +104,10 @@ public class TypeSchema(types: List<TypeShape>) {
     override fun toString(): String = "TypeSchema(names=$names)"
 
     public companion object {
-        /** The schema of [metamodel]: every type with its properties and relations, comments trimmed, blank ones null. */
+        /**
+         * The schema of [metamodel], with every type and its properties and relations. Comments are trimmed, and blank
+         * comments become null.
+         */
         public fun of(metamodel: Metamodel): TypeSchema = TypeSchema(metamodel.types.map(::shapeOf))
 
         /** The shape of the dsl-tools type [type]. */

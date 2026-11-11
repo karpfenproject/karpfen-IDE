@@ -21,10 +21,11 @@ plugins {
 
 /**
  * The editor, the UI foundation and the language services are `api` dependencies because the public `WorkbenchState`
- * exposes `Workspace`, `LanguageServices`, `CodeEditorState` and `CommandRegistry`; the runtime session and the runtime
+ * exposes `Workspace`, `LanguageServices`, `CodeEditorState` and `CommandRegistry`. The runtime session and the runtime
  * host are `api` too, because the public `RuntimeState` and `WorkbenchServices` expose sessions, host statuses and the
- * host factory. The diagram module is still a phase-0 placeholder for the diagram of a later phase. The tests run
- * sessions against the fake runtime of the runtime fixtures and show views over the scriptable session.
+ * host factory. The diagram module is still an empty placeholder. The diagram view it is meant to hold is not built
+ * yet. The tests run sessions against the fake runtime of the runtime fixtures and show views over the scriptable
+ * session.
  */
 dependencies {
     api(project(":ui:ui-editor"))

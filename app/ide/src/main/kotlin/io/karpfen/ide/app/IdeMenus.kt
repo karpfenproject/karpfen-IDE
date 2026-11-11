@@ -36,16 +36,17 @@ import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 
 /**
- * The window menus: File (Open Folder…, Open Recent, Save, Save All, Close Tab), Edit (Undo, Redo, Cut, Copy, Paste,
- * Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line, Complete Code), View (one toggle
- * per `ToolWindowId.entries` with its `title` and `WorkbenchCommandIds.toggleToolWindow(id)`, the Runtime tool window
- * among them, Light/Dark theme), Navigate (Go to Line, Go to Definition), Run (Run, Stop, Start Runtime, Stop
- * Runtime); items reference `WorkbenchCommandIds`, `EditorActionIds` and `RuntimeCommandIds`.
+ * The window menus. File holds Open Folder…, Open Recent, Save, Save All and Close Tab. Edit holds Undo, Redo, Cut,
+ * Copy, Paste, Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line and Complete Code.
+ * View holds one toggle per entry of `ToolWindowId.entries`, the Runtime tool window among them, with the entry's
+ * `title` and the command `WorkbenchCommandIds.toggleToolWindow(id)`, followed by the light and the dark theme.
+ * Navigate holds Go to Line and Go to Definition. Run holds Run, Stop, Start Runtime and Stop Runtime. The items refer
+ * to `WorkbenchCommandIds`, `EditorActionIds` and `RuntimeCommandIds`.
  *
- * Menus hold command ids only: titles, shortcuts and enablement come from the registered commands (the workbench
- * registers the tool-window toggles with `ToolWindowId.title` and the editor commands with `EditorActionTitles`).
- * Edit lists Complete Code although the editor handles its keys itself, so that the window shows the completion
- * shortcut, Ctrl+M, which nobody would guess.
+ * Menus hold command ids only. Titles, shortcuts and enablement come from the registered commands. The workbench
+ * registers the tool-window toggles with `ToolWindowId.title` and the editor commands with `EditorActionTitles`. Edit
+ * lists Complete Code although the editor handles its keys itself, so that the window shows the completion shortcut,
+ * Ctrl+M, which nobody would guess.
  */
 public object IdeMenus {
     /** Title of the File menu. */
@@ -67,7 +68,9 @@ public object IdeMenus {
     public const val OPEN_RECENT: String = "Open Recent"
 
     /**
-     * The menu structure; [recentFolderCount] "Open Recent" items reference `OPEN_RECENT_PREFIX + index`.
+     * The menu structure. The Open Recent submenu has [recentFolderCount] items, which refer to the commands
+     * `OPEN_RECENT_PREFIX + index`.
+     *
      * @throws IllegalArgumentException if [recentFolderCount] is negative.
      */
     public fun specs(recentFolderCount: Int): List<MenuSpec> {
@@ -141,16 +144,18 @@ public object IdeMenus {
 }
 
 /**
- * The native menu bar built from [menus] and the commands in [registry] (titles, shortcuts, enablement); items of
- * unregistered command ids are hidden. Accelerators are bound with `KeyShortcut.toMenuShortcut`. Key routing: the
- * focused component handles and consumes its keys first (Swing key bindings skip consumed events; on macOS the screen
- * menu bar delivers key equivalents as Java key events first), so an accelerator only fires for strokes nobody consumed
- * and one key press runs a command once. The resolution of [menus] against [registry] is a Compose-free internal
- * function (testable headless); this composable only renders its result.
+ * The native menu bar built from [menus] and the commands in [registry], which supply the titles, the shortcuts and
+ * the enablement. Items whose command id is not registered are hidden. Accelerators are bound with
+ * `KeyShortcut.toMenuShortcut`.
  *
- * Clicks and accelerators run the command through `CommandRegistry.execute`, the window installs no key handler of
- * its own, and each stroke is bound to at most one item, so this menu bar is the only window-level dispatch of a
- * command shortcut.
+ * The focused component handles and consumes its keys first. Swing key bindings skip consumed events, and on macOS
+ * the screen menu bar delivers key equivalents as Java key events first. So an accelerator only fires for a stroke
+ * that nobody consumed, and one key press runs a command once. The resolution of [menus] against [registry] is an
+ * internal function without Compose, so it can be tested headless. This composable only renders its result.
+ *
+ * Clicks and accelerators run the command through `CommandRegistry.execute`. The window installs no key handler of
+ * its own, and each stroke is bound to at most one item. So this menu bar is the only place in the window that
+ * dispatches a command shortcut.
  */
 @Composable
 public fun FrameWindowScope.IdeMenuBar(registry: CommandRegistry, menus: List<MenuSpec>) {
@@ -165,7 +170,7 @@ public fun FrameWindowScope.IdeMenuBar(registry: CommandRegistry, menus: List<Me
     }
 }
 
-/** Renders resolved entries; contains no decisions of its own. */
+/** Renders resolved entries. It makes no decisions of its own. */
 @Composable
 private fun MenuScope.MenuEntries(entries: List<ResolvedMenuEntry>, platform: HostPlatform) {
     entries.forEachIndexed { index, entry ->

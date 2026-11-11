@@ -44,9 +44,10 @@ import io.karpfen.ide.ui.editor.view.geometry.TextAreaFrame
 import io.karpfen.ide.ui.editor.view.geometry.TextGeometry
 
 /**
- * The Compose side of one composed `CodeEditor` (a view helper, not editor logic): the editor state's flows as Compose
- * state, the text style and cell metrics, and the [TextGeometry] of the current snapshot. Reading these in the draw or
- * layout phase invalidates only that phase, so scrolling and caret blinking do not recompose the editor.
+ * The Compose side of one composed `CodeEditor`. It is a view helper and holds no editor logic. It offers the flows of
+ * the editor state as Compose state, the text style and the cell metrics, and the [TextGeometry] of the current
+ * snapshot. Reading these in the draw or layout phase invalidates only that phase, so scrolling and caret blinking do
+ * not recompose the editor.
  */
 @Stable
 internal class EditorRenderState(
@@ -67,18 +68,19 @@ internal class EditorRenderState(
     val scrollRequest: State<ScrollRequest?>,
 ) {
 
-    /** The text area at the scroll position of the last composition (drawing, overlay geometry). */
+    /** Returns the text area at the scroll position of the last composition. Drawing and the overlay geometry use it. */
     fun frame(): TextAreaFrame = TextAreaFrame(geometry.value, viewport.value)
 
-    /** The text area at the viewport's current scroll position (input, which may run between frames). */
+    /** Returns the text area at the current scroll position of the viewport. Input uses it, because input may run between frames. */
     fun liveFrame(): TextAreaFrame = TextAreaFrame(geometry.value, editor.viewport.state.value)
 
-    /** The carets in the coordinates of the drawn snapshot. */
+    /** Returns the carets in offsets of the drawn snapshot. */
     fun drawnCarets(): List<Caret> = caretsIn(geometry.value.snapshot, carets.value)
 
     /**
-     * [carets] in [snapshot]: as they are when they refer to it; mapped forward with `EditableText.mapOffset` (the point
-     * mapping of carets) when they are older; clamped when they are newer (the next frame draws the new text).
+     * Returns [carets] in offsets of [snapshot]. Carets that refer to [snapshot] are returned as they are. Older carets
+     * are mapped forward with `EditableText.mapOffset`, the point mapping of carets. Newer carets are only clamped,
+     * because the next frame draws the new text.
      */
     private fun caretsIn(snapshot: TextSnapshot, carets: CaretSnapshot): List<Caret> {
         if (carets.version == snapshot.version) return carets.carets
@@ -96,8 +98,8 @@ internal class EditorRenderState(
 }
 
 /**
- * Collects [state]'s flows and derives the geometry for [theme]. Every argument of the holder is a remembered `State`
- * of this composition, so one holder per editor state suffices.
+ * Collects the flows of [state] and derives the geometry for [theme]. Every argument of the holder is a remembered
+ * `State` of this composition, so one holder per editor state is enough.
  */
 @Composable
 internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorTheme): EditorRenderState {
@@ -154,5 +156,5 @@ internal fun rememberEditorRenderState(state: CodeEditorState, theme: EditorThem
     }
 }
 
-/** Space left of the text, in cells. */
+/** The space left of the text, in character cells. */
 private const val TEXT_LEFT_PADDING_CELLS = 0.5f

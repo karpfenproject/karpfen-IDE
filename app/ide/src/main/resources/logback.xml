@@ -1,20 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Logging of the karpfen IDE, its only logging configuration.
+  Logging of the karpfen IDE. This is its only logging configuration.
 
-  The IDE's own logging: WARN and above on the console (standard error), INFO and above in the rolling file
-  <IDE home>/logs/ide.log. The IDE home is the system property karpfen.ide.home, which the app's main sets from
-  KARPFEN_IDE_HOME before the first logger exists, else ~/.karpfen-ide; SettingsLocations reads the same property, so
-  settings and log always move together (launch smoke tests use a temporary home).
+  The IDE's own logging goes to two places. WARN and above go to the console, on standard error. INFO and above go to
+  the rolling file <IDE home>/logs/ide.log. The IDE home is the system property karpfen.ide.home, which the app's main
+  sets from KARPFEN_IDE_HOME before the first logger exists. Without it, the home is ~/.karpfen-ide. SettingsLocations
+  reads the same property, so the settings and the log always move together. The launch smoke tests use this to run
+  with a temporary home.
 
-  What karpfen-dsl-tools logs, below the logger io.karpfen.dsl (DslToolsLoggers names it), never reaches the console:
-  that logger logs at DEBUG and passes nothing on to the root logger. Every event goes to the rolling file
-  <IDE home>/logs/dsl-tools.log, and its warnings and errors are also forwarded to ide.log (DslToolsThresholdFilter
-  holds back the rest there). The composition root attaches one more appender to the same logger at runtime,
-  LanguageToolsLogRouting, which fills the workbench's Language Tools Output, shown on demand.
+  What karpfen-dsl-tools logs never reaches the console. It logs below the logger io.karpfen.dsl, which
+  DslToolsLoggers names. That logger logs at DEBUG and passes nothing on to the root logger. Every event goes to the
+  rolling file <IDE home>/logs/dsl-tools.log. The warnings and errors are also forwarded to ide.log, where
+  DslToolsThresholdFilter holds back the rest. At runtime the composition root attaches one more appender to the same
+  logger through LanguageToolsLogRouting. It fills the workbench's Language Tools Output, which is shown on demand.
 
-  While dsl-tools reads a file, the mapped diagnostic context names it under karpfen.file (DslToolsLoggers names the
-  key); both log files write it in brackets after the logger, and leave the brackets out for an event without it.
+  While dsl-tools reads a file, the mapped diagnostic context names that file under the key karpfen.file, which
+  DslToolsLoggers names. Both log files write the file in brackets after the logger. For an event without a file they
+  leave the brackets out.
 
   Tests use the console-only src/test/resources/logback-test.xml instead.
 -->

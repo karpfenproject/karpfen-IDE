@@ -19,14 +19,16 @@ package io.karpfen.ide.ui.editor.model.caret
 public const val DEFAULT_TAB_WIDTH: Int = 4
 
 /**
- * Display columns with tab stops (a tab advances to the next multiple of [tabWidth]): the one conversion between a
- * column of a line (UTF-16 code units from the line start, as in `TextPosition`) and the column the user sees. The
- * caret model (preferred column for Up/Down), the editor view (rendering, hit-testing, caret x) and the status bar
- * ("Col y") all use it, so a remembered column means the same everywhere. It lives in the editor module because display
- * columns are a UI concern; the text model counts code units only.
+ * Display columns with tab stops. This is the only conversion between a column of a line and the column the user sees.
+ * A column of a line counts UTF-16 code units from the line start, as in `TextPosition`.
  *
- * Every character but a tab advances one display column; a surrogate pair counts as one (it renders as one glyph); a
- * tab advances to the next multiple of [tabWidth].
+ * The caret model uses it for the preferred column of Up and Down. The editor view uses it for rendering, hit-testing
+ * and the caret's x position. The status bar uses it for its "Col" value. So a remembered column means the same
+ * everywhere. It lives in the editor module because display columns are a UI concern. The text model counts code units
+ * only.
+ *
+ * Every character except a tab advances one display column. A surrogate pair counts as one, because it renders as one
+ * glyph. A tab advances to the next multiple of [tabWidth].
  */
 public data class TabStops(public val tabWidth: Int = DEFAULT_TAB_WIDTH) {
 
@@ -34,7 +36,10 @@ public data class TabStops(public val tabWidth: Int = DEFAULT_TAB_WIDTH) {
         require(tabWidth >= 1) { "tabWidth must be >= 1, was $tabWidth" }
     }
 
-    /** The display column of [column] (clamped to `0..line.length`) in [line] (one line's text, without `\n`). */
+    /**
+     * Returns the display column of [column] in [line]. [line] is the text of one line without `\n`. [column] is
+     * clamped to `0..line.length`.
+     */
     public fun displayColumn(line: CharSequence, column: Int): Int {
         val end = column.coerceIn(0, line.length)
         var display = 0
@@ -45,9 +50,10 @@ public data class TabStops(public val tabWidth: Int = DEFAULT_TAB_WIDTH) {
     }
 
     /**
-     * The display columns of [columns] (ascending, each clamped to `0..line.length` like [displayColumn]) in [line], in
-     * one pass over the line up to the last of them: [displayColumn] for many positions of one line (e.g. the bounds of
-     * every find match on it) at the cost of one call, not one per position.
+     * Returns the display columns of [columns] in [line]. [columns] must be ascending, and each one is clamped to
+     * `0..line.length` like in [displayColumn]. It makes one pass over the line up to the last column. So it answers
+     * [displayColumn] for many positions of one line at the cost of one call, for example for the bounds of every find
+     * match on the line.
      */
     public fun displayColumns(line: CharSequence, columns: IntArray): IntArray {
         val result = IntArray(columns.size)
@@ -66,9 +72,9 @@ public data class TabStops(public val tabWidth: Int = DEFAULT_TAB_WIDTH) {
     }
 
     /**
-     * The column of [line] whose display column is nearest to [displayColumn]: inside a tab, the nearer of its two
-     * bounds (the left one on a tie); never between the two halves of a surrogate pair; [line]'s length beyond its end
-     * and 0 for negative values.
+     * Returns the column of [line] whose display column is nearest to [displayColumn]. Inside a tab it returns the
+     * nearer of the tab's two bounds, and the left one on a tie. It never returns a column between the two halves of a
+     * surrogate pair. Beyond the end of the line it returns the line length, and for negative values it returns 0.
      */
     public fun columnAt(line: CharSequence, displayColumn: Int): Int {
         var display = 0

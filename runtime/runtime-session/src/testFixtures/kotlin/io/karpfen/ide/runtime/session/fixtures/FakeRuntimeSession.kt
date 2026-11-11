@@ -44,15 +44,15 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * A session for the tests of views that show one: the test sets what the session shows through the writable flows and
- * programs what its commands answer; the session records every command and every event frame it was asked to send. It
+ * A session for the tests of views that show one. The test sets what the session shows through the writable flows and
+ * programs what its commands answer. The session records every command and every event frame it was asked to send. It
  * deploys nothing and talks to no runtime.
  *
- * At first the session is deploying, without progress, with the plan's findings as its problems, an idle connection,
- * the seed with the predicted states as its model and events not injectable yet. Its event injector is the real one
- * over the prepared catalog; the frames it sends are recorded and answered as written.
+ * At first the session is deploying, without progress, with the plan's findings as its problems and an idle
+ * connection. Its model is the seed with the predicted states, and events are not injectable yet. Its event injector
+ * is the real one over the prepared catalog. The frames it sends are recorded and answered as written.
  *
- * Threading: every function may be called from any thread.
+ * Every function may be called from any thread.
  *
  * @property prepared what the session pretends to deploy.
  * @property clientId the client id it shows.
@@ -90,17 +90,17 @@ public class FakeRuntimeSession(
     /** The writable injection availability. */
     public val availabilityFlow: MutableStateFlow<InjectionAvailability> = MutableStateFlow(InjectionAvailability.NotYet)
 
-    /** Where the test emits model updates; they reach collectors of [modelUpdates]. */
+    /** Where the test emits model updates. They reach collectors of [modelUpdates]. */
     public val modelUpdateFlow: MutableSharedFlow<ModelUpdate> = MutableSharedFlow(extraBufferCapacity = BUFFER)
 
-    /** Where the test emits domain events; they reach collectors of [domainEvents]. */
+    /** Where the test emits domain events. They reach collectors of [domainEvents]. */
     public val domainEventFlow: MutableSharedFlow<ObservedDomainEvent> = MutableSharedFlow(extraBufferCapacity = BUFFER)
 
-    /** Where the test emits journal entries; they are replayed like the real journal's. */
+    /** Where the test emits journal entries. They are replayed like the entries of the real journal. */
     public val activityFlow: MutableSharedFlow<SessionActivity> =
         MutableSharedFlow(replay = BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    /** What each command answers; [SessionCommandOutcome.Done] unless the test programs otherwise. */
+    /** What each command answers. It is [SessionCommandOutcome.Done] unless the test programs otherwise. */
     @Volatile
     public var answer: (FakeSessionCommand) -> SessionCommandOutcome = { SessionCommandOutcome.Done }
 

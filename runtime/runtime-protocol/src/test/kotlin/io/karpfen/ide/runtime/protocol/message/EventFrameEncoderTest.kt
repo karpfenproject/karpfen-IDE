@@ -20,8 +20,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 /**
- * Covers [EventFrameEncoder]: the exact frames of an event without payload and of a JSON payload, the explicit KModel
- * format, the member order, the payload always written as a string, and the escaping of the runtime writer's rule.
+ * Covers [EventFrameEncoder]. The tests check the exact frames of an event without payload and with a JSON payload, the
+ * explicit KModel format and the member order. The payload is always written as a string, and escaping follows the
+ * runtime writer's rule.
  */
 class EventFrameEncoderTest {
 

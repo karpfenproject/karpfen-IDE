@@ -38,7 +38,7 @@ internal interface ObservationPort {
  * How persistently the observation retries. An attempt count is the number of calls in all, the first one included.
  *
  * @property subscribeAttempts the calls of a subscription that the runtime refuses because it has not processed the
- *   handshake yet (no open WebSocket session).
+ *   handshake yet. In that case the runtime has no open WebSocket session for the client.
  * @property subscribeRetryDelay the pause between two such calls.
  * @property snapshotAttempts the snapshot reads while observation is on, until the model counts as out of sync.
  * @property snapshotRetryDelay the pause between two snapshot reads.
@@ -70,7 +70,7 @@ internal sealed interface ObservationNotice {
     data class Synchronized(val reason: SyncReason?, val revision: Long) : ObservationNotice
 
     /**
-     * Observation is on, but no snapshot could be read to re-synchronize; the mirror stays as it was until the next
+     * Observation is on, but no snapshot could be read to re-synchronize. The mirror stays as it was until the next
      * pull.
      *
      * @property reason why, in a plain sentence.
@@ -85,7 +85,7 @@ internal sealed interface ObservationNotice {
     data class Anomaly(val detail: String) : ObservationNotice
 }
 
-/** Receives the [ObservationNotice]s of a [ModelObserver], on the observer's coroutine; it never suspends. */
+/** Receives the [ObservationNotice]s of a [ModelObserver] on the observer's coroutine. It never suspends. */
 internal fun interface ObservationListener {
     /** Takes [notice]. */
     fun notice(notice: ObservationNotice)

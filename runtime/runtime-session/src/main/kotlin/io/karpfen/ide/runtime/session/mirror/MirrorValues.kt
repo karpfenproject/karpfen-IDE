@@ -22,11 +22,11 @@ public enum class ObjectOrigin {
     /** The object is declared in the deployed model. */
     MODEL,
 
-    /** The runtime created the object while the environment ran; the deployed model does not declare its id. */
+    /** The runtime created the object while the environment ran. The deployed model does not declare its id. */
     RUNTIME,
 }
 
-/** A value of a simple property, of one of the three simple types; the runtime keeps every number as a double. */
+/** A value of a simple property, of one of the three simple types. The runtime keeps every number as a double. */
 public sealed interface ScalarValue {
     /**
      * A number.
@@ -85,13 +85,16 @@ public sealed interface ObjectRef {
     public data class Keyed(public val id: String) : ObjectRef
 
     /**
-     * An object without an id, which only its relation holds; it lives inline.
+     * An object without an id, which only its relation holds. It lives inline.
      *
      * @property value the object, whose id is empty.
      */
     public data class Anonymous(public val value: MirrorObject) : ObjectRef
 
-    /** An entry of a list relation that refers to no object: the model's unresolved entry, the runtime's `null`. */
+    /**
+     * An entry of a list relation that refers to no object. It stands for an unresolved entry of the model and for the
+     * runtime's `null`.
+     */
     public data object Missing : ObjectRef
 }
 
@@ -99,9 +102,10 @@ public sealed interface ObjectRef {
  * A relation present on an object.
  *
  * @property key the relation's key.
- * @property association `has` or `knows`, or null when the object's type is unknown to the schema or the relation is
- *   not a relation of its type.
- * @property isList true for a list relation; an atomic relation holds at most one target, an empty one none.
+ * @property association `has` or `knows`. It is null when the schema does not know the object's type, or when the
+ *   relation is not a relation of its type.
+ * @property isList true for a list relation. An atomic relation holds at most one target, and an empty one holds
+ *   none.
  * @property targets the targets in order.
  */
 public data class MirrorRelation(
@@ -112,15 +116,15 @@ public data class MirrorRelation(
 )
 
 /**
- * An object of the mirror: its type, the properties and relations present on it in instance order, where it comes
- * from and the revision that last wrote it.
+ * An object of the mirror. It holds its type, the properties and relations present on it in instance order, where it
+ * comes from and the revision that last wrote it.
  *
- * @property id the object's id; empty for an anonymous object.
+ * @property id the object's id. It is empty for an anonymous object.
  * @property typeName the name of its type.
  * @property properties the simple properties present on it, in instance order.
  * @property relations the relations present on it, in instance order.
  * @property origin whether the deployed model declares it.
- * @property revision the revision of the snapshot or push that last wrote it; 0 for the seed.
+ * @property revision the revision of the snapshot or push that last wrote it. It is 0 for the seed.
  */
 public data class MirrorObject(
     public val id: String,
@@ -138,8 +142,8 @@ public data class MirrorObject(
 }
 
 /**
- * Where a keyed object is embedded: the nearest keyed object that holds it through `has` relations only, and the
- * relation of that owner through which it is held.
+ * Where a keyed object is embedded. The owner is the nearest keyed object that holds it through `has` relations only.
+ * The relation is the owner's relation through which it is held.
  *
  * @property owner the id of the owner.
  * @property relation the key of the owner's relation.
@@ -147,8 +151,8 @@ public data class MirrorObject(
 public data class Containment(public val owner: String, public val relation: String)
 
 /**
- * The model as values: every keyed object by id, the roots of the model, and where each embedded keyed object is held.
- * Immutable.
+ * The model as values. It holds every keyed object by id, the roots of the model, and where each embedded keyed object
+ * is held. Immutable.
  *
  * @property objects every keyed object by id, in the order the model or the runtime first showed them.
  * @property roots the root objects of the model in model order.

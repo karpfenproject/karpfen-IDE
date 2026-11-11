@@ -40,12 +40,14 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
- * The overlay slots and the host `CodeEditor` gives them: the header above the text area, the popups over it, geometry
- * in text-area coordinates that follows the caret and the scroll position; and the drag auto-scroll at the edges.
+ * The overlay slots and the host that `CodeEditor` gives them. The header lies above the text area and the popups lie
+ * over it. The geometry is in text-area coordinates and follows the caret and the scroll position. The tests also cover
+ * the drag auto-scroll at the edges.
  */
 @OptIn(ExperimentalTestApi::class)
 class CodeEditorOverlayHostTest {
 
+    /** 200 short lines. */
     private val lines = (0 until 200).joinToString("\n") { "line $it" }
 
     @Test

@@ -18,44 +18,64 @@ package io.karpfen.ide.ui.workbench.statusbar
 import io.karpfen.ide.ui.workbench.output.UnseenOutputProblems
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 
-/**
- * What a [StatusSegment] shows; the view picks its icon by kind. [LANGUAGE_TOOLS_ERRORS] and [LANGUAGE_TOOLS_WARNINGS]
- * tell that unseen problems of the language tools are waiting in their output, with or without an error among them;
- * [RUNTIME] tells what the runtime of the workspace is doing.
- */
+/** What a [StatusSegment] shows. The view picks the segment's icon and click action by its kind. */
 internal enum class StatusSegmentKind {
+    /** "Analyzing…" while an analysis of the workspace runs. */
     ANALYZING,
+
+    /** What the runtime of the workspace is doing. */
     RUNTIME,
+
+    /** Unseen problems of the language tools wait in their output, and at least one of them is an error. */
     LANGUAGE_TOOLS_ERRORS,
+
+    /** Unseen problems of the language tools wait in their output, and none of them is an error. */
     LANGUAGE_TOOLS_WARNINGS,
+
+    /** The caret's line and column. */
     POSITION,
+
+    /** The length of the selection. */
     SELECTION,
+
+    /** The language of the active editor. */
     LANGUAGE,
+
+    /** The line separator of the active document. */
     LINE_SEPARATOR,
+
+    /** The encoding of the active document. */
     ENCODING,
+
+    /** The number of errors in the workspace. */
     ERRORS,
+
+    /** The number of warnings in the workspace. */
     WARNINGS,
 }
 
 /** One text segment of the status bar, identified by [kind]. */
 internal data class StatusSegment(val kind: StatusSegmentKind, val text: String, val tooltip: String? = null) {
-    /** A stable id (test tags, item ids). */
+    /** A stable id, used for test tags and item ids. */
     val id: String get() = kind.name.lowercase()
 }
 
 /**
- * The texts of the status bar, presentation only, so the composable just renders them: the left side shows "Analyzing…"
- * while an analysis runs, the runtime's status in a few words while a workspace is open, and the language tools'
- * indicator while errors or warnings of theirs wait unseen in their output; the right side `Ln x, Col y`, the selection
- * length (when text is selected), language, line separator and encoding of the active editor, then the workspace's
- * error and warning counts.
+ * The texts of the status bar. This is presentation only, so the composable just renders them.
+ *
+ * The left side shows "Analyzing…" while an analysis runs. It shows the runtime's status in a few words while a
+ * workspace is open. And it shows the language tools' indicator while errors or warnings of theirs wait unseen in their
+ * output.
+ *
+ * The right side shows `Ln x, Col y` and the selection length when text is selected. Then come the language, the line
+ * separator and the encoding of the active editor. The workspace's error and warning counts come last.
  */
 internal object StatusBarSegments {
 
     /** The tooltip of the runtime's status. */
     private const val RUNTIME_TOOLTIP = "Click to show the Runtime tool window"
 
-    /** Segments on the left. */
+    /** The segments on the left. */
     fun left(state: StatusBarUiState): List<StatusSegment> = buildList {
         if (state.isAnalyzing) add(StatusSegment(StatusSegmentKind.ANALYZING, "Analyzing…"))
         state.runtime?.let { add(StatusSegment(StatusSegmentKind.RUNTIME, RuntimeTexts.hostSummary(it), RUNTIME_TOOLTIP)) }
@@ -63,8 +83,8 @@ internal object StatusBarSegments {
     }
 
     /**
-     * The indicator of [unseen] problems of the language tools, or null without any: an error segment if an error is
-     * among them, else a warning segment, counting both.
+     * The indicator of [unseen] problems of the language tools, or null if there are none. It is an error segment if
+     * an error is among them, and a warning segment otherwise. Its count includes both errors and warnings.
      */
     private fun languageTools(unseen: UnseenOutputProblems): StatusSegment? {
         if (unseen.isEmpty) return null
@@ -77,7 +97,7 @@ internal object StatusBarSegments {
     /** [count] followed by [noun], in the plural unless [count] is one. */
     private fun count(count: Long, noun: String): String = if (count == 1L) "1 $noun" else "$count ${noun}s"
 
-    /** Segments on the right. */
+    /** The segments on the right. */
     fun right(state: StatusBarUiState): List<StatusSegment> = buildList {
         if (state.line != null && state.column != null) {
             add(StatusSegment(StatusSegmentKind.POSITION, "Ln ${state.line}, Col ${state.column}", "Line and column"))

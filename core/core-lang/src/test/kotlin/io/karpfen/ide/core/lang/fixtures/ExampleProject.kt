@@ -41,15 +41,15 @@ import java.nio.file.Path
 import java.util.Collections
 
 /**
- * The example files (`Examples.contexts()`) as a workspace below [ROOT], analyzed by the conventions documented on
- * `ProjectAnalysis`, without the workspace's analyzer: normalized absolute paths, `TextSnapshot(text, 0)` per file
- * (a lineage of its own), syntax-only parses from `defaultLanguageRegistry()`, reads through core-document's
- * `DslReader` — the events file with the domain types as base types, the events and the models only against a domain
- * metamodel without errors.
+ * The example files of `Examples.contexts()` as a workspace below [ROOT]. They are analyzed by the conventions
+ * documented on `ProjectAnalysis`, but without the analyzer of the workspace. Paths are absolute and normalized. Each
+ * file gets `TextSnapshot(text, 0)` with a lineage of its own. Parses are syntax only and come from
+ * `defaultLanguageRegistry()`. Reads go through the `DslReader` of core-document. The events file is read with the
+ * domain types as base types. Events and models are read only against a domain metamodel without errors.
  */
 object ExampleProject {
 
-    /** The (virtual) workspace root of the examples. */
+    /** The virtual workspace root of the examples. */
     val ROOT: Path = Path.of("/workspace/examples").toAbsolutePath().normalize()
 
     /** The tokenizers and parsers of the built-in languages, environment descriptors included. */
@@ -58,16 +58,19 @@ object ExampleProject {
     /** The dsl-tools adapter of the reads. */
     private val reader = DslReader()
 
-    /** The analysis of every example context (built once). */
+    /** The analysis of every example context, built once. */
     val analysis: ProjectAnalysis by lazy { analyze(Examples.contexts()) }
 
-    /** The absolute path of the example at [examplePath] (below the fixture root, e.g. `karpfen-runtime/…/EVENTS.kmeta`). */
+    /**
+     * The absolute path of the example at [examplePath]. The path is relative to the fixture root, such as
+     * `karpfen-runtime/…/EVENTS.kmeta`.
+     */
     fun pathOf(examplePath: String): Path = ROOT.resolve(examplePath).normalize()
 
     /** The example text at [examplePath]. */
     fun textOf(examplePath: String): String = Examples.file(examplePath).text
 
-    /** Analyzes [contexts] like the workspace's analyzer would (see the class documentation). */
+    /** Analyzes [contexts] the way the analyzer of the workspace would, as the class documentation describes. */
     fun analyze(contexts: List<ExampleContext>, generation: Long = 1): ProjectAnalysis {
         val diagnostics = LinkedHashMap<Path, List<Diagnostic>>()
         val analyses = contexts.map { example ->
@@ -117,7 +120,7 @@ object ExampleProject {
         return ProjectAnalysis(generation, analyses, diagnostics)
     }
 
-    /** The analyzed file at [path] with [text] (version 0, a lineage of its own, syntax-only parse). */
+    /** The analyzed file at [path] with [text], at version 0, with a lineage of its own and a syntax-only parse. */
     fun analyzedFile(path: Path, text: String): AnalyzedFile {
         val support = registry.support(languageOf(path))
         val snapshot = TextSnapshot(text, 0)
@@ -127,8 +130,8 @@ object ExampleProject {
     }
 
     /**
-     * A document at [path] with [text] as the editor would hand it to the services: tokens and a syntax-only parse of
-     * [version]; the last good parse is [lastGoodParse], else the parse itself when it is syntax-clean.
+     * A document at [path] with [text] as the editor would hand it to the services. It has tokens and a syntax-only
+     * parse of [version]. The last good parse is [lastGoodParse], or else the parse itself when it is syntax-clean.
      */
     fun document(path: Path, text: String, version: Long = 1, lastGoodParse: ParseOutcome? = null): LanguageDocument {
         val language = languageOf(path)
@@ -147,7 +150,7 @@ object ExampleProject {
     fun request(document: LanguageDocument, analysis: ProjectAnalysis = this.analysis): FeatureRequest =
         FeatureRequest(document, analysis, analysis.contextOf(document.path))
 
-    /** The default services over [analysis]; [failures] collects every provider failure the facade reports. */
+    /** The default services over [analysis]. [failures] collects every provider failure the facade reports. */
     fun services(
         analysis: ProjectAnalysis = this.analysis,
         failures: MutableList<ProviderFailure> = Collections.synchronizedList(ArrayList()),
@@ -178,21 +181,21 @@ object ExamplePaths {
     const val CAR_KSTATES = "karpfen-runtime/autonomous_car_example/autonomous_car.kstates"
 }
 
-/** The text with the caret marker `‸` removed and the marker's offset. */
+/** The text with the caret marker `‸` removed, and the offset of the marker. */
 fun caret(textWithMarker: String): Pair<String, Int> {
     val offset = textWithMarker.indexOf(CARET)
     require(offset >= 0) { "no caret marker in the text" }
     return textWithMarker.removeRange(offset, offset + 1) to offset
 }
 
-/** The offset right after the first occurrence of [needle] in [text] (plus [shift]). */
+/** The offset right after the first occurrence of [needle] in [text], plus [shift]. */
 fun after(text: String, needle: String, shift: Int = 0): Int {
     val index = text.indexOf(needle)
     require(index >= 0) { "'$needle' not found" }
     return index + needle.length + shift
 }
 
-/** The offset of the first occurrence of [needle] in [text] (plus [shift]). */
+/** The offset of the first occurrence of [needle] in [text], plus [shift]. */
 fun at(text: String, needle: String, shift: Int = 0): Int {
     val index = text.indexOf(needle)
     require(index >= 0) { "'$needle' not found" }

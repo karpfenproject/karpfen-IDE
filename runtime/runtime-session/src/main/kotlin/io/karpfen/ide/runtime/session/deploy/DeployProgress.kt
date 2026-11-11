@@ -17,7 +17,9 @@ package io.karpfen.ide.runtime.session.deploy
 
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 
-/** The steps of a deployment, in the order they run. Some steps run once per item, such as one attachment per machine. */
+/**
+ * The steps of a deployment, in the order they run. Some steps run once per item, such as one attachment per machine.
+ */
 public enum class DeployStepKind {
     /** Checks that the runtime is up and has the IDE's routes, before anything is created. */
     CHECK_RUNTIME,
@@ -31,7 +33,7 @@ public enum class DeployStepKind {
     /** Uploads the domain metamodel. */
     UPLOAD_METAMODEL,
 
-    /** Uploads the event definitions; skipped without an events file. */
+    /** Uploads the event definitions. It is skipped when the context has no events file. */
     UPLOAD_EVENTS,
 
     /** Uploads the model. */
@@ -46,7 +48,7 @@ public enum class DeployStepKind {
     /** Sets the event time to live of the deploy configuration. */
     SET_EVENT_TTL,
 
-    /** Registers a listener for every event domain the state machines use; skipped without domains. */
+    /** Registers a listener for every event domain the state machines use. It is skipped when there are none. */
     LISTEN_DOMAINS,
 
     /** Activates the environment. */
@@ -55,10 +57,13 @@ public enum class DeployStepKind {
     /** Switches observation on, or reads the model back once. */
     OBSERVE,
 
-    /** Starts the environment; skipped when the deployment does not start it. */
+    /** Starts the environment. It is skipped when the deployment does not start it. */
     START,
 
-    /** Waits until every state machine reports an active state; skipped when the deployment does not start it. */
+    /**
+     * Waits until every state machine reports an active state. It is skipped when the deployment does not start the
+     * environment.
+     */
     CONFIRM_START,
 }
 
@@ -76,7 +81,7 @@ public enum class StepStatus {
     /** Not needed for this deployment. */
     SKIPPED,
 
-    /** Failed or cancelled; the deployment stopped here. */
+    /** Failed or cancelled. The deployment stopped here. */
     FAILED,
 }
 
@@ -96,7 +101,7 @@ public data class StepProgress(
 )
 
 /**
- * The progress of a deployment: every step with its status. Immutable.
+ * The progress of a deployment, with every step and its status. Immutable.
  *
  * @property steps the steps in the order they run.
  * @property environment the key of the environment once it was created, otherwise null.
@@ -105,7 +110,10 @@ public data class DeployProgress(
     public val steps: List<StepProgress>,
     public val environment: EnvironmentKey?,
 ) {
-    /** The step running now or the one that failed, or null before the first and after the last. */
+    /**
+     * The step running now or the one that failed. It is null before the first step starts and after the last one
+     * ended.
+     */
     public val current: StepProgress?
         get() = steps.firstOrNull { it.status == StepStatus.RUNNING || it.status == StepStatus.FAILED }
 

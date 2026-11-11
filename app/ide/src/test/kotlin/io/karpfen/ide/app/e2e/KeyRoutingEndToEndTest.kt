@@ -67,16 +67,20 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Key routing of the composed IDE, headless: the focused component handles and consumes its keys first, and a menu
- * accelerator only sees the strokes nobody consumed. The production workbench runs inside a key handler that plays the
- * window menu's accelerators ([MenuAccelerators]). One Cmd+Z in the editor undoes exactly one step — the editor
- * consumes the stroke, so no menu command runs — and Cmd+X with the focus in the project tree reaches the menu, whose
- * Cut is disabled while the editor is unfocused, so the editor text stays unchanged; shortcuts typed into a dialog
- * reach no command (the dialogs are modal). Completion follows the keymap of each platform: Ctrl+M in the focused
- * editor opens it everywhere, and the editor consumes the stroke, so the Edit menu's Complete Code, whose accelerator is
- * Ctrl+M, never sees it; with the focus in the project tree Ctrl+M reaches that menu item, which is disabled while the
- * editor is unfocused. Ctrl+Space opens completion only on Windows; on macOS and Linux it goes on unconsumed and runs
- * no command. (The native macOS menu bar itself is covered by the manual test.)
+ * Key routing of the composed IDE, run headless. The focused component handles and consumes its keys first, and a
+ * menu accelerator only sees the strokes nobody consumed. The production workbench runs inside a key handler that
+ * plays the window menu's accelerators, [MenuAccelerators].
+ *
+ * One Cmd+Z in the editor undoes exactly one step. The editor consumes the stroke, so no menu command runs. Cmd+X with
+ * the focus in the project tree reaches the menu, whose Cut is disabled while the editor is unfocused, so the editor
+ * text stays unchanged. Shortcuts typed into a dialog reach no command, because the dialogs are modal.
+ *
+ * Completion follows the keymap of each platform. Ctrl+M in the focused editor opens it everywhere. The editor
+ * consumes the stroke, so the Edit menu's Complete Code, whose accelerator is Ctrl+M, never sees it. With the focus in
+ * the project tree, Ctrl+M reaches that menu item, which is disabled while the editor is unfocused. Ctrl+Space opens
+ * completion only on Windows. On macOS and Linux it goes on unconsumed and runs no command.
+ *
+ * These tests do not reach the native macOS menu bar itself. It has to be checked by hand.
  */
 @OptIn(ExperimentalTestApi::class)
 class KeyRoutingEndToEndTest {
@@ -253,11 +257,11 @@ class KeyRoutingEndToEndTest {
         }
     }
 
-    /** The project tree (the Outline is a `TreeView` as well). */
+    /** The tree view inside the Project tool window. The Outline is a `TreeView` too, so the tool window decides. */
     private fun ComposeUiTest.projectTree(): SemanticsNodeInteraction =
         onNode(hasTestTag(TreeViewTestTags.TREE) and hasAnyAncestor(hasTestTag(WorkbenchTestTags.toolWindow(ToolWindowId.PROJECT))))
 
-    /** Runs the state's pending work (virtual time) and the resulting frames, a few times. */
+    /** Runs the state's pending work on virtual time and then the resulting frames, a few times over. */
     private fun ComposeUiTest.settle(ide: EndToEndIde) {
         repeat(4) {
             ide.settle()

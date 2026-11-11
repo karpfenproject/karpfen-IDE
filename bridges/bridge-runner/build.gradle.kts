@@ -18,14 +18,18 @@ plugins {
 }
 
 /**
- * The start script is named `karpfen-bridge-runner` (`build/install/karpfen-bridge-runner/bin/karpfen-bridge-runner`),
- * matching the usage line that the runner prints.
+ * The start script is named `karpfen-bridge-runner`, matching the usage line that the runner prints. `installDist` puts
+ * it at `build/install/karpfen-bridge-runner/bin/karpfen-bridge-runner`.
  */
 application {
     mainClass = "io.karpfen.ide.bridges.runner.MainKt"
     applicationName = "karpfen-bridge-runner"
 }
 
+/**
+ * The headless runner of the bridges, which so far only prints its usage. It will start the MQTT and ROS bridges, and
+ * it logs through Logback at run time.
+ */
 dependencies {
     implementation(project(":bridges:bridge-mqtt"))
     implementation(project(":bridges:bridge-ros"))

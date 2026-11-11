@@ -21,12 +21,12 @@ import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 
 /**
- * Classifies the body of a rejection (400 or 409) by the runtime's texts.
+ * Classifies the body of a rejection by the runtime's texts. A rejection has the status 400 or 409.
  *
- * A body is one of the [RuntimeText]s only if it is that whole text; the texts are disjoint, so at most one matches. A
- * body that is none of them is a [RejectionKind.CONTENT_REJECTED] on an upload route, where the runtime's parser refused
- * the text with a message of its own and without a position, and [RejectionKind.UNCLASSIFIED] everywhere else.
- * Stateless.
+ * A body counts as one of the [RuntimeText]s only if it is that whole text. The texts are disjoint, so at most one
+ * matches. A body that matches none of them becomes [RejectionKind.CONTENT_REJECTED] on a route that uploads a body.
+ * There the runtime's parser refused the text with a message of its own and without a position. On every other route
+ * such a body becomes [RejectionKind.UNCLASSIFIED]. The object holds no state.
  */
 internal object RejectionClassifier {
 

@@ -19,12 +19,12 @@ import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.dsl.states.StateMachine
 
 /**
- * A semantic model read by a dsl-tools reader from one file alone (the "standalone semantics" of a document): the
- * complete model of a file without DSL_TOOLS errors, a partial one otherwise.
+ * A semantic model that a dsl-tools reader read from one file alone. This is the standalone semantics of a document.
+ * The model is complete for a file without DSL_TOOLS errors, and partial otherwise.
  *
- * The wrapped dsl-tools classes are mutable; the IDE never mutates them, because text files are the single source of
- * truth and every change is a text edit. KModel files need a metamodel and are read in core-workspace, so there is no
- * KModel variant.
+ * The wrapped dsl-tools classes are mutable. The IDE never mutates them, because the text files are the single source
+ * of truth and every change is a text edit. KModel files need a metamodel and are read in core-workspace, so there is
+ * no KModel variant.
  */
 public sealed interface DslModel {
 

@@ -22,12 +22,13 @@ import ch.qos.logback.core.spi.FilterReply
 import io.karpfen.ide.core.document.dsl.DslToolsLoggers
 
 /**
- * A logback filter that holds back what dsl-tools logs below a level: it denies an event of a dsl-tools logger
- * ([DslToolsLoggers.isDslToolsLogger]) whose level is lower than [level], and stays neutral on every other event.
- * `logback.xml` puts it on the IDE log, so that of all that dsl-tools logs only the warnings and errors are forwarded
- * there, while the IDE's own events pass unchanged.
+ * A logback filter that holds back what dsl-tools logs below a level. It denies an event of a dsl-tools logger, as
+ * [DslToolsLoggers.isDslToolsLogger] tells it, whose level is lower than [level]. It stays neutral on every other
+ * event. `logback.xml` puts it on the IDE log. So of all that dsl-tools logs, only the warnings and errors are
+ * forwarded there, while the IDE's own events pass unchanged.
  *
- * logback creates the filter from the configuration and sets [level] through its setter before [start].
+ * logback creates the filter from the configuration and sets [level] through its setter before [start]. Until the
+ * filter has started, it holds nothing back.
  *
  * @property level the name of the lowest level of the dsl-tools events that pass, such as `WARN`.
  */
@@ -35,7 +36,10 @@ public class DslToolsThresholdFilter : Filter<ILoggingEvent>() {
     public var level: String? = null
     private var threshold: Level = Level.OFF
 
-    /** Starts the filter if [level] names a level; reports anything else as an error of the configuration. */
+    /**
+     * Starts the filter if [level] names a level. Anything else is reported as an error of the configuration, and the
+     * filter stays stopped.
+     */
     override fun start() {
         val parsed = level?.let { Level.toLevel(it, null) }
         if (parsed == null) {
@@ -46,6 +50,7 @@ public class DslToolsThresholdFilter : Filter<ILoggingEvent>() {
         super.start()
     }
 
+    /** Denies an event of a dsl-tools logger below the threshold and stays neutral on every other event. */
     override fun decide(event: ILoggingEvent): FilterReply {
         val heldBack = isStarted && DslToolsLoggers.isDslToolsLogger(event.loggerName) && !event.level.isGreaterOrEqual(threshold)
         return if (heldBack) FilterReply.DENY else FilterReply.NEUTRAL

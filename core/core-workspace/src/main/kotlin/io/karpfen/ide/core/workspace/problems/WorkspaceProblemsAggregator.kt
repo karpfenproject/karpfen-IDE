@@ -25,18 +25,22 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
 /**
- * Applies the rule documented on [WorkspaceProblems]. Pure: the workspace calls it with the latest analysis, the
- * current diagnostics of its open documents and the read descriptors whenever one of them changes.
+ * Applies the rule described on [WorkspaceProblems]. It has no state and no side effects. The workspace calls it with
+ * the latest analysis, the current diagnostics of its open documents and the read descriptors whenever one of them
+ * changes.
  *
- * Per file, the first matching case wins: an open document (its session's merged diagnostics and snapshot); an
- * analyzed karpfen file, in a context or loose (`mergeDiagnostics` of its own lexical, parse and file diagnostics plus
- * its project diagnostics, on the analyzed snapshot); a read descriptor (`mergeDiagnostics` of the diagnostics of its
- * text plus its project diagnostics, on its text); any other path with project diagnostics, e.g. an unreadable file
- * (those, without a text).
+ * For each file the first matching case wins.
+ * - An open document gets the merged diagnostics and the snapshot of its session.
+ * - An analyzed karpfen file, in a context or loose, gets `mergeDiagnostics` of its own lexical, parse and file
+ *   diagnostics plus its project diagnostics, on the analyzed snapshot.
+ * - A read descriptor gets `mergeDiagnostics` of the diagnostics of its text plus its project diagnostics, on its
+ *   text.
+ * - Any other path with project diagnostics, such as a file that cannot be read, gets those diagnostics without a
+ *   text.
  */
 internal class WorkspaceProblemsAggregator {
 
-    /** The problems for [analysis], [openDocuments] and the read [descriptors] by path. */
+    /** The problems for [analysis], [openDocuments] and the read [descriptors], by path. */
     fun aggregate(
         analysis: ProjectAnalysis,
         openDocuments: List<OpenDocumentDiagnostics>,
@@ -78,7 +82,7 @@ internal class WorkspaceProblemsAggregator {
     ): FileProblems? = if (diagnostics.isEmpty()) null else FileProblems(path, kind, diagnostics, snapshot, isOpen)
 }
 
-/** The current diagnostics of an open document (with the snapshot their ranges refer to). */
+/** The current diagnostics of an open document, with the snapshot their ranges refer to. */
 internal data class OpenDocumentDiagnostics(
     val path: Path,
     val kind: FileKind,

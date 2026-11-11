@@ -28,7 +28,10 @@ public sealed interface InjectionAvailability {
     /** The environment is still being deployed. */
     public data object NotYet : InjectionAvailability
 
-    /** The environment is activated but not started: an injected event waits, and its time to live runs from receipt. */
+    /**
+     * The environment is activated but not started. An injected event waits, and its time to live runs from the moment
+     * the runtime receives it.
+     */
     public data object Queued : InjectionAvailability
 
     /** The environment runs and the connection is open. */
@@ -48,7 +51,7 @@ public sealed interface InjectionAvailability {
  * @property domain the event's domain.
  * @property name the event's name.
  * @property kind how the payload is written.
- * @property text the payload; ignored for [PayloadKind.NONE].
+ * @property text the payload. It is ignored for [PayloadKind.NONE].
  */
 public data class InjectionRequest(public val domain: String, public val name: String, public val kind: PayloadKind, public val text: String)
 
@@ -77,15 +80,18 @@ public sealed interface InjectionOutcome {
     public data class Unavailable(public val availability: InjectionAvailability) : InjectionOutcome
 }
 
-/** Where injected event frames go; the session's sink routes them through its command order, so no event overtakes a stop. */
+/**
+ * Where injected event frames go. The session's sink routes them through its command order, so no event overtakes a
+ * stop.
+ */
 public fun interface EventSink {
     /** Sends [frame]. */
     public suspend fun send(frame: EventFrame): SendOutcome
 }
 
 /**
- * Injects events into a running environment: offers the catalog and a payload format per kind, checks requests as the
- * runtime will read them, and sends what passes.
+ * Injects events into a running environment. It offers the catalog and a payload format per kind. It checks requests
+ * as the runtime will read them, and sends what passes.
  */
 public interface EventInjector {
     /** The events of the deployment by domain. */
@@ -98,23 +104,23 @@ public interface EventInjector {
     public fun format(kind: PayloadKind): PayloadFormat
 
     /**
-     * The findings on [request]: a blank domain or name, an event no attached machine listens to, a domain named like an
-     * attached key, an environment that only queues events, and the payload format's findings on the text. Ranges of
-     * the findings on the event itself are empty, at the start of the payload.
+     * The findings on [request]. They cover a blank domain or name, an event that no attached machine listens to, a
+     * domain named like an attached key, and an environment that only queues events. The payload format's findings on
+     * the text are added. The findings on the event itself have an empty range at the start of the payload.
      */
     public fun validate(request: InjectionRequest): PayloadValidation
 
     /**
-     * Checks [request] again and sends it unless events cannot be injected now or a finding is an error. [InjectionOutcome.Sent]
-     * means the frame was written to the socket; the runtime never answers events.
+     * Checks [request] again and sends it, unless events cannot be injected now or a finding is an error.
+     * [InjectionOutcome.Sent] means the frame was written to the socket. The runtime never answers events.
      */
     public suspend fun inject(request: InjectionRequest): InjectionOutcome
 }
 
 /**
- * The injector of [catalog] for an environment whose machines are attached to [attachedKeys], with the session's
- * [availability] and [sink]. KModel payloads are checked with core-document's KModel parser and the dsl-tools reader
- * adapter.
+ * Creates the injector of [catalog] for an environment whose machines are attached to [attachedKeys]. It uses the
+ * session's [availability] and [sink]. KModel payloads are checked with core-document's KModel parser and the
+ * dsl-tools reader adapter.
  */
 public fun EventInjector(
     catalog: EventCatalog,
@@ -135,7 +141,7 @@ public fun EventInjector(
     return DefaultEventInjector(catalog, attachedKeys.toSet(), availability, sink, formats)
 }
 
-/** No payload: the frame says so explicitly, and any text is dropped. Stateless. */
+/** The format without a payload. The frame says so explicitly, and any text is dropped. Stateless. */
 internal object NoPayloadFormat : PayloadFormat {
     /** The kind this format writes. */
     override val kind: PayloadKind = PayloadKind.NONE
@@ -143,7 +149,7 @@ internal object NoPayloadFormat : PayloadFormat {
     /** No text. */
     override fun template(event: InjectableEvent): String = ""
 
-    /** No findings: nothing is sent to check. */
+    /** No findings, because nothing is sent that could be checked. */
     override fun validate(text: String, event: InjectableEvent): PayloadValidation = PayloadValidation.CLEAN
 
     /** No payload, whatever [text] is. */

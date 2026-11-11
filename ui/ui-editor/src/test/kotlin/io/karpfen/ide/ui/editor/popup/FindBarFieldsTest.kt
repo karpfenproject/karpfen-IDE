@@ -25,7 +25,10 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The find bar's hoisted field state (selection, composition) over the model's query and replacement; the status and toggles. */
+/**
+ * The hoisted field state of the find bar, with selection and composition, over the model's query and replacement.
+ * The tests also cover the status and the toggles.
+ */
 class FindBarFieldsTest {
 
     @Test

@@ -45,8 +45,11 @@ import java.time.Duration as JavaDuration
 import kotlin.time.Duration
 
 /**
- * The [DockerEngine] of the engine at [endpoint], through docker-java and its Apache HttpClient 5 transport. Every
- * call runs on `Dispatchers.IO`, and every failure of the client becomes a [DockerEngineException].
+ * The [DockerEngine] of the engine at [endpoint], through docker-java and its Apache HttpClient 5 transport. This is the
+ * only class that uses docker-java. Every call runs on `Dispatchers.IO`, and every failure of the client becomes a
+ * [DockerEngineException]. Connecting to the engine may take at most five seconds. An image build uses the classic
+ * builder, which reports its progress as `Step x/y` lines, and removes its intermediate containers, also after a
+ * failure.
  *
  * @param endpoint the local endpoint, such as `unix:///var/run/docker.sock`, as [DockerEndpointResolver] finds it.
  */
@@ -207,8 +210,9 @@ internal class DockerJavaEngine(endpoint: String) : DockerEngine {
     }
 
     /**
-     * Runs the blocking client call [block] on `Dispatchers.IO` and turns a failure of the client into a
-     * [DockerEngineException] that says what could not be done ([what]).
+     * Runs the blocking client call [block] on `Dispatchers.IO`. A failure of the client becomes a
+     * [DockerEngineException] whose message says that [what] could not be done. A cancellation and a
+     * [DockerEngineException] pass through unchanged.
      */
     private suspend fun <T> call(what: String, block: suspend () -> T): T =
         withContext(Dispatchers.IO) {
@@ -224,8 +228,8 @@ internal class DockerJavaEngine(endpoint: String) : DockerEngine {
         }
 
     /**
-     * Collects the output of an image build: hands every line of its stream and its status messages, but not the
-     * progress ticks of downloads, to [onLine], and keeps the last error the build reported.
+     * Collects the output of an image build. It hands every line of the build's stream and its status messages to
+     * [onLine], but not the progress ticks of downloads. It keeps the last line of the last error the build reported.
      */
     private class BuildOutput(private val onLine: (String) -> Unit) : ResultCallback.Adapter<BuildResponseItem>() {
         /** The last error the build reported, or null if it reported none. */
@@ -245,7 +249,7 @@ internal class DockerJavaEngine(endpoint: String) : DockerEngine {
         }
     }
 
-    /** Cuts the frames of a container's log into lines, keeping a started line of each stream until it ends. */
+    /** Cuts the frames of a container's log into lines. It keeps the unfinished line of each stream until a later frame ends it. */
     private class LogLines {
         /** The started line of each stream. */
         private val started = HashMap<Boolean, StringBuilder>()

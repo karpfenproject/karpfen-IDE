@@ -19,13 +19,13 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The word rule of the editor: every character belongs to one [CharClass], and a *word* is a maximal run of one class —
- * identifier runs `[A-Za-z0-9_]+`, punctuation runs and whitespace runs, as documented on [CaretMovement.WORD_LEFT]. A
- * line break is a run of its own, so word movement and word deletion stop at every line boundary and a double-click
- * never selects across lines.
+ * The word rule of the editor. Every character belongs to one [CharClass], and a word is a longest run of characters
+ * of one class. So there are identifier runs of `[A-Za-z0-9_]`, punctuation runs and whitespace runs, as documented on
+ * [CaretMovement.WORD_LEFT]. A line break is a run of its own. Word movement and word deletion therefore stop at every
+ * line boundary, and a double-click never selects across lines.
  *
- * The one word rule of the editor model: word movement ([CaretModel]), word selection, word deletion and the completion
- * auto-trigger ("identifier character") all use it. Pure functions without state.
+ * This is the only word rule of the editor model. Word movement in the [CaretModel], word selection, word deletion and
+ * the identifier check of the completion auto-trigger all use it. The object holds pure functions and no state.
  */
 internal object WordBoundaries {
 
@@ -37,14 +37,17 @@ internal object WordBoundaries {
         /** Whitespace other than `\n`. */
         WHITESPACE,
 
-        /** `\n` (each one a run of its own). */
+        /** `\n`. Each line break is a run of its own. */
         LINE_BREAK,
 
         /** Everything else. */
         PUNCTUATION,
     }
 
-    /** True for `[A-Za-z0-9_]`: the karpfen identifier characters ([KarpfenSyntax.isIdentifierChar], one source). */
+    /**
+     * True for `[A-Za-z0-9_]`, the karpfen identifier characters. It delegates to [KarpfenSyntax.isIdentifierChar], so
+     * there is one source for this rule.
+     */
     fun isIdentifierChar(char: Char): Boolean = KarpfenSyntax.isIdentifierChar(char)
 
     /** The class of [char]. */
@@ -55,7 +58,7 @@ internal object WordBoundaries {
         else -> CharClass.PUNCTUATION
     }
 
-    /** The start of the run containing the character left of [offset] (0 at the start of [text]). */
+    /** Returns the start of the run that contains the character left of [offset]. At the start of [text] it returns 0. */
     fun previousWordStart(text: CharSequence, offset: Int): Int {
         if (offset <= 0) return 0
         val runClass = classOf(text[offset - 1])
@@ -65,7 +68,7 @@ internal object WordBoundaries {
         return start
     }
 
-    /** The end of the run containing the character right of [offset] (the text length at its end). */
+    /** Returns the end of the run that contains the character right of [offset]. At the end of [text] it returns its length. */
     fun nextWordEnd(text: CharSequence, offset: Int): Int {
         if (offset >= text.length) return text.length
         val runClass = classOf(text[offset])
@@ -76,8 +79,9 @@ internal object WordBoundaries {
     }
 
     /**
-     * The word at [offset] for a double-click: an identifier run touching [offset] (right of it first), else the run of
-     * the character right of it, else the run left of it; never a line break. Empty at [offset] on an empty line.
+     * Returns the word at [offset] for a double-click. An identifier run that touches [offset] wins, and the one to the
+     * right is checked first. Otherwise it is the run of the character right of [offset], and after that the run left of
+     * it. A line break is never selected. On an empty line the result is the empty range at [offset].
      */
     fun wordAt(text: CharSequence, offset: Int): TextRange {
         val right = text.getOrNull(offset)?.takeIf { it != '\n' }

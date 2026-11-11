@@ -35,8 +35,8 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.Tokenizer
 
 /**
- * KMeta: tokenizer, syntax analyzer, standalone semantics with the KMeta reader of dsl-tools. Wiring only, like every
- * support of [defaultLanguageRegistry].
+ * The KMeta support. It wires the tokenizer, the syntax analyzer and the standalone semantics with the KMeta reader of
+ * dsl-tools. Like every support of [defaultLanguageRegistry], it only wires objects.
  */
 internal class KmetaLanguageSupport(reader: DslReader) : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.KMETA
@@ -47,8 +47,8 @@ internal class KmetaLanguageSupport(reader: DslReader) : LanguageSupport {
 }
 
 /**
- * KModel: tokenizer and syntax analyzer; no standalone semantics, because a model is only read against its metamodel,
- * which the project analysis of core-workspace supplies.
+ * The KModel support, with a tokenizer and a syntax analyzer. It has no standalone semantics, because a model is only
+ * read against its metamodel. The project analysis of core-workspace supplies that metamodel.
  */
 internal class KmodelLanguageSupport : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.KMODEL
@@ -58,7 +58,8 @@ internal class KmodelLanguageSupport : LanguageSupport {
 }
 
 /**
- * KStates: tokenizer with EVAL scanning, syntax analyzer, standalone semantics with the KStates reader of dsl-tools.
+ * The KStates support. It wires the tokenizer with EVAL scanning, the syntax analyzer and the standalone semantics
+ * with the KStates reader of dsl-tools.
  */
 internal class KstatesLanguageSupport(reader: DslReader) : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.KSTATES
@@ -69,10 +70,11 @@ internal class KstatesLanguageSupport(reader: DslReader) : LanguageSupport {
 }
 
 /**
- * Environment descriptors: the JSON tokenizer and the environment syntax analyzer, both written in this project rather
- * than taken from a JSON library, because the editor needs every token and value with its range, also in broken text.
- * The tokenizer is guarded like the ANTLR-based ones; there are no standalone semantics, because what a descriptor
- * names is checked by the workspace against the files of the folder. JSON has no comments, so there is no line comment.
+ * The support for environment descriptors. It wires the JSON tokenizer and the environment syntax analyzer. Both are
+ * written in this project and not taken from a JSON library, because the editor needs every token and value with its
+ * range, even in broken text. The tokenizer is guarded like the ANTLR-based ones. There are no standalone semantics,
+ * because the workspace checks what a descriptor names against the files of the folder. JSON has no comments, so
+ * there is no line comment.
  */
 internal class EnvironmentLanguageSupport : LanguageSupport {
     override val language: KarpfenLanguage = KarpfenLanguage.ENVIRONMENT

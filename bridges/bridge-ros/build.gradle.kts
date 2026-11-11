@@ -18,8 +18,8 @@ plugins {
 }
 
 /**
- * A ROS bridge is a bridge of bridge-api, re-exported by bridge-mapping, configured with mappings. It speaks the
- * rosbridge protocol, JSON over WebSocket, through the Ktor client.
+ * The ROS bridge, which holds no code yet. It is a bridge of bridge-api, which bridge-mapping re-exports, and it is
+ * configured with mappings. It speaks the rosbridge protocol, which is JSON over WebSocket, through the Ktor client.
  */
 dependencies {
     api(project(":bridges:bridge-mapping"))

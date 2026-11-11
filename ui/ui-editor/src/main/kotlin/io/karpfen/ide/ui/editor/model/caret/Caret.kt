@@ -19,16 +19,16 @@ import io.karpfen.ide.core.text.CaretMemento
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * A caret with its selection: [position] is where the caret blinks, [anchor] the fixed end of the selection (`anchor ==
- * position`: no selection). [preferredColumn] is the column vertical movement tries to keep (display column, tabs
- * expanded), or null when the next vertical move should take it from [position].
+ * A caret with its selection. [position] is where the caret blinks, and [anchor] is the fixed end of the selection.
+ * When both are equal, there is no selection. [preferredColumn] is the column that vertical movement tries to keep. It
+ * is a display column with tabs expanded. It is null when the next vertical move should take it from [position].
  */
 public data class Caret(public val anchor: Int, public val position: Int, public val preferredColumn: Int? = null) {
     init {
         require(anchor >= 0 && position >= 0) { "offsets must be >= 0, was anchor=$anchor position=$position" }
     }
 
-    /** The selected range (empty without selection). */
+    /** The selected range. It is empty when there is no selection. */
     public val selection: TextRange get() = TextRange(minOf(anchor, position), maxOf(anchor, position))
 
     /** True if text is selected. */
@@ -42,14 +42,14 @@ public data class Caret(public val anchor: Int, public val position: Int, public
         /** A caret at [offset] without selection. */
         public fun at(offset: Int): Caret = Caret(offset, offset)
 
-        /** The caret stored in [memento] (no preferred column). */
+        /** The caret stored in [memento]. It has no preferred column. */
         public fun of(memento: CaretMemento): Caret = Caret(memento.anchor, memento.caret)
     }
 }
 
 /**
- * The carets of an editor at one text [version] (one caret for now; the list is ready for multiple carets). [carets] is
- * non-empty; the first caret is the primary one.
+ * The carets of an editor at one text [version]. The editor uses a single caret, but the list leaves room for multiple
+ * carets. [carets] is never empty, and its first caret is the primary one.
  */
 public data class CaretSnapshot(public val version: Long, public val carets: List<Caret>) {
     init {
@@ -62,16 +62,16 @@ public data class CaretSnapshot(public val version: Long, public val carets: Lis
 
 /** Caret movements. */
 public enum class CaretMovement {
-    /** One character left (to the selection start when a selection is collapsed). */
+    /** One character left. When a selection collapses, the caret goes to the selection start. */
     LEFT,
 
-    /** One character right (to the selection end when a selection is collapsed). */
+    /** One character right. When a selection collapses, the caret goes to the selection end. */
     RIGHT,
 
-    /** To the previous word start; words are `[A-Za-z0-9_]+`, punctuation runs and whitespace runs. */
+    /** To the previous word start. A word is a run of `[A-Za-z0-9_]`, a run of punctuation or a run of whitespace. */
     WORD_LEFT,
 
-    /** To the next word end (same word classes as [WORD_LEFT]). */
+    /** To the next word end, with the same words as [WORD_LEFT]. */
     WORD_RIGHT,
 
     /** One line up, keeping the preferred column. */
@@ -80,13 +80,13 @@ public enum class CaretMovement {
     /** One line down, keeping the preferred column. */
     DOWN,
 
-    /** Smart Home: first non-whitespace character of the line, then column 0. */
+    /** Smart Home. It goes to the first non-whitespace character of the line, or to column 0 if the caret is already there. */
     LINE_START,
 
     /** End of the line. */
     LINE_END,
 
-    /** One page up (page = visible lines). */
+    /** One page up. A page is the number of visible lines. */
     PAGE_UP,
 
     /** One page down. */

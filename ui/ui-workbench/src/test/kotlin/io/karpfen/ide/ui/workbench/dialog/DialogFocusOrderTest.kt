@@ -20,7 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** [DialogFocusOrder]: Tab and Shift+Tab cycle through a dialog's focus stops, skipping disabled buttons. */
+/** Tests that Tab and Shift+Tab cycle through the focus stops of a [DialogFocusOrder] and skip disabled buttons. */
 class DialogFocusOrderTest {
 
     @Test

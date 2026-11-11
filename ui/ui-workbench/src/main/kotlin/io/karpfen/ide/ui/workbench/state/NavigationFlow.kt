@@ -21,17 +21,25 @@ import io.karpfen.ide.ui.editor.state.EditorHandle
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 
 /**
- * `navigateTo`: opens the location's file ([FileOpenFlow], so files the editor cannot open go to the default
- * application) and moves the caret to the range start, centred and focused. The range is mapped into the document's
- * current text with `EditableText.mapRange`, the one rule for mapping ranges between versions (nobody maps the two
- * bounds of a range separately), and clamped to the text when that answers null (another lineage, a newer version,
- * evicted history, or no version at all). Versions count per text and a reopened document starts again at version 0,
- * which is why a [Location] carries its text's lineage next to the version. Caret, scroll and focus requests are
- * pending editor state, so they work for a tab not composed yet.
+ * The flow behind `navigateTo`. It opens the file of the location through [FileOpenFlow], so files the editor cannot
+ * open go to the default application. Then it moves the caret to the start of the range, scrolls it to the centre and
+ * focuses the editor.
+ *
+ * The range is mapped into the document's current text with `EditableText.mapRange`. That is the single rule for
+ * mapping ranges between versions. Nobody maps the two bounds of a range separately. When the mapping returns null, the
+ * range is clamped to the text instead. That happens for another lineage, a newer version, history that was evicted,
+ * or a location without a version.
+ *
+ * Versions count per text, and a reopened document starts again at version 0. That is why a [Location] carries the
+ * lineage of its text next to the version. Caret, scroll and focus requests are pending editor state, so they also work
+ * for a tab that is not composed yet.
  */
 internal class NavigationFlow(private val files: FileOpenFlow, private val tabs: EditorTabsState) {
 
-    /** Opens the file of [location] and puts the caret at the start of its mapped range, centred and focused. */
+    /**
+     * Opens the file of [location] and puts the caret at the start of its mapped range. The caret is scrolled to the
+     * centre and the editor gets the focus.
+     */
     suspend fun navigateTo(location: Location) {
         val path = location.path.toAbsolutePath().normalize()
         if (!files.openFile(path)) return
@@ -42,7 +50,10 @@ internal class NavigationFlow(private val files: FileOpenFlow, private val tabs:
         editor.requestFocus()
     }
 
-    /** The range of [location] in [editor]'s current text: mapped from its version and lineage, else clamped. */
+    /**
+     * The range of [location] in the current text of [editor]. It is mapped from the location's version and lineage.
+     * If that is not possible, it is clamped to the text.
+     */
     private fun targetRange(editor: EditorHandle, location: Location): TextRange {
         val text = editor.session.text
         val version = location.version
@@ -51,7 +62,7 @@ internal class NavigationFlow(private val files: FileOpenFlow, private val tabs:
         return mapped ?: clamp(location.range, text.snapshot.value.length)
     }
 
-    /** [range] cut to a text of [length], never inverted. */
+    /** Cuts [range] to a text of [length]. The result is never inverted. */
     private fun clamp(range: TextRange, length: Int): TextRange {
         val start = range.start.coerceIn(0, length)
         return TextRange(start, range.end.coerceIn(start, length))

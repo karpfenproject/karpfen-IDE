@@ -47,15 +47,16 @@ import java.time.ZoneOffset
 import kotlin.time.TestTimeSource
 
 /**
- * The IDE as `main` wires it — `IdeApplication(…).prepare` over `defaultWorkbenchServices(…)` with the application's
- * output of the language tools, the real `WorkbenchState` and the routing of what dsl-tools logs through the test
- * JVM's logger context, using the test seams of both composition roots — with
- * test values for everything time-, thread-, file-system- and toolkit-dependent: one test dispatcher on [scheduler] for
- * the UI scope, the workspace, the sessions, the editors' background work and the workbench's I/O; a [TestTimeSource]
- * for undo coalescing; a watcher that reports nothing; a fixed clock; recording file operations; settings below
- * [settingsDirectory]; [platform] as the platform of the keymap and the command registry, macOS unless a test chooses
- * another; [reader] as the readers of dsl-tools that the workspaces read with, the real ones unless a test makes them
- * fail.
+ * The IDE as `main` wires it, with test values for everything that depends on time, threads, the file system or the
+ * toolkit. The wiring is `IdeApplication(…).prepare` over `defaultWorkbenchServices(…)` with the application's
+ * output of the language tools, the real `WorkbenchState`, and the routing of what dsl-tools logs through the test
+ * JVM's logger context. It uses the test seams of both composition roots.
+ *
+ * One test dispatcher on [scheduler] runs the UI scope, the workspace, the sessions, the editors' background work and
+ * the workbench's I/O. A [TestTimeSource] drives undo coalescing. The file watcher reports nothing, and the clock is
+ * fixed. The file operations are recorded. The settings live below [settingsDirectory]. [platform] is the platform of
+ * the keymap and the command registry, macOS unless a test chooses another. [reader] supplies the readers of dsl-tools
+ * that the workspaces read with, the real ones unless a test makes them fail.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal class EndToEndIde(
@@ -103,10 +104,10 @@ internal class EndToEndIde(
 
     private var prepared: IdeSession? = null
 
-    /** The prepared session (fails before [prepare]). */
+    /** The prepared session. Reading it before [prepare] fails. */
     val session: IdeSession get() = checkNotNull(prepared) { "prepare first" }
 
-    /** `IdeApplication.prepare` with [folder] as the command-line folder; waits for the first analysis. */
+    /** `IdeApplication.prepare` with [folder] as the command-line folder. It waits for the first analysis. */
     suspend fun prepare(folder: Path): IdeSession {
         val session = application.prepare(scope, folder)
         checkNotNull(session.state.workspace.value) { "prepare opened no workspace" }.awaitAnalysis()
@@ -116,13 +117,13 @@ internal class EndToEndIde(
     }
 
     /**
-     * A started run of the application over this wiring with [folder] as the command-line folder: what
-     * `IdeApplication.run` drives, without the window. The caller ends it (`IdeRunState.exit`).
+     * A started run of the application over this wiring, with [folder] as the command-line folder. This is what
+     * `IdeApplication.run` drives, without the window. The caller ends it with `IdeRunState.exit`.
      */
     fun startRun(folder: Path?): IdeRunState =
         IdeRunState(scope, prepare = { application.prepare(scope, folder) }).also { it.start() }
 
-    /** Workspaces like the CLI's (no watching) on the same virtual time, for `ValidateCommand`. */
+    /** Workspaces like the CLI's, without watching, on the same virtual time, for `ValidateCommand`. */
     fun cliWorkspaces(): WorkspaceFactory = WorkspaceFactory(workspaceOptions.copy(watch = false), reader = reader)
 
     /** Runs everything due on the virtual clock. */
@@ -141,9 +142,9 @@ internal class EndToEndIde(
 
 /**
  * The window menu's accelerators without a window: the items of `resolveMenus(IdeMenus.specs(…), registry)` with their
- * bound shortcuts. [dispatch] does what the native menu bar does with a key stroke that no component consumed (the
- * focused component handles and consumes its keys first): it finds the item whose accelerator is the stroke and invokes
- * it through the registry. Installed as the outermost `onKeyEvent`, it sees exactly the unconsumed strokes and records
+ * bound shortcuts. The focused component handles and consumes its keys first. [dispatch] does what the native menu bar
+ * does with a key stroke that no component consumed. It finds the item whose accelerator is the stroke and invokes it
+ * through the registry. Installed as the outermost `onKeyEvent`, it sees exactly the unconsumed strokes and records
  * them in [unconsumed].
  */
 internal class MenuAccelerators(registry: CommandRegistry, recentFolderCount: Int) {
@@ -157,10 +158,10 @@ internal class MenuAccelerators(registry: CommandRegistry, recentFolderCount: In
     /** Command ids whose accelerator saw an unconsumed stroke. */
     val reached: MutableList<String> = mutableListOf()
 
-    /** Command ids that ran from an accelerator (enabled at that moment). */
+    /** Command ids that ran from an accelerator, because they were enabled at that moment. */
     val ran: MutableList<String> = mutableListOf()
 
-    /** Handles an unconsumed key event; true if an accelerator matched. */
+    /** Handles an unconsumed key event and returns whether an accelerator matched. */
     fun dispatch(event: KeyEvent): Boolean {
         if (event.type != KeyEventType.KeyDown) return false
         val stroke = event.toKeyStroke() ?: return false

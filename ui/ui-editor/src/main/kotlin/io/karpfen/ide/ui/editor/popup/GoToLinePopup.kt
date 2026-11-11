@@ -43,12 +43,14 @@ import io.karpfen.ide.ui.editor.model.navigation.GoToLineQuery
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The go-to-line popup (Cmd+L on macOS, Ctrl+G elsewhere), at the top of the text area: accepts `line[:col]` (parsed
- * with [GoToLineQuery.parse]; invalid input disables Go and Enter), shows the current position and line count as a
- * hint. It takes focus when shown; Enter or Go reports the query ([onGo]), Escape cancels ([onCancel]), and focus
- * moving to another component dismisses it ([onDismiss]).
+ * The go-to-line popup at the top of the text area. It opens with Cmd+L on macOS and Ctrl+G elsewhere. It accepts
+ * `line` or `line:col`, parsed with [GoToLineQuery.parse]. Invalid input disables the Go button and Enter. A hint shows
+ * the current line and the line count.
  *
- * @param currentLine the primary caret's one-based line.
+ * The popup takes focus when it is shown. Enter or Go reports the query to [onGo], and Escape calls [onCancel]. When
+ * focus moves to another component, the popup is dismissed through [onDismiss].
+ *
+ * @param currentLine the one-based line of the primary caret.
  * @param lineCount the number of lines of the text, for the hint.
  */
 @Composable
@@ -98,12 +100,15 @@ internal fun GoToLinePopup(
     }
 }
 
-/** The go-to-line popup's texts (pure). */
+/** The texts of the go-to-line popup. The object holds pure functions. */
 internal object GoToLineHint {
 
-    /** The hint: the current one-based line and the line count. */
+    /** Returns the hint, which shows the current one-based line and the line count. */
     fun text(currentLine: Int, lineCount: Int): String = "Current line $currentLine of $lineCount"
 
-    /** The one-based line of [offset] in [snapshot] (clamped into the text, since carets may lag the text by a dispatch). */
+    /**
+     * Returns the one-based line of [offset] in [snapshot]. The offset is clamped into the text, because carets may lag
+     * behind the text by one dispatch.
+     */
     fun currentLine(snapshot: TextSnapshot, offset: Int): Int = snapshot.positionOf(offset.coerceIn(0, snapshot.length)).line + 1
 }

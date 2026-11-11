@@ -24,16 +24,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Covers [SynthesizedModels]: the models stay Python-free except the depot, which evaluates Python only in its two
- * creating actions; every descriptor names files that exist and names no timing; the attachments and domains are the
- * ones the scenarios rely on; and a copy writes exactly the named files, with the timing a scenario asks for.
+ * Covers [SynthesizedModels]. The models stay free of Python, except the depot, which evaluates Python only in its two
+ * creating actions. Every descriptor names files that exist and names no timing. The attachments and domains are the
+ * ones the scenarios rely on. A copy writes exactly the named files, with the timing a scenario asks for.
  */
 class SynthesizedModelsTest {
 
     @TempDir
     lateinit var directory: Path
 
-    /** Every file of the folder of [model]: the descriptor, the files it names and the failure inputs. */
+    /** Every file of the folder of [model]. These are the descriptor, the files it names and the failure inputs. */
     private fun allTexts(model: SynthesizedModel): Map<String, String> =
         (listOf(model.descriptorName) + SynthesizedModels.files(model).all + SynthesizedModels.failureInputs(model))
             .associateWith { SynthesizedModels.text(model, it) }

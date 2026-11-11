@@ -28,7 +28,7 @@ import kotlinx.coroutines.test.runTest
 
 /**
  * A runtime under test that runs every scenario on virtual time against the transports of [fake], so that a test of
- * the scenario harness sees the requests a scenario made. It stands in for no real runtime: the fake answers only what
+ * the scenario harness sees the requests a scenario made. It stands in for no real runtime. The fake answers only what
  * the test programmed, and the scenarios of the contract fail against it. Coroutines a scenario leaves running are
  * cancelled when it ends, as with the live runtime.
  *

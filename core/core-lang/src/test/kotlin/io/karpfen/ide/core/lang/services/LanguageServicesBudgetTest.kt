@@ -28,14 +28,14 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * Covers the latency of the language services on a 5,000-line KStates document (`SyntheticKstates.withMinLines(5000)`,
- * in the single-robot context): highlight, completion at a model path and among keywords, hover and definition at the
- * end of the document. There is no target of its own for core-lang; the measured values are reported through
- * [TestReporter] and guarded by the tokenizer's target for the same document size (30 ms) with 5x slack, so an
- * accidental quadratic algorithm would show.
+ * Covers the latency of the language services on a KStates document of 5,000 lines in the single-robot context, made
+ * by `SyntheticKstates.withMinLines(5000)`. It measures highlight, completion at a model path and among keywords, and
+ * hover and definition at the end of the document. core-lang has no latency target of its own. The measured values
+ * are reported through [TestReporter]. They are guarded by the target of the tokenizer for the same document size,
+ * which is 30 ms, with a slack of five times. So an accidental quadratic algorithm would show.
  *
- * Tagged `budget`: excluded from every test run, because load and sleep/wake cycles make the wall clock unreliable;
- * kept for later performance work.
+ * The test carries the tag `budget`, which excludes it from every test run, because load and sleep and wake cycles make
+ * the wall clock unreliable. It is kept for later performance work.
  */
 @Tag("budget")
 class LanguageServicesBudgetTest {

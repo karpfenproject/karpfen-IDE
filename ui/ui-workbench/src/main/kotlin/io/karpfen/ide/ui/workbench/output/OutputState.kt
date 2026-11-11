@@ -27,8 +27,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * The errors and warnings of the language tools that arrived while the Language Tools Output was hidden: what the
- * status bar's indicator shows until the tool window is shown again.
+ * The errors and warnings of the language tools that arrived while the Language Tools Output was hidden. The status
+ * bar's indicator shows them until the tool window is shown again.
  */
 public data class UnseenOutputProblems(public val errors: Long = 0, public val warnings: Long = 0) {
     /** True if no error and no warning is unseen. */
@@ -49,17 +49,18 @@ public data class OutputUiState(
 )
 
 /**
- * The state of the Language Tools Output tool window: follows the [buffer] of the language tools' output and whether
- * the tool window is visible, collected in [scope] on the UI thread. Every new revision of the buffer is read as one
- * snapshot, so a burst of output costs one update of [state].
+ * The state of the Language Tools Output tool window. It follows the [buffer] of the language tools' output and
+ * whether the tool window is visible. Both are collected in [scope] on the UI thread. Every new revision of the buffer
+ * is read as one snapshot, so a burst of output costs one update of [state].
  *
- * Errors and warnings count as seen once the tool window shows them: while it is visible, every snapshot marks the
- * buffer's counts as seen; while it is hidden, the counts beyond those are [OutputUiState.unseen]. The counts come from
- * the buffer, so problems pushed out of the ring buffer or cleared before anyone looked still count. The binding to the
- * tool window's visibility is a mediator operation and internal.
+ * Errors and warnings count as seen once the tool window shows them. While the window is visible, every snapshot marks
+ * the buffer's counts as seen. While it is hidden, the counts beyond those are [OutputUiState.unseen]. The counts come
+ * from the buffer, so problems still count when they were pushed out of the ring buffer or cleared before anyone
+ * looked. Binding the state to the tool window's visibility is an operation of the mediator and is internal.
  *
- * The tool window opens where the user left it, at the [readingPosition] the view keeps here while it is hidden, unless
- * problems arrived meanwhile: then it opens following, with the newest lines, the unseen problems among them, in sight.
+ * The tool window opens where the user left it, at the [readingPosition] that the view keeps here while the window is
+ * hidden. The exception is when problems arrived in the meantime. The window then opens in follow mode, so the newest
+ * lines are in sight, and the unseen problems are among them.
  */
 public class OutputState(private val scope: CoroutineScope, private val buffer: OutputBuffer) {
 
@@ -73,8 +74,9 @@ public class OutputState(private val scope: CoroutineScope, private val buffer: 
     public val state: StateFlow<OutputUiState> get() = output.asStateFlow()
 
     /**
-     * Where the user left the output, null before the view showed any line. Not part of [state]: it changes with every
-     * scrolled frame, and only the view reads it, as the place to show when it enters the composition again.
+     * Where the user left the output, or null before the view showed any line. It is not part of [state], because it
+     * changes with every scrolled frame. Only the view reads it, as the place to show when it enters the composition
+     * again.
      */
     public var readingPosition: OutputReadingPosition? = null
         private set
@@ -89,12 +91,12 @@ public class OutputState(private val scope: CoroutineScope, private val buffer: 
         output.update { it.copy(follow = follow) }
     }
 
-    /** Removes the buffered output; what arrives afterwards is shown as usual. */
+    /** Removes the buffered output. What arrives afterwards is shown as usual. */
     public fun clear() {
         buffer.clear()
     }
 
-    /** Follows the buffer and whether the tool window is visible, as [visible] tells. Mediator only. */
+    /** Follows the buffer and whether the tool window is visible, as [visible] tells. Only the mediator calls it. */
     internal fun bindVisibility(visible: Flow<Boolean>) {
         binding?.cancel()
         binding = scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -103,8 +105,9 @@ public class OutputState(private val scope: CoroutineScope, private val buffer: 
     }
 
     /**
-     * Reads the buffer's current snapshot into [state]; while the tool window [isVisible], its problems count as seen,
-     * and when it is shown with unseen problems, it follows the newest lines.
+     * Reads the buffer's current snapshot into [state]. While the tool window is visible, as [isVisible] says, its
+     * problems count as seen. When the window is shown while there are unseen problems, it switches to following the
+     * newest lines.
      */
     private fun refresh(isVisible: Boolean) {
         val snapshot = buffer.snapshot()

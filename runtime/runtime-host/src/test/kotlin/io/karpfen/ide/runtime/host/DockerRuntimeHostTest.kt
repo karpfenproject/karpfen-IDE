@@ -43,11 +43,13 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers [DockerRuntimeHost] against a [FakeDockerEngine] that answers what each test programs, with the health checks
- * answered by the fake runtime, on virtual time: adoption, clean-up, the image build and its clean-up, the container's
- * configuration and port, each failure with its problem code, calls joining a start under way and getting its answer,
- * also a failure or a stop, a failed start removing its container, a closed host starting nothing, stopping only the own
- * container and the watcher noticing a container that died while it tolerates a passing failure of the engine.
+ * Covers [DockerRuntimeHost] against a [FakeDockerEngine] that answers what each test programs. The fake runtime answers
+ * the health checks, and everything runs on virtual time. The tests cover adoption and the removal of stale containers,
+ * the image build and the removal of older images, and the container's configuration and port. They check each failure
+ * with its problem code. They check that calls join a start under way and get its answer, a failure or a stop
+ * included, that a failed start removes its container and that a closed host starts nothing. They also check that stop
+ * removes only the host's own container, and that the watcher notices a container that died but tolerates a passing
+ * failure of the engine.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DockerRuntimeHostTest {

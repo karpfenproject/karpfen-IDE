@@ -38,15 +38,15 @@ public data class ObservedDomainEvent(
 )
 
 /**
- * One entry of a session's journal: what the session did and what happened to it, for a log view. Every entry carries
- * the time since the session was launched. Immutable.
+ * One entry of a session's journal. It tells what the session did and what happened to it, for a log view. Every entry
+ * carries the time since the session was launched. Immutable.
  */
 public sealed interface SessionActivity {
     /** The time since the session was launched. */
     public val elapsed: Duration
 
     /**
-     * A step of the deployment ended: done, skipped or failed.
+     * A step of the deployment ended. It was done, skipped or failed.
      *
      * @property step the step with its final status.
      */

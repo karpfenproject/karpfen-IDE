@@ -26,16 +26,18 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * One deployed environment and everything the IDE does with it: the deployment's progress, the commands of its
- * lifecycle, the observed model with its live switch, the domain events, the event injector and a journal. A session
- * deploys a fresh environment when it is launched and never adopts or restarts one: a stopped environment is final.
+ * One deployed environment and everything the IDE does with it. That covers the deployment's progress, the commands of
+ * its lifecycle, the observed model with its live switch, the domain events, the event injector and a journal. A
+ * session deploys a fresh environment when it is launched and never adopts or restarts one. A stopped environment is
+ * final.
  *
- * Commands per state (any other command answers [SessionCommandOutcome.Refused]):
+ * The table lists the commands that each state allows. Any other command answers [SessionCommandOutcome.Refused].
+ * Events injected while the session is ready are queued until the start.
  *
  * | State | Allowed |
  * |---|---|
  * | deploying | [shutdown], [close] |
- * | ready | [start], [stop], [forceState], injecting (queued until the start), [setObservation], [pull], [shutdown], [close] |
+ * | ready | [start], [stop], [forceState], injecting, [setObservation], [pull], [shutdown], [close] |
  * | running | [stop], [forceState], injecting, [setObservation], [pull], [shutdown], [close] |
  * | halted | [stop], switching observation off, [pull], [shutdown], [close] |
  * | stopping | [close] |
@@ -43,17 +45,16 @@ import kotlinx.coroutines.flow.StateFlow
  * | failed | [close] |
  * | closed | nothing |
  *
- * Threading (MUST): every function may be called from any coroutine, a collector of the session's flows included; the
- * session runs its work on the dispatcher of its options, in a supervisor child of the scope it was launched in, and
- * cancelling that scope closes the session as [close] does. One conductor carries out the commands in the order they
- * arrive and is the single writer of [state], [progress] and [problems]; one router is the only reader of the
- * connection's pushes and the single writer of [model], [modelUpdates], [domainEvents] and [activity]. Events go through
+ * Every function may be called from any coroutine, including a collector of the session's own flows. The session runs
+ * its work on the dispatcher of its options, in a supervisor child of the scope it was launched in. Cancelling that
+ * scope closes the session the same way [close] does. One conductor carries out the commands in the order they arrive.
+ * It is the single writer of [state], [progress] and [problems]. One router is the only reader of the connection's
+ * pushes. It is the single writer of [model], [modelUpdates], [domainEvents] and [activity]. Injected events go through
  * the conductor too, so an injected event never overtakes a stop. The session never waits for a collector of its
  * flows.
  *
- * Contract (MUST):
- * - Failures are outcomes and problems, never exceptions; a `CancellationException` of the caller is rethrown.
- * - [close] is idempotent and does not suspend.
+ * Failures are reported as outcomes and problems, never as exceptions. A `CancellationException` of the caller is
+ * rethrown. [close] is idempotent and does not suspend.
  */
 public interface RuntimeSession : AutoCloseable {
     /** What the session deploys. */
@@ -69,19 +70,19 @@ public interface RuntimeSession : AutoCloseable {
     public val progress: StateFlow<DeployProgress>
 
     /**
-     * Every problem of the session so far, oldest first: the warnings and infos of the plan, the findings of the
-     * deployment and what happened since.
+     * Every problem of the session so far, oldest first. The list starts with the warnings and infos of the plan,
+     * followed by the findings of the deployment and what happened since.
      */
     public val problems: StateFlow<List<DeployProblem>>
 
-    /** The state of the connection to the environment; idle until the deployment connects. */
+    /** The state of the connection to the environment. It is idle until the deployment connects. */
     public val connection: StateFlow<ConnectionState>
 
     /** The observed model, the seed and the predicted states until something was read from the runtime. */
     public val model: StateFlow<ObservedModel>
 
     /**
-     * Every change of [model], hot and without replay. It never holds the session back: a collector that falls more
+     * Every change of [model], hot and without replay. It never holds the session back. A collector that falls more
      * than [RuntimeSessionOptions.collectorBuffer] updates behind misses the oldest of them, while [model] always shows
      * the latest state.
      */
@@ -90,12 +91,15 @@ public interface RuntimeSession : AutoCloseable {
     /**
      * Every event published on a domain the state machines use, hot and without replay. Domain events keep coming
      * while observation is off, because the runtime freezes the listeners when the environment is activated. It never
-     * holds the session back: a collector that falls more than [RuntimeSessionOptions.collectorBuffer] events behind
-     * misses the oldest of them; the journal keeps them as well.
+     * holds the session back. A collector that falls more than [RuntimeSessionOptions.collectorBuffer] events behind
+     * misses the oldest of them. The journal keeps them as well.
      */
     public val domainEvents: Flow<ObservedDomainEvent>
 
-    /** The journal: the latest entries, as many as the options keep, replayed to every new collector, then live. */
+    /**
+     * The journal. Every new collector gets the latest entries first, as many as the options keep, and then the live
+     * ones.
+     */
     public val activity: Flow<SessionActivity>
 
     /** The injectable events of the deployment and the injection of events through the session. */
@@ -105,7 +109,7 @@ public interface RuntimeSession : AutoCloseable {
     public suspend fun start(): SessionCommandOutcome
 
     /**
-     * Stops the environment, for good: the runtime closes the connection, the session reads the final model and
+     * Stops the environment for good. The runtime closes the connection, and the session reads the final model and
      * records the environment as stopped in the ledger.
      */
     public suspend fun stop(): SessionCommandOutcome
@@ -113,17 +117,18 @@ public interface RuntimeSession : AutoCloseable {
     /**
      * Forces the machine attached to [attachedTo] into [state] at the next tick, without running any `ENTRY` block.
      *
-     * The runtime's side effects: it discards every event still queued in the whole environment and, at the next tick,
-     * the events of the domain named like [attachedTo]; and a state forced before the first tick suppresses the
-     * `ENTRY` blocks of the initial states. When events were sent since the last start or force and no machine changed
-     * its state since, the journal notes that they may have been discarded. The runtime's refusal of an unknown machine
-     * or state comes back as [SessionCommandOutcome.Refused] with its text.
+     * Forcing has side effects in the runtime. It discards every event still queued in the whole environment, and at
+     * the next tick it also discards the events of the domain named like [attachedTo]. A state forced before the first
+     * tick suppresses the `ENTRY` blocks of the initial states. When events were sent since the last start or force and
+     * no machine changed its state since then, the journal notes that they may have been discarded. When the runtime
+     * refuses an unknown machine or state, the refusal comes back as [SessionCommandOutcome.Refused] with its text.
      */
     public suspend fun forceState(attachedTo: String, state: String): SessionCommandOutcome
 
     /**
-     * Switches observation on or off. On subscribes to the whole model and reads a snapshot first, then applies every
-     * push in revision order; off ends the subscription, after which the model changes only when it is pulled.
+     * Switches observation on or off. Switching it on subscribes to the whole model, reads a snapshot first and then
+     * applies every push in revision order. Switching it off ends the subscription. After that the model changes only
+     * when it is pulled.
      */
     public suspend fun setObservation(on: Boolean): SessionCommandOutcome
 
@@ -131,18 +136,18 @@ public interface RuntimeSession : AutoCloseable {
     public suspend fun pull(): SessionCommandOutcome
 
     /**
-     * Ends the session cleanly: waits for a running deployment to end, stops the environment if it is activated,
-     * running or halted, then closes the session and waits until its work, cleanups included, has ended.
+     * Ends the session cleanly. It waits for a running deployment to end and stops the environment if it is activated,
+     * running or halted. Then it closes the session and waits until all its work has ended, cleanups included.
      */
     public suspend fun shutdown()
 
     /**
-     * Closes the session at once, without suspending; idempotent.
+     * Closes the session at once, without suspending. Calling it again does nothing.
      *
-     * While the deployment runs, closing cancels it: the deployment's cleanup stops an environment that was activated
-     * already and records it in the ledger, without being cancellable and bounded in time. Otherwise closing cancels the
-     * session's own work, closes the connection and leaves the environment on the runtime as it is, recorded in the
-     * ledger as left activated, left running, left halted or stopped.
+     * While the deployment runs, closing cancels it. The deployment's cleanup then stops an environment that was
+     * activated already and records it in the ledger. That cleanup cannot be cancelled and is bounded in time.
+     * Otherwise closing cancels the session's own work, closes the connection and leaves the environment on the runtime
+     * as it is. The ledger records it as left activated, left running, left halted or stopped.
      */
     override fun close()
 }

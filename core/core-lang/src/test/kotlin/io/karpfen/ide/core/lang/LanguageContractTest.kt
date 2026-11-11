@@ -53,7 +53,7 @@ class LanguageContractTest {
     }
 
     @Test
-    fun `member signatures and type hovers use the spec format`() {
+    fun `member signatures and type hovers use the documented format`() {
         val position = MemberInfo("position", MemberKind.HAS, "Vector", isList = false, declaration = null)
         val obstacles = MemberInfo("obstacles", MemberKind.KNOWS, "Obstacle", isList = true, declaration = null)
         val x = MemberInfo("x", MemberKind.PROPERTY, "number", isList = false, declaration = null)

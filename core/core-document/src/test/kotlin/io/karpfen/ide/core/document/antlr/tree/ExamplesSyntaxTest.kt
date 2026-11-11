@@ -25,8 +25,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Covers the syntax analyzers on the examples: every example parses without PARSER diagnostics, and the documented
- * extraction rules (declarations, references, outline, spans) hold on every example file.
+ * Covers the syntax analyzers on the examples. Every example parses without PARSER diagnostics, and the documented
+ * extraction rules for declarations, references, outline and spans hold on every example file.
  */
 class ExamplesSyntaxTest {
 
@@ -81,8 +81,9 @@ class ExamplesSyntaxTest {
 }
 
 /**
- * The names of declarations and references equal the text inside their quotes (model paths without blanks, which are
- * kept in the range); string names sit directly between quotes, EVAL references after `$(` or `@`.
+ * The names of declarations and references equal the text inside their quotes. Model paths are named without blanks,
+ * while their range keeps the blanks. String names sit directly between quotes, and EVAL references sit after `$(` or
+ * `@`.
  */
 internal fun checkNameRanges(text: String, analysis: SyntaxAnalysis, context: Any) {
     analysis.index.declarations.filter { it.kind != SymbolKind.STATEMACHINE && !it.nameRange.isEmpty }.forEach { declaration ->

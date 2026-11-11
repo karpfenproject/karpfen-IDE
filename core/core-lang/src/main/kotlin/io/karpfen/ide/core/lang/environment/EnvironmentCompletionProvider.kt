@@ -27,27 +27,31 @@ import io.karpfen.ide.core.lang.feature.CompletionProvider
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 
 /**
- * Completion in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]:
- * - in an empty descriptor: the descriptor object with its required keys;
- * - at a key: the keys the object does not have yet, required ones first, each with its documentation; a new key, or
- *   a key string with neither `:` nor value, arrives with a value template of its shape ([ValueTemplates]), a key with
- *   a value but no `:` gets its `:`, and a key that has a `:`, also one written without quotes, is renamed
- *   ([DescriptorSlot.Key.part]);
- * - at a file path: the workspace files that fit the key's role ([DescriptorProject.candidates]), relative to the
- *   descriptor's directory, the usual files of the role first (`EVENTS.kmeta` for the event metamodel, the other
- *   metamodels for the domain metamodel), and within those the files next to the descriptor first;
- * - at `attachedTo`: the keys of the objects of the descriptor's model, ranked for the entry's state machine by the rule
- *   the template of new descriptors uses too (`ContextSymbols.attachmentCandidates`);
- * - at an event domain: the domains the descriptor's state machines use;
- * - at a whole number or a string with typical values: those values ([ValueShape.WholeNumber], [ValueShape.Text]);
- * - at the value of an object or list key: its template;
- * - on a value the user writes out by hand, a number, a literal or a bare word that begins a literal: nothing
- *   ([isWrittenOut]).
+ * Completion in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]. It proposes the
+ * following.
+ * - In an empty descriptor, the descriptor object with its required keys.
+ * - At a key, the keys the object does not have yet, required ones first, each with its documentation. A new key, or a
+ *   key string without `:` or value, arrives with a value template of its shape from [ValueTemplates]. A key with a
+ *   value but no `:` gets its `:`. A key that has a `:`, also one written without quotes, is renamed. The
+ *   [DescriptorSlot.Key.part] tells these cases apart.
+ * - At a file path, the workspace files that fit the role of the key, as [DescriptorProject.candidates] lists them,
+ *   relative to the directory of the descriptor. The usual files of the role come first. These are `EVENTS.kmeta` for
+ *   the event metamodel and the other metamodels for the domain metamodel. Within each group the files next to the
+ *   descriptor come first.
+ * - At `attachedTo`, the keys of the objects of the model of the descriptor. They are ranked for the state machine of
+ *   the entry by the same rule the template of new descriptors uses, `ContextSymbols.attachmentCandidates`.
+ * - At an event domain, the domains the state machines of the descriptor use.
+ * - At a whole number or a string with typical values, those values from [ValueShape.WholeNumber] or
+ *   [ValueShape.Text].
+ * - At the value of an object or list key, its template.
+ * - On a value the user writes out by hand, nothing. Such a value is a number, a literal or a bare word that begins a
+ *   literal, as [isWrittenOut] decides.
  *
- * Every proposal is JSON as it stands outside a string, escaped as JSON, and the slot's [SlotEdit] fits it to the
- * caret's place: it drops the quotes a string at the caret keeps, closes a string that has no closing quote, and adds the
- * `,` a new member or item lacks in front of or behind it, so accepting a proposal keeps the descriptor valid JSON
- * around it. Unfiltered, like every provider (the editor filters by the text before the caret).
+ * Every proposal is JSON as it stands outside a string, escaped as JSON. The [SlotEdit] of the slot fits it to the
+ * place of the caret. It drops the quotes that a string at the caret keeps. It closes a string that has no closing
+ * quote. It adds the `,` that a new member or item lacks in front of or behind it. So accepting a proposal keeps the
+ * descriptor valid JSON around it. Like every provider, this one does not filter. The editor filters by the text before
+ * the caret.
  */
 internal class EnvironmentCompletionProvider(
     private val trees: DescriptorTrees,
@@ -65,7 +69,7 @@ internal class EnvironmentCompletionProvider(
         }
     }
 
-    /** The keys the slot's object does not have yet, required ones first. */
+    /** The keys the object of the slot does not have yet, required ones first. */
     private fun keys(slot: DescriptorSlot.Key): List<CompletionItem> =
         slot.shape?.keys.orEmpty().filter { it.name !in slot.presentKeys }.map { key ->
             val proposal = when (slot.part) {
@@ -78,13 +82,13 @@ internal class EnvironmentCompletionProvider(
         }
 
     /**
-     * True if the caret of [slot] is on a value the user writes out by hand: a number, a literal, or a bare word of
-     * [text] that begins a literal (`nu` on the way to `null`). Completion offers nothing there, because the editor
-     * opens the list by itself once a second letter or digit is typed, filters it by any proposal that holds the typed
-     * characters in order, and accepts the highlighted proposal on Enter: a proposal would replace the value typed in
-     * full on the Enter that ends the line (`10` by the typical `100`, `null` by a file path holding n, u, l and l).
-     * Typical values are still proposed where no value is typed yet, and file paths and other strings inside a string
-     * or over a word that begins no literal.
+     * True if the caret of [slot] is on a value the user writes out by hand. Such a value is a number, a literal, or a
+     * bare word of [text] that begins a literal, such as `nu` on the way to `null`. Completion offers nothing there.
+     * The editor opens the list by itself once a second letter or digit is typed. It filters the list by any proposal
+     * that holds the typed characters in order, and it accepts the highlighted proposal on Enter. So a proposal would
+     * replace the fully typed value on the Enter that ends the line. For example, `10` would become the typical `100`,
+     * and `null` would become a file path that holds n, u, l and l. Typical values are still proposed where no value is
+     * typed yet. File paths and other strings are still proposed inside a string or over a word that begins no literal.
      */
     private fun isWrittenOut(slot: DescriptorSlot.Value, text: String): Boolean {
         val range = slot.edit.range
@@ -95,7 +99,7 @@ internal class EnvironmentCompletionProvider(
         }
     }
 
-    /** True if [word] is the start of a JSON literal (`true`, `false`, `null`). */
+    /** True if [word] is the start of one of the JSON literals `true`, `false` and `null`. */
     private fun beginsLiteral(word: String): Boolean = JsonLiteral.entries.any { it.text.startsWith(word) }
 
     /** The proposals for the value of the slot, by its shape. */
@@ -116,8 +120,8 @@ internal class EnvironmentCompletionProvider(
         }
 
     /**
-     * The keys of the model's objects for an `attachedTo`, the objects that suit the state machine of the same entry
-     * first.
+     * The keys of the objects of the model for an `attachedTo`. The objects that suit the state machine of the same
+     * entry come first.
      */
     private fun objectKeys(project: DescriptorProject, slot: DescriptorSlot.Value): List<CompletionItem> {
         val model = project.fileNamed(DescriptorFileRole.MODEL, slot.root, schema) ?: return emptyList()
@@ -132,7 +136,7 @@ internal class EnvironmentCompletionProvider(
     private fun string(slot: DescriptorSlot.Value, value: String, kind: CompletionKind, detail: String?, rank: Int = 1): CompletionItem =
         item(slot.edit, ValueTemplates.string(value), value, kind, detail, slot.key.documentation, rank)
 
-    /** Number or literal proposals, only outside a string, in the given order. */
+    /** Number or literal proposals in the given order. They are made only outside a string. */
     private fun literals(slot: DescriptorSlot.Value, values: List<String>): List<CompletionItem> =
         if (slot.edit.isOutsideString) {
             values.mapIndexed { index, value ->
@@ -148,8 +152,8 @@ internal class EnvironmentCompletionProvider(
         item(edit, ValueTemplates.of(shape), ValueTemplates.label(shape), CompletionKind.SNIPPET, detail, documentation = null)
 
     /**
-     * The item that writes [proposal] by [edit]; the caret goes to the proposal's place to fill, and the item names no
-     * caret offset when that is the end of the insert.
+     * The item that writes [proposal] by [edit]. The caret goes to the place to fill in the proposal. The item names no
+     * caret offset when that place is the end of the insert.
      */
     private fun item(
         edit: SlotEdit,
@@ -174,8 +178,8 @@ internal class EnvironmentCompletionProvider(
     }
 
     /**
-     * The rank of a [file] the descriptor can name: the usual files of the role before the others, and within each
-     * group the files next to the descriptor first, then those below it, then those elsewhere.
+     * The rank of a [file] the descriptor can name. The usual files of the role come before the others. Within each
+     * group the files next to the descriptor come first, then those below it, then those elsewhere.
      */
     private fun rankOf(file: FileCandidate): Int {
         val nearness = when {
@@ -186,7 +190,7 @@ internal class EnvironmentCompletionProvider(
         return if (file.isUsual) nearness else NEARNESS_RANKS + nearness
     }
 
-    /** The detail of a key in the list: what its value is, and whether it is required. */
+    /** The detail of a key in the list. It says what its value is and whether it is required. */
     private fun detailOf(key: DescriptorKey): String = if (key.isRequired) "${key.shape.description}, required" else key.shape.description
 
     private companion object {

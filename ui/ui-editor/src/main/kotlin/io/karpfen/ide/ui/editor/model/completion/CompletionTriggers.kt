@@ -23,22 +23,25 @@ import io.karpfen.ide.ui.editor.model.caret.Caret
 import io.karpfen.ide.ui.editor.model.caret.WordBoundaries
 
 /**
- * The auto-triggers of completion, decided on the text right after typing, pure and stateless:
+ * The auto-triggers of completion. They are decided on the text right after typing. The object holds pure functions and
+ * no state.
  *
- * - [CompletionTrigger.IDENTIFIER]: one identifier character typed directly after another one (the word rule of the
- *   caret model, `[A-Za-z0-9_]`);
- * - [CompletionTrigger.QUOTE]: a `"` that opened a string (the caret is inside a string of its line afterwards, also
- *   when the quote was auto-closed); a `"` that closed a string does not trigger. Whether the string position is
- *   completable is the source's answer: no items keep completion closed;
- * - [CompletionTrigger.PATH_START]: `$(` before the caret after typing `(`;
- * - [CompletionTrigger.ARROW]: `->` before the caret after typing `>`.
+ * [CompletionTrigger.IDENTIFIER] fires when one identifier character is typed directly after another one. Identifier
+ * characters are `[A-Za-z0-9_]`, the same word rule the caret model uses.
  *
- * A request whose text changed before its items arrived completes the current text only while [stillHolds], and an open
- * session closes once it no longer does.
+ * [CompletionTrigger.QUOTE] fires on a `"` that opened a string. Afterwards the caret is inside a string of its line,
+ * also when the quote was auto-closed. A `"` that closed a string does not trigger. Whether the string position can be
+ * completed is up to the source. If it returns no items, completion stays closed.
+ *
+ * [CompletionTrigger.PATH_START] fires when `$(` is before the caret after typing `(`. [CompletionTrigger.ARROW] fires
+ * when `->` is before the caret after typing `>`.
+ *
+ * If the text changed before the items of a request arrived, the request completes the current text only while
+ * [stillHolds] is true. An open session closes as soon as [stillHolds] is false.
  */
 internal object CompletionTriggers {
 
-    /** The trigger fired by [typed], just inserted before [caret] in [snapshot], or null. */
+    /** Returns the trigger fired by [typed], which was just inserted before [caret] in [snapshot], or null. */
     fun afterTyping(snapshot: TextSnapshot, caret: Int, typed: String): CompletionTrigger? {
         if (typed.isEmpty() || caret < 1 || caret > snapshot.length || snapshot[caret - 1] != typed.last()) return null
         val text = snapshot.text
@@ -54,12 +57,15 @@ internal object CompletionTriggers {
     }
 
     /**
-     * True if a request made at [offset] of text [version] still completes at [caret] in the current [text]: nothing is
-     * selected and only identifier characters lie between the request position (mapped into the current text, text
-     * inserted at it counting as typed after it) and the caret — the user kept typing or deleting in the word being
-     * completed, or the text changed elsewhere. A line break, a space or other punctuation typed since, or a caret moved
-     * out of the word, ends the request and the session it opened: no trigger fired at the caret. False if the history
-     * no longer reaches [version].
+     * True if a request made at [offset] of text [version] still completes at [caret] in the current [text]. That is
+     * the case when nothing is selected and only identifier characters lie between the request position and the caret.
+     * The request position is mapped into the current text, and text inserted at it counts as typed after it. So the
+     * request holds while the user keeps typing or deleting in the word being completed, or when the text changed
+     * elsewhere.
+     *
+     * A line break, a space or other punctuation typed since, or a caret moved out of the word, ends the request and the
+     * session it opened, because no trigger fired at the caret. The function also returns false if the history no
+     * longer reaches [version].
      */
     fun stillHolds(text: EditableText, version: Long, offset: Int, caret: Caret): Boolean {
         if (caret.hasSelection) return false

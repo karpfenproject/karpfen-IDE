@@ -17,7 +17,7 @@ package io.karpfen.ide.core.text
 
 import kotlin.random.Random
 
-/** Generates random edits for property tests; deterministic for a given [random]. */
+/** Generates random edits for property tests. The output is deterministic for a given [random]. */
 class RandomEdits(private val random: Random) {
 
     /** Random short text including newlines, whitespace, punctuation and a surrogate pair. */
@@ -25,7 +25,7 @@ class RandomEdits(private val random: Random) {
         repeat(random.nextInt(maxLength + 1)) { append(ALPHABET[random.nextInt(ALPHABET.size)]) }
     }
 
-    /** One random character of the alphabet (one code point). */
+    /** One random character of the alphabet, which is one code point. */
     fun character(): String = ALPHABET[random.nextInt(ALPHABET.size)]
 
     /** A random offset in `0..length`. */
@@ -39,8 +39,9 @@ class RandomEdits(private val random: Random) {
     }
 
     /**
-     * 1–[maxEdits] valid edits for a text of [length], in random order: insertions (sometimes several at one offset),
-     * deletions and replacements, occasionally a no-op. Deletions dominate when the text is longer than [softLimit].
+     * Between 1 and [maxEdits] valid edits for a text of [length], in random order. They are insertions, sometimes
+     * several at one offset, deletions and replacements, and occasionally a no-op. Deletions dominate when the text is
+     * longer than [softLimit].
      */
     fun edits(length: Int, maxEdits: Int = 4, softLimit: Int = 400): List<TextEdit> {
         val count = 1 + random.nextInt(maxEdits)

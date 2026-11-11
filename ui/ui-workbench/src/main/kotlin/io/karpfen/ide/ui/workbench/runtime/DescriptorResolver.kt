@@ -21,7 +21,8 @@ import java.nio.file.Path
 /** Which environment descriptor the Run command picks when it is not given one. */
 public sealed interface DescriptorPick {
     /**
-     * The command runs [descriptor] without asking: the active editor's descriptor, or the only one of the workspace.
+     * The command runs [descriptor] without asking. It is the active editor's descriptor, or the only descriptor of
+     * the workspace.
      *
      * @property descriptor the descriptor.
      */
@@ -34,24 +35,28 @@ public sealed interface DescriptorPick {
      */
     public data class Choice(public val descriptors: List<Path>) : DescriptorPick
 
-    /** The workspace has no descriptor; the command says how to create one. */
+    /** The workspace has no descriptor. The command tells the user how to create one. */
     public data object None : DescriptorPick
 }
 
 /**
- * Resolves the environment descriptor a run deploys: the given one; else the active editor's file if it is a
- * descriptor; else the only descriptor of the workspace; else the one the user chooses among them, with the last choice
- * of this workspace preselected; without any descriptor an error dialog says how to create one. Used from the UI thread.
+ * Resolves the environment descriptor that a run deploys. A descriptor given by the caller wins. Otherwise it is the
+ * active editor's file if that is a descriptor. Otherwise it is the only descriptor of the workspace. Otherwise the
+ * user chooses among the descriptors, and the last choice in this workspace is preselected. Without any descriptor an
+ * error dialog tells the user how to create one. Use the class from the UI thread only.
  *
  * @param root the root folder of the workspace.
  * @param support asks the user and shows the error.
  */
 internal class DescriptorResolver(private val root: Path, private val support: RunSupport) {
 
-    /** The descriptor the user chose last, or null. */
+    /** The descriptor the user chose last, or null before the first choice. */
     private var lastChoice: Path? = null
 
-    /** The descriptor to run: [given] if set, else as [pick] says; null if there is none or the user cancelled. */
+    /**
+     * The descriptor to run. That is [given] if it is set, and otherwise what [pick] says. Returns null if there is no
+     * descriptor or the user cancelled.
+     */
     suspend fun resolve(given: Path?, pick: DescriptorPick): Path? {
         if (given != null) return given.toAbsolutePath().normalize()
         return when (pick) {
@@ -77,7 +82,7 @@ internal class DescriptorResolver(private val root: Path, private val support: R
                 "context menu of a folder in the Project tool window; it names the files to run and the objects the " +
                 "state machines run attached to."
 
-        /** What the Run command picks with the [active] editor's file among the workspace's [descriptors]. */
+        /** What the Run command picks among the workspace's [descriptors], given the file of the [active] editor. */
         fun pick(active: Path?, descriptors: List<Path>): DescriptorPick = when {
             active != null && FileKind.of(active.fileName.toString()) == FileKind.ENV_DESCRIPTOR -> DescriptorPick.Picked(active)
             descriptors.size == 1 -> DescriptorPick.Picked(descriptors.single())

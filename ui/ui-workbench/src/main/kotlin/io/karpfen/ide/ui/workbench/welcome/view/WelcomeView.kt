@@ -36,7 +36,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 
-/** The empty state shown without an open folder: "Open Folder…" and the recent folders. */
+/**
+ * The welcome view, which the window shows while no folder is open. It offers "Open Folder…" and lists the recent
+ * folders. A click on a recent folder calls [onOpenRecent] with its path. Long paths are shortened in the middle.
+ */
 @Composable
 internal fun WelcomeView(
     recentFolders: List<String>,

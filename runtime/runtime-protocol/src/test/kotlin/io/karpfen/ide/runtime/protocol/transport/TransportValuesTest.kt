@@ -20,7 +20,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** Covers the values of the transport seams: a request has a body exactly when it is a PUT, and transports are released once. */
+/**
+ * Covers the values of the transport seams. A request has a body exactly when it is a PUT, and transports are released
+ * once.
+ */
 class TransportValuesTest {
 
     @Test

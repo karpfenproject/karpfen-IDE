@@ -88,7 +88,7 @@ internal class FakeDockerEngine : DockerEngine {
     /** The calls so far. */
     private val recorded = ArrayList<EngineCall>()
 
-    /** The failure messages per function name, such as `"ping"`; a programmed function throws [DockerEngineException]. */
+    /** The failure messages per function name, such as `"ping"`. A function with a message here throws it as [DockerEngineException]. */
     val failures: MutableMap<String, String> = HashMap()
 
     /** The answer of [imageExists]. */

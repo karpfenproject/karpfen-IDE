@@ -25,8 +25,9 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 /**
- * Drawing primitives of the karpfen icons on a 16 × 16 viewport (16 dp by default): filled shapes and round-capped
- * strokes. Pure functions over `ImageVector.Builder`; the icons themselves are composed in [IconShapes].
+ * Drawing primitives of the karpfen icons: filled shapes and round-capped strokes on a 16 by 16 viewport, which is
+ * 16 dp by default. They are pure functions over `ImageVector.Builder`. The icons themselves are composed in
+ * [IconShapes].
  */
 internal object IconDrawing {
 
@@ -62,7 +63,7 @@ internal object IconDrawing {
         )
     }
 
-    /** A polyline through [points] (x, y pairs). */
+    /** A polyline through [points], given as x and y pairs. It needs at least two points. */
     fun PathBuilder.polyline(vararg points: Float) {
         require(points.size >= 4 && points.size % 2 == 0) { "a polyline needs at least two points" }
         moveTo(points[0], points[1])

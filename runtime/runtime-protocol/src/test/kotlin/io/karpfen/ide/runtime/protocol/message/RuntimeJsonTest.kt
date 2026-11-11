@@ -26,10 +26,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 /**
- * Covers [RuntimeJson]: reading the runtime's pushes and snapshots with their field order and repeated names, every
- * escape and surrogate pair, numbers in every form the runtime writes including its bare non-finite literals, the
- * refusal of everything outside JSON with the offset where reading failed, the nesting limit, and quoting by the
- * runtime writer's rule.
+ * Covers [RuntimeJson]. It reads the runtime's pushes and snapshots with their field order and repeated names, every
+ * escape and surrogate pair, and numbers in every form the runtime writes, including its bare non-finite literals. It
+ * refuses everything outside JSON with the offset where reading failed. The tests also cover the nesting limit and
+ * quoting by the runtime writer's rule.
  */
 class RuntimeJsonTest {
 

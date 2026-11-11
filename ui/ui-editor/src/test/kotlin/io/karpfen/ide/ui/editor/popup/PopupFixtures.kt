@@ -78,19 +78,25 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 
 /**
- * The fake [EditorPopupModel] of the popup tests (the narrow interface, never `CodeEditorState`): the real
- * Compose-free models — [CaretModel], [FindModel], [CompletionSessionModel] — over a real [EditableText], with an
- * executor running their actions in a fake [EditorActionContext], and a real [EditorOverlayState]. It records what the
- * popups asked the editor for: [executed] action ids, [goToLineQueries], [focusRequests] and [tooltipPointer].
+ * The fake [EditorPopupModel] of the popup tests. It implements the narrow interface and never `CodeEditorState`. It
+ * uses the real models [CaretModel], [FindModel] and [CompletionSessionModel], which need no Compose, over a real
+ * [EditableText]. An executor runs their actions in a fake [EditorActionContext], and the [EditorOverlayState] is real.
+ * The fake records what the popups asked the editor for: [executed] action ids, [goToLineQueries], [focusRequests] and
+ * [tooltipPointer].
  *
- * The models run on an unconfined test dispatcher (their scope and find's background dispatcher), so every model
- * operation has published its state when it returns; [close] cancels them.
+ * The models run on an unconfined test dispatcher, which serves as their scope and as the background dispatcher of
+ * find. So every model operation has published its state when it returns. [close] cancels the models.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FakePopupModel(initialText: String, caretAt: Int = 0) : EditorPopupModel, AutoCloseable {
 
+    /** The job of the models' scope. */
     private val job = Job()
+
+    /** The unconfined dispatcher of the models and of the background work of find. */
     private val dispatcher = UnconfinedTestDispatcher()
+
+    /** The scope of the models. */
     private val scope = CoroutineScope(dispatcher + job)
 
     /** The edited text. */
@@ -100,18 +106,22 @@ class FakePopupModel(initialText: String, caretAt: Int = 0) : EditorPopupModel, 
 
     override val caret: CaretModel = CaretModel(text, scope)
 
+    /** The context in which [executor] runs actions. */
     private val context = FakeActionContext(text, caret)
+
+    /** The default actions, used for the initial [enabledActions]. */
     private val registry = EditorActionRegistry()
 
-    /** Ids of the actions the models ran through the executor (select match, replace, accept completion). */
+    /** Ids of the actions that the models ran through the executor, such as select match, replace and accept completion. */
     val executorLog: MutableList<String> = mutableListOf()
 
+    /** Logs each action in [executorLog] and runs it in [context] while it is enabled. */
     private val executor = EditorActionExecutor { action: EditorAction ->
         executorLog += action.id
         action.isEnabled(context) && action.execute(context)
     }
 
-    /** What the completion source answers for a snapshot and offset (default: nothing). */
+    /** What the completion source answers for a snapshot and offset. By default it answers nothing. */
     var completionItems: (TextSnapshot, Int) -> List<CompletionItem> = { _, _ -> emptyList() }
 
     override val find: FindModel = FindModel(text, caret, executor, scope, dispatcher)
@@ -128,7 +138,7 @@ class FakePopupModel(initialText: String, caretAt: Int = 0) : EditorPopupModel, 
 
     override val overlays: EditorOverlayState = EditorOverlayState()
 
-    /** Enabled action ids; every registered action by default, tests set it explicitly. */
+    /** The enabled action ids. By default every registered action is enabled, and tests set the value explicitly. */
     override val enabledActions: MutableStateFlow<Set<String>> = MutableStateFlow(registry.actions.map { it.id }.toSet())
 
     /** Ids passed to [execute], in order. */
@@ -148,7 +158,7 @@ class FakePopupModel(initialText: String, caretAt: Int = 0) : EditorPopupModel, 
     /** The plain text. */
     val plain: String get() = text.snapshot.value.text
 
-    /** Types [typed] like the editor state: the typing action through the executor, then the completion trigger. */
+    /** Types [typed] like the editor state does. It runs the typing action through the executor and then the completion trigger. */
     fun type(typed: String) {
         executor.execute(typeTextAction(typed))
         completion.onTyped(typed)
@@ -159,7 +169,7 @@ class FakePopupModel(initialText: String, caretAt: Int = 0) : EditorPopupModel, 
         return registry.execute(actionId, context)
     }
 
-    /** Like the editor state: moves the caret (clamped), closes the popup and requests focus. */
+    /** Acts like the editor state. Moves the caret, clamped to the text, closes the popup and requests focus. */
     override fun goToLine(query: GoToLineQuery) {
         goToLineQueries += query
         caret.moveTo(query.offsetIn(text.snapshot.value))
@@ -181,7 +191,7 @@ class FakePopupModel(initialText: String, caretAt: Int = 0) : EditorPopupModel, 
     override fun close() = job.cancel()
 }
 
-/** An [EditorActionContext] over real text and carets: no tokens, an in-memory clipboard, UI requests ignored. */
+/** An [EditorActionContext] over real text and carets. It has no tokens and an in-memory clipboard, and it ignores UI requests. */
 class FakeActionContext(override val text: EditableText, override val caret: CaretModel) : EditorActionContext {
     override val autoPairs: AutoClosedPairs = AutoClosedPairs(text)
     override val tokens: TokenizeResult get() = TokenizeResult.empty(text.snapshot.value.version)
@@ -211,7 +221,10 @@ class FakeActionContext(override val text: EditableText, override val caret: Car
     }
 }
 
-/** Fixed geometry of [FakeOverlayHost]: every character is [CHAR] × [LINE] px, line n starts at y = n × [LINE]. */
+/**
+ * The fixed geometry of [FakeOverlayHost]. Every character cell is [CHAR] px wide and [LINE] px high, and line n starts
+ * at y = n * [LINE].
+ */
 object TestGeometry {
     /** Width of one character cell. */
     const val CHAR: Float = 8f
@@ -219,14 +232,14 @@ object TestGeometry {
     /** Height of one line. */
     const val LINE: Float = 16f
 
-    /** The rectangle of the character at [line]/[column]. */
+    /** The rectangle of the character at [line] and [column]. */
     fun cell(line: Int, column: Int): Rect = Rect(column * CHAR, line * LINE, (column + 1) * CHAR, (line + 1) * LINE)
 }
 
 /**
- * An [EditorOverlayHost] with fixed geometry ([TestGeometry]) over [state]: [caretBounds] is set by the test (default:
- * the caret's cell at creation), and so is [revealPending]; lines in [offscreenLines] are "not laid out" ([boundsOf]
- * answers null).
+ * An [EditorOverlayHost] over [state] with the fixed geometry of [TestGeometry]. The test sets [caretBounds], which
+ * starts as the cell of the caret at creation, and [revealPending]. Lines in [offscreenLines] count as not laid out, so
+ * [boundsOf] answers null for them.
  */
 class FakeOverlayHost(
     override val state: FakePopupModel,
@@ -239,7 +252,7 @@ class FakeOverlayHost(
 
     override var caretBounds: Rect? by mutableStateOf(boundsOf(state.caret.primary.position))
 
-    /** True while the view is about to reveal the caret (a pending scroll request). */
+    /** True while the view is about to reveal the caret because a scroll request is pending. */
     var revealPending: Boolean by mutableStateOf(false)
 
     override val isCaretScrolledAway: Boolean get() = caretBounds == null && !revealPending
@@ -281,9 +294,9 @@ fun testEditorTheme(): EditorTheme = EditorTheme(
 const val TEXT_AREA: String = "test.textArea"
 
 /**
- * Composes [popups] like `CodeEditor` hosts them: the header slot above a focusable text-area stand-in ([TEXT_AREA],
- * [width] × the rest of [height]) whose Box holds the popup slot. Nothing else is in the window. Returns the text
- * area's focus requester (to move focus away from a popup).
+ * Composes [popups] like `CodeEditor` hosts them. The header slot lies above a focusable stand-in for the text area,
+ * tagged [TEXT_AREA], which is [width] wide and fills the rest of [height]. Its box holds the popup slot. Nothing else
+ * is in the window. Returns the focus requester of the text area, which tests use to move focus away from a popup.
  */
 @OptIn(ExperimentalTestApi::class)
 fun ComposeUiTest.setPopups(
@@ -308,8 +321,8 @@ fun ComposeUiTest.setPopups(
 class PopupHarness(val model: FakePopupModel, val host: FakeOverlayHost, val textArea: FocusRequester)
 
 /**
- * Runs a headless UI test of [popups] over a [FakePopupModel] of [text] (caret at [caretAt]) composed by [setPopups];
- * the model is closed afterwards.
+ * Runs a headless UI test of [popups] over a [FakePopupModel] of [text] with the caret at [caretAt], composed by
+ * [setPopups]. The model is closed afterwards.
  */
 @OptIn(ExperimentalTestApi::class)
 fun popupTest(
@@ -325,7 +338,7 @@ fun popupTest(
     }
 }
 
-/** The bounds of the node tagged [tag] relative to the text area stand-in ([TEXT_AREA]), in dp. */
+/** The bounds in dp of the node tagged [tag], relative to the stand-in for the text area tagged [TEXT_AREA]. */
 @OptIn(ExperimentalTestApi::class)
 fun ComposeUiTest.boundsInTextArea(tag: String): DpRect {
     val area = onNodeWithTag(TEXT_AREA).getUnclippedBoundsInRoot()
@@ -333,7 +346,10 @@ fun ComposeUiTest.boundsInTextArea(tag: String): DpRect {
     return DpRect(node.left - area.left, node.top - area.top, node.right - area.left, node.bottom - area.top)
 }
 
-/** Completion items for [labels] (kind [kind], detail "detail of <label>"), replacing the identifier before the offset. */
+/**
+ * Completion items for [labels] of kind [kind], each with the detail "detail of" followed by its label. Each item
+ * replaces the identifier before the offset, and the sort keys keep the order of [labels].
+ */
 fun completionItems(labels: List<String>, kind: CompletionKind = CompletionKind.KEYWORD): (TextSnapshot, Int) -> List<CompletionItem> =
     { snapshot, offset ->
         var start = offset
@@ -343,7 +359,7 @@ fun completionItems(labels: List<String>, kind: CompletionKind = CompletionKind.
         }
     }
 
-/** Matches completion rows (any index). */
+/** Matches completion rows at any index. */
 val isCompletionRow: SemanticsMatcher = SemanticsMatcher("is a completion row") { node ->
     node.config.getOrNull(SemanticsProperties.TestTag)?.startsWith(EditorPopupTags.completionRow(0).removeSuffix("0")) == true
 }

@@ -31,17 +31,18 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.util.EnumSet
 
 /**
- * What the keys of one watch service watch, for [WatchServiceFileWatcher]. It follows symbolic links like the scan
- * ([WorkspaceScanner]), so every file the tree lists is watched under the path the workspace uses for it:
- * - the directories of the tree, by their paths in the tree: a symbolic link to a directory (also the root itself) is
- *   followed, the directories below it keep the link's path, and a directory reached a second time (another link to
- *   it, a link cycle) is not entered again, as the scan lists it empty;
- * - the directories holding the targets of symbolic links to files, wherever they lie: a change of such a target is
+ * Records what the keys of one watch service watch, for [WatchServiceFileWatcher]. It follows symbolic links the same
+ * way the scan in [WorkspaceScanner] does. So every file the tree lists is watched under the path the workspace uses
+ * for it. Two kinds of directories are watched.
+ * - The directories of the tree, under their paths in the tree. A symbolic link to a directory is followed, and that
+ *   includes the root itself. The directories below it keep the path of the link. A directory reached a second time,
+ *   through another link to it or through a link cycle, is not entered again, just as the scan lists it as empty.
+ * - The directories that hold the targets of symbolic links to files, wherever they lie. A change of such a target is
  *   reported as a change of the link.
  *
- * Confined to the watching coroutine.
+ * Only the watching coroutine uses an instance.
  *
- * @param isIgnored true for paths that are not reported (and directories that are not entered).
+ * @param isIgnored true for paths that are not reported and for directories that are not entered.
  * @param register registers a directory with the watch service and returns its key.
  */
 internal class WatchRegistry(
@@ -49,7 +50,10 @@ internal class WatchRegistry(
     private val register: (Path) -> WatchKey,
 ) {
 
-    /** What one key watches: the tree directory at [path] (null if none) and the links to files in it, by file name. */
+    /**
+     * What one key watches. [path] is the tree directory, or null if the key watches none. [links] holds the links to
+     * files in the watched directory, by the file name of their target.
+     */
     private class Watched(val realPath: Path) {
         var path: Path? = null
         val links = HashMap<Path, MutableSet<Path>>()
@@ -58,15 +62,17 @@ internal class WatchRegistry(
     /** What each key watches. */
     private val watched = HashMap<WatchKey, Watched>()
 
-    /** The key of each real directory, so a directory reached under two paths is registered once. */
+    /** The key of each real directory, so a directory reached under two paths is registered only once. */
     private val keysByRealPath = HashMap<Path, WatchKey>()
 
     /** True while a directory of the tree is watched. */
     val watchesTree: Boolean get() = watched.values.any { it.path != null }
 
     /**
-     * Registers [directory] and every non-ignored directory below it, following symbolic links, and the target
-     * directories of the links to files among their files. Throws an [IOException] if a directory cannot be registered.
+     * Registers [directory] and every directory below it that is not ignored, following symbolic links. It also
+     * registers the target directories of the links to files among their files.
+     *
+     * @throws IOException if a directory cannot be registered.
      */
     fun registerTree(directory: Path) {
         Files.walkFileTree(
@@ -86,19 +92,19 @@ internal class WatchRegistry(
                     return FileVisitResult.CONTINUE
                 }
 
-                /** A link cycle or a directory that cannot be listed is not watched; the walk goes on. */
+                /** A link cycle or a directory that cannot be listed is not watched, and the walk goes on. */
                 override fun visitFileFailed(file: Path, exc: IOException): FileVisitResult = FileVisitResult.CONTINUE
             },
         )
     }
 
-    /** The changes that [events] of [key] stand for; registers the directories and links they create. */
+    /** The changes that [events] of [key] stand for. It registers the directories and links that the events create. */
     fun changesOf(key: WatchKey, events: List<WatchEvent<*>>): List<FileChange> {
         val target = watched[key] ?: return emptyList()
         return events.flatMap { changesOf(target, it) }
     }
 
-    /** Forgets [key], which became invalid, and returns the tree directory it watched (null if none). */
+    /** Forgets [key], which became invalid, and returns the tree directory it watched, or null if none. */
     fun cancel(key: WatchKey): Path? {
         val target = watched.remove(key) ?: return null
         keysByRealPath.remove(target.realPath, key)
@@ -106,8 +112,8 @@ internal class WatchRegistry(
     }
 
     /**
-     * The changes one [event] of the key watching [target] stands for: the tree path of the entry and the links to it;
-     * an overflow stands for everything the key watches.
+     * The changes that one [event] of the key watching [target] stands for. These are the tree path of the entry and
+     * the links to it. An overflow stands for everything the key watches.
      */
     private fun changesOf(target: Watched, event: WatchEvent<*>): List<FileChange> {
         if (event.kind() == OVERFLOW) {
@@ -127,7 +133,7 @@ internal class WatchRegistry(
 
     /**
      * Watches the created directory tree or link at [path]. A path that vanished again before it could be registered is
-     * skipped: its parent's key reports the deletion.
+     * skipped, because the key of its parent reports the deletion.
      */
     private fun registerCreated(path: Path) {
         try {
@@ -140,7 +146,10 @@ internal class WatchRegistry(
         }
     }
 
-    /** Watches [directory] as the tree directory at that path; false if its real directory is one under another path. */
+    /**
+     * Watches [directory] as the tree directory at that path. It returns false if its real directory is already watched
+     * under another path.
+     */
     private fun watchTreeDirectory(directory: Path): Boolean {
         val target = watched.getValue(watch(directory))
         if (target.path != null && target.path != directory) return false
@@ -159,7 +168,7 @@ internal class WatchRegistry(
         }
     }
 
-    /** The key watching the real directory of [directory], registering it under [directory] if there is none. */
+    /** The key that watches the real directory of [directory]. If there is none, it registers one under [directory]. */
     private fun watch(directory: Path): WatchKey {
         val realPath = realPathOf(directory)
         keysByRealPath[realPath]?.let { return it }

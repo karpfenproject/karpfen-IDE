@@ -31,8 +31,8 @@ import kotlin.test.assertIs
 import kotlin.test.fail
 
 /**
- * Covers the cleanup of the connection scenarios against the fake runtime on virtual time: a scenario that fails stops
- * every environment it deployed that is activated or running, and sends nothing for one that is stopped already or was
+ * Covers the cleanup of the connection scenarios against the fake runtime on virtual time. A scenario that fails stops
+ * every environment it deployed that is activated or running. It sends nothing for one that is stopped already or was
  * never activated.
  */
 class ScenarioClientTest {
@@ -77,7 +77,7 @@ class ScenarioClientTest {
     }
 
     private companion object {
-        /** The runtime the client believes it talks to; the fake answers whatever the URL. */
+        /** The runtime the client believes it talks to. The fake answers whatever the URL is. */
         val ENDPOINT: RuntimeEndpoint = RuntimeEndpoint.parse("http://127.0.0.1:8080")
 
         /** The query parameter of an environment's key. */

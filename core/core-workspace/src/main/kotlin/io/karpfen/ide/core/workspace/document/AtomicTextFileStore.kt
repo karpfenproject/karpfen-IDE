@@ -30,24 +30,26 @@ import java.nio.file.attribute.PosixFileAttributeView
 import java.util.UUID
 
 /**
- * [TextFileStore] on `java.nio.file`, writing through a temp file and an atomic move; the bytes are [Utf8Text]'s (so
- * [readBack] needs no override). Writing:
- * - writes the bytes (byte order mark first if requested) to a new hidden temp file in the target's directory, created
- *   with the default permissions (a `createTempFile` would be owner-only);
- * - copies the POSIX permissions of an existing target to the temp file, so saving never changes them;
- * - forces the temp file's content and metadata to the storage device before the move, so a crash or power loss can
- *   never leave a renamed but empty or truncated target (the atomic move protects the old content only if the new
- *   one is durable first);
- * - writes through a symbolic link to its target instead of replacing the link;
- * - refuses a target that exists but is not writable (a read-only file) with an `AccessDeniedException` ("the file is
- *   read-only"): the move needs write permission on the directory only, so it would silently replace a
- *   write-protected file;
- * - moves the temp file over the target (`ATOMIC_MOVE`, `REPLACE_EXISTING` where atomic moves are unsupported) and
- *   deletes the temp file if anything failed, leaving the target unchanged;
- * - then forces the directory, so the move itself is durable, where the platform can open a directory (not Windows);
- * - creates missing parent directories (saving a document whose directory was deleted recreates it).
+ * [TextFileStore] on `java.nio.file` that writes through a temp file and an atomic move. The bytes are those of
+ * [Utf8Text], so `readBack` needs no override. Writing works like this.
+ * - It writes the bytes to a new hidden temp file in the directory of the target, with a byte order mark first if
+ *   requested. The temp file is created with the default permissions. A `createTempFile` would make it readable by the
+ *   owner only.
+ * - It copies the POSIX permissions of an existing target to the temp file, so saving never changes them.
+ * - It forces the content and the metadata of the temp file to the storage device before the move. So a crash or a
+ *   power loss can never leave a renamed but empty or truncated target. The atomic move protects the old content only
+ *   if the new content is durable first.
+ * - It writes through a symbolic link to its target instead of replacing the link.
+ * - It refuses a target that exists but is not writable, such as a read-only file, with an `AccessDeniedException`
+ *   whose reason is "the file is read-only". The move only needs write permission on the directory, so without this
+ *   check it would silently replace a write-protected file.
+ * - It moves the temp file over the target with `ATOMIC_MOVE`, or with `REPLACE_EXISTING` where atomic moves are not
+ *   supported. If anything fails, it deletes the temp file and leaves the target unchanged.
+ * - Then it forces the directory, so the move itself is durable. This only works where the platform can open a
+ *   directory, which Windows cannot.
+ * - It creates missing parent directories. So saving a document whose directory was deleted recreates the directory.
  *
- * @param channels opens the file channels it writes and forces through (the seam tests observe forcing with).
+ * @param channels opens the file channels it writes and forces through. Tests observe the forcing through this seam.
  */
 internal class AtomicTextFileStore(
     private val channels: FileChannelOpener = FileChannelOpener { path, options -> FileChannel.open(path, options) },
@@ -82,7 +84,10 @@ internal class AtomicTextFileStore(
         forceDirectory(directory)
     }
 
-    /** Makes the move durable; best effort, because not every platform can open a directory (the save succeeded). */
+    /**
+     * Makes the move durable. This is best effort, because not every platform can open a directory. A failure is only
+     * logged, since the save itself succeeded.
+     */
     private fun forceDirectory(directory: Path) {
         try {
             channels.open(directory, setOf(StandardOpenOption.READ)).use { it.force(true) }
@@ -91,7 +96,10 @@ internal class AtomicTextFileStore(
         }
     }
 
-    /** Gives [to] the POSIX permissions of an existing [from]; a no-op without [from] or without POSIX attributes. */
+    /**
+     * Gives [to] the POSIX permissions of an existing [from]. It does nothing if [from] does not exist or the file
+     * system has no POSIX attributes.
+     */
     private fun copyPermissions(from: Path, to: Path) {
         if (!Files.exists(from)) return
         val source = Files.getFileAttributeView(from, PosixFileAttributeView::class.java) ?: return
@@ -106,7 +114,7 @@ internal class AtomicTextFileStore(
     }
 }
 
-/** Opens the [FileChannel]s of [AtomicTextFileStore] (`FileChannel.open` in production). */
+/** Opens the [FileChannel]s of [AtomicTextFileStore]. In production this is `FileChannel.open`. */
 internal fun interface FileChannelOpener {
     /** Opens [path] with [options]. */
     fun open(path: Path, options: Set<OpenOption>): FileChannel

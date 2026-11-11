@@ -28,14 +28,14 @@ public sealed interface SendOutcome {
     public data class Written(public val frameText: String) : SendOutcome
 
     /**
-     * The connection is not open; nothing was sent.
+     * The connection is not open, so nothing was sent.
      *
      * @property state its state.
      */
     public data class NotConnected(public val state: ConnectionState) : SendOutcome
 
     /**
-     * The environment's phase does not allow injecting events; nothing was sent.
+     * The environment's phase does not allow injecting events, so nothing was sent.
      *
      * @property refusal why.
      */

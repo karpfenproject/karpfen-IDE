@@ -49,9 +49,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers the event catalog: the domains of the examples and synthesized models with their origins, the listened events
- * (the first event condition of every transition), the raised events in every block, and payload types resolved as the
- * runtime resolves them.
+ * Covers the event catalog. It checks the domains of the examples and synthesized models with their origins and the
+ * listened events, which are the first event condition of every transition. It also checks the raised events in every
+ * block and that payload types are resolved as the runtime resolves them.
  */
 class EventCatalogBuilderTest {
 
@@ -272,7 +272,7 @@ class EventCatalogBuilderTest {
             }
         }
 
-    /** The first event condition of [condition], clauses flattened in order. */
+    /** The first event condition of [condition], with its clauses flattened in order. */
     private fun firstEvent(condition: Condition): EventCondition? =
         when (condition) {
             is EventCondition -> condition

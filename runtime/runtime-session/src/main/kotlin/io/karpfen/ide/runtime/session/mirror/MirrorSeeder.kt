@@ -28,20 +28,22 @@ import io.karpfen.dsl.meta.SimplePropertyType
 import io.karpfen.ide.runtime.session.schema.TypeSchema
 
 /**
- * Turns the analyzed dsl-tools model of a deployment (the text that is uploaded) into the mirror's first snapshot: the
- * IDE's prediction of what the runtime will report before it reported anything.
+ * Turns the analyzed dsl-tools model of a deployment into the mirror's first snapshot. The model is the text that is
+ * uploaded. The seed is the IDE's prediction of what the runtime will report before it reported anything.
  *
- * dsl-tools 2.0 creates only the properties and relations the `.kmodel` writes, relations with `has` before `knows`,
- * like the runtime's converter, so absent properties stay absent and the orders match the runtime's JSON. Numbers
- * become doubles. Objects are normalized by id: relations hold [ObjectRef.Keyed] targets and every keyed object is in
- * [MirrorSnapshot.objects] once, at its first occurrence in document order (a model that declares an id twice is
- * flagged by the planner); objects with an empty id live inline as [ObjectRef.Anonymous]; an unresolved entry of a list
- * relation is [ObjectRef.Missing], and an unresolved atomic relation is empty, as the runtime writes both as `null`.
- * Every object has origin [ObjectOrigin.MODEL] and revision 0.
+ * dsl-tools 2.0 creates only the properties and relations that the `.kmodel` writes, with `has` relations before
+ * `knows` relations. The runtime's converter does the same, so absent properties stay absent and the orders match the
+ * runtime's JSON. Numbers become doubles.
  *
- * The association of a relation is taken from the [TypeSchema] of the domain metamodel, the same source the runtime's
- * JSON is interpreted with, so a seed and the runtime's read-back of the same model are equal. A keyed object reached
- * only through `knows` relations is added after the embedded tree, without containment.
+ * Objects are normalized by id. Relations hold [ObjectRef.Keyed] targets, and every keyed object is in
+ * [MirrorSnapshot.objects] once, at its first occurrence in document order. The planner flags a model that declares an
+ * id twice. Objects with an empty id live inline as [ObjectRef.Anonymous]. An unresolved entry of a list relation is
+ * [ObjectRef.Missing], and an unresolved atomic relation is empty, because the runtime writes both as `null`. Every
+ * object has origin [ObjectOrigin.MODEL] and revision 0.
+ *
+ * The association of a relation is taken from the [TypeSchema] of the domain metamodel. The runtime's JSON is
+ * interpreted with the same source, so a seed and the runtime's read-back of the same model are equal. A keyed object
+ * reached only through `knows` relations is added after the embedded tree, without containment.
  *
  * Stateless.
  */
@@ -50,7 +52,7 @@ public object MirrorSeeder {
     public fun seed(model: Model, schema: TypeSchema): MirrorSnapshot = SeedBuilder(schema).build(model)
 
     /**
-     * Builds one seed; confined to one call of [seed].
+     * Builds one seed. Confined to one call of [seed].
      *
      * @param schema the schema of the domain metamodel.
      */
@@ -78,8 +80,8 @@ public object MirrorSeeder {
         }
 
         /**
-         * The reference to [target], converting it if it is anonymous or met for the first time; [holder] is the
-         * containment a keyed target gets, null when it is not embedded.
+         * The reference to [target]. The target is converted if it is anonymous or met for the first time. [holder]
+         * is the containment a keyed target gets. It is null when the target is not embedded.
          */
         private fun target(target: DataObject, holder: Containment?): ObjectRef {
             if (target.id.isEmpty()) return ObjectRef.Anonymous(convert(target, holder))
@@ -96,7 +98,7 @@ public object MirrorSeeder {
 
         /**
          * The mirror object of [source]. [holder] is the containment that keyed objects embedded in an anonymous
-         * [source] get: the keyed owner that embeds [source] and its relation.
+         * [source] get. It names the keyed owner that embeds [source] and its relation.
          */
         private fun convert(source: DataObject, holder: Containment?): MirrorObject =
             MirrorObject(
@@ -138,8 +140,8 @@ public object MirrorSeeder {
         }
 
         /**
-         * The reference to [target] through a relation with [association]: embedded targets are converted in place;
-         * keyed targets of references are converted later, after the embedded tree.
+         * The reference to [target] through a relation with [association]. Embedded targets are converted in place.
+         * Keyed targets of references are converted later, after the embedded tree.
          */
         private fun reach(target: DataObject, association: AssociationType?, holder: Containment?): ObjectRef {
             if (association == AssociationType.EMBEDDED || target.id.isEmpty()) return target(target, holder)

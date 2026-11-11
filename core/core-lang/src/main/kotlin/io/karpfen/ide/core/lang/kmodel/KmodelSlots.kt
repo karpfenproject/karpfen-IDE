@@ -23,40 +23,42 @@ import io.karpfen.ide.core.lang.context.ContextToken
 import io.karpfen.ide.core.lang.symbols.MemberKind
 import io.karpfen.ide.core.text.TextRange
 
-/** What the caret is on or in, in a KModel document; the one classification of completion, hover and navigation. */
+/**
+ * What the caret is on or in, in a KModel document. Completion, hover and navigation all use this one classification.
+ */
 internal sealed interface KmodelSlot {
-    /** Before the root object: the `make object` snippet. */
+    /** Before the root object, where the `make object` snippet goes. */
     data object TopLevel : KmodelSlot
 
-    /** In the body of an object of type [objectType], outside a statement: the statement snippets. */
+    /** In the body of an object of type [objectType] but outside a statement, where the statement snippets go. */
     data class ObjectBody(val objectType: String?) : KmodelSlot
 
     /**
-     * The key of `prop("k"` ([kind] PROPERTY), `has("k"` or `knows("k"` in the body of an object of type [objectType];
-     * [inString] is false when the caret is in the parentheses but not inside quotes yet.
+     * The key of `prop("k"`, `has("k"` or `knows("k"` in the body of an object of type [objectType]. For `prop` the
+     * [kind] is PROPERTY. [inString] is false when the caret is in the parentheses but not inside quotes yet.
      */
     data class Key(val objectType: String?, val kind: MemberKind, val name: String, val range: TextRange, val inString: Boolean) :
         KmodelSlot
 
     /**
-     * The type of `make object "k":"T"`; [relation] is the `has` relation of [ownerType] (the enclosing object's type)
-     * the object is the value of, if any.
+     * The type of `make object "k":"T"`. [ownerType] is the type of the enclosing object. [relation] is the `has`
+     * relation of [ownerType] whose value the object is, if there is one.
      */
     data class ObjectType(val name: String, val range: TextRange, val ownerType: String?, val relation: String?) : KmodelSlot
 
-    /** The key of `make object "k"` (a declaration). */
+    /** The key of `make object "k"`, which is a declaration. */
     data class ObjectKey(val name: String, val range: TextRange) : KmodelSlot
 
-    /** The target of `knows("r") -> "obj"`: [relation] `r` of [ownerType] (the enclosing object's type). */
+    /** The target of `knows("r") -> "obj"`. [relation] is `r`, and [ownerType] is the type of the enclosing object. */
     data class ObjectReference(val name: String, val range: TextRange, val ownerType: String?, val relation: String) : KmodelSlot
 
-    /** Anything else (values, comments, broken positions). */
+    /** Anything else, such as values, comments and broken positions. */
     data object None : KmodelSlot
 }
 
 /**
- * Classifies the caret of a KModel document from its [CaretContext]. The enclosing object's type comes from the header
- * of the innermost `make object "k":"T" {` block. Stateless.
+ * Classifies the caret of a KModel document from its [CaretContext]. The type of the enclosing object comes from the
+ * header of the innermost `make object "k":"T" {` block. The class has no state.
  */
 internal class KmodelSlots(private val caretContexts: CaretContextDetector) {
 
@@ -66,7 +68,10 @@ internal class KmodelSlots(private val caretContexts: CaretContextDetector) {
         return context to classify(document, context)
     }
 
-    /** The slot of [context]: keys by the call around the caret, other strings by the statement before them. */
+    /**
+     * The slot of [context]. Keys are classified by the call around the caret. Other strings are classified by the
+     * statement before them.
+     */
     private fun classify(document: LanguageDocument, context: CaretContext): KmodelSlot {
         if (context.inComment) return KmodelSlot.None
         val objectType = context.blocks.asReversed().firstNotNullOfOrNull { objectTypeOf(it.header) }
@@ -104,11 +109,11 @@ internal class KmodelSlots(private val caretContexts: CaretContextDetector) {
         return if (tokens.endsWith(keyword, "(", null, ")", "->")) tokens[tokens.size - 3].text else null
     }
 
-    /** True if the statement is empty or a complete statement (`… -> "v"` or `… }`) precedes the caret. */
+    /** True if the statement is empty or if a complete statement such as `… -> "v"` or `… }` precedes the caret. */
     private fun List<ContextToken>.endsStatement(): Boolean =
         isEmpty() || (last().kind == TokenKind.STRING && getOrNull(size - 2)?.text == "->")
 
-    /** True if the statement ends with tokens of these texts; null matches one string literal. */
+    /** True if the statement ends with tokens of these texts. A null entry matches one string literal. */
     private fun List<ContextToken>.endsWith(vararg texts: String?): Boolean {
         if (size < texts.size) return false
         return texts.withIndex().all { (i, text) ->

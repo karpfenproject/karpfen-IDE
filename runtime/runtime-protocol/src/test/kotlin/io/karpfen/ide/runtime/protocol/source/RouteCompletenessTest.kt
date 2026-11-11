@@ -20,10 +20,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers the completeness of the route catalogue: the routes the runtime declares in its `HTTPRoutes.kt`, followed by
- * those of its `ModelObservationRoutes.kt`, are exactly the catalogue's routes in the catalogue's order, so a route the
- * runtime adds, removes or renames fails here before any client code meets it. The anchor test's KDoc describes what
- * to do when the karpfen-runtime submodule moves.
+ * Covers the completeness of the route catalogue. The routes the runtime declares in its `HTTPRoutes.kt`, followed by
+ * those of its `ModelObservationRoutes.kt`, are exactly the catalogue's routes in the catalogue's order. So a route the
+ * runtime adds, removes or renames fails here before any client code meets it. The KDoc of [RuntimeSourceAnchorTest]
+ * describes what to do when the karpfen-runtime submodule moves.
  */
 class RouteCompletenessTest {
 

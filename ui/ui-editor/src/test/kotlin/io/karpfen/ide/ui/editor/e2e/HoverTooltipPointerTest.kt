@@ -35,13 +35,14 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 /**
- * The hover tooltip stays while the pointer is on it, with the real `EditorPopups` over `CodeEditor` (it must not hide
- * when the pointer enters it): its long content can be scrolled, and it is hidden once the pointer left it and the
- * hovered text.
+ * The hover tooltip stays while the pointer is on it. The tests use the real `EditorPopups` over `CodeEditor`. The
+ * tooltip must not hide when the pointer enters it, so its long content can be scrolled. It hides once the pointer has
+ * left both the tooltip and the hovered text.
  */
 @OptIn(ExperimentalTestApi::class)
 class HoverTooltipPointerTest {
 
+    /** The node of the text area, whose coordinates are host coordinates. */
     private fun ComposeUiTest.textArea(): SemanticsNodeInteraction = onNodeWithTag(EditorE2eTags.TEXT_AREA)
 
     @Test

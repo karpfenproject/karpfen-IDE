@@ -36,9 +36,13 @@ import kotlin.test.assertSame
 /** The per-line layout LRU cache and the line layouter that styles and measures lines through it. */
 class LineLayoutTest {
 
+    /** A text measurer without a cache of its own, so only the line cache under test caches layouts. */
     private val measurer = TextMeasurer(createFontFamilyResolver(), Density(1f), LayoutDirection.Ltr, cacheSize = 0)
+
+    /** The monospace style of the measured lines. */
     private val style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp)
 
+    /** The cache key of [text] with a spans hash of 0, font size 13 and tab width 4. */
     private fun key(text: String) = LineLayoutKey(text, 0, 13f, 4)
 
     @Test

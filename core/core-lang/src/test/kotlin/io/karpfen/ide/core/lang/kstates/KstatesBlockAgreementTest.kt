@@ -31,7 +31,7 @@ class KstatesBlockAgreementTest {
 
     private val path = Path.of("/ws/m.kstates")
 
-    /** The tokenizer's kind of an `EVENT(…)` written at the caret, and the slot of the caret itself. */
+    /** The token kind the tokenizer gives an `EVENT(…)` written at the caret, and the slot of the caret itself. */
     private fun readings(textWithCaret: String): Pair<TokenKind, KstatesSlot> {
         val (text, offset) = caret(textWithCaret)
         val withEvent = text.substring(0, offset) + EVENT_CALL + text.substring(offset)

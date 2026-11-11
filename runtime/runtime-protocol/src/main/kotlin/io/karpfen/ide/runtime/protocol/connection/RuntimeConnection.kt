@@ -26,12 +26,10 @@ import kotlin.time.Duration
 
 /**
  * Issues the single-use access key for one connection attempt. By default the connection asks the environment handle
- * for a key without an observatory registration (`/registerClientForWebSocket`).
+ * for a key without an observatory registration, through `/registerClientForWebSocket`.
  *
- * Threading (MUST): called from the connection's coroutine; may suspend.
- *
- * Contract (MUST): every call issues a fresh key; a refusal or failure is an outcome, never an exception, except a
- * `CancellationException` of the caller.
+ * The connection calls it from its own coroutine, and the call may suspend. Every call issues a fresh key. A refusal or
+ * a failure is an outcome, never an exception. Only a `CancellationException` of the caller is thrown.
  */
 public fun interface AccessKeyIssuer {
     /** Issues a fresh access key. */
@@ -39,29 +37,29 @@ public fun interface AccessKeyIssuer {
 }
 
 /**
- * The authenticated push channel of one client to one environment: a WebSocket that is opened with a fresh access key,
- * authenticated with the handshake `<clientId>:<envKey>:<accessKey>`, read without ever stalling the runtime, and
- * reopened with the [ReconnectPolicy] when it drops. Subscriptions belong to the client id on the runtime, so they
- * survive reconnects.
+ * The authenticated push channel of one client to one environment. It is a WebSocket that is opened with a fresh access
+ * key and authenticated with the handshake `<clientId>:<envKey>:<accessKey>`. It is read without ever stalling the
+ * runtime, and it is reopened with the [ReconnectPolicy] when it drops. Subscriptions belong to the client id on the
+ * runtime, so they survive reconnects.
  *
- * The runtime acknowledges no handshake: [ConnectionState.Open] means the handshake was sent and not rejected. A close
- * with 1003 ends the connection with [ConnectionEnd.HandshakeRejected], a close with `Environment stopped` or a stopped
- * environment with [ConnectionEnd.EnvironmentStopped], a lost environment with [ConnectionEnd.EnvironmentLost]; any other
- * close the client did not ask for emits [ConnectionEvent.Interrupted] and reconnects.
+ * The runtime acknowledges no handshake. [ConnectionState.Open] means the handshake was sent and not rejected. A close
+ * with 1003 ends the connection with [ConnectionEnd.HandshakeRejected]. A close with `Environment stopped`, or a
+ * stopped environment, ends it with [ConnectionEnd.EnvironmentStopped]. A lost environment ends it with
+ * [ConnectionEnd.EnvironmentLost]. Any other close the client did not ask for emits [ConnectionEvent.Interrupted] and
+ * leads to a reconnect.
  *
- * Threading (MUST): every function may be called from any coroutine. The connection runs in a supervisor child of the
- * scope it was created in; [state] has the connection as its one writer; the reader of a link only decodes frames and
- * hands the events on without suspending, so a slow consumer never stalls the runtime's one broadcaster.
+ * Every function may be called from any coroutine. The connection runs in a supervisor child of the scope it was
+ * created in. The connection is the only writer of [state]. The reader of a link only decodes frames and hands the
+ * events on without suspending, so a slow consumer never stalls the runtime's single broadcaster.
  *
- * Contract (MUST):
- * - [events] has exactly one collector and buffers without bound until it collects; pushes, violations and the
- *   boundaries of epochs travel in it in arrival order.
- * - A protocol violation never closes the link.
- * - Sends are serialized; [send] checks the environment's phase and the connection's state before it writes.
- * - [disconnect] and [close] end the connection with [ConnectionEnd.Disconnected]; [close] is idempotent and does not
- *   suspend. A cancellation of the scope the connection was created in ends it the same way, also before [open], so
- *   [open] never waits for a connection whose scope is gone.
- * - A `CancellationException` of the caller is always rethrown.
+ * [events] has exactly one collector and buffers without bound until it is collected. Pushes, violations and the
+ * boundaries of epochs travel in it in arrival order. A protocol violation never closes the link. Sends are
+ * serialized, and [send] checks the environment's phase and the connection's state before it writes.
+ *
+ * [disconnect] and [close] end the connection with [ConnectionEnd.Disconnected]. [close] does not suspend, and calling
+ * it twice is harmless. A cancellation of the scope the connection was created in ends it the same way, also before
+ * [open], so [open] never waits for a connection whose scope is gone. A `CancellationException` of the caller is always
+ * rethrown.
  */
 public interface RuntimeConnection : AutoCloseable {
     /** The environment the connection belongs to. */
@@ -77,24 +75,27 @@ public interface RuntimeConnection : AutoCloseable {
     public val events: Flow<ConnectionEvent>
 
     /**
-     * Connects, with the policy's backoff between failed attempts, until the connection is open or ended, and answers
-     * that state. Every attempt takes a fresh access key and closes a link that is still open first, since the runtime
-     * would keep pushing to the first session of the client id.
+     * Connects until the connection is open or ended, and returns that state. Between failed attempts it waits the
+     * policy's backoff. Every attempt takes a fresh access key. Every attempt also first closes a link that is still
+     * open, because the runtime would keep pushing to the first session of the client id.
      */
     public suspend fun open(): ConnectionState
 
-    /** Suspends until the connection is open or ended, or [within] passed, and answers the state then. */
+    /** Suspends until the connection is open or ended, or [within] passed, and returns the state at that point. */
     public suspend fun awaitOpen(within: Duration): ConnectionState
 
     /**
-     * Sends [frame] as one text frame: refused when the environment's phase does not allow injecting events, not sent
-     * unless the connection is open.
+     * Sends [frame] as one text frame. The send is refused when the environment's phase does not allow injecting
+     * events. Nothing is sent unless the connection is open.
      */
     public suspend fun send(frame: EventFrame): SendOutcome
 
-    /** Closes the link with a normal close and ends the connection; completes even when the caller is cancelled. */
+    /** Closes the link with a normal close and ends the connection. It completes even when the caller is cancelled. */
     public suspend fun disconnect()
 
-    /** Ends the connection without suspending: cancels its work and closes the link as far as possible; idempotent. */
+    /**
+     * Ends the connection without suspending. It cancels the connection's work and closes the link as far as possible.
+     * Calling it twice is harmless.
+     */
     override fun close()
 }

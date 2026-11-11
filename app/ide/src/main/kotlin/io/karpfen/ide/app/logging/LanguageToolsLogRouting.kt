@@ -21,8 +21,8 @@ import io.karpfen.ide.ui.workbench.output.OutputSink
 import org.slf4j.LoggerFactory
 
 /**
- * What dsl-tools logs, as the IDE shows it: in the workbench's Language Tools Output, which the application fills
- * through this seam. The composition root attaches the output's sink for the length of a session.
+ * Routes what dsl-tools logs into the workbench's Language Tools Output, which the application fills through this
+ * seam. The composition root attaches the output's sink for the length of a session.
  */
 public fun interface LanguageToolsLogRouting {
     /** Sends every event of the dsl-tools loggers to [sink] as well, until the returned handle is closed. */
@@ -30,16 +30,17 @@ public fun interface LanguageToolsLogRouting {
 }
 
 /**
- * The [LanguageToolsLogRouting] of logback, the IDE's logging backend: [attach] adds an [OutputSinkAppender] for a
- * sink to the parent logger of dsl-tools ([DslToolsLoggers.PARENT]) in [context].
+ * The [LanguageToolsLogRouting] of logback, the IDE's logging backend. [attach] adds an [OutputSinkAppender] for a
+ * sink to the parent logger of dsl-tools, [DslToolsLoggers.PARENT], in [context].
  *
- * The rest of the routing is the logging configuration's, `logback.xml` of this module: the dsl-tools loggers log at
- * DEBUG and do not pass their events on to the root logger, so nothing of dsl-tools reaches the console; they write
- * every event to `dsl-tools.log` next to the IDE log, and their warnings and errors also to the IDE log itself. The
- * appender attached here is the third destination, the in-memory one the workbench shows.
+ * The rest of the routing lives in the logging configuration, the `logback.xml` of this module. The dsl-tools loggers
+ * log at DEBUG and do not pass their events on to the root logger, so nothing of dsl-tools reaches the console. They
+ * write every event to `dsl-tools.log` next to the IDE log, and their warnings and errors also go to the IDE log
+ * itself. The appender attached here is the third destination, the in-memory one the workbench shows.
  */
 internal class LogbackLanguageToolsLogRouting(private val context: LoggerContext) : LanguageToolsLogRouting {
 
+    /** Adds a started appender for [sink]. Closing the returned handle detaches the appender and stops it. */
     override fun attach(sink: OutputSink): AutoCloseable {
         val appender = OutputSinkAppender(sink)
         appender.context = context
@@ -60,8 +61,8 @@ internal class LogbackLanguageToolsLogRouting(private val context: LoggerContext
         private val log = LoggerFactory.getLogger(LogbackLanguageToolsLogRouting::class.java)
 
         /**
-         * The routing of the application's logger context; one that routes nothing, after a warning, if SLF4J does not
-         * log through logback, so the Language Tools Output stays empty.
+         * The routing of the application's logger context. If SLF4J does not log through logback, it logs a warning and
+         * returns a routing that routes nothing, so the Language Tools Output stays empty.
          */
         fun ofApplication(): LanguageToolsLogRouting {
             val context = LoggerFactory.getILoggerFactory() as? LoggerContext

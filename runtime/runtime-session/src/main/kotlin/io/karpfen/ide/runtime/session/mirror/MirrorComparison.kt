@@ -37,14 +37,15 @@ public enum class DifferenceKind {
 public data class ObjectDifference(public val id: String, public val kind: DifferenceKind, public val detail: String)
 
 /**
- * Compares two snapshots object by object: the type, the properties by key and the relations by key and target,
- * keyed targets by id and anonymous targets by content, ignoring origin and revision. Used to compare the runtime's
- * read-back of a deployed model with the seed, and to tell what a snapshot changed in the mirror. Stateless.
+ * Compares two snapshots object by object. It compares the type, the properties by key and the relations by key and
+ * target. Keyed targets are compared by id and anonymous targets by content. Origin and revision are ignored. The
+ * comparison checks the runtime's read-back of a deployed model against the seed. It also tells what a snapshot
+ * changed in the mirror. Stateless.
  */
 public object MirrorComparison {
     /**
-     * The objects that differ between [expected] and [actual]: first those of [expected] in its order (missing or
-     * different), then those only [actual] has, in its order.
+     * The objects that differ between [expected] and [actual]. First come the missing or different objects of
+     * [expected], in its order. Then come the objects that only [actual] has, in its order.
      */
     public fun differences(expected: MirrorSnapshot, actual: MirrorSnapshot): List<ObjectDifference> {
         val found = ArrayList<ObjectDifference>()
@@ -95,7 +96,7 @@ public object MirrorComparison {
         return parts.takeIf { it.isNotEmpty() }?.joinToString("; ", prefix = "In '${wanted.id}', ", postfix = ".")
     }
 
-    /** The targets of [relation] for comparison: anonymous targets by content. */
+    /** The targets of [relation] for comparison, with anonymous targets normalized so they compare by content. */
     private fun targets(relation: MirrorRelation): List<ObjectRef> =
         relation.targets.map { target ->
             if (target is ObjectRef.Anonymous) ObjectRef.Anonymous(MirrorContent.normalized(target.value)) else target

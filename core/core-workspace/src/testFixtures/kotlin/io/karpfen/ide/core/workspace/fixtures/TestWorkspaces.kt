@@ -29,7 +29,10 @@ import kotlinx.coroutines.test.TestScope
 import java.nio.file.Path
 import kotlin.time.TestTimeSource
 
-/** Workspaces on the virtual time of [scope]: every dispatcher is a test dispatcher, the clock a [TestTimeSource]. */
+/**
+ * Workspaces on the virtual time of [scope]. Every dispatcher is a test dispatcher, and the clock is a
+ * [TestTimeSource].
+ */
 public class TestWorkspaces(private val scope: TestScope) {
     /** The one test dispatcher every workspace of the test runs its I/O, analysis and sessions on. */
     public val dispatcher: TestDispatcher = StandardTestDispatcher(scope.testScheduler)

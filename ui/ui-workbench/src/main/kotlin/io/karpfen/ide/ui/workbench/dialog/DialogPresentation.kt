@@ -18,28 +18,28 @@ package io.karpfen.ide.ui.workbench.dialog
 import java.nio.file.Path
 
 /**
- * What pressing a dialog button does: answer [Answer.response], submit the entered text ([SubmitText]) or the selected
- * entry of the list ([SubmitSelection]).
+ * What pressing a dialog button does. [Answer] answers with a fixed response. [SubmitText] answers with the entered
+ * text. [SubmitSelection] answers with the selected entry of the list.
  */
 internal sealed interface DialogChoice {
     /** Answers with [response]. */
     data class Answer(val response: DialogResponse) : DialogChoice
 
-    /** Answers with the entered text (trimmed; not possible while it is blank). */
+    /** Answers with the entered text, trimmed. This is not possible while the text is blank. */
     data object SubmitText : DialogChoice
 
     /** Answers with the selected entry of the list. */
     data object SubmitSelection : DialogChoice
 }
 
-/** A button of a dialog; the [isDefault] one is also pressed by Enter. */
+/** A button of a dialog. Enter also presses the button whose [isDefault] is true. */
 internal data class DialogButton(val label: String, val choice: DialogChoice, val isDefault: Boolean = false)
 
 /**
- * How a [DialogRequest] is shown (presentation only, so the dialog composable just renders it): [title], [message],
- * the [buttons] — exactly the answers the request accepts — an optional text field prefilled with [input], an optional
- * list of [choices] with the entry [preselected] selected at first, and the answer for dismissing the dialog (Escape)
- * [dismiss].
+ * How a [DialogRequest] is shown. It holds presentation only, so the dialog composable just renders it. A dialog has a
+ * [title], a [message] and [buttons]. The buttons offer exactly the answers the request accepts. An optional text field
+ * starts with the text [input]. An optional list shows [choices] and starts with the entry at [preselected] selected.
+ * [dismiss] is the answer given when the user dismisses the dialog with Escape.
  */
 internal data class DialogPresentation(
     val title: String,
@@ -51,8 +51,8 @@ internal data class DialogPresentation(
     val preselected: Int = 0,
 ) {
     /**
-     * The response of [choice] with [text] entered and the list entry [selected] selected, or null if the choice is not
-     * possible now (blank text).
+     * The response of [choice] while [text] is entered and the list entry at [selected] is selected. Returns null if
+     * the choice is not possible right now, which is the case for a text answer while the text is blank.
      */
     fun responseFor(choice: DialogChoice, text: String, selected: Int = preselected): DialogResponse? = when (choice) {
         is DialogChoice.Answer -> choice.response

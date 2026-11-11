@@ -27,8 +27,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Covers the active state configurations: the layouts and predicted initial stacks of the examples and synthesized
- * models, the split of a flat stack into its parallel branches, and the reducer's predictions, reports and snapshots.
+ * Covers the active state configurations. It checks the layouts and predicted initial stacks of the examples and
+ * synthesized models, the split of a flat stack into its parallel branches, and the reducer's predictions, reports and
+ * snapshots.
  */
 class ActiveStatesTest {
 

@@ -56,8 +56,9 @@ import io.karpfen.ide.ui.workbench.runtime.RunDetails
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 
 /**
- * The Events tab of a launched run: the domain event log, newest first, each event with its time, domain, name, source
- * and its payload on one line; the event clicked last shows its whole payload below the log. Below it the injector.
+ * The Events tab of a launched run. It shows the domain event log, newest first. Each event takes one line with its
+ * time, domain, name, source and payload. The event clicked last shows its whole payload below the log. The event
+ * injector sits at the bottom of the tab.
  */
 @Composable
 internal fun EventsTab(details: RunDetails) {
@@ -104,10 +105,12 @@ private fun eventLine(entry: DomainEventEntry): String =
     ).joinToString("  ")
 
 /**
- * The event injector: the domains, declared ones first and highlighted, then those only the state machines use,
- * marked; the events of the chosen domain with their payload types; the JSON payload prefilled with the template of the
- * event's payload type, with its findings after every edit; whether events can be injected; Send, enabled only when the
- * payload has no error and injection is available; and the outcome of the last send.
+ * The event injector. A first row lists the domains. The declared domains come first in bold. The domains that only the
+ * state machines use follow and are marked as such. A second row lists the events of the chosen domain with their
+ * payload types. Below them is the JSON payload, which starts as the template of the event's payload type. The
+ * findings on the payload appear after every edit. A line says whether events can be injected. The Send button is
+ * enabled only when the payload has no error and injection is available. The outcome of the last send appears next to
+ * it.
  */
 @Composable
 private fun EventInjector(injector: InjectorState) {

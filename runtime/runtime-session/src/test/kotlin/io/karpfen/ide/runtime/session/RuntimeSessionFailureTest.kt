@@ -46,10 +46,11 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers a session whose deployment fails or is cancelled, end to end against the fake runtime, which answers only
- * what each test programs: a failure at every step fails the session with the step's problem, after the cleanup the
- * phase calls for, with the ledger entry of what stays; closing the session at every step cancels the deployment, whose
- * cleanup runs and records; a runtime without IDE support is refused before anything is created; and an engine that
- * halts right after the start fails the deployment, which stops the environment.
+ * what each test programs. A failure at any step fails the session with the step's problem. This happens after the
+ * cleanup that the phase calls for, and the session carries the ledger entry of what stays. Closing the session at any
+ * step cancels the deployment, and its cleanup still runs and records. A runtime without IDE support is refused before
+ * anything is created. An engine that halts right after the start fails the deployment, which then stops the
+ * environment.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionFailureTest {
@@ -158,7 +159,7 @@ class RuntimeSessionFailureTest {
      */
     private data class Failure(val code: String, val leftBehind: LedgerDisposition?)
 
-    /** Programs the answers of a deployment of [deployment] that fails at [step], and answers what follows. */
+    /** Programs the answers of a deployment of [deployment] that fails at [step], and returns what follows. */
     private fun TestScope.failureAt(step: DeployStepKind, rig: SessionRig, deployment: SessionRig.Deployment): Failure {
         val fake = rig.fake
         val boom = FakeResponse(FakeResponse.SERVER_ERROR, "Unexpected error", FakeResponse.TEXT)
@@ -228,7 +229,7 @@ class RuntimeSessionFailureTest {
         }
     }
 
-    /** Programs a deployment of [deployment] that never gets past [step], and answers what closing leaves recorded. */
+    /** Programs a deployment of [deployment] that never gets past [step], and returns what closing leaves recorded. */
     private fun hangAt(step: DeployStepKind, rig: SessionRig, deployment: SessionRig.Deployment): LedgerDisposition? {
         val fake = rig.fake
         if (step != DeployStepKind.CHECK_RUNTIME) fake.respond(RuntimeRoute.MODEL_SNAPSHOT, SessionRig.missingEnvironmentKey())

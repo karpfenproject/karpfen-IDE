@@ -46,21 +46,27 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Covers the runtime's contract with the client, driven only through the transports with raw requests built from the
- * catalogue's routes and raw links, with the lamp's texts: the missing-parameter texts in the order each route checks
- * its parameters; every route's rejection of an absent environment; every route in a configuring, an activated, a
- * running and a stopped environment with the exact statuses and texts of the catalogue, with a state forced in a
- * running one applied at its next tick; uploads the runtime refuses (an unknown type, an attachment to a missing
- * object, a reference loop) leaving the environment configuring; unique environment keys and single-use access keys of
- * the runtime's shapes; the silent handshake and its three refusals; the snapshot's member order, its revision 0 before
- * the start and roots written like `objectChanged` values, equal to the lamp's golden; a model subscriber receiving
- * every observation from the start with consecutive revisions; a second activation refused and a second start changing
- * nothing; domain events with the members the decoder reads; pushes for a client without a session dropped; and a stop
- * that closes the sockets with `Environment stopped`, after which the environment stays readable and a start runs it
- * again.
+ * Covers the runtime's contract with the client. The scenarios drive the runtime only through the transports, with raw
+ * requests built from the catalogue's routes, with raw links and with the lamp's texts. They cover these facts.
+ * - The missing-parameter texts come in the order in which each route checks its parameters.
+ * - Every route rejects an absent environment.
+ * - Every route behaves in a configuring, an activated, a running and a stopped environment with the exact statuses
+ *   and texts of the catalogue. A state forced in a running environment is applied at its next tick.
+ * - Uploads the runtime refuses leave the environment configuring. These are an unknown type, an attachment to a
+ *   missing object and a reference loop.
+ * - Environment keys are unique and access keys are single-use, both in the runtime's shapes.
+ * - The handshake is silent, and it has three refusals.
+ * - The snapshot has its member order and the revision 0 before the start. Its roots are written like `objectChanged`
+ *   values and equal the lamp's golden.
+ * - A model subscriber receives every observation from the start with consecutive revisions.
+ * - A second activation is refused, and a second start changes nothing.
+ * - Domain events have the members the decoder reads.
+ * - Pushes for a client without a session are dropped.
+ * - A stop closes the sockets with `Environment stopped`. After that the environment stays readable, and a start runs
+ *   it again.
  *
- * The scenarios run only against a real runtime ([LiveRuntimeContractTest]); failures that only a fake can produce are
- * ordinary tests of the client against the fake runtime. Every scenario stops the environments it launched when it
+ * The scenarios run only against a real runtime, in [LiveRuntimeContractTest]. Failures that only a fake can produce
+ * are ordinary tests of the client against the fake runtime. Every scenario stops the environments it launched when it
  * ends, also when it fails.
  */
 abstract class RuntimeContract {
@@ -527,7 +533,10 @@ abstract class RuntimeContract {
         }
     }
 
-    /** The calls that configure an environment, which the runtime refuses once it is active: route, parameters, body. */
+    /**
+     * The calls that configure an environment, which the runtime refuses once it is active. Each call is a route, its
+     * parameters and its body.
+     */
     private fun configurationCalls(environment: String, client: String): List<Triple<RuntimeRoute, List<Pair<String, String>>, String>> =
         listOf(
             Triple(RuntimeRoute.SET_METAMODEL, listOf(ENV_KEY to environment), lamp(LAMP_FILES.metamodel)),
@@ -545,7 +554,7 @@ abstract class RuntimeContract {
         )
 
     private companion object {
-        /** An environment key that never exists: the key of the first millisecond of 1970. */
+        /** An environment key that never exists. It is the key of the first millisecond of 1970. */
         const val ABSENT = "env-1"
 
         /** The number of environments the key scenario creates in a row. */

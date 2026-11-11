@@ -23,25 +23,28 @@ import io.karpfen.ide.ui.editor.overlay.EditorOverlayHost
 import io.karpfen.ide.ui.editor.overlay.EditorOverlays
 
 /**
- * The editor popups, plugged into `CodeEditor` through the [EditorOverlays] slots:
- * - [Header]: the find/replace bar while `overlays.findBar` is open; it focuses its query field and selects the query
- *   whenever `overlays.findFocusRequests` changes;
- * - [Popups]: the completion list while `completion.state` is open (anchored at the caret, ≤ 12 rows, kind badge,
- *   label, detail; mouse selection), the go-to-line popup (`EditorPopupModel.goToLine`), the hover tooltip and the
- *   context menu (entries run their action by id, greyed out unless `EditorPopupModel.isEnabled`).
+ * The editor popups, plugged into `CodeEditor` through the [EditorOverlays] slots.
  *
- * Each popup composable renders immutable state and reports intents to the host's `EditorPopupModel`; none holds
- * editing logic. Popups that own focus return it with `EditorPopupModel.requestFocus()`.
+ * [Header] shows the find and replace bar while `overlays.findBar` is open. The bar focuses its query field and selects
+ * the query whenever `overlays.findFocusRequests` changes.
  *
- * Structure: this class only composes the slots (`PopupSlots.kt`). Each slot reads what its popup shows from the host
- * (the `EditorPopupModel`'s flows and the host's geometry), emits nothing while its popup is closed, and wires the
- * stateless popup composable to the intents; positions are in the host's coordinate space (the text area), as
- * [EditorOverlayHost] defines. Gestures become model calls in [PopupIntents], placement is [PopupPlacement], and the
- * find bar's text fields are hoisted in [FindBarFields]. Stateless itself, so one instance can serve every editor of a
- * workbench.
+ * [Popups] shows the completion list while `completion.state` is open. The list is anchored at the caret and shows at
+ * most 12 rows. Each row has a kind badge, the label and the detail, and rows can be selected with the mouse. [Popups]
+ * also shows the go-to-line popup (`EditorPopupModel.goToLine`), the hover tooltip and the context menu. Each context
+ * menu entry runs its action by id and is greyed out unless `EditorPopupModel.isEnabled` is true.
+ *
+ * Each popup composable renders immutable state and reports intents to the host's `EditorPopupModel`. None of them
+ * holds editing logic. Popups that own focus give it back with `EditorPopupModel.requestFocus()`.
+ *
+ * This class only composes the slots, which live in `PopupSlots.kt`. Each slot reads what its popup shows from the
+ * host, which means the flows of the `EditorPopupModel` and the host's geometry. A slot emits nothing while its popup
+ * is closed, and it wires the stateless popup composable to the intents. Positions are in the coordinate space of the
+ * host, which is the text area as [EditorOverlayHost] defines it. [PopupIntents] turns gestures into model calls,
+ * [PopupPlacement] computes positions, and [FindBarFields] holds the hoisted text fields of the find bar. The class has
+ * no state itself, so one instance can serve every editor of a workbench.
  */
 public class EditorPopups(
-    /** The context-menu entries by action id; by default Cut, Copy, Paste, Go to Definition, Toggle Comment. */
+    /** The entries of the context menu. The default entries are Cut, Copy, Paste, Go to Definition and Toggle Comment. */
     public val contextMenuActions: List<EditorContextMenuItem> = DEFAULT_CONTEXT_MENU,
 ) : EditorOverlays {
 
@@ -60,9 +63,9 @@ public class EditorPopups(
         ContextMenuSlot(host, contextMenuActions, intents)
     }
 
-    /** The default entries. */
+    /** Holds the default entries. */
     public companion object {
-        /** The default context menu (titles from [EditorActionTitles], shared with the window menu). */
+        /** The default context menu. Its titles come from [EditorActionTitles], which the window menu shares. */
         public val DEFAULT_CONTEXT_MENU: List<EditorContextMenuItem> = listOf(
             EditorActionIds.CUT,
             EditorActionIds.COPY,
@@ -73,7 +76,7 @@ public class EditorPopups(
     }
 }
 
-/** A context-menu entry running the editor action [actionId], labelled [title] (default: its shared title). */
+/** A context menu entry that runs the editor action [actionId]. It shows [title], which defaults to the shared title of the action. */
 public data class EditorContextMenuItem(
     public val actionId: String,
     public val title: String = EditorActionTitles.of(actionId),

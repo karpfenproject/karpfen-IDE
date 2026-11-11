@@ -35,18 +35,19 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
 import io.karpfen.ide.core.text.TextRange
 
 /**
- * The model-path scope at an offset of a KStates document: one collaborator shared by KStates completion,
- * hover and navigation instead of three copies.
+ * The model path scope at an offset of a KStates document. It is one collaborator that KStates completion, hover and
+ * navigation share instead of three copies. The scope is filled like this.
+ * - `types` is `TypeCatalog.contextTypes(request)`, with domain and event types.
+ * - `rootType` is the `ATTACHED TO` type of the STATEMACHINE.
+ * - `eventType` is the event type named by the `EVENT(…)` clause of the enclosing TRANSITION when it can be
+ *   determined, or else null.
+ * - `bindings` are the `WITH MACRO(…) AS "x"` bindings in scope, typed by the RETURNS type of the macro. Inside a
+ *   MACRO definition they also include its TAKES parameters, typed by their declared types.
  *
- * - `types`: `TypeCatalog.contextTypes(request)` (domain and event types);
- * - `rootType`: the `ATTACHED TO` type of the STATEMACHINE;
- * - `eventType`: the event type named by the enclosing TRANSITION's `EVENT(…)` clause when determinable, else null;
- * - `bindings`: `WITH MACRO(…) AS "x"` bindings in scope (typed by the macro's RETURNS type) and, inside a MACRO
- *   definition, its TAKES parameters (typed by their declared types).
- *
- * At the caret it works on the document's tokens ([scopeAt]: block headers of the [CaretContext], always current); in a
- * parse outcome of the context (references in other files) on its outline ([scopeIn]). Macro signatures are name-based
- * knowledge from the parse outcomes (staleness rule of `LanguageDocument`). Never throws.
+ * At the caret, [scopeAt] works on the tokens of the document through the block headers of the [CaretContext], which
+ * are always current. In a parse outcome of the context, as for references in other files, [scopeIn] works on its
+ * outline. Macro signatures are knowledge by name from the parse outcomes, following the staleness rule of
+ * `LanguageDocument`. It never throws.
  */
 internal interface KstatesPathScopes {
     /** The scope for a model path at the caret of `request.document` described by [context]. */
@@ -56,12 +57,13 @@ internal interface KstatesPathScopes {
     fun scopeIn(request: FeatureRequest, source: LocatedOutcome, offset: Int): KstatesScope
 }
 
-/** A path scope and the facts it was built from (where bindings are declared, the enclosing macro). */
+/** A path scope and the facts it was built from, such as where bindings are declared and the enclosing macro. */
 internal class KstatesScope(val path: PathScope, val facts: ScopeFacts)
 
 /**
- * What surrounds a path in a KStates document: the `ATTACHED TO` type, the event named by the enclosing transition's
- * `EVENT(…)` clause, the enclosing `WITH … AS` bindings (outermost first) and the enclosing macro definition.
+ * What surrounds a path in a KStates document. This is the `ATTACHED TO` type, the event named by the `EVENT(…)`
+ * clause of the enclosing transition, the enclosing `WITH … AS` bindings with the outermost first, and the enclosing
+ * macro definition.
  */
 internal data class ScopeFacts(
     val attachedType: String?,
@@ -70,10 +72,10 @@ internal data class ScopeFacts(
     val macro: String?,
 )
 
-/** A `WITH MACRO("m", …) AS "x"` binding: [name] `x`, [macro] `m`, and where `x` is declared. */
+/** A `WITH MACRO("m", …) AS "x"` binding. [name] is `x`, [macro] is `m`, and [declaration] is where `x` is declared. */
 internal data class BindingFact(val name: String, val macro: String?, val declaration: Location?)
 
-/** Default [KstatesPathScopes] over the caret context, the outline and [types]. */
+/** The default [KstatesPathScopes] over the caret context, the outline and [types]. */
 internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : KstatesPathScopes {
 
     override fun scopeAt(request: FeatureRequest, context: CaretContext): KstatesScope {
@@ -106,16 +108,17 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
     }
 
     /**
-     * The `WITH … AS "x"` bindings among the outline nodes [path] around [offset] of [source]: a binding is in scope in
-     * its block after its `AS "x"`, not in its own macro arguments.
+     * The `WITH … AS "x"` bindings among the outline nodes [path] around [offset] of [source]. A binding is in scope in
+     * its block after its `AS "x"`, and not in its own macro arguments.
      */
     private fun bindingsAt(path: List<OutlineNode>, offset: Int, source: LocatedOutcome): List<BindingFact> =
         path.filter { it.kind == SymbolKind.BINDING && offset > it.selectionRange.end }
             .map { BindingFact(it.name, it.detail, source.location(it.selectionRange)) }
 
     /**
-     * The scope of [facts]: the context's types, the macro's parameters and then the `WITH` bindings typed by
-     * [signatures] (a later binding of the same name wins), and the event type if the events file declares it.
+     * The scope of [facts]. It holds the types of the context, the parameters of the macro, and then the `WITH`
+     * bindings typed by [signatures]. A later binding of the same name wins. It also holds the event type if the events
+     * file declares it.
      */
     private fun build(request: FeatureRequest, facts: ScopeFacts, signatures: MacroSignatures): KstatesScope {
         val visible = types.contextTypes(request)
@@ -133,7 +136,7 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
         return BindingFact(name.text, KstatesBlocks.boundMacroOf(construct), Location(document.path, content, document.text))
     }
 
-    /** The event name of the first `EVENT("d", "n")` clause in [range] of the document's tokens, or null. */
+    /** The event name of the first `EVENT("d", "n")` clause in [range] of the tokens of the document, or null. */
     private fun eventIn(document: LanguageDocument, range: TextRange): String? {
         val tokens = document.tokens.tokensIn(range)
         val text = document.text.text
@@ -156,7 +159,7 @@ internal class DefaultKstatesPathScopes(private val types: TypeCatalog) : Kstate
         /** The outline kinds of transitions, whose `EVENT(…)` clause names the event type. */
         val TRANSITION_KINDS = setOf(SymbolKind.TRANSITION, SymbolKind.SPLIT, SymbolKind.JOIN)
 
-        /** The type of a binding whose macro or RETURNS is unknown: resolution ends there. */
+        /** The type of a binding whose macro or RETURNS is unknown. Resolution ends there. */
         val UNKNOWN = PathType("", isList = false, isPrimitive = false)
     }
 }

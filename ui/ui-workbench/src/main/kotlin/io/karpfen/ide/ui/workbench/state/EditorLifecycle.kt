@@ -24,10 +24,10 @@ import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * The life of a document in an editor tab: [open] opens the document in the current workspace, creates its editor
- * (with the workbench's one keymap and the editor settings), adds the tab and starts collecting the editor's
- * navigation requests; [close] undoes all of it and closes the document (discarding unsaved changes — callers ask
- * first). Every tab has exactly one open document and one editor.
+ * The life of a document in an editor tab. [open] opens the document in the current workspace and creates its editor
+ * with the workbench's single keymap and the editor settings. It then adds the tab and starts collecting the editor's
+ * navigation requests. [close] undoes all of that and closes the document. Closing discards unsaved changes, so callers
+ * ask the user first. Every tab has exactly one open document and one editor.
  */
 internal class EditorLifecycle(
     private val scope: CoroutineScope,
@@ -40,8 +40,9 @@ internal class EditorLifecycle(
 ) {
 
     /**
-     * Opens [path] in a tab at [index] (default: after the active tab), or activates its tab. Null without a workspace;
-     * otherwise the document manager's result (`Unsupported` and `Failed` open no tab).
+     * Opens [path] in a tab at [index], or activates its tab if it is open already. Without an [index] the tab goes
+     * after the active tab. Returns null without a workspace. Otherwise returns the result of the document manager.
+     * `Unsupported` and `Failed` open no tab.
      */
     suspend fun open(path: Path, index: Int? = null): OpenResult? {
         tabs.documentFor(path)?.let { document ->
@@ -67,7 +68,7 @@ internal class EditorLifecycle(
         holder.workspace.value?.documents?.close(path)
     }
 
-    /** Closes every tab without saving (the documents are closed with their workspace). */
+    /** Closes every tab without saving. The documents themselves are closed together with their workspace. */
     fun closeAllTabs() {
         tabs.documents().map { it.path }.forEach { path ->
             tabs.editorFor(path)?.let(navigation::stop)

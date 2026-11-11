@@ -16,10 +16,11 @@
 package io.karpfen.ide.runtime.host.docker
 
 /**
- * The configuration file of the runtime in the IDE's container, `application.conf` in the runtime's working folder
- * [FOLDER]: the server on all interfaces of the container at port 8080, the WebSocket on, the log on the console at
- * `INFO`, the engine's defaults of 50 ms per tick and 3,000 ms of event time to live, and engine tracing off. The host
- * copies it into the container before the start as a one-entry tar archive ([tar]).
+ * The configuration file of the runtime in the IDE's container. It is `application.conf` in the runtime's working
+ * folder [FOLDER]. It makes the server listen on all interfaces of the container at port 8080 and turns the WebSocket
+ * on. It logs to the console at `INFO`. It sets the engine's defaults of 50 ms per tick and 3,000 ms of event time to
+ * live, and it turns engine tracing off. The host copies the file into the container before the start, as the
+ * one-entry tar archive that [tar] builds.
  */
 internal object RuntimeConfiguration {
     /** The folder of the container the file goes to, the runtime's working folder. */

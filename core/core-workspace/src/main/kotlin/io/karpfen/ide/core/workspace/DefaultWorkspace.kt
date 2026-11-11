@@ -52,9 +52,9 @@ import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * The injected I/O and domain collaborators of a [DefaultWorkspace], all created by the `Workspace` factory (never
- * inside the workspace), so tests of the coordinator can replace each of them, the document side ([documents]) and the
- * [scanner] included. A plain holder of services (no value semantics).
+ * The injected I/O and domain collaborators of a [DefaultWorkspace]. The `Workspace` factory creates all of them, and
+ * the workspace never creates one itself. So tests of the coordinator can replace each of them, including the
+ * document side in [documents] and the [scanner]. This is a plain holder of services without value semantics.
  */
 internal class WorkspaceCollaborators(
     val fileStore: TextFileStore,
@@ -68,23 +68,27 @@ internal class WorkspaceCollaborators(
 )
 
 /**
- * Default [Workspace]: runs the pipelines described on [Workspace] over the injected [collaborators]. It only
- * coordinates; each pipeline is its own internal class, built here from the [collaborators], the [scope] and the
- * [options] (they are the workspace's structure, not seams):
- * - [TreeRefresher] — scan, watch debounce, routing changes to `WorkspaceDocuments.onFileChanged` → [files];
- * - [ContextTracker] — descriptors read through the `SourceLoader`, or from the editor text while they are open
- *   ([OpenDescriptors] of the documents, which the tracker follows itself), contexts resolved → [contexts];
- * - [AnalysisScheduler] over [WorkspaceAnalysisSources] — debounced, cancellable analysis → [analysis], [isAnalyzing];
- * - [ProjectDiagnosticsPublisher] — each `AnalyzedFile`'s project diagnostics into the open sessions;
- * - [ProblemsPublisher] with the [WorkspaceProblemsAggregator] → [problems].
+ * Default [Workspace]. It runs the pipelines described on [Workspace] over the injected [collaborators] and only
+ * coordinates. Each pipeline is its own internal class, built here from the [collaborators], the [scope] and the
+ * [options]. These classes are the structure of the workspace, not seams for tests.
+ * - [TreeRefresher] scans, debounces watch events, routes changes to `WorkspaceDocuments.onFileChanged` and fills
+ *   [files].
+ * - [ContextTracker] reads the descriptors through the `SourceLoader`, or takes the editor text while a descriptor is
+ *   open, resolves the contexts and fills [contexts]. It follows the open descriptors itself through
+ *   [OpenDescriptors].
+ * - [AnalysisScheduler] runs the debounced, cancellable analysis over [WorkspaceAnalysisSources] and fills [analysis]
+ *   and [isAnalyzing].
+ * - [ProjectDiagnosticsPublisher] puts the project diagnostics of each `AnalyzedFile` into the open sessions.
+ * - [ProblemsPublisher] fills [problems] with the help of the [WorkspaceProblemsAggregator].
  *
- * Start-up (in [scope]): watching (if enabled), the publishers, the context tracker and the analysis triggers
- * (contexts, completed rescans, every text version of every open document) start, then the first scan runs, then the
- * analysis scheduler serves the request made at construction (so [isAnalyzing] is true from the start) and every
- * trigger after it.
+ * The start-up runs in [scope] in this order. First the watching starts if it is enabled. Then the publishers, the
+ * context tracker and the analysis triggers start. The triggers are the contexts, the completed rescans and every text
+ * version of every open document. Then the first scan runs. Last, the analysis scheduler starts and serves the request
+ * made at construction and every trigger after it. Because of that early request, [isAnalyzing] is true from the
+ * start.
  *
- * @param scope the workspace's own scope (a supervisor child of the factory's scope, created by the factory and shared
- *   with [WorkspaceCollaborators.documents]); [close] cancels it.
+ * @param scope the workspace's own scope. The factory creates it as a supervisor child of its own scope and shares it
+ *   with [WorkspaceCollaborators.documents]. [close] cancels it.
  */
 internal class DefaultWorkspace(
     override val root: Path,
@@ -114,7 +118,7 @@ internal class DefaultWorkspace(
     /** Set once by [close]. */
     private val closed = AtomicBoolean(false)
 
-    /** The start-up described on the class; [awaitAnalysis] waits for it. */
+    /** The start-up described on the class. [awaitAnalysis] waits for it. */
     private val started: Job
 
     init {
@@ -163,7 +167,7 @@ internal class DefaultWorkspace(
         scope.cancel(CancellationException("the workspace of $root was closed"))
     }
 
-    /** Starts the pipelines in the order described on the class; a failing first scan is logged, not thrown. */
+    /** Starts the pipelines in the order described on the class. A failing first scan is logged, not thrown. */
     private suspend fun start() {
         val documents = collaborators.documents.openDocuments
         if (options.watch) treeRefresher.watch(scope)

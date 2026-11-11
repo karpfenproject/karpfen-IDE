@@ -36,18 +36,22 @@ import kotlin.test.fail
 import kotlin.time.TimeSource
 
 /**
- * The real karpfen runtime with IDE support that the live task talks to, usually a throwaway container that
- * `runtime/live-runtime.sh test` started and whose URL it handed to the task as the system property [URL_PROPERTY].
+ * The real karpfen runtime with IDE support that the live task talks to. Usually it is a throwaway container that
+ * `runtime/live-runtime.sh test` started. The script hands the runtime's URL to the task as the system property
+ * [URL_PROPERTY].
  *
- * Every [run] gets fresh Ktor transports to [endpoint], with a WebSocket seam that records every frame the runtime sends;
- * the scenario runs on [Dispatchers.Default] on real time with the real monotonic clock, under
- * [Patience.scenario]. After the scenario, every recorded frame is decoded with the client's frame decoder for the
- * environment and client its link's handshake names, and the run fails on any violation: the broadest check that the
- * runtime's writers and the client's reader agree. Coroutines the scenario left running are cancelled when it ends.
+ * Every [run] gets fresh Ktor transports to [endpoint], with a WebSocket seam that records every frame the runtime
+ * sends. The scenario runs on [Dispatchers.Default] in real time with the real monotonic clock, within
+ * [Patience.scenario]. After the scenario, every recorded frame is decoded with the client's frame decoder, for the
+ * environment and the client that the handshake of its link names. The run fails on any violation. That is the
+ * broadest check that the runtime's writers and the client's reader agree. Coroutines that the scenario left running
+ * are cancelled when it ends. A failure names the runtime and the run folder with the files it holds, so a failed run
+ * can be traced to its logs.
  *
- * @property endpoint the runtime; by default the URL in the system property [URL_PROPERTY].
+ * @property endpoint the runtime. By default it is the URL in the system property [URL_PROPERTY].
  * @param runFolder the folder of the run's logs, from the system property [LOGS_PROPERTY], or null without one.
- * @throws IllegalStateException naming `runtime/live-runtime.sh test` if [URL_PROPERTY] is not set: a live test never
+ * @property patience how long the scenario and its waits may take, by default [Patience.LIVE].
+ * @throws IllegalStateException naming `runtime/live-runtime.sh test` if [URL_PROPERTY] is not set. A live test never
  *   skips.
  */
 public class LiveRuntimeUnderTest(
@@ -58,7 +62,7 @@ public class LiveRuntimeUnderTest(
 
     override val name: String = endpoint.httpBase
 
-    /** The options of a client in a scenario: the default dispatcher and the real monotonic clock. */
+    /** The options of a client in a scenario. They use the default dispatcher and the real monotonic clock. */
     private val clientOptions = RuntimeClientOptions(dispatcher = Dispatchers.Default, timeSource = TimeSource.Monotonic)
 
     /** The URL of the runtime and the run folder with the files it holds now. */
@@ -109,7 +113,7 @@ public class LiveRuntimeUnderTest(
         }
     }
 
-    /** The scope of one scenario: its coroutine context, the recorded transports and this runtime's options. */
+    /** The scope of one scenario, with its coroutine context, the recorded transports and this runtime's options. */
     private inner class LiveScenarioScope(
         override val coroutineContext: CoroutineContext,
         override val transports: RuntimeTransports,

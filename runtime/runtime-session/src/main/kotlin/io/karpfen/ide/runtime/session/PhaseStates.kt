@@ -47,17 +47,20 @@ internal sealed interface PhaseVerdict {
 }
 
 /**
- * The session's state from its environment's phase once the deployment ended. Stateless.
+ * Maps the environment's phase to the session's state once the deployment ended. Stateless.
  *
  * | Phase | Session |
  * |---|---|
- * | configuring | unchanged (only while the deployment runs, whose state is deploying) |
+ * | configuring | unchanged |
  * | activated | ready |
  * | running | running |
  * | halted, as a snapshot revealed | halted, with the problem `engine-halted` |
  * | stopped | stopped |
- * | uncertain | unchanged, with the problem `runtime-no-answer`; the next pull or command resolves it |
+ * | uncertain | unchanged, with the problem `runtime-no-answer` |
  * | lost | failed, with the problem `environment-lost` |
+ *
+ * The configuring phase only occurs while the deployment runs, and the session is deploying then. An uncertain phase
+ * is resolved by the next pull or command.
  */
 internal object PhaseStates {
     /** What [phase] of the environment [environment] means for the session. */

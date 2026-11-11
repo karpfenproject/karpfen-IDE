@@ -33,13 +33,13 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 
 /**
- * Keeps [tokens] equal to the tokens of the latest version of [text]: the initial snapshot is tokenized
- * synchronously in the constructor; every later version is tokenized on [dispatcher] without debounce, latest wins
- * (`mapLatest` semantics: a newer snapshot cancels the tokenization of an older one, whose result is never
- * published).
+ * Keeps [tokens] equal to the tokens of the latest version of [text]. The initial snapshot is tokenized synchronously
+ * in the constructor. Every later version is tokenized on [dispatcher] without debounce, and the latest wins. This
+ * follows `mapLatest` semantics. A newer snapshot cancels the tokenization of an older one, whose result is never
+ * published.
  *
- * A tokenizer that throws (the built-in ones never do) is logged and yields an empty result for that version, so one
- * defective tokenizer call cannot stop the pipeline.
+ * The built-in tokenizers never throw. If a tokenizer does throw, the failure is logged and yields an empty result for
+ * that version, so one defective tokenizer call cannot stop the pipeline.
  */
 internal class TokenizePipeline(
     private val text: EditableText,
@@ -49,17 +49,20 @@ internal class TokenizePipeline(
 
     private val state = MutableStateFlow(tokenizeSafely(text.snapshot.value))
 
-    /** Tokens of the newest version tokenized so far. */
+    /** The tokens of the newest version tokenized so far. */
     val tokens: StateFlow<TokenizeResult> = state.asStateFlow()
 
-    /** Starts following [text] in [scope]; the returned job ends with the scope. */
+    /** Starts following [text] in [scope]. The returned job ends with the scope. */
     fun start(scope: CoroutineScope): Job = scope.launch {
         text.snapshot
             .filter { snapshot -> snapshot.version != state.value.version }
             .collectLatest { snapshot -> state.value = withContext(dispatcher) { tokenizeSafely(snapshot) } }
     }
 
-    /** Tokenizes [snapshot]; a tokenizer exception is logged and yields an empty result, while cancellation propagates. */
+    /**
+     * Tokenizes [snapshot]. A tokenizer exception is logged and yields an empty result, while cancellation
+     * propagates.
+     */
     private fun tokenizeSafely(snapshot: TextSnapshot): TokenizeResult =
         try {
             tokenizer.tokenize(snapshot)

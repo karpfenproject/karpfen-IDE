@@ -29,8 +29,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * [ModalCommandRegistry]: commands are disabled and inert while a dialog is shown, and otherwise unchanged. A menu that
- * runs a disabled command anyway is simulated by calling the registered command's action directly.
+ * Tests that [ModalCommandRegistry] disables commands and makes them do nothing while a dialog is shown, and leaves
+ * them unchanged otherwise. The test simulates a menu that runs a disabled command anyway by calling the registered
+ * command's action directly.
  */
 class ModalCommandRegistryTest {
 

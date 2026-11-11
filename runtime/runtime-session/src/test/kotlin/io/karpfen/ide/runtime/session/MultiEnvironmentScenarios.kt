@@ -43,11 +43,12 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration
 
 /**
- * Covers several environments in one runtime, deployed and driven through sessions of one client and raw requests,
- * against a real runtime: environments side by side change only themselves; a metronome keeps running while lamps are
- * deployed, pressed and stopped around it; concurrent workers churn through deployments with distinct keys and no
- * protocol violation; environment keys stay unique for one client and for independent clients; and environments that
- * fail (a rejected upload, an attachment to an unknown object, a reference loop) leave their neighbours reacting.
+ * Covers several environments in one runtime against a real runtime. They are deployed and driven through sessions of
+ * one client and through raw requests. Environments side by side change only themselves. A metronome keeps running
+ * while lamps are deployed, pressed and stopped around it. Concurrent workers churn through deployments with distinct
+ * keys and no protocol violation. Environment keys stay unique for one client and for independent clients.
+ * Environments that fail leave their neighbours reacting. The failures are a rejected upload, an attachment to an
+ * unknown object and a reference loop.
  */
 abstract class MultiEnvironmentScenarios {
 
@@ -225,18 +226,21 @@ abstract class MultiEnvironmentScenarios {
         session.awaitStack("lamp", stack, within)
     }
 
-    /** Creates an environment through [client] and answers its handle, failing unless created. */
+    /** Creates an environment through [client] and returns its handle. It fails unless the environment was created. */
     private suspend fun SessionScenario.created(client: RuntimeClient): RuntimeEnvironment =
         assertIs<RuntimeResult.Ok<RuntimeEnvironment>>(client.createEnvironment(), diagnostics).value
 
-    /** Creates an environment with a raw request and answers its key. */
+    /** Creates an environment with a raw request and returns its key. */
     private suspend fun SessionScenario.rawEnvironment(): String {
         val answer = call(RuntimeRoute.CREATE_ENVIRONMENT)
         assertEquals(OK, answer.status, diagnostics)
         return answer.body
     }
 
-    /** Uploads the file [name] of [model] to [environment] with [route] and the extra [parameters], failing unless accepted. */
+    /**
+     * Uploads the file [name] of [model] to [environment] with [route] and the extra [parameters]. It fails unless the
+     * runtime accepts the upload.
+     */
     private suspend fun SessionScenario.upload(
         environment: String,
         route: RuntimeRoute,
@@ -248,7 +252,7 @@ abstract class MultiEnvironmentScenarios {
         assertEquals(OK to "", answer.status to answer.body, "$route of $name to $environment")
     }
 
-    /** The environments the runtime lists, failing unless it answers. */
+    /** The environments the runtime lists. It fails unless the runtime answers. */
     private suspend fun SessionScenario.listing(): List<ActiveEnvironment> =
         assertIs<RuntimeResult.Ok<List<ActiveEnvironment>>>(client.activeEnvironments(), diagnostics).value
 
@@ -301,7 +305,7 @@ abstract class MultiEnvironmentScenarios {
         /** The status of a rejected state. */
         const val CONFLICT = 409
 
-        /** The beats of the metronome in [mirror], none before the first burst. */
+        /** The beats of the metronome in [mirror]. There are none before the first burst. */
         fun beatsOf(mirror: MirrorSnapshot): List<String> = mirror.objects[METRONOME]?.texts("beats").orEmpty()
     }
 }

@@ -23,9 +23,9 @@ import kotlin.time.TimeSource
  * The mutable text of one document: applies edits atomically, publishes immutable [TextSnapshot]s, records undo
  * history and maps offsets across versions.
  *
- * Threading: mutated from one thread only (the UI thread in the app, the test thread in tests). Snapshots and
- * changes are immutable and may be handed to any thread; reading [snapshot] and mapping ([mapOffset], [mapRange]) are
- * thread-safe.
+ * The text is mutated from one thread only. That is the UI thread in the app and the test thread in tests. Snapshots
+ * and changes are immutable and may be handed to any thread. Reading [snapshot] and mapping with [mapOffset] or
+ * [mapRange] are thread-safe.
  *
  * Create instances with the [EditableText] factory function.
  */
@@ -34,12 +34,12 @@ public interface EditableText {
     /** The current snapshot. Starts at version 0 with the initial text. */
     public val snapshot: StateFlow<TextSnapshot>
 
-    /** The lineage shared by every snapshot of this text (see [TextLineage]). */
+    /** The lineage shared by every snapshot of this text. See [TextLineage]. */
     public val lineage: TextLineage get() = snapshot.value.lineage
 
     /**
-     * Every applied change, exactly once and in order, emitted synchronously from [apply] (no replay; emission never
-     * suspends or blocks the writer, slow collectors are buffered).
+     * Every applied change, exactly once and in order, emitted synchronously from [apply]. There is no replay.
+     * Emission never suspends or blocks the writer, and slow collectors are buffered.
      */
     public val changes: SharedFlow<TextChange>
 
@@ -49,13 +49,13 @@ public interface EditableText {
     /**
      * Applies [edits] atomically and produces exactly one new version (`version + 1`).
      *
-     * Edits are given in the coordinates of the current snapshot, sorted or unsorted, and must not overlap; two
-     * insertions at the same offset are allowed and applied in list order. No-op edits are dropped; if nothing
-     * remains (e.g. an empty list), nothing happens and null is returned.
+     * Edits are given in the coordinates of the current snapshot, sorted or unsorted, and must not overlap. Two
+     * insertions at the same offset are allowed and are applied in list order. No-op edits are dropped. If nothing
+     * remains, for example for an empty list, nothing happens and the function returns null.
      *
-     * @param caretsBefore carets to restore when this change is undone (coordinates of the current snapshot).
-     * @param caretsAfter carets to restore when this change is redone (coordinates of the new snapshot).
-     * @throws IllegalArgumentException if an edit is out of bounds or edits overlap (programming error).
+     * @param caretsBefore carets to restore when this change is undone, in the coordinates of the current snapshot.
+     * @param caretsAfter carets to restore when this change is redone, in the coordinates of the new snapshot.
+     * @throws IllegalArgumentException if an edit is out of bounds or edits overlap. Both are programming errors.
      */
     public fun apply(
         edits: List<TextEdit>,
@@ -65,22 +65,26 @@ public interface EditableText {
     ): TextChange?
 
     /**
-     * Replaces the whole text by [newText] as one change, expressed as the minimal edit (common prefix and suffix are
-     * kept, so offsets outside the changed region map exactly). Returns null if the text is unchanged.
+     * Replaces the whole text by [newText] as one change. The change is expressed as the minimal edit. The common
+     * prefix and suffix are kept, so offsets outside the changed region map exactly. Returns null if the text is
+     * unchanged.
      */
     public fun replaceAll(newText: String, origin: EditOrigin): TextChange?
 
     /**
-     * Maps [offset], valid in version [fromVersion], to version [toVersion] (`fromVersion <= toVersion <= current`),
-     * using [bias] at edit points (see [Bias]). Returns null if [fromVersion] is older than the retained history
-     * (at least the last 1000 versions are kept).
+     * Maps [offset], valid in version [fromVersion], to version [toVersion]. The versions must satisfy
+     * `fromVersion <= toVersion <= current`. At edit points [bias] decides, as described at [Bias]. Returns null if
+     * [fromVersion] is older than the retained history. The history holds the last `historyLimit` versions, 1000 by
+     * default.
      *
-     * A point mapping within this text's own versions (carets, tracked pairs). Ranges — diagnostics, highlight spans,
-     * navigation targets, anything carrying a version and a lineage — are mapped with [mapRange] only, never with two
-     * calls of this function (the one bias and collapse rule lives there).
+     * This is a point mapping within this text's own versions, used for carets and tracked pairs. Ranges are mapped
+     * with [mapRange] only, never with two calls of this function, because the one rule for bias and collapse lives
+     * there. That holds for diagnostics, highlight spans, navigation targets and anything else that carries a version
+     * and a lineage.
      *
-     * Thread-safe (unlike mutation): may be called from any thread; it reads the history as published together with
-     * the snapshots, so a background pipeline (diagnostics merging, highlighting) may map while the writer edits.
+     * Unlike mutation, this function is thread-safe and may be called from any thread. It reads the history as it was
+     * published together with the snapshots, so a background pipeline such as diagnostics merging or highlighting may
+     * map while the writer edits.
      *
      * @throws IllegalArgumentException if the versions are not ordered as above or [offset] is negative.
      */
@@ -95,25 +99,26 @@ public interface EditableText {
      * Maps [range], valid in version [fromVersion] of the text with lineage [fromLineage], to version [toVersion] of
      * this text. Never throws.
      *
-     * This is the one range-mapping rule of the IDE: the session's diagnostics merger, the editor's decorations and
-     * highlight spans, and navigation all map ranges through it, and nobody maps the two bounds of a range separately,
-     * so every consumer agrees on where a range went.
+     * This is the one range-mapping rule of the IDE. The session's diagnostics merger, the editor's decorations and
+     * highlight spans, and navigation all map ranges through it. Nobody maps the two bounds of a range separately, so
+     * every consumer agrees on where a range went.
      *
-     * Returns null — the caller drops the range, or clamps it when it must navigate somewhere — if [fromLineage] is not
-     * this text's [lineage] (a range of another text, e.g. of a document closed and reopened since, see [TextLineage]),
-     * if [fromVersion] is newer than [toVersion], if [toVersion] is newer than the current version, or if [fromVersion]
-     * is older than the retained history.
+     * Returns null in these cases: [fromLineage] is not this text's [lineage], [fromVersion] is negative or newer than
+     * [toVersion], [toVersion] is newer than the current version, or [fromVersion] is older than the retained history.
+     * A foreign lineage means that the range belongs to another text, for example to a document that was closed and
+     * reopened since. [TextLineage] explains this. On null the caller drops the range, or clamps it when it must
+     * navigate somewhere.
      *
-     * Bias rule (decorations shrink rather than grow): a non-empty range maps its start with [Bias.RIGHT] and its end
-     * with [Bias.LEFT], so text inserted at either bound stays outside; if the mapped start lies after the mapped end
-     * (the range sat inside a replaced or deleted region), the result is the empty range at the mapped end. An empty
-     * range stays empty and maps as one offset with [Bias.RIGHT] (a "missing `}`" marker stays behind typed text).
-     * A range reaching past the text of [fromVersion] is the caller's error; its bounds are mapped like offsets after
+     * Decorations shrink rather than grow. A non-empty range maps its start with [Bias.RIGHT] and its end with
+     * [Bias.LEFT], so text inserted at either bound stays outside. If the mapped start lies after the mapped end, the
+     * range sat inside a replaced or deleted region, and the result is the empty range at the mapped end. An empty
+     * range stays empty and maps as one offset with [Bias.RIGHT], so a "missing `}`" marker stays behind typed text. A
+     * range that reaches past the text of [fromVersion] is the caller's error. Its bounds are mapped like offsets after
      * every edit.
      *
-     * Thread-safe like [mapOffset], because the diagnostics merger and the editor's highlight pipeline map on
-     * background dispatchers while the writer edits. Implemented here once on top of [mapOffset]; implementations do
-     * not override it.
+     * The function is thread-safe like [mapOffset], because the diagnostics merger and the editor's highlight pipeline
+     * map on background dispatchers while the writer edits. It is implemented here once on top of [mapOffset], and
+     * implementations do not override it.
      */
     public fun mapRange(
         range: TextRange,
@@ -132,7 +137,7 @@ public interface EditableText {
         return if (start <= end) TextRange(start, end) else TextRange.empty(end)
     }
 
-    /** [mapRange] for a [range] valid in [from] (its version and lineage). Never throws. */
+    /** [mapRange] for a [range] that is valid in the snapshot [from], with its version and lineage. Never throws. */
     public fun mapRange(range: TextRange, from: TextSnapshot, toVersion: Long = snapshot.value.version): TextRange? =
         mapRange(range, from.version, from.lineage, toVersion)
 
@@ -149,9 +154,10 @@ public interface EditableText {
 /**
  * Creates an [EditableText] with [initialText] at version 0, a new [TextLineage] and an empty undo history.
  *
- * @param initialText the initial text; must already be normalized to `\n` separators.
- * @param timeSource clock for undo coalescing; tests pass a `kotlin.time.TestTimeSource`.
- * @param historyLimit number of versions retained for [EditableText.mapOffset] and [EditableText.mapRange] (`>= 1`).
+ * @param initialText the initial text. It must already be normalized to `\n` separators.
+ * @param timeSource clock for undo coalescing. Tests pass a `kotlin.time.TestTimeSource`.
+ * @param historyLimit number of versions retained for [EditableText.mapOffset] and [EditableText.mapRange]. It must be
+ *   at least 1.
  */
 public fun EditableText(
     initialText: String = "",

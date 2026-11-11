@@ -22,21 +22,21 @@ import io.karpfen.ide.ui.foundation.keys.KeyModifier
 import io.karpfen.ide.ui.foundation.keys.KeyStroke
 import io.karpfen.ide.ui.foundation.keys.compose.toKeyStroke
 
-/** What a key stroke means inside a popup that owns focus (find bar, go-to-line). */
+/** What a key stroke means inside a popup that owns focus, such as the find bar and go-to-line. */
 internal enum class PopupKey {
-    /** Enter: find next, go to the line, replace. */
+    /** Enter. It runs find next, goes to the line or replaces. */
     CONFIRM,
 
-    /** Shift+Enter: find previous. */
+    /** Shift+Enter. It runs find previous. */
     CONFIRM_BACKWARD,
 
-    /** Escape: close the popup and return focus to the text area. */
+    /** Escape. It closes the popup and returns focus to the text area. */
     CANCEL,
 }
 
 /**
- * The key policy of focused popups (pure): the strokes Enter, Shift+Enter and Escape without other modifiers; every
- * other stroke is left to the focused text field or to menu accelerators.
+ * The key policy of focused popups. It is a pure mapping. Only Enter, Shift+Enter and Escape without other modifiers
+ * mean something. Every other stroke is left to the focused text field or to menu accelerators.
  */
 internal object PopupKeys {
 
@@ -46,18 +46,18 @@ internal object PopupKeys {
         KeyStroke(KeyCode.ESCAPE) to PopupKey.CANCEL,
     )
 
-    /** The popup key of [stroke], or null (also for null, i.e. key-up events and unmapped keys). */
+    /** Returns the popup key of [stroke], or null. A null stroke stands for key-up events and unmapped keys and also returns null. */
     fun of(stroke: KeyStroke?): PopupKey? = stroke?.let(bindings::get)
 }
 
 /**
- * Offers the popup keys of key-down events reaching this element to [onKey] in the preview phase (before a text field
- * inside handles them) and consumes the event when [onKey] returns true. Strokes come from the shared key adapter
- * (`toKeyStroke`), like the editor's own key handling.
+ * Offers the popup keys of key-down events that reach this element to [onKey]. It does so in the preview phase, before
+ * a text field inside handles them. The event is consumed when [onKey] returns true. Strokes come from the shared key
+ * adapter `toKeyStroke`, the same one the editor's own key handling uses.
  */
 internal fun Modifier.onPopupKey(onKey: (PopupKey) -> Boolean): Modifier =
     onPreviewKeyEvent { event -> PopupKeys.of(event.toKeyStroke())?.let(onKey) ?: false }
 
-/** Runs [action] for the popup key [key] (consuming it) and leaves every other key alone; see [onPopupKey]. */
+/** Runs [action] for the popup key [key] and consumes it. Every other key is left alone. See the other [onPopupKey]. */
 internal fun Modifier.onPopupKey(key: PopupKey, action: () -> Unit): Modifier =
     onPopupKey { pressed -> (pressed == key).also { matched -> if (matched) action() } }

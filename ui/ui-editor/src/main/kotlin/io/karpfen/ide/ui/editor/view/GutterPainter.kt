@@ -29,10 +29,11 @@ import io.karpfen.ide.ui.editor.view.geometry.TextAreaFrame
 import io.karpfen.ide.ui.editor.view.render.Decorations.background
 
 /**
- * Paints the gutter next to the laid-out lines of a [TextAreaFrame]: one-based line numbers (right-aligned, the caret's
- * line emphasized), the current line's background and a diagnostic marker per line in the colour of the most severe
- * diagnostic starting on that line (ranges mapped into the drawn version with `EditableText.mapRange`). Number layouts
- * are cached in a [LineLayoutCache] of their own.
+ * Paints the gutter next to the laid-out lines of a [TextAreaFrame]. It paints one-based line numbers, aligned right,
+ * with the caret's line emphasized. It paints the background of the current line. Each line with diagnostics gets one
+ * marker in the colour of the most severe diagnostic that starts on that line. Diagnostic ranges are mapped into the
+ * drawn version with `EditableText.mapRange`. The layouts of the numbers are cached in a [LineLayoutCache] of their
+ * own.
  */
 internal class GutterPainter(private val measurer: TextMeasurer, private val numbers: LineLayoutCache) {
 
@@ -48,7 +49,7 @@ internal class GutterPainter(private val measurer: TextMeasurer, private val num
         val fontSize: Float,
     )
 
-    /** Draws [content] into this scope, which is the gutter's area. */
+    /** Draws [content] into this scope, which is the area of the gutter. */
     fun DrawScope.paint(content: Content) {
         val frame = content.frame
         val geometry = frame.geometry
@@ -83,8 +84,8 @@ internal class GutterPainter(private val measurer: TextMeasurer, private val num
     }
 
     /**
-     * The most severe diagnostic per laid-out line, by the line where its range starts (ERROR before WARNING before INFO
-     * before HINT).
+     * Returns the most severe diagnostic severity per laid-out line. A diagnostic belongs to the line where its range
+     * starts. Errors rank above warnings, warnings above information, and information above hints.
      */
     private fun severityByLine(content: Content): Map<Int, Severity> {
         val frame = content.frame
@@ -100,15 +101,15 @@ internal class GutterPainter(private val measurer: TextMeasurer, private val num
         return result
     }
 
-    /** The gutter's measures in cells. */
+    /** Holds the measures of the gutter, in character cells. */
     companion object {
-        /** Cells of the gutter besides the digits: the marker column and padding on both sides. */
+        /** The cells of the gutter besides the digits. They hold the marker column and the padding on both sides. */
         const val EXTRA_CELLS: Int = 3
 
-        /** Space right of the line numbers. */
+        /** The space right of the line numbers. */
         private const val RIGHT_PADDING_CELLS = 0.8f
 
-        /** Radius of a diagnostic marker. */
+        /** The radius of a diagnostic marker. */
         private const val MARKER_RADIUS_CELLS = 0.3f
     }
 }

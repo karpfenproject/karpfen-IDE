@@ -20,23 +20,25 @@ import io.karpfen.ide.runtime.protocol.message.WireValue
 import io.karpfen.ide.runtime.session.schema.TypeSchema
 
 /**
- * Applies what the runtime reports to the mirror: a whole snapshot, an `objectChanged` push or an `objectDeleted` push.
- * Pure: every function answers a new [MirrorStep] and leaves the given snapshot as it is, so the reducer can be shared.
+ * Applies what the runtime reports to the mirror. That is a whole snapshot, an `objectChanged` push or an
+ * `objectDeleted` push. The reducer is pure. Every function returns a new [MirrorStep] and leaves the given snapshot as
+ * it is, so the reducer can be shared.
  *
  * - [replace] builds the whole mirror from a snapshot's roots.
- * - [changed] upserts every keyed object of the pushed tree as a whole (properties and relations replaced), not only
- *   the pushed one: the runtime serializes the whole subtree, `knows` targets included, from the live model when the
- *   block commits, so nested values are as current as the pushed object. An object that appears twice in one push is
- *   taken at its first occurrence. Every upserted object gets the push's revision.
- * - Removal by absence: for every upserted object, every keyed object it embedded through `has` before and no longer
- *   embeds, and that appears nowhere else in the same push, is removed with its embedded subtree, and every reference
- *   to a removed id is scrubbed. This is sound because the runtime only puts new objects into `has` relations, so a
- *   child never moves between owners; it also covers removals the runtime does not report with an `objectDeleted`.
+ * - [changed] upserts every keyed object of the pushed tree as a whole, not only the pushed one. Properties and
+ *   relations are replaced. The runtime serializes the whole subtree from the live model when the block commits,
+ *   including `knows` targets. So nested values are as current as the pushed object. An object that appears twice in
+ *   one push is taken at its first occurrence. Every upserted object gets the push's revision.
+ * - Objects are also removed by absence. Take a keyed object that an upserted object embedded through `has` before,
+ *   but no longer embeds, and that appears nowhere else in the same push. It is removed with its embedded subtree, and
+ *   every reference to a removed id is scrubbed. This is sound because the runtime only puts new objects into `has`
+ *   relations, so a child never moves between owners. It also covers removals that the runtime does not report with
+ *   an `objectDeleted`.
  * - [deleted] removes the object with its embedded subtree, detaches it from its owner and scrubs the references to
- *   it; an unknown id changes nothing.
+ *   it. An unknown id changes nothing.
  *
  * @param schema the schema of the domain metamodel.
- * @param modelObjectIds the ids the deployed model declares; other ids are objects the runtime created.
+ * @param modelObjectIds the ids the deployed model declares. Other ids are objects the runtime created.
  */
 public class MirrorReducer(schema: TypeSchema, modelObjectIds: Set<String>) {
     /** Reads the runtime's object trees. */
@@ -44,7 +46,7 @@ public class MirrorReducer(schema: TypeSchema, modelObjectIds: Set<String>) {
 
     /**
      * The mirror of a snapshot whose [roots] are the model's root objects at [revision]. Its change lists every object
-     * as created; a caller that keeps an older mirror compares the two with [MirrorComparison].
+     * as created. A caller that keeps an older mirror compares the two with [MirrorComparison].
      */
     public fun replace(roots: List<WireValue.WireObject>, revision: Long): MirrorStep {
         val objects = LinkedHashMap<String, MirrorObject>()
@@ -61,7 +63,11 @@ public class MirrorReducer(schema: TypeSchema, modelObjectIds: Set<String>) {
         return MirrorStep(snapshot, MirrorChange(emptySet(), objects.keys.toSet(), emptySet()), anomalies)
     }
 
-    /** [snapshot] after the `objectChanged` [push]. */
+    /**
+     * [snapshot] after the `objectChanged` [push]. A pushed object without an id is ignored with an anomaly. A pushed
+     * object that the mirror does not hold, and whose owner was not pushed, is added without an owner, also with an
+     * anomaly.
+     */
     public fun changed(snapshot: MirrorSnapshot, push: RuntimePush.ObjectChanged): MirrorStep {
         val tree = interpreter.interpret(push.value, push.revision)
         val anomalies = ArrayList(tree.anomalies)
@@ -87,7 +93,7 @@ public class MirrorReducer(schema: TypeSchema, modelObjectIds: Set<String>) {
         return MirrorStep(next, change, anomalies)
     }
 
-    /** [snapshot] after the `objectDeleted` [push]; an id the mirror does not hold changes nothing. */
+    /** [snapshot] after the `objectDeleted` [push]. An id that the mirror does not hold changes nothing. */
     public fun deleted(snapshot: MirrorSnapshot, push: RuntimePush.ObjectDeleted): MirrorStep {
         if (push.objectId !in snapshot.objects) return MirrorStep(snapshot, MirrorChange.NONE, emptyList())
         val editor = MirrorEditor(snapshot)

@@ -24,9 +24,9 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
 
 /**
- * [RingOutputBuffer]: lines numbered in arrival order, the oldest dropped beyond the capacity and beyond the character
- * budget, long messages cut, problem counts that survive dropping and clearing, a revision for every change, snapshots
- * that are copies, and appends from many threads.
+ * Tests [RingOutputBuffer]. Lines are numbered in arrival order. The oldest lines are dropped beyond the capacity and
+ * beyond the character budget. Long messages are cut. The problem counts survive dropping and clearing. Every change
+ * raises the revision. Snapshots are copies. And appends from many threads all arrive.
  */
 class RingOutputBufferTest {
 

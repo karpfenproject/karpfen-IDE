@@ -35,9 +35,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Covers the real `WatchService` watcher in the only test that uses it: the JDK's macOS watch service polls every few
- * seconds, so the test runs with generous timeouts on real time. Every other watch test uses a fake
- * (`WatchRegistryTest` covers what is registered and how events map, with fake keys).
+ * Covers the real `WatchService` watcher in the only test that uses it. The JDK's watch service on macOS polls every
+ * few seconds, so the test runs with generous timeouts on real time. Every other watch test uses a fake.
+ * `WatchRegistryTest` covers what is registered and how events map, with fake keys.
  */
 @Tag("slow-tolerant")
 class WatchServiceFileWatcherTest {

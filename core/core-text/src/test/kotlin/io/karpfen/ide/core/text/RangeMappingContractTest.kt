@@ -30,7 +30,10 @@ import kotlin.test.assertNull
  */
 class RangeMappingContractTest {
 
-    /** Version 0 → 1 replaced [replaced] by [insertedLength] characters; versions before [oldestVersion] are evicted. */
+    /**
+     * A text whose only change, from version 0 to version 1, replaced [replaced] by [insertedLength] characters.
+     * Versions before [oldestVersion] count as evicted.
+     */
     private class OneEditText(
         private val replaced: TextRange,
         private val insertedLength: Int,

@@ -54,11 +54,11 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Covers the project analysis on real example folders: every example context reads without findings, broken files are
- * never read and block the reads that depend on them, semantic errors land on the offending element of the right file
- * next to the partial model, in the events metamodel too, a metamodel with errors blocks the reads that depend on it,
- * editor text replaces disk text, loose files stay syntax-only, and unreadable, failing or vanished files are reported
- * or skipped. The analysis is cancellable between files.
+ * Covers the project analysis on real example folders. Every example context reads without findings. Broken files are
+ * never read and block the reads that depend on them. Semantic errors land on the offending element of the right file
+ * next to the partial model, also in the events metamodel. A metamodel with errors blocks the reads that depend on it.
+ * Editor text replaces disk text, and loose files stay syntax-only. Unreadable, failing or vanished files are reported
+ * or skipped. The analysis can be cancelled between files.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultProjectAnalyzerTest {

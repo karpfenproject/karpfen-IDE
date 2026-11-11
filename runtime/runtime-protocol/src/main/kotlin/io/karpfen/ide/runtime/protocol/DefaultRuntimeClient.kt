@@ -33,10 +33,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 
 /**
- * The client over [transports]: the gateway over their HTTP seam, environment handles over the gateway and connections
- * over their WebSocket seam. Every suspend function runs on the dispatcher of [options], so every delay and timeout runs
- * there. It owns the transports and no coroutines; closing it closes the transports and leaves the environments as they
- * are.
+ * The client built on [transports]. It puts the gateway on their HTTP seam, the environment handles on the gateway, and
+ * the connections on their WebSocket seam. Every suspend function runs on the dispatcher of [options], so every delay
+ * and timeout runs there. The client owns the transports and no coroutines. Closing it closes the transports and leaves
+ * the environments as they are.
  *
  * @param options how the client runs.
  * @param transports the seams to the runtime.

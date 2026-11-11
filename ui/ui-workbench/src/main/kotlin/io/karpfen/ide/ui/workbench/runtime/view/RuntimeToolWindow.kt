@@ -59,10 +59,12 @@ import io.karpfen.ide.ui.workbench.settings.RuntimeSettings
 import java.nio.file.Path
 
 /**
- * The Runtime tool window over [runtime]: a header with the host's status, Start runtime and Stop runtime and the host
- * selector; below it the runs list with the selected run's tabs, or, without runs, how to run: the Run command with
- * its shortcut and the descriptor it would pick. Paths show relative to [root]; a clicked finding calls [onNavigate].
- * Renders the state and calls its commands only.
+ * The Runtime tool window over [runtime]. A header shows the host's status, the Start runtime and Stop runtime buttons
+ * and the host selector. Below it are the runs list and the tabs of the selected run. Without runs, the window explains
+ * how to run instead. It names the Run command with its shortcut and the descriptor Run would pick.
+ *
+ * Paths are shown relative to [root]. A click on a finding calls [onNavigate]. The composable only renders the state
+ * and calls its commands.
  */
 @Composable
 internal fun RuntimeToolWindow(runtime: RuntimeState, root: Path, onNavigate: (Location) -> Unit, modifier: Modifier = Modifier) {
@@ -102,8 +104,9 @@ internal fun RuntimeToolWindow(runtime: RuntimeState, root: Path, onNavigate: (L
 }
 
 /**
- * The header: the host's [status] in words, Start runtime and Stop runtime, and the host selector with the URL field,
- * whose text [onApplyUrl] writes when applied.
+ * The header of the tool window. It shows the host's [status] in words, the Start runtime and Stop runtime buttons, and
+ * the host selector. When the runtime is reached by URL, a URL field and an Apply button follow. Apply hands the text
+ * to [onApplyUrl]. It is enabled only while the trimmed text differs from the stored URL.
  */
 @Composable
 private fun RuntimeHeader(
@@ -151,7 +154,10 @@ private fun RuntimeHeader(
     }
 }
 
-/** How to run: the Run command with its [shortcut] and what it would run as [pick] says, relative to [root]. */
+/**
+ * Explains how to run. It names the Run command with its [shortcut] and says what Run would run, as [pick] tells. Paths
+ * are relative to [root].
+ */
 @Composable
 private fun EmptyRuntime(shortcut: String, pick: DescriptorPick, root: Path) {
     val next = when (pick) {
@@ -171,8 +177,8 @@ private fun EmptyRuntime(shortcut: String, pick: DescriptorPick, root: Path) {
 }
 
 /**
- * The runs, newest first, each with its plan name, its environment key once known and its phase; the buttons act on
- * [selected].
+ * The runs, newest first. Each run shows its plan name, its environment key once known, and its phase. The Run again
+ * and Stop buttons act on [selected]. Clear finished removes every finished run.
  */
 @Composable
 private fun RunsList(
@@ -230,7 +236,10 @@ private fun PhaseLabel(run: RunEntry) {
     )
 }
 
-/** The colour of [phase]: errors for blocked and failed runs, the accent for live ones, muted otherwise. */
+/**
+ * The colour of [phase]. Blocked and failed runs get the error colour, and running or ready runs get the accent.
+ * Runs on their way to the runtime get the info colour, and stopped runs are muted.
+ */
 private fun phaseColor(phase: RunPhase, colors: KarpfenColors): Color = when (phase) {
     RunPhase.BLOCKED, RunPhase.FAILED -> colors.error
     RunPhase.RUNNING, RunPhase.READY -> colors.accent

@@ -32,18 +32,19 @@ internal sealed interface TreeIntent<out K> {
     /** Open the node [key]. */
     data class Open<K>(val key: K) : TreeIntent<K>
 
-    /** A primary click on the row of [key] (not on its chevron), also when the row is selected already. */
+    /** A primary click on the row of [key] outside its chevron. It is reported even when the row is selected. */
     data class Click<K>(val key: K) : TreeIntent<K>
 }
 
 /**
- * The keyboard policy of a [TreeView] (pure): Up/Down move the selection, Home/End jump to the first/last row, Left
- * collapses an expanded node or moves to the parent, Right expands a collapsed node or moves to the first child, Enter
- * opens. Without a visible selection, Up, Down and Home select the first row and End the last one.
+ * The keyboard policy of a [TreeView], as pure functions. Up and Down move the selection. Home and End jump to the
+ * first and the last row. Left collapses an expanded node or moves to the parent. Right expands a collapsed node or
+ * moves to the first child. Enter opens the node. Without a visible selection, Up, Down and Home select the first row,
+ * and End selects the last one.
  */
 internal object TreeNavigation {
 
-    /** The tree key of [stroke], or null for strokes the tree does not handle (any modifier held). */
+    /** The tree key of [stroke], or null for a stroke the tree does not handle, such as any stroke with a modifier. */
     fun keyOf(stroke: KeyStroke): TreeKey? {
         if (stroke.modifiers.isNotEmpty()) return null
         return when (stroke.key) {
@@ -59,8 +60,9 @@ internal object TreeNavigation {
     }
 
     /**
-     * The intent of [key] on [rows] with the nodes [expanded] and the row [selectedIndex] selected (-1: none), or null
-     * if the key does nothing there (so the event is not consumed).
+     * The intent of [key] on [rows], where the nodes [expanded] are expanded and the row [selectedIndex] is selected.
+     * [selectedIndex] is -1 when no row is selected. Returns null if the key does nothing there, so that the key event
+     * is not consumed.
      */
     fun <K> intentFor(key: TreeKey, rows: List<TreeRow<K>>, expanded: Set<K>, selectedIndex: Int): TreeIntent<K>? {
         if (rows.isEmpty()) return null
@@ -92,7 +94,7 @@ internal object TreeNavigation {
         }
     }
 
-    /** Selects the row [target], or null when it is the selected row already (the key then does nothing). */
+    /** Selects the row [target]. Returns null when it is the selected row already, so the key does nothing. */
     private fun <K> selectOther(rows: List<TreeRow<K>>, selectedIndex: Int, target: Int): TreeIntent<K>? =
         if (target == selectedIndex) null else TreeIntent.Select(rows[target].node.key)
 }

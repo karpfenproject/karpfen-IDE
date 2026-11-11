@@ -26,10 +26,14 @@ import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
 
 /**
- * KStates hover: state → its hierarchy path (`state observe > react to obstacle`); macro → its TAKES/RETURNS
- * signature (`macro m(p: Vector): number`); model path → the resolved type of the path up to the segment under the
- * caret (`boundingBox->position: Vector`, followed by the member's signature, [paths]); type and event name →
- * `TypeInfo.hoverText` ([types]); SETOBJ relation → the member's signature; WITH binding / TAKES parameter → its type.
+ * Hover in KStates.
+ * - On a state it shows its hierarchy path, such as `state observe > react to obstacle`.
+ * - On a macro it shows its TAKES and RETURNS signature, such as `macro m(p: Vector): number`.
+ * - On a model path it shows the type that [paths] resolves for the path up to the segment under the caret, such as
+ *   `boundingBox->position: Vector`, followed by the signature of the member.
+ * - On a type or event name it shows `TypeInfo.hoverText` from [types].
+ * - On the relation of a SETOBJ it shows the signature of the member.
+ * - On a WITH binding or a TAKES parameter it shows its type.
  */
 internal class KstatesHoverProvider(
     private val slots: KstatesSlots,
@@ -61,8 +65,8 @@ internal class KstatesHoverProvider(
     }
 
     /**
-     * The type of the path up to the segment under the caret, with the member's signature or the kind of binding; an
-     * `event` root whose type is not determinable lists every event type.
+     * The type of the path up to the segment under the caret, with the signature of the member or the kind of
+     * binding. An `event` root whose type cannot be determined lists every event type.
      */
     private fun pathHover(request: FeatureRequest, context: CaretContext, slot: KstatesSlot.ModelPath): Hover? {
         val hit = paths.segmentAt(request, context, slot.range) ?: return null

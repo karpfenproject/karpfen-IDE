@@ -26,50 +26,55 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The carets of one editor over an [EditableText]. Compose-free state holder, used from the UI thread.
+ * The carets of one editor over an [EditableText]. It is a state holder without Compose, used from the UI thread.
  *
- * Mapping through changes: carets are stamped with the text version they refer to ([CaretSnapshot.version]). Every
- * member first catches up synchronously when the carets are older than the text (lazy mapping with
- * `EditableText.mapOffset`, like `AutoClosedPairs`), so [current], [primary], [mementos] and every movement always act
- * on the current text, also when a change (a reload, an edit by another component) arrived and the collector in the
- * model's scope has not run yet — the scope's dispatcher does not matter. [state] follows the changes for observers
- * (rendering, completion) and may lag by one dispatch. Carets set explicitly after an edit (actions pass their
- * `caretsAfter`) carry the new version and are never mapped twice.
+ * Carets are stamped with the text version they refer to ([CaretSnapshot.version]). When the carets are older than the
+ * text, every member first catches up synchronously by mapping them with `EditableText.mapOffset`. This lazy mapping
+ * works like the one in `AutoClosedPairs`. So [current], [primary], [mementos] and every movement always act on the
+ * current text. This holds even when a change, such as a reload or an edit by another component, arrived and the
+ * collector in the model's scope has not run yet. The dispatcher of the scope does not matter. [state] follows the
+ * changes for observers such as rendering and completion, and it may lag by one dispatch. Carets that an action sets
+ * explicitly after an edit, through its `caretsAfter`, already carry the new version and are never mapped twice.
  *
- * Undo coalescing: every explicit caret change ([move], [moveTo], [select], [selectWord], [selectLine], [selectAll])
- * calls `text.undo.breakCoalescing()`, so typing at another place starts a new undo step; [restore] and the mapping
- * through changes do not.
+ * Every explicit caret change calls `text.undo.breakCoalescing()`, so typing at another place starts a new undo step.
+ * The explicit changes are [move], [moveTo], [select], [selectWord], [selectLine] and [selectAll]. [restore] and the
+ * mapping through changes do not break coalescing.
  *
- * Preferred column: [Caret.preferredColumn] is a display column computed with [TabStops] of the factory's `tabWidth()`
- * (the editor passes `EditorSettings.tabDisplayWidth`), the conversion the view and the status bar use too.
+ * [Caret.preferredColumn] is a display column. It is computed with [TabStops] of the `tabWidth()` passed to the
+ * factory. The editor passes `EditorSettings.tabDisplayWidth`, which is the same conversion the view and the status bar
+ * use.
  */
 public interface CaretModel {
 
-    /** The carets and the version they refer to, for observers; may lag the text by one dispatch (see above). */
+    /** The carets and the version they refer to, for observers. It may lag behind the text by one dispatch. */
     public val state: StateFlow<CaretSnapshot>
 
-    /** The carets mapped to the current text version (catches up synchronously when [state] lags). */
+    /** The carets mapped to the current text version. Reading it catches up synchronously when [state] lags. */
     public val current: CaretSnapshot
 
     /** Shortcut for `current.primary`. */
     public val primary: Caret get() = current.primary
 
     /**
-     * Moves every caret by [movement]; with [extendSelection] the anchors stay (Shift+movement), otherwise selections
-     * collapse. [pageLines] is the page size for PAGE_UP/PAGE_DOWN.
+     * Moves every caret by [movement]. If [extendSelection] is true, the anchors stay where they are, as with Shift and
+     * a movement key. Otherwise selections collapse. [pageLines] is the page size for [CaretMovement.PAGE_UP] and
+     * [CaretMovement.PAGE_DOWN].
      */
     public fun move(movement: CaretMovement, extendSelection: Boolean, pageLines: Int = 1)
 
-    /** Places the primary caret at [offset] (clamped); with [extendSelection] the anchor stays (Shift+click). */
+    /**
+     * Places the primary caret at [offset], clamped to the text. If [extendSelection] is true, the anchor stays where it
+     * is, as with Shift+click.
+     */
     public fun moveTo(offset: Int, extendSelection: Boolean = false)
 
-    /** Replaces all carets by one with the given [anchor] and [position] (clamped). */
+    /** Replaces all carets with one caret at the given [anchor] and [position], both clamped to the text. */
     public fun select(anchor: Int, position: Int)
 
-    /** Selects the word at [offset] (double-click). */
+    /** Selects the word at [offset]. A double-click does this. */
     public fun selectWord(offset: Int)
 
-    /** Selects [line] including its line break (triple-click). */
+    /** Selects [line] including its line break. A triple-click does this. */
     public fun selectLine(line: Int)
 
     /** Selects the whole text. */
@@ -78,16 +83,20 @@ public interface CaretModel {
     /** The carets as undo mementos. */
     public fun mementos(): List<CaretMemento>
 
-    /** Replaces the carets by [mementos], which refer to the current text version (undo/redo, actions). */
+    /**
+     * Replaces the carets with [mementos], which must refer to the current text version. Undo, redo and the actions use
+     * it. It does not break undo coalescing.
+     */
     public fun restore(mementos: List<CaretMemento>)
 }
 
 /**
- * A [CaretModel] with one caret at offset 0, mapping carets through the changes of [text] in [scope] (collected on the
- * UI thread; tests pass an `UnconfinedTestDispatcher` scope).
+ * Creates a [CaretModel] with one caret at offset 0. It maps the carets through the changes of [text] in a collector
+ * that runs in [scope]. In the editor that scope runs on the UI thread. Tests pass a scope with an
+ * `UnconfinedTestDispatcher`.
  *
- * @param tabWidth columns per tab stop for [Caret.preferredColumn] ([TabStops]), read on every vertical move (the
- *   setting may change at runtime).
+ * @param tabWidth columns per tab stop for [Caret.preferredColumn], see [TabStops]. It is read on every vertical move,
+ *   because the setting may change at runtime.
  */
 public fun CaretModel(
     text: EditableText,
@@ -96,12 +105,13 @@ public fun CaretModel(
 ): CaretModel = DefaultCaretModel(text, scope, tabWidth)
 
 /**
- * Default [CaretModel]: the carets of one editor, version-stamped and caught up lazily (see [CaretModel]).
+ * The default [CaretModel]. It holds the carets of one editor, stamped with a version and caught up lazily as described
+ * on [CaretModel].
  *
- * Collaborators: [CaretMotion] computes movements (pure geometry), [WordBoundaries] the word rule; this class owns the
- * caret state, the mapping through changes (`EditableText.mapOffset`, the point mapping of carets) and the undo
- * coalescing breaks of explicit moves. A collector in [scope] follows `text.snapshot` so [state] catches up for
- * observers; `snapshot` is a state flow, so a collector started late still sees the newest version.
+ * [CaretMotion] computes the movements as pure geometry, and [WordBoundaries] holds the word rule. This class owns the
+ * caret state, the mapping through changes and the breaks in undo coalescing on explicit moves. Carets are mapped as
+ * points with `EditableText.mapOffset`. A collector in [scope] follows `text.snapshot`, so [state] catches up for
+ * observers. `snapshot` is a state flow, so a collector that starts late still sees the newest version.
  */
 internal class DefaultCaretModel(
     private val text: EditableText,
@@ -167,13 +177,13 @@ internal class DefaultCaretModel(
         caretState.value = CaretSnapshot(snapshot.version, carets.distinct())
     }
 
-    /** An explicit caret change: ends the typing run and publishes [carets] for the current version. */
+    /** Makes an explicit caret change. It ends the typing run and publishes [carets] for the current version. */
     private fun place(carets: List<Caret>) {
         text.undo.breakCoalescing()
         caretState.value = CaretSnapshot(text.snapshot.value.version, carets.distinct())
     }
 
-    /** Maps the carets to the current version if they are older; returns the (now current) carets. */
+    /** Maps the carets to the current version if they are older, and returns the carets, which are now current. */
     private fun catchUp(): CaretSnapshot {
         val stamped = caretState.value
         val target = text.snapshot.value
@@ -184,8 +194,9 @@ internal class DefaultCaretModel(
     }
 
     /**
-     * [caret] of version [from] in [target]: both ends mapped as points with `Bias.RIGHT` (a caret moves along with
-     * text inserted at it), clamped when the history no longer reaches [from]. The preferred column is forgotten.
+     * Maps [caret] from version [from] into [target]. Both ends are mapped as points with `Bias.RIGHT`, so a caret moves
+     * along with text inserted at it. If the history no longer reaches [from], the offsets are only clamped. The
+     * preferred column is forgotten.
      */
     private fun map(caret: Caret, from: Long, target: TextSnapshot): Caret {
         fun point(offset: Int): Int {

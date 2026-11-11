@@ -19,8 +19,8 @@ import io.karpfen.ide.runtime.protocol.conformance.LiveRuntime
 import io.karpfen.ide.runtime.protocol.conformance.LiveRuntimeUnderTest
 
 /**
- * Covers injecting events through a session ([InjectionScenarios]) against the real runtime that the live task is given, usually a throwaway
- * container of `runtime/live-runtime.sh test`.
+ * Covers injecting events through a session against the real runtime that the live task is given. The scenarios are
+ * those of [InjectionScenarios]. The runtime is usually a throwaway container of `runtime/live-runtime.sh test`.
  */
 @LiveRuntime
 class LiveInjectionScenariosTest : InjectionScenarios() {

@@ -16,16 +16,16 @@
 package io.karpfen.ide.core.text
 
 /**
- * The versions of one text: the current [TextSnapshot] and the bounded [EditLog] that maps offsets from older
+ * The versions of one text. It holds the current [TextSnapshot] and the bounded [EditLog] that maps offsets from older
  * versions to newer ones.
  *
- * [commit] is called by the single writer only. The current snapshot and its log are published together as one
- * immutable [Published] value through a volatile field, so [current] and [mapOffset] are thread-safe and every
- * mapping reads one consistent version of the history.
+ * Only the single writer calls [commit]. The current snapshot and its log are published together as one immutable
+ * [Published] value through a volatile field. [current] and [mapOffset] are therefore thread-safe, and every mapping
+ * reads one consistent version of the history.
  */
 internal class TextVersions(initial: TextSnapshot, historyLimit: Int) {
 
-    /** A snapshot together with the log of the changes leading to it (`log.newestVersion == snapshot.version`). */
+    /** A snapshot together with the log of the changes that led to it, so `log.newestVersion == snapshot.version`. */
     private class Published(val snapshot: TextSnapshot, val log: EditLog)
 
     private val logWriter = EditLogWriter(historyLimit, initial.version)
@@ -37,10 +37,10 @@ internal class TextVersions(initial: TextSnapshot, historyLimit: Int) {
     val current: TextSnapshot get() = published.snapshot
 
     /**
-     * Applies [edits] (coordinates of [current]) atomically as the next version and returns the change, or null if
-     * nothing remains after dropping no-op edits. Nothing is changed if the edits are invalid.
+     * Applies [edits], given in the coordinates of [current], atomically as the next version and returns the change.
+     * Returns null if nothing remains after the no-op edits are dropped. Nothing changes if the edits are invalid.
      *
-     * @throws IllegalArgumentException if an edit is out of bounds or edits overlap (see [EditScript.of]).
+     * @throws IllegalArgumentException if an edit is out of bounds or edits overlap, as checked by [EditScript.of].
      */
     fun commit(edits: List<TextEdit>, origin: EditOrigin): TextChange? {
         val before = published.snapshot
@@ -52,8 +52,8 @@ internal class TextVersions(initial: TextSnapshot, historyLimit: Int) {
     }
 
     /**
-     * Maps [offset] from [fromVersion] to [toVersion] (see [EditableText.mapOffset]); null if [fromVersion] is older
-     * than the retained history (a negative version is older than every history).
+     * Maps [offset] from [fromVersion] to [toVersion] as described at [EditableText.mapOffset]. Returns null if
+     * [fromVersion] is older than the retained history. A negative version is older than every history.
      *
      * @throws IllegalArgumentException if [offset] is negative or the versions are not ordered
      *   `fromVersion <= toVersion <= current version`.

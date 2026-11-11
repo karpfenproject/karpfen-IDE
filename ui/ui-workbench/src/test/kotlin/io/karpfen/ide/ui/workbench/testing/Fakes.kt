@@ -38,7 +38,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
 
-/** A [FileWatcher] that emits the changes a test reports (the real watch service polls slowly on macOS). */
+/** A [FileWatcher] that emits the changes a test reports. The real watch service polls slowly on macOS. */
 class FakeFileWatcher : FileWatcher {
     private val changes = MutableSharedFlow<FileChange>(extraBufferCapacity = 1024)
 
@@ -51,10 +51,13 @@ class FakeFileWatcher : FileWatcher {
 }
 
 /**
- * [ProjectFileOperations] on the real file system that records the platform calls (trash, reveal, open externally)
- * instead of making them; [failNext] makes the next create, rename or delete throw. Creating and renaming are the
- * production adapter's (`DesktopProjectFileOperations`, e.g. its case-only renames), without platform actions; opening
- * externally is recorded and then made through that adapter on [platform] (none by default).
+ * [ProjectFileOperations] on the real file system that records the platform calls instead of making them. The platform
+ * calls are moving to the trash, revealing in the file manager and opening in the default application. Setting
+ * [failNext] makes the next create, rename or delete throw.
+ *
+ * Creating and renaming go through the production adapter `DesktopProjectFileOperations` without platform actions, so
+ * its case-only renames apply here too. Opening externally is recorded and then made through that adapter on
+ * [platform]. By default [platform] makes no actions at all.
  */
 class RecordingFileOperations internal constructor(
     override val supportsTrash: Boolean,
@@ -122,7 +125,7 @@ class RecordingFileOperations internal constructor(
         }
     }
 
-    /** No platform actions: the recording happens above. */
+    /** Platform actions that do nothing. [RecordingFileOperations] records the calls itself. */
     private object NoDesktopActions : DesktopActions {
         override fun supports(action: DesktopAction): Boolean = false
 
@@ -135,9 +138,9 @@ class RecordingFileOperations internal constructor(
 }
 
 /**
- * [DesktopActions] failing like `java.awt.Desktop` on a desktop (JDK 21): every action is supported; opening or
- * revealing a file that does not exist throws `IllegalArgumentException("The file: … doesn't exist.")`, and [failure],
- * when set, is thrown by every call instead (e.g. a `SecurityException`). Nothing is opened.
+ * [DesktopActions] that fail like `java.awt.Desktop` does on a desktop with JDK 21. Every action is supported. Opening
+ * or revealing a file that does not exist throws `IllegalArgumentException("The file: … doesn't exist.")`. When
+ * [failure] is set, every call throws it instead, for example a `SecurityException`. Nothing is opened.
  */
 internal class JdkLikeDesktopActions(var failure: RuntimeException? = null) : DesktopActions {
     /** The paths opened, in call order. */
@@ -157,14 +160,16 @@ internal class JdkLikeDesktopActions(var failure: RuntimeException? = null) : De
         opened.add(path)
     }
 
-    /** Throws [failure] if set, else `IllegalArgumentException` for a [path] that does not exist, like the JDK. */
+    /**
+     * Throws [failure] if it is set. Otherwise throws `IllegalArgumentException` for a missing [path], like the JDK.
+     */
     private fun checkFile(path: Path) {
         failure?.let { throw it }
         if (!Files.exists(path)) throw IllegalArgumentException("The file: $path doesn't exist.")
     }
 }
 
-/** A [FolderChooser] answering [answer] (or failing with [failure]) and recording its calls. */
+/** A [FolderChooser] that records its calls and answers [answer]. When [failure] is set, it throws that instead. */
 class FakeFolderChooser(var answer: Path? = null, var failure: IOException? = null) : FolderChooser {
     /** The calls as title and initial directory, in call order. */
     val calls: MutableList<Pair<String, Path?>> = CopyOnWriteArrayList()
@@ -176,7 +181,7 @@ class FakeFolderChooser(var answer: Path? = null, var failure: IOException? = nu
     }
 }
 
-/** A [SettingsRepository] decorator counting the writes ([update] calls). */
+/** A [SettingsRepository] decorator that counts the writes, which are the calls of [update]. */
 class CountingSettingsRepository(private val delegate: SettingsRepository) : SettingsRepository {
     /** The number of [update] calls so far. */
     @Volatile
@@ -208,12 +213,12 @@ class TestClipboard(var content: String? = null) : ClipboardPort {
     override fun holdsWholeLine(): Boolean = wholeLine && content != null
 }
 
-/** The real [TextFileStore] that fails reads of [failingReads] and writes of [failingWrites] on demand. */
+/** The real [TextFileStore], except that reads of [failingReads] and writes of [failingWrites] fail. */
 class ControllableFileStore(private val delegate: TextFileStore = TextFileStore()) : TextFileStore {
     /** Normalized paths whose reads fail with an `IOException`. */
     val failingReads: MutableSet<Path> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
-    /** Normalized paths whose writes fail with an `IOException` ("disk full"). */
+    /** Normalized paths whose writes fail with an `IOException` that reports a full disk. */
     val failingWrites: MutableSet<Path> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     override fun read(path: Path): DecodedText {

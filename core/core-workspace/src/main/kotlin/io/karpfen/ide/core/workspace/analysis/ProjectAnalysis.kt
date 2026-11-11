@@ -27,28 +27,31 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
 /**
- * Result of analyzing every modeling context of a workspace with dsl-tools. Immutable snapshot; the dsl-tools model
- * objects inside are never mutated: they are derived from the text files, which stay the single source of truth.
+ * Result of analyzing every modeling context of a workspace with dsl-tools. It is an immutable snapshot. The dsl-tools
+ * model objects inside are never changed. They are derived from the text files, which stay the single source of
+ * truth.
  *
- * Conventions of the analyzer (MUST; consumers such as core-lang and tests building analyses by hand rely on them):
- * - every path is absolute and normalized (`Path.toAbsolutePath().normalize()`), like `DocumentId`;
- * - an open document is analyzed with its session's snapshot (so its `TextSnapshot.lineage` and version are the
- *   editor's, and ranges map into the live text); a file read from disk gets a fresh snapshot at version 0 with a
- *   lineage of its own (one per load);
- * - every [AnalyzedFile.parse] is a `SemanticMode.SYNTAX_ONLY` parse (open documents are parsed that way too, see
- *   `DocumentManager`); dsl-tools reads files only through the analyzer's `DslReader`, and their diagnostics are in
- *   [diagnostics].
+ * The analyzer keeps the following conventions. Consumers such as core-lang, and tests that build analyses by hand,
+ * rely on them.
+ * - Every path is absolute and normalized with `Path.toAbsolutePath().normalize()`, like a `DocumentId`.
+ * - An open document is analyzed with the snapshot of its session. So its `TextSnapshot.lineage` and its version are
+ *   those of the editor, and its ranges map into the live text. A file read from disk gets a fresh snapshot at version
+ *   0 with a lineage of its own for each load.
+ * - Every [AnalyzedFile.parse] is a `SemanticMode.SYNTAX_ONLY` parse. Open documents are parsed that way too, as
+ *   described on `DocumentManager`. dsl-tools reads files only through the analyzer's `DslReader`, and its diagnostics
+ *   are in [diagnostics].
  *
- * @property generation increases with every analysis run of a workspace (0 for [EMPTY]).
- * @property contexts one entry per resolved context, in resolution order.
- * @property diagnostics project-level diagnostics per file: the DSL_TOOLS findings of the reads, the
- *   descriptor/context diagnostics of the resolution (directories that cannot be read included) and the `unreadable`
- *   errors of files that could not be loaded, each list sorted with [Diagnostic.ORDER] and without duplicates.
- *   A file's own diagnostics are not repeated here (see [AnalyzedFile.ownDiagnostics]; a descriptor's syntax errors
- *   and loading findings belong to its text as well); these lists are what the workspace pushes into open sessions as
- *   external source `ExternalDiagnosticSources.PROJECT`.
- * @property looseFiles the karpfen sources of the tree that belong to no context (`ContextResolution.looseFiles`),
- *   analyzed syntax-only: dsl-tools never reads them, but their syntax errors still appear in the problems.
+ * @property generation grows with every analysis run of a workspace. It is 0 for [EMPTY].
+ * @property contexts one entry per resolved context, in the order of the resolution.
+ * @property diagnostics the project diagnostics of each file. They are the DSL_TOOLS findings of the reads, the
+ *   descriptor and context diagnostics of the resolution, including directories that cannot be read, and the
+ *   `unreadable` errors of files that could not be loaded. Each list is sorted with [Diagnostic.ORDER] and has no
+ *   duplicates. The own diagnostics of a file, described on [AnalyzedFile.ownDiagnostics], are not repeated here. The
+ *   syntax errors and loading findings of a descriptor also belong to its own text. The workspace pushes these lists
+ *   into the open sessions as the external source `ExternalDiagnosticSources.PROJECT`.
+ * @property looseFiles the karpfen sources of the tree that belong to no context, as listed in
+ *   `ContextResolution.looseFiles`. They are analyzed for syntax only. dsl-tools never reads them, but their syntax
+ *   errors still appear in the problems.
  */
 public data class ProjectAnalysis(
     public val generation: Long,
@@ -59,15 +62,15 @@ public data class ProjectAnalysis(
     /** The first context containing [path], or null. */
     public fun contextOf(path: Path): ContextAnalysis? = contexts.firstOrNull { path in it.context }
 
-    /** Project-level diagnostics of [path] (empty if none). */
+    /** The project diagnostics of [path], or an empty list if there are none. */
     public fun diagnosticsFor(path: Path): List<Diagnostic> = diagnostics[path].orEmpty()
 
     /** The analyzed file at [path] in any context, else among the [looseFiles], or null. */
     public fun file(path: Path): AnalyzedFile? = contexts.firstNotNullOfOrNull { it.files[path] } ?: looseFiles[path]
 
     /**
-     * Every analyzed file by path, iterating context files first (contexts in order, a file named by several contexts
-     * under its first one, as [file] answers) and then loose files.
+     * Every analyzed file by path. The context files come first, with the contexts in order. A file that several
+     * contexts name appears under its first context, the same one that [file] answers with. The loose files follow.
      */
     public val files: Map<Path, AnalyzedFile>
         get() = LinkedHashMap<Path, AnalyzedFile>().apply {
@@ -84,18 +87,20 @@ public data class ProjectAnalysis(
 /**
  * Analysis of one [ModelingContext].
  *
- * Every model here is what a dsl-tools reader read from its file: complete if the file has no DSL_TOOLS error in
- * [ProjectAnalysis.diagnostics], partial otherwise, leaving out what the reader could not build.
+ * Every model here is what a dsl-tools reader read from its file. It is complete if the file has no DSL_TOOLS error in
+ * [ProjectAnalysis.diagnostics]. Otherwise it is partial and leaves out what the reader could not build.
  *
- * @property files every context file that could be read, with the snapshot and parse outcome the analysis used (the
- *   editor text for open documents, the disk text otherwise).
- * @property metamodel the domain metamodel, possibly partial; null if it is missing, not syntax-clean or yields no
- *   model (a text without types).
- * @property events the event metamodel, or null; read only when the domain metamodel was read without errors. Read
- *   with the domain types as base types, and dsl-tools appends those base types to the result, so `events.types` also
- *   contains every domain type. The event types proper are the TYPE declarations of the events file itself (its
- *   [AnalyzedFile.parse] syntax index); consumers listing events (core-lang's `TypeOrigin.EVENTS`) filter by them.
- * @property models the models by path, possibly partial; empty unless the domain metamodel was read without errors.
+ * @property files every context file that could be read, with the snapshot and parse outcome the analysis used. That
+ *   is the editor text for open documents and the disk text otherwise.
+ * @property metamodel the domain metamodel, possibly partial. It is null if the file is missing, has syntax errors or
+ *   yields no model, as a text without types does.
+ * @property events the event metamodel, or null. It is read only when the domain metamodel was read without errors.
+ *   It is read with the domain types as base types, and dsl-tools appends those base types to the result. So
+ *   `events.types` also contains every domain type. The real event types are the TYPE declarations of the events file
+ *   itself, found in the syntax index of its [AnalyzedFile.parse]. Consumers that list events filter by them, as
+ *   core-lang does for `TypeOrigin.EVENTS`.
+ * @property models the models by path, possibly partial. It is empty unless the domain metamodel was read without
+ *   errors.
  * @property stateMachines the state machines by path, possibly partial.
  */
 public data class ContextAnalysis(
@@ -108,16 +113,17 @@ public data class ContextAnalysis(
 )
 
 /**
- * A karpfen file as seen by one analysis run: its role, the text version used, and its tokenizer and parse results.
+ * A karpfen file as one analysis run saw it. It holds the file's kind, the text version used, and the results of the
+ * tokenizer and the parser.
  *
- * @property snapshot the analyzed text (see the conventions on [ProjectAnalysis]: the session's snapshot for open
- *   documents, a fresh lineage at version 0 for files read from disk).
- * @property parse the `SemanticMode.SYNTAX_ONLY` parse outcome of [snapshot]: the open document's own one (supplied
- *   through `SourceText`), or one made by the analyzer.
- * @property lexicalDiagnostics the tokenizer's diagnostics of [snapshot] (LEXER errors, `eval-double-slash`
- *   warnings), sorted.
- * @property fileDiagnostics the findings of loading the file (`LoadedSource.diagnostics`); empty for open documents,
- *   whose sessions carry them as external source `ExternalDiagnosticSources.FILE`.
+ * @property snapshot the analyzed text. Following the conventions on [ProjectAnalysis], it is the session's snapshot
+ *   for an open document and a fresh lineage at version 0 for a file read from disk.
+ * @property parse the `SemanticMode.SYNTAX_ONLY` parse outcome of [snapshot]. For an open document it is the
+ *   document's own outcome, supplied through `SourceText`. Otherwise the analyzer made it.
+ * @property lexicalDiagnostics the tokenizer's diagnostics of [snapshot], sorted. These are LEXER errors and
+ *   `eval-double-slash` warnings.
+ * @property fileDiagnostics the findings of loading the file, from `LoadedSource.diagnostics`. It is empty for open
+ *   documents, whose sessions carry these findings as the external source `ExternalDiagnosticSources.FILE`.
  */
 public data class AnalyzedFile(
     public val path: Path,
@@ -134,10 +140,11 @@ public data class AnalyzedFile(
     }
 
     /**
-     * The file's own diagnostics, merged by the one rule of `DocumentSession.diagnostics` (`mergeDiagnostics` of
-     * core-document): [lexicalDiagnostics], the PARSER diagnostics of [parse] (its LEXER ones repeat the tokenizer's),
-     * its standalone DSL_TOOLS diagnostics (none for the analyzer's syntax-only parses) and [fileDiagnostics]; sorted
-     * with [Diagnostic.ORDER], without duplicates. Project diagnostics are not included.
+     * The file's own diagnostics. They are merged by the same rule as `DocumentSession.diagnostics`, which is
+     * `mergeDiagnostics` of core-document. The merge takes [lexicalDiagnostics], the PARSER diagnostics of [parse],
+     * the standalone DSL_TOOLS diagnostics of [parse] and [fileDiagnostics]. The LEXER diagnostics of [parse] are left
+     * out because they repeat those of the tokenizer. The analyzer's syntax-only parses have no DSL_TOOLS diagnostics.
+     * The result is sorted with [Diagnostic.ORDER] and has no duplicates. Project diagnostics are not included.
      */
     public val ownDiagnostics: List<Diagnostic>
         get() = mergeDiagnostics(lexicalDiagnostics, parse, listOf(fileDiagnostics))

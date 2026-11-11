@@ -27,21 +27,29 @@ import io.karpfen.ide.core.lang.context.ContextToken
 import io.karpfen.ide.core.lang.context.EmbeddedContext
 import io.karpfen.ide.core.text.TextRange
 
-/** What the caret is on or in, in a KStates document; the one classification of completion, hover and navigation. */
+/**
+ * What the caret is on or in, in a KStates document. Completion, hover and navigation all use this one classification.
+ */
 internal sealed interface KstatesSlot {
-    /** Between constructs: the structural keywords of [position]. */
+    /** Between constructs, where the structural keywords of [position] go. */
     data class Keywords(val position: KstatesPosition) : KstatesSlot
 
-    /** A state name: in a TRANSITION/SPLIT/JOIN header, or the name of `STATE "s"` ([isDeclaration]). */
+    /**
+     * A state name in a TRANSITION, SPLIT or JOIN header, or the name of `STATE "s"`. [isDeclaration] is true for the
+     * latter.
+     */
     data class StateName(val name: String, val range: TextRange, val isDeclaration: Boolean) : KstatesSlot
 
-    /** A macro name: `MACRO("m"` / `@m` (references) or `MACRO "m" {` ([isDeclaration]). */
+    /**
+     * A macro name. `MACRO("m"` and `@m` are references, and `MACRO "m" {` is a declaration, for which [isDeclaration]
+     * is true.
+     */
     data class MacroName(val name: String, val range: TextRange, val isDeclaration: Boolean) : KstatesSlot
 
     /**
-     * A type: `ATTACHED TO "T"`, TAKES/RETURNS types and `list(`/`reference(` inside them. [primitives] allows
-     * `number string boolean`; [inString] is false at the argument before its quotes ([name] is then empty), where
-     * [wrappers] (`list`, `reference`) are offered as well.
+     * A type. This is `ATTACHED TO "T"`, a TAKES or RETURNS type, or `list(` or `reference(` inside them.
+     * [primitives] allows `number`, `string` and `boolean`. [inString] is false at the argument before its quotes, and
+     * then [name] is empty. There the [wrappers] `list` and `reference` are offered as well.
      */
     data class TypeName(
         val name: String,
@@ -51,71 +59,77 @@ internal sealed interface KstatesSlot {
         val wrappers: List<String> = emptyList(),
     ) : KstatesSlot
 
-    /** A model path written in [range]: action, VALUE, IF IN SCOPE and macro-argument strings, `$( … )` in EVAL. */
+    /**
+     * A model path written in [range]. It stands in the strings of actions, VALUE, IF IN SCOPE and macro arguments, or
+     * in `$( … )` in EVAL.
+     */
     data class ModelPath(val range: TextRange) : KstatesSlot
 
-    /** The relation argument of `SETOBJ`/`APPENDOBJ`: a relation of the type of [sourcePath]. */
+    /** The relation argument of `SETOBJ` or `APPENDOBJ`, which is a relation of the type of [sourcePath]. */
     data class RelationKey(val sourcePath: String, val name: String, val range: TextRange) : KstatesSlot
 
-    /** The name argument of `EVENT("d", "n")` (condition or action) of the domain [domain]. */
+    /** The name argument of `EVENT("d", "n")` in a condition or action, in the domain [domain]. */
     data class EventName(val name: String, val range: TextRange, val domain: String?) : KstatesSlot
 
     /** The domain argument of `EVENT("d", …)`. */
     data class EventDomain(val name: String, val range: TextRange) : KstatesSlot
 
-    /** The name of `WITH … AS "x"` (a declaration). */
+    /** The name of `WITH … AS "x"`, which is a declaration. */
     data class BindingName(val name: String, val range: TextRange) : KstatesSlot
 
-    /** The name of `TAKES("p", …)` (a declaration). */
+    /** The name of `TAKES("p", …)`, which is a declaration. */
     data class ParameterName(val name: String, val range: TextRange) : KstatesSlot
 
-    /** Anything else (values, Python code, comments, broken positions). */
+    /** Anything else, such as values, Python code, comments and broken positions. */
     data object None : KstatesSlot
 }
 
-/** Where structural keywords are completed: each position offers the keywords that may start a construct there. */
+/** Where structural keywords are completed. Each position offers the keywords that may start a construct there. */
 internal enum class KstatesPosition {
-    /** Outside every block: the state machine. */
+    /** Outside every block, where the state machine goes. */
     TOP_LEVEL,
 
-    /** In the state machine block: the states, transitions and macros blocks. */
+    /** In the state machine block, where the states, transitions and macros blocks go. */
     MACHINE,
 
-    /** In the states block: states. */
+    /** In the states block, where states go. */
     STATES,
 
-    /** In a state: entry and do blocks and nested states. */
+    /** In a state, where entry and do blocks and nested states go. */
     STATE_BODY,
 
-    /** In an action block (entry, do, a scope guard or a binding): the operations, events, guards and bindings. */
+    /**
+     * In an action block, where operations, events, guards and bindings go. Entry, do, a scope guard and a binding
+     * open action blocks.
+     */
     ACTIONS,
 
-    /** In the transitions block: transitions, splits and joins. */
+    /** In the transitions block, where transitions, splits and joins go. */
     TRANSITIONS,
 
-    /** After the states of a transition header: `NOT LOOPING`. */
+    /** After the states of a transition header, where `NOT LOOPING` goes. */
     TRANSITION_HEADER,
 
-    /** In a transition: its condition. */
+    /** In a transition, where its condition goes. */
     TRANSITION_BODY,
 
-    /** In a condition: event clauses, Python guards and boolean path guards. */
+    /** In a condition, where event clauses, Python guards and boolean path guards go. */
     CONDITION,
 
-    /** In the macros block: macro definitions. */
+    /** In the macros block, where macro definitions go. */
     MACROS,
 
-    /** In a macro definition: parameters, the return type and the definition. */
+    /** In a macro definition, where the parameters, the return type and the definition go. */
     MACRO_BODY,
 
-    /** In a macro's definition block: its EVAL body. */
+    /** In the definition block of a macro, where its EVAL body goes. */
     DEFINITION,
 
-    /** At the value argument of an operation: a macro call or an EVAL body. */
+    /** At the value argument of an operation, where a macro call or an EVAL body goes. */
     RIGHT_SIDE,
 }
 
-/** Classifies the caret of a KStates document from its [CaretContext]. Stateless. */
+/** Classifies the caret of a KStates document from its [CaretContext]. The class has no state. */
 internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
 
     /** The caret context at [offset] and its slot. */
@@ -124,7 +138,10 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         return context to classify(document, context)
     }
 
-    /** The slot of [context]: embedded references, call arguments, header strings, else keyword positions. */
+    /**
+     * The slot of [context]. It tries embedded references, call arguments and header strings, and falls back to
+     * keyword positions.
+     */
     private fun classify(document: LanguageDocument, context: CaretContext): KstatesSlot {
         if (context.inComment) return KstatesSlot.None
         context.embedded?.let { return embedded(document, context, it) }
@@ -135,7 +152,10 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         return callArgument(call, name, range)
     }
 
-    /** Inside an EVAL body: the path of a `$( … )` reference or the macro name of an `@m` reference, else nothing. */
+    /**
+     * The slot inside an EVAL body. It is the path of a `$( … )` reference, the macro name of an `@m` reference, or
+     * nothing.
+     */
     private fun embedded(document: LanguageDocument, context: CaretContext, embedded: EmbeddedContext): KstatesSlot {
         val tokens = document.tokens
         val candidates = listOfNotNull(tokens.tokenAt(context.offset), tokens.tokenBefore(context.offset))
@@ -152,7 +172,10 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         return KstatesSlot.None
     }
 
-    /** A string argument of [call]: macro calls, events, operations, VALUE/IF IN SCOPE paths, TAKES/RETURNS types. */
+    /**
+     * The slot of a string argument of [call]. Such arguments belong to macro calls, events and operations. They are
+     * also the paths of VALUE and IF IN SCOPE and the types of TAKES and RETURNS.
+     */
     private fun callArgument(call: CallContext, name: String, range: TextRange): KstatesSlot {
         val index = call.argumentIndex
         val operation = call.name.uppercase()
@@ -171,7 +194,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         }
     }
 
-    /** A string that is no call argument: named by the statement before it. */
+    /** The slot of a string that is no call argument. The statement before the string decides what it names. */
     private fun headerString(statement: List<ContextToken>, name: String, range: TextRange, context: CaretContext): KstatesSlot {
         val last = statement.lastOrNull()
         return when {
@@ -188,9 +211,9 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
     }
 
     /**
-     * Outside strings: the right side of an operation, the type arguments of TAKES and RETURNS before their quotes, the
-     * `NOT LOOPING` position after a transition header, or the keyword position of the enclosing block where no
-     * statement is in progress.
+     * The slot outside strings. It is the right side of an operation, or the type arguments of TAKES and RETURNS
+     * before their quotes. It is the `NOT LOOPING` position after a transition header. Where no statement is in
+     * progress, it is the keyword position of the enclosing block.
      */
     private fun outsideStrings(context: CaretContext): KstatesSlot {
         val call = context.call
@@ -218,14 +241,20 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         return position?.let(KstatesSlot::Keywords) ?: KstatesSlot.None
     }
 
-    /** The keyword position inside [frame], whose introducing keyword is [block]: by its kind, else by the keyword. */
+    /**
+     * The keyword position inside [frame], whose introducing keyword is [block]. It is found by the kind of the block,
+     * or else by the keyword.
+     */
     private fun positionIn(frame: BlockFrame, block: String?): KstatesPosition? = when (KstatesBlocks.blockKindOf(frame)) {
         KstatesBlockKind.ACTION -> KstatesPosition.ACTIONS
         KstatesBlockKind.CONDITION -> KstatesPosition.CONDITION
         KstatesBlockKind.OTHER -> POSITIONS[block]
     }
 
-    /** True if the statement ends with `TRANSITION|SPLIT|JOIN` followed only by state strings, commas and arrows. */
+    /**
+     * True if the statement ends with `TRANSITION`, `SPLIT` or `JOIN` followed only by state strings, commas and
+     * arrows.
+     */
     private fun isTransitionHeader(statement: List<ContextToken>): Boolean {
         val start = statement.indexOfLast { it.kind == TokenKind.KEYWORD && it.text in TRANSITION_KEYWORDS }
         return start >= 0 &&
@@ -235,6 +264,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
     /** True if this token is the keyword [text]. */
     private fun ContextToken.isKeyword(text: String): Boolean = kind == TokenKind.KEYWORD && this.text == text
 
+    /** The keywords and call names that the classification compares tokens with. */
     internal companion object {
         const val MACRO = "MACRO"
         const val MACROS = "MACROS"
@@ -254,12 +284,13 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         /** The keywords that start a transition. */
         val TRANSITION_KEYWORDS: Set<String> = setOf("TRANSITION", "SPLIT", "JOIN")
 
-        /** The calls whose string arguments are types (TAKES from its second argument on). */
+        /** The calls whose string arguments are types. For TAKES this starts at its second argument. */
         val TYPE_CALLS: Set<String> = setOf(TAKES, RETURNS, LIST, REFERENCE)
 
         /**
-         * The keyword position inside a structural block, by the block's introducing keyword ([KstatesBlocks.kindOf]);
-         * action and condition blocks are positioned by their kind ([KstatesBlocks.blockKindOf]).
+         * The keyword position inside a structural block, by the keyword that introduces the block, as
+         * [KstatesBlocks.kindOf] finds it. Action and condition blocks are positioned by their kind instead, as
+         * [KstatesBlocks.blockKindOf] finds it.
          */
         val POSITIONS: Map<String, KstatesPosition> = mapOf(
             "STATEMACHINE" to KstatesPosition.MACHINE,

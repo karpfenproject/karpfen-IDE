@@ -18,21 +18,23 @@ package io.karpfen.ide.ui.editor.model.caret
 import io.karpfen.ide.core.text.TextSnapshot
 
 /**
- * Where a [Caret] goes for a [CaretMovement]: pure geometry over one [TextSnapshot], without state. The [CaretModel]
- * applies the result.
+ * Computes where a [Caret] goes for a [CaretMovement]. This is pure geometry over one [TextSnapshot], without state.
+ * The [CaretModel] applies the result.
  *
- * - LEFT/RIGHT step one character (a surrogate pair is one character); without Shift a selection collapses to its
- *   start/end instead.
- * - WORD_LEFT/WORD_RIGHT use the one word rule ([WordBoundaries]).
- * - UP/DOWN and PAGE_UP/PAGE_DOWN keep the preferred column, a display column of [TabStops] with the current
- *   [tabWidth], the one tab rule the view and the status bar use as well. A move that cannot leave the first (last)
- *   line goes to the start (end) of the document and keeps the preferred column.
- * - LINE_START is smart Home: the first non-whitespace character of the line, then column 0.
- * - Every movement but the vertical ones forgets the preferred column.
+ * Left and right step one character, and a surrogate pair counts as one character. Without Shift, an existing
+ * selection collapses to its start or end instead. Word left and word right use the editor's single word rule in
+ * [WordBoundaries].
+ *
+ * Up, down, page up and page down keep the preferred column. That is a display column of [TabStops] with the current
+ * [tabWidth], which is the same tab rule the view and the status bar use. A move up from the first line goes to the
+ * start of the document, and a move down from the last line goes to its end. Both keep the preferred column.
+ *
+ * Line start is smart Home. It goes to the first non-whitespace character of the line, or to column 0 if the caret is
+ * already there. Every movement except the vertical ones forgets the preferred column.
  */
 internal class CaretMotion(private val tabWidth: () -> Int) {
 
-    /** The caret after moving [caret] by [movement] in [snapshot]; [extend] keeps the anchor. */
+    /** Returns [caret] moved by [movement] in [snapshot]. If [extend] is true, the anchor stays. */
     fun move(snapshot: TextSnapshot, caret: Caret, movement: CaretMovement, extend: Boolean, pageLines: Int): Caret {
         val text = snapshot.text
         val position = caret.position.coerceIn(0, text.length)
@@ -55,7 +57,10 @@ internal class CaretMotion(private val tabWidth: () -> Int) {
         return Caret(anchor = if (extend) caret.anchor else target, position = target)
     }
 
-    /** [caret] moved by [lines] (negative: up) at its preferred display column, taken from its position if unset. */
+    /**
+     * Returns [caret] moved by [lines] at its preferred display column. Negative values move up. If the caret has no
+     * preferred column yet, it is taken from the caret's position.
+     */
     private fun vertical(snapshot: TextSnapshot, caret: Caret, lines: Int, extend: Boolean): Caret {
         val tabStops = TabStops(tabWidth())
         val position = snapshot.positionOf(caret.position.coerceIn(0, snapshot.length))

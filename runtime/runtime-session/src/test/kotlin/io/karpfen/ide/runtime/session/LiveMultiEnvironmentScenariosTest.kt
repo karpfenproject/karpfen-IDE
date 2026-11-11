@@ -19,8 +19,8 @@ import io.karpfen.ide.runtime.protocol.conformance.LiveRuntime
 import io.karpfen.ide.runtime.protocol.conformance.LiveRuntimeUnderTest
 
 /**
- * Covers several environments in one runtime ([MultiEnvironmentScenarios]) against the real runtime that the live task is given, usually a throwaway
- * container of `runtime/live-runtime.sh test`.
+ * Covers several environments in one runtime against the real runtime that the live task is given. The scenarios are
+ * those of [MultiEnvironmentScenarios]. The runtime is usually a throwaway container of `runtime/live-runtime.sh test`.
  */
 @LiveRuntime
 class LiveMultiEnvironmentScenariosTest : MultiEnvironmentScenarios() {

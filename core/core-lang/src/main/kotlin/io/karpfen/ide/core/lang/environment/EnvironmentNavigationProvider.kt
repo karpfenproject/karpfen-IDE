@@ -23,11 +23,11 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.feature.NavigationProvider
 
 /**
- * Navigation in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]: from a file path to the
- * start of the file it names, if the workspace has it by the rule the workspace checks the descriptor with
- * ([DescriptorProject.locationOf]); from an `attachedTo` value to the declaration of that object in the descriptor's
- * model (its key in `make object "key":"Type"`). A descriptor declares nothing others refer to, so its references are
- * the same targets.
+ * Navigation in environment descriptors, by the [DescriptorSlot] at the caret and the [schema]. A file path leads to
+ * the start of the file it names, if the workspace has it. This follows the rule the workspace checks the descriptor
+ * with, through [DescriptorProject.locationOf]. An `attachedTo` value leads to the declaration of that object in the
+ * model of the descriptor, which is its key in `make object "key":"Type"`. A descriptor declares nothing that others
+ * refer to, so its references are the same targets.
  */
 internal class EnvironmentNavigationProvider(
     private val trees: DescriptorTrees,

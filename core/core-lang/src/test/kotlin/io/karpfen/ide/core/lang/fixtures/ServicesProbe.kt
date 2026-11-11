@@ -37,19 +37,19 @@ class ServicesProbe(analysis: ProjectAnalysis = ExampleProject.analysis) {
     /** The services under test. */
     val services: LanguageServices = ExampleProject.services(analysis, failures)
 
-    /** The completion items at [offset]; fails on a provider failure. */
+    /** The completion items at [offset]. It fails on a provider failure. */
     fun complete(document: LanguageDocument, offset: Int): List<CompletionItem> = checked { services.complete(document, offset) }
 
-    /** The definitions at [offset]; fails on a provider failure. */
+    /** The definitions at [offset]. It fails on a provider failure. */
     fun definition(document: LanguageDocument, offset: Int): List<Location> = checked { services.definition(document, offset) }
 
-    /** The references at [offset]; fails on a provider failure. */
+    /** The references at [offset]. It fails on a provider failure. */
     fun references(document: LanguageDocument, offset: Int): List<Location> = checked { services.references(document, offset) }
 
-    /** The hover at [offset]; fails on a provider failure. */
+    /** The hover at [offset]. It fails on a provider failure. */
     fun hover(document: LanguageDocument, offset: Int): Hover? = checked { services.hover(document, offset) }
 
-    /** The bracket match at [offset]; fails on a provider failure. */
+    /** The bracket match at [offset]. It fails on a provider failure. */
     fun matchingBracket(document: LanguageDocument, offset: Int): BracketMatch? = checked { services.matchingBracket(document, offset) }
 
     /** The labels of the completion items at [offset], sorted like the editor does for an empty filter. */
@@ -63,5 +63,5 @@ class ServicesProbe(analysis: ProjectAnalysis = ExampleProject.analysis) {
     private fun <T> checked(call: () -> T): T = call().also { assertNoFailures() }
 }
 
-/** The text of [location] in [text] (its range, which must belong to [text]). */
+/** The text that the range of [location] covers in [text]. The range must belong to [text]. */
 fun textAt(text: String, location: Location): String = text.substring(location.range.start, location.range.end)

@@ -35,6 +35,7 @@ class EditorActionRegistryTest {
 
     /** An action with a fixed enablement that counts its runs. */
     private class CountingAction(override val id: String, private val enabled: Boolean = true) : EditorAction {
+        /** How often the action ran. */
         var runs = 0
         override fun isEnabled(context: EditorActionContext): Boolean = enabled
         override fun execute(context: EditorActionContext): Boolean {

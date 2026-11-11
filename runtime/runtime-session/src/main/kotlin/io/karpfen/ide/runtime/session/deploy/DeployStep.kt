@@ -19,8 +19,8 @@ import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 
 /**
- * One step of a deployment, a command the pipeline runs: it does its calls through the [DeployRun] and answers how it
- * went. A step never throws for a failure of the runtime; a cancellation of the caller propagates.
+ * One step of a deployment, as a command the pipeline runs. It makes its calls through the [DeployRun] and returns how
+ * it went. A step never throws for a failure of the runtime. A cancellation of the caller propagates.
  */
 internal interface DeployStep {
     /** What the step does. */
@@ -51,7 +51,7 @@ internal sealed interface StepOutcome {
     data class Skipped(val detail: String) : StepOutcome
 
     /**
-     * The step failed; the deployment stops here.
+     * The step failed. The deployment stops here.
      *
      * @property problem the problem the failure is.
      * @property failure the runtime's failure behind it, or null.

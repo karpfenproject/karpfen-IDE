@@ -31,20 +31,21 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 /**
- * The [EnvironmentDescriptorReader] in three steps, each only when the one before found no error:
- * 1. the environment language's [JsonParser] reads the text, so a syntax error is reported with the same diagnostics
- *    and ranges as in the editor, as the text's [DescriptorReadResult.syntaxDiagnostics];
- * 2. [DescriptorValidator] checks the tree against `EnvironmentSchema.ROOT`;
- * 3. kotlinx.serialization decodes the text into [EnvironmentDescriptor] (ignoring the unknown keys the validator
- *    warned about). The schema is derived from that class, so the validator accepts only trees this decoding
- *    accepts; a decoding failure is still reported as an ERROR `descriptor-invalid` at the start of the descriptor
- *    instead of escaping.
+ * The [EnvironmentDescriptorReader]. It works in three steps, and each step runs only when the one before found no
+ * error.
+ * 1. The [JsonParser] of the environment language reads the text. So a syntax error is reported with the same
+ *    diagnostics and ranges as in the editor, as the [DescriptorReadResult.syntaxDiagnostics] of the text.
+ * 2. [DescriptorValidator] checks the tree against `EnvironmentSchema.ROOT`.
+ * 3. kotlinx.serialization decodes the text into [EnvironmentDescriptor] and ignores the unknown keys the validator
+ *    warned about. The schema is derived from that class, so the validator accepts only trees that this decoding
+ *    accepts. A decoding failure is still reported as an ERROR `descriptor-invalid` at the start of the descriptor
+ *    instead of escaping as an exception.
  *
- * File references are the strings the schema gives a file role ([shapedValues]), in document order.
+ * The file references are the strings that the schema gives a file role, found with [shapedValues], in document order.
  */
 internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
 
-    /** Decodes values only; unknown keys are the validator's findings. */
+    /** Decodes values only. Unknown keys are reported by the validator. */
     private val json = Json { ignoreUnknownKeys = true }
 
     private val validator = DescriptorValidator(EnvironmentSchema.ROOT)
@@ -68,7 +69,9 @@ internal class JsonEnvironmentDescriptorReader : EnvironmentDescriptorReader {
         return DescriptorReadResult(descriptor, findings.sortedWith(Diagnostic.ORDER), references(root))
     }
 
-    /** The result of a descriptor that could not be decoded: no descriptor, no references, only [diagnostics]. */
+    /**
+     * The result of a descriptor that could not be decoded. It has no descriptor, no references and only [diagnostics].
+     */
     private fun invalid(diagnostics: List<Diagnostic>): DescriptorReadResult =
         DescriptorReadResult(null, diagnostics.sortedWith(Diagnostic.ORDER), emptyList())
 

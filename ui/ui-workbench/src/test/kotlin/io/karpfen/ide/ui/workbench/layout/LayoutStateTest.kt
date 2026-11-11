@@ -24,7 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-/** [LayoutState]: the live layout's intents and restore; [isDark]. */
+/** Tests the intents of the live [LayoutState], restoring it from the settings, and [isDark]. */
 class LayoutStateTest {
 
     @Test

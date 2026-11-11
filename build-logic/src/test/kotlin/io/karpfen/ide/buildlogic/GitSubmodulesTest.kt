@@ -20,9 +20,9 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 /**
- * Covers [GitSubmodules]: the `path` entries of a `.gitmodules` text are normalized to '/' separators without trailing
- * slashes and without empty entries, and the directories are handed over joined, which a directory with the separator
- * cannot be, and read back as they were.
+ * Covers [GitSubmodules]. The `path` entries of a `.gitmodules` text are normalized to '/' separators, without trailing
+ * slashes and without empty entries. The directories are handed over joined and read back as they were. A directory
+ * that contains the separator cannot be handed over.
  */
 class GitSubmodulesTest {
 

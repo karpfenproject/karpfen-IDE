@@ -21,16 +21,17 @@ import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Uncaught exceptions are logged (SLF4J) and shown in an error dialog instead of terminating the application. Installs
- * the default uncaught-exception handler and the AWT event-queue handler.
+ * Logs uncaught exceptions through SLF4J and shows them in an error dialog instead of terminating the application. It
+ * installs the default uncaught-exception handler and the AWT event-queue handler.
  *
- * The composition root routes the other sources of unexpected failures to [handle] as well: the application scope's
- * `CoroutineExceptionHandler` (failed intent flows) and the main window's Compose `WindowExceptionHandler` (failures
- * while composing, laying out, drawing or dispatching input), which by default would close the window.
+ * The composition root routes two other sources of unexpected failures to [handle] as well. One is the
+ * `CoroutineExceptionHandler` of the application scope, which receives failed intent flows. The other is the Compose
+ * `WindowExceptionHandler` of the main window, which receives failures while composing, laying out, drawing or
+ * dispatching input. By default that handler would close the window.
  *
- * @param showError shows the error to the user (the app passes the error-dialog presenter, which uses
- *   `WorkbenchState.dialogs` once the workbench runs); called on the failing thread, so it must be thread-safe and
- *   should not block.
+ * @param showError shows the error to the user. The app passes the error-dialog presenter, which uses
+ *   `WorkbenchState.dialogs` once the workbench runs. It is called on the failing thread, so it must be thread-safe
+ *   and should not block.
  */
 public class CrashHandling internal constructor(
     private val showError: (Throwable) -> Unit,
@@ -41,7 +42,7 @@ public class CrashHandling internal constructor(
 
     private val installed = AtomicBoolean(false)
 
-    /** Installs the handlers; idempotent. */
+    /** Installs the handlers. Calling it again does nothing. */
     public fun install() {
         if (installed.compareAndSet(false, true)) {
             hooks.install { thread, error -> report("in thread '${thread.name}'", error) }
@@ -49,14 +50,14 @@ public class CrashHandling internal constructor(
     }
 
     /**
-     * Logs [error] at ERROR with its stack trace and passes it to `showError`. Never throws: a failure of `showError`
-     * is logged, so a broken dialog cannot turn one error into a crash or a loop.
+     * Logs [error] at ERROR with its stack trace and passes it to `showError`. It never throws. A failure of
+     * `showError` is logged, so a broken dialog cannot turn one error into a crash or a loop.
      */
     public fun handle(error: Throwable) {
         report("in thread '${Thread.currentThread().name}'", error)
     }
 
-    /** Logs [error] from [origin] and shows it; a failure while doing so is only logged. */
+    /** Logs [error] from [origin] and shows it. A failure while doing so is only logged. */
     private fun report(origin: String, error: Throwable) {
         try {
             log.error("Uncaught exception {}", origin, error)

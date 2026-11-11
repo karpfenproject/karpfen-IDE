@@ -20,7 +20,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 
-/** Tab expansion of drawn lines: widths from `TabStops`, columns mapped to offsets of the drawn text. */
+/** Tab expansion of drawn lines. Widths come from `TabStops`, and columns map to offsets of the drawn text. */
 class DisplayLineTest {
 
     @Test

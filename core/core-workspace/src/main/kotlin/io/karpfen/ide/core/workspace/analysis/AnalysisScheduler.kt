@@ -35,25 +35,27 @@ import java.nio.file.Path
 import kotlin.time.Duration
 
 /**
- * An analysis together with the descriptors it was resolved from (taken from the same [ContextState] as its
- * resolution): the texts their project diagnostics refer to and the diagnostics of those texts themselves, as the
- * diagnostics publisher and the problems pipeline need them.
+ * An analysis together with the descriptors it was resolved from. Both come from the same [ContextState]. The
+ * descriptors carry the texts that their project diagnostics refer to and the syntax diagnostics of those texts. The
+ * diagnostics publisher and the problems pipeline need both.
  */
 internal data class PublishedAnalysis(val analysis: ProjectAnalysis, val descriptors: Map<Path, DescriptorSource>) {
     companion object {
-        /** Before the first analysis. */
+        /** The value before the first analysis. */
         val EMPTY: PublishedAnalysis = PublishedAnalysis(ProjectAnalysis.EMPTY, emptyMap())
     }
 }
 
 /**
- * Runs the project analysis of a workspace: debounced by [debounce] after the last [schedule] call,
- * cancellable (a newer request cancels a pending or running analysis, latest wins; a cancelled run publishes nothing),
- * immediate for [runNow]. Each run analyzes the [contexts] current at its start with the [analyzer] on [dispatcher],
- * reading texts through [sources], and publishes its result to [analysis] and [published] (in that order; consumers
- * such as the diagnostics publisher and the problems pipeline collect them). Generations increase with every started
- * run. An analyzer failure (the default one never throws) is logged, fails the waiting [runNow] calls and keeps the
- * scheduler serving.
+ * Runs the project analysis of a workspace. A run starts [debounce] after the last [schedule] call, or at once for
+ * [runNow]. A newer request cancels a pending or running analysis, so the latest request wins. A cancelled run
+ * publishes nothing.
+ *
+ * Each run analyzes the [contexts] current at its start. It uses the [analyzer] on [dispatcher] and reads texts
+ * through [sources]. It publishes its result first to [analysis] and then to [published]. Consumers such as the
+ * diagnostics publisher and the problems pipeline collect these flows. The generation number grows with every started
+ * run. If the analyzer fails, the failure is logged, the waiting [runNow] calls fail with it and the scheduler keeps
+ * serving. The default analyzer never throws.
  *
  * [isAnalyzing] is true from the first request until a run completes without a newer request pending.
  */
@@ -65,12 +67,14 @@ internal class AnalysisScheduler(
     private val debounce: Duration,
 ) {
 
-    /** Counts the requests; every new count restarts the serving loop, which cancels a pending or running run. */
+    /** Counts the requests. Every new count restarts the serving loop, which cancels a pending or running run. */
     private val requests = MutableStateFlow(0L)
     private val analyzing = MutableStateFlow(false)
     private val analysisState = MutableStateFlow(ProjectAnalysis.EMPTY)
     private val publishedState = MutableStateFlow(PublishedAnalysis.EMPTY)
-    /** The waiting [runNow] calls; while there are any, a run starts without the debounce. Guarded by itself. */
+    /**
+     * The waiting [runNow] calls. While there are any, a run starts without the debounce. The list is its own lock.
+     */
     private val waiters = ArrayList<CompletableDeferred<ProjectAnalysis>>()
 
     /** The generation of the latest started run. */
@@ -79,21 +83,22 @@ internal class AnalysisScheduler(
     /** True while an analysis is scheduled or running. */
     val isAnalyzing: StateFlow<Boolean> = analyzing.asStateFlow()
 
-    /** The latest completed analysis (`Workspace.analysis`). */
+    /** The latest completed analysis. The workspace exposes it as `Workspace.analysis`. */
     val analysis: StateFlow<ProjectAnalysis> = analysisState.asStateFlow()
 
     /** The latest completed analysis with its descriptors. */
     val published: StateFlow<PublishedAnalysis> = publishedState.asStateFlow()
 
-    /** Requests an analysis after the debounce; thread-safe. */
+    /** Requests an analysis after the debounce. It may be called from any thread. */
     fun schedule() {
         analyzing.value = true
         requests.update { it + 1 }
     }
 
     /**
-     * Requests an analysis without debounce (superseding a scheduled one) and returns the first analysis that started
-     * after this call once it is published. Fails with [CancellationException] if the scheduler is closed first.
+     * Requests an analysis without the debounce, which replaces a scheduled one. It returns the first analysis that
+     * started after this call, once that analysis is published. It fails with [CancellationException] if the scheduler
+     * is closed first.
      */
     suspend fun runNow(): ProjectAnalysis {
         val waiter = CompletableDeferred<ProjectAnalysis>()
@@ -102,7 +107,7 @@ internal class AnalysisScheduler(
         return waiter.await()
     }
 
-    /** Starts serving requests in [scope]; the returned job ends with the scope. */
+    /** Starts serving requests in [scope]. The returned job ends with the scope. */
     fun start(scope: CoroutineScope): Job = scope.launch {
         requests.collectLatest {
             analyzing.value = true
@@ -125,7 +130,7 @@ internal class AnalysisScheduler(
         return result
     }
 
-    /** The result of [block]; a failure other than a cancellation is logged and returned as a failed result. */
+    /** The result of [block]. A failure other than a cancellation is logged and returned as a failed result. */
     private inline fun runCatchingFailures(block: () -> ProjectAnalysis): Result<ProjectAnalysis> =
         try {
             Result.success(block())
@@ -136,7 +141,7 @@ internal class AnalysisScheduler(
             Result.failure(e)
         }
 
-    /** Fails every waiting [runNow] (the workspace is closing). */
+    /** Fails every waiting [runNow] call with a cancellation. The workspace calls it while closing. */
     fun close() {
         val pending = synchronized(waiters) { waiters.toList().also { waiters.clear() } }
         pending.forEach { it.cancel(CancellationException("the workspace was closed")) }

@@ -16,9 +16,8 @@
 package io.karpfen.ide.notation.diagram
 
 /**
- * Placeholder of the `notation-diagram` module, kept from the phase-0 skeleton until a later increment builds it. The
- * module is to hold the UI-agnostic diagram model, geometry, hit testing, layout sidecar and the ELK auto-layout
- * adapter. The README lists it among the modules of later increments.
+ * Placeholder of the `notation-diagram` module, which holds no code yet. The module will hold the UI-agnostic diagram
+ * model with its geometry and hit testing, the layout sidecar and the adapter to the ELK auto-layout.
  */
 public object NotationDiagramModule {
     /** The module's name, which is also the name of its directory. */

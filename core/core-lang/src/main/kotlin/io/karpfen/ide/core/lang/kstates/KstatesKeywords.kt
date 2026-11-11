@@ -19,9 +19,9 @@ import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.completion.Snippet
 
 /**
- * The structural keywords of KStates by position: the snippets offered at each [KstatesPosition]. The
- * vocabulary is the grammar's, the action operations are [KarpfenSyntax]'s (one snippet per operation, shaped by its
- * arguments); a template's `$0` is where the caret goes. Constant data.
+ * The structural keywords of KStates by position, which are the snippets offered at each [KstatesPosition]. The
+ * vocabulary comes from the grammar. The action operations come from [KarpfenSyntax], with one snippet per operation
+ * shaped by its arguments. The `$0` in a template is where the caret goes. The object holds constant data only.
  */
 internal object KstatesKeywords {
 
@@ -36,7 +36,7 @@ internal object KstatesKeywords {
     /** A call of a macro as the value of an action. */
     private val MACRO_CALL = Snippet("MACRO(\"…\")", "MACRO(\"\$0\")", detail = "macro call")
 
-    /** What each operation does, for the completion list (an operation without an entry is offered without one). */
+    /** What each operation does, for the completion list. An operation without an entry is offered without a detail. */
     private val OPERATION_DETAILS: Map<String, String> = mapOf(
         "SET" to "set a property",
         "APPEND" to "append to a list property",
@@ -47,7 +47,10 @@ internal object KstatesKeywords {
         "DROPOBJ" to "remove an object",
     )
 
-    /** The snippets of an action block: every operation, an emitted event, the scope guard and the macro binding. */
+    /**
+     * The snippets of an action block. These are every operation, an emitted event, the scope guard and the macro
+     * binding.
+     */
     private val ACTIONS = KarpfenSyntax.KSTATES_OPERATIONS.map(::operation) + listOf(
         EVENT.copy(detail = "emit an event"),
         Snippet("IF IN SCOPE(\"…\") { }", "IF IN SCOPE(\"\$0\") { }", detail = "guard on paths in scope"),
@@ -104,8 +107,9 @@ internal object KstatesKeywords {
     fun at(position: KstatesPosition): List<Snippet> = BY_POSITION[position].orEmpty()
 
     /**
-     * The snippet of the KStates operation [name] ([KarpfenSyntax.KSTATES_OPERATIONS]), shaped by its arguments: a path
-     * only (unary), a path, a relation and a value (relation operations), else a path and a value.
+     * The snippet of the KStates operation [name] from [KarpfenSyntax.KSTATES_OPERATIONS], shaped by its arguments. A
+     * unary operation takes a path only. A relation operation takes a path, a relation and a value. Every other
+     * operation takes a path and a value.
      */
     private fun operation(name: String): Snippet = when (name) {
         in KarpfenSyntax.KSTATES_UNARY_OPERATIONS -> Snippet("$name(\"…\")", "$name(\"\$0\")", detail = OPERATION_DETAILS[name])

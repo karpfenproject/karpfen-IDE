@@ -23,34 +23,34 @@ import io.karpfen.ide.ui.editor.state.EditorPopupModel
 import io.karpfen.ide.ui.editor.theme.EditorTheme
 
 /**
- * The slot API through which `CodeEditor` (package `view`) hosts the editor popups (package `popup`) without either
- * package depending on the other: the view and the popups meet only here, which the architecture tests of the editor's
- * layering check.
+ * The slot API through which `CodeEditor` in package `view` hosts the editor popups in package `popup`. Neither
+ * package depends on the other. The view and the popups meet only here, and the architecture tests of the editor's
+ * layering check this.
  *
- * `CodeEditor` calls [Header] above the text area (in a Column; the find/replace bar goes here) and [Popups] in a Box
- * layered over the text area, filling it (completion list, go-to-line, hover tooltip, context menu, positioned with
- * [EditorOverlayHost.boundsOf] / [EditorOverlayHost.caretBounds]). Both slots read what to show from the host's
- * [EditorPopupModel] (`completion.state`, `overlays.*`, `find.state`) and report intents to it. The workbench passes
- * the popups implementation (`io.karpfen.ide.ui.editor.popup.EditorPopups`); tests and embedded editors may pass
- * [None].
+ * `CodeEditor` calls [Header] above the text area, in a Column. The find and replace bar goes there. It calls [Popups]
+ * in a Box that lies over the text area and fills it. The completion list, go-to-line, the hover tooltip and the
+ * context menu go there, positioned with [EditorOverlayHost.boundsOf] and [EditorOverlayHost.caretBounds]. Both slots
+ * read what to show from the host's [EditorPopupModel], such as `completion.state`, the `overlays` flows and
+ * `find.state`, and they report intents to it. The workbench passes the popups implementation
+ * `io.karpfen.ide.ui.editor.popup.EditorPopups`. Tests and embedded editors may pass [None].
  *
- * Keyboard: while the completion list is open the text area keeps focus and routes keys through
- * `CompletionSessionModel.handleKey`; the find bar and go-to-line popup own focus while open and return it with
- * `EditorPopupModel.requestFocus()`. Navigation is not a popup concern: "Go to Definition" in the context menu runs
- * the editor action of that id.
+ * While the completion list is open, the text area keeps keyboard focus and routes keys through
+ * `CompletionSessionModel.handleKey`. The find bar and the go-to-line popup own focus while they are open and give it
+ * back with `EditorPopupModel.requestFocus()`. Navigation is not a concern of the popups. "Go to Definition" in the
+ * context menu runs the editor action of that id.
  */
 @Stable
 public interface EditorOverlays {
 
-    /** Content above the text area (find/replace bar); emits nothing when no header overlay is open. */
+    /** The content above the text area, which is the find and replace bar. It emits nothing when no header overlay is open. */
     @Composable
     public fun Header(host: EditorOverlayHost)
 
-    /** Popups over the text area; emits nothing when no popup is open. */
+    /** The popups over the text area. It emits nothing when no popup is open. */
     @Composable
     public fun Popups(host: EditorOverlayHost)
 
-    /** The empty implementation. */
+    /** Holds the empty implementation. */
     public companion object {
         /** No overlays at all. */
         public val None: EditorOverlays = object : EditorOverlays {
@@ -64,33 +64,35 @@ public interface EditorOverlays {
 }
 
 /**
- * What `CodeEditor` offers to its overlays. Geometry is in the coordinate space of the text area (the Box that
- * [EditorOverlays.Popups] is placed in), in pixels.
+ * What `CodeEditor` offers to its overlays. Geometry is given in pixels in the coordinate space of the text area,
+ * which is the Box that [EditorOverlays.Popups] is placed in.
  */
 @Stable
 public interface EditorOverlayHost {
 
-    /** What the popups may use of the editor (models, overlay state, actions). */
+    /** The part of the editor that the popups may use: the models, the overlay state and the actions. */
     public val state: EditorPopupModel
 
     /** The editor's colours and styles. */
     public val theme: EditorTheme
 
-    /** The editor's monospace text style (popups showing code use it). */
+    /** The monospace text style of the editor. Popups that show code use it. */
     public val textStyle: TextStyle
 
-    /** The primary caret's rectangle, or null if it is scrolled out of view. */
+    /** The rectangle of the primary caret, or null if the caret is scrolled out of view. */
     public val caretBounds: Rect?
 
     /**
-     * True if the primary caret is out of view and stays there — the user scrolled it away; false while it is visible
-     * or about to be revealed (a pending scroll request, e.g. the caret reveal after a keystroke or an explicit
-     * completion request). [caretBounds] describes the scroll position of the last frame, so it may still be null for a
-     * caret that the next frames show; popups anchored at the caret wait then and close only for a caret scrolled away.
-     * The default knows of no pending reveal.
+     * True if the primary caret is out of view and stays there, because the user scrolled it away. It is false while
+     * the caret is visible or about to be revealed by a pending scroll request. Such a request comes, for example, from
+     * the caret reveal after a keystroke or from an explicit completion request.
+     *
+     * [caretBounds] describes the scroll position of the last frame. So it may still be null for a caret that the next
+     * frames show. Popups anchored at the caret then wait, and they close only for a caret that was scrolled away. The
+     * default implementation knows of no pending reveal.
      */
     public val isCaretScrolledAway: Boolean get() = caretBounds == null
 
-    /** The rectangle of the character at [offset], or null if that line is not laid out (off-screen). */
+    /** Returns the rectangle of the character at [offset], or null if its line is not laid out because it is off-screen. */
     public fun boundsOf(offset: Int): Rect?
 }

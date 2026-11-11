@@ -18,10 +18,10 @@ package io.karpfen.ide.ui.editor.state
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The scroll geometry of [EditorViewport]: clamping, revealing with the caret margin, centring, visible lines. */
+/** The scroll geometry of [EditorViewport]: clamping, revealing with the caret margin, centring and the visible lines. */
 class EditorViewportTest {
 
-    /** 100 lines of 20 px in a 200 px high, 300 px wide viewport; content 1000 px wide. */
+    /** 100 lines of 20 px in a viewport 300 px wide and 200 px high. The content is 1000 px wide. */
     private fun viewport(): EditorViewport = EditorViewport().apply {
         updateGeometry(viewportWidth = 300f, viewportHeight = 200f, lineHeight = 20f, contentWidth = 1000f, contentHeight = 2000f)
     }

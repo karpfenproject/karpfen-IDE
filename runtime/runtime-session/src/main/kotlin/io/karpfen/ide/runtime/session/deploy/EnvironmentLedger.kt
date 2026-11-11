@@ -38,16 +38,16 @@ public enum class LedgerDisposition {
     /** Left on the runtime running. */
     LEFT_RUNNING,
 
-    /** Left on the runtime halted: started, but its engine ended on its own. */
+    /** Left on the runtime halted. It was started, but its engine ended on its own. */
     LEFT_HALTED,
 
-    /** Stopped; it stays on the runtime, which cannot delete environments. */
+    /** Stopped. It stays on the runtime, because the runtime cannot delete environments. */
     STOPPED,
 
     /** The runtime no longer knows it. */
     LOST,
 
-    /** Unknown: a call left open whether it exists or in which phase. */
+    /** Unknown, because a call left open whether the environment exists or in which phase it is. */
     UNKNOWN,
     ;
 
@@ -70,8 +70,8 @@ public enum class LedgerDisposition {
  * One record of the ledger. Immutable.
  *
  * @property endpoint the runtime the environment was created on.
- * @property key the environment's key, or null if its creation was left open, so that it may exist without the IDE
- *   knowing its key.
+ * @property key the environment's key. It is null if the outcome of the creation was left open. Then the environment
+ *   may exist without the IDE knowing its key.
  * @property disposition what became of it.
  * @property note what happened, in words.
  */
@@ -111,13 +111,13 @@ public data class LedgerEntry(
 }
 
 /**
- * The record of every environment this IDE process created and left on a runtime, in the order they were recorded. A
- * plain class, not a singleton: the composition root holds one per process and hands it to whatever records.
+ * The record of every environment this IDE process created and left on a runtime, in the order they were recorded. It
+ * is a plain class, not a singleton. The composition root holds one per process and hands it to whatever records.
  *
- * Threading (MUST): [record] may be called from any thread; [entries] is updated atomically.
+ * [record] may be called from any thread. [entries] is updated atomically.
  */
 public class EnvironmentLedger {
-    /** The entries, the one writer being [record]. */
+    /** The entries. [record] is their only writer. */
     private val recorded = MutableStateFlow<List<LedgerEntry>>(emptyList())
 
     /** The entries recorded so far, oldest first. */
@@ -130,19 +130,19 @@ public class EnvironmentLedger {
 }
 
 /**
- * Decides what happens to an environment that stays on the runtime after a deployment failed or a session ended, and
- * answers the ledger entry it recorded.
+ * Decides what happens to an environment that stays on the runtime after a deployment failed or a session ended. It
+ * returns the ledger entry it recorded.
  *
- * Threading (MUST): called from a cleanup that cannot be cancelled; it returns within the bounds of its own calls.
+ * It is called from a cleanup that cannot be cancelled. It returns within the bounds of its own calls.
  */
 public fun interface EnvironmentDisposer {
-    /** Disposes of [environment] on the runtime at [endpoint] and answers the entry it recorded. */
+    /** Disposes of [environment] on the runtime at [endpoint] and returns the entry it recorded. */
     public suspend fun dispose(environment: RuntimeEnvironment, endpoint: RuntimeEndpoint): LedgerEntry
 }
 
 /**
- * Keeps environments on the runtime, which has no route to delete them, and records each in [ledger] with the phase it
- * was left in; [LedgerEntry.leftBehind] is the INFO that says so.
+ * Keeps environments on the runtime, because the runtime has no route to delete them. It records each one in [ledger]
+ * with the phase it was left in. [LedgerEntry.leftBehind] is the INFO that tells the user so.
  *
  * @param ledger the ledger the environments are recorded in.
  */

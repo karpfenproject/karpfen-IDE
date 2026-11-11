@@ -16,21 +16,23 @@
 package io.karpfen.ide.ui.foundation.keys
 
 /**
- * Human-readable form of a shortcut for menus and tooltips: `⇧⌘F` on macOS (modifier symbols in Apple's order
- * Control, Option, Shift, Command, then the key), `Ctrl+Shift+F` elsewhere (Ctrl, Alt, Shift, then the key). Pure Kotlin
- * (the key model stays Compose-free; the Compose adapters are in `ui.foundation.keys.compose`).
+ * The human-readable form of a shortcut for menus and tooltips. On macOS it is written with Apple's modifier symbols in
+ * Apple's order Control, Option, Shift and Command, followed by the key and without separators. So Shift+Command+F
+ * reads as the Shift symbol, the Command symbol and F. On the other platforms it is written like `Ctrl+Shift+F`, with
+ * the modifiers in the order Ctrl, Alt, Shift and then the key. This is plain Kotlin. The key model stays free of
+ * Compose, and the Compose adapters are in `ui.foundation.keys.compose`.
  */
 public fun KeyShortcut.displayText(platform: HostPlatform): String = strokeFor(platform).displayText(platform)
 
 /**
- * Human-readable form of a physical key stroke on [platform], in the format of [KeyShortcut.displayText]; the Meta key
- * reads `⌘` on macOS, `Win` on Windows and `Super` on Linux.
+ * The human-readable form of a physical key stroke on [platform], in the format of [KeyShortcut.displayText]. The Meta
+ * key reads `⌘` on macOS, `Win` on Windows and `Super` on Linux.
  */
 public fun KeyStroke.displayText(platform: HostPlatform): String = KeyStrokeFormat.of(platform).format(this)
 
 /**
- * How one platform writes key strokes (Strategy): modifier names in their conventional order, the separator between
- * the parts and the names of the non-character keys.
+ * How one platform writes key strokes, following the Strategy pattern. A format holds the modifier names in their
+ * conventional order, the separator between the parts and the names of the keys that produce no character.
  */
 internal class KeyStrokeFormat private constructor(
     private val modifierNames: List<Pair<KeyModifier, String>>,
