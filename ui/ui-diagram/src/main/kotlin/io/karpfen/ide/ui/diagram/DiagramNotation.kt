@@ -15,6 +15,8 @@
  */
 package io.karpfen.ide.ui.diagram
 
+import io.karpfen.ide.notation.diagram.edit.DiagramActions
+import io.karpfen.ide.notation.diagram.edit.StatechartActions
 import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartArrangement
@@ -35,12 +37,14 @@ import io.karpfen.ide.notation.sync.DiagramProjection
  * @property arrangement lays the diagram out, automatically and by hand.
  * @property painter draws the diagram.
  * @property nothingToDraw what the view says while the text holds nothing that makes a diagram.
+ * @property actions tells what the user can do at a point of the diagram, which the view offers in its context menu.
  */
 internal class DiagramNotation<D : Any, L : DiagramLayout>(
     val projection: DiagramProjection<D>,
     val arrangement: DiagramArrangement<D, L>,
     val painter: DiagramPainter<D, L>,
     val nothingToDraw: String,
+    val actions: DiagramActions<D, L> = DiagramActions.none(),
 ) {
     companion object {
         /** The statechart of a state machine file. */
@@ -49,6 +53,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StatechartArrangement,
             StatechartPainter,
             "No state machine to draw yet. The diagram appears once the text can be read.",
+            StatechartActions,
         )
 
         /** The class diagram of a metamodel file. */

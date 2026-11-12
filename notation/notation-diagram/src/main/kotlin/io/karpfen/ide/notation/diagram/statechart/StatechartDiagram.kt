@@ -26,14 +26,19 @@ import io.karpfen.ide.core.text.TextRange
  * @property states the top-level states in the order of the text.
  * @property transitions all transitions in the order of the text. The order matters, because the engine takes the
  *   first transition that can fire.
+ * @property range the whole state machine in the text.
  */
 public data class StatechartDiagram(
     public val attachedTo: String?,
     public val states: List<StateNode>,
     public val transitions: List<TransitionEdge>,
+    public val range: TextRange,
 ) {
     /** Every state, the nested ones included, each parent before its children. */
     public fun allStates(): List<StateNode> = states.flatMap { it.withDescendants() }
+
+    /** The state that the state named [name] is nested in, or null for a top-level state and for an unknown name. */
+    public fun parentOf(name: String): StateNode? = allStates().firstOrNull { parent -> parent.children.any { it.name == name } }
 
     /** The state named [name], or null. If the text declares the name twice, the first one counts. */
     public fun state(name: String): StateNode? = allStates().firstOrNull { it.name == name }
@@ -44,8 +49,8 @@ public data class StatechartDiagram(
  *
  * @property name the name of the state, which identifies it in the state machine.
  * @property isInitial true for an `INITIAL STATE`.
- * @property hasEntry true if the state has an `ENTRY` block.
- * @property hasDo true if the state has a `DO` block.
+ * @property entryRange the whole `ENTRY { ... }` block of the state in the text, or null if it has none.
+ * @property doRange the whole `DO { ... }` block of the state in the text, or null if it has none.
  * @property children the states nested in this one, in the order of the text.
  * @property range the whole `STATE "name" { ... }` in the text.
  * @property nameRange the name inside its quotes.
@@ -53,12 +58,18 @@ public data class StatechartDiagram(
 public data class StateNode(
     public val name: String,
     public val isInitial: Boolean,
-    public val hasEntry: Boolean,
-    public val hasDo: Boolean,
+    public val entryRange: TextRange?,
+    public val doRange: TextRange?,
     public val children: List<StateNode>,
     public val range: TextRange,
     public val nameRange: TextRange,
 ) {
+    /** True if the state has an `ENTRY` block. */
+    public val hasEntry: Boolean get() = entryRange != null
+
+    /** True if the state has a `DO` block. */
+    public val hasDo: Boolean get() = doRange != null
+
     /** True if the state has states nested in it. */
     public val isComposite: Boolean get() = children.isNotEmpty()
 

@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.notation.diagram.layout
 
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.LampStateMachine
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import kotlin.test.Test
@@ -104,7 +105,7 @@ class ElkStatechartLayouterTest {
 
     @Test
     fun `a diagram without states has an empty layout`() {
-        assertEquals(StatechartLayout.EMPTY, StatechartLayouter().layout(StatechartDiagram(null, emptyList(), emptyList()), TextMeasurer.estimating()))
+        assertEquals(StatechartLayout.EMPTY, StatechartLayouter().layout(StatechartDiagram(null, emptyList(), emptyList(), TextRange(0, 0)), TextMeasurer.estimating()))
     }
 
     @Test

@@ -28,11 +28,14 @@ import io.karpfen.ide.core.text.TextSnapshot
  *   be read, and the view marks it as outdated.
  * @property problem what went wrong if the diagram could not be derived from a text without syntax errors, or null.
  *   The [diagram] then is the last one that could be derived.
+ * @property source the text the [diagram] was derived from, or null without a diagram. A change made through the
+ *   diagram is an edit of exactly this text.
  */
 public data class DiagramState<out D : Any>(
     public val diagram: D?,
     public val isStale: Boolean,
     public val problem: String? = null,
+    public val source: TextSnapshot? = null,
 ) {
     public companion object {
         /** No diagram yet. */
@@ -61,23 +64,25 @@ public data class DiagramState<out D : Any>(
 public class DiagramTracker<D : Any>(private val projection: DiagramProjection<D>) {
 
     private var last: D? = null
+    private var source: TextSnapshot? = null
 
     /**
      * The state of the diagram for the text [snapshot] and the newest parse [outcome] of the document, which is null
      * before the first parse.
      */
     public fun update(snapshot: TextSnapshot, outcome: ParseOutcome?): DiagramState<D> {
-        if (outcome == null || outcome.version != snapshot.version) return DiagramState(last, isStale = false)
-        if (!outcome.isSyntaxClean) return DiagramState(last, isStale = true)
+        if (outcome == null || outcome.version != snapshot.version) return DiagramState(last, isStale = false, source = source)
+        if (!outcome.isSyntaxClean) return DiagramState(last, isStale = true, source = source)
         val derived = try {
             projection.of(snapshot.text, outcome.outline)
         } catch (e: Exception) {
-            return DiagramState(last, isStale = false, problem = describe(e))
+            return DiagramState(last, isStale = false, problem = describe(e), source = source)
         } catch (e: StackOverflowError) {
-            return DiagramState(last, isStale = false, problem = describe(e))
+            return DiagramState(last, isStale = false, problem = describe(e), source = source)
         }
         last = derived
-        return DiagramState(last, isStale = false)
+        source = snapshot.takeIf { derived != null }
+        return DiagramState(last, isStale = false, source = source)
     }
 
     /** [error] in a few words: its kind, and its message if it has one. */

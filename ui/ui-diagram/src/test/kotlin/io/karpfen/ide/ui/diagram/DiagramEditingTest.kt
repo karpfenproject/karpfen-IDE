@@ -18,6 +18,7 @@ package io.karpfen.ide.ui.diagram
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.notation.diagram.edit.StatechartEdits
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.ManualStatechartLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartArrangement
@@ -143,6 +144,33 @@ class DiagramEditingTest {
         val sized = ManualStatechartLayout.of(nested, assertNotNull(editing.vis), text).states.getValue("outer")
         assertTrue(sized.right >= outer.right + 70f && sized.bottom >= outer.bottom + 30f, "$outer became $sized")
         assertEquals(1, saved.size)
+    }
+
+    @Test
+    fun `a change that places a new state fixes the layout and is saved once the new diagram is there`() {
+        val change = assertNotNull(StatechartEdits.addState(MACHINE, diagram, null, "idle", initial = false, at = DiagramPoint(300f, 200f)))
+        val after = diagramOf(MACHINE.replace("STATE \"on\" { }", "STATE \"on\" { }\n        STATE \"idle\" { }"))
+
+        editing.changed(diagram, automatic, change)
+        assertEquals(emptyList(), saved, "the diagram of the new text is not there yet")
+        editing.diagramChanged(after)
+
+        val vis = saved.single()
+        assertEquals(DiagramPoint(300f, 200f), vis.boxes["idle"])
+        assertEquals(setOf("off", "on", "idle"), vis.boxes.keys)
+        editing.diagramChanged(after)
+        assertEquals(1, saved.size, "it is saved once")
+    }
+
+    @Test
+    fun `a change that only renames leaves an automatic layout automatic`() {
+        val change = assertNotNull(StatechartEdits.rename(MACHINE, diagram, "on", "lit"))
+
+        editing.changed(diagram, automatic, change)
+        editing.diagramChanged(diagram)
+
+        assertNull(editing.vis)
+        assertEquals(emptyList(), saved)
     }
 
     @Test

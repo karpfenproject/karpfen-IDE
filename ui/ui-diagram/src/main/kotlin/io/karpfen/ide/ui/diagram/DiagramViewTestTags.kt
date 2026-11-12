@@ -29,6 +29,12 @@ public object DiagramViewTestTags {
     /** The note that something in the view failed and the drawing may be incomplete. */
     public const val FAULT: String = "Diagram.fault"
 
+    /** What the view tells the user to click while an action waits for a box. */
+    public const val HINT: String = "Diagram.hint"
+
+    /** The field a user types a name into. */
+    public const val ASK: String = "Diagram.ask"
+
     /** What the view says while there is nothing to draw. */
     public const val EMPTY: String = "Diagram.empty"
 

@@ -59,6 +59,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.notation.diagram.edit.DiagramAction
+import io.karpfen.ide.notation.diagram.edit.DiagramChange
 import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
 import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
@@ -85,10 +87,15 @@ import kotlinx.coroutines.withContext
  * A drag that starts on a box, a bar, a waypoint or the label of a line moves that element on the grid, and the grid
  * is shown while it moves. A drag that starts on the border of a box that can be sized moves that side or corner. The
  * border is drawn in the accent colour while the pointer is on it. The waypoints of a line are only drawn while the
- * pointer is near the line. A drag that starts on the empty canvas moves the whole drawing. A secondary click on a line that can be bent
- * or on a waypoint opens a small context menu at the pointer, with one entry that adds a waypoint there or removes
- * the one under the pointer. Nothing changes until the user clicks the entry. A click elsewhere closes the menu, and
- * so does a change of the drawing.
+ * pointer is near the line. A drag that starts on the empty canvas moves the whole drawing.
+ *
+ * A secondary click opens a context menu at the pointer. It holds what the notation offers at that point, such as
+ * adding, renaming or deleting an element, and the entry that adds a waypoint to the line under the pointer or
+ * removes the waypoint under it. Nothing changes until the user clicks an entry. Some entries need more first. One
+ * that needs a box marks the boxes to choose from and waits for a click on one of them. One that needs a name shows
+ * a field at the pointer. A secondary click, or a click beside the boxes, gives such an action up. A change of the
+ * model is an edit of [source], the text the diagram was derived from, and goes to [onChange], which answers whether
+ * the text took it.
  *
  * The first drawing is fitted into the view. After that the view keeps the zoom and the position the user chose.
  *
@@ -103,6 +110,8 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     diagram: D,
     editing: DiagramEditing<D, L>,
     faults: DiagramFaults,
+    source: String?,
+    onChange: (DiagramChange) -> Boolean,
     onSelect: (TextRange) -> Unit,
 ) {
     val colors = KarpfenTheme.colors
@@ -146,6 +155,8 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     var fitted by remember { mutableStateOf(false) }
     var menu by remember(drawing) { mutableStateOf<MenuRequest?>(null) }
     var pointer by remember { mutableStateOf<DiagramPoint?>(null) }
+    var mode by remember { mutableStateOf<CanvasMode>(CanvasMode.Idle) }
+    val change by rememberUpdatedState(onChange)
 
     fun pointAt(position: Offset): DiagramPoint {
         val point = (position - pan) / (zoom * density)
@@ -171,6 +182,27 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
         zoom = next
     }
 
+    fun run(action: DiagramAction?, position: Offset, picked: List<String> = emptyList()) {
+        when (action) {
+            null -> mode = CanvasMode.Idle
+            is DiagramAction.Pick -> mode = CanvasMode.Picking(action, picked)
+            is DiagramAction.Ask -> mode = CanvasMode.Asking(action, position)
+            is DiagramAction.Change -> {
+                mode = CanvasMode.Idle
+                val shown = current ?: return
+                faults.attempt("changing the model") {
+                    val made = action.change()
+                    if (made != null && change(made)) editing.changed(shown.diagram, shown.layout, made)
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(diagram) {
+        mode = CanvasMode.Idle
+        faults.attempt("saving the layout of the changed model") { editing.diagramChanged(diagram) }
+    }
+
     LaunchedEffect(drawing != null, viewSize) {
         val shown = drawing
         if (!fitted && shown != null && viewSize != IntSize.Zero) {
@@ -184,7 +216,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             .fillMaxSize()
             .clipToBounds()
             .onSizeChanged { viewSize = it }
-            .pointerInput(Unit) {
+            .pointerInput(editing, faults) {
                 var grabbed = false
                 detectDragGestures(
                     onDragStart = { position ->
@@ -205,9 +237,22 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
                     }
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(editing, faults) {
                 detectTapGestures { position ->
                     val shown = current ?: return@detectTapGestures
+                    val waiting = mode
+                    if (waiting is CanvasMode.Picking) {
+                        val box = faults.guard<String?>("finding the clicked element", { null }) { shown.layout.boxAt(pointAt(position)) }
+                        val next = box?.takeIf { it in waiting.action.candidates }?.let { id ->
+                            faults.guard<DiagramAction?>("taking the clicked element", { null }) { waiting.action.next(id) }
+                        }
+                        run(next, position, waiting.picked + listOfNotNull(box))
+                        return@detectTapGestures
+                    }
+                    if (waiting is CanvasMode.Asking) {
+                        mode = CanvasMode.Idle
+                        return@detectTapGestures
+                    }
                     faults.attempt("finding the clicked element in the text") {
                         shown.layout.boxAt(pointAt(position))?.let { arrangement.placeInText(shown.diagram, it) }?.let(onSelect)
                     }
@@ -215,13 +260,22 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             }
             .onPointerEvent(PointerEventType.Press) { event ->
                 val shown = current ?: return@onPointerEvent
-                val change = event.changes.firstOrNull() ?: return@onPointerEvent
+                val pressed = event.changes.firstOrNull() ?: return@onPointerEvent
                 if (!event.buttons.isSecondaryPressed) return@onPointerEvent
-                val offer = faults.guard<DiagramOffer?>("opening the context menu", { null }) {
-                    editing.offerAt(shown.diagram, shown.layout, pointAt(change.position))
-                } ?: return@onPointerEvent
-                menu = MenuRequest(change.position, offer)
-                change.consume()
+                pressed.consume()
+                if (mode != CanvasMode.Idle) {
+                    mode = CanvasMode.Idle
+                    return@onPointerEvent
+                }
+                val at = pressed.position
+                val point = pointAt(at)
+                val actions = faults.guard("opening the context menu", { emptyList() }) {
+                    source?.let { notation.actions.at(it, shown.diagram, shown.layout, point) }.orEmpty()
+                }
+                val offer = faults.guard<DiagramOffer?>("opening the context menu", { null }) { editing.offerAt(shown.diagram, shown.layout, point) }
+                val entries = actions.map { action -> ContextMenuAction(action.label) { run(action, at) } } +
+                    listOfNotNull(offer?.let { ContextMenuAction(it.label) { faults.attempt("changing a waypoint") { it.take() } } })
+                if (entries.isNotEmpty()) menu = MenuRequest(at, entries)
             }
             .onPointerEvent(PointerEventType.Move) { event -> pointer = event.changes.firstOrNull()?.let { pointAt(it.position) } }
             .onPointerEvent(PointerEventType.Exit) { pointer = null }
@@ -246,6 +300,11 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             faults.attempt("drawing the diagram") {
                 notation.painter.paint(this, shown.diagram, shown.layout, shown.texts, colors, faults)
             }
+            (mode as? CanvasMode.Picking)?.let { picking ->
+                faults.attempt("marking the elements to click") {
+                    drawPickMarks(picking.action.candidates.mapNotNull(shown.layout::boxOf), picking.picked.mapNotNull(shown.layout::boxOf), colors)
+                }
+            }
             val at = pointer
             if (at != null) {
                 faults.attempt("drawing what the pointer has hold of") {
@@ -261,9 +320,29 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
 
     menu?.let { request ->
         Box(Modifier.offset { IntOffset(request.position.x.roundToInt(), request.position.y.roundToInt()) }.size(0.dp)) {
-            val take = { faults.attempt("changing a waypoint") { request.offer.take() } }
-            ContextMenuPopup(listOf(ContextMenuAction(request.offer.label, onClick = take)), DpOffset.Zero) { menu = null }
+            ContextMenuPopup(request.entries, DpOffset.Zero) { menu = null }
         }
+    }
+
+    when (val waiting = mode) {
+        is CanvasMode.Picking -> Text(
+            "${waiting.action.prompt} Right-click to cancel.",
+            color = colors.text,
+            style = KarpfenTheme.typography.uiSmall,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(8.dp)
+                .background(colors.panel)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .testTag(DiagramViewTestTags.HINT),
+        )
+        is CanvasMode.Asking -> AskField(
+            waiting.action.initial,
+            waiting.position,
+            onDone = { text -> run(faults.guard<DiagramAction?>("taking the text", { null }) { waiting.action.next(text) }, waiting.position) },
+            onCancel = { mode = CanvasMode.Idle },
+        )
+        CanvasMode.Idle -> Unit
     }
 
     if (drawing == null) return
@@ -286,8 +365,8 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
 private fun <D, L : DiagramLayout> inARow(arrangement: DiagramArrangement<D, L>, diagram: D, widths: TextMeasurer, faults: DiagramFaults): L? =
     faults.guard<L?>("placing the elements in a row", { null }) { arrangement.byHand(diagram, VisLayout(), widths) }
 
-/** The context menu to show: the [offer] it holds and the [position] of the pointer on the canvas, in pixels. */
-private class MenuRequest(val position: Offset, val offer: DiagramOffer)
+/** The context menu to show: its [entries] and the [position] of the pointer on the canvas, in pixels. */
+private class MenuRequest(val position: Offset, val entries: List<ContextMenuAction>)
 
 /** A small button over the canvas. It never takes the keyboard focus, so the editor next to the diagram keeps it. */
 @Composable

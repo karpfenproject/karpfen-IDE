@@ -17,6 +17,7 @@ package io.karpfen.ide.ui.diagram
 
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
@@ -25,6 +26,9 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.test.performTouchInput
@@ -33,6 +37,7 @@ import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.notation.diagram.edit.DiagramChange
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.notation.sync.DiagramState
@@ -40,6 +45,7 @@ import io.karpfen.ide.notation.sync.DiagramTracker
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * Tests the diagram view headless: what it shows for a diagram, for none and for a stale one, its zoom, and that it
@@ -146,6 +152,67 @@ class DiagramViewTest {
     }
 
     @Test
+    fun `a right click on the empty canvas of a statechart offers to add a state, which edits the text`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, SINGLE), onChange = { changes += it })
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(topLeft + Offset(4f, 4f)) }
+        waitForIdle()
+        onNodeWithText("Add state").performClick()
+        waitForIdle()
+
+        val change = changes.single()
+        assertTrue(change.arranges, "the new state is placed where the user clicked")
+        assertTrue("STATE \"state\" { }" in change.edits.single().newText, change.edits.toString())
+    }
+
+    @Test
+    fun `an action that needs a state waits for a click on one and can be given up`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, SINGLE), onChange = { changes += it })
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("Add transition from here").performClick()
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.HINT).assertIsDisplayed()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center) }
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.HINT).assertDoesNotExist()
+        assertTrue("TRANSITION \"alone\" -> \"alone\" { }" in changes.single().edits.single().newText)
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("Add transition from here").performClick()
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(topLeft + Offset(4f, 4f)) }
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.HINT).assertDoesNotExist()
+        assertEquals(1, changes.size, "the second action was given up")
+    }
+
+    @Test
+    fun `renaming a state asks for the name in a field`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, SINGLE), onChange = { changes += it })
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("Rename").performClick()
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.ASK).performTextReplacement("idle")
+        onNodeWithTag(DiagramViewTestTags.ASK).performKeyInput { pressKey(Key.Enter) }
+        waitForIdle()
+
+        onNodeWithTag(DiagramViewTestTags.ASK).assertDoesNotExist()
+        assertEquals(listOf("idle"), changes.single().edits.map { it.newText })
+    }
+
+    @Test
     fun `a right click on a box or on the empty canvas opens no menu`() = runComposeUiTest {
         show(DiagramNotation.TYPES, stateOf(DiagramNotation.TYPES, KarpfenLanguage.KMETA, TYPE))
         awaitDrawing()
@@ -168,10 +235,15 @@ class DiagramViewTest {
         notation: DiagramNotation<D, L>,
         state: DiagramState<D>,
         onSave: (VisLayout) -> Unit = {},
+        onChange: (DiagramChange) -> Unit = {},
         onSelect: (TextRange) -> Unit = {},
     ) {
         val editing = DiagramEditing(notation.arrangement, onSave)
-        setContent { KarpfenTheme(darkTheme = false) { DiagramView(notation, state, editing, onSelect = onSelect) } }
+        val change: (DiagramChange) -> Boolean = { made ->
+            onChange(made)
+            true
+        }
+        setContent { KarpfenTheme(darkTheme = false) { DiagramView(notation, state, editing, onSelect = onSelect, onChange = change) } }
         waitForIdle()
     }
 

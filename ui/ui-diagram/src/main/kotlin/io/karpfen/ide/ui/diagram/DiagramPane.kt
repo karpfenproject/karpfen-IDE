@@ -35,7 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.document.session.DocumentSession
+import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.notation.diagram.edit.DiagramChange
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.sync.DiagramState
 import io.karpfen.ide.notation.sync.DiagramTracker
@@ -63,6 +65,9 @@ import kotlinx.coroutines.withContext
  * show the new file. The companion file is read when the pane appears and again whenever [reloadKey] changes, which
  * is how changes made to it by other tools come in. The text always wins: what the companion file says about elements
  * the text does not have is ignored.
+ *
+ * The context menu of the diagram changes the model. Every such change is one edit of the text of [session], which
+ * the editor can undo like any other. It is only made while the diagram shows the current text.
  */
 @Composable
 public fun DiagramPane(
@@ -110,12 +115,23 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
     LaunchedEffect(visFile, reloadKey) {
         editing.loaded(withContext(Dispatchers.IO) { VisFiles.read(visFile) })
     }
-    DiagramView(notation, state, editing, modifier, onSelect)
+    val shown by rememberUpdatedState(state)
+    val change: (DiagramChange) -> Boolean = remember(session) {
+        { made ->
+            val source = shown.source
+            source != null && made.edits.isNotEmpty() && session.text.snapshot.value.version == source.version &&
+                session.text.apply(made.edits, EditOrigin.Command(DIAGRAM_EDIT)) != null
+        }
+    }
+    DiagramView(notation, state, editing, modifier, onSelect, change)
 }
 
 /**
  * The view of the diagram [state] of the kind [notation], arranged through [editing]. It draws the diagram, says so
  * when there is none, and shows the note of a stale diagram over the drawing.
+ *
+ * A change the user makes to the model through the diagram goes to [onChange] as edits of the text the diagram was
+ * derived from. It answers whether the text took the change.
  *
  * A failure inside the view does not reach the window. What failed is left out, and a second note over the drawing
  * says what went wrong. Its text can be selected and copied. See [DiagramFaults].
@@ -127,6 +143,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
     editing: DiagramEditing<D, L>,
     modifier: Modifier = Modifier,
     onSelect: (TextRange) -> Unit = {},
+    onChange: (DiagramChange) -> Boolean = { false },
 ) {
     val colors = KarpfenTheme.colors
     val diagram = state.diagram
@@ -141,7 +158,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
                 modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(DiagramViewTestTags.EMPTY),
             )
         } else {
-            DiagramCanvas(notation, diagram, editing, faults, onSelect)
+            DiagramCanvas(notation, diagram, editing, faults, state.source?.text, onChange, onSelect)
         }
         val fault = state.problem?.let { "The diagram could not be derived from the text: $it. This is the last diagram that could." } ?: faults.note
         Column(
@@ -171,6 +188,9 @@ private fun Note(text: String, tag: String) {
  * and a long note must not cover them.
  */
 private const val BUTTONS_ROOM = 170
+
+/** The name of the edits that a diagram makes to the text, as the undo history records them. */
+private const val DIAGRAM_EDIT = "diagram"
 
 /** What the view says while the text has syntax errors. */
 private const val STALE = "The text has errors. This is the diagram of the last text that could be read."

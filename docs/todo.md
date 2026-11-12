@@ -18,7 +18,9 @@ refer to.
 
 ### Diagrams
 
-- The diagrams cannot change the text.
+- The statechart changes the text through its context menu. It cannot yet add splits and joins, reorder transitions,
+  or edit conditions and actions. The class and object diagrams cannot change the text at all.
+- Renaming a state through the diagram renames it in the transitions, but not where code names it.
 - The diagrams do not show a running model: neither the active states and fired transitions in the statechart nor the
   current values in the object diagram.
 - A change of the layout by hand cannot be undone, and there is no command that goes back to the automatic layout.

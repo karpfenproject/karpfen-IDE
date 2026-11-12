@@ -66,6 +66,19 @@ internal fun DrawScope.drawWaypoints(waypoints: List<DiagramPoint>, colors: Karp
     }
 }
 
+/**
+ * Marks the boxes a user picks from. Each of the [candidates] gets a thin border in the accent colour, and each of
+ * the [picked] ones, which the user clicked already, is filled lightly as well.
+ */
+internal fun DrawScope.drawPickMarks(candidates: List<DiagramBox>, picked: List<DiagramBox>, colors: KarpfenColors) {
+    val unit = density
+    candidates.forEach { drawRect(colors.accent, it.topLeft(unit), it.size(unit), style = Stroke(BORDER * unit)) }
+    picked.forEach {
+        drawRect(colors.accent.copy(alpha = PICKED_ALPHA), it.topLeft(unit), it.size(unit))
+        drawRect(colors.accent, it.topLeft(unit), it.size(unit), style = Stroke(GRIP * unit))
+    }
+}
+
 /** Draws the border of [box] in the accent colour, which shows that the pointer has hold of it to size the box. */
 internal fun DrawScope.drawFrameGrip(box: DiagramBox, colors: KarpfenColors) {
     val unit = density
@@ -145,6 +158,9 @@ internal const val ARROW_LENGTH: Float = 9f
 
 /** The width of an arrowhead at its base. */
 internal const val ARROW_WIDTH: Float = 7f
+
+/** How strongly a box the user picked is filled with the accent colour. */
+private const val PICKED_ALPHA = 0.18f
 
 /** The width of the border of a box while the pointer has hold of it. */
 private const val GRIP = 2f

@@ -57,14 +57,14 @@ public object StatechartProjection {
         val transitions = machine.children
             .filter { it.kind == SymbolKind.TRANSITION || it.kind == SymbolKind.SPLIT || it.kind == SymbolKind.JOIN }
             .mapIndexed { index, node -> transition(text, node, index + 1, counts) }
-        return StatechartDiagram(machine.detail, states, transitions)
+        return StatechartDiagram(machine.detail, states, transitions, machine.range)
     }
 
     private fun state(text: String, node: OutlineNode): StateNode = StateNode(
         name = node.name,
         isInitial = text.startsWith("INITIAL", node.range.start),
-        hasEntry = node.children.any { it.kind == SymbolKind.ENTRY_BLOCK },
-        hasDo = node.children.any { it.kind == SymbolKind.DO_BLOCK },
+        entryRange = node.children.firstOrNull { it.kind == SymbolKind.ENTRY_BLOCK }?.range,
+        doRange = node.children.firstOrNull { it.kind == SymbolKind.DO_BLOCK }?.range,
         children = node.children.filter { it.kind == SymbolKind.STATE }.map { state(text, it) },
         range = node.range,
         nameRange = node.selectionRange,

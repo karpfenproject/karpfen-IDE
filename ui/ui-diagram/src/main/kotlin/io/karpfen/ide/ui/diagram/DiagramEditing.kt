@@ -18,6 +18,7 @@ package io.karpfen.ide.ui.diagram
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.karpfen.ide.notation.diagram.edit.DiagramChange
 import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
 import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
@@ -60,6 +61,7 @@ internal class DiagramEditing<D, L : DiagramLayout>(
 
     private var drag: Drag? = null
     private var unsaved: VisLayout? = null
+    private var awaitsDiagram = false
 
     /** What is being dragged, the layout it started from, and what [vis] was before, to go back if nothing moved. */
     private class Drag(val target: Target, val base: VisLayout, val previous: VisLayout?, val start: DiagramPoint)
@@ -110,6 +112,28 @@ internal class DiagramEditing<D, L : DiagramLayout>(
         isDragging = false
         val result = vis
         if (result == null || result == current.base) vis = current.previous else store(diagram, result)
+    }
+
+    /**
+     * Takes in what the [change] of the text, which was just made through the [diagram] drawn as [layout], means for
+     * the layout by hand. A change that arranges fixes the layout on screen first. The result is saved once the
+     * diagram of the changed text is there, which [diagramChanged] tells, because only that diagram knows the new
+     * elements.
+     */
+    fun changed(diagram: D, layout: L, change: DiagramChange) {
+        val transform = change.layout ?: return
+        val base = vis ?: if (change.arranges) arrangement.freeze(diagram, layout) else return
+        val next = transform(base)
+        vis = next
+        unsaved = next
+        awaitsDiagram = true
+    }
+
+    /** Tells that the view now shows [diagram]. A layout that waited for the diagram of a changed text is saved. */
+    fun diagramChanged(diagram: D) {
+        if (!awaitsDiagram) return
+        awaitsDiagram = false
+        vis?.let { store(diagram, it) }
     }
 
     /**
