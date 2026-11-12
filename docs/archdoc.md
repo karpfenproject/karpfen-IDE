@@ -88,7 +88,7 @@ flowchart TD
         host["runtime-host"]
         protocol["runtime-protocol"]
     end
-    subgraph notationGroup ["notation (placeholders)"]
+    subgraph notationGroup ["notation"]
         nsync["notation-sync"]
         ndiagram["notation-diagram"]
     end
