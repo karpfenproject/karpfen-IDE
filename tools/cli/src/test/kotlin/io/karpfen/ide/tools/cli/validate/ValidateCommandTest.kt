@@ -137,6 +137,7 @@ class ValidateCommandTest {
 
         override val languages: LanguageRegistry get() = unused()
         override val files: StateFlow<WorkspaceTree> get() = unused()
+        override val scanRevision: StateFlow<Long> get() = unused()
         override val contexts: StateFlow<ContextResolution> get() = unused()
         override val analysis: StateFlow<ProjectAnalysis> get() = unused()
         override val isAnalyzing: StateFlow<Boolean> get() = unused()

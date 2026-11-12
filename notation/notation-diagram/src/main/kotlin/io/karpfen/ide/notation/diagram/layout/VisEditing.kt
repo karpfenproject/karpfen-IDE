@@ -1,0 +1,135 @@
+/**
+ * Copyright 2026 Karl Kegel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.karpfen.ide.notation.diagram.layout
+
+import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
+import io.karpfen.ide.notation.diagram.statechart.TransitionKind
+
+/**
+ * The changes a user makes to the layout of a statechart by hand. Every function takes a [VisLayout] and returns a
+ * new one, so a view can try a change while the pointer moves and keep or drop the result.
+ *
+ * The first change by hand starts from [freeze], which turns the layout on screen, usually the automatic one, into a
+ * [VisLayout] with every element in it. From then on nothing is placed automatically, except what is new in the text.
+ * Every position a function stores is on the grid.
+ */
+public object VisEditing {
+
+    /**
+     * The layout [layout] of [diagram] as a [VisLayout]: the middle of every state without nested states, the middle
+     * of every bar, and the corners of every normal transition as its waypoints, all moved onto the grid.
+     */
+    public fun freeze(diagram: StatechartDiagram, layout: StatechartLayout): VisLayout = VisLayout(
+        states = diagram.allStates()
+            .filter { !it.isComposite }
+            .mapNotNull { state -> layout.states[state.name]?.let { state.name to StatechartMetrics.snap(it.center) } }
+            .toMap(),
+        bars = layout.bars.mapValues { StatechartMetrics.snap(it.value.center) },
+        waypoints = layout.routes
+            .filter { it.kind == RouteKind.TRANSITION && it.transitionId != null && it.points.size > 2 }
+            .associate { route ->
+                checkNotNull(route.transitionId) to route.points.subList(1, route.points.size - 1).map(StatechartMetrics::snap).distinct()
+            },
+    )
+
+    /**
+     * [vis] with the state [name] moved by [delta]. A state with nested states takes all of them along, together
+     * with the waypoints of the transitions that run between them. The move is rounded to the grid as a whole, so
+     * what moves together keeps its distances.
+     */
+    public fun moveState(diagram: StatechartDiagram, vis: VisLayout, name: String, delta: DiagramPoint): VisLayout {
+        val state = diagram.state(name) ?: return vis
+        val step = StatechartMetrics.snap(delta)
+        if (step.x == 0f && step.y == 0f) return vis
+        val moved = state.withDescendants().map { it.name }.toSet()
+        val inside = diagram.transitions
+            .filter { state.isComposite && (it.sources + it.targets).all(moved::contains) }
+            .map { it.id }
+            .toSet()
+        return vis.copy(
+            states = vis.states.mapValues { (key, point) -> if (key in moved) point + step else point },
+            bars = vis.bars.mapValues { (id, point) -> if (id in inside) point + step else point },
+            waypoints = vis.waypoints.mapValues { (id, points) -> if (id in inside) points.map { it + step } else points },
+        )
+    }
+
+    /** [vis] with the bar of the split or join [id] moved to [to]. */
+    public fun moveBar(vis: VisLayout, id: String, to: DiagramPoint): VisLayout =
+        vis.copy(bars = vis.bars + (id to StatechartMetrics.snap(to)))
+
+    /** [vis] with the waypoint at [index] of the transition [id] moved to [to]. */
+    public fun moveWaypoint(vis: VisLayout, id: String, index: Int, to: DiagramPoint): VisLayout {
+        val points = vis.waypoints[id] ?: return vis
+        if (index !in points.indices) return vis
+        return vis.copy(waypoints = vis.waypoints + (id to points.toMutableList().also { it[index] = StatechartMetrics.snap(to) }))
+    }
+
+    /**
+     * [vis] with a new waypoint of the transition [id] at [at]. [line] is the line of the transition as it is drawn,
+     * from the border of its source to the border of its target. The new waypoint goes into the segment of that line
+     * that is nearest to [at], so the line bends where the user pointed.
+     */
+    public fun addWaypoint(vis: VisLayout, id: String, at: DiagramPoint, line: List<DiagramPoint>): VisLayout {
+        val points = vis.waypoints[id].orEmpty()
+        val index = Geometry.nearestSegment(at, line).coerceIn(0, points.size)
+        return vis.copy(waypoints = vis.waypoints + (id to points.toMutableList().also { it.add(index, StatechartMetrics.snap(at)) }))
+    }
+
+    /** [vis] without the waypoint at [index] of the transition [id]. */
+    public fun removeWaypoint(vis: VisLayout, id: String, index: Int): VisLayout {
+        val points = vis.waypoints[id] ?: return vis
+        if (index !in points.indices) return vis
+        val rest = points.filterIndexed { position, _ -> position != index }
+        return vis.copy(waypoints = if (rest.isEmpty()) vis.waypoints - id else vis.waypoints + (id to rest))
+    }
+
+    /**
+     * The waypoint of [vis] within [tolerance] of [point], as the id of its transition and its index, or null. Only
+     * the transitions of [diagram] count.
+     */
+    public fun waypointAt(
+        diagram: StatechartDiagram,
+        vis: VisLayout,
+        point: DiagramPoint,
+        tolerance: Float = StatechartLayout.HIT_TOLERANCE,
+    ): Pair<String, Int>? {
+        val known = diagram.transitions.map { it.id }.toSet()
+        return vis.waypoints
+            .filterKeys(known::contains)
+            .flatMap { (id, points) -> points.mapIndexed { index, waypoint -> Triple(id, index, Geometry.distance(point, waypoint)) } }
+            .filter { it.third <= tolerance }
+            .minByOrNull { it.third }
+            ?.let { it.first to it.second }
+    }
+
+    /**
+     * [vis] with only what [diagram] still has. The text is the source of truth, so the place of a state that is gone
+     * from the text, or was given nested states, is dropped, and so are the bars and waypoints of transitions that are
+     * gone. This is what is written to the companion file.
+     */
+    public fun prune(diagram: StatechartDiagram, vis: VisLayout): VisLayout {
+        val leaves = diagram.allStates().filter { !it.isComposite }.map { it.name }.toSet()
+        val forks = diagram.transitions.filter { it.kind != TransitionKind.NORMAL }.map { it.id }.toSet()
+        val normal = diagram.transitions.filter { it.kind == TransitionKind.NORMAL }.map { it.id }.toSet()
+        return VisLayout(
+            states = vis.states.filterKeys(leaves::contains),
+            bars = vis.bars.filterKeys(forks::contains),
+            waypoints = vis.waypoints.filterKeys(normal::contains).filterValues { it.isNotEmpty() },
+        )
+    }
+
+    private operator fun DiagramPoint.plus(other: DiagramPoint): DiagramPoint = DiagramPoint(x + other.x, y + other.y)
+}

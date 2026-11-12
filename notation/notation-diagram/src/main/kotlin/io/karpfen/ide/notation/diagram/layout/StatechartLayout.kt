@@ -26,6 +26,16 @@ public data class DiagramBox(public val x: Float, public val y: Float, public va
     /** The lower edge. */
     public val bottom: Float get() = y + height
 
+    /** The middle of the rectangle. */
+    public val center: DiagramPoint get() = DiagramPoint(x + width / 2f, y + height / 2f)
+
+    /** The smallest rectangle around this one and [other]. */
+    public fun union(other: DiagramBox): DiagramBox {
+        val left = minOf(x, other.x)
+        val top = minOf(y, other.y)
+        return DiagramBox(left, top, maxOf(right, other.right) - left, maxOf(bottom, other.bottom) - top)
+    }
+
     /** True if [point] lies in the rectangle or on its border. */
     public operator fun contains(point: DiagramPoint): Boolean = point.x in x..right && point.y in y..bottom
 }
@@ -83,6 +93,33 @@ public data class StatechartLayout(
     public val headerHeight: Float,
 ) {
     /**
+     * The smallest rectangle around everything that is drawn. A layout made by hand may reach left of and above the
+     * origin, so a view fits this rectangle and not the one from the origin to [width] and [height].
+     */
+    public val bounds: DiagramBox
+        get() {
+            val boxes = states.values + initialMarkers.values + bars.values + routes.mapNotNull { it.label } +
+                routes.flatMap { route -> route.points.map { DiagramBox(it.x, it.y, 0f, 0f) } }
+            return boxes.reduceOrNull(DiagramBox::union) ?: DiagramBox(0f, 0f, 0f, 0f)
+        }
+
+    /** The id of the split or join whose bar is drawn at [point], or null. */
+    public fun barAt(point: DiagramPoint): String? = bars.entries.firstOrNull { point in it.value.grownBy(HIT_TOLERANCE) }?.key
+
+    /**
+     * The line of a normal transition that runs within [tolerance] of [point], or null. Where several do, the nearest
+     * one counts.
+     */
+    public fun transitionAt(point: DiagramPoint, tolerance: Float = HIT_TOLERANCE): EdgeRoute? =
+        routes.filter { it.kind == RouteKind.TRANSITION }
+            .map { it to Geometry.distanceToLine(point, it.points) }
+            .filter { it.second <= tolerance }
+            .minByOrNull { it.second }
+            ?.first
+
+    private fun DiagramBox.grownBy(by: Float): DiagramBox = DiagramBox(x - by, y - by, width + 2 * by, height + 2 * by)
+
+    /**
      * The name of the state drawn at [point], or null if there is none. Where states are nested, the innermost one
      * counts, which is the smallest box around the point.
      */
@@ -90,6 +127,9 @@ public data class StatechartLayout(
         states.filterValues { point in it }.minByOrNull { it.value.width * it.value.height }?.key
 
     public companion object {
+        /** How near a point must be to a line, a bar or a waypoint to hit it. */
+        public const val HIT_TOLERANCE: Float = 6f
+
         /** The layout of a statechart without elements. */
         public val EMPTY: StatechartLayout = StatechartLayout(emptyMap(), emptyMap(), emptyMap(), emptyList(), 0f, 0f, 0f)
     }

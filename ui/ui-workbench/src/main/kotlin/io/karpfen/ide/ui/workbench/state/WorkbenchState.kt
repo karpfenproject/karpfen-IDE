@@ -247,6 +247,12 @@ public interface WorkbenchState : AutoCloseable {
     public fun closeActiveTab(): Job
 
     /**
+     * Reads the folder again now, so a file the IDE itself just wrote next to a model shows in the project tree at
+     * once and not only when the file watcher notices it.
+     */
+    public fun refreshFiles(): Job
+
+    /**
      * Makes the whole workbench one [step] larger or smaller, or sets it back to its normal size. The new scale is
      * written to the settings of the open project at once.
      */

@@ -56,7 +56,7 @@ class FileKindTest {
     @Test
     fun `bridges, layouts and other files have no language`() {
         assertEquals(FileKind.BRIDGE, FileKind.of("mqtt-sim.kbridge.json"))
-        assertEquals(FileKind.LAYOUT, FileKind.of("robot.kstates.layout.json"))
+        assertEquals(FileKind.LAYOUT, FileKind.of("robot.kstates.vis"))
         assertEquals(FileKind.OTHER, FileKind.of("robot.json"))
         assertEquals(FileKind.OTHER, FileKind.of("kmeta"))
         assertEquals(FileKind.OTHER, FileKind.of("robot.kmeta.bak"))

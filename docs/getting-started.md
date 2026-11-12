@@ -151,9 +151,17 @@ states and transitions.
 
 A state machine file also has a diagram. At the left of the bar below the editor, click Split. Expected: the statechart
 appears next to the text, starting at the initial state `off` at the top, with `on` and its three inner states below it.
-Every transition carries its position in the text and its condition, such as `1: switch/press`. Drag the drawing to move
-it, and use the buttons in its corner to zoom. Click a state, and the editor jumps to it. Diagram shows the statechart
-alone, and Text goes back to the text.
+Every transition carries its position in the text and its condition, such as `1: switch/press`. Drag the empty canvas to
+move the drawing, and use the buttons in its corner to zoom. Click a state, and the editor jumps to it. Diagram shows
+the statechart alone, and Text goes back to the text.
+
+You can arrange the statechart by hand. Drag a state. Expected: a grid of dots appears, and the state moves from grid
+point to grid point. A state with inner states takes them along. Right-click the line of a transition to add a waypoint,
+drag the waypoint to bend the line, and right-click the waypoint to remove it. The first change by hand fixes every
+element where it is, and the IDE writes the arrangement to `lamp.kstates.vis` next to the file. From then on nothing is
+arranged automatically, except that a state you add in the text gets a place next to the others. The text always wins:
+if you delete a state in the text, its place in the `.vis` file is ignored and dropped. To go back to the automatic
+layout, delete the `.vis` file.
 
 - Cmd+click / Ctrl+click on `Lamp` in `STATEMACHINE ATTACHED TO "Lamp"`. Expected: `lamp.kmeta` opens at the type.
 - Open `lamp.kenv.json` and rest the mouse on the key `tickDelayMs`. Expected: a tooltip explains the key.

@@ -16,9 +16,10 @@
 package io.karpfen.ide.bridges.api
 
 /**
- * Placeholder of the `bridge-api` module, which holds no code yet. The module will hold the bridge lifecycle, sources
- * and sinks, codecs and the mapping SPI. A bridge connects a running karpfen model to an external system, and its
- * mappings translate between external messages and the karpfen events and object changes of the runtime protocol.
+ * Identity of the `bridge-api` module. A bridge connects a running karpfen model to an external system, such as an
+ * HTTP client, an MQTT broker or ROS. This module holds what all bridges share and nothing that belongs to one
+ * external system: the configuration of a bridge with its routes, the two sides a bridge stands between, and its
+ * lifecycle. Start reading at [Bridge], [BridgeConfig], [BridgeEndpoint] and [ModelLink].
  */
 public object BridgeApiModule {
     /** The module's name, which is also the name of its directory. */

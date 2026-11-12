@@ -49,6 +49,7 @@ import java.nio.file.Path
 class FakeWorkspace(override val root: Path) : Workspace {
     override val languages: LanguageRegistry = defaultLanguageRegistry()
     override val files = MutableStateFlow(WorkspaceTree.empty(root))
+    override val scanRevision = MutableStateFlow(0L)
     override val contexts = MutableStateFlow(ContextResolution.EMPTY)
     override val analysis = MutableStateFlow(ProjectAnalysis.EMPTY)
     override val problems = MutableStateFlow(WorkspaceProblems.EMPTY)

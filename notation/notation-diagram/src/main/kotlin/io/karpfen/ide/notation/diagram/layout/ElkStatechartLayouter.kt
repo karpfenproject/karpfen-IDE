@@ -73,7 +73,7 @@ internal class ElkStatechartLayouter : StatechartLayouter {
             setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN)
             setProperty(CoreOptions.DIRECTION, Direction.DOWN)
             setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL)
-            setProperty(CoreOptions.PADDING, ElkPadding(MARGIN))
+            setProperty(CoreOptions.PADDING, ElkPadding(StatechartMetrics.MARGIN.toDouble()))
             setProperty(CoreOptions.SPACING_NODE_NODE, NODE_SPACING)
             setProperty(LayeredOptions.CYCLE_BREAKING_STRATEGY, CycleBreakingStrategy.MODEL_ORDER)
             setProperty(LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY, OrderingStrategy.NODES_AND_EDGES)
@@ -93,19 +93,20 @@ internal class ElkStatechartLayouter : StatechartLayouter {
             if (state.name in states) return
             val marker = if (state.isInitial) ElkGraphUtil.createNode(parent) else null
             val node = ElkGraphUtil.createNode(parent)
-            val nameWidth = measurer.widthOf(state.name) + 2 * NAME_PADDING
+            val nameWidth = measurer.widthOf(state.name) + 2 * StatechartMetrics.NAME_PADDING
             if (state.isComposite) {
-                node.setProperty(CoreOptions.PADDING, ElkPadding(HEADER + INNER_MARGIN, INNER_MARGIN, INNER_MARGIN, INNER_MARGIN))
-                node.setProperty(CoreOptions.NODE_SIZE_MINIMUM, org.eclipse.elk.core.math.KVector(nameWidth.toDouble(), HEADER.toDouble()))
+                val inner = StatechartMetrics.INNER_MARGIN.toDouble()
+                node.setProperty(CoreOptions.PADDING, ElkPadding(StatechartMetrics.HEADER + inner, inner, inner, inner))
+                node.setProperty(CoreOptions.NODE_SIZE_MINIMUM, org.eclipse.elk.core.math.KVector(nameWidth.toDouble(), StatechartMetrics.HEADER.toDouble()))
                 node.setProperty(CoreOptions.NODE_SIZE_CONSTRAINTS, java.util.EnumSet.of(org.eclipse.elk.core.options.SizeConstraint.MINIMUM_SIZE))
             } else {
-                node.width = maxOf(nameWidth, MIN_STATE_WIDTH).toDouble()
-                node.height = (if (state.hasEntry || state.hasDo) STATE_HEIGHT + BLOCK_LINE else STATE_HEIGHT).toDouble()
+                node.width = StatechartMetrics.leafWidth(state, measurer).toDouble()
+                node.height = StatechartMetrics.leafHeight(state).toDouble()
             }
             states[state.name] = node
             if (marker != null) {
-                marker.width = MARKER.toDouble()
-                marker.height = MARKER.toDouble()
+                marker.width = StatechartMetrics.MARKER.toDouble()
+                marker.height = StatechartMetrics.MARKER.toDouble()
                 marker.setProperty(LayeredOptions.LAYERING_LAYER_CONSTRAINT, LayerConstraint.FIRST)
                 markers[state.name] = marker
                 edges += Line(ElkGraphUtil.createSimpleEdge(marker, node), RouteKind.INITIAL, null)
@@ -124,8 +125,8 @@ internal class ElkStatechartLayouter : StatechartLayouter {
                 return
             }
             val bar = ElkGraphUtil.createNode(commonContainer(sources + targets)).apply {
-                width = BAR_LENGTH.toDouble()
-                height = BAR_THICKNESS.toDouble()
+                width = StatechartMetrics.BAR_LENGTH.toDouble()
+                height = StatechartMetrics.BAR_THICKNESS.toDouble()
             }
             bars[transition.id] = bar
             sources.forEachIndexed { index, source ->
@@ -144,8 +145,8 @@ internal class ElkStatechartLayouter : StatechartLayouter {
         private fun labelled(edge: ElkEdge, transition: TransitionEdge): ElkEdge {
             val caption = transition.caption
             ElkGraphUtil.createLabel(caption, edge).apply {
-                width = (measurer.widthOf(caption) + LABEL_PADDING).toDouble()
-                height = LABEL_HEIGHT.toDouble()
+                width = (measurer.widthOf(caption) + StatechartMetrics.LABEL_PADDING).toDouble()
+                height = StatechartMetrics.LABEL_HEIGHT.toDouble()
             }
             return edge
         }
@@ -169,7 +170,7 @@ internal class ElkStatechartLayouter : StatechartLayouter {
             routes = edges.mapNotNull(::routeOf),
             width = root.width.toFloat(),
             height = root.height.toFloat(),
-            headerHeight = HEADER,
+            headerHeight = StatechartMetrics.HEADER,
         )
 
         private fun boxOf(node: ElkNode): DiagramBox {
@@ -205,43 +206,7 @@ internal class ElkStatechartLayouter : StatechartLayouter {
         }
     }
 
-    internal companion object {
-        /** The room at the top of a state's box that holds its name. */
-        const val HEADER = 26f
-
-        /** The height of a state without nested states. */
-        const val STATE_HEIGHT = 36f
-
-        /** The extra height of a state that has an entry or a do block, for the line that says so. */
-        const val BLOCK_LINE = 16f
-
-        /** The smallest width of a state. */
-        const val MIN_STATE_WIDTH = 80f
-
-        /** The room left and right of a state's name. */
-        const val NAME_PADDING = 14f
-
-        /** The room around the nested states inside their parent. */
-        const val INNER_MARGIN = 16.0
-
-        /** The room around the whole drawing. */
-        const val MARGIN = 24.0
-
-        /** The diameter of the marker of an initial state. */
-        const val MARKER = 14f
-
-        /** The length of the bar of a split or join. */
-        const val BAR_LENGTH = 60f
-
-        /** The thickness of the bar of a split or join. */
-        const val BAR_THICKNESS = 6f
-
-        /** The height of the label of a transition. */
-        const val LABEL_HEIGHT = 16f
-
-        /** The room a label gets beyond the width of its text. */
-        const val LABEL_PADDING = 8f
-
+    private companion object {
         /** The distance between two states of one layer. */
         const val NODE_SPACING = 36.0
 

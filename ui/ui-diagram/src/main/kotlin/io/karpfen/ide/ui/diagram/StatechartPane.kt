@@ -21,8 +21,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -31,33 +35,71 @@ import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.sync.StatechartState
 import io.karpfen.ide.notation.sync.StatechartTracker
+import io.karpfen.ide.notation.sync.VisFiles
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
+import java.nio.file.Path
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * The statechart of the state machine file that [session] holds. The drawing follows the text: whenever the text or
- * its parse changes, the diagram is derived again from the text. While the text has syntax errors, the last drawing
- * stays and a note says that it is outdated.
+ * The statechart of the state machine file [modelFile], whose text [session] holds. The drawing follows the text:
+ * whenever the text or its parse changes, the diagram is derived again from the text. While the text has syntax
+ * errors, the last drawing stays and a note says that it is outdated.
  *
- * The drawing is read-only. It can be moved by dragging and by scrolling, and zoomed with the buttons in its corner
+ * The drawing can be moved by dragging the empty canvas and by scrolling, and zoomed with the buttons in its corner
  * or by scrolling while Ctrl or Cmd is held. A click on a state calls [onSelect] with the place of the state's name
  * in the text, so the caller can show it in the editor.
+ *
+ * The statechart can be arranged by hand. States, the bars of splits and joins and the waypoints of transitions are
+ * dragged on a grid, and a secondary click on a transition adds or removes a waypoint. The arrangement is stored in
+ * the companion file of [modelFile], next to it with `.vis` appended. After every write [onLayoutSaved] is called, so
+ * the caller can show the new file. The companion file is read when the pane appears and again whenever
+ * [reloadKey] changes, which is how changes made to it by other tools come in. The text always wins: what the
+ * companion file says about elements the text does not have is ignored.
  */
 @Composable
-public fun StatechartPane(session: DocumentSession, modifier: Modifier = Modifier, onSelect: (TextRange) -> Unit = {}) {
+public fun StatechartPane(
+    session: DocumentSession,
+    modelFile: Path,
+    modifier: Modifier = Modifier,
+    reloadKey: Any? = null,
+    onSelect: (TextRange) -> Unit = {},
+    onLayoutSaved: () -> Unit = {},
+) {
     val state by produceState(StatechartState.EMPTY, session) {
         val tracker = StatechartTracker()
         combine(session.text.snapshot, session.parse) { snapshot, outcome -> tracker.update(snapshot, outcome) }.collect { value = it }
     }
-    StatechartView(state, modifier, onSelect)
+    val scope = rememberCoroutineScope()
+    val visFile = remember(modelFile) { VisFiles.pathFor(modelFile) }
+    val saved by rememberUpdatedState(onLayoutSaved)
+    val editing = remember(visFile) {
+        StatechartEditing { layout ->
+            scope.launch {
+                withContext(Dispatchers.IO) { VisFiles.write(visFile, layout) }
+                saved()
+            }
+        }
+    }
+    LaunchedEffect(visFile, reloadKey) {
+        editing.loaded(withContext(Dispatchers.IO) { VisFiles.read(visFile) })
+    }
+    StatechartView(state, editing, modifier, onSelect)
 }
 
 /**
- * The view of the statechart [state]. It draws the diagram, says so when there is none, and shows the note of a stale
- * diagram over the drawing.
+ * The view of the statechart [state], arranged through [editing]. It draws the diagram, says so when there is none,
+ * and shows the note of a stale diagram over the drawing.
  */
 @Composable
-internal fun StatechartView(state: StatechartState, modifier: Modifier = Modifier, onSelect: (TextRange) -> Unit = {}) {
+internal fun StatechartView(
+    state: StatechartState,
+    editing: StatechartEditing,
+    modifier: Modifier = Modifier,
+    onSelect: (TextRange) -> Unit = {},
+) {
     val colors = KarpfenTheme.colors
     Box(modifier.fillMaxSize().background(colors.window).testTag(StatechartViewTestTags.VIEW)) {
         val diagram = state.diagram
@@ -69,7 +111,7 @@ internal fun StatechartView(state: StatechartState, modifier: Modifier = Modifie
                 modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(StatechartViewTestTags.EMPTY),
             )
         } else {
-            StatechartCanvas(diagram, onSelect)
+            StatechartCanvas(diagram, editing, onSelect)
         }
         if (state.isStale) {
             Text(

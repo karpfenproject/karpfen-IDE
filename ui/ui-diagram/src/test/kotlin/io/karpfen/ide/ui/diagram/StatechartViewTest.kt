@@ -94,7 +94,8 @@ class StatechartViewTest {
     }
 
     private fun ComposeUiTest.show(state: StatechartState, onSelect: (TextRange) -> Unit = {}) {
-        setContent { KarpfenTheme(darkTheme = false) { StatechartView(state, onSelect = onSelect) } }
+        val editing = StatechartEditing { }
+        setContent { KarpfenTheme(darkTheme = false) { StatechartView(state, editing, onSelect = onSelect) } }
         waitForIdle()
     }
 

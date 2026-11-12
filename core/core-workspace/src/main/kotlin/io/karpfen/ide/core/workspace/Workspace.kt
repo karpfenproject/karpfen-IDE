@@ -76,6 +76,13 @@ public interface Workspace : AutoCloseable {
     /** The current file tree. It is [WorkspaceTree.empty] until the first scan completes. */
     public val files: StateFlow<WorkspaceTree>
 
+    /**
+     * Counts the scans of the folder that have completed. It grows whenever the IDE noticed a change on disk or was
+     * asked to [refresh], also when the tree of [files] stayed the same, as after a change inside a file. Whoever
+     * reads a file that is no open document, such as the layout of a diagram, reads it again when this value changes.
+     */
+    public val scanRevision: StateFlow<Long>
+
     /** The current modeling contexts, the loose files and the diagnostics of the context resolution. */
     public val contexts: StateFlow<ContextResolution>
 

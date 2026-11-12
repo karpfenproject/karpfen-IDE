@@ -79,13 +79,13 @@ class FileSystemWorkspaceScannerTest {
     fun `nodes carry absolute normalized paths and file kinds`() {
         write("ctx/EVENTS.kmeta")
         write("ctx/robot.kenv.json")
-        write("ctx/robot.kstates.layout.json")
+        write("ctx/robot.kstates.vis")
 
         val tree = scanner.scan(dir.resolve("ctx/.."))
 
         assertEquals(dir.toAbsolutePath().normalize(), tree.root.path)
         assertEquals(
-            mapOf("EVENTS.kmeta" to FileKind.EVENTS_KMETA, "robot.kenv.json" to FileKind.ENV_DESCRIPTOR, "robot.kstates.layout.json" to FileKind.LAYOUT),
+            mapOf("EVENTS.kmeta" to FileKind.EVENTS_KMETA, "robot.kenv.json" to FileKind.ENV_DESCRIPTOR, "robot.kstates.vis" to FileKind.LAYOUT),
             tree.files().associate { it.name to it.kind },
         )
         tree.files().forEach { assertEquals(it.path.toAbsolutePath().normalize(), it.path) }

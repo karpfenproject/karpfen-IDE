@@ -192,6 +192,8 @@ internal class DefaultWorkbenchState(
 
     override fun closeActiveTab(): Job = tabs.active.value?.let(::closeTab) ?: NOTHING_TO_DO
 
+    override fun refreshFiles(): Job = runner.launch("refresh files") { holder.workspace.value?.refresh() }
+
     override fun zoomUi(step: ZoomStep): Job =
         runner.launch("zoom") { services.settings.update { it.copy(uiScale = Zoom.uiScale(it.uiScale, step)) } }
 

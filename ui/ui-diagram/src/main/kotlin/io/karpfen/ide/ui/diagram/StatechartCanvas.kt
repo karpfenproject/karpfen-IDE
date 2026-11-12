@@ -32,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -42,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -53,28 +55,33 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
+import io.karpfen.ide.notation.diagram.layout.ManualStatechartLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartLayouter
 import io.karpfen.ide.notation.diagram.layout.TextMeasurer
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.roundToInt
 
 /**
- * Draws [diagram] and lets the user move and zoom the drawing. A click on a state calls [onSelect] with the place of
- * the state's name in the text.
+ * Draws [diagram] and lets the user move and zoom the drawing and arrange it by hand through [editing]. A click on a
+ * state calls [onSelect] with the place of the state's name in the text.
  *
- * The texts are measured here, in the font of the view, and the layout is computed from these measures off the UI
- * thread. Until the first layout is there, the canvas is empty and the zoom buttons are not shown. When the diagram
- * changes, the last drawing stays until
- * the new layout is ready, so the view does not flicker while the user types.
+ * As long as [editing] holds no layout by hand, the layout is computed automatically, off the UI thread, from the
+ * texts measured here in the font of the view. Until the first layout is there, the canvas is empty and the zoom
+ * buttons are not shown. Once there is a layout by hand, the drawing follows it at once, so a dragged element moves
+ * with the pointer.
+ *
+ * A drag that starts on a state, a bar or a waypoint moves that element on the grid, and the grid is shown while it
+ * moves. A drag that starts on the empty canvas moves the whole drawing. A secondary click on the line of a
+ * transition adds a waypoint, and one on a waypoint removes it.
  *
  * The first drawing is fitted into the view. After that the view keeps the zoom and the position the user chose.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, onSelect: (TextRange) -> Unit) {
+internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, editing: StatechartEditing, onSelect: (TextRange) -> Unit) {
     val colors = KarpfenTheme.colors
     val density = LocalDensity.current.density
     val measurer = rememberTextMeasurer()
@@ -84,23 +91,41 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, onSelect: (Te
     val texts = remember(diagram, nameStyle, labelStyle, noteStyle, density) {
         StatechartTexts.measure(diagram, measurer, nameStyle, labelStyle, noteStyle)
     }
-    val drawing by produceState<StatechartDrawing?>(null, diagram, texts) {
-        val layout = withContext(Dispatchers.Default) {
-            StatechartLayouter().layout(diagram, TextMeasurer { texts.widthOf(it) / density })
+    val widths = remember(texts, density) { TextMeasurer { texts.widthOf(it) / density } }
+    val vis = editing.vis
+    val automatic by produceState<StatechartDrawing?>(null, diagram, texts, vis == null) {
+        if (vis == null) {
+            val layout = withContext(Dispatchers.Default) { StatechartLayouter().layout(diagram, widths) }
+            value = StatechartDrawing(diagram, layout, texts)
         }
-        value = StatechartDrawing(diagram, layout, texts)
     }
+    val drawing = if (vis != null) {
+        remember(diagram, texts, vis) { StatechartDrawing(diagram, ManualStatechartLayout.of(diagram, vis, widths), texts) }
+    } else {
+        automatic
+    }
+    val current by rememberUpdatedState(drawing)
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     var fitted by remember { mutableStateOf(false) }
 
-    fun fit(current: StatechartDrawing) {
-        val width = current.layout.width * density
-        val height = current.layout.height * density
+    fun pointAt(position: Offset): DiagramPoint {
+        val point = (position - pan) / (zoom * density)
+        return DiagramPoint(point.x, point.y)
+    }
+
+    fun fit(shown: StatechartDrawing) {
+        val bounds = shown.layout.bounds
+        val width = bounds.width * density
+        val height = bounds.height * density
         if (width <= 0f || height <= 0f || viewSize == IntSize.Zero) return
-        zoom = minOf(1f, viewSize.width / width, viewSize.height / height).coerceAtLeast(MIN_ZOOM)
-        pan = Offset((viewSize.width - width * zoom) / 2f, (viewSize.height - height * zoom) / 2f)
+        val margin = FIT_MARGIN * density
+        zoom = minOf(1f, (viewSize.width - 2 * margin) / width, (viewSize.height - 2 * margin) / height).coerceAtLeast(MIN_ZOOM)
+        pan = Offset(
+            (viewSize.width - width * zoom) / 2f - bounds.x * density * zoom,
+            (viewSize.height - height * zoom) / 2f - bounds.y * density * zoom,
+        )
     }
 
     fun zoomAt(pivot: Offset, factor: Float) {
@@ -109,10 +134,10 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, onSelect: (Te
         zoom = next
     }
 
-    LaunchedEffect(drawing, viewSize) {
-        val current = drawing
-        if (!fitted && current != null && viewSize != IntSize.Zero) {
-            fit(current)
+    LaunchedEffect(drawing != null, viewSize) {
+        val shown = drawing
+        if (!fitted && shown != null && viewSize != IntSize.Zero) {
+            fit(shown)
             fitted = true
         }
     }
@@ -123,18 +148,31 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, onSelect: (Te
             .clipToBounds()
             .onSizeChanged { viewSize = it }
             .pointerInput(Unit) {
-                detectDragGestures { change, drag ->
+                var grabbed = false
+                detectDragGestures(
+                    onDragStart = { position ->
+                        val shown = current
+                        grabbed = shown != null && editing.startDrag(shown.diagram, shown.layout, pointAt(position))
+                    },
+                    onDragEnd = { current?.let { editing.endDrag(it.diagram) } },
+                    onDragCancel = { current?.let { editing.endDrag(it.diagram) } },
+                ) { change, drag ->
                     change.consume()
-                    pan += drag
+                    val shown = current
+                    if (grabbed && shown != null) editing.dragTo(shown.diagram, pointAt(change.position)) else pan += drag
                 }
             }
-            .pointerInput(drawing) {
+            .pointerInput(Unit) {
                 detectTapGestures { position ->
-                    val current = drawing ?: return@detectTapGestures
-                    val point = (position - pan) / (zoom * density)
-                    current.layout.stateAt(DiagramPoint(point.x, point.y))
-                        ?.let(current.diagram::state)
-                        ?.let { onSelect(it.nameRange) }
+                    val shown = current ?: return@detectTapGestures
+                    shown.layout.stateAt(pointAt(position))?.let(shown.diagram::state)?.let { onSelect(it.nameRange) }
+                }
+            }
+            .onPointerEvent(PointerEventType.Press) { event ->
+                val shown = current ?: return@onPointerEvent
+                val change = event.changes.firstOrNull() ?: return@onPointerEvent
+                if (event.buttons.isSecondaryPressed && editing.secondaryClick(shown.diagram, shown.layout, pointAt(change.position))) {
+                    change.consume()
                 }
             }
             .onPointerEvent(PointerEventType.Scroll) { event ->
@@ -149,7 +187,10 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, onSelect: (Te
             }
             .testTag(StatechartViewTestTags.CANVAS),
     ) {
-        drawing?.let { drawStatechart(it, colors, pan, zoom) }
+        val shown = drawing ?: return@Canvas
+        if (editing.isDragging) drawGrid(colors, pan, zoom)
+        drawStatechart(shown, colors, pan, zoom)
+        vis?.let { drawWaypoints(shown.diagram, it, colors, pan, zoom) }
     }
 
     if (drawing == null) return
@@ -161,7 +202,7 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, onSelect: (Te
         CanvasButton("-", StatechartViewTestTags.ZOOM_OUT) { zoomAt(center, 1f / ZOOM_STEP) }
         CanvasButton("${(zoom * PERCENT).roundToInt()}%", StatechartViewTestTags.ZOOM) { zoomAt(center, 1f / zoom) }
         CanvasButton("+", StatechartViewTestTags.ZOOM_IN) { zoomAt(center, ZOOM_STEP) }
-        CanvasButton("Fit", StatechartViewTestTags.FIT) { drawing?.let(::fit) }
+        CanvasButton("Fit", StatechartViewTestTags.FIT) { current?.let(::fit) }
     }
 }
 
@@ -194,3 +235,6 @@ private const val SCROLL_DISTANCE = 40f
 
 /** The percent in one whole. */
 private const val PERCENT = 100
+
+/** The room that fitting leaves around the drawing, in density-independent units. */
+private const val FIT_MARGIN = 16f

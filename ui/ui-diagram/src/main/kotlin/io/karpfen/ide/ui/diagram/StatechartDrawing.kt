@@ -29,9 +29,12 @@ import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.EdgeRoute
 import io.karpfen.ide.notation.diagram.layout.RouteKind
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
+import io.karpfen.ide.notation.diagram.layout.StatechartMetrics
+import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.ui.foundation.theme.KarpfenColors
+import kotlin.math.ceil
 import kotlin.math.hypot
 
 /**
@@ -119,6 +122,47 @@ internal fun DrawScope.drawStatechart(drawing: StatechartDrawing, colors: Karpfe
     }
 }
 
+/**
+ * Draws the points of the grid that elements snap to, moved by [pan] and scaled by [zoom]. Only the points inside the
+ * view are drawn. Where the zoom brings them too close together, only every second, fifth or tenth point is drawn.
+ */
+internal fun DrawScope.drawGrid(colors: KarpfenColors, pan: Offset, zoom: Float) {
+    val base = StatechartMetrics.GRID * density * zoom
+    val every = listOf(1, 2, 5, 10, 20, 50).firstOrNull { base * it >= MIN_GRID_DISTANCE * density } ?: return
+    val step = base * every
+    val firstColumn = ceil(-pan.x / step).toInt()
+    val firstRow = ceil(-pan.y / step).toInt()
+    val radius = GRID_DOT * density
+    var column = firstColumn
+    while (pan.x + column * step <= size.width) {
+        var row = firstRow
+        while (pan.y + row * step <= size.height) {
+            drawCircle(colors.border, radius, Offset(pan.x + column * step, pan.y + row * step))
+            row++
+        }
+        column++
+    }
+}
+
+/**
+ * Draws the waypoints of [vis] as small handles, moved by [pan] and scaled by [zoom], so the user sees where a
+ * transition can be bent. Only the waypoints of transitions that [diagram] has are drawn.
+ */
+internal fun DrawScope.drawWaypoints(diagram: StatechartDiagram, vis: VisLayout, colors: KarpfenColors, pan: Offset, zoom: Float) {
+    val known = diagram.transitions.map { it.id }.toSet()
+    val unit = density
+    withTransform({
+        translate(pan.x, pan.y)
+        scale(zoom, zoom, pivot = Offset.Zero)
+    }) {
+        vis.waypoints.filterKeys(known::contains).values.flatten().forEach { point ->
+            val center = Offset(point.x * unit, point.y * unit)
+            drawCircle(colors.window, WAYPOINT * unit, center)
+            drawCircle(colors.accent, WAYPOINT * unit, center, style = Stroke(LINE * unit))
+        }
+    }
+}
+
 private fun DrawScope.drawState(state: StateNode, box: DiagramBox, drawing: StatechartDrawing, colors: KarpfenColors, unit: Float) {
     val corner = CornerRadius(CORNER * unit)
     val topLeft = box.topLeft(unit)
@@ -168,6 +212,15 @@ private fun DiagramBox.topLeft(unit: Float): Offset = Offset(x * unit, y * unit)
 private fun DiagramBox.size(unit: Float): Size = Size(width * unit, height * unit)
 
 private fun DiagramBox.center(unit: Float): Offset = Offset((x + width / 2f) * unit, (y + height / 2f) * unit)
+
+/** The radius of the handle of a waypoint. */
+private const val WAYPOINT = 4f
+
+/** The radius of a point of the grid. */
+private const val GRID_DOT = 0.9f
+
+/** The smallest distance between two drawn points of the grid. */
+private const val MIN_GRID_DISTANCE = 8f
 
 /** The radius of the corners of a state. */
 private const val CORNER = 8f

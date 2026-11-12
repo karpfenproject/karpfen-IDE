@@ -71,7 +71,9 @@ import java.nio.file.Path
  * A file with a diagram, so far a state machine, can be shown in three ways, as [viewMode] says: its text alone, its
  * text and its statechart next to each other, or the statechart alone. The buttons for that sit at the left of the
  * bar below the editor and report to [onViewMode]. A click on a state of the statechart calls [onSelectInText] with
- * the place of the state's name in the text.
+ * the place of the state's name in the text. The statechart can be arranged by hand, which is stored in a companion
+ * file next to the state machine file. The statechart reads that file again whenever [diskRevision] changes, and
+ * [onDiagramSaved] is called after it wrote the file.
  *
  * The editor and its popups are drawn at the density of the window, not at the zoomed density of the workbench around
  * them. The size of the editor's text therefore depends only on its font size. The tab strip, the banner and the zoom
@@ -99,6 +101,8 @@ internal fun EditorArea(
     viewMode: EditorViewMode,
     onViewMode: (EditorViewMode) -> Unit,
     onSelectInText: (TextRange) -> Unit,
+    diskRevision: Long,
+    onDiagramSaved: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = KarpfenTheme.colors
@@ -132,7 +136,14 @@ internal fun EditorArea(
                 }
                 val diagram: @Composable () -> Unit = {
                     key(activePath) {
-                        StatechartPane(activeEditor.session, Modifier.fillMaxSize().testTag(EditorAreaTestTags.DIAGRAM), onSelectInText)
+                        StatechartPane(
+                            session = activeEditor.session,
+                            modelFile = activePath,
+                            modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.DIAGRAM),
+                            reloadKey = diskRevision,
+                            onSelect = onSelectInText,
+                            onLayoutSaved = onDiagramSaved,
+                        )
                     }
                 }
                 when (mode) {

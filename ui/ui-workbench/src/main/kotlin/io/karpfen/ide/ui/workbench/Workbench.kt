@@ -168,6 +168,8 @@ private fun EditorPane(state: WorkbenchState) {
     val active by state.tabs.active.collectAsState()
     val activeEditor by state.tabs.activeEditor.collectAsState()
     val viewModes by state.tabs.viewModes.collectAsState()
+    val workspace by state.workspace.collectAsState()
+    val diskRevision = workspace?.scanRevision?.collectAsState()?.value ?: 0L
     val settings by state.settings.collectAsState()
     EditorArea(
         tabs = tabs,
@@ -181,6 +183,8 @@ private fun EditorPane(state: WorkbenchState) {
         viewMode = active?.let(viewModes::get) ?: EditorViewMode.TEXT,
         onViewMode = { mode -> active?.let { state.tabs.setViewMode(it, mode) } },
         onSelectInText = { range -> active?.let { state.navigateTo(Location(it, range)) } },
+        diskRevision = diskRevision,
+        onDiagramSaved = { state.refreshFiles() },
     )
 }
 

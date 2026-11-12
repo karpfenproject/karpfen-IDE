@@ -127,6 +127,7 @@ internal class DefaultWorkspace(
     }
 
     override val files: StateFlow<WorkspaceTree> get() = treeRefresher.files
+    override val scanRevision: StateFlow<Long> get() = treeRefresher.revision
 
     override val contexts: StateFlow<ContextResolution> get() = contextTracker.resolution
 

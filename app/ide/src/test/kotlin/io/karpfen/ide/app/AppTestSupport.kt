@@ -153,6 +153,8 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun closeTab(path: Path): Job = unexpected("closeTab")
     override fun closeActiveTab(): Job = unexpected("closeActiveTab")
 
+    override fun refreshFiles(): Job = unexpected("refreshFiles")
+
     override fun zoomUi(step: ZoomStep): Job = unexpected("zoomUi")
 
     override fun zoomEditor(step: ZoomStep): Job = unexpected("zoomEditor")

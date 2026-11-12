@@ -18,10 +18,12 @@ plugins {
 }
 
 /**
- * The diagram model without any UI, derived from the outline of a document, and its automatic layout. The layout
- * library ELK stays an implementation detail behind the layouter.
+ * The diagram model without any UI, derived from the outline of a document, and its layout, automatic or by hand. The
+ * layout library ELK stays an implementation detail behind the layouter. The JSON library reads and writes the
+ * companion file that holds a layout made by hand.
  */
 dependencies {
     api(project(":core:core-workspace"))
     implementation(libs.bundles.elk)
+    implementation(libs.kotlinx.serialization.json)
 }

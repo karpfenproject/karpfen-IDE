@@ -234,14 +234,17 @@ so both always agree. It depends on core-workspace. The end-to-end tests of app/
 
 ### notation-diagram, notation-sync and ui-diagram
 
-The diagrams. So far there is one, the statechart of a state machine file, and it is read-only. notation-diagram holds
-the diagram without any UI. `StatechartProjection` derives a `StatechartDiagram` from the text and the outline of a
-file, with the states, their nesting and the transitions. `StatechartLayouter` places its elements and returns a
-`StatechartLayout` in absolute positions. The layouter the IDE uses hands the work to the Eclipse Layout Kernel, which
-stays behind that interface. notation-sync keeps a diagram in step with its text. `StatechartTracker` derives the
-diagram again after every change and keeps the last one while the text has syntax errors. ui-diagram draws.
-`StatechartPane` takes the document session of a file and shows its statechart on a canvas that can be moved and zoomed.
-ui-workbench shows the pane next to the editor or in its place, as the user chooses per file.
+The diagrams. So far there is one, the statechart of a state machine file. notation-diagram holds the diagram without
+any UI. `StatechartProjection` derives a `StatechartDiagram` from the text and the outline of a file, with the states,
+their nesting and the transitions. A `StatechartLayout` says where its elements are drawn, in absolute positions.
+`StatechartLayouter` computes one automatically and hands the work to the Eclipse Layout Kernel, which stays behind that
+interface. `ManualStatechartLayout` computes one from a `VisLayout`, the arrangement the user made by hand, and
+`VisEditing` holds the changes a user can make to it. notation-sync keeps a diagram in step with its text and its files.
+`StatechartTracker` derives the diagram again after every change and keeps the last one while the text has syntax
+errors, and `VisFiles` reads and writes the companion file of an arrangement by hand. ui-diagram draws. `StatechartPane`
+takes the document session of a file and shows its statechart on a canvas that can be moved, zoomed and arranged, with
+`StatechartEditing` turning the gestures into changes. ui-workbench shows the pane next to the editor or in its place,
+as the user chooses per file.
 
 ### Placeholders
 

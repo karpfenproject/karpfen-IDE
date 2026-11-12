@@ -45,7 +45,10 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
      */
     BRIDGE(null),
 
-    /** A diagram layout sidecar, `*.layout.json`. */
+    /**
+     * The companion file of a model file that holds the layout of its diagram, `*.vis`. It is named like the model
+     * file with the suffix appended, as in `lamp.kstates.vis`.
+     */
     LAYOUT(null),
 
     /** Anything else. */
@@ -86,8 +89,8 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
         /** The file-name suffix of bridge configurations. */
         public const val BRIDGE_SUFFIX: String = ".kbridge.json"
 
-        /** The file-name suffix of layout sidecars. */
-        public const val LAYOUT_SUFFIX: String = ".layout.json"
+        /** The file-name suffix of the companion files that hold diagram layouts. */
+        public const val LAYOUT_SUFFIX: String = ".vis"
 
         /** The name of the event metamodel. */
         public const val EVENTS_FILE_NAME: String = "EVENTS.kmeta"

@@ -60,7 +60,7 @@ class WorkspaceContractTest {
         assertEquals(FileKind.KMETA, FileKind.of("robot.kmeta"))
         assertEquals(FileKind.KSTATES, FileKind.of("robot.kstates"))
         assertEquals(FileKind.ENV_DESCRIPTOR, FileKind.of("robot.kenv.json"))
-        assertEquals(FileKind.LAYOUT, FileKind.of("robot.kstates.layout.json"))
+        assertEquals(FileKind.LAYOUT, FileKind.of("robot.kstates.vis"))
         assertEquals(FileKind.OTHER, FileKind.of("README.md"))
         assertTrue(FileKind.EVENTS_KMETA.isKarpfenSource)
     }

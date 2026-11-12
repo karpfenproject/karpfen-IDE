@@ -434,11 +434,12 @@ the code does not depend on the toolkit.
 
 ### Diagrams are projections of the text
 
-The first diagram exists: the statechart of a state machine file, read-only and placed automatically. A state machine
+The first diagram exists: the statechart of a state machine file. It is placed automatically until the user
+arranges it by hand. A state machine
 file can be shown as its text, as its statechart, or as both next to each other, and the choice belongs to the file. The
 diagram is always the one of the file itself. The rest of this section is the settled design that the later steps
-follow. They are, in this order: moving states by hand with the positions stored in a companion file, a live view of the
-active states while a model runs, graphical edits that change the text, and the class and object diagrams.
+follow. They are, in this order: a live view of the active states while a model runs, graphical edits that change the text,
+and the class and object diagrams.
 
 The diagram is drawn on a canvas of the IDE's own UI toolkit, not in an embedded web view. A web view would bring a
 browser along, could not host the IDE's own editor in the text cells of the states, and would save little, because the
@@ -456,15 +457,22 @@ change. So the text is the only thing that is written, and text and diagram cann
 syntax errors, the diagram keeps the last good state and is marked as stale. Text edits and layout changes will share
 one undo history per document.
 
-The visual information of a diagram will live in a companion file next to its source, named after the source with `.vis`
-appended, such as `lamp.kstates.vis`. It is committed with the source and can be generated again. It holds JSON, keyed
-by stable identities of the elements, such as a state by its name or a transition by its kind, its states and its
-position among equal ones. Moving or resizing an element only changes the companion file. If the two disagree, the text
-wins: entries for elements the text no longer has are dropped, and elements without an entry are placed automatically.
-Automatic layout uses the Eclipse Layout Kernel behind `StatechartLayouter`, so a custom layouter can replace it. The
-kernel needs the small library `org.eclipse.xtext.xbase.lib` at run time, which its own package descriptions do not
-name, so the version catalog lists it. The live view of a
-running model will be a read-only layer over the diagram that never touches the document.
+The visual information of a diagram lives in a companion file next to its source, named after the source with `.vis`
+appended, such as `lamp.kstates.vis`. It is committed with the source. It holds JSON, as `VisLayoutJson` reads and
+writes it, keyed by stable identities of the elements: a state by its name, a transition by its kind, its states and its
+position among equal ones. Only what has no other source is stored: the middle of every state without inner states, the
+middle of the bar of every split and join, and the waypoints of every normal transition. The box of a state with inner
+states follows from them.
+
+As long as there is no companion file, the statechart is laid out automatically by the Eclipse Layout Kernel behind
+`StatechartLayouter`. The first change by hand freezes that layout into a `VisLayout`, and from then on
+`ManualStatechartLayout` draws it and nothing is arranged automatically, except that an element that is new in the text
+is placed next to its siblings. All stored positions are on a grid of 10 units, which the view shows while an element is
+dragged. If the file and the text disagree, the text wins: an entry for an element the text no longer has is ignored and
+dropped at the next save. Deleting the companion file brings the automatic layout back. The view reads the file again
+whenever the workspace has scanned the folder, which is how changes made by other tools come in. The kernel needs the
+small library `org.eclipse.xtext.xbase.lib` at run time, which its own package descriptions do not name, so the version
+catalog lists it.
 
 ### Bridges run without the IDE
 
@@ -935,8 +943,9 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
   settings, and `lsp4j` in the version catalog is unused so far. The language server is meant to put core-lang behind
   the Language Server Protocol for other editors.
 - tools/cli declares a dependency on runtime-session for a deploy command that does not exist yet.
-- The statechart cannot be edited yet, has no companion file yet, and does not show the active states of a running
-  model. The view mode of a file is not stored in the project file. Class and object diagrams do not exist.
+- The statechart cannot change the text yet and does not show the active states of a running model. The lines of splits
+  and joins have no waypoints. The companion file is not shown under its model in the project tree and cannot be opened
+  in the editor. The view mode of a file is not stored in the project file. Class and object diagrams do not exist.
 - There is no rename refactoring, no command that reformats a file and no split editor. dsl-tools 2.0 has printers
   for the three languages, but the IDE does not use them yet. The caret model holds a list of carets, but the editor
   offers no way to add a second one.
