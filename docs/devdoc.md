@@ -474,6 +474,13 @@ whenever the workspace has scanned the folder, which is how changes made by othe
 small library `org.eclipse.xtext.xbase.lib` at run time, which its own package descriptions do not name, so the version
 catalog lists it.
 
+A companion file is a file kind and a language of its own, `FileKind.LAYOUT` and `KarpfenLanguage.VIS`. The language
+colours the JSON and checks nothing. The file kind is read-only: `OpenDocumentFactory` gives its document a text from
+`EditableText.readOnly`, which refuses every change except the reload from disk, so typing, pasting, commands and undo
+all end in one place. The editor only draws the text greyed out, as `EditorSettings.readOnly` tells it. The project tree
+shows a companion file below the model file it is named after, as `CompanionFiles` decides, and that model file can be
+expanded like a folder.
+
 ### Bridges run without the IDE
 
 The shared core of the bridges exists, and no bridge to an external system yet. They are built in this order: plain
@@ -952,8 +959,8 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
   the Language Server Protocol for other editors.
 - tools/cli declares a dependency on runtime-session for a deploy command that does not exist yet.
 - The statechart cannot change the text yet and does not show the active states of a running model. The lines of splits
-  and joins have no waypoints. The companion file is not shown under its model in the project tree and cannot be opened
-  in the editor. The view mode of a file is not stored in the project file. Class and object diagrams do not exist.
+  and joins have no waypoints. The view mode of a file is not stored in the project file. Class and object diagrams do
+  not exist.
 - There is no rename refactoring, no command that reformats a file and no split editor. dsl-tools 2.0 has printers
   for the three languages, but the IDE does not use them yet. The caret model holds a list of carets, but the editor
   offers no way to add a second one.

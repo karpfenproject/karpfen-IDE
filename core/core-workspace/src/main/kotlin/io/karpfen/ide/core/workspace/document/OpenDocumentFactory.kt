@@ -22,11 +22,12 @@ import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
 import io.karpfen.ide.core.document.session.ExternalDiagnosticSources
 import io.karpfen.ide.core.text.EditableText
+import io.karpfen.ide.core.text.readOnly
 import io.karpfen.ide.core.workspace.files.FileKind
+import kotlin.time.TimeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlin.time.TimeSource
 
 /**
  * Creates the [DefaultOpenDocument] of a loaded file. It creates an `EditableText` on the injected [timeSource] and a
@@ -45,10 +46,11 @@ internal class OpenDocumentFactory(
 
     /**
      * The document of [loaded], whose path is absolute and normalized, with the tokenizer and parser of [support].
+     * The document of a read-only [kind] gets a text that only follows its file on disk.
      */
     fun create(loaded: LoadedSource, kind: FileKind, support: LanguageSupport): DefaultOpenDocument {
         val documentScope = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
-        val text = EditableText(loaded.text, timeSource)
+        val text = EditableText(loaded.text, timeSource).let { if (kind.isReadOnly) it.readOnly() else it }
         val session = DocumentSession(
             DocumentId(loaded.path),
             support,

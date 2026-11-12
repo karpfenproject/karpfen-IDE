@@ -49,7 +49,7 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
      * The companion file of a model file that holds the layout of its diagram, `*.vis`. It is named like the model
      * file with the suffix appended, as in `lamp.kstates.vis`.
      */
-    LAYOUT(null),
+    LAYOUT(KarpfenLanguage.VIS),
 
     /** Anything else. */
     OTHER(null),
@@ -61,6 +61,13 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
      * full language support as well, but they define contexts instead of belonging to one.
      */
     public val isKarpfenSource: Boolean get() = language?.isModelingLanguage == true
+
+    /**
+     * True for a file that is opened for reading only. The IDE keeps such a file up to date itself, and its open
+     * document follows the file on disk but refuses every change a user could make. So far these are the companion
+     * files of diagrams.
+     */
+    public val isReadOnly: Boolean get() = this == LAYOUT
 
     /**
      * True if a descriptor key of [role] may name a file of this kind. That is a file in the language of the role,
@@ -109,6 +116,7 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
                 KarpfenLanguage.KMODEL -> KMODEL
                 KarpfenLanguage.KSTATES -> KSTATES
                 KarpfenLanguage.ENVIRONMENT -> ENV_DESCRIPTOR
+                KarpfenLanguage.VIS -> LAYOUT
                 null -> OTHER
             }
         }

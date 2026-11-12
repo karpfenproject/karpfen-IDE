@@ -44,6 +44,12 @@ public enum class KarpfenLanguage(
      * context and say how the runtime runs them. `EnvironmentSchema` of the `environment` package describes their keys.
      */
     ENVIRONMENT("kenv.json", "Environment", isModelingLanguage = false),
+
+    /**
+     * Diagram layouts in `.vis` files. Such a file is the companion of a model file and holds, as JSON, where the
+     * elements of its diagram are drawn. The IDE writes it and shows it read-only. It has no checks of its own.
+     */
+    VIS("vis", "Diagram Layout", isModelingLanguage = false),
     ;
 
     public companion object {

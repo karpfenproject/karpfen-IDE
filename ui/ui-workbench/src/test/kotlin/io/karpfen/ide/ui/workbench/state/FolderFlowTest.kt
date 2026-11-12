@@ -18,10 +18,12 @@ package io.karpfen.ide.ui.workbench.state
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettingsFile
+import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.assertSamePath
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import java.io.IOException
@@ -146,6 +148,33 @@ class FolderFlowTest {
                 assertEquals(listOf(machine), state.tabs.tabs.value.map { it.path }, "the deleted file is skipped")
                 assertEquals(machine, state.tabs.active.value)
                 assertTrue(Files.notExists(other.resolve(ProjectSettings.FILE_NAME)), "nothing changed in the other folder")
+            }
+        }
+
+    @Test
+    fun `the companion file of a diagram opens as text that cannot be changed and follows its file on disk`() =
+        runTest(timeout = 60.seconds) {
+            Examples.copyTo(root)
+            val machine = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kstates")
+            val vis = machine.resolveSibling("cleaning_robot.kstates.vis")
+            TestWorkbench.write(vis, "{ \"version\": 1 }\n")
+            withWorkbench(settingsDirectory) {
+                open(root)
+                val editor = openEditor(vis)
+                settle()
+
+                assertTrue(editor.settings.value.readOnly, "the editor draws the text greyed out")
+                assertEquals(FileKind.LAYOUT, document(vis).fileKind)
+                assertNull(document(vis).session.text.apply(listOf(TextEdit.insert(0, "x")), EditOrigin.Typing), "typing is refused")
+                assertFalse(document(vis).isDirty.value)
+                assertFalse(openEditor(machine).settings.value.readOnly, "a model file stays editable")
+
+                TestWorkbench.write(vis, "{ \"version\": 1, \"states\": { } }\n")
+                state.workspace.value?.refresh()
+                settle()
+
+                assertEquals("{ \"version\": 1, \"states\": { } }\n", document(vis).session.text.snapshot.value.text)
+                assertFalse(document(vis).isDirty.value)
             }
         }
 

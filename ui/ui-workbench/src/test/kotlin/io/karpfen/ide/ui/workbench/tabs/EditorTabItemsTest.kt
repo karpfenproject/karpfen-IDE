@@ -51,7 +51,7 @@ class EditorTabItemsTest {
 
     @Test
     fun `a tab shows the icon the project tree shows for its file, for every kind an editor opens`() {
-        val names = listOf("EVENTS.kmeta", "robot.kenv.json", "robot.kmeta", "robot.kmodel", "robot.kstates")
+        val names = listOf("EVENTS.kmeta", "orphan.vis", "robot.kenv.json", "robot.kmeta", "robot.kmodel", "robot.kstates")
         val files = names.map { WorkspaceNode.File(root.resolve(it), it, FileKind.of(it)) }
         assertEquals(FileKind.entries.filter { it.language != null }.toSet(), files.map { it.kind }.toSet())
 

@@ -44,11 +44,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property fontSize the font size in sp.
  * @property tabDisplayWidth columns per tab stop when rendering tab characters.
  * @property showLineNumbers whether the gutter shows one-based line numbers.
+ * @property readOnly true for a document the user cannot change. The editor then draws its text greyed out, so it
+ *   reads as something to look at and not to type into. Refusing the changes is the business of the document's text.
  */
 public data class EditorSettings(
     public val fontSize: Float = 13f,
     public val tabDisplayWidth: Int = 4,
     public val showLineNumbers: Boolean = true,
+    public val readOnly: Boolean = false,
 ) {
     init {
         require(fontSize > 0f) { "fontSize must be positive, was $fontSize" }

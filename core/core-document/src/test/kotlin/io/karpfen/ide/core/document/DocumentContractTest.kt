@@ -180,11 +180,15 @@ class DocumentContractTest {
         KarpfenLanguage.entries.forEach { assertEquals(it, registry.support(it).language) }
         assertEquals(KarpfenLanguage.KMODEL, registry.languageOf("model.kmodel"))
         assertEquals(KarpfenLanguage.ENVIRONMENT, registry.languageOf("robot.kenv.json"))
-        assertEquals(listOf(KarpfenLanguage.ENVIRONMENT), KarpfenLanguage.entries.filterNot { it.isModelingLanguage })
+        assertEquals(KarpfenLanguage.VIS, registry.languageOf("lamp.kstates.vis"))
+        assertEquals(
+            listOf(KarpfenLanguage.ENVIRONMENT, KarpfenLanguage.VIS),
+            KarpfenLanguage.entries.filterNot { it.isModelingLanguage },
+        )
         assertEquals(
             mapOf(
                 KarpfenLanguage.KMETA to "//", KarpfenLanguage.KMODEL to "//", KarpfenLanguage.KSTATES to "//",
-                KarpfenLanguage.ENVIRONMENT to null,
+                KarpfenLanguage.ENVIRONMENT to null, KarpfenLanguage.VIS to null,
             ),
             KarpfenLanguage.entries.associateWith { registry.support(it).lineComment },
             "JSON has no comments",

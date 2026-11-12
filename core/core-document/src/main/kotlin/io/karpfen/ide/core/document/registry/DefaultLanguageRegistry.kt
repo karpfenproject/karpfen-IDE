@@ -26,7 +26,7 @@ import io.karpfen.ide.core.document.language.LanguageRegistry
  * family. Each of the three modeling languages creates its tokenizer from the package `antlr.lex`. Its parser is
  * composed of the ANTLR syntax analyzer from `antlr.tree`. KMeta and KStates add the dsl-tools standalone semantics
  * from `dsl`. Environment descriptors combine the JSON tokenizer from `json` with the environment syntax analyzer from
- * `environment`. A further language needs a new support class in this package and one entry here. No existing
+ * `environment`. Diagram layouts use the JSON tokenizer alone. A further language needs a new support class in this package and one entry here. No existing
  * language class changes.
  */
 public fun defaultLanguageRegistry(reader: DslReader = DslReader()): LanguageRegistry =
@@ -36,5 +36,6 @@ public fun defaultLanguageRegistry(reader: DslReader = DslReader()): LanguageReg
             KmodelLanguageSupport(),
             KstatesLanguageSupport(reader),
             EnvironmentLanguageSupport(),
+            VisLanguageSupport(),
         ),
     )

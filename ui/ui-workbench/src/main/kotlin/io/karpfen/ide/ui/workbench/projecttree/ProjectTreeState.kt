@@ -49,7 +49,10 @@ public class ProjectTreeState(
     /** The tree of the current workspace, or null without a workspace. */
     public val tree: StateFlow<WorkspaceTree?> get() = currentTree.asStateFlow()
 
-    /** The expanded directories. The root starts expanded. */
+    /**
+     * The expanded directories, and the expanded files that have companion files below them. The root starts
+     * expanded.
+     */
     public val expanded: StateFlow<Set<Path>> get() = expandedPaths.asStateFlow()
 
     /** The selected node, or null if nothing is selected. */
@@ -80,12 +83,14 @@ public class ProjectTreeState(
         expandedPaths.value = if (previous?.root?.path != tree.root.path) {
             setOf(tree.root.path)
         } else {
-            expandedPaths.value.filterTo(LinkedHashSet()) { tree.find(it) is WorkspaceNode.Directory }
+            expandedPaths.value.filterTo(LinkedHashSet()) { path ->
+                tree.find(path) is WorkspaceNode.Directory || CompanionFiles.hasCompanions(tree, path)
+            }
         }
         selection.value = selection.value?.takeIf { tree.find(it) != null }
     }
 
-    /** Expands or collapses the directory [path]. */
+    /** Expands or collapses the directory [path], or the file [path] that has companion files below it. */
     public fun toggle(path: Path) {
         expandedPaths.value = toggled(expandedPaths.value, path)
     }
@@ -97,12 +102,15 @@ public class ProjectTreeState(
 
     /**
      * Expands the ancestors of [path] and selects it. Used, for example, for the active file or a newly created one.
+     * For the companion file of a diagram, the model file it is shown below is expanded too.
      */
     public fun reveal(path: Path) {
-        val root = currentTree.value?.root?.path
+        val tree = currentTree.value
+        val root = tree?.root?.path
         if (root != null && path.startsWith(root)) {
             val ancestors = generateSequence(path.parent) { it.parent }.takeWhile { it.startsWith(root) }
-            expandedPaths.value = expandedPaths.value + ancestors
+            val owner = CompanionFiles.ownerOf(tree, path)
+            expandedPaths.value = expandedPaths.value + ancestors + listOfNotNull(owner)
         }
         selection.value = path
     }

@@ -32,6 +32,7 @@ import io.karpfen.ide.core.lang.modelpath.ModelPathResolver
 import io.karpfen.ide.core.lang.navigation.ContextReferences
 import io.karpfen.ide.core.lang.navigation.TypeReferences
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
+import io.karpfen.ide.core.lang.vis.VisLanguageFeatures
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import kotlinx.coroutines.flow.StateFlow
@@ -77,6 +78,7 @@ public fun karpfenLanguageFeatures(): List<LanguageFeatures> {
         KmodelLanguageFeatures(caretContexts, types, references, highlight, brackets),
         KstatesLanguageFeatures(caretContexts, types, paths, scopes, references, highlight, brackets),
         EnvironmentLanguageFeatures(highlight),
+        VisLanguageFeatures(highlight, brackets),
     )
 }
 

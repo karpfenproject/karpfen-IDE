@@ -23,7 +23,7 @@ import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
  * The icon of a file of [kind]. This is the only place in the workbench that maps files to icons. The project tree
  * shows the icon next to the file, and the file's editor tab shows it on the tab strip, so both always agree. The event
  * metamodel looks like any other metamodel. The JSON files share the JSON icon. They are environment descriptors,
- * bridge configurations and layout sidecars.
+ * bridge configurations and the companion files of diagrams.
  */
 internal fun fileIconOf(kind: FileKind): ImageVector = when (kind) {
     FileKind.KMETA, FileKind.EVENTS_KMETA -> KarpfenIcons.Kmeta

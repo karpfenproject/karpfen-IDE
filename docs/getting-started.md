@@ -163,6 +163,11 @@ arranged automatically, except that a state you add in the text gets a place nex
 if you delete a state in the text, its place in the `.vis` file is ignored and dropped. To go back to the automatic
 layout, delete the `.vis` file.
 
+The `.vis` file belongs to its state machine file. In the Project tool window the state machine file gets an arrow in
+front of it, and the `.vis` file shows below it when you click the arrow. A double click on the `.vis` file opens it as
+greyed-out text. You cannot type into it, because the IDE writes it. Other tools can change it, and the IDE takes such a
+change over.
+
 - Cmd+click / Ctrl+click on `Lamp` in `STATEMACHINE ATTACHED TO "Lamp"`. Expected: `lamp.kmeta` opens at the type.
 - Open `lamp.kenv.json` and rest the mouse on the key `tickDelayMs`. Expected: a tooltip explains the key.
 - In `lamp.kstates`, delete the `{` after `STATE "broken"`. Expected: within a second a red underline appears, and

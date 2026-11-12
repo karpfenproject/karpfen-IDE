@@ -19,6 +19,7 @@ import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceNode
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.workbench.projecttree.view.ProjectTreeNodes
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import java.nio.file.Path
 import kotlin.test.Test
@@ -66,6 +67,37 @@ class ProjectTreeStateTest {
         assertEquals(sub, state.selected.value)
         state.select(null)
         assertNull(state.selected.value)
+    }
+
+    @Test
+    fun `the companion file of a diagram is shown below its model file, which can be expanded`() {
+        val vis = deep.resolve("a.kstates.vis")
+        val orphan = deep.resolve("gone.kstates.vis")
+        val files = listOf(
+            WorkspaceNode.File(file, "a.kstates", FileKind.KSTATES),
+            WorkspaceNode.File(vis, "a.kstates.vis", FileKind.LAYOUT),
+            WorkspaceNode.File(orphan, "gone.kstates.vis", FileKind.LAYOUT),
+        )
+        val withVis = WorkspaceTree(
+            WorkspaceNode.Directory(root, "ws", listOf(WorkspaceNode.Directory(sub, "sub", listOf(WorkspaceNode.Directory(deep, "deep", files))))),
+        )
+
+        val folder = ProjectTreeNodes(withVis).roots.single().children.orEmpty().single().children.orEmpty().single()
+        assertEquals(listOf("a.kstates", "gone.kstates.vis"), folder.children.orEmpty().map { it.label }, "the companion is not listed next to its model")
+        val model = folder.children.orEmpty().first()
+        assertEquals(listOf("a.kstates.vis"), model.children.orEmpty().map { it.label })
+        assertNull(folder.children.orEmpty().last().children, "a companion without its model is a plain file")
+
+        val state = ProjectTreeState()
+        state.setTree(withVis)
+        state.reveal(vis)
+        assertEquals(setOf(root, sub, deep, file), state.expanded.value, "revealing the companion expands its model file")
+        assertFalse(state.isDirectory(file), "the model file still opens on a double click")
+
+        state.setTree(withVis)
+        assertTrue(file in state.expanded.value, "the expanded model file survives an update of the tree")
+        state.setTree(tree())
+        assertFalse(file in state.expanded.value, "without its companion the file is no longer expandable")
     }
 
     @Test

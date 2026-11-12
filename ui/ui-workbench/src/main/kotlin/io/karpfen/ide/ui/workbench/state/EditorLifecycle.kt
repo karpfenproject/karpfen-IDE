@@ -19,9 +19,12 @@ import io.karpfen.ide.core.workspace.document.OpenResult
 import io.karpfen.ide.ui.editor.model.action.EditorKeymap
 import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * The life of a document in an editor tab. [open] opens the document in the current workspace and creates its editor
@@ -39,6 +42,11 @@ internal class EditorLifecycle(
     private val navigation: EditorNavigationCollector,
 ) {
 
+    /** The settings of the editors of read-only documents: the usual ones, marked as read-only. */
+    private val readOnlySettings: StateFlow<EditorSettings> = editorSettings
+        .map { it.copy(readOnly = true) }
+        .stateIn(scope, SharingStarted.Eagerly, editorSettings.value.copy(readOnly = true))
+
     /**
      * Opens [path] in a tab at [index], or activates its tab if it is open already. Without an [index] the tab goes
      * after the active tab. Returns null without a workspace. Otherwise returns the result of the document manager.
@@ -54,7 +62,8 @@ internal class EditorLifecycle(
         val result = workspace.documents.open(path)
         if (result is OpenResult.Opened) {
             val document = result.document
-            val editor = editorFactory.create(document.session, languageServices, scope, editorSettings, keymap)
+            val settings = if (document.fileKind.isReadOnly) readOnlySettings else editorSettings
+            val editor = editorFactory.create(document.session, languageServices, scope, settings, keymap)
             tabs.open(document, editor, workspace.root, index)
             navigation.start(editor)
         }

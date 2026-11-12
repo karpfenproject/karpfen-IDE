@@ -31,8 +31,12 @@ import io.karpfen.ide.core.document.json.JsonTokenizer
 import io.karpfen.ide.core.document.language.LanguageSupport
 import io.karpfen.ide.core.document.parse.ComposedDocumentParser
 import io.karpfen.ide.core.document.parse.DocumentParser
+import io.karpfen.ide.core.document.parse.SyntaxAnalysis
+import io.karpfen.ide.core.document.parse.SyntaxAnalyzer
+import io.karpfen.ide.core.document.parse.SyntaxIndex
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.document.syntax.Tokenizer
+import io.karpfen.ide.core.text.TextSnapshot
 
 /**
  * The KMeta support. It wires the tokenizer, the syntax analyzer and the standalone semantics with the KMeta reader of
@@ -81,4 +85,22 @@ internal class EnvironmentLanguageSupport : LanguageSupport {
     override val tokenizer: Tokenizer = FailSafeTokenizer(language, JsonTokenizer())
     override val parser: DocumentParser = ComposedDocumentParser(language, EnvironmentSyntaxAnalyzer(), semantics = null)
     override val lineComment: String? = null
+}
+
+/**
+ * The support for diagram layouts, the `.vis` companion files. They are JSON that the IDE writes itself, so the JSON
+ * tokenizer colours them and nothing checks them: the analyzer reports no problems and no structure. A layout that
+ * cannot be read is simply not used, which the diagram decides and not the editor.
+ */
+internal class VisLanguageSupport : LanguageSupport {
+    override val language: KarpfenLanguage = KarpfenLanguage.VIS
+    override val tokenizer: Tokenizer = FailSafeTokenizer(language, JsonTokenizer())
+    override val parser: DocumentParser = ComposedDocumentParser(language, UncheckedSyntaxAnalyzer(language), semantics = null)
+    override val lineComment: String? = null
+}
+
+/** A [SyntaxAnalyzer] for a [language] whose text the IDE shows but does not check. It finds nothing in any text. */
+private class UncheckedSyntaxAnalyzer(override val language: KarpfenLanguage) : SyntaxAnalyzer {
+    override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis =
+        SyntaxAnalysis(emptyList(), emptyList(), SyntaxIndex.EMPTY, emptyList(), emptyList())
 }

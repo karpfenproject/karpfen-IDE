@@ -25,11 +25,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalDensity
@@ -139,7 +141,8 @@ public fun CodeEditor(
         Row(Modifier.weight(1f).fillMaxWidth()) {
             EditorGutter(render)
             Box(Modifier.weight(1f).fillMaxHeight().clipToBounds()) {
-                EditorTextArea(render, focusRequester)
+                val readOnly = state.settings.collectAsState().value.readOnly
+                EditorTextArea(render, focusRequester, if (readOnly) Modifier.alpha(READ_ONLY_ALPHA) else Modifier)
                 VerticalScrollbar(
                     adapter = remember(state) { ViewportScrollbarAdapter(render.viewport, state.viewport, ScrollAxis.VERTICAL) },
                     modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
@@ -156,3 +159,6 @@ public fun CodeEditor(
 
 /** The width of the caret rectangle reported to the overlays, in dp. */
 private const val CARET_HOST_WIDTH = 2f
+
+/** How strongly the text of a read-only document is drawn. The rest is the background showing through. */
+private const val READ_ONLY_ALPHA = 0.55f

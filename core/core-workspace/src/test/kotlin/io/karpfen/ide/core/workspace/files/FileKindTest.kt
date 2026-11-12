@@ -54,14 +54,16 @@ class FileKindTest {
     }
 
     @Test
-    fun `bridges, layouts and other files have no language`() {
+    fun `bridges and other files have no language, and layouts are read-only files of their own language`() {
         assertEquals(FileKind.BRIDGE, FileKind.of("mqtt-sim.kbridge.json"))
         assertEquals(FileKind.LAYOUT, FileKind.of("robot.kstates.vis"))
         assertEquals(FileKind.OTHER, FileKind.of("robot.json"))
         assertEquals(FileKind.OTHER, FileKind.of("kmeta"))
         assertEquals(FileKind.OTHER, FileKind.of("robot.kmeta.bak"))
         assertEquals(FileKind.OTHER, FileKind.of(""))
-        listOf(FileKind.BRIDGE, FileKind.LAYOUT, FileKind.OTHER).forEach {
+        assertEquals(KarpfenLanguage.VIS, FileKind.LAYOUT.language)
+        assertEquals(listOf(FileKind.LAYOUT), FileKind.entries.filter { it.isReadOnly })
+        listOf(FileKind.BRIDGE, FileKind.OTHER).forEach {
             assertNull(it.language)
             assertFalse(it.isKarpfenSource)
         }
