@@ -29,6 +29,7 @@ import io.karpfen.ide.bridges.api.BridgeKind
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.bridges.BridgeDraft
 import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
+import io.karpfen.ide.ui.workbench.bridges.BridgeSuggestions
 import io.karpfen.ide.ui.workbench.bridges.Follows
 import io.karpfen.ide.ui.workbench.bridges.InboundDraft
 import io.karpfen.ide.ui.workbench.bridges.OutboundDraft
@@ -47,8 +48,11 @@ class BridgeFormViewUiTest {
 
     private val file: Path = Path.of("/ws/door.kbridge.json").toAbsolutePath()
 
-    private fun form(draft: BridgeDraft = BridgeDraft(), problems: List<String> = emptyList()) =
-        BridgeFormState(file, "door.kbridge.json", isNew = false, fileProblems = problems, initial = draft, loadedText = "")
+    private fun form(
+        draft: BridgeDraft = BridgeDraft(),
+        problems: List<String> = emptyList(),
+        suggestions: BridgeSuggestions = BridgeSuggestions(),
+    ) = BridgeFormState(file, "door.kbridge.json", isNew = false, fileProblems = problems, initial = draft, loadedText = "", suggestions = suggestions)
 
     @Test
     fun `a new route keeps Save disabled until it has an address and an event`() = runComposeUiTest {
@@ -86,6 +90,44 @@ class BridgeFormViewUiTest {
         assertEquals(BridgeKind.MQTT, draft.kind)
         assertEquals(mapOf("retain" to "true"), draft.settings, "the port of the HTTP bridge is gone, retain is on")
         assertEquals(listOf(OutboundDraft(Follows.STATE, "bulb/watts", "home/watts", PolicyDraft(PolicyKind.SAMPLE, "500"))), draft.outbound)
+    }
+
+    @Test
+    fun `an event, a property and a state machine of the project can be picked from a list`() = runComposeUiTest {
+        val suggestions = BridgeSuggestions(
+            events = listOf("switch/press", "switch/dim"),
+            reportedEvents = listOf("lamp/broke", "switch/press"),
+            properties = listOf("bulb/watts", "bulb/lit"),
+            machines = listOf("lamp", "wallSwitch"),
+        )
+        val form = form(BridgeDraft(inbound = listOf(InboundDraft("/dim", "")), outbound = listOf(OutboundDraft(to = "home/x"))), suggestions = suggestions)
+        setContent { KarpfenTheme(darkTheme = false) { BridgeFormLayer(form, onSave = {}, onClose = {}) } }
+        val event = BridgeFormTestTags.inbound(0, "event")
+        val what = BridgeFormTestTags.outbound(0, "what")
+
+        onNodeWithTag(BridgeFormTestTags.pick(event)).performScrollTo().performClick()
+        onNodeWithTag(BridgeFormTestTags.option(event, "switch/dim")).performClick()
+        assertEquals("switch/dim", form.draft.value.inbound.single().event)
+
+        onNodeWithTag(BridgeFormTestTags.pick(what)).performScrollTo().performClick()
+        onNodeWithTag(BridgeFormTestTags.option(what, "bulb/lit")).performClick()
+        assertEquals("bulb/lit", form.draft.value.outbound.single().what)
+
+        onNodeWithTag(BridgeFormTestTags.outbound(0, "state")).performScrollTo().performClick()
+        onNodeWithTag(BridgeFormTestTags.pick(what)).performScrollTo().performClick()
+        onNodeWithTag(BridgeFormTestTags.option(what, "bulb/lit")).assertDoesNotExist()
+        onNodeWithTag(BridgeFormTestTags.option(what, "wallSwitch")).performClick()
+        assertEquals(OutboundDraft(Follows.STATE, "wallSwitch", "home/x"), form.draft.value.outbound.single())
+        onNodeWithTag(BridgeFormTestTags.SAVE).assertIsEnabled()
+    }
+
+    @Test
+    fun `without anything to pick a field has no list`() = runComposeUiTest {
+        val form = form(BridgeDraft(inbound = listOf(InboundDraft("/dim", "switch/dim"))))
+        setContent { KarpfenTheme(darkTheme = false) { BridgeFormLayer(form, onSave = {}, onClose = {}) } }
+
+        onNodeWithTag(BridgeFormTestTags.inbound(0, "event")).assertIsDisplayed()
+        onNodeWithTag(BridgeFormTestTags.pick(BridgeFormTestTags.inbound(0, "event"))).assertDoesNotExist()
     }
 
     @Test

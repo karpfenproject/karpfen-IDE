@@ -212,6 +212,45 @@ class BridgeFormFlowTest {
         }
     }
 
+    @Test
+    fun `the form offers the events, the properties and the state machines of the project to pick`() = runTest(timeout = TIMEOUT) {
+        lamp()
+        val file = TestWorkbench.write(root.resolve("door.kbridge.json"), HTTP_BRIDGE)
+        withWorkbench(settingsDirectory) {
+            open(root)
+
+            state.openFile(file).joinSettled()
+
+            val suggestions = assertNotNull(state.bridgeForm.value).suggestions
+            assertEquals(listOf("service/smash", "switch/dim", "switch/press"), suggestions.events.sorted())
+            assertEquals(suggestions.events.sorted(), suggestions.reportedEvents.sorted())
+            assertEquals(listOf("lamp", "wallSwitch"), suggestions.machines)
+            assertEquals(
+                listOf("lamp/mode", "bulb/watts", "bulb/lit", "spare/watts", "spare/lit", "wallSwitch/position"),
+                suggestions.properties.filterNot { it.startsWith("wallSwitch/presses") },
+            )
+            assertEquals(suggestions.properties, suggestions.followed(Follows.PROPERTY))
+            assertEquals(suggestions.machines, suggestions.followed(Follows.STATE))
+        }
+    }
+
+    @Test
+    fun `a project that cannot be read offers what is left and still opens the form`() = runTest(timeout = TIMEOUT) {
+        val descriptor = lamp()
+        Files.writeString(descriptor.resolveSibling("lamp.kmeta"), "this is no metamodel")
+        val file = TestWorkbench.write(root.resolve("door.kbridge.json"), HTTP_BRIDGE)
+        withWorkbench(settingsDirectory) {
+            open(root)
+
+            state.openFile(file).joinSettled()
+
+            val suggestions = assertNotNull(state.bridgeForm.value).suggestions
+            assertEquals(emptyList(), suggestions.properties)
+            assertEquals(listOf("lamp", "wallSwitch"), suggestions.machines)
+            assertNoDialog()
+        }
+    }
+
     /** Copies the lamp model into the workspace root, so the workspace has a project to open. */
     private fun lamp(): Path = SynthesizedModels.copyTo(root, SynthesizedModel.LAMP, DescriptorTiming.EVENT_SCENARIOS)
 

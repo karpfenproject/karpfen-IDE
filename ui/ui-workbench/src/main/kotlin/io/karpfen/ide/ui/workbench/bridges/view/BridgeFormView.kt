@@ -21,6 +21,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -37,6 +38,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -65,6 +68,7 @@ import io.karpfen.ide.ui.workbench.bridges.BridgeDraft
 import io.karpfen.ide.ui.workbench.bridges.BridgeDrafts
 import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
 import io.karpfen.ide.ui.workbench.bridges.BridgeSetting
+import io.karpfen.ide.ui.workbench.bridges.BridgeSuggestions
 import io.karpfen.ide.ui.workbench.bridges.FieldDraft
 import io.karpfen.ide.ui.workbench.bridges.Follows
 import io.karpfen.ide.ui.workbench.bridges.InboundDraft
@@ -75,6 +79,7 @@ import io.karpfen.ide.ui.workbench.bridges.PolicyKind
 /**
  * Shows the bridge [form] over the workbench, on a scrim that swallows all pointer input, and nothing while [form] is
  * null. The form has the kind of the bridge, the settings of that kind, the inbound routes and the outbound routes.
+ * The fields for an event, a property and a state machine have a button that lists those of the project to pick from.
  * Every change goes into the draft of the form at once. Below the scrolling part, the form lists what keeps it from
  * being saved, and Save is enabled once that list is empty. [onSave] and [onClose] are the two buttons.
  */
@@ -113,13 +118,13 @@ internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose
                 }
                 KindAndSettings(draft, form::edit)
                 Section("Messages that become events")
-                draft.inbound.forEachIndexed { index, route -> InboundCard(index, route, draft.kind, form::edit) }
+                draft.inbound.forEachIndexed { index, route -> InboundCard(index, route, draft.kind, form.suggestions, form::edit) }
                 TextButton(
                     onClick = { form.edit { it.copy(inbound = it.inbound + InboundDraft()) } },
                     modifier = Modifier.testTag(BridgeFormTestTags.ADD_INBOUND),
                 ) { Text("Add inbound route") }
                 Section("What the model reports")
-                draft.outbound.forEachIndexed { index, route -> OutboundCard(index, route, draft.kind, form::edit) }
+                draft.outbound.forEachIndexed { index, route -> OutboundCard(index, route, draft.kind, form.suggestions, form::edit) }
                 TextButton(
                     onClick = { form.edit { it.copy(outbound = it.outbound + OutboundDraft()) } },
                     modifier = Modifier.testTag(BridgeFormTestTags.ADD_OUTBOUND),
@@ -182,7 +187,13 @@ private fun SettingRow(setting: BridgeSetting, value: String, onChange: (String)
 
 /** The inbound route at [index]: where a message arrives, the event it becomes, its payload and its flow policy. */
 @Composable
-private fun InboundCard(index: Int, route: InboundDraft, kind: BridgeKind, edit: ((BridgeDraft) -> BridgeDraft) -> Unit) {
+private fun InboundCard(
+    index: Int,
+    route: InboundDraft,
+    kind: BridgeKind,
+    suggestions: BridgeSuggestions,
+    edit: ((BridgeDraft) -> BridgeDraft) -> Unit,
+) {
     val change: ((InboundDraft) -> InboundDraft) -> Unit = { transform -> edit { it.copy(inbound = it.inbound.replaced(index, transform)) } }
     Card("Inbound route ${index + 1}", onRemove = { edit { it.copy(inbound = it.inbound.without(index)) } }) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -192,7 +203,10 @@ private fun InboundCard(index: Int, route: InboundDraft, kind: BridgeKind, edit:
                 if (kind == BridgeKind.HTTP) "/path" else "topic/filter", Modifier.weight(1f), BridgeFormTestTags.inbound(index, "from"),
             )
             Label("becomes the event")
-            Field(route.event, { value -> change { it.copy(event = value) } }, "domain/name", Modifier.weight(1f), BridgeFormTestTags.inbound(index, "event"))
+            PickField(
+                route.event, { value -> change { it.copy(event = value) } },
+                "domain/name", suggestions.events, Modifier.weight(1f), BridgeFormTestTags.inbound(index, "event"),
+            )
         }
         Row(
             Modifier.clickable { change { it.copy(passBody = !it.passBody) } }.testTag(BridgeFormTestTags.inbound(index, "passBody")),
@@ -229,7 +243,13 @@ private fun InboundCard(index: Int, route: InboundDraft, kind: BridgeKind, edit:
 
 /** The outbound route at [index]: what it follows, where the message goes and its flow policy. */
 @Composable
-private fun OutboundCard(index: Int, route: OutboundDraft, kind: BridgeKind, edit: ((BridgeDraft) -> BridgeDraft) -> Unit) {
+private fun OutboundCard(
+    index: Int,
+    route: OutboundDraft,
+    kind: BridgeKind,
+    suggestions: BridgeSuggestions,
+    edit: ((BridgeDraft) -> BridgeDraft) -> Unit,
+) {
     val change: ((OutboundDraft) -> OutboundDraft) -> Unit = { transform -> edit { it.copy(outbound = it.outbound.replaced(index, transform)) } }
     Card("Outbound route ${index + 1}", onRemove = { edit { it.copy(outbound = it.outbound.without(index)) } }) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -241,7 +261,10 @@ private fun OutboundCard(index: Int, route: OutboundDraft, kind: BridgeKind, edi
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Field(route.what, { value -> change { it.copy(what = value) } }, route.follows.hint, Modifier.weight(1f), BridgeFormTestTags.outbound(index, "what"))
+            PickField(
+                route.what, { value -> change { it.copy(what = value) } },
+                route.follows.hint, suggestions.followed(route.follows), Modifier.weight(1f), BridgeFormTestTags.outbound(index, "what"),
+            )
             Label("goes to")
             Field(
                 route.to, { value -> change { it.copy(to = value) } },
@@ -356,6 +379,39 @@ private fun Field(value: String, onChange: (String) -> Unit, hint: String, modif
     )
 }
 
+/**
+ * A [Field] with the button Pick, which opens the list of [options] to pick from. A pick replaces the text of the field. The
+ * field still takes any text, because the project may not have what the bridge is meant for yet. Without options
+ * there is no button.
+ */
+@Composable
+private fun PickField(value: String, onChange: (String) -> Unit, hint: String, options: List<String>, modifier: Modifier, tag: String) {
+    var open by remember { mutableStateOf(false) }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Field(value, onChange, hint, Modifier.weight(1f), tag)
+        if (options.isEmpty()) return@Row
+        Box {
+            TextButton(
+                onClick = { open = true },
+                contentPadding = PaddingValues(horizontal = 6.dp),
+                modifier = Modifier.height(PICK_HEIGHT.dp).testTag(BridgeFormTestTags.pick(tag)),
+            ) { Text("Pick", style = KarpfenTheme.typography.uiSmall) }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option, style = KarpfenTheme.typography.ui) },
+                        onClick = {
+                            open = false
+                            onChange(option)
+                        },
+                        modifier = Modifier.testTag(BridgeFormTestTags.option(tag, option)),
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** These settings with [key] set to [value], or without it if [value] is blank. */
 private fun BridgeDraft.withSetting(key: String, value: String): BridgeDraft =
     copy(settings = if (value.isBlank()) settings - key else settings + (key to value))
@@ -401,6 +457,9 @@ private const val PROBLEMS_HEIGHT = 96
 
 /** The width of the labels of the settings in dp. */
 private const val LABEL_WIDTH = 220
+
+/** The height of the button that opens a pick list in dp. */
+private const val PICK_HEIGHT = 28
 
 /** The width of the number field of a flow policy in dp. */
 private const val NUMBER_WIDTH = 72

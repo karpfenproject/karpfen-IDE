@@ -565,7 +565,10 @@ workbench like a dialog, and the commands are disabled behind it. It shows the k
 the inbound and outbound routes with their flow policies. `BridgeDraft` holds the texts of the fields, so a route may
 be half filled in while the user types, and `BridgeDrafts` says in the words of the form what keeps the draft from
 being saved. Save is enabled once nothing is wrong, and it writes the file through `BridgeConfigFile`. A new bridge
-has no file until it is saved.
+has no file until it is saved. The fields for an event, a property and a state machine have a Pick button that lists
+those of the project. `BridgeSuggestions` reads them from the analysis of the workspace when the form opens: the
+events from the event catalog of each environment, the properties from the model as the runtime starts it, and the
+state machines from the attachments of the descriptors. The fields still take any text.
 
 Other tools may change a bridge file, so reading is tolerant. The form reads the file whenever it opens, leaves out
 what it cannot read and says so above the fields. If the file changed on disk while the form was open, Save asks
@@ -1025,9 +1028,8 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
 - On a German Windows layout, Ctrl+Shift+7 does not reach Toggle Comment.
 - The descriptor key `bridges` is ignored. A run offers every bridge file of the project, whatever the descriptor
   names.
-- The ROS bridge is a stub. The bridge form takes events, objects and properties as plain
-  text and offers no list of those the project has. A bridge in the IDE hears changes of the model only while the run observes it. A password in the settings of a bridge file is
-  stored as plain text in the project. An embedded runtime and a language
+- The ROS bridge is a stub. A bridge in the IDE hears changes of the model only while the run observes it. A password
+  in the settings of a bridge file is stored as plain text in the project. An embedded runtime and a language
   server do not exist yet. Their paths `runtime/runtime-embedded` and `tools/lsp-server` are planned but not in the
   settings, and `lsp4j` in the version catalog is unused so far. The language server is meant to put core-lang behind
   the Language Server Protocol for other editors.

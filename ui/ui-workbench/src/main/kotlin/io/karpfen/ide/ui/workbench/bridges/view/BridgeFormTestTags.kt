@@ -47,6 +47,12 @@ public object BridgeFormTestTags {
     /** The field named [field] of the outbound route at [index]: `what`, `to` or `number`. */
     public fun outbound(index: Int, field: String): String = "BridgeForm.outbound:$index.$field"
 
+    /** The button that opens the pick list of the field with the tag [field]. */
+    public fun pick(field: String): String = "$field.pick"
+
+    /** The entry [option] in the pick list of the field with the tag [field]. */
+    public fun option(field: String, option: String): String = "$field.pick:$option"
+
     /** The name or the value of the payload field at [field] of the inbound route at [index]. */
     public fun payload(index: Int, field: Int, part: String): String = "BridgeForm.inbound:$index.payload:$field.$part"
 }

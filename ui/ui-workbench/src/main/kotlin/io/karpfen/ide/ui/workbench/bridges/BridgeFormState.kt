@@ -35,6 +35,7 @@ import java.nio.file.Path
  * @param initial what the file holds, as far as it could be read.
  * @property loadedText the text of the file when the form read it, or null for a new bridge. Saving compares it with
  *   the file to notice a change that another tool made meanwhile.
+ * @property suggestions the names of the project that the form offers to pick, as they were when the form opened.
  */
 public class BridgeFormState internal constructor(
     public val file: Path,
@@ -43,6 +44,7 @@ public class BridgeFormState internal constructor(
     public val fileProblems: List<String>,
     initial: BridgeDraft,
     internal val loadedText: String?,
+    public val suggestions: BridgeSuggestions = BridgeSuggestions(),
 ) {
     private val current = MutableStateFlow(initial)
     private val found = MutableStateFlow(BridgeDrafts.problemsOf(initial))

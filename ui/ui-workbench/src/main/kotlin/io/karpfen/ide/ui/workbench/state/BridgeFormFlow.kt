@@ -24,23 +24,27 @@ import io.karpfen.ide.ui.workbench.bridges.BridgeDraft
 import io.karpfen.ide.ui.workbench.bridges.BridgeDrafts
 import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
 import io.karpfen.ide.ui.workbench.bridges.BridgeLoader
+import io.karpfen.ide.ui.workbench.bridges.BridgeSuggestions
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
+import java.nio.file.Path
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import java.io.IOException
-import java.nio.file.Files
-import java.nio.file.NoSuchFileException
-import java.nio.file.Path
 
 /**
  * Opens, saves and closes the form that configures a bridge file. A bridge file is never edited as text in the IDE.
  * Opening one, from the project tree or through Configure Bridge in the Run menu, shows the form over the workbench.
+ *
+ * The form offers the events, the properties and the state machines of the project to pick, as the analysis of the
+ * workspace knows them when the form opens.
  *
  * Other tools may change a bridge file at any time. So the form reads the file whenever it opens, leaves out what it
  * cannot read and says so. When the file changed on disk while the form was open, saving asks before it writes over
@@ -88,6 +92,7 @@ internal class BridgeFormFlow(
             fileProblems = reading?.problems.orEmpty(),
             initial = reading?.config?.let(BridgeDrafts::of) ?: BridgeDraft(),
             loadedText = text,
+            suggestions = BridgeSuggestions.of(workspace.analysis.value),
         )
     }
 
@@ -141,6 +146,7 @@ internal class BridgeFormFlow(
             fileProblems = emptyList(),
             initial = BridgeDrafts.of(BridgeConfig(BridgeKind.HTTP)),
             loadedText = null,
+            suggestions = BridgeSuggestions.of(workspace.analysis.value),
         )
     }
 
