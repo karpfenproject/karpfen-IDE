@@ -4,11 +4,12 @@
 // the full power of its bulb. While it is on, a dim event turns the dimmer one step.
 // With bright set to true the bulb gets 10 W more, up to its maxWatts. With bright set
 // to false it gets 10 W less, down to 0 W. Switching the lamp off forgets the dimming.
-// A smash in the domain "service" breaks the lamp while it is off and drops the spare
-// bulb from the model.
+// A smash in the domain "service" breaks the lamp, whether it is on or off. The bulb
+// goes dark, and the spare bulb drops out of the model.
 //
 // "on" has three inner states. The transitions that start at "on" also apply while the
-// lamp is in one of them, so a press switches the lamp off from any of them.
+// lamp is in one of them, so a press switches the lamp off from any of them, and a smash
+// breaks it in any of them.
 STATEMACHINE ATTACHED TO "Lamp" {
     STATES {
         INITIAL STATE "off" {
@@ -16,7 +17,6 @@ STATEMACHINE ATTACHED TO "Lamp" {
                 SET("mode", "off")
                 SET("bulb->lit", "false")
                 SET("bulb->watts", "0")
-                APPEND("log", "off")
             }
         }
         STATE "on" {
@@ -27,19 +27,16 @@ STATEMACHINE ATTACHED TO "Lamp" {
             STATE "full" {
                 ENTRY {
                     SET("bulb->watts", EVAL { return $(bulb->maxWatts) })
-                    APPEND("log", "on at full power")
                 }
             }
             STATE "brighter" {
                 ENTRY {
                     SET("bulb->watts", EVAL { return $(bulb->watts) + 10 })
-                    APPEND("log", "brighter")
                 }
             }
             STATE "dimmer" {
                 ENTRY {
                     SET("bulb->watts", EVAL { return $(bulb->watts) - 10 })
-                    APPEND("log", "dimmer")
                 }
             }
         }
@@ -47,7 +44,8 @@ STATEMACHINE ATTACHED TO "Lamp" {
             ENTRY {
                 DROPOBJ("spare")
                 SET("mode", "broken")
-                APPEND("log", "broken")
+                SET("bulb->lit", "false")
+                SET("bulb->watts", "0")
             }
         }
     }
@@ -75,6 +73,9 @@ STATEMACHINE ATTACHED TO "Lamp" {
             }
         }
         TRANSITION "off" -> "broken" {
+            CONDITION { EVENT("service", "smash") }
+        }
+        TRANSITION "on" -> "broken" {
             CONDITION { EVENT("service", "smash") }
         }
     }

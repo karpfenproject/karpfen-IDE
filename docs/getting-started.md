@@ -106,9 +106,9 @@ runtime prints.
 The folder `examples/lamp` holds a small system. A living room has a lamp and a wall switch. The lamp goes from off to
 on and back with each press of the switch. It always comes on at the full power of its bulb, which is 40 W. While it is
 on, a dimmer turns it up and down in steps of 10 W, between 0 W and the full power. Switching it off forgets the
-dimming. While it is off, it can be smashed, which breaks it and throws away its spare bulb. The switch has its own
-state machine that moves up and down with each press. The descriptor sets a tick delay of 500 ms, so you can watch each
-change happen. It also lets an event wait up to 5 seconds for a state machine to take it.
+dimming. It can be smashed at any time, which breaks it and throws away its spare bulb. The switch has its own state
+machine that moves up and down with each press. The descriptor sets a tick delay of 500 ms, so you can watch each change
+happen. It also lets an event wait up to 5 seconds for a state machine to take it.
 
 ### 1. What you need
 
@@ -165,9 +165,9 @@ The Log pane on the right then starts with the active states, `lamp: off` and `w
 `Setting the tick delay to 500 ms`. The simplified log below shows that the engine started and that the lamp starts in
 `off` and the switch in `down`. The Model pane on the left says `Observation on` and `live at revision` with a number.
 
-In the Model pane, click Expand all. Expected: the tree opens down to the bulbs. The
-lamp shows `mode = "off"` and `log = ["off"]`, the bulb `maxWatts = 40`, `watts = 0` and `lit = false`, and the switch
-`position = "down"`. The lamp's row `control` links to `wallSwitch`. Click the link to jump there.
+In the Model pane, click Expand all. Expected: the tree opens down to the bulbs. The lamp shows `mode = "off"`, the bulb
+`maxWatts = 40`, `watts = 0` and `lit = false`, and the switch `position = "down"`. The lamp's row `control` links to
+`wallSwitch`. Click the link to jump there.
 
 If Docker is not running, the run turns `failed` and the first line turns red. It names the problem and ends with
 `Start Docker Desktop or the local Docker engine, then try again.` Do that and run again.
@@ -192,15 +192,15 @@ pane to the left and at the Log pane to the right.
    nothing.
 4. Dim the lamp a step or two, then click `press` and send it. Expected: the lamp goes off. The active states read
    `lamp: off` and `wallSwitch: back down`, and the bulb has `lit = false` and `watts = 0`. Send `press` again.
-   Expected: the lamp comes on at `watts = 40` again, because switching it off forgot the dimming. Send `press` once
-   more to switch it off for the next step.
-5. Click the domain `service`, keep `smash` and send it. Expected: `lamp: broken` and `mode = "broken"`, and the
-   spare bulb disappears from the model tree.
-6. Send `press` once more. Expected: the switch moves up again, but the lamp stays broken. No transition leaves
+   Expected: the lamp comes on at `watts = 40` again, because switching it off forgot the dimming.
+5. Click the domain `service`, keep `smash` and send it. A smash works whether the lamp is on or off. Expected:
+   `lamp: broken` and `mode = "broken"`. The bulb goes dark, with `lit = false` and `watts = 0`, and the spare bulb
+   disappears from the model tree.
+6. Send `press` once more. Expected: the switch moves again, but the lamp stays broken. No transition leaves
    `broken`.
 
-Events can wait. A `smash` sent while the lamp is on does nothing at first. If a press turns the lamp off before the
-smash is 5 seconds old, the waiting smash then breaks it. Otherwise the smash expires.
+Events can wait. A `dim` sent while the lamp is off does nothing at first. If a press turns the lamp on before the dim
+is 5 seconds old, the waiting dim then takes effect. Otherwise the dim expires.
 
 ### 6. Observe or pull
 
@@ -242,9 +242,8 @@ Ctrl+S. Then click Run again in the line of the runs, or press Shift+F10. Run wo
 
 Expected: a new run `lamp` appears first in the line of the runs. It starts from the files again, with the lamp off and
 both bulbs in place. In the Events pane the domain `service` now offers `smash` and `repair`. Send `smash`, then
-`repair`.
-Expected: the lamp goes from `broken` back to `off`, with `mode = "off"` and `"off"` at the end of the log. The spare
-bulb stays gone, because nothing creates it again.
+`repair`. Expected: the lamp goes from `broken` back to `off`, with `mode = "off"`. The spare bulb stays gone, because
+nothing creates it again.
 
 If a file has an error, the run does not reach the runtime. Its label says `blocked`, and the Log pane lists the
 error under `Findings that block the run`. Click it to jump to the error.

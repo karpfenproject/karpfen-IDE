@@ -12,7 +12,6 @@ type "Switch" "A wall switch" {
 }
 type "Lamp" "A lamp with a bulb, a spare bulb and the switch it is wired to" {
     prop("mode", "string")
-    prop("log", list("string"))
     has("bulb", "Bulb")
     has("spare", "Bulb")
     knows("control", "Switch")
