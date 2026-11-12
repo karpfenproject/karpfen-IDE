@@ -31,9 +31,8 @@ import kotlin.test.assertTrue
  * `liveRuntimeTest` that build-logic's `karpfen.live-runtime-test` registers in the runtime modules. Nothing else
  * reaches that task. Besides that plugin, only the base convention plugin `karpfen.kotlin-jvm` names the task, to keep
  * the tag exclusion off it, and the build script of runtime-session names it, to order its live task after the one of
- * runtime-protocol. No other Gradle script wires it in. No CI workflow runs the task or the script that starts a
- * runtime in Docker. build-logic's `LiveRuntimeTestFunctionalTest` proves the wiring in a fixture build, and this test
- * guards the repository.
+ * runtime-protocol. No other Gradle script wires it in. build-logic's `LiveRuntimeTestFunctionalTest` proves the
+ * wiring in a fixture build, and this test guards the repository.
  *
  * A live test class sits in a runtime module, is named `Live…Test` and carries `@LiveRuntime`. Every class of a test
  * source set that is named this way must carry the annotation, so a forgotten annotation cannot make a live test run in
@@ -80,16 +79,6 @@ class LiveRuntimeTaggingTest {
             .keys
 
         assertEquals(emptySet(), mentioning, "only the convention plugins and runtime-session's ordering block may name the live task")
-    }
-
-    @Test
-    fun `no CI workflow runs the live tests or the script that starts a runtime`() {
-        val workflows = File(Konsist.projectRootPath, ".github").walkTopDown().filter { it.isFile }.toList()
-        assertTrue(workflows.isNotEmpty(), "no files below .github; this check would be vacuous")
-
-        val mentioning = workflows.filter { file -> CI_FORBIDDEN.any { it in file.readText() } }.map { it.name }
-
-        assertEquals(emptyList(), mentioning, "CI must not run $CI_FORBIDDEN")
     }
 
     @Test
@@ -199,9 +188,6 @@ class LiveRuntimeTaggingTest {
 
         /** The names of the live task in a Gradle script: build-logic's constant and its value. */
         val LIVE_TASK_NAMES = listOf("LiveRuntimeTesting.TASK_NAME", "liveRuntimeTest")
-
-        /** What a CI workflow must not mention: the live task, the URL property and the script that starts a runtime. */
-        val CI_FORBIDDEN = listOf("liveRuntimeTest", "karpfen.runtime.url", "live-runtime.sh")
 
         /** The declaration of the live tag in build-logic's `TestTags`. */
         val LIVE_DECLARATION = Regex("""\bconst\s+val\s+LIVE_RUNTIME\s*:\s*String\s*=\s*"$LIVE_TAG"""")

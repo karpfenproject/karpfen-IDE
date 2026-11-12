@@ -119,8 +119,7 @@ fun requireDslToolsTwo(dir: File, explicitlyConfigured: Boolean) {
  * The settings log the active mode, as `karpfen-dsl-tools: composite build from <path>` or as
  * `karpfen-dsl-tools: resolving <module> from GitHub Packages`. They do not log it on a configuration-cache hit. Then
  * `--no-configuration-cache` or `./gradlew :core:core-document:dependencyInsight --dependency karpfen-dsl-tools
- * --configuration compileClasspath` shows the mode. CI checks the submodule out together with this repository and
- * builds in composite mode.
+ * --configuration compileClasspath` shows the mode.
  */
 run {
     val settingsLogger = Logging.getLogger("karpfen-settings")

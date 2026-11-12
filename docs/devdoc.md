@@ -41,7 +41,7 @@ starts a container.
 | `./gradlew :app:ide:runWithFailingReaders --args=<folder>` | Starts the IDE with dsl-tools readers that fail on deep nesting. |
 | `./gradlew :tools:cli:installDist` | Builds the command-line tool into `tools/cli/build/install/karpfen/bin/karpfen`. |
 | `./gradlew :tools:cli:run` | Prints the usage of the command-line tool. |
-| `./gradlew :app:ide:createDistributable` | Builds the application image without an installer. CI runs it. |
+| `./gradlew :app:ide:createDistributable` | Builds the application image without an installer. |
 | `./gradlew :app:ide:packageDistributionForCurrentOS` | Builds the installer of the current platform. |
 | `./gradlew :runtime:runtime-host:liveDockerTest` | Runs the host tests against the local Docker engine. |
 | `./gradlew :bridges:bridge-runner:installDist` | Builds the bridge runner, which is still a stub. |
@@ -117,7 +117,7 @@ change of the wire format shows first in the protocol's tests.
 
 A test class against a real runtime sits in a runtime module, is named `Live*Test` and carries `@LiveRuntime`. Every
 test class named that way must carry the annotation, so a forgotten annotation cannot make a live test run in every
-build. No CI workflow runs `liveRuntimeTest` or the script. `LiveRuntimeTaggingTest` checks all of this.
+build. `LiveRuntimeTaggingTest` checks all of this.
 
 `RuntimeContainerScriptTest` runs the script in every build. It replaces docker, git and curl with shell functions and
 runs on a virtual clock, so it needs no Docker.
@@ -184,14 +184,6 @@ cp -R core/core-document/src/testFixtures/resources/examples /tmp/karpfen-exampl
 KARPFEN_IDE_HOME=/tmp/karpfen-home KARPFEN_IDE_EXIT_AFTER_MS=6000 ./gradlew :app:ide:run --args=/tmp/karpfen-examples
 grep ERROR /tmp/karpfen-home/logs/ide.log
 ```
-
-### CI
-
-`.github/workflows/build.yml` runs on every push and pull request, on ubuntu-latest and macos-latest with Temurin 21.
-It runs `./gradlew build` and then `./gradlew :app:ide:createDistributable`. The Gradle cache uses the basic provider.
-The enhanced provider loads a proprietary component, so switching to it needs a deliberate choice.
-
-The checkout fetches the submodules but not the nested ones. See the open points.
 
 ### Checking by hand
 
@@ -268,8 +260,8 @@ real syntax, as in `$(boundingBox->position)`.
 
 `DocumentationStyleTest`, `KDocPlacementTest` and `LicenseHeaderTest` enforce these rules. `ReferenceIds` lists the id
 patterns that are rejected and `TypographicCharacters` the characters. For Kotlin files and Gradle scripts these two
-read only the comments, never strings or test names in backticks. They read the whole text of the markdown files, the
-workflow files in `.github`, the XML resources below `src/*/resources` and `gradle/libs.versions.toml`.
+read only the comments, never strings or test names in backticks. They read the whole text of the markdown files,
+the XML resources below `src/*/resources` and `gradle/libs.versions.toml`.
 
 ### Design
 
@@ -515,8 +507,8 @@ an `OutputBuffer`. The command-line tool keeps the dsl-tools log off entirely un
 karpfen-dsl-tools and karpfen-runtime are git submodules on branches that carry the changes the IDE needs. Today
 karpfen-runtime points at a commit of its branch `feature/ide-support` and karpfen-dsl-tools at one of
 `feature/editor-support`. A checkout then builds without a published artifact and without anything outside the
-repository. It also pins the exact runtime source the IDE's client is tested against. CI checks the submodules out
-together with this repository, so a submodule commit must be pushed before CI can build the commit that points to it.
+repository. It also pins the exact runtime source the IDE's client is tested against. A submodule commit must be
+pushed before the commit that points to it, or a fresh clone cannot check it out.
 
 ### The runtime client speaks the runtime's IDE-support API
 
@@ -552,7 +544,7 @@ its log stays readable after it stopped, until the IDE removes it.
 ### Time-budget tests are written but not run
 
 Performance targets are written down as tests tagged `budget`. They never run, because the wall clock on developer
-machines and CI runners is too unreliable to judge them. Performance work comes later, with the tests as a starting
+machines and build servers is too unreliable to judge them. Performance work comes later, with the tests as a starting
 point.
 
 ### Documentation lives in KDoc
@@ -905,15 +897,13 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
 
 ### In the build and on other platforms
 
-- CI checks out the submodules without their nested submodules. `bundleRuntimeSources` needs the nested
-  karpfen-dsl-tools of karpfen-runtime, so CI will most likely fail until the checkout is made recursive.
+- There is no continuous integration. The build and the tests run only on the developer's machine. A build needs
+  the nested karpfen-dsl-tools of karpfen-runtime for `bundleRuntimeSources`, so a clone must be recursive.
 - Gradle prints a deprecation warning about `Configuration.setVisible`. It most likely comes from a plugin applied in
   app/ide, but that has not been confirmed. The warning says the build will not work with Gradle 10. Check it again
   when the Compose Gradle plugin is updated.
-- Only macOS has been tried by hand. CI builds on Linux but nobody has used the IDE there. Windows is not built at
-  all.
+- Only macOS has been built and tried. Linux and Windows are not built at all.
 - Which platforms to ship, and signing for macOS and Windows, are undecided.
-- The CI cache provider stays basic until someone decides otherwise.
 - A Dockerfile with separate dependency layers would make image rebuilds faster. This is undecided.
 - The image build leaves base images and a build-stage image behind.
 - When the runtime repository publishes an image, pulling it instead of building it needs a new decision.

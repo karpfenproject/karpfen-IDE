@@ -143,7 +143,7 @@ sourceSets.configureEach {
     }
 }
 
-/** Makes `check` run the dependency check, so `./gradlew build` and CI fail on a forbidden project dependency. */
+/** Makes `check` run the dependency check, so `./gradlew build` fails on a forbidden project dependency. */
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
     dependsOn(verifyModuleDependencies)
 }

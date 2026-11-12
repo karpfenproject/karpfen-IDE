@@ -56,13 +56,13 @@ val rootFilesRead: List<String> = listOf(".gitignore", ".gitmodules")
 /**
  * The architecture tests read files of the whole repository from disk. Konsist reads the Kotlin sources of all
  * modules. `DocumentationStyleTest` reads every Kotlin source file and Gradle script, build-logic's included, and the
- * markdown documents, CI workflows, XML resources and version catalog. It also checks which markdown files exist.
+ * markdown documents, XML resources and version catalog. It also checks which markdown files exist.
  * `PackageLayoutTest` looks for Java sources, and the tests read the [rootFilesRead].
  *
  * All of these files are declared as inputs. So the architecture tests run again when any of them changes, and their
  * result is never served stale from the build cache. The inputs leave out what the tests skip: the build output in the
- * `build` directories of the root, of build-logic and of the modules, the hidden directories other than `.github`, and
- * the [submoduleDirectories]. A source package named `build` is an input like any other. The tests get the same
+ * `build` directories of the root, of build-logic and of the modules, the hidden directories and the
+ * [submoduleDirectories]. A source package named `build` is an input like any other. The tests get the same
  * submodule directories through a system property, so the inputs and the tests never disagree on them.
  */
 tasks.test {
@@ -76,7 +76,6 @@ tasks.test {
             exclude("build/**", "*/build/**", "*/*/build/**", "**/.*/**")
             submoduleDirectories.forEach { exclude("$it/**") }
         },
-        fileTree(layout.settingsDirectory.dir(".github")),
         rootFilesRead.map { layout.settingsDirectory.file(it) },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("moduleSources")
 }

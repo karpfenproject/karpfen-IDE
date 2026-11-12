@@ -43,8 +43,8 @@ dependencies {
 }
 
 /**
- * Runs the tests headless: Compose UI tests render off-screen through Skia and need no display, so they also run on CI
- * and on headless servers.
+ * Runs the tests headless: Compose UI tests render off-screen through Skia and need no display, so they also run on
+ * headless servers.
  */
 tasks.withType<Test>().configureEach {
     systemProperty("java.awt.headless", "true")

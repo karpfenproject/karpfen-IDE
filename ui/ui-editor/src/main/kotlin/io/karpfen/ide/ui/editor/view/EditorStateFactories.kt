@@ -61,7 +61,7 @@ public fun rememberCodeEditorState(
 /**
  * Creates the port to the system clipboard, which is the clipboard of the AWT `Toolkit`. Creating the port never
  * touches the toolkit. The platform clipboard is resolved on first use. When `GraphicsEnvironment.isHeadless()` is
- * true, as in headless tests and CI, the port falls back to an in-memory clipboard. So editors built with the default
+ * true, as in headless tests, the port falls back to an in-memory clipboard. So editors built with the default
  * workbench services never throw `HeadlessException`.
  */
 public fun systemClipboard(): ClipboardPort = LazySystemClipboard()

@@ -29,7 +29,7 @@ import java.awt.datatransfer.UnsupportedFlavorException
 
 /**
  * The system clipboard as a [ClipboardPort]. It uses the clipboard of the AWT `Toolkit`, resolved on first use, so
- * creating the port never touches the toolkit. When the JVM is headless, as in tests and CI, it falls back to an
+ * creating the port never touches the toolkit. When the JVM is headless, as in tests, it falls back to an
  * [InMemoryClipboard] and never throws `HeadlessException`. [headless] decides this at first use.
  *
  * Failures of the platform clipboard are logged. Examples are a busy clipboard or one without a text flavor. A failed

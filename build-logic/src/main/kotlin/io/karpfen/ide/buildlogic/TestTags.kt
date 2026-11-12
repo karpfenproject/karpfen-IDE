@@ -21,7 +21,7 @@ object TestTags {
      * Time-budget tests. They compare a wall-clock duration with a limit, such as the budgets for tokenizing, parsing,
      * the language service, find, an editor frame and the project tree. They carry `@Tag("budget")` on the class or on
      * the test functions. Every test task excludes the tag, the tasks of the modules through the `karpfen.kotlin-jvm`
-     * convention and the task of build-logic through its own build script. So no build, check or CI run executes them,
+     * convention and the task of build-logic through its own build script. So no build or check executes them,
      * and there is no opt-in switch.
      *
      * Wall-clock time depends on machine load, garbage collection, CPU throttling and sleep and wake cycles. The build

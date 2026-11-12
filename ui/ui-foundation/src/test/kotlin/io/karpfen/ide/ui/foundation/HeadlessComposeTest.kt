@@ -24,7 +24,7 @@ import kotlin.test.Test
 
 /**
  * Proves that Compose UI tests run headless: runComposeUiTest renders off-screen through Skia, without a window.
- * Gradle runs every test of a karpfen.compose module with java.awt.headless=true (see build-logic), so a pass in CI
+ * Gradle runs every test of a karpfen.compose module with java.awt.headless=true (see build-logic), so a pass in Gradle
  * means no display was needed. The test does not assert that property itself, so it also passes under an IDE runner.
  */
 @OptIn(ExperimentalTestApi::class)

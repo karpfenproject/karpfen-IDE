@@ -40,7 +40,7 @@ import kotlin.test.assertTrue
  * Documentation is written for a human reader in plain sentences. It names what it refers to in words instead of by
  * an id that has to be looked up in another document. [ReferenceIds] lists the ids that are rejected. It also does
  * without dashes, middle dots, bullets and arrows ([TypographicCharacters]). Both rules search the text of every
- * comment and the whole text of the markdown documents, the CI workflows, the XML resources and the version catalog.
+ * comment and the whole text of the markdown documents, the XML resources and the version catalog.
  */
 class DocumentationStyleTest {
 
@@ -76,7 +76,7 @@ class DocumentationStyleTest {
     }
 
     @Test
-    fun `the guarded documents are the guides, workflows, resources and catalog`() {
+    fun `the guarded documents are the guides, resources and catalog`() {
         val paths = documents.map { it.relativePath }.toSet()
 
         assertEquals(emptyList(), REQUIRED_DOCUMENTS.filterNot { it in paths }, "documents missing from the guarded documents")
@@ -183,11 +183,11 @@ class DocumentationStyleTest {
 
     private companion object {
         /**
-         * The documents that the guarded documents must include. They are the README, the three guides, the CI
-         * workflow, the logging configuration of the application and the version catalog, one of each kind.
+         * The documents that the guarded documents must include. They are the README, the three guides, the logging
+         * configuration of the application and the version catalog, one of each kind.
          */
         val REQUIRED_DOCUMENTS = listOf(
-            "README.md", "docs/getting-started.md", "docs/archdoc.md", "docs/devdoc.md", ".github/workflows/build.yml",
+            "README.md", "docs/getting-started.md", "docs/archdoc.md", "docs/devdoc.md",
             "app/ide/src/main/resources/logback.xml", "gradle/libs.versions.toml",
         )
 

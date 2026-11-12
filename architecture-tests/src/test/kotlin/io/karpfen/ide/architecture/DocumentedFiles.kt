@@ -32,9 +32,8 @@ internal class RepositoryFile(val relativePath: String, val text: String)
  * scope of Konsist holds no Gradle scripts and no other text files.
  *
  * The walk skips build output ([BuildOutput]) and hidden directories, as Konsist does, so generated sources are not
- * part of it. A source package named `build` is guarded like any other. The CI workflows below `.github` are the one
- * hidden directory that is read, and only the rules on the whole text of documents read them. The checkouts of other
- * repositories in git submodules ([Submodules]) are not part of this code base and are skipped too ([OwnCode]).
+ * part of it. A source package named `build` is guarded like any other. The checkouts of other repositories in git
+ * submodules ([Submodules]) are not part of this code base and are skipped too ([OwnCode]).
  */
 internal object DocumentedFiles {
 
@@ -47,17 +46,17 @@ internal object DocumentedFiles {
     val all: List<RepositoryFile> by lazy { read(::isKotlinSource) }
 
     /**
-     * The other text documents of the repository, ordered by their path. These are the markdown documents, the CI
-     * workflows, the XML resources of the source sets with the logging configurations among them, and the version
-     * catalog. Their whole text is prose or configuration that a reader follows, so the rules on reference ids and on
-     * punctuation search all of it.
+     * The other text documents of the repository, ordered by their path. These are the markdown documents, the XML
+     * resources of the source sets with the logging configurations among them, and the version catalog. Their whole
+     * text is prose or configuration that a reader follows, so the rules on reference ids and on punctuation search
+     * all of it.
      */
     val documents: List<RepositoryFile> by lazy { read(::isTextDocument) }
 
     /**
      * The paths of the markdown files of the repository, relative to its root and ordered. The walk is the one of
-     * [all] and [documents], except that it also skips `.github`. Hidden directories hold the configuration of tools,
-     * not documentation of this code base, so no hidden directory is searched for markdown.
+     * [all] and [documents]. Hidden directories hold the configuration of tools, not documentation of this code base,
+     * so no hidden directory is searched for markdown.
      */
     val markdownPaths: List<String> by lazy { pathsOf(::isMarkdown) }
 
@@ -82,21 +81,14 @@ internal object DocumentedFiles {
             .toList()
     }
 
-    /**
-     * True for a directory that is read. It holds no build output, is no submodule checkout, and is not hidden unless
-     * it holds the CI workflows.
-     */
+    /** True for a directory that is read. It holds no build output, is no submodule checkout and is not hidden. */
     private fun isReadDirectory(relativePath: String): Boolean {
         val name = relativePath.substringAfterLast('/')
-        return OwnCode.isOwnDirectory(relativePath) && (!name.startsWith(".") || isWorkflows(relativePath))
+        return OwnCode.isOwnDirectory(relativePath) && !name.startsWith(".")
     }
 
-    /** True for `.github` and every path below it. */
-    private fun isWorkflows(relativePath: String): Boolean = relativePath == ".github" || relativePath.startsWith(".github/")
-
-    /** True for a Gradle script outside `.github` and for a Kotlin file of any kind inside a source directory. */
+    /** True for a Gradle script and for a Kotlin file of any kind inside a source directory. */
     private fun isKotlinSource(relativePath: String): Boolean {
-        if (isWorkflows(relativePath)) return false
         val isGradleScript = relativePath.endsWith(".gradle.kts")
         val isKotlinFile = relativePath.endsWith(".kt") || relativePath.endsWith(".kts")
         val isInSourceDirectory = "src" in relativePath.split('/').dropLast(1)
@@ -108,12 +100,11 @@ internal object DocumentedFiles {
         val segments = relativePath.split('/')
         return when {
             relativePath.endsWith(".md") -> true
-            isWorkflows(relativePath) -> relativePath.endsWith(".yml") || relativePath.endsWith(".yaml")
             relativePath.endsWith(".xml") -> "src" in segments && "resources" in segments
             else -> segments.size == 2 && segments[0] == "gradle" && relativePath.endsWith(".toml")
         }
     }
 
-    /** True for a markdown file outside `.github`, the files of [markdownPaths]. */
-    private fun isMarkdown(relativePath: String): Boolean = relativePath.endsWith(".md") && !isWorkflows(relativePath)
+    /** True for a markdown file, the files of [markdownPaths]. */
+    private fun isMarkdown(relativePath: String): Boolean = relativePath.endsWith(".md")
 }
