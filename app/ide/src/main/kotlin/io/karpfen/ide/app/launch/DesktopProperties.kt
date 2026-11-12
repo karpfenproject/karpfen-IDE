@@ -17,8 +17,11 @@ package io.karpfen.ide.app.launch
 
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 
-/** The application's name in the macOS menu bar and the Dock. */
-internal const val APPLICATION_NAME: String = "karpfen IDE"
+/**
+ * The application's name in the macOS menu bar. The Dock shows the same name, but it only takes it from the `-Xdock`
+ * option on the command line of the JVM, which the build script of this module sets for `run` and for the packages.
+ */
+internal const val APPLICATION_NAME: String = "Karpfen IDE"
 
 /**
  * The system properties the desktop integration needs before AWT starts. Only macOS needs any.

@@ -51,13 +51,19 @@ dependencies {
  * in app-version cannot be zero or negative". The Compose plugin does not check this. So 0.1.0 stays the version for
  * Msi and Deb, and the macOS app image and the dmg use 1.0.0 until the product reaches 1.x.
  *
+ * On macOS the Dock names a JVM "java" unless the `-Xdock:name` option on its command line says otherwise. A system
+ * property set later cannot change that. So `run` and the packaged application get the option on macOS. Other
+ * platforms do not know the option, and their JVM would refuse to start with it.
+ *
  * Each platform takes the application's icon in its own format. The icns and ico files under `src/main/packaging` are
- * made from the square PNG among the resources, which the running IDE and the Linux package use as it is.
+ * made from the two PNG files among the resources. The icns file has the shape of a Mac application icon, like the
+ * image the running IDE hands to the Dock. The ico file and the Linux package use the plain square image.
  */
 compose.desktop {
     application {
         mainClass = "io.karpfen.ide.app.MainKt"
         javaHome = javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath.asFile.absolutePath
+        if (System.getProperty("os.name").startsWith("Mac")) jvmArgs += "-Xdock:name=Karpfen IDE"
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "karpfen-ide"

@@ -25,34 +25,43 @@ import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 
 /**
- * The icon of the application, a square PNG among the resources. It is shown in two places, because the platforms
- * differ in where they take it from.
+ * The icon of the application. It is shown in two places and in two cuts, because the platforms differ in where they
+ * take the icon from and in how it should look.
  *
- * Windows and Linux show the icon of the window in the taskbar, so the main window gets the icon as [painter]. macOS
- * shows the icon of the application in the Dock. An installed application brings that icon in its bundle. An IDE
- * started from Gradle or from a plain `java` command has no bundle, and the Dock would show the Java cup. So
- * [showInTaskbar] hands the icon to the Dock when the IDE starts.
+ * Windows and Linux show the icon of the window in the taskbar, so the main window gets the plain square image
+ * [WINDOW] as [painter]. macOS shows the icon of the application in the Dock. An installed application brings that
+ * icon in its bundle. An IDE started from Gradle or from a plain `java` command has no bundle, and the Dock would show
+ * the Java cup. So [showInTaskbar] hands the icon to the Dock when the IDE starts.
  *
- * The installers take their icons from the packaging files of this module, which are made from the same image.
+ * The Dock draws the image as it is and adds no shape of its own. So [DOCK] is the image cut to the shape of a Mac
+ * application icon. On a canvas of 1024 pixels the artwork fills a rounded square of 824 pixels in the middle, with
+ * corners of a radius of 185.4 pixels and a soft shadow below. The 100 pixels around it stay empty, which makes the
+ * icon as large as its neighbours in the Dock.
+ *
+ * The installers take their icons from the packaging files of this module, which are made from the same two images:
+ * the icns file from [DOCK] and the ico file from [WINDOW].
  */
 internal object ApplicationIcon {
 
-    /** The path of the icon among the resources. */
-    const val RESOURCE: String = "/icons/karpfen-ide.png"
+    /** The path of the plain square icon among the resources, for the window. */
+    const val WINDOW: String = "/icons/karpfen-ide.png"
 
-    /** The icon as an image, or null if the resource is missing or cannot be read. */
-    fun load(): BufferedImage? =
-        ApplicationIcon::class.java.getResourceAsStream(RESOURCE)?.use { runCatching { ImageIO.read(it) }.getOrNull() }
+    /** The path of the icon in the shape of a Mac application icon among the resources, for the Dock. */
+    const val DOCK: String = "/icons/karpfen-ide-macos.png"
+
+    /** The image at the resource [path], or null if the resource is missing or cannot be read. */
+    fun load(path: String): BufferedImage? =
+        ApplicationIcon::class.java.getResourceAsStream(path)?.use { runCatching { ImageIO.read(it) }.getOrNull() }
 
     /** The icon for the window, or null if it cannot be loaded. */
-    fun painter(): Painter? = load()?.let { BitmapPainter(it.toComposeImageBitmap()) }
+    fun painter(): Painter? = load(WINDOW)?.let { BitmapPainter(it.toComposeImageBitmap()) }
 
     /**
      * Makes the desktop show [image] for the running application where the desktop supports that. macOS does, in the
      * Dock. A desktop that does not is left alone, and so is a headless JVM, as in the tests. A desktop that refuses
      * is ignored too, because the IDE works without its icon.
      */
-    fun showInTaskbar(image: Image? = load()) {
+    fun showInTaskbar(image: Image? = load(DOCK)) {
         if (image == null || GraphicsEnvironment.isHeadless() || !Taskbar.isTaskbarSupported()) return
         runCatching {
             val taskbar = Taskbar.getTaskbar()

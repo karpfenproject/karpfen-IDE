@@ -24,17 +24,45 @@ import kotlin.test.assertTrue
 class ApplicationIconTest {
 
     @Test
-    fun `the icon is a square image that is large enough for a Dock`() {
-        val icon = assertNotNull(ApplicationIcon.load(), "no image at ${ApplicationIcon.RESOURCE}")
+    fun `the icon of the window is a square image without empty corners`() {
+        val icon = assertNotNull(ApplicationIcon.load(ApplicationIcon.WINDOW), "no image at ${ApplicationIcon.WINDOW}")
 
         assertEquals(icon.width, icon.height, "the icon is not square")
         assertTrue(icon.width >= 512, "the icon is only ${icon.width} px wide")
+        assertEquals(OPAQUE, icon.getRGB(0, 0) ushr ALPHA_SHIFT, "the corner is not opaque")
         assertNotNull(ApplicationIcon.painter())
+    }
+
+    @Test
+    fun `the icon of the Dock has the shape of a Mac application icon`() {
+        val icon = assertNotNull(ApplicationIcon.load(ApplicationIcon.DOCK), "no image at ${ApplicationIcon.DOCK}")
+        val alpha = { x: Int, y: Int -> icon.getRGB(x, y) ushr ALPHA_SHIFT }
+
+        assertEquals(CANVAS to CANVAS, icon.width to icon.height)
+        assertEquals(0, alpha(0, 0), "the canvas around the icon is not empty")
+        assertEquals(0, alpha(MARGIN / 2, CANVAS / 2), "the margin left of the icon is not empty")
+        assertEquals(OPAQUE, alpha(CANVAS / 2, MARGIN + 1), "the icon does not start right below the margin")
+        assertEquals(OPAQUE, alpha(CANVAS / 2, CANVAS / 2), "the middle of the icon is not opaque")
+        assertTrue(alpha(MARGIN + 8, MARGIN + 8) < OPAQUE, "the corner of the icon is not rounded")
     }
 
     @Test
     fun `a headless JVM is left alone`() {
         ApplicationIcon.showInTaskbar()
         ApplicationIcon.showInTaskbar(null)
+    }
+
+    private companion object {
+        /** The side of the canvas of a Mac application icon in pixels. */
+        const val CANVAS = 1024
+
+        /** The empty margin around the rounded square of a Mac application icon in pixels. */
+        const val MARGIN = 100
+
+        /** The alpha of an opaque pixel. */
+        const val OPAQUE = 0xFF
+
+        /** How far the alpha sits from the low end of a pixel's value. */
+        const val ALPHA_SHIFT = 24
     }
 }
