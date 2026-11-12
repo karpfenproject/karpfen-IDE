@@ -28,9 +28,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -71,7 +73,8 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
  *
  * The rename and new file dialogs have a text field. It starts focused, with its whole text selected. The dialog that
  * picks the descriptor to run has a list instead. It starts with the preselected entry selected. Up and Down move the
- * selection, and a click selects an entry. Tab and Shift+Tab cycle through the focus stops of [DialogFocusOrder] and
+ * selection, and a click selects an entry. The dialog that asks which bridges to start has a list of boxes, and a click
+ * on a row ticks or clears its box. Tab and Shift+Tab cycle through the focus stops of [DialogFocusOrder] and
  * never leave the dialog. [ModalDialogLayer] keeps the focus out of the workbench behind it.
  */
 @Composable
@@ -83,6 +86,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         mutableStateOf(TextFieldValue(initial, TextRange(0, initial.length)))
     }
     var selected by remember(request) { mutableStateOf(presentation.preselected) }
+    var ticked by remember(request) { mutableStateOf(presentation.preticked) }
     val stops = remember(request) { List(presentation.buttons.size + 1) { FocusRequester() } }
     val order = DialogFocusOrder.of(presentation, text.text)
     fun Modifier.focusStop(stop: Int): Modifier = focusRequester(stops[stop]).focusProperties {
@@ -90,7 +94,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         previous = stops[order.previous(stop)]
     }
     fun press(button: DialogButton) {
-        presentation.responseFor(button.choice, text.text, selected)?.let(onRespond)
+        presentation.responseFor(button.choice, text.text, selected, ticked)?.let(onRespond)
     }
     val choices = presentation.choices
     val colors = KarpfenTheme.colors
@@ -147,6 +151,25 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                     }
                 }
             }
+            presentation.ticks?.let { ticks ->
+                Spacer(Modifier.height(8.dp))
+                Column(Modifier.fillMaxWidth().border(1.dp, colors.border)) {
+                    ticks.forEachIndexed { index, label ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { ticked = if (index in ticked) ticked - index else ticked + index }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .testTag(WorkbenchDialogTestTags.tick(index)),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = index in ticked, onCheckedChange = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(label, color = colors.text, style = KarpfenTheme.typography.ui)
+                        }
+                    }
+                }
+            }
             if (presentation.input != null) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -159,7 +182,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                 presentation.buttons.forEachIndexed { index, button ->
-                    val enabled = presentation.responseFor(button.choice, text.text, selected) != null
+                    val enabled = presentation.responseFor(button.choice, text.text, selected, ticked) != null
                     val tagged = Modifier.testTag(WorkbenchDialogTestTags.button(button.label)).focusStop(index + 1)
                     if (button.isDefault) {
                         Button(onClick = { press(button) }, enabled = enabled, modifier = tagged) { Text(button.label) }

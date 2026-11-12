@@ -100,6 +100,9 @@ public object RuntimeViewTestTags {
     /** The finding at [index] in the selected run's Log pane. */
     public fun finding(index: Int): String = "Runtime.overview.finding:$index"
 
+    /** The line of the bridge at [index] in the selected run's Log pane. */
+    public fun bridge(index: Int): String = "Runtime.overview.bridge:$index"
+
     /** The active states of the machine attached to [key]. */
     public fun activeStates(key: String): String = "Runtime.overview.states:$key"
 

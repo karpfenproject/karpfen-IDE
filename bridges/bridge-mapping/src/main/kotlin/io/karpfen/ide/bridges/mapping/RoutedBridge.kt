@@ -29,6 +29,7 @@ import io.karpfen.ide.bridges.api.RouteStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.BufferOverflow
@@ -42,6 +43,7 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * The bridge that runs the routes of a [BridgeConfig] between an [endpoint] and a [link]. It is the same for every
@@ -96,12 +98,18 @@ public class RoutedBridge(
         }
     }
 
-    override suspend fun stop(): Unit = lifecycle.withLock {
-        val running = work ?: return
-        work = null
-        running.cancelAndJoin()
-        endpoint.close()
-        current.update { it.copy(state = BridgeState.STOPPED) }
+    /**
+     * Stops the bridge as [Bridge.stop] describes. Once begun, stopping runs to its end even if the caller is
+     * cancelled meanwhile, so the endpoint never stays open behind a bridge that counts as stopped.
+     */
+    override suspend fun stop(): Unit = withContext(NonCancellable) {
+        lifecycle.withLock {
+            val running = work ?: return@withLock
+            work = null
+            running.cancelAndJoin()
+            endpoint.close()
+            current.update { it.copy(state = BridgeState.STOPPED) }
+        }
     }
 
     /** Starts the workers of all routes and the two readers that feed them, and returns the job that holds them. */

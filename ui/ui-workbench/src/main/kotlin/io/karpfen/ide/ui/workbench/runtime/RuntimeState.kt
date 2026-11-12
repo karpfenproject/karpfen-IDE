@@ -35,11 +35,17 @@ import io.karpfen.ide.runtime.session.deploy.DeployOptions
 import io.karpfen.ide.runtime.session.events.InjectionAvailability
 import io.karpfen.ide.runtime.session.events.InjectionOutcome
 import io.karpfen.ide.runtime.session.events.InjectionRequest
+import io.karpfen.ide.ui.workbench.bridges.BridgeLoader
+import io.karpfen.ide.ui.workbench.bridges.RunBridges
 import io.karpfen.ide.ui.workbench.output.OutputBuffer
 import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
 import io.karpfen.ide.ui.workbench.settings.RuntimeSettings
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
+import java.nio.file.Path
+import java.time.Clock
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -55,20 +61,19 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.nio.file.Path
-import java.time.Clock
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * The runtime of one opened workspace and its runs, as the Runtime tool window shows and steers them. It holds the host
  * with its status and log, the runs with the selected one, and the commands.
  *
- * A run goes through these steps. It resolves the descriptor and saves every open file. It stops the earlier runs of
- * the same descriptor that still prepare, still wait for the runtime, or are live. It prepares the deployment from the
- * saved workspace and waits for the runtime. Then it launches a session that deploys, starts and observes the
- * environment. From then on the run's entry follows the session.
+ * A run goes through these steps. It resolves the descriptor. If the workspace has bridge files, it asks which of
+ * them to start with the run, with the bridges of the last run ticked, and remembers the answer in the project. It
+ * saves every open file. It stops the earlier runs of the same descriptor that still prepare, still wait for the
+ * runtime, or are live. It prepares the deployment from the saved workspace and waits for the runtime. Then it
+ * launches a session that deploys, starts and observes the environment, and the chosen bridges, which start once the
+ * environment runs. From then on the run's entry follows the session.
  *
  * Changing the runtime settings stops the live runs and replaces the host. The workbench creates one instance per
  * opened workspace and shuts it down when the workspace closes or the IDE exits.
@@ -94,7 +99,7 @@ public class RuntimeState internal constructor(
     private val settings: SettingsRepository,
     clients: (RuntimeEndpoint) -> RuntimeClient,
     private val support: RunSupport,
-    ioDispatcher: CoroutineDispatcher,
+    private val ioDispatcher: CoroutineDispatcher,
     clock: Clock,
     public val runShortcut: String,
 ) {
@@ -104,6 +109,7 @@ public class RuntimeState internal constructor(
     )
     private val list = RunList()
     private val resolver = DescriptorResolver(workspace.root, support)
+    private val bridgeLoader = BridgeLoader(ioDispatcher)
     private val launched = HashMap<Long, Launched>()
     private val pending = HashMap<Long, Job>()
     private var nextId = 1L
@@ -192,6 +198,9 @@ public class RuntimeState internal constructor(
     /** What the tabs of the launched [entry] show, or null before the run was launched. */
     public fun details(entry: RunEntry): RunDetails? = launched[entry.id]?.details
 
+    /** The bridges of the launched [entry], or null before the run was launched. */
+    public fun bridges(entry: RunEntry): RunBridges? = launched[entry.id]?.bridges
+
     /** Chooses how the runtime is reached and writes it to the settings. */
     public fun selectHost(kind: RuntimeHostKind): Job =
         scope.launch { settings.update { it.copy(runtime = it.runtime.copy(host = kind)) } }
@@ -229,6 +238,7 @@ public class RuntimeState internal constructor(
     private suspend fun runFlow(given: Path?) {
         val pick = DescriptorResolver.pick(support.activeFile.value, descriptorsOf(workspace.files.value))
         val descriptor = resolver.resolve(given, pick) ?: return
+        val bridges = chooseBridges() ?: return
         if (!support.saveAll()) return
         stopRunsOf(descriptor)
         val id = nextId++
@@ -238,24 +248,48 @@ public class RuntimeState internal constructor(
             show(id)
             when (val preparation = sessions.prepare(workspace, descriptor)) {
                 is Preparation.Blocked -> list.update(id) { it.copy(phase = RunPhase.BLOCKED, findings = preparation.findings) }
-                is Preparation.Ready -> deploy(id, preparation.prepared)
+                is Preparation.Ready -> deploy(id, preparation.prepared, bridges)
             }
         } finally {
             pending.remove(id)
         }
     }
 
-    /** Waits for the runtime and launches the session of the run [id] that deploys [prepared]. */
-    private suspend fun deploy(id: Long, prepared: PreparedDeployment) {
+    /**
+     * Asks which bridge files of the workspace to start with the run and remembers the answer in the project. Returns
+     * the chosen files, none if the workspace has no bridge file, or null if the user cancelled the run.
+     */
+    private suspend fun chooseBridges(): List<Path>? {
+        val root = workspace.root
+        val files = workspace.files.value.files(FileKind.BRIDGE).map { it.path }
+        if (files.isEmpty()) return emptyList()
+        val last = settings.settings.value.activeBridges.toSet()
+        val chosen = support.chooseBridges(root, files, files.filter { BridgeLoader.nameOf(root, it) in last }.toSet()) ?: return null
+        val names = chosen.map { BridgeLoader.nameOf(root, it) }
+        if (names != settings.settings.value.activeBridges) settings.update { it.copy(activeBridges = names) }
+        return chosen
+    }
+
+    /**
+     * Waits for the runtime and launches the session of the run [id] that deploys [prepared], together with the
+     * bridges of the files [bridges].
+     */
+    private suspend fun deploy(id: Long, prepared: PreparedDeployment, bridges: List<Path>) {
         list.update(id) { it.copy(planName = prepared.plan.name, phase = RunPhase.WAITING_FOR_RUNTIME) }
         when (val outcome = binding.ensureRunning()) {
             is HostOutcome.Failed -> list.update(id) { it.copy(phase = RunPhase.FAILED, hostProblem = outcome.problem) }
             is HostOutcome.Ready -> {
                 if (list.entry(id) == null) return
+                val plans = withContext(ioDispatcher) { bridges.map { bridgeLoader.plan(workspace.root, it) } }
+                if (list.entry(id) == null) return
                 val client = binding.clientFor(outcome.endpoint)
                 val session = sessions.launch(prepared, client, scope, DeployOptions(start = true, observe = true))
                 list.update(id) { it.copy(phase = RunPhase.DEPLOYING, session = session) }
-                launched[id] = Launched(RunDetails(session, scope) { request -> session.events.inject(request) }, follow(id, session))
+                launched[id] = Launched(
+                    RunDetails(session, scope) { request -> session.events.inject(request) },
+                    RunBridges(plans, session, scope, bridgeLoader),
+                    follow(id, session),
+                )
                 show(id)
             }
         }
@@ -325,12 +359,13 @@ public class RuntimeState internal constructor(
     }
 
     /**
-     * Stops following the run of [entry] and closes its session. Closing a session leaves its environment on the
-     * runtime as it is.
+     * Stops following the run of [entry], stops its bridges and closes its session. Closing a session leaves its
+     * environment on the runtime as it is.
      */
     private fun release(entry: RunEntry) {
         launched.remove(entry.id)?.let { run ->
             run.follower.cancel()
+            run.bridges.close()
             run.details.close()
         }
         entry.session?.close()
@@ -350,12 +385,13 @@ public class RuntimeState internal constructor(
     }
 
     /**
-     * A launched run. It holds what the run's tabs show and the job that follows its session.
+     * A launched run. It holds what the run's tabs show, its bridges and the job that follows its session.
      *
      * @property details what the tabs show.
+     * @property bridges the bridges that were started with the run.
      * @property follower follows the session in the run's entry.
      */
-    private class Launched(val details: RunDetails, val follower: Job)
+    private class Launched(val details: RunDetails, val bridges: RunBridges, val follower: Job)
 
     public companion object {
         /** How many lines the runtime log keeps. */

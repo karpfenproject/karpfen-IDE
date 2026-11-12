@@ -81,6 +81,28 @@ public sealed interface DialogRequest<out R : DialogResponse> {
             response == DialogResponse.Cancel || (response is DialogResponse.Chosen && response.index in descriptors.indices)
     }
 
+    /**
+     * Asks which of the bridge files of the workspace at [root] to start with a run. Every file has a box to tick, and
+     * the boxes of [preselected] are ticked when the dialog opens. The answer may tick none.
+     *
+     * @property bridges the bridge files, in the order they are listed.
+     * @property preselected the positions of the files that are ticked at first.
+     */
+    public data class ChooseBridges(
+        public val root: Path,
+        public val bridges: List<Path>,
+        public val preselected: Set<Int> = emptySet(),
+    ) : DialogRequest<TickAnswer> {
+        init {
+            require(bridges.isNotEmpty()) { "there is no bridge to choose" }
+            require(preselected.all { it in bridges.indices }) { "a preselected index is out of ${bridges.indices}" }
+        }
+
+        override fun accepts(response: DialogResponse): Boolean =
+            response == DialogResponse.Cancel ||
+                (response is DialogResponse.Ticked && response.indices.all { it in bridges.indices })
+    }
+
     /** Show an error. The only answer is [DialogResponse.Confirm], also when the user dismisses the dialog. */
     public data class Error(public val title: String, public val message: String) : DialogRequest<DialogResponse.Confirm> {
         override fun accepts(response: DialogResponse): Boolean = response == DialogResponse.Confirm
@@ -99,13 +121,20 @@ public sealed interface DialogResponse {
     public data object Confirm : ConfirmAnswer
 
     /** Cancel the operation. */
-    public data object Cancel : UnsavedChangesAnswer, ConfirmAnswer, TextAnswer, ChoiceAnswer
+    public data object Cancel : UnsavedChangesAnswer, ConfirmAnswer, TextAnswer, ChoiceAnswer, TickAnswer
 
     /** The entered text, such as the new name of a renamed file or the name of a new file. */
     public data class Text(public val value: String) : TextAnswer
 
     /** The entry at [index] of a list was chosen. */
     public data class Chosen(public val index: Int) : ChoiceAnswer
+
+    /**
+     * The entries the user ticked, by their positions in the list, as the answer to [DialogRequest.ChooseBridges].
+     *
+     * @property indices the positions of the ticked entries. The set is empty if none is ticked.
+     */
+    public data class Ticked(public val indices: Set<Int>) : TickAnswer
 }
 
 /** The answers to [DialogRequest.UnsavedChanges], which are Save, Discard and Cancel. */
@@ -119,6 +148,9 @@ public sealed interface TextAnswer : DialogResponse
 
 /** The answers to [DialogRequest.ChooseDescriptor], which are Chosen and Cancel. */
 public sealed interface ChoiceAnswer : DialogResponse
+
+/** The answers to [DialogRequest.ChooseBridges], which are Ticked and Cancel. */
+public sealed interface TickAnswer : DialogResponse
 
 /**
  * Holds the pending dialog. The workbench mediator and the application's crash handling suspend in [ask] until the

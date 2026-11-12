@@ -69,7 +69,7 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "karpfen-ide"
             packageVersion = "0.1.0"
-            modules("java.instrument", "jdk.unsupported")
+            modules("java.instrument", "jdk.unsupported", "jdk.httpserver", "java.net.http")
             macOS {
                 packageVersion = "1.0.0"
                 dmgPackageVersion = "1.0.0"

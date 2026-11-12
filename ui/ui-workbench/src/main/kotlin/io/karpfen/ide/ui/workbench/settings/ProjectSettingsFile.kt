@@ -32,11 +32,13 @@ import kotlin.math.roundToInt
  * open = lamp.kstates
  * open = lamp.kmeta
  * active = lamp.kstates
+ * bridge = http.kbridge.json
  * ```
  *
  * `theme` is `light`, `dark` or `system`. `zoom` is the scale of the workbench in percent. `pane.<name>` is `shown` or
  * `hidden` followed by the size of the tool window in dp. `runtime.host` is `docker` or `url`, and `runtime.url` is
- * the address for the latter. Every open file has its own `open` line, in the order of the tabs.
+ * the address for the latter. Every open file has its own `open` line, in the order of the tabs. Every bridge that was
+ * started with the last run has its own `bridge` line.
  *
  * Reading never fails. A line with a known key and a value that makes no sense is dropped, and the default stands in.
  * A line with a key that is not known is kept and written back, so files of a newer version survive.
@@ -59,6 +61,7 @@ public object ProjectSettingsFile {
     public fun parse(text: String): ProjectSettings {
         var settings = ProjectSettings()
         val open = ArrayList<String>()
+        val bridges = ArrayList<String>()
         val others = ArrayList<String>()
         for (line in text.lines()) {
             val trimmed = line.trim()
@@ -81,10 +84,16 @@ public object ProjectSettingsFile {
                 key == "runtime.url" -> if (value.isNotEmpty()) settings = settings.copy(runtime = settings.runtime.copy(url = value))
                 key == "open" -> if (value.isNotEmpty() && value !in open) open.add(value)
                 key == "active" -> if (value.isNotEmpty()) settings = settings.copy(activeFile = value)
+                key == "bridge" -> if (value.isNotEmpty() && value !in bridges) bridges.add(value)
                 else -> others.add(trimmed)
             }
         }
-        return settings.copy(openFiles = open, activeFile = settings.activeFile?.takeIf { it in open }, otherLines = others)
+        return settings.copy(
+            openFiles = open,
+            activeFile = settings.activeFile?.takeIf { it in open },
+            bridges = bridges,
+            otherLines = others,
+        )
     }
 
     /** The text of the file for [settings]. [parse] reads it back to the same settings. */
@@ -100,6 +109,7 @@ public object ProjectSettingsFile {
         appendLine("runtime.url = ${settings.runtime.url}")
         settings.openFiles.forEach { appendLine("open = $it") }
         settings.activeFile?.let { appendLine("active = $it") }
+        settings.bridges.forEach { appendLine("bridge = $it") }
         settings.otherLines.forEach(::appendLine)
     }
 

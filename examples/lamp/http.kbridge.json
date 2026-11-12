@@ -1,0 +1,10 @@
+{
+  "kind": "http",
+  "settings": { "port": "8090" },
+  "inbound": [
+    { "from": "/press", "event": "switch/press" },
+    { "from": "/dim", "event": "switch/dim", "payload": { "bright": "$.bright" } },
+    { "from": "/smash", "event": "service/smash" }
+  ],
+  "outbound": []
+}

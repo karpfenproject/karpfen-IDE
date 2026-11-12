@@ -30,6 +30,7 @@ class ProjectSettingsFileTest {
         runtime = RuntimeSettings(RuntimeHostKind.URL, "http://127.0.0.1:9000"),
         openFiles = listOf("lamp.kstates", "sub folder/lamp.kmeta"),
         activeFile = "sub folder/lamp.kmeta",
+        bridges = listOf("http.kbridge.json", "sub folder/mqtt.kbridge.json"),
     )
 
     @Test
@@ -47,6 +48,8 @@ class ProjectSettingsFileTest {
             open = lamp.kstates
             open = sub folder/lamp.kmeta
             active = sub folder/lamp.kmeta
+            bridge = http.kbridge.json
+            bridge = sub folder/mqtt.kbridge.json
             """.trimIndent() + "\n",
             ProjectSettingsFile.format(settings),
         )

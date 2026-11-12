@@ -42,6 +42,8 @@ import kotlinx.serialization.Serializable
  * @property openFiles the files open in tabs, relative to the project folder with forward slashes, in the order of
  *   the tabs. Part of the project.
  * @property activeFile the file of the active tab, named like the [openFiles], or null. Part of the project.
+ * @property activeBridges the bridge files that were started with the last run, named like the [openFiles]. The
+ *   dialog that asks which bridges to start with a run has them ticked. Part of the project.
  * @property otherProjectLines the lines of the project file that this version does not understand. They are kept so
  *   that they can be written back.
  */
@@ -55,6 +57,7 @@ public data class IdeSettings(
     public val runtime: RuntimeSettings = RuntimeSettings(),
     public val openFiles: List<String> = emptyList(),
     public val activeFile: String? = null,
+    public val activeBridges: List<String> = emptyList(),
     public val otherProjectLines: List<String> = emptyList(),
 ) {
     init {

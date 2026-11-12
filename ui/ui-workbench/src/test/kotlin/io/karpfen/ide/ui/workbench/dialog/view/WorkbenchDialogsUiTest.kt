@@ -68,6 +68,32 @@ class WorkbenchDialogsUiTest {
     }
 
     @Test
+    fun `the bridges dialog starts with the remembered boxes ticked and answers with the ticked ones`() = runComposeUiTest {
+        val answers = mutableListOf<DialogResponse>()
+        val root = Path.of("/ws").toAbsolutePath()
+        val bridges = listOf(root.resolve("http.kbridge.json"), root.resolve("lab/mqtt.kbridge.json"), root.resolve("ros.kbridge.json"))
+        setContent {
+            KarpfenTheme(darkTheme = false) {
+                WorkbenchDialogs(DialogRequest.ChooseBridges(root, bridges, preselected = setOf(1))) { answers.add(it) }
+            }
+        }
+        onNodeWithText("http.kbridge.json").assertIsDisplayed()
+        onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.tick(0)).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.tick(1)).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.tick(2)).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.DIALOG).performKeyInput { pressKey(Key.Enter) }
+        onNodeWithTag(WorkbenchDialogTestTags.tick(0)).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.tick(2)).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.DIALOG).performKeyInput { pressKey(Key.Escape) }
+        assertEquals(
+            listOf(DialogResponse.Ticked(setOf(1)), DialogResponse.Ticked(setOf(0, 2)), DialogResponse.Ticked(emptySet()), DialogResponse.Cancel),
+            answers.toList(),
+        )
+    }
+
+    @Test
     fun `no request shows nothing`() = runComposeUiTest {
         setContent { KarpfenTheme(darkTheme = false) { WorkbenchDialogs(null) {} } }
         onNodeWithTag(WorkbenchDialogTestTags.DIALOG).assertDoesNotExist()

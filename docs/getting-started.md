@@ -105,6 +105,30 @@ the deploy steps. Below is the log of the runtime. With Simplified switched on, 
 do, one step per line, such as `lamp  off -> on`, and the errors. With Simplified switched off, it shows everything the
 runtime prints.
 
+### Bridges
+
+A bridge connects the running model to something outside the IDE. A file whose name ends in `.kbridge.json` describes
+one bridge: its kind, which is `http` or `mqtt`, its settings, and its routes. An inbound route turns a message from
+outside into an event. An outbound route sends a message whenever a property, the active states of a state machine or
+an event has something new.
+
+When the project has bridge files, Run asks which of them to start, with one box per file. The boxes you ticked last
+time are ticked again. The bridges start once the environment runs and stop with it. The Log pane lists them below the
+line about the deployment, each with its state and the number of messages it handed on.
+
+The lamp example has two bridge files. `http.kbridge.json` listens on port 8090, so this presses the wall switch and
+then makes the lamp brighter:
+
+```
+curl -X POST http://127.0.0.1:8090/press
+curl -X POST http://127.0.0.1:8090/dim -d '{"bright": true}'
+```
+
+`mqtt.kbridge.json` needs an MQTT broker on `localhost:1883`. It presses the switch for every message on the topic
+`home/lamp/press`, and it publishes the power of the bulb on `home/lamp/watts` and the active states of the lamp on
+`home/lamp/state`. Outbound routes that follow a property or a state machine need observation switched on. Without a
+broker that bridge shows as failed, and the run goes on without it.
+
 
 ## Walkthrough: the lamp
 
@@ -311,7 +335,8 @@ image of its build stage, which `docker images --filter dangling=true` lists, an
 ## Good to know
 
 Each project keeps its own settings in the file `.karpfenproject` in its folder. The IDE writes there the theme, the two
-zoom sizes, which tool windows are shown and how large they are, the runtime choice, and which files are open. When you
+zoom sizes, which tool windows are shown and how large they are, the runtime choice, which files are open, and which
+bridges you started with the last run. When you
 open the folder again, on this machine or on another, the IDE looks the way you left it. The file is plain text with one
 `key = value` per line, so you can read it, edit it and commit it with the project:
 

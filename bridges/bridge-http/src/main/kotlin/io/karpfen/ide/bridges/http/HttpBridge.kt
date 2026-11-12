@@ -20,17 +20,24 @@ import io.karpfen.ide.bridges.api.BridgeConfig
 import io.karpfen.ide.bridges.api.BridgeKind
 import io.karpfen.ide.bridges.api.ModelLink
 import io.karpfen.ide.bridges.mapping.RoutedBridge
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 /**
  * The HTTP bridge for [config] between the model behind [link] and whoever sends HTTP requests. The bridge works in
- * [scope].
+ * [scope]. Its server is started and stopped on [ioDispatcher], which blocks for a moment.
  *
  * For the lamp example a bridge file with the inbound route `/switch/press` to the event `switch/press` makes
  * `curl -X POST http://127.0.0.1:8090/switch/press` press the wall switch. An outbound route for the property
  * `bulb/watts` posts the new value to its URL whenever the bulb changes its power.
  */
-public fun HttpBridge(config: BridgeConfig, link: ModelLink, scope: CoroutineScope): Bridge {
+public fun HttpBridge(
+    config: BridgeConfig,
+    link: ModelLink,
+    scope: CoroutineScope,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+): Bridge {
     require(config.kind == BridgeKind.HTTP) { "the configuration is for ${config.kind.id}, not for http" }
-    return RoutedBridge(config, HttpEndpoint(HttpSettings.of(config.settings)), link, scope)
+    return RoutedBridge(config, HttpEndpoint(HttpSettings.of(config.settings), ioDispatcher), link, scope)
 }

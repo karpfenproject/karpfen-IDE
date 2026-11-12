@@ -55,6 +55,7 @@ import io.karpfen.ide.ui.foundation.layout.SplitPane
 import io.karpfen.ide.ui.foundation.layout.SplitSide
 import io.karpfen.ide.ui.foundation.theme.KarpfenColors
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
+import io.karpfen.ide.ui.workbench.bridges.RunBridges
 import io.karpfen.ide.ui.workbench.output.OutputLine
 import io.karpfen.ide.ui.workbench.output.view.OutputView
 import io.karpfen.ide.ui.workbench.runtime.RunEntry
@@ -139,7 +140,7 @@ private fun LogPane(runtime: RuntimeState, entry: RunEntry, root: Path, onNaviga
                 modifier = Modifier.testTag(RuntimeViewTestTags.SIMPLIFIED),
             )
         },
-        belowToolbar = { RunSummary(entry, root, onNavigate) },
+        belowToolbar = { RunSummary(entry, runtime.bridges(entry), root, onNavigate) },
         lineText = if (simplified) statechartText else null,
     )
 }
@@ -164,12 +165,13 @@ private fun statechartLine(line: OutputLine, subjectWidth: Int, colors: KarpfenC
 /**
  * What the run [entry] has to tell, above its log. It shows why the runtime could not be started and the findings that
  * block the run. Once the run is launched, it shows the active states of each state machine and one line about the
- * deployment. A click on that line opens the details: the connection, every deploy step and the session's problems.
+ * deployment, followed by the [bridges] that were started with the run. A click on the line about the deployment
+ * opens the details: the connection, every deploy step and the session's problems.
  * The details start open while the deployment is under way or has a problem, and closed once it went through. A click
  * on a finding with a file calls [onNavigate]. All of the text can be selected with the mouse and copied.
  */
 @Composable
-private fun RunSummary(entry: RunEntry, root: Path, onNavigate: (Location) -> Unit) {
+private fun RunSummary(entry: RunEntry, bridges: RunBridges?, root: Path, onNavigate: (Location) -> Unit) {
     val colors = KarpfenTheme.colors
     SelectionContainer {
         Column(
@@ -185,6 +187,7 @@ private fun RunSummary(entry: RunEntry, root: Path, onNavigate: (Location) -> Un
                 Problems(entry.findings, root, onNavigate)
             }
             entry.session?.let { SessionSummary(it, root, onNavigate) }
+            bridges?.let { BridgeLines(it) }
         }
     }
 }

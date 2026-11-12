@@ -39,6 +39,12 @@ internal interface RunSupport {
      */
     suspend fun chooseDescriptor(root: Path, descriptors: List<Path>, preselected: Path?): Path?
 
+    /**
+     * Asks the user which of the [bridges] of the workspace at [root] to start with the run. The boxes of [preselected]
+     * are ticked when the dialog opens. Returns the ticked bridges, which may be none, or null if the user cancelled.
+     */
+    suspend fun chooseBridges(root: Path, bridges: List<Path>, preselected: Set<Path>): List<Path>?
+
     /** Shows an error dialog with [title] and [message] and returns once it is acknowledged. */
     suspend fun showError(title: String, message: String)
 

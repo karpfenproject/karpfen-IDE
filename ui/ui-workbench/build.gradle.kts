@@ -23,8 +23,9 @@ plugins {
  * The editor, the UI foundation and the language services are `api` dependencies because the public `WorkbenchState`
  * exposes `Workspace`, `LanguageServices`, `CodeEditorState` and `CommandRegistry`. The runtime session and the runtime
  * host are `api` too, because the public `RuntimeState` and `WorkbenchServices` expose sessions, host statuses and the
- * host factory. The diagram module is still an empty placeholder. The diagram view it is meant to hold is not built
- * yet. The tests run sessions against the fake runtime of the runtime fixtures and show views over the scriptable
+ * host factory. The bridge API is `api` because the public `RunBridges` exposes the status of a bridge, while the HTTP
+ * and MQTT bridges are only built inside. The diagram module is still an empty placeholder. The diagram view it is
+ * meant to hold is not built yet. The tests run sessions against the fake runtime of the runtime fixtures and show views over the scriptable
  * session.
  */
 dependencies {
@@ -36,6 +37,9 @@ dependencies {
     implementation(project(":ui:ui-diagram"))
     api(project(":runtime:runtime-session"))
     api(project(":runtime:runtime-host"))
+    api(project(":bridges:bridge-api"))
+    implementation(project(":bridges:bridge-http"))
+    implementation(project(":bridges:bridge-mqtt"))
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))

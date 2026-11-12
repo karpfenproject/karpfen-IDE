@@ -26,6 +26,9 @@ public object WorkbenchDialogTestTags {
     /** The entry at [index] of the dialog's list, as shown when the user picks the descriptor to run. */
     public fun choice(index: Int): String = "Workbench.dialog.choice:$index"
 
+    /** The box at [index] of the dialog's list of boxes, as shown when the user ticks the bridges to start. */
+    public fun tick(index: Int): String = "Workbench.dialog.tick:$index"
+
     /** The dialog's button with the text [label]. */
     public fun button(label: String): String = "Workbench.dialog.button:$label"
 }

@@ -1,0 +1,12 @@
+{
+  "kind": "mqtt",
+  "settings": { "broker": "tcp://localhost:1883" },
+  "inbound": [
+    { "from": "home/lamp/press", "event": "switch/press" },
+    { "from": "home/lamp/dim", "event": "switch/dim" }
+  ],
+  "outbound": [
+    { "property": "bulb/watts", "to": "home/lamp/watts", "policy": "latest" },
+    { "state": "lamp", "to": "home/lamp/state", "policy": "latest" }
+  ]
+}

@@ -27,8 +27,8 @@ import java.nio.file.Path
 
 /**
  * The workbench as a run sees it. A run gets the active tab, Save All through the [saving] flow, the choice of the
- * descriptor, the error dialog and the Runtime tool window of the [layout]. Save All and the descriptor choice run in
- * the turn of the [runner], so they never interleave with the dialog of another intent.
+ * descriptor, the choice of the bridges, the error dialog and the Runtime tool window of the [layout]. Save All and the
+ * two choices run in the turn of the [runner], so they never interleave with the dialog of another intent.
  */
 internal class WorkbenchRunSupport(
     private val runner: IntentRunner,
@@ -46,6 +46,14 @@ internal class WorkbenchRunSupport(
         val request = DialogRequest.ChooseDescriptor(root, descriptors, descriptors.indexOf(preselected).coerceAtLeast(0))
         when (val answer = dialogs.ask(request)) {
             is DialogResponse.Chosen -> descriptors[answer.index]
+            DialogResponse.Cancel -> null
+        }
+    }
+
+    override suspend fun chooseBridges(root: Path, bridges: List<Path>, preselected: Set<Path>): List<Path>? = runner.exclusive {
+        val ticked = bridges.indices.filter { bridges[it] in preselected }.toSet()
+        when (val answer = dialogs.ask(DialogRequest.ChooseBridges(root, bridges, ticked))) {
+            is DialogResponse.Ticked -> bridges.filterIndexed { index, _ -> index in answer.indices }
             DialogResponse.Cancel -> null
         }
     }

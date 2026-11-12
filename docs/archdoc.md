@@ -46,7 +46,7 @@ uses `io.karpfen.ide.buildlogic`.
 | app | app/ide | The desktop application and its composition root. |
 | tools | tools/cli | The `karpfen` command-line tool. |
 | notation | notation-diagram, notation-sync | The diagrams without their UI: model, layout and the step from text to diagram. |
-| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros, bridge-runner | Connect a running model to external systems. The core, the HTTP bridge and the MQTT bridge exist. |
+| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros, bridge-runner | Connect a running model to external systems. The core, the HTTP bridge and the MQTT bridge exist, and the IDE starts them with a run. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
 
 Next to the modules, the folder `examples` holds the lamp model of the getting started guide, and the script
@@ -105,7 +105,7 @@ flowchart TD
 
     ide --> workbench
     cli --> workspace
-    workbench --> editor & session & host & uidiagram
+    workbench --> editor & session & host & uidiagram & bridges
     editor --> foundation & lang
     uidiagram --> foundation & nsync
     nsync --> ndiagram --> workspace
@@ -211,10 +211,12 @@ It depends on ui-foundation and core-lang and is used by ui-workbench.
 The content of the IDE window. `WorkbenchState` in the package `state` is the mediator that owns the opened workspace
 and its language services and coordinates the feature states. Each feature package, such as `projecttree`, `tabs`,
 `outline`, `problems`, `statusbar`, `output` or `runtime`, holds a Compose-free state class and a `view` sub-package
-with its composables. `RuntimeState` in the package `runtime` is the state of the Runtime tool window.
-`WorkbenchServices` holds the collaborators, `defaultWorkbenchServices` is the production wiring, and the `Workbench`
-composable lays out the window. It depends on ui-editor, ui-foundation, core-lang, runtime-session, runtime-host and
-ui-diagram, and is used by app/ide.
+with its composables. `RuntimeState` in the package `runtime` is the state of the Runtime tool window. The package `bridges` hosts the
+bridges of a run: `RunBridges` starts and stops them with the environment, `BridgeLoader` reads their files, and
+`SessionModelLink` puts them on the session of the run. `WorkbenchServices` holds the collaborators,
+`defaultWorkbenchServices` is the production wiring, and the `Workbench` composable lays out the window. It depends on
+ui-editor, ui-foundation, core-lang, runtime-session, runtime-host, ui-diagram, bridge-api, bridge-http and bridge-mqtt,
+and is used by app/ide.
 
 ### app/ide
 
@@ -363,8 +365,9 @@ code, and all rules live in its test sources.
 
 1. Run in the Run menu, registered by `RuntimeCommands` in ui-workbench, calls `RuntimeState.run`.
    `DescriptorResolver` picks the environment descriptor: the one in the active editor, the only one of the folder, or
-   one the user chooses. `RunSupport.saveAll` saves every open file, because a deployment uploads the saved files. A
-   previous run of the same descriptor stops first.
+   one the user chooses. If the project has bridge files, `RunSupport.chooseBridges` asks which of them to start, and
+   the answer is stored in the project file. `RunSupport.saveAll` saves every open file, because a deployment uploads
+   the saved files. A previous run of the same descriptor stops first.
 2. `RuntimeSessions.prepare` in runtime-session hands the work to `DeploymentPreparer`. It saves every open document
    again, awaits the analysis, refuses files that still differ from their saved state, and plans with
    `DeploymentPlanner`, whose `PlanCheck`s block what the runtime would mishandle. It then turns the analysis into
