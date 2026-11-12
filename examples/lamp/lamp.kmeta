@@ -1,7 +1,8 @@
 // The metamodel of the lamp example: the types the model is made of.
 // A room holds a lamp and a wall switch. The lamp holds a bulb and a spare bulb,
 // and it knows the switch it is wired to.
-type "Bulb" "A light bulb" {
+type "Bulb" "A light bulb. It burns with watts, which never exceeds maxWatts" {
+    prop("maxWatts", "number")
     prop("watts", "number")
     prop("lit", "boolean")
 }

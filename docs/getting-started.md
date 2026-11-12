@@ -12,8 +12,8 @@ karpfen is a small family of modeling languages. A system is described by a few 
   refers to (`knows`). The last type in the file is the root type, the type of the model's outermost object.
 - The model (`.kmodel`) creates objects of these types. Every object has a key, such as `lamp`.
 - A state machine (`.kstates`) describes behaviour. It is attached to one object of the model. Entering a state runs
-  actions that change the model. Transitions wait for events and conditions. Actions may also run Python in `EVAL`
-  blocks, but the example here needs none.
+  actions that change the model. Transitions wait for events and conditions. Actions and conditions can compute
+  values in `EVAL` blocks, which hold Python. The example here uses them only for small sums and comparisons.
 - The event definitions are a second metamodel. Each type in it names an event, and the properties of the type are
   the payload of that event. The state machines say in which domain they expect an event, as in
   `EVENT("switch", "press")`.
@@ -73,8 +73,8 @@ reaches the runtime and lists the errors instead.
 You can also start a karpfen runtime with IDE support yourself, like the one in the karpfen-runtime submodule. On macOS
 and Linux, `runtime/live-runtime.sh up` builds it, starts it in a throwaway container and prints its URL, and
 `runtime/live-runtime.sh down` removes it. In the first line of the Runtime tool window, click URL, enter the URL and
-click Apply. The default is `http://127.0.0.1:8080`. The IDE checks that the runtime answers and has IDE support. It never
-stops a runtime it did not start, and its Log pane cannot show that runtime's output. Click Docker to go back.
+click Apply. The default is `http://127.0.0.1:8080`. The IDE checks that the runtime answers and has IDE support. It
+never stops a runtime it did not start, and its Log pane cannot show that runtime's output. Click Docker to go back.
 Switching stops the live runs, and the IDE keeps your choice in its settings.
 
 ### While a model runs
@@ -104,10 +104,11 @@ runtime prints.
 ## Walkthrough: the lamp
 
 The folder `examples/lamp` holds a small system. A living room has a lamp and a wall switch. The lamp goes from off to
-on and back with each press of the switch. While it is on, it can be dimmed up to full power. While it is off, it can
-be smashed, which breaks it and throws away its spare bulb. The switch has its own state machine that moves up and down
-with each press. The descriptor sets a tick delay of 500 ms, so you can watch each change happen. It also lets an event
-wait up to 5 seconds for a state machine to take it.
+on and back with each press of the switch. It always comes on at the full power of its bulb, which is 40 W. While it is
+on, a dimmer turns it up and down in steps of 10 W, between 0 W and the full power. Switching it off forgets the
+dimming. While it is off, it can be smashed, which breaks it and throws away its spare bulb. The switch has its own
+state machine that moves up and down with each press. The descriptor sets a tick delay of 500 ms, so you can watch each
+change happen. It also lets an event wait up to 5 seconds for a state machine to take it.
 
 ### 1. What you need
 
@@ -165,7 +166,7 @@ The Log pane on the right then starts with the active states, `lamp: off` and `w
 `off` and the switch in `down`. The Model pane on the left says `Observation on` and `live at revision` with a number.
 
 In the Model pane, click Expand all. Expected: the tree opens down to the bulbs. The
-lamp shows `mode = "off"` and `log = ["off"]`, the bulb `watts = 40` and `lit = false`, and the switch
+lamp shows `mode = "off"` and `log = ["off"]`, the bulb `maxWatts = 40`, `watts = 0` and `lit = false`, and the switch
 `position = "down"`. The lamp's row `control` links to `wallSwitch`. Click the link to jump there.
 
 If Docker is not running, the run turns `failed` and the first line turns red. It names the problem and ends with
@@ -177,19 +178,25 @@ The form in the Events pane starts on the domain `service` with its event `smash
 pane to the left and at the Log pane to the right.
 
 1. Click the domain `switch`. The event `press` is selected, and the button reads `Send press`. Click it. Expected:
-   within a second the lamp goes on. The log shows `lamp  off -> on` and `wallSwitch  down -> up`, and the active
-   states above it read `lamp: on` and `wallSwitch: up`. In the Model pane the lamp has `mode = "on"` and
-   `log = ["off", "on"]`, the bulb `lit = true`, and the switch `position = "up"` and `presses = ["up"]`. The event
-   list below the form shows the press with the source `external`.
-2. Click the event `dim`. The payload editor shows a JSON object with `"bright": false`. Replace `false` by `3`.
-   Expected: the form shows an error, because `bright` is a boolean, and the button is greyed out. Now write `true`
-   and click `Send dim`. Expected: the lamp enters its inner state `full power`. The active states show it after `on`
-   in the line of the lamp, the bulb has `watts = 100`, and the lamp's `log` ends with `"full power at 100 W"`.
-3. Click `press` and send it. Expected: the lamp goes off, leaving full power too. The active states read `lamp: off`
-   and `wallSwitch: back down`. The bulb has `lit = false` but keeps `watts = 100`, since no state sets it back.
-4. Click the domain `service`, keep `smash` and send it. Expected: `lamp: broken` and `mode = "broken"`, and the
+   within a second the lamp goes on at full power. The log shows `lamp  off -> full` and `wallSwitch  down -> up`, and
+   the active states above it read `lamp: on > full` and `wallSwitch: up`. In the Model pane the lamp has `mode = "on"`,
+   the bulb `lit = true` and `watts = 40`, and the switch `position = "up"` and `presses = ["up"]`. The event list below
+   the form shows the press with the source `external`.
+2. Click the event `dim`. It turns the dimmer one step. The payload editor shows a JSON object with `"bright": false`,
+   which means one step dimmer. Replace `false` by `3`. Expected: the form shows an error, because `bright` is a
+   boolean, and the button is greyed out. Write `false` again and click `Send dim`. Expected: the log shows `lamp  on ->
+   dimmer`, and the bulb has `watts = 30`. Send it three more times. Expected: the bulb goes down to `watts = 0`. One
+   more `Send dim` changes nothing, because the bulb cannot go below 0 W.
+3. Change the payload to `"bright": true` and send it. Expected: the log shows `lamp  on -> brighter`, and the bulb has
+   `watts = 10`. Each further send adds 10 W until the bulb is back at 40 W, its `maxWatts`. After that a send changes
+   nothing.
+4. Dim the lamp a step or two, then click `press` and send it. Expected: the lamp goes off. The active states read
+   `lamp: off` and `wallSwitch: back down`, and the bulb has `lit = false` and `watts = 0`. Send `press` again.
+   Expected: the lamp comes on at `watts = 40` again, because switching it off forgot the dimming. Send `press` once
+   more to switch it off for the next step.
+5. Click the domain `service`, keep `smash` and send it. Expected: `lamp: broken` and `mode = "broken"`, and the
    spare bulb disappears from the model tree.
-5. Send `press` once more. Expected: the switch moves up again, but the lamp stays broken. No transition leaves
+6. Send `press` once more. Expected: the switch moves up again, but the lamp stays broken. No transition leaves
    `broken`.
 
 Events can wait. A `smash` sent while the lamp is on does nothing at first. If a press turns the lamp off before the

@@ -3,7 +3,7 @@
 // press and dim arrive in the domain "switch", smash in the domain "service".
 type "press" "Presses the wall switch" {
 }
-type "dim" "Asks the lamp for full power when bright is true" {
+type "dim" "Turns the dimmer one step: 10 W brighter when bright is true, 10 W dimmer when it is false" {
     prop("bright", "boolean")
 }
 type "smash" "Breaks the lamp for good" {

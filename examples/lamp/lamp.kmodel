@@ -1,15 +1,18 @@
 // The model the lamp example starts from: a living room with a lamp and a wall switch.
 // Every object has a key, such as "lamp" or "wallSwitch". The descriptor attaches the
-// state machines to objects by these keys.
+// state machines to objects by these keys. The bulb in the lamp takes up to 40 W.
+// The spare bulb is a stronger one that lies in the lamp's foot.
 make object "living room":"Room" {
     has("lamp") -> make object "lamp":"Lamp" {
         prop("mode") -> "off"
         has("bulb") -> make object "bulb":"Bulb" {
-            prop("watts") -> "40"
+            prop("maxWatts") -> "40"
+            prop("watts") -> "0"
             prop("lit") -> "false"
         }
         has("spare") -> make object "spare":"Bulb" {
-            prop("watts") -> "60"
+            prop("maxWatts") -> "60"
+            prop("watts") -> "0"
             prop("lit") -> "false"
         }
         knows("control") -> "wallSwitch"
