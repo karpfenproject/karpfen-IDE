@@ -202,7 +202,7 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
             val port = adopt(engine, image) ?: launch(engine, sources, image)
             val endpoint = RuntimeEndpoint(secure = false, host = LOOPBACK, port = port)
             awaitHealth(endpoint)
-            val running = HostStatus.Running(endpoint, "Docker · image ${image.shortHash} · $LOOPBACK:$port")
+            val running = HostStatus.Running(endpoint, "Docker, image ${image.shortHash}, $LOOPBACK:$port")
             state.value = running
             container?.watch(running)
             log.host("The runtime is running at ${endpoint.httpBase}.")

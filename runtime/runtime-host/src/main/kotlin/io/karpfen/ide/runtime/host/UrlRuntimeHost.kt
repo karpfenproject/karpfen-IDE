@@ -76,7 +76,7 @@ internal class UrlRuntimeHost(private val url: String, private val options: Host
                 }
             }
             if (problem != null) return@withLock fail(problem)
-            state.value = HostStatus.Running(endpoint, "URL · ${endpoint.httpBase}")
+            state.value = HostStatus.Running(endpoint, "URL, ${endpoint.httpBase}")
             HostOutcome.Ready(endpoint)
         }
 

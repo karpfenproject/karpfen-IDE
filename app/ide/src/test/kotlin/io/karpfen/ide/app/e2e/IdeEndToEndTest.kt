@@ -101,7 +101,7 @@ class IdeEndToEndTest {
 
         val session = prepare(root)
 
-        assertEquals("${root.fileName} — karpfen IDE", session.state.windowTitle.value)
+        assertEquals("${root.fileName} - karpfen IDE", session.state.windowTitle.value)
         assertEquals(listOf(root.toString()), session.state.settings.value.recentFolders)
         val recent = session.state.settings.value.recentFolders.size
         val specified = IdeMenus.specs(recent).flatMap { menu -> menu.entries.flatMap(::commandIdsOf) }

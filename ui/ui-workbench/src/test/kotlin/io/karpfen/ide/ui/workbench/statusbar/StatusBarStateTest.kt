@@ -71,7 +71,7 @@ class StatusBarStateTest {
         editor.caret.select(anchor = secondLineStart, position = secondLineStart + "\tab\t".length)
         advanceUntilIdle()
         assertEquals(2, status.state.value.line)
-        assertEquals(9, status.state.value.column, "display column: tab to 4, 'ab', tab to 8 → column 9")
+        assertEquals(9, status.state.value.column, "display column: tab to 4, 'ab', tab to 8, so column 9")
         assertEquals(4, status.state.value.selectionLength)
 
         settings.value = EditorSettings(tabDisplayWidth = 2)

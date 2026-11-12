@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Holds the current [Workspace] of the workbench, its [LanguageServices] and the window title derived from it. The
- * title is the folder's name, a dash and the application name. The class is a plain holder. Opening and closing
+ * title is the folder's name, a hyphen and the application name. The class is a plain holder. Opening and closing
  * workspaces is the job of the folder flow.
  */
 internal class WorkspaceHolder {
@@ -45,7 +45,7 @@ internal class WorkspaceHolder {
     fun set(workspace: Workspace, languageServices: LanguageServices) {
         current.value = workspace
         services.value = languageServices
-        title.value = "${workspace.root.fileName ?: workspace.root} — $APPLICATION_NAME"
+        title.value = "${workspace.root.fileName ?: workspace.root} - $APPLICATION_NAME"
     }
 
     /** Forgets the current workspace and returns it, or null if there was none. The caller closes it. */

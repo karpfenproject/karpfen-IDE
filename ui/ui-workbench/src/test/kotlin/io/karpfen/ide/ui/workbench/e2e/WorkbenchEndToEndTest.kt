@@ -71,7 +71,7 @@ class WorkbenchEndToEndTest {
         assertEquals(emptyList(), state.problems.state.value.groups)
         assertEquals(0, state.statusBar.state.value.errorCount)
         assertEquals(Examples.contexts().size, workspace.analysis.value.contexts.size, "one implicit context per example directory")
-        assertEquals("${root.fileName} — karpfen IDE", state.windowTitle.value)
+        assertEquals("${root.fileName} - karpfen IDE", state.windowTitle.value)
     }
 
     @Test

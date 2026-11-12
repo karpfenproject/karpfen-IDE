@@ -73,8 +73,8 @@ class EditorTabItemsTest {
 
         assertSame(KarpfenIcons.Warning, modified.icon)
         assertSame(KarpfenIcons.Warning, deleted.icon)
-        assertEquals("robot.kstates — robot.kstates changed on disk while it has unsaved changes.", modified.tooltip)
-        assertEquals("robot.kstates — robot.kstates was deleted on disk.", deleted.tooltip)
+        assertEquals("robot.kstates: robot.kstates changed on disk while it has unsaved changes.", modified.tooltip)
+        assertEquals("robot.kstates: robot.kstates was deleted on disk.", deleted.tooltip)
         assertEquals("robot.kstates", modified.title)
     }
 }

@@ -59,7 +59,7 @@ class FolderFlowTest {
 
             assertSamePath(root, state.workspace.value?.root)
             assertTrue(state.languageServices.value != null)
-            assertEquals("examples — karpfen IDE", state.windowTitle.value)
+            assertEquals("examples - karpfen IDE", state.windowTitle.value)
             assertSamePath(root, state.projectTree.tree.value?.root?.path)
             assertEquals(setOf(root), state.projectTree.expanded.value)
             assertEquals(listOf(root.toString()), state.settings.value.recentFolders)

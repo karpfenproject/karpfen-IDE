@@ -110,7 +110,7 @@ internal data class DialogPresentation(
             message = if (paths.size == 1) {
                 "Save the changes to '${name(paths.single())}'?"
             } else {
-                "Save the changes to ${paths.size} files?\n" + paths.joinToString("\n") { "• ${name(it)}" }
+                "Save the changes to ${paths.size} files?\n" + paths.joinToString("\n") { "'${name(it)}'" }
             },
             buttons = listOf(
                 answer("Save", DialogResponse.Save, isDefault = true),
@@ -126,7 +126,7 @@ internal data class DialogPresentation(
                 "'${name(paths.single())}' was changed or deleted on disk while you edited it. Save your version over it?"
             } else {
                 "${paths.size} files were changed or deleted on disk while you edited them:\n" +
-                    paths.joinToString("\n") { "• ${name(it)}" } + "\nSave your versions over them?"
+                    paths.joinToString("\n") { "'${name(it)}'" } + "\nSave your versions over them?"
             },
             buttons = listOf(answer("Overwrite", DialogResponse.Confirm), answer("Cancel", DialogResponse.Cancel, isDefault = true)),
             dismiss = DialogResponse.Cancel,

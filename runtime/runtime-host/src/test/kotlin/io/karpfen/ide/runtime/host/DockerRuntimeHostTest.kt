@@ -200,7 +200,7 @@ class DockerRuntimeHostTest {
         rig.dockerHost().use { host ->
             assertEquals(HostOutcome.Ready(endpoint), host.ensureRunning())
             assertEquals(
-                HostStatus.Running(endpoint, "Docker · image ${HostRig.CONTENT_HASH.take(12)} · 127.0.0.1:${FakeDockerEngine.HOST_PORT}"),
+                HostStatus.Running(endpoint, "Docker, image ${HostRig.CONTENT_HASH.take(12)}, 127.0.0.1:${FakeDockerEngine.HOST_PORT}"),
                 host.status.value,
             )
         }

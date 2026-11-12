@@ -46,8 +46,8 @@ class DialogFocusOrderTest {
         val rename = DialogPresentation.of(DialogRequest.Rename(Path.of("/ws/robot.kstates").toAbsolutePath()))
 
         assertEquals(3, DialogFocusOrder.of(rename, "room.kstates").size)
-        assertEquals(1, DialogFocusOrder.of(rename, "room.kstates").next(0), "field → Rename")
-        assertEquals(2, DialogFocusOrder.of(rename, " ").next(0), "field → Cancel while Rename is disabled")
+        assertEquals(1, DialogFocusOrder.of(rename, "room.kstates").next(0), "the field leads to Rename")
+        assertEquals(2, DialogFocusOrder.of(rename, " ").next(0), "the field leads to Cancel while Rename is disabled")
         assertFailsWith<IllegalArgumentException> { DialogFocusOrder(listOf(false, true)) }
     }
 }

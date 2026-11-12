@@ -39,7 +39,7 @@ class UrlRuntimeHostTest {
 
         val endpoint = RuntimeEndpoint(secure = false, host = "127.0.0.1", port = 8080)
         assertEquals(HostOutcome.Ready(endpoint), host.ensureRunning())
-        assertEquals(HostStatus.Running(endpoint, "URL · http://127.0.0.1:8080"), host.status.value)
+        assertEquals(HostStatus.Running(endpoint, "URL, http://127.0.0.1:8080"), host.status.value)
         assertEquals(listOf(RuntimeRoute.HEALTH, RuntimeRoute.MODEL_SNAPSHOT), rig.fake.requests.map { it.route })
     }
 

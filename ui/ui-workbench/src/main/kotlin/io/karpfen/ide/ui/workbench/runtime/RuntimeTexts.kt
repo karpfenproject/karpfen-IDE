@@ -88,7 +88,7 @@ public object RuntimeTexts {
         RunPhase.FAILED -> "failed"
     }
 
-    /** A deploy [step] with its status and, if it has one, its detail, joined by a middle dot. */
+    /** A deploy [step] with its status and, if it has one, its detail, joined by a comma. */
     public fun step(step: StepProgress): String {
         val status = when (step.status) {
             StepStatus.PENDING -> "pending"
@@ -97,7 +97,7 @@ public object RuntimeTexts {
             StepStatus.SKIPPED -> "skipped"
             StepStatus.FAILED -> "failed"
         }
-        return listOfNotNull("${step.title}: $status", step.detail).joinToString(" · ")
+        return listOfNotNull("${step.title}: $status", step.detail).joinToString(", ")
     }
 
     /**
@@ -168,15 +168,15 @@ public object RuntimeTexts {
         entry.event.event?.let { TIME.format(Instant.ofEpochMilli(it.timestamp).atZone(ZoneId.systemDefault())) }
             ?: "+${entry.event.elapsed}"
 
-    /** The event name of [entry], or a dash if the runtime left it out. */
-    public fun eventName(entry: DomainEventEntry): String = entry.event.event?.name ?: "–"
+    /** The event name of [entry], or a hyphen if the runtime left it out. */
+    public fun eventName(entry: DomainEventEntry): String = entry.event.event?.name ?: "-"
 
     /**
      * Who raised the event of [entry]. It is "internal" for a state machine and "external" for something outside the
-     * environment. A dash stands for an event without a known source.
+     * environment. A hyphen stands for an event without a known source.
      */
     public fun source(entry: DomainEventEntry): String = when (entry.event.event?.source) {
-        null -> "–"
+        null -> "-"
         "INTERNAL" -> "internal"
         else -> "external"
     }

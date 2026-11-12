@@ -27,14 +27,14 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTab
  *
  * Only the active tab shows the conflict banner. A tab in conflict, as `EditorTab.conflict` says, is therefore marked
  * on the strip itself. It shows the warning icon instead of the file's icon, and its tooltip adds the banner's message
- * after a dash. A background tab in conflict thus stands out before the user runs Save All or closes it.
+ * after a colon. A background tab in conflict thus stands out before the user runs Save All or closes it.
  */
 internal fun tabItemOf(tab: EditorTab): TabItem {
     val conflict = ConflictBanner.of(tab)
     return TabItem(
         id = tab.path.toString(),
         title = tab.title,
-        tooltip = listOfNotNull(tab.tooltip, conflict?.message).joinToString(" — "),
+        tooltip = listOfNotNull(tab.tooltip, conflict?.message).joinToString(": "),
         isDirty = tab.isDirty,
         icon = if (conflict != null) KarpfenIcons.Warning else fileIconOf(tab.kind),
     )

@@ -30,7 +30,7 @@ internal class ReferenceLoopCheck : PlanCheck {
         val model = subject.model ?: return emptyList()
         val loop = ReferenceLoops.firstIn(model) ?: return emptyList()
         val reported = loop.firstKeyed
-        val names = loop.path.joinToString(" → ") { it.key.ifEmpty { "an object of type '${it.typeName}' without a key" } }
+        val names = loop.path.joinToString(" to ") { it.key.ifEmpty { "an object of type '${it.typeName}' without a key" } }
         val subjectName = reported?.let { "'${it.key}'" } ?: "an object of type '${loop.start.typeName}'"
         return listOf(
             DeployProblem(

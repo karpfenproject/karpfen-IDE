@@ -70,7 +70,7 @@ internal fun ModelTab(runtime: RuntimeState, entry: RunEntry, details: RunDetail
             )
             SmallButton("Pull", RuntimeViewTestTags.PULL) { runtime.pull(entry) }
             Text(
-                "${RuntimeTexts.mode(model)} · ${RuntimeTexts.sync(model)}",
+                "${RuntimeTexts.mode(model)}, ${RuntimeTexts.sync(model)}",
                 color = colors.textMuted,
                 style = KarpfenTheme.typography.uiSmall,
                 modifier = Modifier.testTag(RuntimeViewTestTags.MODEL_STATUS),
@@ -122,10 +122,10 @@ private fun ModelRow(row: ModelTreeRow, details: RunDetails) {
             indent.testTag(RuntimeViewTestTags.modelRow(row.key)),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("${row.relation} →", color = colors.textMuted, style = KarpfenTheme.typography.monospace)
+            Text("${row.relation} ->", color = colors.textMuted, style = KarpfenTheme.typography.monospace)
             row.targets.forEach { target ->
                 if (target.isEmpty()) {
-                    Text("–", color = colors.textMuted, style = KarpfenTheme.typography.monospace)
+                    Text("-", color = colors.textMuted, style = KarpfenTheme.typography.monospace)
                 } else {
                     Text(
                         target,
