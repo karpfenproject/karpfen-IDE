@@ -11,6 +11,7 @@ kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.12.0"
 ktor = "3.6.0"
 elk = "0.12.0"
+xbase-lib = "2.43.0"
 hivemq-mqtt = "1.4.1"
 docker-java = "3.7.1"
 lsp4j = "1.0.0"
@@ -54,6 +55,9 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 # --- notation ----------------------------------------------------------------------------------
 elk-core = { module = "org.eclipse.elk:org.eclipse.elk.core", version.ref = "elk" }
 elk-alg-layered = { module = "org.eclipse.elk:org.eclipse.elk.alg.layered", version.ref = "elk" }
+# The option tables of the layout kernel are generated code that needs this small runtime library. The kernel's own
+# package descriptions do not name it, so it is listed here.
+xbase-lib = { module = "org.eclipse.xtext:org.eclipse.xtext.xbase.lib", version.ref = "xbase-lib" }
 
 # --- runtime host / bridges --------------------------------------------------------------------
 docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "docker-java" }
@@ -97,7 +101,7 @@ ktor-client = [
     "ktor-serialization-kotlinx-json",
 ]
 docker-java = ["docker-java-core", "docker-java-transport-httpclient5"]
-elk = ["elk-core", "elk-alg-layered"]
+elk = ["elk-core", "elk-alg-layered", "xbase-lib"]
 # Versions of the JUnit artifacts come from the junit-bom platform, applied by karpfen.kotlin-jvm.
 testing = ["kotlin-test-junit5", "junit-jupiter"]
 
