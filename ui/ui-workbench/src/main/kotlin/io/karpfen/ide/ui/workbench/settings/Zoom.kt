@@ -34,9 +34,9 @@ public enum class ZoomStep {
  * the other the font size of the editor. Both belong to the project and are stored in its `.karpfenproject` file.
  *
  * The scale of the workbench moves in tenths between [MIN_UI_SCALE] and [MAX_UI_SCALE]. It enlarges everything the
- * workbench draws, the text together with the rows, icons and gaps that hold it. Text alone would outgrow rows of a
- * fixed height. The editor's text grows with the workbench and has its font size on top of that, which moves in whole
- * points between [MIN_EDITOR_FONT_SIZE] and [MAX_EDITOR_FONT_SIZE].
+ * workbench draws around the editor, the text together with the rows, icons and gaps that hold it. Text alone would
+ * outgrow rows of a fixed height. The editor's text is not touched by that scale. It has its own font size, which
+ * moves in whole points between [MIN_EDITOR_FONT_SIZE] and [MAX_EDITOR_FONT_SIZE]. The two sizes are independent.
  */
 public object Zoom {
 

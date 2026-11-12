@@ -269,6 +269,29 @@ class WorkbenchUiTest {
     }
 
     @Test
+    fun `the zoom of the window and the font size of the editor are independent`() = workbenchUiTest(dir) {
+        openExamples()
+        openFromTree(machine)
+        val editor = assertNotNull(workbench.state.tabs.editorFor(machine))
+        val lineHeight = editor.viewport.state.value.lineHeight
+        val barHeight = tagged(StatusBarTestTags.BAR).fetchSemanticsNode().size.height
+        assertTrue(lineHeight > 0f)
+
+        repeat(3) { tagged(StatusBarTestTags.item("ui_zoom_in")).performClick() }
+        settle()
+
+        assertEquals(lineHeight, editor.viewport.state.value.lineHeight, "zooming the window leaves the editor's text alone")
+        assertTrue(tagged(StatusBarTestTags.BAR).fetchSemanticsNode().size.height > barHeight, "the window did zoom")
+
+        val zoomedBarHeight = tagged(StatusBarTestTags.BAR).fetchSemanticsNode().size.height
+        repeat(3) { tagged(StatusBarTestTags.item("editor_zoom_in")).performClick() }
+        settle()
+
+        assertTrue(editor.viewport.state.value.lineHeight > lineHeight, "the editor's text grew")
+        assertEquals(zoomedBarHeight, tagged(StatusBarTestTags.BAR).fetchSemanticsNode().size.height, "and nothing around it did")
+    }
+
+    @Test
     fun `the project file shows in the project tree as soon as the IDE has written it`() = workbenchUiTest(dir) {
         workbench.state.start()
         openExamples()

@@ -668,7 +668,8 @@ Two zoom controls change the project settings `uiScale` and `editorFontSize`, wi
 for the whole window sits in the status bar, the one for the editor's font in a bar below the editor.
 `Workbench` applies `uiScale` by providing a density that is the window's density times the scale. So everything
 scales together, the text with the rows, icons and gaps around it. Scaling only the font would make text outgrow
-the rows of fixed height.
+the rows of fixed height. The editor is left out: `EditorArea` draws it at the window's own density, so the two sizes
+are independent.
 
 ### The engine trace in the log
 

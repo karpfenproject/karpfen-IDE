@@ -45,6 +45,7 @@ import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.view.StatusBarActions
 import io.karpfen.ide.ui.workbench.statusbar.view.WorkbenchStatusBar
 import io.karpfen.ide.ui.workbench.tabs.view.EditorArea
+import io.karpfen.ide.ui.workbench.tabs.view.LocalWindowDensity
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeView
 import java.nio.file.Path
 
@@ -58,10 +59,14 @@ import java.nio.file.Path
  * unseen language tool problems shows the Language Tools Output. A click on its runtime status shows the Runtime tool
  * window.
  *
- * The whole workbench is drawn at the scale of `IdeSettings.uiScale`. The composable provides a density that is the
+ * The workbench is drawn at the scale of `IdeSettings.uiScale`. The composable provides a density that is the
  * window's density times that scale, so the text and everything that holds it grow and shrink together. The zoom
- * controls at the right end of the status bar change the scale. The font size of the editors has its own controls
- * in the bar below the editor.
+ * controls at the right end of the status bar change the scale.
+ *
+ * The editor is the exception. Its text has a size of its own, the font size of the editors, with controls in the bar
+ * below the editor. The two sizes are independent, so the editor is drawn at the window's own density, which
+ * [LocalWindowDensity] hands to the editor area. Zooming the workbench leaves the editor's text as it is, and changing
+ * the editor's font size changes nothing around it.
  *
  * The composable provides the light or dark `KarpfenTheme` and the matching `LocalEditorTheme` from the theme in
  * `state.layout`. It lays out the tool windows from the same layout with size-based `SplitPane`s. The fixed size of
@@ -85,6 +90,7 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
         CompositionLocalProvider(
             LocalEditorTheme provides if (dark) darkEditorTheme() else lightEditorTheme(),
             LocalDensity provides zoomed,
+            LocalWindowDensity provides window,
         ) {
             val workspace by state.workspace.collectAsState()
             val dialog by state.dialogs.current.collectAsState()

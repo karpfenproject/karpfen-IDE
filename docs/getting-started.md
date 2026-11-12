@@ -55,9 +55,9 @@ descriptor, right-click a folder in the Project tool window and choose New Envir
 | Run and Stop | Shift+F10 and Cmd+F2 | Shift+F10 and Ctrl+F2 |
 
 There are two zoom controls, each a minus, the current size and a plus. `Zoom 100%` at the right end of the status bar
-is the size of the whole window, text and all. `Font size 13` in the bar below the editor is the font size of the
-editor. A click on the size itself sets it back to normal. Both belong to the project and are stored in its project
-file.
+is the size of everything around the editor: the tool windows, the tabs and the bars, text and all. `Font size 13` in
+the bar below the editor is the size of the editor's text. The two are independent, so neither changes the other. A
+click on the size itself sets it back to normal. Both belong to the project and are stored in its project file.
 
 ### Running in the IDE's Docker container
 

@@ -25,11 +25,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.editor.popup.EditorPopups
@@ -50,6 +54,10 @@ import java.nio.file.Path
  * Keep mine. Each button reports a `ConflictResolution`, and both Reload and Close report RELOAD. The `CodeEditor` of
  * [activeEditor] with the editor popups fills the rest. Below an editor a bar holds the zoom controls for the font
  * size [editorFontSize] of the editors, and their clicks go to [onZoomEditor].
+ *
+ * The editor and its popups are drawn at the density of the window, not at the zoomed density of the workbench around
+ * them. The size of the editor's text therefore depends only on its font size. The tab strip, the banner and the zoom
+ * bar belong to the workbench and follow its zoom.
  *
  * The editor is composed inside `key(activePath)`. So switching tabs disposes the composition of the old editor and
  * its popups, the text fields of the popups included. State that must survive a tab switch, such as the replacement
@@ -88,12 +96,14 @@ internal fun EditorArea(
         activeTab?.let(ConflictBanner::of)?.let { banner -> ConflictBannerView(banner) { onResolveConflict(activeTab.path, it) } }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (activeEditor != null && activePath != null) {
-                key(activePath) {
-                    CodeEditor(
-                        state = activeEditor,
-                        modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.EDITOR),
-                        overlays = popups,
-                    )
+                CompositionLocalProvider(LocalDensity provides (LocalWindowDensity.current ?: LocalDensity.current)) {
+                    key(activePath) {
+                        CodeEditor(
+                            state = activeEditor,
+                            modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.EDITOR),
+                            overlays = popups,
+                        )
+                    }
                 }
             } else {
                 Text(
@@ -107,6 +117,13 @@ internal fun EditorArea(
         if (activeEditor != null && activePath != null) EditorZoomBar(editorFontSize, onZoomEditor, EditorAreaTestTags.ZOOM_BAR)
     }
 }
+
+/**
+ * The density of the window before the workbench's zoom is applied, or null outside a workbench. The workbench
+ * provides it, and the editor area draws the editor at this density, so the zoom of the workbench does not reach the
+ * editor's text.
+ */
+internal val LocalWindowDensity = staticCompositionLocalOf<Density?> { null }
 
 /** The conflict [banner] with one button per action. Each button reports its resolution to [onResolve]. */
 @Composable
