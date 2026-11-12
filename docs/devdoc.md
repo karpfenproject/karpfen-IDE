@@ -492,6 +492,15 @@ whenever the workspace has scanned the folder, which is how changes made by othe
 small library `org.eclipse.xtext.xbase.lib` at run time, which its own package descriptions do not name, so the version
 catalog lists it.
 
+The diagram view must never take the window down, because a diagram that is partly drawn is a far smaller harm than a
+window that stops reacting. So every step of the view that runs code of a notation goes through `DiagramFaults`:
+measuring the texts, the layout, the drawing and every gesture. A step that fails is skipped or replaced. If the
+automatic layout or the layout by hand fails, the elements are placed in a plain row. If that fails too, the canvas
+stays empty. A painter draws every element on its own, so one element that cannot be drawn does not hide the others. A
+failed drag is given up and nothing is saved. `DiagramTracker` catches a projection that fails and keeps the last
+diagram. The first failure shows as a note over the drawing, whose text can be selected, and every failure is logged
+once with its stack trace. New code in the view follows the same rule and runs through `DiagramFaults.guard`.
+
 A companion file is a file kind and a language of its own, `FileKind.LAYOUT` and `KarpfenLanguage.VIS`. The language
 colours the JSON and checks nothing. The file kind is read-only: `OpenDocumentFactory` gives its document a text from
 `EditableText.readOnly`, which refuses every change except the reload from disk, so typing, pasting, commands and undo
@@ -955,7 +964,9 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
   not been seen yet.
 - With tracing on, the runtime also writes the whole trace, tick lines included, to a file in the container. The file
   grows until the container is removed, which happens when the IDE closes the folder.
-- An exception while the window is drawn freezes the window. It is written to the log, but no error dialog appears.
+- An exception while the window is composed or drawn freezes the window. It is written to the log, but no error dialog
+  appears. The diagram view is the exception: it catches its own failures, as the section on diagrams describes. The
+  rest of the window has no such guard.
 - The descriptor template still writes the `observe` key, which deployment ignores.
 - The descriptor keys `runtime.image`, `runtime.pythonPackages` and `bridges` are accepted but ignored. So `EVAL`
   blocks can import only the Python packages of the runtime image.

@@ -60,24 +60,34 @@ internal object StructurePainter : DiagramPainter<StructureDiagram, StructureLay
         TextRole.LABEL to diagram.links.map { it.label }.filter { it.isNotEmpty() },
     )
 
-    override fun paint(scope: DrawScope, diagram: StructureDiagram, layout: StructureLayout, texts: DiagramTexts, colors: KarpfenColors) {
+    override fun paint(
+        scope: DrawScope,
+        diagram: StructureDiagram,
+        layout: StructureLayout,
+        texts: DiagramTexts,
+        colors: KarpfenColors,
+        faults: DiagramFaults,
+    ) {
         for (node in diagram.nodes) {
             val box = layout.boxes[node.id] ?: continue
-            scope.drawNode(node, box, diagram.kind == StructureKind.OBJECTS, texts, colors)
+            faults.attempt("drawing the box of ${node.id}") { scope.drawNode(node, box, diagram.kind == StructureKind.OBJECTS, texts, colors) }
         }
         val links = diagram.links.associateBy { it.id }
         layout.routes.forEach { route ->
             val link = links[route.linkId] ?: return@forEach
-            val pixels = scope.drawPolyline(route.points, colors.textMuted) ?: return@forEach
-            when (link.kind) {
-                LinkKind.CONTAINMENT -> scope.drawDiamond(pixels, colors.textMuted)
-                LinkKind.REFERENCE -> scope.drawOpenArrowhead(pixels, colors.textMuted)
+            faults.attempt("drawing the line of ${route.linkId}") {
+                val pixels = scope.drawPolyline(route.points, colors.textMuted)
+                when {
+                    pixels == null -> Unit
+                    link.kind == LinkKind.CONTAINMENT -> scope.drawDiamond(pixels, colors.textMuted)
+                    else -> scope.drawOpenArrowhead(pixels, colors.textMuted)
+                }
             }
         }
         layout.routes.forEach { route ->
             val label = route.label ?: return@forEach
             val caption = links[route.linkId]?.let { texts[TextRole.LABEL, it.label] } ?: return@forEach
-            scope.drawCaption(label, caption, colors)
+            faults.attempt("writing the label of ${route.linkId}") { scope.drawCaption(label, caption, colors) }
         }
     }
 

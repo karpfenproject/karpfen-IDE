@@ -20,4 +20,5 @@ plugins {
 dependencies {
     implementation(project(":ui:ui-foundation"))
     implementation(project(":notation:notation-sync"))
+    implementation(libs.slf4j.api)
 }

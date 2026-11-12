@@ -16,9 +16,12 @@
 package io.karpfen.ide.ui.diagram
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -113,6 +116,9 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
 /**
  * The view of the diagram [state] of the kind [notation], arranged through [editing]. It draws the diagram, says so
  * when there is none, and shows the note of a stale diagram over the drawing.
+ *
+ * A failure inside the view does not reach the window. What failed is left out, and a second note over the drawing
+ * says what went wrong. Its text can be selected and copied. See [DiagramFaults].
  */
 @Composable
 internal fun <D : Any, L : DiagramLayout> DiagramView(
@@ -123,9 +129,11 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
     onSelect: (TextRange) -> Unit = {},
 ) {
     val colors = KarpfenTheme.colors
+    val diagram = state.diagram
+    val faults = remember(notation, diagram) { DiagramFaults() }
     Box(modifier.fillMaxSize().background(colors.window).testTag(DiagramViewTestTags.VIEW)) {
-        val diagram = state.diagram
-        if (diagram == null || notation.arrangement.isEmpty(diagram)) {
+        val empty = diagram == null || faults.guard("looking at the diagram", { true }) { notation.arrangement.isEmpty(diagram) }
+        if (diagram == null || empty) {
             Text(
                 notation.nothingToDraw,
                 color = colors.textMuted,
@@ -133,23 +141,36 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
                 modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(DiagramViewTestTags.EMPTY),
             )
         } else {
-            DiagramCanvas(notation, diagram, editing, onSelect)
+            DiagramCanvas(notation, diagram, editing, faults, onSelect)
         }
-        if (state.isStale) {
-            Text(
-                STALE,
-                color = colors.warning,
-                style = KarpfenTheme.typography.uiSmall,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .background(colors.panel)
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .testTag(DiagramViewTestTags.STALE),
-            )
+        val fault = state.problem?.let { "The diagram could not be derived from the text: $it. This is the last diagram that could." } ?: faults.note
+        Column(
+            Modifier.align(Alignment.TopStart).padding(start = 8.dp, top = 8.dp, end = BUTTONS_ROOM.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            if (state.isStale) Note(STALE, DiagramViewTestTags.STALE)
+            if (fault != null) SelectionContainer { Note(fault, DiagramViewTestTags.FAULT) }
         }
     }
 }
+
+/** A note over the drawing that says [text]. */
+@Composable
+private fun Note(text: String, tag: String) {
+    val colors = KarpfenTheme.colors
+    Text(
+        text,
+        color = colors.warning,
+        style = KarpfenTheme.typography.uiSmall,
+        modifier = Modifier.background(colors.panel).padding(horizontal = 8.dp, vertical = 4.dp).testTag(tag),
+    )
+}
+
+/**
+ * The room the notes leave free at the right of the view, in density-independent units. The zoom buttons sit there,
+ * and a long note must not cover them.
+ */
+private const val BUTTONS_ROOM = 170
 
 /** What the view says while the text has syntax errors. */
 private const val STALE = "The text has errors. This is the diagram of the last text that could be read."

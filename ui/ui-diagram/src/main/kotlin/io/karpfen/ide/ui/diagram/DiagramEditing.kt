@@ -105,6 +105,17 @@ internal class DiagramEditing<D, L : DiagramLayout>(
     }
 
     /**
+     * Gives the drag up, as after a failure in the middle of it. The layout goes back to what it was before the drag
+     * started, and nothing is saved.
+     */
+    fun cancelDrag() {
+        val current = drag ?: return
+        drag = null
+        isDragging = false
+        vis = current.previous
+    }
+
+    /**
      * What a secondary click at [point] of the [diagram] drawn as [layout] offers, or null if there is nothing to
      * offer there. On a waypoint it is to remove the waypoint. On a line that can be bent it is to add a waypoint
      * there. Nothing changes until the offer is taken with [DiagramOffer.take].

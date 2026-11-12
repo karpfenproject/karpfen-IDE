@@ -34,6 +34,9 @@ internal interface DiagramPainter<D, L : DiagramLayout> {
     /**
      * Draws [diagram] as [layout] places it onto [scope], with the measured [texts]. The canvas has already moved and
      * scaled [scope]. The layout is in density-independent units, so every length is multiplied by the density.
+     *
+     * Every element is drawn through [faults], each on its own. So an element that cannot be drawn is left out and
+     * the others still appear.
      */
-    fun paint(scope: DrawScope, diagram: D, layout: L, texts: DiagramTexts, colors: KarpfenColors)
+    fun paint(scope: DrawScope, diagram: D, layout: L, texts: DiagramTexts, colors: KarpfenColors, faults: DiagramFaults)
 }

@@ -53,25 +53,36 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
         )
     }
 
-    override fun paint(scope: DrawScope, diagram: StatechartDiagram, layout: StatechartLayout, texts: DiagramTexts, colors: KarpfenColors) {
+    override fun paint(
+        scope: DrawScope,
+        diagram: StatechartDiagram,
+        layout: StatechartLayout,
+        texts: DiagramTexts,
+        colors: KarpfenColors,
+        faults: DiagramFaults,
+    ) {
         val unit = scope.density
         for (state in diagram.allStates()) {
             val box = layout.states[state.name] ?: continue
-            scope.drawState(state, box, layout, texts, colors)
+            faults.attempt("drawing the state ${state.name}") { scope.drawState(state, box, layout, texts, colors) }
         }
-        layout.initialMarkers.values.forEach { marker ->
-            scope.drawCircle(colors.text, radius = marker.width * unit / 2f, center = marker.center(unit))
+        faults.attempt("drawing the markers and bars") {
+            layout.initialMarkers.values.forEach { marker ->
+                scope.drawCircle(colors.text, radius = marker.width * unit / 2f, center = marker.center(unit))
+            }
+            layout.bars.values.forEach { bar -> scope.drawRect(colors.text, bar.topLeft(unit), bar.size(unit)) }
         }
-        layout.bars.values.forEach { bar -> scope.drawRect(colors.text, bar.topLeft(unit), bar.size(unit)) }
         layout.routes.forEach { route ->
-            val pixels = scope.drawPolyline(route.points, colors.textMuted) ?: return@forEach
-            if (route.kind != RouteKind.INTO_BAR) scope.drawFilledArrowhead(pixels, colors.textMuted)
+            faults.attempt("drawing the line of ${route.transitionId ?: "an initial state"}") {
+                val pixels = scope.drawPolyline(route.points, colors.textMuted)
+                if (pixels != null && route.kind != RouteKind.INTO_BAR) scope.drawFilledArrowhead(pixels, colors.textMuted)
+            }
         }
         val captions = diagram.transitions.associate { it.id to it.caption }
         layout.routes.forEach { route ->
             val label = route.label ?: return@forEach
             val caption = captions[route.transitionId]?.let { texts[TextRole.LABEL, it] } ?: return@forEach
-            scope.drawCaption(label, caption, colors)
+            faults.attempt("writing the caption of ${route.transitionId}") { scope.drawCaption(label, caption, colors) }
         }
     }
 

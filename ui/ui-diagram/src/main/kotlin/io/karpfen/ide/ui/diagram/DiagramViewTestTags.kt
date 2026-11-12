@@ -26,6 +26,9 @@ public object DiagramViewTestTags {
     /** The note that the text has errors and the drawing is outdated. */
     public const val STALE: String = "Diagram.stale"
 
+    /** The note that something in the view failed and the drawing may be incomplete. */
+    public const val FAULT: String = "Diagram.fault"
+
     /** What the view says while there is nothing to draw. */
     public const val EMPTY: String = "Diagram.empty"
 

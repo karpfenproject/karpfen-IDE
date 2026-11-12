@@ -59,9 +59,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
+import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.TextMeasurer
+import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.foundation.widgets.ContextMenuAction
 import io.karpfen.ide.ui.foundation.widgets.ContextMenuPopup
@@ -85,6 +88,10 @@ import kotlinx.coroutines.withContext
  * so does a change of the drawing.
  *
  * The first drawing is fitted into the view. After that the view keeps the zoom and the position the user chose.
+ *
+ * Nothing a notation does here can take the window down. Measuring, laying out, drawing and every gesture run
+ * through [faults]. If the layout fails, the elements are placed in a plain row. If that fails as well, the canvas
+ * stays empty. What could not be done is left out, and [faults] holds a note about it for the view to show.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -92,6 +99,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     notation: DiagramNotation<D, L>,
     diagram: D,
     editing: DiagramEditing<D, L>,
+    faults: DiagramFaults,
     onSelect: (TextRange) -> Unit,
 ) {
     val colors = KarpfenTheme.colors
@@ -103,17 +111,28 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
         label = KarpfenTheme.typography.uiSmall.copy(color = colors.text),
     )
     val arrangement = notation.arrangement
-    val texts = remember(notation, diagram, styles, density) { DiagramTexts.measure(notation.painter.texts(diagram), measurer, styles) }
+    val texts = remember(notation, diagram, styles, density) {
+        faults.guard("measuring the texts", { DiagramTexts(emptyMap()) }) {
+            DiagramTexts.measure(notation.painter.texts(diagram), measurer, styles)
+        }
+    }
     val widths = remember(texts, density) { TextMeasurer { texts.widthOf(it) / density } }
     val vis = editing.vis
     val automatic by produceState<DiagramDrawing<D, L>?>(null, notation, diagram, texts, vis == null) {
         if (vis == null) {
-            val layout = withContext(Dispatchers.Default) { arrangement.automatic(diagram, widths) }
-            value = DiagramDrawing(diagram, layout, texts)
+            val layout = faults.guard<L?>("laying the diagram out", { null }) {
+                withContext(Dispatchers.Default) { arrangement.automatic(diagram, widths) }
+            } ?: inARow(arrangement, diagram, widths, faults)
+            value = layout?.let { DiagramDrawing(diagram, it, texts) }
         }
     }
     val drawing = if (vis != null) {
-        remember(notation, diagram, texts, vis) { DiagramDrawing(diagram, arrangement.byHand(diagram, vis, widths), texts) }
+        remember(notation, diagram, texts, vis) {
+            val layout = faults.guard<L?>("arranging the diagram as its layout file says", { null }) {
+                arrangement.byHand(diagram, vis, widths)
+            } ?: inARow(arrangement, diagram, widths, faults)
+            layout?.let { DiagramDrawing(diagram, it, texts) }
+        }
     } else {
         automatic
     }
@@ -130,7 +149,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     }
 
     fun fit(shown: DiagramDrawing<D, L>) {
-        val bounds = shown.layout.bounds
+        val bounds = faults.guard("fitting the diagram into the view", { DiagramBox(0f, 0f, 0f, 0f) }) { shown.layout.bounds }
         val width = bounds.width * density
         val height = bounds.height * density
         if (width <= 0f || height <= 0f || viewSize == IntSize.Zero) return
@@ -166,27 +185,37 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
                 detectDragGestures(
                     onDragStart = { position ->
                         val shown = current
-                        grabbed = shown != null && editing.startDrag(shown.diagram, shown.layout, pointAt(position))
+                        grabbed = shown != null && faults.guard("taking hold of an element", { false }) {
+                            editing.startDrag(shown.diagram, shown.layout, pointAt(position))
+                        }
                     },
-                    onDragEnd = { current?.let { editing.endDrag(it.diagram) } },
-                    onDragCancel = { current?.let { editing.endDrag(it.diagram) } },
+                    onDragEnd = { current?.let { shown -> faults.guard("dropping an element", editing::cancelDrag) { editing.endDrag(shown.diagram) } } },
+                    onDragCancel = { current?.let { shown -> faults.guard("dropping an element", editing::cancelDrag) { editing.endDrag(shown.diagram) } } },
                 ) { change, drag ->
                     change.consume()
                     val shown = current
-                    if (grabbed && shown != null) editing.dragTo(shown.diagram, pointAt(change.position)) else pan += drag
+                    if (grabbed && shown != null) {
+                        faults.guard("moving an element", editing::cancelDrag) { editing.dragTo(shown.diagram, pointAt(change.position)) }
+                    } else {
+                        pan += drag
+                    }
                 }
             }
             .pointerInput(Unit) {
                 detectTapGestures { position ->
                     val shown = current ?: return@detectTapGestures
-                    shown.layout.boxAt(pointAt(position))?.let { arrangement.placeInText(shown.diagram, it) }?.let(onSelect)
+                    faults.attempt("finding the clicked element in the text") {
+                        shown.layout.boxAt(pointAt(position))?.let { arrangement.placeInText(shown.diagram, it) }?.let(onSelect)
+                    }
                 }
             }
             .onPointerEvent(PointerEventType.Press) { event ->
                 val shown = current ?: return@onPointerEvent
                 val change = event.changes.firstOrNull() ?: return@onPointerEvent
                 if (!event.buttons.isSecondaryPressed) return@onPointerEvent
-                val offer = editing.offerAt(shown.diagram, shown.layout, pointAt(change.position)) ?: return@onPointerEvent
+                val offer = faults.guard<DiagramOffer?>("opening the context menu", { null }) {
+                    editing.offerAt(shown.diagram, shown.layout, pointAt(change.position))
+                } ?: return@onPointerEvent
                 menu = MenuRequest(change.position, offer)
                 change.consume()
             }
@@ -208,14 +237,19 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             translate(pan.x, pan.y)
             scale(zoom, zoom, pivot = Offset.Zero)
         }) {
-            notation.painter.paint(this, shown.diagram, shown.layout, shown.texts, colors)
-            vis?.let { drawWaypoints(it.waypoints.filterKeys(arrangement.lines(shown.diagram)::contains).values.flatten(), colors) }
+            faults.attempt("drawing the diagram") {
+                notation.painter.paint(this, shown.diagram, shown.layout, shown.texts, colors, faults)
+            }
+            faults.attempt("drawing the waypoints") {
+                vis?.let { drawWaypoints(it.waypoints.filterKeys(arrangement.lines(shown.diagram)::contains).values.flatten(), colors) }
+            }
         }
     }
 
     menu?.let { request ->
         Box(Modifier.offset { IntOffset(request.position.x.roundToInt(), request.position.y.roundToInt()) }.size(0.dp)) {
-            ContextMenuPopup(listOf(ContextMenuAction(request.offer.label, onClick = request.offer.take)), DpOffset.Zero) { menu = null }
+            val take = { faults.attempt("changing a waypoint") { request.offer.take() } }
+            ContextMenuPopup(listOf(ContextMenuAction(request.offer.label, onClick = take)), DpOffset.Zero) { menu = null }
         }
     }
 
@@ -231,6 +265,13 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
         CanvasButton("Fit", DiagramViewTestTags.FIT) { current?.let(::fit) }
     }
 }
+
+/**
+ * The plainest layout of [diagram] there is: every element in a row, as [arrangement] places elements that are new in
+ * the text. It is what the canvas falls back to when the proper layout fails. Null if this fails too.
+ */
+private fun <D, L : DiagramLayout> inARow(arrangement: DiagramArrangement<D, L>, diagram: D, widths: TextMeasurer, faults: DiagramFaults): L? =
+    faults.guard<L?>("placing the elements in a row", { null }) { arrangement.byHand(diagram, VisLayout(), widths) }
 
 /** The context menu to show: the [offer] it holds and the [position] of the pointer on the canvas, in pixels. */
 private class MenuRequest(val position: Offset, val offer: DiagramOffer)

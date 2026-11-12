@@ -255,7 +255,8 @@ and writes the companion file of an arrangement by hand.
 
 ui-diagram draws. `DiagramPane` takes the document session of a file and a `DiagramKind` and shows the diagram on a
 canvas that can be moved, zoomed and arranged. The canvas, `DiagramCanvas`, and `DiagramEditing`, which turns the
-gestures into changes, are the same for every kind of diagram. What differs sits in a `DiagramNotation`: the
+gestures into changes, are the same for every kind of diagram. `DiagramFaults` keeps a failure inside the view, so it
+cannot stop the window. What differs sits in a `DiagramNotation`: the
 projection, the arrangement and a `DiagramPainter`, which is `StatechartPainter` or `StructurePainter`. ui-workbench
 shows the pane next to the editor or in its place, as the user chooses per file.
 

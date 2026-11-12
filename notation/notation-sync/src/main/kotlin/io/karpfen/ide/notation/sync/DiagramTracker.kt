@@ -26,8 +26,14 @@ import io.karpfen.ide.core.text.TextSnapshot
  *   makes a diagram.
  * @property isStale true while the text has syntax errors. The [diagram] then is the one of the last text that could
  *   be read, and the view marks it as outdated.
+ * @property problem what went wrong if the diagram could not be derived from a text without syntax errors, or null.
+ *   The [diagram] then is the last one that could be derived.
  */
-public data class DiagramState<out D : Any>(public val diagram: D?, public val isStale: Boolean) {
+public data class DiagramState<out D : Any>(
+    public val diagram: D?,
+    public val isStale: Boolean,
+    public val problem: String? = null,
+) {
     public companion object {
         /** No diagram yet. */
         public val EMPTY: DiagramState<Nothing> = DiagramState(null, isStale = false)
@@ -42,6 +48,9 @@ public data class DiagramState<out D : Any>(public val diagram: D?, public val i
  * A diagram needs a text without syntax errors. While the text has some, the last diagram stays and is marked as
  * stale. While the parse is still behind the text, because the user is typing, the last diagram stays as it is, and
  * the next parse brings it up to date.
+ *
+ * A projection that fails must not take its caller down, which is a view. So a failure of the projection is caught.
+ * The last diagram stays, and the state names the problem.
  *
  * One tracker belongs to one document. It is not thread-safe.
  *
@@ -60,7 +69,20 @@ public class DiagramTracker<D : Any>(private val projection: DiagramProjection<D
     public fun update(snapshot: TextSnapshot, outcome: ParseOutcome?): DiagramState<D> {
         if (outcome == null || outcome.version != snapshot.version) return DiagramState(last, isStale = false)
         if (!outcome.isSyntaxClean) return DiagramState(last, isStale = true)
-        last = projection.of(snapshot.text, outcome.outline)
+        val derived = try {
+            projection.of(snapshot.text, outcome.outline)
+        } catch (e: Exception) {
+            return DiagramState(last, isStale = false, problem = describe(e))
+        } catch (e: StackOverflowError) {
+            return DiagramState(last, isStale = false, problem = describe(e))
+        }
+        last = derived
         return DiagramState(last, isStale = false)
+    }
+
+    /** [error] in a few words: its kind, and its message if it has one. */
+    private fun describe(error: Throwable): String {
+        val kind = error::class.simpleName ?: "error"
+        return error.message?.takeIf { it.isNotBlank() }?.let { "$kind, $it" } ?: kind
     }
 }
