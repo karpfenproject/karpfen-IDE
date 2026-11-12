@@ -19,6 +19,7 @@ import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.parse.ParseOutcome
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextSnapshot
+import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -26,10 +27,10 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Tests that the diagram follows the text and survives the moments in which the text cannot be read. */
-class StatechartTrackerTest {
+class DiagramTrackerTest {
 
     private val parser = defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).parser
-    private val tracker = StatechartTracker()
+    private val tracker = DiagramTracker(DiagramProjection.STATECHART)
 
     @Test
     fun `a text that reads without errors gives its diagram`() {
@@ -66,11 +67,11 @@ class StatechartTrackerTest {
 
     @Test
     fun `before the first parse and for a text without a state machine there is no diagram`() {
-        assertEquals(StatechartState.EMPTY, tracker.update(TextSnapshot(MACHINE, 0), null))
+        assertEquals(DiagramState.EMPTY, tracker.update(TextSnapshot(MACHINE, 0), null))
         assertNull(update("", version = 1).diagram)
     }
 
-    private fun update(text: String, version: Long): StatechartState {
+    private fun update(text: String, version: Long): DiagramState<StatechartDiagram> {
         val snapshot = TextSnapshot(text, version)
         val outcome: ParseOutcome = parser.parse(snapshot)
         return tracker.update(snapshot, outcome)

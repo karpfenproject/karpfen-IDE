@@ -40,7 +40,7 @@ class VisFilesTest {
     @Test
     fun `a layout is written and read back`() {
         val file = VisFiles.pathFor(dir.resolve("lamp.kstates"))
-        val layout = VisLayout(states = mapOf("off" to DiagramPoint(120f, 40f)))
+        val layout = VisLayout(boxes = mapOf("off" to DiagramPoint(120f, 40f)))
 
         assertTrue(VisFiles.write(file, layout))
 

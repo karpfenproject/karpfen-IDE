@@ -16,7 +16,6 @@
 package io.karpfen.ide.notation.diagram.layout
 
 import io.karpfen.ide.notation.diagram.statechart.StateNode
-import kotlin.math.roundToInt
 
 /**
  * The measures of a drawn statechart, in the diagram's own units. The automatic layout and the layout by hand share
@@ -64,18 +63,6 @@ public object StatechartMetrics {
 
     /** The distance between two elements that are placed next to each other automatically. */
     public const val GAP: Float = 40f
-
-    /**
-     * The step of the grid. The middle of every box and every waypoint of a transition sits on a point of this grid
-     * once the layout is made by hand.
-     */
-    public const val GRID: Float = 10f
-
-    /** [value] moved to the nearest line of the grid. */
-    public fun snap(value: Float): Float = (value / GRID).roundToInt() * GRID
-
-    /** [point] moved to the nearest point of the grid. */
-    public fun snap(point: DiagramPoint): DiagramPoint = DiagramPoint(snap(point.x), snap(point.y))
 
     /** The width of the box of [state] if it has no nested states, with a name as wide as [text] says. */
     public fun leafWidth(state: StateNode, text: TextMeasurer): Float = maxOf(text.widthOf(state.name) + 2 * NAME_PADDING, MIN_STATE_WIDTH)

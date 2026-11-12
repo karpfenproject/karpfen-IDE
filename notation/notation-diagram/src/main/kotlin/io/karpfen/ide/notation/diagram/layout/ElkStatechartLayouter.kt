@@ -21,17 +21,13 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
 import org.eclipse.elk.alg.layered.options.CycleBreakingStrategy
 import org.eclipse.elk.alg.layered.options.LayerConstraint
-import org.eclipse.elk.alg.layered.options.LayeredMetaDataProvider
 import org.eclipse.elk.alg.layered.options.LayeredOptions
 import org.eclipse.elk.alg.layered.options.OrderingStrategy
-import org.eclipse.elk.core.RecursiveGraphLayoutEngine
-import org.eclipse.elk.core.data.LayoutMetaDataService
 import org.eclipse.elk.core.math.ElkPadding
 import org.eclipse.elk.core.options.CoreOptions
 import org.eclipse.elk.core.options.Direction
 import org.eclipse.elk.core.options.EdgeRouting
 import org.eclipse.elk.core.options.HierarchyHandling
-import org.eclipse.elk.core.util.BasicProgressMonitor
 import org.eclipse.elk.graph.ElkEdge
 import org.eclipse.elk.graph.ElkNode
 import org.eclipse.elk.graph.util.ElkGraphUtil
@@ -48,9 +44,6 @@ import org.eclipse.elk.graph.util.ElkGraphUtil
  * A split or a join becomes a bar node with one edge per state it names, and the label sits on the edge that leads
  * into the bar of a split or out of the bar of a join.
  *
- * The kernel reports positions relative to the node that contains an element. This class adds up the positions of
- * the containers, so the [StatechartLayout] holds absolute positions only.
- *
  * A transition that names a state the diagram does not have is left out of the layout. The text is checked
  * elsewhere, and the drawing shows what can be drawn.
  */
@@ -58,11 +51,10 @@ internal class ElkStatechartLayouter : StatechartLayouter {
 
     override fun layout(diagram: StatechartDiagram, text: TextMeasurer): StatechartLayout {
         if (diagram.states.isEmpty()) return StatechartLayout.EMPTY
-        registerAlgorithm()
         val graph = Graph(text)
         diagram.states.forEach { graph.addState(it, graph.root) }
         diagram.transitions.forEach(graph::addTransition)
-        RecursiveGraphLayoutEngine().layout(graph.root, BasicProgressMonitor())
+        ElkKernel.layout(graph.root)
         return graph.read()
     }
 
@@ -173,36 +165,12 @@ internal class ElkStatechartLayouter : StatechartLayouter {
             headerHeight = StatechartMetrics.HEADER,
         )
 
-        private fun boxOf(node: ElkNode): DiagramBox {
-            val origin = originOf(node.parent)
-            return DiagramBox(origin.x + node.x.toFloat(), origin.y + node.y.toFloat(), node.width.toFloat(), node.height.toFloat())
-        }
-
-        /** The absolute position of the top left corner of [node]. The root sits at the origin. */
-        private fun originOf(node: ElkNode?): DiagramPoint {
-            var x = 0f
-            var y = 0f
-            var current = node
-            while (current != null && current !== root) {
-                x += current.x.toFloat()
-                y += current.y.toFloat()
-                current = current.parent
-            }
-            return DiagramPoint(x, y)
-        }
+        private fun boxOf(node: ElkNode): DiagramBox = ElkKernel.boxOf(node, root)
 
         /** The route of [line], or null if the kernel gave the edge no path. */
         private fun routeOf(line: Line): EdgeRoute? {
-            val section = line.edge.sections.firstOrNull() ?: return null
-            val origin = originOf(line.edge.containingNode)
-            val points = ArrayList<DiagramPoint>()
-            points += DiagramPoint(origin.x + section.startX.toFloat(), origin.y + section.startY.toFloat())
-            section.bendPoints.forEach { points += DiagramPoint(origin.x + it.x.toFloat(), origin.y + it.y.toFloat()) }
-            points += DiagramPoint(origin.x + section.endX.toFloat(), origin.y + section.endY.toFloat())
-            val label = line.edge.labels.firstOrNull()?.let {
-                DiagramBox(origin.x + it.x.toFloat(), origin.y + it.y.toFloat(), it.width.toFloat(), it.height.toFloat())
-            }
-            return EdgeRoute(line.kind, line.transitionId, points, label)
+            val points = ElkKernel.pointsOf(line.edge, root) ?: return null
+            return EdgeRoute(line.kind, line.transitionId, points, ElkKernel.labelOf(line.edge, root))
         }
     }
 
@@ -215,19 +183,5 @@ internal class ElkStatechartLayouter : StatechartLayouter {
 
         /** The distance between a line and a state of the next layer. */
         const val EDGE_SPACING = 18.0
-
-        @Volatile
-        private var registered = false
-
-        /** Makes the layered algorithm known to the kernel, once per process. */
-        private fun registerAlgorithm() {
-            if (registered) return
-            synchronized(this) {
-                if (!registered) {
-                    LayoutMetaDataService.getInstance().registerLayoutMetaDataProviders(LayeredMetaDataProvider())
-                    registered = true
-                }
-            }
-        }
     }
 }

@@ -27,7 +27,7 @@ class ManualStatechartLayoutTest {
     private val text = TextMeasurer.estimating()
     private val lamp = LampStateMachine.diagramOf(LampStateMachine.LAMP)
     private val vis = VisLayout(
-        states = mapOf(
+        boxes = mapOf(
             "off" to DiagramPoint(100f, 100f),
             "full" to DiagramPoint(300f, 200f),
             "brighter" to DiagramPoint(500f, 200f),
@@ -38,7 +38,7 @@ class ManualStatechartLayoutTest {
 
     @Test
     fun `a state without nested states sits with its middle on its stored point`() {
-        vis.states.forEach { (name, point) -> assertEquals(point, layout.states.getValue(name).center, name) }
+        vis.boxes.forEach { (name, point) -> assertEquals(point, layout.states.getValue(name).center, name) }
     }
 
     @Test
@@ -108,20 +108,20 @@ class ManualStatechartLayoutTest {
 
     @Test
     fun `a state that is new in the text is placed to the right of its siblings and nothing else moves`() {
-        val withoutBroken = vis.copy(states = vis.states - "broken")
+        val withoutBroken = vis.copy(boxes = vis.boxes - "broken")
 
         val result = ManualStatechartLayout.of(lamp, withoutBroken, text)
 
-        (vis.states - "broken").forEach { (name, point) -> assertEquals(point, result.states.getValue(name).center, name) }
+        (vis.boxes - "broken").forEach { (name, point) -> assertEquals(point, result.states.getValue(name).center, name) }
         val broken = result.states.getValue("broken")
         val siblings = result.states.getValue("off").union(result.states.getValue("on"))
-        assertTrue(broken.x >= siblings.right + StatechartMetrics.GAP - StatechartMetrics.GRID, "broken is not right of its siblings: $broken")
-        assertEquals(StatechartMetrics.snap(broken.center), broken.center, "the new state sits on the grid")
+        assertTrue(broken.x >= siblings.right + StatechartMetrics.GAP - DiagramGrid.STEP, "broken is not right of its siblings: $broken")
+        assertEquals(DiagramGrid.snap(broken.center), broken.center, "the new state sits on the grid")
     }
 
     @Test
     fun `a new nested state is placed inside its parent, next to the others`() {
-        val withoutBrighter = vis.copy(states = vis.states - "brighter")
+        val withoutBrighter = vis.copy(boxes = vis.boxes - "brighter")
 
         val result = ManualStatechartLayout.of(lamp, withoutBrighter, text)
 
@@ -144,7 +144,7 @@ class ManualStatechartLayoutTest {
     fun `a split has its bar on the stored point or between its states`() {
         val fork = LampStateMachine.diagramOf(LampStateMachine.FORK)
         val places = VisLayout(
-            states = mapOf(
+            boxes = mapOf(
                 "idle" to DiagramPoint(200f, 100f),
                 "left" to DiagramPoint(100f, 300f),
                 "right" to DiagramPoint(300f, 300f),
@@ -156,7 +156,7 @@ class ManualStatechartLayoutTest {
         val between = ManualStatechartLayout.of(fork, places, text)
         val moved = ManualStatechartLayout.of(fork, places.copy(bars = mapOf(split to DiagramPoint(400f, 200f))), text)
 
-        assertEquals(StatechartMetrics.snap(DiagramPoint(200f, 700f / 3f)), between.bars.getValue(split).center)
+        assertEquals(DiagramGrid.snap(DiagramPoint(200f, 700f / 3f)), between.bars.getValue(split).center)
         assertEquals(DiagramPoint(400f, 200f), moved.bars.getValue(split).center)
         assertEquals(3, between.routes.count { it.transitionId == split })
     }

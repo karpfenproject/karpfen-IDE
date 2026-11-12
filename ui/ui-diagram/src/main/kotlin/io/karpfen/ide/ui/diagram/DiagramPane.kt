@@ -33,8 +33,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.text.TextRange
-import io.karpfen.ide.notation.sync.StatechartState
-import io.karpfen.ide.notation.sync.StatechartTracker
+import io.karpfen.ide.notation.diagram.layout.DiagramLayout
+import io.karpfen.ide.notation.sync.DiagramState
+import io.karpfen.ide.notation.sync.DiagramTracker
 import io.karpfen.ide.notation.sync.VisFiles
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import java.nio.file.Path
@@ -44,39 +45,59 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The statechart of the state machine file [modelFile], whose text [session] holds. The drawing follows the text:
- * whenever the text or its parse changes, the diagram is derived again from the text. While the text has syntax
- * errors, the last drawing stays and a note says that it is outdated.
+ * The diagram of the model file [modelFile], whose text [session] holds. [kind] says which diagram that is. It must
+ * fit the language of the file. The drawing follows the text: whenever the text or its parse changes, the diagram is
+ * derived again from the text. While the text has syntax errors, the last drawing stays and a note says that it is
+ * outdated.
  *
  * The drawing can be moved by dragging the empty canvas and by scrolling, and zoomed with the buttons in its corner
- * or by scrolling while Ctrl or Cmd is held. A click on a state calls [onSelect] with the place of the state's name
- * in the text, so the caller can show it in the editor.
+ * or by scrolling while Ctrl or Cmd is held. A click on a box calls [onSelect] with the place of its name in the
+ * text, so the caller can show it in the editor.
  *
- * The statechart can be arranged by hand. States, the bars of splits and joins and the waypoints of transitions are
- * dragged on a grid, and a secondary click on a transition adds or removes a waypoint. The arrangement is stored in
- * the companion file of [modelFile], next to it with `.vis` appended. After every write [onLayoutSaved] is called, so
- * the caller can show the new file. The companion file is read when the pane appears and again whenever
- * [reloadKey] changes, which is how changes made to it by other tools come in. The text always wins: what the
- * companion file says about elements the text does not have is ignored.
+ * The diagram can be arranged by hand. Boxes, the bars of splits and joins and the waypoints of lines are dragged on
+ * a grid, and a secondary click on a line adds or removes a waypoint. The arrangement is stored in the companion file
+ * of [modelFile], next to it with `.vis` appended. After every write [onLayoutSaved] is called, so the caller can
+ * show the new file. The companion file is read when the pane appears and again whenever [reloadKey] changes, which
+ * is how changes made to it by other tools come in. The text always wins: what the companion file says about elements
+ * the text does not have is ignored.
  */
 @Composable
-public fun StatechartPane(
+public fun DiagramPane(
     session: DocumentSession,
     modelFile: Path,
+    kind: DiagramKind,
     modifier: Modifier = Modifier,
     reloadKey: Any? = null,
     onSelect: (TextRange) -> Unit = {},
     onLayoutSaved: () -> Unit = {},
 ) {
-    val state by produceState(StatechartState.EMPTY, session) {
-        val tracker = StatechartTracker()
+    when (kind) {
+        DiagramKind.STATECHART -> NotationPane(DiagramNotation.STATECHART, session, modelFile, modifier, reloadKey, onSelect, onLayoutSaved)
+        DiagramKind.TYPES -> NotationPane(DiagramNotation.TYPES, session, modelFile, modifier, reloadKey, onSelect, onLayoutSaved)
+        DiagramKind.OBJECTS -> NotationPane(DiagramNotation.OBJECTS, session, modelFile, modifier, reloadKey, onSelect, onLayoutSaved)
+    }
+}
+
+/** The pane of a diagram of the kind [notation]. It ties the view to the text of [session] and to the companion file. */
+@Composable
+private fun <D : Any, L : DiagramLayout> NotationPane(
+    notation: DiagramNotation<D, L>,
+    session: DocumentSession,
+    modelFile: Path,
+    modifier: Modifier,
+    reloadKey: Any?,
+    onSelect: (TextRange) -> Unit,
+    onLayoutSaved: () -> Unit,
+) {
+    val state by produceState<DiagramState<D>>(DiagramState.EMPTY, session, notation) {
+        val tracker = DiagramTracker(notation.projection)
         combine(session.text.snapshot, session.parse) { snapshot, outcome -> tracker.update(snapshot, outcome) }.collect { value = it }
     }
     val scope = rememberCoroutineScope()
     val visFile = remember(modelFile) { VisFiles.pathFor(modelFile) }
     val saved by rememberUpdatedState(onLayoutSaved)
-    val editing = remember(visFile) {
-        StatechartEditing { layout ->
+    val editing = remember(visFile, notation) {
+        DiagramEditing(notation.arrangement) { layout ->
             scope.launch {
                 withContext(Dispatchers.IO) { VisFiles.write(visFile, layout) }
                 saved()
@@ -86,32 +107,33 @@ public fun StatechartPane(
     LaunchedEffect(visFile, reloadKey) {
         editing.loaded(withContext(Dispatchers.IO) { VisFiles.read(visFile) })
     }
-    StatechartView(state, editing, modifier, onSelect)
+    DiagramView(notation, state, editing, modifier, onSelect)
 }
 
 /**
- * The view of the statechart [state], arranged through [editing]. It draws the diagram, says so when there is none,
- * and shows the note of a stale diagram over the drawing.
+ * The view of the diagram [state] of the kind [notation], arranged through [editing]. It draws the diagram, says so
+ * when there is none, and shows the note of a stale diagram over the drawing.
  */
 @Composable
-internal fun StatechartView(
-    state: StatechartState,
-    editing: StatechartEditing,
+internal fun <D : Any, L : DiagramLayout> DiagramView(
+    notation: DiagramNotation<D, L>,
+    state: DiagramState<D>,
+    editing: DiagramEditing<D, L>,
     modifier: Modifier = Modifier,
     onSelect: (TextRange) -> Unit = {},
 ) {
     val colors = KarpfenTheme.colors
-    Box(modifier.fillMaxSize().background(colors.window).testTag(StatechartViewTestTags.VIEW)) {
+    Box(modifier.fillMaxSize().background(colors.window).testTag(DiagramViewTestTags.VIEW)) {
         val diagram = state.diagram
-        if (diagram == null || diagram.states.isEmpty()) {
+        if (diagram == null || notation.arrangement.isEmpty(diagram)) {
             Text(
-                NOTHING_TO_DRAW,
+                notation.nothingToDraw,
                 color = colors.textMuted,
                 style = KarpfenTheme.typography.uiSmall,
-                modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(StatechartViewTestTags.EMPTY),
+                modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(DiagramViewTestTags.EMPTY),
             )
         } else {
-            StatechartCanvas(diagram, editing, onSelect)
+            DiagramCanvas(notation, diagram, editing, onSelect)
         }
         if (state.isStale) {
             Text(
@@ -123,14 +145,11 @@ internal fun StatechartView(
                     .padding(8.dp)
                     .background(colors.panel)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .testTag(StatechartViewTestTags.STALE),
+                    .testTag(DiagramViewTestTags.STALE),
             )
         }
     }
 }
-
-/** What the view says while the text holds no state machine that could be read. */
-private const val NOTHING_TO_DRAW = "No state machine to draw yet. The diagram appears once the text can be read."
 
 /** What the view says while the text has syntax errors. */
 private const val STALE = "The text has errors. This is the diagram of the last text that could be read."

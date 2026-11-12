@@ -434,12 +434,12 @@ the code does not depend on the toolkit.
 
 ### Diagrams are projections of the text
 
-The first diagram exists: the statechart of a state machine file. It is placed automatically until the user
-arranges it by hand. A state machine
-file can be shown as its text, as its statechart, or as both next to each other, and the choice belongs to the file. The
-diagram is always the one of the file itself. The rest of this section is the settled design that the later steps
-follow. They are, in this order: a live view of the active states while a model runs, graphical edits that change the text,
-and the class and object diagrams.
+Three diagrams exist: the statechart of a state machine file, the class diagram of a metamodel file and the object
+diagram of a model file. Each is placed automatically until the user arranges it by hand. Such a file can be shown as
+its text, as its diagram, or as both next to each other, and the choice belongs to the file. The diagram is always the
+one of the file itself. The rest of this section is the settled design that the later steps follow. They are, in this
+order: a live view of the active states and of the current values while a model runs, and graphical edits that change
+the text.
 
 The diagram is drawn on a canvas of the IDE's own UI toolkit, not in an embedded web view. A web view would bring a
 browser along, could not host the IDE's own editor in the text cells of the states, and would save little, because the
@@ -448,8 +448,21 @@ layout engine that web diagram tools use is the Eclipse Layout Kernel that alrea
 The notation will be hybrid. The graph structure is drawn and edited graphically, and the leaves stay text in embedded
 cells of the same code editor, with highlighting and checks. A state machine will show nested states, transitions with
 a badge for their priority, because their order is part of the semantics, fork and join bars for `SPLIT` and `JOIN`,
-the `ENTRY` and `DO` blocks as text cells and the macros in a side table. A metamodel will become a class diagram. A
-model will become an object diagram, which is also the view of a running model.
+the `ENTRY` and `DO` blocks as text cells and the macros in a side table. A metamodel is a class diagram. A model is an
+object diagram, which will also be the view of a running model.
+
+The class diagram and the object diagram share one model, `StructureDiagram`: boxes with a title and rows of text, and
+links that are a containment or a reference. A type shows its simple properties as rows, and its `has` and `knows`
+relations as links to the types they name. An object shows the values of its properties as rows, a `has` statement as
+a link to the object it makes, and a `knows` statement as a link to the object with the key it names. A relation that
+leads to nothing the file declares cannot be a link and is shown as a row. Both diagrams are derived from the outline
+of the file, so they read the text exactly as the editor does.
+
+What all diagrams share is written once. `DiagramCanvas` moves, zooms and fits the drawing and shows the grid, and
+`DiagramEditing` turns drags and secondary clicks into changes of the layout by hand. Both work against two interfaces
+of notation-diagram: `DiagramLayout`, which finds the box, the bar or the line under the pointer, and
+`DiagramArrangement`, which lays one kind of diagram out automatically and by hand. A new kind of diagram needs a
+projection, an arrangement and a `DiagramPainter`, bundled in a `DiagramNotation`.
 
 A graphical edit will become a small text edit, so comments, formatting and Python bodies survive, and the text
 outside the edited span stays byte for byte the same. The diagram is then refreshed from the text, as after any other
@@ -459,15 +472,19 @@ one undo history per document.
 
 The visual information of a diagram lives in a companion file next to its source, named after the source with `.vis`
 appended, such as `lamp.kstates.vis`. It is committed with the source. It holds JSON, as `VisLayoutJson` reads and
-writes it, keyed by stable identities of the elements: a state by its name, a transition by its kind, its states and its
-position among equal ones. Only what has no other source is stored: the middle of every state without inner states, the
-middle of the bar of every split and join, and the waypoints of every normal transition. The box of a state with inner
-states follows from them.
+writes it, with the three keys `boxes`, `bars` and `lines`. The entries are keyed by stable identities of the elements:
+a state by its name, a transition by its kind, its states and its position among equal ones, a type by its name, an
+object by its key, and a link by its relation, as in `has:Lamp.bulb`. Only what has no other source is stored: the
+middle of every box, the middle of the bar of every split and join, and the waypoints of every line that can be bent.
+A state with inner states has no entry, because its box follows from them. The first version of the format named the
+boxes `states` and the lines `transitions`, and such a file is still read.
 
-As long as there is no companion file, the statechart is laid out automatically by the Eclipse Layout Kernel behind
-`StatechartLayouter`. The first change by hand freezes that layout into a `VisLayout`, and from then on
-`ManualStatechartLayout` draws it and nothing is arranged automatically, except that an element that is new in the text
-is placed next to its siblings. All stored positions are on a grid of 10 units, which the view shows while an element is
+As long as there is no companion file, a diagram is laid out automatically by the Eclipse Layout Kernel behind
+`StatechartLayouter` or `StructureLayouter`. The first change by hand freezes that layout into a `VisLayout`, and from
+then on `ManualStatechartLayout` or `ManualStructureLayout` draws it and nothing is arranged automatically, except that
+an element that is new in the text is placed next to its siblings. In a class or object diagram, links between the
+same two boxes are drawn side by side, and a label moves to the other side of its line where it would cover another
+line. All stored positions are on a grid of 10 units, which the view shows while an element is
 dragged. If the file and the text disagree, the text wins: an entry for an element the text no longer has is ignored and
 dropped at the next save. Deleting the companion file brings the automatic layout back. The view reads the file again
 whenever the workspace has scanned the folder, which is how changes made by other tools come in. The kernel needs the
@@ -958,9 +975,10 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
   settings, and `lsp4j` in the version catalog is unused so far. The language server is meant to put core-lang behind
   the Language Server Protocol for other editors.
 - tools/cli declares a dependency on runtime-session for a deploy command that does not exist yet.
-- The statechart cannot change the text yet and does not show the active states of a running model. The lines of splits
-  and joins have no waypoints. The view mode of a file is not stored in the project file. Class and object diagrams do
-  not exist.
+- The diagrams cannot change the text yet and do not show a running model: neither the active states in the
+  statechart nor the current values in the object diagram. The lines of splits and joins have no waypoints. The view
+  mode of a file is not stored in the project file. The class diagram shows the types of one file only, so a relation
+  to a type of another metamodel file is a row and not a link.
 - There is no rename refactoring, no command that reformats a file and no split editor. dsl-tools 2.0 has printers
   for the three languages, but the IDE does not use them yet. The caret model holds a list of carets, but the editor
   offers no way to add a second one.

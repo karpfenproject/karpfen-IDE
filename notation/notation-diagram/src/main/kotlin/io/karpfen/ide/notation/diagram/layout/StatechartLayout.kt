@@ -79,7 +79,8 @@ public data class EdgeRoute(
  * @property initialMarkers the dot that marks an initial state, by the name of that state.
  * @property bars the bar of each split and join, by the id of the transition.
  * @property routes the lines of the transitions and of the initial markers.
- * @property width the width of the whole drawing.
+ * @property width the width of the whole drawing. A layout made by hand may reach left of and above the origin, so a
+ *   view fits [bounds] and not the rectangle from the origin to [width] and [height].
  * @property height the height of the whole drawing.
  * @property headerHeight the room at the top of a state's box that holds its name.
  */
@@ -91,12 +92,8 @@ public data class StatechartLayout(
     public val width: Float,
     public val height: Float,
     public val headerHeight: Float,
-) {
-    /**
-     * The smallest rectangle around everything that is drawn. A layout made by hand may reach left of and above the
-     * origin, so a view fits this rectangle and not the one from the origin to [width] and [height].
-     */
-    public val bounds: DiagramBox
+) : DiagramLayout {
+    override val bounds: DiagramBox
         get() {
             val boxes = states.values + initialMarkers.values + bars.values + routes.mapNotNull { it.label } +
                 routes.flatMap { route -> route.points.map { DiagramBox(it.x, it.y, 0f, 0f) } }
@@ -104,7 +101,7 @@ public data class StatechartLayout(
         }
 
     /** The id of the split or join whose bar is drawn at [point], or null. */
-    public fun barAt(point: DiagramPoint): String? = bars.entries.firstOrNull { point in it.value.grownBy(HIT_TOLERANCE) }?.key
+    override fun barAt(point: DiagramPoint): String? = bars.entries.firstOrNull { point in it.value.grownBy(HIT_TOLERANCE) }?.key
 
     /**
      * The line of a normal transition that runs within [tolerance] of [point], or null. Where several do, the nearest
@@ -117,6 +114,13 @@ public data class StatechartLayout(
             .minByOrNull { it.second }
             ?.first
 
+    override fun boxAt(point: DiagramPoint): String? = stateAt(point)
+
+    override fun lineAt(point: DiagramPoint, tolerance: Float): DiagramLine? {
+        val route = transitionAt(point, tolerance) ?: return null
+        return route.transitionId?.let { DiagramLine(it, route.points) }
+    }
+
     private fun DiagramBox.grownBy(by: Float): DiagramBox = DiagramBox(x - by, y - by, width + 2 * by, height + 2 * by)
 
     /**
@@ -128,7 +132,7 @@ public data class StatechartLayout(
 
     public companion object {
         /** How near a point must be to a line, a bar or a waypoint to hit it. */
-        public const val HIT_TOLERANCE: Float = 6f
+        public const val HIT_TOLERANCE: Float = DiagramLayout.HIT_TOLERANCE
 
         /** The layout of a statechart without elements. */
         public val EMPTY: StatechartLayout = StatechartLayout(emptyMap(), emptyMap(), emptyMap(), emptyList(), 0f, 0f, 0f)

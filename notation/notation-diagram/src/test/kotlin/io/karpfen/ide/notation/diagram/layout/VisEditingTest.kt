@@ -31,11 +31,11 @@ class VisEditingTest {
 
     @Test
     fun `freezing keeps every state where the automatic layout drew it, on the grid`() {
-        assertEquals(setOf("off", "full", "brighter", "broken"), frozen.states.keys, "states with nested states have no place of their own")
-        frozen.states.forEach { (name, point) ->
-            assertEquals(StatechartMetrics.snap(point), point, "$name is off the grid")
+        assertEquals(setOf("off", "full", "brighter", "broken"), frozen.boxes.keys, "states with nested states have no place of their own")
+        frozen.boxes.forEach { (name, point) ->
+            assertEquals(DiagramGrid.snap(point), point, "$name is off the grid")
             val drawn = automatic.states.getValue(name).center
-            assertTrue(Geometry.distance(drawn, point) <= StatechartMetrics.GRID, "$name jumped from $drawn to $point")
+            assertTrue(Geometry.distance(drawn, point) <= DiagramGrid.STEP, "$name jumped from $drawn to $point")
         }
         val byHand = ManualStatechartLayout.of(lamp, frozen, text)
         assertEquals(automatic.states.keys, byHand.states.keys)
@@ -45,8 +45,8 @@ class VisEditingTest {
     fun `moving a state moves it on the grid and nothing else`() {
         val moved = VisEditing.moveState(lamp, frozen, "off", DiagramPoint(23f, -8f))
 
-        assertEquals(DiagramPoint(frozen.states.getValue("off").x + 20f, frozen.states.getValue("off").y - 10f), moved.states.getValue("off"))
-        assertEquals(frozen.states - "off", moved.states - "off")
+        assertEquals(DiagramPoint(frozen.boxes.getValue("off").x + 20f, frozen.boxes.getValue("off").y - 10f), moved.boxes.getValue("off"))
+        assertEquals(frozen.boxes - "off", moved.boxes - "off")
         assertEquals(frozen, VisEditing.moveState(lamp, frozen, "off", DiagramPoint(3f, 2f)), "a move of less than half a step is none")
     }
 
@@ -55,10 +55,10 @@ class VisEditingTest {
         val moved = VisEditing.moveState(lamp, frozen, "on", DiagramPoint(50f, 30f))
 
         listOf("full", "brighter").forEach { name ->
-            val before = frozen.states.getValue(name)
-            assertEquals(DiagramPoint(before.x + 50f, before.y + 30f), moved.states.getValue(name), name)
+            val before = frozen.boxes.getValue(name)
+            assertEquals(DiagramPoint(before.x + 50f, before.y + 30f), moved.boxes.getValue(name), name)
         }
-        assertEquals(frozen.states.getValue("off"), moved.states.getValue("off"))
+        assertEquals(frozen.boxes.getValue("off"), moved.boxes.getValue("off"))
     }
 
     @Test
@@ -77,8 +77,8 @@ class VisEditingTest {
 
         val moved = VisEditing.moveWaypoint(two, id, 0, DiagramPoint(-17f, 204f))
         assertEquals(DiagramPoint(-20f, 200f), moved.waypoints.getValue(id).first())
-        assertEquals(id to 0, VisEditing.waypointAt(lamp, moved, DiagramPoint(-18f, 203f)))
-        assertNull(VisEditing.waypointAt(lamp, moved, DiagramPoint(500f, 900f)))
+        assertEquals(id to 0, VisEditing.waypointAt(moved, setOf(id), DiagramPoint(-18f, 203f)))
+        assertNull(VisEditing.waypointAt(moved, setOf(id), DiagramPoint(500f, 900f)))
 
         val removed = VisEditing.removeWaypoint(VisEditing.removeWaypoint(moved, id, 0), id, 0)
         assertNull(removed.waypoints[id])
@@ -87,14 +87,14 @@ class VisEditingTest {
     @Test
     fun `the text wins - what the text no longer has is dropped`() {
         val stale = frozen.copy(
-            states = frozen.states + ("gone" to DiagramPoint(0f, 0f)) + ("on" to DiagramPoint(0f, 0f)),
+            boxes = frozen.boxes + ("gone" to DiagramPoint(0f, 0f)) + ("on" to DiagramPoint(0f, 0f)),
             bars = mapOf("SPLIT:a->b,c#1" to DiagramPoint(0f, 0f)),
             waypoints = frozen.waypoints + ("NORMAL:gone->off#1" to listOf(DiagramPoint(0f, 0f))),
         )
 
         val pruned = VisEditing.prune(lamp, stale)
 
-        assertEquals(frozen.states, pruned.states, "a state that is gone or has nested states now has no place")
+        assertEquals(frozen.boxes, pruned.boxes, "a state that is gone or has nested states now has no place")
         assertEquals(emptyMap(), pruned.bars)
         assertEquals(frozen.waypoints.filterValues { it.isNotEmpty() }, pruned.waypoints)
     }
@@ -102,7 +102,7 @@ class VisEditingTest {
     @Test
     fun `the file is JSON that reads back to the same layout`() {
         val layout = VisLayout(
-            states = mapOf("off" to DiagramPoint(120f, 40f), "full power" to DiagramPoint(-30f, 12.5f)),
+            boxes = mapOf("off" to DiagramPoint(120f, 40f), "full power" to DiagramPoint(-30f, 12.5f)),
             bars = mapOf("SPLIT:idle->left,right#1" to DiagramPoint(200f, 230f)),
             waypoints = mapOf("NORMAL:off->on#1" to listOf(DiagramPoint(200f, 90f), DiagramPoint(210f, 90f))),
         )
@@ -120,7 +120,7 @@ class VisEditingTest {
         assertNull(VisLayoutJson.decode("[1, 2]"))
         assertEquals(VisLayout(), VisLayoutJson.decode("{}"))
         assertEquals(
-            VisLayout(states = mapOf("ok" to DiagramPoint(1f, 2f))),
+            VisLayout(boxes = mapOf("ok" to DiagramPoint(1f, 2f))),
             VisLayoutJson.decode("""{ "states": { "ok": { "x": 1, "y": 2 }, "bad": { "x": "left" }, "worse": 7 }, "future": true }"""),
         )
     }

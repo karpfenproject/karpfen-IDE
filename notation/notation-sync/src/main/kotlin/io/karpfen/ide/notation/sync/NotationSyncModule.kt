@@ -17,7 +17,7 @@ package io.karpfen.ide.notation.sync
 
 /**
  * Identity of the `notation-sync` module. The module keeps a diagram in step with the text it is derived from. The
- * text is the only source, and a diagram is derived again after every change. Start reading at `StatechartTracker`.
+ * text is the only source, and a diagram is derived again after every change. Start reading at `DiagramTracker`.
  */
 public object NotationSyncModule {
     /** The module's name, which is also the name of its directory. */

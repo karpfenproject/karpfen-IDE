@@ -77,6 +77,38 @@ internal object Geometry {
         return DiagramPoint(center.x + dx * scale, center.y + dy * scale)
     }
 
+    /** True if the line through [points] runs through [box] or touches it. */
+    fun crosses(box: DiagramBox, points: List<DiagramPoint>): Boolean =
+        points.zipWithNext().any { (a, b) -> crosses(box, a, b) } || points.size == 1 && points.first() in box
+
+    /**
+     * True if the segment from [a] to [b] runs through [box] or touches it. The segment is cut down to the part
+     * between the left and right border and then to the part between the upper and lower border. It crosses the box
+     * if something is left.
+     */
+    private fun crosses(box: DiagramBox, a: DiagramPoint, b: DiagramPoint): Boolean {
+        var from = 0f
+        var to = 1f
+        for ((start, delta, low, high) in listOf(
+            Span(a.x, b.x - a.x, box.x, box.right),
+            Span(a.y, b.y - a.y, box.y, box.bottom),
+        )) {
+            if (delta == 0f) {
+                if (start < low || start > high) return false
+            } else {
+                val first = (low - start) / delta
+                val second = (high - start) / delta
+                from = maxOf(from, minOf(first, second))
+                to = minOf(to, maxOf(first, second))
+                if (from > to) return false
+            }
+        }
+        return true
+    }
+
+    /** One direction of a segment against a box: where it starts, how far it runs, and the two borders. */
+    private data class Span(val start: Float, val delta: Float, val low: Float, val high: Float)
+
     /** True if [inner] lies within [outer], as the box of a nested state lies within the box of its parent. */
     fun contains(outer: DiagramBox, inner: DiagramBox): Boolean =
         outer != inner && inner.x >= outer.x && inner.right <= outer.right && inner.y >= outer.y && inner.bottom <= outer.bottom

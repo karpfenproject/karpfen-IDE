@@ -19,7 +19,8 @@ import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
 
 /**
- * The changes a user makes to the layout of a statechart by hand. Every function takes a [VisLayout] and returns a
+ * The changes a user makes to the layout of a diagram by hand. The changes of waypoints and bars serve every kind of
+ * diagram. [freeze], [moveState] and [prune] are those of a statechart. Every function takes a [VisLayout] and returns a
  * new one, so a view can try a change while the pointer moves and keep or drop the result.
  *
  * The first change by hand starts from [freeze], which turns the layout on screen, usually the automatic one, into a
@@ -33,15 +34,15 @@ public object VisEditing {
      * of every bar, and the corners of every normal transition as its waypoints, all moved onto the grid.
      */
     public fun freeze(diagram: StatechartDiagram, layout: StatechartLayout): VisLayout = VisLayout(
-        states = diagram.allStates()
+        boxes = diagram.allStates()
             .filter { !it.isComposite }
-            .mapNotNull { state -> layout.states[state.name]?.let { state.name to StatechartMetrics.snap(it.center) } }
+            .mapNotNull { state -> layout.states[state.name]?.let { state.name to DiagramGrid.snap(it.center) } }
             .toMap(),
-        bars = layout.bars.mapValues { StatechartMetrics.snap(it.value.center) },
+        bars = layout.bars.mapValues { DiagramGrid.snap(it.value.center) },
         waypoints = layout.routes
             .filter { it.kind == RouteKind.TRANSITION && it.transitionId != null && it.points.size > 2 }
             .associate { route ->
-                checkNotNull(route.transitionId) to route.points.subList(1, route.points.size - 1).map(StatechartMetrics::snap).distinct()
+                checkNotNull(route.transitionId) to route.points.subList(1, route.points.size - 1).map(DiagramGrid::snap).distinct()
             },
     )
 
@@ -52,7 +53,7 @@ public object VisEditing {
      */
     public fun moveState(diagram: StatechartDiagram, vis: VisLayout, name: String, delta: DiagramPoint): VisLayout {
         val state = diagram.state(name) ?: return vis
-        val step = StatechartMetrics.snap(delta)
+        val step = DiagramGrid.snap(delta)
         if (step.x == 0f && step.y == 0f) return vis
         val moved = state.withDescendants().map { it.name }.toSet()
         val inside = diagram.transitions
@@ -60,7 +61,7 @@ public object VisEditing {
             .map { it.id }
             .toSet()
         return vis.copy(
-            states = vis.states.mapValues { (key, point) -> if (key in moved) point + step else point },
+            boxes = vis.boxes.mapValues { (key, point) -> if (key in moved) point + step else point },
             bars = vis.bars.mapValues { (id, point) -> if (id in inside) point + step else point },
             waypoints = vis.waypoints.mapValues { (id, points) -> if (id in inside) points.map { it + step } else points },
         )
@@ -68,27 +69,27 @@ public object VisEditing {
 
     /** [vis] with the bar of the split or join [id] moved to [to]. */
     public fun moveBar(vis: VisLayout, id: String, to: DiagramPoint): VisLayout =
-        vis.copy(bars = vis.bars + (id to StatechartMetrics.snap(to)))
+        vis.copy(bars = vis.bars + (id to DiagramGrid.snap(to)))
 
-    /** [vis] with the waypoint at [index] of the transition [id] moved to [to]. */
+    /** [vis] with the waypoint at [index] of the line [id] moved to [to]. */
     public fun moveWaypoint(vis: VisLayout, id: String, index: Int, to: DiagramPoint): VisLayout {
         val points = vis.waypoints[id] ?: return vis
         if (index !in points.indices) return vis
-        return vis.copy(waypoints = vis.waypoints + (id to points.toMutableList().also { it[index] = StatechartMetrics.snap(to) }))
+        return vis.copy(waypoints = vis.waypoints + (id to points.toMutableList().also { it[index] = DiagramGrid.snap(to) }))
     }
 
     /**
-     * [vis] with a new waypoint of the transition [id] at [at]. [line] is the line of the transition as it is drawn,
-     * from the border of its source to the border of its target. The new waypoint goes into the segment of that line
+     * [vis] with a new waypoint of the line [id] at [at]. [line] is the line as it is drawn, from the border of its
+     * source to the border of its target. The new waypoint goes into the segment of that line
      * that is nearest to [at], so the line bends where the user pointed.
      */
     public fun addWaypoint(vis: VisLayout, id: String, at: DiagramPoint, line: List<DiagramPoint>): VisLayout {
         val points = vis.waypoints[id].orEmpty()
         val index = Geometry.nearestSegment(at, line).coerceIn(0, points.size)
-        return vis.copy(waypoints = vis.waypoints + (id to points.toMutableList().also { it.add(index, StatechartMetrics.snap(at)) }))
+        return vis.copy(waypoints = vis.waypoints + (id to points.toMutableList().also { it.add(index, DiagramGrid.snap(at)) }))
     }
 
-    /** [vis] without the waypoint at [index] of the transition [id]. */
+    /** [vis] without the waypoint at [index] of the line [id]. */
     public fun removeWaypoint(vis: VisLayout, id: String, index: Int): VisLayout {
         val points = vis.waypoints[id] ?: return vis
         if (index !in points.indices) return vis
@@ -97,23 +98,21 @@ public object VisEditing {
     }
 
     /**
-     * The waypoint of [vis] within [tolerance] of [point], as the id of its transition and its index, or null. Only
-     * the transitions of [diagram] count.
+     * The waypoint of [vis] within [tolerance] of [point], as the id of its line and its index, or null. Only the
+     * lines with an id in [lines] count.
      */
     public fun waypointAt(
-        diagram: StatechartDiagram,
         vis: VisLayout,
+        lines: Set<String>,
         point: DiagramPoint,
-        tolerance: Float = StatechartLayout.HIT_TOLERANCE,
-    ): Pair<String, Int>? {
-        val known = diagram.transitions.map { it.id }.toSet()
-        return vis.waypoints
-            .filterKeys(known::contains)
+        tolerance: Float = DiagramLayout.HIT_TOLERANCE,
+    ): Pair<String, Int>? =
+        vis.waypoints
+            .filterKeys(lines::contains)
             .flatMap { (id, points) -> points.mapIndexed { index, waypoint -> Triple(id, index, Geometry.distance(point, waypoint)) } }
             .filter { it.third <= tolerance }
             .minByOrNull { it.third }
             ?.let { it.first to it.second }
-    }
 
     /**
      * [vis] with only what [diagram] still has. The text is the source of truth, so the place of a state that is gone
@@ -125,7 +124,7 @@ public object VisEditing {
         val forks = diagram.transitions.filter { it.kind != TransitionKind.NORMAL }.map { it.id }.toSet()
         val normal = diagram.transitions.filter { it.kind == TransitionKind.NORMAL }.map { it.id }.toSet()
         return VisLayout(
-            states = vis.states.filterKeys(leaves::contains),
+            boxes = vis.boxes.filterKeys(leaves::contains),
             bars = vis.bars.filterKeys(forks::contains),
             waypoints = vis.waypoints.filterKeys(normal::contains).filterValues { it.isNotEmpty() },
         )

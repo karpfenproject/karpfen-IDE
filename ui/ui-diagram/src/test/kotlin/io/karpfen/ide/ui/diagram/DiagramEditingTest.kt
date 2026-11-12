@@ -20,6 +20,7 @@ import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.ManualStatechartLayout
+import io.karpfen.ide.notation.diagram.layout.StatechartArrangement
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartLayouter
 import io.karpfen.ide.notation.diagram.layout.TextMeasurer
@@ -34,13 +35,13 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Tests how the gestures of the canvas change the layout by hand and when it is saved. */
-class StatechartEditingTest {
+class DiagramEditingTest {
 
     private val text = TextMeasurer.estimating()
     private val diagram = diagramOf(MACHINE)
     private val automatic = StatechartLayouter().layout(diagram, text)
     private val saved = ArrayList<VisLayout>()
-    private val editing = StatechartEditing { saved += it }
+    private val editing = DiagramEditing(StatechartArrangement) { saved += it }
 
     @Test
     fun `dragging a state freezes the automatic layout, moves the state on the grid and saves once at the end`() {
@@ -107,7 +108,7 @@ class StatechartEditingTest {
 
     @Test
     fun `what is read from the file is taken in, but never over a change that is still being written`() {
-        val fromFile = VisLayout(states = mapOf("off" to DiagramPoint(10f, 10f), "on" to DiagramPoint(200f, 10f)))
+        val fromFile = VisLayout(boxes = mapOf("off" to DiagramPoint(10f, 10f), "on" to DiagramPoint(200f, 10f)))
         editing.loaded(fromFile)
         assertEquals(fromFile, editing.vis)
 

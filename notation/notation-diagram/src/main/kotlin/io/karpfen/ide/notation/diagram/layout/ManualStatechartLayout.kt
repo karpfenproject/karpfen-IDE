@@ -42,15 +42,6 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  */
 public object ManualStatechartLayout {
 
-    /** The distance between a line and the caption beside it. */
-    private const val LABEL_DISTANCE = 4f
-
-    /** How far the loop of a transition from a state to itself reaches to the right of the state. */
-    private const val LOOP_REACH = 30f
-
-    /** Half the height of the loop of a transition from a state to itself. */
-    private const val LOOP_HALF_HEIGHT = 10f
-
     /** The layout of [diagram] as [vis] arranges it, with texts as wide as [text] says. */
     public fun of(diagram: StatechartDiagram, vis: VisLayout, text: TextMeasurer): StatechartLayout {
         if (diagram.states.isEmpty()) return StatechartLayout.EMPTY
@@ -76,7 +67,7 @@ public object ManualStatechartLayout {
             if (transition.kind == TransitionKind.NORMAL) {
                 routes += normal(transition, sources.first(), targets.first(), vis.waypoints[transition.id].orEmpty(), text)
             } else {
-                val bar = barOf(vis.bars[transition.id] ?: StatechartMetrics.snap(centroid(sources + targets)))
+                val bar = barOf(vis.bars[transition.id] ?: DiagramGrid.snap(centroid(sources + targets)))
                 bars[transition.id] = bar
                 routes += forked(transition, sources, targets, bar, text)
             }
@@ -105,24 +96,7 @@ public object ManualStatechartLayout {
         waypoints: List<DiagramPoint>,
         text: TextMeasurer,
     ): EdgeRoute {
-        val through = when {
-            waypoints.isNotEmpty() -> waypoints
-            source == target -> listOf(
-                DiagramPoint(source.right + LOOP_REACH, source.center.y - LOOP_HALF_HEIGHT),
-                DiagramPoint(source.right + LOOP_REACH, source.center.y + LOOP_HALF_HEIGHT),
-            )
-            else -> emptyList()
-        }
-        val points = when {
-            through.isEmpty() && Geometry.contains(source, target) ->
-                listOf(DiagramPoint(target.center.x, source.y), DiagramPoint(target.center.x, target.y))
-            through.isEmpty() && Geometry.contains(target, source) ->
-                listOf(DiagramPoint(source.center.x, source.y), DiagramPoint(source.center.x, target.y))
-            else -> {
-                val start = Geometry.anchor(source, through.firstOrNull() ?: target.center)
-                listOf(start) + through + Geometry.anchor(target, through.lastOrNull() ?: start)
-            }
-        }
+        val points = LineRouting.between(source, target, waypoints)
         return EdgeRoute(RouteKind.TRANSITION, transition.id, points, labelOn(points, transition, text))
     }
 
@@ -149,20 +123,9 @@ public object ManualStatechartLayout {
         return into + out
     }
 
-    /**
-     * The box of the caption of [transition] at the middle of the line through [points]. The caption stands beside
-     * the line and not on it: to the right of a part that runs up and down, and above a part that runs sideways.
-     */
-    private fun labelOn(points: List<DiagramPoint>, transition: TransitionEdge, text: TextMeasurer): DiagramBox {
-        val middle = Geometry.middle(points)
-        val width = text.widthOf(transition.caption) + StatechartMetrics.LABEL_PADDING
-        val height = StatechartMetrics.LABEL_HEIGHT
-        return if (Geometry.isUprightAtMiddle(points)) {
-            DiagramBox(middle.x + LABEL_DISTANCE, middle.y - height / 2f, width, height)
-        } else {
-            DiagramBox(middle.x - width / 2f, middle.y - LABEL_DISTANCE - height, width, height)
-        }
-    }
+    /** The box of the caption of [transition] beside the middle of the line through [points]. */
+    private fun labelOn(points: List<DiagramPoint>, transition: TransitionEdge, text: TextMeasurer): DiagramBox =
+        LineRouting.captionBeside(points, text.widthOf(transition.caption) + StatechartMetrics.LABEL_PADDING, StatechartMetrics.LABEL_HEIGHT)
 
     /** Places the states: the stored ones where they are stored, the new ones next to them. */
     private class Placement(private val vis: VisLayout, private val text: TextMeasurer) {
@@ -188,13 +151,13 @@ public object ManualStatechartLayout {
 
         /** True if [state] or a state nested in it has a stored place. */
         private fun isStored(state: StateNode): Boolean =
-            if (state.isComposite) state.children.any(::isStored) else state.name in vis.states
+            if (state.isComposite) state.children.any(::isStored) else state.name in vis.boxes
 
         private fun placeStored(state: StateNode): DiagramBox {
             val box = if (state.isComposite) {
                 surrounding(state, checkNotNull(place(state.children, DiagramPoint(0f, 0f))))
             } else {
-                leaf(state, vis.states.getValue(state.name))
+                leaf(state, vis.boxes.getValue(state.name))
             }
             boxes[state.name] = box
             return box
@@ -210,7 +173,7 @@ public object ManualStatechartLayout {
             } else {
                 val width = StatechartMetrics.leafWidth(state, text)
                 val height = StatechartMetrics.leafHeight(state)
-                leaf(state, StatechartMetrics.snap(DiagramPoint(topLeft.x + width / 2f, topLeft.y + height / 2f)))
+                leaf(state, DiagramGrid.snap(DiagramPoint(topLeft.x + width / 2f, topLeft.y + height / 2f)))
             }
             boxes[state.name] = box
             return box

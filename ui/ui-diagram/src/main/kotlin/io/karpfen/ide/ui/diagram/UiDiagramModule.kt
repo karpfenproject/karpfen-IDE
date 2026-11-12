@@ -17,7 +17,7 @@ package io.karpfen.ide.ui.diagram
 
 /**
  * Identity of the `ui-diagram` module. The module draws the diagrams of `notation-diagram` on a canvas and handles
- * moving and zooming. Start reading at `StatechartPane`.
+ * moving and zooming. Start reading at `DiagramPane`.
  */
 public object UiDiagramModule {
     /** The module's name, which is also the name of its directory. */

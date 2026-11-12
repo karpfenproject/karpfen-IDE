@@ -168,6 +168,15 @@ front of it, and the `.vis` file shows below it when you click the arrow. A doub
 greyed-out text. You cannot type into it, because the IDE writes it. Other tools can change it, and the IDE takes such a
 change over.
 
+The metamodel and the model have a diagram too. Open `lamp.kmeta` and click Split. Expected: a class diagram with one
+box per type. A box shows the name of the type and its simple properties, such as `watts: number`. A line with a filled
+diamond leads from a type to a type it has, such as from `Lamp` to `Bulb`, and carries the name of the relation. A line
+with an open arrowhead leads to a type it knows, such as from `Lamp` to `Switch`. Open `lamp.kmodel` and click Split.
+Expected: an object diagram with one box per object. A box shows the key and the type of the object, underlined, such
+as `bulb : Bulb`, and the values of its properties, such as `maxWatts = 40`. Both diagrams are moved, zoomed and
+arranged by hand like the statechart, and each stores its arrangement in a `.vis` file of its own, such as
+`lamp.kmeta.vis`.
+
 - Cmd+click / Ctrl+click on `Lamp` in `STATEMACHINE ATTACHED TO "Lamp"`. Expected: `lamp.kmeta` opens at the type.
 - Open `lamp.kenv.json` and rest the mouse on the key `tickDelayMs`. Expected: a tooltip explains the key.
 - In `lamp.kstates`, delete the `{` after `STATE "broken"`. Expected: within a second a red underline appears, and

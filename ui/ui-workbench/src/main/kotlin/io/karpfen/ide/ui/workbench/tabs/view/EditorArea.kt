@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.document.ConflictResolution
-import io.karpfen.ide.ui.diagram.StatechartPane
+import io.karpfen.ide.ui.diagram.DiagramPane
 import io.karpfen.ide.ui.editor.popup.EditorPopups
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.view.CodeEditor
@@ -119,7 +119,8 @@ internal fun EditorArea(
         }
         val activeTab = tabs.firstOrNull { it.path == activePath }
         activeTab?.let(ConflictBanner::of)?.let { banner -> ConflictBannerView(banner) { onResolveConflict(activeTab.path, it) } }
-        val hasDiagram = activeTab != null && EditorViewMode.hasDiagram(activeTab.kind)
+        val diagramKind = activeTab?.let { EditorViewMode.diagramOf(it.kind) }
+        val hasDiagram = diagramKind != null
         val mode = if (hasDiagram) viewMode else EditorViewMode.TEXT
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (activeEditor != null && activePath != null) {
@@ -135,15 +136,18 @@ internal fun EditorArea(
                     }
                 }
                 val diagram: @Composable () -> Unit = {
-                    key(activePath) {
-                        StatechartPane(
-                            session = activeEditor.session,
-                            modelFile = activePath,
-                            modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.DIAGRAM),
-                            reloadKey = diskRevision,
-                            onSelect = onSelectInText,
-                            onLayoutSaved = onDiagramSaved,
-                        )
+                    if (diagramKind != null) {
+                        key(activePath) {
+                            DiagramPane(
+                                session = activeEditor.session,
+                                modelFile = activePath,
+                                kind = diagramKind,
+                                modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.DIAGRAM),
+                                reloadKey = diskRevision,
+                                onSelect = onSelectInText,
+                                onLayoutSaved = onDiagramSaved,
+                            )
+                        }
                     }
                 }
                 when (mode) {

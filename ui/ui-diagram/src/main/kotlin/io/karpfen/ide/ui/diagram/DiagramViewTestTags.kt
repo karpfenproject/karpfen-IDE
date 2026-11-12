@@ -15,29 +15,29 @@
  */
 package io.karpfen.ide.ui.diagram
 
-/** Test tags of the statechart view. */
-public object StatechartViewTestTags {
+/** Test tags of the diagram view. */
+public object DiagramViewTestTags {
     /** The view as a whole. */
-    public const val VIEW: String = "Statechart.view"
+    public const val VIEW: String = "Diagram.view"
 
-    /** The canvas the statechart is drawn on. */
-    public const val CANVAS: String = "Statechart.canvas"
+    /** The canvas the diagram is drawn on. */
+    public const val CANVAS: String = "Diagram.canvas"
 
     /** The note that the text has errors and the drawing is outdated. */
-    public const val STALE: String = "Statechart.stale"
+    public const val STALE: String = "Diagram.stale"
 
     /** What the view says while there is nothing to draw. */
-    public const val EMPTY: String = "Statechart.empty"
+    public const val EMPTY: String = "Diagram.empty"
 
     /** The button that makes the drawing smaller. */
-    public const val ZOOM_OUT: String = "Statechart.zoomOut"
+    public const val ZOOM_OUT: String = "Diagram.zoomOut"
 
     /** The current zoom in percent. A click sets it back to 100%. */
-    public const val ZOOM: String = "Statechart.zoom"
+    public const val ZOOM: String = "Diagram.zoom"
 
     /** The button that makes the drawing larger. */
-    public const val ZOOM_IN: String = "Statechart.zoomIn"
+    public const val ZOOM_IN: String = "Diagram.zoomIn"
 
     /** The button that fits the whole drawing into the view. */
-    public const val FIT: String = "Statechart.fit"
+    public const val FIT: String = "Diagram.fit"
 }

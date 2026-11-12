@@ -26,23 +26,24 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
 
 /**
- * The visual information of a statechart that was arranged by hand. It is what the companion file of a state machine
- * file holds, the file named like the state machine file with `.vis` appended.
+ * The visual information of a diagram that was arranged by hand. It is what the companion file of a model file holds,
+ * the file named like the model file with `.vis` appended.
  *
- * The text of the state machine stays the source of truth. This layout only says where things are drawn. An entry
- * for something the text does not have is ignored and dropped at the next save. Something the text has and this
- * layout does not is placed automatically.
+ * The text of the model stays the source of truth. This layout only says where things are drawn. An entry for
+ * something the text does not have is ignored and dropped at the next save. Something the text has and this layout
+ * does not is placed automatically.
  *
- * All positions are on the grid of [StatechartMetrics.GRID].
+ * All positions are on the grid of [DiagramGrid].
  *
- * @property states the middle of the box of each state without nested states, by the name of the state. A state with
- *   nested states has no entry. Its box follows from the states inside it.
- * @property bars the middle of the bar of each split and join, by the id of the transition.
- * @property waypoints the points a normal transition runs through between its two states, in order, by the id of the
- *   transition. A transition without an entry is a straight line.
+ * @property boxes the middle of each box by its id. In a statechart these are the states without nested states, by
+ *   their names. A state with nested states has no entry, because its box follows from the states inside it. In a
+ *   class diagram these are the types, and in an object diagram the objects.
+ * @property bars the middle of the bar of each split and join of a statechart, by the id of the transition.
+ * @property waypoints the points a line runs through between its two boxes, in order, by the id of the line. A line
+ *   without an entry is a straight line.
  */
 public data class VisLayout(
-    public val states: Map<String, DiagramPoint> = emptyMap(),
+    public val boxes: Map<String, DiagramPoint> = emptyMap(),
     public val bars: Map<String, DiagramPoint> = emptyMap(),
     public val waypoints: Map<String, List<DiagramPoint>> = emptyMap(),
 )
@@ -52,31 +53,32 @@ public data class VisLayout(
  *
  * ```
  * {
- *   "version": 1,
- *   "states": { "off": { "x": 120, "y": 40 } },
+ *   "version": 2,
+ *   "boxes": { "off": { "x": 120, "y": 40 } },
  *   "bars": { },
- *   "transitions": { "NORMAL:off->on#1": { "waypoints": [ { "x": 200, "y": 90 } ] } }
+ *   "lines": { "NORMAL:off->on#1": { "waypoints": [ { "x": 200, "y": 90 } ] } }
  * }
  * ```
  *
  * Reading is tolerant. An entry that is not a point is left out, and unknown keys are ignored. A text that is no JSON
- * object at all gives null, and the caller falls back to the automatic layout.
+ * object at all gives null, and the caller falls back to the automatic layout. The first version of the format named
+ * the boxes `states` and the lines `transitions`. Such a file is still read.
  */
 public object VisLayoutJson {
 
     private val json = Json { prettyPrint = true }
 
     /** The current version of the format. */
-    private const val VERSION = 1
+    private const val VERSION = 2
 
     /** The text of the file for [layout]. */
     public fun encode(layout: VisLayout): String = json.encodeToString(
         JsonElement.serializer(),
         buildJsonObject {
             put("version", VERSION)
-            putJsonObject("states") { layout.states.toSortedMap().forEach { (name, point) -> put(name, pointOf(point)) } }
+            putJsonObject("boxes") { layout.boxes.toSortedMap().forEach { (name, point) -> put(name, pointOf(point)) } }
             putJsonObject("bars") { layout.bars.toSortedMap().forEach { (id, point) -> put(id, pointOf(point)) } }
-            putJsonObject("transitions") {
+            putJsonObject("lines") {
                 layout.waypoints.toSortedMap().filterValues { it.isNotEmpty() }.forEach { (id, points) ->
                     putJsonObject(id) { put("waypoints", buildJsonArray { points.forEach { add(pointOf(it)) } }) }
                 }
@@ -88,9 +90,9 @@ public object VisLayoutJson {
     public fun decode(text: String): VisLayout? {
         val root = runCatching { json.parseToJsonElement(text) }.getOrNull() as? JsonObject ?: return null
         return VisLayout(
-            states = points(root["states"]),
+            boxes = points(root["boxes"] ?: root["states"]),
             bars = points(root["bars"]),
-            waypoints = (root["transitions"] as? JsonObject).orEmpty()
+            waypoints = ((root["lines"] ?: root["transitions"]) as? JsonObject).orEmpty()
                 .mapValues { (_, value) ->
                     ((value as? JsonObject)?.get("waypoints") as? kotlinx.serialization.json.JsonArray).orEmpty().mapNotNull(::point)
                 }

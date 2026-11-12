@@ -270,7 +270,8 @@ class WorkbenchUiTest {
     }
 
     @Test
-    fun `a state machine file shows its text, its statechart or both, and other files have no such choice`() = workbenchUiTest(dir) {
+    fun `a file with a diagram shows its text, its diagram or both, and other files have no such choice`() = workbenchUiTest(dir) {
+        DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
         openExamples()
         openFromTree(machine)
         tagged(EditorAreaTestTags.EDITOR).assertIsDisplayed()
@@ -293,7 +294,21 @@ class WorkbenchUiTest {
         test.onNodeWithTag(EditorAreaTestTags.DIAGRAM).assertDoesNotExist()
 
         openFromTree(robot.resolve("cleaning_robot.kmeta"))
+        tagged(EditorAreaTestTags.viewMode("Diagram")).performClick()
+        settle()
+        tagged(EditorAreaTestTags.DIAGRAM).assertIsDisplayed()
+
+        openFromTree(robot.resolve("cleaning_robot.kmodel"))
+        tagged(EditorAreaTestTags.viewMode("Split")).performClick()
+        settle()
+        tagged(EditorAreaTestTags.EDITOR).assertIsDisplayed()
+        tagged(EditorAreaTestTags.DIAGRAM).assertIsDisplayed()
+
+        val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
+        openFromTree(descriptor)
+        assertEquals(descriptor, workbench.state.tabs.active.value)
         test.onNodeWithTag(EditorAreaTestTags.viewMode("Split")).assertDoesNotExist()
+        test.onNodeWithTag(EditorAreaTestTags.DIAGRAM).assertDoesNotExist()
     }
 
     @Test

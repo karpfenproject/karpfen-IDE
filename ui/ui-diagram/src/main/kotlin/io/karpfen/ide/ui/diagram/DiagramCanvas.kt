@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
@@ -54,53 +55,57 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
-import io.karpfen.ide.notation.diagram.layout.ManualStatechartLayout
-import io.karpfen.ide.notation.diagram.layout.StatechartLayouter
 import io.karpfen.ide.notation.diagram.layout.TextMeasurer
-import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Draws [diagram] and lets the user move and zoom the drawing and arrange it by hand through [editing]. A click on a
- * state calls [onSelect] with the place of the state's name in the text.
+ * Draws [diagram], a diagram of the kind [notation], and lets the user move and zoom the drawing and arrange it by
+ * hand through [editing]. A click on a box calls [onSelect] with the place of its name in the text.
  *
  * As long as [editing] holds no layout by hand, the layout is computed automatically, off the UI thread, from the
  * texts measured here in the font of the view. Until the first layout is there, the canvas is empty and the zoom
  * buttons are not shown. Once there is a layout by hand, the drawing follows it at once, so a dragged element moves
  * with the pointer.
  *
- * A drag that starts on a state, a bar or a waypoint moves that element on the grid, and the grid is shown while it
- * moves. A drag that starts on the empty canvas moves the whole drawing. A secondary click on the line of a
- * transition adds a waypoint, and one on a waypoint removes it.
+ * A drag that starts on a box, a bar or a waypoint moves that element on the grid, and the grid is shown while it
+ * moves. A drag that starts on the empty canvas moves the whole drawing. A secondary click on a line that can be bent
+ * adds a waypoint, and one on a waypoint removes it.
  *
  * The first drawing is fitted into the view. After that the view keeps the zoom and the position the user chose.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, editing: StatechartEditing, onSelect: (TextRange) -> Unit) {
+internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
+    notation: DiagramNotation<D, L>,
+    diagram: D,
+    editing: DiagramEditing<D, L>,
+    onSelect: (TextRange) -> Unit,
+) {
     val colors = KarpfenTheme.colors
     val density = LocalDensity.current.density
     val measurer = rememberTextMeasurer()
-    val nameStyle = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold, color = colors.text)
-    val labelStyle = KarpfenTheme.typography.uiSmall.copy(color = colors.text)
-    val noteStyle = KarpfenTheme.typography.uiSmall.copy(color = colors.textMuted)
-    val texts = remember(diagram, nameStyle, labelStyle, noteStyle, density) {
-        StatechartTexts.measure(diagram, measurer, nameStyle, labelStyle, noteStyle)
-    }
+    val styles = DiagramTextStyles(
+        title = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold, color = colors.text),
+        row = KarpfenTheme.typography.uiSmall.copy(color = colors.text),
+        label = KarpfenTheme.typography.uiSmall.copy(color = colors.text),
+    )
+    val arrangement = notation.arrangement
+    val texts = remember(notation, diagram, styles, density) { DiagramTexts.measure(notation.painter.texts(diagram), measurer, styles) }
     val widths = remember(texts, density) { TextMeasurer { texts.widthOf(it) / density } }
     val vis = editing.vis
-    val automatic by produceState<StatechartDrawing?>(null, diagram, texts, vis == null) {
+    val automatic by produceState<DiagramDrawing<D, L>?>(null, notation, diagram, texts, vis == null) {
         if (vis == null) {
-            val layout = withContext(Dispatchers.Default) { StatechartLayouter().layout(diagram, widths) }
-            value = StatechartDrawing(diagram, layout, texts)
+            val layout = withContext(Dispatchers.Default) { arrangement.automatic(diagram, widths) }
+            value = DiagramDrawing(diagram, layout, texts)
         }
     }
     val drawing = if (vis != null) {
-        remember(diagram, texts, vis) { StatechartDrawing(diagram, ManualStatechartLayout.of(diagram, vis, widths), texts) }
+        remember(notation, diagram, texts, vis) { DiagramDrawing(diagram, arrangement.byHand(diagram, vis, widths), texts) }
     } else {
         automatic
     }
@@ -115,7 +120,7 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, editing: Stat
         return DiagramPoint(point.x, point.y)
     }
 
-    fun fit(shown: StatechartDrawing) {
+    fun fit(shown: DiagramDrawing<D, L>) {
         val bounds = shown.layout.bounds
         val width = bounds.width * density
         val height = bounds.height * density
@@ -165,7 +170,7 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, editing: Stat
             .pointerInput(Unit) {
                 detectTapGestures { position ->
                     val shown = current ?: return@detectTapGestures
-                    shown.layout.stateAt(pointAt(position))?.let(shown.diagram::state)?.let { onSelect(it.nameRange) }
+                    shown.layout.boxAt(pointAt(position))?.let { arrangement.placeInText(shown.diagram, it) }?.let(onSelect)
                 }
             }
             .onPointerEvent(PointerEventType.Press) { event ->
@@ -185,12 +190,17 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, editing: Stat
                 }
                 change.consume()
             }
-            .testTag(StatechartViewTestTags.CANVAS),
+            .testTag(DiagramViewTestTags.CANVAS),
     ) {
         val shown = drawing ?: return@Canvas
         if (editing.isDragging) drawGrid(colors, pan, zoom)
-        drawStatechart(shown, colors, pan, zoom)
-        vis?.let { drawWaypoints(shown.diagram, it, colors, pan, zoom) }
+        withTransform({
+            translate(pan.x, pan.y)
+            scale(zoom, zoom, pivot = Offset.Zero)
+        }) {
+            notation.painter.paint(this, shown.diagram, shown.layout, shown.texts, colors)
+            vis?.let { drawWaypoints(it.waypoints.filterKeys(arrangement.lines(shown.diagram)::contains).values.flatten(), colors) }
+        }
     }
 
     if (drawing == null) return
@@ -199,10 +209,10 @@ internal fun BoxScope.StatechartCanvas(diagram: StatechartDiagram, editing: Stat
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val center = Offset(viewSize.width / 2f, viewSize.height / 2f)
-        CanvasButton("-", StatechartViewTestTags.ZOOM_OUT) { zoomAt(center, 1f / ZOOM_STEP) }
-        CanvasButton("${(zoom * PERCENT).roundToInt()}%", StatechartViewTestTags.ZOOM) { zoomAt(center, 1f / zoom) }
-        CanvasButton("+", StatechartViewTestTags.ZOOM_IN) { zoomAt(center, ZOOM_STEP) }
-        CanvasButton("Fit", StatechartViewTestTags.FIT) { current?.let(::fit) }
+        CanvasButton("-", DiagramViewTestTags.ZOOM_OUT) { zoomAt(center, 1f / ZOOM_STEP) }
+        CanvasButton("${(zoom * PERCENT).roundToInt()}%", DiagramViewTestTags.ZOOM) { zoomAt(center, 1f / zoom) }
+        CanvasButton("+", DiagramViewTestTags.ZOOM_IN) { zoomAt(center, ZOOM_STEP) }
+        CanvasButton("Fit", DiagramViewTestTags.FIT) { current?.let(::fit) }
     }
 }
 

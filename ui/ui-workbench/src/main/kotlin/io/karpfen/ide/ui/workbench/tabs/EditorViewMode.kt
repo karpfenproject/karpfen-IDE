@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.tabs
 
 import io.karpfen.ide.core.workspace.files.FileKind
+import io.karpfen.ide.ui.diagram.DiagramKind
 
 /**
  * How the editor area shows a file that has a diagram. The mode belongs to one file. The diagram is always the one of
@@ -35,7 +36,18 @@ public enum class EditorViewMode(public val label: String) {
     ;
 
     public companion object {
-        /** True if files of [kind] have a diagram. So far these are the state machines. */
-        public fun hasDiagram(kind: FileKind): Boolean = kind == FileKind.KSTATES
+        /**
+         * The diagram that files of [kind] have, or null if they have none. A state machine has a statechart, a
+         * metamodel a class diagram, and a model an object diagram.
+         */
+        public fun diagramOf(kind: FileKind): DiagramKind? = when (kind) {
+            FileKind.KSTATES -> DiagramKind.STATECHART
+            FileKind.KMETA, FileKind.EVENTS_KMETA -> DiagramKind.TYPES
+            FileKind.KMODEL -> DiagramKind.OBJECTS
+            else -> null
+        }
+
+        /** True if files of [kind] have a diagram. */
+        public fun hasDiagram(kind: FileKind): Boolean = diagramOf(kind) != null
     }
 }

@@ -18,30 +18,37 @@ package io.karpfen.ide.ui.diagram
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
+import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
-import io.karpfen.ide.notation.diagram.layout.StatechartLayout
 import io.karpfen.ide.notation.diagram.layout.VisEditing
 import io.karpfen.ide.notation.diagram.layout.VisLayout
-import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 
 /**
- * The layout by hand of one statechart while the user works on it. It holds the [vis], which is null as long as the
- * statechart is laid out automatically, and turns the gestures of the canvas into changes of it.
+ * The layout by hand of one diagram while the user works on it. It holds the [vis], which is null as long as the
+ * diagram is laid out automatically, and turns the gestures of the canvas into changes of it. What a change means for
+ * the kind of diagram at hand is the business of the [arrangement].
  *
  * The first change by hand freezes the layout on screen, so every element keeps its place and from then on nothing is
- * laid out automatically any more, except elements that are new in the text. A drag moves a waypoint, the bar of a
- * split or join, or a state, whichever lies under the pointer, in this order. A state with nested states takes them
- * along. A secondary click on a waypoint removes it, and one on the line of a transition adds a waypoint there.
+ * laid out automatically any more, except elements that are new in the text. A drag moves a waypoint, a bar or a box,
+ * whichever lies under the pointer, in this order. A secondary click on a waypoint removes it, and one on a line that
+ * can be bent adds a waypoint there.
  *
  * After every finished change, [save] gets the layout to write. What the text no longer has is dropped from it first.
  * [loaded] takes in what was read from the companion file. It is ignored while the user drags and while a change of
  * the user is still on its way to the file, so a reload never undoes what the user just did.
  *
  * All points are in the units of the diagram. The object belongs to the UI thread.
+ *
+ * @param D the diagram, as it is derived from the text.
+ * @param L the layout of that kind of diagram.
  */
-internal class StatechartEditing(private val save: (VisLayout) -> Unit) {
+internal class DiagramEditing<D, L : DiagramLayout>(
+    private val arrangement: DiagramArrangement<D, L>,
+    private val save: (VisLayout) -> Unit,
+) {
 
-    /** The layout by hand, or null while the statechart is laid out automatically. */
+    /** The layout by hand, or null while the diagram is laid out automatically. */
     var vis: VisLayout? by mutableStateOf(null)
         private set
 
@@ -56,22 +63,22 @@ internal class StatechartEditing(private val save: (VisLayout) -> Unit) {
     private class Drag(val target: Target, val base: VisLayout, val previous: VisLayout?, val start: DiagramPoint)
 
     private sealed interface Target {
-        data class State(val name: String) : Target
+        data class Box(val id: String) : Target
         data class Bar(val id: String) : Target
         data class Waypoint(val id: String, val index: Int) : Target
     }
 
     /**
-     * Starts a drag at [point] of the statechart [diagram] drawn as [layout]. Returns true if an element was grabbed,
+     * Starts a drag at [point] of the [diagram] drawn as [layout]. Returns true if an element was grabbed,
      * and false if the pointer is on the empty canvas, which the caller then moves as a whole.
      */
-    fun startDrag(diagram: StatechartDiagram, layout: StatechartLayout, point: DiagramPoint): Boolean {
+    fun startDrag(diagram: D, layout: L, point: DiagramPoint): Boolean {
         val current = vis
-        val target = current?.let { VisEditing.waypointAt(diagram, it, point) }?.let { Target.Waypoint(it.first, it.second) }
+        val target = current?.let { VisEditing.waypointAt(it, arrangement.lines(diagram), point) }?.let { Target.Waypoint(it.first, it.second) }
             ?: layout.barAt(point)?.let(Target::Bar)
-            ?: layout.stateAt(point)?.let(Target::State)
+            ?: layout.boxAt(point)?.let(Target::Box)
             ?: return false
-        val base = current ?: VisEditing.freeze(diagram, layout)
+        val base = current ?: arrangement.freeze(diagram, layout)
         drag = Drag(target, base, current, point)
         vis = base
         isDragging = true
@@ -79,17 +86,17 @@ internal class StatechartEditing(private val save: (VisLayout) -> Unit) {
     }
 
     /** Moves the dragged element so that the pointer is at [point]. */
-    fun dragTo(diagram: StatechartDiagram, point: DiagramPoint) {
+    fun dragTo(diagram: D, point: DiagramPoint) {
         val current = drag ?: return
         vis = when (val target = current.target) {
-            is Target.State -> VisEditing.moveState(diagram, current.base, target.name, DiagramPoint(point.x - current.start.x, point.y - current.start.y))
+            is Target.Box -> arrangement.moveBox(diagram, current.base, target.id, DiagramPoint(point.x - current.start.x, point.y - current.start.y))
             is Target.Bar -> VisEditing.moveBar(current.base, target.id, point)
             is Target.Waypoint -> VisEditing.moveWaypoint(current.base, target.id, target.index, point)
         }
     }
 
     /** Ends the drag. A drag that moved nothing leaves everything as it was, also the automatic layout. */
-    fun endDrag(diagram: StatechartDiagram) {
+    fun endDrag(diagram: D) {
         val current = drag ?: return
         drag = null
         isDragging = false
@@ -98,19 +105,18 @@ internal class StatechartEditing(private val save: (VisLayout) -> Unit) {
     }
 
     /**
-     * Handles a secondary click at [point]. On a waypoint it removes the waypoint. On the line of a transition it
-     * adds a waypoint there. Returns true if the click changed the layout.
+     * Handles a secondary click at [point]. On a waypoint it removes the waypoint. On a line that can be bent it adds
+     * a waypoint there. Returns true if the click changed the layout.
      */
-    fun secondaryClick(diagram: StatechartDiagram, layout: StatechartLayout, point: DiagramPoint): Boolean {
+    fun secondaryClick(diagram: D, layout: L, point: DiagramPoint): Boolean {
         val current = vis
-        val waypoint = current?.let { VisEditing.waypointAt(diagram, it, point) }
+        val waypoint = current?.let { VisEditing.waypointAt(it, arrangement.lines(diagram), point) }
         if (current != null && waypoint != null) {
             store(diagram, VisEditing.removeWaypoint(current, waypoint.first, waypoint.second))
             return true
         }
-        val line = layout.transitionAt(point) ?: return false
-        val id = line.transitionId ?: return false
-        store(diagram, VisEditing.addWaypoint(current ?: VisEditing.freeze(diagram, layout), id, point, line.points))
+        val line = layout.lineAt(point, DiagramLayout.HIT_TOLERANCE) ?: return false
+        store(diagram, VisEditing.addWaypoint(current ?: arrangement.freeze(diagram, layout), line.id, point, line.points))
         return true
     }
 
@@ -125,8 +131,8 @@ internal class StatechartEditing(private val save: (VisLayout) -> Unit) {
         vis = read
     }
 
-    private fun store(diagram: StatechartDiagram, layout: VisLayout) {
-        val pruned = VisEditing.prune(diagram, layout)
+    private fun store(diagram: D, layout: VisLayout) {
+        val pruned = arrangement.prune(diagram, layout)
         vis = pruned
         unsaved = pruned
         save(pruned)

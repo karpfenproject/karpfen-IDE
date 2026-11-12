@@ -234,17 +234,30 @@ so both always agree. It depends on core-workspace. The end-to-end tests of app/
 
 ### notation-diagram, notation-sync and ui-diagram
 
-The diagrams. So far there is one, the statechart of a state machine file. notation-diagram holds the diagram without
-any UI. `StatechartProjection` derives a `StatechartDiagram` from the text and the outline of a file, with the states,
-their nesting and the transitions. A `StatechartLayout` says where its elements are drawn, in absolute positions.
-`StatechartLayouter` computes one automatically and hands the work to the Eclipse Layout Kernel, which stays behind that
-interface. `ManualStatechartLayout` computes one from a `VisLayout`, the arrangement the user made by hand, and
-`VisEditing` holds the changes a user can make to it. notation-sync keeps a diagram in step with its text and its files.
-`StatechartTracker` derives the diagram again after every change and keeps the last one while the text has syntax
-errors, and `VisFiles` reads and writes the companion file of an arrangement by hand. ui-diagram draws. `StatechartPane`
-takes the document session of a file and shows its statechart on a canvas that can be moved, zoomed and arranged, with
-`StatechartEditing` turning the gestures into changes. ui-workbench shows the pane next to the editor or in its place,
-as the user chooses per file.
+The diagrams. There are three: the statechart of a state machine file, the class diagram of a metamodel file and the
+object diagram of a model file.
+
+notation-diagram holds the diagrams without any UI. `StatechartProjection` derives a `StatechartDiagram` from the text
+and the outline of a file, with the states, their nesting and the transitions. `MetamodelProjection` and
+`ModelProjection` derive a `StructureDiagram` from the outline. That is a diagram of boxes with rows of text and of
+links between them, and it serves both the class diagram and the object diagram, because the two look alike. A layout
+says where the elements are drawn, in absolute positions: a `StatechartLayout` or a `StructureLayout`. Both are a
+`DiagramLayout`, which is what a view needs to move a drawing and to find the element under the pointer.
+
+A `DiagramArrangement` lays one kind of diagram out, `StatechartArrangement` and `StructureArrangement`. Each computes
+a layout automatically through a layouter that hands the work to the Eclipse Layout Kernel, which stays behind
+`ElkKernel`. Each also computes a layout from a `VisLayout`, the arrangement the user made by hand, and knows the
+changes a user can make to it. `VisEditing` holds the changes of waypoints and bars that all diagrams share.
+
+notation-sync keeps a diagram in step with its text and its files. A `DiagramTracker` derives the diagram again after
+every change through a `DiagramProjection` and keeps the last one while the text has syntax errors, and `VisFiles` reads
+and writes the companion file of an arrangement by hand.
+
+ui-diagram draws. `DiagramPane` takes the document session of a file and a `DiagramKind` and shows the diagram on a
+canvas that can be moved, zoomed and arranged. The canvas, `DiagramCanvas`, and `DiagramEditing`, which turns the
+gestures into changes, are the same for every kind of diagram. What differs sits in a `DiagramNotation`: the
+projection, the arrangement and a `DiagramPainter`, which is `StatechartPainter` or `StructurePainter`. ui-workbench
+shows the pane next to the editor or in its place, as the user chooses per file.
 
 ### bridge-api and bridge-mapping
 
