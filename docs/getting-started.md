@@ -73,6 +73,10 @@ other, and a click on the size sets it back.
   transition. On a state it renames or deletes the state, adds a state inside it, starts a transition, adds entry or
   do actions, makes it the initial state, or moves it out of or into another state. On a transition it deletes the
   transition. Where an entry needs a second state, the states to choose from are marked, and you click one.
+- Right-click in a class diagram to add a type, and on a type to rename or delete it, to add a property, or to add
+  a relation to a type you then click. In an object diagram, right-click an object to rename or delete it and to add
+  a property, an object it has, or a reference to an object you then click. A right-click on a row edits or deletes
+  the statement behind it, and one on a line renames or deletes the relation.
 - A small circle with a plus marks code that is folded up: the entry and do actions of a state, and the condition
   of a transition. Click it to open the code in a pane over the diagram, edit it and click Save. A transition without
   a condition has an empty one to write into.

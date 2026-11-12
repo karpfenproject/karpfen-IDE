@@ -238,16 +238,14 @@ class DiagramViewTest {
     }
 
     @Test
-    fun `a right click on a box or on the empty canvas opens no menu`() = runComposeUiTest {
+    fun `a right click in a class diagram offers what fits the place`() = runComposeUiTest {
         show(DiagramNotation.TYPES, stateOf(DiagramNotation.TYPES, KarpfenLanguage.KMETA, TYPE))
         awaitDrawing()
 
-        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
         onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(topLeft + Offset(4f, 4f)) }
         waitForIdle()
-
-        onNodeWithText(DiagramEditing.ADD_WAYPOINT).assertDoesNotExist()
-        onNodeWithText(DiagramEditing.REMOVE_WAYPOINT).assertDoesNotExist()
+        onNodeWithText("Add type").assertIsDisplayed()
+        onNodeWithText("Add waypoint").assertDoesNotExist()
     }
 
     /** Waits until the layout, which is computed off the UI thread, is there. The zoom buttons appear with it. */

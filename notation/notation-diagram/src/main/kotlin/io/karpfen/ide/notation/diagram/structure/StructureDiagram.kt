@@ -59,6 +59,7 @@ public data class StructureDiagram(
  *   shows the values of its properties, as in `watts = 40`.
  * @property range the whole declaration in the text.
  * @property nameRange the name inside its quotes.
+ * @property rowRanges the statement in the text that each of the [rows] shows, in the same order.
  */
 public data class StructureNode(
     public val id: String,
@@ -66,6 +67,7 @@ public data class StructureNode(
     public val rows: List<String>,
     public val range: TextRange,
     public val nameRange: TextRange,
+    public val rowRanges: List<TextRange>,
 )
 
 /** The two kinds of link between boxes. */

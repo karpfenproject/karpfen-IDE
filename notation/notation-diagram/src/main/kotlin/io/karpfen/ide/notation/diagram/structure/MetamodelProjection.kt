@@ -17,6 +17,7 @@ package io.karpfen.ide.notation.diagram.structure
 
 import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.SymbolKind
+import io.karpfen.ide.core.text.TextRange
 
 /**
  * Derives the class diagram of a `.kmeta` file from its outline. The outline is what the parser of the document layer
@@ -43,6 +44,7 @@ public object MetamodelProjection {
         val links = ArrayList<StructureLink>()
         for ((type, id) in types) {
             val rows = ArrayList<String>()
+            val rowRanges = ArrayList<TextRange>()
             val relations = UniqueIds()
             for (member in type.children) {
                 val detail = member.detail.orEmpty()
@@ -58,9 +60,10 @@ public object MetamodelProjection {
                     links += StructureLink(relations.next("$word:$id.${member.name}"), kind, id, target, label, member.range)
                 } else if (kind != null || member.kind == SymbolKind.SIMPLE_PROPERTY) {
                     rows += if (detail.isEmpty()) member.name else "${member.name}: $detail"
+                    rowRanges += member.range
                 }
             }
-            nodes += StructureNode(id, type.name, rows, type.range, type.selectionRange)
+            nodes += StructureNode(id, type.name, rows, type.range, type.selectionRange, rowRanges)
         }
         return StructureDiagram(StructureKind.TYPES, nodes, links)
     }

@@ -268,8 +268,10 @@ written. A `DiagramActions` tells what the user can do at a point of a diagram, 
 the model at once, one that first needs a click on a box, and one that first needs a name. The canvas shows them as
 the context menu and runs the chain. The last action gives a `DiagramChange`, a list of text edits against the text
 the diagram was derived from, which `DiagramState.source` holds. `DiagramPane` applies it as one undoable change, and
-only while the document is still at that text. `StatechartEdits` makes the edits of a state machine with `TextBlocks`,
-which puts a statement at the end of a block and takes a construct out with its lines. A change can also say what it
+only while the document is still at that text. `StatechartEdits` makes the edits of a state machine and
+`StructureEdits` those of a metamodel and a model, both with `TextBlocks`, which puts a statement at the end of a
+block and takes a construct out with its lines. A new type becomes the first type of its file, because the last type
+of a metamodel is its root type. A change can also say what it
 means for the layout by hand: a new state is placed where the user clicked, and a renamed state keeps its place.
 
 The notation is hybrid. The structure is drawn, and code stays text. A `DiagramCells` tells which pieces of code a

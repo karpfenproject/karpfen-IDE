@@ -56,6 +56,16 @@ public data class StructureLayout(
 
     override fun labelAt(point: DiagramPoint): String? = routes.firstOrNull { it.label?.contains(point) == true }?.linkId
 
+    /**
+     * The index of the row of the box [id] that is drawn at [point], or null if the point is on no row of that box.
+     * The rows start below the title.
+     */
+    public fun rowAt(id: String, point: DiagramPoint): Int? {
+        val box = boxes[id]?.takeIf { point in it } ?: return null
+        val below = point.y - box.y - StructureMetrics.TITLE_HEIGHT - StructureMetrics.ROWS_PADDING
+        return if (below < 0f) null else (below / StructureMetrics.ROW_HEIGHT).toInt()
+    }
+
     /** Always null, because the size of a type or an object follows from its texts. */
     override fun frameAt(point: DiagramPoint, tolerance: Float): FrameGrip? = null
 

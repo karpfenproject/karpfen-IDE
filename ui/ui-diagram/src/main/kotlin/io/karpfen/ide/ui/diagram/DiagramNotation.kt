@@ -18,6 +18,7 @@ package io.karpfen.ide.ui.diagram
 import io.karpfen.ide.notation.diagram.edit.DiagramActions
 import io.karpfen.ide.notation.diagram.edit.DiagramCells
 import io.karpfen.ide.notation.diagram.edit.StatechartCells
+import io.karpfen.ide.notation.diagram.edit.StructureActions
 import io.karpfen.ide.notation.diagram.edit.StatechartActions
 import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
@@ -67,6 +68,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StructureArrangement,
             StructurePainter,
             "No types to draw yet. The diagram appears once the text can be read.",
+            StructureActions,
         )
 
         /** The object diagram of a model file. */
@@ -75,6 +77,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StructureArrangement,
             StructurePainter,
             "No objects to draw yet. The diagram appears once the text can be read.",
+            StructureActions,
         )
     }
 }

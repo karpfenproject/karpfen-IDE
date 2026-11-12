@@ -17,6 +17,7 @@ package io.karpfen.ide.notation.diagram.structure
 
 import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.SymbolKind
+import io.karpfen.ide.core.text.TextRange
 import java.util.IdentityHashMap
 
 /**
@@ -53,10 +54,14 @@ public object ModelProjection {
         for (item in objects) {
             val id = idOf.getValue(item)
             val rows = ArrayList<String>()
+            val rowRanges = ArrayList<TextRange>()
             val relations = UniqueIds()
             for (statement in item.children) {
                 when (statement.kind) {
-                    SymbolKind.PROPERTY_ASSIGNMENT -> rows += row(statement)
+                    SymbolKind.PROPERTY_ASSIGNMENT -> {
+                        rows += row(statement)
+                        rowRanges += statement.range
+                    }
                     SymbolKind.HAS_ASSIGNMENT -> statement.children.filter { it.kind == SymbolKind.OBJECT }.forEach { made ->
                         links += StructureLink(
                             relations.next("has:$id.${statement.name}"), LinkKind.CONTAINMENT, id, idOf.getValue(made), statement.name, statement.range,
@@ -70,12 +75,13 @@ public object ModelProjection {
                             )
                         } else {
                             rows += row(statement)
+                            rowRanges += statement.range
                         }
                     }
                     else -> Unit
                 }
             }
-            nodes += StructureNode(id, title(item), rows, item.range, item.selectionRange)
+            nodes += StructureNode(id, title(item), rows, item.range, item.selectionRange, rowRanges)
         }
         return StructureDiagram(StructureKind.OBJECTS, nodes, links.sortedBy { it.range.start })
     }
