@@ -340,9 +340,10 @@ class WorkbenchUiTest {
     @Test
     fun `the Problems tool window stays closed while there is no problem to show`() = workbenchUiTest(dir) {
         openExamples()
-        tagged(StatusBarTestTags.item("problems")).assertTextEquals("Problems")
+        tagged(StatusBarTestTags.item("problems")).assertIsDisplayed()
+        test.onNodeWithText("Problems").assertIsDisplayed()
 
-        tagged(StatusBarTestTags.item("problems")).performClick()
+        test.onNodeWithText("Problems").performClick()
         settle()
 
         assertEquals(false, workbench.state.layout.state.value.toolWindow(ToolWindowId.PROBLEMS).visible)

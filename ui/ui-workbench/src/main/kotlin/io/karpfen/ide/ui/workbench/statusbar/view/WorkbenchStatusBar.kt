@@ -64,7 +64,8 @@ internal fun WorkbenchStatusBar(
 
 /**
  * The status bar item of [segment]. The error and warning counts, the Problems label and the language tools' indicator
- * carry their severity icon. The segments that are buttons call the matching one of [actions].
+ * carry their severity icon. The segments that are buttons call the matching one of [actions]. The Problems label is
+ * a button only while there are problems. Without any it is greyed out.
  */
 private fun item(segment: StatusSegment, actions: StatusBarActions): StatusBarItem = StatusBarItem(
     id = segment.id,
@@ -77,7 +78,7 @@ private fun item(segment: StatusSegment, actions: StatusBarActions): StatusBarIt
         else -> null
     },
     onClick = when (segment.kind) {
-        StatusSegmentKind.PROBLEMS, StatusSegmentKind.PROBLEMS_ERRORS, StatusSegmentKind.PROBLEMS_WARNINGS -> actions.onToggleProblems
+        StatusSegmentKind.PROBLEMS_ERRORS, StatusSegmentKind.PROBLEMS_WARNINGS -> actions.onToggleProblems
         StatusSegmentKind.LANGUAGE_TOOLS_ERRORS, StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS -> actions.onShowOutput
         StatusSegmentKind.RUNTIME -> actions.onShowRuntime
         StatusSegmentKind.UI_ZOOM_OUT -> ({ actions.onZoomUi(ZoomStep.OUT) })
@@ -85,6 +86,7 @@ private fun item(segment: StatusSegment, actions: StatusBarActions): StatusBarIt
         StatusSegmentKind.UI_ZOOM_IN -> ({ actions.onZoomUi(ZoomStep.IN) })
         else -> null
     },
+    isMuted = segment.kind == StatusSegmentKind.PROBLEMS,
 )
 
 /**

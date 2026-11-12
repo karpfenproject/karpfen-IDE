@@ -84,6 +84,20 @@ class CommandsTest {
     }
 
     @Test
+    fun `the Problems toggle is available only while there are problems`() = scenario { registry ->
+        open(root)
+        settle()
+        assertFalse(registry.enabled(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.PROBLEMS)), "the examples have no problem")
+        assertTrue(registry.enabled(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.OUTLINE)))
+
+        TestWorkbench.write(root.resolve("broken.kmeta"), "type \"A\" \"a\" {\n    oops\n}\n")
+        state.workspace.value?.refresh()
+        settle()
+
+        assertTrue(registry.enabled(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.PROBLEMS)))
+    }
+
+    @Test
     fun `view commands drive the layout`() = scenario { registry ->
         assertTrue(registry.execute(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.OUTLINE)))
         assertFalse(state.layout.state.value.toolWindow(ToolWindowId.OUTLINE).visible)

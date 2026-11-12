@@ -22,9 +22,11 @@ import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
+import io.karpfen.ide.ui.workbench.problems.ProblemsState
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import io.karpfen.ide.ui.workbench.settings.ThemeMode
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
+import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +36,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.nio.file.Path
 
 /**
  * Registers the workbench's own commands from `WorkbenchCommandIds`. They are Open Folder…, one Open Recent command
@@ -47,10 +48,14 @@ internal class WorkbenchCommands(
     private val intents: WorkbenchState,
     private val tabs: EditorTabsState,
     private val layout: LayoutState,
+    private val problems: ProblemsState,
     private val settings: SettingsRepository,
 ) {
 
-    /** Registers the commands in [registry]. Save and Close Tab need an active tab. Save All needs a dirty tab. */
+    /**
+     * Registers the commands in [registry]. Save and Close Tab need an active tab. Save All needs a dirty tab. The
+     * toggle of the Problems tool window needs a problem to show, because the tool window stays closed without one.
+     */
     fun register(registry: CommandRegistry) {
         val hasActiveTab = tabs.active.map { it != null }.eagerly(tabs.active.value != null)
         val hasDirtyTab = tabs.tabs.map { list -> list.any { it.isDirty } }.eagerly(tabs.tabs.value.any { it.isDirty })
@@ -64,8 +69,12 @@ internal class WorkbenchCommands(
         registry.register(
             Command(WorkbenchCommandIds.CLOSE_TAB, "Close Tab", primary(KeyCode.W), hasActiveTab) { intents.closeActiveTab() },
         )
+        val hasProblems = problems.state.map { !it.isEmpty }.eagerly(!problems.state.value.isEmpty)
         ToolWindowId.entries.forEach { id ->
-            registry.register(Command(WorkbenchCommandIds.toggleToolWindow(id), id.title) { layout.toggleToolWindow(id) })
+            val available = if (id == ToolWindowId.PROBLEMS) hasProblems else Command.ALWAYS_ENABLED
+            registry.register(
+                Command(WorkbenchCommandIds.toggleToolWindow(id), id.title, isEnabled = available) { layout.toggleToolWindow(id) },
+            )
         }
         registry.register(Command(WorkbenchCommandIds.THEME_LIGHT, "Light Theme") { layout.setTheme(ThemeMode.LIGHT) })
         registry.register(Command(WorkbenchCommandIds.THEME_DARK, "Dark Theme") { layout.setTheme(ThemeMode.DARK) })

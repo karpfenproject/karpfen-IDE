@@ -144,7 +144,7 @@ class StatusBarStateTest {
         val warnings = StatusBarSegments.left(StatusBarUiState(warningCount = 3)).first()
         val errors = StatusBarSegments.left(StatusBarUiState(errorCount = 1, warningCount = 3)).first()
 
-        assertEquals(StatusSegment(StatusSegmentKind.PROBLEMS, "Problems", "Click to show or hide the Problems tool window"), clean)
+        assertEquals(StatusSegment(StatusSegmentKind.PROBLEMS, "Problems", "No problems to show"), clean)
         assertEquals(StatusSegmentKind.PROBLEMS_WARNINGS to "Problems: 3", warnings.kind to warnings.text)
         assertEquals(StatusSegmentKind.PROBLEMS_ERRORS to "Problems: 4", errors.kind to errors.text)
     }

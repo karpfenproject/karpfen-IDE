@@ -93,7 +93,8 @@ internal data class StatusSegment(val kind: StatusSegmentKind, val text: String,
  * The texts of the status bar. This is presentation only, so the composable just renders them.
  *
  * The left side starts with the label of the Problems tool window. The tool window is closed while there is nothing
- * to show, and the label then is all that is left of it. It carries the error icon and the number of problems while
+ * to show, and the label then is all that is left of it. Without problems the label is greyed out and does nothing,
+ * since there is nothing to open. It carries the error icon and the number of problems while
  * the workspace has errors, and the warning icon while it has only warnings, so the user sees that there is something
  * to open. The left side also shows "Analyzing…" while an analysis runs. It shows the runtime's status in a few words
  * while a workspace is open. And it shows the language tools' indicator while errors or warnings of theirs wait unseen
@@ -111,8 +112,11 @@ internal object StatusBarSegments {
     /** The tooltip of the runtime's status. */
     private const val RUNTIME_TOOLTIP = "Click to show the Runtime tool window"
 
-    /** The tooltip of the Problems label. */
+    /** The tooltip of the Problems label while there are problems. */
     private const val PROBLEMS_TOOLTIP = "Click to show or hide the Problems tool window"
+
+    /** The tooltip of the Problems label while there is no problem. */
+    private const val NO_PROBLEMS_TOOLTIP = "No problems to show"
 
     /** The segments on the left. */
     fun left(state: StatusBarUiState): List<StatusSegment> = buildList {
@@ -133,7 +137,7 @@ internal object StatusBarSegments {
             state.warningCount > 0 -> StatusSegmentKind.PROBLEMS_WARNINGS
             else -> StatusSegmentKind.PROBLEMS
         }
-        return StatusSegment(kind, if (total > 0) "Problems: $total" else "Problems", PROBLEMS_TOOLTIP)
+        return if (total > 0) StatusSegment(kind, "Problems: $total", PROBLEMS_TOOLTIP) else StatusSegment(kind, "Problems", NO_PROBLEMS_TOOLTIP)
     }
 
     /**

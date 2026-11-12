@@ -214,7 +214,7 @@ internal class DefaultWorkbenchState(
 
     override fun registerCommands(registry: CommandRegistry) {
         val modal = ModalCommandRegistry(ownScope, registry, dialogs.current)
-        WorkbenchCommands(ownScope, this, tabs, layout, services.settings).register(modal)
+        WorkbenchCommands(ownScope, this, tabs, layout, problems, services.settings).register(modal)
         RuntimeCommands(ownScope, runtimes.state, layout).register(modal)
         EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(modal)
     }

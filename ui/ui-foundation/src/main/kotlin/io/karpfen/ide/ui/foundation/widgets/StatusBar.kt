@@ -48,6 +48,7 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
  * @property tooltip shown while the pointer rests on the segment, or null for none.
  * @property icon drawn untinted before the text, such as a severity icon, or null for none.
  * @property onClick runs when the segment is clicked, or null for a segment that is no button.
+ * @property isMuted true for a segment that is greyed out, such as a label whose action is not available right now.
  */
 @Immutable
 public class StatusBarItem(
@@ -56,6 +57,7 @@ public class StatusBarItem(
     public val tooltip: String? = null,
     public val icon: ImageVector? = null,
     public val onClick: (() -> Unit)? = null,
+    public val isMuted: Boolean = false,
 )
 
 /** Test tags of [StatusBar], for headless UI tests of the foundation and of the modules that use it. */
@@ -125,7 +127,8 @@ private fun StatusBarSegment(item: StatusBarItem) {
                 Image(it, contentDescription = null, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(4.dp))
             }
-            Text(item.text, style = KarpfenTheme.typography.uiSmall, color = KarpfenTheme.colors.text, maxLines = 1)
+            val colors = KarpfenTheme.colors
+            Text(item.text, style = KarpfenTheme.typography.uiSmall, color = if (item.isMuted) colors.textMuted else colors.text, maxLines = 1)
         }
     }
 }
