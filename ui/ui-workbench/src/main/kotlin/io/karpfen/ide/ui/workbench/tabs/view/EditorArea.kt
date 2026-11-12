@@ -37,6 +37,8 @@ import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.view.CodeEditor
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.foundation.widgets.TabStrip
+import io.karpfen.ide.ui.workbench.settings.ZoomStep
+import io.karpfen.ide.ui.workbench.statusbar.view.EditorZoomBar
 import io.karpfen.ide.ui.workbench.tabs.ConflictBanner
 import io.karpfen.ide.ui.workbench.tabs.EditorTab
 import java.nio.file.Path
@@ -46,7 +48,8 @@ import java.nio.file.Path
  * Below the strip it shows the conflict banner of the active tab, rendered by [ConflictBanner] from
  * `EditorTab.conflict`. For a modified file the banner offers Reload and Keep mine, and for a deleted file Close and
  * Keep mine. Each button reports a `ConflictResolution`, and both Reload and Close report RELOAD. The `CodeEditor` of
- * [activeEditor] with the editor popups fills the rest.
+ * [activeEditor] with the editor popups fills the rest. Below an editor a bar holds the zoom controls for the font
+ * size [editorFontSize] of the editors, and their clicks go to [onZoomEditor].
  *
  * The editor is composed inside `key(activePath)`. So switching tabs disposes the composition of the old editor and
  * its popups, the text fields of the popups included. State that must survive a tab switch, such as the replacement
@@ -65,6 +68,8 @@ internal fun EditorArea(
     onActivate: (Path) -> Unit,
     onClose: (Path) -> Unit,
     onResolveConflict: (Path, ConflictResolution) -> Unit,
+    editorFontSize: Float,
+    onZoomEditor: (ZoomStep) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = KarpfenTheme.colors
@@ -99,6 +104,7 @@ internal fun EditorArea(
                 )
             }
         }
+        if (activeEditor != null && activePath != null) EditorZoomBar(editorFontSize, onZoomEditor, EditorAreaTestTags.ZOOM_BAR)
     }
 }
 

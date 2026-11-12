@@ -97,6 +97,10 @@ internal class JsonSettingsRepository(
         updated
     }
 
+    override suspend fun awaitWrites() {
+        writes.withLock { }
+    }
+
     /** The project settings in the project file of [root], or the defaults if there is no file or it cannot be read. */
     private fun readProject(root: Path): ProjectSettings {
         val path = root.resolve(ProjectSettings.FILE_NAME)

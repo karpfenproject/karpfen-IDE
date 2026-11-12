@@ -171,6 +171,9 @@ relative to the folder with forward slashes, so the file means the same on every
 never fails: a value that makes no sense falls back to its default, and lines with unknown keys are kept and written
 back.
 
+The IDE refreshes the project tree itself right after it wrote the project file for the first time, because the file
+watcher needs seconds to notice a new file on some platforms.
+
 In memory both parts are one `IdeSettings` value, and `SettingsRepository` keeps them apart on disk. `ProjectFlow`
 switches the project part when a folder opens and restores the layout and the tabs from it. The project file is written
 only when a project value changes, so a folder that is only looked at gets no file. While no folder is open, the project
@@ -661,8 +664,8 @@ the workspace has errors.
 Run from the menu or by its shortcut gives the Runtime tool window three quarters of the workbench's height. The
 layout view reports that height to `LayoutState`, which is how a state without Compose knows it.
 
-The zoom controls in the status bar change two project settings, `uiScale` and `editorFontSize`, within the limits of
-`Zoom`.
+Two zoom controls change the project settings `uiScale` and `editorFontSize`, within the limits of `Zoom`. The one
+for the whole window sits in the status bar, the one for the editor's font in a bar below the editor.
 `Workbench` applies `uiScale` by providing a density that is the window's density times the scale. So everything
 scales together, the text with the rows, icons and gaps around it. Scaling only the font would make text outgrow
 the rows of fixed height.

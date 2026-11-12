@@ -126,7 +126,7 @@ internal class DefaultWorkbenchState(
     private val runtimes = RuntimeHolder(ownScope, services, WorkbenchRunSupport(runner, tabs, saving, dialogs, layout), bindings)
     private val persister = LayoutPersister(ownScope, layout, services.settings)
     private val openFiles = OpenFilesPersister(ownScope, tabs, holder, services.settings)
-    private val project = ProjectFlow(services.settings, layout, persister, openFiles, tabs, lifecycle, services.ioDispatcher)
+    private val project = ProjectFlow(services.settings, holder, layout, persister, openFiles, tabs, lifecycle, services.ioDispatcher)
     private val folders = FolderFlow(
         ownScope, holder, tabs, lifecycle, unsaved, bindings, runtimes, project, services.workspaceFactory,
         services.languageServicesFactory, services.settings, services.folderChooser, dialogs, services.ioDispatcher,
@@ -144,6 +144,7 @@ internal class DefaultWorkbenchState(
         layout.restore(services.settings.load())
         persister.start()
         openFiles.start()
+        project.showProjectFile(ownScope)
     }
 
     override fun openFolder(path: Path): Job = runner.launch("open folder") { folders.openFolder(path) }

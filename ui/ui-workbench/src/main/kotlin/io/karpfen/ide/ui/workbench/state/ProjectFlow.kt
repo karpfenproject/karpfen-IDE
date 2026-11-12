@@ -16,12 +16,20 @@
 package io.karpfen.ide.ui.workbench.state
 
 import io.karpfen.ide.ui.workbench.layout.LayoutState
+import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
+import io.karpfen.ide.ui.workbench.settings.project
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Moves the workbench from the settings of one project to those of another. A project keeps its theme, its zoom, the
@@ -35,9 +43,14 @@ import java.nio.file.Path
  *    project. With null it goes back to the defaults of no project.
  * 3. [restoreTabs] after the workspace is open. It opens the files the project file lists, activates the one that was
  *    active, and lets the open files be written again.
+ *
+ * [showProjectFile] keeps the project tree in step with the project file. The IDE writes that file itself, and the
+ * file watcher of some platforms needs seconds to notice a new file. So the workspace is refreshed as soon as the
+ * file was written for the first time.
  */
 internal class ProjectFlow(
     private val settings: SettingsRepository,
+    private val holder: WorkspaceHolder,
     private val layout: LayoutState,
     private val layoutPersister: LayoutPersister,
     private val openFiles: OpenFilesPersister,
@@ -45,6 +58,20 @@ internal class ProjectFlow(
     private val lifecycle: EditorLifecycle,
     private val ioDispatcher: CoroutineDispatcher,
 ) {
+
+    /**
+     * Follows the project part of the settings in [scope]. Whenever it changed and the project file is on disk but not
+     * in the project tree yet, the workspace is refreshed, so the file shows up at once.
+     */
+    fun showProjectFile(scope: CoroutineScope): Job = scope.launch {
+        settings.settings.map { it.project }.distinctUntilChanged().drop(1).collect {
+            val workspace = holder.workspace.value ?: return@collect
+            settings.awaitWrites()
+            val file = workspace.root.resolve(ProjectSettings.FILE_NAME)
+            val listed = workspace.files.value.root.children.any { it.path == file }
+            if (!listed && withContext(ioDispatcher) { Files.isRegularFile(file) }) workspace.refresh()
+        }
+    }
 
     /** Writes the state of the open project and stops recording the tabs. */
     suspend fun leave() {

@@ -47,10 +47,10 @@ import io.karpfen.ide.ui.workbench.output.view.OutputViewTestTags
 import io.karpfen.ide.ui.workbench.problems.view.ProblemKey
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsViewTestTags
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
+import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.tabs.view.EditorAreaTestTags
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeTestTags
-import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
@@ -58,6 +58,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * Headless UI tests of the composed workbench over a copy of the examples in a temporary directory. They cover the
@@ -237,10 +238,14 @@ class WorkbenchUiTest {
     }
 
     @Test
-    fun `the zoom controls of the status bar change the settings`() = workbenchUiTest(dir) {
+    fun `the zoom controls change the project's settings, the editor's from the bar below the editor`() = workbenchUiTest(dir) {
         openExamples()
         tagged(StatusBarTestTags.item("ui_zoom")).assertTextEquals("Zoom 100%")
-        tagged(StatusBarTestTags.item("editor_zoom")).assertTextEquals("Editor 13")
+        test.onNodeWithTag(EditorAreaTestTags.ZOOM_BAR).assertDoesNotExist()
+
+        openFromTree(machine)
+        tagged(EditorAreaTestTags.ZOOM_BAR).assertIsDisplayed()
+        tagged(StatusBarTestTags.item("editor_zoom")).assertTextEquals("Font size 13")
 
         tagged(StatusBarTestTags.item("ui_zoom_in")).performClick()
         settle()
@@ -250,7 +255,9 @@ class WorkbenchUiTest {
         assertEquals(1.1f, workbench.state.settings.value.uiScale)
         assertEquals(14f, workbench.state.settings.value.editorFontSize)
         tagged(StatusBarTestTags.item("ui_zoom")).assertTextEquals("Zoom 110%")
-        tagged(StatusBarTestTags.item("editor_zoom")).assertTextEquals("Editor 14")
+        tagged(StatusBarTestTags.item("editor_zoom")).assertTextEquals("Font size 14")
+        val projectFile = Files.readString(root.resolve(ProjectSettings.FILE_NAME))
+        assertTrue("zoom = 110" in projectFile && "editorFontSize = 14" in projectFile, projectFile)
 
         tagged(StatusBarTestTags.item("ui_zoom")).performClick()
         settle()
@@ -259,6 +266,24 @@ class WorkbenchUiTest {
 
         assertEquals(1f, workbench.state.settings.value.uiScale, "a click on the size sets it back")
         assertEquals(13f, workbench.state.settings.value.editorFontSize)
+    }
+
+    @Test
+    fun `the project file shows in the project tree as soon as the IDE has written it`() = workbenchUiTest(dir) {
+        workbench.state.start()
+        openExamples()
+        val projectFile = root.resolve(ProjectSettings.FILE_NAME)
+        assertEquals(emptyList(), workbench.state.workspace.value?.files?.value?.root?.children.orEmpty().filter { it.path == projectFile })
+
+        tagged(StatusBarTestTags.item("ui_zoom_in")).performClick()
+        settle()
+
+        assertTrue(Files.isRegularFile(projectFile))
+        val listed = workbench.state.workspace.value?.files?.value?.root?.children.orEmpty().map { it.path }
+        assertTrue(projectFile in listed, "the workspace was not refreshed: $listed")
+        workbench.state.projectTree.reveal(projectFile)
+        settle()
+        treeRow(projectFile).assertExists()
     }
 
     @Test

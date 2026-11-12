@@ -23,6 +23,9 @@ public object EditorAreaTestTags {
     /** The `CodeEditor` of the active tab. */
     public const val EDITOR: String = "Workbench.editor"
 
+    /** The bar below the editor, with the zoom controls of the editor's font size. */
+    public const val ZOOM_BAR: String = "Workbench.editorZoomBar"
+
     /** The conflict banner of the active tab. */
     public const val CONFLICT_BANNER: String = "Workbench.conflictBanner"
 

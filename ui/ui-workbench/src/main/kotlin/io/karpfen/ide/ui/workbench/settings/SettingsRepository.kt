@@ -60,6 +60,12 @@ public interface SettingsRepository {
      * place if it changed.
      */
     public suspend fun update(transform: (IdeSettings) -> IdeSettings): IdeSettings
+
+    /**
+     * Returns once every update that was started so far has reached the disk. [settings] publishes a change before
+     * its file is written, so a caller that wants to see the file waits here first.
+     */
+    public suspend fun awaitWrites()
 }
 
 /**

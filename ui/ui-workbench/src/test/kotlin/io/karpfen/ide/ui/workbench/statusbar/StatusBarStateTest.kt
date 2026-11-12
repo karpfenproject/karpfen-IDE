@@ -128,14 +128,14 @@ class StatusBarStateTest {
     }
 
     @Test
-    fun `the zoom controls are a minus, the size and a plus for the editor and for the workbench`() {
-        val zoom = StatusBarSegments.zoom(editorFontSize = 14f, uiScale = 1.2f)
+    fun `the zoom controls are a minus, the size and a plus, for the workbench and for the editor`() {
+        val zoom = StatusBarSegments.zoom(uiScale = 1.2f)
+        val editorZoom = StatusBarSegments.editorZoom(editorFontSize = 14f)
 
-        assertEquals(listOf("-", "Editor 14", "+", "-", "Zoom 120%", "+"), zoom.map { it.text })
-        assertEquals(
-            listOf("editor_zoom_out", "editor_zoom", "editor_zoom_in", "ui_zoom_out", "ui_zoom", "ui_zoom_in"),
-            zoom.map { it.id },
-        )
+        assertEquals(listOf("-", "Zoom 120%", "+"), zoom.map { it.text })
+        assertEquals(listOf("ui_zoom_out", "ui_zoom", "ui_zoom_in"), zoom.map { it.id })
+        assertEquals(listOf("-", "Font size 14", "+"), editorZoom.map { it.text })
+        assertEquals(listOf("editor_zoom_out", "editor_zoom", "editor_zoom_in"), editorZoom.map { it.id })
     }
 
     @Test

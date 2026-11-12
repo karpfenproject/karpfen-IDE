@@ -208,6 +208,7 @@ internal class RecordingServicesFactory(
         override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
         override suspend fun load(): IdeSettings = throw AssertionError("settings are loaded by the workbench state")
         override suspend fun openProject(root: Path?): IdeSettings = throw AssertionError("unused")
+        override suspend fun awaitWrites(): Unit = throw AssertionError("unused")
         override suspend fun update(transform: (IdeSettings) -> IdeSettings): IdeSettings = throw AssertionError("unused")
     }
 

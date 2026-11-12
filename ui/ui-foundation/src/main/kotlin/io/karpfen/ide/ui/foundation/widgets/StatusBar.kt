@@ -73,15 +73,19 @@ public object StatusBarTestTags {
  * Each item shows its icon untinted and its text in the small UI style. It has a tooltip when
  * [StatusBarItem.tooltip] is set. When [StatusBarItem.onClick] is set, the item is a button that never takes the
  * keyboard focus. The bar needs `KarpfenTheme`.
+ *
+ * A window may show a second bar of this kind, such as the bar below an editor. It then passes its own [tag], so the
+ * two bars can be told apart in tests.
  */
 @Composable
 public fun StatusBar(
     left: List<StatusBarItem>,
     right: List<StatusBarItem>,
     modifier: Modifier = Modifier,
+    tag: String = StatusBarTestTags.BAR,
 ) {
     val colors = KarpfenTheme.colors
-    Box(modifier.fillMaxWidth().height(StatusBarDefaults.Height).background(colors.panel).testTag(StatusBarTestTags.BAR)) {
+    Box(modifier.fillMaxWidth().height(StatusBarDefaults.Height).background(colors.panel).testTag(tag)) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(colors.border))
         Row(Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             left.forEach { StatusBarSegment(it) }

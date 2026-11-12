@@ -194,6 +194,10 @@ class CountingSettingsRepository(private val delegate: SettingsRepository) : Set
 
     override suspend fun openProject(root: Path?): IdeSettings = delegate.openProject(root)
 
+    override suspend fun awaitWrites() {
+        delegate.awaitWrites()
+    }
+
     override suspend fun update(transform: (IdeSettings) -> IdeSettings): IdeSettings {
         updates++
         return delegate.update(transform)

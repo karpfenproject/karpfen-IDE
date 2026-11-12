@@ -36,8 +36,6 @@ internal class StatusBarActions(
     val onShowRuntime: () -> Unit,
     /** Changes the scale of the whole workbench. */
     val onZoomUi: (ZoomStep) -> Unit,
-    /** Changes the font size of the editors. */
-    val onZoomEditor: (ZoomStep) -> Unit,
 )
 
 /**
@@ -45,7 +43,7 @@ internal class StatusBarActions(
  * window. It shows `Ln x, Col y`, the selection length, the language, the line separator, `UTF-8`, the error and
  * warning counts and "Analyzing…". It also shows the runtime's status, which shows the Runtime tool window, and the
  * indicator of unseen problems of the language tools, which shows their output. At the right end are the zoom controls
- * for the font size [editorFontSize] of the editors and for the scale [uiScale] of the workbench.
+ * for the scale [uiScale] of the workbench.
  *
  * The texts come from [StatusBarSegments]. The id of each item is its segment's id, which also gives its test tag
  * `StatusBarTestTags.item(id)`. The clicks go to [actions].
@@ -53,14 +51,13 @@ internal class StatusBarActions(
 @Composable
 internal fun WorkbenchStatusBar(
     state: StatusBarUiState,
-    editorFontSize: Float,
     uiScale: Float,
     actions: StatusBarActions,
     modifier: Modifier = Modifier,
 ) {
     StatusBar(
         left = StatusBarSegments.left(state).map { item(it, actions) },
-        right = (StatusBarSegments.right(state) + StatusBarSegments.zoom(editorFontSize, uiScale)).map { item(it, actions) },
+        right = (StatusBarSegments.right(state) + StatusBarSegments.zoom(uiScale)).map { item(it, actions) },
         modifier = modifier,
     )
 }
@@ -83,12 +80,27 @@ private fun item(segment: StatusSegment, actions: StatusBarActions): StatusBarIt
         StatusSegmentKind.PROBLEMS, StatusSegmentKind.PROBLEMS_ERRORS, StatusSegmentKind.PROBLEMS_WARNINGS -> actions.onToggleProblems
         StatusSegmentKind.LANGUAGE_TOOLS_ERRORS, StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS -> actions.onShowOutput
         StatusSegmentKind.RUNTIME -> actions.onShowRuntime
-        StatusSegmentKind.EDITOR_ZOOM_OUT -> ({ actions.onZoomEditor(ZoomStep.OUT) })
-        StatusSegmentKind.EDITOR_ZOOM -> ({ actions.onZoomEditor(ZoomStep.RESET) })
-        StatusSegmentKind.EDITOR_ZOOM_IN -> ({ actions.onZoomEditor(ZoomStep.IN) })
         StatusSegmentKind.UI_ZOOM_OUT -> ({ actions.onZoomUi(ZoomStep.OUT) })
         StatusSegmentKind.UI_ZOOM -> ({ actions.onZoomUi(ZoomStep.RESET) })
         StatusSegmentKind.UI_ZOOM_IN -> ({ actions.onZoomUi(ZoomStep.IN) })
         else -> null
     },
 )
+
+/**
+ * The bar below the editor. It holds the zoom controls for the font size [editorFontSize] of the editors, a minus
+ * button, the current size and a plus button, and [onZoom] gets the step that was clicked. The bar looks like the
+ * status bar of the window and, like it, never takes the keyboard focus away from the editor. Its test tag is [tag].
+ */
+@Composable
+internal fun EditorZoomBar(editorFontSize: Float, onZoom: (ZoomStep) -> Unit, tag: String, modifier: Modifier = Modifier) {
+    val items = StatusBarSegments.editorZoom(editorFontSize).map { segment ->
+        val step = when (segment.kind) {
+            StatusSegmentKind.EDITOR_ZOOM_OUT -> ZoomStep.OUT
+            StatusSegmentKind.EDITOR_ZOOM_IN -> ZoomStep.IN
+            else -> ZoomStep.RESET
+        }
+        StatusBarItem(id = segment.id, text = segment.text, tooltip = segment.tooltip, onClick = { onZoom(step) })
+    }
+    StatusBar(left = emptyList(), right = items, modifier = modifier, tag = tag)
+}

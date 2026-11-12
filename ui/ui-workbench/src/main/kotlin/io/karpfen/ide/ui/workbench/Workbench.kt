@@ -60,7 +60,8 @@ import java.nio.file.Path
  *
  * The whole workbench is drawn at the scale of `IdeSettings.uiScale`. The composable provides a density that is the
  * window's density times that scale, so the text and everything that holds it grow and shrink together. The zoom
- * controls at the right end of the status bar change the scale and the font size of the editors.
+ * controls at the right end of the status bar change the scale. The font size of the editors has its own controls
+ * in the bar below the editor.
  *
  * The composable provides the light or dark `KarpfenTheme` and the matching `LocalEditorTheme` from the theme in
  * `state.layout`. It lays out the tool windows from the same layout with size-based `SplitPane`s. The fixed size of
@@ -114,7 +115,6 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
                     val status by state.statusBar.state.collectAsState()
                     WorkbenchStatusBar(
                         status,
-                        editorFontSize = settings.editorFontSize,
                         uiScale = settings.uiScale,
                         actions = remember(state) {
                             StatusBarActions(
@@ -122,7 +122,6 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
                                 onShowOutput = { state.layout.showToolWindow(ToolWindowId.OUTPUT) },
                                 onShowRuntime = { state.layout.showToolWindow(ToolWindowId.RUNTIME) },
                                 onZoomUi = { state.zoomUi(it) },
-                                onZoomEditor = { state.zoomEditor(it) },
                             )
                         },
                     )
@@ -160,6 +159,7 @@ private fun EditorPane(state: WorkbenchState) {
     val tabs by state.tabs.tabs.collectAsState()
     val active by state.tabs.active.collectAsState()
     val activeEditor by state.tabs.activeEditor.collectAsState()
+    val settings by state.settings.collectAsState()
     EditorArea(
         tabs = tabs,
         activePath = active,
@@ -167,6 +167,8 @@ private fun EditorPane(state: WorkbenchState) {
         onActivate = state.tabs::activate,
         onClose = { path -> state.closeTab(path) },
         onResolveConflict = { path, resolution -> state.resolveConflict(path, resolution) },
+        editorFontSize = settings.editorFontSize,
+        onZoomEditor = { state.zoomEditor(it) },
     )
 }
 
