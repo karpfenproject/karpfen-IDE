@@ -28,15 +28,15 @@ import kotlin.test.assertTrue
 /**
  * Tests against a real runtime run only on purpose. They carry the JUnit tag `live-runtime` through the `@LiveRuntime`
  * annotation of runtime-protocol's test fixtures. Every test task excludes the tag, except the opt-in task
- * `liveRuntimeTest` that build-logic's `karpfen.live-runtime-test` registers in the runtime modules. Nothing else
- * reaches that task. Besides that plugin, only the base convention plugin `karpfen.kotlin-jvm` names the task, to keep
- * the tag exclusion off it, and the build script of runtime-session names it, to order its live task after the one of
- * runtime-protocol. No other Gradle script wires it in. build-logic's `LiveRuntimeTestFunctionalTest` proves the
+ * `liveRuntimeTest` that build-logic's `karpfen.live-runtime-test` registers in the runtime modules and in
+ * ui-workbench. Nothing else reaches that task. Besides that plugin, only the base convention plugin
+ * `karpfen.kotlin-jvm` names the task, to keep the tag exclusion off it, and the build script of runtime-session names
+ * it, to order its live task after the one of runtime-protocol. No other Gradle script wires it in. build-logic's `LiveRuntimeTestFunctionalTest` proves the
  * wiring in a fixture build, and this test guards the repository.
  *
- * A live test class sits in a runtime module, is named `Live…Test` and carries `@LiveRuntime`. Every class of a test
- * source set that is named this way must carry the annotation, so a forgotten annotation cannot make a live test run in
- * every build. The naming rule leaves out two kinds of class. Test fixtures are no tests, and the fixture
+ * A live test class sits in a runtime module or in ui-workbench, is named `Live…Test` and carries `@LiveRuntime`.
+ * Every class of a test source set that is named this way must carry the annotation, so a forgotten annotation cannot
+ * make a live test run in every build. The naming rule leaves out two kinds of class. Test fixtures are no tests, and the fixture
  * `LiveRuntimeUnderTest` is the live runtime of the scenarios, not a test. The classes of the architecture tests are
  * named after the rules they check.
  */
@@ -87,7 +87,7 @@ class LiveRuntimeTaggingTest {
 
         val problems = problemsOf(
             testFiles,
-            isRuntimeModule = { it.moduleDir.startsWith(RUNTIME_MODULES) },
+            isRuntimeModule = { it.moduleDir.startsWith(RUNTIME_MODULES) || it.moduleDir == WORKBENCH_MODULE },
             isTestSource = { it.sourceSetName == TEST_SOURCE_SET },
         )
 
@@ -179,6 +179,9 @@ class LiveRuntimeTaggingTest {
 
         /** The module directory prefix of the runtime modules. */
         const val RUNTIME_MODULES = "runtime/"
+
+        /** The module of the workbench, whose live test runs the bridges of a run against a real runtime. */
+        const val WORKBENCH_MODULE = "ui/ui-workbench"
 
         /** The module of the architecture tests themselves. */
         const val ARCHITECTURE_TESTS = "architecture-tests"

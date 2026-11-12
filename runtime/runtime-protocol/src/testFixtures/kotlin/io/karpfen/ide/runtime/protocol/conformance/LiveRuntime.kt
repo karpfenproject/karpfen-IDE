@@ -18,12 +18,12 @@ package io.karpfen.ide.runtime.protocol.conformance
 import org.junit.jupiter.api.Tag
 
 /**
- * Marks a test class that runs its scenarios against a real karpfen runtime. Such a class is the live subclass of a
- * scenario class, and its name starts with `Live` and ends with `Test`. The annotation carries the JUnit tag
+ * Marks a test class that runs its scenarios against a real karpfen runtime. Such a class is usually the live subclass
+ * of a scenario class, and its name starts with `Live` and ends with `Test`. The annotation carries the JUnit tag
  * `live-runtime`, which is `TestTags.LIVE_RUNTIME` in build-logic. Every test task excludes that tag except the
- * `liveRuntimeTest` task of the runtime modules. So a live test compiles in every build and runs only against a runtime
- * that someone hands the task. The architecture test `LiveRuntimeTaggingTest` checks that only runtime modules use the
- * annotation and that every class named in the live pattern carries it.
+ * `liveRuntimeTest` task of the runtime modules and of ui-workbench. So a live test compiles in every build and runs
+ * only against a runtime that someone hands the task. The architecture test `LiveRuntimeTaggingTest` checks that only
+ * the runtime modules and ui-workbench use the annotation and that every class named in the live pattern carries it.
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

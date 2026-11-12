@@ -70,7 +70,8 @@ build-logic names them.
   is no switch to run them. `BudgetTestTaggingTest` makes sure that every timing test carries the tag and that every
   test task excludes it. A functional check never lives in a budget test, so it keeps running.
 - `live-runtime` marks tests against a real karpfen runtime. They run only in the task `liveRuntimeTest` of
-  runtime-protocol and runtime-session. `LiveRuntimeTaggingTest` checks this wiring.
+  runtime-protocol, runtime-session and ui-workbench. The one of ui-workbench runs an HTTP bridge and an MQTT bridge
+  of one run against the runtime, with an MQTT broker inside the test. `LiveRuntimeTaggingTest` checks this wiring.
 - `live-docker` marks tests against the local Docker engine. They run only in `liveDockerTest` of runtime-host. The
   engine test builds a tiny image `FROM scratch` with the label `io.karpfen.ide.test=true` and removes it again. The
   host test builds the IDE's runtime image unless it exists, starts a container for a workspace in a temporary folder,
@@ -88,7 +89,7 @@ another machine.
 | Command | What it does |
 |---|---|
 | `runtime/live-runtime.sh build` | Checks the local Docker engine and the runtime checkout, then builds the test image. |
-| `runtime/live-runtime.sh test [gradle args]` | Removes orphans, builds, starts a runtime, runs the live tests, tears it down. Gradle arguments replace the two live tasks, as in `test :runtime:runtime-session:liveRuntimeTest --tests '*Observation*'`. |
+| `runtime/live-runtime.sh test [gradle args]` | Removes orphans, builds, starts a runtime, runs the live tests, tears it down. Gradle arguments replace the three live tasks, as in `test :runtime:runtime-session:liveRuntimeTest --tests '*Observation*'`. |
 | `runtime/live-runtime.sh up` | Starts one runtime and prints its URL, its run id and how to remove it. |
 | `runtime/live-runtime.sh down [run id]` | Tears down one run of this checkout, or all of them. |
 | `runtime/live-runtime.sh status` | Lists the containers, volumes and images of the script. |
@@ -112,7 +113,7 @@ no Python except the depot, which creates objects at run time. Python only ever 
 To run the live tests against a runtime you started yourself, pass `-Pkarpfen.runtime.url=<url>` to
 `liveRuntimeTest`. The optional property `karpfen.runtime.logs` names the folder of the runtime's logs, so that
 failure messages can point to it. `LiveRuntimeLock` keeps two live test tasks from using the same runtime at the same
-time. When both live tasks run in one build, the one of runtime-session runs after the one of runtime-protocol, so a
+time. When the live tasks run in one build, the one of runtime-session runs after the one of runtime-protocol, so a
 change of the wire format shows first in the protocol's tests.
 
 A test class against a real runtime sits in a runtime module, is named `Live*Test` and carries `@LiveRuntime`. Every
@@ -548,6 +549,10 @@ failed, and the others start all the same. The Log pane lists the bridges of the
 each with its state and how many messages it handed on, and names every route that dropped or failed one. An MQTT
 bridge whose file names no `clientId` gets one from the name of its file, so two MQTT bridges of one run do not push
 each other off the broker.
+
+`LiveRunBridgesTest` in ui-workbench tries the two bridges together against a real runtime, as one would by hand. It
+deploys the lamp, presses the wall switch once over HTTP and once over MQTT, and waits each time until the change of
+the model came back out through both bridges. It runs only in the live task, never in the ordinary tests.
 
 A bridge inside the IDE has no client of its own on the runtime. `SessionModelLink` puts it on the session of the run.
 Its events go through the injector of the session and are checked like events sent by hand. It hears the domain events

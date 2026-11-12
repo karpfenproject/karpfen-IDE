@@ -300,7 +300,7 @@ JDK 21, JUnit with the tags that keep time-budget and live tests out of normal t
 notation and runtime, and the task `verifyModuleDependencies`. The other plugins build on it.
 `karpfen.kotlin-serialization` adds kotlinx.serialization, and `karpfen.compose` adds Compose and refuses any module
 outside ui and app. `karpfen.application` serves tools/cli and bridge-runner, and `karpfen.live-runtime-test` adds
-the opt-in task `liveRuntimeTest` to the runtime modules. Read `ModuleDependencyRules` for the dependency rules,
+the opt-in task `liveRuntimeTest` to the runtime modules and ui-workbench. Read `ModuleDependencyRules` for the dependency rules,
 `TestTags` for the test tags and `BundleRuntimeSources` for packing the runtime sources. All library versions live in
 `gradle/libs.versions.toml`.
 

@@ -40,8 +40,8 @@ object TestTags {
     /**
      * Tests against a real karpfen runtime, reached at the URL that [LiveRuntimeTesting.URL_PROPERTY] names. They carry
      * the tag through the `@LiveRuntime` annotation of runtime-protocol's test fixtures. Every test task excludes the
-     * tag except the task `liveRuntimeTest` of the runtime modules, [LiveRuntimeTesting.TASK_NAME]. That task runs only
-     * these tests and is never part of `check` or `build`.
+     * tag except the task `liveRuntimeTest` of the runtime modules and of ui-workbench,
+     * [LiveRuntimeTesting.TASK_NAME]. That task runs only these tests and is never part of `check` or `build`.
      *
      * Unlike the budget tag, this tag has an opt-in task on purpose: a live test asserts behaviour, not time, and it
      * runs whenever someone hands the task a runtime, usually through `runtime/live-runtime.sh test`, which starts a

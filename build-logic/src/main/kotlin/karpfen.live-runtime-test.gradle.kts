@@ -20,7 +20,8 @@ import io.karpfen.ide.buildlogic.TestTags
 import java.time.Duration
 
 /**
- * Convention for the runtime modules whose tests also run against a real karpfen runtime. It adds the opt-in task
+ * Convention for the modules whose tests also run against a real karpfen runtime. These are runtime modules and
+ * ui-workbench, which starts the bridges of a run on a session of the runtime. It adds the opt-in task
  * [LiveRuntimeTesting.TASK_NAME] to the Kotlin/JVM base convention. The task runs only the tests tagged
  * [TestTags.LIVE_RUNTIME] against the runtime at `-Pkarpfen.runtime.url`. The base convention excludes that tag from
  * every other test task, so the live tests compile in every build and run only here. Nothing makes `check`, `build`,
@@ -31,13 +32,13 @@ plugins {
     id("karpfen.kotlin-jvm")
 }
 
-check(path.startsWith(":runtime:")) {
-    "karpfen.live-runtime-test may only be applied to runtime modules, not $path"
+check(path.startsWith(":runtime:") || path == ":ui:ui-workbench") {
+    "karpfen.live-runtime-test may only be applied to runtime modules and ui-workbench, not $path"
 }
 
 /**
- * The one lock of the runtime under test, shared by the live tasks of every runtime module of the build, so that they
- * run one after the other.
+ * The one lock of the runtime under test, shared by the live tasks of every module of the build, so that they run one
+ * after the other.
  */
 val liveRuntime = gradle.sharedServices.registerIfAbsent(LiveRuntimeTesting.LOCK_SERVICE, LiveRuntimeLock::class) {
     maxParallelUsages = 1
