@@ -15,14 +15,16 @@
  */
 package io.karpfen.ide.ui.workbench.bridges.view
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,20 +32,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -85,6 +86,13 @@ import io.karpfen.ide.ui.workbench.bridges.PolicyKind
  * A route of a ROS bridge also has the type of its messages.
  * Every change goes into the draft of the form at once. Below the scrolling part, the form lists what keeps it from
  * being saved, and Save is enabled once that list is empty. [onSave] and [onClose] are the two buttons.
+ *
+ * The form is laid out as a grid of rows of one height. Every row starts with its label in a column of one width, so
+ * the fields of all rows begin at the same place. Two fields that belong together share a row, each with half of the
+ * width. The controls are small and rectangular, like those of the rest of the workbench.
+ *
+ * Every control that takes a click has an interaction source of its own. A control without one creates it at its
+ * first press, and under the scrim, which consumes every pointer event, that first press is lost.
  */
 @Composable
 internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose: () -> Unit) {
@@ -105,40 +113,38 @@ internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose
                 .widthIn(max = FORM_WIDTH.dp)
                 .fillMaxWidth(FORM_SHARE)
                 .fillMaxHeight(FORM_SHARE)
-                .background(colors.panel, RoundedCornerShape(6.dp))
-                .border(1.dp, colors.border, RoundedCornerShape(6.dp))
-                .padding(16.dp)
+                .background(colors.panel, RoundedCornerShape(CORNER.dp))
+                .border(1.dp, colors.border, RoundedCornerShape(CORNER.dp))
+                .padding(12.dp)
                 .testTag(BridgeFormTestTags.FORM),
+            verticalArrangement = Arrangement.spacedBy(ROW_GAP.dp),
         ) {
             Text(
                 if (form.isNew) "New bridge" else "Bridge",
                 color = colors.text,
                 style = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold),
             )
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Label("Name", Modifier.width(LABEL_WIDTH.dp))
-                Field(name, form::rename, "the name of the bridge", Modifier.weight(1f), BridgeFormTestTags.NAME)
-                Label(BridgeConfigFile.SUFFIX)
-            }
-            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(ROW_GAP.dp),
+            ) {
+                FormRow("Name") {
+                    Field(name, form::rename, "the name of the bridge", Modifier.weight(1f), BridgeFormTestTags.NAME)
+                    Label(BridgeConfigFile.SUFFIX, muted = true)
+                }
+                KindAndSettings(draft, form::edit)
                 if (form.fileProblems.isNotEmpty()) {
                     Section("The file had problems. What could not be read is left out, and saving writes the file without it.")
                     form.fileProblems.forEach { Note(it, colors.warning) }
                 }
-                KindAndSettings(draft, form::edit)
-                Section("Messages that become events")
+                Section("Messages that become events") {
+                    LinkButton("Add inbound route", BridgeFormTestTags.ADD_INBOUND) { form.edit { it.copy(inbound = it.inbound + InboundDraft()) } }
+                }
                 draft.inbound.forEachIndexed { index, route -> InboundCard(index, route, draft.kind, form.suggestions, form::edit) }
-                TextButton(
-                    onClick = { form.edit { it.copy(inbound = it.inbound + InboundDraft()) } },
-                    modifier = Modifier.testTag(BridgeFormTestTags.ADD_INBOUND),
-                ) { Text("Add inbound route") }
-                Section("What the model reports")
+                Section("What the model reports") {
+                    LinkButton("Add outbound route", BridgeFormTestTags.ADD_OUTBOUND) { form.edit { it.copy(outbound = it.outbound + OutboundDraft()) } }
+                }
                 draft.outbound.forEachIndexed { index, route -> OutboundCard(index, route, draft.kind, form.suggestions, form::edit) }
-                TextButton(
-                    onClick = { form.edit { it.copy(outbound = it.outbound + OutboundDraft()) } },
-                    modifier = Modifier.testTag(BridgeFormTestTags.ADD_OUTBOUND),
-                ) { Text("Add outbound route") }
             }
             if (problems.isNotEmpty()) {
                 Column(
@@ -149,46 +155,37 @@ internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose
                         .testTag(BridgeFormTestTags.PROBLEMS),
                 ) { problems.forEach { Note(it, colors.error) } }
             }
-            Spacer(Modifier.height(12.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                Button(onClick = onSave, enabled = problems.isEmpty(), modifier = Modifier.testTag(BridgeFormTestTags.SAVE)) { Text("Save") }
-                OutlinedButton(onClick = onClose, modifier = Modifier.testTag(BridgeFormTestTags.CANCEL)) { Text("Cancel") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GAP.dp, Alignment.End)) {
+                FormButton("Save", BridgeFormTestTags.SAVE, enabled = problems.isEmpty(), isDefault = true, onClick = onSave)
+                FormButton("Cancel", BridgeFormTestTags.CANCEL, onClick = onClose)
             }
         }
     }
 }
 
-/** The kind of the bridge as chips and the settings of that kind as fields and boxes. */
+/** The kind of the bridge as a choice and the settings of that kind, one row each. */
 @Composable
 private fun KindAndSettings(draft: BridgeDraft, edit: ((BridgeDraft) -> BridgeDraft) -> Unit) {
-    Section("Kind")
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BridgeKind.entries.forEach { kind ->
-            Chip(kind.id.uppercase(), draft.kind == kind, BridgeFormTestTags.kind(kind.id)) { edit { BridgeDrafts.withKind(it, kind) } }
+    FormRow("Kind") {
+        Choice(BridgeKind.entries, draft.kind, { it.id.uppercase() }, { BridgeFormTestTags.kind(it.id) }) { kind ->
+            edit { BridgeDrafts.withKind(it, kind) }
         }
     }
-    val settings = BridgeDrafts.settingsOf(draft.kind)
-    if (settings.isEmpty()) return
-    Section("Settings")
-    settings.forEach { setting -> SettingRow(setting, draft.settings[setting.key].orEmpty()) { value -> edit { it.withSetting(setting.key, value) } } }
+    BridgeDrafts.settingsOf(draft.kind).forEach { setting ->
+        SettingRow(setting, draft.settings[setting.key].orEmpty()) { value -> edit { it.withSetting(setting.key, value) } }
+    }
 }
 
-/** One setting: a box to tick for a flag, a labelled field for anything else. */
+/**
+ * One setting. A flag is a box to tick with its text, in the column of the fields. Anything else is a labelled field.
+ */
 @Composable
 private fun SettingRow(setting: BridgeSetting, value: String, onChange: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (setting.isFlag) {
-            val on = value.trim().equals("true", ignoreCase = true)
-            Row(
-                Modifier.clickable { onChange(if (on) "" else "true") }.testTag(BridgeFormTestTags.setting(setting.key)),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(checked = on, onCheckedChange = null)
-                Spacer(Modifier.width(8.dp))
-                Label(setting.label)
-            }
-        } else {
-            Label(setting.label, Modifier.width(LABEL_WIDTH.dp))
+    if (setting.isFlag) {
+        val on = value.trim().equals("true", ignoreCase = true)
+        FormRow("") { TickBox(on, setting.label, BridgeFormTestTags.setting(setting.key)) { onChange(if (it) "true" else "") } }
+    } else {
+        FormRow(setting.label) {
             Field(value, onChange, setting.hint, Modifier.weight(1f), BridgeFormTestTags.setting(setting.key), setting.isSecret)
         }
     }
@@ -204,14 +201,13 @@ private fun InboundCard(
     edit: ((BridgeDraft) -> BridgeDraft) -> Unit,
 ) {
     val change: ((InboundDraft) -> InboundDraft) -> Unit = { transform -> edit { it.copy(inbound = it.inbound.replaced(index, transform)) } }
-    Card("Inbound route ${index + 1}", onRemove = { edit { it.copy(inbound = it.inbound.without(index)) } }) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Label("From")
+    Card("Inbound route ${index + 1}", BridgeFormTestTags.inbound(index, "remove"), onRemove = { edit { it.copy(inbound = it.inbound.without(index)) } }) {
+        FormRow("From") {
             Field(
                 route.from, { value -> change { it.copy(from = value) } },
                 fromHint(kind), Modifier.weight(1f), BridgeFormTestTags.inbound(index, "from"),
             )
-            Label("becomes the event")
+            Label("Event", Modifier.width(SECOND_LABEL_WIDTH.dp))
             PickField(
                 route.event, { value -> change { it.copy(event = value) } },
                 "domain/name", suggestions.events, Modifier.weight(1f), BridgeFormTestTags.inbound(index, "event"),
@@ -222,34 +218,32 @@ private fun InboundCard(
                 change { it.copy(type = value) }
             }
         }
-        Row(
-            Modifier.clickable { change { it.copy(passBody = !it.passBody) } }.testTag(BridgeFormTestTags.inbound(index, "passBody")),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Checkbox(checked = route.passBody, onCheckedChange = null)
-            Spacer(Modifier.width(8.dp))
-            Label("The body of the message is the payload of the event")
+        FormRow("Payload") {
+            TickBox(route.passBody, "The body of the message", BridgeFormTestTags.inbound(index, "passBody")) { on ->
+                change { it.copy(passBody = on) }
+            }
+            if (!route.passBody) {
+                Spacer(Modifier.weight(1f))
+                LinkButton("Add payload field", BridgeFormTestTags.inbound(index, "addField")) {
+                    change { it.copy(fields = it.fields + FieldDraft()) }
+                }
+            }
         }
         if (!route.passBody) {
             route.fields.forEachIndexed { at, field ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Label("Field")
+                FormRow("Field ${at + 1}") {
                     Field(
                         field.name, { value -> change { it.copy(fields = it.fields.replaced(at) { old -> old.copy(name = value) }) } },
                         "name", Modifier.weight(1f), BridgeFormTestTags.payload(index, at, "name"),
                     )
-                    Label("is")
+                    Label("is", Modifier.width(SECOND_LABEL_WIDTH.dp))
                     Field(
                         field.value, { value -> change { it.copy(fields = it.fields.replaced(at) { old -> old.copy(value = value) }) } },
                         "a value, or a path such as \$.bright", Modifier.weight(1f), BridgeFormTestTags.payload(index, at, "value"),
                     )
-                    TextButton(onClick = { change { it.copy(fields = it.fields.without(at)) } }) { Text("Remove") }
+                    LinkButton("Remove", BridgeFormTestTags.payload(index, at, "remove")) { change { it.copy(fields = it.fields.without(at)) } }
                 }
             }
-            TextButton(
-                onClick = { change { it.copy(fields = it.fields + FieldDraft()) } },
-                modifier = Modifier.testTag(BridgeFormTestTags.inbound(index, "addField")),
-            ) { Text("Add payload field") }
         }
         Policy(route.policy, BridgeFormTestTags.inbound(index, "number")) { policy -> change { it.copy(policy = policy) } }
     }
@@ -265,21 +259,18 @@ private fun OutboundCard(
     edit: ((BridgeDraft) -> BridgeDraft) -> Unit,
 ) {
     val change: ((OutboundDraft) -> OutboundDraft) -> Unit = { transform -> edit { it.copy(outbound = it.outbound.replaced(index, transform)) } }
-    Card("Outbound route ${index + 1}", onRemove = { edit { it.copy(outbound = it.outbound.without(index)) } }) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Label("Follows")
-            Follows.entries.forEach { follows ->
-                Chip(follows.title, route.follows == follows, BridgeFormTestTags.outbound(index, follows.name.lowercase())) {
-                    change { it.copy(follows = follows) }
-                }
+    Card("Outbound route ${index + 1}", BridgeFormTestTags.outbound(index, "remove"), onRemove = { edit { it.copy(outbound = it.outbound.without(index)) } }) {
+        FormRow("Follows") {
+            Choice(Follows.entries, route.follows, { it.title }, { BridgeFormTestTags.outbound(index, it.name.lowercase()) }) { follows ->
+                change { it.copy(follows = follows) }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        FormRow(route.follows.label) {
             PickField(
                 route.what, { value -> change { it.copy(what = value) } },
                 route.follows.hint, suggestions.followed(route.follows), Modifier.weight(1f), BridgeFormTestTags.outbound(index, "what"),
             )
-            Label("goes to")
+            Label("To", Modifier.width(SECOND_LABEL_WIDTH.dp))
             Field(
                 route.to, { value -> change { it.copy(to = value) } },
                 toHint(kind), Modifier.weight(1f), BridgeFormTestTags.outbound(index, "to"),
@@ -297,20 +288,14 @@ private fun OutboundCard(
 /** The type of the ROS messages of a route, to type in or to pick from the standard types. */
 @Composable
 private fun MessageType(value: String, hint: String, tag: String, onChange: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Label("Message type")
-        PickField(value, onChange, hint, BridgeDrafts.messageTypes, Modifier.weight(1f), tag)
-    }
+    FormRow("Message type") { PickField(value, onChange, hint, BridgeDrafts.messageTypes, Modifier.weight(1f), tag) }
 }
 
-/** The flow policy of a route as chips, with the field for its number where the policy has one. */
+/** The flow policy of a route as a choice, with the field for its number where the policy has one. */
 @Composable
 private fun Policy(policy: PolicyDraft, numberTag: String, onChange: (PolicyDraft) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Label("When messages come too fast")
-        PolicyKind.entries.forEach { kind ->
-            Chip(kind.title, policy.kind == kind, "$numberTag.${kind.name.lowercase()}") { onChange(PolicyDraft(kind)) }
-        }
+    FormRow("If too fast") {
+        Choice(PolicyKind.entries, policy.kind, { it.title }, { "$numberTag.${it.name.lowercase()}" }) { kind -> onChange(PolicyDraft(kind)) }
         when (policy.kind) {
             PolicyKind.QUEUE -> {
                 Label("of at most")
@@ -330,28 +315,53 @@ private fun Policy(policy: PolicyDraft, numberTag: String, onChange: (PolicyDraf
     }
 }
 
-/** A bordered group of the form with its [title] and a button that removes it. */
+/**
+ * One row of the form. Its [label] stands in the label column, which has the same width in every row, and [content]
+ * fills the rest. So the fields of all rows start at the same place.
+ */
 @Composable
-private fun Card(title: String, onRemove: () -> Unit, content: @Composable () -> Unit) {
+private fun FormRow(label: String, content: @Composable RowScope.() -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = ROW_HEIGHT.dp),
+        horizontalArrangement = Arrangement.spacedBy(GAP.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Label(label, Modifier.width(LABEL_WIDTH.dp))
+        content()
+    }
+}
+
+/** A bordered group of rows with its [title] and a button that removes it, which carries [removeTag]. */
+@Composable
+private fun Card(title: String, removeTag: String, onRemove: () -> Unit, content: @Composable () -> Unit) {
     val colors = KarpfenTheme.colors
     Column(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp).border(1.dp, colors.border, RoundedCornerShape(4.dp)).padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        Modifier.fillMaxWidth().border(1.dp, colors.border, RoundedCornerShape(CORNER.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(ROW_GAP.dp),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(title, color = colors.textMuted, style = KarpfenTheme.typography.uiSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = onRemove) { Text("Remove") }
+            LinkButton("Remove", removeTag, onClick = onRemove)
         }
         content()
     }
 }
 
-/** A heading of a part of the form. */
+/**
+ * The heading of a part of the form, with what [trailing] puts at its right end, such as a button that adds to the
+ * part.
+ */
 @Composable
-private fun Section(text: String) {
-    Spacer(Modifier.height(12.dp))
-    Text(text, color = KarpfenTheme.colors.text, style = KarpfenTheme.typography.uiSmall.copy(fontWeight = FontWeight.SemiBold))
-    Spacer(Modifier.height(4.dp))
+private fun Section(text: String, trailing: @Composable RowScope.() -> Unit = {}) {
+    Row(Modifier.fillMaxWidth().padding(top = SECTION_GAP.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text,
+            color = KarpfenTheme.colors.text,
+            style = KarpfenTheme.typography.uiSmall.copy(fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.weight(1f),
+        )
+        trailing()
+    }
 }
 
 /** One line of a note in [color]. */
@@ -360,20 +370,98 @@ private fun Note(text: String, color: Color) {
     Text(text, color = color, style = KarpfenTheme.typography.uiSmall)
 }
 
-/** The name of a field next to it. */
+/** A short text next to a field, [muted] where it only adds to what the field says. */
 @Composable
-private fun Label(text: String, modifier: Modifier = Modifier) {
-    Text(text, color = KarpfenTheme.colors.text, style = KarpfenTheme.typography.uiSmall, modifier = modifier)
+private fun Label(text: String, modifier: Modifier = Modifier, muted: Boolean = false) {
+    val colors = KarpfenTheme.colors
+    Text(text, color = if (muted) colors.textMuted else colors.text, style = KarpfenTheme.typography.uiSmall, maxLines = 1, modifier = modifier)
 }
 
-/** A chip that is [selected] or not and calls [onClick]. */
+/**
+ * A choice of one of [options], drawn as one bordered strip with a part for each. The part of [selected] is filled.
+ * [title] says what a part reads and [tag] gives its test tag.
+ */
 @Composable
-private fun Chip(label: String, selected: Boolean, tag: String, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label, style = KarpfenTheme.typography.uiSmall) },
-        modifier = Modifier.testTag(tag),
+private fun <T> Choice(options: List<T>, selected: T, title: (T) -> String, tag: (T) -> String, onSelect: (T) -> Unit) {
+    val colors = KarpfenTheme.colors
+    Row(Modifier.height(CONTROL_HEIGHT.dp).border(1.dp, colors.border, RoundedCornerShape(CORNER.dp))) {
+        options.forEachIndexed { index, option ->
+            if (index > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(colors.border))
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .background(if (option == selected) colors.selection else Color.Transparent)
+                    .selectable(option == selected, remember { MutableInteractionSource() }, LocalIndication.current, role = Role.RadioButton) {
+                        onSelect(option)
+                    }
+                    .padding(horizontal = 10.dp)
+                    .testTag(tag(option)),
+                contentAlignment = Alignment.Center,
+            ) { Label(title(option)) }
+        }
+    }
+}
+
+/** A box to tick with its [text] behind it. A click on either changes it and reports the new value to [onChange]. */
+@Composable
+private fun TickBox(checked: Boolean, text: String, tag: String, onChange: (Boolean) -> Unit) {
+    val colors = KarpfenTheme.colors
+    Row(
+        Modifier
+            .height(CONTROL_HEIGHT.dp)
+            .toggleable(checked, remember { MutableInteractionSource() }, LocalIndication.current, role = Role.Checkbox, onValueChange = onChange)
+            .testTag(tag),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier.size(TICK_SIZE.dp).border(1.dp, if (checked) colors.accent else colors.border, RoundedCornerShape(2.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (checked) Box(Modifier.size((TICK_SIZE - 6).dp).background(colors.accent, RoundedCornerShape(1.dp)))
+        }
+        Label(text)
+    }
+}
+
+/**
+ * A button of the form, as high as a field. The default button of the form is drawn in the accent colour. A button
+ * that is not [enabled] is greyed out and takes no click.
+ */
+@Composable
+private fun FormButton(text: String, tag: String, enabled: Boolean = true, isDefault: Boolean = false, onClick: () -> Unit) {
+    val colors = KarpfenTheme.colors
+    val color = when {
+        !enabled -> colors.textMuted
+        isDefault -> colors.accent
+        else -> colors.text
+    }
+    Box(
+        Modifier
+            .height(CONTROL_HEIGHT.dp)
+            .widthIn(min = BUTTON_WIDTH.dp)
+            .border(1.dp, if (enabled && isDefault) colors.accent else colors.border, RoundedCornerShape(CORNER.dp))
+            .clickable(remember { MutableInteractionSource() }, LocalIndication.current, enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 12.dp)
+            .testTag(tag),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = color, style = KarpfenTheme.typography.uiSmall.copy(fontWeight = if (isDefault) FontWeight.SemiBold else FontWeight.Normal))
+    }
+}
+
+/** A button without a border that reads like a link. It serves the small actions inside the form. */
+@Composable
+private fun LinkButton(text: String, tag: String, onClick: () -> Unit) {
+    Text(
+        text,
+        color = KarpfenTheme.colors.accent,
+        style = KarpfenTheme.typography.uiSmall,
+        maxLines = 1,
+        modifier = Modifier
+            .clickable(remember { MutableInteractionSource() }, LocalIndication.current, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .testTag(tag),
     )
 }
 
@@ -394,13 +482,20 @@ private fun Field(value: String, onChange: (String) -> Unit, hint: String, modif
             onChange(it)
         },
         singleLine = true,
-        textStyle = KarpfenTheme.typography.ui.copy(color = colors.text),
+        textStyle = KarpfenTheme.typography.uiSmall.copy(color = colors.text),
         cursorBrush = SolidColor(colors.text),
         visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
-        modifier = modifier.testTag(tag),
+        modifier = modifier.height(CONTROL_HEIGHT.dp).testTag(tag),
         decorationBox = { inner ->
-            Box(Modifier.border(1.dp, colors.border, RoundedCornerShape(3.dp)).padding(horizontal = 6.dp, vertical = 4.dp)) {
-                if (text.isEmpty()) Text(hint, color = colors.textMuted, style = KarpfenTheme.typography.ui, maxLines = 1)
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(colors.window, RoundedCornerShape(CORNER.dp))
+                    .border(1.dp, colors.border, RoundedCornerShape(CORNER.dp))
+                    .padding(horizontal = 6.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (text.isEmpty()) Text(hint, color = colors.textMuted, style = KarpfenTheme.typography.uiSmall, maxLines = 1)
                 inner()
             }
         },
@@ -408,9 +503,9 @@ private fun Field(value: String, onChange: (String) -> Unit, hint: String, modif
 }
 
 /**
- * A [Field] with the button Pick, which opens the list of [options] to pick from. A pick replaces the text of the field. The
- * field still takes any text, because the project may not have what the bridge is meant for yet. Without options
- * there is no button.
+ * A [Field] with the button Pick, which opens the list of [options] to pick from. A pick replaces the text of the
+ * field. The field takes any other text too, because a bridge may name something the project does not have. Without
+ * options there is no button.
  */
 @Composable
 private fun PickField(value: String, onChange: (String) -> Unit, hint: String, options: List<String>, modifier: Modifier, tag: String) {
@@ -419,20 +514,16 @@ private fun PickField(value: String, onChange: (String) -> Unit, hint: String, o
         Field(value, onChange, hint, Modifier.weight(1f), tag)
         if (options.isEmpty()) return@Row
         Box {
-            TextButton(
-                onClick = { open = true },
-                contentPadding = PaddingValues(horizontal = 6.dp),
-                modifier = Modifier.height(PICK_HEIGHT.dp).testTag(BridgeFormTestTags.pick(tag)),
-            ) { Text("Pick", style = KarpfenTheme.typography.uiSmall) }
+            LinkButton("Pick", BridgeFormTestTags.pick(tag)) { open = true }
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 options.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option, style = KarpfenTheme.typography.ui) },
+                        text = { Text(option, style = KarpfenTheme.typography.uiSmall) },
                         onClick = {
                             open = false
                             onChange(option)
                         },
-                        modifier = Modifier.testTag(BridgeFormTestTags.option(tag, option)),
+                        modifier = Modifier.height(OPTION_HEIGHT.dp).testTag(BridgeFormTestTags.option(tag, option)),
                     )
                 }
             }
@@ -472,6 +563,14 @@ private val Follows.title: String
         Follows.EVENT -> "An event"
     }
 
+/** The label of the field of the followed thing for this choice. */
+private val Follows.label: String
+    get() = when (this) {
+        Follows.PROPERTY -> "Property"
+        Follows.STATE -> "State machine"
+        Follows.EVENT -> "Event"
+    }
+
 /** What the empty field of the followed thing shows for this choice. */
 private val Follows.hint: String
     get() = when (this) {
@@ -489,19 +588,46 @@ private val PolicyKind.title: String
     }
 
 /** The greatest width of the form in dp. */
-private const val FORM_WIDTH = 860
+private const val FORM_WIDTH = 820
 
 /** The share of the window the form takes at most, in each direction. */
 private const val FORM_SHARE = 0.9f
 
 /** The greatest height of the list of problems in dp. A longer list scrolls. */
-private const val PROBLEMS_HEIGHT = 96
+private const val PROBLEMS_HEIGHT = 80
 
-/** The width of the labels of the settings in dp. */
-private const val LABEL_WIDTH = 220
+/** The width of the label column in dp. Every row of the form starts with a label of this width. */
+private const val LABEL_WIDTH = 112
 
-/** The height of the button that opens a pick list in dp. */
-private const val PICK_HEIGHT = 28
+/** The width of the label of the second field of a row in dp. */
+private const val SECOND_LABEL_WIDTH = 40
+
+/** The height of a field, a choice and a button in dp. */
+private const val CONTROL_HEIGHT = 22
+
+/** The least height of a row in dp. */
+private const val ROW_HEIGHT = 22
+
+/** The distance between two rows in dp. */
+private const val ROW_GAP = 4
+
+/** The room above the heading of a part of the form in dp. */
+private const val SECTION_GAP = 6
+
+/** The distance between two controls of a row in dp. */
+private const val GAP = 8
+
+/** The radius of the corners of the form and its controls in dp. */
+private const val CORNER = 3
+
+/** The side of a box to tick in dp. */
+private const val TICK_SIZE = 14
+
+/** The least width of a button in dp. */
+private const val BUTTON_WIDTH = 72
+
+/** The height of an entry of a pick list in dp. */
+private const val OPTION_HEIGHT = 26
 
 /** The width of the number field of a flow policy in dp. */
-private const val NUMBER_WIDTH = 72
+private const val NUMBER_WIDTH = 64

@@ -159,7 +159,7 @@ public object BridgeDrafts {
             BridgeSetting(MqttSettings.CLIENT_ID, "Client id", "named after the file"),
             BridgeSetting(MqttSettings.USERNAME, "User name"),
             BridgeSetting(MqttSettings.PASSWORD, "Password", isSecret = true),
-            BridgeSetting(MqttSettings.QOS, "Quality of service (0, 1 or 2)", MqttSettings.DEFAULT_QOS.toString()),
+            BridgeSetting(MqttSettings.QOS, "QoS (0, 1 or 2)", MqttSettings.DEFAULT_QOS.toString()),
             BridgeSetting(MqttSettings.TIMEOUT_MS, "Timeout in ms", MqttSettings.DEFAULT_TIMEOUT_MS.toString()),
             BridgeSetting(MqttSettings.RETAIN, "The broker keeps the last message of each topic", isFlag = true),
         )

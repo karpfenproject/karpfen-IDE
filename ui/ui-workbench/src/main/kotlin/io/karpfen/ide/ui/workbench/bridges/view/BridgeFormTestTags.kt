@@ -44,10 +44,10 @@ public object BridgeFormTestTags {
     /** The field or the box of the setting with the key [key]. */
     public fun setting(key: String): String = "BridgeForm.setting:$key"
 
-    /** The field named [field] of the inbound route at [index]: `from`, `event` or `number`. */
+    /** The field named [field] of the inbound route at [index]: `from`, `event` or `number`. `remove` is its Remove button. */
     public fun inbound(index: Int, field: String): String = "BridgeForm.inbound:$index.$field"
 
-    /** The field named [field] of the outbound route at [index]: `what`, `to` or `number`. */
+    /** The field named [field] of the outbound route at [index]: `what`, `to` or `number`. `remove` is its Remove button. */
     public fun outbound(index: Int, field: String): String = "BridgeForm.outbound:$index.$field"
 
     /** The button that opens the pick list of the field with the tag [field]. */
@@ -56,6 +56,6 @@ public object BridgeFormTestTags {
     /** The entry [option] in the pick list of the field with the tag [field]. */
     public fun option(field: String, option: String): String = "$field.pick:$option"
 
-    /** The name or the value of the payload field at [field] of the inbound route at [index]. */
+    /** The part of the payload field at [field] of the inbound route at [index]: `name`, `value` or its button `remove`. */
     public fun payload(index: Int, field: Int, part: String): String = "BridgeForm.inbound:$index.payload:$field.$part"
 }
