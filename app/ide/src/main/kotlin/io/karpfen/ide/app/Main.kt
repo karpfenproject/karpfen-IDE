@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.app
 
+import io.karpfen.ide.app.launch.ApplicationIcon
 import io.karpfen.ide.app.launch.LaunchOptions
 import io.karpfen.ide.app.launch.applyDesktopProperties
 import io.karpfen.ide.app.launch.applyHomeOverride
@@ -44,6 +45,7 @@ public fun main(args: Array<String>) {
 internal fun launch(args: Array<String>, application: (exitAfterMs: Long?) -> IdeApplication = { IdeApplication(it) }): Int {
     val home = applyHomeOverride(System::getenv, System::setProperty)
     applyDesktopProperties(HostPlatform.current(), System::getProperty, System::setProperty)
+    ApplicationIcon.showInTaskbar()
     val launch = LaunchOptions.parse(args.asList(), System::getenv)
 
     val log = LoggerFactory.getLogger("io.karpfen.ide.app.Main")

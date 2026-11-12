@@ -38,6 +38,7 @@ import androidx.compose.ui.window.ApplicationScope
 import androidx.compose.ui.window.LocalWindowExceptionHandlerFactory
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowExceptionHandlerFactory
+import io.karpfen.ide.app.launch.ApplicationIcon
 import io.karpfen.ide.app.window.ScreenAreas
 import io.karpfen.ide.app.window.WindowBoundsTracker
 import io.karpfen.ide.app.window.boundsToRecord
@@ -77,7 +78,8 @@ internal fun ApplicationScope.IdeApplicationContent(
 /**
  * The main window of [session]. Its title comes from `WorkbenchState.windowTitle`, and its bounds are read from and
  * written to `WorkbenchState.layout`. The menu bar comes from [IdeMenus], with the current number of recent folders.
- * The content is the [Workbench], with the [StoppingRuntimeNote] over it while [stoppingRuntime] is true. Close
+ * The window carries the application's icon, which Windows and Linux show in the taskbar. The content is the
+ * [Workbench], with the [StoppingRuntimeNote] over it while [stoppingRuntime] is true. Close
  * requests go to [onCloseRequest]. Failures inside the window go to [windowExceptions] instead of to Compose's default
  * handler, which would close the window.
  */
@@ -101,8 +103,9 @@ private fun IdeMainWindow(
     }
     val stopping by stoppingRuntime.collectAsState()
     val menus = remember(settings.recentFolders.size) { IdeMenus.specs(settings.recentFolders.size) }
+    val icon = remember { ApplicationIcon.painter() }
     CompositionLocalProvider(LocalWindowExceptionHandlerFactory provides windowExceptions) {
-        Window(onCloseRequest = onCloseRequest, state = windowState, title = title) {
+        Window(onCloseRequest = onCloseRequest, state = windowState, title = title, icon = icon) {
             IdeMenuBar(session.commands, menus)
             Box(Modifier.fillMaxSize()) {
                 Workbench(state)

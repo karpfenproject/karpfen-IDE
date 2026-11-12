@@ -50,6 +50,9 @@ dependencies {
  * jpackage on macOS turns the version into `CFBundleVersion` and rejects a major version of 0 with "the first number
  * in app-version cannot be zero or negative". The Compose plugin does not check this. So 0.1.0 stays the version for
  * Msi and Deb, and the macOS app image and the dmg use 1.0.0 until the product reaches 1.x.
+ *
+ * Each platform takes the application's icon in its own format. The icns and ico files under `src/main/packaging` are
+ * made from the square PNG among the resources, which the running IDE and the Linux package use as it is.
  */
 compose.desktop {
     application {
@@ -63,6 +66,13 @@ compose.desktop {
             macOS {
                 packageVersion = "1.0.0"
                 dmgPackageVersion = "1.0.0"
+                iconFile.set(layout.projectDirectory.file("src/main/packaging/karpfen-ide.icns"))
+            }
+            windows {
+                iconFile.set(layout.projectDirectory.file("src/main/packaging/karpfen-ide.ico"))
+            }
+            linux {
+                iconFile.set(layout.projectDirectory.file("src/main/resources/icons/karpfen-ide.png"))
             }
         }
     }
