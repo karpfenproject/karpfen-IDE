@@ -193,11 +193,11 @@ class DocumentationStyleTest {
 
         /**
          * The only markdown files of the repository. They are the README, the getting started guide, the architecture
-         * guide, the developer guide and the license notice of the example files that core-document's test fixtures
-         * copy from the karpfen-runtime and karpfen-dsl-tools repositories.
+         * guide, the developer guide, the list of open points and the license notice of the example files that
+         * core-document's test fixtures copy from the karpfen-runtime and karpfen-dsl-tools repositories.
          */
         val ALLOWED_MARKDOWN = setOf(
-            "README.md", "docs/getting-started.md", "docs/archdoc.md", "docs/devdoc.md",
+            "README.md", "docs/getting-started.md", "docs/archdoc.md", "docs/devdoc.md", "docs/todo.md",
             "core/core-document/src/testFixtures/resources/examples/NOTICE.md",
         )
     }

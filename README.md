@@ -29,8 +29,9 @@ Docker, which takes a few minutes once.
 - [Getting started](docs/getting-started.md): the idea behind karpfen, the modes of the IDE and a walkthrough with the
   lamp example.
 - [Architecture](docs/archdoc.md): the modules and how they depend on each other.
-- [Developer notes](docs/devdoc.md): the key design decisions, specific behaviour, open points and details that must
-  not be lost.
+- [Developer notes](docs/devdoc.md): how to build and test, the conventions, the key design decisions and behaviour
+  worth knowing.
+- [Open points](docs/todo.md): what is missing, unfinished or undecided.
 
 ## License
 

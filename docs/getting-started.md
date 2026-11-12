@@ -1,48 +1,42 @@
 # Getting started
 
-This guide explains what karpfen IDE does and walks you through a first run of a small model, a lamp with a wall
-switch. Plan about 15 minutes, plus a few minutes once for building the runtime image. Keys are written for macOS
-first and for Windows and Linux second, as in Cmd+S / Ctrl+S.
+This guide says what karpfen IDE does and walks through a first run of a small model, a lamp with a wall switch. Plan
+about 15 minutes, plus a few minutes once for building the runtime image. Keys are written for macOS first and for
+Windows and Linux second, as in Cmd+S / Ctrl+S.
 
 ## The idea
 
-karpfen is a small family of modeling languages. A system is described by a few text files:
+karpfen is a small family of modeling languages. A system is a few text files:
 
-- The metamodel (`.kmeta`) declares types. A type has properties (`prop`), objects it contains (`has`) and objects it
-  refers to (`knows`). The last type in the file is the root type, the type of the model's outermost object.
-- The model (`.kmodel`) creates objects of these types. Every object has a key, such as `lamp`.
-- A state machine (`.kstates`) describes behaviour. It is attached to one object of the model. Entering a state runs
-  actions that change the model. Transitions wait for events and conditions. Actions and conditions can compute
-  values in `EVAL` blocks, which hold Python. The example here uses them only for small sums and comparisons.
-- The event definitions are a second metamodel. Each type in it names an event, and the properties of the type are
-  the payload of that event. The state machines say in which domain they expect an event, as in
-  `EVENT("switch", "press")`.
-- The environment descriptor (`.kenv.json`) ties it all together. It names the metamodel, the events, the model and
-  each state machine with the object it is attached to. It can also set the tick delay and how long events live.
+| File | What it holds |
+|---|---|
+| Metamodel, `.kmeta` | Types with properties (`prop`), objects they contain (`has`) and objects they refer to (`knows`). The last type is the root type. |
+| Model, `.kmodel` | Objects of these types. Every object has a key, such as `lamp`. |
+| State machine, `.kstates` | Behaviour of one object. Entering a state runs actions that change the model. Transitions wait for events and conditions. `EVAL` blocks hold Python. |
+| Events, a second `.kmeta` | One type per event. Its properties are the payload. |
+| Descriptor, `.kenv.json` | Names the metamodel, the events, the model and each state machine with the object it is attached to. Sets the tick delay and how long events live. |
+| Bridge, `.kbridge.json` | Connects the running model to HTTP, MQTT or ROS. |
 
-The karpfen runtime is a server that runs such a system. It loads the files into an environment and then works in
-ticks. In every tick it runs all attached state machines once, and then it waits for the tick delay. The state
-machines change the model as they go. Events can be sent into the environment from outside. An event waits until a
-state machine takes it or until its time to live runs out.
+The karpfen runtime is a server that runs such a system. It works in ticks: in every tick it runs all state machines
+once, then it waits for the tick delay. Events come in from outside. An event waits until a state machine takes it or
+until its time to live runs out.
 
-karpfen IDE is an editor for these files and a front end for the runtime. It checks the files while you type, with
-karpfen-dsl-tools, the language library of karpfen. It runs a descriptor in a runtime with one command. While the
-model runs, it shows the model and the active states as they change, and it lets you send events with a payload.
+karpfen IDE edits these files, checks them while you type, runs a descriptor in a runtime with one command, and shows
+the model and the active states while it runs.
 
-## The modes
+## The IDE at a glance
 
 ### Editing
 
-Open a folder, and the Project tool window shows its files. The editor colours the text and underlines errors within a
-second. The Outline shows the structure of the active file. The Problems tool window lists the problems of the whole
-folder. It stays closed while there is nothing to show. Its label `Problems` at the left of the status bar gets a red
-icon and the number of problems when there are some, and a click on the label opens the list. Resting the mouse on a
-name shows what it is. The karpfen files of one folder form a modeling context,
-which the IDE checks as one system. Without a descriptor, the events must be in a file named `EVENTS.kmeta`, and the
-metamodel is the other `.kmeta` file of the folder. A descriptor makes the context explicit: the IDE then checks
-exactly the files it names. Descriptors are edited like the other files. Completion offers their keys, the files of
-the folder and the object keys of the model. Cmd+click / Ctrl+click on a file name opens that file. To create a
-descriptor, right-click a folder in the Project tool window and choose New Environment File.
+- Open a folder. The Project tool window shows its files in three sections: the project file and the descriptors at
+  the top, the model files in the middle, the bridge files at the bottom.
+- The editor colours the text and underlines errors within a second. The Outline shows the structure of the active
+  file. Resting the mouse on a name shows what it is.
+- The label `Problems` at the left of the status bar gets a red icon and a number when the folder has problems. A
+  click opens the list.
+- The karpfen files of one folder are checked as one system. A descriptor says exactly which files belong together.
+  Without one, the events must be in `EVENTS.kmeta`, and the metamodel is the other `.kmeta` file.
+- To create a descriptor, right-click a folder in the Project tool window and choose New Environment File.
 
 | Action | macOS | Windows and Linux |
 |---|---|---|
@@ -54,104 +48,80 @@ descriptor, right-click a folder in the Project tool window and choose New Envir
 | Save and Save All | Cmd+S and Cmd+Option+S | Ctrl+S and Ctrl+Alt+S |
 | Run and Stop | Shift+F10 and Cmd+F2 | Shift+F10 and Ctrl+F2 |
 
-There are two zoom controls, each a minus, the current size and a plus. `Zoom 100%` at the right end of the status bar
-is the size of everything around the editor: the tool windows, the tabs and the bars, text and all. `Font size 13` in
-the bar below the editor is the size of the editor's text. The two are independent, so neither changes the other. A
-click on the size itself sets it back to normal. Both belong to the project and are stored in its project file.
+There are two zoom controls, each a minus, the size and a plus. `Zoom 100%` at the right of the status bar scales
+everything around the editor. `Font size 13` in the bar below the editor scales the editor's text. Neither changes the
+other, and a click on the size sets it back.
 
-### Running in the IDE's Docker container
+### Diagrams
 
-This is the default. Run, in the Run menu, deploys a descriptor to a karpfen runtime in a Docker container that the IDE
-owns. Each opened folder gets its own container, which listens only on `127.0.0.1`. The first time, the IDE builds the
-runtime image from the runtime sources that come with it. That takes a few minutes and happens once. Later runs reuse
-the image. The image has Python 3 with numpy, scipy, sympy, pandas, regex, python-dateutil and chardet, which `EVAL`
-blocks can import. Start runtime and Stop runtime in the first line of the Runtime tool window start and stop the
-container without a run. When you close the folder or the IDE, the IDE stops the container and removes it. The image
-stays.
+| File | Diagram |
+|---|---|
+| State machine | Statechart: states with their inner states, transitions with their position in the text and their condition. |
+| Metamodel | Class diagram: one box per type with its properties. A filled diamond marks `has`, an open arrowhead marks `knows`. |
+| Model | Object diagram: one box per object with its key, its type and its values. |
 
-Run picks the descriptor in the active editor, or the only descriptor of the folder. If there are several, it asks.
-It first saves all open files, because it uploads the saved files. A run whose files have errors stops before it
-reaches the runtime and lists the errors instead.
+- The buttons Text, Split and Diagram at the left of the bar below the editor choose the view of the active file.
+- Drag the empty canvas to move the drawing. The buttons in its corner zoom. A click on a box jumps to it in the text.
+- Drag a box to arrange the diagram by hand. A grid of dots appears, and the box moves from grid point to grid point.
+- Right-click a line and choose Add waypoint, then drag the waypoint to bend the line. Right-click a waypoint and
+  choose Remove waypoint.
+- The first change by hand fixes every element where it is. The IDE stores the arrangement next to the file, with
+  `.vis` appended to its name, as in `lamp.kstates.vis`. After that only new elements are placed automatically.
+- The text always wins. What the `.vis` file says about something the text no longer has is dropped. Delete the
+  `.vis` file to go back to the automatic layout.
+- In the Project tool window the `.vis` file shows below its model file, behind an arrow. It opens as greyed-out text
+  that you cannot edit.
 
-### Running against a runtime at a URL
+### Running
 
-You can also start a karpfen runtime with IDE support yourself, like the one in the karpfen-runtime submodule. On macOS
-and Linux, `runtime/live-runtime.sh up` builds it, starts it in a throwaway container and prints its URL, and
-`runtime/live-runtime.sh down` removes it. In the first line of the Runtime tool window, click URL, enter the URL and
-click Apply. The default is `http://127.0.0.1:8080`. The IDE checks that the runtime answers and has IDE support. It
-never stops a runtime it did not start, and its Log pane cannot show that runtime's output. Click Docker to go back.
-Switching stops the live runs, and the IDE keeps your choice in the project file.
+- **In the IDE's Docker container.** This is the default. Each folder gets its own container, which listens only on
+  `127.0.0.1`. The first run builds the runtime image, which takes a few minutes once. Closing the folder or the IDE
+  stops and removes the container. The image stays. It has Python 3 with numpy, scipy, sympy, pandas, regex,
+  python-dateutil and chardet for `EVAL` blocks.
+- **Against a runtime at a URL.** Start a karpfen runtime with IDE support yourself, for example with
+  `runtime/live-runtime.sh up`. In the first line of the Runtime tool window click URL, enter the URL and click Apply.
+  The IDE never stops a runtime it did not start and cannot show its log. Click Docker to go back.
+
+Run saves all open files first, because it uploads the saved files. It picks the descriptor in the active editor, or
+the only one of the folder, or asks. A run whose files have errors stops before it reaches the runtime and lists the
+errors.
 
 ### While a model runs
 
-The Runtime tool window opens with every run. Runtime in the View menu and the runtime status in the status bar open
-it too. It takes the whole width of the window. Its first line shows what the runtime is doing. Its second line lists
-the runs, each with its phase, next to the buttons Run again, Stop and Clear finished. Below that, three panes show the
-selected run next to each other, so you see what an event does while you send it.
+The Runtime tool window opens with every run. Its first line shows what the runtime is doing. Its second line lists
+the runs with the buttons Run again, Stop and Clear finished. Below, three panes show the selected run:
 
-Model shows the model as a tree. Expand all and Collapse all open and close every object at once. With observation on,
-the runtime pushes every change and the tree follows live. Observation always covers the whole model, and the IDE
-listens to every event domain the state machines use. With observation off, the model stays as it is until you click
-Pull, which reads one snapshot.
-
-Events holds the form that sends an event. Choose a domain, then an event, then fill in the payload. The domains with
-events that the events file declares come first, in bold. The domains that only the state machines use follow and are
-marked as such. For an event with a payload type, the form fills in a JSON template and checks your payload as you type.
-The Send button names the event and is enabled while the payload has no error. Below the form is the list of the events
-the environment has published, newest first.
-
-Log starts with the active states of each state machine and one line about the deployment. A click on that line shows
-the deploy steps. Below is the log of the runtime. With Simplified switched on, it shows only what the state machines
-do, one step per line, such as `lamp  off -> on`, and the errors. With Simplified switched off, it shows everything the
-runtime prints.
+| Pane | What it shows |
+|---|---|
+| Model | The model as a tree, with Expand all and Collapse all. With observation on, it follows every change. With observation off, Pull reads one snapshot. |
+| Events | The form that sends an event: choose a domain, an event and fill in the payload. The payload is checked as you type. Below is the list of the events the environment published. |
+| Log | The active states of each state machine, the deployment, the bridges and the log of the runtime. Simplified shows only what the state machines do, such as `lamp  off -> on`, and the errors. |
 
 ### Bridges
 
-A bridge connects the running model to something outside the IDE. A file whose name ends in `.kbridge.json` describes
-one bridge: its kind, which is `http`, `mqtt` or `ros`, its settings, and its routes. An inbound route turns a message from
-outside into an event. An outbound route sends a message whenever a property, the active states of a state machine or
-an event has something new.
-
-You do not write a bridge file by hand. Configure Bridge in the Run menu opens a form for a bridge of the project or
-for a new one, and a click on a bridge file in the Project tool window opens the same form. The form asks for the name, the kind
-and its settings, and lets you add and remove routes. Changing the name renames the bridge file. Where a route names an event, a property or a state machine,
-Pick lists those of the project. Save is enabled once every route is complete.
-
-When the project has bridge files, Run asks which of them to start, with one box per file. The boxes you ticked last
-time are ticked again. The bridges start once the environment runs and stop with it. The Log pane lists them below the
-line about the deployment, each with its state and the number of messages it handed on.
-
-The lamp example has three bridge files. `http.kbridge.json` listens on port 8090, so this presses the wall switch and
-then makes the lamp brighter:
-
-```
-curl -X POST http://127.0.0.1:8090/press
-curl -X POST http://127.0.0.1:8090/dim -d '{"bright": true}'
-```
-
-`mqtt.kbridge.json` needs an MQTT broker on `localhost:1883`. It presses the switch for every message on the topic
-`home/lamp/press`, and it publishes the power of the bulb on `home/lamp/watts` and the active states of the lamp on
-`home/lamp/state`. Outbound routes that follow a property or a state machine need observation switched on. Without a
-broker that bridge shows as failed, and the run goes on without it.
-
-`ros.kbridge.json` needs a rosbridge server on `localhost:9090`. That is the package `rosbridge_suite` of ROS, which
-has to be installed and started on the ROS side. The bridge presses the switch for every message on the topic
-`/lamp/press` and publishes the power of the bulb on `/lamp/watts` and the active states of the lamp on `/lamp/state`.
-It talks to ROS 2. For a ROS 1 system, tick Legacy ROS 1 system in its form.
-
+- A bridge file describes one bridge: its kind, which is `http`, `mqtt` or `ros`, its settings and its routes. An
+  inbound route turns a message from outside into an event. An outbound route sends a message whenever a property, the
+  active states of a state machine or an event has something new.
+- You do not write a bridge file by hand. Configure Bridge in the Run menu, or a click on a bridge file, opens a form.
+  Pick lists the events, properties and state machines of the project.
+- When the project has bridge files, Run asks which of them to start. The boxes you ticked last time are ticked
+  again. The bridges start once the environment runs and stop with it.
+- Outbound routes that follow a property or a state machine need observation switched on.
 
 ## Walkthrough: the lamp
 
-The folder `examples/lamp` holds a small system. A living room has a lamp and a wall switch. The lamp goes from off to
-on and back with each press of the switch. It always comes on at the full power of its bulb, which is 40 W. While it is
-on, a dimmer turns it up and down in steps of 10 W, between 0 W and the full power. Switching it off forgets the
-dimming. It can be smashed at any time, which breaks it and throws away its spare bulb. The switch has its own state
-machine that moves up and down with each press. The descriptor sets a tick delay of 500 ms, so you can watch each change
-happen. It also lets an event wait up to 5 seconds for a state machine to take it.
+The folder `examples/lamp` holds a small system. A living room has a lamp and a wall switch.
+
+- A press of the switch turns the lamp on and off. It always comes on at the full power of its bulb, 40 W.
+- While it is on, a dimmer turns it up and down in steps of 10 W, between 0 W and the full power.
+- Switching it off forgets the dimming.
+- A smash breaks the lamp at any time and throws away its spare bulb.
+- The switch has its own state machine that moves up and down with each press.
+- The descriptor sets a tick delay of 500 ms, so you can watch each change, and lets an event wait up to 5 seconds.
 
 ### 1. What you need
 
-- A JDK 21. Gradle also runs on JDK 17 or newer and downloads a JDK 21 for the IDE if none is installed.
+- A JDK 21. Gradle also runs on JDK 17 or newer and downloads a JDK 21 if none is installed.
 - Docker Desktop or another local Docker engine, running.
 - The repository with its submodules:
 
@@ -170,185 +140,147 @@ From the repository root, on macOS and Linux:
 ./gradlew :app:ide:run --args="$PWD/examples/lamp"
 ```
 
-On Windows, in a command prompt, run `gradlew.bat :app:ide:run --args="%CD%\examples\lamp"`. The path must be
-absolute, because Gradle starts the IDE in the folder `app/ide`. The IDE ignores a folder argument that is not a
-directory and shows its start page, where Open Folder… lets you pick `examples/lamp`. The first build takes a few
-minutes, and the command keeps running while the IDE is open.
+On Windows, run `gradlew.bat :app:ide:run --args="%CD%\examples\lamp"`. The path must be absolute. The first build
+takes a few minutes, and the command keeps running while the IDE is open.
 
-Expected: the window opens on the folder. The Project tool window lists six files. The status bar shows the label
-`Problems` without an icon, 0 errors, 0 warnings and `Runtime: stopped`.
+Expected: the window opens on the folder. The Project tool window lists the descriptor `lamp.kenv.json` at the top,
+five model files in the middle and three bridge files at the bottom. The status bar shows `Problems` without an icon
+and `Runtime: stopped`.
 
 ### 3. Look around
 
-Double-click `lamp.kstates`. Expected: it opens in a tab with coloured keywords and strings, and the Outline lists its
-states and transitions.
-
-A state machine file also has a diagram. At the left of the bar below the editor, click Split. Expected: the statechart
-appears next to the text, starting at the initial state `off` at the top, with `on` and its three inner states below it.
-Every transition carries its position in the text and its condition, such as `1: switch/press`. Drag the empty canvas to
-move the drawing, and use the buttons in its corner to zoom. Click a state, and the editor jumps to it. Diagram shows
-the statechart alone, and Text goes back to the text.
-
-You can arrange the statechart by hand. Drag a state. Expected: a grid of dots appears, and the state moves from grid
-point to grid point. A state with inner states takes them along. Right-click the line of a transition and choose Add
-waypoint in the small menu, drag the waypoint to bend the line, and right-click the waypoint and choose Remove waypoint
-to take it away again. The first change by hand fixes every
-element where it is, and the IDE writes the arrangement to `lamp.kstates.vis` next to the file. From then on nothing is
-arranged automatically, except that a state you add in the text gets a place next to the others. The text always wins:
-if you delete a state in the text, its place in the `.vis` file is ignored and dropped. To go back to the automatic
-layout, delete the `.vis` file.
-
-The `.vis` file belongs to its state machine file. In the Project tool window the state machine file gets an arrow in
-front of it, and the `.vis` file shows below it when you click the arrow. A double click on the `.vis` file opens it as
-greyed-out text. You cannot type into it, because the IDE writes it. Other tools can change it, and the IDE takes such a
-change over.
-
-The metamodel and the model have a diagram too. Open `lamp.kmeta` and click Split. Expected: a class diagram with one
-box per type. A box shows the name of the type and its simple properties, such as `watts: number`. A line with a filled
-diamond leads from a type to a type it has, such as from `Lamp` to `Bulb`, and carries the name of the relation. A line
-with an open arrowhead leads to a type it knows, such as from `Lamp` to `Switch`. Open `lamp.kmodel` and click Split.
-Expected: an object diagram with one box per object. A box shows the key and the type of the object, underlined, such
-as `bulb : Bulb`, and the values of its properties, such as `maxWatts = 40`. Both diagrams are moved, zoomed and
-arranged by hand like the statechart, and each stores its arrangement in a `.vis` file of its own, such as
-`lamp.kmeta.vis`.
-
-- Cmd+click / Ctrl+click on `Lamp` in `STATEMACHINE ATTACHED TO "Lamp"`. Expected: `lamp.kmeta` opens at the type.
-- Open `lamp.kenv.json` and rest the mouse on the key `tickDelayMs`. Expected: a tooltip explains the key.
-- In `lamp.kstates`, delete the `{` after `STATE "broken"`. Expected: within a second a red underline appears, and
-  the label in the status bar turns into `Problems: 1` with a red icon. Click it to see the error in the Problems tool
-  window. Undo with Cmd+Z / Ctrl+Z. Expected: everything is clean again, and the Problems tool window closes.
+1. Double-click `lamp.kstates`. Expected: it opens with coloured keywords, and the Outline lists its states and
+   transitions.
+2. Click Split in the bar below the editor. Expected: the statechart appears next to the text. It starts at the
+   initial state `off`, with `on` and its three inner states below. A transition reads like `1: switch/press`.
+3. Click a state in the diagram. Expected: the editor jumps to it.
+4. Drag the state `broken`. Expected: a grid of dots appears, and the state moves on it. In the Project tool window
+   `lamp.kstates` gets an arrow, with `lamp.kstates.vis` behind it.
+5. Open `lamp.kmeta` and click Split. Expected: a class diagram. A line with a diamond leads from `Lamp` to `Bulb`,
+   one with an arrowhead from `Lamp` to `Switch`.
+6. Open `lamp.kmodel` and click Split. Expected: an object diagram. The box `bulb : Bulb` shows `maxWatts = 40`.
+7. In `lamp.kstates`, Cmd+click / Ctrl+click on `Lamp` in `STATEMACHINE ATTACHED TO "Lamp"`. Expected: `lamp.kmeta`
+   opens at the type.
+8. Open `lamp.kenv.json` and rest the mouse on the key `tickDelayMs`. Expected: a tooltip explains the key.
+9. In `lamp.kstates`, delete the `{` after `STATE "broken"`. Expected: a red underline appears, and the status bar
+   shows `Problems: 1` with a red icon. Undo with Cmd+Z / Ctrl+Z. Expected: everything is clean again.
 
 ### 4. Run it
 
-Choose Run in the Run menu, or press Shift+F10. On a Mac keyboard you may have to hold Fn for the F keys.
+1. Choose Run in the Run menu, or press Shift+F10. On a Mac keyboard you may have to hold Fn.
+2. The dialog Bridges asks which bridges to start. Leave the boxes unticked and click Run.
 
-Expected: the Runtime tool window opens at the bottom and takes three quarters of the window's height. Drag its upper
-edge to change that. Its second line shows a run named `lamp`, whose label moves from `preparing` to `waiting for the
-runtime`, `deploying` and `running`. The first line says what the runtime is doing. On the first run it shows `Docker:
-building the runtime image` with the current build step for a few minutes. Then come `creating the container`, `starting
-the container` and `waiting for the runtime`, and at last `Docker: running at 127.0.0.1:` with a port. The status bar
-says `Runtime: running`.
+Expected:
 
-The Log pane on the right then starts with the active states, `lamp: off` and `wallSwitch: down`, and the line
-`Deployment done` with the number of steps. Click that line. Expected: every step is `done`, among them
-`Setting the tick delay to 500 ms`. The simplified log below shows that the engine started and that the lamp starts in
-`off` and the switch in `down`. The Model pane on the left says `Observation on` and `live at revision` with a number.
+- The Runtime tool window opens at the bottom and takes three quarters of the window's height.
+- Its second line shows a run named `lamp`, whose label moves from `preparing` to `running`.
+- On the first run its first line shows `Docker: building the runtime image` for a few minutes, and at last
+  `Docker: running at 127.0.0.1:` with a port.
+- The Log pane starts with `lamp: off` and `wallSwitch: down` and the line `Deployment done`. A click on that line
+  shows the steps.
+- The Model pane says `Observation on`. Click Expand all. The lamp shows `mode = "off"`, the bulb `maxWatts = 40`,
+  `watts = 0` and `lit = false`, and the switch `position = "down"`.
 
-In the Model pane, click Expand all. Expected: the tree opens down to the bulbs. The lamp shows `mode = "off"`, the bulb
-`maxWatts = 40`, `watts = 0` and `lit = false`, and the switch `position = "down"`. The lamp's row `control` links to
-`wallSwitch`. Click the link to jump there.
-
-If Docker is not running, the run turns `failed` and the first line turns red. It names the problem and ends with
-`Start Docker Desktop or the local Docker engine, then try again.` Do that and run again.
+If Docker is not running, the run turns `failed` and the first line names the problem in red. Start Docker and run
+again.
 
 ### 5. Play with it
 
-The form in the Events pane starts on the domain `service` with its event `smash`. After each Send, look at the Model
-pane to the left and at the Log pane to the right.
+The form in the Events pane starts on the domain `service`. After each Send, look at the Model pane and the Log pane.
 
-1. Click the domain `switch`. The event `press` is selected, and the button reads `Send press`. Click it. Expected:
-   within a second the lamp goes on at full power. The log shows `lamp  off -> full` and `wallSwitch  down -> up`, and
-   the active states above it read `lamp: on > full` and `wallSwitch: up`. In the Model pane the lamp has `mode = "on"`,
-   the bulb `lit = true` and `watts = 40`, and the switch `position = "up"` and `presses = ["up"]`. The event list below
-   the form shows the press with the source `external`.
-2. Click the event `dim`. It turns the dimmer one step. The payload editor shows a JSON object with `"bright": false`,
-   which means one step dimmer. Replace `false` by `3`. Expected: the form shows an error, because `bright` is a
-   boolean, and the button is greyed out. Write `false` again and click `Send dim`. Expected: the log shows `lamp  on ->
-   dimmer`, and the bulb has `watts = 30`. Send it three more times. Expected: the bulb goes down to `watts = 0`. One
-   more `Send dim` changes nothing, because the bulb cannot go below 0 W.
-3. Change the payload to `"bright": true` and send it. Expected: the log shows `lamp  on -> brighter`, and the bulb has
-   `watts = 10`. Each further send adds 10 W until the bulb is back at 40 W, its `maxWatts`. After that a send changes
-   nothing.
-4. Dim the lamp a step or two, then click `press` and send it. Expected: the lamp goes off. The active states read
-   `lamp: off` and `wallSwitch: back down`, and the bulb has `lit = false` and `watts = 0`. Send `press` again.
-   Expected: the lamp comes on at `watts = 40` again, because switching it off forgot the dimming.
-5. Click the domain `service`, keep `smash` and send it. A smash works whether the lamp is on or off. Expected:
-   `lamp: broken` and `mode = "broken"`. The bulb goes dark, with `lit = false` and `watts = 0`, and the spare bulb
-   disappears from the model tree.
-6. Send `press` once more. Expected: the switch moves again, but the lamp stays broken. No transition leaves
-   `broken`.
+| Step | Do this | Expected |
+|---|---|---|
+| 1 | Click the domain `switch` and `Send press`. | The lamp goes on at full power: `lamp: on > full`, `mode = "on"`, `lit = true`, `watts = 40`. The switch is `up`. |
+| 2 | Click the event `dim`. Replace `false` in the payload by `3`. | The form shows an error, because `bright` is a boolean, and the button is greyed out. |
+| 3 | Write `false` again and click `Send dim`. | The log shows `lamp  on -> dimmer`, and the bulb has `watts = 30`. |
+| 4 | Send it three more times, then once more. | The bulb goes down to `watts = 0`. The last send changes nothing. |
+| 5 | Change the payload to `"bright": true` and send it. | `lamp  on -> brighter`, `watts = 10`. Each further send adds 10 W, up to 40 W. |
+| 6 | Dim a step, then send `press` twice. | The lamp goes off with `watts = 0`, then comes on at `watts = 40` again. |
+| 7 | Click the domain `service` and send `smash`. | `lamp: broken`, `mode = "broken"`, `lit = false`, `watts = 0`. The spare bulb disappears from the tree. |
+| 8 | Send `press` once more. | The switch moves, but the lamp stays broken. |
 
-Events can wait. A `dim` sent while the lamp is off does nothing at first. If a press turns the lamp on before the dim
-is 5 seconds old, the waiting dim then takes effect. Otherwise the dim expires.
+Events can wait. A `dim` sent while the lamp is off takes effect if a press turns the lamp on within 5 seconds.
+Otherwise it expires.
 
 ### 6. Observe or pull
 
-In the Model pane, turn the Observation switch off. Expected: the status line next to Pull says `Observation off` and
-`pulled at revision` with the last revision. Send `press` twice. Expected: the model tree does not change, and
-neither do the active states in the Log pane. The simplified log still shows the transitions, because it comes from
-the runtime's output. Click Pull. Expected: the tree jumps to the current model,
-with two more entries in `presses`, and the revision is higher. Turn observation on again. Expected: the status goes
-back to `live at revision`, and changes flow in again.
+1. In the Model pane, turn the Observation switch off. Expected: the status says `Observation off`.
+2. Send `press` twice. Expected: the tree and the active states do not change. The simplified log still shows the
+   transitions.
+3. Click Pull. Expected: the tree jumps to the current model, with two more entries in `presses`.
+4. Turn observation on again. Expected: the status goes back to `live at revision`.
 
 ### 7. Stop
 
-Click Stop in the line of the runs, or press Cmd+F2 / Ctrl+F2. Expected: the label of the run turns `stopped`. The
-Model pane says `Observation off` and `final at revision`, and it keeps the last model. The Send button is greyed out.
-The first line still says `Docker: running`, because Stop ends the environment and not the runtime. The container keeps
-running so the
-next run starts fast. Stop runtime in the first line, or Stop Runtime in the Run menu, stops the container and removes
-it.
+Click Stop in the line of the runs, or press Cmd+F2 / Ctrl+F2. Expected: the run turns `stopped`, the Model pane keeps
+the last model, and the Send button is greyed out. The container keeps running, so the next run starts fast. Stop
+runtime in the first line stops and removes it.
 
 ### 8. Change the model and run again
 
-Give the lamp a way back from broken. Add an event at the end of `lamp-events.kmeta`:
+Give the lamp a way back from broken.
 
-```
-type "repair" "Repairs a broken lamp" {
-}
-```
+1. Add an event at the end of `lamp-events.kmeta`:
 
-In `lamp.kstates`, add a transition at the end of the `TRANSITIONS` block:
+   ```
+   type "repair" "Repairs a broken lamp" {
+   }
+   ```
 
-```
-TRANSITION "broken" -> "off" {
-    CONDITION { EVENT("service", "repair") }
-}
-```
+2. In `lamp.kstates`, add a transition at the end of the `TRANSITIONS` block. Ctrl+M inside the quotes of a state
+   name offers the states.
 
-Press Ctrl+M inside the quotes of a state name, and completion offers the states of the machine. Save with Cmd+S /
-Ctrl+S. Then click Run again in the line of the runs, or press Shift+F10. Run would save the files anyway.
+   ```
+   TRANSITION "broken" -> "off" {
+       CONDITION { EVENT("service", "repair") }
+   }
+   ```
 
-Expected: a new run `lamp` appears first in the line of the runs. It starts from the files again, with the lamp off and
-both bulbs in place. In the Events pane the domain `service` now offers `smash` and `repair`. Send `smash`, then
-`repair`. Expected: the lamp goes from `broken` back to `off`, with `mode = "off"`. The spare bulb stays gone, because
-nothing creates it again.
+3. Click Run again in the line of the runs, and Run in the dialog Bridges. Run saves the files.
+4. Send `smash`, then `repair` in the domain `service`. Expected: the lamp goes from `broken` back to `off`. The
+   spare bulb stays gone, because nothing creates it again.
 
-If a file has an error, the run does not reach the runtime. Its label says `blocked`, and the Log pane lists the
-error under `Findings that block the run`. Click it to jump to the error.
+If a file has an error, the run is `blocked`, and the Log pane lists the error under `Findings that block the run`.
 
-### 9. Close the IDE
+### 9. Try a bridge
 
-Quit the IDE with Cmd+Q on macOS, or close the window. If a file has unsaved changes, the IDE asks first. Then it stops
-every run, stops the runtime container and removes it. This takes at most 15 seconds. If it takes longer than a
-second, the window says `Stopping the runtime…`. The Gradle command in the terminal ends with the IDE.
+1. Run again, tick `http.kbridge.json` in the dialog Bridges and click Run. Expected: the Log pane lists the bridge
+   below the deployment.
+2. In a terminal, press the wall switch and make the lamp dimmer:
 
-Expected: `docker ps --all --filter label=io.karpfen.ide.runtime=true` lists no container. The image stays, so the
-next run starts the runtime in seconds. `docker images --filter label=io.karpfen.ide.runtime=true` shows it as
-`karpfen-ide/runtime` with a short hash as its tag. To undo your changes to the example, run
-`git restore examples/lamp`.
+   ```
+   curl -X POST http://127.0.0.1:8090/press
+   curl -X POST http://127.0.0.1:8090/dim -d '{"bright": false}'
+   ```
 
-### 10. Remove the runtime image
+   Expected: the lamp goes on, then down to `watts = 30`, as if you had sent the events in the form.
 
-To free the disk space, close the IDE and remove the image. The first line removes containers left over after a crash.
-When there are none, it prints an error that you can ignore. The next run builds the image again.
+The other two bridge files need a partner. Without it the bridge shows as failed, and the run goes on.
+
+| File | Needs | Does |
+|---|---|---|
+| `mqtt.kbridge.json` | An MQTT broker on `localhost:1883`. | Takes presses on `home/lamp/press`. Publishes the power on `home/lamp/watts` and the active states on `home/lamp/state`. |
+| `ros.kbridge.json` | A rosbridge server on `localhost:9090`, the ROS package `rosbridge_suite`. | Takes presses on `/lamp/press` and dim steps on `/lamp/dim`. Publishes the power on `/lamp/watts` and the active states on `/lamp/state`. For ROS 1, tick Legacy ROS 1 system in its form. |
+
+### 10. Close the IDE and clean up
+
+Quit with Cmd+Q on macOS, or close the window. The IDE asks about unsaved changes, stops every run and removes the
+runtime container. This takes at most 15 seconds. To undo your changes to the example, run
+`git restore examples/lamp` and delete the `.vis` files you made.
+
+The image stays, so the next run starts in seconds. To free the disk space, remove it. The first line removes
+containers left over after a crash and prints an error when there are none:
 
 ```bash
 docker rm --force --volumes $(docker ps --all --quiet --filter label=io.karpfen.ide.runtime=true)
 docker rmi $(docker images --quiet --filter label=io.karpfen.ide.runtime=true)
 ```
 
-The IDE only touches Docker resources with the label `io.karpfen.ide.runtime=true`. A build also leaves the untagged
-image of its build stage, which `docker images --filter dangling=true` lists, and the base images
-`eclipse-temurin:21-jdk` and `debian:trixie-slim`. Remove them with `docker rmi` when nothing else needs them.
-
 ## Good to know
 
-Each project keeps its own settings in the file `.karpfenproject` in its folder. The IDE writes there the theme, the two
-zoom sizes, which tool windows are shown and how large they are, the runtime choice, which files are open, and which
-bridges you started with the last run. When you
-open the folder again, on this machine or on another, the IDE looks the way you left it. The file is plain text with one
-`key = value` per line, so you can read it, edit it and commit it with the project:
+Each project keeps its settings in the file `.karpfenproject` in its folder: the theme, the two zoom sizes, the tool
+windows, the runtime choice, the open files and the bridges of the last run. Open the folder again, on this machine or
+another, and the IDE looks the way you left it. The file is plain text, so you can read it, edit it and commit it:
 
 ```
 theme = dark
@@ -360,7 +292,8 @@ open = lamp.kstates
 active = lamp.kstates
 ```
 
-Only what belongs to you and your machine stays outside the project: the recent folders and the place of the window, in
-`~/.karpfen-ide/settings.json`. The log is in `~/.karpfen-ide/logs/ide.log`. The environment variable `KARPFEN_IDE_HOME`
-moves both. [archdoc.md](archdoc.md) explains the modules and how they depend on each other.
-[devdoc.md](devdoc.md) collects the design decisions and the behaviour to know before you change the code.
+Only the recent folders and the place of the window stay outside the project, in `~/.karpfen-ide/settings.json`. The
+log is in `~/.karpfen-ide/logs/ide.log`. The environment variable `KARPFEN_IDE_HOME` moves both.
+
+[archdoc.md](archdoc.md) explains the modules, [devdoc.md](devdoc.md) the design decisions and the behaviour to know
+before you change the code, and [todo.md](todo.md) what is open.
