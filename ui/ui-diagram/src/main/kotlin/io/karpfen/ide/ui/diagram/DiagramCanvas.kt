@@ -97,6 +97,9 @@ import kotlinx.coroutines.withContext
  * model is an edit of [source], the text the diagram was derived from, and goes to [onChange], which answers whether
  * the text took it.
  *
+ * The code cells of the notation are drawn as small markers, a circle with a plus. A click on a marker opens the cell
+ * in a pane over the canvas, where its code is edited as text and saved into the model.
+ *
  * The first drawing is fitted into the view. After that the view keeps the zoom and the position the user chose.
  *
  * Nothing a notation does here can take the window down. Measuring, laying out, drawing and every gesture run
@@ -149,6 +152,14 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
         automatic
     }
     val current by rememberUpdatedState(drawing)
+    val cells = remember(notation, drawing, source) {
+        if (drawing == null || source == null) {
+            emptyList()
+        } else {
+            faults.guard("finding the code cells", { emptyList() }) { notation.cells.of(source, drawing.diagram, drawing.layout) }
+        }
+    }
+    val currentCells by rememberUpdatedState(cells)
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
@@ -253,6 +264,11 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
                         mode = CanvasMode.Idle
                         return@detectTapGestures
                     }
+                    val cell = currentCells.firstOrNull { pointAt(position) in it.box }
+                    if (cell != null) {
+                        mode = CanvasMode.Editing(cell, position)
+                        return@detectTapGestures
+                    }
                     faults.attempt("finding the clicked element in the text") {
                         shown.layout.boxAt(pointAt(position))?.let { arrangement.placeInText(shown.diagram, it) }?.let(onSelect)
                     }
@@ -300,6 +316,9 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             faults.attempt("drawing the diagram") {
                 notation.painter.paint(this, shown.diagram, shown.layout, shown.texts, colors, faults)
             }
+            faults.attempt("drawing the markers of the code cells") {
+                cells.forEach { cell -> drawCellMarker(cell.box, cell.word.takeIf { it.isNotEmpty() }?.let { shown.texts[TextRole.ROW, it] }, colors) }
+            }
             (mode as? CanvasMode.Picking)?.let { picking ->
                 faults.attempt("marking the elements to click") {
                     drawPickMarks(picking.action.candidates.mapNotNull(shown.layout::boxOf), picking.picked.mapNotNull(shown.layout::boxOf), colors)
@@ -341,6 +360,13 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             waiting.position,
             onDone = { text -> run(faults.guard<DiagramAction?>("taking the text", { null }) { waiting.action.next(text) }, waiting.position) },
             onCancel = { mode = CanvasMode.Idle },
+        )
+        is CanvasMode.Editing -> CodeCellPane(
+            waiting.cell,
+            waiting.position,
+            viewSize,
+            onSave = { code -> run(DiagramAction.Change("Edit code") { waiting.cell.save(code) }, waiting.position) },
+            onClose = { mode = CanvasMode.Idle },
         )
         CanvasMode.Idle -> Unit
     }

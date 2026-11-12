@@ -17,6 +17,7 @@ package io.karpfen.ide.notation.diagram.statechart
 
 import io.karpfen.ide.core.document.parse.OutlineNode
 import io.karpfen.ide.core.document.parse.SymbolKind
+import io.karpfen.ide.core.text.TextRange
 
 /**
  * Derives the [StatechartDiagram] of a `.kstates` file from its text and its outline. The outline is what the parser
@@ -100,6 +101,9 @@ public object StatechartProjection {
             label = label(whole),
             notLooping = NOT_LOOPING.containsMatchIn(header),
             range = node.range,
+            conditionRange = CONDITION.find(whole)?.let { match ->
+                TextRange(node.range.start + match.range.first, node.range.start + closingBrace(whole, match.range.last) + 1)
+            },
         )
     }
 

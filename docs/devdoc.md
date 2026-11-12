@@ -272,6 +272,11 @@ only while the document is still at that text. `StatechartEdits` makes the edits
 which puts a statement at the end of a block and takes a construct out with its lines. A change can also say what it
 means for the layout by hand: a new state is placed where the user clicked, and a renamed state keeps its place.
 
+The notation is hybrid. The structure is drawn, and code stays text. A `DiagramCells` tells which pieces of code a
+diagram shows folded up, as `DiagramCell`s: the entry and do blocks of a state and the condition of a transition. The
+canvas draws a marker for each and opens a clicked cell in `CodeCellPane`. Saving goes the same way as any other
+change. The pane is a plain text field so far.
+
 ### Bridges run inside the IDE
 
 A bridge connects a running model to an external system: HTTP, MQTT or ROS. It is a plain Kotlin component with a

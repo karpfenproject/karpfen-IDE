@@ -131,7 +131,11 @@ public object ManualStatechartLayout {
      */
     private fun labelOn(points: List<DiagramPoint>, transition: TransitionEdge, text: TextMeasurer, labels: Map<String, DiagramPoint>): DiagramBox =
         LineRouting.moved(
-            LineRouting.captionBeside(points, text.widthOf(transition.caption) + StatechartMetrics.LABEL_PADDING, StatechartMetrics.LABEL_HEIGHT),
+            LineRouting.captionBeside(
+                points,
+                text.widthOf(transition.caption) + StatechartMetrics.LABEL_PADDING + StatechartMetrics.CELL_ROOM,
+                StatechartMetrics.LABEL_HEIGHT,
+            ),
             labels[transition.id],
         )
 

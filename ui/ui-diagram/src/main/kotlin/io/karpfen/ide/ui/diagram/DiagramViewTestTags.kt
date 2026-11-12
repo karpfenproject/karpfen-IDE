@@ -35,6 +35,18 @@ public object DiagramViewTestTags {
     /** The field a user types a name into. */
     public const val ASK: String = "Diagram.ask"
 
+    /** The opened code cell as a whole. */
+    public const val CELL: String = "Diagram.cell"
+
+    /** The field with the code of the opened cell. */
+    public const val CELL_CODE: String = "Diagram.cell.code"
+
+    /** The button that writes the code of the opened cell into the text. */
+    public const val CELL_SAVE: String = "Diagram.cell.save"
+
+    /** The button that closes the opened cell without writing. */
+    public const val CELL_CLOSE: String = "Diagram.cell.close"
+
     /** What the view says while there is nothing to draw. */
     public const val EMPTY: String = "Diagram.empty"
 

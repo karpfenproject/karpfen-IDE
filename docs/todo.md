@@ -18,8 +18,11 @@ refer to.
 
 ### Diagrams
 
-- The statechart changes the text through its context menu. It cannot yet add splits and joins, reorder transitions,
-  or edit conditions and actions. The class and object diagrams cannot change the text at all.
+- The statechart changes the text through its context menu and its code cells. It cannot yet add splits and joins,
+  reorder transitions, mark a transition as not looping, or edit macros. The class and object diagrams cannot change
+  the text at all.
+- An opened code cell is a plain text field without highlighting, completion and checks. It closes without saving
+  when the text changes underneath it.
 - Renaming a state through the diagram renames it in the transitions, but not where code names it.
 - The diagrams do not show a running model: neither the active states and fired transitions in the statechart nor the
   current values in the object diagram.

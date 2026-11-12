@@ -142,6 +142,33 @@ internal object TextBlocks {
         return text.substring(range.start, range.end).lines().joinToString("\n") { it.removePrefix(indent) }
     }
 
+    /**
+     * What stands between the braces of the block [block] of [text], as a user edits it: without the blank lines
+     * around it and without the indentation its lines share.
+     */
+    fun inner(text: String, block: TextRange): String {
+        val lines = text.substring(block.start + 1, block.end - 1).lines().dropWhile { it.isBlank() }.dropLastWhile { it.isBlank() }
+        val shared = lines.filter { it.isNotBlank() }.minOfOrNull { line -> line.takeWhile { it == ' ' || it == '\t' }.length } ?: 0
+        return lines.joinToString("\n") { it.drop(minOf(shared, it.length)).trimEnd() }
+    }
+
+    /**
+     * A block with [content] between its braces, to stand on a line that is indented by [indent]. Nothing gives an
+     * empty block, one line gives a block on one line, and several lines give a block with each line one step deeper
+     * than [indent].
+     */
+    fun braced(content: String, indent: String): String {
+        val lines = content.lines().dropWhile { it.isBlank() }.dropLastWhile { it.isBlank() }
+        return when (lines.size) {
+            0 -> "{ }"
+            1 -> "{ ${lines.single().trim()} }"
+            else -> "{\n" + lines.joinToString("\n") { if (it.isBlank()) "" else indent + INDENT + it } + "\n" + indent + "}"
+        }
+    }
+
+    /** One step of indentation behind [indent]. */
+    fun deeper(indent: String): String = indent + INDENT
+
     /** The whitespace at the start of the line that holds [offset] of [text]. */
     fun indentOf(text: String, offset: Int): String =
         text.substring(lineStartOf(text, offset)).takeWhile { it == ' ' || it == '\t' }

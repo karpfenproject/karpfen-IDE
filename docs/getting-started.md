@@ -73,6 +73,9 @@ other, and a click on the size sets it back.
   transition. On a state it renames or deletes the state, adds a state inside it, starts a transition, adds entry or
   do actions, makes it the initial state, or moves it out of or into another state. On a transition it deletes the
   transition. Where an entry needs a second state, the states to choose from are marked, and you click one.
+- A small circle with a plus marks code that is folded up: the entry and do actions of a state, and the condition
+  of a transition. Click it to open the code in a pane over the diagram, edit it and click Save. A transition without
+  a condition has an empty one to write into.
 - Every such change is an edit of the text, which Undo in the editor takes back.
 - The text always wins. What the `.vis` file says about something the text no longer has is dropped. Delete the
   `.vis` file to go back to the automatic layout.

@@ -102,6 +102,7 @@ public enum class TransitionKind {
  * @property label the condition in a few words, or empty for a transition without a condition.
  * @property notLooping true for a transition marked `NOT LOOPING`.
  * @property range the whole transition in the text.
+ * @property conditionRange the whole `CONDITION { ... }` block of the transition in the text, or null if it has none.
  */
 public data class TransitionEdge(
     public val id: String,
@@ -112,6 +113,7 @@ public data class TransitionEdge(
     public val label: String,
     public val notLooping: Boolean,
     public val range: TextRange,
+    public val conditionRange: TextRange? = null,
 ) {
     /**
      * What a drawing writes next to the transition: its priority and, if it has a condition, the label after a colon,

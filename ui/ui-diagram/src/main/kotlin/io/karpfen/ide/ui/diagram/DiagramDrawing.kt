@@ -67,6 +67,22 @@ internal fun DrawScope.drawWaypoints(waypoints: List<DiagramPoint>, colors: Karp
 }
 
 /**
+ * Draws the marker of a code cell at the left end of [box]: a small circle with a plus, which says that there is code
+ * to open. The [word] of the cell, if it has one, is written behind the marker.
+ */
+internal fun DrawScope.drawCellMarker(box: DiagramBox, word: TextLayoutResult?, colors: KarpfenColors) {
+    val unit = density
+    val radius = box.height * unit / 2f
+    val center = Offset(box.x * unit + radius, (box.y + box.height / 2f) * unit)
+    val arm = radius * PLUS_ARM
+    drawCircle(colors.panel, radius, center)
+    drawCircle(colors.accent, radius, center, style = Stroke(BORDER * unit))
+    drawLine(colors.accent, center - Offset(arm, 0f), center + Offset(arm, 0f), strokeWidth = LINE * unit)
+    drawLine(colors.accent, center - Offset(0f, arm), center + Offset(0f, arm), strokeWidth = LINE * unit)
+    word?.let { drawText(it, color = colors.textMuted, topLeft = Offset(center.x + radius + CELL_WORD_GAP * unit, center.y - it.size.height / 2f)) }
+}
+
+/**
  * Marks the boxes a user picks from. Each of the [candidates] gets a thin border in the accent colour, and each of
  * the [picked] ones, which the user clicked already, is filled lightly as well.
  */
@@ -158,6 +174,12 @@ internal const val ARROW_LENGTH: Float = 9f
 
 /** The width of an arrowhead at its base. */
 internal const val ARROW_WIDTH: Float = 7f
+
+/** How far the arms of the plus in the marker of a code cell reach, as a share of the radius of the marker. */
+private const val PLUS_ARM = 0.55f
+
+/** The room between the marker of a code cell and its word. */
+private const val CELL_WORD_GAP = 4f
 
 /** How strongly a box the user picked is filled with the accent colour. */
 private const val PICKED_ALPHA = 0.18f

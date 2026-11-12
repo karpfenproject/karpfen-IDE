@@ -195,6 +195,31 @@ class DiagramViewTest {
     }
 
     @Test
+    fun `a click on the marker of a code cell opens the code, and Save writes it into the text`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, WITH_ENTRY), onChange = { changes += it })
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + Offset(0f, 14f)) }
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.CELL_CODE).assertTextEquals("SET(\"mode\", \"on\")")
+
+        onNodeWithTag(DiagramViewTestTags.CELL_CODE).performTextReplacement("SET(\"mode\", \"lit\")")
+        onNodeWithTag(DiagramViewTestTags.CELL_SAVE).performClick()
+        waitForIdle()
+
+        onNodeWithTag(DiagramViewTestTags.CELL).assertDoesNotExist()
+        assertEquals(listOf("{ SET(\"mode\", \"lit\") }"), changes.single().edits.map { it.newText })
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + Offset(0f, 14f)) }
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.CELL_CLOSE).performClick()
+        waitForIdle()
+        onNodeWithTag(DiagramViewTestTags.CELL).assertDoesNotExist()
+        assertEquals(1, changes.size, "closing writes nothing")
+    }
+
+    @Test
     fun `renaming a state asks for the name in a field`() = runComposeUiTest {
         val changes = ArrayList<DiagramChange>()
         show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, SINGLE), onChange = { changes += it })
@@ -288,6 +313,18 @@ class DiagramViewTest {
         val PAIR = """
             make object "a":"A" {
                 has("") -> make object "b":"B" { }
+            }
+        """.trimIndent()
+
+        /** One state with an entry block. Its marker stands in the middle of the fitted drawing, below the name. */
+        val WITH_ENTRY = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    STATE "alone" {
+                        ENTRY { SET("mode", "on") }
+                    }
+                }
+                TRANSITIONS { }
             }
         """.trimIndent()
 

@@ -137,7 +137,7 @@ internal class ElkStatechartLayouter : StatechartLayouter {
         private fun labelled(edge: ElkEdge, transition: TransitionEdge): ElkEdge {
             val caption = transition.caption
             ElkGraphUtil.createLabel(caption, edge).apply {
-                width = (measurer.widthOf(caption) + StatechartMetrics.LABEL_PADDING).toDouble()
+                width = (measurer.widthOf(caption) + StatechartMetrics.LABEL_PADDING + StatechartMetrics.CELL_ROOM).toDouble()
                 height = StatechartMetrics.LABEL_HEIGHT.toDouble()
             }
             return edge

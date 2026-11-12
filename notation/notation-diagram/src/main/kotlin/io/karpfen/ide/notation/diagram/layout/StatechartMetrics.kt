@@ -64,8 +64,55 @@ public object StatechartMetrics {
     /** The distance between two elements that are placed next to each other automatically. */
     public const val GAP: Float = 40f
 
+    /** The side of the marker of a code cell, the small circle with a plus. */
+    public const val CELL_MARK: Float = 12f
+
+    /** The room between the marker of a code cell and the word behind it, and between two cells. */
+    public const val CELL_GAP: Float = 4f
+
+    /** The room a label gets for the marker of the code cell of its transition. */
+    public const val CELL_ROOM: Float = CELL_MARK + CELL_GAP
+
+    /** The width that a character of the word behind a marker is taken to have. */
+    private const val CELL_CHARACTER: Float = 6.5f
+
+    /** The word behind the marker of the entry block of a state. */
+    public const val ENTRY_WORD: String = "entry"
+
+    /** The word behind the marker of the do block of a state. */
+    public const val DO_WORD: String = "do"
+
     /** The width of the box of [state] if it has no nested states, with a name as wide as [text] says. */
-    public fun leafWidth(state: StateNode, text: TextMeasurer): Float = maxOf(text.widthOf(state.name) + 2 * NAME_PADDING, MIN_STATE_WIDTH)
+    public fun leafWidth(state: StateNode, text: TextMeasurer): Float =
+        maxOf(text.widthOf(state.name) + 2 * NAME_PADDING, MIN_STATE_WIDTH, cellsWidth(state) + 2 * CELL_GAP)
+
+    /** The words of the code cells of [state], in the order they are drawn: its entry block, then its do block. */
+    public fun cellWords(state: StateNode): List<String> = listOfNotNull(ENTRY_WORD.takeIf { state.hasEntry }, DO_WORD.takeIf { state.hasDo })
+
+    /**
+     * Where the code cells of [state] are drawn in its box [box], by their words. Each cell is a marker with its word
+     * behind it. A state without nested states shows them in a row below its name, in the middle. A state with nested
+     * states shows them at the right end of the row of its name.
+     */
+    public fun cellBoxes(state: StateNode, box: DiagramBox): Map<String, DiagramBox> {
+        val words = cellWords(state)
+        var x = if (state.isComposite) box.right - NAME_PADDING / 2f - cellsWidth(state) else box.center.x - cellsWidth(state) / 2f
+        val y = if (state.isComposite) box.y + (HEADER - CELL_MARK) / 2f else box.bottom - BLOCK_LINE - 2f
+        return words.associateWith { word ->
+            DiagramBox(x, y, cellWidth(word), CELL_MARK).also { x += it.width + 2 * CELL_GAP }
+        }
+    }
+
+    /** Where the marker of the code cell of a transition is drawn: at the right end of the box [label] of its caption. */
+    public fun cellBox(label: DiagramBox): DiagramBox =
+        DiagramBox(label.right - CELL_MARK - CELL_GAP / 2f, label.y + (label.height - CELL_MARK) / 2f, CELL_MARK, CELL_MARK)
+
+    private fun cellWidth(word: String): Float = CELL_MARK + CELL_GAP + word.length * CELL_CHARACTER
+
+    private fun cellsWidth(state: StateNode): Float {
+        val words = cellWords(state)
+        return words.sumOf { cellWidth(it).toDouble() }.toFloat() + maxOf(words.size - 1, 0) * 2 * CELL_GAP
+    }
 
     /** The height of the box of [state] if it has no nested states. */
     public fun leafHeight(state: StateNode): Float = if (state.hasEntry || state.hasDo) STATE_HEIGHT + BLOCK_LINE else STATE_HEIGHT

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.drawText
 import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.RouteKind
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
+import io.karpfen.ide.notation.diagram.layout.StatechartMetrics
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.ui.foundation.theme.KarpfenColors
@@ -31,8 +32,8 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenColors
  * Draws a statechart.
  *
  * States are drawn parents first, so nested states lie on top of their parent. A state with nested states shows its
- * name in a row at its top. A state without shows it in its middle, with a small line below if it has an entry or a
- * do block. The marker of an initial state is a filled dot. The bars of splits and joins are filled. Every line ends
+ * name in a row at its top. A state without shows it in its middle, above the room for the markers of its entry and
+ * do blocks, which the canvas draws. The marker of an initial state is a filled dot. The bars of splits and joins are filled. Every line ends
  * in an arrowhead, except the lines that lead into a bar. The caption of a transition is written on a patch in the
  * colour of the background.
  */
@@ -48,7 +49,7 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
         val states = diagram.allStates()
         return mapOf(
             TextRole.TITLE to states.map { it.name },
-            TextRole.ROW to states.mapNotNull(::noteOf),
+            TextRole.ROW to listOf(StatechartMetrics.ENTRY_WORD, StatechartMetrics.DO_WORD),
             TextRole.LABEL to diagram.transitions.map { it.caption },
         )
     }
@@ -100,20 +101,7 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
             drawLine(colors.border, topLeft + Offset(0f, header), topLeft + Offset(size.width, header), strokeWidth = BORDER * unit)
             return
         }
-        val note = noteOf(state)?.let { texts[TextRole.ROW, it] }
-        val textHeight = name.size.height + (note?.size?.height ?: 0)
-        val top = topLeft.y + (size.height - textHeight) / 2f
-        drawText(name, topLeft = Offset(topLeft.x + (size.width - name.size.width) / 2f, top))
-        note?.let {
-            drawText(it, color = colors.textMuted, topLeft = Offset(topLeft.x + (size.width - it.size.width) / 2f, top + name.size.height))
-        }
-    }
-
-    /** What the line below the name of [state] says, or null for a state without blocks. */
-    private fun noteOf(state: StateNode): String? = when {
-        state.hasEntry && state.hasDo -> "entry, do"
-        state.hasEntry -> "entry"
-        state.hasDo -> "do"
-        else -> null
+        val cells = if (state.hasEntry || state.hasDo) StatechartMetrics.BLOCK_LINE * unit else 0f
+        drawText(name, topLeft = Offset(topLeft.x + (size.width - name.size.width) / 2f, topLeft.y + (size.height - cells - name.size.height) / 2f))
     }
 }
