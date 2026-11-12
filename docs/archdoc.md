@@ -46,7 +46,7 @@ uses `io.karpfen.ide.buildlogic`.
 | app | app/ide | The desktop application and its composition root. |
 | tools | tools/cli | The `karpfen` command-line tool. |
 | notation | notation-diagram, notation-sync | The diagrams without their UI: model, layout and the step from text to diagram. |
-| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros, bridge-runner | Connect a running model to external systems. The core and the HTTP bridge exist. |
+| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros, bridge-runner | Connect a running model to external systems. The core, the HTTP bridge and the MQTT bridge exist. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
 
 Next to the modules, the folder `examples` holds the lamp model of the getting started guide, and the script
@@ -277,11 +277,17 @@ The HTTP bridge. `HttpEndpoint` is its `BridgeEndpoint`: a small server of the J
 client of the JDK for the outbound ones, so the module needs no library. `HttpSettings` reads the host, the port and the
 timeout from the settings of a bridge file. `HttpBridge` puts a `RoutedBridge` on such an endpoint.
 
+### bridge-mqtt
+
+The MQTT bridge. `MqttEndpoint` is its `BridgeEndpoint`: one connection to a broker through the HiveMQ client, with one
+subscription per inbound route. It is the only module that uses that client. `MqttSettings` reads the broker, the client
+id, the credentials, the quality of service and the retain flag from the settings of a bridge file. `MqttBridge` puts a
+`RoutedBridge` on such an endpoint. Its tests run against Moquette, a small broker that starts inside the test.
+
 ### Placeholders
 
-bridge-mqtt, bridge-ros and bridge-runner have no code yet. Each holds one object or a `main` function, so the build
-and its rules already know the module, and their dependencies are already declared. bridge-mqtt adds the HiveMQ client
-and bridge-ros adds the Ktor client for rosbridge. bridge-runner is an application named `karpfen-bridge-runner` whose
+bridge-ros and bridge-runner have no code yet. Each holds one object or a `main` function, so the build and its rules
+already know the module, and their dependencies are already declared. bridge-ros adds the Ktor client for rosbridge. bridge-runner is an application named `karpfen-bridge-runner` whose
 `main` only prints its usage. The [developer notes](devdoc.md) describe how the diagrams and the bridges are meant to
 work.
 

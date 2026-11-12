@@ -16,8 +16,8 @@
 package io.karpfen.ide.bridges.mqtt
 
 /**
- * Placeholder of the `bridge-mqtt` module, which holds no code yet. The module will hold the MQTT bridge, built on the
- * HiveMQ MQTT client and configured with mappings.
+ * Identity of the `bridge-mqtt` module. The module holds the MQTT bridge. A message on a topic becomes an event of
+ * the model, and a change of the model is published on a topic. Start reading at [MqttBridge] and [MqttEndpoint].
  */
 public object BridgeMqttModule {
     /** The module's name, which is also the name of its directory. */

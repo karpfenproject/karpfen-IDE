@@ -510,12 +510,12 @@ expanded like a folder.
 
 ### Bridges run without the IDE
 
-The shared core of the bridges and the HTTP bridge exist. Nothing starts a bridge yet, neither the IDE nor the runner.
-They are built in this order: plain HTTP, MQTT, starting bridges with a run, the headless runner, and ROS. A bridge
-connects a running karpfen model to an external system such as an HTTP client, an MQTT broker or ROS. It will be a plain
-Kotlin component with a lifecycle. It runs from the headless bridge runner on a robot or an edge box, where no IDE is
-present, and the IDE configures, hosts and watches it during development. Bridges use only runtime-protocol of the
-runtime modules. They run in the IDE's process or in the runner and connect to the runtime's port.
+The shared core of the bridges, the HTTP bridge and the MQTT bridge exist. Nothing starts a bridge yet, neither the IDE
+nor the runner. They are built in this order: plain HTTP, MQTT, starting bridges with a run, the headless runner, and
+ROS. A bridge connects a running karpfen model to an external system such as an HTTP client, an MQTT broker or ROS. It
+will be a plain Kotlin component with a lifecycle. It runs from the headless bridge runner on a robot or an edge box,
+where no IDE is present, and the IDE configures, hosts and watches it during development. Bridges use only runtime-
+protocol of the runtime modules. They run in the IDE's process or in the runner and connect to the runtime's port.
 
 A bridge is one file in the project, `*.kbridge.json`, as `BridgeConfigFile` describes. It names the kind of bridge, its
 settings and its routes. An inbound route turns a message that arrives at an address into an event, with the payload
@@ -530,6 +530,14 @@ authentication. A `POST` or `PUT` to the path of an inbound route becomes the ev
 202 at once, before the model has taken the event. A `GET` of `/` lists the paths. An outbound message is posted as JSON
 to the URL of its route, and an answer outside the 200 range, a timeout after `timeoutMs` or a refused connection counts
 as a failed delivery of that route.
+
+The MQTT bridge connects to `tcp://localhost:1883` unless its settings name another `broker`, which may also start with
+`ssl://` for an encrypted connection. It speaks MQTT 3.1.1 under the `clientId` of its settings, `karpfen-bridge` by
+default, and a broker allows one connection per client id, so two MQTT bridges on one broker need different ones. The
+`from` of an inbound route is a topic filter that may use the wildcards `+` and `#`. The payload of a message is read as
+UTF-8 text. Subscriptions and published messages use the `qos` of the settings, 1 by default, and `retain` makes the
+broker keep the last published value of a topic. If the connection breaks, the client connects and subscribes again on
+its own, and outbound messages fail in the meantime.
 
 In the IDE a bridge file is never edited as text. A form reached from the Run menu writes it, and other tools may change
 it, so reading is tolerant and names what is wrong in words. Every run asks which of the project's bridges to start,
@@ -988,8 +996,8 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
   operation in the Project tree refreshes the workspace.
 - On a German Windows layout, Ctrl+Shift+7 does not reach Toggle Comment.
 - The file kind for bridge configurations is recognized, but nothing interprets it yet.
-- The MQTT bridge, the ROS bridge and the bridge runner are stubs, and nothing starts the HTTP bridge yet. An embedded
-  runtime and a language
+- The ROS bridge and the bridge runner are stubs, and nothing starts the HTTP and MQTT bridges yet. A password in the
+  settings of a bridge file is stored as plain text in the project. An embedded runtime and a language
   server do not exist yet. Their paths `runtime/runtime-embedded` and `tools/lsp-server` are planned but not in the
   settings, and `lsp4j` in the version catalog is unused so far. The language server is meant to put core-lang behind
   the Language Server Protocol for other editors.

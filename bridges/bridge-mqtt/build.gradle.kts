@@ -18,10 +18,14 @@ plugins {
 }
 
 /**
- * The MQTT bridge, which holds no code yet. It is a bridge of bridge-api, which bridge-mapping re-exports, and it is
- * configured with mappings. It is the only module that uses the HiveMQ MQTT client.
+ * The MQTT bridge. It is a bridge of bridge-api, which bridge-mapping re-exports, and it runs the routes of a bridge
+ * file over the topics of an MQTT broker. It is the only module that uses the HiveMQ MQTT client. Its tests run
+ * against a broker inside the test.
  */
 dependencies {
     api(project(":bridges:bridge-mapping"))
     implementation(libs.hivemq.mqtt.client)
+
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.moquette.broker)
 }
