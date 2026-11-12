@@ -113,8 +113,8 @@ outside into an event. An outbound route sends a message whenever a property, th
 an event has something new.
 
 You do not write a bridge file by hand. Configure Bridge in the Run menu opens a form for a bridge of the project or
-for a new one, and a click on a bridge file in the Project tool window opens the same form. The form asks for the kind
-and its settings, and lets you add and remove routes. Where a route names an event, a property or a state machine,
+for a new one, and a click on a bridge file in the Project tool window opens the same form. The form asks for the name, the kind
+and its settings, and lets you add and remove routes. Changing the name renames the bridge file. Where a route names an event, a property or a state machine,
 Pick lists those of the project. Save is enabled once every route is complete.
 
 When the project has bridge files, Run asks which of them to start, with one box per file. The boxes you ticked last

@@ -60,7 +60,8 @@ class BridgeFormFlowTest {
             state.openFile(file).joinSettled()
 
             val form = assertNotNull(state.bridgeForm.value)
-            assertEquals("door.kbridge.json", form.name)
+            assertEquals("door", form.name.value)
+            assertEquals(file, form.file)
             assertFalse(form.isNew)
             assertEquals(emptyList(), form.fileProblems)
             assertEquals(listOf(InboundDraft("/press", "switch/press")), form.draft.value.inbound)
@@ -100,21 +101,24 @@ class BridgeFormFlowTest {
     }
 
     @Test
-    fun `Configure Bridge in a project without bridges asks for a name and writes the file only on Save`() = runTest(timeout = TIMEOUT) {
+    fun `Configure Bridge in a project without bridges opens a new form that needs a name and writes only on Save`() = runTest(timeout = TIMEOUT) {
         lamp()
         withWorkbench(settingsDirectory) {
             open(root)
 
-            val configure = state.configureBridge()
-            val asked = answer(DialogRequest.NewBridgeFile::class, DialogResponse.Text("door"))
-            configure.joinSettled()
+            state.configureBridge().joinSettled()
 
             val file = root.resolve("door.kbridge.json")
-            assertEquals(root, asked.directory)
             val form = assertNotNull(state.bridgeForm.value)
             assertTrue(form.isNew)
-            assertEquals(file, form.file)
             assertEquals(BridgeDraft(BridgeKind.HTTP), form.draft.value)
+            assertEquals(listOf("The bridge needs a name."), form.problems.value)
+            state.saveBridgeForm().joinSettled()
+            assertEquals(form, state.bridgeForm.value, "a bridge without a name is not saved")
+
+            form.rename(" door ")
+            assertEquals(file, form.file)
+            assertEquals(emptyList(), form.problems.value)
             assertFalse(Files.exists(file), "nothing is written before Save")
 
             form.edit { BridgeDrafts.withKind(it, BridgeKind.MQTT).copy(inbound = listOf(InboundDraft("home/press", "switch/press"))) }
@@ -142,17 +146,44 @@ class BridgeFormFlowTest {
 
             val second = state.configureBridge()
             answer(DialogRequest.ChooseBridgeFile::class, DialogResponse.Chosen(asked.newIndex))
-            answer(DialogRequest.NewBridgeFile::class, DialogResponse.Text("door.kbridge.json"))
-            answer(DialogRequest.Error::class, DialogResponse.Confirm)
             second.joinSettled()
 
-            assertNull(state.bridgeForm.value, "a name that is taken opens no form")
+            val created = assertNotNull(state.bridgeForm.value)
+            assertTrue(created.isNew)
+            created.rename("Door")
+            assertEquals(listOf("Another bridge is named \"Door\" already."), created.problems.value)
+            state.closeBridgeForm()
 
             val third = state.configureBridge()
             answer(DialogRequest.ChooseBridgeFile::class, DialogResponse.Cancel)
             third.joinSettled()
 
             assertNull(state.bridgeForm.value)
+        }
+    }
+
+    @Test
+    fun `a new name in the form renames the file on Save, and the remembered bridges follow`() = runTest(timeout = TIMEOUT) {
+        lamp()
+        val file = TestWorkbench.write(root.resolve("door.kbridge.json"), HTTP_BRIDGE)
+        withWorkbench(settingsDirectory) {
+            open(root)
+            services.settings.update { it.copy(activeBridges = listOf("door.kbridge.json")) }
+            state.openFile(file).joinSettled()
+            val form = assertNotNull(state.bridgeForm.value)
+
+            form.rename("a/b")
+            assertEquals(listOf("The name of the bridge must not contain a slash."), form.problems.value)
+
+            form.rename("gate")
+            state.saveBridgeForm().joinSettled()
+
+            val renamed = root.resolve("gate.kbridge.json")
+            assertNull(state.bridgeForm.value)
+            assertFalse(Files.exists(file), "the file of the old name is gone")
+            assertEquals(BridgeConfigFile.read(HTTP_BRIDGE).config, BridgeConfigFile.read(Files.readString(renamed)).config)
+            assertEquals(listOf(renamed), workspace.files.value.files(FileKind.BRIDGE).map { it.path })
+            assertEquals(listOf("gate.kbridge.json"), state.settings.value.activeBridges)
         }
     }
 

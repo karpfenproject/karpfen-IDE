@@ -561,8 +561,10 @@ the run observes the model. With observation off those routes stay silent, and e
 
 In the IDE a bridge file is never edited as text. It opens in a form, from the project tree or through Configure Bridge
 in the Run menu, which lists the bridge files of the project and an entry for a new one. The form lies over the
-workbench like a dialog, and the commands are disabled behind it. It shows the kind, the settings of that kind, and
-the inbound and outbound routes with their flow policies. `BridgeDraft` holds the texts of the fields, so a route may
+workbench like a dialog, and the commands are disabled behind it. It shows the name of the bridge, which is the name
+of its file without the suffix, the kind, the settings of that kind, and the inbound and outbound routes with their
+flow policies. A changed name renames the file when the form is saved, never onto a file that exists, and the bridges
+remembered for the next run follow the new name. `BridgeDraft` holds the texts of the fields, so a route may
 be half filled in while the user types, and `BridgeDrafts` says in the words of the form what keeps the draft from
 being saved. Save is enabled once nothing is wrong, and it writes the file through `BridgeConfigFile`. A new bridge
 has no file until it is saved. The fields for an event, a property and a state machine have a Pick button that lists

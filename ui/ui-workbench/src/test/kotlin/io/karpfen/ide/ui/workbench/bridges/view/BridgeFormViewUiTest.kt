@@ -24,6 +24,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.karpfen.ide.bridges.api.BridgeKind
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
@@ -52,7 +53,7 @@ class BridgeFormViewUiTest {
         draft: BridgeDraft = BridgeDraft(),
         problems: List<String> = emptyList(),
         suggestions: BridgeSuggestions = BridgeSuggestions(),
-    ) = BridgeFormState(file, "door.kbridge.json", isNew = false, fileProblems = problems, initial = draft, loadedText = "", suggestions = suggestions)
+    ) = BridgeFormState(file.parent, file, fileProblems = problems, initial = draft, loadedText = "", suggestions = suggestions)
 
     @Test
     fun `a new route keeps Save disabled until it has an address and an event`() = runComposeUiTest {
@@ -60,7 +61,7 @@ class BridgeFormViewUiTest {
         var saved = 0
         setContent { KarpfenTheme(darkTheme = false) { BridgeFormLayer(form, onSave = { saved++ }, onClose = {}) } }
 
-        onNodeWithText("Bridge door.kbridge.json").assertIsDisplayed()
+        onNodeWithText("Bridge").assertIsDisplayed()
         onNodeWithTag(BridgeFormTestTags.SAVE).assertIsEnabled()
 
         onNodeWithTag(BridgeFormTestTags.ADD_INBOUND).performScrollTo().performClick()
@@ -73,6 +74,19 @@ class BridgeFormViewUiTest {
 
         assertEquals(listOf(InboundDraft("/press", "switch/press")), form.draft.value.inbound)
         assertEquals(1, saved)
+    }
+
+    @Test
+    fun `the name of the bridge can be changed, and a blank name keeps Save disabled`() = runComposeUiTest {
+        val form = form()
+        setContent { KarpfenTheme(darkTheme = false) { BridgeFormLayer(form, onSave = {}, onClose = {}) } }
+
+        onNodeWithTag(BridgeFormTestTags.NAME).performTextReplacement(" ")
+        onNodeWithTag(BridgeFormTestTags.SAVE).assertIsNotEnabled()
+        onNodeWithTag(BridgeFormTestTags.NAME).performTextReplacement("gate")
+        onNodeWithTag(BridgeFormTestTags.SAVE).assertIsEnabled()
+        assertEquals("gate", form.name.value)
+        assertEquals(file.resolveSibling("gate.kbridge.json"), form.file)
     }
 
     @Test

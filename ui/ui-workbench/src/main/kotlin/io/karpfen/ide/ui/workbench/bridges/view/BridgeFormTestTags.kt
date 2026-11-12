@@ -20,6 +20,9 @@ public object BridgeFormTestTags {
     /** The form as a whole. */
     public const val FORM: String = "BridgeForm"
 
+    /** The field with the name of the bridge. */
+    public const val NAME: String = "BridgeForm.name"
+
     /** The Save button. */
     public const val SAVE: String = "BridgeForm.save"
 

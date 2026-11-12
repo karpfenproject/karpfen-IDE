@@ -123,7 +123,7 @@ internal class DefaultWorkbenchState(
     )
     private val saving = SaveFlow(holder, tabs, dialogs)
     private val unsaved = UnsavedChangesFlow(saving, dialogs)
-    private val bridgeForms = BridgeFormFlow(holder, projectTree, dialogs, services.ioDispatcher)
+    private val bridgeForms = BridgeFormFlow(holder, projectTree, dialogs, services.settings, services.ioDispatcher)
     private val fileOpen = FileOpenFlow(lifecycle, bridgeForms, dialogs, services.fileOperations, services.ioDispatcher)
     private val navigationFlow = NavigationFlow(fileOpen, tabs)
     private val tabFlows = TabFlows(tabs, lifecycle, unsaved, saving, dialogs)

@@ -29,6 +29,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
+import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
@@ -43,6 +44,9 @@ import kotlinx.coroutines.withContext
  * Opens, saves and closes the form that configures a bridge file. A bridge file is never edited as text in the IDE.
  * Opening one, from the project tree or through Configure Bridge in the Run menu, shows the form over the workbench.
  *
+ * The form names the bridge, and a changed name renames the file when the form is saved. The bridges that are
+ * remembered for the next run follow the new name.
+ *
  * The form offers the events, the properties and the state machines of the project to pick, as the analysis of the
  * workspace knows them when the form opens.
  *
@@ -54,6 +58,7 @@ internal class BridgeFormFlow(
     private val holder: WorkspaceHolder,
     private val projectTree: ProjectTreeState,
     private val dialogs: DialogState,
+    private val settings: SettingsRepository,
     private val ioDispatcher: CoroutineDispatcher,
 ) {
     private val shown = MutableStateFlow<BridgeFormState?>(null)
@@ -67,7 +72,7 @@ internal class BridgeFormFlow(
      */
     suspend fun configure() {
         val workspace = holder.workspace.value ?: return
-        val files = workspace.files.value.files(FileKind.BRIDGE).map { it.path }
+        val files = bridgeFilesOf(workspace)
         if (files.isEmpty()) return create(workspace)
         when (val answer = dialogs.ask(DialogRequest.ChooseBridgeFile(workspace.root, files))) {
             is DialogResponse.Chosen -> files.getOrNull(answer.index)?.let { open(it) } ?: create(workspace)
@@ -85,39 +90,55 @@ internal class BridgeFormFlow(
             return
         }
         val reading = if (text.isBlank()) null else BridgeConfigFile.read(text)
+        val directory = path.parent ?: workspace.root
         shown.value = BridgeFormState(
-            file = path,
-            name = BridgeLoader.nameOf(workspace.root, path),
-            isNew = false,
+            directory = directory,
+            original = path,
             fileProblems = reading?.problems.orEmpty(),
             initial = reading?.config?.let(BridgeDrafts::of) ?: BridgeDraft(),
             loadedText = text,
             suggestions = BridgeSuggestions.of(workspace.analysis.value),
+            taken = namesIn(workspace, directory, except = path),
         )
     }
 
     /**
      * Writes the open form to its file, refreshes the workspace, shows the file in the project tree and closes the
-     * form. Does nothing while the form has problems. If the file is not what the form read, because another tool
-     * changed it or made it meanwhile, it asks first and keeps the form open on Cancel.
+     * form. Does nothing while the form has problems.
+     *
+     * If the original file is not what the form read, because another tool changed or removed it meanwhile, it asks
+     * first and keeps the form open on Cancel. A form with a changed name writes the file of the new name and removes
+     * the original one. It never writes over another file: if a file of the new name exists, an error dialog says so
+     * and the form stays open.
      */
     suspend fun save() {
         val form = shown.value ?: return
-        val config = BridgeDrafts.configOf(form.draft.value) ?: return
+        val config = BridgeDrafts.configOf(form.draft.value)?.takeIf { form.problems.value.isEmpty() } ?: return
+        val original = form.original
+        val target = form.file
         try {
-            val onDisk = withContext(ioDispatcher) { readOrNull(form.file) }
-            if (onDisk != form.loadedText && dialogs.ask(DialogRequest.ConfirmOverwrite(listOf(form.file))) != DialogResponse.Confirm) return
+            if (target != original && withContext(ioDispatcher) { Files.exists(target) }) {
+                dialogs.showError("Cannot save ${target.fileName}", "A file with this name exists already. Choose another name.")
+                return
+            }
+            if (original != null) {
+                val onDisk = withContext(ioDispatcher) { readOrNull(original) }
+                if (onDisk != form.loadedText && dialogs.ask(DialogRequest.ConfirmOverwrite(listOf(original))) != DialogResponse.Confirm) return
+            }
             withContext(ioDispatcher) {
-                form.file.parent?.let(Files::createDirectories)
-                Files.writeString(form.file, BridgeConfigFile.write(config))
+                Files.createDirectories(form.directory)
+                Files.writeString(target, BridgeConfigFile.write(config))
+                if (original != null && original != target) Files.deleteIfExists(original)
             }
         } catch (e: IOException) {
-            dialogs.showError("Cannot save ${form.file.fileName}", e.reason())
+            dialogs.showError("Cannot save ${target.fileName}", e.reason())
             return
         }
         shown.value = null
-        holder.workspace.value?.refresh()
-        projectTree.reveal(form.file)
+        val workspace = holder.workspace.value
+        if (workspace != null && original != null && original != target) remember(workspace, original, target)
+        workspace?.refresh()
+        projectTree.reveal(target)
     }
 
     /** Closes the open form without saving. */
@@ -125,30 +146,33 @@ internal class BridgeFormFlow(
         shown.value = null
     }
 
-    /** Asks for the name of a new bridge file in the folder of [workspace] and opens an empty form for it. */
-    private suspend fun create(workspace: Workspace) {
-        val answer = dialogs.ask(DialogRequest.NewBridgeFile(workspace.root))
-        val name = (answer as? DialogResponse.Text)?.value?.trim()?.takeIf { it.isNotEmpty() } ?: return
-        val fileName = if (name.endsWith(BridgeConfigFile.SUFFIX, ignoreCase = true)) name else name + BridgeConfigFile.SUFFIX
-        val file = workspace.root.resolve(fileName).normalize()
-        if (file.parent != workspace.root) {
-            dialogs.showError("Cannot create $fileName", "The name must not name another folder.")
-            return
-        }
-        if (withContext(ioDispatcher) { Files.exists(file) }) {
-            dialogs.showError("Cannot create $fileName", "A file with this name exists already.")
-            return
-        }
+    /** Opens an empty form for a new bridge in the folder of [workspace]. The form asks for the name. */
+    private fun create(workspace: Workspace) {
         shown.value = BridgeFormState(
-            file = file,
-            name = fileName,
-            isNew = true,
+            directory = workspace.root,
+            original = null,
             fileProblems = emptyList(),
             initial = BridgeDrafts.of(BridgeConfig(BridgeKind.HTTP)),
             loadedText = null,
             suggestions = BridgeSuggestions.of(workspace.analysis.value),
+            taken = namesIn(workspace, workspace.root, except = null),
         )
     }
+
+    /** Lets the bridges remembered for the next run name [renamed] where they named [original]. */
+    private suspend fun remember(workspace: Workspace, original: Path, renamed: Path) {
+        val before = BridgeLoader.nameOf(workspace.root, original)
+        if (before !in settings.settings.value.activeBridges) return
+        val after = BridgeLoader.nameOf(workspace.root, renamed)
+        settings.update { stored -> stored.copy(activeBridges = stored.activeBridges.map { if (it == before) after else it }) }
+    }
+
+    /** The bridge files of [workspace] in the order of the project tree. */
+    private fun bridgeFilesOf(workspace: Workspace): List<Path> = workspace.files.value.files(FileKind.BRIDGE).map { it.path }
+
+    /** The names of the bridges in [directory], without the one in the file [except]. */
+    private fun namesIn(workspace: Workspace, directory: Path, except: Path?): Set<String> =
+        bridgeFilesOf(workspace).filter { it.parent == directory && it != except }.mapTo(HashSet(), BridgeFormState::nameOf)
 
     /** The text of [file], or null if there is no such file. */
     private fun readOrNull(file: Path): String? = try {

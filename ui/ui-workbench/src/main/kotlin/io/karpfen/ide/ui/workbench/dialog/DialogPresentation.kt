@@ -120,13 +120,6 @@ internal data class DialogPresentation(
                 dismiss = DialogResponse.Cancel,
                 choices = request.bridges.map { request.root.relativize(it).toString() } + NEW_BRIDGE,
             )
-            is DialogRequest.NewBridgeFile -> DialogPresentation(
-                title = "New Bridge",
-                message = "Name of the new bridge file in '${name(request.directory)}' ($BRIDGE_SUFFIX is added):",
-                buttons = listOf(submit("Create"), answer("Cancel", DialogResponse.Cancel)),
-                dismiss = DialogResponse.Cancel,
-                input = "",
-            )
             is DialogRequest.ChooseBridges -> DialogPresentation(
                 title = "Bridges",
                 message = "Tick the bridges to start with this run. The choice is remembered for the next run.",
@@ -174,10 +167,7 @@ internal data class DialogPresentation(
         )
 
         /** The last entry of the list that picks the bridge to configure. */
-        const val NEW_BRIDGE = "New bridge file"
-
-        /** The suffix of the name of a bridge file. */
-        private const val BRIDGE_SUFFIX = ".kbridge.json"
+        const val NEW_BRIDGE = "New bridge"
 
         private fun submit(label: String) = DialogButton(label, DialogChoice.SubmitText, isDefault = true)
 

@@ -63,6 +63,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.bridges.api.BridgeKind
 import io.karpfen.ide.bridges.api.FlowPolicy
+import io.karpfen.ide.bridges.mapping.BridgeConfigFile
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.bridges.BridgeDraft
 import io.karpfen.ide.ui.workbench.bridges.BridgeDrafts
@@ -78,7 +79,8 @@ import io.karpfen.ide.ui.workbench.bridges.PolicyKind
 
 /**
  * Shows the bridge [form] over the workbench, on a scrim that swallows all pointer input, and nothing while [form] is
- * null. The form has the kind of the bridge, the settings of that kind, the inbound routes and the outbound routes.
+ * null. The form has the name of the bridge, its kind, the settings of that kind, the inbound routes and the outbound
+ * routes. A changed name renames the file when the form is saved.
  * The fields for an event, a property and a state machine have a button that lists those of the project to pick from.
  * Every change goes into the draft of the form at once. Below the scrolling part, the form lists what keeps it from
  * being saved, and Save is enabled once that list is empty. [onSave] and [onClose] are the two buttons.
@@ -87,6 +89,7 @@ import io.karpfen.ide.ui.workbench.bridges.PolicyKind
 internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose: () -> Unit) {
     if (form == null) return
     val draft by form.draft.collectAsState()
+    val name by form.name.collectAsState()
     val problems by form.problems.collectAsState()
     val colors = KarpfenTheme.colors
     Box(
@@ -107,10 +110,16 @@ internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose
                 .testTag(BridgeFormTestTags.FORM),
         ) {
             Text(
-                if (form.isNew) "New bridge ${form.name}" else "Bridge ${form.name}",
+                if (form.isNew) "New bridge" else "Bridge",
                 color = colors.text,
                 style = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold),
             )
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Label("Name", Modifier.width(LABEL_WIDTH.dp))
+                Field(name, form::rename, "the name of the bridge", Modifier.weight(1f), BridgeFormTestTags.NAME)
+                Label(BridgeConfigFile.SUFFIX)
+            }
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
                 if (form.fileProblems.isNotEmpty()) {
                     Section("The file had problems. What could not be read is left out, and saving writes the file without it.")
