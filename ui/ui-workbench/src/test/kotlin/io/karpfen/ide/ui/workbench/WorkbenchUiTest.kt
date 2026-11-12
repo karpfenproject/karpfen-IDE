@@ -135,7 +135,7 @@ class WorkbenchUiTest {
         tagged(WorkbenchTestTags.toolWindow(ToolWindowId.OUTPUT)).assertIsDisplayed()
         test.onNodeWithText("Language Tools Output").assertIsDisplayed()
         tagged(OutputViewTestTags.line(1)).assertTextContains("KmetaDSLConverter - Type Robot", substring = true)
-        tagged(WorkbenchTestTags.toolWindow(ToolWindowId.PROBLEMS)).assertIsDisplayed()
+        tagged(WorkbenchTestTags.toolWindow(ToolWindowId.PROJECT)).assertIsDisplayed()
 
         tagged(OutputViewTestTags.CLEAR).performClick()
         settle()
@@ -215,6 +215,10 @@ class WorkbenchUiTest {
         workbench.open(root)
         settle()
         val broken = root.resolve("broken/broken.kmeta")
+        test.onNodeWithTag(WorkbenchTestTags.toolWindow(ToolWindowId.PROBLEMS)).assertDoesNotExist()
+        tagged(StatusBarTestTags.item(PROBLEMS_WITH_ERRORS)).assertTextContains("Problems:", substring = true)
+        tagged(StatusBarTestTags.item(PROBLEMS_WITH_ERRORS)).performClick()
+        settle()
         test.onNodeWithText("broken/broken.kmeta (3)").assertIsDisplayed()
 
         test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(broken, 0))).performMouseInput { doubleClick() }
@@ -233,11 +237,25 @@ class WorkbenchUiTest {
     }
 
     @Test
+    fun `the Problems tool window stays closed while there is no problem to show`() = workbenchUiTest(dir) {
+        openExamples()
+        tagged(StatusBarTestTags.item("problems")).assertTextEquals("Problems")
+
+        tagged(StatusBarTestTags.item("problems")).performClick()
+        settle()
+
+        assertEquals(false, workbench.state.layout.state.value.toolWindow(ToolWindowId.PROBLEMS).visible)
+        test.onNodeWithTag(WorkbenchTestTags.toolWindow(ToolWindowId.PROBLEMS)).assertDoesNotExist()
+    }
+
+    @Test
     fun `the problems filter hides warnings`() = workbenchUiTest(dir) {
         DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
         workbench.open(root)
         settle()
         val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
+        workbench.state.layout.showToolWindow(ToolWindowId.PROBLEMS)
+        settle()
         test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(descriptor, 1))).assertExists()
 
         tagged(ProblemsViewTestTags.filter("warnings")).performClick()
@@ -351,5 +369,8 @@ class WorkbenchUiTest {
     private companion object {
         /** When the language tools logged what the tests append to their output. */
         val LOGGED_AT: Instant = Instant.parse("2026-10-22T10:15:30Z")
+
+        /** The status bar's Problems label while the workspace has errors. */
+        const val PROBLEMS_WITH_ERRORS = "problems_errors"
     }
 }

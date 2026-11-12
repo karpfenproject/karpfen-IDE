@@ -114,9 +114,9 @@ public object RuntimeTexts {
 
     /**
      * The active states of [machine]. The text starts with the machine's attachment key and then lists its state
-     * stack as a path, for example `turtle: drive › drive fast`.
+     * stack as a path, for example `turtle: drive > drive fast`.
      */
-    public fun activeStates(machine: MachineActivity): String = "${machine.attachedTo}: ${machine.stack.joinToString(" › ")}"
+    public fun activeStates(machine: MachineActivity): String = "${machine.attachedTo}: ${machine.stack.joinToString(" > ")}"
 
     /** The connection [state] in words. */
     public fun connection(state: ConnectionState): String = when (state) {
@@ -145,19 +145,35 @@ public object RuntimeTexts {
         is SyncStatus.Final -> "final at revision ${sync.revision}"
     }
 
-    /** Whether events can be injected, in words. */
+    /** Whether events can be sent now, as a sentence for the user. */
     public fun availability(availability: InjectionAvailability): String = when (availability) {
-        InjectionAvailability.NotYet -> "not yet: the environment is not deployed"
-        InjectionAvailability.Queued -> "queued until the environment starts"
-        InjectionAvailability.Live -> "live"
-        is InjectionAvailability.Unavailable -> "unavailable: ${availability.reason}"
+        InjectionAvailability.NotYet -> "Events cannot be sent yet, because the environment is not deployed."
+        InjectionAvailability.Queued -> "The environment has not started yet. An event sent now waits until it starts."
+        InjectionAvailability.Live -> "The environment is running. An event is delivered at once."
+        is InjectionAvailability.Unavailable -> "Events cannot be sent: ${availability.reason}"
     }
 
-    /** The outcome of a send in words. */
+    /** The outcome of a send as a sentence for the user. */
     public fun outcome(outcome: InjectionOutcome): String = when (outcome) {
-        is InjectionOutcome.Sent -> "sent"
-        is InjectionOutcome.Refused -> "refused: ${outcome.validation.diagnostics.firstOrNull()?.message ?: "the payload has errors"}"
-        is InjectionOutcome.Unavailable -> "not sent: ${availability(outcome.availability)}"
+        is InjectionOutcome.Sent -> "Sent. It shows in the list below once the runtime has published it."
+        is InjectionOutcome.Refused ->
+            "Not sent: ${outcome.validation.diagnostics.firstOrNull()?.message ?: "the payload has errors"}"
+        is InjectionOutcome.Unavailable -> "Not sent. ${availability(outcome.availability)}"
+    }
+
+    /**
+     * The deployment in [steps] in one line. It names the failed step if there is one, the step that runs or waits
+     * while the deployment is under way, and the number of steps once all are through.
+     */
+    public fun deployment(steps: List<StepProgress>): String {
+        val failed = steps.firstOrNull { it.status == StepStatus.FAILED }
+        val open = steps.firstOrNull { it.status == StepStatus.RUNNING || it.status == StepStatus.PENDING }
+        return when {
+            steps.isEmpty() -> "Deployment: not started"
+            failed != null -> "Deployment failed at: ${failed.title}"
+            open != null -> "Deploying: ${open.title}"
+            else -> "Deployment done, ${steps.size} steps"
+        }
     }
 
     /**

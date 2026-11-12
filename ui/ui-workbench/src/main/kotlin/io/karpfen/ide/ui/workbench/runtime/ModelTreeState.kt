@@ -45,6 +45,16 @@ public class ModelTreeState internal constructor(scope: CoroutineScope, private 
         expanded.update { if (key in it) it - key else it + key }
     }
 
+    /** Opens every object of the model that has something below it. Objects that appear later stay closed. */
+    public fun expandAll() {
+        expanded.value = ModelTreeProjection.expandableKeys(model.value.mirror)
+    }
+
+    /** Closes every object of the model. */
+    public fun collapseAll() {
+        expanded.value = emptySet()
+    }
+
     /** Selects the object [id] and opens the objects that hold it, so that its row is visible. */
     public fun select(id: String) {
         expanded.update { it + ModelTreeProjection.ownersOf(model.value.mirror, id) }

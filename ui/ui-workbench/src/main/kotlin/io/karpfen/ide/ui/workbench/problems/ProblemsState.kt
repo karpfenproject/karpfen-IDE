@@ -70,7 +70,10 @@ public data class ProblemsUiState(
     public val filter: ProblemFilter = ProblemFilter(),
     public val errorCount: Int = 0,
     public val warningCount: Int = 0,
-)
+) {
+    /** True if the view has nothing to show. No group passes the filter, and the workspace has no error or warning. */
+    public val isEmpty: Boolean get() = groups.isEmpty() && errorCount == 0 && warningCount == 0
+}
 
 /**
  * The problems of the workspace, grouped by file. It collects `Workspace.problems` in [scope] and maps them through

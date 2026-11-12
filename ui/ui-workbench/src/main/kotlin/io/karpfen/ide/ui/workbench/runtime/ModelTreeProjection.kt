@@ -98,6 +98,22 @@ internal object ModelTreeProjection {
     fun keyOf(id: String): String = "$OBJECT$id"
 
     /**
+     * The keys of all object rows of [mirror] that can be opened. Rows only exist below open objects, so the tree is
+     * opened level by level until no closed object with content is left.
+     */
+    fun expandableKeys(mirror: MirrorSnapshot): Set<String> {
+        var open = emptySet<String>()
+        while (true) {
+            val closed = rows(mirror, open, null)
+                .filterIsInstance<ModelTreeRow.Object>()
+                .filter { it.expandable && !it.expanded }
+                .map { it.key }
+            if (closed.isEmpty()) return open
+            open = open + closed
+        }
+    }
+
+    /**
      * The keys of the objects that hold the object [id], outermost first. It follows the mirror's containment and stops
      * at a cycle.
      */

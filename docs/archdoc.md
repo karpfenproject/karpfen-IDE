@@ -343,9 +343,9 @@ code, and all rules live in its test sources.
    them with `ObservationReducer`, `MirrorReducer` and `ActiveStatesReducer` to the `ObservedModel` of
    `RuntimeSession.model`. Switching observation on reads a snapshot first and then applies every push in revision
    order. Domain events go to `RuntimeSession.domainEvents`.
-7. In the workbench, `RuntimeState` follows the session in its `RunEntry`, and `RunDetails` collects what the tabs of
-   the run show: the model tree through `ModelTreeState`, the event log and the event injector through
-   `InjectorState`. `RuntimeToolWindow` and `RunTabs` draw them.
+7. In the workbench, `RuntimeState` follows the session in its `RunEntry`, and `RunDetails` collects what the panes
+   of the run show: the model tree through `ModelTreeState`, the event log and the event form through
+   `InjectorState`. `RuntimeToolWindow` and `RunPanes` draw them.
 8. To inject an event, the injector calls `EventInjector.inject` of the session. It checks the request against the
    `EventCatalog` and the `PayloadFormat`, builds an `EventFrame`, and the `SessionConductor` sends it through
    `RuntimeConnection.send`. Events pass the conductor like commands, so an injected event never overtakes a stop.

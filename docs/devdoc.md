@@ -642,6 +642,20 @@ preselected. Without any descriptor it shows an error.
 `InjectorState` prefills the payload with the template of the event's payload type. It checks the payload on every
 edit and replaces it with the new template when another event is chosen.
 
+The Model, Events and Log panes of a run are shown next to each other, so the effect of an event is in sight while it
+is sent. The bottom tool windows take the whole width of the window. The Problems tool window is closed whenever it
+has nothing to show, and `SubStateBindings` enforces that. Its label in the status bar carries the error icon while
+the workspace has errors.
+
+### The engine trace in the log
+
+The IDE's container runs the runtime with engine tracing on and the trace printed to the console, as
+`RuntimeConfiguration` writes it. The trace is the only place where the runtime tells which transition fired. The
+engine writes several trace lines on every tick of every state machine, even when nothing happens. `RuntimeHostBinding`
+drops those lines before they reach the log, as `EngineTrace.isTickNoise` decides, or they would push everything else
+out of the 5,000 lines within seconds. The simplified log of `StatechartLog` shows the remaining trace lines in a few
+words each, and every error line. A runtime reached by URL has no log in the IDE, so it has no simplified log either.
+
 ### Deployment steps and problems
 
 Read `DeployStepKind` and the steps in the `deploy` package of runtime-session. A deployment checks the runtime,
@@ -860,8 +874,11 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
 ### In the IDE
 
 - When the watcher gives up on a container that still runs, the next start adopts it and follows its log from the
-  container's start again. The Log tab then probably shows earlier lines twice. This follows from the code and has
+  container's start again. The Log pane then probably shows earlier lines twice. This follows from the code and has
   not been seen yet.
+- With tracing on, the runtime also writes the whole trace, tick lines included, to a file in the container. The file
+  grows until the container is removed, which happens when the IDE closes the folder.
+- An exception while the window is drawn freezes the window. It is written to the log, but no error dialog appears.
 - The descriptor template still writes the `observe` key, which deployment ignores.
 - The descriptor keys `runtime.image`, `runtime.pythonPackages` and `bridges` are accepted but ignored. So `EVAL`
   blocks can import only the Python packages of the runtime image.

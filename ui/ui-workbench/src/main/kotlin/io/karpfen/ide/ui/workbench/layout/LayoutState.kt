@@ -40,8 +40,11 @@ public enum class ToolWindowId(public val title: String, public val defaultSize:
     /** The outline of the active document, on the right. */
     OUTLINE("Outline", 240f),
 
-    /** The problems, at the bottom. */
-    PROBLEMS("Problems", 200f),
+    /**
+     * The problems, at the bottom. It is hidden until the user opens it from the status bar or the View menu, and the
+     * workbench hides it again whenever there is no problem to show.
+     */
+    PROBLEMS("Problems", 200f, visibleByDefault = false),
 
     /** What the language tools log, at the bottom below Problems. It is hidden until the user opens it. */
     OUTPUT("Language Tools Output", 180f, visibleByDefault = false),
@@ -50,7 +53,7 @@ public enum class ToolWindowId(public val title: String, public val defaultSize:
      * The runtime and the runs of the workspace, at the bottom below the output. It is hidden until the user opens it
      * or starts a run.
      */
-    RUNTIME("Runtime", 320f, visibleByDefault = false),
+    RUNTIME("Runtime", 400f, visibleByDefault = false),
     ;
 
     /** The layout of a tool window that nobody changed, with its default visibility and size. */
@@ -116,6 +119,11 @@ public class LayoutState {
     /** Shows a tool window. A visible tool window stays as it is. */
     public fun showToolWindow(id: ToolWindowId) {
         updateToolWindow(id) { it.copy(visible = true) }
+    }
+
+    /** Hides a tool window. A hidden tool window stays as it is. */
+    public fun hideToolWindow(id: ToolWindowId) {
+        updateToolWindow(id) { it.copy(visible = false) }
     }
 
     /**

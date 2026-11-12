@@ -28,6 +28,7 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -39,6 +40,8 @@ import kotlinx.coroutines.launch
  *   workspace. The folder flow calls it.
  * - After [start], the Outline and the caret part of the status bar follow the editor of the active tab. They follow
  *   [EditorTabsState.activeEditor] directly, because views switch tabs without going through the mediator.
+ * - After [start], the Problems tool window is hidden whenever there is no problem to show. It then stays closed until
+ *   the user opens it, so problems that come and go while typing never move the layout.
  * - After [start], the Language Tools Output follows the visibility of its tool window in the [layout], and the status
  *   bar's indicator follows the output's unseen problems.
  * - [bindRuntime] binds the status bar's runtime segment and the runtime log to the runtime state of the workspace.
@@ -66,6 +69,11 @@ internal class SubStateBindings(
                 outline.bindEditor(editor)
                 statusBar.bindEditor(document, editor)
             }
+        }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            combine(problems.state, layout.state) { shown, current ->
+                shown.isEmpty && current.toolWindow(ToolWindowId.PROBLEMS).visible
+            }.distinctUntilChanged().collect { emptyAndOpen -> if (emptyAndOpen) layout.hideToolWindow(ToolWindowId.PROBLEMS) }
         }
         output.bindVisibility(layout.state.map { it.toolWindow(ToolWindowId.OUTPUT).visible }.distinctUntilChanged())
         scope.launch(start = CoroutineStart.UNDISPATCHED) {

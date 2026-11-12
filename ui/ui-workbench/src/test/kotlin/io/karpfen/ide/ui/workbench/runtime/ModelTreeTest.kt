@@ -107,6 +107,24 @@ class ModelTreeTest {
         assertEquals("13", tree.rows.value.filterIsInstance<ModelTreeRow.Property>().single { it.name == "area" }.value)
     }
 
+    @Test
+    fun `expand all opens every object with content, and collapse all closes them again`() = runTest {
+        val tree = ModelTreeState(backgroundScope, MutableStateFlow(observed(mirror())))
+        runCurrent()
+
+        tree.expandAll()
+        runCurrent()
+
+        val open = tree.rows.value.filterIsInstance<ModelTreeRow.Object>()
+        assertEquals(listOf(HOUSE, KITCHEN_KEY, "o:kitchen/lamps#0", "o:bob"), open.map { it.key })
+        assertEquals(emptyList(), open.filter { it.expandable && !it.expanded }, "no object with content stays closed")
+
+        tree.collapseAll()
+        runCurrent()
+
+        assertEquals(listOf(house(expanded = false), bob()), tree.rows.value)
+    }
+
     private fun house(expanded: Boolean) = ModelTreeRow.Object(HOUSE, 0, "house", "House", null, false, true, expanded, false)
 
     private fun kitchen(expanded: Boolean) = ModelTreeRow.Object(KITCHEN_KEY, 1, "kitchen", "Room", "rooms", false, true, expanded, false)

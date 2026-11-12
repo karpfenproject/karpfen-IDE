@@ -118,7 +118,7 @@ class StatusBarStateTest {
             line = 3, column = 7, selectionLength = 1, language = KarpfenLanguage.KMETA, lineSeparator = LineSeparator.CRLF,
             errorCount = 2, warningCount = 0, isAnalyzing = true,
         )
-        assertEquals(listOf("Analyzing…"), StatusBarSegments.left(state).map { it.text })
+        assertEquals(listOf("Problems: 2", "Analyzing…"), StatusBarSegments.left(state).map { it.text })
         assertEquals(
             listOf("Ln 3, Col 7", "1 char", "KMeta", "CRLF", "UTF-8", "2", "0"),
             StatusBarSegments.right(state).map { it.text },
@@ -128,10 +128,21 @@ class StatusBarStateTest {
     }
 
     @Test
-    fun `unseen problems of the language tools show as an indicator on the left, an error one if an error is among them`() {
-        assertEquals(emptyList(), StatusBarSegments.left(StatusBarUiState()))
+    fun `the Problems label names the number of problems and carries the worst severity`() {
+        val clean = StatusBarSegments.left(StatusBarUiState()).first()
+        val warnings = StatusBarSegments.left(StatusBarUiState(warningCount = 3)).first()
+        val errors = StatusBarSegments.left(StatusBarUiState(errorCount = 1, warningCount = 3)).first()
 
-        val warnings = StatusBarSegments.left(StatusBarUiState(unseenOutput = UnseenOutputProblems(warnings = 2))).single()
+        assertEquals(StatusSegment(StatusSegmentKind.PROBLEMS, "Problems", "Click to show or hide the Problems tool window"), clean)
+        assertEquals(StatusSegmentKind.PROBLEMS_WARNINGS to "Problems: 3", warnings.kind to warnings.text)
+        assertEquals(StatusSegmentKind.PROBLEMS_ERRORS to "Problems: 4", errors.kind to errors.text)
+    }
+
+    @Test
+    fun `unseen problems of the language tools show as an indicator on the left, an error one if an error is among them`() {
+        assertEquals(listOf(StatusSegmentKind.PROBLEMS), StatusBarSegments.left(StatusBarUiState()).map { it.kind })
+
+        val warnings = StatusBarSegments.left(StatusBarUiState(unseenOutput = UnseenOutputProblems(warnings = 2))).last()
         val mixed = StatusBarSegments.left(StatusBarUiState(isAnalyzing = true, unseenOutput = UnseenOutputProblems(1, 3))).last()
 
         assertEquals(StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS, warnings.kind)

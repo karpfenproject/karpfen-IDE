@@ -20,6 +20,15 @@ import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 
 /** What a [StatusSegment] shows. The view picks the segment's icon and click action by its kind. */
 internal enum class StatusSegmentKind {
+    /** The label of the Problems tool window while the workspace has no error and no warning. */
+    PROBLEMS,
+
+    /** The label of the Problems tool window while the workspace has at least one error. */
+    PROBLEMS_ERRORS,
+
+    /** The label of the Problems tool window while the workspace has warnings and no error. */
+    PROBLEMS_WARNINGS,
+
     /** "Analyzing…" while an analysis of the workspace runs. */
     ANALYZING,
 
@@ -63,9 +72,12 @@ internal data class StatusSegment(val kind: StatusSegmentKind, val text: String,
 /**
  * The texts of the status bar. This is presentation only, so the composable just renders them.
  *
- * The left side shows "Analyzing…" while an analysis runs. It shows the runtime's status in a few words while a
- * workspace is open. And it shows the language tools' indicator while errors or warnings of theirs wait unseen in their
- * output.
+ * The left side starts with the label of the Problems tool window. The tool window is closed while there is nothing
+ * to show, and the label then is all that is left of it. It carries the error icon and the number of problems while
+ * the workspace has errors, and the warning icon while it has only warnings, so the user sees that there is something
+ * to open. The left side also shows "Analyzing…" while an analysis runs. It shows the runtime's status in a few words
+ * while a workspace is open. And it shows the language tools' indicator while errors or warnings of theirs wait unseen
+ * in their output.
  *
  * The right side shows `Ln x, Col y` and the selection length when text is selected. Then come the language, the line
  * separator and the encoding of the active editor. The workspace's error and warning counts come last.
@@ -75,11 +87,29 @@ internal object StatusBarSegments {
     /** The tooltip of the runtime's status. */
     private const val RUNTIME_TOOLTIP = "Click to show the Runtime tool window"
 
+    /** The tooltip of the Problems label. */
+    private const val PROBLEMS_TOOLTIP = "Click to show or hide the Problems tool window"
+
     /** The segments on the left. */
     fun left(state: StatusBarUiState): List<StatusSegment> = buildList {
+        add(problems(state))
         if (state.isAnalyzing) add(StatusSegment(StatusSegmentKind.ANALYZING, "Analyzing…"))
         state.runtime?.let { add(StatusSegment(StatusSegmentKind.RUNTIME, RuntimeTexts.hostSummary(it), RUNTIME_TOOLTIP)) }
         languageTools(state.unseenOutput)?.let(::add)
+    }
+
+    /**
+     * The label of the Problems tool window. With errors or warnings in the workspace it names their number and gets
+     * the kind that carries the icon of the worst severity.
+     */
+    private fun problems(state: StatusBarUiState): StatusSegment {
+        val total = state.errorCount + state.warningCount
+        val kind = when {
+            state.errorCount > 0 -> StatusSegmentKind.PROBLEMS_ERRORS
+            state.warningCount > 0 -> StatusSegmentKind.PROBLEMS_WARNINGS
+            else -> StatusSegmentKind.PROBLEMS
+        }
+        return StatusSegment(kind, if (total > 0) "Problems: $total" else "Problems", PROBLEMS_TOOLTIP)
     }
 
     /**

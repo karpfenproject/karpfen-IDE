@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -69,6 +70,10 @@ import io.karpfen.ide.ui.workbench.output.OutputUiState
  * example when its hidden tool window is shown, it starts at [readingPosition]. The text can be selected and copied.
  * Without lines the view shows [emptyText]. With [errorsInErrorColour] the whole text of an error line is in the error
  * colour. The runtime log uses that to show standard error.
+ *
+ * A caller can extend the view. [toolbarStart] puts its own controls before the Follow toggle. [belowToolbar] puts
+ * content between the toolbar and the lines. [lineText] replaces the text of a line, for a view that shows the lines
+ * in its own wording.
  */
 @Composable
 internal fun OutputView(
@@ -80,6 +85,9 @@ internal fun OutputView(
     onReadingPositionChange: (OutputReadingPosition) -> Unit = {},
     emptyText: String = "No output from the language tools",
     errorsInErrorColour: Boolean = false,
+    toolbarStart: @Composable RowScope.() -> Unit = {},
+    belowToolbar: @Composable () -> Unit = {},
+    lineText: ((OutputLine) -> AnnotatedString)? = null,
 ) {
     Column(modifier.fillMaxSize()) {
         Row(
@@ -87,6 +95,7 @@ internal fun OutputView(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            toolbarStart()
             FilterChip(
                 selected = state.follow,
                 onClick = { onFollowChange(!state.follow) },
@@ -97,16 +106,20 @@ internal fun OutputView(
                 Text("Clear", style = KarpfenTheme.typography.uiSmall)
             }
         }
+        belowToolbar()
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (state.lines.isEmpty()) {
                 Text(
                     emptyText,
                     color = KarpfenTheme.colors.textMuted,
                     style = KarpfenTheme.typography.uiSmall,
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier.align(Alignment.Center).padding(horizontal = 16.dp),
                 )
             } else {
-                OutputLines(state.lines, state.follow, onFollowChange, readingPosition, onReadingPositionChange, errorsInErrorColour)
+                OutputLines(
+                    state.lines, state.follow, onFollowChange, readingPosition, onReadingPositionChange, errorsInErrorColour,
+                    lineText,
+                )
             }
         }
     }
@@ -116,7 +129,7 @@ internal fun OutputView(
  * The scrollable, selectable list of [lines]. It scrolls to the newest line when one arrives while [follow] is on. It
  * reports the user's scrolling to [onFollowChange] through [FollowUserScrolling]. It starts at [readingPosition] and
  * reports every change of the line at its top to [onReadingPositionChange]. [errorsInErrorColour] colours whole error
- * lines.
+ * lines. [lineText] replaces the text of a line if it is given.
  */
 @Composable
 private fun OutputLines(
@@ -126,6 +139,7 @@ private fun OutputLines(
     readingPosition: OutputReadingPosition?,
     onReadingPositionChange: (OutputReadingPosition) -> Unit,
     errorsInErrorColour: Boolean,
+    lineText: ((OutputLine) -> AnnotatedString)?,
 ) {
     val format = remember { OutputLineFormat() }
     val listState = rememberLazyListState(
@@ -153,7 +167,7 @@ private fun OutputLines(
     Box(Modifier.fillMaxSize().nestedScroll(userScrolling)) {
         SelectionContainer {
             LazyColumn(state = listState, modifier = Modifier.fillMaxSize().testTag(OutputViewTestTags.LINES)) {
-                items(lines, key = { it.sequence }) { line -> OutputLineRow(line, format, errorsInErrorColour) }
+                items(lines, key = { it.sequence }) { line -> OutputLineRow(line, format, errorsInErrorColour, lineText) }
             }
         }
         VerticalScrollbar(
@@ -165,14 +179,20 @@ private fun OutputLines(
 
 /**
  * One [line] as one text. The time, the logger and the file are muted. The level has its severity's colour, and the
- * message has the text colour. With [errorsInErrorColour], an error line is in the error colour as a whole.
+ * message has the text colour. With [errorsInErrorColour], an error line is in the error colour as a whole. With
+ * [custom], the line shows the text that [custom] returns instead.
  */
 @Composable
-private fun OutputLineRow(line: OutputLine, format: OutputLineFormat, errorsInErrorColour: Boolean) {
+private fun OutputLineRow(
+    line: OutputLine,
+    format: OutputLineFormat,
+    errorsInErrorColour: Boolean,
+    custom: ((OutputLine) -> AnnotatedString)?,
+) {
     val colors = KarpfenTheme.colors
     val wholeLineInError = errorsInErrorColour && line.level == OutputLevel.ERROR
     Text(
-        text = lineText(line, format, colors, wholeLineInError),
+        text = custom?.invoke(line) ?: lineText(line, format, colors, wholeLineInError),
         color = if (wholeLineInError) colors.error else colors.text,
         style = KarpfenTheme.typography.monospace,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).testTag(OutputViewTestTags.line(line.sequence)),

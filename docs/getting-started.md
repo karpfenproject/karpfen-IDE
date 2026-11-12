@@ -34,8 +34,10 @@ model runs, it shows the model and the active states as they change, and it lets
 ### Editing
 
 Open a folder, and the Project tool window shows its files. The editor colours the text and underlines errors within a
-second. The Problems tool window lists the problems of the whole folder, and the Outline shows the structure of the
-active file. Resting the mouse on a name shows what it is. The karpfen files of one folder form a modeling context,
+second. The Outline shows the structure of the active file. The Problems tool window lists the problems of the whole
+folder. It stays closed while there is nothing to show. Its label `Problems` at the left of the status bar gets a red
+icon and the number of problems when there are some, and a click on the label opens the list. Resting the mouse on a
+name shows what it is. The karpfen files of one folder form a modeling context,
 which the IDE checks as one system. Without a descriptor, the events must be in a file named `EVENTS.kmeta`, and the
 metamodel is the other `.kmeta` file of the folder. A descriptor makes the context explicit: the IDE then checks
 exactly the files it names. Descriptors are edited like the other files. Completion offers their keys, the files of
@@ -58,7 +60,7 @@ This is the default. Run, in the Run menu, deploys a descriptor to a karpfen run
 owns. Each opened folder gets its own container, which listens only on `127.0.0.1`. The first time, the IDE builds the
 runtime image from the runtime sources that come with it. That takes a few minutes and happens once. Later runs reuse
 the image. The image has Python 3 with numpy, scipy, sympy, pandas, regex, python-dateutil and chardet, which `EVAL`
-blocks can import. Start runtime and Stop runtime in the header of the Runtime tool window start and stop the
+blocks can import. Start runtime and Stop runtime in the first line of the Runtime tool window start and stop the
 container without a run. When you close the folder or the IDE, the IDE stops the container and removes it. The image
 stays.
 
@@ -70,24 +72,34 @@ reaches the runtime and lists the errors instead.
 
 You can also start a karpfen runtime with IDE support yourself, like the one in the karpfen-runtime submodule. On macOS
 and Linux, `runtime/live-runtime.sh up` builds it, starts it in a throwaway container and prints its URL, and
-`runtime/live-runtime.sh down` removes it. In the header of the Runtime tool window, click URL, enter the URL and click
-Apply. The default is `http://127.0.0.1:8080`. The IDE checks that the runtime answers and has IDE support. It never
-stops a runtime it did not start, and its Log tab cannot show that runtime's output. Click Docker to go back.
+`runtime/live-runtime.sh down` removes it. In the first line of the Runtime tool window, click URL, enter the URL and
+click Apply. The default is `http://127.0.0.1:8080`. The IDE checks that the runtime answers and has IDE support. It never
+stops a runtime it did not start, and its Log pane cannot show that runtime's output. Click Docker to go back.
 Switching stops the live runs, and the IDE keeps your choice in its settings.
 
 ### While a model runs
 
 The Runtime tool window opens with every run. Runtime in the View menu and the runtime status in the status bar open
-it too. It shows each run in four tabs. Overview has the phase of the run, the deploy steps and the active states of
-each state machine. Model shows the model as a tree. Events lists the events of the environment and holds the
-event injector. Log shows the output of the runtime.
+it too. It takes the whole width of the window. Its first line shows what the runtime is doing. Its second line lists
+the runs, each with its phase, next to the buttons Run again, Stop and Clear finished. Below that, three panes show the
+selected run next to each other, so you see what an event does while you send it.
 
-With observation on, the runtime pushes every change and the Model tab follows live. Observation always covers the
-whole model, and the IDE listens to every event domain the state machines use. With observation off, the model stays
-as it is until you click Pull, which reads one snapshot. The injector offers the event domains and events of the state
-machines. The domains with events that the events file declares come first, in bold. The domains that only the state
-machines use follow and are marked as such. For an event with a payload type, the injector fills in a JSON template
-and checks your payload as you type. Send is enabled while the payload has no error.
+Model shows the model as a tree. Expand all and Collapse all open and close every object at once. With observation on,
+the runtime pushes every change and the tree follows live. Observation always covers the whole model, and the IDE
+listens to every event domain the state machines use. With observation off, the model stays as it is until you click
+Pull, which reads one snapshot.
+
+Events holds the form that sends an event. Choose a domain, then an event, then fill in the payload. The domains with
+events that the events file declares come first, in bold. The domains that only the state machines use follow and are
+marked as such. For an event with a payload type, the form fills in a JSON template and checks your payload as you type.
+The Send button names the event and is enabled while the payload has no error. Below the form is the list of the events
+the environment has published, newest first.
+
+Log starts with the active states of each state machine and one line about the deployment. A click on that line shows
+the deploy steps. Below is the log of the runtime. With Simplified switched on, it shows only what the state machines
+do, one step per line, such as `lamp  off -> on`, and the errors. With Simplified switched off, it shows everything the
+runtime prints.
+
 
 ## Walkthrough: the lamp
 
@@ -123,8 +135,8 @@ absolute, because Gradle starts the IDE in the folder `app/ide`. The IDE ignores
 directory and shows its start page, where Open Folder… lets you pick `examples/lamp`. The first build takes a few
 minutes, and the command keeps running while the IDE is open.
 
-Expected: the window opens on the folder. The Project tool window lists six files, Problems is empty, and the status
-bar shows 0 errors, 0 warnings and `Runtime: stopped`.
+Expected: the window opens on the folder. The Project tool window lists six files. The status bar shows the label
+`Problems` without an icon, 0 errors, 0 warnings and `Runtime: stopped`.
 
 ### 3. Look around
 
@@ -134,45 +146,48 @@ states and transitions.
 - Cmd+click / Ctrl+click on `Lamp` in `STATEMACHINE ATTACHED TO "Lamp"`. Expected: `lamp.kmeta` opens at the type.
 - Open `lamp.kenv.json` and rest the mouse on the key `tickDelayMs`. Expected: a tooltip explains the key.
 - In `lamp.kstates`, delete the `{` after `STATE "broken"`. Expected: within a second a red underline appears, and
-  Problems and the status bar count the error. Undo with Cmd+Z / Ctrl+Z, and everything is clean again.
+  the label in the status bar turns into `Problems: 1` with a red icon. Click it to see the error in the Problems tool
+  window. Undo with Cmd+Z / Ctrl+Z. Expected: everything is clean again, and the Problems tool window closes.
 
 ### 4. Run it
 
 Choose Run in the Run menu, or press Shift+F10. On a Mac keyboard you may have to hold Fn for the F keys.
 
-Expected: the Runtime tool window opens at the bottom. The list on its left shows a run named `lamp`, whose label moves
-from `preparing` to `waiting for the runtime`, `deploying` and `running`. The header says what the runtime is doing.
+Expected: the Runtime tool window opens at the bottom. Its second line shows a run named `lamp`, whose label moves
+from `preparing` to `waiting for the runtime`, `deploying` and `running`. The first line says what the runtime is doing.
 On the first run it shows `Docker: building the runtime image` with the current build step for a few minutes. Then
 come `creating the container`, `starting the container` and `waiting for the runtime`, and at last
 `Docker: running at 127.0.0.1:` with a port. The status bar says `Runtime: running`.
 
-The Overview tab of the run then shows `Phase: running` and `Model: Observation on, live at revision` with a number.
-Under Active states it lists `lamp: off` and `wallSwitch: down`. Under Deployment every step is `done`, among them
-`Setting the tick delay to 500 ms`.
+The Log pane on the right then starts with the active states, `lamp: off` and `wallSwitch: down`, and the line
+`Deployment done` with the number of steps. Click that line. Expected: every step is `done`, among them
+`Setting the tick delay to 500 ms`. The simplified log below shows that the engine started and that the lamp starts in
+`off` and the switch in `down`. The Model pane on the left says `Observation on` and `live at revision` with a number.
 
-Open the Model tab and click the rows to open them: `living room`, then `lamp`, `bulb` and `wallSwitch`. Expected: the
+In the Model pane, click Expand all. Expected: the tree opens down to the bulbs. The
 lamp shows `mode = "off"` and `log = ["off"]`, the bulb `watts = 40` and `lit = false`, and the switch
 `position = "down"`. The lamp's row `control` links to `wallSwitch`. Click the link to jump there.
 
-If Docker is not running, the run turns `failed` and the header turns red. It names the problem and ends with
+If Docker is not running, the run turns `failed` and the first line turns red. It names the problem and ends with
 `Start Docker Desktop or the local Docker engine, then try again.` Do that and run again.
 
 ### 5. Play with it
 
-Open the Events tab. The injector at the bottom starts on the domain `service` with its event `smash`. After each Send,
-look at the Overview and Model tabs.
+The form in the Events pane starts on the domain `service` with its event `smash`. After each Send, look at the Model
+pane to the left and at the Log pane to the right.
 
-1. Click the domain `switch`. The event `press` is selected, with the payload `{}`. Click Send. Expected: within a
-   second the lamp goes on. The Overview shows `lamp: on` and `wallSwitch: up`. In the Model tab the lamp has
-   `mode = "on"` and `log = ["off", "on"]`, the bulb `lit = true`, and the switch `position = "up"` and
-   `presses = ["up"]`. The event list above the injector shows the press with the source `external`.
+1. Click the domain `switch`. The event `press` is selected, and the button reads `Send press`. Click it. Expected:
+   within a second the lamp goes on. The log shows `lamp  off -> on` and `wallSwitch  down -> up`, and the active
+   states above it read `lamp: on` and `wallSwitch: up`. In the Model pane the lamp has `mode = "on"` and
+   `log = ["off", "on"]`, the bulb `lit = true`, and the switch `position = "up"` and `presses = ["up"]`. The event
+   list below the form shows the press with the source `external`.
 2. Click the event `dim`. The payload editor shows a JSON object with `"bright": false`. Replace `false` by `3`.
-   Expected: the injector shows an error, because `bright` is a boolean, and Send is greyed out. Now write `true` and
-   click Send. Expected: the lamp enters its inner state `full power`. The Overview shows it after `on` in the line of
-   the lamp, the bulb has `watts = 100`, and the log ends with `"full power at 100 W"`.
-3. Click `press` and Send. Expected: the lamp goes off, leaving full power too. The Overview shows `lamp: off` and
-   `wallSwitch: back down`. The bulb has `lit = false` but keeps `watts = 100`, since no state sets it back.
-4. Click the domain `service`, keep `smash` and click Send. Expected: `lamp: broken` and `mode = "broken"`, and the
+   Expected: the form shows an error, because `bright` is a boolean, and the button is greyed out. Now write `true`
+   and click `Send dim`. Expected: the lamp enters its inner state `full power`. The active states show it after `on`
+   in the line of the lamp, the bulb has `watts = 100`, and the lamp's `log` ends with `"full power at 100 W"`.
+3. Click `press` and send it. Expected: the lamp goes off, leaving full power too. The active states read `lamp: off`
+   and `wallSwitch: back down`. The bulb has `lit = false` but keeps `watts = 100`, since no state sets it back.
+4. Click the domain `service`, keep `smash` and send it. Expected: `lamp: broken` and `mode = "broken"`, and the
    spare bulb disappears from the model tree.
 5. Send `press` once more. Expected: the switch moves up again, but the lamp stays broken. No transition leaves
    `broken`.
@@ -182,18 +197,21 @@ smash is 5 seconds old, the waiting smash then breaks it. Otherwise the smash ex
 
 ### 6. Observe or pull
 
-In the Model tab, turn the Observation switch off. Expected: the status line next to Pull says `Observation off` and
-`pulled at revision` with the last revision. Send `press` twice in the Events tab. Expected: the model tree does not
-change, and neither do the active states in the Overview. Click Pull. Expected: the tree jumps to the current model,
+In the Model pane, turn the Observation switch off. Expected: the status line next to Pull says `Observation off` and
+`pulled at revision` with the last revision. Send `press` twice. Expected: the model tree does not change, and
+neither do the active states in the Log pane. The simplified log still shows the transitions, because it comes from
+the runtime's output. Click Pull. Expected: the tree jumps to the current model,
 with two more entries in `presses`, and the revision is higher. Turn observation on again. Expected: the status goes
 back to `live at revision`, and changes flow in again.
 
 ### 7. Stop
 
-Click Stop above the run list, or press Cmd+F2 / Ctrl+F2. Expected: the label of the run turns `stopped`. The Model
-tab says `Observation off` and `final at revision`, and it keeps the last model. Send is greyed out. The header still
-says `Docker: running`, because Stop ends the environment and not the runtime. The container keeps running so the
-next run starts fast. Stop runtime in the header, or Stop Runtime in the Run menu, stops the container and removes it.
+Click Stop in the line of the runs, or press Cmd+F2 / Ctrl+F2. Expected: the label of the run turns `stopped`. The
+Model pane says `Observation off` and `final at revision`, and it keeps the last model. The Send button is greyed out.
+The first line still says `Docker: running`, because Stop ends the environment and not the runtime. The container keeps
+running so the
+next run starts fast. Stop runtime in the first line, or Stop Runtime in the Run menu, stops the container and removes
+it.
 
 ### 8. Change the model and run again
 
@@ -213,14 +231,15 @@ TRANSITION "broken" -> "off" {
 ```
 
 Press Ctrl+M inside the quotes of a state name, and completion offers the states of the machine. Save with Cmd+S /
-Ctrl+S. Then click Run again above the run list, or press Shift+F10. Run would save the files anyway.
+Ctrl+S. Then click Run again in the line of the runs, or press Shift+F10. Run would save the files anyway.
 
-Expected: a new run `lamp` appears at the top of the list. It starts from the files again, with the lamp off and both
-bulbs in place. In the Events tab the domain `service` now offers `smash` and `repair`. Send `smash`, then `repair`.
+Expected: a new run `lamp` appears first in the line of the runs. It starts from the files again, with the lamp off and
+both bulbs in place. In the Events pane the domain `service` now offers `smash` and `repair`. Send `smash`, then
+`repair`.
 Expected: the lamp goes from `broken` back to `off`, with `mode = "off"` and `"off"` at the end of the log. The spare
 bulb stays gone, because nothing creates it again.
 
-If a file has an error, the run does not reach the runtime. Its label says `blocked`, and the Overview lists the
+If a file has an error, the run does not reach the runtime. Its label says `blocked`, and the Log pane lists the
 error under `Findings that block the run`. Click it to jump to the error.
 
 ### 9. Close the IDE

@@ -31,7 +31,8 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 /**
  * Arranges the tool windows around the editor area. Project sits on the left as the first pane of its split. Outline
  * sits on the right. Problems sits at the bottom, the Language Tools Output below Problems and the Runtime below the
- * output. These four are the second pane of their splits.
+ * output. These four are the second pane of their splits. The three bottom tool windows take the whole width of the
+ * window, so Project and Outline end above them and only the editor row gets shorter when a bottom tool window opens.
  *
  * Each tool window lives in a size-based `SplitPane`. Its fixed size is the tool window's persisted size in dp, and a
  * drag of the divider stores the new size through `LayoutState.resizeToolWindow`. The workbench therefore never
@@ -45,10 +46,10 @@ internal fun WorkbenchLayout(
     panes: WorkbenchPanes,
     modifier: Modifier = Modifier,
 ) {
-    ToolWindowSplit(ToolWindowId.PROJECT, SplitOrientation.HORIZONTAL, SplitSide.FIRST, layout, layoutState, panes.project, modifier) {
-        ToolWindowSplit(ToolWindowId.RUNTIME, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.runtime) {
-            ToolWindowSplit(ToolWindowId.OUTPUT, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.output) {
-                ToolWindowSplit(ToolWindowId.PROBLEMS, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.problems) {
+    ToolWindowSplit(ToolWindowId.RUNTIME, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.runtime, modifier) {
+        ToolWindowSplit(ToolWindowId.OUTPUT, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.output) {
+            ToolWindowSplit(ToolWindowId.PROBLEMS, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.problems) {
+                ToolWindowSplit(ToolWindowId.PROJECT, SplitOrientation.HORIZONTAL, SplitSide.FIRST, layout, layoutState, panes.project) {
                     ToolWindowSplit(
                         ToolWindowId.OUTLINE, SplitOrientation.HORIZONTAL, SplitSide.SECOND, layout, layoutState, panes.outline,
                         main = panes.editor,

@@ -84,8 +84,8 @@ class CommandsTest {
 
     @Test
     fun `view commands drive the layout`() = scenario { registry ->
-        assertTrue(registry.execute(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.PROBLEMS)))
-        assertFalse(state.layout.state.value.toolWindow(ToolWindowId.PROBLEMS).visible)
+        assertTrue(registry.execute(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.OUTLINE)))
+        assertFalse(state.layout.state.value.toolWindow(ToolWindowId.OUTLINE).visible)
         registry.execute(WorkbenchCommandIds.THEME_DARK)
         assertEquals(ThemeMode.DARK, state.layout.state.value.theme)
         registry.execute(WorkbenchCommandIds.THEME_LIGHT)

@@ -462,9 +462,9 @@ class DockerRuntimeHostTest {
               eventConsumptionOnFire = true
             }
             engineTracing {
-              tracingEnabled = false
+              tracingEnabled = true
               tracingLogDirectory = "/app/logs"
-              tracingConsoleOutput = false
+              tracingConsoleOutput = true
               simpleTrace = true
             }
 

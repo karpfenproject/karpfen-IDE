@@ -46,17 +46,27 @@ import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 
 /**
- * The Model tab of the launched run [entry]. A toolbar holds the observation switch, the Pull button and a status line
- * with the mode, the sync status and the revision. The model tree fills the rest of the tab. A click on an object row
- * opens or closes it. A click on a link selects its target, and the list scrolls to it. Objects that the runtime
- * created while the environment ran are marked.
+ * The Model pane of the launched run [entry]. A first row holds the title and the Expand all and Collapse all buttons,
+ * which open and close every object of the tree at once. A second row holds the observation switch, the Pull button
+ * and a status line with the mode, the sync status and the revision. The model tree fills the rest of the pane. A
+ * click on an object row opens or closes it. A click on a link selects its target, and the list scrolls to it.
+ * Objects that the runtime created while the environment ran are marked.
  */
 @Composable
-internal fun ModelTab(runtime: RuntimeState, entry: RunEntry, details: RunDetails) {
+internal fun ModelPane(runtime: RuntimeState, entry: RunEntry, details: RunDetails) {
     val model by details.session.model.collectAsState()
     val rows by details.modelTree.rows.collectAsState()
     val colors = KarpfenTheme.colors
     Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PaneTitle("Model")
+            SmallButton("Expand all", RuntimeViewTestTags.EXPAND_ALL) { details.modelTree.expandAll() }
+            SmallButton("Collapse all", RuntimeViewTestTags.COLLAPSE_ALL) { details.modelTree.collapseAll() }
+        }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),

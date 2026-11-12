@@ -23,6 +23,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.runtime.host.RuntimeHostKind
@@ -73,7 +74,7 @@ class RuntimeToolWindowUiTest {
     }
 
     @Test
-    fun `the runs list shows the selected run with its phase, and Stop stops it`() = workbenchUiTest(dir, scriptSessions = true) {
+    fun `the runs line shows the selected run with its phase, and Stop stops it`() = workbenchUiTest(dir, scriptSessions = true) {
         openLamp()
         val session = launched()
 
@@ -99,8 +100,6 @@ class RuntimeToolWindowUiTest {
         workbench.state.layout.resizeToolWindow(ToolWindowId.RUNTIME, TALL)
         settle()
 
-        tagged(RuntimeViewTestTags.tab("Events")).performClick()
-        settle()
         tagged(RuntimeViewTestTags.domain("switch")).performClick()
         settle()
         tagged(RuntimeViewTestTags.injectable("dim")).performClick()
@@ -121,6 +120,7 @@ class RuntimeToolWindowUiTest {
 
         tagged(RuntimeViewTestTags.PAYLOAD).performTextReplacement("{\"bright\": true}")
         settle()
+        tagged(RuntimeViewTestTags.SEND).performScrollTo()
         tagged(RuntimeViewTestTags.SEND).performClick()
         settle()
 
@@ -188,7 +188,7 @@ class RuntimeToolWindowUiTest {
     }
 
     private companion object {
-        /** The environment the runs list shows. */
+        /** The environment the runs line shows. */
         const val ENV_1 = "env-1"
 
         /** The status bar segment of the runtime. */

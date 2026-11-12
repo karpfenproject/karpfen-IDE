@@ -21,13 +21,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.FilterChip
@@ -60,9 +59,10 @@ import io.karpfen.ide.ui.workbench.settings.RuntimeSettings
 import java.nio.file.Path
 
 /**
- * The Runtime tool window over [runtime]. A header shows the host's status, the Start runtime and Stop runtime buttons
- * and the host selector. Below it are the runs list and the tabs of the selected run. Without runs, the window explains
- * how to run instead. It names the Run command with its shortcut and the descriptor Run would pick.
+ * The Runtime tool window over [runtime]. A first line shows the host's status, the Start runtime and Stop runtime
+ * buttons and the host selector. A second line shows the runs with the Run again, Stop and Clear finished buttons.
+ * Below them the panes of the selected run fill the whole width. Without runs, the window explains how to run
+ * instead. It names the Run command with its shortcut and the descriptor Run would pick.
  *
  * Paths are shown relative to [root]. A click on a finding calls [onNavigate]. The composable only renders the state
  * and calls its commands.
@@ -87,19 +87,16 @@ internal fun RuntimeToolWindow(runtime: RuntimeState, root: Path, onNavigate: (L
             val pick by runtime.nextPick.collectAsState()
             EmptyRuntime(runtime.runShortcut, pick, root)
         } else {
-            Row(Modifier.fillMaxSize()) {
-                RunsList(
-                    runs = runs,
-                    selected = selected,
-                    onSelect = runtime::select,
-                    onRerun = { runtime.rerun(it) },
-                    onStop = { runtime.stop(it) },
-                    onClearFinished = runtime::clearFinished,
-                    modifier = Modifier.width(RUNS_WIDTH.dp).fillMaxHeight(),
-                )
-                Box(Modifier.width(1.dp).fillMaxHeight().background(KarpfenTheme.colors.border))
-                selected?.let { RunTabs(runtime, it, root, onNavigate, Modifier.weight(1f).fillMaxHeight()) }
-            }
+            RunsBar(
+                runs = runs,
+                selected = selected,
+                onSelect = runtime::select,
+                onRerun = { runtime.rerun(it) },
+                onStop = { runtime.stop(it) },
+                onClearFinished = runtime::clearFinished,
+            )
+            Box(Modifier.fillMaxWidth().height(1.dp).background(KarpfenTheme.colors.border))
+            selected?.let { RunPanes(runtime, it, root, onNavigate, Modifier.weight(1f).fillMaxWidth()) }
         }
     }
 }
@@ -181,47 +178,47 @@ private fun EmptyRuntime(shortcut: String, pick: DescriptorPick, root: Path) {
 }
 
 /**
- * The runs, newest first. Each run shows its plan name, its environment key once known, and its phase. The Run again
- * and Stop buttons act on [selected]. Clear finished removes every finished run.
+ * The runs in one line, newest first. Each run shows its plan name, its environment key once known, and its phase. A
+ * click selects a run, and the panes below show it. The line scrolls sideways when the runs do not fit. The Run
+ * again and Stop buttons act on [selected]. Clear finished removes every finished run.
  */
 @Composable
-private fun RunsList(
+private fun RunsBar(
     runs: List<RunEntry>,
     selected: RunEntry?,
     onSelect: (RunEntry) -> Unit,
     onRerun: (RunEntry) -> Unit,
     onStop: (RunEntry) -> Unit,
     onClearFinished: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val colors = KarpfenTheme.colors
-    Column(modifier) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            SmallButton("Run again", RuntimeViewTestTags.RERUN, enabled = selected != null) { selected?.let(onRerun) }
-            SmallButton("Stop", RuntimeViewTestTags.STOP, enabled = selected?.isStoppable == true) { selected?.let(onStop) }
-            val anyFinished = runs.any { it.phase.isFinished }
-            SmallButton("Clear finished", RuntimeViewTestTags.CLEAR_FINISHED, enabled = anyFinished, onClick = onClearFinished)
-        }
-        LazyColumn(Modifier.fillMaxSize()) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Runs", color = colors.text, style = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold))
+        LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
             items(runs, key = { it.id }) { run ->
                 Row(
                     Modifier
-                        .fillMaxWidth()
                         .background(if (run.id == selected?.id) colors.selection else Color.Transparent)
                         .clickable { onSelect(run) }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
                         .testTag(RuntimeViewTestTags.run(run.id)),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(run.planName, color = colors.text, style = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold))
-                        run.environment?.let { Text(it.value, color = colors.textMuted, style = KarpfenTheme.typography.uiSmall) }
-                    }
+                    Text(run.planName, color = colors.text, style = KarpfenTheme.typography.ui.copy(fontWeight = FontWeight.SemiBold))
+                    run.environment?.let { Text(it.value, color = colors.textMuted, style = KarpfenTheme.typography.uiSmall) }
                     PhaseLabel(run)
                 }
             }
         }
+        SmallButton("Run again", RuntimeViewTestTags.RERUN, enabled = selected != null) { selected?.let(onRerun) }
+        SmallButton("Stop", RuntimeViewTestTags.STOP, enabled = selected?.isStoppable == true) { selected?.let(onStop) }
+        val anyFinished = runs.any { it.phase.isFinished }
+        SmallButton("Clear finished", RuntimeViewTestTags.CLEAR_FINISHED, enabled = anyFinished, onClick = onClearFinished)
     }
 }
 
@@ -258,9 +255,6 @@ internal fun SmallButton(label: String, tag: String, enabled: Boolean = true, on
         Text(label, style = KarpfenTheme.typography.uiSmall)
     }
 }
-
-/** The width of the runs list in dp. */
-private const val RUNS_WIDTH = 240
 
 /** The width of the URL field in dp. */
 private const val URL_WIDTH = 240

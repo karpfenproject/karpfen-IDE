@@ -19,6 +19,24 @@ import io.karpfen.ide.runtime.host.RuntimeHostKind
 
 /** Test tags of the Runtime tool window. */
 public object RuntimeViewTestTags {
+    /** The Model pane's Expand all button. */
+    public const val EXPAND_ALL: String = "Runtime.model.expandAll"
+
+    /** The Model pane's Collapse all button. */
+    public const val COLLAPSE_ALL: String = "Runtime.model.collapseAll"
+
+    /** The Log pane's Simplified toggle. */
+    public const val SIMPLIFIED: String = "Runtime.log.simplified"
+
+    /** The line about the deployment in the Log pane. A click opens and closes the details. */
+    public const val DEPLOYMENT: String = "Runtime.log.deployment"
+
+    /** The explanation of the event form. */
+    public const val SEND_HELP: String = "Runtime.injector.help"
+
+    /** What the Events pane says while no event was seen. */
+    public const val NO_EVENTS: String = "Runtime.events.none"
+
     /** The host's status in words in the header. */
     public const val HOST_STATUS: String = "Runtime.header.status"
 
@@ -79,10 +97,7 @@ public object RuntimeViewTestTags {
     /** The phase label of the run [id]. */
     public fun phase(id: Long): String = "Runtime.runs.phase:$id"
 
-    /** The tab [title] of the selected run. */
-    public fun tab(title: String): String = "Runtime.tab:$title"
-
-    /** The finding at [index] of the selected run's Overview. */
+    /** The finding at [index] in the selected run's Log pane. */
     public fun finding(index: Int): String = "Runtime.overview.finding:$index"
 
     /** The active states of the machine attached to [key]. */

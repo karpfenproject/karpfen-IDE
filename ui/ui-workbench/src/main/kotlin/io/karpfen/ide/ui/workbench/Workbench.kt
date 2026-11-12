@@ -47,11 +47,12 @@ import java.nio.file.Path
 /**
  * The content of the workbench window. The Project tree sits on the left. The editor tabs with the `CodeEditor` and
  * its popups fill the centre. The Outline sits on the right. Problems, the Language Tools Output and the Runtime tool
- * window sit at the bottom, above the status bar. Dialogs are shown over all of it. While no folder is open, the window
+ * window sit at the bottom over the whole width, above the status bar. Dialogs are shown over all of it. While no folder is open, the window
  * shows the welcome view with "Open Folder…" and the recent folders instead.
  *
- * A click on the status bar's indicator of unseen language tool problems shows the Language Tools Output. A click on
- * its runtime status shows the Runtime tool window.
+ * A click on the status bar's Problems label shows or hides the Problems tool window. A click on its indicator of
+ * unseen language tool problems shows the Language Tools Output. A click on its runtime status shows the Runtime tool
+ * window.
  *
  * The composable provides the light or dark `KarpfenTheme` and the matching `LocalEditorTheme` from the theme in
  * `state.layout`. It lays out the tool windows from the same layout with size-based `SplitPane`s. The fixed size of
@@ -100,6 +101,7 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
                     val status by state.statusBar.state.collectAsState()
                     WorkbenchStatusBar(
                         status,
+                        onToggleProblems = { state.layout.toggleToolWindow(ToolWindowId.PROBLEMS) },
                         onShowOutput = { state.layout.showToolWindow(ToolWindowId.OUTPUT) },
                         onShowRuntime = { state.layout.showToolWindow(ToolWindowId.RUNTIME) },
                     )
