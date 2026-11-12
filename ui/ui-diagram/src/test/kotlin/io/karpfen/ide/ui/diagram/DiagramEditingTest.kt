@@ -115,6 +115,37 @@ class DiagramEditingTest {
     }
 
     @Test
+    fun `dragging the label of a transition moves the label and nothing else`() {
+        val id = "NORMAL:off->on#1"
+        val label = assertNotNull(automatic.routes.single { it.transitionId == id }.label)
+
+        assertTrue(editing.startDrag(diagram, automatic, label.center))
+        editing.dragTo(diagram, DiagramPoint(label.center.x + 31f, label.center.y))
+        editing.endDrag(diagram)
+
+        val vis = assertNotNull(editing.vis)
+        assertEquals(mapOf(id to DiagramPoint(30f, 0f)), vis.labels)
+        assertEquals(listOf(vis), saved)
+        assertEquals(automatic.states.keys, layoutOf(vis).states.keys)
+    }
+
+    @Test
+    fun `dragging the border of a state with inner states sizes it`() {
+        val nested = diagramOf(NESTED)
+        val layout = StatechartLayouter().layout(nested, text)
+        val outer = layout.states.getValue("outer")
+        val editing = DiagramEditing(StatechartArrangement) { saved += it }
+
+        assertTrue(editing.startDrag(nested, layout, DiagramPoint(outer.right, outer.bottom)))
+        editing.dragTo(nested, DiagramPoint(outer.right + 80f, outer.bottom + 40f))
+        editing.endDrag(nested)
+
+        val sized = ManualStatechartLayout.of(nested, assertNotNull(editing.vis), text).states.getValue("outer")
+        assertTrue(sized.right >= outer.right + 70f && sized.bottom >= outer.bottom + 30f, "$outer became $sized")
+        assertEquals(1, saved.size)
+    }
+
+    @Test
     fun `what is read from the file is taken in, but never over a change that is still being written`() {
         val fromFile = VisLayout(boxes = mapOf("off" to DiagramPoint(10f, 10f), "on" to DiagramPoint(200f, 10f)))
         editing.loaded(fromFile)
@@ -144,6 +175,17 @@ class DiagramEditingTest {
     }
 
     private companion object {
+        val NESTED = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    INITIAL STATE "outer" {
+                        STATE "inner" { }
+                    }
+                }
+                TRANSITIONS { }
+            }
+        """.trimIndent()
+
         val MACHINE = """
             STATEMACHINE ATTACHED TO "Lamp" {
                 STATES {

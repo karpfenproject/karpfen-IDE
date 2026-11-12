@@ -64,6 +64,7 @@ import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.TextMeasurer
+import io.karpfen.ide.notation.diagram.layout.VisEditing
 import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.foundation.widgets.ContextMenuAction
@@ -81,8 +82,10 @@ import kotlinx.coroutines.withContext
  * buttons are not shown. Once there is a layout by hand, the drawing follows it at once, so a dragged element moves
  * with the pointer.
  *
- * A drag that starts on a box, a bar or a waypoint moves that element on the grid, and the grid is shown while it
- * moves. A drag that starts on the empty canvas moves the whole drawing. A secondary click on a line that can be bent
+ * A drag that starts on a box, a bar, a waypoint or the label of a line moves that element on the grid, and the grid
+ * is shown while it moves. A drag that starts on the border of a box that can be sized moves that side or corner. The
+ * border is drawn in the accent colour while the pointer is on it. The waypoints of a line are only drawn while the
+ * pointer is near the line. A drag that starts on the empty canvas moves the whole drawing. A secondary click on a line that can be bent
  * or on a waypoint opens a small context menu at the pointer, with one entry that adds a waypoint there or removes
  * the one under the pointer. Nothing changes until the user clicks the entry. A click elsewhere closes the menu, and
  * so does a change of the drawing.
@@ -142,6 +145,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     var fitted by remember { mutableStateOf(false) }
     var menu by remember(drawing) { mutableStateOf<MenuRequest?>(null) }
+    var pointer by remember { mutableStateOf<DiagramPoint?>(null) }
 
     fun pointAt(position: Offset): DiagramPoint {
         val point = (position - pan) / (zoom * density)
@@ -219,6 +223,8 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
                 menu = MenuRequest(change.position, offer)
                 change.consume()
             }
+            .onPointerEvent(PointerEventType.Move) { event -> pointer = event.changes.firstOrNull()?.let { pointAt(it.position) } }
+            .onPointerEvent(PointerEventType.Exit) { pointer = null }
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val change = event.changes.firstOrNull() ?: return@onPointerEvent
                 val delta = change.scrollDelta
@@ -240,8 +246,15 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             faults.attempt("drawing the diagram") {
                 notation.painter.paint(this, shown.diagram, shown.layout, shown.texts, colors, faults)
             }
-            faults.attempt("drawing the waypoints") {
-                vis?.let { drawWaypoints(it.waypoints.filterKeys(arrangement.lines(shown.diagram)::contains).values.flatten(), colors) }
+            val at = pointer
+            if (at != null) {
+                faults.attempt("drawing what the pointer has hold of") {
+                    if (vis != null) {
+                        val near = shown.layout.lineAt(at, WAYPOINT_REACH)?.id ?: VisEditing.waypointAt(vis, arrangement.lines(shown.diagram), at)?.first
+                        near?.let { id -> drawWaypoints(vis.waypoints[id].orEmpty(), colors) }
+                    }
+                    shown.layout.frameAt(at, DiagramLayout.HIT_TOLERANCE)?.let { grip -> shown.layout.boxOf(grip.id) }?.let { drawFrameGrip(it, colors) }
+                }
             }
         }
     }
@@ -290,6 +303,9 @@ private fun CanvasButton(label: String, tag: String, onClick: () -> Unit) {
             .testTag(tag),
     )
 }
+
+/** How near to a line the pointer must be for the waypoints of the line to show, in the units of the diagram. */
+private const val WAYPOINT_REACH = 14f
 
 /** The smallest zoom of the drawing. */
 private const val MIN_ZOOM = 0.2f

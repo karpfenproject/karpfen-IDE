@@ -116,6 +116,20 @@ public data class StatechartLayout(
 
     override fun boxAt(point: DiagramPoint): String? = stateAt(point)
 
+    override fun boxOf(id: String): DiagramBox? = states[id]
+
+    override fun labelAt(point: DiagramPoint): String? = routes.firstOrNull { it.label?.contains(point) == true }?.transitionId
+
+    /**
+     * The hold of [point] on the border of a state with nested states. Those are the states whose box surrounds the
+     * box of another state. Where several borders are near, the innermost state counts.
+     */
+    override fun frameAt(point: DiagramPoint, tolerance: Float): FrameGrip? =
+        states.entries
+            .filter { (_, box) -> states.values.any { Geometry.contains(box, it) } }
+            .sortedBy { it.value.width * it.value.height }
+            .firstNotNullOfOrNull { (name, box) -> FrameGrip.on(name, box, point, tolerance) }
+
     override fun lineAt(point: DiagramPoint, tolerance: Float): DiagramLine? {
         val route = transitionAt(point, tolerance) ?: return null
         return route.transitionId?.let { DiagramLine(it, route.points) }

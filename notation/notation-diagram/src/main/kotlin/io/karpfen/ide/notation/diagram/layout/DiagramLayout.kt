@@ -20,8 +20,9 @@ package io.karpfen.ide.notation.diagram.layout
  * arrange it by hand. Every kind of diagram has its own layout class with the details of its drawing. This interface
  * is what all of them share.
  *
- * A layout knows three kinds of elements a user can take hold of: boxes, bars and lines. A box is a state, a type or
- * an object. A bar is the bar of a split or join. A line is a connection that can be bent at waypoints.
+ * A layout knows the elements a user can take hold of. A box is a state, a type or an object. A bar is the bar of a
+ * split or join. A line is a connection that can be bent at waypoints. A label is the caption of a line. A frame is a
+ * box that the user can size, which is a state with nested states.
  */
 public interface DiagramLayout {
     /**
@@ -36,6 +37,18 @@ public interface DiagramLayout {
     /** The id of the bar drawn at [point], or null. */
     public fun barAt(point: DiagramPoint): String?
 
+    /** The box with the id [id], or null if the layout has no such box. */
+    public fun boxOf(id: String): DiagramBox?
+
+    /** The id of the line whose label is drawn at [point], or null. */
+    public fun labelAt(point: DiagramPoint): String?
+
+    /**
+     * Where [point] takes hold of the border of a box that can be sized, or null. The point must lie within
+     * [tolerance] of the border.
+     */
+    public fun frameAt(point: DiagramPoint, tolerance: Float): FrameGrip?
+
     /**
      * The line that can be bent and runs within [tolerance] of [point], or null. Where several do, the nearest one
      * counts.
@@ -45,6 +58,55 @@ public interface DiagramLayout {
     public companion object {
         /** How near a point must be to a line, a bar or a waypoint to hit it. */
         public const val HIT_TOLERANCE: Float = 6f
+    }
+}
+
+/**
+ * A hold on the border of a box that can be sized. A hold on a corner has two of the four sides.
+ *
+ * @property id the id of the box.
+ * @property left true if the hold is on the left side, which a drag then moves.
+ * @property top true if the hold is on the upper side.
+ * @property right true if the hold is on the right side.
+ * @property bottom true if the hold is on the lower side.
+ */
+public data class FrameGrip(
+    public val id: String,
+    public val left: Boolean,
+    public val top: Boolean,
+    public val right: Boolean,
+    public val bottom: Boolean,
+) {
+    /**
+     * [box] with the sides of this hold moved to [point] and onto the grid. A side never crosses the opposite one:
+     * the box keeps at least the size of two steps of the grid.
+     */
+    public fun resized(box: DiagramBox, point: DiagramPoint): DiagramBox {
+        val least = 2 * DiagramGrid.STEP
+        val x = DiagramGrid.snap(point.x)
+        val y = DiagramGrid.snap(point.y)
+        val newLeft = if (left) minOf(x, box.right - least) else box.x
+        val newTop = if (top) minOf(y, box.bottom - least) else box.y
+        val newRight = if (right) maxOf(x, newLeft + least) else box.right
+        val newBottom = if (bottom) maxOf(y, newTop + least) else box.bottom
+        return DiagramBox(newLeft, newTop, newRight - newLeft, newBottom - newTop)
+    }
+
+    public companion object {
+        /**
+         * The hold that [point] has on the border of the box [box] with the id [id], or null if the point is farther
+         * than [tolerance] from the border.
+         */
+        public fun on(id: String, box: DiagramBox, point: DiagramPoint, tolerance: Float): FrameGrip? {
+            val within = point.x >= box.x - tolerance && point.x <= box.right + tolerance &&
+                point.y >= box.y - tolerance && point.y <= box.bottom + tolerance
+            if (!within) return null
+            val left = kotlin.math.abs(point.x - box.x) <= tolerance
+            val right = !left && kotlin.math.abs(point.x - box.right) <= tolerance
+            val top = kotlin.math.abs(point.y - box.y) <= tolerance
+            val bottom = !top && kotlin.math.abs(point.y - box.bottom) <= tolerance
+            return if (left || right || top || bottom) FrameGrip(id, left, top, right, bottom) else null
+        }
     }
 }
 

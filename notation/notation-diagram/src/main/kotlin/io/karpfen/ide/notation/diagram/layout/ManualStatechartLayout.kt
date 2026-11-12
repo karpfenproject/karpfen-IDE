@@ -28,7 +28,7 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  * The rules:
  * - A state without nested states sits with its middle on its stored point. Its size follows from its name.
  * - A state with nested states has no stored point. Its box surrounds the states inside it, with room for its name
- *   at the top.
+ *   at the top. If the user sized it, it is at least as large as that frame.
  * - A new state is placed to the right of its placed siblings, at their top. Where no sibling is placed, the row
  *   starts at the top left of the parent, or of the drawing.
  * - The marker of an initial state sits above that state.
@@ -38,7 +38,7 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  *   that state at a right angle. A transition between a state and one nested in it runs straight down from the top
  *   border of the outer state to the top of the inner one. A transition from a state to itself gets a small loop at
  *   its right side.
- * - The caption of a transition stands beside the middle of its line.
+ * - The caption of a transition stands beside the middle of its line, moved as far as the user moved it.
  */
 public object ManualStatechartLayout {
 
@@ -65,11 +65,11 @@ public object ManualStatechartLayout {
             if (sources.size != transition.sources.size || targets.size != transition.targets.size) continue
             if (sources.isEmpty() || targets.isEmpty()) continue
             if (transition.kind == TransitionKind.NORMAL) {
-                routes += normal(transition, sources.first(), targets.first(), vis.waypoints[transition.id].orEmpty(), text)
+                routes += normal(transition, sources.first(), targets.first(), vis.waypoints[transition.id].orEmpty(), text, vis.labels)
             } else {
                 val bar = barOf(vis.bars[transition.id] ?: DiagramGrid.snap(centroid(sources + targets)))
                 bars[transition.id] = bar
-                routes += forked(transition, sources, targets, bar, text)
+                routes += forked(transition, sources, targets, bar, text, vis.labels)
             }
         }
         val layout = StatechartLayout(boxes, markers, bars, routes, 0f, 0f, StatechartMetrics.HEADER)
@@ -95,9 +95,10 @@ public object ManualStatechartLayout {
         target: DiagramBox,
         waypoints: List<DiagramPoint>,
         text: TextMeasurer,
+        labels: Map<String, DiagramPoint>,
     ): EdgeRoute {
         val points = LineRouting.between(source, target, waypoints)
-        return EdgeRoute(RouteKind.TRANSITION, transition.id, points, labelOn(points, transition, text))
+        return EdgeRoute(RouteKind.TRANSITION, transition.id, points, labelOn(points, transition, text, labels))
     }
 
     /** The lines of a split or join through its [bar]. The caption sits on the line of the single state. */
@@ -107,25 +108,32 @@ public object ManualStatechartLayout {
         targets: List<DiagramBox>,
         bar: DiagramBox,
         text: TextMeasurer,
+        labels: Map<String, DiagramPoint>,
     ): List<EdgeRoute> {
         val into = sources.mapIndexed { index, source ->
             val start = Geometry.anchor(source, bar.center)
             val points = listOf(start, Geometry.anchor(bar, start))
-            val label = if (transition.kind == TransitionKind.SPLIT && index == 0) labelOn(points, transition, text) else null
+            val label = if (transition.kind == TransitionKind.SPLIT && index == 0) labelOn(points, transition, text, labels) else null
             EdgeRoute(RouteKind.INTO_BAR, transition.id, points, label)
         }
         val out = targets.mapIndexed { index, target ->
             val end = Geometry.anchor(target, bar.center)
             val points = listOf(Geometry.anchor(bar, end), end)
-            val label = if (transition.kind == TransitionKind.JOIN && index == 0) labelOn(points, transition, text) else null
+            val label = if (transition.kind == TransitionKind.JOIN && index == 0) labelOn(points, transition, text, labels) else null
             EdgeRoute(RouteKind.OUT_OF_BAR, transition.id, points, label)
         }
         return into + out
     }
 
-    /** The box of the caption of [transition] beside the middle of the line through [points]. */
-    private fun labelOn(points: List<DiagramPoint>, transition: TransitionEdge, text: TextMeasurer): DiagramBox =
-        LineRouting.captionBeside(points, text.widthOf(transition.caption) + StatechartMetrics.LABEL_PADDING, StatechartMetrics.LABEL_HEIGHT)
+    /**
+     * The box of the caption of [transition] beside the middle of the line through [points], moved as far as
+     * [labels] says the user moved it.
+     */
+    private fun labelOn(points: List<DiagramPoint>, transition: TransitionEdge, text: TextMeasurer, labels: Map<String, DiagramPoint>): DiagramBox =
+        LineRouting.moved(
+            LineRouting.captionBeside(points, text.widthOf(transition.caption) + StatechartMetrics.LABEL_PADDING, StatechartMetrics.LABEL_HEIGHT),
+            labels[transition.id],
+        )
 
     /** Places the states: the stored ones where they are stored, the new ones next to them. */
     private class Placement(private val vis: VisLayout, private val text: TextMeasurer) {
@@ -155,7 +163,7 @@ public object ManualStatechartLayout {
 
         private fun placeStored(state: StateNode): DiagramBox {
             val box = if (state.isComposite) {
-                surrounding(state, checkNotNull(place(state.children, DiagramPoint(0f, 0f))))
+                framed(state, surrounding(state, checkNotNull(place(state.children, DiagramPoint(0f, 0f)))))
             } else {
                 leaf(state, vis.boxes.getValue(state.name))
             }
@@ -185,6 +193,9 @@ public object ManualStatechartLayout {
             val height = StatechartMetrics.leafHeight(state)
             return DiagramBox(center.x - width / 2f, center.y - height / 2f, width, height)
         }
+
+        /** [least], the smallest box of [state] around its nested states, made as large as the frame the user gave it. */
+        private fun framed(state: StateNode, least: DiagramBox): DiagramBox = vis.frames[state.name]?.union(least) ?: least
 
         /** The box of [state] around the box [inner] of its nested states, with room for its name. */
         private fun surrounding(state: StateNode, inner: DiagramBox): DiagramBox {

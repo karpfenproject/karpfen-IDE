@@ -19,8 +19,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
+import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
+import io.karpfen.ide.notation.diagram.layout.FrameGrip
 import io.karpfen.ide.notation.diagram.layout.VisEditing
 import io.karpfen.ide.notation.diagram.layout.VisLayout
 
@@ -30,8 +32,8 @@ import io.karpfen.ide.notation.diagram.layout.VisLayout
  * the kind of diagram at hand is the business of the [arrangement].
  *
  * The first change by hand freezes the layout on screen, so every element keeps its place and from then on nothing is
- * laid out automatically any more, except elements that are new in the text. A drag moves a waypoint, a bar or a box,
- * whichever lies under the pointer, in this order. A secondary click offers to remove the waypoint under the pointer
+ * laid out automatically any more, except elements that are new in the text. A drag moves a waypoint, the label of a
+ * line, a side or corner of a box that can be sized, a bar or a box, whichever lies under the pointer, in this order. A secondary click offers to remove the waypoint under the pointer
  * or to add one to the line under it. The change is made when the user takes the offer in the context menu.
  *
  * After every finished change, [save] gets the layout to write. What the text no longer has is dropped from it first.
@@ -66,6 +68,8 @@ internal class DiagramEditing<D, L : DiagramLayout>(
         data class Box(val id: String) : Target
         data class Bar(val id: String) : Target
         data class Waypoint(val id: String, val index: Int) : Target
+        data class Label(val id: String) : Target
+        data class Frame(val grip: FrameGrip, val box: DiagramBox) : Target
     }
 
     /**
@@ -75,6 +79,8 @@ internal class DiagramEditing<D, L : DiagramLayout>(
     fun startDrag(diagram: D, layout: L, point: DiagramPoint): Boolean {
         val current = vis
         val target = current?.let { VisEditing.waypointAt(it, arrangement.lines(diagram), point) }?.let { Target.Waypoint(it.first, it.second) }
+            ?: layout.labelAt(point)?.takeIf { it in arrangement.labelled(diagram) }?.let(Target::Label)
+            ?: layout.frameAt(point, DiagramLayout.HIT_TOLERANCE)?.let { grip -> layout.boxOf(grip.id)?.let { Target.Frame(grip, it) } }
             ?: layout.barAt(point)?.let(Target::Bar)
             ?: layout.boxAt(point)?.let(Target::Box)
             ?: return false
@@ -92,6 +98,8 @@ internal class DiagramEditing<D, L : DiagramLayout>(
             is Target.Box -> arrangement.moveBox(diagram, current.base, target.id, DiagramPoint(point.x - current.start.x, point.y - current.start.y))
             is Target.Bar -> VisEditing.moveBar(current.base, target.id, point)
             is Target.Waypoint -> VisEditing.moveWaypoint(current.base, target.id, target.index, point)
+            is Target.Label -> VisEditing.moveLabel(current.base, target.id, DiagramPoint(point.x - current.start.x, point.y - current.start.y))
+            is Target.Frame -> arrangement.resize(diagram, current.base, target.grip.id, target.grip.resized(target.box, point))
         }
     }
 

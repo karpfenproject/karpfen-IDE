@@ -25,8 +25,9 @@ refer to.
   Deleting the `.vis` file by hand does that.
 - Renaming or deleting a model file leaves its `.vis` file behind under the old name.
 - A state, type or object that is renamed in the text loses its place and is placed as a new element.
-- The lines of splits and joins have no waypoints. A state with inner states has no place or size of its own. Labels
-  cannot be moved.
+- The lines of splits and joins have no waypoints.
+- The first change by hand moves the labels from where the automatic layout drew them to their usual place beside
+  the line.
 - In a statechart a label may cover another line. The class and object diagrams move a label to the free side.
 - The view mode of a file, Text, Split or Diagram, is not stored in the project file.
 - The class diagram shows the types of one file only, so a relation to a type of another metamodel file is a row and

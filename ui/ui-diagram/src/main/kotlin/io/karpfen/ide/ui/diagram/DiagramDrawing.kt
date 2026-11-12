@@ -66,6 +66,12 @@ internal fun DrawScope.drawWaypoints(waypoints: List<DiagramPoint>, colors: Karp
     }
 }
 
+/** Draws the border of [box] in the accent colour, which shows that the pointer has hold of it to size the box. */
+internal fun DrawScope.drawFrameGrip(box: DiagramBox, colors: KarpfenColors) {
+    val unit = density
+    drawRect(colors.accent, box.topLeft(unit), box.size(unit), style = Stroke(GRIP * unit))
+}
+
 /**
  * Draws the line through [points] in [color] and returns it in pixels, or null for a line of fewer than two points,
  * which is not drawn.
@@ -139,6 +145,9 @@ internal const val ARROW_LENGTH: Float = 9f
 
 /** The width of an arrowhead at its base. */
 internal const val ARROW_WIDTH: Float = 7f
+
+/** The width of the border of a box while the pointer has hold of it. */
+private const val GRIP = 2f
 
 /** The radius of the handle of a waypoint. */
 private const val WAYPOINT = 4f

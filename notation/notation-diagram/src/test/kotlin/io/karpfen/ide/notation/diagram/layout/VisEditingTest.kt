@@ -18,6 +18,7 @@ package io.karpfen.ide.notation.diagram.layout
 import io.karpfen.ide.notation.diagram.LampStateMachine
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -85,6 +86,70 @@ class VisEditingTest {
     }
 
     @Test
+    fun `a label moves away from its usual place in steps of the grid and keeps that distance`() {
+        val id = "NORMAL:off->broken#1"
+        val before = assertNotNull(ManualStatechartLayout.of(lamp, frozen, text).routes.single { it.transitionId == id }.label)
+
+        val moved = VisEditing.moveLabel(frozen, id, DiagramPoint(27f, -12f))
+        val again = VisEditing.moveLabel(moved, id, DiagramPoint(-10f, 0f))
+
+        assertEquals(DiagramPoint(30f, -10f), moved.labels[id])
+        assertEquals(DiagramPoint(20f, -10f), again.labels[id])
+        assertEquals(frozen, VisEditing.moveLabel(frozen, id, DiagramPoint(3f, 2f)), "a move of less than half a step is none")
+        val after = assertNotNull(ManualStatechartLayout.of(lamp, moved, text).routes.single { it.transitionId == id }.label)
+        assertEquals(DiagramBox(before.x + 30f, before.y - 10f, before.width, before.height), after)
+
+        val straight = moved.copy(waypoints = emptyMap())
+        val here = assertNotNull(ManualStatechartLayout.of(lamp, straight, text).routes.single { it.transitionId == id }.label)
+        val elsewhere = VisEditing.moveState(lamp, straight, "broken", DiagramPoint(100f, 0f))
+        val followed = assertNotNull(ManualStatechartLayout.of(lamp, elsewhere, text).routes.single { it.transitionId == id }.label)
+        assertTrue(followed.x > here.x, "the label follows its line")
+    }
+
+    @Test
+    fun `freezing keeps the box of a state with nested states, and the state can be made larger but not too small`() {
+        val on = automatic.states.getValue("on")
+        val frame = frozen.frames.getValue("on")
+        assertEquals(setOf("on"), frozen.frames.keys)
+        assertTrue(kotlin.math.abs(frame.x - on.x) <= DiagramGrid.STEP && kotlin.math.abs(frame.right - on.right) <= DiagramGrid.STEP, "$frame is not $on")
+
+        val larger = DiagramBox(frame.x - 50f, frame.y - 20f, frame.width + 120f, frame.height + 60f)
+        val resized = VisEditing.resize(lamp, frozen, "on", larger)
+        assertEquals(larger, ManualStatechartLayout.of(lamp, resized, text).states.getValue("on"))
+
+        val tiny = VisEditing.resize(lamp, frozen, "on", DiagramBox(frame.x + 40f, frame.y + 40f, 20f, 20f))
+        val least = ManualStatechartLayout.of(lamp, frozen.copy(frames = emptyMap()), text).states.getValue("on")
+        val drawn = ManualStatechartLayout.of(lamp, tiny, text).states.getValue("on")
+        assertTrue(drawn.x <= least.x && drawn.right >= least.right && drawn.y <= least.y && drawn.bottom >= least.bottom, "$drawn cuts its inner states")
+
+        assertEquals(frozen, VisEditing.resize(lamp, frozen, "off", larger), "a state without nested states has no frame")
+    }
+
+    @Test
+    fun `moving a state with nested states takes its frame along`() {
+        val moved = VisEditing.moveState(lamp, frozen, "on", DiagramPoint(40f, 30f))
+
+        val before = frozen.frames.getValue("on")
+        assertEquals(DiagramBox(before.x + 40f, before.y + 30f, before.width, before.height), moved.frames.getValue("on"))
+    }
+
+    @Test
+    fun `a hold on a border moves that side onto the grid and never past the other side`() {
+        val box = DiagramBox(100f, 100f, 200f, 100f)
+
+        val corner = assertNotNull(FrameGrip.on("on", box, DiagramPoint(298f, 203f), 6f))
+        assertEquals(FrameGrip("on", left = false, top = false, right = true, bottom = true), corner)
+        assertEquals(DiagramBox(100f, 100f, 250f, 140f), corner.resized(box, DiagramPoint(352f, 238f)))
+        assertEquals(DiagramBox(100f, 100f, 20f, 20f), corner.resized(box, DiagramPoint(0f, 0f)))
+
+        val left = assertNotNull(FrameGrip.on("on", box, DiagramPoint(97f, 150f), 6f))
+        assertEquals(FrameGrip("on", left = true, top = false, right = false, bottom = false), left)
+        assertEquals(DiagramBox(60f, 100f, 240f, 100f), left.resized(box, DiagramPoint(61f, 0f)))
+        assertNull(FrameGrip.on("on", box, DiagramPoint(200f, 150f), 6f), "the inside is no border")
+        assertNull(FrameGrip.on("on", box, DiagramPoint(320f, 150f), 6f), "too far outside")
+    }
+
+    @Test
     fun `the text wins - what the text no longer has is dropped`() {
         val stale = frozen.copy(
             boxes = frozen.boxes + ("gone" to DiagramPoint(0f, 0f)) + ("on" to DiagramPoint(0f, 0f)),
@@ -95,6 +160,15 @@ class VisEditingTest {
         val pruned = VisEditing.prune(lamp, stale)
 
         assertEquals(frozen.boxes, pruned.boxes, "a state that is gone or has nested states now has no place")
+        val more = VisEditing.prune(
+            lamp,
+            frozen.copy(
+                labels = mapOf("NORMAL:off->broken#1" to DiagramPoint(10f, 0f), "NORMAL:gone->off#1" to DiagramPoint(10f, 0f)),
+                frames = frozen.frames + ("off" to DiagramBox(0f, 0f, 10f, 10f)) + ("gone" to DiagramBox(0f, 0f, 10f, 10f)),
+            ),
+        )
+        assertEquals(setOf("NORMAL:off->broken#1"), more.labels.keys)
+        assertEquals(setOf("on"), more.frames.keys)
         assertEquals(emptyMap(), pruned.bars)
         assertEquals(frozen.waypoints.filterValues { it.isNotEmpty() }, pruned.waypoints)
     }
@@ -105,6 +179,8 @@ class VisEditingTest {
             boxes = mapOf("off" to DiagramPoint(120f, 40f), "full power" to DiagramPoint(-30f, 12.5f)),
             bars = mapOf("SPLIT:idle->left,right#1" to DiagramPoint(200f, 230f)),
             waypoints = mapOf("NORMAL:off->on#1" to listOf(DiagramPoint(200f, 90f), DiagramPoint(210f, 90f))),
+            labels = mapOf("NORMAL:off->on#1" to DiagramPoint(20f, -10f), "NORMAL:on->off#1" to DiagramPoint(0f, 30f)),
+            frames = mapOf("on" to DiagramBox(60f, 120f, 300f, 160f)),
         )
 
         val file = VisLayoutJson.encode(layout)

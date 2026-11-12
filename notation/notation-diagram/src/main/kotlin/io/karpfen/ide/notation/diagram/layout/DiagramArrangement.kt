@@ -46,6 +46,12 @@ public interface DiagramArrangement<D, L : DiagramLayout> {
     public fun moveBox(diagram: D, vis: VisLayout, box: String, delta: DiagramPoint): VisLayout
 
     /**
+     * [vis] with the box [box] of [diagram] sized to [frame], if that box can be sized. The layout draws the box at
+     * least this large, and larger where what lies in it needs the room.
+     */
+    public fun resize(diagram: D, vis: VisLayout, box: String, frame: DiagramBox): VisLayout
+
+    /**
      * [vis] with only what [diagram] still has. The text is the source of truth, so what the text no longer has is
      * dropped. This is what is written to the companion file.
      */
@@ -53,6 +59,9 @@ public interface DiagramArrangement<D, L : DiagramLayout> {
 
     /** The ids of the lines of [diagram] that can be bent at waypoints. */
     public fun lines(diagram: D): Set<String>
+
+    /** The ids of the lines of [diagram] that carry a label, which the user can move. */
+    public fun labelled(diagram: D): Set<String>
 
     /** Where the text names the element that the box [box] of [diagram] stands for, or null if there is none. */
     public fun placeInText(diagram: D, box: String): TextRange?

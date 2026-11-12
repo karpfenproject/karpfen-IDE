@@ -44,11 +44,37 @@ public object VisEditing {
             .associate { route ->
                 checkNotNull(route.transitionId) to route.points.subList(1, route.points.size - 1).map(DiagramGrid::snap).distinct()
             },
+        frames = diagram.allStates()
+            .filter { it.isComposite }
+            .mapNotNull { state -> layout.states[state.name]?.let { state.name to snapped(it) } }
+            .toMap(),
     )
+
+    /** [box] with its four sides moved onto the grid. */
+    private fun snapped(box: DiagramBox): DiagramBox {
+        val left = DiagramGrid.snap(box.x)
+        val top = DiagramGrid.snap(box.y)
+        return DiagramBox(left, top, DiagramGrid.snap(box.right) - left, DiagramGrid.snap(box.bottom) - top)
+    }
+
+    /**
+     * [vis] with the label of the line [id] moved by [delta] from where it stands in [vis]. The move is rounded to
+     * the grid.
+     */
+    public fun moveLabel(vis: VisLayout, id: String, delta: DiagramPoint): VisLayout {
+        val step = DiagramGrid.snap(delta)
+        if (step.x == 0f && step.y == 0f) return vis
+        val from = vis.labels[id] ?: DiagramPoint(0f, 0f)
+        return vis.copy(labels = vis.labels + (id to from + step))
+    }
+
+    /** [vis] with the state [name], which has nested states, sized to [frame]. */
+    public fun resize(diagram: StatechartDiagram, vis: VisLayout, name: String, frame: DiagramBox): VisLayout =
+        if (diagram.state(name)?.isComposite == true) vis.copy(frames = vis.frames + (name to frame)) else vis
 
     /**
      * [vis] with the state [name] moved by [delta]. A state with nested states takes all of them along, together
-     * with the waypoints of the transitions that run between them. The move is rounded to the grid as a whole, so
+     * with their frames and the waypoints of the transitions that run between them. The move is rounded to the grid as a whole, so
      * what moves together keeps its distances.
      */
     public fun moveState(diagram: StatechartDiagram, vis: VisLayout, name: String, delta: DiagramPoint): VisLayout {
@@ -64,6 +90,7 @@ public object VisEditing {
             boxes = vis.boxes.mapValues { (key, point) -> if (key in moved) point + step else point },
             bars = vis.bars.mapValues { (id, point) -> if (id in inside) point + step else point },
             waypoints = vis.waypoints.mapValues { (id, points) -> if (id in inside) points.map { it + step } else points },
+            frames = vis.frames.mapValues { (key, box) -> if (key in moved) box.copy(x = box.x + step.x, y = box.y + step.y) else box },
         )
     }
 
@@ -116,17 +143,21 @@ public object VisEditing {
 
     /**
      * [vis] with only what [diagram] still has. The text is the source of truth, so the place of a state that is gone
-     * from the text, or was given nested states, is dropped, and so are the bars and waypoints of transitions that are
-     * gone. This is what is written to the companion file.
+     * from the text, or was given nested states, is dropped, and so are the bars, waypoints and labels of transitions
+     * that are gone and the frames of states that have no nested states any more. This is what is written to the
+     * companion file.
      */
     public fun prune(diagram: StatechartDiagram, vis: VisLayout): VisLayout {
         val leaves = diagram.allStates().filter { !it.isComposite }.map { it.name }.toSet()
         val forks = diagram.transitions.filter { it.kind != TransitionKind.NORMAL }.map { it.id }.toSet()
         val normal = diagram.transitions.filter { it.kind == TransitionKind.NORMAL }.map { it.id }.toSet()
+        val composites = diagram.allStates().filter { it.isComposite }.map { it.name }.toSet()
         return VisLayout(
             boxes = vis.boxes.filterKeys(leaves::contains),
             bars = vis.bars.filterKeys(forks::contains),
             waypoints = vis.waypoints.filterKeys(normal::contains).filterValues { it.isNotEmpty() },
+            labels = vis.labels.filterKeys { it in forks || it in normal },
+            frames = vis.frames.filterKeys(composites::contains),
         )
     }
 

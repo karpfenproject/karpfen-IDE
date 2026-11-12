@@ -80,15 +80,21 @@ public object StructureArrangement : DiagramArrangement<StructureDiagram, Struct
         )
     }
 
+    /** [vis] as it is, because the size of a type or an object follows from its texts. */
+    override fun resize(diagram: StructureDiagram, vis: VisLayout, box: String, frame: DiagramBox): VisLayout = vis
+
     override fun prune(diagram: StructureDiagram, vis: VisLayout): VisLayout {
         val nodes = diagram.nodes.map { it.id }.toSet()
         return VisLayout(
             boxes = vis.boxes.filterKeys(nodes::contains),
             waypoints = vis.waypoints.filterKeys(lines(diagram)::contains).filterValues { it.isNotEmpty() },
+            labels = vis.labels.filterKeys(labelled(diagram)::contains),
         )
     }
 
     override fun lines(diagram: StructureDiagram): Set<String> = diagram.links.map { it.id }.toSet()
+
+    override fun labelled(diagram: StructureDiagram): Set<String> = diagram.links.filter { it.label.isNotEmpty() }.map { it.id }.toSet()
 
     override fun placeInText(diagram: StructureDiagram, box: String): TextRange? = diagram.node(box)?.nameRange
 }

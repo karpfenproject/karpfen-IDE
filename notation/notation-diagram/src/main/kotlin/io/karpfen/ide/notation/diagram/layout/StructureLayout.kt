@@ -52,6 +52,13 @@ public data class StructureLayout(
     /** Always null, because a class or object diagram has no bars. */
     override fun barAt(point: DiagramPoint): String? = null
 
+    override fun boxOf(id: String): DiagramBox? = boxes[id]
+
+    override fun labelAt(point: DiagramPoint): String? = routes.firstOrNull { it.label?.contains(point) == true }?.linkId
+
+    /** Always null, because the size of a type or an object follows from its texts. */
+    override fun frameAt(point: DiagramPoint, tolerance: Float): FrameGrip? = null
+
     override fun lineAt(point: DiagramPoint, tolerance: Float): DiagramLine? =
         routes.map { it to Geometry.distanceToLine(point, it.points) }
             .filter { it.second <= tolerance }

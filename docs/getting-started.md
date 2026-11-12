@@ -64,7 +64,9 @@ other, and a click on the size sets it back.
 - Drag the empty canvas to move the drawing. The buttons in its corner zoom. A click on a box jumps to it in the text.
 - Drag a box to arrange the diagram by hand. A grid of dots appears, and the box moves from grid point to grid point.
 - Right-click a line and choose Add waypoint, then drag the waypoint to bend the line. Right-click a waypoint and
-  choose Remove waypoint.
+  choose Remove waypoint. The waypoints of a line show while the pointer is near the line.
+- Drag the label of a line to move it. It keeps its distance to the line.
+- Drag a side or a corner of a state with inner states to size it. It never gets smaller than its inner states need.
 - The first change by hand fixes every element where it is. The IDE stores the arrangement next to the file, with
   `.vis` appended to its name, as in `lamp.kstates.vis`. After that only new elements are placed automatically.
 - The text always wins. What the `.vis` file says about something the text no longer has is dropped. Delete the

@@ -251,7 +251,8 @@ What all diagrams share is written once: `DiagramCanvas` and `DiagramEditing` wo
 `DiagramNotation`.
 
 The layout by hand lives in a companion file next to the source, named after it with `.vis` appended. It holds JSON
-with the keys `boxes`, `bars` and `lines`, as `VisLayoutJson` describes. Elements are found by stable identities: a
+with the keys `boxes`, `bars`, `lines` and `frames`, as `VisLayoutJson` describes. A line has its waypoints and how
+far its label was moved. A frame is the box of a state with inner states as the user sized it. Elements are found by stable identities: a
 state by its name, a type by its name, an object by its key, a link by its relation, as in `has:Lamp.bulb`. As long as
 there is no companion file, the diagram is laid out automatically. The first change by hand freezes that layout, and
 from then on nothing is arranged automatically, except that a new element is placed next to the others. All stored

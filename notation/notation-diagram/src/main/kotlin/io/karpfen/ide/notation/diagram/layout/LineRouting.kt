@@ -71,6 +71,10 @@ internal object LineRouting {
         }
     }
 
+    /** [caption] moved by [offset], which is how far the user moved it, or as it is without an offset. */
+    fun moved(caption: DiagramBox, offset: DiagramPoint?): DiagramBox =
+        if (offset == null) caption else caption.copy(x = caption.x + offset.x, y = caption.y + offset.y)
+
     /**
      * The box of a caption that is [width] wide and [height] high at the middle of the line through [points]. The
      * caption stands beside the line and not on it: to the right of a part that runs up and down, and above a part
