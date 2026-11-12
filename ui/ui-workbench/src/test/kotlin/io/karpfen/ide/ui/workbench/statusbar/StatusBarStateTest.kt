@@ -128,6 +128,17 @@ class StatusBarStateTest {
     }
 
     @Test
+    fun `the zoom controls are a minus, the size and a plus for the editor and for the workbench`() {
+        val zoom = StatusBarSegments.zoom(editorFontSize = 14f, uiScale = 1.2f)
+
+        assertEquals(listOf("-", "Editor 14", "+", "-", "Zoom 120%", "+"), zoom.map { it.text })
+        assertEquals(
+            listOf("editor_zoom_out", "editor_zoom", "editor_zoom_in", "ui_zoom_out", "ui_zoom", "ui_zoom_in"),
+            zoom.map { it.id },
+        )
+    }
+
+    @Test
     fun `the Problems label names the number of problems and carries the worst severity`() {
         val clean = StatusBarSegments.left(StatusBarUiState()).first()
         val warnings = StatusBarSegments.left(StatusBarUiState(warningCount = 3)).first()

@@ -21,6 +21,8 @@ import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.keys.KeyCode
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import io.karpfen.ide.ui.workbench.command.RuntimeCommandIds
+import io.karpfen.ide.ui.workbench.layout.LayoutState
+import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,11 +38,18 @@ import kotlinx.coroutines.flow.stateIn
  * Registers the runtime commands of `RuntimeCommandIds` over the [runtime] of the opened workspace. They are Run with
  * Shift+F10, Stop with Ctrl+F2 or Cmd+F2 on macOS, Start runtime and Stop runtime.
  *
+ * Run also shows the Runtime tool window and gives it three quarters of the height below the menu, so the model, the
+ * events and the log of the run have room. The Run again button of the tool window leaves the size alone.
+ *
  * Run is enabled while a workspace is open. Stop is enabled while there is a run it can stop. Start runtime is enabled
  * while the host has no runtime, that is, while it is stopped or failed. Stop runtime is enabled while the host has a
  * runtime or prepares one.
  */
-internal class RuntimeCommands(private val scope: CoroutineScope, private val runtime: StateFlow<RuntimeState?>) {
+internal class RuntimeCommands(
+    private val scope: CoroutineScope,
+    private val runtime: StateFlow<RuntimeState?>,
+    private val layout: LayoutState,
+) {
 
     /** Registers the commands in [registry]. */
     fun register(registry: CommandRegistry) {
@@ -48,7 +57,12 @@ internal class RuntimeCommands(private val scope: CoroutineScope, private val ru
         val stoppable = follow(false) { state -> state.stopTarget.map { it != null } }
         val startable = follow(false) { state -> state.host.map { it is HostStatus.Stopped || it is HostStatus.Failed } }
         val stoppableRuntime = follow(false) { state -> state.host.map { it is HostStatus.Running || it is HostStatus.Preparing } }
-        registry.register(Command(RuntimeCommandIds.RUN, "Run", RUN_SHORTCUT, open) { runtime.value?.run() })
+        registry.register(
+            Command(RuntimeCommandIds.RUN, "Run", RUN_SHORTCUT, open) {
+                layout.expandToolWindow(ToolWindowId.RUNTIME, RUN_SHARE)
+                runtime.value?.run()
+            },
+        )
         registry.register(Command(RuntimeCommandIds.STOP, "Stop", STOP_SHORTCUT, stoppable) { runtime.value?.stopSelected() })
         registry.register(
             Command(RuntimeCommandIds.START_RUNTIME, "Start Runtime", isEnabled = startable) { runtime.value?.startRuntime() },
@@ -67,6 +81,9 @@ internal class RuntimeCommands(private val scope: CoroutineScope, private val ru
     private fun <T> Flow<T>.eagerly(initial: T): StateFlow<T> = stateIn(scope, SharingStarted.Eagerly, initial)
 
     companion object {
+        /** The share of the workbench's height that the Runtime tool window gets when Run is chosen. */
+        const val RUN_SHARE: Float = 0.75f
+
         /** The shortcut of Run, which is Shift+F10. */
         val RUN_SHORTCUT: KeyShortcut = KeyShortcut(KeyCode.F10, shift = true)
 

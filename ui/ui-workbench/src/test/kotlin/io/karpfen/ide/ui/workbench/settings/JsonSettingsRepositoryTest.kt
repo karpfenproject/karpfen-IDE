@@ -15,14 +15,6 @@
  */
 package io.karpfen.ide.ui.workbench.settings
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import org.junit.jupiter.api.Assumptions.assumeFalse
-import org.junit.jupiter.api.Assumptions.assumeTrue
-import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.attribute.PosixFilePermissions
@@ -34,6 +26,16 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * Tests [JsonSettingsRepository]. They cover the defaults, round trips, unknown keys and values, recovery from a
@@ -63,31 +65,82 @@ class JsonSettingsRepositoryTest {
     }
 
     @Test
-    fun `updates are published, written as JSON and load again, tool windows by name incl unknown ones`() = runTest {
+    fun `the user's part is written as JSON and loads again, and nothing of a project goes there`() = runTest {
         val settings = repository(dir.resolve("new/home"))
-        val updated = settings.update {
-            it.withRecentFolder("/a").copy(
-                theme = ThemeMode.DARK,
-                editorFontSize = 15f,
-                windowBounds = WindowBounds(10, 20, 800, 600, maximized = true),
-                toolWindows = mapOf("PROJECT" to ToolWindowLayout(false, 300f), "DIAGRAM" to ToolWindowLayout(size = 120f)),
-            )
-        }
+        val bounds = WindowBounds(10, 20, 800, 600, maximized = true)
+        val updated = settings.update { it.withRecentFolder("/a").copy(theme = ThemeMode.DARK, editorFontSize = 15f, windowBounds = bounds) }
         assertEquals(updated, settings.settings.value)
         val written = dir.resolve("new/home").resolve(SettingsLocations.SETTINGS_FILE_NAME)
-        assertTrue(Json.parseToJsonElement(Files.readString(written)).jsonObject.containsKey("toolWindows"))
+        assertEquals(setOf("recentFolders", "windowBounds"), Json.parseToJsonElement(Files.readString(written)).jsonObject.keys)
 
         val reloaded = repository(dir.resolve("new/home")).load()
-        assertEquals(updated, reloaded)
-        assertEquals(ToolWindowLayout(size = 120f), reloaded.toolWindows["DIAGRAM"], "unknown tool windows are kept")
+        assertEquals(IdeSettings(recentFolders = listOf("/a"), windowBounds = bounds), reloaded, "the theme belonged to no project")
     }
 
     @Test
-    fun `unknown keys are ignored and unknown enum values take the default`() = runTest {
+    fun `unknown keys are ignored, also those of the time when the file held everything`() = runTest {
         Files.writeString(file, """{ "recentFolders": ["/x"], "future": { "a": 1 }, "theme": "SEPIA", "editorFontSize": 14 }""")
         val loaded = repository().load()
-        assertEquals(IdeSettings(recentFolders = listOf("/x"), editorFontSize = 14f), loaded)
+        assertEquals(IdeSettings(recentFolders = listOf("/x")), loaded)
         assertTrue(backups().isEmpty())
+    }
+
+    @Test
+    fun `the project part is stored in the project folder and comes back with the project`() = runTest {
+        val lamp = Files.createDirectories(dir.resolve("lamp"))
+        val other = Files.createDirectories(dir.resolve("other"))
+        val projectFile = lamp.resolve(ProjectSettings.FILE_NAME)
+        val settings = repository()
+        settings.update { it.withRecentFolder("/a") }
+
+        assertEquals(IdeSettings(recentFolders = listOf("/a")), settings.openProject(lamp))
+        assertFalse(Files.exists(projectFile), "opening a folder writes nothing")
+
+        val changed = settings.update {
+            it.copy(
+                theme = ThemeMode.DARK,
+                uiScale = 1.2f,
+                toolWindows = mapOf("RUNTIME" to ToolWindowLayout(visible = true, size = 400f)),
+                openFiles = listOf("lamp.kstates"),
+                activeFile = "lamp.kstates",
+            )
+        }
+        assertEquals(changed.project, ProjectSettingsFile.parse(Files.readString(projectFile)))
+        assertTrue("theme = dark" in Files.readString(projectFile))
+
+        assertEquals(IdeSettings(recentFolders = listOf("/a")), settings.openProject(other), "another project has its own settings")
+        assertEquals(changed, settings.openProject(lamp))
+        assertEquals(changed, repository().also { it.load() }.openProject(lamp), "also after a restart")
+    }
+
+    @Test
+    fun `without a project the project part is kept in memory only`() = runTest {
+        val lamp = Files.createDirectories(dir.resolve("lamp"))
+        val settings = repository()
+        settings.openProject(lamp)
+        settings.update { it.copy(theme = ThemeMode.DARK) }
+
+        assertEquals(ThemeMode.SYSTEM, settings.openProject(null).theme, "the defaults apply again")
+        settings.update { it.copy(uiScale = 1.5f) }
+
+        assertEquals(1.5f, settings.settings.value.uiScale)
+        assertFalse(Files.exists(file), "the user's file holds no project values")
+        assertEquals(ProjectSettings(theme = ThemeMode.DARK), ProjectSettingsFile.parse(Files.readString(lamp.resolve(ProjectSettings.FILE_NAME))))
+    }
+
+    @Test
+    fun `changing only the user's part leaves the project file alone, and the other way round`() = runTest {
+        val lamp = Files.createDirectories(dir.resolve("lamp"))
+        val settings = repository()
+        settings.openProject(lamp)
+
+        settings.update { it.withRecentFolder("/a") }
+        assertFalse(Files.exists(lamp.resolve(ProjectSettings.FILE_NAME)))
+
+        Files.delete(file)
+        settings.update { it.copy(editorFontSize = 16f) }
+        assertFalse(Files.exists(file))
+        assertTrue(Files.exists(lamp.resolve(ProjectSettings.FILE_NAME)))
     }
 
     @Test
@@ -96,9 +149,9 @@ class JsonSettingsRepositoryTest {
         assertEquals(IdeSettings(), repository().load())
         assertEquals(listOf("settings.json.corrupt-20261021-083005"), backups())
         assertEquals("{ not json", Files.readString(dir.resolve("settings.json.corrupt-20261021-083005")))
-        assertEquals(IdeSettings(), Json.decodeFromString(IdeSettings.serializer(), Files.readString(file)), "the defaults are written")
+        assertEquals(emptyList(), recentFoldersIn(file), "the defaults are written")
 
-        Files.writeString(file, NEGATIVE_FONT_SIZE)
+        Files.writeString(file, TOO_MANY_RECENT_FOLDERS)
         assertEquals(IdeSettings(), repository().load())
         Files.writeString(file, """{ "recentFolders": "not a list" }""")
         assertEquals(IdeSettings(), repository().load())
@@ -119,7 +172,7 @@ class JsonSettingsRepositoryTest {
 
         assertEquals(listOf("settings.json.corrupt-20261021-083005"), backups(), "the undecodable file is backed up")
         assertContentEquals(latin1, Files.readAllBytes(dir.resolve("settings.json.corrupt-20261021-083005")))
-        assertEquals(listOf("/tmp/other"), Json.decodeFromString(IdeSettings.serializer(), Files.readString(file)).recentFolders)
+        assertEquals(listOf("/tmp/other"), recentFoldersIn(file))
     }
 
     @Test
@@ -172,9 +225,13 @@ class JsonSettingsRepositoryTest {
         }
     }
 
+    /** The recent folders that the JSON file [path] holds. */
+    private fun recentFoldersIn(path: Path): List<String> =
+        Json.parseToJsonElement(Files.readString(path)).jsonObject.getValue("recentFolders").jsonArray.map { it.jsonPrimitive.content }
+
     private companion object {
-        /** Valid JSON whose font size violates an [IdeSettings] invariant. */
-        const val NEGATIVE_FONT_SIZE = """{ "editorFontSize": -1 }"""
+        /** Valid JSON whose recent folders violate an [IdeSettings] invariant, because there are more than ten. */
+        val TOO_MANY_RECENT_FOLDERS: String = (1..IdeSettings.MAX_RECENT_FOLDERS + 1).joinToString(prefix = "{ \"recentFolders\": [", postfix = "] }") { "\"/$it\"" }
 
         /** Settings edited by hand and saved as Latin-1. The é is the single byte 0xE9, which is not valid UTF-8. */
         val LATIN1_SETTINGS: ByteArray

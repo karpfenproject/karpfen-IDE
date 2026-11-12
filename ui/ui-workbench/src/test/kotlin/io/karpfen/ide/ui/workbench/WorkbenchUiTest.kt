@@ -237,6 +237,31 @@ class WorkbenchUiTest {
     }
 
     @Test
+    fun `the zoom controls of the status bar change the settings`() = workbenchUiTest(dir) {
+        openExamples()
+        tagged(StatusBarTestTags.item("ui_zoom")).assertTextEquals("Zoom 100%")
+        tagged(StatusBarTestTags.item("editor_zoom")).assertTextEquals("Editor 13")
+
+        tagged(StatusBarTestTags.item("ui_zoom_in")).performClick()
+        settle()
+        tagged(StatusBarTestTags.item("editor_zoom_in")).performClick()
+        settle()
+
+        assertEquals(1.1f, workbench.state.settings.value.uiScale)
+        assertEquals(14f, workbench.state.settings.value.editorFontSize)
+        tagged(StatusBarTestTags.item("ui_zoom")).assertTextEquals("Zoom 110%")
+        tagged(StatusBarTestTags.item("editor_zoom")).assertTextEquals("Editor 14")
+
+        tagged(StatusBarTestTags.item("ui_zoom")).performClick()
+        settle()
+        tagged(StatusBarTestTags.item("editor_zoom_out")).performClick()
+        settle()
+
+        assertEquals(1f, workbench.state.settings.value.uiScale, "a click on the size sets it back")
+        assertEquals(13f, workbench.state.settings.value.editorFontSize)
+    }
+
+    @Test
     fun `the Problems tool window stays closed while there is no problem to show`() = workbenchUiTest(dir) {
         openExamples()
         tagged(StatusBarTestTags.item("problems")).assertTextEquals("Problems")

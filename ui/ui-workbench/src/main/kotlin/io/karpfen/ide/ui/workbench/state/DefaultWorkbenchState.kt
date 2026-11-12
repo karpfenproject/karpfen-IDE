@@ -31,9 +31,12 @@ import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeMenu
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
+import io.karpfen.ide.ui.workbench.settings.Zoom
+import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
+import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -42,7 +45,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import java.nio.file.Path
 
 /**
  * The default [WorkbenchState]. It creates the sub-states and coordinates them, following the Mediator pattern.
@@ -68,7 +70,11 @@ import java.nio.file.Path
  *   `Workspace.contexts` and the syntax indexes of `Workspace.analysis`.
  * - [RenameFlow] renames files and directories and reopens what was open below them.
  * - [LayoutPersister] writes `layout.state` into the settings, debounced by about 500 ms and once more on exit. The
- *   layout itself is restored in [start].
+ *   layout itself is restored in [start] and again whenever a folder is opened.
+ * - [OpenFilesPersister] writes the open files into the settings of the project the same way.
+ * - [ProjectFlow] switches to the settings of the project in a folder when the folder opens. These are the theme, the
+ *   zoom, the layout of the tool windows, the runtime choice and the open files, all stored in the folder's
+ *   `.karpfenproject`.
  * - [RuntimeHolder] owns the runtime state of the workspace and uses [WorkbenchRunSupport] to reach the workbench.
  * - [WorkbenchCommands], [RuntimeCommands] and [EditorCommands] register the commands through a
  *   [ModalCommandRegistry]. They cover enablement including the focus rule, the recent folders, the tool window
@@ -118,15 +124,17 @@ internal class DefaultWorkbenchState(
     private val navigationFlow = NavigationFlow(fileOpen, tabs)
     private val tabFlows = TabFlows(tabs, lifecycle, unsaved, saving, dialogs)
     private val runtimes = RuntimeHolder(ownScope, services, WorkbenchRunSupport(runner, tabs, saving, dialogs, layout), bindings)
+    private val persister = LayoutPersister(ownScope, layout, services.settings)
+    private val openFiles = OpenFilesPersister(ownScope, tabs, holder, services.settings)
+    private val project = ProjectFlow(services.settings, layout, persister, openFiles, tabs, lifecycle, services.ioDispatcher)
     private val folders = FolderFlow(
-        ownScope, holder, tabs, lifecycle, unsaved, bindings, runtimes, services.workspaceFactory, services.languageServicesFactory,
-        services.settings, services.folderChooser, dialogs, services.ioDispatcher,
+        ownScope, holder, tabs, lifecycle, unsaved, bindings, runtimes, project, services.workspaceFactory,
+        services.languageServicesFactory, services.settings, services.folderChooser, dialogs, services.ioDispatcher,
     )
     private val fileOperations = FileOperationFlows(
         holder, tabs, lifecycle, fileOpen, projectTree, dialogs, services.fileOperations, services.templates, services.ioDispatcher,
     )
     private val renames = RenameFlow(holder, tabs, lifecycle, unsaved, projectTree, dialogs, services.fileOperations, services.ioDispatcher)
-    private val persister = LayoutPersister(ownScope, layout, services.settings)
 
     init {
         bindings.start()
@@ -135,6 +143,7 @@ internal class DefaultWorkbenchState(
     override suspend fun start() {
         layout.restore(services.settings.load())
         persister.start()
+        openFiles.start()
     }
 
     override fun openFolder(path: Path): Job = runner.launch("open folder") { folders.openFolder(path) }
@@ -182,8 +191,20 @@ internal class DefaultWorkbenchState(
 
     override fun closeActiveTab(): Job = tabs.active.value?.let(::closeTab) ?: NOTHING_TO_DO
 
+    override fun zoomUi(step: ZoomStep): Job =
+        runner.launch("zoom") { services.settings.update { it.copy(uiScale = Zoom.uiScale(it.uiScale, step)) } }
+
+    override fun zoomEditor(step: ZoomStep): Job = runner.launch("zoom editor") {
+        services.settings.update { it.copy(editorFontSize = Zoom.editorFontSize(it.editorFontSize, step)) }
+    }
+
     override suspend fun requestExit(): Boolean = runner.exclusive {
-        unsaved.confirm(tabs.documents()).also { mayExit -> if (mayExit) persister.persistNow() }
+        unsaved.confirm(tabs.documents()).also { mayExit ->
+            if (mayExit) {
+                persister.persistNow()
+                openFiles.persistNow()
+            }
+        }
     }
 
     override suspend fun shutdownRuntime() {
@@ -193,11 +214,12 @@ internal class DefaultWorkbenchState(
     override fun registerCommands(registry: CommandRegistry) {
         val modal = ModalCommandRegistry(ownScope, registry, dialogs.current)
         WorkbenchCommands(ownScope, this, tabs, layout, services.settings).register(modal)
-        RuntimeCommands(ownScope, runtimes.state).register(modal)
+        RuntimeCommands(ownScope, runtimes.state, layout).register(modal)
         EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(modal)
     }
 
     override fun close() {
+        openFiles.pause()
         folders.closeWorkspace()
         ownScope.cancel()
     }

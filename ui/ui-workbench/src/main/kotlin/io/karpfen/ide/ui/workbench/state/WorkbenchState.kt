@@ -30,13 +30,14 @@ import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeCommand
 import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
+import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
+import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
-import java.nio.file.Path
 
 /**
  * The workbench coordinator, following the Mediator pattern. It owns the current [Workspace] and its
@@ -244,6 +245,18 @@ public interface WorkbenchState : AutoCloseable {
 
     /** Closes the tab that is active at the time of the call, as [closeTab] does. */
     public fun closeActiveTab(): Job
+
+    /**
+     * Makes the whole workbench one [step] larger or smaller, or sets it back to its normal size. The new scale is
+     * written to the settings of the open project at once.
+     */
+    public fun zoomUi(step: ZoomStep): Job
+
+    /**
+     * Makes the text of the editors one [step] larger or smaller, or sets it back to its normal size. The new font
+     * size is written to the settings of the open project at once.
+     */
+    public fun zoomEditor(step: ZoomStep): Job
 
     /**
      * Runs the unsaved-changes flow over every dirty document and persists the settings with the current [layout].

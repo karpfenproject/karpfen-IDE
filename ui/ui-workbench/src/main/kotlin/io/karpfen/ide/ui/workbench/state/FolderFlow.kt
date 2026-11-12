@@ -49,6 +49,7 @@ internal class FolderFlow(
     private val unsaved: UnsavedChangesFlow,
     private val bindings: SubStateBindings,
     private val runtimes: RuntimeHolder,
+    private val project: ProjectFlow,
     private val workspaces: WorkspaceFactory,
     private val languageServices: LanguageServicesFactory,
     private val settings: SettingsRepository,
@@ -58,7 +59,9 @@ internal class FolderFlow(
 ) {
 
     /**
-     * Opens [path] as the workspace unless it is open already, and records it as the most recent folder. A folder can
+     * Opens [path] as the workspace unless it is open already, and records it as the most recent folder. The settings
+     * of the project in that folder apply from then on, and the files that were open in it are opened again, as
+     * [ProjectFlow] describes. A folder can
      * pass the check and still vanish before the [WorkspaceFactory] opens it. The factory then rejects it with an
      * `IllegalArgumentException`, and the folder is treated like one that failed the check.
      */
@@ -67,17 +70,21 @@ internal class FolderFlow(
         if (holder.workspace.value?.root != root) {
             problemOf(root)?.let { return cannotOpen(root, it) }
             if (!unsaved.confirm(tabs.documents())) return
+            project.leave()
             runtimes.shutdown()
             closeWorkspace()
             val workspace = try {
                 workspaces.open(root, scope)
             } catch (e: IllegalArgumentException) {
+                project.enter(null)
                 return cannotOpen(root, e.message ?: notAFolder(root))
             }
+            project.enter(root)
             holder.set(workspace, languageServices.create(workspace))
             bindings.bindWorkspace(workspace)
             runtimes.open(workspace)
             workspace.refresh()
+            project.restoreTabs(root)
         }
         settings.update { it.withRecentFolder(root.toString()) }
     }

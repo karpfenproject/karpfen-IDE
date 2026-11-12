@@ -54,6 +54,10 @@ descriptor, right-click a folder in the Project tool window and choose New Envir
 | Save and Save All | Cmd+S and Cmd+Option+S | Ctrl+S and Ctrl+Alt+S |
 | Run and Stop | Shift+F10 and Cmd+F2 | Shift+F10 and Ctrl+F2 |
 
+The right end of the status bar holds two zoom controls, each a minus, the current size and a plus. `Editor 13` is the
+font size of the editor. `Zoom 100%` is the size of the whole window, text and all. A click on the size itself sets it
+back to normal. Both belong to the project and are stored in its project file.
+
 ### Running in the IDE's Docker container
 
 This is the default. Run, in the Run menu, deploys a descriptor to a karpfen runtime in a Docker container that the IDE
@@ -75,7 +79,7 @@ and Linux, `runtime/live-runtime.sh up` builds it, starts it in a throwaway cont
 `runtime/live-runtime.sh down` removes it. In the first line of the Runtime tool window, click URL, enter the URL and
 click Apply. The default is `http://127.0.0.1:8080`. The IDE checks that the runtime answers and has IDE support. It
 never stops a runtime it did not start, and its Log pane cannot show that runtime's output. Click Docker to go back.
-Switching stops the live runs, and the IDE keeps your choice in its settings.
+Switching stops the live runs, and the IDE keeps your choice in the project file.
 
 ### While a model runs
 
@@ -154,11 +158,12 @@ states and transitions.
 
 Choose Run in the Run menu, or press Shift+F10. On a Mac keyboard you may have to hold Fn for the F keys.
 
-Expected: the Runtime tool window opens at the bottom. Its second line shows a run named `lamp`, whose label moves
-from `preparing` to `waiting for the runtime`, `deploying` and `running`. The first line says what the runtime is doing.
-On the first run it shows `Docker: building the runtime image` with the current build step for a few minutes. Then
-come `creating the container`, `starting the container` and `waiting for the runtime`, and at last
-`Docker: running at 127.0.0.1:` with a port. The status bar says `Runtime: running`.
+Expected: the Runtime tool window opens at the bottom and takes three quarters of the window's height. Drag its upper
+edge to change that. Its second line shows a run named `lamp`, whose label moves from `preparing` to `waiting for the
+runtime`, `deploying` and `running`. The first line says what the runtime is doing. On the first run it shows `Docker:
+building the runtime image` with the current build step for a few minutes. Then come `creating the container`, `starting
+the container` and `waiting for the runtime`, and at last `Docker: running at 127.0.0.1:` with a port. The status bar
+says `Runtime: running`.
 
 The Log pane on the right then starts with the active states, `lamp: off` and `wallSwitch: down`, and the line
 `Deployment done` with the number of steps. Click that line. Expected: every step is `done`, among them
@@ -275,7 +280,22 @@ image of its build stage, which `docker images --filter dangling=true` lists, an
 
 ## Good to know
 
-The IDE keeps its settings, such as the recent folders, the theme and the runtime choice, in
-`~/.karpfen-ide/settings.json`, and its log in `~/.karpfen-ide/logs/ide.log`. The environment variable
-`KARPFEN_IDE_HOME` moves both. [archdoc.md](archdoc.md) explains the modules and how they depend on each other.
+Each project keeps its own settings in the file `.karpfenproject` in its folder. The IDE writes there the theme, the two
+zoom sizes, which tool windows are shown and how large they are, the runtime choice, and which files are open. When you
+open the folder again, on this machine or on another, the IDE looks the way you left it. The file is plain text with one
+`key = value` per line, so you can read it, edit it and commit it with the project:
+
+```
+theme = dark
+zoom = 110
+editorFontSize = 14
+pane.runtime = shown 400
+runtime.host = docker
+open = lamp.kstates
+active = lamp.kstates
+```
+
+Only what belongs to you and your machine stays outside the project: the recent folders and the place of the window, in
+`~/.karpfen-ide/settings.json`. The log is in `~/.karpfen-ide/logs/ide.log`. The environment variable `KARPFEN_IDE_HOME`
+moves both. [archdoc.md](archdoc.md) explains the modules and how they depend on each other.
 [devdoc.md](devdoc.md) collects the design decisions and the behaviour to know before you change the code.

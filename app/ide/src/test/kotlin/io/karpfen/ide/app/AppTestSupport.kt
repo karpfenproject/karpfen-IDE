@@ -39,6 +39,7 @@ import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeState
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
+import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.state.WorkbenchServices
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
@@ -46,6 +47,8 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import io.karpfen.ide.ui.workbench.templates.FileTemplates
 import io.karpfen.ide.ui.workbench.templates.TemplateContext
+import java.nio.file.Path
+import kotlin.time.Duration
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -54,8 +57,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.nio.file.Path
-import kotlin.time.Duration
 
 /**
  * A scripted [WorkbenchState], so the app tests check the composition root on its own. It records the calls of the
@@ -152,6 +153,10 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun closeTab(path: Path): Job = unexpected("closeTab")
     override fun closeActiveTab(): Job = unexpected("closeActiveTab")
 
+    override fun zoomUi(step: ZoomStep): Job = unexpected("zoomUi")
+
+    override fun zoomEditor(step: ZoomStep): Job = unexpected("zoomEditor")
+
     /** Fails the test: the composition root calls no other [intent]. */
     private fun unexpected(intent: String): Nothing = throw AssertionError("the composition root does not call $intent")
 
@@ -202,6 +207,7 @@ internal class RecordingServicesFactory(
     private object UnusedSettings : SettingsRepository {
         override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
         override suspend fun load(): IdeSettings = throw AssertionError("settings are loaded by the workbench state")
+        override suspend fun openProject(root: Path?): IdeSettings = throw AssertionError("unused")
         override suspend fun update(transform: (IdeSettings) -> IdeSettings): IdeSettings = throw AssertionError("unused")
     }
 

@@ -20,12 +20,10 @@ import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
+import io.karpfen.ide.ui.workbench.settings.ProjectSettings
+import io.karpfen.ide.ui.workbench.settings.ProjectSettingsFile
 import io.karpfen.ide.ui.workbench.testing.assertSamePath
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
-import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assumptions.assumeFalse
-import org.junit.jupiter.api.Assumptions.assumeTrue
-import org.junit.jupiter.api.io.TempDir
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -37,6 +35,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * Tests opening folders. It covers the workspace, the tree, the problems, the recent folders, the window title and the
@@ -107,6 +109,45 @@ class FolderFlowTest {
             assertNull(state.workspace.value)
         }
     }
+
+    @Test
+    fun `a folder opens with the files that were open in it, and a folder that was only looked at gets no project file`() =
+        runTest(timeout = 60.seconds) {
+            Examples.copyTo(root)
+            val other = Files.createDirectories(dir.resolve("other")).toAbsolutePath().normalize()
+            val machine = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kstates")
+            val meta = root.resolve("karpfen-runtime/single_robot_example/cleaning_robot.kmeta")
+            withWorkbench(settingsDirectory) {
+                state.start()
+                open(root)
+                openEditor(machine)
+                openEditor(meta)
+                state.tabs.activate(machine)
+                settle()
+
+                open(other)
+                settle()
+
+                assertEquals(emptyList(), state.tabs.tabs.value.map { it.path })
+                val stored = ProjectSettingsFile.parse(Files.readString(root.resolve(ProjectSettings.FILE_NAME)))
+                assertEquals(
+                    listOf(
+                        "karpfen-runtime/single_robot_example/cleaning_robot.kstates",
+                        "karpfen-runtime/single_robot_example/cleaning_robot.kmeta",
+                    ),
+                    stored.openFiles,
+                )
+                assertEquals("karpfen-runtime/single_robot_example/cleaning_robot.kstates", stored.activeFile)
+
+                Files.delete(meta)
+                open(root)
+                settle()
+
+                assertEquals(listOf(machine), state.tabs.tabs.value.map { it.path }, "the deleted file is skipped")
+                assertEquals(machine, state.tabs.active.value)
+                assertTrue(Files.notExists(other.resolve(ProjectSettings.FILE_NAME)), "nothing changed in the other folder")
+            }
+        }
 
     @Test
     fun `a recent folder that no longer exists keeps the open folder and leaves the recent folders`() = runTest(timeout = 60.seconds) {

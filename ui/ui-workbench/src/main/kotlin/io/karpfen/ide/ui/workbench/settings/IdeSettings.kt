@@ -20,31 +20,47 @@ import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import kotlinx.serialization.Serializable
 
 /**
- * The persistent IDE settings, stored as JSON by the [SettingsRepository]. Unknown JSON keys are ignored and missing
- * keys take their defaults, so files written by older and newer versions load.
+ * The settings the IDE works with. They come from two places, and the [SettingsRepository] keeps them apart.
+ *
+ * [recentFolders] and [windowBounds] belong to the user and the machine. They are stored as JSON in the IDE's home
+ * directory. Everything else belongs to the open project and is stored in the file `.karpfenproject` in the project
+ * folder, as [ProjectSettings] describes. While no folder is open, the project part holds its defaults and is not
+ * stored anywhere.
  *
  * @property recentFolders the absolute paths of recently opened folders, most recent first. There are at most
  *   [MAX_RECENT_FOLDERS] of them.
- * @property theme light, dark, or following the system.
- * @property editorFontSize the editor font size in sp.
+ * @property theme light, dark, or following the system. Part of the project.
+ * @property editorFontSize the editor font size in sp. The editor's zoom buttons in the status bar change it. Part of
+ *   the project.
+ * @property uiScale the factor by which the whole workbench is drawn larger or smaller, 1 for the normal size. The
+ *   status bar's zoom buttons change it. Part of the project.
  * @property windowBounds the last bounds of the main window, or null for the default placement.
  * @property toolWindows the visibility and size of the tool windows, keyed by tool window name. The key is
  *   `ToolWindowId.name` from the workbench's layout package. A missing entry means the default layout. An unknown
- *   entry is kept but ignored. A new tool window therefore needs no change of the settings format.
- * @property runtime how the IDE reaches the karpfen runtime.
+ *   entry is kept but ignored. Part of the project.
+ * @property runtime how the IDE reaches the karpfen runtime. Part of the project.
+ * @property openFiles the files open in tabs, relative to the project folder with forward slashes, in the order of
+ *   the tabs. Part of the project.
+ * @property activeFile the file of the active tab, named like the [openFiles], or null. Part of the project.
+ * @property otherProjectLines the lines of the project file that this version does not understand. They are kept so
+ *   that they can be written back.
  */
-@Serializable
 public data class IdeSettings(
     public val recentFolders: List<String> = emptyList(),
     public val theme: ThemeMode = ThemeMode.SYSTEM,
-    public val editorFontSize: Float = 13f,
+    public val editorFontSize: Float = Zoom.DEFAULT_EDITOR_FONT_SIZE,
+    public val uiScale: Float = Zoom.DEFAULT_UI_SCALE,
     public val windowBounds: WindowBounds? = null,
     public val toolWindows: Map<String, ToolWindowLayout> = emptyMap(),
     public val runtime: RuntimeSettings = RuntimeSettings(),
+    public val openFiles: List<String> = emptyList(),
+    public val activeFile: String? = null,
+    public val otherProjectLines: List<String> = emptyList(),
 ) {
     init {
         require(recentFolders.size <= MAX_RECENT_FOLDERS) { "at most $MAX_RECENT_FOLDERS recent folders" }
         require(editorFontSize > 0f) { "editorFontSize must be positive" }
+        require(uiScale > 0f) { "uiScale must be positive" }
     }
 
     /**

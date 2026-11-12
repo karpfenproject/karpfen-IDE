@@ -50,10 +50,10 @@ internal class LayoutPersister(
         }
     }
 
-    /** Writes the current layout now. */
+    /** Writes the current layout now, if it differs from what the settings hold. */
     suspend fun persistNow() {
         val current = layout.state.value
-        settings.update(current::applyTo)
+        if (current != LayoutUiState.of(settings.settings.value)) settings.update(current::applyTo)
     }
 
     companion object {

@@ -25,7 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
 import io.karpfen.ide.ui.editor.theme.lightEditorTheme
@@ -39,6 +42,7 @@ import io.karpfen.ide.ui.workbench.problems.view.ProblemsView
 import io.karpfen.ide.ui.workbench.projecttree.view.ProjectTreeView
 import io.karpfen.ide.ui.workbench.runtime.view.RuntimeToolWindow
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
+import io.karpfen.ide.ui.workbench.statusbar.view.StatusBarActions
 import io.karpfen.ide.ui.workbench.statusbar.view.WorkbenchStatusBar
 import io.karpfen.ide.ui.workbench.tabs.view.EditorArea
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeView
@@ -54,6 +58,10 @@ import java.nio.file.Path
  * unseen language tool problems shows the Language Tools Output. A click on its runtime status shows the Runtime tool
  * window.
  *
+ * The whole workbench is drawn at the scale of `IdeSettings.uiScale`. The composable provides a density that is the
+ * window's density times that scale, so the text and everything that holds it grow and shrink together. The zoom
+ * controls at the right end of the status bar change the scale and the font size of the editors.
+ *
  * The composable provides the light or dark `KarpfenTheme` and the matching `LocalEditorTheme` from the theme in
  * `state.layout`. It lays out the tool windows from the same layout with size-based `SplitPane`s. The fixed size of
  * each split is the tool window's persisted size in dp, and a drag of the divider reports the new size back through
@@ -68,16 +76,21 @@ import java.nio.file.Path
 @Composable
 public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
     val layout by state.layout.state.collectAsState()
+    val settings by state.settings.collectAsState()
     val dark = layout.theme.isDark(isSystemInDarkTheme())
+    val window = LocalDensity.current
+    val zoomed = remember(window, settings.uiScale) { Density(window.density * settings.uiScale, window.fontScale) }
     KarpfenTheme(darkTheme = dark) {
-        CompositionLocalProvider(LocalEditorTheme provides if (dark) darkEditorTheme() else lightEditorTheme()) {
+        CompositionLocalProvider(
+            LocalEditorTheme provides if (dark) darkEditorTheme() else lightEditorTheme(),
+            LocalDensity provides zoomed,
+        ) {
             val workspace by state.workspace.collectAsState()
             val dialog by state.dialogs.current.collectAsState()
             ModalDialogLayer(dialog, state.dialogs::respond, modifier.fillMaxSize().background(KarpfenTheme.colors.window)) {
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         if (workspace == null) {
-                            val settings by state.settings.collectAsState()
                             WelcomeView(
                                 recentFolders = settings.recentFolders,
                                 onOpenFolder = { state.chooseAndOpenFolder() },
@@ -101,9 +114,17 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
                     val status by state.statusBar.state.collectAsState()
                     WorkbenchStatusBar(
                         status,
-                        onToggleProblems = { state.layout.toggleToolWindow(ToolWindowId.PROBLEMS) },
-                        onShowOutput = { state.layout.showToolWindow(ToolWindowId.OUTPUT) },
-                        onShowRuntime = { state.layout.showToolWindow(ToolWindowId.RUNTIME) },
+                        editorFontSize = settings.editorFontSize,
+                        uiScale = settings.uiScale,
+                        actions = remember(state) {
+                            StatusBarActions(
+                                onToggleProblems = { state.layout.toggleToolWindow(ToolWindowId.PROBLEMS) },
+                                onShowOutput = { state.layout.showToolWindow(ToolWindowId.OUTPUT) },
+                                onShowRuntime = { state.layout.showToolWindow(ToolWindowId.RUNTIME) },
+                                onZoomUi = { state.zoomUi(it) },
+                                onZoomEditor = { state.zoomEditor(it) },
+                            )
+                        },
                     )
                 }
             }

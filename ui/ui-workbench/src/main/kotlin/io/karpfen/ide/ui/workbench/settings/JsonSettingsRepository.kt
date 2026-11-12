@@ -15,6 +15,11 @@
  */
 package io.karpfen.ide.ui.workbench.settings
 
+import java.io.IOException
+import java.nio.charset.CharacterCodingException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.time.Clock
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,19 +27,19 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import java.io.IOException
-import java.nio.charset.CharacterCodingException
-import java.nio.file.Path
-import java.time.Clock
 
 /**
- * A [SettingsRepository] that stores `settings.json` with kotlinx.serialization. Writes are atomic, and a corrupt file
- * is backed up before it is replaced.
+ * A [SettingsRepository] that stores the user's part as `settings.json` with kotlinx.serialization and the project
+ * part as `.karpfenproject` in the project folder. Writes of `settings.json` are atomic, and a corrupt file is backed
+ * up before it is replaced.
  *
- * [SettingsFile] does the file I/O. This class decodes the file, publishes the settings and serializes the updates. A
- * mutex runs the updates one at a time, so concurrent updates never lose each other's changes.
+ * [SettingsFile] does the file I/O of `settings.json`. This class decodes the file, publishes the settings and
+ * serializes the updates. A mutex runs the updates one at a time, so concurrent updates never lose each other's
+ * changes. An update writes only the part that changed. The project file is written in place and not through a
+ * temporary file, because every file that appears in the project folder shows up in the project tree.
  *
  * A file that does not decode is corrupt. That covers text that is not UTF-8, invalid JSON, a value of the wrong type,
  * and a value that the [IdeSettings] invariants reject. A corrupt file is moved aside, as [SettingsRepository]
@@ -54,6 +59,9 @@ internal class JsonSettingsRepository(
     private val current = MutableStateFlow(IdeSettings())
     private val writes = Mutex()
 
+    /** The folder of the open project, or null. Guarded by [writes]. */
+    private var projectRoot: Path? = null
+
     /**
      * True while the existing file could not be read. It may hold settings that are unknown here, so it is not
      * replaced. Guarded by [writes].
@@ -65,15 +73,49 @@ internal class JsonSettingsRepository(
 
     override suspend fun load(): IdeSettings = writes.withLock {
         val loaded = withContext(ioDispatcher) { read() }
-        current.value = loaded
-        loaded
+        val merged = loaded.withProject(current.value.project)
+        current.value = merged
+        merged
+    }
+
+    override suspend fun openProject(root: Path?): IdeSettings = writes.withLock {
+        val project = withContext(ioDispatcher) { root?.let(::readProject) } ?: ProjectSettings()
+        projectRoot = root
+        val switched = current.value.withProject(project)
+        current.value = switched
+        switched
     }
 
     override suspend fun update(transform: (IdeSettings) -> IdeSettings): IdeSettings = writes.withLock {
-        val updated = transform(current.value)
+        val before = current.value
+        val updated = transform(before)
         current.value = updated
-        withContext(ioDispatcher) { write(updated) }
+        withContext(ioDispatcher) {
+            if (updated.user != before.user) write(updated)
+            if (updated.project != before.project) projectRoot?.let { writeProject(it, updated.project) }
+        }
         updated
+    }
+
+    /** The project settings in the project file of [root], or the defaults if there is no file or it cannot be read. */
+    private fun readProject(root: Path): ProjectSettings {
+        val path = root.resolve(ProjectSettings.FILE_NAME)
+        return try {
+            if (Files.isRegularFile(path)) ProjectSettingsFile.parse(Files.readString(path)) else ProjectSettings()
+        } catch (e: IOException) {
+            logger.warn("Could not read the project settings {}; using the defaults", path, e)
+            ProjectSettings()
+        }
+    }
+
+    /** Writes [project] to the project file of [root]. Failures are logged. */
+    private fun writeProject(root: Path, project: ProjectSettings) {
+        val path = root.resolve(ProjectSettings.FILE_NAME)
+        try {
+            Files.writeString(path, ProjectSettingsFile.format(project))
+        } catch (e: IOException) {
+            logger.warn("Could not write the project settings {}", path, e)
+        }
     }
 
     /**
@@ -95,7 +137,7 @@ internal class JsonSettingsRepository(
             return IdeSettings()
         }
         return try {
-            json.decodeFromString(IdeSettings.serializer(), text)
+            json.decodeFromString(UserSettings.serializer(), text).toSettings()
         } catch (e: IllegalArgumentException) {
             recoverFromCorruptFile(e)
         }
@@ -119,11 +161,24 @@ internal class JsonSettingsRepository(
             return
         }
         try {
-            file.write(json.encodeToString(IdeSettings.serializer(), settings))
+            file.write(json.encodeToString(UserSettings.serializer(), settings.user))
         } catch (e: IOException) {
             logger.warn("Could not write the settings {}", file.path, e)
         }
     }
+
+    /**
+     * What `settings.json` holds: the part of the settings that belongs to the user and the machine. Unknown keys are
+     * ignored, so a file from the time when it held everything still loads.
+     */
+    @Serializable
+    private data class UserSettings(val recentFolders: List<String> = emptyList(), val windowBounds: WindowBounds? = null) {
+        /** These settings with the defaults for the project part. The [IdeSettings] invariants are checked here. */
+        fun toSettings(): IdeSettings = IdeSettings(recentFolders = recentFolders, windowBounds = windowBounds)
+    }
+
+    /** The part of these settings that goes to `settings.json`. */
+    private val IdeSettings.user: UserSettings get() = UserSettings(recentFolders, windowBounds)
 
     private companion object {
         private val logger = LoggerFactory.getLogger(JsonSettingsRepository::class.java)

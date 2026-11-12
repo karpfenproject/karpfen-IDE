@@ -17,6 +17,8 @@ package io.karpfen.ide.ui.workbench.statusbar
 
 import io.karpfen.ide.ui.workbench.output.UnseenOutputProblems
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
+import io.karpfen.ide.ui.workbench.settings.Zoom
+import kotlin.math.roundToInt
 
 /** What a [StatusSegment] shows. The view picks the segment's icon and click action by its kind. */
 internal enum class StatusSegmentKind {
@@ -61,6 +63,24 @@ internal enum class StatusSegmentKind {
 
     /** The number of warnings in the workspace. */
     WARNINGS,
+
+    /** Makes the text of the editors smaller. */
+    EDITOR_ZOOM_OUT,
+
+    /** The font size of the editors. A click sets it back to the normal size. */
+    EDITOR_ZOOM,
+
+    /** Makes the text of the editors larger. */
+    EDITOR_ZOOM_IN,
+
+    /** Makes the whole workbench smaller. */
+    UI_ZOOM_OUT,
+
+    /** The scale of the whole workbench. A click sets it back to the normal size. */
+    UI_ZOOM,
+
+    /** Makes the whole workbench larger. */
+    UI_ZOOM_IN,
 }
 
 /** One text segment of the status bar, identified by [kind]. */
@@ -81,6 +101,9 @@ internal data class StatusSegment(val kind: StatusSegmentKind, val text: String,
  *
  * The right side shows `Ln x, Col y` and the selection length when text is selected. Then come the language, the line
  * separator and the encoding of the active editor. The workspace's error and warning counts come last.
+ *
+ * The zoom controls of [zoom] follow at the right end. They are two groups of a minus button, the current size and a
+ * plus button. The first group sizes the text of the editors, the second the whole workbench.
  */
 internal object StatusBarSegments {
 
@@ -126,6 +149,19 @@ internal object StatusBarSegments {
 
     /** [count] followed by [noun], in the plural unless [count] is one. */
     private fun count(count: Long, noun: String): String = if (count == 1L) "1 $noun" else "$count ${noun}s"
+
+    /**
+     * The zoom controls for the font size [editorFontSize] of the editors and the scale [uiScale] of the workbench.
+     * Each group is a minus button, the current size and a plus button. A click on the size sets it back to normal.
+     */
+    fun zoom(editorFontSize: Float, uiScale: Float): List<StatusSegment> = listOf(
+        StatusSegment(StatusSegmentKind.EDITOR_ZOOM_OUT, "-", "Make the text of the editor smaller"),
+        StatusSegment(StatusSegmentKind.EDITOR_ZOOM, "Editor ${editorFontSize.roundToInt()}", "Font size of the editor. Click for the normal size"),
+        StatusSegment(StatusSegmentKind.EDITOR_ZOOM_IN, "+", "Make the text of the editor larger"),
+        StatusSegment(StatusSegmentKind.UI_ZOOM_OUT, "-", "Make everything smaller"),
+        StatusSegment(StatusSegmentKind.UI_ZOOM, "Zoom ${Zoom.percent(uiScale)}", "Size of the whole window. Click for the normal size"),
+        StatusSegment(StatusSegmentKind.UI_ZOOM_IN, "+", "Make everything larger"),
+    )
 
     /** The segments on the right. */
     fun right(state: StatusBarUiState): List<StatusSegment> = buildList {

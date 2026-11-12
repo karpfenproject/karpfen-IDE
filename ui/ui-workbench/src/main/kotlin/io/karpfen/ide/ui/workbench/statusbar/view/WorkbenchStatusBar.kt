@@ -20,45 +20,56 @@ import androidx.compose.ui.Modifier
 import io.karpfen.ide.ui.foundation.icons.KarpfenIcons
 import io.karpfen.ide.ui.foundation.widgets.StatusBar
 import io.karpfen.ide.ui.foundation.widgets.StatusBarItem
+import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarSegments
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarUiState
 import io.karpfen.ide.ui.workbench.statusbar.StatusSegment
 import io.karpfen.ide.ui.workbench.statusbar.StatusSegmentKind
 
+/** What the status bar calls when one of its buttons is clicked. */
+internal class StatusBarActions(
+    /** Shows or hides the Problems tool window. */
+    val onToggleProblems: () -> Unit,
+    /** Shows the Language Tools Output. */
+    val onShowOutput: () -> Unit,
+    /** Shows the Runtime tool window. */
+    val onShowRuntime: () -> Unit,
+    /** Changes the scale of the whole workbench. */
+    val onZoomUi: (ZoomStep) -> Unit,
+    /** Changes the font size of the editors. */
+    val onZoomEditor: (ZoomStep) -> Unit,
+)
+
 /**
- * The content of the status bar. It starts with the label of the Problems tool window, and a click on it calls
- * [onToggleProblems]. It shows `Ln x, Col y`, the selection length, the language, the line separator,
- * `UTF-8`, the error and warning counts and "Analyzing…". It also shows the runtime's status, and a click on it calls
- * [onShowRuntime]. And it shows the indicator of unseen problems of the language tools, and a click on it calls
- * [onShowOutput]. The texts come from [StatusBarSegments]. The id of each item is its segment's id, which also gives
- * its test tag `StatusBarTestTags.item(id)`.
+ * The content of the status bar. It starts with the label of the Problems tool window, which shows or hides that tool
+ * window. It shows `Ln x, Col y`, the selection length, the language, the line separator, `UTF-8`, the error and
+ * warning counts and "Analyzing…". It also shows the runtime's status, which shows the Runtime tool window, and the
+ * indicator of unseen problems of the language tools, which shows their output. At the right end are the zoom controls
+ * for the font size [editorFontSize] of the editors and for the scale [uiScale] of the workbench.
+ *
+ * The texts come from [StatusBarSegments]. The id of each item is its segment's id, which also gives its test tag
+ * `StatusBarTestTags.item(id)`. The clicks go to [actions].
  */
 @Composable
 internal fun WorkbenchStatusBar(
     state: StatusBarUiState,
-    onToggleProblems: () -> Unit,
-    onShowOutput: () -> Unit,
-    onShowRuntime: () -> Unit,
+    editorFontSize: Float,
+    uiScale: Float,
+    actions: StatusBarActions,
     modifier: Modifier = Modifier,
 ) {
     StatusBar(
-        left = StatusBarSegments.left(state).map { item(it, onToggleProblems, onShowOutput, onShowRuntime) },
-        right = StatusBarSegments.right(state).map { item(it, onToggleProblems, onShowOutput, onShowRuntime) },
+        left = StatusBarSegments.left(state).map { item(it, actions) },
+        right = (StatusBarSegments.right(state) + StatusBarSegments.zoom(editorFontSize, uiScale)).map { item(it, actions) },
         modifier = modifier,
     )
 }
 
 /**
  * The status bar item of [segment]. The error and warning counts, the Problems label and the language tools' indicator
- * carry their severity icon. The Problems label is a button that calls [onToggleProblems]. The indicator is a button
- * that calls [onShowOutput]. The runtime's status is a button that calls [onShowRuntime].
+ * carry their severity icon. The segments that are buttons call the matching one of [actions].
  */
-private fun item(
-    segment: StatusSegment,
-    onToggleProblems: () -> Unit,
-    onShowOutput: () -> Unit,
-    onShowRuntime: () -> Unit,
-): StatusBarItem = StatusBarItem(
+private fun item(segment: StatusSegment, actions: StatusBarActions): StatusBarItem = StatusBarItem(
     id = segment.id,
     text = segment.text,
     tooltip = segment.tooltip,
@@ -69,9 +80,15 @@ private fun item(
         else -> null
     },
     onClick = when (segment.kind) {
-        StatusSegmentKind.PROBLEMS, StatusSegmentKind.PROBLEMS_ERRORS, StatusSegmentKind.PROBLEMS_WARNINGS -> onToggleProblems
-        StatusSegmentKind.LANGUAGE_TOOLS_ERRORS, StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS -> onShowOutput
-        StatusSegmentKind.RUNTIME -> onShowRuntime
+        StatusSegmentKind.PROBLEMS, StatusSegmentKind.PROBLEMS_ERRORS, StatusSegmentKind.PROBLEMS_WARNINGS -> actions.onToggleProblems
+        StatusSegmentKind.LANGUAGE_TOOLS_ERRORS, StatusSegmentKind.LANGUAGE_TOOLS_WARNINGS -> actions.onShowOutput
+        StatusSegmentKind.RUNTIME -> actions.onShowRuntime
+        StatusSegmentKind.EDITOR_ZOOM_OUT -> ({ actions.onZoomEditor(ZoomStep.OUT) })
+        StatusSegmentKind.EDITOR_ZOOM -> ({ actions.onZoomEditor(ZoomStep.RESET) })
+        StatusSegmentKind.EDITOR_ZOOM_IN -> ({ actions.onZoomEditor(ZoomStep.IN) })
+        StatusSegmentKind.UI_ZOOM_OUT -> ({ actions.onZoomUi(ZoomStep.OUT) })
+        StatusSegmentKind.UI_ZOOM -> ({ actions.onZoomUi(ZoomStep.RESET) })
+        StatusSegmentKind.UI_ZOOM_IN -> ({ actions.onZoomUi(ZoomStep.IN) })
         else -> null
     },
 )

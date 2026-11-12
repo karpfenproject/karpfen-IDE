@@ -25,14 +25,13 @@ import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
 import io.karpfen.ide.ui.foundation.keys.KeyCode
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
+import io.karpfen.ide.ui.workbench.command.RuntimeCommandIds
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.settings.ThemeMode
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
-import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -42,6 +41,8 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * Tests `registerCommands`. It covers the workbench commands, the recent folders, the view toggles and the editor
@@ -90,6 +91,19 @@ class CommandsTest {
         assertEquals(ThemeMode.DARK, state.layout.state.value.theme)
         registry.execute(WorkbenchCommandIds.THEME_LIGHT)
         assertEquals(ThemeMode.LIGHT, state.layout.state.value.theme)
+    }
+
+    @Test
+    fun `Run shows the Runtime tool window with three quarters of the workbench's height`() = scenario { registry ->
+        open(root)
+        state.layout.reportAvailableHeight(800f)
+        assertFalse(state.layout.state.value.toolWindow(ToolWindowId.RUNTIME).visible)
+
+        assertTrue(registry.execute(RuntimeCommandIds.RUN))
+
+        val runtime = state.layout.state.value.toolWindow(ToolWindowId.RUNTIME)
+        assertTrue(runtime.visible)
+        assertEquals(600f, runtime.size)
     }
 
     @Test

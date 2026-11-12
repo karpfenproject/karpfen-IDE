@@ -108,6 +108,9 @@ public class LayoutState {
 
     private val layout = MutableStateFlow(LayoutUiState())
 
+    @Volatile
+    private var availableHeight: Float? = null
+
     /** The current layout. */
     public val state: StateFlow<LayoutUiState> get() = layout.asStateFlow()
 
@@ -119,6 +122,28 @@ public class LayoutState {
     /** Shows a tool window. A visible tool window stays as it is. */
     public fun showToolWindow(id: ToolWindowId) {
         updateToolWindow(id) { it.copy(visible = true) }
+    }
+
+    /**
+     * Shows a bottom tool window and gives it the [share] of the height that the tool windows and the editor have
+     * together, for example three quarters for the Runtime tool window when a run starts. The height is the one the
+     * layout view reported last through [reportAvailableHeight]. Before any report the tool window is only shown.
+     */
+    public fun expandToolWindow(id: ToolWindowId, share: Float) {
+        require(share > 0f && share < 1f) { "share must be between 0 and 1, was $share" }
+        val height = availableHeight
+        updateToolWindow(id) { current ->
+            val size = height?.let { (it * share).coerceAtLeast(MIN_TOOL_WINDOW_SIZE) } ?: current.size
+            current.copy(visible = true, size = size)
+        }
+    }
+
+    /**
+     * Records the height in dp that the tool windows and the editor have together. The layout view calls it whenever
+     * that height changes. The height is not part of [state], because it is no setting and is not persisted.
+     */
+    public fun reportAvailableHeight(height: Float) {
+        if (height > 0f) availableHeight = height
     }
 
     /** Hides a tool window. A hidden tool window stays as it is. */

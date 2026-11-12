@@ -159,11 +159,22 @@ There is no deploy command yet.
 The IDE keeps its files in `~/.karpfen-ide`. The environment variable `KARPFEN_IDE_HOME` moves that folder. The launcher
 turns it into the system property `karpfen.ide.home`.
 
-`settings.json` holds the recent folders (at most 10), the theme, the editor font size (13 by default), the window
-bounds, the tool window layout and the runtime host. The host is either `DOCKER` or `URL`, and the URL defaults to
-`http://127.0.0.1:8080`. The theme can be `LIGHT`, `DARK` or `SYSTEM`, and `SYSTEM` is the default, but the menu
-offers only Light and Dark. The font size can only be changed in the file. Unknown keys are ignored. A corrupt file or
-a file that is not UTF-8 is backed up and replaced by the defaults.
+`settings.json` holds only what belongs to the user and the machine: the recent folders (at most 10) and the window
+bounds. Unknown keys are ignored. A corrupt file or a file that is not UTF-8 is backed up and replaced by the defaults.
+
+Everything else belongs to the open project and is stored in `.karpfenproject` in the project folder: the theme, the
+scale of the workbench, the editor font size (13 by default), the tool window layout, the runtime host and the open
+files with the active one. The file is plain text with one `key = value` per line, as `ProjectSettingsFile` reads and
+writes it. The host is either `docker` or `url`, and the URL defaults to `http://127.0.0.1:8080`. The theme can be
+`light`, `dark` or `system`, and `system` is the default, but the menu offers only Light and Dark. Open files are named
+relative to the folder with forward slashes, so the file means the same on every machine and can be committed. Reading
+never fails: a value that makes no sense falls back to its default, and lines with unknown keys are kept and written
+back.
+
+In memory both parts are one `IdeSettings` value, and `SettingsRepository` keeps them apart on disk. `ProjectFlow`
+switches the project part when a folder opens and restores the layout and the tabs from it. The project file is written
+only when a project value changes, so a folder that is only looked at gets no file. While no folder is open, the project
+values are the defaults and are stored nowhere.
 
 There are two log files in `logs/`:
 
@@ -647,6 +658,15 @@ is sent. The bottom tool windows take the whole width of the window. The Problem
 has nothing to show, and `SubStateBindings` enforces that. Its label in the status bar carries the error icon while
 the workspace has errors.
 
+Run from the menu or by its shortcut gives the Runtime tool window three quarters of the workbench's height. The
+layout view reports that height to `LayoutState`, which is how a state without Compose knows it.
+
+The zoom controls in the status bar change two project settings, `uiScale` and `editorFontSize`, within the limits of
+`Zoom`.
+`Workbench` applies `uiScale` by providing a density that is the window's density times the scale. So everything
+scales together, the text with the rows, icons and gaps around it. Scaling only the font would make text outgrow
+the rows of fixed height.
+
 ### The engine trace in the log
 
 The IDE's container runs the runtime with engine tracing on and the trace printed to the console, as
@@ -887,7 +907,7 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
 - Deployment problems are shown in the run, not in the Problems view.
 - The command-line tool cannot deploy.
 - There is no folding UI and no find-usages UI.
-- The theme menu has no entry for following the system. The font size can only be changed in `settings.json`.
+- The theme menu has no entry for following the system. The zoom controls have no commands and no shortcuts yet.
 - The undo history has no limit.
 - Whether files next to a descriptor but not named by it should form an implicit context is undecided.
 - There is no Refresh command. After the file watcher failed, changes made outside the IDE show up only when a file

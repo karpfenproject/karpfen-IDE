@@ -18,17 +18,18 @@ package io.karpfen.ide.ui.workbench.state
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.output.OutputLevel
 import io.karpfen.ide.ui.workbench.output.UnseenOutputProblems
+import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.settings.SettingsLocations
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
-import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.time.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.io.TempDir
 
 /**
  * Tests how the mediator binds the Language Tools Output. It reads the buffer of the services. It counts problems as
@@ -65,12 +66,11 @@ class LanguageToolsOutputTest {
 
     @Test
     fun `a tool window stored as visible counts the output as seen from the start`() = runTest(timeout = 60.seconds) {
-        TestWorkbench.write(
-            dir.resolve("settings").resolve(SettingsLocations.SETTINGS_FILE_NAME),
-            """{ "toolWindows": { "OUTPUT": { "visible": true, "size": 150.0 } } }""",
-        )
+        val folder = dir.resolve("stored").toAbsolutePath().normalize()
+        TestWorkbench.write(folder.resolve(ProjectSettings.FILE_NAME), "pane.output = shown 150\n")
         withWorkbench(dir.resolve("settings")) {
             state.start()
+            open(folder)
             settle()
 
             languageToolsOutput.append(loggedAt, OutputLevel.ERROR, "io.karpfen.dsl.X", "failed", null)

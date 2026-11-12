@@ -69,6 +69,23 @@ class LayoutStateTest {
     }
 
     @Test
+    fun `expanding a tool window shows it and gives it a share of the reported height`() {
+        val layout = LayoutState()
+
+        layout.expandToolWindow(ToolWindowId.RUNTIME, 0.75f)
+        assertTrue(layout.state.value.toolWindow(ToolWindowId.RUNTIME).visible)
+        assertEquals(ToolWindowId.RUNTIME.defaultSize, layout.state.value.toolWindow(ToolWindowId.RUNTIME).size, "no height reported yet")
+
+        layout.reportAvailableHeight(800f)
+        layout.expandToolWindow(ToolWindowId.RUNTIME, 0.75f)
+        assertEquals(600f, layout.state.value.toolWindow(ToolWindowId.RUNTIME).size)
+
+        layout.reportAvailableHeight(60f)
+        layout.expandToolWindow(ToolWindowId.RUNTIME, 0.75f)
+        assertEquals(LayoutState.MIN_TOOL_WINDOW_SIZE, layout.state.value.toolWindow(ToolWindowId.RUNTIME).size, "never below the minimum")
+    }
+
+    @Test
     fun `restore takes the layout from the settings`() {
         val layout = LayoutState()
         layout.toggleToolWindow(ToolWindowId.PROJECT)

@@ -18,6 +18,8 @@ package io.karpfen.ide.ui.workbench
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.layout.SplitOrientation
@@ -38,6 +40,9 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
  * drag of the divider stores the new size through `LayoutState.resizeToolWindow`. The workbench therefore never
  * converts between split fractions and persisted sizes. A hidden tool window takes no space. The editor area keeps its
  * place in the composition while tool windows are shown and hidden.
+ *
+ * The layout reports its own height to `LayoutState.reportAvailableHeight`, so a tool window can be given a share of
+ * it, as the Runtime tool window is when a run starts.
  */
 @Composable
 internal fun WorkbenchLayout(
@@ -46,7 +51,9 @@ internal fun WorkbenchLayout(
     panes: WorkbenchPanes,
     modifier: Modifier = Modifier,
 ) {
-    ToolWindowSplit(ToolWindowId.RUNTIME, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.runtime, modifier) {
+    val density = LocalDensity.current
+    val measured = modifier.onSizeChanged { size -> layoutState.reportAvailableHeight(with(density) { size.height.toDp().value }) }
+    ToolWindowSplit(ToolWindowId.RUNTIME, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.runtime, measured) {
         ToolWindowSplit(ToolWindowId.OUTPUT, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.output) {
             ToolWindowSplit(ToolWindowId.PROBLEMS, SplitOrientation.VERTICAL, SplitSide.SECOND, layout, layoutState, panes.problems) {
                 ToolWindowSplit(ToolWindowId.PROJECT, SplitOrientation.HORIZONTAL, SplitSide.FIRST, layout, layoutState, panes.project) {
