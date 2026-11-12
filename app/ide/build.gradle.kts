@@ -52,8 +52,9 @@ dependencies {
  * Msi and Deb, and the macOS app image and the dmg use 1.0.0 until the product reaches 1.x.
  *
  * On macOS the Dock names a JVM "java" unless the `-Xdock:name` option on its command line says otherwise. A system
- * property set later cannot change that. So `run` and the packaged application get the option on macOS. Other
- * platforms do not know the option, and their JVM would refuse to start with it.
+ * property set later cannot change that. So `run` gets the option on macOS. Other platforms do not know the option, and
+ * their JVM would refuse to start with it. The packaged application gets the same name through `dockName`, which
+ * replaces the package name the plugin would use.
  *
  * Each platform takes the application's icon in its own format. The icns and ico files under `src/main/packaging` are
  * made from the two PNG files among the resources. The icns file has the shape of a Mac application icon, like the
@@ -72,6 +73,7 @@ compose.desktop {
             macOS {
                 packageVersion = "1.0.0"
                 dmgPackageVersion = "1.0.0"
+                dockName = "Karpfen IDE"
                 iconFile.set(layout.projectDirectory.file("src/main/packaging/karpfen-ide.icns"))
             }
             windows {
