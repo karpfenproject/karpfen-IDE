@@ -56,7 +56,7 @@ class EditorTabItemsTest {
         assertEquals(FileKind.entries.filter { it.language != null }.toSet(), files.map { it.kind }.toSet())
 
         val tree = ProjectTreeNodes(WorkspaceTree(WorkspaceNode.Directory(root, "ws", files)))
-        val treeIcons = tree.roots.single().children.orEmpty().associate { it.label to it.icon }
+        val treeIcons = tree.roots.flatMap { if (it.key == root) it.children.orEmpty() else listOf(it) }.associate { it.label to it.icon }
         val tabIcons = files.associate { file ->
             file.name to tabItemOf(tab.copy(path = file.path, title = file.name, kind = file.kind)).icon
         }

@@ -55,13 +55,54 @@ class TreeNodeMappingTest {
             .map { (name, kind) -> WorkspaceNode.File(root.resolve(name), name, kind) }
         val nodes = ProjectTreeNodes(WorkspaceTree(WorkspaceNode.Directory(root, "ws", listOf(sub) + files)))
 
-        val top = nodes.roots.single()
-        assertEquals(root, top.key)
-        assertEquals(listOf("sub", "a.kenv.json", "b.kstates", "c.txt"), top.children?.map { it.label })
-        assertEquals(listOf(KarpfenIcons.Folder, KarpfenIcons.Json, KarpfenIcons.Kstates, KarpfenIcons.File), top.children?.map { it.icon })
+        val top = nodes.roots.single { it.key == root }
+        assertEquals(listOf("sub", "b.kstates", "c.txt"), top.children?.map { it.label })
+        assertEquals(listOf(KarpfenIcons.Folder, KarpfenIcons.Kstates, KarpfenIcons.File), top.children?.map { it.icon })
         assertEquals(KarpfenIcons.Kmeta, top.children?.first()?.children?.single()?.icon)
         assertEquals(emptyList(), top.children?.first()?.children?.single()?.children.orEmpty(), "files are leaves")
         assertTrue(top.children?.first()?.children != null, "directories are expandable")
+    }
+
+    @Test
+    fun `the project file and the descriptors come first, the bridge files last, each section below a line`() {
+        fun file(path: String, kind: FileKind) = WorkspaceNode.File(root.resolve(path), path.substringAfterLast('/'), kind)
+        val sub = WorkspaceNode.Directory(
+            root.resolve("sub"), "sub",
+            listOf(
+                file("sub/.karpfenproject", FileKind.OTHER),
+                file("sub/inner.kbridge.json", FileKind.BRIDGE),
+                file("sub/inner.kenv.json", FileKind.ENV_DESCRIPTOR),
+                file("sub/inner.kmodel", FileKind.KMODEL),
+            ),
+        )
+        val files = listOf(
+            file(".karpfenproject", FileKind.OTHER),
+            file("http.kbridge.json", FileKind.BRIDGE),
+            file("lamp.kenv.json", FileKind.ENV_DESCRIPTOR),
+            file("lamp.kmeta", FileKind.KMETA),
+        )
+        val nodes = ProjectTreeNodes(WorkspaceTree(WorkspaceNode.Directory(root, "ws", listOf(sub) + files)))
+
+        assertEquals(
+            listOf("sub/inner.kenv.json", ".karpfenproject", "lamp.kenv.json", "ws", "sub/inner.kbridge.json", "http.kbridge.json"),
+            nodes.roots.map { it.label },
+        )
+        assertEquals(listOf(false, false, false, true, true, false), nodes.roots.map { it.startsSection })
+        val folder = nodes.roots.single { it.key == root }
+        assertEquals(listOf("sub", "lamp.kmeta"), folder.children?.map { it.label })
+        assertEquals(
+            listOf(".karpfenproject", "inner.kmodel"), folder.children?.first()?.children?.map { it.label },
+            "a project file further down belongs to another project and stays in its folder",
+        )
+    }
+
+    @Test
+    fun `a project without descriptors and bridges has one section and no line`() {
+        val file = WorkspaceNode.File(root.resolve("a.kmeta"), "a.kmeta", FileKind.KMETA)
+        val nodes = ProjectTreeNodes(WorkspaceTree(WorkspaceNode.Directory(root, "ws", listOf(file))))
+
+        assertEquals(listOf(root), nodes.roots.map { it.key })
+        assertFalse(nodes.roots.single().startsSection)
     }
 
     @Test

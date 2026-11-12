@@ -26,7 +26,9 @@ import io.karpfen.ide.ui.workbench.projecttree.ProjectTreeMenuEntry
 import java.nio.file.Path
 
 /**
- * The Project tool window. It shows a `TreeView` of [tree] with an icon for each file kind. A double-click or Enter
+ * The Project tool window. It shows a `TreeView` of [tree] with an icon for each file kind, in three sections that
+ * lines divide: the project file and the environment descriptors, the folder with the model files, and the bridge
+ * files. A double-click or Enter
  * reports the node to [onOpen], which is `WorkbenchState.openNode`. That toggles a directory and opens a file. The
  * context menu shows the entries of [menuFor], which `ProjectTreeState` decides. They are the New entries for each
  * file template, Rename, Delete, and Reveal in Finder or Show in Explorer. The chosen command goes to [onCommand].

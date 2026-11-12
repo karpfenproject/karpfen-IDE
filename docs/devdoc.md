@@ -445,6 +445,13 @@ normalized on load and restored on save. Saving writes a temporary file and move
 a crash never leaves a truncated file. A change on disk to a document without unsaved edits reloads it as one undoable
 change. A document with unsaved edits gets a banner with Reload and Keep mine.
 
+### The Project tool window
+
+The tree has three sections, divided by lines, as `ProjectSection` and `ProjectTreeNodes` decide: the project file and
+the environment descriptors, then the folder with everything else, then the bridge files. The kind of a file decides
+its section, so a descriptor or a bridge file in a subfolder is listed in its section by its path and not in its
+folder. The line is part of the row below it, because the rows of a `TreeView` all have the same height.
+
 ### Descriptors and modeling contexts
 
 Read `DescriptorValidator` and `ContextResolver`. A known key that appears twice in a descriptor is an error. An

@@ -54,6 +54,8 @@ import kotlinx.coroutines.flow.first
  *
  * @property label the text of the node's row.
  * @property icon drawn untinted before the label when the tree has no icon slot, or null for none.
+ * @property startsSection true if a dividing line is drawn above the node's row, across the whole tree. It divides
+ *   the nodes of a tree into sections.
  */
 @Immutable
 public data class TreeNode<K>(
@@ -61,6 +63,7 @@ public data class TreeNode<K>(
     public val label: String,
     public val children: List<TreeNode<K>>? = null,
     public val icon: ImageVector? = null,
+    public val startsSection: Boolean = false,
 )
 
 /**

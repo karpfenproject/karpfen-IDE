@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -82,13 +83,20 @@ internal object TreeViewDefaults {
     /** Size of a node's icon. */
     val IconSize: Dp = 16.dp
 
+    /**
+     * Width of the line above a row that starts a section. The line lies inside the row, so every row keeps its
+     * height.
+     */
+    val DividerWidth: Dp = 1.dp
+
     /** Where the chevron of a row at [depth] starts. */
     fun chevronStart(depth: Int): Dp = StartPadding + Indent * depth
 }
 
 /**
  * One row of a [TreeView]: the indentation, a chevron for an expandable node, the icon and the label. A selected row
- * has the selection background, which is lighter while the tree is not focused. The row reports presses to [onPress]
+ * has the selection background, which is lighter while the tree is not focused. The row of a node that starts a
+ * section has a dividing line at its upper edge. The row reports presses to [onPress]
  * and shows [menu]. The tree passes a menu only to the row it belongs to.
  */
 @Composable
@@ -114,6 +122,12 @@ internal fun <K> TreeRowView(
             .fillMaxWidth()
             .height(TreeViewDefaults.RowHeight)
             .background(background)
+            .drawBehind {
+                if (row.node.startsSection) {
+                    val middle = TreeViewDefaults.DividerWidth.toPx() / 2f
+                    drawLine(colors.border, Offset(0f, middle), Offset(size.width, middle), TreeViewDefaults.DividerWidth.toPx())
+                }
+            }
             .testTag(TreeViewTestTags.row(row.node.key))
             .semantics(mergeDescendants = true) { selected = isSelected }
             .pointerInput(Unit) {
