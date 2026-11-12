@@ -399,8 +399,8 @@ Only Docker resources that carry the IDE's labels may be removed. Never prune.
 
 ### What the IDE is for
 
-The IDE edits karpfen models as text, runs them in a karpfen runtime and shows them while they run. Diagrams that edit
-the same models, and bridges to MQTT and ROS, are the next big parts. Work by several users on one model, running in a
+The IDE edits karpfen models as text, runs them in a karpfen runtime and shows them while they run. Bridges connect a running model to
+HTTP, MQTT and ROS. Diagrams that edit the same models are the next big part. Work by several users on one model, running in a
 browser and a generic graphical editor for any metamodel are not goals. The layering keeps them possible, but nothing
 is built for them.
 
@@ -510,8 +510,8 @@ expanded like a folder.
 
 ### Bridges run inside the IDE
 
-The shared core of the bridges, the HTTP bridge and the MQTT bridge exist, and the IDE starts them with a run. The ROS
-bridge is still to come. A bridge connects a running karpfen model to an external system such as an HTTP client, an
+The shared core of the bridges and the bridges for HTTP, MQTT and ROS exist, and the IDE starts them with a run. A
+bridge connects a running karpfen model to an external system such as an HTTP client, an
 MQTT broker or ROS. It is a plain Kotlin component with a lifecycle that knows nothing of the user interface. The IDE
 configures, hosts and watches it. There is no separate program that runs bridges without the IDE. Where a model has
 to run unattended, the IDE as a whole is meant to get a mode without a window later, and the bridges run in it as
@@ -539,11 +539,25 @@ UTF-8 text. Subscriptions and published messages use the `qos` of the settings, 
 broker keep the last published value of a topic. If the connection breaks, the client connects and subscribes again on
 its own, and outbound messages fail in the meantime.
 
+The ROS bridge talks to a rosbridge server, which is part of ROS and offers the topics of a ROS system as JSON over a
+WebSocket. So the bridge needs no native ROS library and runs wherever the IDE runs. It connects to
+`ws://localhost:9090` unless its settings name another `url`. The address of a route is a topic. Opening the bridge
+subscribes to the topic of every inbound route and advertises the topic of every outbound route. A route may name the
+type of its messages in `type`. An inbound route without a type lets ROS find it, which works only for a topic that
+exists already. An outbound route without a type sends a text, `std_msgs/msg/String`. A value of the model becomes a
+message as `RosTypes.messageOf` describes: a JSON object is the message itself, anything else goes into the member
+`data`, as the standard types with one value expect, and a text type takes a value that is no text as its JSON text.
+The bridge talks to ROS 2. With `ros1` set to `true` in the settings it talks to a ROS 1 system. The two differ in how
+they write a type, with or without the category `msg`, and `RosTypes.written` turns either form into the one the
+system expects, so the routes stay as they are. If the connection breaks, the bridge connects again every two seconds
+and subscribes and advertises anew. It uses no quality of service settings of ROS 2, no services and no actions. A
+native ROS transport can be added behind the same interface if latency demands it.
+
 Every run of a project with bridge files asks which of them to start, in a dialog with one box per file. The boxes of
 the last run are ticked, because the choice is stored in the project file as `bridge` lines. Cancel cancels the run.
 `RunBridges` in ui-workbench holds the bridges of one run. It builds them when the session is launched, starts them
 together once the environment runs, and stops them when the environment stops, when the session fails, and when the
-run is closed. A file that cannot be read, has a problem, or is of a kind the IDE cannot run gives a bridge that
+run is closed. A file that cannot be read or has a problem gives a bridge that
 failed, and the others start all the same. The Log pane lists the bridges of the selected run below the deployment,
 each with its state and how many messages it handed on, and names every route that dropped or failed one. An MQTT
 bridge whose file names no `clientId` gets one from the name of its file, so two MQTT bridges of one run do not push
@@ -575,8 +589,7 @@ state machines from the attachments of the descriptors. The fields still take an
 Other tools may change a bridge file, so reading is tolerant. The form reads the file whenever it opens, leaves out
 what it cannot read and says so above the fields. If the file changed on disk while the form was open, Save asks
 before it writes over that change. The form does not follow such a change while it is open. Cancel closes the form
-without asking, also when it has changes. ROS will use the rosbridge protocol, which is JSON over WebSocket, through the Ktor client, so no
-native library is needed. A native ROS transport can be added behind the same interface if latency demands it. The
+without asking, also when it has changes. The
 runtime freezes its domain listeners when an environment is activated, so a bridge that listens to domain events must be
 registered while the environment is deployed.
 
@@ -1030,7 +1043,8 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
 - On a German Windows layout, Ctrl+Shift+7 does not reach Toggle Comment.
 - The descriptor key `bridges` is ignored. A run offers every bridge file of the project, whatever the descriptor
   names.
-- The ROS bridge is a stub. A bridge in the IDE hears changes of the model only while the run observes it. A password
+- The ROS bridge was tested against a stand-in for a rosbridge server only, not against a ROS system. A bridge in the
+  IDE hears changes of the model only while the run observes it. A password
   in the settings of a bridge file is stored as plain text in the project. An embedded runtime and a language
   server do not exist yet. Their paths `runtime/runtime-embedded` and `tools/lsp-server` are planned but not in the
   settings, and `lsp4j` in the version catalog is unused so far. The language server is meant to put core-lang behind

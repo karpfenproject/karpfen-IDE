@@ -16,8 +16,8 @@
 package io.karpfen.ide.bridges.ros
 
 /**
- * Placeholder of the `bridge-ros` module, which holds no code yet. The module will hold the ROS bridge, configured with
- * mappings. It will speak the rosbridge protocol, which is JSON over WebSocket.
+ * The `bridge-ros` module. It holds the ROS bridge, which runs the routes of a bridge file over the topics of ROS
+ * through a rosbridge server. Start reading at [RosBridge].
  */
 public object BridgeRosModule {
     /** The module's name, which is also the name of its directory. */

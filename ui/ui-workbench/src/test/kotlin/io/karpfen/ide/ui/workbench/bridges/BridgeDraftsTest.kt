@@ -143,6 +143,31 @@ class BridgeDraftsTest {
     }
 
     @Test
+    fun `a ROS bridge keeps the type of the messages of each route, and other kinds drop it`() {
+        val ros = """
+            {
+              "kind": "ros",
+              "settings": { "ros1": "true" },
+              "inbound": [ { "from": "/lamp/dim", "event": "switch/dim", "type": "std_msgs/msg/Bool" } ],
+              "outbound": [ { "property": "bulb/watts", "to": "/lamp/watts", "type": "std_msgs/msg/Float64" } ]
+            }
+        """.trimIndent()
+        val config = assertNotNull(BridgeConfigFile.read(ros).config)
+
+        val draft = BridgeDrafts.of(config)
+
+        assertEquals("std_msgs/msg/Bool", draft.inbound.single().type)
+        assertEquals("std_msgs/msg/Float64", draft.outbound.single().type)
+        assertEquals(config, BridgeDrafts.configOf(draft))
+        assertEquals(listOf("url", "timeoutMs", "ros1"), BridgeDrafts.settingsOf(BridgeKind.ROS).map { it.key })
+
+        val asMqtt = assertNotNull(BridgeDrafts.configOf(BridgeDrafts.withKind(draft, BridgeKind.MQTT)))
+        assertNull(asMqtt.inbound.single().messageType)
+        assertNull(asMqtt.outbound.single().messageType)
+        assertEquals(1, BridgeDrafts.problemsOf(draft.copy(settings = mapOf("url" to "robot"))).size)
+    }
+
+    @Test
     fun `changing the kind keeps the routes and only the settings the new kind has as well`() {
         val draft = BridgeDraft(
             kind = BridgeKind.HTTP,

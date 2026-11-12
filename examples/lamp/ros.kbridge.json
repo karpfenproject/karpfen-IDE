@@ -1,0 +1,12 @@
+{
+  "kind": "ros",
+  "settings": { "url": "ws://localhost:9090" },
+  "inbound": [
+    { "from": "/lamp/press", "event": "switch/press", "payload": {}, "type": "std_msgs/msg/Empty" },
+    { "from": "/lamp/dim", "event": "switch/dim", "payload": { "bright": "$.data" }, "type": "std_msgs/msg/Bool" }
+  ],
+  "outbound": [
+    { "property": "bulb/watts", "to": "/lamp/watts", "type": "std_msgs/msg/Float64", "policy": "latest" },
+    { "state": "lamp", "to": "/lamp/state", "type": "std_msgs/msg/String", "policy": "latest" }
+  ]
+}

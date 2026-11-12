@@ -33,6 +33,24 @@ import kotlin.test.assertTrue
 /** Tests reading and writing bridge files. */
 class BridgeConfigFileTest {
 
+    @Test
+    fun `a route may name the type of its messages, and the type is written back`() {
+        val text = """
+            {
+              "kind": "ros",
+              "settings": { "url": "ws://localhost:9090" },
+              "inbound": [ { "from": "/switch", "event": "switch/press", "type": "std_msgs/msg/Empty" }, { "from": "/dim", "event": "switch/dim" } ],
+              "outbound": [ { "property": "bulb/watts", "to": "/lamp/watts", "type": "std_msgs/msg/Float64", "policy": "latest" } ]
+            }
+        """.trimIndent()
+
+        val config = checkNotNull(BridgeConfigFile.read(text).config)
+
+        assertEquals(listOf("std_msgs/msg/Empty", null), config.inbound.map { it.messageType })
+        assertEquals("std_msgs/msg/Float64", config.outbound.single().messageType)
+        assertEquals(config, BridgeConfigFile.read(BridgeConfigFile.write(config)).config)
+    }
+
     private val lamp = BridgeConfig(
         kind = BridgeKind.HTTP,
         settings = mapOf("port" to "8090"),

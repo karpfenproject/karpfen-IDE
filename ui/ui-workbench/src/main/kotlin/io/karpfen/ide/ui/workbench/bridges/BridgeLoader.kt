@@ -24,11 +24,13 @@ import io.karpfen.ide.bridges.http.HttpSettings
 import io.karpfen.ide.bridges.mapping.BridgeConfigFile
 import io.karpfen.ide.bridges.mqtt.MqttBridge
 import io.karpfen.ide.bridges.mqtt.MqttSettings
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
+import io.karpfen.ide.bridges.ros.RosBridge
+import io.karpfen.ide.bridges.ros.RosSettings
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 
 /**
  * A bridge file as a run takes it up.
@@ -44,7 +46,7 @@ internal data class BridgePlan(val file: Path, val name: String, val config: Bri
  * Reads the bridge files a run starts and builds their bridges.
  *
  * A file that cannot be read, that is not a bridge file, or whose settings make no sense gives a plan with a problem
- * and no configuration. The run then shows the bridge as failed and starts the others. An MQTT bridge whose file names
+ * and no configuration. That holds for all three kinds of bridge, HTTP, MQTT and ROS. The run then shows the bridge as failed and starts the others. An MQTT bridge whose file names
  * no client id gets one from the name of its file, because a broker lets only one client with the same id stay
  * connected, and two MQTT bridges of one run must not push each other out.
  *
@@ -66,7 +68,6 @@ internal class BridgeLoader(private val ioDispatcher: CoroutineDispatcher) {
         return when {
             problems.isNotEmpty() -> BridgePlan(file, name, null, problems.joinToString(" "))
             config == null -> BridgePlan(file, name, null, "The file is not a bridge file.")
-            config.kind == BridgeKind.ROS -> BridgePlan(file, name, null, "The IDE cannot run ROS bridges yet.")
             else -> BridgePlan(file, name, withDefaults(config, file), null)
         }
     }
@@ -75,13 +76,13 @@ internal class BridgeLoader(private val ioDispatcher: CoroutineDispatcher) {
     fun bridge(config: BridgeConfig, link: ModelLink, scope: CoroutineScope): Bridge = when (config.kind) {
         BridgeKind.HTTP -> HttpBridge(config, link, scope, ioDispatcher)
         BridgeKind.MQTT -> MqttBridge(config, link, scope)
-        BridgeKind.ROS -> error("there is no ROS bridge")
+        BridgeKind.ROS -> RosBridge(config, link, scope)
     }
 
     private fun settingsProblems(config: BridgeConfig): List<String> = when (config.kind) {
         BridgeKind.HTTP -> HttpSettings.problemsOf(config.settings)
         BridgeKind.MQTT -> MqttSettings.problemsOf(config.settings)
-        BridgeKind.ROS -> emptyList()
+        BridgeKind.ROS -> RosSettings.problemsOf(config.settings)
     }
 
     private fun withDefaults(config: BridgeConfig, file: Path): BridgeConfig =

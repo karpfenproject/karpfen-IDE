@@ -27,6 +27,7 @@ import io.karpfen.ide.bridges.api.PayloadField
 import io.karpfen.ide.bridges.api.ValueSource
 import io.karpfen.ide.bridges.http.HttpSettings
 import io.karpfen.ide.bridges.mqtt.MqttSettings
+import io.karpfen.ide.bridges.ros.RosSettings
 import io.karpfen.ide.runtime.protocol.message.WireValue
 
 /**
@@ -54,6 +55,8 @@ public data class BridgeDraft(
  * @property passBody true if the body of the message is handed on as the payload. Then [fields] are not used.
  * @property fields the fields of the payload when the body is not handed on. No field means an event without payload.
  * @property policy what happens when messages arrive faster than the model takes them.
+ * @property type the type of the messages at [from], which only a ROS bridge uses, such as `std_msgs/msg/Bool`.
+ *   Blank lets ROS find the type.
  */
 public data class InboundDraft(
     public val from: String = "",
@@ -61,6 +64,7 @@ public data class InboundDraft(
     public val passBody: Boolean = true,
     public val fields: List<FieldDraft> = emptyList(),
     public val policy: PolicyDraft = PolicyDraft(),
+    public val type: String = "",
 )
 
 /**
@@ -91,12 +95,15 @@ public enum class Follows {
  * @property what the followed thing, written as [follows] says.
  * @property to where the message goes: a URL for HTTP, a topic for MQTT.
  * @property policy what happens when the model reports faster than the outside takes it.
+ * @property type the type of the messages at [to], which only a ROS bridge uses, such as `std_msgs/msg/Float64`.
+ *   Blank means a text.
  */
 public data class OutboundDraft(
     public val follows: Follows = Follows.PROPERTY,
     public val what: String = "",
     public val to: String = "",
     public val policy: PolicyDraft = PolicyDraft(),
+    public val type: String = "",
 )
 
 /** How a route deals with more messages than it can hand on. */
@@ -156,8 +163,24 @@ public object BridgeDrafts {
             BridgeSetting(MqttSettings.TIMEOUT_MS, "Timeout in ms", MqttSettings.DEFAULT_TIMEOUT_MS.toString()),
             BridgeSetting(MqttSettings.RETAIN, "The broker keeps the last message of each topic", isFlag = true),
         )
-        BridgeKind.ROS -> emptyList()
+        BridgeKind.ROS -> listOf(
+            BridgeSetting(RosSettings.URL, "Rosbridge server", RosSettings.DEFAULT_URL),
+            BridgeSetting(RosSettings.TIMEOUT_MS, "Timeout in ms", RosSettings.DEFAULT_TIMEOUT_MS.toString()),
+            BridgeSetting(RosSettings.ROS1, "Legacy ROS 1 system", isFlag = true),
+        )
     }
+
+    /**
+     * The types of ROS messages the form offers to pick for a route, the standard ones with one value. Any other type
+     * can be typed in.
+     */
+    public val messageTypes: List<String> = listOf(
+        "std_msgs/msg/Empty",
+        "std_msgs/msg/Bool",
+        "std_msgs/msg/String",
+        "std_msgs/msg/Float64",
+        "std_msgs/msg/Int32",
+    )
 
     /** The draft that shows [config]. */
     public fun of(config: BridgeConfig): BridgeDraft = BridgeDraft(
@@ -170,6 +193,7 @@ public object BridgeDrafts {
                 passBody = route.payload == null,
                 fields = route.payload.orEmpty().map { FieldDraft(it.name, textOf(it.source)) },
                 policy = draftOf(route.flow),
+                type = route.messageType.orEmpty(),
             )
         },
         outbound = config.outbound.map { route ->
@@ -178,7 +202,7 @@ public object BridgeDrafts {
                 is OutboundSource.State -> Follows.STATE to source.machine
                 is OutboundSource.Event -> Follows.EVENT to "${source.domain}/${source.event}"
             }
-            OutboundDraft(follows, what, route.to, draftOf(route.flow))
+            OutboundDraft(follows, what, route.to, draftOf(route.flow), route.messageType.orEmpty())
         },
     )
 
@@ -244,7 +268,7 @@ public object BridgeDrafts {
     }
 
     /** One pass over a draft that collects the [problems] and builds the [config] from what is right. */
-    private class Conversion(draft: BridgeDraft) {
+    private class Conversion(private val draft: BridgeDraft) {
         val problems = ArrayList<String>()
         val config: BridgeConfig
 
@@ -253,7 +277,7 @@ public object BridgeDrafts {
             problems += when (draft.kind) {
                 BridgeKind.HTTP -> HttpSettings.problemsOf(settings)
                 BridgeKind.MQTT -> MqttSettings.problemsOf(settings)
-                BridgeKind.ROS -> emptyList()
+                BridgeKind.ROS -> RosSettings.problemsOf(settings)
             }
             val inbound = draft.inbound.mapIndexedNotNull { index, route -> inbound(route, "Inbound route ${index + 1}") }
             val outbound = draft.outbound.mapIndexedNotNull { index, route -> outbound(route, "Outbound route ${index + 1}") }
@@ -276,7 +300,7 @@ public object BridgeDrafts {
             return if (problems.size > before || event == null || flow == null) {
                 null
             } else {
-                InboundRoute(route.from.trim(), event.first, event.second, payload, flow)
+                InboundRoute(route.from.trim(), event.first, event.second, payload, flow, typeOf(route.type))
             }
         }
 
@@ -299,8 +323,12 @@ public object BridgeDrafts {
             }
             if (route.to.isBlank()) problems += "$place needs a destination."
             val flow = flow(route.policy, place)
-            return if (source == null || route.to.isBlank() || flow == null) null else OutboundRoute(source, route.to.trim(), flow)
+            if (source == null || route.to.isBlank() || flow == null) return null
+            return OutboundRoute(source, route.to.trim(), flow, typeOf(route.type))
         }
+
+        /** The message type that [text] names, which only a ROS bridge keeps. */
+        private fun typeOf(text: String): String? = text.trim().takeIf { it.isNotEmpty() && draft.kind == BridgeKind.ROS }
 
         private fun flow(policy: PolicyDraft, place: String): FlowPolicy? {
             val number = policy.number.trim()

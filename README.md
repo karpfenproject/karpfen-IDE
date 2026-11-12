@@ -5,9 +5,9 @@ machines (`.kstates`) and the environment descriptors (`.kenv.json`) that tie th
 you type, runs them in a karpfen runtime, and shows the model change while you send events. It is written in Kotlin
 with Compose Multiplatform for Desktop and uses karpfen-dsl-tools as its language core.
 
-karpfen IDE is a research prototype and changes often. Editing and running models work today, and a state machine,
-a metamodel and a model each show as a diagram. The diagrams cannot edit the text yet, and the bridges to MQTT and ROS
-are not built yet.
+karpfen IDE is a research prototype and changes often. Editing and running models work today, and bridges
+connect a running model to HTTP, MQTT and ROS. A state machine, a metamodel and a model each show as a diagram. The
+diagrams cannot edit the text yet.
 
 ## Quick start
 

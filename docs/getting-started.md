@@ -108,7 +108,7 @@ runtime prints.
 ### Bridges
 
 A bridge connects the running model to something outside the IDE. A file whose name ends in `.kbridge.json` describes
-one bridge: its kind, which is `http` or `mqtt`, its settings, and its routes. An inbound route turns a message from
+one bridge: its kind, which is `http`, `mqtt` or `ros`, its settings, and its routes. An inbound route turns a message from
 outside into an event. An outbound route sends a message whenever a property, the active states of a state machine or
 an event has something new.
 
@@ -121,7 +121,7 @@ When the project has bridge files, Run asks which of them to start, with one box
 time are ticked again. The bridges start once the environment runs and stop with it. The Log pane lists them below the
 line about the deployment, each with its state and the number of messages it handed on.
 
-The lamp example has two bridge files. `http.kbridge.json` listens on port 8090, so this presses the wall switch and
+The lamp example has three bridge files. `http.kbridge.json` listens on port 8090, so this presses the wall switch and
 then makes the lamp brighter:
 
 ```
@@ -133,6 +133,10 @@ curl -X POST http://127.0.0.1:8090/dim -d '{"bright": true}'
 `home/lamp/press`, and it publishes the power of the bulb on `home/lamp/watts` and the active states of the lamp on
 `home/lamp/state`. Outbound routes that follow a property or a state machine need observation switched on. Without a
 broker that bridge shows as failed, and the run goes on without it.
+
+`ros.kbridge.json` needs a rosbridge server on `localhost:9090`, which is part of ROS. It presses the switch for every
+message on the topic `/lamp/press` and publishes the power of the bulb on `/lamp/watts` and the active states of the
+lamp on `/lamp/state`. It talks to ROS 2. For a ROS 1 system, tick Legacy ROS 1 system in its form.
 
 
 ## Walkthrough: the lamp

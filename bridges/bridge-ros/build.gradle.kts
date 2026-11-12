@@ -18,12 +18,19 @@ plugins {
 }
 
 /**
- * The ROS bridge, which holds no code yet. It is a bridge of bridge-api, which bridge-mapping re-exports, and it is
- * configured with mappings. It speaks the rosbridge protocol, which is JSON over WebSocket, through the Ktor client.
+ * The ROS bridge. It is a bridge of bridge-api, which bridge-mapping re-exports, and it runs the routes of a bridge
+ * file over the topics of ROS 2, or of ROS 1 when the bridge file says so. It speaks the rosbridge protocol, which is
+ * JSON over WebSocket, through the Ktor client, so it needs no native ROS library. Its tests run against a small
+ * WebSocket server inside the test that stands in for a rosbridge server.
  */
 dependencies {
     api(project(":bridges:bridge-mapping"))
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.websockets)
+
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.ktor.server.core)
+    testImplementation(libs.ktor.server.cio)
+    testImplementation(libs.ktor.server.websockets)
 }

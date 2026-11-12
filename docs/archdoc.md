@@ -46,7 +46,7 @@ uses `io.karpfen.ide.buildlogic`.
 | app | app/ide | The desktop application and its composition root. |
 | tools | tools/cli | The `karpfen` command-line tool. |
 | notation | notation-diagram, notation-sync | The diagrams without their UI: model, layout and the step from text to diagram. |
-| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros | Connect a running model to external systems. The core, the HTTP bridge and the MQTT bridge exist, and the IDE starts them with a run. |
+| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros | Connect a running model to external systems. The IDE starts the bridges for HTTP, MQTT and ROS with a run. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
 
 Next to the modules, the folder `examples` holds the lamp model of the getting started guide, and the script
@@ -217,8 +217,8 @@ bridges of a run: `RunBridges` starts and stops them with the environment, `Brid
 `BridgeFormState` with its `BridgeDraft`, opened and saved by `BridgeFormFlow` in the package `state` and drawn by
 `BridgeFormLayer`. `WorkbenchServices` holds the collaborators,
 `defaultWorkbenchServices` is the production wiring, and the `Workbench` composable lays out the window. It depends on
-ui-editor, ui-foundation, core-lang, runtime-session, runtime-host, ui-diagram, bridge-api, bridge-http and bridge-mqtt,
-and is used by app/ide.
+ui-editor, ui-foundation, core-lang, runtime-session, runtime-host, ui-diagram, bridge-api, bridge-http, bridge-mqtt
+and bridge-ros, and is used by app/ide.
 
 ### app/ide
 
@@ -288,11 +288,14 @@ subscription per inbound route. It is the only module that uses that client. `Mq
 id, the credentials, the quality of service and the retain flag from the settings of a bridge file. `MqttBridge` puts a
 `RoutedBridge` on such an endpoint. Its tests run against Moquette, a small broker that starts inside the test.
 
-### Placeholders
+### bridge-ros
 
-bridge-ros has no code yet. It holds one object, so the build and its rules already know the module, and its
-dependencies are already declared: it adds the Ktor client for rosbridge. The [developer notes](devdoc.md) describe
-how the diagrams and the bridges are meant to work.
+The ROS bridge. `RosEndpoint` is its `BridgeEndpoint`: one WebSocket connection to a rosbridge server through the Ktor
+client, which subscribes to the topics of the inbound routes and advertises those of the outbound routes. `RosSettings`
+reads the address of the server and the switch for ROS 1 from the settings of a bridge file. `RosTypes` writes the
+types of messages as ROS 2 or ROS 1 expects them and turns a value of the model into a message. `RosBridge` puts a
+`RoutedBridge` on such an endpoint. Its tests run against a small WebSocket server inside the test that stands in for
+a rosbridge server. The [developer notes](devdoc.md) describe how the bridges work.
 
 ### build-logic
 

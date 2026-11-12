@@ -66,6 +66,8 @@ public data class BridgeConfig(
  * @property payload how the payload of the event is made from the message. Null hands the body of the message on as
  *   it is. An empty list sends the event without a payload.
  * @property flow what happens when messages arrive faster than the model takes them.
+ * @property messageType the type of the messages at [from], for an external system that types its messages, as ROS
+ *   does with types such as `std_msgs/msg/Bool`. Null where the system has no such types or can find the type itself.
  */
 public data class InboundRoute(
     public val from: String,
@@ -73,6 +75,7 @@ public data class InboundRoute(
     public val event: String,
     public val payload: List<PayloadField>? = null,
     public val flow: FlowPolicy = FlowPolicy.Queue(),
+    public val messageType: String? = null,
 )
 
 /**
@@ -106,11 +109,14 @@ public sealed interface ValueSource {
  * @property source what of the model the route follows.
  * @property to where the message goes, in the terms of the external system: a URL for HTTP, a topic for MQTT and ROS.
  * @property flow what happens when the model changes faster than the external system takes the messages.
+ * @property messageType the type of the messages at [to], for an external system that types its messages, as ROS
+ *   does with types such as `std_msgs/msg/Float64`. Null where the system has no such types or a default will do.
  */
 public data class OutboundRoute(
     public val source: OutboundSource,
     public val to: String,
     public val flow: FlowPolicy = FlowPolicy.Queue(),
+    public val messageType: String? = null,
 )
 
 /** What of the model an [OutboundRoute] follows. */

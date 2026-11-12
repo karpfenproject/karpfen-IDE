@@ -62,7 +62,7 @@ public data class BridgeConfigReading(public val config: BridgeConfig?, public v
  * route names what it follows, which is exactly one of `property` as object and property with a slash between them,
  * `state` as the object a state machine is attached to, or `event` as domain and name, and where the message goes in
  * `to`. `policy` is `queue` with an optional `limit`, `latest`, or `sample` with `periodMs`. Without `policy` a route
- * queues.
+ * queues. A route of a ROS bridge may name the type of its messages in `type`, such as `std_msgs/msg/Bool`.
  *
  * The IDE writes this file from a form, and other tools may change it. So reading is tolerant. It reports what is
  * wrong in words and keeps what is right.
@@ -116,7 +116,7 @@ public object BridgeConfigFile {
             else -> return problem(problems, "$place: \"payload\" must be an object.")
         }
         val flow = flow(route, place, problems) ?: return null
-        return InboundRoute(from, event.first, event.second, payload, flow)
+        return InboundRoute(from, event.first, event.second, payload, flow, messageType(route))
     }
 
     private fun outbound(value: WireValue, place: String, problems: MutableList<String>): OutboundRoute? {
@@ -132,8 +132,11 @@ public object BridgeConfigFile {
             return problem(problems, "$place needs exactly one of \"property\" as object/property, \"state\" or \"event\" as domain/name.")
         }
         val flow = flow(route, place, problems) ?: return null
-        return OutboundRoute(sources.single(), to, flow)
+        return OutboundRoute(sources.single(), to, flow, messageType(route))
     }
+
+    /** The type of the messages of [route], or null if it names none. */
+    private fun messageType(route: WireValue.WireObject): String? = text(route["type"])?.trim()?.takeIf { it.isNotEmpty() }
 
     /** The flow policy of [route], or null after reporting why it has none. */
     private fun flow(route: WireValue.WireObject, place: String, problems: MutableList<String>): FlowPolicy? =
@@ -183,6 +186,7 @@ public object BridgeConfigFile {
         route.payload?.let { payload ->
             fields += WireField("payload", WireValue.WireObject(payload.map { WireField(it.name, sourceJson(it.source)) }))
         }
+        fields += typeJson(route.messageType)
         fields += flowJson(route.flow)
         return WireValue.WireObject(fields)
     }
@@ -193,13 +197,17 @@ public object BridgeConfigFile {
             is OutboundSource.State -> WireField("state", WireValue.WireString(followed.machine))
             is OutboundSource.Event -> WireField("event", WireValue.WireString("${followed.domain}/${followed.event}"))
         }
-        return WireValue.WireObject(listOf(source, WireField("to", WireValue.WireString(route.to))) + flowJson(route.flow))
+        val to = WireField("to", WireValue.WireString(route.to))
+        return WireValue.WireObject(listOf(source, to) + typeJson(route.messageType) + flowJson(route.flow))
     }
 
     private fun sourceJson(source: ValueSource): WireValue = when (source) {
         is ValueSource.FromMessage -> WireValue.WireString(source.path.text)
         is ValueSource.Fixed -> source.value
     }
+
+    /** The member that writes the message [type] of a route. No type writes nothing. */
+    private fun typeJson(type: String?): List<WireField> = listOfNotNull(type?.let { WireField("type", WireValue.WireString(it)) })
 
     /** The members that write [flow]. A queue of the default size writes nothing. */
     private fun flowJson(flow: FlowPolicy): List<WireField> = when (flow) {

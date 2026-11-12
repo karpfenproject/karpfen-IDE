@@ -82,7 +82,7 @@ class RunBridgesTest {
         val lamp = copy(SynthesizedModel.LAMP)
         val port = freePort()
         val http = TestWorkbench.write(root.resolve("door.kbridge.json"), httpBridge(port))
-        val ros = TestWorkbench.write(root.resolve("robot.kbridge.json"), """{ "kind": "ros" }""")
+        val ros = TestWorkbench.write(root.resolve("robot.kbridge.json"), """{ "kind": "ros", "settings": { "url": "robot" } }""")
         TestWorkbench.write(root.resolve("notes.json"), "{}")
         withWorkbench(settingsDirectory, scriptSessions = true) {
             open(root)
@@ -99,7 +99,7 @@ class RunBridgesTest {
             assertEquals("door.kbridge.json", door.name)
             assertEquals(BridgeState.STOPPED, door.status.state, "the bridge waits for the environment to run")
             assertEquals(BridgeState.FAILED, robot.status.state)
-            assertEquals("The IDE cannot run ROS bridges yet.", robot.status.problem)
+            assertEquals("The address \"robot\" is no address of a rosbridge server such as ws://localhost:9090.", robot.status.problem)
 
             session.availabilityFlow.value = InjectionAvailability.Live
             session.stateFlow.value = SessionState.Running(ENVIRONMENT)

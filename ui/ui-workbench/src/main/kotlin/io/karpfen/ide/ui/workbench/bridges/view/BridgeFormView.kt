@@ -82,6 +82,7 @@ import io.karpfen.ide.ui.workbench.bridges.PolicyKind
  * null. The form has the name of the bridge, its kind, the settings of that kind, the inbound routes and the outbound
  * routes. A changed name renames the file when the form is saved.
  * The fields for an event, a property and a state machine have a button that lists those of the project to pick from.
+ * A route of a ROS bridge also has the type of its messages.
  * Every change goes into the draft of the form at once. Below the scrolling part, the form lists what keeps it from
  * being saved, and Save is enabled once that list is empty. [onSave] and [onClose] are the two buttons.
  */
@@ -162,11 +163,10 @@ internal fun BridgeFormLayer(form: BridgeFormState?, onSave: () -> Unit, onClose
 private fun KindAndSettings(draft: BridgeDraft, edit: ((BridgeDraft) -> BridgeDraft) -> Unit) {
     Section("Kind")
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        BridgeKind.entries.filter { it != BridgeKind.ROS || draft.kind == BridgeKind.ROS }.forEach { kind ->
+        BridgeKind.entries.forEach { kind ->
             Chip(kind.id.uppercase(), draft.kind == kind, BridgeFormTestTags.kind(kind.id)) { edit { BridgeDrafts.withKind(it, kind) } }
         }
     }
-    if (draft.kind == BridgeKind.ROS) Note("The IDE cannot run ROS bridges yet.", KarpfenTheme.colors.warning)
     val settings = BridgeDrafts.settingsOf(draft.kind)
     if (settings.isEmpty()) return
     Section("Settings")
@@ -209,13 +209,18 @@ private fun InboundCard(
             Label("From")
             Field(
                 route.from, { value -> change { it.copy(from = value) } },
-                if (kind == BridgeKind.HTTP) "/path" else "topic/filter", Modifier.weight(1f), BridgeFormTestTags.inbound(index, "from"),
+                fromHint(kind), Modifier.weight(1f), BridgeFormTestTags.inbound(index, "from"),
             )
             Label("becomes the event")
             PickField(
                 route.event, { value -> change { it.copy(event = value) } },
                 "domain/name", suggestions.events, Modifier.weight(1f), BridgeFormTestTags.inbound(index, "event"),
             )
+        }
+        if (kind == BridgeKind.ROS) {
+            MessageType(route.type, "found by ROS if the topic exists", BridgeFormTestTags.inbound(index, "type")) { value ->
+                change { it.copy(type = value) }
+            }
         }
         Row(
             Modifier.clickable { change { it.copy(passBody = !it.passBody) } }.testTag(BridgeFormTestTags.inbound(index, "passBody")),
@@ -277,10 +282,24 @@ private fun OutboundCard(
             Label("goes to")
             Field(
                 route.to, { value -> change { it.copy(to = value) } },
-                if (kind == BridgeKind.HTTP) "http://host:port/path" else "topic", Modifier.weight(1f), BridgeFormTestTags.outbound(index, "to"),
+                toHint(kind), Modifier.weight(1f), BridgeFormTestTags.outbound(index, "to"),
             )
         }
+        if (kind == BridgeKind.ROS) {
+            MessageType(route.type, "std_msgs/msg/String", BridgeFormTestTags.outbound(index, "type")) { value ->
+                change { it.copy(type = value) }
+            }
+        }
         Policy(route.policy, BridgeFormTestTags.outbound(index, "number")) { policy -> change { it.copy(policy = policy) } }
+    }
+}
+
+/** The type of the ROS messages of a route, to type in or to pick from the standard types. */
+@Composable
+private fun MessageType(value: String, hint: String, tag: String, onChange: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Label("Message type")
+        PickField(value, onChange, hint, BridgeDrafts.messageTypes, Modifier.weight(1f), tag)
     }
 }
 
@@ -430,6 +449,20 @@ private fun <T> List<T>.replaced(index: Int, transform: (T) -> T): List<T> = map
 
 /** This list without the element at [index]. */
 private fun <T> List<T>.without(index: Int): List<T> = filterIndexed { at, _ -> at != index }
+
+/** What the empty field of the address of an inbound route shows for a bridge of [kind]. */
+private fun fromHint(kind: BridgeKind): String = when (kind) {
+    BridgeKind.HTTP -> "/path"
+    BridgeKind.MQTT -> "topic/filter"
+    BridgeKind.ROS -> "/topic"
+}
+
+/** What the empty field of the destination of an outbound route shows for a bridge of [kind]. */
+private fun toHint(kind: BridgeKind): String = when (kind) {
+    BridgeKind.HTTP -> "http://host:port/path"
+    BridgeKind.MQTT -> "topic"
+    BridgeKind.ROS -> "/topic"
+}
 
 /** What the chip of this choice says. */
 private val Follows.title: String
