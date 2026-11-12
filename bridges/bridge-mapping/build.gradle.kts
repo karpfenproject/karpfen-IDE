@@ -18,9 +18,11 @@ plugins {
 }
 
 /**
- * The declarative mapping engine of the bridges, which holds no code yet. It implements the mapping SPI of bridge-api,
- * which is therefore part of its API.
+ * The bridge file and the engine that runs its routes. It works on the types of bridge-api, which is therefore part
+ * of its API.
  */
 dependencies {
     api(project(":bridges:bridge-api"))
+
+    testImplementation(libs.kotlinx.coroutines.test)
 }

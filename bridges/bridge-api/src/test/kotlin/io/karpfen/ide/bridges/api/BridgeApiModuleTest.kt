@@ -18,7 +18,7 @@ package io.karpfen.ide.bridges.api
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Covers [BridgeApiModule], the placeholder of a module that holds no code yet. */
+/** Covers [BridgeApiModule], the identity of the module. */
 class BridgeApiModuleTest {
     @Test
     fun `module id matches the module directory`() {

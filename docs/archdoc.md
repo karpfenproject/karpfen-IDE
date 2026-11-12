@@ -46,7 +46,7 @@ uses `io.karpfen.ide.buildlogic`.
 | app | app/ide | The desktop application and its composition root. |
 | tools | tools/cli | The `karpfen` command-line tool. |
 | notation | notation-diagram, notation-sync | The diagrams without their UI: model, layout and the step from text to diagram. |
-| bridges | bridge-api, bridge-mapping, bridge-mqtt, bridge-ros, bridge-runner | Placeholders. No code yet. |
+| bridges | bridge-api, bridge-mapping, bridge-mqtt, bridge-ros, bridge-runner | Connect a running model to external systems. Only the shared core exists. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
 
 Next to the modules, the folder `examples` holds the lamp model of the getting started guide, and the script
@@ -92,7 +92,7 @@ flowchart TD
         nsync["notation-sync"]
         ndiagram["notation-diagram"]
     end
-    subgraph bridgesGroup ["bridges (placeholders)"]
+    subgraph bridgesGroup ["bridges"]
         bridges["bridge-runner, bridge-mqtt, bridge-ros, bridge-mapping, bridge-api"]
     end
     subgraph coreGroup ["core"]
@@ -246,11 +246,21 @@ takes the document session of a file and shows its statechart on a canvas that c
 `StatechartEditing` turning the gestures into changes. ui-workbench shows the pane next to the editor or in its place,
 as the user chooses per file.
 
+### bridge-api and bridge-mapping
+
+The shared core of the bridges. A bridge connects one running environment to one external system, and these two modules
+hold everything that does not depend on which system that is. bridge-api has the types: `BridgeConfig` with its inbound
+and outbound routes and their `FlowPolicy`, the two sides a bridge stands between, which are `BridgeEndpoint` for the
+external system and `ModelLink` for the environment, and the `Bridge` lifecycle with its `BridgeStatus`. It builds on
+runtime-protocol and uses its events, pushes and JSON values directly. bridge-mapping makes a bridge work.
+`BridgeConfigFile` reads and writes a bridge file, `Mappings` translates a message into an event and a report of the
+model into a message, and `RoutedBridge` runs every route with a waiting line of its own. A new kind of bridge only
+brings a `BridgeEndpoint`.
+
 ### Placeholders
 
-The five bridge modules have no code yet. Each holds one object or a `main` function, so the build and its rules
-already know the module, and their dependencies are already declared. The bridges are meant to connect the runtime with
-MQTT and ROS. bridge-api builds on runtime-protocol, bridge-mapping on bridge-api, bridge-mqtt adds the HiveMQ client
+bridge-mqtt, bridge-ros and bridge-runner have no code yet. Each holds one object or a `main` function, so the build
+and its rules already know the module, and their dependencies are already declared. bridge-mqtt adds the HiveMQ client
 and bridge-ros adds the Ktor client for rosbridge. bridge-runner is an application named `karpfen-bridge-runner` whose
 `main` only prints its usage. The [developer notes](devdoc.md) describe how the diagrams and the bridges are meant to
 work.

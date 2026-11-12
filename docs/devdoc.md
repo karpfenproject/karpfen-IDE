@@ -476,20 +476,28 @@ catalog lists it.
 
 ### Bridges run without the IDE
 
-No bridge exists yet, but the design is settled. A bridge connects a running karpfen model to an external system such
-as an MQTT broker or ROS. It will be a plain Kotlin component with a lifecycle. It runs from the headless bridge runner
-on a robot or an edge box, where no IDE is present, and the IDE configures, hosts and watches it during development.
-Bridges use only runtime-protocol of the runtime modules. They run in the IDE's process or in the runner and connect to
-the runtime's port.
+The shared core of the bridges exists, and no bridge to an external system yet. They are built in this order: plain
+HTTP, MQTT, starting bridges with a run, the headless runner, and ROS. A bridge connects a running karpfen model to an
+external system such as an HTTP client, an MQTT broker or ROS. It will be a plain Kotlin component with a lifecycle. It
+runs from the headless bridge runner on a robot or an edge box, where no IDE is present, and the IDE configures, hosts
+and watches it during development. Bridges use only runtime-protocol of the runtime modules. They run in the IDE's
+process or in the runner and connect to the runtime's port.
 
-The mapping between external messages and karpfen events or object changes will be declarative, as routes in a
-`*.kbridge.json` file, with a Kotlin interface for custom codecs and transforms. A scripting hook may come later. Each
-route needs a flow-control policy, such as keeping only the latest message, a bounded queue or sampling at a period,
-because the engine works in ticks and events expire. MQTT will use the HiveMQ client. ROS will use the rosbridge
-protocol, which is JSON over WebSocket, through the Ktor client, so no native library is needed. A native ROS
-transport can be added behind the same interface if latency demands it. The runtime freezes its domain listeners when
-an environment is activated, so a bridge that listens to domain events must be registered while the environment is
-deployed.
+A bridge is one file in the project, `*.kbridge.json`, as `BridgeConfigFile` describes. It names the kind of bridge, its
+settings and its routes. An inbound route turns a message that arrives at an address into an event, with the payload
+picked out of the message by paths. An outbound route follows a property of an object, the active states of a state
+machine or an event that a state machine raises, and sends a message whenever there is something new. Each route has a
+flow policy, because the engine works in ticks and events expire: a queue with a limit, only the latest message, or one
+message per period. `RoutedBridge` counts what each route received, delivered, dropped and failed. A scripting hook for
+custom transforms may come later.
+
+In the IDE a bridge file is never edited as text. A form reached from the Run menu writes it, and other tools may change
+it, so reading is tolerant and names what is wrong in words. Every run asks which of the project's bridges to start,
+with the last choice preselected and stored in the project file. Neither the form nor that dialog exists yet. MQTT will
+use the HiveMQ client. ROS will use the rosbridge protocol, which is JSON over WebSocket, through the Ktor client, so no
+native library is needed. A native ROS transport can be added behind the same interface if latency demands it. The
+runtime freezes its domain listeners when an environment is activated, so a bridge that listens to domain events must be
+registered while the environment is deployed.
 
 ### Module boundaries are enforced by the build
 

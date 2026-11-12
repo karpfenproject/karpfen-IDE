@@ -16,8 +16,9 @@
 package io.karpfen.ide.bridges.mapping
 
 /**
- * Placeholder of the `bridge-mapping` module, which holds no code yet. The module will hold the declarative mapping
- * engine with its routes, path expressions and templates. It will implement the mapping SPI of bridge-api.
+ * Identity of the `bridge-mapping` module. The module turns a bridge file into a working bridge. It reads and writes
+ * the file, maps messages to events and model changes to messages, and runs the routes with their flow policies. It
+ * knows no external system. Start reading at [BridgeConfigFile] and [RoutedBridge].
  */
 public object BridgeMappingModule {
     /** The module's name, which is also the name of its directory. */
