@@ -128,8 +128,8 @@ public data class BridgeStatus(
 )
 
 /**
- * A bridge between one running environment and one external system. It is a plain component with a lifecycle, so it
- * runs the same way inside the IDE and in the headless runner.
+ * A bridge between one running environment and one external system. It is a plain component with a lifecycle and
+ * knows nothing of the user interface. The IDE starts it with a run.
  */
 public interface Bridge {
 

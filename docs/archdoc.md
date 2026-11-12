@@ -46,7 +46,7 @@ uses `io.karpfen.ide.buildlogic`.
 | app | app/ide | The desktop application and its composition root. |
 | tools | tools/cli | The `karpfen` command-line tool. |
 | notation | notation-diagram, notation-sync | The diagrams without their UI: model, layout and the step from text to diagram. |
-| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros, bridge-runner | Connect a running model to external systems. The core, the HTTP bridge and the MQTT bridge exist, and the IDE starts them with a run. |
+| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros | Connect a running model to external systems. The core, the HTTP bridge and the MQTT bridge exist, and the IDE starts them with a run. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
 
 Next to the modules, the folder `examples` holds the lamp model of the getting started guide, and the script
@@ -93,7 +93,7 @@ flowchart TD
         ndiagram["notation-diagram"]
     end
     subgraph bridgesGroup ["bridges"]
-        bridges["bridge-runner, bridge-http, bridge-mqtt, bridge-ros, bridge-mapping, bridge-api"]
+        bridges["bridge-http, bridge-mqtt, bridge-ros, bridge-mapping, bridge-api"]
     end
     subgraph coreGroup ["core"]
         lang["core-lang"]
@@ -290,10 +290,9 @@ id, the credentials, the quality of service and the retain flag from the setting
 
 ### Placeholders
 
-bridge-ros and bridge-runner have no code yet. Each holds one object or a `main` function, so the build and its rules
-already know the module, and their dependencies are already declared. bridge-ros adds the Ktor client for rosbridge. bridge-runner is an application named `karpfen-bridge-runner` whose
-`main` only prints its usage. The [developer notes](devdoc.md) describe how the diagrams and the bridges are meant to
-work.
+bridge-ros has no code yet. It holds one object, so the build and its rules already know the module, and its
+dependencies are already declared: it adds the Ktor client for rosbridge. The [developer notes](devdoc.md) describe
+how the diagrams and the bridges are meant to work.
 
 ### build-logic
 
@@ -301,7 +300,7 @@ An included build with the convention plugins that every module applies. `karpfe
 JDK 21, JUnit with the tags that keep time-budget and live tests out of normal test runs, explicit API mode for core,
 notation and runtime, and the task `verifyModuleDependencies`. The other plugins build on it.
 `karpfen.kotlin-serialization` adds kotlinx.serialization, and `karpfen.compose` adds Compose and refuses any module
-outside ui and app. `karpfen.application` serves tools/cli and bridge-runner, and `karpfen.live-runtime-test` adds
+outside ui and app. `karpfen.application` serves tools/cli, and `karpfen.live-runtime-test` adds
 the opt-in task `liveRuntimeTest` to the runtime modules and ui-workbench. Read `ModuleDependencyRules` for the dependency rules,
 `TestTags` for the test tags and `BundleRuntimeSources` for packing the runtime sources. All library versions live in
 `gradle/libs.versions.toml`.

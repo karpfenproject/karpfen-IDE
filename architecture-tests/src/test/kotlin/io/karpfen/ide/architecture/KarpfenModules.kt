@@ -44,7 +44,6 @@ internal object KarpfenModules {
         "bridges/bridge-http" to "io.karpfen.ide.bridges.http",
         "bridges/bridge-mqtt" to "io.karpfen.ide.bridges.mqtt",
         "bridges/bridge-ros" to "io.karpfen.ide.bridges.ros",
-        "bridges/bridge-runner" to "io.karpfen.ide.bridges.runner",
         "ui/ui-foundation" to "io.karpfen.ide.ui.foundation",
         "ui/ui-editor" to "io.karpfen.ide.ui.editor",
         "ui/ui-diagram" to "io.karpfen.ide.ui.diagram",

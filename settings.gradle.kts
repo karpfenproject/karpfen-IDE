@@ -197,7 +197,6 @@ val modulePaths: List<String> = listOf(
     "bridges/bridge-http",
     "bridges/bridge-mqtt",
     "bridges/bridge-ros",
-    "bridges/bridge-runner",
     "ui/ui-foundation",
     "ui/ui-editor",
     "ui/ui-diagram",

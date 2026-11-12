@@ -44,7 +44,6 @@ starts a container.
 | `./gradlew :app:ide:createDistributable` | Builds the application image without an installer. |
 | `./gradlew :app:ide:packageDistributionForCurrentOS` | Builds the installer of the current platform. |
 | `./gradlew :runtime:runtime-host:liveDockerTest` | Runs the host tests against the local Docker engine. |
-| `./gradlew :bridges:bridge-runner:installDist` | Builds the bridge runner, which is still a stub. |
 
 Test reports are in `<module>/build/reports/tests/test/index.html`.
 
@@ -299,7 +298,7 @@ no I/O, so the tests use the real ones.
 
 A module declares a dependency as `api` only when the dependency's types appear in the module's own public API, and
 as `implementation` otherwise. Code logs through SLF4J, with a logger in a private companion object. Only the
-command-line tool and the bridge runner write to the standard streams.
+command-line tool writes to the standard streams.
 
 Tokenizers, parsers, readers, the project analysis and the language services never let an exception reach the UI. A
 failure becomes a diagnostic or an empty answer, and it is logged. A broken precondition is a programming error and
@@ -509,14 +508,14 @@ all end in one place. The editor only draws the text greyed out, as `EditorSetti
 shows a companion file below the model file it is named after, as `CompanionFiles` decides, and that model file can be
 expanded like a folder.
 
-### Bridges run without the IDE
+### Bridges run inside the IDE
 
-The shared core of the bridges, the HTTP bridge and the MQTT bridge exist, and the IDE starts them with a run. The
-runner does not start them yet. They are built in this order: plain HTTP, MQTT, starting bridges with a run, the
-headless runner, and ROS. A bridge connects a running karpfen model to an external system such as an HTTP client, an MQTT broker or ROS. It
-will be a plain Kotlin component with a lifecycle. It runs from the headless bridge runner on a robot or an edge box,
-where no IDE is present, and the IDE configures, hosts and watches it during development. Bridges use only runtime-
-protocol of the runtime modules. They run in the IDE's process or in the runner and connect to the runtime's port.
+The shared core of the bridges, the HTTP bridge and the MQTT bridge exist, and the IDE starts them with a run. The ROS
+bridge is still to come. A bridge connects a running karpfen model to an external system such as an HTTP client, an
+MQTT broker or ROS. It is a plain Kotlin component with a lifecycle that knows nothing of the user interface. The IDE
+configures, hosts and watches it. There is no separate program that runs bridges without the IDE. Where a model has
+to run unattended, the IDE as a whole is meant to get a mode without a window later, and the bridges run in it as
+they do now. Bridges use only runtime-protocol of the runtime modules.
 
 A bridge is one file in the project, `*.kbridge.json`, as `BridgeConfigFile` describes. It names the kind of bridge, its
 settings and its routes. An inbound route turns a message that arrives at an address into an event, with the payload
@@ -1026,7 +1025,7 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
 - On a German Windows layout, Ctrl+Shift+7 does not reach Toggle Comment.
 - The descriptor key `bridges` is ignored. A run offers every bridge file of the project, whatever the descriptor
   names.
-- The ROS bridge and the bridge runner are stubs. The bridge form takes events, objects and properties as plain
+- The ROS bridge is a stub. The bridge form takes events, objects and properties as plain
   text and offers no list of those the project has. A bridge in the IDE hears changes of the model only while the run observes it. A password in the settings of a bridge file is
   stored as plain text in the project. An embedded runtime and a language
   server do not exist yet. Their paths `runtime/runtime-embedded` and `tools/lsp-server` are planned but not in the
