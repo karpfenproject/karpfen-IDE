@@ -46,7 +46,7 @@ uses `io.karpfen.ide.buildlogic`.
 | app | app/ide | The desktop application and its composition root. |
 | tools | tools/cli | The `karpfen` command-line tool. |
 | notation | notation-diagram, notation-sync | The diagrams without their UI: model, layout and the step from text to diagram. |
-| bridges | bridge-api, bridge-mapping, bridge-mqtt, bridge-ros, bridge-runner | Connect a running model to external systems. Only the shared core exists. |
+| bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros, bridge-runner | Connect a running model to external systems. The core and the HTTP bridge exist. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
 
 Next to the modules, the folder `examples` holds the lamp model of the getting started guide, and the script
@@ -93,7 +93,7 @@ flowchart TD
         ndiagram["notation-diagram"]
     end
     subgraph bridgesGroup ["bridges"]
-        bridges["bridge-runner, bridge-mqtt, bridge-ros, bridge-mapping, bridge-api"]
+        bridges["bridge-runner, bridge-http, bridge-mqtt, bridge-ros, bridge-mapping, bridge-api"]
     end
     subgraph coreGroup ["core"]
         lang["core-lang"]
@@ -269,7 +269,13 @@ external system and `ModelLink` for the environment, and the `Bridge` lifecycle 
 runtime-protocol and uses its events, pushes and JSON values directly. bridge-mapping makes a bridge work.
 `BridgeConfigFile` reads and writes a bridge file, `Mappings` translates a message into an event and a report of the
 model into a message, and `RoutedBridge` runs every route with a waiting line of its own. A new kind of bridge only
-brings a `BridgeEndpoint`.
+brings a `BridgeEndpoint`. `RuntimeModelLink` in bridge-api is the `ModelLink` over a connection of runtime-protocol.
+
+### bridge-http
+
+The HTTP bridge. `HttpEndpoint` is its `BridgeEndpoint`: a small server of the JDK for the inbound routes and the HTTP
+client of the JDK for the outbound ones, so the module needs no library. `HttpSettings` reads the host, the port and the
+timeout from the settings of a bridge file. `HttpBridge` puts a `RoutedBridge` on such an endpoint.
 
 ### Placeholders
 

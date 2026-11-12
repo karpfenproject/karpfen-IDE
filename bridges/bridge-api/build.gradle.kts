@@ -23,4 +23,6 @@ plugins {
  */
 dependencies {
     api(project(":runtime:runtime-protocol"))
+
+    testImplementation(libs.kotlinx.coroutines.test)
 }

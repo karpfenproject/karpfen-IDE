@@ -41,6 +41,7 @@ internal object KarpfenModules {
         "notation/notation-sync" to "io.karpfen.ide.notation.sync",
         "bridges/bridge-api" to "io.karpfen.ide.bridges.api",
         "bridges/bridge-mapping" to "io.karpfen.ide.bridges.mapping",
+        "bridges/bridge-http" to "io.karpfen.ide.bridges.http",
         "bridges/bridge-mqtt" to "io.karpfen.ide.bridges.mqtt",
         "bridges/bridge-ros" to "io.karpfen.ide.bridges.ros",
         "bridges/bridge-runner" to "io.karpfen.ide.bridges.runner",

@@ -27,10 +27,11 @@ application {
 }
 
 /**
- * The headless runner of the bridges, which so far only prints its usage. It will start the MQTT and ROS bridges, and
- * it logs through Logback at run time.
+ * The headless runner of the bridges, which so far only prints its usage. It will start the HTTP, MQTT and ROS
+ * bridges, and it logs through Logback at run time.
  */
 dependencies {
+    implementation(project(":bridges:bridge-http"))
     implementation(project(":bridges:bridge-mqtt"))
     implementation(project(":bridges:bridge-ros"))
     runtimeOnly(libs.logback.classic)

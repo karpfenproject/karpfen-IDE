@@ -194,6 +194,7 @@ val modulePaths: List<String> = listOf(
     "notation/notation-sync",
     "bridges/bridge-api",
     "bridges/bridge-mapping",
+    "bridges/bridge-http",
     "bridges/bridge-mqtt",
     "bridges/bridge-ros",
     "bridges/bridge-runner",

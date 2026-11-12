@@ -510,12 +510,12 @@ expanded like a folder.
 
 ### Bridges run without the IDE
 
-The shared core of the bridges exists, and no bridge to an external system yet. They are built in this order: plain
-HTTP, MQTT, starting bridges with a run, the headless runner, and ROS. A bridge connects a running karpfen model to an
-external system such as an HTTP client, an MQTT broker or ROS. It will be a plain Kotlin component with a lifecycle. It
-runs from the headless bridge runner on a robot or an edge box, where no IDE is present, and the IDE configures, hosts
-and watches it during development. Bridges use only runtime-protocol of the runtime modules. They run in the IDE's
-process or in the runner and connect to the runtime's port.
+The shared core of the bridges and the HTTP bridge exist. Nothing starts a bridge yet, neither the IDE nor the runner.
+They are built in this order: plain HTTP, MQTT, starting bridges with a run, the headless runner, and ROS. A bridge
+connects a running karpfen model to an external system such as an HTTP client, an MQTT broker or ROS. It will be a plain
+Kotlin component with a lifecycle. It runs from the headless bridge runner on a robot or an edge box, where no IDE is
+present, and the IDE configures, hosts and watches it during development. Bridges use only runtime-protocol of the
+runtime modules. They run in the IDE's process or in the runner and connect to the runtime's port.
 
 A bridge is one file in the project, `*.kbridge.json`, as `BridgeConfigFile` describes. It names the kind of bridge, its
 settings and its routes. An inbound route turns a message that arrives at an address into an event, with the payload
@@ -524,6 +524,12 @@ machine or an event that a state machine raises, and sends a message whenever th
 flow policy, because the engine works in ticks and events expire: a queue with a limit, only the latest message, or one
 message per period. `RoutedBridge` counts what each route received, delivered, dropped and failed. A scripting hook for
 custom transforms may come later.
+
+The HTTP bridge listens on `127.0.0.1:8090` unless its settings name another `host` or `port`, and it has no
+authentication. A `POST` or `PUT` to the path of an inbound route becomes the event of that route and is answered with
+202 at once, before the model has taken the event. A `GET` of `/` lists the paths. An outbound message is posted as JSON
+to the URL of its route, and an answer outside the 200 range, a timeout after `timeoutMs` or a refused connection counts
+as a failed delivery of that route.
 
 In the IDE a bridge file is never edited as text. A form reached from the Run menu writes it, and other tools may change
 it, so reading is tolerant and names what is wrong in words. Every run asks which of the project's bridges to start,
@@ -982,7 +988,8 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
   operation in the Project tree refreshes the workspace.
 - On a German Windows layout, Ctrl+Shift+7 does not reach Toggle Comment.
 - The file kind for bridge configurations is recognized, but nothing interprets it yet.
-- The bridge modules are stubs. An embedded runtime and a language
+- The MQTT bridge, the ROS bridge and the bridge runner are stubs, and nothing starts the HTTP bridge yet. An embedded
+  runtime and a language
   server do not exist yet. Their paths `runtime/runtime-embedded` and `tools/lsp-server` are planned but not in the
   settings, and `lsp4j` in the version catalog is unused so far. The language server is meant to put core-lang behind
   the Language Server Protocol for other editors.

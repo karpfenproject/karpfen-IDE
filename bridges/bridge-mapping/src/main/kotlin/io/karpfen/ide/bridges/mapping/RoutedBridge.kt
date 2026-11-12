@@ -57,6 +57,9 @@ import kotlinx.coroutines.sync.withLock
  * [Mappings.toMessage] from what the model reports. A property route and a state route send a value only when it
  * differs from the one they sent last, because the model reports an object whenever any of its properties changes.
  *
+ * The bridge starts to read both sides before it opens the endpoint, so a message that arrives the moment the
+ * endpoint is open is not lost.
+ *
  * The bridge works in a child scope of [scope]. [stop] ends that work, and so does cancelling [scope].
  */
 public class RoutedBridge(
@@ -80,10 +83,14 @@ public class RoutedBridge(
     override suspend fun start(): Unit = lifecycle.withLock {
         if (work != null) return
         current.update { it.copy(state = BridgeState.STARTING, problem = null) }
+        val running = run()
         when (val opened = endpoint.open(config.inbound.map { it.from }.toSet())) {
-            is Delivery.Failed -> current.update { it.copy(state = BridgeState.FAILED, problem = opened.reason) }
+            is Delivery.Failed -> {
+                running.cancelAndJoin()
+                current.update { it.copy(state = BridgeState.FAILED, problem = opened.reason) }
+            }
             Delivery.Delivered -> {
-                work = run()
+                work = running
                 current.update { it.copy(state = BridgeState.RUNNING) }
             }
         }
