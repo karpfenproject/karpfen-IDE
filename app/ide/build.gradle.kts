@@ -45,7 +45,7 @@ dependencies {
  * (`karpfen.kotlin-jvm`), so `javaHome` is pinned to that toolchain.
  *
  * The extra JDK modules of the jlinked runtime are the ones `./gradlew :app:ide:suggestRuntimeModules` reports beyond
- * the default set. Run that task again when you add libraries.
+ * the default set. A new library may need more of them.
  *
  * jpackage on macOS turns the version into `CFBundleVersion` and rejects a major version of 0 with "the first number
  * in app-version cannot be zero or negative". The Compose plugin does not check this. So 0.1.0 stays the version for

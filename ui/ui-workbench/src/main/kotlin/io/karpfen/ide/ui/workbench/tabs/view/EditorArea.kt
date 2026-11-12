@@ -68,11 +68,11 @@ import java.nio.file.Path
  * [activeEditor] with the editor popups fills the rest. Below an editor a bar holds the zoom controls for the font
  * size [editorFontSize] of the editors, and their clicks go to [onZoomEditor].
  *
- * A file with a diagram, so far a state machine, can be shown in three ways, as [viewMode] says: its text alone, its
- * text and its statechart next to each other, or the statechart alone. The buttons for that sit at the left of the
- * bar below the editor and report to [onViewMode]. A click on a state of the statechart calls [onSelectInText] with
- * the place of the state's name in the text. The statechart can be arranged by hand, which is stored in a companion
- * file next to the state machine file. The statechart reads that file again whenever [diskRevision] changes, and
+ * A file with a diagram, which is a state machine, a metamodel or a model, can be shown in three ways, as [viewMode]
+ * says: its text alone, its text and its diagram next to each other, or the diagram alone. The buttons for that sit at
+ * the left of the bar below the editor and report to [onViewMode]. A click on a box of the diagram calls
+ * [onSelectInText] with the place of its name in the text. The diagram can be arranged by hand, which is stored in a
+ * companion file next to the file. The diagram reads that file again whenever [diskRevision] changes, and
  * [onDiagramSaved] is called after it wrote the file.
  *
  * The editor and its popups are drawn at the density of the window, not at the zoomed density of the workbench around

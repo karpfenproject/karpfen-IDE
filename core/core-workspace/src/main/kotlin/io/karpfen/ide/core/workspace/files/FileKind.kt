@@ -64,8 +64,8 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
 
     /**
      * True for a file that is opened for reading only. The IDE keeps such a file up to date itself, and its open
-     * document follows the file on disk but refuses every change a user could make. So far these are the companion
-     * files of diagrams.
+     * document follows the file on disk but refuses every change a user could make. These are the companion files of
+     * diagrams.
      */
     public val isReadOnly: Boolean get() = this == LAYOUT
 

@@ -61,8 +61,8 @@ public data class VisLayout(
  * ```
  *
  * Reading is tolerant. An entry that is not a point is left out, and unknown keys are ignored. A text that is no JSON
- * object at all gives null, and the caller falls back to the automatic layout. The first version of the format named
- * the boxes `states` and the lines `transitions`. Such a file is still read.
+ * object at all gives null, and the caller falls back to the automatic layout. A file that names the boxes `states`
+ * and the lines `transitions` is read as well.
  */
 public object VisLayoutJson {
 

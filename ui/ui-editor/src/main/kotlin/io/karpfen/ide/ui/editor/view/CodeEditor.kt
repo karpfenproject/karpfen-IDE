@@ -67,7 +67,7 @@ import io.karpfen.ide.ui.editor.view.scroll.ViewportScrollbarAdapter
  * Key events become `KeyStroke`s for `state.handleKey`. The event is consumed exactly when that call returns true, so
  * unhandled strokes reach the menu accelerators of the window. Typed text goes to `state.type` through a hidden proxy
  * text field at the caret. This works for every keyboard layout, the Option combinations of macOS, dead keys and input
- * methods. The internal `ProxyTextInput` documents this approach and why it was chosen. Focus changes of the text area
+ * methods, as `ProxyTextInput` describes. Focus changes of the text area
  * go to `state.onFocusChanged`.
  *
  * The node of this composable exposes `SemanticsActions.InsertTextAtCursor` and `RequestFocus`, so `performTextInput`

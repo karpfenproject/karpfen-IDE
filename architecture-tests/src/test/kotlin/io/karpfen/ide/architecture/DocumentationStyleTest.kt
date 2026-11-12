@@ -33,7 +33,7 @@ import kotlin.test.assertTrue
  * Every one of these files starts with the Apache 2.0 license header ([LicenseHeader]), exactly once and before
  * anything else. The header is KDoc in form, and it is the one KDoc that documents no declaration.
  *
- * Markdown is kept minimal. The only markdown files are the README, the three guides in `docs` and the license notice
+ * Markdown is kept minimal. The only markdown files are the README, the documents in `docs` and the license notice
  * of the example files that the test fixtures copy from other repositories ([ALLOWED_MARKDOWN]). Everything else a
  * reader of the code needs is in KDoc.
  *

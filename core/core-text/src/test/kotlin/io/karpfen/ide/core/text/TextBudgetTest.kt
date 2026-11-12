@@ -33,7 +33,7 @@ import kotlin.time.TimeSource
  *
  * The class is tagged `budget`, which the build excludes from every test run. Wall-clock time depends on machine load,
  * garbage collection and sleep cycles, so such assertions fail without a code change. The tests stay as executable
- * documentation for later performance work.
+ * documentation of the performance targets.
  */
 @Tag("budget")
 class TextBudgetTest {

@@ -34,7 +34,7 @@ import kotlin.test.assertTrue
  * frame time is reported through JUnit's [TestReporter] and asserted against the budget of 50 ms with 5x slack.
  *
  * The class is tagged `budget` and is excluded from every test run, because machine load and sleep cycles make
- * wall-clock limits unreliable. It is kept for later performance work.
+ * wall-clock limits unreliable. It documents the performance targets.
  */
 @OptIn(ExperimentalTestApi::class)
 @Tag("budget")

@@ -35,7 +35,7 @@ import kotlin.time.TimeSource
  * which is 30 ms, with a slack of five times. So an accidental quadratic algorithm would show.
  *
  * The test carries the tag `budget`, which excludes it from every test run, because load and sleep and wake cycles make
- * the wall clock unreliable. It is kept for later performance work.
+ * the wall clock unreliable. It documents the performance targets.
  */
 @Tag("budget")
 class LanguageServicesBudgetTest {

@@ -80,7 +80,7 @@ import kotlin.time.Duration.Companion.seconds
  * the project tree, Ctrl+M reaches that menu item, which is disabled while the editor is unfocused. Ctrl+Space opens
  * completion only on Windows. On macOS and Linux it goes on unconsumed and runs no command.
  *
- * These tests do not reach the native macOS menu bar itself. It has to be checked by hand.
+ * These tests do not reach the native macOS menu bar itself.
  */
 @OptIn(ExperimentalTestApi::class)
 class KeyRoutingEndToEndTest {

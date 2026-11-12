@@ -48,8 +48,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * [backgroundDispatcher], and the `CompletionSessionModel`. The find and completion models use [ActionRunner] as their
  * executor. These models are created here and not injected. They are bound to this editor's text, caret and executor.
  * They do not need Compose and are deterministic, because time and threads come from the injected scope and background
- * dispatcher. So the editor's tests use the real models, and a factory for them would only add a parameter nobody
- * fakes.
+ * dispatcher. So the editor's tests use the real models.
  *
  * [EditorActionContextAdapter] is the `EditorActionContext` of the actions and reads tokens lazily through
  * `session.tokensFor`. Its `EditorUiPort` is [EditorUiRequests], which handles find bar seeding, find next and find

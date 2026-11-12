@@ -41,12 +41,11 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
  * that character is one of the punctuation characters of `KeyCode`, the stroke's key is its punctuation code. SHIFT is
  * then dropped when the layout needed it for the character, so German Cmd+Shift+7 becomes `SLASH` with META.
  * Otherwise the physical key and the modifiers are reported unchanged, so US Shift+/ produces `?` and stays `SLASH`
- * with SHIFT. Headless tests cover both layouts with synthesized events. Cmd+/ on a real German layout can only be
- * checked by hand.
+ * with SHIFT.
  *
  * A native event can carry no character at all. Ctrl+Shift+7 on a German Windows layout is such a case, and its key's
  * own character is `7`. The adapter then reports the physical key, so Toggle Comment cannot be reached with that stroke
- * on that layout. This is a known limitation.
+ * on that layout.
  */
 public fun KeyEvent.toKeyStroke(): KeyStroke? {
     if (type != KeyEventType.KeyDown) return null

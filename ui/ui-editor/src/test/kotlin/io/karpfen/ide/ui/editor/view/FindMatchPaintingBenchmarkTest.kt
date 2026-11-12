@@ -32,12 +32,12 @@ import kotlin.test.assertTrue
 
 /**
  * Painting find matches costs only what the visible matches cost. With the find bar open over a long line full of
- * matches, a frame takes about as long as with the bar closed. Painting used to compute the x of every match from the
- * start of its line. That cost grew with the number of matches times the line length on every frame, and a line of
- * 40,000 characters with 8,000 matches cost many times a frame without find.
+ * matches, a frame takes about as long as with the bar closed. Computing the x of every match from the start of its
+ * line would cost the number of matches times the line length on every frame, which on a line of 40,000 characters
+ * with 8,000 matches is many times a frame without find.
  *
  * The class is tagged `budget` and is excluded from every test run, because machine load and sleep cycles make
- * wall-clock limits unreliable. It is kept for later performance work.
+ * wall-clock limits unreliable. It documents the performance targets.
  */
 @OptIn(ExperimentalTestApi::class)
 @Tag("budget")

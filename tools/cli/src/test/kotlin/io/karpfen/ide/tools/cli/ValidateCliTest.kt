@@ -145,9 +145,8 @@ class ValidateCliTest {
 
     /**
      * How deep the parsers and the readers of dsl-tools follow a text on the stack of a thread changes with the state
-     * of the JIT compiler, so near that depth a folder used to validate differently from run to run. A folder within the
-     * nesting limit validates clean and one beyond it with the same error, on every run, on the stack most JVMs give a
-     * thread.
+     * of the JIT compiler. The nesting limit lies well below that depth. So a folder within the limit validates clean
+     * and one beyond it with the same error, on every run, on the stack most JVMs give a thread.
      */
     @Test
     fun `the same deeply nested folders validate the same way on every run`() = DeepNesting.onStack(DEFAULT_STACK) {

@@ -41,8 +41,7 @@ import java.awt.event.KeyEvent as AwtKeyEvent
  * gives `{` and Option+L gives `@`. A stroke the editor handled does not also type its character, and punctuation
  * shortcuts follow the layout.
  *
- * Dead keys and input methods use the composition support of the same field. No automated test covers them, so they
- * are checked by hand.
+ * Dead keys and input methods use the composition support of the same field. No automated test covers them.
  */
 @OptIn(ExperimentalTestApi::class, InternalComposeUiApi::class)
 class CodeEditorTextInputTest {

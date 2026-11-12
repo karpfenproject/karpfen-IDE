@@ -25,10 +25,8 @@ object TestTags {
      * and there is no opt-in switch.
      *
      * Wall-clock time depends on machine load, garbage collection, CPU throttling and sleep and wake cycles. The build
-     * also runs many test tasks in parallel. Such tests therefore failed although the code had not changed. They stay in
-     * the code as executable documentation of the performance targets. Re-enabling or replacing them is left to later
-     * performance work, for example with a dedicated serial benchmark task or with deterministic operation counts. Until
-     * then performance regressions are not detected automatically.
+     * also runs many test tasks in parallel. Such tests therefore fail although the code has not changed. They stay in
+     * the code as executable documentation of the performance targets. No build detects a performance regression.
      *
      * The architecture test `BudgetTestTaggingTest` is a tripwire for missing tags, in the tests of the modules and of
      * build-logic, and checks that every test task excludes the tag. Functional tests that merely wait for asynchronous

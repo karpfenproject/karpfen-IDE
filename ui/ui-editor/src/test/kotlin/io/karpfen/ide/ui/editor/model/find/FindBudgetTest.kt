@@ -30,7 +30,7 @@ import kotlin.time.measureTime
  * in the find field. They are asserted with 5x slack and reported through [TestReporter].
  *
  * The class is tagged `budget` and is excluded from every test run, because machine load and sleep cycles make
- * wall-clock limits unreliable. It is kept for later performance work.
+ * wall-clock limits unreliable. It documents the performance targets.
  */
 @Tag("budget")
 class FindBudgetTest {

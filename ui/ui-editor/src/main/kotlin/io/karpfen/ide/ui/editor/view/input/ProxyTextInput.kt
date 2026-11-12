@@ -44,18 +44,14 @@ import io.karpfen.ide.ui.foundation.keys.compose.toKeyStroke
 /**
  * The keyboard input of the editor. It is a focused proxy `BasicTextField` that is placed at the caret and not visible.
  *
- * This approach was chosen over the platform text input API of Compose on desktop, which is
- * `PlatformTextInputModifierNode` with `establishTextInputSession`. That API requires an implementation of the desktop
- * `PlatformTextInputMethodRequest`. All its members are `@ExperimentalComposeUiApi` in this Compose version, and it
- * carries two parallel editing models, `EditCommand`s and `TextEditingScope`. Typed characters would still arrive as AWT
- * key-typed events that the component must handle itself. The proxy field instead uses the maintained text input of
- * Compose, exactly like every other text field of the IDE. That covers key-typed characters, the Option combinations of
- * macOS, dead keys, and input methods with their pre-edit text. On a German layout, for example, Option+8 types `{` and
- * Option+L types `@`. The editor only receives the committed text.
+ * The proxy field uses the maintained text input of Compose, exactly like every other text field of the IDE. That
+ * covers key-typed characters, the Option combinations of macOS, dead keys, and input methods with their pre-edit
+ * text. On a German layout, for example, Option+8 types `{` and Option+L types `@`. The editor only receives the
+ * committed text.
  *
  * Key-downs go to [onKeyStroke] first, which is `CodeEditorState.handleKey`. There completion gets the key first, then
  * the keymap. The editor consumes exactly the strokes for which it returns true. Unhandled strokes continue to the field
- * and to the window, where the menu accelerators live. One limitation remains. The field still consumes the few text
+ * and to the window, where the menu accelerators live. The field consumes the few text
  * editing strokes it knows, such as undo, clipboard and caret keys, when the editor's action for them did nothing. This
  * has no effect, because the text of the field is always empty and its undo history is cleared. The matching menu
  * commands are disabled in that state anyway. Shortcuts the field does not know, such as Save and Close, reach the

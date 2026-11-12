@@ -25,8 +25,8 @@ plugins {
  * exposes `Workspace`, `LanguageServices`, `CodeEditorState` and `CommandRegistry`. The runtime session and the runtime
  * host are `api` too, because the public `RuntimeState` and `WorkbenchServices` expose sessions, host statuses and the
  * host factory. The bridge API is `api` because the public `RunBridges` exposes the status of a bridge, while the
- * HTTP, MQTT and ROS bridges are only built inside. The diagram module is still an empty placeholder. The diagram view it is
- * meant to hold is not built yet. The tests run sessions against the fake runtime of the runtime fixtures and show
+ * HTTP, MQTT and ROS bridges are only built inside. The diagram module draws the diagram of a file next to its
+ * editor. The tests run sessions against the fake runtime of the runtime fixtures and show
  * views over the scriptable session. One test runs the bridges of a run against a real runtime and an MQTT broker
  * inside the test, which is Moquette. It runs only in the opt-in task of `karpfen.live-runtime-test`.
  */

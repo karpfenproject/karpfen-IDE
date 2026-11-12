@@ -27,9 +27,9 @@ pluginManagement {
 }
 
 /**
- * The foojay toolchain resolver, which lets Gradle download a missing JDK 21 for the toolchain. Its version must be kept
- * in sync by hand with `foojay-resolver` in the `[versions]` table of `gradle/libs.versions.toml`, because the version
- * catalog is not available in the `plugins` block of the settings.
+ * The foojay toolchain resolver, which lets Gradle download a missing JDK 21 for the toolchain. The version catalog
+ * is not available in the `plugins` block of the settings, so the version is written here and again as
+ * `foojay-resolver` in the `[versions]` table of `gradle/libs.versions.toml`.
  */
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
@@ -178,9 +178,8 @@ run {
 
 /**
  * The modules of the build. A module's project path mirrors its directory: `core/core-text` becomes `:core:core-text`.
- * Planned modules that do not exist yet, the embedded runtime `runtime/runtime-embedded` and the language server
- * `tools/lsp-server`, are added here when they are created, together with a rule in the module dependency matrix and
- * an entry in the module table of the architecture tests.
+ * Every module listed here also has a rule in the module dependency matrix and an entry in the module table of the
+ * architecture tests.
  */
 val modulePaths: List<String> = listOf(
     "core/core-text",
