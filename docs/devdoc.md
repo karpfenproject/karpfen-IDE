@@ -539,8 +539,9 @@ UTF-8 text. Subscriptions and published messages use the `qos` of the settings, 
 broker keep the last published value of a topic. If the connection breaks, the client connects and subscribes again on
 its own, and outbound messages fail in the meantime.
 
-The ROS bridge talks to a rosbridge server, which is part of ROS and offers the topics of a ROS system as JSON over a
-WebSocket. So the bridge needs no native ROS library and runs wherever the IDE runs. It connects to
+The ROS bridge talks to a rosbridge server. That is the open source package `rosbridge_suite`, which comes with the
+ROS distributions but has to be installed and started on the ROS side. It offers the topics of a ROS system as JSON
+over a WebSocket. So the bridge needs no native ROS library and runs wherever the IDE runs. It connects to
 `ws://localhost:9090` unless its settings name another `url`. The address of a route is a topic. Opening the bridge
 subscribes to the topic of every inbound route and advertises the topic of every outbound route. A route may name the
 type of its messages in `type`. An inbound route without a type lets ROS find it, which works only for a topic that

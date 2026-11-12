@@ -134,9 +134,10 @@ curl -X POST http://127.0.0.1:8090/dim -d '{"bright": true}'
 `home/lamp/state`. Outbound routes that follow a property or a state machine need observation switched on. Without a
 broker that bridge shows as failed, and the run goes on without it.
 
-`ros.kbridge.json` needs a rosbridge server on `localhost:9090`, which is part of ROS. It presses the switch for every
-message on the topic `/lamp/press` and publishes the power of the bulb on `/lamp/watts` and the active states of the
-lamp on `/lamp/state`. It talks to ROS 2. For a ROS 1 system, tick Legacy ROS 1 system in its form.
+`ros.kbridge.json` needs a rosbridge server on `localhost:9090`. That is the package `rosbridge_suite` of ROS, which
+has to be installed and started on the ROS side. The bridge presses the switch for every message on the topic
+`/lamp/press` and publishes the power of the bulb on `/lamp/watts` and the active states of the lamp on `/lamp/state`.
+It talks to ROS 2. For a ROS 1 system, tick Legacy ROS 1 system in its form.
 
 
 ## Walkthrough: the lamp

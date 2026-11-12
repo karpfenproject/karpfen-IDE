@@ -16,9 +16,9 @@
 package io.karpfen.ide.bridges.ros
 
 /**
- * How the ROS bridge reaches ROS. It talks to a rosbridge server, which is part of ROS and offers the topics of a ROS
- * system as JSON over a WebSocket. The settings come from the `settings` of a bridge file, whose keys are [URL],
- * [ROS1] and [TIMEOUT_MS].
+ * How the ROS bridge reaches ROS. It talks to a rosbridge server, the package `rosbridge_suite` that is installed and
+ * started on the ROS side. That server offers the topics of a ROS system as JSON over a WebSocket. The settings come
+ * from the `settings` of a bridge file, whose keys are [URL], [ROS1] and [TIMEOUT_MS].
  *
  * @property url the WebSocket address of the rosbridge server.
  * @property ros1 true if the server belongs to a ROS 1 system. ROS 2 is the default. The two differ in how they write
