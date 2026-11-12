@@ -35,4 +35,7 @@ public object RuntimeCommandIds {
 
     /** Stop runtime in the Run menu. It stops every live run and then the runtime. */
     public const val STOP_RUNTIME: String = "runtime.stopRuntime"
+
+    /** Configure Bridge in the Run menu. It opens the form of a bridge file of the workspace, or of a new one. */
+    public const val CONFIGURE_BRIDGE: String = "runtime.configureBridge"
 }

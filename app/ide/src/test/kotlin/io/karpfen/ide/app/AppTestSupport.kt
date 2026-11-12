@@ -24,6 +24,7 @@ import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.foundation.command.Command
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.files.DeleteOutcome
@@ -103,6 +104,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override val settings: StateFlow<IdeSettings> = MutableStateFlow(IdeSettings())
     override val windowTitle: StateFlow<String> = MutableStateFlow("karpfen IDE")
     override val runtime: StateFlow<RuntimeState?> = MutableStateFlow(null)
+    override val bridgeForm: StateFlow<BridgeFormState?> = MutableStateFlow(null)
 
     override suspend fun start() {
         calls += "start"
@@ -144,6 +146,9 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun openNode(path: Path): Job = unexpected("openNode")
     override fun runTreeCommand(command: ProjectTreeCommand): Job = unexpected("runTreeCommand")
     override fun createFile(directory: Path, kind: FileTemplateKind): Job = unexpected("createFile")
+    override fun configureBridge(): Job = unexpected("configureBridge")
+    override fun saveBridgeForm(): Job = unexpected("saveBridgeForm")
+    override fun closeBridgeForm(): Unit = unexpected("closeBridgeForm")
     override fun rename(path: Path): Job = unexpected("rename")
     override fun delete(path: Path): Job = unexpected("delete")
     override fun revealInFileManager(path: Path): Job = unexpected("revealInFileManager")

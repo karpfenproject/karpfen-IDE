@@ -21,6 +21,7 @@ import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
+import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.outline.OutlineState
@@ -43,6 +44,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -106,6 +108,7 @@ internal class DefaultWorkbenchState(
     override val settings: StateFlow<IdeSettings> get() = services.settings.settings
     override val windowTitle: StateFlow<String> get() = holder.windowTitle
     override val runtime: StateFlow<RuntimeState?> get() = runtimes.state
+    override val bridgeForm: StateFlow<BridgeFormState?> get() = bridgeForms.form
 
     private val runner = IntentRunner(ownScope) { intent, error ->
         dialogs.showError("Unexpected error", "'$intent' failed: ${error.message ?: error}")
@@ -120,7 +123,8 @@ internal class DefaultWorkbenchState(
     )
     private val saving = SaveFlow(holder, tabs, dialogs)
     private val unsaved = UnsavedChangesFlow(saving, dialogs)
-    private val fileOpen = FileOpenFlow(lifecycle, dialogs, services.fileOperations, services.ioDispatcher)
+    private val bridgeForms = BridgeFormFlow(holder, projectTree, dialogs, services.ioDispatcher)
+    private val fileOpen = FileOpenFlow(lifecycle, bridgeForms, dialogs, services.fileOperations, services.ioDispatcher)
     private val navigationFlow = NavigationFlow(fileOpen, tabs)
     private val tabFlows = TabFlows(tabs, lifecycle, unsaved, saving, dialogs)
     private val runtimes = RuntimeHolder(ownScope, services, WorkbenchRunSupport(runner, tabs, saving, dialogs, layout), bindings)
@@ -166,6 +170,14 @@ internal class DefaultWorkbenchState(
         is ProjectTreeCommand.Rename -> rename(command.path)
         is ProjectTreeCommand.Delete -> delete(command.path)
         is ProjectTreeCommand.RevealInFileManager -> revealInFileManager(command.path)
+    }
+
+    override fun configureBridge(): Job = runner.launch("configure bridge") { bridgeForms.configure() }
+
+    override fun saveBridgeForm(): Job = runner.launch("save bridge") { bridgeForms.save() }
+
+    override fun closeBridgeForm() {
+        bridgeForms.close()
     }
 
     override fun createFile(directory: Path, kind: FileTemplateKind): Job =
@@ -215,9 +227,11 @@ internal class DefaultWorkbenchState(
     }
 
     override fun registerCommands(registry: CommandRegistry) {
-        val modal = ModalCommandRegistry(ownScope, registry, dialogs.current)
+        val covered = combine(dialogs.current, bridgeForms.form) { dialog, form -> dialog ?: form }
+            .stateIn(ownScope, SharingStarted.Eagerly, dialogs.current.value ?: bridgeForms.form.value)
+        val modal = ModalCommandRegistry(ownScope, registry, covered)
         WorkbenchCommands(ownScope, this, tabs, layout, problems, services.settings).register(modal)
-        RuntimeCommands(ownScope, runtimes.state, layout).register(modal)
+        RuntimeCommands(ownScope, runtimes.state, layout) { configureBridge() }.register(modal)
         EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(modal)
     }
 

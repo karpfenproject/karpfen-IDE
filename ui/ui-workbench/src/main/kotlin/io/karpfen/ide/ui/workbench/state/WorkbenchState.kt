@@ -20,6 +20,7 @@ import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
+import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.layout.LayoutState
@@ -147,15 +148,36 @@ public interface WorkbenchState : AutoCloseable {
      */
     public fun openFolder(path: Path): Job
 
+    /**
+     * The form that configures a bridge file, or null while none is open. The workbench shows it over everything else,
+     * and while it is open the commands are disabled as they are behind a dialog.
+     */
+    public val bridgeForm: StateFlow<BridgeFormState?>
+
+    /**
+     * Configure Bridge in the Run menu. It asks which bridge file of the workspace to configure, or whether to make a
+     * new one, and opens its form. A workspace without bridge files goes straight to a new one.
+     */
+    public fun configureBridge(): Job
+
+    /**
+     * Writes the open bridge form to its file and closes it. Does nothing while the form has problems. If another tool
+     * changed the file meanwhile, it asks before it writes over that change.
+     */
+    public fun saveBridgeForm(): Job
+
+    /** Closes the open bridge form without saving. */
+    public fun closeBridgeForm()
+
     /** Shows the folder chooser and opens the chosen folder. */
     public fun chooseAndOpenFolder(): Job
 
     /**
      * Opens [path] in an editor tab, or activates its tab if it is open already. This works for KMeta, KModel and
-     * KStates files and for environment descriptors. Files that the editor cannot open come back as
-     * `OpenResult.Unsupported`, such as a bridge configuration. They are opened in the system's default application
-     * through `ProjectFileOperations.openExternally`. That also happens when the Problems view navigates to them.
-     * Failures become an error dialog.
+     * KStates files and for environment descriptors. A bridge file opens in the [bridgeForm] and never as text. Files
+     * that the editor cannot open come back as `OpenResult.Unsupported`. They are opened in the system's default
+     * application through `ProjectFileOperations.openExternally`. That also happens when the Problems view navigates
+     * to them. Failures become an error dialog.
      */
     public fun openFile(path: Path): Job
 

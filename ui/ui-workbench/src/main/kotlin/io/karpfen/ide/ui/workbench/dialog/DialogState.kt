@@ -82,6 +82,25 @@ public sealed interface DialogRequest<out R : DialogResponse> {
     }
 
     /**
+     * Choose which of the bridge files of the workspace at [root] to configure. The list ends with an entry for a new
+     * bridge file, which has the index [newIndex].
+     *
+     * @property bridges the bridge files, in the order they are listed.
+     */
+    public data class ChooseBridgeFile(public val root: Path, public val bridges: List<Path>) : DialogRequest<ChoiceAnswer> {
+        /** The index of the entry for a new bridge file, which follows the files. */
+        public val newIndex: Int get() = bridges.size
+
+        override fun accepts(response: DialogResponse): Boolean =
+            response == DialogResponse.Cancel || (response is DialogResponse.Chosen && response.index in 0..newIndex)
+    }
+
+    /** Ask for the name of a new bridge file in [directory]. */
+    public data class NewBridgeFile(public val directory: Path) : DialogRequest<TextAnswer> {
+        override fun accepts(response: DialogResponse): Boolean = response is TextAnswer
+    }
+
+    /**
      * Asks which of the bridge files of the workspace at [root] to start with a run. Every file has a box to tick, and
      * the boxes of [preselected] are ticked when the dialog opens. The answer may tick none.
      *
@@ -143,10 +162,13 @@ public sealed interface UnsavedChangesAnswer : DialogResponse
 /** The answers to [DialogRequest.ConfirmDelete] and [DialogRequest.ConfirmOverwrite], which are Confirm and Cancel. */
 public sealed interface ConfirmAnswer : DialogResponse
 
-/** The answers to [DialogRequest.Rename] and [DialogRequest.NewFile], which are Text and Cancel. */
+/**
+ * The answers to [DialogRequest.Rename], [DialogRequest.NewFile] and [DialogRequest.NewBridgeFile], which are Text and
+ * Cancel.
+ */
 public sealed interface TextAnswer : DialogResponse
 
-/** The answers to [DialogRequest.ChooseDescriptor], which are Chosen and Cancel. */
+/** The answers to [DialogRequest.ChooseDescriptor] and [DialogRequest.ChooseBridgeFile], which are Chosen and Cancel. */
 public sealed interface ChoiceAnswer : DialogResponse
 
 /** The answers to [DialogRequest.ChooseBridges], which are Ticked and Cancel. */

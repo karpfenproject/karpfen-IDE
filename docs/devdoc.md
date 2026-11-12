@@ -560,9 +560,18 @@ the session observes. Changes of objects and of active states are read from the 
 follows a property or a state machine says the current value once at the start and then every change, but only while
 the run observes the model. With observation off those routes stay silent, and event routes keep working.
 
-In the IDE a bridge file is never edited as text. A form reached from the Run menu writes it, and other tools may change
-it, so reading is tolerant and names what is wrong in words. The form does not exist yet, and until then a bridge file
-opens as text like any other file. ROS will use the rosbridge protocol, which is JSON over WebSocket, through the Ktor client, so no
+In the IDE a bridge file is never edited as text. It opens in a form, from the project tree or through Configure Bridge
+in the Run menu, which lists the bridge files of the project and an entry for a new one. The form lies over the
+workbench like a dialog, and the commands are disabled behind it. It shows the kind, the settings of that kind, and
+the inbound and outbound routes with their flow policies. `BridgeDraft` holds the texts of the fields, so a route may
+be half filled in while the user types, and `BridgeDrafts` says in the words of the form what keeps the draft from
+being saved. Save is enabled once nothing is wrong, and it writes the file through `BridgeConfigFile`. A new bridge
+has no file until it is saved.
+
+Other tools may change a bridge file, so reading is tolerant. The form reads the file whenever it opens, leaves out
+what it cannot read and says so above the fields. If the file changed on disk while the form was open, Save asks
+before it writes over that change. The form does not follow such a change while it is open. Cancel closes the form
+without asking, also when it has changes. ROS will use the rosbridge protocol, which is JSON over WebSocket, through the Ktor client, so no
 native library is needed. A native ROS transport can be added behind the same interface if latency demands it. The
 runtime freezes its domain listeners when an environment is activated, so a bridge that listens to domain events must be
 registered while the environment is deployed.
@@ -1017,8 +1026,8 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
 - On a German Windows layout, Ctrl+Shift+7 does not reach Toggle Comment.
 - The descriptor key `bridges` is ignored. A run offers every bridge file of the project, whatever the descriptor
   names.
-- The ROS bridge and the bridge runner are stubs. The form that edits a bridge file does not exist yet. A bridge in
-  the IDE hears changes of the model only while the run observes it. A password in the settings of a bridge file is
+- The ROS bridge and the bridge runner are stubs. The bridge form takes events, objects and properties as plain
+  text and offers no list of those the project has. A bridge in the IDE hears changes of the model only while the run observes it. A password in the settings of a bridge file is
   stored as plain text in the project. An embedded runtime and a language
   server do not exist yet. Their paths `runtime/runtime-embedded` and `tools/lsp-server` are planned but not in the
   settings, and `lsp4j` in the version catalog is unused so far. The language server is meant to put core-lang behind

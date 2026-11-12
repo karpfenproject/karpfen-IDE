@@ -40,8 +40,8 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
  * Copy, Paste, Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line and Complete Code.
  * View holds one toggle per entry of `ToolWindowId.entries`, the Runtime tool window among them, with the entry's
  * `title` and the command `WorkbenchCommandIds.toggleToolWindow(id)`, followed by the light and the dark theme.
- * Navigate holds Go to Line and Go to Definition. Run holds Run, Stop, Start Runtime and Stop Runtime. The items refer
- * to `WorkbenchCommandIds`, `EditorActionIds` and `RuntimeCommandIds`.
+ * Navigate holds Go to Line and Go to Definition. Run holds Run, Stop, Start Runtime, Stop Runtime and Configure
+ * Bridge. The items refer to `WorkbenchCommandIds`, `EditorActionIds` and `RuntimeCommandIds`.
  *
  * Menus hold command ids only. Titles, shortcuts and enablement come from the registered commands. The workbench
  * registers the tool-window toggles with `ToolWindowId.title` and the editor commands with `EditorActionTitles`. Edit
@@ -137,6 +137,8 @@ public object IdeMenus {
             MenuEntry.Separator,
             item(RuntimeCommandIds.START_RUNTIME),
             item(RuntimeCommandIds.STOP_RUNTIME),
+            MenuEntry.Separator,
+            item(RuntimeCommandIds.CONFIGURE_BRIDGE),
         ),
     )
 

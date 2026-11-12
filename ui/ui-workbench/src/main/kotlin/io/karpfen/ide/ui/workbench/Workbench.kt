@@ -34,6 +34,7 @@ import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
 import io.karpfen.ide.ui.editor.theme.lightEditorTheme
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
+import io.karpfen.ide.ui.workbench.bridges.view.BridgeFormLayer
 import io.karpfen.ide.ui.workbench.dialog.view.ModalDialogLayer
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.layout.isDark
@@ -79,7 +80,8 @@ import java.nio.file.Path
  * It renders the sub-states of [state], each through the view in that feature's `view` package. It only calls the
  * non-suspending intents of [state] and the public UI intents of the sub-states. It contains no business logic and
  * launches no coroutines for intents. The pending dialog is modal for both the pointer and the keyboard, which
- * [ModalDialogLayer] enforces.
+ * [ModalDialogLayer] enforces. The form of a bridge file, [BridgeFormLayer], lies over the workbench and under the
+ * dialogs, so a question about the form shows on top of it.
  */
 @Composable
 public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
@@ -97,6 +99,7 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
             val workspace by state.workspace.collectAsState()
             val dialog by state.dialogs.current.collectAsState()
             ModalDialogLayer(dialog, state.dialogs::respond, modifier.fillMaxSize().background(KarpfenTheme.colors.window)) {
+                val bridgeForm by state.bridgeForm.collectAsState()
                 Column(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         if (workspace == null) {
@@ -134,6 +137,7 @@ public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
                         },
                     )
                 }
+                BridgeFormLayer(bridgeForm, onSave = { state.saveBridgeForm() }, onClose = state::closeBridgeForm)
             }
         }
     }

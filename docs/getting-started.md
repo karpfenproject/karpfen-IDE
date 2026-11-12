@@ -112,6 +112,10 @@ one bridge: its kind, which is `http` or `mqtt`, its settings, and its routes. A
 outside into an event. An outbound route sends a message whenever a property, the active states of a state machine or
 an event has something new.
 
+You do not write a bridge file by hand. Configure Bridge in the Run menu opens a form for a bridge of the project or
+for a new one, and a click on a bridge file in the Project tool window opens the same form. The form asks for the kind
+and its settings, and lets you add and remove routes. Save is enabled once every route is complete.
+
 When the project has bridge files, Run asks which of them to start, with one box per file. The boxes you ticked last
 time are ticked again. The bridges start once the environment runs and stop with it. The Log pane lists them below the
 line about the deployment, each with its state and the number of messages it handed on.

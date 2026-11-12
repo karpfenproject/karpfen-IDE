@@ -17,7 +17,6 @@ package io.karpfen.ide.ui.workbench.state
 
 import io.karpfen.ide.ui.foundation.command.Command
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
-import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -29,7 +28,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Makes the workbench dialogs modal for commands. It decorates [delegate], following the Decorator pattern. Every
- * command registered through it is disabled while a dialog is shown, which is while [dialog] is not null. If such a
+ * command registered through it is disabled while a dialog is shown, which is while [dialog] is not null. The bridge
+ * form counts as a dialog here, so [dialog] holds the pending dialog request or the open form. If such a
  * command runs anyway, it does nothing.
  *
  * The dialogs are overlays inside the window, so the menu bar and its accelerators stay live. Without this class, a
@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 internal class ModalCommandRegistry(
     private val scope: CoroutineScope,
     private val delegate: CommandRegistry,
-    private val dialog: StateFlow<DialogRequest<*>?>,
+    private val dialog: StateFlow<Any?>,
 ) : CommandRegistry by delegate {
 
     private val following = HashMap<String, Job>()

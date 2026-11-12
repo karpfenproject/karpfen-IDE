@@ -114,9 +114,15 @@ class IdeMenusTest {
     }
 
     @Test
-    fun `Run runs and stops, and starts and stops the runtime`() {
+    fun `Run runs and stops, starts and stops the runtime, and configures a bridge`() {
         assertEquals(
-            listOf(RuntimeCommandIds.RUN, RuntimeCommandIds.STOP, RuntimeCommandIds.START_RUNTIME, RuntimeCommandIds.STOP_RUNTIME),
+            listOf(
+                RuntimeCommandIds.RUN,
+                RuntimeCommandIds.STOP,
+                RuntimeCommandIds.START_RUNTIME,
+                RuntimeCommandIds.STOP_RUNTIME,
+                RuntimeCommandIds.CONFIGURE_BRIDGE,
+            ),
             menu(IdeMenus.RUN).itemIds(),
         )
         val view = menu(IdeMenus.VIEW).itemIds()

@@ -40,8 +40,8 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
     ENV_DESCRIPTOR(KarpfenLanguage.ENVIRONMENT),
 
     /**
-     * A bridge configuration, `*.kbridge.json`. Environment descriptors name such files, but the IDE does not interpret
-     * them yet.
+     * A bridge configuration, `*.kbridge.json`. The workbench edits such a file in a form and starts its bridge with a
+     * run. Environment descriptors may name such files, which the IDE ignores.
      */
     BRIDGE(null),
 

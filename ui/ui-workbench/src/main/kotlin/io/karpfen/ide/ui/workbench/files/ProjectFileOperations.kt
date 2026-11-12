@@ -68,7 +68,7 @@ public interface ProjectFileOperations {
 
     /**
      * Opens [path] in the system's default application. The workbench uses this for files the editor cannot open, such
-     * as bridge configurations. Does nothing if the platform does not support it.
+     * as a README. Does nothing if the platform does not support it.
      *
      * @throws java.io.IOException if the platform fails to open the file. A file that does not exist leads to a
      *   `java.nio.file.NoSuchFileException`. Unchecked exceptions of the platform never escape.

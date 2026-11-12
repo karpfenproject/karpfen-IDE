@@ -213,7 +213,9 @@ and its language services and coordinates the feature states. Each feature packa
 `outline`, `problems`, `statusbar`, `output` or `runtime`, holds a Compose-free state class and a `view` sub-package
 with its composables. `RuntimeState` in the package `runtime` is the state of the Runtime tool window. The package `bridges` hosts the
 bridges of a run: `RunBridges` starts and stops them with the environment, `BridgeLoader` reads their files, and
-`SessionModelLink` puts them on the session of the run. `WorkbenchServices` holds the collaborators,
+`SessionModelLink` puts them on the session of the run. The same package holds the form of a bridge file:
+`BridgeFormState` with its `BridgeDraft`, opened and saved by `BridgeFormFlow` in the package `state` and drawn by
+`BridgeFormLayer`. `WorkbenchServices` holds the collaborators,
 `defaultWorkbenchServices` is the production wiring, and the `Workbench` composable lays out the window. It depends on
 ui-editor, ui-foundation, core-lang, runtime-session, runtime-host, ui-diagram, bridge-api, bridge-http and bridge-mqtt,
 and is used by app/ide.

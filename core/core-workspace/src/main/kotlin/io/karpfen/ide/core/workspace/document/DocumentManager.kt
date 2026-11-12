@@ -78,8 +78,8 @@ public sealed interface OpenResult {
     public data class Opened(public val document: OpenDocument) : OpenResult
 
     /**
-     * The file is in no karpfen language, such as a README or a bridge configuration. The editor cannot open it, so
-     * the workbench opens it in the system's default application.
+     * The file is in no karpfen language, such as a README or a bridge configuration. The editor cannot open it. The
+     * workbench opens a bridge configuration in its form and anything else in the system's default application.
      */
     public data class Unsupported(public val path: Path) : OpenResult
 

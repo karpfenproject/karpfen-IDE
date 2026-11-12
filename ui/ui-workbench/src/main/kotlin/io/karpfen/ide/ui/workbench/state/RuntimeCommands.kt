@@ -36,19 +36,21 @@ import kotlinx.coroutines.flow.stateIn
 
 /**
  * Registers the runtime commands of `RuntimeCommandIds` over the [runtime] of the opened workspace. They are Run with
- * Shift+F10, Stop with Ctrl+F2 or Cmd+F2 on macOS, Start runtime and Stop runtime.
+ * Shift+F10, Stop with Ctrl+F2 or Cmd+F2 on macOS, Start runtime, Stop runtime and Configure Bridge, which calls
+ * [configureBridge].
  *
  * Run also shows the Runtime tool window and gives it three quarters of the height below the menu, so the model, the
  * events and the log of the run have room. The Run again button of the tool window leaves the size alone.
  *
- * Run is enabled while a workspace is open. Stop is enabled while there is a run it can stop. Start runtime is enabled
- * while the host has no runtime, that is, while it is stopped or failed. Stop runtime is enabled while the host has a
- * runtime or prepares one.
+ * Run and Configure Bridge are enabled while a workspace is open. Stop is enabled while there is a run it can stop.
+ * Start runtime is enabled while the host has no runtime, that is, while it is stopped or failed. Stop runtime is
+ * enabled while the host has a runtime or prepares one.
  */
 internal class RuntimeCommands(
     private val scope: CoroutineScope,
     private val runtime: StateFlow<RuntimeState?>,
     private val layout: LayoutState,
+    private val configureBridge: () -> Unit,
 ) {
 
     /** Registers the commands in [registry]. */
@@ -70,6 +72,7 @@ internal class RuntimeCommands(
         registry.register(
             Command(RuntimeCommandIds.STOP_RUNTIME, "Stop Runtime", isEnabled = stoppableRuntime) { runtime.value?.stopRuntime() },
         )
+        registry.register(Command(RuntimeCommandIds.CONFIGURE_BRIDGE, "Configure Bridge", isEnabled = open) { configureBridge() })
     }
 
     /** What [select] returns for the current runtime state, or [none] while there is no runtime state. */

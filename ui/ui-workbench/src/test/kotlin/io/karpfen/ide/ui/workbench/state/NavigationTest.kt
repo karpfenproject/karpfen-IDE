@@ -161,15 +161,15 @@ class NavigationTest {
     }
 
     @Test
-    fun `a file of no karpfen language, such as a bridge configuration, opens in the default application`() = scenario(prepare = {
+    fun `a file of no karpfen language, such as a README, opens in the default application`() = scenario(prepare = {
         Examples.copyTo(root)
-        Files.writeString(root.resolve("mqtt.kbridge.json"), "{}")
+        Files.writeString(root.resolve("README.md"), "The lamp example.")
     }) {
-        val bridge = root.resolve("mqtt.kbridge.json")
+        val readme = root.resolve("README.md")
 
-        state.openFile(bridge).joinSettled()
+        state.openFile(readme).joinSettled()
 
-        assertEquals(listOf(bridge), fileOperations.openedExternally)
+        assertEquals(listOf(readme), fileOperations.openedExternally)
         assertTrue(state.tabs.tabs.value.isEmpty())
         assertNoDialog()
     }

@@ -16,30 +16,41 @@
 package io.karpfen.ide.ui.workbench.state
 
 import io.karpfen.ide.core.workspace.document.OpenResult
+import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.ui.workbench.dialog.DialogState
 import io.karpfen.ide.ui.workbench.files.ProjectFileOperations
+import java.io.IOException
+import java.nio.file.Path
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
-import java.io.IOException
-import java.nio.file.Path
 
 /**
  * Opens files. Files of a karpfen language open in an editor tab, or activate their tab if it is open already. These
- * are the files of the modeling languages and the environment descriptors. Files that the editor cannot open come back
- * as `OpenResult.Unsupported`. A bridge configuration or a README are examples. They open in the system's default
- * application through [fileOperations] on [ioDispatcher]. That also happens when the Problems view navigates to such a
- * file. Failures become an error dialog.
+ * are the files of the modeling languages and the environment descriptors. A bridge file opens in the form of
+ * [bridges] and never as text. Files that the editor cannot open come back as `OpenResult.Unsupported`. A README is an
+ * example. They open in the system's default application through [fileOperations] on [ioDispatcher]. That also
+ * happens when the Problems view navigates to such a file. Failures become an error dialog.
  */
 internal class FileOpenFlow(
     private val lifecycle: EditorLifecycle,
+    private val bridges: BridgeFormFlow,
     private val dialogs: DialogState,
     private val fileOperations: ProjectFileOperations,
     private val ioDispatcher: CoroutineDispatcher,
 ) {
 
     /** Opens [path]. Returns true if it is now the active editor tab. */
-    suspend fun openFile(path: Path): Boolean = when (val result = lifecycle.open(path)) {
+    suspend fun openFile(path: Path): Boolean {
+        if (FileKind.of(path.fileName.toString()) == FileKind.BRIDGE) {
+            bridges.open(path)
+            return false
+        }
+        return openInEditor(path)
+    }
+
+    /** Opens [path] in an editor tab, or outside the IDE if the editor cannot open it. */
+    private suspend fun openInEditor(path: Path): Boolean = when (val result = lifecycle.open(path)) {
         is OpenResult.Opened -> true
         is OpenResult.Unsupported -> {
             openExternally(path)
