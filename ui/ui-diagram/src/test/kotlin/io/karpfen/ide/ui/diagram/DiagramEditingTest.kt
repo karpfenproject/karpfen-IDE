@@ -82,12 +82,17 @@ class DiagramEditingTest {
     }
 
     @Test
-    fun `a secondary click on a transition adds a waypoint, a drag moves it, and a secondary click on it removes it`() {
+    fun `a secondary click offers to add a waypoint to a transition and to remove one, and changes nothing by itself`() {
         val id = "NORMAL:off->on#1"
         val line = automatic.routes.single { it.transitionId == id }.points
         val onLine = DiagramPoint((line[0].x + line[1].x) / 2f, (line[0].y + line[1].y) / 2f)
 
-        assertTrue(editing.secondaryClick(diagram, automatic, onLine))
+        val add = assertNotNull(editing.offerAt(diagram, automatic, onLine))
+        assertEquals(DiagramEditing.ADD_WAYPOINT, add.label)
+        assertNull(editing.vis, "the offer alone changes nothing")
+        assertEquals(emptyList(), saved)
+
+        add.take()
         val added = assertNotNull(editing.vis).waypoints.getValue(id)
         assertEquals(1, saved.size)
 
@@ -101,9 +106,12 @@ class DiagramEditingTest {
         assertEquals(2, saved.size)
 
         val count = moved.size
-        assertTrue(editing.secondaryClick(diagram, layoutOf(assertNotNull(editing.vis)), DiagramPoint(handle.x + 40f, handle.y)))
+        val remove = assertNotNull(editing.offerAt(diagram, layoutOf(assertNotNull(editing.vis)), DiagramPoint(handle.x + 40f, handle.y)))
+        assertEquals(DiagramEditing.REMOVE_WAYPOINT, remove.label)
+        assertEquals(count, assertNotNull(editing.vis).waypoints[id].orEmpty().size, "the offer alone removes nothing")
+        remove.take()
         assertEquals(count - 1, assertNotNull(editing.vis).waypoints[id].orEmpty().size)
-        assertFalse(editing.secondaryClick(diagram, automatic, DiagramPoint(-500f, -500f)), "nothing there")
+        assertNull(editing.offerAt(diagram, automatic, DiagramPoint(-500f, -500f)), "nothing there")
     }
 
     @Test

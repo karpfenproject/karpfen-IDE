@@ -156,8 +156,9 @@ move the drawing, and use the buttons in its corner to zoom. Click a state, and 
 the statechart alone, and Text goes back to the text.
 
 You can arrange the statechart by hand. Drag a state. Expected: a grid of dots appears, and the state moves from grid
-point to grid point. A state with inner states takes them along. Right-click the line of a transition to add a waypoint,
-drag the waypoint to bend the line, and right-click the waypoint to remove it. The first change by hand fixes every
+point to grid point. A state with inner states takes them along. Right-click the line of a transition and choose Add
+waypoint in the small menu, drag the waypoint to bend the line, and right-click the waypoint and choose Remove waypoint
+to take it away again. The first change by hand fixes every
 element where it is, and the IDE writes the arrangement to `lamp.kstates.vis` next to the file. From then on nothing is
 arranged automatically, except that a state you add in the text gets a place next to the others. The text always wins:
 if you delete a state in the text, its place in the `.vis` file is ignored and dropped. To go back to the automatic

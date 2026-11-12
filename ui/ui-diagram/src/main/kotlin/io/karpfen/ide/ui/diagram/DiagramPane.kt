@@ -55,7 +55,7 @@ import kotlinx.coroutines.withContext
  * text, so the caller can show it in the editor.
  *
  * The diagram can be arranged by hand. Boxes, the bars of splits and joins and the waypoints of lines are dragged on
- * a grid, and a secondary click on a line adds or removes a waypoint. The arrangement is stored in the companion file
+ * a grid, and a secondary click on a line or a waypoint opens a context menu that adds or removes a waypoint. The arrangement is stored in the companion file
  * of [modelFile], next to it with `.vis` appended. After every write [onLayoutSaved] is called, so the caller can
  * show the new file. The companion file is read when the pane appears and again whenever [reloadKey] changes, which
  * is how changes made to it by other tools come in. The text always wins: what the companion file says about elements

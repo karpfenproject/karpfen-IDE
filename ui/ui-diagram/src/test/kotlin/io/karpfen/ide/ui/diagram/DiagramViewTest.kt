@@ -16,13 +16,17 @@
 package io.karpfen.ide.ui.diagram
 
 import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.karpfen.ide.core.document.KarpfenLanguage
@@ -30,6 +34,7 @@ import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
+import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.notation.sync.DiagramState
 import io.karpfen.ide.notation.sync.DiagramTracker
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
@@ -121,6 +126,38 @@ class DiagramViewTest {
         onNodeWithTag(DiagramViewTestTags.CANVAS).assertDoesNotExist()
     }
 
+    @Test
+    fun `a right click on a line opens a menu, and only the click on its entry adds the waypoint`() = runComposeUiTest {
+        val saved = ArrayList<VisLayout>()
+        show(DiagramNotation.OBJECTS, stateOf(DiagramNotation.OBJECTS, KarpfenLanguage.KMODEL, PAIR), onSave = { saved += it })
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+
+        onNodeWithText(DiagramEditing.ADD_WAYPOINT).assertIsDisplayed()
+        assertEquals(emptyList(), saved, "the right click alone changes nothing")
+
+        onNodeWithText(DiagramEditing.ADD_WAYPOINT).performClick()
+        waitForIdle()
+
+        onNodeWithText(DiagramEditing.ADD_WAYPOINT).assertDoesNotExist()
+        assertEquals(listOf("has:a."), saved.single().waypoints.keys.toList())
+    }
+
+    @Test
+    fun `a right click on a box or on the empty canvas opens no menu`() = runComposeUiTest {
+        show(DiagramNotation.TYPES, stateOf(DiagramNotation.TYPES, KarpfenLanguage.KMETA, TYPE))
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(topLeft + Offset(4f, 4f)) }
+        waitForIdle()
+
+        onNodeWithText(DiagramEditing.ADD_WAYPOINT).assertDoesNotExist()
+        onNodeWithText(DiagramEditing.REMOVE_WAYPOINT).assertDoesNotExist()
+    }
+
     /** Waits until the layout, which is computed off the UI thread, is there. The zoom buttons appear with it. */
     private fun ComposeUiTest.awaitDrawing() {
         waitUntil(timeoutMillis = 10_000) { onAllNodesWithTag(DiagramViewTestTags.ZOOM).fetchSemanticsNodes().isNotEmpty() }
@@ -130,9 +167,10 @@ class DiagramViewTest {
     private fun <D : Any, L : DiagramLayout> ComposeUiTest.show(
         notation: DiagramNotation<D, L>,
         state: DiagramState<D>,
+        onSave: (VisLayout) -> Unit = {},
         onSelect: (TextRange) -> Unit = {},
     ) {
-        val editing = DiagramEditing(notation.arrangement) { }
+        val editing = DiagramEditing(notation.arrangement, onSave)
         setContent { KarpfenTheme(darkTheme = false) { DiagramView(notation, state, editing, onSelect = onSelect) } }
         waitForIdle()
     }
@@ -168,6 +206,16 @@ class DiagramViewTest {
             make object "lamp":"Lamp" {
                 prop("mode") -> "off"
                 has("bulb") -> make object "bulb":"Bulb" { }
+            }
+        """.trimIndent()
+
+        /**
+         * Two objects of the same size, one above the other, joined by a link without a label. So the middle of the
+         * fitted drawing lies on the line between them.
+         */
+        val PAIR = """
+            make object "a":"A" {
+                has("") -> make object "b":"B" { }
             }
         """.trimIndent()
 

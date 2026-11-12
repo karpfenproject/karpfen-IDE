@@ -31,8 +31,8 @@ import io.karpfen.ide.notation.diagram.layout.VisLayout
  *
  * The first change by hand freezes the layout on screen, so every element keeps its place and from then on nothing is
  * laid out automatically any more, except elements that are new in the text. A drag moves a waypoint, a bar or a box,
- * whichever lies under the pointer, in this order. A secondary click on a waypoint removes it, and one on a line that
- * can be bent adds a waypoint there.
+ * whichever lies under the pointer, in this order. A secondary click offers to remove the waypoint under the pointer
+ * or to add one to the line under it. The change is made when the user takes the offer in the context menu.
  *
  * After every finished change, [save] gets the layout to write. What the text no longer has is dropped from it first.
  * [loaded] takes in what was read from the companion file. It is ignored while the user drags and while a change of
@@ -105,19 +105,20 @@ internal class DiagramEditing<D, L : DiagramLayout>(
     }
 
     /**
-     * Handles a secondary click at [point]. On a waypoint it removes the waypoint. On a line that can be bent it adds
-     * a waypoint there. Returns true if the click changed the layout.
+     * What a secondary click at [point] of the [diagram] drawn as [layout] offers, or null if there is nothing to
+     * offer there. On a waypoint it is to remove the waypoint. On a line that can be bent it is to add a waypoint
+     * there. Nothing changes until the offer is taken with [DiagramOffer.take].
      */
-    fun secondaryClick(diagram: D, layout: L, point: DiagramPoint): Boolean {
+    fun offerAt(diagram: D, layout: L, point: DiagramPoint): DiagramOffer? {
         val current = vis
         val waypoint = current?.let { VisEditing.waypointAt(it, arrangement.lines(diagram), point) }
         if (current != null && waypoint != null) {
-            store(diagram, VisEditing.removeWaypoint(current, waypoint.first, waypoint.second))
-            return true
+            return DiagramOffer(REMOVE_WAYPOINT) { store(diagram, VisEditing.removeWaypoint(current, waypoint.first, waypoint.second)) }
         }
-        val line = layout.lineAt(point, DiagramLayout.HIT_TOLERANCE) ?: return false
-        store(diagram, VisEditing.addWaypoint(current ?: arrangement.freeze(diagram, layout), line.id, point, line.points))
-        return true
+        val line = layout.lineAt(point, DiagramLayout.HIT_TOLERANCE) ?: return null
+        return DiagramOffer(ADD_WAYPOINT) {
+            store(diagram, VisEditing.addWaypoint(current ?: arrangement.freeze(diagram, layout), line.id, point, line.points))
+        }
     }
 
     /** Takes in the layout [read] from the companion file, which is null if there is no such file. */
@@ -137,4 +138,20 @@ internal class DiagramEditing<D, L : DiagramLayout>(
         unsaved = pruned
         save(pruned)
     }
+
+    companion object {
+        /** The entry of the context menu that adds a waypoint to a line. */
+        const val ADD_WAYPOINT: String = "Add waypoint"
+
+        /** The entry of the context menu that removes a waypoint. */
+        const val REMOVE_WAYPOINT: String = "Remove waypoint"
+    }
 }
+
+/**
+ * A change of the layout that the context menu of a diagram offers.
+ *
+ * @property label what the entry of the menu says.
+ * @property take makes the change and saves it.
+ */
+internal class DiagramOffer(val label: String, val take: () -> Unit)

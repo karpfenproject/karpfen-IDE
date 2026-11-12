@@ -27,10 +27,14 @@ import androidx.compose.ui.unit.dp
 /**
  * A context menu with [actions]. It opens below and to the right of [offset], which is relative to the bottom-left
  * corner of its anchor, the composable it is placed in. Choosing an enabled entry first closes the menu through
- * [onDismiss] and then runs the entry. Disabled entries are shown greyed out.
+ * [onDismiss] and then runs the entry. Disabled entries are shown greyed out. Escape and a click outside close the menu
+ * through [onDismiss] without running anything.
+ *
+ * To open the menu at a point of a larger area, such as the pointer on a canvas, place it in a box of zero size at
+ * that point and pass an [offset] of zero.
  */
 @Composable
-internal fun ContextMenuPopup(actions: List<ContextMenuAction>, offset: DpOffset, onDismiss: () -> Unit) {
+public fun ContextMenuPopup(actions: List<ContextMenuAction>, offset: DpOffset, onDismiss: () -> Unit) {
     DropdownMenu(expanded = true, onDismissRequest = onDismiss, offset = offset) {
         actions.forEach { action ->
             DropdownMenuItem(

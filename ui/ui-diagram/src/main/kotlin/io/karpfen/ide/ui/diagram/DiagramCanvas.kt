@@ -24,7 +24,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +54,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.text.TextRange
@@ -59,6 +63,8 @@ import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.TextMeasurer
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
+import io.karpfen.ide.ui.foundation.widgets.ContextMenuAction
+import io.karpfen.ide.ui.foundation.widgets.ContextMenuPopup
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -74,7 +80,9 @@ import kotlinx.coroutines.withContext
  *
  * A drag that starts on a box, a bar or a waypoint moves that element on the grid, and the grid is shown while it
  * moves. A drag that starts on the empty canvas moves the whole drawing. A secondary click on a line that can be bent
- * adds a waypoint, and one on a waypoint removes it.
+ * or on a waypoint opens a small context menu at the pointer, with one entry that adds a waypoint there or removes
+ * the one under the pointer. Nothing changes until the user clicks the entry. A click elsewhere closes the menu, and
+ * so does a change of the drawing.
  *
  * The first drawing is fitted into the view. After that the view keeps the zoom and the position the user chose.
  */
@@ -114,6 +122,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     var pan by remember { mutableStateOf(Offset.Zero) }
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     var fitted by remember { mutableStateOf(false) }
+    var menu by remember(drawing) { mutableStateOf<MenuRequest?>(null) }
 
     fun pointAt(position: Offset): DiagramPoint {
         val point = (position - pan) / (zoom * density)
@@ -176,9 +185,10 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             .onPointerEvent(PointerEventType.Press) { event ->
                 val shown = current ?: return@onPointerEvent
                 val change = event.changes.firstOrNull() ?: return@onPointerEvent
-                if (event.buttons.isSecondaryPressed && editing.secondaryClick(shown.diagram, shown.layout, pointAt(change.position))) {
-                    change.consume()
-                }
+                if (!event.buttons.isSecondaryPressed) return@onPointerEvent
+                val offer = editing.offerAt(shown.diagram, shown.layout, pointAt(change.position)) ?: return@onPointerEvent
+                menu = MenuRequest(change.position, offer)
+                change.consume()
             }
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val change = event.changes.firstOrNull() ?: return@onPointerEvent
@@ -203,6 +213,12 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
         }
     }
 
+    menu?.let { request ->
+        Box(Modifier.offset { IntOffset(request.position.x.roundToInt(), request.position.y.roundToInt()) }.size(0.dp)) {
+            ContextMenuPopup(listOf(ContextMenuAction(request.offer.label, onClick = request.offer.take)), DpOffset.Zero) { menu = null }
+        }
+    }
+
     if (drawing == null) return
     Row(
         Modifier.align(Alignment.TopEnd).padding(8.dp).background(colors.panel),
@@ -215,6 +231,9 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
         CanvasButton("Fit", DiagramViewTestTags.FIT) { current?.let(::fit) }
     }
 }
+
+/** The context menu to show: the [offer] it holds and the [position] of the pointer on the canvas, in pixels. */
+private class MenuRequest(val position: Offset, val offer: DiagramOffer)
 
 /** A small button over the canvas. It never takes the keyboard focus, so the editor next to the diagram keeps it. */
 @Composable

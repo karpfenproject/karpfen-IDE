@@ -459,7 +459,8 @@ leads to nothing the file declares cannot be a link and is shown as a row. Both 
 of the file, so they read the text exactly as the editor does.
 
 What all diagrams share is written once. `DiagramCanvas` moves, zooms and fits the drawing and shows the grid, and
-`DiagramEditing` turns drags and secondary clicks into changes of the layout by hand. Both work against two interfaces
+`DiagramEditing` turns drags into changes of the layout by hand. A secondary click only makes an offer, to add or
+remove a waypoint, which the canvas shows as a context menu. The change is made when the user clicks the entry. Both work against two interfaces
 of notation-diagram: `DiagramLayout`, which finds the box, the bar or the line under the pointer, and
 `DiagramArrangement`, which lays one kind of diagram out automatically and by hand. A new kind of diagram needs a
 projection, an arrangement and a `DiagramPainter`, bundled in a `DiagramNotation`.
