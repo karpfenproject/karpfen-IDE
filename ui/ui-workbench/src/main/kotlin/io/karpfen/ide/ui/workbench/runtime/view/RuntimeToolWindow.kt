@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -106,7 +107,8 @@ internal fun RuntimeToolWindow(runtime: RuntimeState, root: Path, onNavigate: (L
 /**
  * The header of the tool window. It shows the host's [status] in words, the Start runtime and Stop runtime buttons, and
  * the host selector. When the runtime is reached by URL, a URL field and an Apply button follow. Apply hands the text
- * to [onApplyUrl]. It is enabled only while the trimmed text differs from the stored URL.
+ * to [onApplyUrl]. It is enabled only while the trimmed text differs from the stored URL. The status text can be
+ * selected with the mouse and copied, so an error message can be pasted elsewhere.
  */
 @Composable
 private fun RuntimeHeader(
@@ -123,12 +125,14 @@ private fun RuntimeHeader(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            RuntimeTexts.hostStatus(settings, status),
-            color = if (status is HostStatus.Failed) colors.error else colors.text,
-            style = KarpfenTheme.typography.uiSmall,
-            modifier = Modifier.weight(1f).testTag(RuntimeViewTestTags.HOST_STATUS),
-        )
+        SelectionContainer(Modifier.weight(1f)) {
+            Text(
+                RuntimeTexts.hostStatus(settings, status),
+                color = if (status is HostStatus.Failed) colors.error else colors.text,
+                style = KarpfenTheme.typography.uiSmall,
+                modifier = Modifier.testTag(RuntimeViewTestTags.HOST_STATUS),
+            )
+        }
         val idle = status is HostStatus.Stopped || status is HostStatus.Failed
         SmallButton("Start runtime", RuntimeViewTestTags.START_RUNTIME, enabled = idle, onClick = onStart)
         SmallButton("Stop runtime", RuntimeViewTestTags.STOP_RUNTIME, enabled = !idle && status != HostStatus.Stopping, onClick = onStop)

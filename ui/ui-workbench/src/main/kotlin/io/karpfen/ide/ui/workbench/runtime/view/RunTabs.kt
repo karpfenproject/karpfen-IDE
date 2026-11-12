@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
@@ -94,19 +95,21 @@ internal fun RunTabs(runtime: RuntimeState, entry: RunEntry, root: Path, onNavig
  * The Overview tab. It shows the run's phase, the host problem if there is one, and the findings that block the run.
  * Once the run is launched, it also shows the environment key, the connection, the sync status, the active states of
  * each state machine, the deploy steps and the session's problems. A click on a finding with a file calls
- * [onNavigate].
+ * [onNavigate]. All text of the tab can be selected with the mouse and copied.
  */
 @Composable
 private fun OverviewTab(entry: RunEntry, root: Path, onNavigate: (Location) -> Unit) {
     val colors = KarpfenTheme.colors
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(8.dp)) {
-        Line("Phase: ${RuntimeTexts.phase(entry.phase)}")
-        entry.hostProblem?.let { Line("The runtime could not be started: ${RuntimeTexts.hostProblem(it)}", colors.error) }
-        if (entry.findings.isNotEmpty()) {
-            Heading("Findings that block the run")
-            Problems(entry.findings, root, onNavigate)
+    SelectionContainer {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(8.dp)) {
+            Line("Phase: ${RuntimeTexts.phase(entry.phase)}")
+            entry.hostProblem?.let { Line("The runtime could not be started: ${RuntimeTexts.hostProblem(it)}", colors.error) }
+            if (entry.findings.isNotEmpty()) {
+                Heading("Findings that block the run")
+                Problems(entry.findings, root, onNavigate)
+            }
+            entry.session?.let { SessionOverview(it, root, onNavigate) }
         }
-        entry.session?.let { SessionOverview(it, root, onNavigate) }
     }
 }
 
