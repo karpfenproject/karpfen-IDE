@@ -19,14 +19,15 @@ import io.karpfen.ide.core.workspace.document.ExternalChangeKind
 import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.ui.editor.state.CodeEditorState
+import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.nio.file.Path
 
 /**
  * The UI state of one editor tab.
@@ -74,6 +75,7 @@ public class EditorTabsState(private val scope: CoroutineScope) {
     private val tabList = MutableStateFlow<List<EditorTab>>(emptyList())
     private val activePath = MutableStateFlow<Path?>(null)
     private val activeEditorState = MutableStateFlow<CodeEditorState?>(null)
+    private val modes = MutableStateFlow<Map<Path, EditorViewMode>>(emptyMap())
 
     /** The tabs in display order. */
     public val tabs: StateFlow<List<EditorTab>> get() = tabList.asStateFlow()
@@ -92,6 +94,17 @@ public class EditorTabsState(private val scope: CoroutineScope) {
      * the document's state through [EditorTab] and change it through the `WorkbenchState` intents.
      */
     internal fun documentFor(path: Path): OpenDocument? = entryOf(path)?.document
+
+    /**
+     * How each file with a diagram is shown, by its path. A file without an entry shows its text alone. The entry of
+     * a file goes away with its tab.
+     */
+    public val viewModes: StateFlow<Map<Path, EditorViewMode>> get() = modes.asStateFlow()
+
+    /** Shows the file of [path] in [mode]. */
+    public fun setViewMode(path: Path, mode: EditorViewMode) {
+        if (entryOf(path) != null) modes.update { it + (path to mode) }
+    }
 
     /** The open documents of all tabs, in tab order. Only the mediator calls it. */
     internal fun documents(): List<OpenDocument> = entries.map { it.document }
@@ -134,6 +147,7 @@ public class EditorTabsState(private val scope: CoroutineScope) {
         val entry = entries.removeAt(index)
         entry.watcher?.cancel()
         entry.editor.close()
+        modes.update { it - path }
         publish()
         if (activePath.value == path) {
             val neighbour = entries.getOrNull(index) ?: entries.getOrNull(index - 1)

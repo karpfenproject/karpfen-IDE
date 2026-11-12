@@ -16,8 +16,9 @@
 package io.karpfen.ide.notation.diagram
 
 /**
- * Placeholder of the `notation-diagram` module, which holds no code yet. The module will hold the UI-agnostic diagram
- * model with its geometry and hit testing, the layout sidecar and the adapter to the ELK auto-layout.
+ * Identity of the `notation-diagram` module. The module holds the diagrams without any UI: what a diagram shows and
+ * where its elements go. Start reading at `StatechartProjection` in the package `statechart` and at
+ * `StatechartLayouter` in the package `layout`.
  */
 public object NotationDiagramModule {
     /** The module's name, which is also the name of its directory. */

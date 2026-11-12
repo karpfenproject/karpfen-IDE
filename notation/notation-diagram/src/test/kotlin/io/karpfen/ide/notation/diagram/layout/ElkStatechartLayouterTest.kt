@@ -72,6 +72,25 @@ class ElkStatechartLayouterTest {
     }
 
     @Test
+    fun `the drawing starts at the initial state`() {
+        val marker = layout.initialMarkers.getValue("off")
+        val off = layout.states.getValue("off")
+
+        assertTrue(marker.bottom <= off.y, "the marker is not above the initial state")
+        assertTrue(layout.states.filterKeys { it != "off" }.values.all { it.y >= off.y }, "a state lies above the initial one")
+    }
+
+    @Test
+    fun `a point finds the innermost state around it`() {
+        val on = layout.states.getValue("on")
+        val full = layout.states.getValue("full")
+
+        assertEquals("full", layout.stateAt(DiagramPoint(full.x + 1f, full.y + 1f)))
+        assertEquals("on", layout.stateAt(DiagramPoint(on.x + 1f, on.y + 1f)), "the name row of on belongs to on")
+        assertEquals(null, layout.stateAt(DiagramPoint(-5f, -5f)))
+    }
+
+    @Test
     fun `a split and a join each get a bar with a line per state`() {
         val fork = LampStateMachine.diagramOf(LampStateMachine.FORK)
 

@@ -18,9 +18,8 @@ plugins {
 }
 
 /**
- * The UI-agnostic diagram model, which holds no code yet. Diagram elements are keyed by the element identities of
- * core-workspace, which are therefore part of the API. ELK stays an implementation detail behind the auto-layout
- * adapter.
+ * The diagram model without any UI, derived from the outline of a document, and its automatic layout. The layout
+ * library ELK stays an implementation detail behind the layouter.
  */
 dependencies {
     api(project(":core:core-workspace"))

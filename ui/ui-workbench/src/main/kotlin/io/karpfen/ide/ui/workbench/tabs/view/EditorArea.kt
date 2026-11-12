@@ -16,7 +16,9 @@
 package io.karpfen.ide.ui.workbench.tabs.view
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,25 +28,36 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.document.ConflictResolution
+import io.karpfen.ide.ui.diagram.StatechartPane
 import io.karpfen.ide.ui.editor.popup.EditorPopups
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.view.CodeEditor
+import io.karpfen.ide.ui.foundation.layout.SplitOrientation
+import io.karpfen.ide.ui.foundation.layout.SplitPane
+import io.karpfen.ide.ui.foundation.layout.SplitSide
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.foundation.widgets.TabStrip
 import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.view.EditorZoomBar
 import io.karpfen.ide.ui.workbench.tabs.ConflictBanner
 import io.karpfen.ide.ui.workbench.tabs.EditorTab
+import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
 import java.nio.file.Path
 
 /**
@@ -54,6 +67,11 @@ import java.nio.file.Path
  * Keep mine. Each button reports a `ConflictResolution`, and both Reload and Close report RELOAD. The `CodeEditor` of
  * [activeEditor] with the editor popups fills the rest. Below an editor a bar holds the zoom controls for the font
  * size [editorFontSize] of the editors, and their clicks go to [onZoomEditor].
+ *
+ * A file with a diagram, so far a state machine, can be shown in three ways, as [viewMode] says: its text alone, its
+ * text and its statechart next to each other, or the statechart alone. The buttons for that sit at the left of the
+ * bar below the editor and report to [onViewMode]. A click on a state of the statechart calls [onSelectInText] with
+ * the place of the state's name in the text.
  *
  * The editor and its popups are drawn at the density of the window, not at the zoomed density of the workbench around
  * them. The size of the editor's text therefore depends only on its font size. The tab strip, the banner and the zoom
@@ -78,6 +96,9 @@ internal fun EditorArea(
     onResolveConflict: (Path, ConflictResolution) -> Unit,
     editorFontSize: Float,
     onZoomEditor: (ZoomStep) -> Unit,
+    viewMode: EditorViewMode,
+    onViewMode: (EditorViewMode) -> Unit,
+    onSelectInText: (TextRange) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = KarpfenTheme.colors
@@ -94,16 +115,30 @@ internal fun EditorArea(
         }
         val activeTab = tabs.firstOrNull { it.path == activePath }
         activeTab?.let(ConflictBanner::of)?.let { banner -> ConflictBannerView(banner) { onResolveConflict(activeTab.path, it) } }
+        val hasDiagram = activeTab != null && EditorViewMode.hasDiagram(activeTab.kind)
+        val mode = if (hasDiagram) viewMode else EditorViewMode.TEXT
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (activeEditor != null && activePath != null) {
-                CompositionLocalProvider(LocalDensity provides (LocalWindowDensity.current ?: LocalDensity.current)) {
-                    key(activePath) {
-                        CodeEditor(
-                            state = activeEditor,
-                            modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.EDITOR),
-                            overlays = popups,
-                        )
+                val text: @Composable () -> Unit = {
+                    CompositionLocalProvider(LocalDensity provides (LocalWindowDensity.current ?: LocalDensity.current)) {
+                        key(activePath) {
+                            CodeEditor(
+                                state = activeEditor,
+                                modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.EDITOR),
+                                overlays = popups,
+                            )
+                        }
                     }
+                }
+                val diagram: @Composable () -> Unit = {
+                    key(activePath) {
+                        StatechartPane(activeEditor.session, Modifier.fillMaxSize().testTag(EditorAreaTestTags.DIAGRAM), onSelectInText)
+                    }
+                }
+                when (mode) {
+                    EditorViewMode.TEXT -> text()
+                    EditorViewMode.DIAGRAM -> diagram()
+                    EditorViewMode.SPLIT -> TextAndDiagram(text, diagram)
                 }
             } else {
                 Text(
@@ -114,7 +149,56 @@ internal fun EditorArea(
                 )
             }
         }
-        if (activeEditor != null && activePath != null) EditorZoomBar(editorFontSize, onZoomEditor, EditorAreaTestTags.ZOOM_BAR)
+        if (activeEditor != null && activePath != null) {
+            Box(Modifier.fillMaxWidth()) {
+                EditorZoomBar(editorFontSize, onZoomEditor, EditorAreaTestTags.ZOOM_BAR)
+                if (hasDiagram) ViewModeSwitch(mode, onViewMode, Modifier.align(Alignment.CenterStart))
+            }
+        }
+    }
+}
+
+/**
+ * The [text] on the left and the [diagram] on the right, each with half of the width at first. The divider between
+ * them can be dragged.
+ */
+@Composable
+private fun TextAndDiagram(text: @Composable () -> Unit, diagram: @Composable () -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        var diagramWidth by remember { mutableStateOf(maxWidth / 2) }
+        SplitPane(
+            orientation = SplitOrientation.HORIZONTAL,
+            fixedSide = SplitSide.SECOND,
+            fixedSize = diagramWidth,
+            onFixedSizeChange = { diagramWidth = it },
+            modifier = Modifier.fillMaxSize(),
+            first = text,
+            second = diagram,
+        )
+    }
+}
+
+/**
+ * The three buttons that choose how a file with a diagram is shown. The button of [mode] is marked. A click reports
+ * the chosen mode to [onViewMode]. The buttons never take the keyboard focus, so the editor keeps it.
+ */
+@Composable
+private fun ViewModeSwitch(mode: EditorViewMode, onViewMode: (EditorViewMode) -> Unit, modifier: Modifier = Modifier) {
+    val colors = KarpfenTheme.colors
+    Row(modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        EditorViewMode.entries.forEach { each ->
+            Text(
+                each.label,
+                color = colors.text,
+                style = KarpfenTheme.typography.uiSmall,
+                modifier = Modifier
+                    .focusProperties { canFocus = false }
+                    .background(if (each == mode) colors.selection else Color.Transparent)
+                    .clickable { onViewMode(each) }
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .testTag(EditorAreaTestTags.viewMode(each.label)),
+            )
+        }
     }
 }
 

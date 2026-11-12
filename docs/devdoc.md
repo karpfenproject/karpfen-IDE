@@ -338,8 +338,8 @@ Tests use JUnit 6 with kotlin-test. Test functions are named with sentences in b
 `StandardTestDispatcher`, undo coalescing on a `TestTimeSource`, and the runtime client and sessions with every
 dispatcher and time source of their options on the test's scheduler. Most core, runtime and UI modules have a contract
 test of their public values and wiring, such as `DocumentContractTest` or `WorkbenchContractTest`. runtime-host has
-none of its own. `RuntimeHostApiTest` in architecture-tests checks its public API instead. The placeholder ui-diagram
-has no contract test. The
+none of its own. `RuntimeHostApiTest` in architecture-tests checks its public API instead. ui-diagram has no contract
+test. The
 end-to-end tests run headless in the `e2e` test packages of app/ide, ui-workbench and ui-editor.
 
 The shared fixtures live in test fixtures. Those of core-document hold `Examples`, unmodified copies of example files
@@ -432,10 +432,19 @@ is written from scratch on a Compose canvas. A custom editor gives full control 
 and it can later run inside the cells of a diagram. Compose is confined to the ui modules and the app, so the rest of
 the code does not depend on the toolkit.
 
-### Diagrams will be projections of the text
+### Diagrams are projections of the text
 
-No diagram exists yet, but its design is settled, because the text editor and the workspace are built for it. The
-notation will be hybrid. The graph structure is drawn and edited graphically, and the leaves stay text in embedded
+The first diagram exists: the statechart of a state machine file, read-only and placed automatically. A state machine
+file can be shown as its text, as its statechart, or as both next to each other, and the choice belongs to the file. The
+diagram is always the one of the file itself. The rest of this section is the settled design that the later steps
+follow. They are, in this order: moving states by hand with the positions stored in a companion file, a live view of the
+active states while a model runs, graphical edits that change the text, and the class and object diagrams.
+
+The diagram is drawn on a canvas of the IDE's own UI toolkit, not in an embedded web view. A web view would bring a
+browser along, could not host the IDE's own editor in the text cells of the states, and would save little, because the
+layout engine that web diagram tools use is the Eclipse Layout Kernel that already runs on the JVM.
+
+The notation will be hybrid. The graph structure is drawn and edited graphically, and the leaves stay text in embedded
 cells of the same code editor, with highlighting and checks. A state machine will show nested states, transitions with
 a badge for their priority, because their order is part of the semantics, fork and join bars for `SPLIT` and `JOIN`,
 the `ENTRY` and `DO` blocks as text cells and the macros in a side table. A metamodel will become a class diagram. A
@@ -447,11 +456,14 @@ change. So the text is the only thing that is written, and text and diagram cann
 syntax errors, the diagram keeps the last good state and is marked as stale. Text edits and layout changes will share
 one undo history per document.
 
-The layout will live in an optional sidecar file `<file>.layout.json` next to its source, which is committed with it
-and can be generated again. It is keyed by stable identities of the elements, such as a type by its name or a
-transition by its kind, its states and its position in the list. Moving or resizing an element only changes the
-sidecar. A rename carries the layout entry along. The workspace already recognizes these files. Automatic layout will
-use the Eclipse Layout Kernel behind an adapter of its own, so a custom layouter can replace it. The live view of a
+The visual information of a diagram will live in a companion file next to its source, named after the source with `.vis`
+appended, such as `lamp.kstates.vis`. It is committed with the source and can be generated again. It holds JSON, keyed
+by stable identities of the elements, such as a state by its name or a transition by its kind, its states and its
+position among equal ones. Moving or resizing an element only changes the companion file. If the two disagree, the text
+wins: entries for elements the text no longer has are dropped, and elements without an entry are placed automatically.
+Automatic layout uses the Eclipse Layout Kernel behind `StatechartLayouter`, so a custom layouter can replace it. The
+kernel needs the small library `org.eclipse.xtext.xbase.lib` at run time, which its own package descriptions do not
+name, so the version catalog lists it. The live view of a
 running model will be a read-only layer over the diagram that never touches the document.
 
 ### Bridges run without the IDE
@@ -918,12 +930,13 @@ client. Run the live suite with `runtime/live-runtime.sh test`. Only then update
   operation in the Project tree refreshes the workspace.
 - On a German Windows layout, Ctrl+Shift+7 does not reach Toggle Comment.
 - The file kind for bridge configurations is recognized, but nothing interprets it yet.
-- The modules notation-diagram, notation-sync, ui-diagram and the bridges are stubs. An embedded runtime and a language
+- The bridge modules are stubs. An embedded runtime and a language
   server do not exist yet. Their paths `runtime/runtime-embedded` and `tools/lsp-server` are planned but not in the
   settings, and `lsp4j` in the version catalog is unused so far. The language server is meant to put core-lang behind
   the Language Server Protocol for other editors.
-- tools/cli declares a dependency on runtime-session for a deploy command that does not exist yet. ui-workbench
-  declares ui-diagram but uses nothing from it.
+- tools/cli declares a dependency on runtime-session for a deploy command that does not exist yet.
+- The statechart cannot be edited yet, has no companion file yet, and does not show the active states of a running
+  model. The view mode of a file is not stored in the project file. Class and object diagrams do not exist.
 - There is no rename refactoring, no command that reformats a file and no split editor. dsl-tools 2.0 has printers
   for the three languages, but the IDE does not use them yet. The caret model holds a list of carets, but the editor
   offers no way to add a second one.

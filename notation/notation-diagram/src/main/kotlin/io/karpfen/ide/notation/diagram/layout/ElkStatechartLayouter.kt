@@ -19,8 +19,11 @@ import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
+import org.eclipse.elk.alg.layered.options.CycleBreakingStrategy
+import org.eclipse.elk.alg.layered.options.LayerConstraint
 import org.eclipse.elk.alg.layered.options.LayeredMetaDataProvider
 import org.eclipse.elk.alg.layered.options.LayeredOptions
+import org.eclipse.elk.alg.layered.options.OrderingStrategy
 import org.eclipse.elk.core.RecursiveGraphLayoutEngine
 import org.eclipse.elk.core.data.LayoutMetaDataService
 import org.eclipse.elk.core.math.ElkPadding
@@ -38,7 +41,10 @@ import org.eclipse.elk.graph.util.ElkGraphUtil
  * diagram, lets the kernel place it, and reads the positions back.
  *
  * A state becomes a node, nested in the node of its parent. A state with nested states gets padding at its top for
- * its name. An initial state gets a small marker node with a line to the state. A normal transition becomes one edge.
+ * its name. An initial state gets a small marker node with a line to the state. The marker is kept in the first
+ * layer, and where transitions form a circle the order of the text decides which one runs against the flow. So the
+ * drawing starts at the initial state and reads from the top down, in the order the states are written. A normal
+ * transition becomes one edge.
  * A split or a join becomes a bar node with one edge per state it names, and the label sits on the edge that leads
  * into the bar of a split or out of the bar of a join.
  *
@@ -69,6 +75,8 @@ internal class ElkStatechartLayouter : StatechartLayouter {
             setProperty(CoreOptions.EDGE_ROUTING, EdgeRouting.ORTHOGONAL)
             setProperty(CoreOptions.PADDING, ElkPadding(MARGIN))
             setProperty(CoreOptions.SPACING_NODE_NODE, NODE_SPACING)
+            setProperty(LayeredOptions.CYCLE_BREAKING_STRATEGY, CycleBreakingStrategy.MODEL_ORDER)
+            setProperty(LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY, OrderingStrategy.NODES_AND_EDGES)
             setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, LAYER_SPACING)
             setProperty(LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS, EDGE_SPACING)
         }
@@ -83,6 +91,7 @@ internal class ElkStatechartLayouter : StatechartLayouter {
         /** Adds [state] with the states nested in it to [parent]. The first declaration of a name counts. */
         fun addState(state: StateNode, parent: ElkNode) {
             if (state.name in states) return
+            val marker = if (state.isInitial) ElkGraphUtil.createNode(parent) else null
             val node = ElkGraphUtil.createNode(parent)
             val nameWidth = measurer.widthOf(state.name) + 2 * NAME_PADDING
             if (state.isComposite) {
@@ -94,11 +103,10 @@ internal class ElkStatechartLayouter : StatechartLayouter {
                 node.height = (if (state.hasEntry || state.hasDo) STATE_HEIGHT + BLOCK_LINE else STATE_HEIGHT).toDouble()
             }
             states[state.name] = node
-            if (state.isInitial) {
-                val marker = ElkGraphUtil.createNode(parent).apply {
-                    width = MARKER.toDouble()
-                    height = MARKER.toDouble()
-                }
+            if (marker != null) {
+                marker.width = MARKER.toDouble()
+                marker.height = MARKER.toDouble()
+                marker.setProperty(LayeredOptions.LAYERING_LAYER_CONSTRAINT, LayerConstraint.FIRST)
                 markers[state.name] = marker
                 edges += Line(ElkGraphUtil.createSimpleEdge(marker, node), RouteKind.INITIAL, null)
             }
@@ -134,7 +142,7 @@ internal class ElkStatechartLayouter : StatechartLayouter {
 
         /** Gives [edge] a label as large as the caption of [transition] needs, and returns the edge. */
         private fun labelled(edge: ElkEdge, transition: TransitionEdge): ElkEdge {
-            val caption = caption(transition)
+            val caption = transition.caption
             ElkGraphUtil.createLabel(caption, edge).apply {
                 width = (measurer.widthOf(caption) + LABEL_PADDING).toDouble()
                 height = LABEL_HEIGHT.toDouble()
@@ -242,10 +250,6 @@ internal class ElkStatechartLayouter : StatechartLayouter {
 
         /** The distance between a line and a state of the next layer. */
         const val EDGE_SPACING = 18.0
-
-        /** The caption of [transition] in the drawing: its priority and, if it has one, its condition. */
-        fun caption(transition: TransitionEdge): String =
-            if (transition.label.isEmpty()) "${transition.priority}" else "${transition.priority}: ${transition.label}"
 
         @Volatile
         private var registered = false

@@ -48,6 +48,7 @@ import io.karpfen.ide.ui.workbench.problems.view.ProblemKey
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsViewTestTags
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettings
+import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
 import io.karpfen.ide.ui.workbench.tabs.view.EditorAreaTestTags
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeTestTags
@@ -266,6 +267,33 @@ class WorkbenchUiTest {
 
         assertEquals(1f, workbench.state.settings.value.uiScale, "a click on the size sets it back")
         assertEquals(13f, workbench.state.settings.value.editorFontSize)
+    }
+
+    @Test
+    fun `a state machine file shows its text, its statechart or both, and other files have no such choice`() = workbenchUiTest(dir) {
+        openExamples()
+        openFromTree(machine)
+        tagged(EditorAreaTestTags.EDITOR).assertIsDisplayed()
+        test.onNodeWithTag(EditorAreaTestTags.DIAGRAM).assertDoesNotExist()
+
+        tagged(EditorAreaTestTags.viewMode("Split")).performClick()
+        settle()
+        tagged(EditorAreaTestTags.EDITOR).assertIsDisplayed()
+        tagged(EditorAreaTestTags.DIAGRAM).assertIsDisplayed()
+        assertEquals(EditorViewMode.SPLIT, workbench.state.tabs.viewModes.value[machine])
+
+        tagged(EditorAreaTestTags.viewMode("Diagram")).performClick()
+        settle()
+        test.onNodeWithTag(EditorAreaTestTags.EDITOR).assertDoesNotExist()
+        tagged(EditorAreaTestTags.DIAGRAM).assertIsDisplayed()
+
+        tagged(EditorAreaTestTags.viewMode("Text")).performClick()
+        settle()
+        tagged(EditorAreaTestTags.EDITOR).assertIsDisplayed()
+        test.onNodeWithTag(EditorAreaTestTags.DIAGRAM).assertDoesNotExist()
+
+        openFromTree(robot.resolve("cleaning_robot.kmeta"))
+        test.onNodeWithTag(EditorAreaTestTags.viewMode("Split")).assertDoesNotExist()
     }
 
     @Test

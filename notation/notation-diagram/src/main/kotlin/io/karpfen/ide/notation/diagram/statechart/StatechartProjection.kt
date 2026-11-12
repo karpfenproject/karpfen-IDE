@@ -34,7 +34,7 @@ import io.karpfen.ide.core.document.parse.SymbolKind
 public object StatechartProjection {
 
     /** The longest label of a transition in characters. */
-    private const val MAX_LABEL = 60
+    private const val MAX_LABEL = 40
 
     /** The mark of a label that was cut. */
     private const val ELLIPSIS = "\u2026"

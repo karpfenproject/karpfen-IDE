@@ -16,9 +16,8 @@
 package io.karpfen.ide.ui.diagram
 
 /**
- * Placeholder of the `ui-diagram` module, which has no content yet. The module is meant to hold the diagram canvas,
- * its rendering and its interaction for `notation-diagram`. Until that work starts, this object keeps the module in
- * the build.
+ * Identity of the `ui-diagram` module. The module draws the diagrams of `notation-diagram` on a canvas and handles
+ * moving and zooming. Start reading at `StatechartPane`.
  */
 public object UiDiagramModule {
     /** The module's name, which is also the name of its directory. */

@@ -16,8 +16,8 @@
 package io.karpfen.ide.notation.sync
 
 /**
- * Placeholder of the `notation-sync` module, which holds no code yet. The module will hold the blended synchronizer,
- * which keeps text, semantic model and diagram in step, with provenance, undo and the runtime overlay.
+ * Identity of the `notation-sync` module. The module keeps a diagram in step with the text it is derived from. The
+ * text is the only source, and a diagram is derived again after every change. Start reading at `StatechartTracker`.
  */
 public object NotationSyncModule {
     /** The module's name, which is also the name of its directory. */

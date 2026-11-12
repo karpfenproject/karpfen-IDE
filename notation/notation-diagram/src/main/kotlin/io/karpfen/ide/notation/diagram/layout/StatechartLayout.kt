@@ -82,6 +82,13 @@ public data class StatechartLayout(
     public val height: Float,
     public val headerHeight: Float,
 ) {
+    /**
+     * The name of the state drawn at [point], or null if there is none. Where states are nested, the innermost one
+     * counts, which is the smallest box around the point.
+     */
+    public fun stateAt(point: DiagramPoint): String? =
+        states.filterValues { point in it }.minByOrNull { it.value.width * it.value.height }?.key
+
     public companion object {
         /** The layout of a statechart without elements. */
         public val EMPTY: StatechartLayout = StatechartLayout(emptyMap(), emptyMap(), emptyMap(), emptyList(), 0f, 0f, 0f)

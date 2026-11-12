@@ -45,7 +45,7 @@ uses `io.karpfen.ide.buildlogic`.
 | ui | ui-foundation, ui-editor, ui-workbench, ui-diagram | The user interface, built with Compose. |
 | app | app/ide | The desktop application and its composition root. |
 | tools | tools/cli | The `karpfen` command-line tool. |
-| notation | notation-diagram, notation-sync | Placeholders for diagrams. No code yet. |
+| notation | notation-diagram, notation-sync | The diagrams without their UI: model, layout and the step from text to diagram. |
 | bridges | bridge-api, bridge-mapping, bridge-mqtt, bridge-ros, bridge-runner | Placeholders. No code yet. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
 
@@ -81,7 +81,7 @@ flowchart TD
         workbench["ui-workbench"]
         editor["ui-editor"]
         foundation["ui-foundation"]
-        uidiagram["ui-diagram (placeholder)"]
+        uidiagram["ui-diagram"]
     end
     subgraph runtimeGroup ["runtime"]
         session["runtime-session"]
@@ -214,7 +214,7 @@ and its language services and coordinates the feature states. Each feature packa
 with its composables. `RuntimeState` in the package `runtime` is the state of the Runtime tool window.
 `WorkbenchServices` holds the collaborators, `defaultWorkbenchServices` is the production wiring, and the `Workbench`
 composable lays out the window. It depends on ui-editor, ui-foundation, core-lang, runtime-session, runtime-host and
-the ui-diagram placeholder, and is used by app/ide.
+ui-diagram, and is used by app/ide.
 
 ### app/ide
 
@@ -232,13 +232,21 @@ The `karpfen` command-line tool. `KarpfenCli` parses the arguments with `CliArgu
 and reports `Workspace.problems` as text or JSON through `ReportFormatter`. It uses the same problems rule as the IDE,
 so both always agree. It depends on core-workspace. The end-to-end tests of app/ide use it too.
 
+### notation-diagram, notation-sync and ui-diagram
+
+The diagrams. So far there is one, the statechart of a state machine file, and it is read-only. notation-diagram holds
+the diagram without any UI. `StatechartProjection` derives a `StatechartDiagram` from the text and the outline of a
+file, with the states, their nesting and the transitions. `StatechartLayouter` places its elements and returns a
+`StatechartLayout` in absolute positions. The layouter the IDE uses hands the work to the Eclipse Layout Kernel, which
+stays behind that interface. notation-sync keeps a diagram in step with its text. `StatechartTracker` derives the
+diagram again after every change and keeps the last one while the text has syntax errors. ui-diagram draws.
+`StatechartPane` takes the document session of a file and shows its statechart on a canvas that can be moved and zoomed.
+ui-workbench shows the pane next to the editor or in its place, as the user chooses per file.
+
 ### Placeholders
 
-notation-diagram, notation-sync, ui-diagram and the five bridge modules have no code yet. Each holds one object or a
-`main` function, so the build and its rules already know the module, and their dependencies are already declared.
-notation-diagram is meant for the UI-agnostic diagram model with its layout and declares core-workspace and the ELK
-layout library. notation-sync is meant for keeping text, model and diagram in sync. ui-diagram is meant for the
-diagram canvas. ui-workbench declares it but uses nothing from it. The bridges are meant to connect the runtime with
+The five bridge modules have no code yet. Each holds one object or a `main` function, so the build and its rules
+already know the module, and their dependencies are already declared. The bridges are meant to connect the runtime with
 MQTT and ROS. bridge-api builds on runtime-protocol, bridge-mapping on bridge-api, bridge-mqtt adds the HiveMQ client
 and bridge-ros adds the Ktor client for rosbridge. bridge-runner is an application named `karpfen-bridge-runner` whose
 `main` only prints its usage. The [developer notes](devdoc.md) describe how the diagrams and the bridges are meant to

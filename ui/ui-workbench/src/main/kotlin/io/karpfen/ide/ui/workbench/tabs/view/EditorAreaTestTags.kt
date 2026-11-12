@@ -26,6 +26,12 @@ public object EditorAreaTestTags {
     /** The bar below the editor, with the zoom controls of the editor's font size. */
     public const val ZOOM_BAR: String = "Workbench.editorZoomBar"
 
+    /** The statechart next to or in place of the text. */
+    public const val DIAGRAM: String = "Workbench.editorDiagram"
+
+    /** The button of the view mode named [label], which is "Text", "Split" or "Diagram". */
+    public fun viewMode(label: String): String = "Workbench.viewMode:$label"
+
     /** The conflict banner of the active tab. */
     public const val CONFLICT_BANNER: String = "Workbench.conflictBanner"
 

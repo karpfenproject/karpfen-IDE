@@ -149,6 +149,12 @@ Expected: the window opens on the folder. The Project tool window lists six file
 Double-click `lamp.kstates`. Expected: it opens in a tab with coloured keywords and strings, and the Outline lists its
 states and transitions.
 
+A state machine file also has a diagram. At the left of the bar below the editor, click Split. Expected: the statechart
+appears next to the text, starting at the initial state `off` at the top, with `on` and its three inner states below it.
+Every transition carries its position in the text and its condition, such as `1: switch/press`. Drag the drawing to move
+it, and use the buttons in its corner to zoom. Click a state, and the editor jumps to it. Diagram shows the statechart
+alone, and Text goes back to the text.
+
 - Cmd+click / Ctrl+click on `Lamp` in `STATEMACHINE ATTACHED TO "Lamp"`. Expected: `lamp.kmeta` opens at the type.
 - Open `lamp.kenv.json` and rest the mouse on the key `tickDelayMs`. Expected: a tooltip explains the key.
 - In `lamp.kstates`, delete the `{` after `STATE "broken"`. Expected: within a second a red underline appears, and

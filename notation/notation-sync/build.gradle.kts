@@ -18,8 +18,7 @@ plugins {
 }
 
 /**
- * The synchronizer of text, semantic model and diagram, which holds no code yet. It exposes the diagram view model of
- * notation-diagram.
+ * Keeps a diagram in step with the text it is derived from. It exposes the diagram model of notation-diagram.
  */
 dependencies {
     api(project(":notation:notation-diagram"))

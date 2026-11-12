@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
 import io.karpfen.ide.ui.editor.theme.lightEditorTheme
@@ -44,6 +45,7 @@ import io.karpfen.ide.ui.workbench.runtime.view.RuntimeToolWindow
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.view.StatusBarActions
 import io.karpfen.ide.ui.workbench.statusbar.view.WorkbenchStatusBar
+import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
 import io.karpfen.ide.ui.workbench.tabs.view.EditorArea
 import io.karpfen.ide.ui.workbench.tabs.view.LocalWindowDensity
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeView
@@ -165,6 +167,7 @@ private fun EditorPane(state: WorkbenchState) {
     val tabs by state.tabs.tabs.collectAsState()
     val active by state.tabs.active.collectAsState()
     val activeEditor by state.tabs.activeEditor.collectAsState()
+    val viewModes by state.tabs.viewModes.collectAsState()
     val settings by state.settings.collectAsState()
     EditorArea(
         tabs = tabs,
@@ -175,6 +178,9 @@ private fun EditorPane(state: WorkbenchState) {
         onResolveConflict = { path, resolution -> state.resolveConflict(path, resolution) },
         editorFontSize = settings.editorFontSize,
         onZoomEditor = { state.zoomEditor(it) },
+        viewMode = active?.let(viewModes::get) ?: EditorViewMode.TEXT,
+        onViewMode = { mode -> active?.let { state.tabs.setViewMode(it, mode) } },
+        onSelectInText = { range -> active?.let { state.navigateTo(Location(it, range)) } },
     )
 }
 

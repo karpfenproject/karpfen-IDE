@@ -44,13 +44,14 @@ class StatechartProjectionTest {
             listOf(
                 "off -> full | switch/press",
                 "on -> off | switch/press",
-                "on -> brighter | switch/dim & event->bright & [\$(bulb->watts) + 10 <= \$(bulb\u2026",
+                "on -> brighter | switch/dim & event->bright & [\$(bulb->w\u2026",
                 "off -> broken | service/smash",
                 "off -> broken | ",
             ),
             lamp.transitions.map { "${it.sources.single()} -> ${it.targets.single()} | ${it.label}" },
         )
         assertEquals(listOf(1, 2, 3, 4, 5), lamp.transitions.map { it.priority })
+        assertEquals(listOf("1: switch/press", "5"), listOf(lamp.transitions.first().caption, lamp.transitions.last().caption))
         assertEquals(listOf(false, false, true, false, false), lamp.transitions.map { it.notLooping })
         assertTrue(lamp.transitions.all { it.kind == TransitionKind.NORMAL })
     }
@@ -80,7 +81,7 @@ class StatechartProjectionTest {
 
         val label = LampStateMachine.diagramOf(text).transitions.first().label
 
-        assertEquals(60, label.length)
+        assertEquals(40, label.length)
         assertTrue(label.endsWith("\u2026"))
     }
 

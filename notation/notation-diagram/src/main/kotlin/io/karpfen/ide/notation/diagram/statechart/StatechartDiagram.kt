@@ -101,4 +101,11 @@ public data class TransitionEdge(
     public val label: String,
     public val notLooping: Boolean,
     public val range: TextRange,
-)
+) {
+    /**
+     * What a drawing writes next to the transition: its priority and, if it has a condition, the label after a colon,
+     * as in `3: switch/dim`. The priority is always shown, because the order of the transitions decides which one
+     * fires.
+     */
+    public val caption: String get() = if (label.isEmpty()) "$priority" else "$priority: $label"
+}
