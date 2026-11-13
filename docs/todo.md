@@ -29,9 +29,9 @@ refer to.
 - A change of the layout by hand cannot be undone, and there is no command that goes back to the automatic layout.
   Deleting the `.vis` file by hand does that.
 - Renaming or deleting a model file leaves its `.vis` file behind under the old name.
-- The lines of splits and joins have no waypoints.
-- The timeout of a state is not drawn as a line to the state it leads to. It shows only in the tick limit cell of
-  its state.
+- A state name that contains `/from:` or `/to:`, or ends in `#` and digits, can make the name of a line in the
+  `.vis` file ambiguous when a state is renamed in the diagram. The lines then lose their waypoints.
+- The menu of a state has no entry that adds a timeout. A timeout is written in the tick limit cell.
 - The history badge of a state is not part of its size, so in a narrow state with nested states it can lie over the
   markers of the code cells.
 - In a statechart a label may cover another line. The class and object diagrams move a label to the free side.
@@ -56,8 +56,6 @@ refer to.
 - When the watcher gives up on a container that still runs, the next start adopts it and follows its log from the
   container's start again. The Log pane then probably shows earlier lines twice. This follows from the code and has
   not been seen.
-- The debugger learns where a run is paused by asking the runtime every 300 ms, because the runtime sends no message
-  when its engine halts.
 - Recording the events of a run and replaying them, which the runtime offers, has no place in the IDE. A run can
   only be captured to a file as text.
 - A captured file holds the log of the whole runtime while its run lives. With two runs at once, each file also holds
@@ -130,8 +128,8 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
   project has on. Another client has to do that by itself.
 - A history is never forgotten while the engine runs, and a state that remembers a state never rests as the innermost
   state, so its `DO` block does not run any more.
-- The runtime sends no message when its engine halts at a breakpoint. A client has to ask for the status. A
-  breakpoint override names a transition by the text form the engine prints for it, which two transitions can share.
+- A breakpoint override names a transition by the text form the engine prints for it, which two transitions can
+  share.
 - The features use `kapt` to register themselves, which copies every comment into generated Java. A comment with a
   backslash followed by `u` breaks the build there.
 - Building the runtime rewrites the generated parsers in its nested dsl-tools checkout with other line endings. The

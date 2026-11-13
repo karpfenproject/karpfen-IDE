@@ -84,7 +84,8 @@ other, and a click on the size sets it back.
 - Drag the empty canvas to move the drawing. The buttons in its corner zoom. A click on a box jumps to it in the text.
 - Drag a box to arrange the diagram by hand. A grid of dots appears, and the box moves from grid point to grid point.
 - Right-click a line and choose Add waypoint, then drag the waypoint to bend the line. Right-click a waypoint and
-  choose Remove waypoint. The waypoints of a line show while the pointer is near the line.
+  choose Remove waypoint. The waypoints of a line show while the pointer is near the line. Each line between a state
+  and the bar of a split or join is bent on its own.
 - Drag the label of a line to move it. It keeps its distance to the line.
 - Drag a side or a corner of a state with inner states to size it. It never gets smaller than its inner states need.
 - The first change by hand fixes every element where it is. The IDE stores the arrangement next to the file, with
@@ -94,6 +95,8 @@ other, and a click on the size sets it back.
   a transition, adds entry or do actions, makes it the initial state, or moves it out of or into another state. On a
   transition it changes the priority, sets the mark not looping, or deletes the transition. Where an entry needs
   another state, the states to choose from are marked, and you click one.
+- A timeout of a state is a dashed line to the state it leads to, with a caption such as `after 10 ticks`. Its menu
+  edits the tick limit as text, leads the timeout to another state that you then click, or removes it.
 - A state can remember where it was left, limit its ticks and halt a debugger. A small circle with `H` marks a
   shallow history, one with `H*` a deep history. A red dot on the left border of a state is a breakpoint at its
   entry, one on the right border a breakpoint at its exit. A red dot in front of the caption of a transition is a

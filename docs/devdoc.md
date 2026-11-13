@@ -333,6 +333,13 @@ with `fragmentSupport` of the language of the file, so the code is coloured and 
 Edit as text in the context menus opens a whole construct in the same pane, which makes everything the text can say
 reachable from the diagram.
 
+A statechart has two kinds of edge, both a `StatechartEdge`: a `TransitionEdge` for a transition, a split or a join
+of the file, and a `TimeoutEdge` for the timeout of a state, which the engine takes by itself. `StatechartIds` holds
+the names under which the `.vis` file keeps them. A transition keeps its id for its bar and its caption. Each line
+between a state and the bar of a split or join is named after the transition and that state, as in
+`SPLIT:idle->left,right#1/to:left`, and a timeout is `TIMEOUT:<state>`. A `.vis` file from before these names loads
+unchanged, with straight lines at its bars.
+
 The outline of a state machine names its states, transitions and blocks. What it leaves out, a statechart reads from
 the text of each element: `StateOptionReader` finds the history in front of `STATE` and the `BREAKPOINT` and
 `TICK LIMIT` blocks that open a body. The language puts these two blocks first, so the reader never takes a block of
@@ -489,9 +496,11 @@ runtime features: histories to History, tick limits to TickLimit and breakpoints
 these words in every environment but applies them only where its feature is on. Macros, and splits and joins, need
 nothing in the runtime.
 
-A session whose deployment switched Breakpoint on has a debugger, `RuntimeSession.debugger`. It asks the runtime
-for the status of its engine every 300 ms while the environment runs and after each of its commands, and publishes
-`DebuggerState`: running, paused at a breakpoint or paused between two ticks. Pause, Resume and Step are messages
+A session whose deployment switched Breakpoint on has a debugger, `RuntimeSession.debugger`. The runtime sends an
+`engineStatus` message whenever its engine starts to wait and when it goes on. The session's router hands these to
+the debugger, which publishes `DebuggerState`: running, paused at a breakpoint or paused between two ticks. The
+debugger asks for the status itself only once when the session starts to run and once after each reconnect, because
+a message sent while no connection was open is lost. Pause, Resume and Step are messages
 to the runtime's feature TickByTick, sent through the session's conductor like every other command. The word is
 paused, because halted already means that the engine ended on its own. `DebuggerBar` shows the state in the Runtime
 tool window, and `DiagramLives` hands the paused place to an open statechart, which frames it. Problems carry a code, such as `deploy-unsaved-file` or
