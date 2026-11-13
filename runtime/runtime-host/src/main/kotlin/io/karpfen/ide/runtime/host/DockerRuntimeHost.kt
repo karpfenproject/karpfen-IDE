@@ -145,12 +145,20 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
 
     /**
      * Marks the host as closed, so no new start begins, and then stops the runtime as [stop] does. It blocks the calling
-     * thread during the stop and cancels the stop after [HostTimings.closeBound]. Afterwards it cancels the host's
-     * coroutines and releases the connection to the engine.
+     * thread during the stop and cancels the stop after [HostTimings.closeBound]. A container that is still there after
+     * the bound is removed without waiting for it to stop, so closing never leaves a container behind. Afterwards it
+     * cancels the host's coroutines and releases the connection to the engine.
      */
     override fun close() {
         closed = true
-        runBlocking { withTimeoutOrNull(timings.closeBound) { stop() } }
+        runBlocking {
+            withTimeoutOrNull(timings.closeBound) { stop() }
+            container?.let { left ->
+                log.host("Removing the runtime container ${workspace.name} without waiting for it to stop.")
+                removeOwn(left)
+                state.value = HostStatus.Stopped
+            }
+        }
         scope.cancel()
         connection?.engine?.close()
     }
@@ -177,6 +185,14 @@ internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostO
         } catch (failure: DockerEngineException) {
             log.host(failure.message.orEmpty())
         }
+        removeOwn(own)
+    }
+
+    /**
+     * Removes the container [own] and ends its coroutines. The engine kills a container that still runs. A failure of
+     * the engine is only logged.
+     */
+    private suspend fun removeOwn(own: OwnContainer) {
         try {
             own.engine.removeContainer(own.id)
             log.host("Removed the runtime container ${workspace.name}.")

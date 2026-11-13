@@ -183,7 +183,8 @@ declares it as a dependency but does not use it yet.
 ### runtime-host
 
 Runs or reaches the runtime of a workspace. `RuntimeHost` is that runtime with its status and log, and
-`RuntimeHosts()` is the factory of the IDE's two hosts. `DockerRuntimeHost` runs a container the IDE owns, built from
+`RuntimeHosts()` is the factory of the IDE's two hosts, and `OpenRuntimeHosts` wraps a factory so that the hosts
+still open can be closed when the process ends. `DockerRuntimeHost` runs a container the IDE owns, built from
 the runtime sources bundled in the package `bundled`. `UrlRuntimeHost` attaches to a runtime started elsewhere. Only
 the package `docker.engine` uses the Docker client, behind the port `DockerEngine`, and the whole public API stays in
 the root package. It depends on runtime-protocol and is used by ui-workbench and app/ide.
@@ -404,7 +405,8 @@ code, and all rules live in its test sources.
    `EventCatalog` and the `PayloadFormat`, builds an `EventFrame`, and the `SessionConductor` sends it through
    `RuntimeConnection.send`. Events pass the conductor like commands, so an injected event never overtakes a stop.
 9. Stop calls `RuntimeSession.stop`. When the workspace closes or the IDE exits, `RuntimeHolder` shuts down every
-   session and closes the host within a bound, which stops the container the IDE owns.
+   session and closes the host within a bound, which stops the container the IDE owns. A shutdown hook closes the
+   hosts that are still open when the process ends.
 
 ## How the rules are enforced
 

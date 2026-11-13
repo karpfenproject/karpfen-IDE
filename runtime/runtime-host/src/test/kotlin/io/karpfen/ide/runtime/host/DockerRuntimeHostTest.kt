@@ -27,6 +27,7 @@ import io.karpfen.ide.runtime.host.docker.engine.ImageSummary
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.transport.TransportFailure
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.toList
@@ -40,6 +41,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -48,8 +50,8 @@ import kotlin.time.Duration.Companion.seconds
  * the image build and the removal of older images, and the container's configuration and port. They check each failure
  * with its problem code. They check that calls join a start under way and get its answer, a failure or a stop
  * included, that a failed start removes its container and that a closed host starts nothing. They also check that stop
- * removes only the host's own container, and that the watcher notices a container that died but tolerates a passing
- * failure of the engine.
+ * removes only the host's own container, that close removes a container that does not stop in time, and that the
+ * watcher notices a container that died but tolerates a passing failure of the engine.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DockerRuntimeHostTest {
@@ -335,6 +337,24 @@ class DockerRuntimeHostTest {
         )
         assertEquals(HostStatus.Stopped, host.status.value)
         host.close()
+    }
+
+    @Test
+    fun `close removes a container that does not stop within the bound`() = runTest {
+        val rig = HostRig(this).apply { supportIde() }
+        rig.engine.createdId = "c-own"
+        val host = DockerRuntimeHost(HostRig.WORKSPACE, rig.options.copy(timings = HostTimings(closeBound = 50.milliseconds)))
+        host.ensureRunning()
+        val before = rig.engine.calls.size
+        rig.engine.stopGate = CompletableDeferred()
+
+        host.close()
+
+        assertEquals(
+            listOf(EngineCall.StopContainer("c-own", 10.seconds), EngineCall.RemoveContainer("c-own")),
+            rig.engine.calls.drop(before).filter { it is EngineCall.StopContainer || it is EngineCall.RemoveContainer },
+        )
+        assertEquals(HostStatus.Stopped, host.status.value)
     }
 
     @Test

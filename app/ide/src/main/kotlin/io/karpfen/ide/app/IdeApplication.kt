@@ -21,10 +21,10 @@ import androidx.compose.ui.window.WindowExceptionHandlerFactory
 import androidx.compose.ui.window.application
 import io.karpfen.ide.app.crash.ErrorDialogPresenter
 import io.karpfen.ide.app.crash.IDE_LOG_FILE_NAME
+import io.karpfen.ide.app.launch.runtimeHostsClosedAtExit
 import io.karpfen.ide.app.logging.LanguageToolsLogRouting
 import io.karpfen.ide.app.logging.LogbackLanguageToolsLogRouting
 import io.karpfen.ide.app.window.awtScreenAreas
-import io.karpfen.ide.runtime.host.RuntimeHosts
 import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
@@ -68,8 +68,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * buffer, as its `OutputSink`, through [languageToolsLog]. `logback.xml` keeps the same logging off the console.
  *
  * The default [services] get the one `RuntimeSessions()` of the process and the IDE's two runtime hosts from
- * `RuntimeHosts()`: the Docker container of each workspace and a runtime at a URL. When the window is closed and
- * `WorkbenchState.requestExit` allows it, [IdeRunState] shuts the runtime down before the application exits.
+ * `runtimeHostsClosedAtExit()`: the Docker container of each workspace and a runtime at a URL. When the window is
+ * closed and `WorkbenchState.requestExit` allows it, [IdeRunState] shuts the runtime down before the application
+ * exits. When the process ends in any other way that still runs its shutdown hooks, the hosts are closed there.
  *
  * The app's `main` resolves the home directory before it constructs this class. If
  * `SettingsLocations.HOME_ENVIRONMENT_VARIABLE` is set, its value is copied into the system property
@@ -90,7 +91,7 @@ public class IdeApplication(
         defaultWorkbenchServices(
             languageToolsOutput = output,
             runtimeSessions = RuntimeSessions(),
-            runtimeHosts = RuntimeHosts(),
+            runtimeHosts = runtimeHostsClosedAtExit(),
         )
     },
     private val workbenchStateFactory: (CoroutineScope, WorkbenchServices) -> WorkbenchState = ::WorkbenchState,

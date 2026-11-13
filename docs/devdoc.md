@@ -400,6 +400,11 @@ On exit the IDE first shuts down every live session, for at most 5 s, then the h
 shutdown is bounded at 15 s. `RuntimeSession.shutdown()` stops the environment, `close()` returns at once and leaves
 it as it is.
 
+The app gets its hosts from `runtimeHostsClosedAtExit()`, an `OpenRuntimeHosts` that a shutdown hook of the JVM
+closes. The hook closes every host that is still open and waits for a host that is being closed. So the container
+also goes away when the process gets SIGTERM, SIGINT or SIGHUP, and when the 15 s ran out while the container was
+still stopping. A host that cannot stop its container within its own bound of 15 s removes it without waiting.
+
 ### Runs in the Runtime tool window
 
 Read `RuntimeState`. Running a descriptor again shuts down its live runs, whose entries stay in the list as stopped.

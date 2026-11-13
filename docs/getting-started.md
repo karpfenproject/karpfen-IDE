@@ -291,8 +291,11 @@ Quit with Cmd+Q on macOS, or close the window. The IDE asks about unsaved change
 runtime container. This takes at most 15 seconds. To undo your changes to the example, run
 `git restore examples/lamp` and delete the `.vis` files you made.
 
+The container is also removed when the IDE is stopped from outside, for example with Ctrl+C on the Gradle command.
+Only a process that is killed outright leaves it behind.
+
 The image stays, so the next run starts in seconds. To free the disk space, remove it. The first line removes
-containers left over after a crash and prints an error when there are none:
+containers left over after such a kill and prints an error when there are none:
 
 ```bash
 docker rm --force --volumes $(docker ps --all --quiet --filter label=io.karpfen.ide.runtime=true)

@@ -45,6 +45,9 @@ refer to.
 - The descriptor template still writes the `observe` key, which deployment ignores.
 - The descriptor keys `runtime.image`, `runtime.pythonPackages` and `bridges` are accepted but ignored. So `EVAL`
   blocks can import only the Python packages of the runtime image, and a run offers every bridge file of the project.
+- A process that is killed outright, for example with `kill -9` or a forced quit, leaves its runtime container
+  running. Only a run in the same folder adopts or removes it. Nothing looks for the containers of other folders
+  whose IDE is gone.
 - The runtime container runs without limits on CPU or memory.
 - With tracing on, the runtime also writes the whole trace, tick lines included, to a file in the container. The file
   grows until the container is removed, which happens when the IDE closes the folder.

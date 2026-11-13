@@ -22,6 +22,7 @@ import io.karpfen.ide.runtime.host.docker.engine.ContainerSummary
 import io.karpfen.ide.runtime.host.docker.engine.DockerEngine
 import io.karpfen.ide.runtime.host.docker.engine.DockerEngineException
 import io.karpfen.ide.runtime.host.docker.engine.ImageSummary
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -119,6 +120,10 @@ internal class FakeDockerEngine : DockerEngine {
     @Volatile
     var logLines: List<ContainerOutputLine> = emptyList()
 
+    /** When set, [stopContainer] waits for it after recording its call. */
+    @Volatile
+    var stopGate: CompletableDeferred<Unit>? = null
+
     /** The calls so far, in order. */
     val calls: List<EngineCall> get() = synchronized(lock) { recorded.toList() }
 
@@ -182,6 +187,7 @@ internal class FakeDockerEngine : DockerEngine {
 
     override suspend fun stopContainer(id: String, timeout: Duration) {
         record(EngineCall.StopContainer(id, timeout), "stopContainer")
+        stopGate?.await()
     }
 
     override suspend fun removeContainer(id: String) {
