@@ -67,7 +67,8 @@ dependencies {
  * image the running IDE hands to the Dock. The ico file and the Linux package use the plain square image.
  *
  * The Windows launcher is built as a console application. Without a console, Windows gives the process no standard
- * output and no standard error, and the headless commands `validate` and `run` would print nothing.
+ * output and no standard error, and the headless commands `validate` and `run` would print nothing. The msi puts the
+ * IDE into the Start menu. Without that entry the installed program could only be started from its folder.
  */
 compose.desktop {
     application {
@@ -87,6 +88,7 @@ compose.desktop {
             }
             windows {
                 console = true
+                menu = true
                 iconFile.set(layout.projectDirectory.file("src/main/packaging/karpfen-ide.ico"))
             }
             linux {

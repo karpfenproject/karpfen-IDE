@@ -54,7 +54,7 @@ GitHub builds them from a release tag.
 |---|---|---|---|
 | macOS, Apple silicon | `karpfen-ide-<version>-macos-arm64.dmg` | Open the file and drag `karpfen-ide` to Applications. | `/Applications/karpfen-ide.app` |
 | macOS, Intel | `karpfen-ide-<version>-macos-x64.dmg` | Open the file and drag `karpfen-ide` to Applications. | `/Applications/karpfen-ide.app` |
-| Windows | `karpfen-ide-<version>-windows-x64.msi` | Open the file. | `C:\Program Files\karpfen-ide\karpfen-ide.exe` |
+| Windows | `karpfen-ide-<version>-windows-x64.msi` | Open the file. | `karpfen-ide` in the Start menu, or `C:\Program Files\karpfen-ide\karpfen-ide.exe` |
 | Debian and Ubuntu | `karpfen-ide-<version>-linux-x64.deb` | `sudo apt install ./karpfen-ide-<version>-linux-x64.deb` | `/opt/karpfen-ide/bin/karpfen-ide` |
 
 The installers are not signed. macOS and Windows stop an unsigned program, and you have to allow it by hand once.
