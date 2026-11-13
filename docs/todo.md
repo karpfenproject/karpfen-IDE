@@ -18,13 +18,14 @@ refer to.
 
 ### Diagrams
 
-- The diagrams change the text through their context menus, and the statechart through its code cells. The
-  statechart cannot yet add splits and joins, reorder transitions, mark a transition as not looping, or edit macros.
-  The class diagram cannot reorder types or change the description of a type. A new object in the object diagram
-  gets the type `Type`, which has to be set as text.
+- The diagrams change the text through their context menus and code cells. A split is added with two targets and a
+  join with two sources, and more are added one at a time. The macros of a state machine are edited as text only.
+- The type of a new object in the object diagram is typed in. The diagram does not know the types of the metamodel,
+  so it cannot offer them.
 - An opened code cell is a plain text field without highlighting, completion and checks. It closes without saving
   when the text changes underneath it.
-- Renaming a state through the diagram renames it in the transitions, but not where code names it.
+- Renaming through a diagram stays in the file. A renamed type is not renamed in the models and state machines that
+  use it, and a renamed object not in the descriptors that attach a state machine to it.
 - The diagrams do not show a running model: neither the active states and fired transitions in the statechart nor the
   current values in the object diagram.
 - A change of the layout by hand cannot be undone, and there is no command that goes back to the automatic layout.
@@ -32,8 +33,6 @@ refer to.
 - Renaming or deleting a model file leaves its `.vis` file behind under the old name.
 - A state, type or object that is renamed in the text loses its place and is placed as a new element.
 - The lines of splits and joins have no waypoints.
-- The first change by hand moves the labels from where the automatic layout drew them to their usual place beside
-  the line.
 - In a statechart a label may cover another line. The class and object diagrams move a label to the free side.
 - The view mode of a file, Text, Split or Diagram, is not stored in the project file.
 - The class diagram shows the types of one file only, so a relation to a type of another metamodel file is a row and

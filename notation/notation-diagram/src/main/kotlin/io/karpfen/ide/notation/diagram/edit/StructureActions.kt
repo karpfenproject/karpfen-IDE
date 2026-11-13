@@ -26,11 +26,12 @@ import io.karpfen.ide.notation.diagram.structure.StructureNode
 /**
  * What a user can do at a point of a class diagram or an object diagram.
  *
- * - On the line or the label of a link: rename the relation and delete it.
+ * - On the line or the label of a link: rename the relation, edit it as text and delete it.
  * - On a row of a box: edit the statement behind the row as text, and delete it.
- * - On a type: rename it, add a property, add a relation to a type the user clicks, and delete it.
- * - On an object: rename it, add a property, add an object it has, add a reference to an object the user clicks, and
- *   delete it.
+ * - On a type: rename it, edit it as text, describe it, add a property, add a relation to a type the user clicks,
+ *   make it the root type, and delete it.
+ * - On an object: rename it, edit it as text, add a property, add an object it has, for which the user types the
+ *   relation and then the type, add a reference to an object the user clicks, and delete it.
  * - On the empty canvas of a class diagram: add a type.
  */
 public object StructureActions : DiagramActions<StructureDiagram, StructureLayout> {
@@ -54,9 +55,12 @@ public object StructureActions : DiagramActions<StructureDiagram, StructureLayou
 
     private fun onLink(source: String, diagram: StructureDiagram, id: String): List<DiagramAction> {
         val label = diagram.links.firstOrNull { it.id == id }?.label.orEmpty().substringBefore(" [")
-        return listOf(
+        return listOfNotNull(
             DiagramAction.Ask("Rename relation", label) { new ->
                 DiagramAction.Change("Rename relation") { StructureEdits.renameLink(source, diagram, id, new) }
+            },
+            diagram.links.firstOrNull { it.id == id }?.let { link ->
+                DiagramAction.Open("Edit as text", ConstructCells.of(id, "Relation $label", source, link.range))
             },
             DiagramAction.Change("Delete relation") { StructureEdits.deleteLink(source, diagram, id) },
         )
@@ -76,6 +80,10 @@ public object StructureActions : DiagramActions<StructureDiagram, StructureLayou
         val isRoot = !isType && diagram.links.none { it.kind == LinkKind.CONTAINMENT && it.target == id }
         return listOfNotNull(
             DiagramAction.Ask("Rename", id) { new -> DiagramAction.Change("Rename") { StructureEdits.rename(source, diagram, id, new) } },
+            DiagramAction.Open("Edit as text", ConstructCells.of(id, node.title, source, node.range)),
+            DiagramAction.Ask("Describe", StructureEdits.descriptionOf(source, diagram, id).orEmpty()) { description ->
+                DiagramAction.Change("Describe") { StructureEdits.describe(source, diagram, id, description) }
+            }.takeIf { isType },
             DiagramAction.Ask("Add property", "name") { name ->
                 DiagramAction.Change("Add property") { StructureEdits.addProperty(source, diagram, id, name) }
             },
@@ -86,8 +94,12 @@ public object StructureActions : DiagramActions<StructureDiagram, StructureLayou
                 DiagramAction.Change("Add relation") { StructureEdits.addRelation(source, diagram, id, LinkKind.REFERENCE, target) }
             }.takeIf { isType },
             DiagramAction.Ask("Add object", "relation") { relation ->
-                DiagramAction.Change("Add object") { StructureEdits.addObject(source, diagram, id, relation) }
+                DiagramAction.Ask("Add object", "Type") { type ->
+                    DiagramAction.Change("Add object") { StructureEdits.addObject(source, diagram, id, relation, type) }
+                }
             }.takeIf { !isType },
+            DiagramAction.Change("Make root type") { StructureEdits.makeRoot(source, diagram, id) }
+                .takeIf { isType && diagram.nodes.maxByOrNull { it.range.start }?.id != id },
             DiagramAction.Pick("Add reference to", "Click the object that this object knows.", all - id) { target ->
                 DiagramAction.Change("Add reference") { StructureEdits.addReference(source, diagram, id, target) }
             }.takeIf { !isType && all.size > 1 },

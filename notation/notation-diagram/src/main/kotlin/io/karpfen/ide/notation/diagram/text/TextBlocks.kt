@@ -169,6 +169,15 @@ internal object TextBlocks {
     /** One step of indentation behind [indent]. */
     fun deeper(indent: String): String = indent + INDENT
 
+    /**
+     * [statement] ready to stand in a place whose line is indented by [indent]: its first line as it is, every other
+     * line behind [indent]. Blank lines around it are dropped. It is what undoes [lifted].
+     */
+    fun placed(statement: String, indent: String): String {
+        val lines = statement.lines().dropWhile { it.isBlank() }.dropLastWhile { it.isBlank() }
+        return lines.mapIndexed { index, line -> if (index == 0 || line.isBlank()) line.trimEnd() else indent + line.trimEnd() }.joinToString("\n")
+    }
+
     /** The whitespace at the start of the line that holds [offset] of [text]. */
     fun indentOf(text: String, offset: Int): String =
         text.substring(lineStartOf(text, offset)).takeWhile { it == ' ' || it == '\t' }

@@ -23,6 +23,7 @@ import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
+import io.karpfen.ide.notation.diagram.statechart.TransitionKind
 import io.karpfen.ide.notation.diagram.text.TextBlocks
 
 /**
@@ -150,6 +151,92 @@ public object StatechartEdits {
         val body = bodyOf(text, state) ?: return null
         return DiagramChange(listOf(TextBlocks.insert(text, body, "$keyword { }", after = if (isEntry) null else state.entryRange)))
     }
+
+    /**
+     * Marks the transition [id] as `NOT LOOPING`, or takes the mark off if it has it. The mark stands behind the
+     * states of the transition.
+     */
+    public fun toggleLooping(text: String, diagram: StatechartDiagram, id: String): DiagramChange? {
+        val transition = diagram.transitions.firstOrNull { it.id == id } ?: return null
+        val body = TextBlocks.blockFrom(text, transition.range.start) ?: return null
+        val header = text.substring(transition.range.start, body.start)
+        val mark = NOT_LOOPING.find(header)
+        val edit = if (mark != null) {
+            TextEdit(TextRange(transition.range.start + mark.range.first, transition.range.start + mark.range.last + 1), "")
+        } else {
+            (transition.range.start + header.trimEnd().length).let { TextEdit(TextRange(it, it), " NOT LOOPING") }
+        }
+        return DiagramChange(listOf(edit))
+    }
+
+    /**
+     * Moves the transition [id] one place earlier in the text, or one place later. The order of the transitions is
+     * their priority: of several that can fire, the first one does.
+     */
+    public fun move(text: String, diagram: StatechartDiagram, id: String, earlier: Boolean): DiagramChange? {
+        val index = diagram.transitions.indexOfFirst { it.id == id }
+        val other = diagram.transitions.getOrNull(if (earlier) index - 1 else index + 1) ?: return null
+        val moved = diagram.transitions.getOrNull(index) ?: return null
+        fun textOf(range: TextRange): String = text.substring(range.start, range.end)
+        return disjoint(listOf(TextEdit(moved.range, textOf(other.range)), TextEdit(other.range, textOf(moved.range))))
+    }
+
+    /**
+     * Adds a split from the state [source] into the states [targets], which must be two or more, as the last
+     * transition.
+     */
+    public fun addSplit(text: String, diagram: StatechartDiagram, source: String, targets: List<String>): DiagramChange? {
+        if (targets.size < 2 || (targets + source).any { diagram.state(it) == null }) return null
+        val block = transitionsBlock(text, diagram) ?: return null
+        return DiagramChange(listOf(TextBlocks.append(text, block, "SPLIT ${quoted(source)} -> ${targets.joinToString(", ", transform = ::quoted)} { }")))
+    }
+
+    /**
+     * Adds a join from the states [sources], which must be two or more, into the state [target], as the last
+     * transition.
+     */
+    public fun addJoin(text: String, diagram: StatechartDiagram, sources: List<String>, target: String): DiagramChange? {
+        if (sources.size < 2 || (sources + target).any { diagram.state(it) == null }) return null
+        val block = transitionsBlock(text, diagram) ?: return null
+        return DiagramChange(listOf(TextBlocks.append(text, block, "JOIN ${sources.joinToString(", ", transform = ::quoted)} -> ${quoted(target)} { }")))
+    }
+
+    /** Gives the split [id] one more target, or the join [id] one more source, which is the state [name]. */
+    public fun addEnd(text: String, diagram: StatechartDiagram, id: String, name: String): DiagramChange? {
+        val transition = diagram.transitions.firstOrNull { it.id == id } ?: return null
+        if (diagram.state(name) == null || name in transition.sources + transition.targets) return null
+        val body = TextBlocks.blockFrom(text, transition.range.start) ?: return null
+        val header = text.substring(transition.range.start, body.start)
+        val arrow = header.indexOf("->")
+        val names = STRING.findAll(header).toList()
+        val last = when (transition.kind) {
+            TransitionKind.SPLIT -> names.lastOrNull()
+            TransitionKind.JOIN -> names.lastOrNull { it.range.last < arrow }
+            TransitionKind.NORMAL -> null
+        } ?: return null
+        val at = transition.range.start + last.range.last + 1
+        return DiagramChange(listOf(TextEdit(TextRange(at, at), ", ${quoted(name)}")))
+    }
+
+    /**
+     * The macros of the state machine as a code cell: what stands between the braces of its `MACROS` block. A state
+     * machine without that block has an empty cell, and code written into it makes the block.
+     */
+    public fun macros(text: String, diagram: StatechartDiagram): DiagramCell? {
+        val machine = TextBlocks.blockFrom(text, diagram.range.start) ?: return null
+        val block = TextBlocks.blockNamed(text, MACROS, machine)
+        return DiagramCell("macros", "Macros", "", DiagramBox(0f, 0f, 0f, 0f), block?.let { TextBlocks.inner(text, it) }.orEmpty()) { code ->
+            when {
+                block != null -> TextEdit(block, TextBlocks.braced(code, TextBlocks.indentOf(text, block.start)))
+                    .takeIf { it.newText != text.substring(block.start, block.end) }
+                code.isBlank() -> null
+                else -> TextBlocks.append(text, machine, "$MACROS ${TextBlocks.braced(code, "")}")
+            }?.let { DiagramChange(listOf(it)) }
+        }
+    }
+
+    private const val MACROS = "MACROS"
+    private val NOT_LOOPING = Regex("""\s+NOT\s+LOOPING\b""")
 
     /** The keyword of the entry block of a state. */
     public const val ENTRY: String = "ENTRY"

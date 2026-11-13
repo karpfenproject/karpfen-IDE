@@ -40,7 +40,8 @@ public class DiagramChange(
 /**
  * Something a user can do at a point of a diagram. The view shows the actions of a point as the entries of a context
  * menu. Some actions need more from the user before they change anything: a click on another element or a text. Such
- * an action leads to the next one, and the last one of the chain is a [Change].
+ * an action leads to the next one, and the last one of the chain is a [Change]. An [Open] shows a piece of the model
+ * as text, so whatever the menu has no entry for can still be done in the diagram.
  */
 public sealed interface DiagramAction {
     /** What the entry of the menu says. */
@@ -66,6 +67,13 @@ public sealed interface DiagramAction {
         public val candidates: Set<String>,
         public val next: (String) -> DiagramAction?,
     ) : DiagramAction
+
+    /**
+     * Opens a piece of the model as text, to be edited in a code cell.
+     *
+     * @property cell the cell to open.
+     */
+    public class Open(override val label: String, public val cell: DiagramCell) : DiagramAction
 
     /**
      * Needs the user to type a short text, such as a name.

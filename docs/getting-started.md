@@ -69,10 +69,13 @@ other, and a click on the size sets it back.
 - Drag a side or a corner of a state with inner states to size it. It never gets smaller than its inner states need.
 - The first change by hand fixes every element where it is. The IDE stores the arrangement next to the file, with
   `.vis` appended to its name, as in `lamp.kstates.vis`. After that only new elements are placed automatically.
-- Right-click in a statechart to change the state machine. On the empty canvas the menu adds a state or a
-  transition. On a state it renames or deletes the state, adds a state inside it, starts a transition, adds entry or
-  do actions, makes it the initial state, or moves it out of or into another state. On a transition it deletes the
-  transition. Where an entry needs a second state, the states to choose from are marked, and you click one.
+- Right-click in a statechart to change the state machine. On the empty canvas the menu adds a state, a transition,
+  a split or a join, and opens the macros. On a state it renames or deletes the state, adds a state inside it, starts
+  a transition, adds entry or do actions, makes it the initial state, or moves it out of or into another state. On a
+  transition it changes the priority, sets the mark not looping, or deletes the transition. Where an entry needs
+  another state, the states to choose from are marked, and you click one.
+- Edit as text, on a state, a transition, a type, an object or a relation, opens that piece of the text in a pane
+  over the diagram. So whatever the menu has no entry for can still be done there.
 - Right-click in a class diagram to add a type, and on a type to rename or delete it, to add a property, or to add
   a relation to a type you then click. In an object diagram, right-click an object to rename or delete it and to add
   a property, an object it has, or a reference to an object you then click. A right-click on a row edits or deletes

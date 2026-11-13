@@ -97,6 +97,19 @@ class StructureEditsTest {
     }
 
     @Test
+    fun `a type is described and made the root type`() {
+        assertEquals("A light bulb", StructureEdits.descriptionOf(meta, types, "Bulb"))
+        val described = applied(assertNotNull(StructureEdits.describe(meta, types, "Bulb", "A bulb with a filament")), meta)
+        assertEquals("A bulb with a filament", StructureEdits.descriptionOf(described, readTypes(described), "Bulb"))
+        assertNull(StructureEdits.describe(meta, types, "Bulb", "A light bulb"))
+
+        val rooted = readTypes(applied(assertNotNull(StructureEdits.makeRoot(meta, types, "Lamp")), meta))
+        assertEquals(listOf("Bulb", "Switch", "Room", "Lamp"), rooted.nodes.map { it.id })
+        assertEquals(types.node("Lamp")?.rows, rooted.node("Lamp")?.rows)
+        assertNull(StructureEdits.makeRoot(meta, types, "Room"), "it is the root type already")
+    }
+
+    @Test
     fun `deleting a type deletes the relations that lead to it`() {
         val after = readTypes(applied(assertNotNull(StructureEdits.delete(meta, types, "Bulb")), meta))
 
@@ -113,9 +126,10 @@ class StructureEditsTest {
         val withProperty = readObjects(applied(assertNotNull(StructureEdits.addProperty(model, objects, "bulb", "lit")), model))
         assertEquals(listOf("maxWatts = 40", "lit = "), withProperty.node("bulb")?.rows)
 
-        val withObject = readObjects(applied(assertNotNull(StructureEdits.addObject(model, objects, "lamp", "shade")), model))
+        val withObject = readObjects(applied(assertNotNull(StructureEdits.addObject(model, objects, "lamp", "shade", "Shade")), model))
         assertTrue(withObject.links.any { it.id == "has:lamp.shade" && it.target == "shade" })
-        assertEquals("shade : Type", withObject.node("shade")?.title)
+        assertEquals("shade : Shade", withObject.node("shade")?.title)
+        assertNull(StructureEdits.addObject(model, objects, "lamp", "shade", " "), "an object needs a type")
 
         val withReference = readObjects(applied(assertNotNull(StructureEdits.addReference(model, objects, "wallSwitch", "bulb")), model))
         assertTrue(withReference.links.any { it.id == "knows:wallSwitch.ref" && it.target == "bulb" })

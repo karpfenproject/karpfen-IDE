@@ -157,6 +157,74 @@ class StatechartEditsTest {
     }
 
     @Test
+    fun `the mark not looping is set and taken off again`() {
+        val id = "NORMAL:off->full#1"
+        val marked = applied(assertNotNull(StatechartEdits.toggleLooping(text, lamp, id)))
+        assertTrue(read(marked).transitions.first().notLooping)
+        assertTrue("TRANSITION \"off\" -> \"full\" NOT LOOPING {" in marked, marked)
+
+        val was = "NORMAL:on->brighter#1"
+        val cleared = read(applied(assertNotNull(StatechartEdits.toggleLooping(text, lamp, was))))
+        assertEquals(false, cleared.transitions.single { it.id == was }.notLooping)
+    }
+
+    @Test
+    fun `a transition moves earlier and later in the order that is its priority`() {
+        val second = lamp.transitions[1].id
+        val earlier = read(applied(assertNotNull(StatechartEdits.move(text, lamp, second, earlier = true))))
+        assertEquals(listOf(lamp.transitions[1].id, lamp.transitions[0].id), earlier.transitions.take(2).map { it.id })
+
+        val later = read(applied(assertNotNull(StatechartEdits.move(text, lamp, second, earlier = false))))
+        assertEquals(listOf(lamp.transitions[0].id, lamp.transitions[2].id, lamp.transitions[1].id), later.transitions.take(3).map { it.id })
+        assertNull(StatechartEdits.move(text, lamp, lamp.transitions.first().id, earlier = true), "it is the first already")
+        assertNull(StatechartEdits.move(text, lamp, lamp.transitions.last().id, earlier = false), "it is the last already")
+    }
+
+    @Test
+    fun `splits and joins are added and get more ends`() {
+        val split = applied(assertNotNull(StatechartEdits.addSplit(text, lamp, "off", listOf("full", "brighter"))))
+        val withSplit = read(split)
+        assertEquals("SPLIT:off->full,brighter#1", withSplit.transitions.last().id)
+        val wider = read(applied(assertNotNull(StatechartEdits.addEnd(split, withSplit, "SPLIT:off->full,brighter#1", "broken")), split))
+        assertEquals(listOf("full", "brighter", "broken"), wider.transitions.last().targets)
+
+        val join = applied(assertNotNull(StatechartEdits.addJoin(text, lamp, listOf("full", "brighter"), "broken")))
+        val withJoin = read(join)
+        assertEquals("JOIN:full,brighter->broken#1", withJoin.transitions.last().id)
+        val more = read(applied(assertNotNull(StatechartEdits.addEnd(join, withJoin, "JOIN:full,brighter->broken#1", "off")), join))
+        assertEquals(listOf("full", "brighter", "off"), more.transitions.last().sources)
+
+        assertNull(StatechartEdits.addSplit(text, lamp, "off", listOf("full")), "a split needs two targets")
+        assertNull(StatechartEdits.addEnd(text, lamp, "NORMAL:off->full#1", "broken"), "a normal transition has two ends")
+    }
+
+    @Test
+    fun `the macros are a code cell that makes its block when it is missing`() {
+        val cell = assertNotNull(StatechartEdits.macros(text, lamp))
+        assertEquals("", cell.code)
+        assertNull(cell.save("  "))
+
+        val macro = "MACRO \"half\" {\n    RETURNS(\"number\")\n    DEFINITION {\n        EVAL { return 0.5 }\n    }\n}"
+        val after = applied(assertNotNull(cell.save(macro)))
+        val again = assertNotNull(StatechartEdits.macros(after, read(after)))
+        assertEquals(macro, again.code)
+        assertNull(again.save(macro), "the same code changes nothing")
+    }
+
+    @Test
+    fun `a state edited as text is put back where it stood, and an emptied one is taken out`() {
+        val state = assertNotNull(lamp.state("brighter"))
+        val cell = ConstructCells.of("brighter", "State brighter", text, state.range)
+        assertTrue(cell.code.startsWith("STATE \"brighter\" {\n    ENTRY"), cell.code)
+        assertNull(cell.save(cell.code), "the same text changes nothing")
+
+        val renamed = read(applied(assertNotNull(cell.save(cell.code.replace("brighter", "glowing")))))
+        assertEquals(listOf("full", "glowing"), renamed.state("on")?.children?.map { it.name })
+        val gone = read(applied(assertNotNull(ConstructCells.of("x", "x", text, lamp.transitions.last().range).save(""))))
+        assertEquals(lamp.transitions.size - 1, gone.transitions.size)
+    }
+
+    @Test
     fun `the edits also work on a state machine written on few lines`() {
         val small = """STATEMACHINE ATTACHED TO "T" { STATES { INITIAL STATE "a" { } } TRANSITIONS { } }"""
         var now = small

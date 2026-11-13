@@ -200,6 +200,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             null -> mode = CanvasMode.Idle
             is DiagramAction.Pick -> mode = CanvasMode.Picking(action, picked)
             is DiagramAction.Ask -> mode = CanvasMode.Asking(action, position)
+            is DiagramAction.Open -> mode = CanvasMode.Editing(action.cell, position)
             is DiagramAction.Change -> {
                 mode = CanvasMode.Idle
                 val shown = current ?: return

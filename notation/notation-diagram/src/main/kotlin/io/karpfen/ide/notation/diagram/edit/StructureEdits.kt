@@ -100,14 +100,46 @@ public object StructureEdits {
     }
 
     /**
-     * Gives the object [id] a new object through the `has` relation [relation]. The new object is named after the
-     * relation and has the type `Type`, which the user then sets.
+     * Gives the object [id] a new object of the type [type] through the `has` relation [relation]. The new object is
+     * named after the relation, with a number behind it where an object has that key already.
      */
-    public fun addObject(text: String, diagram: StructureDiagram, id: String, relation: String): DiagramChange? {
+    public fun addObject(text: String, diagram: StructureDiagram, id: String, relation: String, type: String): DiagramChange? {
         val key = clean(relation).ifEmpty { return null }
+        val of = clean(type).ifEmpty { return null }
         if (diagram.kind != StructureKind.OBJECTS) return null
         val name = fresh(key, diagram.nodes.map { it.id })
-        return addStatement(text, diagram, id, "has(${quoted(key)}) -> make object ${quoted(name)}:\"Type\" { }")
+        return addStatement(text, diagram, id, "has(${quoted(key)}) -> make object ${quoted(name)}:${quoted(of)} { }")
+    }
+
+    /** The description of the type [id], which is the second text of its declaration, or null if it has none. */
+    public fun descriptionOf(text: String, diagram: StructureDiagram, id: String): String? =
+        description(text, diagram, id)?.let { text.substring(it.start, it.end) }
+
+    /** Sets the description of the type [id] to [description]. */
+    public fun describe(text: String, diagram: StructureDiagram, id: String, description: String): DiagramChange? {
+        val range = description(text, diagram, id) ?: return null
+        val new = clean(description)
+        return if (new == text.substring(range.start, range.end)) null else DiagramChange(listOf(TextEdit(range, new)))
+    }
+
+    /**
+     * Makes the type [id] the root type of its metamodel, which is the last type of the file. The type moves to the
+     * end of the file with everything it holds.
+     */
+    public fun makeRoot(text: String, diagram: StructureDiagram, id: String): DiagramChange? {
+        val node = diagram.node(id) ?: return null
+        val last = diagram.nodes.maxByOrNull { it.range.start } ?: return null
+        if (diagram.kind != StructureKind.TYPES || last.id == id) return null
+        val moved = TextBlocks.lifted(text, node.range)
+        val ordered = listOf(TextBlocks.removal(text, node.range), TextEdit(TextRange(last.range.end, last.range.end), "\n$moved"))
+        return if (ordered[0].range.end > ordered[1].range.start) null else DiagramChange(ordered)
+    }
+
+    /** The inside of the string literal that holds the description of the type [id]. */
+    private fun description(text: String, diagram: StructureDiagram, id: String): TextRange? {
+        val node = diagram.node(id)?.takeIf { diagram.kind == StructureKind.TYPES } ?: return null
+        val body = bodyOf(text, node) ?: return null
+        return strings(text, TextRange(node.nameRange.end + 1, body.start)).firstOrNull()
     }
 
     /** Gives the object [id] a reference to the object [target] through a `knows` relation named `ref`. */

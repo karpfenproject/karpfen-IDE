@@ -15,8 +15,11 @@
  */
 package io.karpfen.ide.notation.diagram.edit
 
+import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
+import io.karpfen.ide.notation.diagram.text.TextBlocks
 
 /**
  * A piece of code that a diagram shows folded up, such as the entry actions of a state or the condition of a
@@ -39,6 +42,25 @@ public class DiagramCell(
     public val code: String,
     public val save: (String) -> DiagramChange?,
 )
+
+/** Makes the code cells that show a whole construct of the text, such as a state or a relation with all it holds. */
+public object ConstructCells {
+
+    /**
+     * The cell titled [title] with the key [key] that shows the construct at [range] of [source] as it stands in the
+     * text, without the indentation of its first line. Saving puts the edited text in its place. Saving nothing takes
+     * the construct out of the text.
+     */
+    public fun of(key: String, title: String, source: String, range: TextRange): DiagramCell =
+        DiagramCell(key, title, "", DiagramBox(0f, 0f, 0f, 0f), TextBlocks.lifted(source, range)) { code ->
+            val placed = TextBlocks.placed(code, TextBlocks.indentOf(source, range.start))
+            when {
+                code.isBlank() -> DiagramChange(listOf(TextBlocks.removal(source, range)))
+                placed == source.substring(range.start, range.end) -> null
+                else -> DiagramChange(listOf(TextEdit(range, placed)))
+            }
+        }
+}
 
 /**
  * Tells which code cells one kind of diagram has.
