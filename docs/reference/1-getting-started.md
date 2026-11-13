@@ -29,9 +29,10 @@ The descriptor and the bridge files belong to the IDE. [4.1 Projects](4.1-projec
 
 ## 1.2 What you need
 
-- A JDK 21. Gradle also runs on JDK 17 or newer and downloads a JDK 21 if none is installed.
 - Docker Desktop or another local Docker engine, running. The IDE runs every model in a Docker container of its own.
-- The repository karpfen-IDE with its submodules.
+- The repository karpfen-IDE. It holds the lamp example in `examples/lamp`.
+- To start the IDE from the sources: the submodules of the repository and a JDK 21. Gradle also runs on JDK 17 or
+  newer and downloads a JDK 21 if none is installed. An installed IDE brings its own Java and needs neither.
 
 ```bash
 git clone --recurse-submodules https://github.com/karpfenproject/karpfen-IDE.git
@@ -41,6 +42,39 @@ cd karpfen-IDE
 In a clone without the submodules, run `git submodule update --init --recursive`.
 
 ## 1.3 Starting the IDE
+
+The IDE starts from an installer or from the sources.
+
+### 1.3.1 From an installer
+
+The [releases of karpfen-IDE](https://github.com/karpfenproject/karpfen-IDE/releases) hold one installer per system.
+GitHub builds them from a release tag.
+
+| System | File | Installing | Program |
+|---|---|---|---|
+| macOS, Apple silicon | `karpfen-ide-<version>-macos-arm64.dmg` | Open the file and drag `karpfen-ide` to Applications. | `/Applications/karpfen-ide.app` |
+| macOS, Intel | `karpfen-ide-<version>-macos-x64.dmg` | Open the file and drag `karpfen-ide` to Applications. | `/Applications/karpfen-ide.app` |
+| Windows | `karpfen-ide-<version>-windows-x64.msi` | Open the file. | `C:\Program Files\karpfen-ide\karpfen-ide.exe` |
+| Debian and Ubuntu | `karpfen-ide-<version>-linux-x64.deb` | `sudo apt install ./karpfen-ide-<version>-linux-x64.deb` | `/opt/karpfen-ide/bin/karpfen-ide` |
+
+The installers are not signed. macOS and Windows stop an unsigned program, and you have to allow it by hand once.
+
+On macOS the first start fails with a message that macOS could not verify the app. Open System Settings, go to
+Privacy & Security and click Open Anyway next to the entry for `karpfen-ide`. Then start the app again. If macOS says
+that the app is damaged, it shows no such entry. Remove the mark of the download in a terminal and start the app
+again:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/karpfen-ide.app
+```
+
+On Windows the installer stops at the message "Windows protected your PC". Click More info and then Run anyway.
+
+On Debian and Ubuntu nothing has to be allowed.
+
+Start the program and open the folder `examples/lamp` of the repository with Open Folder.
+
+### 1.3.2 From the sources
 
 From the root of the repository, on macOS and Linux:
 

@@ -163,12 +163,15 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 
 ## In the build and on other platforms
 
-- There is no continuous integration. The build and the tests run only on the developer's machine.
+- The workflow on GitHub runs the tests on Linux only. The installers for Windows and macOS are built without a test
+  run on those systems.
+- The installers are not signed. A signed and notarized dmg needs a Developer ID Application certificate and is meant
+  to be built by hand on a Mac for stable releases. Signing for Windows is undecided.
+- The package version is fixed in `app/ide/build.gradle.kts` and does not follow the release tag.
 - Gradle prints a deprecation warning about `Configuration.setVisible`. It most likely comes from a plugin applied in
   app/ide. The warning says the build will not work with Gradle 10. Check it again when the Compose Gradle plugin is
   updated.
-- Only macOS has been built and tried. Linux and Windows are not built at all. Which platforms to ship, and signing
-  for macOS and Windows, are undecided.
+- Only macOS has been tried by hand. Nobody has installed or started the installers for Windows and Linux.
 - The image build leaves base images and a build-stage image behind. A Dockerfile with separate dependency layers
   would make image rebuilds faster.
 - When the runtime repository publishes an image, pulling it instead of building it needs a new decision.

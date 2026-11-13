@@ -34,6 +34,16 @@ Without a window:
 
 The first line validates the project and prints its findings. The second runs it with a bridge until Ctrl+C.
 
+## Installers
+
+The [releases](https://github.com/karpfenproject/karpfen-IDE/releases) hold installers that GitHub builds from a
+release tag: a dmg for Macs with Apple silicon, a dmg for Macs with an Intel processor, an msi for Windows and a deb
+for Debian and Ubuntu. An installed IDE brings its own Java. Running a model still needs a local Docker engine.
+
+The installers are not signed. macOS and Windows stop an unsigned program, and you have to allow it by hand once. On
+macOS, open System Settings, go to Privacy & Security and click Open Anyway. On Windows, click More info and then Run
+anyway. [1.3 Starting the IDE](docs/reference/1-getting-started.md#13-starting-the-ide) has the steps for each system.
+
 ## Documentation
 
 - [Reference](docs/reference/README.md): the reference for users of karpfen, from getting started with the lamp example

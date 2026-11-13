@@ -1,0 +1,197 @@
+# Copyright 2026 Karl Kegel
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Builds karpfen IDE and runs its tests on every push to main. A pushed tag release-<name> runs the same build and,
+# when it passes, builds the installers of all platforms and attaches them to the release of that tag. A run started
+# by hand builds the installers as well and keeps them as artifacts of the run, without a release.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["release-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      # bundleRuntimeSources packs the runtime with its nested karpfen-dsl-tools, so the submodules are needed in full.
+      - name: Check out karpfen IDE with its submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # The default provider, 'enhanced', loads the proprietary gradle-actions-caching component under the Gradle
+      # Technologies Terms of Use. 'basic' caches the Gradle User Home with the MIT-licensed actions/cache. Switching
+      # means accepting those terms, so it is a project decision and not a tuning detail.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Build
+        run: ./gradlew build
+
+      # The first ten failed tests show as annotations of the run, and all of them on its summary page.
+      - name: List the failed tests
+        if: failure()
+        run: |
+          python3 - <<'EOF'
+          import glob
+          import os
+          import xml.etree.ElementTree as ET
+
+          failed = []
+          for path in sorted(glob.glob("**/build/test-results/test/*.xml", recursive=True)):
+              for case in ET.parse(path).getroot().iter("testcase"):
+                  for problem in case.findall("failure") + case.findall("error"):
+                      message = " ".join((problem.get("message") or "").split())[:300]
+                      failed.append((case.get("classname"), case.get("name"), message))
+          for classname, name, message in failed[:10]:
+              print(f"::error title={classname}::{name}: {message}".replace("%", "%25"))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write(f"{len(failed)} failed tests\n\n")
+              for classname, name, message in failed:
+                  summary.write(f"- `{classname}`: {name}: {message}\n")
+          EOF
+
+      - name: Keep the test reports of a failed build
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: "**/build/reports/tests/"
+          retention-days: 14
+
+  # jpackage builds an installer only for the system and the processor it runs on, so each platform has its own runner.
+  # The installers are not signed.
+  bundle:
+    name: bundle (${{ matrix.platform }})
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            os: ubuntu-latest
+            task: packageDeb
+            format: deb
+          - platform: windows-x64
+            os: windows-latest
+            task: packageMsi
+            format: msi
+          - platform: macos-arm64
+            os: macos-latest
+            task: packageDmg
+            format: dmg
+          - platform: macos-x64
+            os: macos-15-intel
+            task: packageDmg
+            format: dmg
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Git for Windows would check text files out with Windows line breaks. The runtime sources go into the bundle as
+      # the build context of a Linux image, and the resources of the IDE are texts it reads, so every platform builds
+      # from the line breaks of the repository.
+      - name: Keep the line breaks of the repository
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - name: Check out karpfen IDE with its submodules
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Install what jpackage needs to build a deb
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes fakeroot
+
+      - name: Build the installer
+        run: ./gradlew :app:ide:${{ matrix.task }}
+
+      # The package version in the file name of the installer is fixed in the build file. The release names the file
+      # after its tag, without the leading 'release-', and after the platform.
+      - name: Name the installer after the tag and the platform
+        run: |
+          mkdir bundles
+          cp app/ide/build/compose/binaries/main/${{ matrix.format }}/*.${{ matrix.format }} \
+            "bundles/karpfen-ide-${GITHUB_REF_NAME#release-}-${{ matrix.platform }}.${{ matrix.format }}"
+
+      - name: Keep the installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: karpfen-ide-${{ matrix.platform }}
+          path: bundles/
+          if-no-files-found: error
+          retention-days: 14
+
+  # Runs only when every installer was built. A release that already exists for the tag gets the installers added. If
+  # there is none, a draft is created, to be given its text and published by hand.
+  release:
+    name: release
+    if: github.ref_type == 'tag'
+    needs: bundle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Fetch the installers
+        uses: actions/download-artifact@v8
+        with:
+          pattern: karpfen-ide-*
+          path: bundles
+          merge-multiple: true
+
+      - name: Attach the installers to the release of the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" bundles/* --clobber
+          else
+            gh release create "$TAG" bundles/* --draft --verify-tag --title "$TAG"
+          fi

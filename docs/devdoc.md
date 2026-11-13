@@ -43,6 +43,28 @@ and a deb on Linux. The package version is 1.0.0 on macOS and 0.1.0 elsewhere, b
 version 0 on macOS. When a new library needs more JDK modules in the bundle, `:app:ide:suggestRuntimeModules` lists
 them.
 
+### Builds and releases on GitHub
+
+The workflow `.github/workflows/build.yml` runs `./gradlew build` on Linux for every push to `main`. A failed run
+lists the failed tests on its summary page and keeps the test reports as an artifact.
+
+A pushed tag `release-<name>` runs the same build and, when it passes, builds the installers on four runners: a deb on
+Linux, an msi on Windows, and a dmg each on a Mac with Apple silicon and on a Mac with an Intel processor. The files
+are named `karpfen-ide-<name>-<platform>.<format>`. When all four are built, the last job attaches them to the release
+of the tag. If the tag has no release, the job creates one as a draft, which gets its text and is published by hand.
+
+```bash
+git tag release-0.1-beta
+git push origin release-0.1-beta
+```
+
+Started by hand on the Actions page, the workflow builds the installers of a branch and keeps them as artifacts of the
+run, without a release.
+
+The installers are not signed. The name in the tag does not change the package version, which `app/ide/build.gradle.kts`
+sets. The tests run on Linux only, so the installers for Windows and macOS are built without a test run on those
+systems.
+
 ### Test tags
 
 The convention plugin `karpfen.kotlin-jvm` excludes three JUnit tags from the normal test task. `TestTags` in
@@ -225,11 +247,11 @@ Gradle. Every file in the repository root that they read must be listed in `root
 ### Repositories and commits
 
 karpfen-dsl-tools and karpfen-runtime are submodules. Work on them happens only in the submodules. A change is
-committed in the submodule on its branch and pushed before the IDE commit that moves the pointer. Commits are authored
+committed in the submodule on its `main` and pushed before the IDE commit that moves the pointer. Commits are authored
 by Karl Kegel, with short messages and no co-author trailers. Development happens on `main` with a linear history.
 
-A small, clear bug in the runtime is fixed on its branch with IDE support, together with a regression test in the
-runtime's own tests. A bigger finding goes to [todo.md](todo.md), and the IDE copes with it in the meantime.
+A small, clear bug in the runtime is fixed in the runtime, together with a regression test in the runtime's own
+tests. A bigger finding goes to [todo.md](todo.md), and the IDE copes with it in the meantime.
 
 Work happens in small steps that are agreed before they start. A change is finished when it has been tried in the
 running IDE, not only when the tests pass. Only Docker resources that carry the IDE's labels may be removed. Never
