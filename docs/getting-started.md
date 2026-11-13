@@ -124,9 +124,10 @@ tick limits, breakpoints, macros, and splits and joins. All of them are off in a
 
 - While a feature is off, every use of it in a state machine is an error, and a run is blocked. Completion and the
   menu of a statechart do not offer it.
-- A run switches on the runtime features of what the project has on: History for histories and TickLimit for tick
-  limits. The deployment steps of the run show a line such as `Switching on History, TickLimit`.
-- Breakpoints can be written and are shown, but no run halts at them, because the IDE has no debugger yet.
+- A run switches on the runtime features of what the project has on: History for histories, TickLimit for tick
+  limits and Breakpoint for breakpoints. The deployment steps of the run show a line such as
+  `Switching on History, TickLimit`.
+- With breakpoints on, a run has a debugger. See [Debugging](#debugging).
 
 ### While a model runs
 
@@ -138,6 +139,30 @@ the runs with the buttons Run again, Stop and Clear finished. Below, three panes
 | Model | The model as a tree, with Expand all and Collapse all. With observation on, it follows every change. With observation off, Pull reads one snapshot. |
 | Events | The form that sends an event: choose a domain, an event and fill in the payload. The payload is checked as you type. Below is the list of the events the environment published. |
 | Log | The active states of each state machine, the deployment, the bridges and the log of the runtime. Simplified shows only what the state machines do, such as `lamp  off -> on`, and the errors. |
+
+### Debugging
+
+A run halts at the breakpoints of its state machines once breakpoints are switched on for the project.
+
+| Step | What to do |
+|---|---|
+| 1 | Choose Run > Language Features > Switch On Breakpoints. |
+| 2 | Write `BREAKPOINT { ENTRY }` or `{ EXIT }` into a state, or `BREAKPOINT { START }` or `{ END }` into a transition. In a statechart, the menu of a state or a transition does the same. |
+| 3 | Run. The Runtime tool window shows a line Debugger below the list of runs. |
+
+| The Debugger line says | It offers |
+|---|---|
+| `Running` | Pause, which lets the engine finish its tick and then wait. |
+| `Paused before the entry of cars wait`, `Paused before the transition cars wait to cars go` and the like | Resume (F9) and Step (F8). |
+| `Paused between two ticks` | Resume (F9) and Step (F8). |
+
+- Resume lets the run go on to the next breakpoint.
+- Step goes on to the next breakpoint or to the end of the tick, whichever comes first. From between two ticks it
+  runs one tick.
+- The open statechart frames the state or the transition the run is paused at with a dashed line.
+- While a run is paused, the model shows what the tick has done so far. The active states are those of the last
+  finished tick, because the runtime tells a change of the states when its tick ends.
+- Pause, Resume and Step are also in the Run menu. The journal of the run notes every pause and every resume.
 
 ### Bridges
 

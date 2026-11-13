@@ -57,10 +57,10 @@ internal class PlanningWorkspaces(private val scope: TestScope, val root: Path) 
 }
 
 /**
- * The language features that the models of the tests use and that switch on no runtime feature: breakpoints, macros,
- * and splits and joins. The workspaces of the planning tests have them switched on unless a test says otherwise.
+ * The language features that switch on no runtime feature: macros, and splits and joins. The workspaces of the
+ * planning tests have them switched on unless a test says otherwise.
  */
-internal val PLAIN_FEATURES: Set<KstatesFeature> = setOf(KstatesFeature.BREAKPOINTS, KstatesFeature.MACROS, KstatesFeature.PARALLEL)
+internal val PLAIN_FEATURES: Set<KstatesFeature> = setOf(KstatesFeature.MACROS, KstatesFeature.PARALLEL)
 
 /** Replaces [old] by [new] in the file, which must contain it. */
 internal fun Path.replaceText(old: String, new: String) {

@@ -112,8 +112,14 @@ class DeploymentPlannerTest {
         val histories = PLAIN_FEATURES + KstatesFeature.HISTORY
         assertEquals(listOf(FeatureName.HISTORY), workspaces.plan(descriptor, features = histories).ready().features, "also unused")
 
+        val breakpoints = PLAIN_FEATURES + KstatesFeature.BREAKPOINTS
+        assertEquals(listOf(FeatureName.BREAKPOINT), workspaces.plan(descriptor, features = breakpoints).ready().features)
+
         val all = KstatesFeature.entries.toSet()
-        assertEquals(listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT), workspaces.plan(descriptor, features = all).ready().features)
+        assertEquals(
+            listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT, FeatureName.BREAKPOINT),
+            workspaces.plan(descriptor, features = all).ready().features,
+        )
     }
 
     @Test

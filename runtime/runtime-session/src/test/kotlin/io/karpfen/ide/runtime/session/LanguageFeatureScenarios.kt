@@ -27,9 +27,10 @@ import kotlin.test.assertIs
 
 /**
  * Covers the optional language features that need a feature of the runtime, through a session against a real
- * runtime. The crossing has a state with a deep history and a state with a timeout. A project that has histories and
- * tick limits switched on deploys it, the deployment switches the runtime's features History and TickLimit on, and
- * the machine then comes back to the nested state it left and leaves a state by itself. A project that has them
+ * runtime. The crossing has a state with a deep history and a state with a timeout. A project that has every language
+ * feature switched on deploys it, the deployment switches the runtime's features History, TickLimit and Breakpoint on,
+ * and Breakpoint brings TickByTick with it. The crossing has no breakpoint, so its engine never halts. The machine then
+ * comes back to the nested state it left and leaves a state by itself. A project that has histories and tick limits
  * switched off is refused before anything reaches the runtime.
  */
 abstract class LanguageFeatureScenarios {
@@ -47,7 +48,11 @@ abstract class LanguageFeatureScenarios {
         session.awaitStack("crossing", GO)
 
         val active = call(RuntimeRoute.GET_ACTIVE_FEATURES, "envKey" to session.environment.value)
-        assertEquals(setOf("History", "TickLimit"), active.body.split(",").filter { it.isNotEmpty() }.toSet(), diagnostics)
+        assertEquals(
+            setOf("History", "TickLimit", "Breakpoint", "TickByTick"),
+            active.body.split(",").filter { it.isNotEmpty() }.toSet(),
+            diagnostics,
+        )
 
         session.inject("street", "pedestrian")
         session.awaitStack("crossing", WAIT)

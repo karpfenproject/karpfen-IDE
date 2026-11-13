@@ -55,6 +55,21 @@ public object RuntimeViewTestTags {
     /** The empty tool window's explanation of how to run. */
     public const val EMPTY: String = "Runtime.empty"
 
+    /** The debugger's line of the selected run. */
+    public const val DEBUGGER: String = "Runtime.debugger"
+
+    /** The debugger's words for where the selected run is paused. */
+    public const val PAUSE_PLACE: String = "Runtime.debugger.place"
+
+    /** The debugger's Pause button. */
+    public const val PAUSE: String = "Runtime.debugger.pause"
+
+    /** The debugger's Resume button. */
+    public const val RESUME: String = "Runtime.debugger.resume"
+
+    /** The debugger's Step button. */
+    public const val STEP: String = "Runtime.debugger.step"
+
     /** The Run again button of the selected run. */
     public const val RERUN: String = "Runtime.runs.rerun"
 

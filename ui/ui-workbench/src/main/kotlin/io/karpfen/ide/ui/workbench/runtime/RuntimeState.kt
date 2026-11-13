@@ -66,7 +66,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * The runtime of one opened workspace and its runs, as the Runtime tool window shows and steers them. It holds the host
- * with its status and log, the runs with the selected one, and the commands.
+ * with its status and log, the runs with the selected one and its debugger, and the commands.
  *
  * A run goes through these steps. It resolves the descriptor. If the workspace has bridge files, it asks which of
  * them to start with the run, with the bridges of the last run ticked, and remembers the answer in the project. It
@@ -126,6 +126,9 @@ public class RuntimeState internal constructor(
 
     /** The selected run, or null if no run is selected. */
     public val selected: StateFlow<RunEntry?> get() = list.selected
+
+    /** The debugger of the selected run, with its pause, resume and step. */
+    public val debugging: RunDebugging = RunDebugging(scope, list.selected)
 
     /**
      * The run that Stop stops. That is the selected run if it can be stopped. Otherwise it is the only run that can be

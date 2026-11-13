@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.state
 
 import io.karpfen.ide.runtime.host.HostStatus
+import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.foundation.command.Command
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.keys.KeyCode
@@ -36,13 +37,15 @@ import kotlinx.coroutines.flow.stateIn
 
 /**
  * Registers the runtime commands of `RuntimeCommandIds` over the [runtime] of the opened workspace. They are Run with
- * Shift+F10, Stop with Ctrl+F2 or Cmd+F2 on macOS, Start runtime, Stop runtime and Configure Bridge, which calls
- * [configureBridge].
+ * Shift+F10, Stop with Ctrl+F2 or Cmd+F2 on macOS, Pause, Resume with F9, Step with F8, Start runtime, Stop runtime and
+ * Configure Bridge, which calls [configureBridge]. Pause, Resume and Step act on the debugger of the selected run.
  *
  * Run also shows the Runtime tool window and gives it three quarters of the height below the menu, so the model, the
  * events and the log of the run have room. The Run again button of the tool window leaves the size alone.
  *
  * Run and Configure Bridge are enabled while a workspace is open. Stop is enabled while there is a run it can stop.
+ * Pause is enabled while the debugger of the selected run shows it running, and Resume and Step while it shows it
+ * paused.
  * Start runtime is enabled while the host has no runtime, that is, while it is stopped or failed. Stop runtime is
  * enabled while the host has a runtime or prepares one.
  */
@@ -66,6 +69,11 @@ internal class RuntimeCommands(
             },
         )
         registry.register(Command(RuntimeCommandIds.STOP, "Stop", STOP_SHORTCUT, stoppable) { runtime.value?.stopSelected() })
+        val running = follow(false) { state -> state.debugging.state.map { it == DebuggerState.Running } }
+        val paused = follow(false) { state -> state.debugging.state.map { it is DebuggerState.Paused } }
+        registry.register(Command(RuntimeCommandIds.PAUSE, "Pause", isEnabled = running) { runtime.value?.debugging?.pause() })
+        registry.register(Command(RuntimeCommandIds.RESUME, "Resume", RESUME_SHORTCUT, paused) { runtime.value?.debugging?.resume() })
+        registry.register(Command(RuntimeCommandIds.STEP, "Step", STEP_SHORTCUT, paused) { runtime.value?.debugging?.step() })
         registry.register(
             Command(RuntimeCommandIds.START_RUNTIME, "Start Runtime", isEnabled = startable) { runtime.value?.startRuntime() },
         )
@@ -92,5 +100,11 @@ internal class RuntimeCommands(
 
         /** The shortcut of Stop, which is Ctrl+F2, or Cmd+F2 on macOS. */
         val STOP_SHORTCUT: KeyShortcut = KeyShortcut(KeyCode.F2, primary = true)
+
+        /** The shortcut of Resume, which is F9. */
+        val RESUME_SHORTCUT: KeyShortcut = KeyShortcut(KeyCode.F9)
+
+        /** The shortcut of Step, which is F8. */
+        val STEP_SHORTCUT: KeyShortcut = KeyShortcut(KeyCode.F8)
     }
 }

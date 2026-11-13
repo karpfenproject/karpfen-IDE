@@ -19,7 +19,10 @@ import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
+import io.karpfen.ide.runtime.protocol.message.HaltedTransitionKind
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
+import io.karpfen.ide.runtime.protocol.message.StateTiming
+import io.karpfen.ide.runtime.protocol.message.TransitionTiming
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -39,6 +42,7 @@ import kotlin.test.assertTrue
  * - The decisive lines of the runtime's JSON writer.
  * - The members of the `stateChange` and `domainEvent` payloads.
  * - The names of the language features and the separator of the feature lists.
+ * - The names of the debugger's features, their messages and the members of the breakpoint status.
  *
  * A failure names the file and the snippet that no longer occurs. The texts of the runtime's older dsl-tools parser
  * are not anchored. The live runs cover them.
@@ -279,6 +283,41 @@ class RuntimeSourceAnchorTest {
         )
     }
 
+    @Test
+    fun `the debugger's features are registered under the catalogue's names and take and answer its messages`() {
+        assertAnchored(
+            listOf(
+                SourceAnchor(BREAKPOINT_FEATURE, "override val registryName: String = \"${FeatureName.BREAKPOINT.value}\""),
+                SourceAnchor(BREAKPOINT_FEATURE, "hashSetOf(TickByTickFeature::class)"),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "override val registryName = \"${FeatureName.TICK_BY_TICK.value}\""),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "\"${WireNames.TICK_PAUSE}\" -> pause()"),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "\"${WireNames.TICK_RESUME}\" -> resume()"),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "val list = message.split(':')"),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "list.size == 2 && list[0] == \"${WireNames.TICK_ADVANCE_PREFIX.removeSuffix(":")}\""),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "return \"${WireNames.TICKS_ADVANCING}\$amount tick"),
+                SourceAnchor(BREAKPOINT_FEATURE, "json.getString(\"${WireNames.BREAKPOINT_ACTION}\")"),
+                SourceAnchor(BREAKPOINT_FEATURE, "\"${WireNames.BREAKPOINT_GET_STATUS}\" -> status()"),
+                SourceAnchor(BREAKPOINT_FEATURE, "status.put(\"${WireNames.PAUSED}\", tickByTickFeature.isPaused())"),
+                SourceAnchor(BREAKPOINT_FEATURE, "status.put(\"${WireNames.WAITING}\", tickByTickFeature.isWaiting())"),
+                SourceAnchor(BREAKPOINT_FEATURE, "halt?.let { status.put(\"${WireNames.HALT}\", it) }"),
+                SourceAnchor(
+                    BREAKPOINT_FEATURE,
+                    "JSONObject().put(\"${WireNames.MODEL_ELEMENT_ID}\", modelElementId).put(\"${WireNames.TIMING}\", timing)" +
+                        ".put(\"${WireNames.HALT_STATE}\", state.name)",
+                ),
+                SourceAnchor(BREAKPOINT_FEATURE, ".put(\"${WireNames.MODEL_ELEMENT_ID}\", modelElementId)"),
+                SourceAnchor(BREAKPOINT_FEATURE, ".put(\"${WireNames.TIMING}\", timing)"),
+                SourceAnchor(BREAKPOINT_FEATURE, ".put(\"${WireNames.HALT_KIND}\", kind)"),
+                SourceAnchor(BREAKPOINT_FEATURE, ".put(\"${WireNames.HALT_FROM}\", from)"),
+                SourceAnchor(BREAKPOINT_FEATURE, ".put(\"${WireNames.HALT_TO}\", to)"),
+                SourceAnchor(BREAKPOINT_FEATURE, ".put(\"${WireNames.HALT_INDEX}\", index)"),
+            ) +
+                StateTiming.entries.map { SourceAnchor(BREAKPOINT_FEATURE, "stateHalt(modelElementId, \"${it.wireName}\", state)") } +
+                TransitionTiming.entries.map { SourceAnchor(BREAKPOINT_FEATURE, "transitionHalt(modelElementId, \"${it.wireName}\", transition, index)") } +
+                HaltedTransitionKind.entries.map { SourceAnchor(BREAKPOINT_FEATURE, "Triple(\"${it.wireName}\", ") },
+        )
+    }
+
     /** Fails naming every anchor of [anchors] that does not hold in the checkout. */
     private fun assertAnchored(anchors: List<SourceAnchor>) {
         val missing = anchors.filterNot { it.holdsIn(checkout) }
@@ -317,6 +356,8 @@ class RuntimeSourceAnchorTest {
         const val FEATURE_MANAGER = "$ENGINE/features/FeatureManager.kt"
         const val HISTORY_FEATURE = "$ENGINE/features/language/HistoryFeature.kt"
         const val TICK_LIMIT_FEATURE = "$ENGINE/features/language/TickLimitFeature.kt"
+        const val BREAKPOINT_FEATURE = "$ENGINE/features/runtime/BreakpointFeature.kt"
+        const val TICK_BY_TICK_FEATURE = "$ENGINE/features/runtime/TickByTickFeature.kt"
 
         /** The routes the runtime's model observation adds, declared in their own file. */
         val OBSERVATION = setOf(RuntimeRoute.MODEL_SNAPSHOT, RuntimeRoute.SUBSCRIBE_MODEL, RuntimeRoute.UNSUBSCRIBE_MODEL)

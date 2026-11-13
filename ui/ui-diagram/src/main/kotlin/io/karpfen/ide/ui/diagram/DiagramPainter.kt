@@ -39,4 +39,12 @@ internal interface DiagramPainter<D, L : DiagramLayout> {
      * the others still appear.
      */
     fun paint(scope: DrawScope, diagram: D, layout: L, texts: DiagramTexts, colors: KarpfenColors, faults: DiagramFaults)
+
+    /**
+     * Marks [pause], the place where a run is paused, in [diagram] as [layout] places it onto [scope]. A kind of
+     * diagram that shows no pause draws nothing, which is what this default does.
+     */
+    fun paintPause(scope: DrawScope, diagram: D, layout: L, pause: DiagramPause, colors: KarpfenColors) {
+        Unit
+    }
 }

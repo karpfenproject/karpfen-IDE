@@ -22,23 +22,25 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Covers [LanguageFeature]: histories switch on `History` and tick limits `TickLimit`. Breakpoints, macros and splits
- * and joins switch nothing on. The runtime features are listed once each, in the order of the language features.
+ * Covers [LanguageFeature]: histories switch on `History`, tick limits `TickLimit` and breakpoints `Breakpoint`. Macros
+ * and splits and joins switch nothing on. The runtime features are listed once each, in the order of the language
+ * features.
  */
 class LanguageFeatureTest {
 
     @Test
-    fun `histories and tick limits switch on their runtime features`() {
+    fun `histories, tick limits and breakpoints switch on their runtime features`() {
         assertEquals(FeatureName.HISTORY, LanguageFeature.runtimeFeatureOf(KstatesFeature.HISTORY))
         assertEquals(FeatureName.TICK_LIMIT, LanguageFeature.runtimeFeatureOf(KstatesFeature.TICK_LIMIT))
+        assertEquals(FeatureName.BREAKPOINT, LanguageFeature.runtimeFeatureOf(KstatesFeature.BREAKPOINTS))
     }
 
     @Test
-    fun `breakpoints, macros and splits and joins switch nothing on`() {
-        listOf(KstatesFeature.BREAKPOINTS, KstatesFeature.MACROS, KstatesFeature.PARALLEL).forEach {
+    fun `macros and splits and joins switch nothing on`() {
+        listOf(KstatesFeature.MACROS, KstatesFeature.PARALLEL).forEach {
             assertNull(LanguageFeature.runtimeFeatureOf(it), "$it")
         }
-        assertEquals(emptyList(), LanguageFeature.runtimeFeaturesOf(setOf(KstatesFeature.BREAKPOINTS, KstatesFeature.MACROS)))
+        assertEquals(emptyList(), LanguageFeature.runtimeFeaturesOf(setOf(KstatesFeature.PARALLEL, KstatesFeature.MACROS)))
         assertEquals(emptyList(), LanguageFeature.runtimeFeaturesOf(emptySet()))
     }
 
@@ -46,7 +48,7 @@ class LanguageFeatureTest {
     fun `the runtime features of several language features are listed in the order they are switched on`() {
         val all = KstatesFeature.entries.toSet()
 
-        assertEquals(listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT), LanguageFeature.runtimeFeaturesOf(all))
+        assertEquals(listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT, FeatureName.BREAKPOINT), LanguageFeature.runtimeFeaturesOf(all))
         assertEquals(listOf(FeatureName.TICK_LIMIT), LanguageFeature.runtimeFeaturesOf(setOf(KstatesFeature.TICK_LIMIT, KstatesFeature.PARALLEL)))
     }
 }

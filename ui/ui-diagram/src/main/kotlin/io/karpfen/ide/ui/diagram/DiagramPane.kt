@@ -68,7 +68,8 @@ import java.nio.file.Path
  * the text does not have is ignored.
  *
  * While a model runs, [live] holds what the run adds to the diagram: a statechart marks the states its machine is
- * in. It is null while nothing runs, and for a file the run has nothing to mark in.
+ * in and the place where a debugger paused it. It is null while nothing runs, and for a file the run has nothing to
+ * mark in.
  *
  * A code cell that the user opens holds [cellEditor], the editor of the host, or a plain text field without one.
  *
@@ -137,7 +138,7 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
                 session.text.apply(made.edits, EditOrigin.Command(DIAGRAM_EDIT)) != null
         }
     }
-    DiagramView(notation, state, editing, modifier, onSelect, change, live?.active.orEmpty(), cellEditor, languageFeatures)
+    DiagramView(notation, state, editing, modifier, onSelect, change, live?.active.orEmpty(), live?.pause, cellEditor, languageFeatures)
 }
 
 /**
@@ -160,6 +161,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
     onSelect: (TextRange) -> Unit = {},
     onChange: (DiagramChange) -> Boolean = { false },
     active: Set<String> = emptySet(),
+    pause: DiagramPause? = null,
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
 ) {
@@ -177,7 +179,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
             )
         } else {
             val actions = remember(notation, languageFeatures) { notation.actions(languageFeatures) }
-            DiagramCanvas(notation, actions, diagram, editing, faults, state.source?.text, active, cellEditor, onChange, onSelect)
+            DiagramCanvas(notation, actions, diagram, editing, faults, state.source?.text, active, pause, cellEditor, onChange, onSelect)
         }
         val fault = state.problem?.let { "The diagram could not be derived from the text: $it. This is the last diagram that could." } ?: faults.note
         Column(

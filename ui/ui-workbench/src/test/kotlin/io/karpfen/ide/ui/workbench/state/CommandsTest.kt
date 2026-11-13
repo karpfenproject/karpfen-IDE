@@ -110,6 +110,17 @@ class CommandsTest {
     }
 
     @Test
+    fun `Pause, Resume on F9 and Step on F8 are registered and disabled while no run has a debugger`() = scenario { registry ->
+        open(root)
+
+        assertEquals("Pause", registry.find(RuntimeCommandIds.PAUSE)?.title)
+        assertNull(registry.find(RuntimeCommandIds.PAUSE)?.shortcut)
+        assertEquals(KeyShortcut(KeyCode.F9), registry.find(RuntimeCommandIds.RESUME)?.shortcut)
+        assertEquals(KeyShortcut(KeyCode.F8), registry.find(RuntimeCommandIds.STEP)?.shortcut)
+        listOf(RuntimeCommandIds.PAUSE, RuntimeCommandIds.RESUME, RuntimeCommandIds.STEP).forEach { assertFalse(registry.enabled(it), it) }
+    }
+
+    @Test
     fun `Run shows the Runtime tool window with three quarters of the workbench's height`() = scenario { registry ->
         open(root)
         state.layout.reportAvailableHeight(800f)

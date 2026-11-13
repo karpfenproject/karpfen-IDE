@@ -31,14 +31,15 @@ import kotlinx.coroutines.flow.StateFlow
  * session deploys a fresh environment when it is launched and never adopts or restarts one. A stopped environment is
  * final.
  *
- * The table lists the commands that each state allows. Any other command answers [SessionCommandOutcome.Refused].
+ * The table lists the commands that each state allows. Debugging stands for the commands of the [debugger]. Any
+ * other command answers [SessionCommandOutcome.Refused].
  * Events injected while the session is ready are queued until the start.
  *
  * | State | Allowed |
  * |---|---|
  * | deploying | [shutdown], [close] |
  * | ready | [start], [stop], [forceState], injecting, [setObservation], [pull], [shutdown], [close] |
- * | running | [stop], [forceState], injecting, [setObservation], [pull], [shutdown], [close] |
+ * | running | [stop], [forceState], injecting, [setObservation], [pull], debugging, [shutdown], [close] |
  * | halted | [stop], switching observation off, [pull], [shutdown], [close] |
  * | stopping | [close] |
  * | stopped | [pull], [close] |
@@ -50,8 +51,8 @@ import kotlinx.coroutines.flow.StateFlow
  * scope closes the session the same way [close] does. One conductor carries out the commands in the order they arrive.
  * It is the single writer of [state], [progress] and [problems]. One router is the only reader of the connection's
  * pushes. It is the single writer of [model], [modelUpdates], [domainEvents] and [activity]. Injected events go through
- * the conductor too, so an injected event never overtakes a stop. The session never waits for a collector of its
- * flows.
+ * the conductor too, so an injected event never overtakes a stop. So do the commands and questions of the debugger. The
+ * session never waits for a collector of its flows.
  *
  * Failures are reported as outcomes and problems, never as exceptions. A `CancellationException` of the caller is
  * rethrown. [close] is idempotent and does not suspend.
@@ -104,6 +105,12 @@ public interface RuntimeSession : AutoCloseable {
 
     /** The injectable events of the deployment and the injection of events through the session. */
     public val events: EventInjector
+
+    /**
+     * The debugger, which pauses, resumes and steps the engine while the environment runs. A session whose deployment
+     * did not switch the runtime's feature `Breakpoint` on has none, which [SessionDebugger.isPresent] tells.
+     */
+    public val debugger: SessionDebugger
 
     /** Starts the activated environment. */
     public suspend fun start(): SessionCommandOutcome

@@ -25,7 +25,9 @@ import io.karpfen.ide.runtime.session.PreparedDeployment
 import io.karpfen.ide.runtime.session.RuntimeSession
 import io.karpfen.ide.runtime.session.SessionActivity
 import io.karpfen.ide.runtime.session.SessionCommandOutcome
+import io.karpfen.ide.runtime.session.SessionDebugger
 import io.karpfen.ide.runtime.session.SessionState
+import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.runtime.session.deploy.DeployProgress
 import io.karpfen.ide.runtime.session.events.EventInjector
 import io.karpfen.ide.runtime.session.events.InjectionAvailability
@@ -49,7 +51,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * deploys nothing and talks to no runtime.
  *
  * At first the session is deploying, without progress, with the plan's findings as its problems and an idle
- * connection. Its model is the seed with the predicted states, and events are not injectable yet. Its event injector
+ * connection. Its debugger is present and unavailable. Its model is the seed with the predicted states, and events are not injectable yet. Its event injector
  * is the real one over the prepared catalog. The frames it sends are recorded and answered as written.
  *
  * Every function may be called from any thread.
@@ -89,6 +91,9 @@ public class FakeRuntimeSession(
 
     /** The writable injection availability. */
     public val availabilityFlow: MutableStateFlow<InjectionAvailability> = MutableStateFlow(InjectionAvailability.NotYet)
+
+    /** The writable state of the debugger. It is unavailable until the test sets it. */
+    public val debuggerFlow: MutableStateFlow<DebuggerState> = MutableStateFlow(DebuggerState.Unavailable)
 
     /** Where the test emits model updates. They reach collectors of [modelUpdates]. */
     public val modelUpdateFlow: MutableSharedFlow<ModelUpdate> = MutableSharedFlow(extraBufferCapacity = BUFFER)
@@ -142,6 +147,22 @@ public class FakeRuntimeSession(
             SendOutcome.Written(EventFrameEncoder.encode(frame))
         },
     )
+
+    /**
+     * A debugger whose state is [debuggerFlow] and whose commands are recorded as [FakeSessionCommand.Pause],
+     * [FakeSessionCommand.Resume] and [FakeSessionCommand.Step] and answered like every other command.
+     */
+    override val debugger: SessionDebugger = object : SessionDebugger {
+        override val isPresent: Boolean = true
+
+        override val state: StateFlow<DebuggerState> = debuggerFlow.asStateFlow()
+
+        override suspend fun pause(): SessionCommandOutcome = asked(FakeSessionCommand.Pause)
+
+        override suspend fun resume(): SessionCommandOutcome = asked(FakeSessionCommand.Resume)
+
+        override suspend fun step(): SessionCommandOutcome = asked(FakeSessionCommand.Step)
+    }
 
     override suspend fun start(): SessionCommandOutcome = asked(FakeSessionCommand.Start)
 
@@ -204,4 +225,13 @@ public sealed interface FakeSessionCommand {
 
     /** [RuntimeSession.shutdown]. */
     public data object Shutdown : FakeSessionCommand
+
+    /** [SessionDebugger.pause]. */
+    public data object Pause : FakeSessionCommand
+
+    /** [SessionDebugger.resume]. */
+    public data object Resume : FakeSessionCommand
+
+    /** [SessionDebugger.step]. */
+    public data object Step : FakeSessionCommand
 }

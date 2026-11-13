@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.runtime.host.RuntimeHostKind
+import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.foundation.theme.KarpfenColors
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.runtime.DescriptorPick
@@ -61,8 +62,9 @@ import java.nio.file.Path
 /**
  * The Runtime tool window over [runtime]. A first line shows the host's status, the Start runtime and Stop runtime
  * buttons and the host selector. A second line shows the runs with the Run again, Stop and Clear finished buttons.
- * Below them the panes of the selected run fill the whole width. Without runs, the window explains how to run
- * instead. It names the Run command with its shortcut and the descriptor Run would pick.
+ * While the selected run has a debugger and runs, a third line shows the debugger with its buttons. Below them the
+ * panes of the selected run fill the whole width. Without runs, the window explains how to run instead. It names the
+ * Run command with its shortcut and the descriptor Run would pick.
  *
  * Paths are shown relative to [root]. A click on a finding calls [onNavigate]. The composable only renders the state
  * and calls its commands.
@@ -96,6 +98,16 @@ internal fun RuntimeToolWindow(runtime: RuntimeState, root: Path, onNavigate: (L
                 onClearFinished = runtime::clearFinished,
             )
             Box(Modifier.fillMaxWidth().height(1.dp).background(KarpfenTheme.colors.border))
+            val debugger by runtime.debugging.state.collectAsState()
+            if (debugger != DebuggerState.Unavailable) {
+                DebuggerBar(
+                    state = debugger,
+                    onPause = { runtime.debugging.pause() },
+                    onResume = { runtime.debugging.resume() },
+                    onStep = { runtime.debugging.step() },
+                )
+                Box(Modifier.fillMaxWidth().height(1.dp).background(KarpfenTheme.colors.border))
+            }
             selected?.let { RunPanes(runtime, it, root, onNavigate, Modifier.weight(1f).fillMaxWidth()) }
         }
     }

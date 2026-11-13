@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import io.karpfen.ide.core.lang.Location
+import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
 import io.karpfen.ide.ui.editor.theme.lightEditorTheme
@@ -179,12 +180,13 @@ private fun EditorPane(state: WorkbenchState) {
     val settings by state.settings.collectAsState()
     val running = state.runtime.collectAsState().value?.selected?.collectAsState()?.value?.takeIf { it.isLive }?.session
     val observed = running?.model?.collectAsState()?.value
-    val live = remember(observed, active) {
+    val debugger = running?.debugger?.state?.collectAsState()?.value ?: DebuggerState.Unavailable
+    val live = remember(observed, debugger, active) {
         val file = active
         if (running == null || observed == null || file == null) {
             null
         } else {
-            DiagramLives.of(observed.states, file)
+            DiagramLives.of(observed.states, file, debugger)
         }
     }
     val services by state.languageServices.collectAsState()

@@ -151,4 +151,49 @@ public object WireNames {
 
     /** The prefix of every access key, `ak-<clientId>-<epoch millis>-<0..9999>`. */
     public const val ACCESS_KEY_PREFIX: String = "ak-"
+
+    /** The message to the feature `TickByTick` that pauses the engine once the tick it is in has ended. */
+    public const val TICK_PAUSE: String = "pause"
+
+    /** The message to the feature `TickByTick` that lets a paused or halted engine run freely again. */
+    public const val TICK_RESUME: String = "resume"
+
+    /** The start of the message `tick:N` to the feature `TickByTick`, which lets a waiting engine run `N` ticks. */
+    public const val TICK_ADVANCE_PREFIX: String = "tick:"
+
+    /** The start of the answer of the feature `TickByTick` to a `tick:N` it applies, `execution is advancing N ticks`. */
+    public const val TICKS_ADVANCING: String = "execution is advancing "
+
+    /** The member of a message to the feature `Breakpoint` that names what the feature is asked to do. */
+    public const val BREAKPOINT_ACTION: String = "action"
+
+    /** The action that asks the feature `Breakpoint` what the engine is doing. */
+    public const val BREAKPOINT_GET_STATUS: String = "getStatus"
+
+    /** Whether a pause was asked for or a breakpoint halted the engine, a member of the breakpoint status. */
+    public const val PAUSED: String = "paused"
+
+    /** Whether the engine thread waits right now, a member of the breakpoint status. */
+    public const val WAITING: String = "waiting"
+
+    /** Where the engine waits at a breakpoint, a member of the breakpoint status while it does. */
+    public const val HALT: String = "halt"
+
+    /** When the halt happens, `entry`, `exit`, `start` or `end`, a member of a halt. */
+    public const val TIMING: String = "timing"
+
+    /** The name of the state the engine halted at, a member of a halt at a state. */
+    public const val HALT_STATE: String = "state"
+
+    /** The kind of the transition the engine halted at, `TRANSITION`, `SPLIT` or `JOIN`, a member of a halt. */
+    public const val HALT_KIND: String = "kind"
+
+    /** The names of the source states of the transition the engine halted at, a member of a halt. */
+    public const val HALT_FROM: String = "from"
+
+    /** The names of the target states of the transition the engine halted at, a member of a halt. */
+    public const val HALT_TO: String = "to"
+
+    /** The place of the transition the engine halted at among the transitions of its file, a member of a halt. */
+    public const val HALT_INDEX: String = "index"
 }

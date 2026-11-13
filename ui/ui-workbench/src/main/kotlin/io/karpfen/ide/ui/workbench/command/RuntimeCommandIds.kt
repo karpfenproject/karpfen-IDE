@@ -30,6 +30,15 @@ public object RuntimeCommandIds {
     /** Stop in the Run menu. It stops the selected run, or the only run that can be stopped. */
     public const val STOP: String = "runtime.stop"
 
+    /** Pause in the Run menu. It pauses the selected run through its debugger. */
+    public const val PAUSE: String = "runtime.pause"
+
+    /** Resume in the Run menu. It lets the paused selected run run freely again. */
+    public const val RESUME: String = "runtime.resume"
+
+    /** Step in the Run menu. It runs the paused selected run to the next breakpoint or to the end of the tick. */
+    public const val STEP: String = "runtime.step"
+
     /** Start runtime in the Run menu. It starts the runtime of the workspace without deploying anything. */
     public const val START_RUNTIME: String = "runtime.startRuntime"
 

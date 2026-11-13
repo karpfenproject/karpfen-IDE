@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.connection.RuntimeConnection
@@ -60,8 +61,27 @@ internal class SessionCalls(
             }
             is SessionCommand.SetObservation -> if (command.on) outcomeOf(router.switchOn()) else outcomeOf(router.switchOff())
             SessionCommand.Pull -> outcomeOf(router.pull())
+            is SessionCommand.Debug -> debug(command.action, environment)
             SessionCommand.Stop -> error("the conductor stops the environment on its own")
         }
+
+    /**
+     * Sends the message of [action] to the runtime's feature `TickByTick` of [environment]. An answer of the feature
+     * that says the action was not applied becomes a refusal with the feature's text.
+     */
+    private suspend fun debug(action: DebuggerAction, environment: RuntimeEnvironment): SessionCommandOutcome =
+        when (val call = environment.messageFeature(FeatureName.TICK_BY_TICK, action.message)) {
+            is CallOutcome.Done ->
+                action.refusal(call.value)?.let { SessionCommandOutcome.Refused(status.state.value, it) } ?: SessionCommandOutcome.Done
+            else -> outcomeOf(call)
+        }
+
+    /**
+     * Sends [message] to the runtime's feature [feature] of [environment] and returns the feature's answer, or null if
+     * the call did not get one. A failed call is not journaled, because a debugger asks again soon.
+     */
+    suspend fun ask(feature: FeatureName, message: String, environment: RuntimeEnvironment): String? =
+        (environment.messageFeature(feature, message) as? CallOutcome.Done)?.value
 
     /**
      * Sends [frame] over [connection]. Once the frame is written, it is journaled and counted as unanswered. Without a

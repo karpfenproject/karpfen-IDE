@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.session
 
+import io.karpfen.ide.runtime.protocol.message.EngineMessages
 import io.karpfen.ide.runtime.session.events.InjectionAvailability
 
 /** A command of a session's lifecycle or observation, as the conductor carries it out. Immutable. */
@@ -55,6 +56,40 @@ internal sealed interface SessionCommand {
     data object Pull : SessionCommand {
         override val description: String = "Pulling the model"
     }
+
+    /**
+     * Pauses, resumes or steps the engine through the runtime's feature `TickByTick`.
+     *
+     * @property action which of the three.
+     */
+    data class Debug(val action: DebuggerAction) : SessionCommand {
+        override val description: String = action.description
+    }
+}
+
+/**
+ * What the debugger of a session asks the engine to do, with the message to the runtime's feature `TickByTick` that
+ * does it.
+ *
+ * @property message the message.
+ * @property description what the action does, in words, as a refusal names it.
+ */
+internal enum class DebuggerAction(val message: String, val description: String) {
+    /** Pauses the engine once the tick it is in has ended. */
+    PAUSE(EngineMessages.PAUSE, "Pausing the run"),
+
+    /** Lets the engine run freely again. */
+    RESUME(EngineMessages.RESUME, "Resuming the run"),
+
+    /** Runs a waiting engine to the next breakpoint or to the end of the tick, whichever comes first. */
+    STEP(EngineMessages.ticks(1), "Stepping the run"),
+    ;
+
+    /**
+     * Why the runtime did not do the action, as its [answer] says, or null if it did. Only a step can be answered with
+     * a refusal, when the engine does not wait or still has ticks to run.
+     */
+    fun refusal(answer: String): String? = if (this == STEP && !EngineMessages.advances(answer)) answer else null
 }
 
 /**
@@ -64,7 +99,7 @@ internal sealed interface SessionCommand {
  * |---|---|
  * | deploying | none |
  * | ready | start, stop, force state, observation on and off, pull, injecting events |
- * | running | stop, force state, observation on and off, pull, injecting events |
+ * | running | stop, force state, observation on and off, pull, injecting events, pause, resume, step |
  * | halted | stop, observation off, pull |
  * | stopping | none |
  * | stopped | pull |
@@ -77,7 +112,7 @@ internal object CommandRules {
     /** Why [command] is refused in [state], or null if it is allowed. */
     fun refusal(command: SessionCommand, state: SessionState): String? {
         val allowed = when (state) {
-            is SessionState.Ready -> true
+            is SessionState.Ready -> command !is SessionCommand.Debug
             is SessionState.Running -> command != SessionCommand.Start
             is SessionState.Halted ->
                 command == SessionCommand.Stop || command == SessionCommand.Pull || command == SessionCommand.SetObservation(on = false)

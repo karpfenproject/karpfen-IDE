@@ -17,6 +17,7 @@ package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.session.deploy.CleanupBounds
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
@@ -39,10 +40,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The session facade. It composes the parts of one deployment. These are the deployment itself, the conductor with its
- * calls and its stopper, the router, the published status and the event injector. Every function delegates to the part
- * that owns it. The session runs in its own supervisor child of the scope it was launched in, on the dispatcher of the
- * options. The coroutines of the conductor, the router and the deployment live in that child, and so does the
- * connection. When the child ends because the scope it was launched in was cancelled, the session closes itself. That
+ * calls and its stopper, the router, the published status, the event injector and the debugger. Every function
+ * delegates to the part that owns it. The session runs in its own supervisor child of the scope it was launched in, on
+ * the dispatcher of the options. The coroutines of the conductor, the router, the debugger and the deployment live in
+ * that child, and so does the connection. When the child ends because the scope it was launched in was cancelled, the session closes itself. That
  * way nobody waits for an answer that never comes, and the environment is recorded as it is left.
  *
  * @param prepared what the session deploys.
@@ -154,14 +155,30 @@ internal class DefaultRuntimeSession(
         sink = ConductorEventSink(conductor),
     )
 
+    /** The debugger, if the deployment switches the runtime's feature `Breakpoint` on. */
+    private val presentDebugger: DefaultSessionDebugger? =
+        if (FeatureName.BREAKPOINT in prepared.plan.features) {
+            DefaultSessionDebugger(
+                session = status.state,
+                channel = ConductorDebuggerChannel(conductor),
+                journal = { text -> router.record(SessionActivity.Note(text, clock.elapsed())) },
+                interval = options.debuggerInterval,
+            )
+        } else {
+            null
+        }
+
+    override val debugger: SessionDebugger = presentDebugger ?: AbsentDebugger(status.state)
+
     /**
-     * Starts the router, the conductor and the deployment, and closes the session once its job ended, which it does
-     * after [close] and after a cancellation of the scope it was launched in.
+     * Starts the router, the conductor, the debugger and the deployment, and closes the session once its job ended,
+     * which it does after [close] and after a cancellation of the scope it was launched in.
      */
     fun begin() {
         job.invokeOnCompletion { close() }
         router.start()
         conductor.start()
+        presentDebugger?.start(scope)
         deployment.start()
     }
 

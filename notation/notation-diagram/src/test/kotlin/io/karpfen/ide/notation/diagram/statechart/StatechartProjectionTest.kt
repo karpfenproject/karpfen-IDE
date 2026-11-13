@@ -65,6 +65,18 @@ class StatechartProjectionTest {
     }
 
     @Test
+    fun `a transition a running engine names is found by its index, and by its kind and states where the index does not fit`() {
+        val fork = LampStateMachine.diagramOf(LampStateMachine.FORK)
+
+        assertEquals("NORMAL:off->broken#2", lamp.transitionOf(4, TransitionKind.NORMAL, listOf("off"), listOf("broken"))?.id)
+        assertEquals("NORMAL:off->broken#1", lamp.transitionOf(-1, TransitionKind.NORMAL, listOf("off"), listOf("broken"))?.id)
+        assertEquals("NORMAL:on->off#1", lamp.transitionOf(0, TransitionKind.NORMAL, listOf("on"), listOf("off"))?.id, "index of another")
+        assertEquals(fork.transitions[1], fork.transitionOf(-1, TransitionKind.JOIN, listOf("right", "left"), listOf("done")))
+        assertNull(lamp.transitionOf(1, TransitionKind.SPLIT, listOf("on"), listOf("off")))
+        assertNull(lamp.transitionOf(-1, TransitionKind.NORMAL, listOf("broken"), listOf("off")))
+    }
+
+    @Test
     fun `a split has several targets and a join several sources`() {
         val fork = LampStateMachine.diagramOf(LampStateMachine.FORK)
 

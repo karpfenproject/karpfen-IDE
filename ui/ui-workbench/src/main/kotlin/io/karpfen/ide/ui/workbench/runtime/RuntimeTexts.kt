@@ -21,6 +21,10 @@ import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
+import io.karpfen.ide.runtime.protocol.message.EngineHalt
+import io.karpfen.ide.runtime.protocol.message.StateTiming
+import io.karpfen.ide.runtime.protocol.message.TransitionTiming
+import io.karpfen.ide.runtime.session.debug.PausePlace
 import io.karpfen.ide.runtime.session.deploy.StepProgress
 import io.karpfen.ide.runtime.session.deploy.StepStatus
 import io.karpfen.ide.runtime.session.events.InjectionAvailability
@@ -208,6 +212,22 @@ public object RuntimeTexts {
 
     /** The whole payload of [entry]. */
     public fun payload(entry: DomainEventEntry): String = entry.event.event?.payload ?: entry.event.rawPayload
+
+    /**
+     * Where the debugger paused a run, as a line for the user, such as `Paused before the entry of cars wait`,
+     * `Paused after the transition cars wait to cars go` or `Paused between two ticks`. The states of a split or a join
+     * are joined by "and".
+     */
+    public fun pause(place: PausePlace): String = when (place) {
+        PausePlace.BetweenTicks -> "Paused between two ticks"
+        is PausePlace.AtBreakpoint -> when (val halt = place.halt) {
+            is EngineHalt.AtState -> "Paused before the ${if (halt.timing == StateTiming.ENTRY) "entry" else "exit"} of ${halt.state}"
+            is EngineHalt.AtTransition -> {
+                val side = if (halt.timing == TransitionTiming.START) "before" else "after"
+                "Paused $side the transition ${halt.from.joinToString(" and ")} to ${halt.to.joinToString(" and ")}"
+            }
+        }
+    }
 
     /** The words for the stage of a host that prepares its runtime. */
     private fun stage(stage: HostStage): String = when (stage) {

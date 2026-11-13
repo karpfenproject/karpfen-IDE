@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.session
 
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.connection.SendOutcome
@@ -53,6 +54,19 @@ internal sealed interface ConductorMessage {
      * @property frame the frame.
      */
     data class Inject(val frame: EventFrame, override val reply: CompletableDeferred<SendOutcome>) : ConductorMessage
+
+    /**
+     * A question to a feature of the runtime, such as the debugger's question for the engine's status. The reply is
+     * the feature's answer, or null if there is none.
+     *
+     * @property feature the feature.
+     * @property message the question.
+     */
+    data class AskFeature(
+        val feature: FeatureName,
+        val message: String,
+        override val reply: CompletableDeferred<String?>,
+    ) : ConductorMessage
 
     /** The request to end the session cleanly, answered once nothing is left to stop. */
     data class Shutdown(override val reply: CompletableDeferred<Unit>) : ConductorMessage

@@ -299,7 +299,8 @@ The outline of a state machine names its states, transitions and blocks. What it
 the text of each element: `StateOptionReader` finds the history in front of `STATE` and the `BREAKPOINT` and
 `TICK LIMIT` blocks that open a body. The language puts these two blocks first, so the reader never takes a block of
 a nested state for one of the state around it. `StatechartPainter` draws a history as a badge and a breakpoint as a
-dot. Breakpoints only have a meaning in a runtime whose Breakpoint feature is on, which the IDE never switches on.
+dot. Breakpoints only have a meaning in a runtime whose Breakpoint feature is on, which a run switches on when the
+project has breakpoints on.
 
 ### Bridges run inside the IDE
 
@@ -441,8 +442,16 @@ each one that is on as a line `feature.<id> = on`. `LanguageFeatureBinding` hand
 analyzes again when it changes. The analysis passes it to dsl-tools' `KstatesReader`, which reports every construct
 of a feature that is off as the error `kstates.feature-off`. That error blocks a run like any other. Completion and
 the statechart menu read the set and leave out what is off. `LanguageFeature` in runtime-session maps what is on to
-runtime features: histories to History, tick limits to TickLimit. The runtime reads the words of these two in every
-environment but applies them only where its feature is on. The other three need nothing in the runtime. Problems carry a code, such as `deploy-unsaved-file` or
+runtime features: histories to History, tick limits to TickLimit and breakpoints to Breakpoint. The runtime reads
+these words in every environment but applies them only where its feature is on. Macros, and splits and joins, need
+nothing in the runtime.
+
+A session whose deployment switched Breakpoint on has a debugger, `RuntimeSession.debugger`. It asks the runtime
+for the status of its engine every 300 ms while the environment runs and after each of its commands, and publishes
+`DebuggerState`: running, paused at a breakpoint or paused between two ticks. Pause, Resume and Step are messages
+to the runtime's feature TickByTick, sent through the session's conductor like every other command. The word is
+paused, because halted already means that the engine ended on its own. `DebuggerBar` shows the state in the Runtime
+tool window, and `DiagramLives` hands the paused place to an open statechart, which frames it. Problems carry a code, such as `deploy-unsaved-file` or
 `deploy-reference-loop`.
 
 The runtime reads uploads with its older parser, so a text that the IDE reads cleanly may still be rejected without a

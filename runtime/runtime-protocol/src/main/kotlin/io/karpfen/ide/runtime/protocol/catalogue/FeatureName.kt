@@ -48,5 +48,14 @@ public value class FeatureName(public val value: String) {
          * it the runtime reads a tick limit and ignores it.
          */
         public val TICK_LIMIT: FeatureName = FeatureName("TickLimit")
+
+        /**
+         * The feature that halts the engine at the `BREAKPOINT` blocks of states and transitions and tells where it
+         * halted. Switching it on switches [TICK_BY_TICK] on as well, which runs a halted engine on.
+         */
+        public val BREAKPOINT: FeatureName = FeatureName("Breakpoint")
+
+        /** The feature that pauses the engine, resumes it and runs it on tick by tick. */
+        public val TICK_BY_TICK: FeatureName = FeatureName("TickByTick")
     }
 }

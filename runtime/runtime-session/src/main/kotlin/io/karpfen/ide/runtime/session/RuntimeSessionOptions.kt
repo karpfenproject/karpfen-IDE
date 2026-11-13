@@ -42,7 +42,9 @@ import kotlin.time.TimeSource
  * @property snapshotRetryDelay the pause between two such reads.
  * @property collectorBuffer how many model updates, and how many domain events, a collector of a session may fall
  *   behind before it misses the oldest of them. The session never waits for its collectors.
- * @throws IllegalArgumentException if a capacity or a number of attempts is below 1 or a delay is negative.
+ * @property debuggerInterval how often the debugger of a running session asks the runtime where the engine is.
+ * @throws IllegalArgumentException if a capacity or a number of attempts is below 1, a delay is negative or the
+ *   debugger's interval is not positive.
  */
 public data class RuntimeSessionOptions(
     public val dispatcher: CoroutineDispatcher = Dispatchers.Default,
@@ -55,6 +57,7 @@ public data class RuntimeSessionOptions(
     public val snapshotAttempts: Int = 3,
     public val snapshotRetryDelay: Duration = 1.seconds,
     public val collectorBuffer: Int = 64,
+    public val debuggerInterval: Duration = 300.milliseconds,
 ) {
     init {
         require(journalCapacity >= 1) { "the journal keeps at least one entry, not $journalCapacity" }
@@ -62,5 +65,6 @@ public data class RuntimeSessionOptions(
         require(subscribeAttempts >= 1) { "at least one subscription attempt, not $subscribeAttempts" }
         require(snapshotAttempts >= 1) { "at least one snapshot attempt, not $snapshotAttempts" }
         require(!subscribeRetryDelay.isNegative() && !snapshotRetryDelay.isNegative()) { "retry delays are never negative" }
+        require(debuggerInterval.isPositive()) { "the debugger asks at a positive interval, not $debuggerInterval" }
     }
 }

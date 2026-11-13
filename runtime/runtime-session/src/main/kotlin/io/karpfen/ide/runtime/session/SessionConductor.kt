@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.connection.RuntimeConnection
@@ -64,7 +65,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * the session and stops the environment. A stop that the session did not make is settled by reading the final model. A
  * lost environment fails the session. A connection that gave up reconnecting is a warning.
  *
- * Events go through the inbox like commands, so an event sent after a stop is refused.
+ * Events go through the inbox like commands, so an event sent after a stop is refused. So do the debugger's questions to
+ * the runtime's features, which are answered only while the environment runs.
  *
  * The router never waits for the conductor. The conductor waits for the router's answers to observation calls.
  *
@@ -146,6 +148,19 @@ internal class SessionConductor(
         }
     }
 
+    /**
+     * Asks the runtime's [feature] [message] in order with the commands and returns the feature's answer. It is null
+     * while the environment does not run, when the call got no answer and once the session is closed.
+     */
+    suspend fun ask(feature: FeatureName, message: String): String? {
+        val reply = CompletableDeferred<String?>()
+        if (!inbox.offer(ConductorMessage.AskFeature(feature, message, reply))) return null
+        return select {
+            reply.onAwait { it }
+            closed.onAwait { null }
+        }
+    }
+
     /** Waits for a running deployment, stops the environment if it is activated, running or halted, and returns. */
     suspend fun shutdown() {
         val reply = CompletableDeferred<Unit>()
@@ -180,6 +195,9 @@ internal class SessionConductor(
             when (message) {
                 is ConductorMessage.Command -> command(message)
                 is ConductorMessage.Inject -> message.reply.complete(send(message.frame))
+                is ConductorMessage.AskFeature -> message.reply.complete(
+                    if (status.state.value is SessionState.Running) calls.ask(message.feature, message.message, environment()) else null,
+                )
                 is ConductorMessage.Shutdown -> shutdown(message.reply)
                 is ConductorMessage.Progressed -> progressed(message.progress)
                 is ConductorMessage.EnvironmentCreated -> environmentCreated(message.environment)

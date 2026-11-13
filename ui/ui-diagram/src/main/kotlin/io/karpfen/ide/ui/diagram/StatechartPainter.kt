@@ -40,6 +40,10 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenColors
  * transition for its start and behind it for its end. The marker of an initial state is a filled dot. The bars of splits and joins are filled. Every line ends
  * in an arrowhead, except the lines that lead into a bar. The caption of a transition is written on a patch in the
  * colour of the background.
+ *
+ * The place where a run is paused at a breakpoint is marked in the colour of warnings, apart from the marks of the
+ * active states: a dashed frame around the state, or the lines of the transition drawn wide with a dashed frame around
+ * its caption and its bar.
  */
 internal object StatechartPainter : DiagramPainter<StatechartDiagram, StatechartLayout> {
 
@@ -107,6 +111,19 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
                 if (transition.endBreakpoint) scope.drawBreakpoint(label.right + reach, label.center.y, colors)
             }
         }
+    }
+
+    /** Marks where a run is paused, as [StatechartPauseMarks] finds it: dashed frames and wide lines. */
+    override fun paintPause(
+        scope: DrawScope,
+        diagram: StatechartDiagram,
+        layout: StatechartLayout,
+        pause: DiagramPause,
+        colors: KarpfenColors,
+    ) {
+        val marks = StatechartPauseMarks.of(diagram, layout, pause)
+        marks.lines.forEach { scope.drawPausedLine(it, colors) }
+        marks.frames.forEach { scope.drawPausedBox(it, colors) }
     }
 
     /** Draws the dot of a breakpoint with its middle at ([x], [y]) in the units of the diagram. */

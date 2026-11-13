@@ -42,6 +42,20 @@ public data class StatechartDiagram(
 
     /** The state named [name], or null. If the text declares the name twice, the first one counts. */
     public fun state(name: String): StateNode? = allStates().firstOrNull { it.name == name }
+
+    /**
+     * The transition that a running engine names by its [index] among the transitions of the text, counted from 0,
+     * with its [kind], its [sources] and its [targets]. It is the transition whose priority is one more than [index] if
+     * that transition has the kind and the states. Otherwise, as for a transition the engine made up with the index
+     * -1 or a text that changed since the run was deployed, it is the first transition with the kind and the states.
+     * The states are compared regardless of their order. It is null if no transition fits.
+     */
+    public fun transitionOf(index: Int, kind: TransitionKind, sources: List<String>, targets: List<String>): TransitionEdge? {
+        val fits = { edge: TransitionEdge ->
+            edge.kind == kind && edge.sources.toSet() == sources.toSet() && edge.targets.toSet() == targets.toSet()
+        }
+        return transitions.firstOrNull { it.priority == index + 1 }?.takeIf(fits) ?: transitions.firstOrNull(fits)
+    }
 }
 
 /**

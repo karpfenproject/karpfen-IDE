@@ -19,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextLayoutResult
@@ -80,6 +81,25 @@ internal fun DrawScope.drawActiveMarks(boxes: List<DiagramBox>, colors: KarpfenC
 }
 
 /**
+ * Marks [box] as the place where a run is paused: a dashed frame in the colour of warnings, a little outside the box, so
+ * it stays apart from the solid border of an active state.
+ */
+internal fun DrawScope.drawPausedBox(box: DiagramBox, colors: KarpfenColors) {
+    val unit = density
+    val frame = DiagramBox(box.x - PAUSED_GAP, box.y - PAUSED_GAP, box.width + 2 * PAUSED_GAP, box.height + 2 * PAUSED_GAP)
+    val dashes = PathEffect.dashPathEffect(floatArrayOf(PAUSED_DASH * unit, PAUSED_DASH * unit))
+    drawRect(colors.warning, frame.topLeft(unit), frame.size(unit), style = Stroke(PAUSED_BORDER * unit, pathEffect = dashes))
+}
+
+/**
+ * Marks the line through [points] as the transition where a run is paused: the line drawn wide in the colour of
+ * warnings.
+ */
+internal fun DrawScope.drawPausedLine(points: List<DiagramPoint>, colors: KarpfenColors) {
+    drawPolyline(points, colors.warning, PAUSED_BORDER)
+}
+
+/**
  * Draws the marker of a code cell at the left end of [box]: a small circle with a plus, which says that there is code
  * to open. The [word] of the cell, if it has one, is written behind the marker.
  */
@@ -115,10 +135,10 @@ internal fun DrawScope.drawFrameGrip(box: DiagramBox, colors: KarpfenColors) {
 }
 
 /**
- * Draws the line through [points] in [color] and returns it in pixels, or null for a line of fewer than two points,
- * which is not drawn.
+ * Draws the line through [points] in [color], [width] wide, and returns it in pixels, or null for a line of fewer than
+ * two points, which is not drawn.
  */
-internal fun DrawScope.drawPolyline(points: List<DiagramPoint>, color: Color): List<Offset>? {
+internal fun DrawScope.drawPolyline(points: List<DiagramPoint>, color: Color, width: Float = LINE): List<Offset>? {
     val unit = density
     val pixels = points.map { Offset(it.x * unit, it.y * unit) }
     if (pixels.size < 2) return null
@@ -126,7 +146,7 @@ internal fun DrawScope.drawPolyline(points: List<DiagramPoint>, color: Color): L
         moveTo(pixels.first().x, pixels.first().y)
         pixels.drop(1).forEach { lineTo(it.x, it.y) }
     }
-    drawPath(line, color, style = Stroke(LINE * unit))
+    drawPath(line, color, style = Stroke(width * unit))
     return pixels
 }
 
@@ -193,6 +213,15 @@ private const val ACTIVE_ALPHA = 0.14f
 
 /** The width of the border of an active box. */
 private const val ACTIVE_BORDER = 2.5f
+
+/** How far the frame of the place where a run is paused stands off the box it marks. */
+private const val PAUSED_GAP = 4f
+
+/** The width of the frame and the line that mark where a run is paused. */
+private const val PAUSED_BORDER = 3f
+
+/** The length of a dash, and of a gap, in the frame that marks where a run is paused. */
+private const val PAUSED_DASH = 6f
 
 /** How far the arms of the plus in the marker of a code cell reach, as a share of the radius of the marker. */
 private const val PLUS_ARM = 0.55f

@@ -17,6 +17,7 @@ package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.connection.SendOutcome
 import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
@@ -24,6 +25,7 @@ import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleRefusal
 import io.karpfen.ide.runtime.protocol.lifecycle.RuntimeEnvironment
 import io.karpfen.ide.runtime.protocol.lifecycle.Uploads
+import io.karpfen.ide.runtime.protocol.message.EngineMessages
 import io.karpfen.ide.runtime.protocol.message.EventFrame
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.session.deploy.DeployObservation
@@ -103,4 +105,16 @@ internal class SessionDeployObservation(private val router: PushRouter, private 
  */
 internal class ConductorEventSink(private val conductor: SessionConductor) : EventSink {
     override suspend fun send(frame: EventFrame): SendOutcome = conductor.inject(frame)
+}
+
+/**
+ * The debugger's way to the runtime through the conductor of its session. A command is a command of the session, and
+ * the question for the status takes its turn with the commands.
+ *
+ * @param conductor the session's conductor.
+ */
+internal class ConductorDebuggerChannel(private val conductor: SessionConductor) : DebuggerChannel {
+    override suspend fun command(action: DebuggerAction): SessionCommandOutcome = conductor.execute(SessionCommand.Debug(action))
+
+    override suspend fun status(): String? = conductor.ask(FeatureName.BREAKPOINT, EngineMessages.STATUS)
 }

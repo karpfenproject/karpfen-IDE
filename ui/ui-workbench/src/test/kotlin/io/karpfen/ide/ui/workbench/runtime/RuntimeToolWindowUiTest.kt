@@ -48,6 +48,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import io.karpfen.ide.runtime.protocol.message.EngineHalt
+import io.karpfen.ide.runtime.protocol.message.StateTiming
+import io.karpfen.ide.runtime.session.debug.DebuggerState
+import io.karpfen.ide.runtime.session.debug.PausePlace
 
 /**
  * Tests the composed Runtime tool window over a [FakeRuntimeHost] and runs whose sessions are [FakeRuntimeSession]s
@@ -92,6 +96,33 @@ class RuntimeToolWindowUiTest {
         phase(1).assertTextEquals("stopped")
         tagged(RuntimeViewTestTags.STOP).assertIsNotEnabled()
     }
+
+    @Test
+    fun `the debugger's line offers Pause while the run runs, and says where it is paused with Resume and Step`() =
+        workbenchUiTest(dir, scriptSessions = true) {
+            openLamp()
+            val session = launched()
+            session.stateFlow.value = SessionState.Running(EnvironmentKey(ENV_1))
+            settle()
+            tagged(RuntimeViewTestTags.DEBUGGER).assertDoesNotExist()
+
+            session.debuggerFlow.value = DebuggerState.Running
+            settle()
+            tagged(RuntimeViewTestTags.PAUSE).performClick()
+            settle()
+            tagged(RuntimeViewTestTags.RESUME).assertDoesNotExist()
+
+            session.debuggerFlow.value = DebuggerState.Paused(PausePlace.AtBreakpoint(EngineHalt.AtState("lamp", "on", StateTiming.ENTRY)))
+            settle()
+            tagged(RuntimeViewTestTags.PAUSE_PLACE).assertTextEquals("Paused before the entry of on")
+            tagged(RuntimeViewTestTags.PAUSE).assertDoesNotExist()
+            tagged(RuntimeViewTestTags.STEP).performClick()
+            settle()
+            tagged(RuntimeViewTestTags.RESUME).performClick()
+            settle()
+
+            assertEquals(listOf(FakeSessionCommand.Pause, FakeSessionCommand.Step, FakeSessionCommand.Resume), session.commands)
+        }
 
     @Test
     fun `Send is enabled only while events can be injected and the payload has no error`() = workbenchUiTest(dir, scriptSessions = true) {

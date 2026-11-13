@@ -17,8 +17,13 @@ plugins {
     id("karpfen.compose")
 }
 
+/**
+ * The diagram module is an `api` dependency because the public `DiagramPause` names the kind of a transition with its
+ * `TransitionKind`.
+ */
 dependencies {
     implementation(project(":ui:ui-foundation"))
     implementation(project(":notation:notation-sync"))
+    api(project(":notation:notation-diagram"))
     implementation(libs.slf4j.api)
 }

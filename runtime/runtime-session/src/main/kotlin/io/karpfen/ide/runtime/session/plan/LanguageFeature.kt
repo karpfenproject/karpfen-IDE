@@ -20,12 +20,12 @@ import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 
 /**
  * The runtime side of the optional language features of KStates. The runtime reads the words of every feature in every
- * environment, but it applies a history only where its feature `History` is on and a tick limit only where `TickLimit`
- * is on. A deployment therefore switches on the runtime features of the language features that are switched on for
- * the project, whether the machines use them or not.
+ * environment, but it applies a history only where its feature `History` is on, a tick limit only where `TickLimit`
+ * is on and a breakpoint only where `Breakpoint` is on. A deployment therefore switches on the runtime features of the
+ * language features that are switched on for the project, whether the machines use them or not. A session whose
+ * deployment switched `Breakpoint` on offers a debugger that pauses, resumes and steps the engine.
  *
- * Breakpoints switch nothing on, because the IDE has no debugger and could not resume a halted run. Macros and splits
- * and joins have no runtime feature.
+ * Macros and splits and joins have no runtime feature.
  */
 internal object LanguageFeature {
 
@@ -33,7 +33,8 @@ internal object LanguageFeature {
     fun runtimeFeatureOf(feature: KstatesFeature): FeatureName? = when (feature) {
         KstatesFeature.HISTORY -> FeatureName.HISTORY
         KstatesFeature.TICK_LIMIT -> FeatureName.TICK_LIMIT
-        KstatesFeature.BREAKPOINTS, KstatesFeature.MACROS, KstatesFeature.PARALLEL -> null
+        KstatesFeature.BREAKPOINTS -> FeatureName.BREAKPOINT
+        KstatesFeature.MACROS, KstatesFeature.PARALLEL -> null
     }
 
     /**

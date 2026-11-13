@@ -58,10 +58,11 @@ refer to.
 - When the watcher gives up on a container that still runs, the next start adopts it and follows its log from the
   container's start again. The Log pane then probably shows earlier lines twice. This follows from the code and has
   not been seen.
-- The IDE has no debugger. The runtime can halt at the breakpoints of states and transitions and run tick by tick,
-  through its features Breakpoint and TickByTick, and the editor and the statechart show and edit breakpoints. But
-  nothing in the IDE switches these features on, shows where a run halted, or resumes and steps it. Recording and
-  replaying events, the runtime's other new features, have no place in the IDE either.
+- The debugger halts only at breakpoints written in the text. The runtime can also set and remove breakpoints for
+  one run without a change of the text, which the IDE does not use.
+- The debugger learns where a run is paused by asking the runtime every 300 ms, because the runtime sends no message
+  when its engine halts.
+- Recording the events of a run and replaying them, which the runtime offers, has no place in the IDE.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
 
 ### Bridges
@@ -115,7 +116,7 @@ state without nested states.
   project has on. Another client has to do that by itself.
 - A history is never forgotten while the engine runs, and a state that remembers a state never rests as the innermost
   state, so its `DO` block does not run any more.
-- The runtime does not tell whether its engine is halted at a breakpoint, or where. A debugger needs that. A
+- The runtime sends no message when its engine halts at a breakpoint. A client has to ask for the status. A
   breakpoint override names a transition by the text form the engine prints for it, which two transitions can share.
 - The features use `kapt` to register themselves, which copies every comment into generated Java. A comment with a
   backslash followed by `u` breaks the build there.

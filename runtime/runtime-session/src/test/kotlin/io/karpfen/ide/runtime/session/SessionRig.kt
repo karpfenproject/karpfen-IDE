@@ -286,10 +286,10 @@ internal class SessionRig(
         const val ENV_KEY: String = "envKey"
 
         /**
-         * The language features that the models of the tests use and that switch on no runtime feature: breakpoints,
-         * macros, and splits and joins. A deployment with them switches no runtime feature on.
+         * The language features that switch on no runtime feature: macros, and splits and joins. A deployment with
+         * them switches no runtime feature on, so its session has no debugger.
          */
-        val PLAIN_FEATURES: Set<KstatesFeature> = setOf(KstatesFeature.BREAKPOINTS, KstatesFeature.MACROS, KstatesFeature.PARALLEL)
+        val PLAIN_FEATURES: Set<KstatesFeature> = setOf(KstatesFeature.MACROS, KstatesFeature.PARALLEL)
 
         /** The head of the lamp machine's state `on`, as `lamp.kstates` writes it. */
         private const val ON_STATE: String = "STATE \"on\" {"

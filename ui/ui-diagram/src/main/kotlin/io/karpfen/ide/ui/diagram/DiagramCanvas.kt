@@ -100,7 +100,8 @@ import kotlinx.coroutines.withContext
  * model is an edit of [source], the text the diagram was derived from, and goes to [onChange], which answers whether
  * the text took it.
  *
- * The boxes with an id in [active] are marked, which shows the states a running state machine is in.
+ * The boxes with an id in [active] are marked, which shows the states a running state machine is in. The notation's
+ * painter marks [pause], the place where a debugger paused the run, if there is one.
  *
  * The code cells of the notation are drawn as small markers, a circle with a plus. A click on a marker opens the cell
  * in a pane over the canvas, where its code is edited as text and saved into the model.
@@ -124,6 +125,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     faults: DiagramFaults,
     source: String?,
     active: Set<String>,
+    pause: DiagramPause?,
     cellEditor: DiagramCellEditor?,
     onChange: (DiagramChange) -> Boolean,
     onSelect: (TextRange) -> Unit,
@@ -334,6 +336,11 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             faults.attempt("marking what is active in the running model") {
                 val boxes = active.mapNotNull(shown.layout::boxOf)
                 drawActiveMarks(boxes, colors)
+            }
+            pause?.let { place ->
+                faults.attempt("marking where the run is paused") {
+                    notation.painter.paintPause(this, shown.diagram, shown.layout, place, colors)
+                }
             }
             faults.attempt("drawing the markers of the code cells") {
                 cells.forEach { cell -> drawCellMarker(cell.box, cell.word.takeIf { it.isNotEmpty() }?.let { shown.texts[TextRole.ROW, it] }, colors) }
