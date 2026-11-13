@@ -103,7 +103,7 @@ internal class ModelObserver(
             is ConnectionEvent.Interrupted, is ConnectionEvent.Ended -> ObservationInput.LinkInterrupted
             is ConnectionEvent.Received -> when (event.push) {
                 is RuntimePush.ObjectChanged, is RuntimePush.ObjectDeleted, is RuntimePush.StateChanged -> ObservationInput.Pushed(event.push)
-                is RuntimePush.DomainEvent, is RuntimePush.Unrecognized -> return false
+                is RuntimePush.DomainEvent, is RuntimePush.EngineStatusChanged, is RuntimePush.Unrecognized -> return false
             }
             is ConnectionEvent.Violated -> return false
         }

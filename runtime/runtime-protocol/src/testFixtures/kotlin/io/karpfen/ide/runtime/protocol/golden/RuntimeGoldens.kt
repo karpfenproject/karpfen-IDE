@@ -89,6 +89,29 @@ public object RuntimeGoldens {
         """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"domainEvent","payload":$DOMAIN_EVENT_PAYLOAD}"""
 
     /**
+     * The `engineStatus` payload of an engine that waits before the entry of the state `cars wait` of the machine
+     * attached to `crossing`, as `TickByTickFeature.engineStatus` builds it with org.json 20240303 around the halt that
+     * `BreakpointFeature.stateHalt` builds. org.json writes the members in the order `halt`, `paused`, `waiting`, and
+     * those of the halt in the order `timing`, `state`, `modelElementId`.
+     */
+    public const val ENGINE_STATUS_HALTED_PAYLOAD: String =
+        """{"halt":{"timing":"entry","state":"cars wait","modelElementId":"crossing"},"paused":true,"waiting":true}"""
+
+    /** The `engineStatus` push of [ENGINE_STATUS_HALTED_PAYLOAD], as `ClientSessionManager.notifyEngineStatus` sends it. */
+    public const val ENGINE_STATUS_HALTED: String =
+        """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"engineStatus","payload":$ENGINE_STATUS_HALTED_PAYLOAD}"""
+
+    /**
+     * The `engineStatus` payload of an engine that went on after a resume, without a halt, as
+     * `TickByTickFeature.engineStatus` builds it with org.json 20240303.
+     */
+    public const val ENGINE_STATUS_RUNNING_PAYLOAD: String = """{"paused":false,"waiting":false}"""
+
+    /** The `engineStatus` push of [ENGINE_STATUS_RUNNING_PAYLOAD], as `ClientSessionManager.notifyEngineStatus` sends it. */
+    public const val ENGINE_STATUS_RUNNING: String =
+        """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"engineStatus","payload":$ENGINE_STATUS_RUNNING_PAYLOAD}"""
+
+    /**
      * A handshake that the runtime's `/ws` handler accepts. It is the client id, the environment key and the access key
      * joined by `:`. The access key has the shape `ak-<clientId>-<millis>-<0..9999>` that `ClientSessionManager`
      * issues.
@@ -220,7 +243,7 @@ public object RuntimeGoldens {
 
     /** Every push golden of [ENVIRONMENT] and [CLIENT], in the order of their declarations. */
     public val PUSHES: List<String> = listOf(
-        OBJECT_CHANGED, OBJECT_DELETED, STATE_CHANGE, DOMAIN_EVENT, TURTLE_CHANGED, ESCAPES_CHANGED, NON_FINITE_CHANGED,
-        RELATIONS_CHANGED, STATE_CHANGE_REORDERED, DOMAIN_EVENT_REORDERED,
+        OBJECT_CHANGED, OBJECT_DELETED, STATE_CHANGE, DOMAIN_EVENT, ENGINE_STATUS_HALTED, ENGINE_STATUS_RUNNING, TURTLE_CHANGED,
+        ESCAPES_CHANGED, NON_FINITE_CHANGED, RELATIONS_CHANGED, STATE_CHANGE_REORDERED, DOMAIN_EVENT_REORDERED,
     )
 }

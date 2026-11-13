@@ -31,10 +31,11 @@ import java.util.IdentityHashMap
  * rule is ported here on its own rather than borrowed from the client, so the tests can hold the client's reader and
  * quoting against it.
  *
- * The `stateChange` and `domainEvent` payloads are written by org.json in the version the runtime pins, as the runtime
- * builds them. So their member order is that of org.json. A `stateChange` payload has the order `stack`,
- * `modelElementId`, `revision`. A published event has the order `payload`, `source`, `ttlMs`, `event`,
- * `payloadFormat`, `timestamp`.
+ * The `stateChange`, `domainEvent` and `engineStatus` payloads are written by org.json in the version the runtime pins,
+ * as the runtime builds them. So their member order is that of org.json. A `stateChange` payload has the order
+ * `stack`, `modelElementId`, `revision`. A published event has the order `payload`, `source`, `ttlMs`, `event`,
+ * `payloadFormat`, `timestamp`. An engine status has the order `halt`, `paused`, `waiting`, and a halt at a state the
+ * order `timing`, `state`, `modelElementId`.
  *
  * The object holds no state.
  */
@@ -97,6 +98,50 @@ public object RuntimeWireWriter {
             .toString()
         return "{\"domain\":${quote(domain)},\"payload\":$published}"
     }
+
+    /**
+     * The `engineStatus` payload, built with org.json as the runtime's `TickByTickFeature.engineStatus` builds it, in
+     * org.json's member order. It has [paused] and [waiting] and, if [halt] is not null, the halt, which is the JSON
+     * that [stateHalt] or [transitionHalt] writes. The feature `Breakpoint` answers `getStatus` with the same text.
+     */
+    public fun engineStatusPayload(paused: Boolean, waiting: Boolean, halt: String? = null): String {
+        val status = JSONObject()
+        status.put("paused", paused)
+        status.put("waiting", waiting)
+        halt?.let { status.put("halt", JSONObject(it)) }
+        return status.toString()
+    }
+
+    /**
+     * The halt at the [timing], `entry` or `exit`, of the state [state] of the machine attached to [modelElementId],
+     * built with org.json as the runtime's `BreakpointFeature.stateHalt` builds it.
+     */
+    public fun stateHalt(modelElementId: String, timing: String, state: String): String =
+        JSONObject().put("modelElementId", modelElementId).put("timing", timing).put("state", state).toString()
+
+    /**
+     * The halt at the [timing], `start` or `end`, of a transition of the machine attached to [modelElementId], built
+     * with org.json as the runtime's `BreakpointFeature.transitionHalt` builds it. [transition] is the identifier the
+     * runtime writes for it, [kind] is `TRANSITION`, `SPLIT` or `JOIN`, and [index] its place in its file.
+     */
+    public fun transitionHalt(
+        modelElementId: String,
+        timing: String,
+        transition: String,
+        kind: String,
+        from: List<String>,
+        to: List<String>,
+        index: Int,
+    ): String =
+        JSONObject()
+            .put("modelElementId", modelElementId)
+            .put("timing", timing)
+            .put("transition", transition)
+            .put("kind", kind)
+            .put("from", from)
+            .put("to", to)
+            .put("index", index)
+            .toString()
 
     /**
      * The JSON of [obj] as the runtime's `ModelJsonWriter.write` writes a `DataObject`. Entries are joined with `", "`,

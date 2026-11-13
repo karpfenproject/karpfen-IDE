@@ -78,7 +78,8 @@ internal class SessionCalls(
 
     /**
      * Sends [message] to the runtime's feature [feature] of [environment] and returns the feature's answer, or null if
-     * the call did not get one. A failed call is not journaled, because a debugger asks again soon.
+     * the call did not get one. A failed call is not journaled, because the debugger that asks learns the engine's
+     * status from the runtime's next `engineStatus` push as well.
      */
     suspend fun ask(feature: FeatureName, message: String, environment: RuntimeEnvironment): String? =
         (environment.messageFeature(feature, message) as? CallOutcome.Done)?.value

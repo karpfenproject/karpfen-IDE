@@ -237,6 +237,10 @@ internal class SessionRig(
             RuntimeWireWriter.domainEventPayload(domain, event, "", WireNames.FORMAT_NONE, "EXTERNAL_MESSAGE", EVENT_TIME, EVENT_TTL),
         )
 
+    /** The push of the engine status [payload] to [session] in [environment], as `engineStatus` carries it. */
+    fun engineStatus(session: RuntimeSession, payload: String, environment: String = FakeRuntime.environmentKey(1)): String =
+        RuntimeWireWriter.envelope(environment, session.clientId.value, WireNames.ENGINE_STATUS, payload)
+
     /**
      * A workspace with a model copied into it.
      *

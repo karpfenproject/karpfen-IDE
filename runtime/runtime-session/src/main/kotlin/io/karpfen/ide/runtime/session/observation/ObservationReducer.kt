@@ -139,8 +139,8 @@ internal data class ObservationStep(
  *   requests.
  * - When the environment stopped, the mode becomes off and a snapshot is requested. That snapshot is final.
  *
- * After the stop, switching on or off changes nothing. Domain events, protocol violations and unrecognized pushes are
- * not the observation's business.
+ * After the stop, switching on or off changes nothing. Domain events, engine statuses, protocol violations and
+ * unrecognized pushes are not the observation's business.
  *
  * @param mirror applies snapshots and object pushes to the mirror.
  * @param states applies snapshots and stack pushes to the active states.
@@ -192,7 +192,7 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
             is RuntimePush.ObjectChanged -> push.revision
             is RuntimePush.ObjectDeleted -> push.revision
             is RuntimePush.StateChanged -> push.revision
-            is RuntimePush.DomainEvent, is RuntimePush.Unrecognized -> return unchanged(state)
+            is RuntimePush.DomainEvent, is RuntimePush.EngineStatusChanged, is RuntimePush.Unrecognized -> return unchanged(state)
         }
         val sync = state.model.sync
         if (state.model.mode == ObservationMode.OFF || sync !is SyncStatus.Live || revision <= sync.revision) return unchanged(state)
@@ -219,7 +219,7 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
             }
             is RuntimePush.ObjectChanged -> mirrorApplied(model, revision, mirror.changed(model.mirror, push))
             is RuntimePush.ObjectDeleted -> mirrorApplied(model, revision, mirror.deleted(model.mirror, push))
-            is RuntimePush.DomainEvent, is RuntimePush.Unrecognized -> return unchanged(state)
+            is RuntimePush.DomainEvent, is RuntimePush.EngineStatusChanged, is RuntimePush.Unrecognized -> return unchanged(state)
         }
         val live = next.copy(sync = SyncStatus.Live(revision))
         return ObservationStep(state.copy(model = live, lastRevision = revision), update, emptyList(), anomalies)

@@ -39,7 +39,7 @@ public data class PublishedEvent(
 /**
  * A message the runtime pushed to the client, decoded from its envelope. Object and stack pushes carry the revision of
  * their observation. A model subscriber receives every revision of its environment in order. So a revision above the
- * last one plus one proves that pushes were lost. Domain events carry no revision.
+ * last one plus one proves that pushes were lost. Domain events and engine statuses carry no revision.
  */
 public sealed interface RuntimePush {
     /**
@@ -88,6 +88,16 @@ public sealed interface RuntimePush {
         public val event: PublishedEvent?,
         public val rawPayload: String,
     ) : RuntimePush
+
+    /**
+     * The engine thread started to wait or went on (`engineStatus`). The runtime sends it to every client with a
+     * connected WebSocket of the environment, whatever it subscribed for, but only while its feature `TickByTick` is
+     * on. It sends one when the thread starts to wait, between two ticks or at a breakpoint, and one when it goes on.
+     * A pause that was asked for while the engine still finishes its tick is told only once the thread waits.
+     *
+     * @property status the engine's status, the same object that the feature `Breakpoint` answers to `getStatus`.
+     */
+    public data class EngineStatusChanged(public val status: EngineStatus) : RuntimePush
 
     /**
      * A message of a type the client does not know. It is not a violation, because the runtime may add types.

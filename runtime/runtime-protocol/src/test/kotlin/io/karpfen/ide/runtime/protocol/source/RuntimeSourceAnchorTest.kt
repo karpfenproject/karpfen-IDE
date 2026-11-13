@@ -43,6 +43,7 @@ import kotlin.test.assertTrue
  * - The members of the `stateChange` and `domainEvent` payloads.
  * - The names of the language features and the separator of the feature lists.
  * - The names of the debugger's features, their messages and the members of the breakpoint status.
+ * - The `engineStatus` push of that status to every connected client when the engine thread waits and goes on.
  *
  * A failure names the file and the snippet that no longer occurs. The texts of the runtime's older dsl-tools parser
  * are not anchored. The live runs cover them.
@@ -296,10 +297,10 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(TICK_BY_TICK_FEATURE, "list.size == 2 && list[0] == \"${WireNames.TICK_ADVANCE_PREFIX.removeSuffix(":")}\""),
                 SourceAnchor(TICK_BY_TICK_FEATURE, "return \"${WireNames.TICKS_ADVANCING}\$amount tick"),
                 SourceAnchor(BREAKPOINT_FEATURE, "json.getString(\"${WireNames.BREAKPOINT_ACTION}\")"),
-                SourceAnchor(BREAKPOINT_FEATURE, "\"${WireNames.BREAKPOINT_GET_STATUS}\" -> status()"),
-                SourceAnchor(BREAKPOINT_FEATURE, "status.put(\"${WireNames.PAUSED}\", tickByTickFeature.isPaused())"),
-                SourceAnchor(BREAKPOINT_FEATURE, "status.put(\"${WireNames.WAITING}\", tickByTickFeature.isWaiting())"),
-                SourceAnchor(BREAKPOINT_FEATURE, "halt?.let { status.put(\"${WireNames.HALT}\", it) }"),
+                SourceAnchor(BREAKPOINT_FEATURE, "\"${WireNames.BREAKPOINT_GET_STATUS}\" -> tickByTickFeature.engineStatus()"),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "status.put(\"${WireNames.PAUSED}\", isPaused)"),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "status.put(\"${WireNames.WAITING}\", isWaiting)"),
+                SourceAnchor(TICK_BY_TICK_FEATURE, "halt?.let { status.put(\"${WireNames.HALT}\", it) }"),
                 SourceAnchor(
                     BREAKPOINT_FEATURE,
                     "JSONObject().put(\"${WireNames.MODEL_ELEMENT_ID}\", modelElementId).put(\"${WireNames.TIMING}\", timing)" +
@@ -315,6 +316,19 @@ class RuntimeSourceAnchorTest {
                 StateTiming.entries.map { SourceAnchor(BREAKPOINT_FEATURE, "stateHalt(modelElementId, \"${it.wireName}\", state)") } +
                 TransitionTiming.entries.map { SourceAnchor(BREAKPOINT_FEATURE, "transitionHalt(modelElementId, \"${it.wireName}\", transition, index)") } +
                 HaltedTransitionKind.entries.map { SourceAnchor(BREAKPOINT_FEATURE, "Triple(\"${it.wireName}\", ") },
+        )
+    }
+
+    @Test
+    fun `the engine status is pushed as engineStatus to every connected client when the engine waits and goes on`() {
+        assertAnchored(
+            listOf(
+                SourceAnchor(TICK_BY_TICK_FEATURE, "onStatusChanged(engineStatus())"),
+                SourceAnchor(ENGINE_FILE, "feature.onStatusChanged = reportEngineStatus"),
+                SourceAnchor(ENVIRONMENT_THREAD, "engine.onEngineStatusChanged = relay::onEngineStatusChanged"),
+                SourceAnchor(OBSERVATION_RELAY, "sessions.notifyEngineStatus(environmentKey, status)"),
+                SourceAnchor(SESSION_MANAGER, "enqueue(environmentKey, connectedClients(environmentKey), \"${WireNames.ENGINE_STATUS}\", payload)"),
+            ),
         )
     }
 
@@ -358,6 +372,8 @@ class RuntimeSourceAnchorTest {
         const val TICK_LIMIT_FEATURE = "$ENGINE/features/language/TickLimitFeature.kt"
         const val BREAKPOINT_FEATURE = "$ENGINE/features/runtime/BreakpointFeature.kt"
         const val TICK_BY_TICK_FEATURE = "$ENGINE/features/runtime/TickByTickFeature.kt"
+        const val ENGINE_FILE = "execution-engine/src/main/kotlin/Engine.kt"
+        const val ENVIRONMENT_THREAD = "$SERVER/env/EnvironmentThread.kt"
 
         /** The routes the runtime's model observation adds, declared in their own file. */
         val OBSERVATION = setOf(RuntimeRoute.MODEL_SNAPSHOT, RuntimeRoute.SUBSCRIBE_MODEL, RuntimeRoute.UNSUBSCRIBE_MODEL)

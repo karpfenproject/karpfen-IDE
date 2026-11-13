@@ -27,7 +27,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers [RuntimeFrameDecoder]. The runtime's push examples decode to their pushes. The members org.json writes are
- * read in any order, and a revision is required. An id mismatch is reported alongside the push applied under the
+ * read in any order, and a revision is required. An engine status decodes with and without a halt, and a payload that
+ * is no status is malformed. An id mismatch is reported alongside the push applied under the
  * value's id. Unknown types are unrecognized rather than violations. Every malformed, foreign or undecodable frame
  * becomes a violation with an excerpt and whatever could be salvaged.
  */
@@ -93,6 +94,51 @@ class RuntimeFrameDecoderTest {
         val push = assertIs<RuntimePush.DomainEvent>(pushOf(frame("domainEvent", event)).push)
         assertEquals(PublishedEvent("toggle", "{\"x\":1}", "json", "INTERNAL", 1_761_560_130_123, 0), push.event)
         assertEquals("control", push.domain)
+    }
+
+    @Test
+    fun `an engineStatus push decodes to the status, without a halt and with a halt at a state or a transition`() {
+        val running = RuntimeWireWriter.engineStatusPayload(paused = false, waiting = false)
+        val betweenTicks = RuntimeWireWriter.engineStatusPayload(paused = true, waiting = true)
+        val atState = RuntimeWireWriter.engineStatusPayload(true, true, RuntimeWireWriter.stateHalt("crossing", "exit", "cars wait"))
+        val atTransition = RuntimeWireWriter.engineStatusPayload(
+            true,
+            true,
+            RuntimeWireWriter.transitionHalt("crossing", "end", "SplitTransition(fork)", "SPLIT", listOf("idle"), listOf("a", "b"), 2),
+        )
+
+        assertEquals(
+            listOf(
+                EngineStatus(paused = false, waiting = false, halt = null),
+                EngineStatus(paused = true, waiting = true, halt = null),
+                EngineStatus(true, true, EngineHalt.AtState("crossing", "cars wait", StateTiming.EXIT)),
+                EngineStatus(
+                    true,
+                    true,
+                    EngineHalt.AtTransition("crossing", HaltedTransitionKind.SPLIT, listOf("idle"), listOf("a", "b"), 2, TransitionTiming.END),
+                ),
+            ).map { RuntimePush.EngineStatusChanged(it) },
+            listOf(running, betweenTicks, atState, atTransition).map { pushOf(frame("engineStatus", it)) }.onEach {
+                assertEquals(emptyList(), it.violations)
+            }.map { it.push },
+        )
+    }
+
+    @Test
+    fun `an engineStatus payload that is not a status is malformed`() {
+        listOf(
+            "[]",
+            "\"paused\"",
+            """{"paused":true}""",
+            """{"paused":"yes","waiting":true}""",
+            """{"paused":true,"waiting":true,"halt":"cars wait"}""",
+            """{"paused":true,"waiting":true,"halt":{"modelElementId":"crossing","timing":"start","state":"cars wait"}}""",
+            """{"paused":true,"waiting":true,"halt":{"timing":"entry","state":"cars wait"}}""",
+        ).forEach { payload ->
+            val violation = violationOf(frame("engineStatus", payload))
+            assertEquals(ViolationKind.MALFORMED_PAYLOAD, violation.kind, payload)
+            assertEquals("engineStatus", violation.messageType, payload)
+        }
     }
 
     @Test

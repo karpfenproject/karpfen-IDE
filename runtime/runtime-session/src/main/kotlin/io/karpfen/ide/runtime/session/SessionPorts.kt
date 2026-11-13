@@ -109,7 +109,8 @@ internal class ConductorEventSink(private val conductor: SessionConductor) : Eve
 
 /**
  * The debugger's way to the runtime through the conductor of its session. A command is a command of the session, and
- * the question for the status takes its turn with the commands.
+ * the question for the status, which the debugger asks when the session starts to run and after a reconnect, takes its
+ * turn with the commands.
  *
  * @param conductor the session's conductor.
  */

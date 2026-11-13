@@ -103,7 +103,8 @@ public sealed interface EngineHalt {
 }
 
 /**
- * What the engine of an environment is doing, as the feature `Breakpoint` answers its status. Immutable.
+ * What the engine of an environment is doing, as the feature `Breakpoint` answers its status and as the runtime pushes
+ * it in an `engineStatus` message. Immutable.
  *
  * @property paused true once a pause was asked for or a breakpoint halted the engine, until it is resumed.
  * @property waiting true while the engine thread waits right now, between two ticks or at a breakpoint.
@@ -113,7 +114,7 @@ public data class EngineStatus(public val paused: Boolean, public val waiting: B
 
 /**
  * The messages to the features `TickByTick` and `Breakpoint` that a debugger sends, and how their answers are read.
- * The object holds no state.
+ * The status it reads is also the payload of the runtime's `engineStatus` push. The object holds no state.
  */
 public object EngineMessages {
     /** The message to `TickByTick` that pauses the engine once the tick it is in has ended. */
@@ -145,8 +146,15 @@ public object EngineMessages {
      * attached object and its timing, and then either a state or the kind, the source and target states and the index
      * of a transition. The function never throws.
      */
-    public fun status(answer: String): EngineStatus? {
-        val members = (RuntimeJson.read(answer) as? JsonReading.Read)?.value as? WireValue.WireObject ?: return null
+    public fun status(answer: String): EngineStatus? = (RuntimeJson.read(answer) as? JsonReading.Read)?.value?.let(::status)
+
+    /**
+     * Reads the JSON [value] as the status of `Breakpoint`, by the same rules as the status in an answer. This is how
+     * the payload of an `engineStatus` push is read, which is the same object. It is null when [value] is not such a
+     * status. The function never throws.
+     */
+    public fun status(value: WireValue): EngineStatus? {
+        val members = value as? WireValue.WireObject ?: return null
         val paused = (members[WireNames.PAUSED] as? WireValue.WireBoolean)?.value ?: return null
         val waiting = (members[WireNames.WAITING] as? WireValue.WireBoolean)?.value ?: return null
         val halt = when (val value = members[WireNames.HALT]) {

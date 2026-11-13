@@ -44,6 +44,12 @@ public object WireNames {
     public const val DOMAIN_EVENT: String = "domainEvent"
 
     /**
+     * The message type of the engine's status, sent when the engine thread starts to wait and when it goes on, while
+     * the feature `TickByTick` is on. Its payload is the breakpoint status with [PAUSED], [WAITING] and [HALT].
+     */
+    public const val ENGINE_STATUS: String = "engineStatus"
+
+    /**
      * The environment key, a member of the push envelope and of the snapshot. In an inbound event frame, the member of
      * this name holds the event's domain instead.
      */
@@ -170,7 +176,10 @@ public object WireNames {
     /** The action that asks the feature `Breakpoint` what the engine is doing. */
     public const val BREAKPOINT_GET_STATUS: String = "getStatus"
 
-    /** Whether a pause was asked for or a breakpoint halted the engine, a member of the breakpoint status. */
+    /**
+     * Whether a pause was asked for or a breakpoint halted the engine, a member of the breakpoint status, which is also
+     * the payload of the [ENGINE_STATUS] push.
+     */
     public const val PAUSED: String = "paused"
 
     /** Whether the engine thread waits right now, a member of the breakpoint status. */

@@ -99,7 +99,7 @@ internal class DefaultRuntimeSession(
         conductor = inbox,
         scope = scope,
         journalCapacity = options.journalCapacity,
-        domainEventBuffer = options.collectorBuffer,
+        collectorBuffer = options.collectorBuffer,
     )
 
     /** Records the environment once and settles a close that races the deployment or a stop. */
@@ -160,9 +160,10 @@ internal class DefaultRuntimeSession(
         if (FeatureName.BREAKPOINT in prepared.plan.features) {
             DefaultSessionDebugger(
                 session = status.state,
+                connection = router.connection,
+                statuses = router.engineStatuses,
                 channel = ConductorDebuggerChannel(conductor),
                 journal = { text -> router.record(SessionActivity.Note(text, clock.elapsed())) },
-                interval = options.debuggerInterval,
             )
         } else {
             null

@@ -20,6 +20,8 @@ import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 import io.karpfen.ide.runtime.protocol.message.DecodedFrame
+import io.karpfen.ide.runtime.protocol.message.EngineHalt
+import io.karpfen.ide.runtime.protocol.message.EngineStatus
 import io.karpfen.ide.runtime.protocol.message.EventFrame
 import io.karpfen.ide.runtime.protocol.message.EventFrameEncoder
 import io.karpfen.ide.runtime.protocol.message.EventPayload
@@ -31,6 +33,7 @@ import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.protocol.message.SnapshotReader
 import io.karpfen.ide.runtime.protocol.message.SnapshotReading
+import io.karpfen.ide.runtime.protocol.message.StateTiming
 import io.karpfen.ide.runtime.protocol.message.WireValue
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -56,7 +59,7 @@ class RuntimeGoldensTest {
     }
 
     @Test
-    fun `the four push examples decode to the pushes they show`() {
+    fun `the push examples decode to the pushes they show`() {
         assertEquals(
             listOf(
                 RuntimePush.ObjectChanged("turtlePosition", 58, read(RuntimeGoldens.TURTLE_POSITION)),
@@ -67,9 +70,13 @@ class RuntimeGoldensTest {
                     PublishedEvent("start", "", "none", "EXTERNAL_MESSAGE", 1_761_560_130_123, 3000),
                     RuntimeGoldens.PUBLISHED_EVENT,
                 ),
+                RuntimePush.EngineStatusChanged(EngineStatus(true, true, EngineHalt.AtState("crossing", "cars wait", StateTiming.ENTRY))),
+                RuntimePush.EngineStatusChanged(EngineStatus(paused = false, waiting = false, halt = null)),
             ),
-            listOf(RuntimeGoldens.OBJECT_CHANGED, RuntimeGoldens.OBJECT_DELETED, RuntimeGoldens.STATE_CHANGE, RuntimeGoldens.DOMAIN_EVENT)
-                .map { push(it) },
+            listOf(
+                RuntimeGoldens.OBJECT_CHANGED, RuntimeGoldens.OBJECT_DELETED, RuntimeGoldens.STATE_CHANGE, RuntimeGoldens.DOMAIN_EVENT,
+                RuntimeGoldens.ENGINE_STATUS_HALTED, RuntimeGoldens.ENGINE_STATUS_RUNNING,
+            ).map { push(it) },
         )
     }
 

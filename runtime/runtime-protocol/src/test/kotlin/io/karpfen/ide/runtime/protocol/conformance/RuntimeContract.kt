@@ -30,6 +30,8 @@ import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.lamp
 import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.string
 import io.karpfen.ide.runtime.protocol.golden.RuntimeGoldens
 import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
+import io.karpfen.ide.runtime.protocol.message.EngineMessages
+import io.karpfen.ide.runtime.protocol.message.EngineStatus
 import io.karpfen.ide.runtime.protocol.message.EventFrame
 import io.karpfen.ide.runtime.protocol.message.EventFrameEncoder
 import io.karpfen.ide.runtime.protocol.message.EventPayload
@@ -43,6 +45,7 @@ import io.karpfen.ide.runtime.protocol.transport.ktor.RawWebSocketProbe
 import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -61,6 +64,8 @@ import kotlin.test.assertTrue
  * - A model subscriber receives every observation from the start with consecutive revisions.
  * - A second activation is refused, and a second start changes nothing.
  * - Domain events have the members the decoder reads.
+ * - While `TickByTick` is on, the engine's status is pushed as `engineStatus` to a client that subscribed to nothing,
+ *   once when the engine thread starts to wait and once when it goes on, for a pause, a tick and a resume.
  * - Pushes for a client without a session are dropped.
  * - A stop closes the sockets with `Environment stopped`. After that the environment stays readable, and a start runs
  *   it again.
@@ -479,6 +484,50 @@ abstract class RuntimeContract {
         assertTrue(published[WireNames.TIMESTAMP] is WireValue.WireNumber)
         ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
     }
+
+    @Test
+    fun `an engine with TickByTick pushes its status to a client that subscribed to nothing when it waits and goes on`() = scenario {
+        val environment = create()
+        val client = clientId()
+        uploadLamp(environment)
+        ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        val link = connect(client, environment)
+        subscribe(client, environment)
+        ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to client)
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        ok(RuntimeRoute.ACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick")
+
+        expect(OK, "execution paused", RuntimeRoute.SEND_MESSAGE_TO_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick", upload = "pause")
+        scope.eventually("the status of the waiting engine") { link.statuses().takeIf { it.size == 1 } }
+        val step = call(RuntimeRoute.SEND_MESSAGE_TO_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick", body = EngineMessages.ticks(1))
+        assertTrue(EngineMessages.advances(step.body), step.body)
+        scope.eventually("the statuses of one tick") { link.statuses().takeIf { it.size == 3 } }
+        expect(OK, "execution resumed", RuntimeRoute.SEND_MESSAGE_TO_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick", upload = "resume")
+        val statuses = scope.eventually("the status of the resumed engine") { link.statuses().takeIf { it.size == 4 } }
+
+        assertEquals(
+            listOf(
+                EngineStatus(paused = true, waiting = true, halt = null),
+                EngineStatus(paused = true, waiting = false, halt = null),
+                EngineStatus(paused = true, waiting = true, halt = null),
+                EngineStatus(paused = false, waiting = false, halt = null),
+            ),
+            statuses,
+            "wait, go on and wait for the tick, then go on for the resume",
+        )
+        assertEquals(
+            json(RuntimeGoldens.ENGINE_STATUS_RUNNING_PAYLOAD).fields.map { it.name },
+            link.payloads(WireNames.ENGINE_STATUS).last().fields.map { it.name },
+            "the members in org.json's order, as the golden, and no revision",
+        )
+        assertTrue(link.revisions.isEmpty(), "a client that subscribed to nothing gets no observation: ${link.revisions}")
+        ok(RuntimeRoute.DEACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick")
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+    }
+
+    /** The engine statuses this link received so far, read as the decoder reads them, failing on one it cannot read. */
+    private fun RawLink.statuses(): List<EngineStatus> =
+        payloads(WireNames.ENGINE_STATUS).map { payload -> assertNotNull(EngineMessages.status(payload), "$payload") }
 
     @Test
     fun `pushes for a client without a session are dropped, not kept for its later session`() = scenario {

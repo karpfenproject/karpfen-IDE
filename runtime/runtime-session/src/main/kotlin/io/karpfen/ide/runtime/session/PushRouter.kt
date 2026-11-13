@@ -27,6 +27,7 @@ import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleRefusal
 import io.karpfen.ide.runtime.protocol.lifecycle.RuntimeEnvironment
 import io.karpfen.ide.runtime.protocol.lifecycle.Uploads
+import io.karpfen.ide.runtime.protocol.message.EngineStatus
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.session.mirror.MirrorReducer
@@ -100,15 +101,16 @@ internal sealed interface RouterMessage {
  * the connection's events. It forwards them into its own unbounded inbox and takes them out in arrival order. The same
  * inbox also carries the observation calls of the conductor and the deployment, and the journal entries of the
  * conductor. The router owns the [ModelObserver]. It is the single writer of the observed model, the model updates, the
- * domain events, the connection's state as the session shows it, and the journal.
+ * domain events, the engine statuses, the connection's state as the session shows it, and the journal.
  *
  * - Object pushes, stack pushes, openings, interruptions and the end of the connection go to the observation. A push
  *   that the observation applied is journaled.
- * - Domain events go to [domainEvents] and to the journal. Protocol violations, anomalies and unknown message types go
- *   to the journal only.
+ * - Domain events go to [domainEvents] and to the journal. Engine statuses go to [engineStatuses], whose collector is
+ *   the session's debugger, which journals what it makes of them. Protocol violations, anomalies and unknown message
+ *   types go to the journal only.
  * - The end of the connection, its state changes and observation problems are reported to the conductor without
  *   suspending. The router never waits for the conductor, so the two never wait for each other.
- * - The model updates and the domain events are published without suspending. A collector that falls behind misses the
+ * - The model updates, the domain events and the engine statuses are published without suspending. A collector that falls behind misses the
  *   oldest of them. So the router never waits for a collector either. This matters because a collector may call the
  *   session's commands, and those wait for the router.
  *
@@ -124,7 +126,8 @@ internal sealed interface RouterMessage {
  * @param conductor where the router reports to.
  * @param scope the session's scope, in which the router and its forwarders run.
  * @param journalCapacity how many entries the journal keeps.
- * @param domainEventBuffer how many domain events a collector may fall behind before it misses the oldest of them.
+ * @param collectorBuffer how many domain events, and how many engine statuses, a collector may fall behind before it
+ *   misses the oldest of them.
  */
 internal class PushRouter(
     prepared: PreparedDeployment,
@@ -134,7 +137,7 @@ internal class PushRouter(
     private val conductor: ConductorInbox,
     private val scope: CoroutineScope,
     journalCapacity: Int,
-    domainEventBuffer: Int,
+    collectorBuffer: Int,
 ) {
     /** The router's messages, unbounded. */
     private val inbox = Channel<RouterMessage>(Channel.UNLIMITED)
@@ -156,7 +159,16 @@ internal class PushRouter(
 
     /** The writable domain events, hot and without replay. A collector that falls behind misses the oldest. */
     private val domainEventStream = MutableSharedFlow<ObservedDomainEvent>(
-        extraBufferCapacity = domainEventBuffer,
+        extraBufferCapacity = collectorBuffer,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /**
+     * The writable engine statuses, hot and without replay. A collector that falls behind misses the oldest, so it
+     * still gets the newest status.
+     */
+    private val engineStatusStream = MutableSharedFlow<EngineStatus>(
+        extraBufferCapacity = collectorBuffer,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
@@ -182,6 +194,13 @@ internal class PushRouter(
 
     /** Every domain event, hot and without replay. It never makes the router wait. */
     val domainEvents: Flow<ObservedDomainEvent> = domainEventStream.asSharedFlow()
+
+    /**
+     * Every engine status the runtime pushed, in arrival order, hot and without replay. It never makes the router wait.
+     * The runtime pushes one when the engine thread starts to wait and one when it goes on, while its feature
+     * `TickByTick` is on.
+     */
+    val engineStatuses: Flow<EngineStatus> = engineStatusStream.asSharedFlow()
 
     /** The connection's state as the session shows it. It is idle until the deployment connects. */
     val connection: StateFlow<ConnectionState> = connectionState.asStateFlow()
@@ -304,6 +323,7 @@ internal class PushRouter(
                 domainEventStream.tryEmit(observed)
                 journal(SessionActivity.DomainEventReceived(observed, observed.elapsed))
             }
+            is RuntimePush.EngineStatusChanged -> engineStatusStream.tryEmit(push.status)
             is RuntimePush.Unrecognized ->
                 journal(SessionActivity.Note("The runtime pushed a message of the unknown type '${push.messageType}'; it is ignored.", clock.elapsed()))
             is RuntimePush.ObjectChanged -> applied(event, WireNames.OBJECT_CHANGED, listOf(push.objectId), push.revision)

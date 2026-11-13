@@ -41,7 +41,8 @@ import kotlin.test.assertTrue
  * engine waits between two ticks, and a resume lets the machine reach `cars wait`. A service and then a resume event
  * halt the engine before the transition back to `operating`, which is the third transition of the file. A resume runs
  * the transition, and the deep history leads back to `cars wait`, whose entry halts the engine once more. A last
- * resume lets it run on.
+ * resume lets it run on. The debugger follows the engine through the runtime's `engineStatus` pushes, and the journal
+ * notes each pause and each resume once.
  */
 abstract class DebuggerScenarios {
 
@@ -81,6 +82,19 @@ abstract class DebuggerScenarios {
         assertEquals(SessionCommandOutcome.Done, session.debugger.resume(), diagnostics)
         awaitDebugger(session, DebuggerState.Running)
         session.awaitStack("crossing", WAIT)
+        assertEquals(
+            listOf(
+                "Paused before the entry of the state cars wait of crossing.",
+                "Paused between two ticks.",
+                "Resumed.",
+                "Paused before the transition maintenance to operating of crossing.",
+                "Resumed.",
+                "Paused before the entry of the state cars wait of crossing.",
+                "Resumed.",
+            ),
+            session.debuggerNotes(),
+            "each pause and resume noted once, the step's way to the end of its tick not as a resume",
+        )
     }
 
     /** Runs [scenario] against the runtime with its models below [root]. */

@@ -39,6 +39,9 @@ import io.karpfen.ide.runtime.protocol.catalogue.WireNames
  *   [PublishedEvent]. `event`, `payload`, `payloadFormat` and `source` are strings, and `timestamp` and `ttlMs` are
  *   integral numbers. A missing or mistyped member leaves the event null and adds a [ViolationKind.MALFORMED_PAYLOAD]
  *   to the push.
+ * - An `engineStatus` payload is the engine's status as [EngineMessages.status] reads it. It has the booleans `paused`
+ *   and `waiting` and, while the engine waits at a breakpoint, a `halt` as the runtime writes it. Its members may come
+ *   in any order. A payload that is not such a status is a [ViolationKind.MALFORMED_PAYLOAD].
  * - Any other type becomes [RuntimePush.Unrecognized]. That is not a violation, because the runtime may add types.
  *
  * A missing revision is a [ViolationKind.MALFORMED_PAYLOAD], because the client requires the runtime with IDE support,
@@ -114,6 +117,7 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
                 WireNames.OBJECT_DELETED -> objectDeleted(payload)
                 WireNames.STATE_CHANGE -> stateChange(payload)
                 WireNames.DOMAIN_EVENT -> domainEvent(payload)
+                WireNames.ENGINE_STATUS -> engineStatus(payload)
                 else -> DecodedFrame.Push(RuntimePush.Unrecognized(type, CompactJson.write(payload)), emptyList())
             }
 
@@ -185,6 +189,16 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
                 )
             }
             return DecodedFrame.Push(RuntimePush.DomainEvent(domain, event, CompactJson.write(inner)), violations)
+        }
+
+        /** Reads an `engineStatus` payload, whose members org.json writes in its own order. */
+        private fun engineStatus(payload: WireValue): DecodedFrame {
+            val status = EngineMessages.status(payload)
+                ?: return malformed(
+                    "the payload is not an engine status: it lacks the boolean '${WireNames.PAUSED}' or the boolean " +
+                        "'${WireNames.WAITING}', or its '${WireNames.HALT}' is not a halt as the runtime writes it",
+                )
+            return DecodedFrame.Push(RuntimePush.EngineStatusChanged(status), emptyList())
         }
 
         /** The published event of [inner], read by member name, or null if a member is missing or mistyped. */

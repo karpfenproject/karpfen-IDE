@@ -44,6 +44,10 @@ internal fun MirrorObject.texts(key: String): List<String>? =
 /** The journal's kept entries, as a collector that starts now gets them before the live ones. */
 internal fun RuntimeSession.journal(): List<SessionActivity> = (activity as SharedFlow<SessionActivity>).replayCache
 
+/** The notes of the debugger in the journal's kept entries, in order: the pauses with their places and the resumes. */
+internal fun RuntimeSession.debuggerNotes(): List<String> =
+    journal().filterIsInstance<SessionActivity.Note>().map { it.text }.filter { it.startsWith("Paused") || it == "Resumed." }
+
 /** The active stack of every machine of the observed model. */
 internal val ObservedModel.stacks: Map<String, List<String>>
     get() = states.machines.mapValues { it.value.stack }

@@ -27,8 +27,10 @@ import kotlin.test.assertEquals
  * Covers the runtime goldens against the runtime's own templates and against the port of its writers. The templates
  * are extracted from the runtime checkout and interpolated with the goldens' values. They are the envelope of
  * `OutgoingMessage.toJson`, the `objectChanged`, `objectDeleted` and `domainEvent` payloads of `ClientSessionManager`,
- * and the snapshot of `ModelSnapshot.toJson`. Each one writes its golden byte for byte. [RuntimeWireWriter] writes the
- * goldens too. That includes the org.json payloads and the object goldens built as [FakeObject]s. The KDoc of
+ * and the snapshot of `ModelSnapshot.toJson`. Each one writes its golden byte for byte. The envelope also writes the
+ * `engineStatus` goldens, whose payload `ClientSessionManager` splices in as the engine wrote it. [RuntimeWireWriter]
+ * writes the goldens too. That includes the org.json payloads, the engine statuses among them, and the object goldens
+ * built as [FakeObject]s. The KDoc of
  * [RuntimeSourceAnchorTest] describes what to do when the karpfen-runtime submodule moves.
  */
 class TemplateGoldenTest {
@@ -36,7 +38,7 @@ class TemplateGoldenTest {
     private val checkout = RuntimeSourceCheckout.fromSystemProperty()
 
     @Test
-    fun `the runtime's envelope template writes the four push goldens`() {
+    fun `the runtime's envelope template writes the push goldens of every message type`() {
         val envelope = KotlinTemplateLiteral.startingWith(checkout.text(CLIENT_SESSION), "{\"environmentKey\":")
 
         GOLDEN_PUSHES.forEach { (messageType, payload, frame) ->
@@ -115,6 +117,11 @@ class TemplateGoldenTest {
             RuntimeGoldens.DOMAIN_EVENT_PAYLOAD,
             RuntimeWireWriter.domainEventPayload("public", "start", "", "none", "EXTERNAL_MESSAGE", 1_761_560_130_123, 3000),
         )
+        assertEquals(
+            RuntimeGoldens.ENGINE_STATUS_HALTED_PAYLOAD,
+            RuntimeWireWriter.engineStatusPayload(true, true, RuntimeWireWriter.stateHalt("crossing", "entry", "cars wait")),
+        )
+        assertEquals(RuntimeGoldens.ENGINE_STATUS_RUNNING_PAYLOAD, RuntimeWireWriter.engineStatusPayload(paused = false, waiting = false))
         GOLDEN_PUSHES.forEach { (messageType, payload, frame) ->
             assertEquals(frame, RuntimeWireWriter.envelope(RuntimeGoldens.ENVIRONMENT, RuntimeGoldens.CLIENT, messageType, payload))
         }
@@ -229,12 +236,14 @@ class TemplateGoldenTest {
         /** The runtime file of `ModelSnapshot`. */
         const val MODEL_SNAPSHOT = "src/main/kotlin/io/karpfen/observation/ModelSnapshot.kt"
 
-        /** The four push goldens, each with its message type, payload and frame. */
+        /** The push goldens of every message type, each with its message type, payload and frame. */
         val GOLDEN_PUSHES = listOf(
             Triple("objectChanged", RuntimeGoldens.OBJECT_CHANGED_PAYLOAD, RuntimeGoldens.OBJECT_CHANGED),
             Triple("objectDeleted", RuntimeGoldens.OBJECT_DELETED_PAYLOAD, RuntimeGoldens.OBJECT_DELETED),
             Triple("stateChange", RuntimeGoldens.STATE_CHANGE_PAYLOAD, RuntimeGoldens.STATE_CHANGE),
             Triple("domainEvent", RuntimeGoldens.DOMAIN_EVENT_PAYLOAD, RuntimeGoldens.DOMAIN_EVENT),
+            Triple("engineStatus", RuntimeGoldens.ENGINE_STATUS_HALTED_PAYLOAD, RuntimeGoldens.ENGINE_STATUS_HALTED),
+            Triple("engineStatus", RuntimeGoldens.ENGINE_STATUS_RUNNING_PAYLOAD, RuntimeGoldens.ENGINE_STATUS_RUNNING),
         )
     }
 }
