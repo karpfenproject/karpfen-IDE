@@ -18,7 +18,6 @@ package io.karpfen.ide.notation.diagram.layout
 import io.karpfen.ide.notation.diagram.structure.StructureDiagram
 import io.karpfen.ide.notation.diagram.structure.StructureLink
 import io.karpfen.ide.notation.diagram.structure.StructureNode
-import kotlin.math.abs
 
 /**
  * The layout of a class or object diagram that was arranged by hand. It draws every element where the [VisLayout]
@@ -92,12 +91,8 @@ public object ManualStructureLayout {
      * links are spread across the direction they run in: sideways where the boxes stand above each other, and up and
      * down where they stand next to each other. The loops of links from a box to itself are stacked.
      */
-    private fun shiftOf(index: Int, count: Int, source: DiagramBox, target: DiagramBox): DiagramPoint {
-        if (source == target) return DiagramPoint(0f, index * SPREAD)
-        val offset = (index - (count - 1) / 2f) * SPREAD
-        val upright = abs(target.center.y - source.center.y) >= abs(target.center.x - source.center.x)
-        return if (upright) DiagramPoint(offset, 0f) else DiagramPoint(0f, offset)
-    }
+    private fun shiftOf(index: Int, count: Int, source: DiagramBox, target: DiagramBox): DiagramPoint =
+        LineRouting.across(source, target, if (source == target) index * SPREAD else (index - (count - 1) / 2f) * SPREAD)
 
     /**
      * The box of the label of [link] beside the middle of the line through [points], or null for a link without one.

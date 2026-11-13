@@ -87,8 +87,7 @@ internal fun DrawScope.drawActiveMarks(boxes: List<DiagramBox>, colors: KarpfenC
 internal fun DrawScope.drawPausedBox(box: DiagramBox, colors: KarpfenColors) {
     val unit = density
     val frame = DiagramBox(box.x - PAUSED_GAP, box.y - PAUSED_GAP, box.width + 2 * PAUSED_GAP, box.height + 2 * PAUSED_GAP)
-    val dashes = PathEffect.dashPathEffect(floatArrayOf(PAUSED_DASH * unit, PAUSED_DASH * unit))
-    drawRect(colors.warning, frame.topLeft(unit), frame.size(unit), style = Stroke(PAUSED_BORDER * unit, pathEffect = dashes))
+    drawRect(colors.warning, frame.topLeft(unit), frame.size(unit), style = Stroke(PAUSED_BORDER * unit, pathEffect = dashes(PAUSED_DASH)))
 }
 
 /**
@@ -134,11 +133,14 @@ internal fun DrawScope.drawFrameGrip(box: DiagramBox, colors: KarpfenColors) {
     drawRect(colors.accent, box.topLeft(unit), box.size(unit), style = Stroke(GRIP * unit))
 }
 
+/** Dashes and gaps that are each [length] units of the diagram long, for a line or a frame. */
+internal fun DrawScope.dashes(length: Float): PathEffect = PathEffect.dashPathEffect(floatArrayOf(length * density, length * density))
+
 /**
  * Draws the line through [points] in [color], [width] wide, and returns it in pixels, or null for a line of fewer than
- * two points, which is not drawn.
+ * two points, which is not drawn. With [pattern] the line is drawn in that pattern, such as dashes, instead of solid.
  */
-internal fun DrawScope.drawPolyline(points: List<DiagramPoint>, color: Color, width: Float = LINE): List<Offset>? {
+internal fun DrawScope.drawPolyline(points: List<DiagramPoint>, color: Color, width: Float = LINE, pattern: PathEffect? = null): List<Offset>? {
     val unit = density
     val pixels = points.map { Offset(it.x * unit, it.y * unit) }
     if (pixels.size < 2) return null
@@ -146,7 +148,7 @@ internal fun DrawScope.drawPolyline(points: List<DiagramPoint>, color: Color, wi
         moveTo(pixels.first().x, pixels.first().y)
         pixels.drop(1).forEach { lineTo(it.x, it.y) }
     }
-    drawPath(line, color, style = Stroke(width * unit))
+    drawPath(line, color, style = Stroke(width * unit, pathEffect = pattern))
     return pixels
 }
 

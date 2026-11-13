@@ -44,7 +44,7 @@ class StatechartPauseMarksTest {
     @Test
     fun `a pause at a transition found by its index marks its line and frames its caption`() {
         val second = diagram.transitions[1]
-        val route = layout.routes.single { it.transitionId == second.id }
+        val route = layout.routes.single { it.edgeId == second.id }
 
         val marks = StatechartPauseMarks.of(diagram, layout, DiagramPause.AtTransition(1, TransitionKind.NORMAL, listOf("wait"), listOf("go")))
 
@@ -54,7 +54,7 @@ class StatechartPauseMarksTest {
     @Test
     fun `a pause at a split marks every line of it and frames its bar and its caption`() {
         val split = diagram.transitions.single { it.kind == TransitionKind.SPLIT }
-        val routes = layout.routes.filter { it.transitionId == split.id }
+        val routes = layout.routes.filter { it.edgeId == split.id }
 
         val marks = StatechartPauseMarks.of(diagram, layout, DiagramPause.AtTransition(-1, TransitionKind.SPLIT, listOf("go"), listOf("b", "a")))
 

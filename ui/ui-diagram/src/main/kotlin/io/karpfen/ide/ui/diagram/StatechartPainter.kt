@@ -27,6 +27,7 @@ import io.karpfen.ide.notation.diagram.layout.StatechartMetrics
 import io.karpfen.ide.notation.diagram.statechart.StateHistory
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
+import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.ui.foundation.theme.KarpfenColors
 
 /**
@@ -37,9 +38,10 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenColors
  * and its entry and do blocks, which the canvas draws. A history is a small circle with an `H` for a shallow one and
  * `H*` for a deep one, behind the name of a state with nested states. A breakpoint is a dot in the colour of errors:
  * on the left border of a state for its entry and on the right border for its exit, in front of the caption of a
- * transition for its start and behind it for its end. The marker of an initial state is a filled dot. The bars of splits and joins are filled. Every line ends
- * in an arrowhead, except the lines that lead into a bar. The caption of a transition is written on a patch in the
- * colour of the background.
+ * transition for its start and behind it for its end. The marker of an initial state is a filled dot. The bars of
+ * splits and joins are filled. Every line ends in an arrowhead, except the lines that lead into a bar. The line of a
+ * timeout is dashed, in the colour of the other lines, so it reads as a transition the engine takes by itself. The
+ * caption of a transition or a timeout is written on a patch in the colour of the background.
  *
  * The place where a run is paused at a breakpoint is marked in the colour of warnings, apart from the marks of the
  * active states: a dashed frame around the state, or the lines of the transition drawn wide with a dashed frame around
@@ -65,12 +67,15 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
     /** How far below the top of a state the dots of its breakpoints sit on its border. */
     private const val DOT_DROP = 12f
 
+    /** The length of a dash, and of a gap, in the line of a timeout. */
+    private const val TIMEOUT_DASH = 5f
+
     override fun texts(diagram: StatechartDiagram): Map<TextRole, Collection<String>> {
         val states = diagram.allStates()
         return mapOf(
             TextRole.TITLE to states.map { it.name },
             TextRole.ROW to listOf(StatechartMetrics.LIMIT_WORD, StatechartMetrics.ENTRY_WORD, StatechartMetrics.DO_WORD, SHALLOW_MARK, DEEP_MARK),
-            TextRole.LABEL to diagram.transitions.map { it.caption },
+            TextRole.LABEL to diagram.edges().map { it.caption },
         )
     }
 
@@ -94,21 +99,20 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
             layout.bars.values.forEach { bar -> scope.drawRect(colors.text, bar.topLeft(unit), bar.size(unit)) }
         }
         layout.routes.forEach { route ->
-            faults.attempt("drawing the line of ${route.transitionId ?: "an initial state"}") {
-                val pixels = scope.drawPolyline(route.points, colors.textMuted)
+            faults.attempt("drawing the line of ${route.edgeId ?: "an initial state"}") {
+                val pattern = if (route.kind == RouteKind.TIMEOUT) scope.dashes(TIMEOUT_DASH) else null
+                val pixels = scope.drawPolyline(route.points, colors.textMuted, pattern = pattern)
                 if (pixels != null && route.kind != RouteKind.INTO_BAR) scope.drawFilledArrowhead(pixels, colors.textMuted)
             }
         }
-        val transitions = diagram.transitions.associateBy { it.id }
+        val edges = diagram.edges().associateBy { it.id }
         layout.routes.forEach { route ->
             val label = route.label ?: return@forEach
-            val transition = transitions[route.transitionId] ?: return@forEach
-            val caption = texts[TextRole.LABEL, transition.caption] ?: return@forEach
-            faults.attempt("writing the caption of ${route.transitionId}") {
+            val edge = edges[route.edgeId] ?: return@forEach
+            val caption = texts[TextRole.LABEL, edge.caption] ?: return@forEach
+            faults.attempt("writing the caption of ${route.edgeId}") {
                 scope.drawCaption(label, caption, colors)
-                val reach = StatechartMetrics.BREAKPOINT_DOT + 1f
-                if (transition.startBreakpoint) scope.drawBreakpoint(label.x - reach, label.center.y, colors)
-                if (transition.endBreakpoint) scope.drawBreakpoint(label.right + reach, label.center.y, colors)
+                if (edge is TransitionEdge) scope.drawBreakpoints(edge, label, colors)
             }
         }
     }
@@ -124,6 +128,13 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
         val marks = StatechartPauseMarks.of(diagram, layout, pause)
         marks.lines.forEach { scope.drawPausedLine(it, colors) }
         marks.frames.forEach { scope.drawPausedBox(it, colors) }
+    }
+
+    /** Draws the dots of the breakpoints of [transition] beside the box [label] of its caption. */
+    private fun DrawScope.drawBreakpoints(transition: TransitionEdge, label: DiagramBox, colors: KarpfenColors) {
+        val reach = StatechartMetrics.BREAKPOINT_DOT + 1f
+        if (transition.startBreakpoint) drawBreakpoint(label.x - reach, label.center.y, colors)
+        if (transition.endBreakpoint) drawBreakpoint(label.right + reach, label.center.y, colors)
     }
 
     /** Draws the dot of a breakpoint with its middle at ([x], [y]) in the units of the diagram. */

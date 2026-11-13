@@ -31,7 +31,8 @@ public object VisEditing {
 
     /**
      * The layout [layout] of [diagram] as a [VisLayout]: the middle of every state without nested states, the middle
-     * of every bar, and the corners of every normal transition as its waypoints, all moved onto the grid.
+     * of every bar, and the corners of every line that can be bent as its waypoints, all moved onto the grid. Those
+     * are the lines of the normal transitions, of the timeouts and of the splits and joins between a state and the bar.
      */
     public fun freeze(diagram: StatechartDiagram, layout: StatechartLayout): VisLayout = VisLayout(
         boxes = diagram.allStates()
@@ -40,9 +41,9 @@ public object VisEditing {
             .toMap(),
         bars = layout.bars.mapValues { DiagramGrid.snap(it.value.center) },
         waypoints = layout.routes
-            .filter { it.kind == RouteKind.TRANSITION && it.transitionId != null && it.points.size > 2 }
+            .filter { it.lineId != null && it.points.size > 2 }
             .associate { route ->
-                checkNotNull(route.transitionId) to route.points.subList(1, route.points.size - 1).map(DiagramGrid::snap).distinct()
+                checkNotNull(route.lineId) to route.points.subList(1, route.points.size - 1).map(DiagramGrid::snap).distinct()
             },
         frames = diagram.allStates()
             .filter { it.isComposite }
@@ -74,22 +75,22 @@ public object VisEditing {
 
     /**
      * [vis] with the state [name] moved by [delta]. A state with nested states takes all of them along, together
-     * with their frames and the waypoints of the transitions that run between them. The move is rounded to the grid as a whole, so
-     * what moves together keeps its distances.
+     * with their frames, the bars of the splits and joins between them and the waypoints of every line of a
+     * transition or timeout that runs between them. The move is rounded to the grid as a whole, so what moves
+     * together keeps its distances.
      */
     public fun moveState(diagram: StatechartDiagram, vis: VisLayout, name: String, delta: DiagramPoint): VisLayout {
         val state = diagram.state(name) ?: return vis
         val step = DiagramGrid.snap(delta)
         if (step.x == 0f && step.y == 0f) return vis
         val moved = state.withDescendants().map { it.name }.toSet()
-        val inside = diagram.transitions
-            .filter { state.isComposite && (it.sources + it.targets).all(moved::contains) }
-            .map { it.id }
-            .toSet()
+        val inside = diagram.edges().filter { state.isComposite && (it.sources + it.targets).all(moved::contains) }
+        val edges = inside.map { it.id }.toSet()
+        val lines = inside.flatMap { it.lineIds }.toSet()
         return vis.copy(
             boxes = vis.boxes.mapValues { (key, point) -> if (key in moved) point + step else point },
-            bars = vis.bars.mapValues { (id, point) -> if (id in inside) point + step else point },
-            waypoints = vis.waypoints.mapValues { (id, points) -> if (id in inside) points.map { it + step } else points },
+            bars = vis.bars.mapValues { (id, point) -> if (id in edges) point + step else point },
+            waypoints = vis.waypoints.mapValues { (id, points) -> if (id in lines) points.map { it + step } else points },
             frames = vis.frames.mapValues { (key, box) -> if (key in moved) box.copy(x = box.x + step.x, y = box.y + step.y) else box },
         )
     }
@@ -168,20 +169,23 @@ public object VisEditing {
 
     /**
      * [vis] with only what [diagram] still has. The text is the source of truth, so the place of a state that is gone
-     * from the text, or was given nested states, is dropped, and so are the bars, waypoints and labels of transitions
-     * that are gone and the frames of states that have no nested states any more. This is what is written to the
-     * companion file.
+     * from the text, or was given nested states, is dropped, and so are the bars of splits and joins that are gone,
+     * the waypoints of lines that are gone, the labels of transitions and timeouts that are gone and the frames of
+     * states that have no nested states any more. A timeout counts as long as its state has it, also while the state
+     * it leads to is missing. This is what is written to the companion file.
      */
     public fun prune(diagram: StatechartDiagram, vis: VisLayout): VisLayout {
         val leaves = diagram.allStates().filter { !it.isComposite }.map { it.name }.toSet()
         val forks = diagram.transitions.filter { it.kind != TransitionKind.NORMAL }.map { it.id }.toSet()
-        val normal = diagram.transitions.filter { it.kind == TransitionKind.NORMAL }.map { it.id }.toSet()
+        val edges = diagram.edges()
+        val labelled = edges.map { it.id }.toSet()
+        val lines = edges.flatMap { it.lineIds }.toSet()
         val composites = diagram.allStates().filter { it.isComposite }.map { it.name }.toSet()
         return VisLayout(
             boxes = vis.boxes.filterKeys(leaves::contains),
             bars = vis.bars.filterKeys(forks::contains),
-            waypoints = vis.waypoints.filterKeys(normal::contains).filterValues { it.isNotEmpty() },
-            labels = vis.labels.filterKeys { it in forks || it in normal },
+            waypoints = vis.waypoints.filterKeys(lines::contains).filterValues { it.isNotEmpty() },
+            labels = vis.labels.filterKeys(labelled::contains),
             frames = vis.frames.filterKeys(composites::contains),
         )
     }

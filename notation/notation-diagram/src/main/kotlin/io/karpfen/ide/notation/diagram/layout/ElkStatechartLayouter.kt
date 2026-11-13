@@ -17,6 +17,8 @@ package io.karpfen.ide.notation.diagram.layout
 
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
+import io.karpfen.ide.notation.diagram.statechart.StatechartEdge
+import io.karpfen.ide.notation.diagram.statechart.TimeoutEdge
 import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
 import org.eclipse.elk.alg.layered.options.CycleBreakingStrategy
@@ -42,9 +44,10 @@ import org.eclipse.elk.graph.util.ElkGraphUtil
  * drawing starts at the initial state and reads from the top down, in the order the states are written. A normal
  * transition becomes one edge.
  * A split or a join becomes a bar node with one edge per state it names, and the label sits on the edge that leads
- * into the bar of a split or out of the bar of a join.
+ * into the bar of a split or out of the bar of a join. The timeout of a state becomes one edge from that state to the
+ * state it leads to, with its caption as its label.
  *
- * A transition that names a state the diagram does not have is left out of the layout. The text is checked
+ * A transition or timeout that names a state the diagram does not have is left out of the layout. The text is checked
  * elsewhere, and the drawing shows what can be drawn.
  */
 internal class ElkStatechartLayouter : StatechartLayouter {
@@ -54,6 +57,7 @@ internal class ElkStatechartLayouter : StatechartLayouter {
         val graph = Graph(text)
         diagram.states.forEach { graph.addState(it, graph.root) }
         diagram.transitions.forEach(graph::addTransition)
+        diagram.timeouts().forEach(graph::addTimeout)
         ElkKernel.layout(graph.root)
         return graph.read()
     }
@@ -77,8 +81,11 @@ internal class ElkStatechartLayouter : StatechartLayouter {
         private val bars = LinkedHashMap<String, ElkNode>()
         private val edges = ArrayList<Line>()
 
-        /** An edge of the kernel with what it stands for. */
-        private class Line(val edge: ElkEdge, val kind: RouteKind, val transitionId: String?)
+        /**
+         * An edge of the kernel with what it stands for: the [kind] of line, the id of the edge of the diagram it
+         * belongs to, and its own id as a line that can be bent.
+         */
+        private class Line(val edge: ElkEdge, val kind: RouteKind, val edgeId: String?, val lineId: String? = edgeId)
 
         /** Adds [state] with the states nested in it to [parent]. The first declaration of a name counts. */
         fun addState(state: StateNode, parent: ElkNode) {
@@ -121,23 +128,29 @@ internal class ElkStatechartLayouter : StatechartLayouter {
                 height = StatechartMetrics.BAR_THICKNESS.toDouble()
             }
             bars[transition.id] = bar
-            sources.forEachIndexed { index, source ->
-                val edge = ElkGraphUtil.createSimpleEdge(source, bar)
+            transition.sources.forEachIndexed { index, source ->
+                val edge = ElkGraphUtil.createSimpleEdge(sources[index], bar)
                 if (transition.kind == TransitionKind.SPLIT && index == 0) labelled(edge, transition)
-                edges += Line(edge, RouteKind.INTO_BAR, transition.id)
+                edges += Line(edge, RouteKind.INTO_BAR, transition.id, transition.lineFrom(source))
             }
-            targets.forEachIndexed { index, target ->
-                val edge = ElkGraphUtil.createSimpleEdge(bar, target)
+            transition.targets.forEachIndexed { index, target ->
+                val edge = ElkGraphUtil.createSimpleEdge(bar, targets[index])
                 if (transition.kind == TransitionKind.JOIN && index == 0) labelled(edge, transition)
-                edges += Line(edge, RouteKind.OUT_OF_BAR, transition.id)
+                edges += Line(edge, RouteKind.OUT_OF_BAR, transition.id, transition.lineTo(target))
             }
         }
 
-        /** Gives [edge] a label as large as the caption of [transition] needs, and returns the edge. */
-        private fun labelled(edge: ElkEdge, transition: TransitionEdge): ElkEdge {
-            val caption = transition.caption
-            ElkGraphUtil.createLabel(caption, edge).apply {
-                width = (measurer.widthOf(caption) + StatechartMetrics.LABEL_PADDING + StatechartMetrics.CELL_ROOM).toDouble()
+        /** Adds the edge of [timeout] with its caption, unless one of its states is missing. */
+        fun addTimeout(timeout: TimeoutEdge) {
+            val source = states[timeout.state] ?: return
+            val target = states[timeout.timeout.target] ?: return
+            edges += Line(labelled(ElkGraphUtil.createSimpleEdge(source, target), timeout), RouteKind.TIMEOUT, timeout.id)
+        }
+
+        /** Gives [edge] a label as large as the caption of [owner] needs, and returns the edge. */
+        private fun labelled(edge: ElkEdge, owner: StatechartEdge): ElkEdge {
+            ElkGraphUtil.createLabel(owner.caption, edge).apply {
+                width = StatechartMetrics.captionWidth(owner, measurer).toDouble()
                 height = StatechartMetrics.LABEL_HEIGHT.toDouble()
             }
             return edge
@@ -170,7 +183,7 @@ internal class ElkStatechartLayouter : StatechartLayouter {
         /** The route of [line], or null if the kernel gave the edge no path. */
         private fun routeOf(line: Line): EdgeRoute? {
             val points = ElkKernel.pointsOf(line.edge, root) ?: return null
-            return EdgeRoute(line.kind, line.transitionId, points, ElkKernel.labelOf(line.edge, root))
+            return EdgeRoute(line.kind, line.edgeId, points, ElkKernel.labelOf(line.edge, root), line.lineId)
         }
     }
 

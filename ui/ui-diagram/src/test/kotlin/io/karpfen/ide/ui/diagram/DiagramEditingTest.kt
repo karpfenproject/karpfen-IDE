@@ -85,7 +85,7 @@ class DiagramEditingTest {
     @Test
     fun `a secondary click offers to add a waypoint to a transition and to remove one, and changes nothing by itself`() {
         val id = "NORMAL:off->on#1"
-        val line = automatic.routes.single { it.transitionId == id }.points
+        val line = automatic.routes.single { it.edgeId == id }.points
         val onLine = DiagramPoint((line[0].x + line[1].x) / 2f, (line[0].y + line[1].y) / 2f)
 
         val add = assertNotNull(editing.offerAt(diagram, automatic, onLine))
@@ -118,7 +118,7 @@ class DiagramEditingTest {
     @Test
     fun `dragging the label of a transition moves the label and nothing else`() {
         val id = "NORMAL:off->on#1"
-        val label = assertNotNull(automatic.routes.single { it.transitionId == id }.label)
+        val label = assertNotNull(automatic.routes.single { it.edgeId == id }.label)
 
         assertTrue(editing.startDrag(diagram, automatic, label.center))
         editing.dragTo(diagram, DiagramPoint(label.center.x + 31f, label.center.y))

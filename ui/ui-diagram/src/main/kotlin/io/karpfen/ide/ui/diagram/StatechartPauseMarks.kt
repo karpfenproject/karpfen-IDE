@@ -31,7 +31,8 @@ internal data class PauseMarks(val frames: List<DiagramBox>, val lines: List<Lis
 /**
  * Finds what a statechart marks for a pause. A pause at a state marks the box of the state. A pause at a transition
  * marks every line of the transition, its bar if it is a split or a join, and the box of its caption. The transition
- * is found by [StatechartDiagram.transitionOf]. A place the diagram or its layout does not show marks nothing.
+ * is found by [StatechartDiagram.transitionOf]. A place the diagram or its layout does not show marks nothing. The
+ * line of a timeout is never marked, because it belongs to no transition of the text.
  * Stateless.
  */
 internal object StatechartPauseMarks {
@@ -41,7 +42,7 @@ internal object StatechartPauseMarks {
         is DiagramPause.AtState -> PauseMarks(listOfNotNull(layout.states[pause.state]), emptyList())
         is DiagramPause.AtTransition -> {
             val transition = diagram.transitionOf(pause.index, pause.kind, pause.sources, pause.targets)
-            val routes = transition?.let { found -> layout.routes.filter { it.transitionId == found.id } }.orEmpty()
+            val routes = transition?.let { found -> layout.routes.filter { it.edgeId == found.id } }.orEmpty()
             val frames = listOfNotNull(transition?.let { layout.bars[it.id] }, routes.firstNotNullOfOrNull { it.label })
             PauseMarks(frames, routes.map { it.points })
         }

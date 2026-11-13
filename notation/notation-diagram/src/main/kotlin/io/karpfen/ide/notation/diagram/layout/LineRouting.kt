@@ -15,6 +15,8 @@
  */
 package io.karpfen.ide.notation.diagram.layout
 
+import kotlin.math.abs
+
 /**
  * How a line runs between two boxes of a diagram that is arranged by hand, and where its caption stands. The layouts
  * by hand of all kinds of diagram share these rules.
@@ -70,6 +72,26 @@ internal object LineRouting {
             }
         }
     }
+
+    /**
+     * The shift that moves a line without waypoints from [source] to [target] by [offset] across the direction it runs
+     * in: sideways where the boxes stand above each other, and up and down where they stand next to each other. The
+     * loop of a line from a box to itself is moved down. So lines between the same two boxes can lie side by side.
+     */
+    fun across(source: DiagramBox, target: DiagramBox, offset: Float): DiagramPoint {
+        if (source == target) return DiagramPoint(0f, offset)
+        val upright = abs(target.center.y - source.center.y) >= abs(target.center.x - source.center.x)
+        return if (upright) DiagramPoint(offset, 0f) else DiagramPoint(0f, offset)
+    }
+
+    /**
+     * The shift that moves a line without waypoints from [source] to [target] by [distance] to the side where
+     * [captionBeside] puts a caption with `otherSide`: to the left where the boxes stand above each other, and down
+     * where they stand next to each other. The loop of a line from a box to itself is moved down. So a line can run
+     * beside another one between the same two boxes without crossing the caption of the other one.
+     */
+    fun aside(source: DiagramBox, target: DiagramBox, distance: Float): DiagramPoint =
+        across(source, target, distance).let { DiagramPoint(-it.x, it.y) }
 
     /** [caption] moved by [offset], which is how far the user moved it, or as it is without an offset. */
     fun moved(caption: DiagramBox, offset: DiagramPoint?): DiagramBox =

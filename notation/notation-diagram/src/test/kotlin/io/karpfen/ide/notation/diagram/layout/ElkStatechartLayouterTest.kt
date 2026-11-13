@@ -63,10 +63,10 @@ class ElkStatechartLayouterTest {
     @Test
     fun `every transition gets a line with a label, and the initial state a marker`() {
         val lines = layout.routes.filter { it.kind == RouteKind.TRANSITION }
-        assertEquals(lamp.transitions.map { it.id }.toSet(), lines.map { it.transitionId }.toSet())
+        assertEquals(lamp.transitions.map { it.id }.toSet(), lines.map { it.edgeId }.toSet())
         lines.forEach { line ->
-            assertTrue(line.points.size >= 2, "the line of ${line.transitionId} has no path")
-            assertNotNull(line.label, "the line of ${line.transitionId} has no label")
+            assertTrue(line.points.size >= 2, "the line of ${line.edgeId} has no path")
+            assertNotNull(line.label, "the line of ${line.edgeId} has no label")
         }
         assertEquals(setOf("off"), layout.initialMarkers.keys)
         assertEquals(1, layout.routes.count { it.kind == RouteKind.INITIAL })
@@ -104,6 +104,39 @@ class ElkStatechartLayouterTest {
     }
 
     @Test
+    fun `each line of a split or join carries its own id, and the bar and the caption the id of the transition`() {
+        val fork = LampStateMachine.diagramOf(LampStateMachine.FORK)
+
+        val forkLayout = StatechartLayouter().layout(fork, TextMeasurer.estimating())
+
+        val forked = forkLayout.routes.filter { it.kind == RouteKind.INTO_BAR || it.kind == RouteKind.OUT_OF_BAR }
+        assertEquals(fork.transitions.flatMap { it.lineIds }.toSet(), forked.mapNotNull { it.lineId }.toSet())
+        assertEquals(fork.transitions.map { it.id }.toSet(), forkLayout.labels.keys)
+        forked.forEach { route ->
+            val transition = fork.transitions.single { it.id == route.edgeId }
+            assertTrue(route.lineId in transition.lineIds, "${route.lineId} is no line of ${transition.id}")
+        }
+    }
+
+    @Test
+    fun `a timeout is a line of its own with its time as caption, and one to an unknown state is left out`() {
+        val crossing = LampStateMachine.diagramOf(LampStateMachine.CROSSING)
+
+        val result = StatechartLayouter().layout(crossing, TextMeasurer.estimating())
+
+        val timeouts = result.routes.filter { it.kind == RouteKind.TIMEOUT }
+        assertEquals(listOf("TIMEOUT:cars go", "TIMEOUT:cars wait", "TIMEOUT:green"), timeouts.map { it.edgeId })
+        timeouts.forEach { route ->
+            assertEquals(route.edgeId, route.lineId)
+            assertTrue(route.points.size >= 2, "the line of ${route.edgeId} has no path")
+            assertNotNull(route.label, "the line of ${route.edgeId} has no caption")
+        }
+        val caption = assertNotNull(result.labels["TIMEOUT:cars go"])
+        assertEquals(TextMeasurer.estimating().widthOf("after 10 ticks") + StatechartMetrics.LABEL_PADDING, caption.width, "no room for a cell")
+        assertEquals(crossing.transitions.size, result.routes.count { it.kind == RouteKind.TRANSITION })
+    }
+
+    @Test
     fun `a diagram without states has an empty layout`() {
         assertEquals(StatechartLayout.EMPTY, StatechartLayouter().layout(StatechartDiagram(null, emptyList(), emptyList(), TextRange(0, 0)), TextMeasurer.estimating()))
     }
@@ -114,7 +147,7 @@ class ElkStatechartLayouterTest {
 
         val result = StatechartLayouter().layout(broken, TextMeasurer.estimating())
 
-        assertTrue(result.routes.none { it.transitionId == "x" })
+        assertTrue(result.routes.none { it.edgeId == "x" })
         assertEquals(layout.states.keys, result.states.keys)
     }
 }

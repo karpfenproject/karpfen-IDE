@@ -63,7 +63,7 @@ class StatechartActionsTest {
     private fun inState(name: String): DiagramPoint = layout.states.getValue(name).let { DiagramPoint(it.x + 2f, it.y + 2f) }
 
     /** A point on the line of the transition [id]. */
-    private fun onTransition(id: String): DiagramPoint = layout.routes.first { it.transitionId == id }.points.first()
+    private fun onTransition(id: String): DiagramPoint = layout.routes.first { it.edgeId == id }.points.first()
 
     /** A point on the empty canvas. */
     private val canvas = DiagramPoint(-500f, -500f)

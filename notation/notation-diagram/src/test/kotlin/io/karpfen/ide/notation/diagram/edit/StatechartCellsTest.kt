@@ -66,7 +66,7 @@ class StatechartCellsTest {
         val header = cell("on.entry").box
         assertTrue(header.y >= on.y && header.bottom <= on.y + layout.headerHeight, "$header is not in the row of the name of $on")
 
-        val label = assertNotNull(layout.routes.single { it.transitionId == "NORMAL:off->full#1" }.label)
+        val label = assertNotNull(layout.routes.single { it.edgeId == "NORMAL:off->full#1" }.label)
         val mark = cell("NORMAL:off->full#1").box
         assertTrue(mark.x >= label.x && mark.right <= label.right && mark.y >= label.y && mark.bottom <= label.bottom, "$mark is outside $label")
     }

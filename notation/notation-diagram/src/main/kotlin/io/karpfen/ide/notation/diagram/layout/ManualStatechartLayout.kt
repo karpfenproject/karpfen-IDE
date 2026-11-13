@@ -16,6 +16,7 @@
 package io.karpfen.ide.notation.diagram.layout
 
 import io.karpfen.ide.notation.diagram.statechart.StateNode
+import io.karpfen.ide.notation.diagram.statechart.StatechartEdge
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
@@ -33,12 +34,17 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  *   starts at the top left of the parent, or of the drawing.
  * - The marker of an initial state sits above that state.
  * - The bar of a split or join sits on its stored point, or else in the middle between the states it connects.
- * - A normal transition runs from the border of its source through its waypoints to the border of its target. Without
- *   waypoints it is a straight line. Where a waypoint or the other state is lined up with a state, the line meets
+ * - A normal transition and a timeout run from the border of their source through their waypoints to the border of
+ *   their target, and so does each line of a split or join between one of its states and its bar. Without
+ *   waypoints such a line is straight. Where a waypoint or the other state is lined up with a state, the line meets
  *   that state at a right angle. A transition between a state and one nested in it runs straight down from the top
  *   border of the outer state to the top of the inner one. A transition from a state to itself gets a small loop at
  *   its right side.
- * - The caption of a transition stands beside the middle of its line, moved as far as the user moved it.
+ * - A timeout without waypoints that connects the same two states as a normal transition without waypoints runs
+ *   beside that transition, on the side away from the caption of the transition, and has its own caption on its far
+ *   side. So neither line hides the other or its caption.
+ * - A timeout whose target state the text does not have is not drawn.
+ * - The caption of a transition or timeout stands beside the middle of its line, moved as far as the user moved it.
  */
 public object ManualStatechartLayout {
 
@@ -65,11 +71,25 @@ public object ManualStatechartLayout {
             if (sources.size != transition.sources.size || targets.size != transition.targets.size) continue
             if (sources.isEmpty() || targets.isEmpty()) continue
             if (transition.kind == TransitionKind.NORMAL) {
-                routes += normal(transition, sources.first(), targets.first(), vis.waypoints[transition.id].orEmpty(), text, vis.labels)
+                routes += line(RouteKind.TRANSITION, transition, sources.first(), targets.first(), vis, text)
             } else {
                 val bar = barOf(vis.bars[transition.id] ?: DiagramGrid.snap(centroid(sources + targets)))
                 bars[transition.id] = bar
-                routes += forked(transition, sources, targets, bar, text, vis.labels)
+                routes += forked(transition, bar, boxes, vis, text)
+            }
+        }
+        val straight = diagram.transitions
+            .filter { it.kind == TransitionKind.NORMAL && vis.waypoints[it.id].isNullOrEmpty() }
+            .map { (it.sources + it.targets).toSet() }
+            .toSet()
+        for (timeout in diagram.timeouts()) {
+            val source = boxes[timeout.state] ?: continue
+            val target = boxes[timeout.timeout.target] ?: continue
+            val beside = vis.waypoints[timeout.id].isNullOrEmpty() && setOf(timeout.state, timeout.timeout.target) in straight
+            routes += if (beside) {
+                line(RouteKind.TIMEOUT, timeout, source, target, vis, text, LineRouting.aside(source, target, StatechartMetrics.SPREAD), otherSide = true)
+            } else {
+                line(RouteKind.TIMEOUT, timeout, source, target, vis, text)
             }
         }
         val layout = StatechartLayout(boxes, markers, bars, routes, 0f, 0f, StatechartMetrics.HEADER)
@@ -88,56 +108,65 @@ public object ManualStatechartLayout {
     private fun centroid(boxes: List<DiagramBox>): DiagramPoint =
         DiagramPoint(boxes.map { it.center.x }.average().toFloat(), boxes.map { it.center.y }.average().toFloat())
 
-    /** The line of a normal transition from [source] through [waypoints] to [target], with its caption. */
-    private fun normal(
-        transition: TransitionEdge,
+    /**
+     * The line of the [edge], a normal transition or a timeout, from [source] through the waypoints that [vis] stores
+     * for it to [target], with its caption. [shift] moves a line without waypoints sideways, and [otherSide] puts the
+     * caption on the other side of the line.
+     */
+    private fun line(
+        kind: RouteKind,
+        edge: StatechartEdge,
         source: DiagramBox,
         target: DiagramBox,
-        waypoints: List<DiagramPoint>,
+        vis: VisLayout,
         text: TextMeasurer,
-        labels: Map<String, DiagramPoint>,
+        shift: DiagramPoint = LineRouting.CENTRED,
+        otherSide: Boolean = false,
     ): EdgeRoute {
-        val points = LineRouting.between(source, target, waypoints)
-        return EdgeRoute(RouteKind.TRANSITION, transition.id, points, labelOn(points, transition, text, labels))
+        val points = LineRouting.between(source, target, vis.waypoints[edge.id].orEmpty(), shift)
+        return EdgeRoute(kind, edge.id, points, labelOn(points, edge, text, vis.labels, otherSide))
     }
 
-    /** The lines of a split or join through its [bar]. The caption sits on the line of the single state. */
+    /**
+     * The lines of a split or join between its states, whose boxes [boxes] holds, and its [bar]. Each line runs
+     * through the waypoints that [vis] stores for it. The caption sits on the line of the single state.
+     */
     private fun forked(
         transition: TransitionEdge,
-        sources: List<DiagramBox>,
-        targets: List<DiagramBox>,
         bar: DiagramBox,
+        boxes: Map<String, DiagramBox>,
+        vis: VisLayout,
         text: TextMeasurer,
-        labels: Map<String, DiagramPoint>,
     ): List<EdgeRoute> {
-        val into = sources.mapIndexed { index, source ->
-            val start = Geometry.anchor(source, bar.center)
-            val points = listOf(start, Geometry.anchor(bar, start))
-            val label = if (transition.kind == TransitionKind.SPLIT && index == 0) labelOn(points, transition, text, labels) else null
-            EdgeRoute(RouteKind.INTO_BAR, transition.id, points, label)
+        val into = transition.sources.mapIndexed { index, source ->
+            val id = transition.lineFrom(source)
+            val points = LineRouting.between(boxes.getValue(source), bar, vis.waypoints[id].orEmpty())
+            val label = if (transition.kind == TransitionKind.SPLIT && index == 0) labelOn(points, transition, text, vis.labels) else null
+            EdgeRoute(RouteKind.INTO_BAR, transition.id, points, label, id)
         }
-        val out = targets.mapIndexed { index, target ->
-            val end = Geometry.anchor(target, bar.center)
-            val points = listOf(Geometry.anchor(bar, end), end)
-            val label = if (transition.kind == TransitionKind.JOIN && index == 0) labelOn(points, transition, text, labels) else null
-            EdgeRoute(RouteKind.OUT_OF_BAR, transition.id, points, label)
+        val out = transition.targets.mapIndexed { index, target ->
+            val id = transition.lineTo(target)
+            val points = LineRouting.between(bar, boxes.getValue(target), vis.waypoints[id].orEmpty())
+            val label = if (transition.kind == TransitionKind.JOIN && index == 0) labelOn(points, transition, text, vis.labels) else null
+            EdgeRoute(RouteKind.OUT_OF_BAR, transition.id, points, label, id)
         }
         return into + out
     }
 
     /**
-     * The box of the caption of [transition] beside the middle of the line through [points], moved as far as
-     * [labels] says the user moved it.
+     * The box of the caption of [edge] beside the middle of the line through [points], on the other side of the line
+     * with [otherSide], moved as far as [labels] says the user moved it.
      */
-    private fun labelOn(points: List<DiagramPoint>, transition: TransitionEdge, text: TextMeasurer, labels: Map<String, DiagramPoint>): DiagramBox =
-        LineRouting.moved(
-            LineRouting.captionBeside(
-                points,
-                text.widthOf(transition.caption) + StatechartMetrics.LABEL_PADDING + StatechartMetrics.CELL_ROOM,
-                StatechartMetrics.LABEL_HEIGHT,
-            ),
-            labels[transition.id],
-        )
+    private fun labelOn(
+        points: List<DiagramPoint>,
+        edge: StatechartEdge,
+        text: TextMeasurer,
+        labels: Map<String, DiagramPoint>,
+        otherSide: Boolean = false,
+    ): DiagramBox = LineRouting.moved(
+        LineRouting.captionBeside(points, StatechartMetrics.captionWidth(edge, text), StatechartMetrics.LABEL_HEIGHT, otherSide),
+        labels[edge.id],
+    )
 
     /** Places the states: the stored ones where they are stored, the new ones next to them. */
     private class Placement(private val vis: VisLayout, private val text: TextMeasurer) {

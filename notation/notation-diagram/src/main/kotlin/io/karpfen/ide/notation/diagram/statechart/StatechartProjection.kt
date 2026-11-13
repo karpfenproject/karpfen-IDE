@@ -106,10 +106,10 @@ public object StatechartProjection {
         }
         val breakpoint = StateOptionReader.breakpointOf(text, node.range.start + header.length)
         val halts = StateOptionReader.wordsOf(text, breakpoint)
-        val signature = "$kind:${sources.joinToString(",")}->${targets.joinToString(",")}"
-        val ordinal = counts.merge(signature, 1, Int::plus)
+        val signature = StatechartIds.signature(kind, sources, targets)
+        val ordinal = counts.merge(signature, 1, Int::plus) ?: 1
         return TransitionEdge(
-            id = "$signature#$ordinal",
+            id = StatechartIds.transition(signature, ordinal),
             kind = kind,
             sources = sources,
             targets = targets,

@@ -116,7 +116,7 @@ public data class FrameGrip(
 /**
  * A line of a diagram that can be bent at waypoints.
  *
- * @property id the id of the transition or link the line stands for. The layout by hand stores its waypoints by it.
+ * @property id the id of the line. The layout by hand stores its waypoints by it.
  * @property points the line as it is drawn, from the border of its source to the border of its target.
  */
 public data class DiagramLine(public val id: String, public val points: List<DiagramPoint>)

@@ -42,7 +42,7 @@ public data class DiagramBox(public val x: Float, public val y: Float, public va
 
 /** What a line of a laid-out statechart stands for. */
 public enum class RouteKind {
-    /** A whole transition from its source state to its target state. */
+    /** A whole normal transition from its source state to its target state. */
     TRANSITION,
 
     /** The part of a split or join that leads from a source state to its bar. */
@@ -50,6 +50,9 @@ public enum class RouteKind {
 
     /** The part of a split or join that leads from its bar to a target state. */
     OUT_OF_BAR,
+
+    /** The timeout of a state, from that state to the state the timeout leads to. */
+    TIMEOUT,
 
     /** The short line from the marker of an initial state to that state. */
     INITIAL,
@@ -59,16 +62,21 @@ public enum class RouteKind {
  * One line of a laid-out statechart.
  *
  * @property kind what the line stands for.
- * @property transitionId the id of the transition the line belongs to, or null for the line of an initial marker.
+ * @property edgeId the id of the edge the line belongs to, a transition or a timeout, or null for the line of an
+ *   initial marker. The several lines of a split or join share the id of their transition.
  * @property points the line from its start to its end, corner by corner. The end carries the arrowhead.
- * @property label where the label of the transition is written, or null for a line without one. A split or join
- *   carries its label on one of its lines only.
+ * @property label where the caption of the edge is written, or null for a line without one. A split or join
+ *   carries its caption on one of its lines only.
+ * @property lineId the id of this line, by which the layout by hand stores its waypoints, or null for the line of an
+ *   initial marker, which cannot be bent. It is the id of the edge for a normal transition and a timeout, and one of
+ *   the [io.karpfen.ide.notation.diagram.statechart.StatechartEdge.lineIds] of a split or join for its lines.
  */
 public data class EdgeRoute(
     public val kind: RouteKind,
-    public val transitionId: String?,
+    public val edgeId: String?,
     public val points: List<DiagramPoint>,
     public val label: DiagramBox? = null,
+    public val lineId: String? = edgeId,
 )
 
 /**
@@ -78,7 +86,7 @@ public data class EdgeRoute(
  *   leaves [headerHeight] at its top for the name.
  * @property initialMarkers the dot that marks an initial state, by the name of that state.
  * @property bars the bar of each split and join, by the id of the transition.
- * @property routes the lines of the transitions and of the initial markers.
+ * @property routes the lines of the transitions, of the timeouts and of the initial markers.
  * @property width the width of the whole drawing. A layout made by hand may reach left of and above the origin, so a
  *   view fits [bounds] and not the rectangle from the origin to [width] and [height].
  * @property height the height of the whole drawing.
@@ -104,11 +112,11 @@ public data class StatechartLayout(
     override fun barAt(point: DiagramPoint): String? = bars.entries.firstOrNull { point in it.value.grownBy(HIT_TOLERANCE) }?.key
 
     /**
-     * The line of a normal transition that runs within [tolerance] of [point], or null. Where several do, the nearest
-     * one counts.
+     * The line that can be bent and runs within [tolerance] of [point], or null. These are the lines of all edges,
+     * not those of the initial markers. Where several do, the nearest one counts.
      */
-    public fun transitionAt(point: DiagramPoint, tolerance: Float = HIT_TOLERANCE): EdgeRoute? =
-        routes.filter { it.kind == RouteKind.TRANSITION }
+    public fun routeAt(point: DiagramPoint, tolerance: Float = HIT_TOLERANCE): EdgeRoute? =
+        routes.filter { it.lineId != null }
             .map { it to Geometry.distanceToLine(point, it.points) }
             .filter { it.second <= tolerance }
             .minByOrNull { it.second }
@@ -119,7 +127,7 @@ public data class StatechartLayout(
     override fun boxOf(id: String): DiagramBox? = states[id]
 
     override val labels: Map<String, DiagramBox>
-        get() = routes.mapNotNull { route -> route.transitionId?.let { id -> route.label?.let { id to it } } }.toMap()
+        get() = routes.mapNotNull { route -> route.edgeId?.let { id -> route.label?.let { id to it } } }.toMap()
 
     /**
      * The hold of [point] on the border of a state with nested states. Those are the states whose box surrounds the
@@ -132,8 +140,8 @@ public data class StatechartLayout(
             .firstNotNullOfOrNull { (name, box) -> FrameGrip.on(name, box, point, tolerance) }
 
     override fun lineAt(point: DiagramPoint, tolerance: Float): DiagramLine? {
-        val route = transitionAt(point, tolerance) ?: return null
-        return route.transitionId?.let { DiagramLine(it, route.points) }
+        val route = routeAt(point, tolerance) ?: return null
+        return route.lineId?.let { DiagramLine(it, route.points) }
     }
 
     private fun DiagramBox.grownBy(by: Float): DiagramBox = DiagramBox(x - by, y - by, width + 2 * by, height + 2 * by)

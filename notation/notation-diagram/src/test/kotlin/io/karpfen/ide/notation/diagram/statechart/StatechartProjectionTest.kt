@@ -98,6 +98,42 @@ class StatechartProjectionTest {
     }
 
     @Test
+    fun `the timeouts of the states become edges of their own, also those of nested states and of unknown targets`() {
+        val crossing = LampStateMachine.diagramOf(LampStateMachine.CROSSING)
+
+        assertEquals(
+            listOf(
+                "TIMEOUT:cars go | cars go -> cars wait | after 10 ticks",
+                "TIMEOUT:cars wait | cars wait -> walking | after 1 tick",
+                "TIMEOUT:green | green -> blinking | after 5 ticks",
+                "TIMEOUT:blinking | blinking -> nowhere | after 3 ticks",
+            ),
+            crossing.timeouts().map { "${it.id} | ${it.sources.single()} -> ${it.targets.single()} | ${it.caption}" },
+        )
+        assertEquals(crossing.transitions + crossing.timeouts(), crossing.edges())
+        assertEquals(crossing.edges().size, crossing.edges().map { it.id }.toSet().size, "a timeout and a transition never share an id")
+        assertEquals(crossing.timeouts()[2], crossing.edge("TIMEOUT:green"))
+        assertEquals(listOf("TIMEOUT:green"), crossing.edge("TIMEOUT:green")?.lineIds)
+        assertTrue(lamp.timeouts().isEmpty())
+    }
+
+    @Test
+    fun `a normal transition is one line, and a split or join has one line per state, each named by its state`() {
+        val fork = LampStateMachine.diagramOf(LampStateMachine.FORK)
+        val (split, join) = fork.transitions
+
+        assertEquals(listOf("NORMAL:off->full#1"), lamp.transitions.first().lineIds)
+        assertEquals(
+            listOf("SPLIT:idle->left,right#1/from:idle", "SPLIT:idle->left,right#1/to:left", "SPLIT:idle->left,right#1/to:right"),
+            split.lineIds,
+        )
+        assertEquals(
+            listOf("JOIN:left,right->done#1/from:left", "JOIN:left,right->done#1/from:right", "JOIN:left,right->done#1/to:done"),
+            join.lineIds,
+        )
+    }
+
+    @Test
     fun `a text without a state machine has no diagram`() {
         assertNull(StatechartProjection.of("", emptyList()))
     }

@@ -36,8 +36,15 @@ public enum class StateHistory {
  *
  * @property ticks the number of ticks after which the state is left.
  * @property target the name of the state the timeout leads to.
+ * @property range the whole timeout in the text, from `TIMEOUT` to the quote that ends the name of its target.
+ * @property targetRange the name of the target inside its quotes.
  */
-public data class StateTimeout(public val ticks: Long, public val target: String)
+public data class StateTimeout(
+    public val ticks: Long,
+    public val target: String,
+    public val range: TextRange,
+    public val targetRange: TextRange,
+)
 
 /**
  * The two blocks that may open the body of a state, in the order the language wants them.
@@ -92,8 +99,16 @@ internal object StateOptionReader {
 
     /** The `TIMEOUT` in the tick limit block [block] of [text], or null if it has none. */
     fun timeoutOf(text: String, block: TextRange?): StateTimeout? {
-        val match = block?.let { TIMEOUT.find(text.substring(it.start, it.end)) } ?: return null
-        return match.groupValues[1].toLongOrNull()?.let { StateTimeout(it, match.groupValues[2]) }
+        val start = block?.start ?: return null
+        val match = TIMEOUT.find(text.substring(start, block.end)) ?: return null
+        val ticks = match.groupValues[1].toLongOrNull() ?: return null
+        val name = checkNotNull(match.groups[2]).range
+        return StateTimeout(
+            ticks = ticks,
+            target = match.groupValues[2],
+            range = TextRange(start + match.range.first, start + match.range.last + 1),
+            targetRange = TextRange(start + name.first, start + name.last + 1),
+        )
     }
 
     /**

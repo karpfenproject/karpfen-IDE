@@ -41,9 +41,11 @@ import kotlinx.serialization.json.putJsonObject
  *   class diagram these are the types, and in an object diagram the objects.
  * @property bars the middle of the bar of each split and join of a statechart, by the id of the transition.
  * @property waypoints the points a line runs through between its two boxes, in order, by the id of the line. A line
- *   without an entry is a straight line.
+ *   without an entry is a straight line. In a statechart the lines are the normal transitions, the timeouts and each
+ *   line of a split or join between a state and its bar, by the ids that
+ *   [io.karpfen.ide.notation.diagram.statechart.StatechartEdge.lineIds] gives.
  * @property labels how far the label of a line was moved away from its usual place beside the middle of the line, by
- *   the id of the line. So a label that was moved keeps its distance when its line moves.
+ *   the id of the line. In a statechart that is the id of the transition or timeout, also for a split or join. So a label that was moved keeps its distance when its line moves.
  * @property frames the box of each state with nested states as the user sized it, by the name of the state. The state
  *   is drawn at least this large, and larger where its nested states need the room.
  */

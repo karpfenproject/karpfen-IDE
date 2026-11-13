@@ -76,12 +76,12 @@ class VisEditingTest {
     fun `a waypoint is added into the nearest segment, moved on the grid and removed again`() {
         val id = "NORMAL:off->broken#1"
         val straight = frozen.copy(waypoints = emptyMap())
-        val line = ManualStatechartLayout.of(lamp, straight, text).routes.single { it.transitionId == id }.points
+        val line = ManualStatechartLayout.of(lamp, straight, text).routes.single { it.edgeId == id }.points
 
         val one = VisEditing.addWaypoint(straight, id, DiagramPoint(43f, 187f), line)
         assertEquals(listOf(DiagramPoint(40f, 190f)), one.waypoints.getValue(id))
 
-        val bent = ManualStatechartLayout.of(lamp, one, text).routes.single { it.transitionId == id }.points
+        val bent = ManualStatechartLayout.of(lamp, one, text).routes.single { it.edgeId == id }.points
         val two = VisEditing.addWaypoint(one, id, DiagramPoint(bent.last().x, bent.last().y - 12f), bent)
         assertEquals(DiagramPoint(40f, 190f), two.waypoints.getValue(id).first(), "the new point comes after the first one")
         assertEquals(2, two.waypoints.getValue(id).size)
@@ -98,7 +98,7 @@ class VisEditingTest {
     @Test
     fun `a label moves away from its usual place in steps of the grid and keeps that distance`() {
         val id = "NORMAL:off->broken#1"
-        val before = assertNotNull(ManualStatechartLayout.of(lamp, frozen, text).routes.single { it.transitionId == id }.label)
+        val before = assertNotNull(ManualStatechartLayout.of(lamp, frozen, text).routes.single { it.edgeId == id }.label)
 
         val moved = VisEditing.moveLabel(frozen, id, DiagramPoint(27f, -12f))
         val again = VisEditing.moveLabel(moved, id, DiagramPoint(-10f, 0f))
@@ -106,13 +106,13 @@ class VisEditingTest {
         assertEquals(DiagramPoint(30f, -10f), moved.labels[id])
         assertEquals(DiagramPoint(20f, -10f), again.labels[id])
         assertEquals(frozen, VisEditing.moveLabel(frozen, id, DiagramPoint(3f, 2f)), "a move of less than half a step is none")
-        val after = assertNotNull(ManualStatechartLayout.of(lamp, moved, text).routes.single { it.transitionId == id }.label)
+        val after = assertNotNull(ManualStatechartLayout.of(lamp, moved, text).routes.single { it.edgeId == id }.label)
         assertEquals(DiagramBox(before.x + 30f, before.y - 10f, before.width, before.height), after)
 
         val straight = moved.copy(waypoints = emptyMap())
-        val here = assertNotNull(ManualStatechartLayout.of(lamp, straight, text).routes.single { it.transitionId == id }.label)
+        val here = assertNotNull(ManualStatechartLayout.of(lamp, straight, text).routes.single { it.edgeId == id }.label)
         val elsewhere = VisEditing.moveState(lamp, straight, "broken", DiagramPoint(100f, 0f))
-        val followed = assertNotNull(ManualStatechartLayout.of(lamp, elsewhere, text).routes.single { it.transitionId == id }.label)
+        val followed = assertNotNull(ManualStatechartLayout.of(lamp, elsewhere, text).routes.single { it.edgeId == id }.label)
         assertTrue(followed.x > here.x, "the label follows its line")
     }
 

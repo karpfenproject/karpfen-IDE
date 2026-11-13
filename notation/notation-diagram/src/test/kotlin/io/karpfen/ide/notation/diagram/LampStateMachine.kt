@@ -23,7 +23,7 @@ import io.karpfen.ide.notation.diagram.statechart.StatechartProjection
 
 /**
  * The state machines the diagram tests work on. [LAMP] is a lamp with a dimmer, with states nested in "on" and
- * transitions that start at the parent state. [FORK] has a split and a join.
+ * transitions that start at the parent state. [FORK] has a split and a join. [CROSSING] has timeouts.
  */
 internal object LampStateMachine {
 
@@ -79,6 +79,37 @@ internal object LampStateMachine {
                     CONDITION { EVENT("job", "start") }
                 }
                 JOIN "left", "right" -> "done" { }
+            }
+        }
+    """.trimIndent()
+
+    /**
+     * A pedestrian crossing whose states are left by timeouts: one beside a transition between the same states, one of
+     * a single tick, one between nested states, and one that leads to a state the machine does not have.
+     */
+    val CROSSING = """
+        STATEMACHINE ATTACHED TO "Crossing" {
+            STATES {
+                INITIAL STATE "cars go" {
+                    TICK LIMIT { DELAY: 2 TICKS TIMEOUT: AFTER 10 TICKS TRANSITION TO "cars wait" }
+                }
+                STATE "cars wait" {
+                    TICK LIMIT {
+                        TIMEOUT: AFTER 1 TICK TRANSITION TO "walking"
+                    }
+                }
+                STATE "walking" {
+                    INITIAL STATE "green" {
+                        TICK LIMIT { TIMEOUT: AFTER 5 TICKS TRANSITION TO "blinking" }
+                    }
+                    STATE "blinking" {
+                        TICK LIMIT { TIMEOUT: AFTER 3 TICKS TRANSITION TO "nowhere" }
+                    }
+                }
+            }
+            TRANSITIONS {
+                TRANSITION "cars go" -> "cars wait" { CONDITION { EVENT("public", "pedestrian") } }
+                TRANSITION "walking" -> "cars go" { }
             }
         }
     """.trimIndent()

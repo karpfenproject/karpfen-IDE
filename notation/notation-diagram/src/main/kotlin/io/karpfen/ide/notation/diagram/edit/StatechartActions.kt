@@ -16,13 +16,13 @@
 package io.karpfen.ide.notation.diagram.edit
 
 import io.karpfen.dsl.states.KstatesFeature
-import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
-import io.karpfen.ide.notation.diagram.layout.Geometry
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
 import io.karpfen.ide.notation.diagram.statechart.StateHistory
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
+import io.karpfen.ide.notation.diagram.statechart.TimeoutEdge
+import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
 
 /**
@@ -31,6 +31,9 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  * - On the line or the label of a transition: edit it as text, give a split one more target or a join one more
  *   source, move it earlier or later in the order that is its priority, mark it as not looping, set and remove its
  *   breakpoints, and delete it.
+ * - On the line or the label of a timeout: edit the tick limit of its state as text, in the same cell its marker
+ *   opens, let it lead to another state, and remove it. A timeout is no transition of the text, so it has no
+ *   priority, no looping mark and no breakpoints.
  * - On a state: rename it, edit it as text, add a state inside it, start a transition at it, give it entry or do
  *   actions, make it the initial state, give a state with nested states a history or take it away, give it a tick
  *   limit, set and remove its breakpoints, move it out of its parent or into another state, and delete it. The empty
@@ -40,19 +43,20 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  *
  * The entries that write a construct of an optional language feature are offered only while that feature is among
  * [switchedOn]: giving a state a history, a tick limit or a breakpoint, giving a transition a breakpoint, adding a
- * split, a join, a target or a source, and editing the macros. An entry that removes a history or a breakpoint stays,
- * so a construct that is an error while its feature is off can still be taken away. What the diagram shows of
- * existing constructs does not depend on the features.
+ * split, a join, a target or a source, letting a timeout lead to another state, and editing the macros. An entry
+ * that removes a history, a breakpoint or a timeout stays, so a construct that is an error while its feature is off
+ * can still be taken away. What the diagram shows of existing constructs does not depend on the features.
  *
  * @param switchedOn the optional language features of KStates that are switched on for the project.
  */
 public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : DiagramActions<StatechartDiagram, StatechartLayout> {
 
     override fun at(source: String, diagram: StatechartDiagram, layout: StatechartLayout, point: DiagramPoint): List<DiagramAction> {
-        val transition = layout.labelAt(point) ?: lineAt(layout, point)
+        val edge = (layout.labelAt(point) ?: layout.routeAt(point)?.edgeId)?.let(diagram::edge)
         val state = layout.stateAt(point)?.let(diagram::state)
         return when {
-            transition != null -> onTransition(source, diagram, transition)
+            edge is TransitionEdge -> onTransition(source, diagram, edge)
+            edge is TimeoutEdge -> onTimeout(source, diagram, edge)
             state != null -> onState(source, diagram, layout, state, point)
             else -> onCanvas(source, diagram, point)
         }
@@ -104,8 +108,8 @@ public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : Di
         )
     }
 
-    private fun onTransition(source: String, diagram: StatechartDiagram, id: String): List<DiagramAction> {
-        val transition = diagram.transitions.firstOrNull { it.id == id } ?: return emptyList()
+    private fun onTransition(source: String, diagram: StatechartDiagram, transition: TransitionEdge): List<DiagramAction> {
+        val id = transition.id
         val all = diagram.allStates().map { it.name }.toSet()
         val free = all - (transition.sources + transition.targets).toSet()
         return listOfNotNull(
@@ -132,6 +136,18 @@ public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : Di
                 StatechartEdits.setTransitionBreakpoints(source, diagram, id, transition.startBreakpoint, !transition.endBreakpoint)
             }.takeIf { transition.endBreakpoint || KstatesFeature.BREAKPOINTS.isOn },
             DiagramAction.Change("Delete transition") { StatechartEdits.deleteTransition(source, diagram, id) },
+        )
+    }
+
+    private fun onTimeout(source: String, diagram: StatechartDiagram, timeout: TimeoutEdge): List<DiagramAction> {
+        val state = diagram.state(timeout.state) ?: return emptyList()
+        val targets = diagram.allStates().map { it.name }.toSet() - timeout.timeout.target
+        return listOfNotNull(
+            StatechartCells.tickLimitOf(source, state)?.let { DiagramAction.Open("Edit tick limit as text", it) },
+            DiagramAction.Pick("Lead to another state", "Click the state the timeout leads to.", targets) { target ->
+                DiagramAction.Change("Lead to another state") { TimeoutEdits.retarget(source, diagram, timeout.state, target) }
+            }.takeIf { targets.isNotEmpty() && KstatesFeature.TICK_LIMIT.isOn },
+            DiagramAction.Change("Remove timeout") { TimeoutEdits.remove(source, diagram, timeout.state) },
         )
     }
 
@@ -170,13 +186,4 @@ public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : Di
     /** True if this feature is among [switchedOn]. */
     private val KstatesFeature.isOn: Boolean
         get() = this in switchedOn
-
-    /** The id of the transition one of whose lines runs at [point], or null. */
-    private fun lineAt(layout: StatechartLayout, point: DiagramPoint): String? =
-        layout.routes
-            .filter { it.transitionId != null }
-            .map { it to Geometry.distanceToLine(point, it.points) }
-            .filter { it.second <= DiagramLayout.HIT_TOLERANCE }
-            .minByOrNull { it.second }
-            ?.first?.transitionId
 }

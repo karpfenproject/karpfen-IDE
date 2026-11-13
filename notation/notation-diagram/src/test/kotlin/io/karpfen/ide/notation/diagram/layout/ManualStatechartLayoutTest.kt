@@ -54,7 +54,7 @@ class ManualStatechartLayoutTest {
 
     @Test
     fun `a transition is a straight line from border to border, with its caption beside its middle`() {
-        val line = layout.routes.single { it.transitionId == "NORMAL:off->broken#1" }
+        val line = layout.routes.single { it.edgeId == "NORMAL:off->broken#1" }
         val off = layout.states.getValue("off")
         val broken = layout.states.getValue("broken")
 
@@ -69,7 +69,7 @@ class ManualStatechartLayoutTest {
     fun `a transition runs through its waypoints`() {
         val bent = vis.copy(waypoints = mapOf("NORMAL:off->broken#1" to listOf(DiagramPoint(40f, 200f), DiagramPoint(40f, 300f))))
 
-        val line = ManualStatechartLayout.of(lamp, bent, text).routes.single { it.transitionId == "NORMAL:off->broken#1" }
+        val line = ManualStatechartLayout.of(lamp, bent, text).routes.single { it.edgeId == "NORMAL:off->broken#1" }
 
         assertEquals(listOf(DiagramPoint(40f, 200f), DiagramPoint(40f, 300f)), line.points.subList(1, 3))
         assertEquals(4, line.points.size)
@@ -77,7 +77,7 @@ class ManualStatechartLayoutTest {
 
     @Test
     fun `a transition from a parent into its nested state runs straight down from the top of the parent`() {
-        val line = layout.routes.single { it.transitionId == "NORMAL:on->brighter#1" }
+        val line = layout.routes.single { it.edgeId == "NORMAL:on->brighter#1" }
         val on = layout.states.getValue("on")
         val brighter = layout.states.getValue("brighter")
 
@@ -91,7 +91,7 @@ class ManualStatechartLayoutTest {
         val beside = DiagramPoint(off.right + 60f, off.center.y + 5f)
         val bent = vis.copy(waypoints = mapOf("NORMAL:off->broken#1" to listOf(beside, DiagramPoint(beside.x, broken.center.y))))
 
-        val line = ManualStatechartLayout.of(lamp, bent, text).routes.single { it.transitionId == "NORMAL:off->broken#1" }
+        val line = ManualStatechartLayout.of(lamp, bent, text).routes.single { it.edgeId == "NORMAL:off->broken#1" }
 
         assertEquals(DiagramPoint(off.right, beside.y), line.points.first(), "the line leaves off sideways at the height of the waypoint")
         assertEquals(DiagramPoint(broken.right, broken.center.y), line.points.last())
@@ -158,6 +158,80 @@ class ManualStatechartLayoutTest {
 
         assertEquals(DiagramGrid.snap(DiagramPoint(200f, 700f / 3f)), between.bars.getValue(split).center)
         assertEquals(DiagramPoint(400f, 200f), moved.bars.getValue(split).center)
-        assertEquals(3, between.routes.count { it.transitionId == split })
+        assertEquals(3, between.routes.count { it.edgeId == split })
+    }
+
+    private val crossing = LampStateMachine.diagramOf(LampStateMachine.CROSSING)
+    private val crossingVis = VisLayout(
+        boxes = mapOf(
+            "cars go" to DiagramPoint(100f, 100f),
+            "cars wait" to DiagramPoint(100f, 300f),
+            "green" to DiagramPoint(400f, 300f),
+            "blinking" to DiagramPoint(400f, 500f),
+        ),
+    )
+
+    @Test
+    fun `a timeout runs beside a transition between the same states and through its own waypoints with its own caption`() {
+        val layout = ManualStatechartLayout.of(crossing, crossingVis, text)
+        val transition = layout.routes.single { it.edgeId == "NORMAL:cars go->cars wait#1" }
+        val timeout = layout.routes.single { it.edgeId == "TIMEOUT:cars go" }
+
+        assertEquals(RouteKind.TIMEOUT, timeout.kind)
+        assertEquals(listOf(100f, 100f), transition.points.map { it.x }, "the transition stays in the middle")
+        assertEquals(listOf(100f - StatechartMetrics.SPREAD, 100f - StatechartMetrics.SPREAD), timeout.points.map { it.x }, "left of the transition")
+        val caption = assertNotNull(timeout.label)
+        assertEquals(StatechartMetrics.captionWidth(assertNotNull(crossing.edge("TIMEOUT:cars go")), text), caption.width)
+        assertTrue(caption.right < timeout.points.first().x && assertNotNull(transition.label).x > 100f, "the captions stand on the far sides")
+
+        val bent = crossingVis.copy(
+            waypoints = mapOf("TIMEOUT:cars go" to listOf(DiagramPoint(250f, 200f))),
+            labels = mapOf("TIMEOUT:cars go" to DiagramPoint(0f, 30f)),
+        )
+        val moved = ManualStatechartLayout.of(crossing, bent, text).routes.single { it.edgeId == "TIMEOUT:cars go" }
+        assertEquals(DiagramPoint(250f, 200f), moved.points[1])
+        assertEquals(3, moved.points.size)
+        val usual = LineRouting.captionBeside(moved.points, assertNotNull(moved.label).width, StatechartMetrics.LABEL_HEIGHT)
+        assertEquals(usual.y + 30f, assertNotNull(moved.label).y)
+    }
+
+    @Test
+    fun `a timeout between nested states is drawn, and one to a state the text does not have is not`() {
+        val layout = ManualStatechartLayout.of(crossing, crossingVis, text)
+
+        val inner = layout.routes.single { it.edgeId == "TIMEOUT:green" }
+        assertEquals(listOf(DiagramPoint(400f, layout.states.getValue("green").bottom), DiagramPoint(400f, layout.states.getValue("blinking").y)), inner.points)
+        assertTrue(layout.routes.none { it.edgeId == "TIMEOUT:blinking" })
+        assertEquals(setOf("TIMEOUT:cars go", "TIMEOUT:cars wait", "TIMEOUT:green"), layout.labels.keys.filter { it.startsWith("TIMEOUT") }.toSet())
+    }
+
+    @Test
+    fun `each line of a split or join runs through its own waypoints, and a layout without them keeps its bar`() {
+        val fork = LampStateMachine.diagramOf(LampStateMachine.FORK)
+        val split = fork.transitions.first()
+        val bar = DiagramPoint(200f, 200f)
+        val old = VisLayout(
+            boxes = mapOf(
+                "idle" to DiagramPoint(200f, 100f),
+                "left" to DiagramPoint(100f, 300f),
+                "right" to DiagramPoint(300f, 300f),
+                "done" to DiagramPoint(200f, 500f),
+            ),
+            bars = mapOf(split.id to bar),
+            labels = mapOf(split.id to DiagramPoint(10f, 0f)),
+        )
+
+        val straight = ManualStatechartLayout.of(fork, old, text)
+        assertEquals(bar, straight.bars.getValue(split.id).center, "a layout written before the lines could be bent keeps its bar")
+        straight.routes.filter { it.edgeId == split.id }.forEach { assertEquals(2, it.points.size, "${it.lineId} is straight") }
+        assertEquals(split.lineIds, straight.routes.filter { it.edgeId == split.id }.map { it.lineId })
+
+        val left = split.lineTo("left")
+        val bent = ManualStatechartLayout.of(fork, old.copy(waypoints = mapOf(left to listOf(DiagramPoint(100f, 200f)))), text)
+        val line = bent.routes.single { it.lineId == left }
+        val barBox = bent.bars.getValue(split.id)
+        assertEquals(listOf(DiagramPoint(barBox.x, 200f), DiagramPoint(100f, 200f), DiagramPoint(100f, bent.states.getValue("left").y)), line.points)
+        assertEquals(straight.routes.single { it.lineId == split.lineTo("right") }, bent.routes.single { it.lineId == split.lineTo("right") }, "the other line stays")
+        assertEquals(left, bent.lineAt(DiagramPoint(130f, 201f), StatechartLayout.HIT_TOLERANCE)?.id)
     }
 }

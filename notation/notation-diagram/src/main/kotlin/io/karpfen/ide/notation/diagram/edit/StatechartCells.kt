@@ -20,6 +20,7 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartMetrics
+import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.notation.diagram.text.TextBlocks
@@ -28,7 +29,7 @@ import io.karpfen.ide.notation.diagram.text.TextBlocks
  * The code cells of a statechart: the tick limit, the entry actions and the do actions of every state that has them,
  * and the condition of every transition. A tick limit whose code is deleted is taken out of its state. A transition without a condition has a cell too. It is empty, and code written into
  * it becomes the condition. A condition whose code is deleted is taken out of the transition, because the language
- * knows no empty condition.
+ * knows no empty condition. A timeout has no cell of its own. It is part of the tick limit of its state.
  */
 public object StatechartCells : DiagramCells<StatechartDiagram, StatechartLayout> {
 
@@ -39,28 +40,45 @@ public object StatechartCells : DiagramCells<StatechartDiagram, StatechartLayout
             val box = layout.states[state.name] ?: return@flatMap emptyList()
             val places = StatechartMetrics.cellBoxes(state, box)
             listOfNotNull(
-                state.tickLimitRange?.let { Triple(StatechartMetrics.LIMIT_WORD, "Tick limit of ${state.name}", it) },
-                state.entryRange?.let { Triple(StatechartMetrics.ENTRY_WORD, "Entry actions of ${state.name}", it) },
-                state.doRange?.let { Triple(StatechartMetrics.DO_WORD, "Do actions of ${state.name}", it) },
-            ).mapNotNull { (word, title, range) ->
-                val block = TextBlocks.blockFrom(source, range.start) ?: return@mapNotNull null
-                val place = places[word] ?: return@mapNotNull null
-                DiagramCell("${state.name}.$word", title, word, place, TextBlocks.inner(source, block)) { code ->
-                    if (word == StatechartMetrics.LIMIT_WORD && code.isBlank()) {
-                        DiagramChange(listOf(TextBlocks.removal(source, range)))
-                    } else {
-                        replaced(source, block, TextBlocks.braced(code, TextBlocks.indentOf(source, block.start)))
-                    }
-                }
-            }
+                state.tickLimitRange?.let { StatechartMetrics.LIMIT_WORD to it },
+                state.entryRange?.let { StatechartMetrics.ENTRY_WORD to it },
+                state.doRange?.let { StatechartMetrics.DO_WORD to it },
+            ).mapNotNull { (word, range) -> places[word]?.let { block(source, state, word, range, it) } }
         }
         val transitions = diagram.transitions.associateBy { it.id }
         val ofTransitions = layout.routes.mapNotNull { route ->
             val label = route.label ?: return@mapNotNull null
-            val transition = transitions[route.transitionId] ?: return@mapNotNull null
+            val transition = transitions[route.edgeId] ?: return@mapNotNull null
             condition(source, transition, StatechartMetrics.cellBox(label))
         }
         return ofStates + ofTransitions
+    }
+
+    /**
+     * The cell of the tick limit of [state], the same cell its marker opens, or null if the state has no tick limit.
+     * [place] is where its marker is drawn. A cell that is opened from a menu needs no place.
+     */
+    public fun tickLimitOf(source: String, state: StateNode, place: DiagramBox = DiagramBox(0f, 0f, 0f, 0f)): DiagramCell? =
+        state.tickLimitRange?.let { block(source, state, StatechartMetrics.LIMIT_WORD, it, place) }
+
+    /**
+     * The cell of the block of [state] at [range] whose marker shows [word], with its marker at [place]. Saving puts
+     * the edited code between the braces. A tick limit whose code is deleted is taken out of the state.
+     */
+    private fun block(source: String, state: StateNode, word: String, range: TextRange, place: DiagramBox): DiagramCell? {
+        val block = TextBlocks.blockFrom(source, range.start) ?: return null
+        val title = when (word) {
+            StatechartMetrics.LIMIT_WORD -> "Tick limit of ${state.name}"
+            StatechartMetrics.ENTRY_WORD -> "Entry actions of ${state.name}"
+            else -> "Do actions of ${state.name}"
+        }
+        return DiagramCell("${state.name}.$word", title, word, place, TextBlocks.inner(source, block)) { code ->
+            if (word == StatechartMetrics.LIMIT_WORD && code.isBlank()) {
+                DiagramChange(listOf(TextBlocks.removal(source, range)))
+            } else {
+                replaced(source, block, TextBlocks.braced(code, TextBlocks.indentOf(source, block.start)))
+            }
+        }
     }
 
     /** The cell of the condition of [transition], with its marker at [place]. */

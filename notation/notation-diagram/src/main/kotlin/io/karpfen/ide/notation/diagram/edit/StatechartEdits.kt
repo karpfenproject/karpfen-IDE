@@ -24,6 +24,7 @@ import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.notation.diagram.statechart.StateHistory
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
+import io.karpfen.ide.notation.diagram.statechart.StatechartIds
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
 import io.karpfen.ide.notation.diagram.text.TextBlocks
 
@@ -38,7 +39,6 @@ import io.karpfen.ide.notation.diagram.text.TextBlocks
 public object StatechartEdits {
 
     private val STRING = Regex(""""([^"]*)"""")
-    private val LINE_ID = Regex("""^([A-Z]+):(.*)->(.*)#(\d+)$""")
     private const val INITIAL = "INITIAL"
     private const val STATE = "STATE"
 
@@ -81,8 +81,9 @@ public object StatechartEdits {
     }
 
     /**
-     * Renames the state [old] to [new], in its declaration and in every transition that names it. The state keeps its
-     * place in the layout, and so do the waypoints and labels of its transitions.
+     * Renames the state [old] to [new], in its declaration, in every transition that names it and in every timeout
+     * that leads to it. The state keeps its place in the layout, and so do the bars of its splits and joins and the
+     * waypoints and labels of its transitions and timeouts.
      */
     public fun rename(text: String, diagram: StatechartDiagram, old: String, new: String): DiagramChange? {
         val state = diagram.state(old) ?: return null
@@ -94,9 +95,10 @@ public object StatechartEdits {
                 TextEdit(TextRange(transition.range.start + match.range.first + 1, transition.range.start + match.range.last), name)
             }
         }
-        return DiagramChange(listOf(TextEdit(state.nameRange, name)) + uses) { vis ->
+        val timeouts = diagram.timeouts().filter { it.timeout.target == old }.map { TextEdit(it.timeout.targetRange, name) }
+        return DiagramChange(listOf(TextEdit(state.nameRange, name)) + uses + timeouts) { vis ->
             fun <V> Map<String, V>.boxes(): Map<String, V> = mapKeys { if (it.key == old) name else it.key }
-            fun <V> Map<String, V>.lines(): Map<String, V> = mapKeys { renamedLine(it.key, old, name) }
+            fun <V> Map<String, V>.lines(): Map<String, V> = mapKeys { StatechartIds.renamed(it.key, old, name) }
             VisLayout(vis.boxes.boxes(), vis.bars.lines(), vis.waypoints.lines(), vis.labels.lines(), vis.frames.boxes())
         }
     }
@@ -331,13 +333,6 @@ public object StatechartEdits {
 
     /** [name] as a string literal of the language. A double quote inside it becomes a single one. */
     private fun quoted(name: String): String = "\"" + name.trim().replace('"', '\'') + "\""
-
-    /** The id of a transition with the state [old] renamed to [new], or [id] as it is if it is no such id. */
-    private fun renamedLine(id: String, old: String, new: String): String {
-        val match = LINE_ID.matchEntire(id) ?: return id
-        fun names(list: String): String = list.split(",").joinToString(",") { if (it == old) new else it }
-        return "${match.groupValues[1]}:${names(match.groupValues[2])}->${names(match.groupValues[3])}#${match.groupValues[4]}"
-    }
 
     /** A change of [edits], or null if two of them overlap, in which case nothing is changed. */
     private fun disjoint(edits: List<TextEdit>): DiagramChange? {

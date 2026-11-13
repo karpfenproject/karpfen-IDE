@@ -44,6 +44,20 @@ public data class StatechartDiagram(
     public fun state(name: String): StateNode? = allStates().firstOrNull { it.name == name }
 
     /**
+     * The timeouts of the states, in the order of the states, each parent before its children. A timeout counts
+     * whether or not the state it leads to exists, so a layout keeps what it stored for it while the user fixes a
+     * name. If the text declares a name twice, the first state counts.
+     */
+    public fun timeouts(): List<TimeoutEdge> =
+        allStates().distinctBy { it.name }.mapNotNull { state -> state.timeout?.let { TimeoutEdge(state.name, it) } }
+
+    /** Every edge: the transitions in the order of the text, then the timeouts. */
+    public fun edges(): List<StatechartEdge> = transitions + timeouts()
+
+    /** The edge with the id [id], a transition or a timeout, or null. */
+    public fun edge(id: String): StatechartEdge? = edges().firstOrNull { it.id == id }
+
+    /**
      * The transition that a running engine names by its [index] among the transitions of the text, counted from 0,
      * with its [kind], its [sources] and its [targets]. It is the transition whose priority is one more than [index] if
      * that transition has the kind and the states. Otherwise, as for a transition the engine made up with the index
@@ -121,7 +135,7 @@ public enum class TransitionKind {
 }
 
 /**
- * A transition of a [StatechartDiagram].
+ * A transition of a [StatechartDiagram], as the text declares it.
  *
  * @property id identifies the transition within its state machine. It is made of the kind, the states and, where two
  *   transitions share all of these, their order, as in `NORMAL:off->on#1`. A layout file refers to a transition by it.
@@ -139,10 +153,10 @@ public enum class TransitionKind {
  * @property endBreakpoint true if that block names `END`, so a debugger halts after the transition.
  */
 public data class TransitionEdge(
-    public val id: String,
+    override val id: String,
     public val kind: TransitionKind,
-    public val sources: List<String>,
-    public val targets: List<String>,
+    override val sources: List<String>,
+    override val targets: List<String>,
     public val priority: Int,
     public val label: String,
     public val notLooping: Boolean,
@@ -151,11 +165,24 @@ public data class TransitionEdge(
     public val breakpointRange: TextRange? = null,
     public val startBreakpoint: Boolean = false,
     public val endBreakpoint: Boolean = false,
-) {
+) : StatechartEdge {
     /**
      * What a drawing writes next to the transition: its priority and, if it has a condition, the label after a colon,
      * as in `3: switch/dim`. The priority is always shown, because the order of the transitions decides which one
      * fires.
      */
-    public val caption: String get() = if (label.isEmpty()) "$priority" else "$priority: $label"
+    override val caption: String get() = if (label.isEmpty()) "$priority" else "$priority: $label"
+
+    /**
+     * The id of the transition for a normal one. For a split or join, the lines from its sources into its bar, then
+     * the lines from its bar to its targets.
+     */
+    override val lineIds: List<String>
+        get() = if (kind == TransitionKind.NORMAL) listOf(id) else sources.map(::lineFrom) + targets.map(::lineTo)
+
+    /** The id of the line from the state [source] into the bar of this split or join. */
+    public fun lineFrom(source: String): String = StatechartIds.fromState(id, source)
+
+    /** The id of the line from the bar of this split or join to the state [target]. */
+    public fun lineTo(target: String): String = StatechartIds.toState(id, target)
 }

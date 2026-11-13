@@ -16,6 +16,8 @@
 package io.karpfen.ide.notation.diagram.layout
 
 import io.karpfen.ide.notation.diagram.statechart.StateNode
+import io.karpfen.ide.notation.diagram.statechart.StatechartEdge
+import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 
 /**
  * The measures of a drawn statechart, in the diagram's own units. The automatic layout and the layout by hand share
@@ -60,6 +62,12 @@ public object StatechartMetrics {
 
     /** The room a label gets beyond the width of its text. */
     public const val LABEL_PADDING: Float = 8f
+
+    /**
+     * The distance between a timeout and a normal transition that connect the same two states, where the layout is
+     * made by hand and neither has waypoints.
+     */
+    public const val SPREAD: Float = 20f
 
     /** The distance between two elements that are placed next to each other automatically. */
     public const val GAP: Float = 40f
@@ -115,6 +123,13 @@ public object StatechartMetrics {
             DiagramBox(x, y, cellWidth(word), CELL_MARK).also { x += it.width + 2 * CELL_GAP }
         }
     }
+
+    /**
+     * The width of the box of the caption of [edge], with a caption as wide as [text] says. The caption of a transition
+     * has room for the marker of its condition at its right end. A timeout has no condition, so its caption has none.
+     */
+    public fun captionWidth(edge: StatechartEdge, text: TextMeasurer): Float =
+        text.widthOf(edge.caption) + LABEL_PADDING + if (edge is TransitionEdge) CELL_ROOM else 0f
 
     /** Where the marker of the code cell of a transition is drawn: at the right end of the box [label] of its caption. */
     public fun cellBox(label: DiagramBox): DiagramBox =

@@ -20,7 +20,6 @@ import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartMetrics
 import io.karpfen.ide.notation.diagram.statechart.StateHistory
-import io.karpfen.ide.notation.diagram.statechart.StateTimeout
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -84,7 +83,9 @@ class StateOptionEditsTest {
         assertEquals("TICK LIMIT { DELAY: 5 TICKS }", crossing.substring(go.tickLimitRange!!.start, go.tickLimitRange!!.end))
 
         val wait = assertNotNull(diagram.state("cars wait"))
-        assertEquals(listOf(1L, StateTimeout(10, "cars go"), true, true), listOf(wait.delay, wait.timeout, wait.entryBreakpoint, wait.exitBreakpoint))
+        assertEquals(listOf(1L, 10L to "cars go", true, true), listOf(wait.delay, wait.timeout?.let { it.ticks to it.target }, wait.entryBreakpoint, wait.exitBreakpoint))
+        assertEquals("TIMEOUT: AFTER 10 TICKS TRANSITION TO \"cars go\"", wait.timeout?.range?.let { crossing.substring(it.start, it.end) })
+        assertEquals("cars go", wait.timeout?.targetRange?.let { crossing.substring(it.start, it.end) })
         assertEquals(StateHistory.SHALLOW, diagram.state("maintenance")?.history)
         assertEquals(StateHistory.NONE, diagram.state("plain")?.history)
         assertEquals(
@@ -154,7 +155,7 @@ class StateOptionEditsTest {
         val cell = cells().single { it.key == "cars go.${StatechartMetrics.LIMIT_WORD}" }
         assertEquals("DELAY: 5 TICKS", cell.code.trim())
         val edited = read(applied(assertNotNull(cell.save("DELAY: 2 TICKS\nTIMEOUT: AFTER 7 TICKS TRANSITION TO \"cars wait\""))))
-        assertEquals(2L to StateTimeout(7, "cars wait"), edited.state("cars go")?.let { it.delay to it.timeout })
+        assertEquals(listOf(2L, 7L, "cars wait"), edited.state("cars go")?.let { listOf(it.delay, it.timeout?.ticks, it.timeout?.target) })
         val emptied = read(applied(assertNotNull(cell.save("  "))))
         assertEquals(null to true, emptied.state("cars go")?.let { it.tickLimitRange to it.hasEntry })
     }
@@ -164,7 +165,7 @@ class StateOptionEditsTest {
         val entry = read(applied(assertNotNull(StatechartEdits.addBlock(crossing, diagram, "cars wait", StatechartEdits.ENTRY))))
         val wait = assertNotNull(entry.state("cars wait"))
         assertTrue(wait.tickLimitRange!!.end <= wait.entryRange!!.start)
-        assertEquals(StateTimeout(10, "cars go"), wait.timeout)
+        assertEquals(10L to "cars go", wait.timeout?.let { it.ticks to it.target })
 
         val both = read(applied(assertNotNull(StatechartEdits.addBlock(crossing, diagram, "cars wait", StatechartEdits.DO))))
         assertTrue(both.state("cars wait")!!.tickLimitRange!!.end <= both.state("cars wait")!!.doRange!!.start)
