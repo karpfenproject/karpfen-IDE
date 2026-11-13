@@ -36,7 +36,8 @@ import io.karpfen.ide.core.text.TextRange
  * Completion in KStates. It offers the following.
  * - Structural keywords by position from [KstatesKeywords]. These are STATE, INITIAL STATE, ENTRY, DO, TRANSITION,
  *   SPLIT, JOIN, NOT LOOPING, CONDITION, EVENT, EVAL, VALUE, MACRO, TAKES, RETURNS, DEFINITION, the action operations,
- *   IF IN SCOPE and WITH … AS.
+ *   IF IN SCOPE and WITH … AS. The constructs of the optional language features are offered only while
+ *   `ProjectAnalysis.languageFeatures` of the request's project has them switched on.
  * - State names inside transition strings.
  * - Macro names inside `MACRO("` and after `@` in EVAL.
  * - Domain types from [types] after `ATTACHED TO "`.
@@ -56,7 +57,8 @@ internal class KstatesCompletionProvider(
     override fun complete(request: FeatureRequest, offset: Int): List<CompletionItem> {
         val (context, slot) = slots.at(request.document, offset)
         return when (slot) {
-            is KstatesSlot.Keywords -> KstatesKeywords.at(slot.position).map { it.item(context.replaceRange) }
+            is KstatesSlot.Keywords ->
+                KstatesKeywords.at(slot.position, request.project.languageFeatures).map { it.item(context.replaceRange) }
             is KstatesSlot.StateName -> if (slot.isDeclaration) emptyList() else states(request, slot.range)
             is KstatesSlot.MacroName -> if (slot.isDeclaration) emptyList() else macros(request, slot.range)
             is KstatesSlot.TypeName -> typeNames(request, slot)

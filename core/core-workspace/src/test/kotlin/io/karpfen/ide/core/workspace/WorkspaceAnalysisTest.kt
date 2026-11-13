@@ -48,8 +48,9 @@ import kotlin.time.TimeSource
 
 /**
  * Covers end-to-end workspace scenarios on real folders, with contexts, analysis and problems. Every example context
- * analyzes without findings. Descriptors, unreadable files and directories, several metamodels in one directory,
- * broken metamodels and refreshes produce the findings that the workspace describes.
+ * analyzes without findings with every language feature switched on. Descriptors, unreadable files and directories,
+ * several metamodels in one directory, broken metamodels and refreshes produce the findings that the workspace
+ * describes.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class WorkspaceAnalysisTest {
@@ -62,7 +63,7 @@ class WorkspaceAnalysisTest {
     @Test
     fun `the examples folder scans, resolves and analyzes with zero findings`(reporter: TestReporter) = runTest(timeout = 120.seconds) {
         Examples.copyTo(root)
-        val workspace = TestWorkspaces(this).open(root)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)
 
         val mark = TimeSource.Monotonic.markNow()
         val analysis = workspace.awaitAnalysis()
@@ -81,7 +82,7 @@ class WorkspaceAnalysisTest {
     @Test
     fun `an explicit context from a descriptor analyzes cleanly`() = runTest(timeout = 60.seconds) {
         val descriptor = DescriptorExamples.copyExplicitContext(root.resolve("ctx")).toAbsolutePath().normalize()
-        val workspace = TestWorkspaces(this).open(root)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)
 
         val analysis = workspace.awaitAnalysis()
 
@@ -97,7 +98,7 @@ class WorkspaceAnalysisTest {
         val descriptor = DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
             .toAbsolutePath().normalize()
         val text = Files.readString(descriptor)
-        val workspace = TestWorkspaces(this).open(root)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)
 
         val analysis = workspace.awaitAnalysis()
 
@@ -136,7 +137,7 @@ class WorkspaceAnalysisTest {
         Files.writeString(descriptor, Files.readString(descriptor).replace("\"metamodel\": \"cleaning_robot.kmeta\"", "\"metamodel\": \"cleaning_robot.kstates\""))
         val model = ctx.resolve("cleaning_robot.kmodel")
         Files.writeString(model, Files.readString(model).replace("prop(\"d_closest_obstacle\")", "prop(\"no_such_property\")"))
-        val workspace = TestWorkspaces(this).open(root)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)
 
         val analysis = workspace.awaitAnalysis()
 
@@ -249,7 +250,7 @@ class WorkspaceAnalysisTest {
             Files.writeString(ctx.resolve(file.fileName), text)
         }
         Files.writeString(ctx.resolve("second.kmodel"), "make object \"x\":\"Vector\" {\n    prop(\"x\") -> \n}\n")
-        val workspace = TestWorkspaces(this).open(root)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)
 
         val analysis = workspace.awaitAnalysis()
 

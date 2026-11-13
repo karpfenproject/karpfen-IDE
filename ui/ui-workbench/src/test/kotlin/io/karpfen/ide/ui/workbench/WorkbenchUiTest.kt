@@ -51,7 +51,9 @@ import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
 import io.karpfen.ide.ui.workbench.tabs.view.EditorAreaTestTags
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
+import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeTestTags
+import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
@@ -59,7 +61,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import org.junit.jupiter.api.io.TempDir
 
 /**
  * Headless UI tests of the composed workbench over a copy of the examples in a temporary directory. They cover the
@@ -77,8 +78,13 @@ class WorkbenchUiTest {
     private val robot: Path get() = root.resolve(DescriptorExamples.CONTEXT_DIRECTORY)
     private val machine: Path get() = robot.resolve("cleaning_robot.kstates")
 
-    private suspend fun WorkbenchUi.openExamples() {
+    /**
+     * Opens the examples. Their project file switches on every language feature, which the examples use, unless
+     * [projectFile] is false, and then the folder has no project file at the start.
+     */
+    private suspend fun WorkbenchUi.openExamples(projectFile: Boolean = true) {
         Examples.copyTo(root)
+        if (projectFile) switchOnLanguageFeatures(root)
         workbench.open(root)
         settle()
     }
@@ -214,6 +220,7 @@ class WorkbenchUiTest {
     fun `double-clicking a problem navigates to it, also into a descriptor`() = workbenchUiTest(dir) {
         TestWorkbench.write(root.resolve("broken/broken.kmeta"), "type \"A\" \"a\" {\n    oops\n}\n")
         DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
+        switchOnLanguageFeatures(root)
         workbench.open(root)
         settle()
         val broken = root.resolve("broken/broken.kmeta")
@@ -337,7 +344,7 @@ class WorkbenchUiTest {
     @Test
     fun `the project file shows in the project tree as soon as the IDE has written it`() = workbenchUiTest(dir) {
         workbench.state.start()
-        openExamples()
+        openExamples(projectFile = false)
         val projectFile = root.resolve(ProjectSettings.FILE_NAME)
         assertEquals(emptyList(), workbench.state.workspace.value?.files?.value?.root?.children.orEmpty().filter { it.path == projectFile })
 
@@ -368,6 +375,7 @@ class WorkbenchUiTest {
     @Test
     fun `the problems filter hides warnings`() = workbenchUiTest(dir) {
         DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
+        switchOnLanguageFeatures(root)
         workbench.open(root)
         settle()
         val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)

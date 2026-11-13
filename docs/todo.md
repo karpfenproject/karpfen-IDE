@@ -80,6 +80,11 @@ refer to.
   operation in the Project tree refreshes the workspace.
 - Whether files next to a descriptor but not named by it should form an implicit context is undecided.
 - The command-line tool cannot deploy. tools/cli already declares a dependency on runtime-session for it.
+- `karpfen validate` does not read `.karpfenproject`. It checks with every language feature on, so it accepts a
+  project that the IDE blocks because of a feature that is off. The format of the feature lines lives in
+  ui-workbench, which the command-line tool does not use.
+- A `.kstates` file that belongs to no modeling context is not checked for features that are off, because only the
+  files of a context are read by dsl-tools.
 - Performance work has not started, for example on the model mirror and on snapshots of large models. The tests tagged
   `budget` hold the targets.
 
@@ -106,8 +111,8 @@ state without nested states.
   decided whether they are wanted.
 - `NOT LOOPING` has no effect on a `SPLIT` or a `JOIN`. An event that fires a `JOIN` is not scoped to the target, and
   the same event can fire the same join again.
-- Histories, tick limits and breakpoints only work in an environment whose feature is switched on. The IDE switches
-  on the two language features a run needs. Another client has to do that by itself.
+- Histories and tick limits only work in an environment whose feature is switched on. The IDE switches on what the
+  project has on. Another client has to do that by itself.
 - A history is never forgotten while the engine runs, and a state that remembers a state never rests as the innermost
   state, so its `DO` block does not run any more.
 - The runtime does not tell whether its engine is halted at a breakpoint, or where. A debugger needs that. A

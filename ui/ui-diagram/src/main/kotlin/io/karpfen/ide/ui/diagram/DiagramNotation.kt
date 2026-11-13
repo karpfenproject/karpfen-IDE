@@ -15,11 +15,12 @@
  */
 package io.karpfen.ide.ui.diagram
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.notation.diagram.edit.DiagramActions
 import io.karpfen.ide.notation.diagram.edit.DiagramCells
+import io.karpfen.ide.notation.diagram.edit.StatechartActions
 import io.karpfen.ide.notation.diagram.edit.StatechartCells
 import io.karpfen.ide.notation.diagram.edit.StructureActions
-import io.karpfen.ide.notation.diagram.edit.StatechartActions
 import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartArrangement
@@ -40,7 +41,8 @@ import io.karpfen.ide.notation.sync.DiagramProjection
  * @property arrangement lays the diagram out, automatically and by hand.
  * @property painter draws the diagram.
  * @property nothingToDraw what the view says while the text holds nothing that makes a diagram.
- * @property actions tells what the user can do at a point of the diagram, which the view offers in its context menu.
+ * @property actions tells what the user can do at a point of the diagram, which the view offers in its context menu,
+ *   while the optional language features of KStates it is given are switched on.
  * @property cells tells which pieces of code the diagram shows folded up, to be opened and edited as text.
  */
 internal class DiagramNotation<D : Any, L : DiagramLayout>(
@@ -48,7 +50,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
     val arrangement: DiagramArrangement<D, L>,
     val painter: DiagramPainter<D, L>,
     val nothingToDraw: String,
-    val actions: DiagramActions<D, L> = DiagramActions.none(),
+    val actions: (Set<KstatesFeature>) -> DiagramActions<D, L> = { DiagramActions.none() },
     val cells: DiagramCells<D, L> = DiagramCells.none(),
 ) {
     companion object {
@@ -58,7 +60,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StatechartArrangement,
             StatechartPainter,
             "No state machine to draw yet. The diagram appears once the text can be read.",
-            StatechartActions,
+            ::StatechartActions,
             StatechartCells,
         )
 
@@ -68,7 +70,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StructureArrangement,
             StructurePainter,
             "No types to draw yet. The diagram appears once the text can be read.",
-            StructureActions,
+            { StructureActions },
         )
 
         /** The object diagram of a model file. */
@@ -77,7 +79,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StructureArrangement,
             StructurePainter,
             "No objects to draw yet. The diagram appears once the text can be read.",
-            StructureActions,
+            { StructureActions },
         )
     }
 }

@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace.analysis
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ContextState
@@ -50,12 +51,19 @@ class AnalysisSchedulerTest {
     private class FakeAnalyzer : ProjectAnalyzer {
         val started = ArrayList<Long>()
         val resolutions = ArrayList<ContextResolution>()
+        val featureSets = ArrayList<Set<KstatesFeature>>()
         var gate: CompletableDeferred<Unit>? = null
         var failure: Exception? = null
 
-        override suspend fun analyze(resolution: ContextResolution, sources: AnalysisSources, generation: Long): ProjectAnalysis {
+        override suspend fun analyze(
+            resolution: ContextResolution,
+            sources: AnalysisSources,
+            generation: Long,
+            languageFeatures: Set<KstatesFeature>,
+        ): ProjectAnalysis {
             started += generation
             resolutions += resolution
+            featureSets += languageFeatures
             gate?.await()
             failure?.let { throw it }
             return ProjectAnalysis(generation, emptyList(), emptyMap())
@@ -64,10 +72,11 @@ class AnalysisSchedulerTest {
 
     private val noSources = AnalysisSources { null }
     private val contexts = MutableStateFlow(ContextState.EMPTY)
+    private val features = MutableStateFlow<Set<KstatesFeature>>(emptySet())
 
     /** A started scheduler over [analyzer] with a 300 ms debounce on the test's virtual time. */
     private fun TestScope.scheduler(analyzer: ProjectAnalyzer): AnalysisScheduler =
-        AnalysisScheduler(analyzer, noSources, contexts, StandardTestDispatcher(testScheduler), 300.milliseconds)
+        AnalysisScheduler(analyzer, noSources, contexts, features, StandardTestDispatcher(testScheduler), 300.milliseconds)
             .also { it.start(backgroundScope) }
 
     @Test
@@ -127,6 +136,18 @@ class AnalysisSchedulerTest {
         advanceTimeBy(1000.milliseconds)
         runCurrent()
         assertEquals(listOf(1L), analyzer.started)
+    }
+
+    @Test
+    fun `each run analyzes with the language features current at its start`() = runTest {
+        val analyzer = FakeAnalyzer()
+        val scheduler = scheduler(analyzer)
+
+        scheduler.runNow()
+        features.value = setOf(KstatesFeature.HISTORY)
+        scheduler.runNow()
+
+        assertEquals(listOf(emptySet(), setOf(KstatesFeature.HISTORY)), analyzer.featureSets)
     }
 
     @Test

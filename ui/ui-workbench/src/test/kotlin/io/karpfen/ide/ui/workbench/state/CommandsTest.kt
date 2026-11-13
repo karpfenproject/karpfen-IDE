@@ -31,6 +31,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.settings.ThemeMode
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
+import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import java.nio.file.Files
 import java.nio.file.Path
@@ -60,6 +61,7 @@ class CommandsTest {
 
     private fun scenario(block: suspend TestWorkbench.(CommandRegistry) -> Unit) = runTest(timeout = 60.seconds) {
         Examples.copyTo(root)
+        switchOnLanguageFeatures(root)
         withWorkbench(dir.resolve("settings")) {
             val registry = CommandRegistry(services.platform)
             state.registerCommands(registry)

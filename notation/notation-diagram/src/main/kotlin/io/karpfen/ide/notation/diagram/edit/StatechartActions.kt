@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.notation.diagram.edit
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.Geometry
@@ -36,8 +37,16 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  *   room inside a state with nested states counts as that state.
  * - On the empty canvas: add a state, add an initial state, add a transition, a split or a join between states that
  *   the user clicks one after the other, and edit the macros as text.
+ *
+ * The entries that write a construct of an optional language feature are offered only while that feature is among
+ * [switchedOn]: giving a state a history, a tick limit or a breakpoint, giving a transition a breakpoint, adding a
+ * split, a join, a target or a source, and editing the macros. An entry that removes a history or a breakpoint stays,
+ * so a construct that is an error while its feature is off can still be taken away. What the diagram shows of
+ * existing constructs does not depend on the features.
+ *
+ * @param switchedOn the optional language features of KStates that are switched on for the project.
  */
-public object StatechartActions : DiagramActions<StatechartDiagram, StatechartLayout> {
+public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : DiagramActions<StatechartDiagram, StatechartLayout> {
 
     override fun at(source: String, diagram: StatechartDiagram, layout: StatechartLayout, point: DiagramPoint): List<DiagramAction> {
         val transition = layout.labelAt(point) ?: lineAt(layout, point)
@@ -69,20 +78,22 @@ public object StatechartActions : DiagramActions<StatechartDiagram, StatechartLa
             DiagramAction.Change("Make initial state") { StatechartEdits.makeInitial(source, diagram, name) }.takeIf { !state.isInitial },
             DiagramAction.Change("Remember the last inner state (shallow history)") {
                 StatechartEdits.setHistory(source, diagram, name, StateHistory.SHALLOW)
-            }.takeIf { state.isComposite && state.history != StateHistory.SHALLOW },
+            }.takeIf { state.isComposite && state.history != StateHistory.SHALLOW && KstatesFeature.HISTORY.isOn },
             DiagramAction.Change("Remember the last innermost state (deep history)") {
                 StatechartEdits.setHistory(source, diagram, name, StateHistory.DEEP)
-            }.takeIf { state.isComposite && state.history != StateHistory.DEEP },
+            }.takeIf { state.isComposite && state.history != StateHistory.DEEP && KstatesFeature.HISTORY.isOn },
             DiagramAction.Change("Remove history") {
                 StatechartEdits.setHistory(source, diagram, name, StateHistory.NONE)
             }.takeIf { state.history != StateHistory.NONE },
-            DiagramAction.Change("Add tick limit") { StatechartEdits.addTickLimit(source, diagram, name) }.takeIf { !state.hasTickLimit },
+            DiagramAction.Change("Add tick limit") {
+                StatechartEdits.addTickLimit(source, diagram, name)
+            }.takeIf { !state.hasTickLimit && KstatesFeature.TICK_LIMIT.isOn },
             DiagramAction.Change(if (state.entryBreakpoint) "Remove breakpoint at entry" else "Add breakpoint at entry") {
                 StatechartEdits.setStateBreakpoints(source, diagram, name, !state.entryBreakpoint, state.exitBreakpoint)
-            },
+            }.takeIf { state.entryBreakpoint || KstatesFeature.BREAKPOINTS.isOn },
             DiagramAction.Change(if (state.exitBreakpoint) "Remove breakpoint at exit" else "Add breakpoint at exit") {
                 StatechartEdits.setStateBreakpoints(source, diagram, name, state.entryBreakpoint, !state.exitBreakpoint)
-            },
+            }.takeIf { state.exitBreakpoint || KstatesFeature.BREAKPOINTS.isOn },
             DiagramAction.Change("Make outer state") {
                 StatechartEdits.moveTo(source, diagram, name, parent?.let { diagram.parentOf(it.name) }?.name)
             }.takeIf { parent != null },
@@ -101,10 +112,10 @@ public object StatechartActions : DiagramActions<StatechartDiagram, StatechartLa
             DiagramAction.Open("Edit as text", ConstructCells.of(id, "Transition ${transition.caption}", source, transition.range)),
             DiagramAction.Pick("Add target", "Click the state the split also leads to.", free) { target ->
                 DiagramAction.Change("Add target") { StatechartEdits.addEnd(source, diagram, id, target) }
-            }.takeIf { transition.kind == TransitionKind.SPLIT && free.isNotEmpty() },
+            }.takeIf { transition.kind == TransitionKind.SPLIT && free.isNotEmpty() && KstatesFeature.PARALLEL.isOn },
             DiagramAction.Pick("Add source", "Click the state the join also starts at.", free) { start ->
                 DiagramAction.Change("Add source") { StatechartEdits.addEnd(source, diagram, id, start) }
-            }.takeIf { transition.kind == TransitionKind.JOIN && free.isNotEmpty() },
+            }.takeIf { transition.kind == TransitionKind.JOIN && free.isNotEmpty() && KstatesFeature.PARALLEL.isOn },
             DiagramAction.Change("Move earlier, to priority ${transition.priority - 1}") {
                 StatechartEdits.move(source, diagram, id, earlier = true)
             }.takeIf { transition.priority > 1 },
@@ -116,10 +127,10 @@ public object StatechartActions : DiagramActions<StatechartDiagram, StatechartLa
             },
             DiagramAction.Change(if (transition.startBreakpoint) "Remove breakpoint at start" else "Add breakpoint at start") {
                 StatechartEdits.setTransitionBreakpoints(source, diagram, id, !transition.startBreakpoint, transition.endBreakpoint)
-            },
+            }.takeIf { transition.startBreakpoint || KstatesFeature.BREAKPOINTS.isOn },
             DiagramAction.Change(if (transition.endBreakpoint) "Remove breakpoint at end" else "Add breakpoint at end") {
                 StatechartEdits.setTransitionBreakpoints(source, diagram, id, transition.startBreakpoint, !transition.endBreakpoint)
-            },
+            }.takeIf { transition.endBreakpoint || KstatesFeature.BREAKPOINTS.isOn },
             DiagramAction.Change("Delete transition") { StatechartEdits.deleteTransition(source, diagram, id) },
         )
     }
@@ -144,17 +155,21 @@ public object StatechartActions : DiagramActions<StatechartDiagram, StatechartLa
                         DiagramAction.Change("Add split") { StatechartEdits.addSplit(source, diagram, start, listOf(first, second)) }
                     }
                 }
-            }.takeIf { all.size >= 3 },
+            }.takeIf { all.size >= 3 && KstatesFeature.PARALLEL.isOn },
             DiagramAction.Pick("Add join", "Click the first state the join starts at.", all) { first ->
                 DiagramAction.Pick("Add join", "Click the second state the join starts at.", all - first) { second ->
                     DiagramAction.Pick("Add join", "Click the state the join leads to.", all - first - second) { target ->
                         DiagramAction.Change("Add join") { StatechartEdits.addJoin(source, diagram, listOf(first, second), target) }
                     }
                 }
-            }.takeIf { all.size >= 3 },
-            StatechartEdits.macros(source, diagram)?.let { DiagramAction.Open("Edit macros", it) },
+            }.takeIf { all.size >= 3 && KstatesFeature.PARALLEL.isOn },
+            StatechartEdits.macros(source, diagram)?.takeIf { KstatesFeature.MACROS.isOn }?.let { DiagramAction.Open("Edit macros", it) },
         )
     }
+
+    /** True if this feature is among [switchedOn]. */
+    private val KstatesFeature.isOn: Boolean
+        get() = this in switchedOn
 
     /** The id of the transition one of whose lines runs at [point], or null. */
     private fun lineAt(layout: StatechartLayout, point: DiagramPoint): String? =

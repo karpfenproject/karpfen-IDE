@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace.analysis
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.language.LanguageRegistry
@@ -27,7 +28,9 @@ import java.nio.file.Path
 /**
  * Analyzes every modeling context with dsl-tools. It goes through the core-document [DslReader] adapter only. The
  * metamodel is read with `kmeta`. The events are read with `kmeta` and the types of the metamodel as base types. Each
- * model is read with `kmodel` against the metamodel. Each state machine is read with `kstates`. What the dsl-tools
+ * model is read with `kmodel` against the metamodel. Each state machine is read with `kstates` and the optional features
+ * of KStates switched on for the run, so that each construct of another feature is an error `kstates.feature-off`. What
+ * the dsl-tools
  * readers find becomes DSL_TOOLS diagnostics on the file they read, at the ranges they report. The models they read,
  * partial ones included, become the [ContextAnalysis]. The IDE adds no validation rules of its own beyond what
  * dsl-tools reports.
@@ -45,19 +48,25 @@ import java.nio.file.Path
  * [ProjectAnalysis.diagnostics], so nothing is skipped silently. The result follows the conventions on
  * [ProjectAnalysis] for paths, snapshots and parse modes.
  *
- * The default analyzer remembers its reads. A file whose text and metamodel are the same as at its read in an earlier
- * run is not read again. So an unchanged file that dsl-tools cannot read is reported on every run, but it is read, and
+ * The default analyzer remembers its reads. A file whose text and metamodel, or for a state machine whose text and set
+ * of features, are the same as at its read in an earlier run is not read again. So an unchanged file that dsl-tools cannot read is reported on every run, but it is read, and
  * logged by dsl-tools, only once. Whatever dsl-tools logs while it reads a file names that file under
  * `DslToolsLoggers.FILE_KEY`.
  *
  * The analysis can be cancelled and checks for cancellation between files. Apart from that it never throws.
  */
-public fun interface ProjectAnalyzer {
+public interface ProjectAnalyzer {
     /**
-     * Analyzes the contexts of [resolution] and reads the files through [sources]. The result carries [generation],
-     * and the diagnostics of the resolution are merged into its [ProjectAnalysis.diagnostics].
+     * Analyzes the contexts of [resolution] and reads the files through [sources]. The state machines may use the
+     * optional features in [languageFeatures], every one by default. The result carries [generation] and
+     * [languageFeatures], and the diagnostics of the resolution are merged into its [ProjectAnalysis.diagnostics].
      */
-    public suspend fun analyze(resolution: ContextResolution, sources: AnalysisSources, generation: Long): ProjectAnalysis
+    public suspend fun analyze(
+        resolution: ContextResolution,
+        sources: AnalysisSources,
+        generation: Long,
+        languageFeatures: Set<KstatesFeature> = KstatesFeature.ALL,
+    ): ProjectAnalysis
 }
 
 /** The default [ProjectAnalyzer]. It parses the files for which [AnalysisSources] supplied no current parse. */

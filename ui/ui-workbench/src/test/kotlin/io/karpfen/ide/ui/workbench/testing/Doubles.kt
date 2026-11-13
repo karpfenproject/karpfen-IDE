@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.testing
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
@@ -54,7 +55,12 @@ class FakeWorkspace(override val root: Path) : Workspace {
     override val analysis = MutableStateFlow(ProjectAnalysis.EMPTY)
     override val problems = MutableStateFlow(WorkspaceProblems.EMPTY)
     override val isAnalyzing = MutableStateFlow(false)
+    override val languageFeatures = MutableStateFlow<Set<KstatesFeature>>(emptySet())
     override val documents: DocumentManager get() = error("not used")
+
+    override fun setLanguageFeatures(features: Set<KstatesFeature>) {
+        languageFeatures.value = features
+    }
 
     override suspend fun refresh() = Unit
 

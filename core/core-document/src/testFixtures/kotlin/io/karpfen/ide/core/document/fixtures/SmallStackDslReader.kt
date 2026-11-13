@@ -18,6 +18,7 @@ package io.karpfen.ide.core.document.fixtures
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.dsl.ReadResult
@@ -39,6 +40,6 @@ public class SmallStackDslReader(private val delegate: DslReader = DslReader()) 
     override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
         DeepNesting.onStack(DeepNesting.SMALL_STACK) { delegate.kmodel(source, metamodel) }
 
-    override fun kstates(source: TextSnapshot): ReadResult<StateMachine> =
-        DeepNesting.onStack(DeepNesting.SMALL_STACK) { delegate.kstates(source) }
+    override fun kstates(source: TextSnapshot, features: Set<KstatesFeature>): ReadResult<StateMachine> =
+        DeepNesting.onStack(DeepNesting.SMALL_STACK) { delegate.kstates(source, features) }
 }

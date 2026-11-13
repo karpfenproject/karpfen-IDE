@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.tools.cli.validate
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
@@ -25,8 +26,10 @@ import java.nio.file.Path
 
 /**
  * The command `karpfen validate <dir>`. [run] opens a `Workspace` of the directory through [workspaceFactory], without
- * watching, runs `refresh()` and `awaitAnalysis()`, and reports `Workspace.problems`. That is the same single rule the
- * IDE's Problems view uses, so the CLI and the IDE never disagree. It covers the LEXER, PARSER and IDE diagnostics of
+ * watching, switches on every optional language feature of KStates, runs `refresh()` and `awaitAnalysis()`, and
+ * reports `Workspace.problems`. That is the same single rule the IDE's Problems view uses. The command does not read
+ * the project settings of the IDE, though, so it allows every construct that dsl-tools allows by default and reports
+ * no `kstates.feature-off`, where the IDE reports the constructs of the features the project leaves off. It covers the LEXER, PARSER and IDE diagnostics of
  * every karpfen file, loose files included, plus the project's DSL_TOOLS, descriptor and context diagnostics.
  * Positions come from `FileProblems.positionOf` and are shown one-based. A file or a directory the workspace cannot
  * read gets the ERROR `unreadable` at 1:1, so a tree the CLI could not read never passes.
@@ -58,6 +61,7 @@ public class ValidateCommand(
     private suspend fun collect(root: Path): WorkspaceProblems = coroutineScope {
         val workspace = workspaceFactory.open(root, this)
         try {
+            workspace.setLanguageFeatures(KstatesFeature.ALL)
             workspace.refresh()
             workspace.awaitAnalysis()
             workspace.problems.value

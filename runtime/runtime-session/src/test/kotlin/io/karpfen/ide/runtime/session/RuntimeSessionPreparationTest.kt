@@ -62,7 +62,7 @@ class RuntimeSessionPreparationTest {
     @Test
     fun `every synthesized model but the ring prepares without errors, and the ring is blocked by its reference loop`() = runTest {
         val sessions = sessions(this)
-        val workspace = TestWorkspaces(this).open(root)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)
         val descriptors = SynthesizedModel.entries.associateWith { SynthesizedModels.copyTo(root.resolve(it.folder), it, DescriptorTiming.NONE) }
 
         val preparations = descriptors.mapValues { (_, descriptor) -> sessions.prepare(workspace, descriptor) }
@@ -82,7 +82,7 @@ class RuntimeSessionPreparationTest {
         SynthesizedModel.entries.filter { it != SynthesizedModel.RING }.forEach { SynthesizedModels.copyTo(root.resolve(it.folder), it, DescriptorTiming.NONE) }
         DescriptorExamples.copyExplicitContext(root.resolve("robot"))
         describeRuntimeExamples(this, root.resolve("examples"))
-        val workspace = TestWorkspaces(this).open(root)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)
         val descriptors = Files.walk(root).use { paths -> paths.filter { it.fileName.toString().endsWith(".kenv.json") }.sorted().toList() }
 
         val prepared = descriptors.map { descriptor -> assertIs<Preparation.Ready>(sessions(this).prepare(workspace, descriptor), "$descriptor").prepared }
@@ -184,7 +184,7 @@ class RuntimeSessionPreparationTest {
      */
     private suspend fun describeRuntimeExamples(scope: TestScope, target: Path) {
         Examples.copyTo(target)
-        val analysis = TestWorkspaces(scope).open(target).awaitAnalysis()
+        val analysis = TestWorkspaces(scope).open(target, languageFeatures = TestWorkspaces.ALL_FEATURES).awaitAnalysis()
         RUNTIME_EXAMPLES.forEach { name ->
             val context = analysis.contexts.single {
                 it.context.directory.fileName.toString() == name &&

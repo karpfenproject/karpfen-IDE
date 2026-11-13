@@ -18,6 +18,7 @@ package io.karpfen.ide.core.workspace.analysis
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.dsl.ReadResult
@@ -58,7 +59,8 @@ class RememberedReadsTest {
         override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
             delegate.kmodel(source.also(::record), metamodel)
 
-        override fun kstates(source: TextSnapshot): ReadResult<StateMachine> = delegate.kstates(source.also(::record))
+        override fun kstates(source: TextSnapshot, features: Set<KstatesFeature>): ReadResult<StateMachine> =
+            delegate.kstates(source.also(::record), features)
 
         /** Records the text of [source]. */
         private fun record(source: TextSnapshot) {
@@ -128,6 +130,25 @@ class RememberedReadsTest {
 
         val reread = reader.filesReadIn(context, from = firstReads).sorted()
         assertEquals(listOf("EVENTS.kmeta", "cleaning_robot.kmeta", "cleaning_robot.kmodel"), reread)
+    }
+
+    @Test
+    fun `a changed set of language features reads the state machines again and nothing else`() = runTest(timeout = 60.seconds) {
+        val context = robotContext()
+        val reader = RecordingReader()
+        val analyzer = ProjectAnalyzer(defaultLanguageRegistry(), reader)
+        val resolution = resolve(root)
+        val history = setOf(KstatesFeature.HISTORY)
+        analyzer.analyze(resolution, DiskSources(), generation = 1)
+        val firstReads = reader.texts.size
+
+        val changed = analyzer.analyze(resolution, DiskSources(), generation = 2, languageFeatures = history)
+        val secondReads = reader.texts.size
+        analyzer.analyze(resolution, DiskSources(), generation = 3, languageFeatures = history)
+
+        assertEquals(listOf("cleaning_robot.kstates"), reader.filesReadIn(context, from = firstReads))
+        assertEquals(secondReads, reader.texts.size, "the same set is not read again")
+        assertEquals(history, changed.languageFeatures)
     }
 
     private companion object {

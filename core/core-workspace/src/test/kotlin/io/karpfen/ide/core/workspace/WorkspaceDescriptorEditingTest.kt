@@ -18,6 +18,7 @@ package io.karpfen.ide.core.workspace
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
@@ -67,7 +68,8 @@ class WorkspaceDescriptorEditingTest {
         override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
             delegate.kmodel(source, metamodel).also { reads++ }
 
-        override fun kstates(source: TextSnapshot): ReadResult<StateMachine> = delegate.kstates(source).also { reads++ }
+        override fun kstates(source: TextSnapshot, features: Set<KstatesFeature>): ReadResult<StateMachine> =
+            delegate.kstates(source, features).also { reads++ }
     }
 
     @TempDir

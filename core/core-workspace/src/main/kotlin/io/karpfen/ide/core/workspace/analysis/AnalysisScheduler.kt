@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace.analysis
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.workspace.context.ContextState
 import io.karpfen.ide.core.workspace.context.DescriptorSource
 import kotlinx.coroutines.CancellationException
@@ -51,10 +52,10 @@ internal data class PublishedAnalysis(val analysis: ProjectAnalysis, val descrip
  * [runNow]. A newer request cancels a pending or running analysis, so the latest request wins. A cancelled run
  * publishes nothing.
  *
- * Each run analyzes the [contexts] current at its start. It uses the [analyzer] on [dispatcher] and reads texts
- * through [sources]. It publishes its result first to [analysis] and then to [published]. Consumers such as the
- * diagnostics publisher and the problems pipeline collect these flows. The generation number grows with every started
- * run. If the analyzer fails, the failure is logged, the waiting [runNow] calls fail with it and the scheduler keeps
+ * Each run analyzes the [contexts] and the [languageFeatures] current at its start. It uses the [analyzer] on
+ * [dispatcher] and reads texts through [sources]. It publishes its result first to [analysis] and then to [published].
+ * Consumers such as the diagnostics publisher and the problems pipeline collect these flows. The generation number
+ * grows with every started run. If the analyzer fails, the failure is logged, the waiting [runNow] calls fail with it and the scheduler keeps
  * serving. The default analyzer never throws.
  *
  * [isAnalyzing] is true from the first request until a run completes without a newer request pending.
@@ -63,6 +64,7 @@ internal class AnalysisScheduler(
     private val analyzer: ProjectAnalyzer,
     private val sources: AnalysisSources,
     private val contexts: StateFlow<ContextState>,
+    private val languageFeatures: StateFlow<Set<KstatesFeature>>,
     private val dispatcher: CoroutineDispatcher,
     private val debounce: Duration,
 ) {
@@ -120,11 +122,15 @@ internal class AnalysisScheduler(
         }
     }
 
-    /** Analyzes the contexts current now as the next generation and publishes the result. */
+    /**
+     * Analyzes the contexts current now with the language features current now as the next generation and publishes
+     * the result.
+     */
     private suspend fun analyze(): ProjectAnalysis {
         val state = contexts.value
+        val features = languageFeatures.value
         val number = ++generation
-        val result = withContext(dispatcher) { analyzer.analyze(state.resolution, sources, number) }
+        val result = withContext(dispatcher) { analyzer.analyze(state.resolution, sources, number, features) }
         analysisState.value = result
         publishedState.value = PublishedAnalysis(result, state.descriptors)
         return result

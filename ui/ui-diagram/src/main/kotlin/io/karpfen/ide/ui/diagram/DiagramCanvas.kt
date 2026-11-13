@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.edit.DiagramAction
+import io.karpfen.ide.notation.diagram.edit.DiagramActions
 import io.karpfen.ide.notation.diagram.edit.DiagramChange
 import io.karpfen.ide.notation.diagram.layout.DiagramArrangement
 import io.karpfen.ide.notation.diagram.layout.DiagramBox
@@ -91,7 +92,7 @@ import kotlinx.coroutines.withContext
  * border is drawn in the accent colour while the pointer is on it. The waypoints of a line are only drawn while the
  * pointer is near the line. A drag that starts on the empty canvas moves the whole drawing.
  *
- * A secondary click opens a context menu at the pointer. It holds what the notation offers at that point, such as
+ * A secondary click opens a context menu at the pointer. It holds what [actions] offer at that point, such as
  * adding, renaming or deleting an element, and the entry that adds a waypoint to the line under the pointer or
  * removes the waypoint under it. Nothing changes until the user clicks an entry. Some entries need more first. One
  * that needs a box marks the boxes to choose from and waits for a click on one of them. One that needs a name shows
@@ -117,6 +118,7 @@ import kotlinx.coroutines.withContext
 @Composable
 internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     notation: DiagramNotation<D, L>,
+    actions: DiagramActions<D, L>,
     diagram: D,
     editing: DiagramEditing<D, L>,
     faults: DiagramFaults,
@@ -298,11 +300,11 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
                 }
                 val at = pressed.position
                 val point = pointAt(at)
-                val actions = faults.guard("opening the context menu", { emptyList() }) {
-                    source?.let { notation.actions.at(it, shown.diagram, shown.layout, point) }.orEmpty()
+                val offered = faults.guard("opening the context menu", { emptyList() }) {
+                    source?.let { actions.at(it, shown.diagram, shown.layout, point) }.orEmpty()
                 }
                 val offer = faults.guard<DiagramOffer?>("opening the context menu", { null }) { editing.offerAt(shown.diagram, shown.layout, point) }
-                val entries = actions.map { action -> ContextMenuAction(action.label) { run(action, at) } } +
+                val entries = offered.map { action -> ContextMenuAction(action.label) { run(action, at) } } +
                     listOfNotNull(offer?.let { ContextMenuAction(it.label) { faults.attempt("changing a waypoint") { it.take() } } })
                 if (entries.isNotEmpty()) menu = MenuRequest(at, entries)
             }

@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.session.plan
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.text.EditOrigin
@@ -103,16 +104,33 @@ class DeploymentPlannerTest {
     }
 
     @Test
-    fun `a plan switches on the runtime features its machines need, and the lamp needs none`() = runTest(timeout = 60.seconds) {
+    fun `a plan switches on the runtime features of the language features switched on for the project`() = runTest(timeout = 60.seconds) {
         val workspaces = PlanningWorkspaces(this, root)
         val descriptor = workspaces.copy(SynthesizedModel.LAMP)
         assertEquals(emptyList(), workspaces.plan(descriptor).ready().features)
 
-        root.resolve("lamp/lamp.kstates").replaceText("""        STATE "on" {""", """        SHALLOW HISTORY STATE "on" {""")
-        assertEquals(listOf(FeatureName.HISTORY), workspaces.plan(descriptor).ready().features)
+        val histories = PLAIN_FEATURES + KstatesFeature.HISTORY
+        assertEquals(listOf(FeatureName.HISTORY), workspaces.plan(descriptor, features = histories).ready().features, "also unused")
 
+        val all = KstatesFeature.entries.toSet()
+        assertEquals(listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT), workspaces.plan(descriptor, features = all).ready().features)
+    }
+
+    @Test
+    fun `a construct of a language feature that is switched off blocks the deployment`() = runTest(timeout = 60.seconds) {
+        val workspaces = PlanningWorkspaces(this, root)
+        val descriptor = workspaces.copy(SynthesizedModel.LAMP)
+        root.resolve("lamp/lamp.kstates").replaceText("""        STATE "on" {""", """        SHALLOW HISTORY STATE "on" {""")
         root.resolve("lamp/switch.kstates").replaceText("""        STATE "up" {""", """        STATE "up" {""" + "\n" + TIMEOUT)
-        assertEquals(listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT), workspaces.plan(descriptor).ready().features)
+
+        val findings = workspaces.plan(descriptor, features = PLAIN_FEATURES + KstatesFeature.TICK_LIMIT).blocked()
+
+        assertEquals(listOf(DeployProblemCodes.CONTEXT_ERRORS to Severity.ERROR), findings.codes())
+        assertTrue(findings.single().message.contains("Histories are switched off"), findings.single().message)
+        assertEquals(
+            listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT),
+            workspaces.plan(descriptor, features = PLAIN_FEATURES + KstatesFeature.HISTORY + KstatesFeature.TICK_LIMIT).ready().features,
+        )
     }
 
     @Test

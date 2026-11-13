@@ -16,6 +16,7 @@
 package io.karpfen.ide.app.e2e
 
 import androidx.compose.ui.input.key.Key
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.app.IdeMenus
 import io.karpfen.ide.app.IdePhase
 import io.karpfen.ide.app.logging.ApplicationLogging
@@ -47,6 +48,8 @@ import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.output.OutputLevel
+import io.karpfen.ide.ui.workbench.settings.ProjectSettings
+import io.karpfen.ide.ui.workbench.settings.ProjectSettingsFile
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -72,7 +75,8 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
  * into the real workbench, and the menus resolve against its commands. The Problems view, the status bar and
  * `karpfen validate` report the same problems for the examples plus the shared descriptor examples. They agree before
  * and after files are opened and closed, descriptors included, because all three map `Workspace.problems`, the one
- * rule for problems. A command-line folder that `main` saw as a directory may be gone, unmounted or deleted, by the
+ * rule for problems. The project switches on every optional language feature there, which is what `karpfen validate`
+ * allows. A command-line folder that `main` saw as a directory may be gone, unmounted or deleted, by the
  * time `prepare` opens it. On every platform the Edit menu resolves Complete Code with the accelerator Ctrl+M, written
  * in that platform's notation, and the stroke finds that command. What dsl-tools logs while the IDE analyzes, here the
  * failure of a reader, reaches the Language Tools Output through the composition root, and the View menu opens it.
@@ -160,6 +164,7 @@ class IdeEndToEndTest {
             DescriptorExamples.copyExplicitContext(root.resolve("ctx-invalid"), DescriptorExamples.INVALID_JSON)
             val looseMetamodel = root.resolve("${DescriptorExamples.CONTEXT_DIRECTORY}/zz.kmeta")
             Files.writeString(looseMetamodel, "type \"B\" \"b\" {\n    prop(\"y\", \"number\")\n")
+            switchOnEveryLanguageFeature()
             val session = prepare(root)
             val cli = validate(root)
             reporter.publishEntry("karpfen validate", cli.joinToString("\n"))
@@ -265,6 +270,18 @@ class IdeEndToEndTest {
         Files.writeString(folder.resolve("deep.kmeta"), "type \"T\" \"t\" {\n}\n")
         Files.writeString(folder.resolve("deep.kstates"), DeepNesting.guardedKstates(READER_DEPTH))
         return folder
+    }
+
+    /**
+     * Writes the project file of the workspace with every optional language feature of KStates switched on, as the IDE
+     * writes it after the user switched them on in the Run menu.
+     */
+    private fun switchOnEveryLanguageFeature() {
+        Files.createDirectories(root)
+        Files.writeString(
+            root.resolve(ProjectSettings.FILE_NAME),
+            ProjectSettingsFile.format(ProjectSettings(languageFeatures = KstatesFeature.ALL)),
+        )
     }
 
     /** `karpfen validate` of [folder] as text lines. This is the CLI's own report, made by its `ValidateCommand`. */

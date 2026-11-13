@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.workspace.analysis.AnalysisScheduler
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
@@ -42,7 +43,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
@@ -82,10 +85,10 @@ internal class WorkspaceCollaborators(
  * - [ProblemsPublisher] fills [problems] with the help of the [WorkspaceProblemsAggregator].
  *
  * The start-up runs in [scope] in this order. First the watching starts if it is enabled. Then the publishers, the
- * context tracker and the analysis triggers start. The triggers are the contexts, the completed rescans and every text
- * version of every open document. Then the first scan runs. Last, the analysis scheduler starts and serves the request
- * made at construction and every trigger after it. Because of that early request, [isAnalyzing] is true from the
- * start.
+ * context tracker and the analysis triggers start. The triggers are the contexts, the completed rescans, every text
+ * version of every open document and the language features. Then the first scan runs. Last, the analysis scheduler
+ * starts and serves the request made at construction and every trigger after it. Because of that early request,
+ * [isAnalyzing] is true from the start.
  *
  * @param scope the workspace's own scope. The factory creates it as a supervisor child of its own scope and shares it
  *   with [WorkspaceCollaborators.documents]. [close] cancels it.
@@ -106,10 +109,13 @@ internal class DefaultWorkspace(
         root, collaborators.scanner, collaborators.fileWatcher, collaborators.documents, contextTracker,
         options.ioDispatcher, options.watchDebounce,
     )
+    /** The switched-on language features, empty at the start. */
+    private val features = MutableStateFlow<Set<KstatesFeature>>(emptySet())
     private val scheduler = AnalysisScheduler(
         collaborators.analyzer,
         WorkspaceAnalysisSources(collaborators.documents, collaborators.sourceLoader, options.ioDispatcher),
         contextTracker.state,
+        features.asStateFlow(),
         options.analysisDispatcher,
         options.analysisDebounce,
     )
@@ -136,6 +142,12 @@ internal class DefaultWorkspace(
     override val problems: StateFlow<WorkspaceProblems> get() = problemsPublisher.problems
 
     override val isAnalyzing: StateFlow<Boolean> get() = scheduler.isAnalyzing
+
+    override val languageFeatures: StateFlow<Set<KstatesFeature>> = features.asStateFlow()
+
+    override fun setLanguageFeatures(features: Set<KstatesFeature>) {
+        this.features.value = features.toSet()
+    }
 
     override val documents: DocumentManager get() = collaborators.documents
 
@@ -187,12 +199,12 @@ internal class DefaultWorkspace(
     }
 
     /**
-     * Schedules an analysis on every change of the contexts, every completed rescan and every text version of an open
-     * document. It subscribes before the first scan and skips the current state, which the request made at
-     * construction already covers.
+     * Schedules an analysis on every change of the contexts, every completed rescan, every text version of an open
+     * document and every change of the language features. It subscribes before the first scan and skips the current
+     * state, which the request made at construction already covers.
      */
     private fun launchAnalysisTriggers(): Job = scope.launch {
-        combine(contextTracker.state, treeRefresher.revision, collaborators.documents.openTexts()) { _, _, _ -> }
+        combine(contextTracker.state, treeRefresher.revision, collaborators.documents.openTexts(), features) { _, _, _, _ -> }
             .drop(1)
             .collect { scheduler.schedule() }
     }

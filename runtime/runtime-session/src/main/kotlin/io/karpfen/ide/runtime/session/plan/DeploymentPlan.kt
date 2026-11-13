@@ -36,10 +36,9 @@ import java.nio.file.Path
  * @property configuration the tick delay and the event time to live the deployment sends.
  * @property domains the event domains the state machines use in conditions and actions, sorted and distinct. The
  *   deployment registers a listener for each.
- * @property features the runtime features the state machines need, distinct, in the order the deployment switches them
- *   on before it activates the environment. They are the language features whose words the machines use: `History`
- *   for a state with a history and `TickLimit` for a state with a delay or a timeout. The list is empty if the
- *   machines use none.
+ * @property features the runtime features the deployment switches on before it activates the environment, distinct, in
+ *   that order. They belong to the language features switched on for the project: `History` for histories and
+ *   `TickLimit` for tick limits. The list is empty if neither is switched on.
  * @property modelObjectIds the keys of the model's objects in the runtime's index of the model.
  * @property locations where the objects, types and states of the uploaded files are declared.
  * @property findings the warnings and infos of the checks. A plan holds no ERROR.

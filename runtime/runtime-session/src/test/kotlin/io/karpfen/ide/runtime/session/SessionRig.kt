@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session
 
 import io.karpfen.dsl.instance.Model
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
@@ -104,18 +105,23 @@ internal class SessionRig(
 
     /**
      * Copies [model] with [timing] into a folder of its own, lets [edit] change the copied files in that folder, opens
-     * the workspace and returns both.
+     * the workspace with [features] switched on and returns both.
      */
-    fun open(model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.EVENT_SCENARIOS, edit: (Path) -> Unit = {}): Opened {
+    fun open(
+        model: SynthesizedModel,
+        timing: DescriptorTiming = DescriptorTiming.EVENT_SCENARIOS,
+        features: Set<KstatesFeature> = PLAIN_FEATURES,
+        edit: (Path) -> Unit = {},
+    ): Opened {
         val descriptor = SynthesizedModels.copyTo(root.resolve(model.folder), model, timing)
         edit(descriptor.parent)
-        return Opened(workspaces.open(root), descriptor)
+        return Opened(workspaces.open(root, languageFeatures = features), descriptor)
     }
 
     /** Copies the single robot example into a folder of its own, opens the workspace and returns both. */
     fun openSingleRobot(): Opened {
         val descriptor = DescriptorExamples.copyExplicitContext(root.resolve("robot"))
-        return Opened(workspaces.open(root), descriptor)
+        return Opened(workspaces.open(root, languageFeatures = PLAIN_FEATURES), descriptor)
     }
 
     /** Prepares the deployment of [opened], failing the test if it is blocked. */
@@ -125,18 +131,21 @@ internal class SessionRig(
             is Preparation.Blocked -> fail("the deployment is blocked: ${preparation.findings}")
         }
 
-    /** The prepared deployment of [model], whose copied files [edit] may change in their folder first. */
-    suspend fun prepared(model: SynthesizedModel, edit: (Path) -> Unit = {}): Deployment {
-        val opened = open(model, edit = edit)
+    /**
+     * The prepared deployment of [model] with [features] switched on, whose copied files [edit] may change in their
+     * folder first.
+     */
+    suspend fun prepared(model: SynthesizedModel, features: Set<KstatesFeature> = PLAIN_FEATURES, edit: (Path) -> Unit = {}): Deployment {
+        val opened = open(model, features = features, edit = edit)
         return Deployment(prepare(opened), opened)
     }
 
     /**
-     * The prepared deployment of the lamp whose state `on` has a shallow history, so that the deployment switches on
-     * the runtime feature `History` before it activates the environment.
+     * The prepared deployment of the lamp whose state `on` has a shallow history, with histories switched on, so that
+     * the deployment switches on the runtime feature `History` before it activates the environment.
      */
     suspend fun preparedWithHistory(): Deployment =
-        prepared(SynthesizedModel.LAMP) { folder ->
+        prepared(SynthesizedModel.LAMP, PLAIN_FEATURES + KstatesFeature.HISTORY) { folder ->
             val machine = folder.resolve("lamp.kstates")
             Files.writeString(machine, Files.readString(machine).replace(ON_STATE, "SHALLOW HISTORY $ON_STATE"))
         }
@@ -275,6 +284,12 @@ internal class SessionRig(
 
         /** The query parameter of an environment's key. */
         const val ENV_KEY: String = "envKey"
+
+        /**
+         * The language features that the models of the tests use and that switch on no runtime feature: breakpoints,
+         * macros, and splits and joins. A deployment with them switches no runtime feature on.
+         */
+        val PLAIN_FEATURES: Set<KstatesFeature> = setOf(KstatesFeature.BREAKPOINTS, KstatesFeature.MACROS, KstatesFeature.PARALLEL)
 
         /** The head of the lamp machine's state `on`, as `lamp.kstates` writes it. */
         private const val ON_STATE: String = "STATE \"on\" {"

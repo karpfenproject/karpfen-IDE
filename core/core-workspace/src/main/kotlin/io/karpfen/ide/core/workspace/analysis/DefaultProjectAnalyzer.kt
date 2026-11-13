@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace.analysis
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.workspace.context.ContextResolution
@@ -28,7 +29,7 @@ import java.nio.file.Path
  * the diagnostics of the resolution, and the reads add their DSL_TOOLS diagnostics.
  *
  * The analyzer of a workspace remembers the reads of its runs in a [ReadMemory]. So a run reads only the files whose
- * text or metamodel changed since. Each run forgets the reads of the files that no context names any more.
+ * text, metamodel or set of language features changed since. Each run forgets the reads of the files that no context names any more.
  */
 internal class DefaultProjectAnalyzer(
     private val languages: LanguageRegistry,
@@ -38,10 +39,15 @@ internal class DefaultProjectAnalyzer(
     /** The reads of the earlier runs. */
     private val memory = ReadMemory()
 
-    override suspend fun analyze(resolution: ContextResolution, sources: AnalysisSources, generation: Long): ProjectAnalysis {
+    override suspend fun analyze(
+        resolution: ContextResolution,
+        sources: AnalysisSources,
+        generation: Long,
+        languageFeatures: Set<KstatesFeature>,
+    ): ProjectAnalysis {
         val diagnostics = DiagnosticsByFile().apply { addAll(resolution.diagnostics) }
         val files = AnalyzedFiles(languages, sources, diagnostics)
-        val reads = ContextReader(reader, memory, diagnostics)
+        val reads = ContextReader(reader, memory, diagnostics, languageFeatures)
         val contexts = resolution.contexts.map { context ->
             val contextFiles = LinkedHashMap<Path, AnalyzedFile>()
             for (path in context.files) files.get(path)?.let { contextFiles[path] = it }
@@ -50,6 +56,6 @@ internal class DefaultProjectAnalyzer(
         memory.retainOnly(resolution.contexts.flatMapTo(HashSet()) { it.files })
         val looseFiles = LinkedHashMap<Path, AnalyzedFile>()
         for (path in resolution.looseFiles) files.get(path)?.let { looseFiles[path] = it }
-        return ProjectAnalysis(generation, contexts, diagnostics.build(), looseFiles)
+        return ProjectAnalysis(generation, contexts, diagnostics.build(), looseFiles, languageFeatures)
     }
 }

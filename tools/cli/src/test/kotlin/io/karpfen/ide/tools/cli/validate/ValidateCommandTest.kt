@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.tools.cli.validate
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
@@ -54,13 +55,14 @@ class ValidateCommandTest {
     private val root: Path get() = dir.toAbsolutePath().normalize()
 
     @Test
-    fun `the workspace is refreshed, analyzed and closed, and its problems become the report`() = runTest {
+    fun `the workspace is refreshed with every language feature, analyzed and closed, and its problems become the report`() = runTest {
         val workspace = ScriptedWorkspace(root, problemsOf(root.resolve("m.kmeta")))
         val command = ValidateCommand(workspace::opened)
 
         val report = command.run(dir)
 
-        assertEquals(listOf("open", "refresh", "awaitAnalysis", "problems", "close"), workspace.calls)
+        assertEquals(listOf("open", "features", "refresh", "awaitAnalysis", "problems", "close"), workspace.calls)
+        assertEquals(KstatesFeature.ALL, workspace.features)
         assertTrue(workspace.closed)
         assertFalse(workspace.childJob!!.isActive, "the workspace's coroutines are cancelled")
         assertEquals(listOf(ReportedProblem("m.kmeta", 1, 2, Severity.ERROR, "broken", "code")), report.problems)
@@ -75,7 +77,7 @@ class ValidateCommandTest {
         val failure = assertFailsWith<IllegalStateException> { command.run(dir) }
 
         assertEquals("converter crashed", failure.message)
-        assertEquals(listOf("open", "refresh", "awaitAnalysis", "close"), workspace.calls)
+        assertEquals(listOf("open", "features", "refresh", "awaitAnalysis", "close"), workspace.calls)
         assertFalse(workspace.childJob!!.isActive)
     }
 
@@ -142,6 +144,15 @@ class ValidateCommandTest {
         override val analysis: StateFlow<ProjectAnalysis> get() = unused()
         override val isAnalyzing: StateFlow<Boolean> get() = unused()
         override val documents: DocumentManager get() = unused()
+        override val languageFeatures: StateFlow<Set<KstatesFeature>> get() = unused()
+
+        /** The language features the command switched on. */
+        var features: Set<KstatesFeature>? = null
+
+        override fun setLanguageFeatures(features: Set<KstatesFeature>) {
+            record("features")
+            this.features = features
+        }
 
         override val problems: StateFlow<WorkspaceProblems>
             get() = MutableStateFlow(result).also { record("problems") }

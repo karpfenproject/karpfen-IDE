@@ -209,6 +209,7 @@ private fun EditorPane(state: WorkbenchState) {
         onDiagramSaved = { state.refreshFiles() },
         live = live,
         cellEditor = cellEditor,
+        languageFeatures = settings.languageFeatures,
     )
 }
 

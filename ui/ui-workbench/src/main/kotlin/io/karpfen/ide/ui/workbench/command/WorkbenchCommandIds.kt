@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.command
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 
 /**
@@ -56,4 +57,14 @@ public object WorkbenchCommandIds {
      * `ToolWindowId.entries`.
      */
     public fun toggleToolWindow(id: ToolWindowId): String = TOGGLE_TOOL_WINDOW_PREFIX + id.name
+
+    /** Prefix of the switches of the language features in the Run menu. [languageFeature] builds the full ids. */
+    public const val LANGUAGE_FEATURE_PREFIX: String = "workbench.languageFeature."
+
+    /**
+     * The id of the command that switches the optional language feature [feature] on or off for the open project, for
+     * example `workbench.languageFeature.history`. The id is derived from `KstatesFeature.id`, so a new feature
+     * needs no new constant here. The menus iterate over `KstatesFeature.entries`.
+     */
+    public fun languageFeature(feature: KstatesFeature): String = LANGUAGE_FEATURE_PREFIX + feature.id
 }

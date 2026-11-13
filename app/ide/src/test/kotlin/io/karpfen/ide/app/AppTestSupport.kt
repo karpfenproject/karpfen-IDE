@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.app
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.app.logging.LanguageToolsLogRouting
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
@@ -48,8 +49,6 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import io.karpfen.ide.ui.workbench.templates.FileTemplates
 import io.karpfen.ide.ui.workbench.templates.TemplateContext
-import java.nio.file.Path
-import kotlin.time.Duration
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +57,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.nio.file.Path
+import kotlin.time.Duration
 
 /**
  * A scripted [WorkbenchState], so the app tests check the composition root on its own. It records the calls of the
@@ -144,6 +145,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun openFile(path: Path): Job = unexpected("openFile")
     override fun navigateTo(location: Location): Job = unexpected("navigateTo")
     override fun openNode(path: Path): Job = unexpected("openNode")
+    override fun switchLanguageFeature(feature: KstatesFeature, on: Boolean): Job = unexpected("switchLanguageFeature")
     override fun runTreeCommand(command: ProjectTreeCommand): Job = unexpected("runTreeCommand")
     override fun createFile(directory: Path, kind: FileTemplateKind): Job = unexpected("createFile")
     override fun configureBridge(): Job = unexpected("configureBridge")

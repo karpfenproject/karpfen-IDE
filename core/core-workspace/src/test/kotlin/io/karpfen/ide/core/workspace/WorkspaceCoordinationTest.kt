@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
@@ -94,7 +95,12 @@ class WorkspaceCoordinationTest {
     private class CountingAnalyzer : ProjectAnalyzer {
         var runs = 0
 
-        override suspend fun analyze(resolution: ContextResolution, sources: AnalysisSources, generation: Long): ProjectAnalysis {
+        override suspend fun analyze(
+            resolution: ContextResolution,
+            sources: AnalysisSources,
+            generation: Long,
+            languageFeatures: Set<KstatesFeature>,
+        ): ProjectAnalysis {
             runs++
             return ProjectAnalysis(generation, emptyList(), resolution.diagnostics)
         }

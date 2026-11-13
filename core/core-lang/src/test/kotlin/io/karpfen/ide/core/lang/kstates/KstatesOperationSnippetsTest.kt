@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.lang.kstates
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.completion.Snippet
@@ -31,7 +32,7 @@ class KstatesOperationSnippetsTest {
     @Test
     fun `every operation snippet, filled in, reads without a finding`() {
         val reader = DslReader()
-        val snippets = KstatesKeywords.at(KstatesPosition.ACTIONS)
+        val snippets = KstatesKeywords.at(KstatesPosition.ACTIONS, KstatesFeature.entries.toSet())
             .filter { it.label.substringBefore('(') in KarpfenSyntax.KSTATES_OPERATIONS }
 
         assertEquals(KarpfenSyntax.KSTATES_OPERATIONS.size, snippets.size, "one snippet per operation")

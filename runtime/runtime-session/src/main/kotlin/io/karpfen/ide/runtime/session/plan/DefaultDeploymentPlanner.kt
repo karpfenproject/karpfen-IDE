@@ -30,8 +30,9 @@ import java.nio.file.Path
  * The plan is built from these inputs. The context is the one whose descriptor is the given path, and the plan takes
  * the typed descriptor of that context. The analyzed snapshots of the context's files are the texts to upload. The
  * runtime's index of the dsl-tools model gives the object keys and the types of the attached objects. The syntax index
- * gives the event domains of the machines and the declaration ranges of the uploaded files. The state machines that the
- * analysis read tell the runtime features the deployment switches on, as [LanguageFeature] decides.
+ * gives the event domains of the machines and the declaration ranges of the uploaded files. The language features that
+ * were switched on for the analysis, `ProjectAnalysis.languageFeatures`, tell the runtime features the deployment
+ * switches on, as [LanguageFeature] maps them.
  *
  * @param gate the checks of the problems gate, in report order.
  * @param preflight the preflight checks, in report order.
@@ -86,7 +87,7 @@ internal class DefaultDeploymentPlanner(
             .attachments(attachments)
             .configuration(DeployConfiguration.of(environment))
             .domains(subject.domains)
-            .features(LanguageFeature.requiredBy(machines.mapNotNull { context.stateMachines[it.file] }))
+            .features(LanguageFeature.runtimeFeaturesOf(subject.analysis.languageFeatures))
             .modelObjectIds(keyed.ids)
             .locations(subject.locations)
             .findings(findings)

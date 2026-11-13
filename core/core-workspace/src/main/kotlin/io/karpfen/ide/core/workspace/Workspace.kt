@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
@@ -50,11 +51,12 @@ import java.nio.file.Path
  *   to a reload or a conflict for each affected open document.
  * - The tree and the environment descriptors give [contexts]. A descriptor is loaded with the [SourceLoader]. While it
  *   is open in the editor, its editor text is used instead and read again on every edit.
- * - The contexts and the texts of the open documents give [analysis]. Every change schedules a new analysis after the
- *   `analysisDebounce` delay, and a newer request cancels a running one. After each analysis the project diagnostics
- *   of each file go into its open session through `setExternalDiagnostics(ExternalDiagnosticSources.PROJECT,
- *   analyzedFile.snapshot, ...)`. The session ignores a snapshot of another lineage. That happens, for example, when a
- *   document was closed and reopened while the analysis ran.
+ * - The contexts, the texts of the open documents and the [languageFeatures] give [analysis]. Every change schedules a
+ *   new analysis after the `analysisDebounce` delay, and a newer request cancels a running one. After each analysis
+ *   the project diagnostics of each file go into its open session through
+ *   `setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, analyzedFile.snapshot, ...)`. The session ignores a
+ *   snapshot of another lineage. That happens, for example, when a document was closed and reopened while the analysis
+ *   ran.
  * - The analysis, the diagnostics of the open documents and the texts of the read descriptors with their syntax errors
  *   give [problems].
  *
@@ -95,6 +97,20 @@ public interface Workspace : AutoCloseable {
      * the first analysis.
      */
     public val problems: StateFlow<WorkspaceProblems>
+
+    /**
+     * The optional language features of KStates that are switched on for this project. It is empty when the workspace
+     * opens, so every feature is off until [setLanguageFeatures] switches it on. The analysis reports each construct
+     * of a feature that is off as an error and names the features it was checked against in
+     * `ProjectAnalysis.languageFeatures`.
+     */
+    public val languageFeatures: StateFlow<Set<KstatesFeature>>
+
+    /**
+     * Makes [features] the switched-on [languageFeatures]. A change schedules a new analysis, and setting the same
+     * features again does nothing.
+     */
+    public fun setLanguageFeatures(features: Set<KstatesFeature>)
 
     /** True while an analysis is scheduled or running. The status bar shows "Analyzing..." from it. */
     public val isAnalyzing: StateFlow<Boolean>

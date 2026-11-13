@@ -17,6 +17,7 @@ package io.karpfen.ide.core.workspace.analysis
 
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.dsl.DslToolsLoggers
@@ -34,7 +35,7 @@ import java.nio.file.Path
  * Reads the files of one [ModelingContext] with dsl-tools. It goes through the [reader] adapter only, because
  * core-workspace never calls dsl-tools directly. The files are read in dependency order. First comes the domain
  * metamodel. Then the events are read with the types of the metamodel as base types. Then each model is read against
- * the metamodel. Each state machine is read on its own.
+ * the metamodel. Each state machine is read on its own, with the optional features of KStates in [languageFeatures].
  *
  * A file is read only if it is free of syntax errors and written in the language of its role, as given by
  * [DescriptorFileRole.language]. So a descriptor that names a `.kstates` file as its metamodel reads nothing, and the
@@ -48,13 +49,16 @@ import java.nio.file.Path
  * dsl-tools, explain the gap. The reader checks for cancellation between reads.
  *
  * A file whose text and input are the same as at its last read in an earlier analysis is not read again. [memory]
- * answers with that earlier read. While a file is read, the mapped diagnostic context of the logging names it under
+ * answers with that earlier read. The input of a state machine is the set [languageFeatures]. The workspace keeps one
+ * set object until the features change, so an unchanged set is the same object, and a new set reads every state
+ * machine again. While a file is read, the mapped diagnostic context of the logging names it under
  * [DslToolsLoggers.FILE_KEY]. So whatever dsl-tools logs during the read says which file it was.
  */
 internal class ContextReader(
     private val reader: DslReader,
     private val memory: ReadMemory,
     private val problems: DiagnosticsByFile,
+    private val languageFeatures: Set<KstatesFeature>,
 ) {
 
     /** The analysis of [context]. [files] holds its readable files by path. */
@@ -94,7 +98,7 @@ internal class ContextReader(
         val stateMachines = LinkedHashMap<Path, StateMachine>()
         for (binding in context.stateMachines) {
             val file = readable(files, binding.file, DescriptorFileRole.STATE_MACHINE) ?: continue
-            read(file, memory.stateMachines, input = null) { reader.kstates(it) }.model?.let { stateMachines[binding.file] = it }
+            read(file, memory.stateMachines, input = languageFeatures) { reader.kstates(it, languageFeatures) }.model?.let { stateMachines[binding.file] = it }
         }
         return stateMachines
     }

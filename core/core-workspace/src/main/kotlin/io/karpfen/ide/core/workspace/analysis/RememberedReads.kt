@@ -31,8 +31,10 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * A read depends on nothing but its text and its input. So its result holds for any snapshot of the same text. Its
  * findings lie at offsets of that text, and the models are never changed after reading, as [ProjectAnalysis] states.
- * The input is the metamodel a model is read against, and it is compared by identity. That works because an unchanged
- * metamodel is itself a remembered result and so the same object.
+ * The input is the metamodel a model is read against, or the set of language features a state machine is read with,
+ * and it is compared by identity. That works because an unchanged metamodel is itself a remembered result and so the
+ * same object, and the workspace hands the analyses the same set of features until the features change. An equal set
+ * in a new object only costs one read too many.
  *
  * The class is thread-safe. An analysis runs one read of a file at a time.
  */

@@ -25,6 +25,7 @@ import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettingsFile
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.assertSamePath
+import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import java.io.IOException
 import java.nio.file.Files
@@ -57,6 +58,7 @@ class FolderFlowTest {
     @Test
     fun `opening a folder binds the tree, the problems and the title and records the folder`() = runTest(timeout = 60.seconds) {
         Examples.copyTo(root)
+        switchOnLanguageFeatures(root)
         withWorkbench(settingsDirectory) {
             assertEquals("karpfen IDE", state.windowTitle.value)
             open(root)

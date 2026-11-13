@@ -114,10 +114,19 @@ Run saves all open files first, because it uploads the saved files. It picks the
 the only one of the folder, or asks. A run whose files have errors stops before it reaches the runtime and lists the
 errors.
 
-A state machine with a history or a tick limit needs a feature of the runtime, History or TickLimit. A run switches
-on what its state machines need. The deployment steps of the run then show a line such as
-`Switching on History, TickLimit`. A run that needs neither shows `Switching on runtime features` as skipped. Breakpoints are written and
-shown, but no run halts at them, because the IDE has no debugger yet.
+Five parts of the state machine language are optional features that each project switches on by hand: histories,
+tick limits, breakpoints, macros, and splits and joins. All of them are off in a new project.
+
+| To | Do this |
+|---|---|
+| Switch a feature on or off | Choose Run > Language Features and click its entry. The entry says what the click does, such as `Switch On Histories`. |
+| See what is on | Open `.karpfenproject`. Each feature that is on has a line such as `feature.history = on`. |
+
+- While a feature is off, every use of it in a state machine is an error, and a run is blocked. Completion and the
+  menu of a statechart do not offer it.
+- A run switches on the runtime features of what the project has on: History for histories and TickLimit for tick
+  limits. The deployment steps of the run show a line such as `Switching on History, TickLimit`.
+- Breakpoints can be written and are shown, but no run halts at them, because the IDE has no debugger yet.
 
 ### While a model runs
 

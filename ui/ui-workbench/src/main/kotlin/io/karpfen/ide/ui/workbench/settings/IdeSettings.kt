@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.settings
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import kotlinx.serialization.Serializable
@@ -44,6 +45,8 @@ import kotlinx.serialization.Serializable
  * @property activeFile the file of the active tab, named like the [openFiles], or null. Part of the project.
  * @property activeBridges the bridge files that were started with the last run, named like the [openFiles]. The
  *   dialog that asks which bridges to start with a run has them ticked. Part of the project.
+ * @property languageFeatures the optional language features of KStates that are switched on for the project. All are
+ *   off by default. Part of the project.
  * @property otherProjectLines the lines of the project file that this version does not understand. They are kept so
  *   that they can be written back.
  */
@@ -58,6 +61,7 @@ public data class IdeSettings(
     public val openFiles: List<String> = emptyList(),
     public val activeFile: String? = null,
     public val activeBridges: List<String> = emptyList(),
+    public val languageFeatures: Set<KstatesFeature> = emptySet(),
     public val otherProjectLines: List<String> = emptyList(),
 ) {
     init {

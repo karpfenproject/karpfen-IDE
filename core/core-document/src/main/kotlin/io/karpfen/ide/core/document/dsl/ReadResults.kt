@@ -34,7 +34,8 @@ import io.karpfen.dsl.diagnostics.Severity as DslSeverity
  * its positions are not needed, because the snapshot knows its lines. The reader guarantees that its ranges lie within
  * the text it read. The mapping still clamps them to the snapshot, so that a defect of dsl-tools can never put a range
  * outside the document. The code of a diagnostic is the stable id of its dsl-tools code, [DiagnosticCode.id]. The
- * message is the reader's.
+ * message is the reader's. The one addition is for a construct of a language feature that is switched off: dsl-tools
+ * cannot know where a tool switches a feature on, so the IDE says it behind the reader's message.
  */
 internal object ReadResults {
 
@@ -65,10 +66,13 @@ internal object ReadResults {
         Diagnostic(
             range = rangeOf(diagnostic.range, textLength),
             severity = severityOf(diagnostic.severity),
-            message = diagnostic.message,
+            message = if (diagnostic.code == DiagnosticCode.FEATURE_OFF) "${diagnostic.message} $FEATURE_SWITCH" else diagnostic.message,
             code = diagnostic.code.id,
             source = DiagnosticSource.DSL_TOOLS,
         )
+
+    /** Where the IDE switches a language feature on, said behind the message of a construct whose feature is off. */
+    const val FEATURE_SWITCH: String = "Run > Language Features switches them on for this project."
 
     /** The [TextRange] of [range], clamped to a text of [textLength] chars. */
     private fun rangeOf(range: SourceRange, textLength: Int): TextRange {

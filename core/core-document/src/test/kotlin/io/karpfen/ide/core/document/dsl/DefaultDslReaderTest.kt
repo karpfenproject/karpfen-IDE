@@ -21,6 +21,7 @@ import io.karpfen.dsl.reader.TextReader
 import io.karpfen.dsl.reader.kmeta.KmetaReader
 import io.karpfen.dsl.reader.kmodel.KmodelReader
 import io.karpfen.dsl.reader.kstates.KstatesReader
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
@@ -85,6 +86,25 @@ class DefaultDslReaderTest {
         )
         assertEquals(listOf(expected), read.diagnostics)
         assertTrue(read.hasErrors)
+    }
+
+    @Test
+    fun `a construct of a feature that is switched off is an error at its keyword and stays in the model`() {
+        val text = "STATEMACHINE ATTACHED TO \"Lamp\" {\n    STATES {\n        INITIAL DEEP HISTORY STATE \"on\" {\n" +
+            "        }\n    }\n    TRANSITIONS {\n    }\n}\n"
+
+        val read = reader.kstates(TextSnapshot(text, 0), KstatesFeature.ALL - KstatesFeature.HISTORY)
+
+        val expected = Diagnostic(
+            range = TextRange.ofLength(text.indexOf("DEEP"), "DEEP".length),
+            severity = Severity.ERROR,
+            message = "Histories are switched off, so this history is not allowed. ${ReadResults.FEATURE_SWITCH}",
+            code = "kstates.feature-off",
+            source = DiagnosticSource.DSL_TOOLS,
+        )
+        assertEquals(listOf(expected), read.diagnostics)
+        assertEquals("on", assertNotNull(read.model).states.single().name)
+        assertEquals(emptyList(), reader.kstates(TextSnapshot(text, 0)).diagnostics, "every feature is on by default")
     }
 
     @Test
@@ -171,14 +191,15 @@ class DefaultDslReaderTest {
     }
 
     @Test
-    fun `the KMeta reader is created over the base types and the KModel reader against the metamodel of each read`() {
+    fun `each reader is created over the base types, the metamodel or the features of its read`() {
         val domain = assertNotNull(reader.kmeta(TextSnapshot(point, 0)).model)
         val baseTypes = mutableListOf<List<ClassType>>()
         val metamodels = mutableListOf<Metamodel>()
+        val featureSets = mutableListOf<Set<KstatesFeature>>()
         val recording = DefaultDslReader(
             kmetaReader = { types -> baseTypes += types; KmetaReader(types) },
             kmodelReader = { metamodel -> metamodels += metamodel; KmodelReader(metamodel) },
-            kstatesReader = KstatesReader(),
+            kstatesReader = { features -> featureSets += features; KstatesReader(features) },
         )
 
         recording.kmeta(TextSnapshot("type \"move\" \"m\" {\n    has(\"to\", \"Point\")\n}\n", 0), domain.types)
@@ -186,12 +207,17 @@ class DefaultDslReaderTest {
 
         assertEquals<List<List<ClassType>>>(listOf(domain.types), baseTypes)
         assertEquals<List<Metamodel>>(listOf(domain), metamodels)
+
+        val history = setOf(KstatesFeature.HISTORY)
+        recording.kstates(TextSnapshot("", 0))
+        recording.kstates(TextSnapshot("", 0), history)
+        assertEquals(listOf(KstatesFeature.ALL, history), featureSets)
     }
 
     /** A [DefaultDslReader] whose readers of every language read with [read]. */
     private fun readingWith(read: (String) -> Nothing): DefaultDslReader {
         val failing = TextReader<Nothing> { text -> read(text) }
-        return DefaultDslReader(kmetaReader = { failing }, kmodelReader = { failing }, kstatesReader = failing)
+        return DefaultDslReader(kmetaReader = { failing }, kmodelReader = { failing }, kstatesReader = { failing })
     }
 
     @Test

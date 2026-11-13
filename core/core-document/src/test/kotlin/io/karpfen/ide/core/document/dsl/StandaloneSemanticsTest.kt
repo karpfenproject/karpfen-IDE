@@ -18,6 +18,7 @@ package io.karpfen.ide.core.document.dsl
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
@@ -52,7 +53,7 @@ class StandaloneSemanticsTest {
             return metamodel!!
         }
         override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> = error("not used")
-        override fun kstates(source: TextSnapshot): ReadResult<StateMachine> {
+        override fun kstates(source: TextSnapshot, features: Set<KstatesFeature>): ReadResult<StateMachine> {
             calls += "kstates(${source.text})"
             return machine!!
         }

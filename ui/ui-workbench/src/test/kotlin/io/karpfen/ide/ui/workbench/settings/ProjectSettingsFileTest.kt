@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.settings
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.runtime.host.RuntimeHostKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -59,6 +60,34 @@ class ProjectSettingsFileTest {
     fun `what is written reads back to the same settings`() {
         assertEquals(settings, ProjectSettingsFile.parse(ProjectSettingsFile.format(settings)))
         assertEquals(ProjectSettings(), ProjectSettingsFile.parse(ProjectSettingsFile.format(ProjectSettings())))
+    }
+
+    @Test
+    fun `each switched-on language feature is one line, in the order of the features, and reads back`() {
+        val features = settings.copy(languageFeatures = setOf(KstatesFeature.PARALLEL, KstatesFeature.HISTORY, KstatesFeature.TICK_LIMIT))
+
+        val text = ProjectSettingsFile.format(features)
+
+        assertEquals(
+            listOf("feature.history = on", "feature.tickLimit = on", "feature.parallel = on"),
+            text.lines().filter { it.startsWith("feature.") },
+        )
+        assertEquals(features, ProjectSettingsFile.parse(text))
+        assertEquals(emptySet(), ProjectSettings().languageFeatures, "all features are off by default")
+        assertEquals(
+            listOf("feature.breakpoints = on", "feature.macros = on"),
+            ProjectSettingsFile.format(ProjectSettings(languageFeatures = setOf(KstatesFeature.MACROS, KstatesFeature.BREAKPOINTS)))
+                .lines().filter { it.startsWith("feature.") },
+        )
+    }
+
+    @Test
+    fun `a feature line that is not on counts as off, and an unknown feature is kept`() {
+        val read = ProjectSettingsFile.parse("feature.history = off\nfeature.macros = ON\nfeature.teleport = on\n")
+
+        assertEquals(setOf(KstatesFeature.MACROS), read.languageFeatures)
+        assertEquals(listOf("feature.teleport = on"), read.otherLines)
+        assertEquals(listOf("feature.macros = on", "feature.teleport = on"), ProjectSettingsFile.format(read).lines().filter { it.startsWith("feature.") })
     }
 
     @Test

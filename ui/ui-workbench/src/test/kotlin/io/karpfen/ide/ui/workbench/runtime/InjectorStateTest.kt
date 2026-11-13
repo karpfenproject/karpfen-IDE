@@ -25,6 +25,7 @@ import io.karpfen.ide.runtime.session.events.InjectionOutcome
 import io.karpfen.ide.runtime.session.events.PayloadKind
 import io.karpfen.ide.runtime.session.fixtures.FakeRuntimeSession
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
+import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
@@ -125,6 +126,7 @@ class InjectorStateTest {
     private fun injector(model: SynthesizedModel, block: suspend TestWorkbench.(InjectorState, FakeRuntimeSession) -> Unit) =
         runTest(timeout = 60.seconds) {
             val descriptor = SynthesizedModels.copyTo(root.resolve(model.folder), model, DescriptorTiming.EVENT_SCENARIOS)
+            switchOnLanguageFeatures(root)
             withWorkbench(dir.resolve("settings")) {
                 open(root)
                 val prepared = assertIs<Preparation.Ready>(realSessions.prepare(workspace, descriptor.toAbsolutePath().normalize()))

@@ -51,7 +51,7 @@ internal object DeploySteps {
             )
             add(
                 if (plan.features.isEmpty()) {
-                    SkippedStep(DeployStepKind.SWITCH_FEATURES_ON, "Switching on runtime features", "The state machines need no runtime feature")
+                    SkippedStep(DeployStepKind.SWITCH_FEATURES_ON, "Switching on runtime features", "The project switches on no language feature that needs one")
                 } else {
                     SwitchFeaturesOnStep(plan.features)
                 },

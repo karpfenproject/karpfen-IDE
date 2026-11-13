@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.session.plan
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
@@ -41,16 +42,25 @@ internal class PlanningWorkspaces(private val scope: TestScope, val root: Path) 
     fun copy(model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.NONE): Path =
         SynthesizedModels.copyTo(root.resolve(model.folder), model, timing)
 
-    /** Opens the workspace of [root]. */
-    fun open(): Workspace = TestWorkspaces(scope).open(root)
+    /** Opens the workspace of [root] with [features] switched on. */
+    fun open(features: Set<KstatesFeature> = PLAIN_FEATURES): Workspace = TestWorkspaces(scope).open(root, languageFeatures = features)
 
-    /** Opens the workspace of [root] and returns its first complete analysis. */
-    suspend fun analyze(): ProjectAnalysis = open().awaitAnalysis()
+    /** Opens the workspace of [root] with [features] switched on and returns its first complete analysis. */
+    suspend fun analyze(features: Set<KstatesFeature> = PLAIN_FEATURES): ProjectAnalysis = open(features).awaitAnalysis()
 
-    /** Plans [descriptor] from a fresh analysis of [root], with [unsaved] as the unsaved paths. */
-    suspend fun plan(descriptor: Path, unsaved: Set<Path> = emptySet()): PlanResult =
-        DeploymentPlanner().plan(analyze(), descriptor, unsaved)
+    /**
+     * Plans [descriptor] from a fresh analysis of [root] with [features] switched on, with [unsaved] as the unsaved
+     * paths.
+     */
+    suspend fun plan(descriptor: Path, unsaved: Set<Path> = emptySet(), features: Set<KstatesFeature> = PLAIN_FEATURES): PlanResult =
+        DeploymentPlanner().plan(analyze(features), descriptor, unsaved)
 }
+
+/**
+ * The language features that the models of the tests use and that switch on no runtime feature: breakpoints, macros,
+ * and splits and joins. The workspaces of the planning tests have them switched on unless a test says otherwise.
+ */
+internal val PLAIN_FEATURES: Set<KstatesFeature> = setOf(KstatesFeature.BREAKPOINTS, KstatesFeature.MACROS, KstatesFeature.PARALLEL)
 
 /** Replaces [old] by [new] in the file, which must contain it. */
 internal fun Path.replaceText(old: String, new: String) {

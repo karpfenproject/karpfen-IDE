@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.lang.kstates
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.CompletionKind
 import io.karpfen.ide.core.lang.LanguageDocument
@@ -27,7 +28,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Covers KStates completion by context at concrete carets of the examples and of small documents. */
+/**
+ * Covers KStates completion by context at concrete carets of the examples and of small documents. The example project
+ * has every optional language feature switched on, and the constructs of a feature that is off are not offered.
+ */
 class KstatesCompletionTest {
 
     private val probe = ServicesProbe()
@@ -98,6 +102,38 @@ class KstatesCompletionTest {
     }
 
     @Test
+    fun `the constructs of the language features that are off are not offered`() {
+        val off = ServicesProbe(ExampleProject.analysis.copy(languageFeatures = emptySet()))
+        val labels = { textWithCaret: String -> robotDocument(textWithCaret).let { (document, offset) -> off.labels(document, offset) } }
+        val stateBody = { body: String -> machine(" STATES {\n  STATE \"a\" {\n$body\n  }\n }") }
+
+        assertEquals(listOf("STATES { }", "TRANSITIONS { }"), labels(machine("  ‸")))
+        assertEquals(listOf("INITIAL STATE \"…\" { }", "STATE \"…\" { }"), labels(machine(" STATES {\n  ‸\n }")))
+        assertEquals(listOf("DO { }", "ENTRY { }", "INITIAL STATE \"…\" { }", "STATE \"…\" { }"), labels(stateBody("   ‸")))
+        assertEquals(emptyList(), labels(stateBody("   BREAKPOINT { ‸ }")))
+        assertEquals(emptyList(), labels(stateBody("   TICK LIMIT {\n    ‸\n   }")))
+        assertEquals(listOf("TRANSITION \"…\" -> \"…\" { }"), labels(machine(" STATES { }\n TRANSITIONS {\n  ‸\n }")))
+        assertEquals(listOf("CONDITION { }"), labels(machine(" TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" { ‸ }\n }")))
+        assertEquals(emptyList(), labels(machine(" MACROS {\n  ‸\n }")))
+        val actions = labels(stateBody("   DO {\n    ‸\n   }"))
+        assertTrue("SET(\"…\", …)" in actions && actions.none { it.startsWith("WITH") }, "$actions")
+        assertEquals(listOf("EVAL { }"), labels(stateBody("   DO {\n    SET(\"log\", ‸)\n   }")))
+    }
+
+    @Test
+    fun `a switched-on feature brings back exactly its own constructs`() {
+        val histories = ServicesProbe(ExampleProject.analysis.copy(languageFeatures = setOf(KstatesFeature.HISTORY)))
+        val (document, offset) = robotDocument(machine(" STATES {\n  ‸\n }"))
+
+        assertEquals(
+            listOf("DEEP HISTORY STATE \"…\" { }", "INITIAL STATE \"…\" { }", "SHALLOW HISTORY STATE \"…\" { }", "STATE \"…\" { }"),
+            histories.labels(document, offset),
+        )
+        val (transitions, at) = robotDocument(machine(" STATES { }\n TRANSITIONS {\n  ‸\n }"))
+        assertEquals(listOf("TRANSITION \"…\" -> \"…\" { }"), histories.labels(transitions, at))
+    }
+
+    @Test
     fun `action blocks offer the operations, EVENT, IF IN SCOPE and WITH, also after earlier actions and blocks`() {
         val actions = listOf(
             "APPEND(\"…\", …)", "APPENDOBJ(\"…\", \"…\", …)", "DROPLIST(\"…\")", "DROPOBJ(\"…\")", "EVENT(\"…\", \"…\")",
@@ -121,7 +157,7 @@ class KstatesCompletionTest {
 
     @Test
     fun `every KStates operation of KarpfenSyntax is offered, shaped by its arguments`() {
-        val labels = KstatesKeywords.at(KstatesPosition.ACTIONS).map { it.label }
+        val labels = KstatesKeywords.at(KstatesPosition.ACTIONS, KstatesFeature.entries.toSet()).map { it.label }
         val operations = labels.filter { label -> label.substringBefore('(') in KarpfenSyntax.KSTATES_OPERATIONS }
 
         assertEquals(KarpfenSyntax.KSTATES_OPERATIONS.toList(), operations.map { it.substringBefore('(') })

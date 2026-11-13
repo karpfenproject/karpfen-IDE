@@ -19,6 +19,7 @@ import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.dsl.reader.TextReader
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.text.TextSnapshot
 import org.slf4j.Logger
@@ -38,12 +39,12 @@ import org.slf4j.LoggerFactory
  *
  * @param kmetaReader the KMeta reader over the given base types, created for each read.
  * @param kmodelReader the KModel reader against the given metamodel, created for each read.
- * @param kstatesReader the KStates reader, shared by every read.
+ * @param kstatesReader the KStates reader that allows the given optional features, created for each read.
  */
 internal class DefaultDslReader(
     private val kmetaReader: (baseTypes: List<ClassType>) -> TextReader<Metamodel>,
     private val kmodelReader: (metamodel: Metamodel) -> TextReader<Model>,
-    private val kstatesReader: TextReader<StateMachine>,
+    private val kstatesReader: (features: Set<KstatesFeature>) -> TextReader<StateMachine>,
 ) : DslReader {
 
     override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> =
@@ -52,7 +53,8 @@ internal class DefaultDslReader(
     override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
         read(source, kmodelReader(metamodel))
 
-    override fun kstates(source: TextSnapshot): ReadResult<StateMachine> = read(source, kstatesReader)
+    override fun kstates(source: TextSnapshot, features: Set<KstatesFeature>): ReadResult<StateMachine> =
+        read(source, kstatesReader(features))
 
     /**
      * Reads [source] with [reader]. A throwable that escapes the reader becomes a reader failure. A fatal VM error is

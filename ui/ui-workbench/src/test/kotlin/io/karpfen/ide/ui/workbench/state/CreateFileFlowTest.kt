@@ -25,6 +25,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import io.karpfen.ide.ui.workbench.templates.FileTemplates
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
+import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
@@ -52,6 +53,7 @@ class CreateFileFlowTest {
 
     private fun scenario(block: suspend TestWorkbench.() -> Unit) = runTest(timeout = 60.seconds) {
         Examples.copyTo(root)
+        switchOnLanguageFeatures(root)
         Files.createDirectories(root.resolve("empty"))
         withWorkbench(dir.resolve("settings")) {
             open(root)

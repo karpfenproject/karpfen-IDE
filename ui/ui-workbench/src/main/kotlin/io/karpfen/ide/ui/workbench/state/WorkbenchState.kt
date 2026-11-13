@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.state
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
@@ -35,10 +36,10 @@ import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
-import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
+import java.nio.file.Path
 
 /**
  * The workbench coordinator, following the Mediator pattern. It owns the current [Workspace] and its
@@ -285,6 +286,13 @@ public interface WorkbenchState : AutoCloseable {
      * size is written to the settings of the open project at once.
      */
     public fun zoomEditor(step: ZoomStep): Job
+
+    /**
+     * Switches the optional language feature [feature] of KStates on or off, as [on] says, for the open project. The
+     * choice is written to the settings of the project, and the workspace analyzes again with it. Without an open
+     * folder it does nothing.
+     */
+    public fun switchLanguageFeature(feature: KstatesFeature, on: Boolean): Job
 
     /**
      * Runs the unsaved-changes flow over every dirty document and persists the settings with the current [layout].

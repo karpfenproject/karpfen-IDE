@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.session.DocumentSession
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextRange
@@ -43,11 +44,11 @@ import io.karpfen.ide.notation.sync.DiagramState
 import io.karpfen.ide.notation.sync.DiagramTracker
 import io.karpfen.ide.notation.sync.VisFiles
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
-import java.nio.file.Path
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.nio.file.Path
 
 /**
  * The diagram of the model file [modelFile], whose text [session] holds. [kind] says which diagram that is. It must
@@ -72,7 +73,8 @@ import kotlinx.coroutines.withContext
  * A code cell that the user opens holds [cellEditor], the editor of the host, or a plain text field without one.
  *
  * The context menu of the diagram changes the model. Every such change is one edit of the text of [session], which
- * the editor can undo like any other. It is only made while the diagram shows the current text.
+ * the editor can undo like any other. It is only made while the diagram shows the current text. It offers the
+ * constructs of an optional language feature of KStates only while that feature is among [languageFeatures].
  */
 @Composable
 public fun DiagramPane(
@@ -83,14 +85,16 @@ public fun DiagramPane(
     reloadKey: Any? = null,
     live: DiagramLive? = null,
     cellEditor: DiagramCellEditor? = null,
+    languageFeatures: Set<KstatesFeature> = emptySet(),
     onSelect: (TextRange) -> Unit = {},
     onLayoutSaved: () -> Unit = {},
 ) {
-    when (kind) {
-        DiagramKind.STATECHART -> NotationPane(DiagramNotation.STATECHART, session, modelFile, modifier, reloadKey, live, cellEditor, onSelect, onLayoutSaved)
-        DiagramKind.TYPES -> NotationPane(DiagramNotation.TYPES, session, modelFile, modifier, reloadKey, live, cellEditor, onSelect, onLayoutSaved)
-        DiagramKind.OBJECTS -> NotationPane(DiagramNotation.OBJECTS, session, modelFile, modifier, reloadKey, live, cellEditor, onSelect, onLayoutSaved)
+    val notation = when (kind) {
+        DiagramKind.STATECHART -> DiagramNotation.STATECHART
+        DiagramKind.TYPES -> DiagramNotation.TYPES
+        DiagramKind.OBJECTS -> DiagramNotation.OBJECTS
     }
+    NotationPane(notation, session, modelFile, modifier, reloadKey, live, cellEditor, languageFeatures, onSelect, onLayoutSaved)
 }
 
 /** The pane of a diagram of the kind [notation]. It ties the view to the text of [session] and to the companion file. */
@@ -103,6 +107,7 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
     reloadKey: Any?,
     live: DiagramLive?,
     cellEditor: DiagramCellEditor?,
+    languageFeatures: Set<KstatesFeature>,
     onSelect: (TextRange) -> Unit,
     onLayoutSaved: () -> Unit,
 ) {
@@ -132,7 +137,7 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
                 session.text.apply(made.edits, EditOrigin.Command(DIAGRAM_EDIT)) != null
         }
     }
-    DiagramView(notation, state, editing, modifier, onSelect, change, live?.active.orEmpty(), cellEditor)
+    DiagramView(notation, state, editing, modifier, onSelect, change, live?.active.orEmpty(), cellEditor, languageFeatures)
 }
 
 /**
@@ -140,7 +145,8 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
  * when there is none, and shows the note of a stale diagram over the drawing.
  *
  * A change the user makes to the model through the diagram goes to [onChange] as edits of the text the diagram was
- * derived from. It answers whether the text took the change.
+ * derived from. It answers whether the text took the change. The context menu offers what the notation's actions
+ * offer while [languageFeatures] are switched on.
  *
  * A failure inside the view does not reach the window. What failed is left out, and a second note over the drawing
  * says what went wrong. Its text can be selected and copied. See [DiagramFaults].
@@ -155,6 +161,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
     onChange: (DiagramChange) -> Boolean = { false },
     active: Set<String> = emptySet(),
     cellEditor: DiagramCellEditor? = null,
+    languageFeatures: Set<KstatesFeature> = emptySet(),
 ) {
     val colors = KarpfenTheme.colors
     val diagram = state.diagram
@@ -169,7 +176,8 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
                 modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(DiagramViewTestTags.EMPTY),
             )
         } else {
-            DiagramCanvas(notation, diagram, editing, faults, state.source?.text, active, cellEditor, onChange, onSelect)
+            val actions = remember(notation, languageFeatures) { notation.actions(languageFeatures) }
+            DiagramCanvas(notation, actions, diagram, editing, faults, state.source?.text, active, cellEditor, onChange, onSelect)
         }
         val fault = state.problem?.let { "The diagram could not be derived from the text: $it. This is the last diagram that could." } ?: faults.note
         Column(

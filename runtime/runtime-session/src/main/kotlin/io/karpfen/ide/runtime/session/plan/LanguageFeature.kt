@@ -15,47 +15,31 @@
  */
 package io.karpfen.ide.runtime.session.plan
 
-import io.karpfen.dsl.states.History
-import io.karpfen.dsl.states.State
-import io.karpfen.dsl.states.StateMachine
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 
 /**
- * A language feature of the runtime: a feature that gives meaning to words of a state machine text. The runtime reads
- * these words in every environment but applies them only where the feature is on. Each entry knows the runtime's name
- * of the feature and which states use it, so a deployment switches on exactly the features its machines need.
+ * The runtime side of the optional language features of KStates. The runtime reads the words of every feature in every
+ * environment, but it applies a history only where its feature `History` is on and a tick limit only where `TickLimit`
+ * is on. A deployment therefore switches on the runtime features of the language features that are switched on for
+ * the project, whether the machines use them or not.
  *
- * The entries are declared in the order a deployment switches them on.
- *
- * @property featureName the runtime's name of the feature.
+ * Breakpoints switch nothing on, because the IDE has no debugger and could not resume a halted run. Macros and splits
+ * and joins have no runtime feature.
  */
-internal enum class LanguageFeature(val featureName: FeatureName) {
-    /** `SHALLOW HISTORY` and `DEEP HISTORY`, used by a state whose history is not [History.NONE]. */
-    HISTORY(FeatureName.HISTORY) {
-        override fun isUsedBy(state: State): Boolean = state.history != History.NONE
-    },
+internal object LanguageFeature {
 
-    /** The `DELAY` and the `TIMEOUT` of a `TICK LIMIT` block, used by a state that has either of them. */
-    TICK_LIMIT(FeatureName.TICK_LIMIT) {
-        override fun isUsedBy(state: State): Boolean = state.delay != null || state.timeout != null
-    },
-    ;
-
-    /** True if [state] itself uses this feature. Its nested states are not looked at. */
-    abstract fun isUsedBy(state: State): Boolean
-
-    /** True if a state of [machine], at any depth, uses this feature. */
-    fun isUsedBy(machine: StateMachine): Boolean = machine.states.any { isUsedAnywhereIn(it) }
-
-    /** True if [state] or one of the states nested in it, at any depth, uses this feature. */
-    private fun isUsedAnywhereIn(state: State): Boolean = isUsedBy(state) || state.innerStates.any { isUsedAnywhereIn(it) }
-
-    companion object {
-        /**
-         * The names of the language features that [machines] use, in the order of the entries, each once. It is empty
-         * if no machine uses a language feature.
-         */
-        fun requiredBy(machines: Collection<StateMachine>): List<FeatureName> =
-            entries.filter { feature -> machines.any { feature.isUsedBy(it) } }.map { it.featureName }
+    /** The runtime feature that [feature] switches on, or null if it switches none on. */
+    fun runtimeFeatureOf(feature: KstatesFeature): FeatureName? = when (feature) {
+        KstatesFeature.HISTORY -> FeatureName.HISTORY
+        KstatesFeature.TICK_LIMIT -> FeatureName.TICK_LIMIT
+        KstatesFeature.BREAKPOINTS, KstatesFeature.MACROS, KstatesFeature.PARALLEL -> null
     }
+
+    /**
+     * The runtime features that the switched-on [features] need, each once, in the order of the entries of
+     * [KstatesFeature], which is the order a deployment switches them on. It is empty if none of them needs one.
+     */
+    fun runtimeFeaturesOf(features: Set<KstatesFeature>): List<FeatureName> =
+        KstatesFeature.entries.filter { it in features }.mapNotNull(::runtimeFeatureOf).distinct()
 }

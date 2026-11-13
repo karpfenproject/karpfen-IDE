@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.dsl.DslReader
@@ -24,6 +25,7 @@ import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.analysis.AnalysisSources
+import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
@@ -193,8 +195,13 @@ class WorkspaceDocumentsTest {
         var holding = false
         val languages = defaultLanguageRegistry()
         val real = ProjectAnalyzer(languages, DslReader())
-        val gated = ProjectAnalyzer { resolution: ContextResolution, sources: AnalysisSources, generation: Long ->
-            real.analyze(resolution, sources, generation).also { if (holding) gate.await() }
+        val gated = object : ProjectAnalyzer {
+            override suspend fun analyze(
+                resolution: ContextResolution,
+                sources: AnalysisSources,
+                generation: Long,
+                languageFeatures: Set<KstatesFeature>,
+            ): ProjectAnalysis = real.analyze(resolution, sources, generation, languageFeatures).also { if (holding) gate.await() }
         }
         val workspace = TestWorkspaces(this).open(root, analyzer = gated)
         val before = workspace.openDocument(model)

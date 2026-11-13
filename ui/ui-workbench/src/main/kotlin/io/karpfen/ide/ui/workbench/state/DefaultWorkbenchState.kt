@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.state
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
@@ -37,7 +38,6 @@ import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
-import java.nio.file.Path
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import java.nio.file.Path
 
 /**
  * The default [WorkbenchState]. It creates the sub-states and coordinates them, following the Mediator pattern.
@@ -78,9 +79,11 @@ import kotlinx.coroutines.flow.stateIn
  *   zoom, the layout of the tool windows, the runtime choice and the open files, all stored in the folder's
  *   `.karpfenproject`.
  * - [RuntimeHolder] owns the runtime state of the workspace and uses [WorkbenchRunSupport] to reach the workbench.
- * - [WorkbenchCommands], [RuntimeCommands] and [EditorCommands] register the commands through a
- *   [ModalCommandRegistry]. They cover enablement including the focus rule, the recent folders, the tool window
- *   toggles, and the editor commands with their `EditorActionTitles` and the `WorkbenchServices.editorKeymap`.
+ * - [LanguageFeatureBinding] hands the language features of the project settings to the workspace and switches them.
+ * - [WorkbenchCommands], [RuntimeCommands], [EditorCommands] and [LanguageFeatureCommands] register the commands
+ *   through a [ModalCommandRegistry]. They cover enablement including the focus rule, the recent folders, the tool
+ *   window toggles, the switches of the language features, and the editor commands with their `EditorActionTitles`
+ *   and the `WorkbenchServices.editorKeymap`.
  *
  * The collaborators see editors only as `EditorHandle`. All work runs in a supervisor child scope of [scope], which
  * [close] cancels.
@@ -138,10 +141,12 @@ internal class DefaultWorkbenchState(
     private val fileOperations = FileOperationFlows(
         holder, tabs, lifecycle, fileOpen, projectTree, dialogs, services.fileOperations, services.templates, services.ioDispatcher,
     )
+    private val languageFeatures = LanguageFeatureBinding(holder, services.settings)
     private val renames = RenameFlow(holder, tabs, lifecycle, unsaved, projectTree, dialogs, services.fileOperations, services.ioDispatcher)
 
     init {
         bindings.start()
+        languageFeatures.start(ownScope)
     }
 
     override suspend fun start() {
@@ -213,6 +218,10 @@ internal class DefaultWorkbenchState(
         services.settings.update { it.copy(editorFontSize = Zoom.editorFontSize(it.editorFontSize, step)) }
     }
 
+    override fun switchLanguageFeature(feature: KstatesFeature, on: Boolean): Job = runner.launch("switch language feature") {
+        languageFeatures.switch(feature, on)
+    }
+
     override suspend fun requestExit(): Boolean = runner.exclusive {
         unsaved.confirm(tabs.documents()).also { mayExit ->
             if (mayExit) {
@@ -233,6 +242,7 @@ internal class DefaultWorkbenchState(
         WorkbenchCommands(ownScope, this, tabs, layout, problems, services.settings).register(modal)
         RuntimeCommands(ownScope, runtimes.state, layout) { configureBridge() }.register(modal)
         EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(modal)
+        LanguageFeatureCommands(ownScope, this, holder.workspace, services.settings).register(modal)
     }
 
     override fun close() {

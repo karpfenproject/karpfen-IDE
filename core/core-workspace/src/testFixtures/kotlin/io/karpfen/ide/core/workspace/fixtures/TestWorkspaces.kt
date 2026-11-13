@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.workspace.fixtures
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
@@ -49,14 +50,27 @@ public class TestWorkspaces(private val scope: TestScope) {
         timeSource = TestTimeSource(),
     )
 
-    /** Opens [root] in the test's background scope, watching through [watcher] if [watch]. */
-    public fun open(root: Path, watch: Boolean = false, analyzer: ProjectAnalyzer? = null): Workspace {
+    /**
+     * Opens [root] in the test's background scope, watching through [watcher] if [watch], with [languageFeatures]
+     * switched on. All language features are off unless a test switches them on.
+     */
+    public fun open(
+        root: Path,
+        watch: Boolean = false,
+        analyzer: ProjectAnalyzer? = null,
+        languageFeatures: Set<KstatesFeature> = emptySet(),
+    ): Workspace {
         val languages = defaultLanguageRegistry()
         return Workspace(
             root, scope.backgroundScope, options(watch), languages,
             fileWatcher = watcher,
             analyzer = analyzer ?: ProjectAnalyzer(languages, DslReader()),
-        )
+        ).also { it.setLanguageFeatures(languageFeatures) }
+    }
+
+    public companion object {
+        /** Every optional language feature of KStates, for tests whose files use them. */
+        public val ALL_FEATURES: Set<KstatesFeature> = KstatesFeature.entries.toSet()
     }
 }
 

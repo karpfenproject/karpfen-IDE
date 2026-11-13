@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
 import androidx.compose.ui.window.MenuScope
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
@@ -40,8 +41,10 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
  * Copy, Paste, Select All, Find, Replace, Find Next, Find Previous, Toggle Comment, Duplicate Line and Complete Code.
  * View holds one toggle per entry of `ToolWindowId.entries`, the Runtime tool window among them, with the entry's
  * `title` and the command `WorkbenchCommandIds.toggleToolWindow(id)`, followed by the light and the dark theme.
- * Navigate holds Go to Line and Go to Definition. Run holds Run, Stop, Start Runtime, Stop Runtime and Configure
- * Bridge. The items refer to `WorkbenchCommandIds`, `EditorActionIds` and `RuntimeCommandIds`.
+ * Navigate holds Go to Line and Go to Definition. Run holds Run, Stop, Start Runtime, Stop Runtime, Configure Bridge
+ * and the submenu Language Features. That submenu holds one switch per entry of `KstatesFeature.entries`, with the
+ * command `WorkbenchCommandIds.languageFeature(feature)`, whose title says whether it switches the feature on or off.
+ * The items refer to `WorkbenchCommandIds`, `EditorActionIds` and `RuntimeCommandIds`.
  *
  * Menus hold command ids only. Titles, shortcuts and enablement come from the registered commands. The workbench
  * registers the tool-window toggles with `ToolWindowId.title` and the editor commands with `EditorActionTitles`. Edit
@@ -66,6 +69,9 @@ public object IdeMenus {
 
     /** Title of the File menu's submenu of recent folders. */
     public const val OPEN_RECENT: String = "Open Recent"
+
+    /** Title of the Run menu's submenu that switches the optional language features of the project on and off. */
+    public const val LANGUAGE_FEATURES: String = "Language Features"
 
     /**
      * The menu structure. The Open Recent submenu has [recentFolderCount] items, which refer to the commands
@@ -139,6 +145,8 @@ public object IdeMenus {
             item(RuntimeCommandIds.STOP_RUNTIME),
             MenuEntry.Separator,
             item(RuntimeCommandIds.CONFIGURE_BRIDGE),
+            MenuEntry.Separator,
+            MenuEntry.Submenu(LANGUAGE_FEATURES, KstatesFeature.entries.map { item(WorkbenchCommandIds.languageFeature(it)) }),
         ),
     )
 

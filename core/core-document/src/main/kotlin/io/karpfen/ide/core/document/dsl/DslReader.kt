@@ -21,6 +21,7 @@ import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.dsl.reader.kmeta.KmetaReader
 import io.karpfen.dsl.reader.kmodel.KmodelReader
 import io.karpfen.dsl.reader.kstates.KstatesReader
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.Severity
@@ -70,15 +71,20 @@ public interface DslReader {
     /** Reads a `.kmodel` file against [metamodel]. */
     public fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model>
 
-    /** Reads a `.kstates` file. */
-    public fun kstates(source: TextSnapshot): ReadResult<StateMachine>
+    /**
+     * Reads a `.kstates` file. [features] are the optional features of KStates the text may use. The reader reports
+     * every construct of another feature as an error with code `kstates.feature-off` at the keyword that introduces it,
+     * and still builds the construct into the state machine. Every feature is on by default, which is how the
+     * standalone semantics of a file read it.
+     */
+    public fun kstates(source: TextSnapshot, features: Set<KstatesFeature> = KstatesFeature.ALL): ReadResult<StateMachine>
 }
 
 /** The default [DslReader] over the readers of dsl-tools. */
 public fun DslReader(): DslReader = DefaultDslReader(
     kmetaReader = ::KmetaReader,
     kmodelReader = ::KmodelReader,
-    kstatesReader = KstatesReader(),
+    kstatesReader = ::KstatesReader,
 )
 
 /**

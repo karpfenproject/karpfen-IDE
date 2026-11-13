@@ -15,11 +15,13 @@
  */
 package io.karpfen.ide.ui.workbench.settings
 
+import io.karpfen.dsl.states.KstatesFeature
+
 /**
  * The settings that belong to one project, which is the folder the IDE has open. They are stored in the file
  * `.karpfenproject` in that folder, so a project carries them along when it is copied or checked out on another
  * machine. They are the look of the workbench, the layout of its tool windows, how the runtime is reached, which
- * files are open, and which bridges were started with the last run.
+ * files are open, which bridges were started with the last run, and which optional language features are switched on.
  *
  * Nothing in here depends on the machine. The open files are named relative to the project folder with forward
  * slashes. The place of the window on the screen and the recent folders stay in the settings of the user.
@@ -32,6 +34,8 @@ package io.karpfen.ide.ui.workbench.settings
  * @property openFiles the files that are open in tabs, in the order of the tabs.
  * @property activeFile the file of the active tab, or null if no tab is open.
  * @property bridges the bridge files that were started with the last run, named like the open files.
+ * @property languageFeatures the optional language features of KStates that are switched on for the project. All are
+ *   off by default.
  * @property otherLines the lines of the file that this version does not understand. They are written back unchanged,
  *   so a project file that a newer version wrote loses nothing.
  */
@@ -44,6 +48,7 @@ public data class ProjectSettings(
     public val openFiles: List<String> = emptyList(),
     public val activeFile: String? = null,
     public val bridges: List<String> = emptyList(),
+    public val languageFeatures: Set<KstatesFeature> = emptySet(),
     public val otherLines: List<String> = emptyList(),
 ) {
     public companion object {
@@ -55,7 +60,8 @@ public data class ProjectSettings(
 /** The part of these settings that belongs to the open project. */
 public val IdeSettings.project: ProjectSettings
     get() = ProjectSettings(
-        theme, uiScale, editorFontSize, toolWindows, runtime, openFiles, activeFile, activeBridges, otherProjectLines,
+        theme, uiScale, editorFontSize, toolWindows, runtime, openFiles, activeFile, activeBridges, languageFeatures,
+        otherProjectLines,
     )
 
 /** These settings with the project part replaced by [project]. The recent folders and the window bounds stay. */
@@ -68,5 +74,6 @@ public fun IdeSettings.withProject(project: ProjectSettings): IdeSettings = copy
     openFiles = project.openFiles,
     activeFile = project.activeFile,
     activeBridges = project.bridges,
+    languageFeatures = project.languageFeatures,
     otherProjectLines = project.otherLines,
 )

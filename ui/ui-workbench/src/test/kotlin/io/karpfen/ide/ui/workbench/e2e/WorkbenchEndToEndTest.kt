@@ -24,6 +24,7 @@ import io.karpfen.ide.core.workspace.files.FileChangeKind
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.workbench.problems.ProblemItem
+import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
@@ -56,6 +57,7 @@ class WorkbenchEndToEndTest {
 
     private fun scenario(block: suspend ProductionWorkbench.() -> Unit) = runTest(timeout = 120.seconds) {
         Examples.copyTo(root)
+        switchOnLanguageFeatures(root)
         workbench().use { workbench ->
             workbench.open(root)
             workbench.block()

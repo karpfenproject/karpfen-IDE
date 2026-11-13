@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.core.lang.fixtures
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.dsl.DslReader
@@ -45,7 +46,8 @@ import java.util.Collections
  * documented on `ProjectAnalysis`, but without the analyzer of the workspace. Paths are absolute and normalized. Each
  * file gets `TextSnapshot(text, 0)` with a lineage of its own. Parses are syntax only and come from
  * `defaultLanguageRegistry()`. Reads go through the `DslReader` of core-document. The events file is read with the
- * domain types as base types. Events and models are read only against a domain metamodel without errors.
+ * domain types as base types. Events and models are read only against a domain metamodel without errors. Every
+ * optional language feature of KStates is switched on, as the examples use them.
  */
 object ExampleProject {
 
@@ -117,7 +119,7 @@ object ExampleProject {
                 stateMachines = machines,
             )
         }
-        return ProjectAnalysis(generation, analyses, diagnostics)
+        return ProjectAnalysis(generation, analyses, diagnostics, languageFeatures = KstatesFeature.entries.toSet())
     }
 
     /** The analyzed file at [path] with [text], at version 0, with a lineage of its own and a syntax-only parse. */

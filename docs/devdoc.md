@@ -433,9 +433,16 @@ independent.
 
 Read `DeployStepKind` and the `deploy` package of runtime-session. A deployment checks the runtime, creates the
 environment, connects, uploads the files, attaches the state machines, sets the timing, listens to the domains,
-switches on the runtime features its state machines need, activates, starts observing and starts. `LanguageFeature`
-knows which words of a state machine need which feature: a history needs History, a delay or a timeout needs
-TickLimit. The runtime reads these words in every environment but applies them only where the feature is on. Problems carry a code, such as `deploy-unsaved-file` or
+switches on the runtime features of the project, activates, starts observing and starts.
+
+Histories, tick limits, breakpoints, macros, and splits and joins are optional features of the state machine
+language, listed by dsl-tools' `KstatesFeature`. A project switches them on by hand, and `.karpfenproject` stores
+each one that is on as a line `feature.<id> = on`. `LanguageFeatureBinding` hands the set to the workspace, which
+analyzes again when it changes. The analysis passes it to dsl-tools' `KstatesReader`, which reports every construct
+of a feature that is off as the error `kstates.feature-off`. That error blocks a run like any other. Completion and
+the statechart menu read the set and leave out what is off. `LanguageFeature` in runtime-session maps what is on to
+runtime features: histories to History, tick limits to TickLimit. The runtime reads the words of these two in every
+environment but applies them only where its feature is on. The other three need nothing in the runtime. Problems carry a code, such as `deploy-unsaved-file` or
 `deploy-reference-loop`.
 
 The runtime reads uploads with its older parser, so a text that the IDE reads cleanly may still be rejected without a

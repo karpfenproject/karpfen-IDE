@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.session.events
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.KarpfenLanguage
@@ -198,6 +199,7 @@ class KmodelPayloadFormatTest {
         }
 
         /** Reads the state machine. */
-        override fun kstates(source: TextSnapshot): ReadResult<StateMachine> = delegate.kstates(source)
+        override fun kstates(source: TextSnapshot, features: Set<KstatesFeature>): ReadResult<StateMachine> =
+            delegate.kstates(source, features)
     }
 }

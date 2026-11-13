@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.diagram.DiagramCellEditor
@@ -76,7 +77,9 @@ import java.nio.file.Path
  * [onSelectInText] with the place of its name in the text. The diagram can be arranged by hand, which is stored in a
  * companion file next to the file. The diagram reads that file again whenever [diskRevision] changes, and
  * [onDiagramSaved] is called after it wrote the file. While a model runs, [live] holds what the run adds to the
- * diagram of the active file, such as the active states. An opened code cell of the diagram holds [cellEditor].
+ * diagram of the active file, such as the active states. An opened code cell of the diagram holds [cellEditor]. The
+ * context menu of a statechart offers the constructs of the optional language features in [languageFeatures] only, the
+ * features switched on for the project.
  *
  * The editor and its popups are drawn at the density of the window, not at the zoomed density of the workbench around
  * them. The size of the editor's text therefore depends only on its font size. The tab strip, the banner and the zoom
@@ -109,6 +112,7 @@ internal fun EditorArea(
     modifier: Modifier = Modifier,
     live: DiagramLive? = null,
     cellEditor: DiagramCellEditor? = null,
+    languageFeatures: Set<KstatesFeature> = emptySet(),
 ) {
     val colors = KarpfenTheme.colors
     val popups = remember { EditorPopups() }
@@ -151,6 +155,7 @@ internal fun EditorArea(
                                 reloadKey = diskRevision,
                                 live = live,
                                 cellEditor = cellEditor,
+                                languageFeatures = languageFeatures,
                                 onSelect = onSelectInText,
                                 onLayoutSaved = onDiagramSaved,
                             )

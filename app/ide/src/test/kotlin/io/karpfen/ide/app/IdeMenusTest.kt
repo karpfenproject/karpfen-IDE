@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.app
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.EditorActionTitles
 import io.karpfen.ide.ui.foundation.command.MenuEntry
@@ -114,7 +115,7 @@ class IdeMenusTest {
     }
 
     @Test
-    fun `Run runs and stops, starts and stops the runtime, and configures a bridge`() {
+    fun `Run runs and stops, starts and stops the runtime, configures a bridge and switches language features`() {
         assertEquals(
             listOf(
                 RuntimeCommandIds.RUN,
@@ -122,8 +123,20 @@ class IdeMenusTest {
                 RuntimeCommandIds.START_RUNTIME,
                 RuntimeCommandIds.STOP_RUNTIME,
                 RuntimeCommandIds.CONFIGURE_BRIDGE,
-            ),
+            ) + KstatesFeature.entries.map(WorkbenchCommandIds::languageFeature),
             menu(IdeMenus.RUN).itemIds(),
+        )
+        val features = menu(IdeMenus.RUN).entries.filterIsInstance<MenuEntry.Submenu>().single()
+        assertEquals(IdeMenus.LANGUAGE_FEATURES, features.title)
+        assertEquals(
+            listOf(
+                "workbench.languageFeature.history",
+                "workbench.languageFeature.tickLimit",
+                "workbench.languageFeature.breakpoints",
+                "workbench.languageFeature.macros",
+                "workbench.languageFeature.parallel",
+            ),
+            features.itemIds(),
         )
         val view = menu(IdeMenus.VIEW).itemIds()
         assertTrue(WorkbenchCommandIds.toggleToolWindow(ToolWindowId.RUNTIME) in view, "the Runtime toggle is in View: $view")

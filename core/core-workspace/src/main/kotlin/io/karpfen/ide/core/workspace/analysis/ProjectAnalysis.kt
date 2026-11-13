@@ -17,6 +17,7 @@ package io.karpfen.ide.core.workspace.analysis
 
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.parse.ParseOutcome
@@ -52,12 +53,16 @@ import java.nio.file.Path
  * @property looseFiles the karpfen sources of the tree that belong to no context, as listed in
  *   `ContextResolution.looseFiles`. They are analyzed for syntax only. dsl-tools never reads them, but their syntax
  *   errors still appear in the problems.
+ * @property languageFeatures the optional features of KStates that were switched on for this analysis. dsl-tools
+ *   reported every construct of another feature in a state machine it read as an error `kstates.feature-off` in
+ *   [diagnostics]. A deployment switches on the runtime features of these, and completion offers their constructs.
  */
 public data class ProjectAnalysis(
     public val generation: Long,
     public val contexts: List<ContextAnalysis>,
     public val diagnostics: Map<Path, List<Diagnostic>>,
     public val looseFiles: Map<Path, AnalyzedFile> = emptyMap(),
+    public val languageFeatures: Set<KstatesFeature> = emptySet(),
 ) {
     /** The first context containing [path], or null. */
     public fun contextOf(path: Path): ContextAnalysis? = contexts.firstOrNull { path in it.context }
