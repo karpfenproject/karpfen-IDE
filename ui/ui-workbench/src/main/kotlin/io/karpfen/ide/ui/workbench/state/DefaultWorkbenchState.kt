@@ -102,10 +102,11 @@ internal class DefaultWorkbenchState(
         ProjectTreeState(ProjectTreeMenu(services.platform) { services.fileOperations.supportsRevealInFileManager })
     override val tabs: EditorTabsState = EditorTabsState(ownScope)
     override val outline: OutlineState = OutlineState(ownScope)
-    override val problems: ProblemsState = ProblemsState(ownScope)
+    override val dialogs: DialogState = DialogState()
+    override val validation: ValidationState = ValidationState(ownScope, holder.workspace, dialogs)
+    override val problems: ProblemsState = ProblemsState(ownScope, validation.lastReport)
     override val statusBar: StatusBarState = StatusBarState(ownScope)
     override val output: OutputState = OutputState(ownScope, services.languageToolsOutput)
-    override val dialogs: DialogState = DialogState()
     override val layout: LayoutState = LayoutState()
 
     override val workspace: StateFlow<Workspace?> get() = holder.workspace
@@ -114,7 +115,6 @@ internal class DefaultWorkbenchState(
     override val windowTitle: StateFlow<String> get() = holder.windowTitle
     override val runtime: StateFlow<RuntimeState?> get() = runtimes.state
     override val bridgeForm: StateFlow<BridgeFormState?> get() = bridgeForms.form
-    override val validation: ValidationState = ValidationState(ownScope, holder.workspace, dialogs)
 
     private val runner = IntentRunner(ownScope) { intent, error ->
         dialogs.showError("Unexpected error", "'$intent' failed: ${error.message ?: error}")

@@ -84,8 +84,10 @@ refer to.
   with a signal only.
 - On Windows the packaged application is built with a console, so that the commands without a window can print.
   Nobody has built or tried it on Windows. Opening the window there also opens a console window.
-- A validation reports only in its dialog. Its findings across files are not in the Problems view and not underlined
-  in the editor, and the dialog does not lead to their places.
+- The findings of a validation across files stand in the group Global of the Problems view. They are not underlined
+  in the editor, and the dialog of a validation does not lead to their places.
+- The Problems view closes itself when it has nothing to show. So in a project without problems the group Global
+  cannot be seen before the first validation.
 - The copies of the dsl-tools example in the test fixtures are older than the example itself. The copy of the robot
   still sets relations with `SET`, which the verifier reports, so validating the fixtures finds four errors.
 - A model or metamodel file that belongs to no modeling context is checked for its syntax only. dsl-tools does not

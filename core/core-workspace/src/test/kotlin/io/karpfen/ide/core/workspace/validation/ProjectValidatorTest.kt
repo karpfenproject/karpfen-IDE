@@ -17,10 +17,15 @@ package io.karpfen.ide.core.workspace.validation
 
 import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticCodes
+import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.dsl.DslVerifier
 import io.karpfen.ide.core.document.dsl.VerificationInput
+import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
+import io.karpfen.ide.core.workspace.problems.FileProblems
+import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -28,14 +33,16 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * The validation of a whole project through `Workspace.validate`, on small projects on disk. It covers the findings of
  * the analysis together with the checks across files of dsl-tools, the object a descriptor attaches a machine to, the
- * order of the report with its one-based positions, the findings of a loose state machine, and that the continuous
- * analysis never runs the checks across files. A recording verifier shows what [ContextVerification] hands over for each context.
+ * order of the report with its one-based positions, the findings of a loose state machine, the global part of the
+ * report with the findings only the validation finds, and that the continuous analysis never runs the checks across
+ * files. A recording verifier shows what [ContextVerification] hands over for each context.
  */
 class ProjectValidatorTest {
 
@@ -70,6 +77,55 @@ class ProjectValidatorTest {
             assertAt(machine, report.findings[0], "colour")
             assertAt(machine, report.findings[2], "lost")
             assertEquals(2, report.findings[1].line, "the syntax error at the end of the broken metamodel")
+        }
+
+    @Test
+    fun `the findings of the verifier form the global part, per file with their ranges in the analyzed text`() =
+        runTest(timeout = 60.seconds) {
+            val machine = writeLamp(root.resolve("lamp"))
+            val broken = Files.createDirectories(root.resolve("zz")).resolve("broken.kmeta")
+            Files.writeString(broken, "type \"B\" \"b\" {\n")
+            val workspace = TestWorkspaces(this).open(root)
+
+            val report = workspace.validate()
+            val analyzed = workspace.analysis.value.files.getValue(machine)
+
+            val global = report.global.single()
+            assertEquals(machine, global.path)
+            assertEquals(FileKind.KSTATES, global.kind)
+            assertFalse(global.isOpen)
+            assertSame(analyzed.snapshot, global.snapshot, "the version and the lineage of the analyzed text")
+            assertEquals(listOf(UNKNOWN_PATH, UNREACHABLE), global.diagnostics.map { it.code })
+            assertEquals(global.diagnostics.sortedWith(Diagnostic.ORDER), global.diagnostics)
+            val text = Files.readString(machine)
+            assertEquals(listOf(text.indexOf("colour"), text.indexOf("lost")), global.diagnostics.map { it.range.start })
+            assertEquals(
+                report.findings.filter { it.code.startsWith(PROJECT_CHECKS) },
+                global.diagnostics.map { ValidationFinding.of(machine, it, global.positionOf(it)) }.sortedWith(ValidationFinding.ORDER),
+                "each global diagnostic is one finding of the flat list",
+            )
+            assertTrue(report.findings.any { it.path == broken }, "the syntax error is a finding but not global")
+        }
+
+    @Test
+    fun `a finding the analysis already has, or one the verifier reports twice, is global at most once`() =
+        runTest(timeout = 60.seconds) {
+            val machine = writeLamp(root, machine = CLEAN_MACHINE)
+            val workspace = TestWorkspaces(this).open(root)
+            val analysis = workspace.awaitAnalysis()
+            val snapshot = analysis.files.getValue(machine).snapshot
+            val known = Diagnostic(TextRange(0, 3), Severity.WARNING, "known", "project.known", DiagnosticSource.DSL_TOOLS)
+            val fresh = Diagnostic(TextRange(4, 6), Severity.ERROR, "fresh", "project.fresh", DiagnosticSource.DSL_TOOLS)
+            val problems = WorkspaceProblems(1, listOf(FileProblems(machine, FileKind.KSTATES, listOf(known), snapshot, isOpen = false)))
+            val verifier = object : DslVerifier {
+                override fun verify(input: VerificationInput): List<List<Diagnostic>> =
+                    input.stateMachines.map { listOf(fresh, known, fresh) }
+            }
+
+            val report = DefaultProjectValidator(ContextVerification(verifier)).validate(root, analysis, problems)
+
+            assertEquals(listOf(fresh), report.global.single().diagnostics)
+            assertEquals(listOf("project.fresh", "project.known"), report.findings.map { it.code }, "each finding once, errors first")
         }
 
     @Test

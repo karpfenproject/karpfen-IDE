@@ -40,11 +40,14 @@ import io.karpfen.ide.core.workspace.files.FileChangeKind
 import io.karpfen.ide.ui.foundation.widgets.StatusBarTestTags
 import io.karpfen.ide.ui.foundation.widgets.TabStripTestTags
 import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.dialog.view.WorkbenchDialogTestTags
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.output.OutputLevel
 import io.karpfen.ide.ui.workbench.output.view.OutputViewTestTags
 import io.karpfen.ide.ui.workbench.problems.view.ProblemKey
+import io.karpfen.ide.ui.workbench.problems.view.ProblemSection
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsViewTestTags
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettings
@@ -217,7 +220,7 @@ class WorkbenchUiTest {
     }
 
     @Test
-    fun `double-clicking a problem navigates to it, also into a descriptor`() = workbenchUiTest(dir) {
+    fun `double-clicking a problem navigates to it, also into a descriptor, and on a file group folds it`() = workbenchUiTest(dir) {
         TestWorkbench.write(root.resolve("broken/broken.kmeta"), "type \"A\" \"a\" {\n    oops\n}\n")
         DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
         switchOnLanguageFeatures(root)
@@ -230,19 +233,40 @@ class WorkbenchUiTest {
         settle()
         test.onNodeWithText("broken/broken.kmeta (3)").assertIsDisplayed()
 
-        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(broken, 0))).performMouseInput { doubleClick() }
+        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(ProblemSection.LOCAL, broken, 0))).performMouseInput { doubleClick() }
         settle()
         assertEquals(broken, workbench.state.tabs.active.value)
         val editor = assertNotNull(workbench.state.tabs.editorFor(broken))
         assertEquals(Files.readString(broken).indexOf("oops"), editor.caret.primary.position)
 
         val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
-        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(descriptor, 0))).performMouseInput { doubleClick() }
+        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Group(ProblemSection.LOCAL, broken))).performMouseInput { doubleClick() }
+        settle()
+        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(ProblemSection.LOCAL, broken, 0))).assertDoesNotExist()
+        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(ProblemSection.LOCAL, descriptor, 0))).performMouseInput { doubleClick() }
         settle()
         assertEquals(descriptor, workbench.state.tabs.active.value)
         val descriptorEditor = assertNotNull(workbench.state.tabs.editorFor(descriptor))
         assertEquals(Files.readString(descriptor).indexOf("missing.kmodel"), descriptorEditor.caret.primary.position)
         assertEquals(emptyList(), workbench.fileOperations.openedExternally)
+    }
+
+    @Test
+    fun `the findings of a validation show below the Global node and a double-click navigates to one`() = workbenchUiTest(dir) {
+        openExamples()
+        workbench.state.validation.validate()
+        workbench.answer(DialogRequest.ValidationReport::class, DialogResponse.Confirm)
+        workbench.state.layout.showToolWindow(ToolWindowId.PROBLEMS)
+        settle()
+        test.onNodeWithText("Local (0)").assertIsDisplayed()
+        test.onNodeWithText("Global (4)").assertIsDisplayed()
+        test.onNodeWithText("cleaning_robot.kstates (4)", substring = true).assertIsDisplayed()
+
+        val first = assertNotNull(workbench.state.problems.state.value.global).single().items.first()
+        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(ProblemSection.GLOBAL, first.path, 0))).performMouseInput { doubleClick() }
+        settle()
+        assertEquals(first.path, workbench.state.tabs.active.value)
+        assertEquals(first.diagnostic.range.start, assertNotNull(workbench.state.tabs.editorFor(first.path)).caret.primary.position)
     }
 
     @Test
@@ -381,12 +405,13 @@ class WorkbenchUiTest {
         val descriptor = root.resolve("ctx").resolve(DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
         workbench.state.layout.showToolWindow(ToolWindowId.PROBLEMS)
         settle()
-        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(descriptor, 1))).assertExists()
+        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(ProblemSection.LOCAL, descriptor, 1))).assertExists()
+        test.onNodeWithText("Global (not validated yet)").assertIsDisplayed()
 
         tagged(ProblemsViewTestTags.filter("warnings")).performClick()
         settle()
         assertEquals(false, workbench.state.problems.state.value.filter.showWarnings)
-        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(descriptor, 1))).assertDoesNotExist()
+        test.onNodeWithTag(TreeViewTestTags.row(ProblemKey.Item(ProblemSection.LOCAL, descriptor, 1))).assertDoesNotExist()
     }
 
     @Test

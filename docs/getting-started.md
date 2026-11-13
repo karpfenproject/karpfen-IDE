@@ -33,7 +33,9 @@ the model and the active states while it runs.
 - The editor colours the text and underlines errors within a second. The Outline shows what the active file is
   made of: the types of a metamodel, the objects of a model, the states and transitions of a state machine. Resting the mouse on a name shows what it is.
 - The label `Problems` at the left of the status bar gets a red icon and a number when the folder has problems. A
-  click opens the list.
+  click opens the list. It has two groups. Local holds what the editor finds while you type. Global holds what only
+  a validation of the whole project finds, see [Validating](#validating). A double-click on a problem leads to its
+  place.
 - The karpfen files of one folder are checked as one system. A descriptor says exactly which files belong together.
   Without one, the events must be in `EVENTS.kmeta`, and the metamodel is the other `.kmeta` file.
 - To create a descriptor, right-click a folder in the Project tool window and choose New Environment File.
@@ -56,6 +58,10 @@ only happens when you ask for it.
   fit their use, and whether every state can be reached.
 - Every run validates the project first. An error anywhere in the project blocks the run, and the dialog says so in
   its title. Warnings do not block a run and open no dialog.
+- After the dialog is closed the findings stay in the Problems list. What only a validation finds stands in the group
+  Global, which reads `Global (not validated yet)` before the first validation. Validate, Run > Validate Project and
+  every run fill it anew. It keeps its findings while you edit, until the next validation. These findings are not
+  underlined in the editor.
 - A state machine file that no descriptor uses is checked on its own as well, with the language features of the
   project. An error in it blocks a run like any other. A model or metamodel file that no descriptor uses is checked
   for its syntax only.

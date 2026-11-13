@@ -15,7 +15,10 @@
  */
 package io.karpfen.ide.core.workspace.validation
 
+import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.text.TextPosition
+import io.karpfen.ide.core.workspace.problems.FileProblems
 import java.nio.file.Path
 
 /**
@@ -25,8 +28,17 @@ import java.nio.file.Path
  * @property root the folder of the project, absolute and normalized.
  * @property findings the findings in the order of [ValidationFinding.ORDER]: errors first, then warnings, then the
  *   rest, and within one severity by path, line and column. A finding is listed once.
+ * @property global the findings that only the validation found, in the shape of the problems of the workspace: one
+ *   [FileProblems] per file, sorted by path, each with the diagnostics of the verifier of dsl-tools that are not among
+ *   the problems of the analysis, sorted with `Diagnostic.ORDER`. The snapshot of each entry is the text the analysis
+ *   read, so the ranges, the version and the lineage refer to that text, and `isOpen` is false. Every one of these
+ *   diagnostics is also in [findings], as exactly one finding. The Problems view shows them as its Global group.
  */
-public data class ProjectValidation(public val root: Path, public val findings: List<ValidationFinding>) {
+public data class ProjectValidation(
+    public val root: Path,
+    public val findings: List<ValidationFinding>,
+    public val global: List<FileProblems> = emptyList(),
+) {
 
     /** The number of findings of severity ERROR. */
     public val errorCount: Int get() = findings.count { it.severity == Severity.ERROR }
@@ -57,6 +69,20 @@ public data class ValidationFinding(
     public val message: String,
 ) {
     public companion object {
+        /**
+         * The finding of [diagnostic] in the file at [path], whose range starts at the zero-based [position]. The
+         * finding shows the position one-based.
+         */
+        internal fun of(path: Path, diagnostic: Diagnostic, position: TextPosition): ValidationFinding =
+            ValidationFinding(
+                path = path,
+                line = position.line + 1,
+                column = position.column + 1,
+                severity = diagnostic.severity,
+                code = diagnostic.code,
+                message = diagnostic.message,
+            )
+
         /**
          * The order of the findings of a report: by severity in the order of [Severity], so errors come before
          * warnings, then by path, line, column, code and message. Two findings that compare equal are equal.

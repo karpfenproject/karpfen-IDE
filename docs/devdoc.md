@@ -237,8 +237,13 @@ dsl-tools read results that every `ReadResult` keeps, so no file is read twice. 
 hands it each modeling context: the metamodel, the event definitions, the model if the context has exactly one, and
 each state machine with the object its descriptor attaches it to. `Workspace.validate()` answers a `ProjectValidation`
 with the findings of the analysis and of the verifier, errors first. `ValidationState` in ui-workbench runs it for the
-Validate button, for the command Validate Project and before every run, and shows the report in a dialog. An error
-anywhere in the open folder blocks a run.
+Validate button, for the command Validate Project and before every run, shows the report in a dialog and keeps the
+last report. An error anywhere in the open folder blocks a run.
+
+The Problems view has two groups. Local is `Workspace.problems`, which follows every edit. Global is
+`ProjectValidation.global` of the last report: the findings of the verifier that the analysis does not have, per file
+and with the text they were found in, so a double-click finds their place after edits too. The group changes only
+with the next validation. The status bar counts the local problems only.
 
 ### The IDE also runs without a window
 

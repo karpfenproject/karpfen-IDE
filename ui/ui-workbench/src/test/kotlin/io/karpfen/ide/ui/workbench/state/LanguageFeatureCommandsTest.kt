@@ -108,7 +108,7 @@ class LanguageFeatureCommandsTest {
 
         assertEquals(KstatesFeature.ALL - KstatesFeature.MACROS, workspace.languageFeatures.value)
         assertEquals("Switch On Macros", registry.switchOf(KstatesFeature.MACROS).title)
-        val codes = state.problems.state.value.groups.flatMap { group -> group.items.map { it.diagnostic.code } }
+        val codes = state.problems.state.value.local.flatMap { group -> group.items.map { it.diagnostic.code } }
         assertTrue(codes.isNotEmpty() && codes.all { it == "kstates.feature-off" }, "$codes")
         assertFalse("feature.macros = on" in Files.readAllLines(root.resolve(ProjectSettings.FILE_NAME)))
     }

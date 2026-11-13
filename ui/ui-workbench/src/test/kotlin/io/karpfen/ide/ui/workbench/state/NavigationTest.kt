@@ -76,7 +76,7 @@ class NavigationTest {
     }
 
     private fun TestWorkbench.problemsOf(path: Path): List<ProblemItem> =
-        state.problems.state.value.groups.firstOrNull { it.path == path }?.items.orEmpty()
+        state.problems.state.value.local.firstOrNull { it.path == path }?.items.orEmpty()
 
     @Test
     fun `navigating into an unopened file opens it and centres the caret at the range start`() = scenario {

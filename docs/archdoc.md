@@ -355,13 +355,16 @@ code, and all rules live in its test sources.
 6. `AnalysisScheduler` runs the `ProjectAnalyzer` after a quiet time whenever the contexts, a rescan or the text of an
    open document change, and cancels a run that is out of date. `DefaultProjectAnalyzer` reads each context through
    `DslReader` with `ContextReader`: the metamodel first, then the events file with the metamodel's types, each model
-   against the metamodel and each state machine. A file is read only when its syntax is clean, and `RememberedReads`
-   skips a file whose text and metamodel did not change. The result is a `ProjectAnalysis` in `Workspace.analysis`.
+   against the metamodel and each state machine. A loose state machine is read on its own. A file is read only when
+   its syntax is clean, and `RememberedReads` skips a file whose text and metamodel did not change. The result is a
+   `ProjectAnalysis` in `Workspace.analysis`.
 7. `ProjectDiagnosticsPublisher` puts the diagnostics of each analyzed file into its open session. `ProblemsPublisher`
    with `WorkspaceProblemsAggregator` publishes `Workspace.problems`, one rule for every diagnostic of every file. The
-   Problems view and the status bar read this value.
+   status bar reads this value, and the Problems view shows it as its group Local.
 8. A validation is asked for by the Validate button, by a run or by `karpfen-ide validate`. `Workspace.validate()` waits
    for the analysis and lets `ProjectValidator` add what dsl-tools' verifier finds across the files of each context.
+   `ValidationState` keeps the last report, and the Problems view shows what only the verifier found,
+   `ProjectValidation.global`, as its group Global.
 
 ### Running a model
 

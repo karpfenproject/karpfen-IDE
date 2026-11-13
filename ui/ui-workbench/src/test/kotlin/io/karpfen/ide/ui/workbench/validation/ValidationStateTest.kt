@@ -41,7 +41,8 @@ import kotlin.test.assertTrue
 /**
  * Tests [ValidationState] over a [FakeWorkspace] whose validation each test completes when it wants. They cover when a
  * validation can start, the busy state, a second request while one runs, the report dialog, the check before a run
- * that blocks only on errors, and the listeners that hear the report of every check before a run.
+ * that blocks only on errors, the listeners that hear the report of every check before a run, and the last report,
+ * which every validation sets and a change of the workspace clears.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ValidationStateTest {
@@ -202,6 +203,60 @@ class ValidationStateTest {
         assertFalse(check.await())
         assertNull(dialogs.current.value)
         assertFalse(validation.isBusy.value)
+    }
+
+    @Test
+    fun `the last report is kept after the button's validation and after every check before a run`() = runTest {
+        opened.value = workspace
+        val validation = validationIn(this)
+        runCurrent()
+        assertNull(validation.lastReport.value, "nothing validated yet")
+
+        workspace.validation = CompletableDeferred(REPORT)
+        validation.validate()
+        runCurrent()
+        assertEquals(REPORT, validation.lastReport.value, "kept before the dialog is closed")
+        dialogs.respond(DialogResponse.Confirm)
+        runCurrent()
+        assertEquals(REPORT, validation.lastReport.value, "and after")
+
+        val warnings = ProjectValidation(root, listOf(WARNING))
+        workspace.validation = CompletableDeferred(warnings)
+        assertTrue(validation.checkBeforeRun())
+        assertEquals(warnings, validation.lastReport.value, "a check without errors")
+
+        workspace.validation = CompletableDeferred(REPORT)
+        val blocked = async { validation.checkBeforeRun() }
+        runCurrent()
+        assertEquals(REPORT, validation.lastReport.value, "a check with errors")
+        dialogs.respond(DialogResponse.Confirm)
+        assertFalse(blocked.await())
+    }
+
+    @Test
+    fun `the last report is cleared when the workspace changes and not set by a validation of a closed one`() = runTest {
+        opened.value = workspace
+        val validation = validationIn(this)
+        workspace.validation = CompletableDeferred(REPORT)
+        val blocked = async { validation.checkBeforeRun() }
+        runCurrent()
+        dialogs.respond(DialogResponse.Confirm)
+        assertFalse(blocked.await())
+        assertEquals(REPORT, validation.lastReport.value)
+
+        val other = FakeWorkspace(Path.of("/other").toAbsolutePath())
+        opened.value = other
+        runCurrent()
+        assertNull(validation.lastReport.value, "another folder")
+
+        other.validation = CompletableDeferred()
+        validation.validate()
+        runCurrent()
+        opened.value = null
+        runCurrent()
+        other.validation.complete(REPORT)
+        runCurrent()
+        assertNull(validation.lastReport.value, "the report of a folder that is no longer open is dropped")
     }
 
     /** A validation state of [scope] over [opened] and [dialogs]. */

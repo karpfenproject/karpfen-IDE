@@ -142,7 +142,11 @@ class CommandsTest {
             "the checks across files find the SET on relations in the cleaning robot of dsl-tools, and nothing else",
         )
         assertTrue(report.validation.findings.all { it.code == "project.operation-mismatch" && it.severity == Severity.ERROR })
-        assertEquals(0, state.problems.state.value.errorCount, "the continuous analysis does not run the checks across files")
+        assertEquals(0, state.statusBar.state.value.errorCount, "the continuous analysis does not run the checks across files")
+        assertEquals(emptyList(), state.problems.state.value.local)
+        val global = state.problems.state.value.global.orEmpty().flatMap { group -> group.items.map { it.line } }
+        assertEquals(listOf(13, 15, 24, 33), global, "the Problems view shows the findings across files below Global")
+        assertEquals(4, state.problems.state.value.errorCount)
     }
 
     @Test

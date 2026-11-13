@@ -19,11 +19,13 @@ import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.text.TextLineage
 import io.karpfen.ide.core.workspace.Workspace
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.nio.file.Path
@@ -61,30 +63,54 @@ public data class ProblemItem(
     public val location: Location get() = Location(path, diagnostic.range, version, lineage)
 }
 
-/** The problems of one file. [displayPath] is relative to the workspace root. */
+/** The problems of one file, as a group of the Local or the Global node. [displayPath] is relative to the workspace root. */
 public data class ProblemGroup(public val path: Path, public val displayPath: String, public val items: List<ProblemItem>)
 
-/** What the Problems tool window shows. The counts are taken before filtering. */
+/**
+ * What the Problems tool window shows. It has two parts. [local] holds what the continuous analysis finds while the
+ * user types, from `Workspace.problems`. [global] holds what only a validation of the whole project finds, from the
+ * global part of the last report. Both are filtered by [filter].
+ *
+ * @property local the file groups of the Local node, in the order of `WorkspaceProblems.files`. A group whose items
+ *   are all filtered out is absent.
+ * @property global the file groups of the Global node, sorted by path, with the same filtering. Null before the first
+ *   validation of the open folder, and empty after a validation without global findings or whose global findings are
+ *   all filtered out.
+ * @property filter the severity filter.
+ * @property errorCount the number of errors of both parts together, taken before filtering.
+ * @property warningCount the number of warnings of both parts together, taken before filtering.
+ * @property hasFolder true while a folder is open. The view then shows the Local and the Global node.
+ */
 public data class ProblemsUiState(
-    public val groups: List<ProblemGroup> = emptyList(),
+    public val local: List<ProblemGroup> = emptyList(),
+    public val global: List<ProblemGroup>? = null,
     public val filter: ProblemFilter = ProblemFilter(),
     public val errorCount: Int = 0,
     public val warningCount: Int = 0,
+    public val hasFolder: Boolean = false,
 ) {
-    /** True if the view has nothing to show. No group passes the filter, and the workspace has no error or warning. */
-    public val isEmpty: Boolean get() = groups.isEmpty() && errorCount == 0 && warningCount == 0
+    /**
+     * True if the view has nothing to show. No group of either part passes the filter, and neither part has an error
+     * or a warning.
+     */
+    public val isEmpty: Boolean get() = local.isEmpty() && global.isNullOrEmpty() && errorCount == 0 && warningCount == 0
 }
 
 /**
- * The problems of the workspace, grouped by file. It collects `Workspace.problems` in [scope] and maps them through
- * [ProblemsMapping] into groups and items. Each item has a one-based `line:col` from `FileProblems.positionOf` and the
- * version and lineage of the file's snapshot. The class never merges diagnostics itself. `Workspace.problems` is the
- * single rule of core-workspace for that, and the status bar and the validation of the project share it.
+ * The problems of the workspace, grouped by file, in a Local and a Global part. It collects `Workspace.problems` and
+ * [validations] in [scope] and maps them through [ProblemsMapping]. The Local part follows `Workspace.problems`. The
+ * Global part is `ProjectValidation.global` of the last report in [validations], so it stays as it is while the user
+ * edits until the next validation replaces it. Each item has a one-based `line:col` from `FileProblems.positionOf` and
+ * the version and lineage of the file's snapshot. The class never merges diagnostics itself. `Workspace.problems` is
+ * the single rule of core-workspace for that, and the status bar and the validation of the project share it.
  *
  * Binding a workspace is an operation of the mediator and is internal, so no view can bypass the coordinated flows of
  * the workbench.
  */
-public class ProblemsState(private val scope: CoroutineScope) {
+public class ProblemsState(
+    private val scope: CoroutineScope,
+    private val validations: StateFlow<ProjectValidation?>,
+) {
 
     private val problems = MutableStateFlow(ProblemsUiState())
     private var workspace: Workspace? = null
@@ -93,13 +119,13 @@ public class ProblemsState(private val scope: CoroutineScope) {
     /** What the Problems tool window shows. */
     public val state: StateFlow<ProblemsUiState> get() = problems.asStateFlow()
 
-    /** Follows [workspace]. Null clears the problems. Only the mediator calls it. */
+    /** Follows [workspace] and the reports of its validations. Null clears the problems. Only the mediator calls it. */
     internal fun bindWorkspace(workspace: Workspace?) {
         binding?.cancel()
         this.workspace = workspace
         refresh()
         binding = workspace?.let { bound ->
-            scope.launch { bound.problems.collect { refresh() } }
+            scope.launch { combine(bound.problems, validations) { _, _ -> }.collect { refresh() } }
         }
     }
 
@@ -109,9 +135,16 @@ public class ProblemsState(private val scope: CoroutineScope) {
         refresh()
     }
 
-    /** Maps the current problems of the bound workspace under the current filter. Shows nothing without a workspace. */
+    /**
+     * Maps the current problems of the bound workspace and the global findings of the last report under the current
+     * filter. Shows nothing without a workspace. A report of another folder than that of the bound workspace counts as
+     * no report, so the findings of a folder that was just closed never show under the next one.
+     */
     private fun refresh() {
         val filter = problems.value.filter
-        problems.value = workspace?.let { ProblemsMapping.map(it.problems.value, it.root, filter) } ?: ProblemsUiState(filter = filter)
+        problems.value = workspace?.let { bound ->
+            val report = validations.value?.takeIf { it.root == bound.root }
+            ProblemsMapping.map(bound.problems.value, report?.global, bound.root, filter)
+        } ?: ProblemsUiState(filter = filter)
     }
 }

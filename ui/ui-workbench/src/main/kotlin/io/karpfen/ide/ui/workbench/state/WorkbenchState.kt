@@ -98,7 +98,7 @@ public interface WorkbenchState : AutoCloseable {
     /** The outline of the active document. */
     public val outline: OutlineState
 
-    /** The problems of the workspace. */
+    /** The problems of the workspace, and the global findings of the last validation of the whole project. */
     public val problems: ProblemsState
 
     /** The status bar. */
@@ -120,7 +120,8 @@ public interface WorkbenchState : AutoCloseable {
 
     /**
      * The validation of the whole open project. The Validate button below the editor and the command Validate Project
-     * of the Run menu start it, and Run validates before it deploys. It reports in a dialog.
+     * of the Run menu start it, and Run validates before it deploys. It reports in a dialog and keeps the last report,
+     * whose global findings [problems] shows.
      */
     public val validation: ValidationState
 

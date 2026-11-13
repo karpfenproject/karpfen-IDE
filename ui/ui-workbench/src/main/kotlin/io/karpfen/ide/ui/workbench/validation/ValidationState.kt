@@ -40,14 +40,17 @@ import kotlinx.coroutines.sync.withLock
 /**
  * The validation of the whole open project, as the Validate button below the editor, the command Validate Project of
  * the Run menu and a run before it deploys ask for it. The work itself is `Workspace.validate`. This state only starts
- * it, tells whether it is busy and shows the report in a [DialogRequest.ValidationReport].
+ * it, tells whether it is busy, shows the report in a [DialogRequest.ValidationReport] and keeps the report of the last
+ * finished validation as [lastReport].
  *
  * One validation runs at a time. While one runs, [isBusy] is true, the button shows that, and [validate] starts no
  * second one. A run that validates while the button's validation runs waits for it and then validates again, so the
  * run always checks the files it saved. Without an open folder there is nothing to validate, and [canValidate] is false.
  *
- * Whoever needs the report of a check before a run, also one without errors that shows no dialog, registers with
- * [observeRunChecks]. The headless mode prints the warnings of a run that way.
+ * [lastReport] is state: the report of the last validation of the open folder, whoever asked for it. The Problems view
+ * shows its global findings. [observeRunChecks] is an event: it hands over the report of each check before a run, and
+ * only of such a check, before the run goes on. The headless mode prints the warnings of a run that way, so it never
+ * has to tell a report of the run apart from another one.
  *
  * Use the class from the UI thread only. [validate] launches its work in [scope] and returns its job.
  *
@@ -62,9 +65,22 @@ public class ValidationState internal constructor(
     private val busy = MutableStateFlow(false)
     private val one = Mutex()
     private val runCheckListeners = ArrayList<(ProjectValidation) -> Unit>()
+    private val last = MutableStateFlow<ProjectValidation?>(null)
+
+    init {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { workspace.collect { last.value = null } }
+    }
 
     /** True while a validation runs. */
     public val isBusy: StateFlow<Boolean> get() = busy.asStateFlow()
+
+    /**
+     * The report of the last finished validation of the open folder, whether the Validate button, the command Validate
+     * Project or a run asked for it. It is null before the first validation of the folder. A validation replaces it as
+     * soon as its report is done, before any dialog shows it. Closing the folder or opening another one sets it back
+     * to null, and a validation that finishes for a folder that is no longer open leaves it alone.
+     */
+    public val lastReport: StateFlow<ProjectValidation?> get() = last.asStateFlow()
 
     /** True while a folder is open, so there is a project to validate. */
     public val isAvailable: StateFlow<Boolean> =
@@ -115,13 +131,13 @@ public class ValidationState internal constructor(
     }
 
     /**
-     * The report of [opened], made while [isBusy] is true and no other validation runs. Returns null if the workspace
-     * was closed before the report was done.
+     * The report of [opened], made while [isBusy] is true and no other validation runs. It becomes [lastReport] if
+     * [opened] is still the open workspace. Returns null if the workspace was closed before the report was done.
      */
     private suspend fun validated(opened: Workspace): ProjectValidation? = one.withLock {
         busy.value = true
         try {
-            opened.validate()
+            opened.validate().also { report -> if (workspace.value === opened) last.value = report }
         } catch (closed: CancellationException) {
             currentCoroutineContext().ensureActive()
             null

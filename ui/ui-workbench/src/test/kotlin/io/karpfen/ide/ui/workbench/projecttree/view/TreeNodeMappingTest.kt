@@ -19,6 +19,7 @@ import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.parse.OutlineNode
+import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.files.FileKind
@@ -31,6 +32,7 @@ import io.karpfen.ide.ui.workbench.problems.ProblemGroup
 import io.karpfen.ide.ui.workbench.problems.ProblemItem
 import io.karpfen.ide.ui.workbench.problems.ProblemsUiState
 import io.karpfen.ide.ui.workbench.problems.view.ProblemKey
+import io.karpfen.ide.ui.workbench.problems.view.ProblemSection
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsTreeNodes
 import java.nio.file.Path
 import kotlin.test.Test
@@ -123,19 +125,52 @@ class TreeNodeMappingTest {
     }
 
     @Test
-    fun `problem nodes group items per file with counts, severity icons and line col`() {
+    fun `problem nodes group items per file below the Local and the Global node, with counts, severity icons and line col`() {
         val path = root.resolve("a.kmeta")
         fun item(line: Int, severity: Severity) =
             ProblemItem(path, Diagnostic(TextRange(0, 1), severity, "msg $line", "c", DiagnosticSource.PARSER), line, 2)
-        val state = ProblemsUiState(groups = listOf(ProblemGroup(path, "a.kmeta", listOf(item(3, Severity.ERROR), item(7, Severity.HINT)))))
-        val nodes = ProblemsTreeNodes(state)
+        val local = ProblemGroup(path, "a.kmeta", listOf(item(3, Severity.ERROR), item(7, Severity.HINT)))
+        val global = ProblemGroup(path, "a.kmeta", listOf(item(9, Severity.WARNING).copy(version = 5)))
+        val nodes = ProblemsTreeNodes(ProblemsUiState(local = listOf(local), global = listOf(global), hasFolder = true))
 
-        val group = nodes.roots.single()
+        assertEquals(listOf("Local (2)", "Global (1)"), nodes.roots.map { it.label })
+        assertEquals(listOf(false, true), nodes.roots.map { it.startsSection })
+        val (localNode, globalNode) = nodes.roots
+        val group = localNode.children!!.single()
         assertEquals("a.kmeta (2)", group.label)
         assertEquals(listOf("msg 3 (3:2)", "msg 7 (7:2)"), group.children?.map { it.label })
         assertEquals(listOf(KarpfenIcons.Error, KarpfenIcons.Info), group.children?.map { it.icon })
-        assertEquals(setOf<ProblemKey>(ProblemKey.Group(path)), nodes.groups)
-        assertEquals(7, nodes.itemOf(ProblemKey.Item(path, 1))?.line)
-        assertNull(nodes.itemOf(ProblemKey.Group(path)))
+        assertEquals("a.kmeta (1)", globalNode.children!!.single().label)
+        assertEquals(listOf("msg 9 (9:2)"), globalNode.children!!.single().children?.map { it.label })
+        assertEquals(listOf(KarpfenIcons.Warning), globalNode.children!!.single().children?.map { it.icon })
+
+        val sections = listOf(ProblemSection.LOCAL, ProblemSection.GLOBAL)
+        assertEquals(
+            sections.flatMap { listOf(ProblemKey.Section(it), ProblemKey.Group(it, path)) }.toSet(),
+            nodes.expandable,
+            "the same file has a group below each top node, told apart by the section",
+        )
+        assertEquals(ProblemKey.Group(ProblemSection.GLOBAL, path), globalNode.children!!.single().key)
+        assertEquals(7, nodes.itemOf(ProblemKey.Item(ProblemSection.LOCAL, path, 1))?.line)
+        val globalItem = nodes.itemOf(ProblemKey.Item(ProblemSection.GLOBAL, path, 0))
+        assertEquals(9, globalItem?.line)
+        assertEquals(Location(path, TextRange(0, 1), 5), globalItem?.location, "a global item navigates to its range in the analyzed text")
+        assertNull(nodes.itemOf(ProblemKey.Item(ProblemSection.GLOBAL, path, 1)))
+        assertNull(nodes.itemOf(ProblemKey.Group(ProblemSection.LOCAL, path)))
+        assertNull(nodes.itemOf(ProblemKey.Section(ProblemSection.GLOBAL)))
+    }
+
+    @Test
+    fun `the Global node says when nothing was validated yet, and top nodes without problems are leaves`() {
+        val notValidated = ProblemsTreeNodes(ProblemsUiState(hasFolder = true))
+        assertEquals(listOf("Local (0)", "Global (not validated yet)"), notValidated.roots.map { it.label })
+        assertEquals(listOf(null, null), notValidated.roots.map { it.children })
+        assertEquals(emptySet(), notValidated.expandable)
+
+        val clean = ProblemsTreeNodes(ProblemsUiState(global = emptyList(), hasFolder = true))
+        assertEquals(listOf("Local (0)", "Global (0)"), clean.roots.map { it.label })
+        assertNull(clean.roots[1].children)
+
+        assertEquals(emptyList(), ProblemsTreeNodes(ProblemsUiState()).roots, "no nodes without an open folder")
     }
 }

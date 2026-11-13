@@ -70,7 +70,7 @@ class WorkbenchEndToEndTest {
     fun `the examples open without problems and the window title names the folder`() = scenario {
         assertEquals(0, state.problems.state.value.errorCount)
         assertEquals(0, state.problems.state.value.warningCount)
-        assertEquals(emptyList(), state.problems.state.value.groups)
+        assertEquals(emptyList(), state.problems.state.value.local)
         assertEquals(0, state.statusBar.state.value.errorCount)
         assertEquals(Examples.contexts().size, workspace.analysis.value.contexts.size, "one implicit context per example directory")
         assertEquals("${root.fileName} - karpfen IDE", state.windowTitle.value)
@@ -227,5 +227,5 @@ class WorkbenchEndToEndTest {
     private fun textOf(editor: CodeEditorState): String = editor.session.text.snapshot.value.text
 
     private fun ProductionWorkbench.itemsOf(path: Path): List<ProblemItem> =
-        state.problems.state.value.groups.filter { it.path == path }.flatMap { it.items }
+        state.problems.state.value.local.filter { it.path == path }.flatMap { it.items }
 }

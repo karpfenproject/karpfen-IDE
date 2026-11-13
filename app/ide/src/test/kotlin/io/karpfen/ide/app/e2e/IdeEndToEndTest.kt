@@ -260,7 +260,7 @@ class IdeEndToEndTest {
                 val failures = session.state.output.state.value.lines.filter { it.logger == KSTATES_READER_LOGGER }
                 assertEquals(listOf(machine.toString()), failures.map { it.file })
                 assertEquals(1L, session.state.statusBar.state.value.unseenOutput.warnings)
-                val problems = session.state.problems.state.value.groups.flatMap { group -> group.items.map { it.diagnostic.code } }
+                val problems = session.state.problems.state.value.local.flatMap { group -> group.items.map { it.diagnostic.code } }
                 assertEquals(listOf(READER_FAILURE), problems, "the failure is still reported")
             }
         }
@@ -295,7 +295,7 @@ class IdeEndToEndTest {
      */
     private fun assertAgree(state: WorkbenchState, validated: List<String>, situation: String) {
         val problems = state.problems.state.value
-        val shown = problems.groups.flatMap { group ->
+        val shown = problems.local.flatMap { group ->
             group.items.map { item ->
                 val diagnostic = item.diagnostic
                 "${group.displayPath}:${item.line}:${item.column}: ${diagnostic.severity.name.lowercase()}: " +

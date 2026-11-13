@@ -40,11 +40,13 @@ import io.karpfen.ide.ui.workbench.problems.ProblemFilter
 import io.karpfen.ide.ui.workbench.problems.ProblemsUiState
 
 /**
- * The Problems tool window. It shows the problems grouped by file, each with its severity icon, its message and its
- * `line:col`. A row of filter chips switches errors, warnings and infos on and off. The chips show the counts taken
- * before filtering. A double-click or Enter on a problem calls [onNavigate] with `ProblemItem.location`, which carries
- * the text version. On a group, they expand or collapse it. Groups start expanded. Which groups are collapsed is local
- * view state.
+ * The Problems tool window. While a folder is open it shows two top nodes, Local for what is found while typing and
+ * Global for what the last validation of the whole project found. Below each the problems are grouped by file, each
+ * with its severity icon, its message and its `line:col`. A row of filter chips switches errors, warnings and infos on
+ * and off in both parts. The chips show the counts of both parts together, taken before filtering. A double-click or
+ * Enter on a problem calls [onNavigate] with `ProblemItem.location`, which carries the text version. On a top node or
+ * a group, they expand or collapse it. Top nodes and groups start expanded. Which of them are collapsed is local view
+ * state. Without an open folder the view reads "No problems".
  */
 @Composable
 internal fun ProblemsView(
@@ -81,11 +83,14 @@ internal fun ProblemsView(
             } else {
                 TreeView(
                     roots = nodes.roots,
-                    expanded = nodes.groups - collapsed,
+                    expanded = nodes.expandable - collapsed,
                     selected = selected,
                     onToggleExpanded = ::toggle,
                     onSelect = { selected = it },
-                    onOpen = { key -> nodes.itemOf(key)?.let { onNavigate(it.location) } ?: toggle(key) },
+                    onOpen = { key ->
+                        val item = nodes.itemOf(key)
+                        if (item != null) onNavigate(item.location) else if (key in nodes.expandable) toggle(key)
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
             }

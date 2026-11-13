@@ -15,9 +15,7 @@
  */
 package io.karpfen.ide.core.workspace.validation
 
-import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.dsl.DslVerifier
-import io.karpfen.ide.core.text.TextPosition
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import java.nio.file.Path
@@ -28,7 +26,9 @@ import java.nio.file.Path
  * readers, and the findings about descriptors, contexts and files that cannot be read. The second is what the verifier
  * of dsl-tools finds when it checks the state machines of each modeling context against the metamodels and the model of
  * that context. These checks span several files, and their codes start with `project.`. The continuous analysis never
- * runs them, so they are found only when a validation is asked for.
+ * runs them, so they are found only when a validation is asked for. The report lists both together in
+ * `ProjectValidation.findings` and also carries the findings of the verifier that are not among the problems as
+ * `ProjectValidation.global`, per file and with the ranges in the analyzed text, for the Problems view.
  *
  * The verification works on the reads that the [ProjectAnalysis] kept, so it sees exactly the texts the analysis saw.
  * Its ranges are turned into lines and columns with the snapshot of the analyzed file. Those of the problems come from
@@ -39,7 +39,8 @@ public fun interface ProjectValidator {
 
     /**
      * The report of the project at [root], made from [analysis] and the [problems] of the same analysis. Its findings
-     * are sorted with [ValidationFinding.ORDER], and each one is listed once.
+     * are sorted with [ValidationFinding.ORDER], and each one is listed once. Its global part holds the findings of
+     * the verifier that are not among the [problems].
      */
     public fun validate(root: Path, analysis: ProjectAnalysis, problems: WorkspaceProblems): ProjectValidation
 }
@@ -49,33 +50,24 @@ public fun ProjectValidator(verifier: DslVerifier = DslVerifier()): ProjectValid
     DefaultProjectValidator(ContextVerification(verifier))
 
 /**
- * The [ProjectValidator] described there. It lists the problems of every file and then the findings of [verification]
- * for every context of the analysis, drops the findings that are listed twice and sorts the rest.
+ * The [ProjectValidator] described there. It lists the problems of every file, then hands the findings of
+ * [verification] for every context of the analysis to a [GlobalFindings], which keeps those that are not already
+ * listed. The report lists both, each finding once, sorted, and carries the kept ones as `ProjectValidation.global`.
  */
 internal class DefaultProjectValidator(private val verification: ContextVerification) : ProjectValidator {
 
     override fun validate(root: Path, analysis: ProjectAnalysis, problems: WorkspaceProblems): ProjectValidation {
-        val findings = ArrayList<ValidationFinding>()
+        val local = LinkedHashSet<ValidationFinding>()
         for (file in problems.files) {
-            file.diagnostics.forEach { findings += findingOf(file.path, it, file.positionOf(it)) }
+            file.diagnostics.forEach { local += ValidationFinding.of(file.path, it, file.positionOf(it)) }
         }
+        val global = GlobalFindings(local)
         for (context in analysis.contexts) {
             for ((path, diagnostics) in verification.findings(context)) {
-                val snapshot = context.files[path]?.snapshot ?: continue
-                diagnostics.forEach { findings += findingOf(path, it, snapshot.positionOf(it.range.start.coerceAtMost(snapshot.length))) }
+                val file = context.files[path] ?: continue
+                diagnostics.forEach { global.add(file, it) }
             }
         }
-        return ProjectValidation(root, findings.distinct().sortedWith(ValidationFinding.ORDER))
+        return ProjectValidation(root, (local + global.findings).sortedWith(ValidationFinding.ORDER), global.files())
     }
-
-    /** The finding of [diagnostic] in the file at [path], whose range starts at the zero-based [position]. */
-    private fun findingOf(path: Path, diagnostic: Diagnostic, position: TextPosition): ValidationFinding =
-        ValidationFinding(
-            path = path,
-            line = position.line + 1,
-            column = position.column + 1,
-            severity = diagnostic.severity,
-            code = diagnostic.code,
-            message = diagnostic.message,
-        )
 }
