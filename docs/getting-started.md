@@ -115,7 +115,8 @@ the only one of the folder, or asks. A run whose files have errors stops before 
 errors.
 
 A state machine with a history or a tick limit needs a feature of the runtime, History or TickLimit. A run switches
-on what its state machines need, in its step Switching on runtime features. Breakpoints are written and
+on what its state machines need. The deployment steps of the run then show a line such as
+`Switching on History, TickLimit`. A run that needs neither shows `Switching on runtime features` as skipped. Breakpoints are written and
 shown, but no run halts at them, because the IDE has no debugger yet.
 
 ### While a model runs
