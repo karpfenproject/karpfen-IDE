@@ -89,7 +89,7 @@ public enum class DiagnosticSource {
     DSL_TOOLS,
 
     /**
-     * The IDE itself. In this module that covers the EVAL warnings. core-workspace uses this source for its findings
+     * The IDE itself. In this module that covers the internal failures. core-workspace uses this source for its findings
      * about file encoding, line separators, environment descriptors and modeling contexts.
      */
     IDE,
@@ -97,7 +97,7 @@ public enum class DiagnosticSource {
 
 /**
  * Stable diagnostic codes for [Diagnostic.code] that core-document produces. They cover the lexer, the parser, the
- * EVAL scanning and internal failures.
+ * nesting limit and internal failures.
  *
  * The findings of the dsl-tools readers, with source [DiagnosticSource.DSL_TOOLS], carry the stable ids of their
  * dsl-tools codes instead, so a new kind of finding in dsl-tools needs no constant here. Findings that only
@@ -110,12 +110,6 @@ public object DiagnosticCodes {
 
     /** Parser error for an unexpected or a missing token, with source [DiagnosticSource.PARSER]. */
     public const val SYNTAX_ERROR: String = "syntax-error"
-
-    /**
-     * `//` inside an EVAL body starts a karpfen comment, so the rest of the line never reaches Python. It is a WARNING
-     * with source [DiagnosticSource.IDE].
-     */
-    public const val EVAL_DOUBLE_SLASH: String = "eval-double-slash"
 
     /** An unexpected internal failure that was caught and reported instead of crashing. It is an ERROR. */
     public const val INTERNAL_ERROR: String = "internal-error"

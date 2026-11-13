@@ -20,6 +20,7 @@ import io.karpfen.dsl.meta.Metamodel
 import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Diagnostic
+import io.karpfen.ide.core.document.dsl.ReadResult
 import io.karpfen.ide.core.document.parse.ParseOutcome
 import io.karpfen.ide.core.document.session.mergeDiagnostics
 import io.karpfen.ide.core.text.TextSnapshot
@@ -107,6 +108,8 @@ public data class ProjectAnalysis(
  * @property models the models by path, possibly partial. It is empty unless the domain metamodel was read without
  *   errors.
  * @property stateMachines the state machines by path, possibly partial.
+ * @property reads the reads the models above come from, with their diagnostics. A validation of the project hands them
+ *   to the verifier of dsl-tools. An analysis built by hand may leave them out.
  */
 public data class ContextAnalysis(
     public val context: ModelingContext,
@@ -115,7 +118,30 @@ public data class ContextAnalysis(
     public val events: Metamodel?,
     public val models: Map<Path, Model>,
     public val stateMachines: Map<Path, StateMachine>,
+    public val reads: ContextReads = ContextReads.NONE,
 )
+
+/**
+ * The reads of the files of one context, as the `DslReader` of the analysis returned them. Each read holds the same
+ * model as the matching property of [ContextAnalysis] and the DSL_TOOLS diagnostics of its file. A file that was not
+ * read, by the rules on `ProjectAnalyzer`, has no read here.
+ *
+ * @property metamodel the read of the domain metamodel, or null.
+ * @property events the read of the event metamodel, or null.
+ * @property models the reads of the models by path.
+ * @property stateMachines the reads of the state machines by path.
+ */
+public data class ContextReads(
+    public val metamodel: ReadResult<Metamodel>?,
+    public val events: ReadResult<Metamodel>?,
+    public val models: Map<Path, ReadResult<Model>>,
+    public val stateMachines: Map<Path, ReadResult<StateMachine>>,
+) {
+    public companion object {
+        /** No reads at all. */
+        public val NONE: ContextReads = ContextReads(null, null, emptyMap(), emptyMap())
+    }
+}
 
 /**
  * A karpfen file as one analysis run saw it. It holds the file's kind, the text version used, and the results of the
@@ -125,8 +151,7 @@ public data class ContextAnalysis(
  *   for an open document and a fresh lineage at version 0 for a file read from disk.
  * @property parse the `SemanticMode.SYNTAX_ONLY` parse outcome of [snapshot]. For an open document it is the
  *   document's own outcome, supplied through `SourceText`. Otherwise the analyzer made it.
- * @property lexicalDiagnostics the tokenizer's diagnostics of [snapshot], sorted. These are LEXER errors and
- *   `eval-double-slash` warnings.
+ * @property lexicalDiagnostics the tokenizer's diagnostics of [snapshot], sorted. These are LEXER errors.
  * @property fileDiagnostics the findings of loading the file, from `LoadedSource.diagnostics`. It is empty for open
  *   documents, whose sessions carry these findings as the external source `ExternalDiagnosticSources.FILE`.
  */

@@ -17,8 +17,10 @@ package io.karpfen.ide.ui.workbench.dialog.view
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -26,6 +28,9 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.v2.runComposeUiTest
+import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
+import io.karpfen.ide.core.workspace.validation.ValidationFinding
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
@@ -34,8 +39,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Headless tests of [WorkbenchDialogs]. They cover the buttons, the text field, Enter for the default button and Escape
- * for dismissing.
+ * Headless tests of [WorkbenchDialogs]. They cover the buttons, the text field, Enter for the default button, Escape
+ * for dismissing and the list of findings of a validation report.
  */
 @OptIn(ExperimentalTestApi::class)
 class WorkbenchDialogsUiTest {
@@ -117,6 +122,31 @@ class WorkbenchDialogsUiTest {
             answers.toList(),
             "the first click after the dialog opened must tick the box",
         )
+    }
+
+    @Test
+    fun `the validation report lists its findings and closes with its one button or with Escape`() = runComposeUiTest {
+        val answers = mutableListOf<DialogResponse>()
+        val root = Path.of("/ws").toAbsolutePath()
+        val report = ProjectValidation(
+            root,
+            listOf(
+                ValidationFinding(root.resolve("robot.kmeta"), 2, 1, Severity.ERROR, "syntax", "missing '}'"),
+                ValidationFinding(root.resolve("robot.kstates"), 4, 16, Severity.WARNING, "project.unreachable-state", "lost"),
+            ),
+        )
+        setContent {
+            KarpfenTheme(darkTheme = false) { WorkbenchDialogs(DialogRequest.ValidationReport("Validate Project", report)) { answers.add(it) } }
+        }
+        onNodeWithText("Validate Project").assertIsDisplayed()
+        onNodeWithText("1 error and 1 warning").assertIsDisplayed()
+        onNodeWithTag(WorkbenchDialogTestTags.FINDINGS).assertIsDisplayed()
+        onNodeWithTag(WorkbenchDialogTestTags.finding(0)).assertTextEquals("robot.kmeta:2  missing '}'")
+        onNodeWithTag(WorkbenchDialogTestTags.finding(1)).assertTextEquals("robot.kstates:4  lost")
+        onNodeWithTag(WorkbenchDialogTestTags.finding(1)).assertHasNoClickAction()
+        onNodeWithTag(WorkbenchDialogTestTags.button("Close")).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.DIALOG).performKeyInput { pressKey(Key.Escape) }
+        assertEquals(listOf<DialogResponse>(DialogResponse.Confirm, DialogResponse.Confirm), answers.toList())
     }
 
     @Test

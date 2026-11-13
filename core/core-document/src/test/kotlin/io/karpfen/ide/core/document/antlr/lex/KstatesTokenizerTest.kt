@@ -148,26 +148,17 @@ class KstatesTokenizerTest {
     }
 
     @Test
-    fun `a double slash inside EVAL is a karpfen comment with a warning`() {
+    fun `a double slash inside EVAL is a karpfen comment without a diagnostic`() {
         val text = "SET(\"x\", EVAL {\n    return a // 2\n})"
 
         val result = tokenize(text)
 
         assertTrue(TokenKind.COMMENT to "// 2" in kinds(text))
-        val warning = result.diagnostics.single()
-        assertEquals(Severity.WARNING, warning.severity)
-        assertEquals(DiagnosticCodes.EVAL_DOUBLE_SLASH, warning.code)
-        assertEquals(DiagnosticSource.IDE, warning.source)
-        assertEquals("// 2", text.substring(warning.range.start, warning.range.end))
-        assertEquals(
-            "`//` inside EVAL starts a karpfen comment; the rest of the line is dropped. " +
-                "For Python floor division use int(a / b) or math.floor(a / b).",
-            warning.message,
-        )
+        assertTrue(result.diagnostics.isEmpty(), "${result.diagnostics}")
     }
 
     @Test
-    fun `a double slash outside EVAL is an ordinary comment without a warning`() {
+    fun `a double slash outside EVAL is an ordinary comment without a diagnostic`() {
         assertTrue(tokenize("STATES { // c\n}").diagnostics.isEmpty())
     }
 

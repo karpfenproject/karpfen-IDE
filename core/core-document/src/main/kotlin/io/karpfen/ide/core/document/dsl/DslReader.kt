@@ -18,6 +18,7 @@ package io.karpfen.ide.core.document.dsl
 import io.karpfen.dsl.instance.Model
 import io.karpfen.dsl.meta.ClassType
 import io.karpfen.dsl.meta.Metamodel
+import io.karpfen.dsl.reader.ParseResult
 import io.karpfen.dsl.reader.kmeta.KmetaReader
 import io.karpfen.dsl.reader.kmodel.KmodelReader
 import io.karpfen.dsl.reader.kstates.KstatesReader
@@ -90,17 +91,48 @@ public fun DslReader(): DslReader = DefaultDslReader(
 /**
  * What a [DslReader] read from one snapshot.
  *
+ * A read made by the readers of dsl-tools also keeps what dsl-tools needs to verify the read together with the other
+ * files of its project: the reader's own result with its source map, and the length of the text that was read.
+ * [DslVerifier] uses it, and nothing outside this package sees it. A read that a test builds with the public
+ * constructor keeps nothing of the kind, and the verifier leaves it out. Two reads are equal if their [model] and their
+ * [diagnostics] are equal.
+ *
  * @property model the model read. It is complete if [hasErrors] is false and partial otherwise. A partial model leaves
  *   out what the reader could not build, such as an object of an unknown type, a property of an unknown type or a rule
  *   with the wrong number of operands. It is null only if the text yields no model, such as a KMeta text without a
  *   type.
  * @property diagnostics DSL_TOOLS diagnostics in the coordinates of the read snapshot, sorted with [Diagnostic.ORDER].
  */
-public data class ReadResult<out T : Any>(public val model: T?, public val diagnostics: List<Diagnostic>) {
+public class ReadResult<out T : Any> internal constructor(
+    public val model: T?,
+    public val diagnostics: List<Diagnostic>,
+    internal val source: DslSource<T>?,
+) {
+    /** A read of [model] with [diagnostics] that keeps nothing for the verification. Tests and fakes build it. */
+    public constructor(model: T?, diagnostics: List<Diagnostic>) : this(model, diagnostics, null)
+
     init {
         require(model != null || hasErrors) { "a read without a model must report an error" }
     }
 
     /** True if the text has at least one error, which makes [model] partial or absent. */
     public val hasErrors: Boolean get() = diagnostics.any { it.severity == Severity.ERROR }
+
+    /** True if [other] is a read with an equal [model] and equal [diagnostics]. */
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is ReadResult<*> && model == other.model && diagnostics == other.diagnostics)
+
+    /** The hash of [model] and [diagnostics]. */
+    override fun hashCode(): Int = 31 * (model?.hashCode() ?: 0) + diagnostics.hashCode()
+
+    /** The [model] and the [diagnostics] in words, for logs and test messages. */
+    override fun toString(): String = "ReadResult(model=$model, diagnostics=$diagnostics)"
 }
+
+/**
+ * What a read of dsl-tools keeps for [DslVerifier].
+ *
+ * @property parse the result of the dsl-tools reader, with its model, its diagnostics and its source map.
+ * @property textLength the length of the text that was read, to which the verifier's ranges are clamped.
+ */
+internal class DslSource<out T>(val parse: ParseResult<T>, val textLength: Int)

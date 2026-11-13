@@ -26,7 +26,7 @@ import io.karpfen.ide.core.text.TextRange
  *
  * @property version the [io.karpfen.ide.core.text.TextSnapshot.version] that was tokenized.
  * @property tokens the classified pieces of the text in document order.
- * @property diagnostics LEXER errors and IDE warnings such as `eval-double-slash`, sorted with [Diagnostic.ORDER].
+ * @property diagnostics the LEXER errors, and the IDE error of a tokenizer that failed, sorted with [Diagnostic.ORDER].
  * @property embeddedRegions the regions of embedded Python. These are the content ranges of the KStates EVAL bodies,
  *   between the `{` after `EVAL` and its matching `}`, or to the end of the text when a body is not closed. They are
  *   exactly what the tokenizer's EVAL scanner, `EvalBodies`, found. The list is empty for KMeta and KModel. Outside

@@ -27,8 +27,8 @@ import io.karpfen.dsl.diagnostics.Diagnostic as DslDiagnostic
 import io.karpfen.dsl.diagnostics.Severity as DslSeverity
 
 /**
- * Turns what a dsl-tools reader reports into the IDE's values. A [ParseResult] becomes a [ReadResult], and each
- * dsl-tools diagnostic becomes a [Diagnostic] with source [DiagnosticSource.DSL_TOOLS].
+ * Turns what a dsl-tools reader or the dsl-tools verifier reports into the IDE's values. A [ParseResult] becomes a
+ * [ReadResult], and each dsl-tools diagnostic becomes a [Diagnostic] with source [DiagnosticSource.DSL_TOOLS].
  *
  * A dsl-tools range counts UTF-16 chars like a [TextRange], so its offsets carry over unchanged. The line and column of
  * its positions are not needed, because the snapshot knows its lines. The reader guarantees that its ranges lie within
@@ -39,9 +39,20 @@ import io.karpfen.dsl.diagnostics.Severity as DslSeverity
  */
 internal object ReadResults {
 
-    /** The [ReadResult] of [parse], which read the text of [source]. It holds the model and the sorted diagnostics. */
+    /**
+     * The [ReadResult] of [parse], which read the text of [source]. It holds the model and the sorted diagnostics, and
+     * it keeps [parse] for the verification.
+     */
     fun <T : Any> of(parse: ParseResult<T>, source: TextSnapshot): ReadResult<T> =
-        ReadResult(parse.model, parse.diagnostics.map { diagnosticOf(it, source.length) }.sortedWith(Diagnostic.ORDER))
+        ReadResult(
+            model = parse.model,
+            diagnostics = diagnosticsOf(parse.diagnostics, source.length),
+            source = DslSource(parse, source.length),
+        )
+
+    /** The IDE diagnostics of [diagnostics], reported for a text of [textLength] chars, sorted with [Diagnostic.ORDER]. */
+    fun diagnosticsOf(diagnostics: List<DslDiagnostic>, textLength: Int): List<Diagnostic> =
+        diagnostics.map { diagnosticOf(it, textLength) }.sortedWith(Diagnostic.ORDER)
 
     /**
      * The result of a read that failed with [failure]. It has no model and one `reader.failure` error at the start of

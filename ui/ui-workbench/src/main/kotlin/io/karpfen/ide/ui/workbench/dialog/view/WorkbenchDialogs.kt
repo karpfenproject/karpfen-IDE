@@ -29,9 +29,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -63,12 +66,14 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.dialog.DialogButton
 import io.karpfen.ide.ui.workbench.dialog.DialogFocusOrder
 import io.karpfen.ide.ui.workbench.dialog.DialogPresentation
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
+import io.karpfen.ide.ui.workbench.dialog.FindingRow
 
 /**
  * Renders the pending [request] as a modal dialog and reports the answer through [onRespond]. The dialog offers exactly
@@ -78,9 +83,10 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
  * The rename and new file dialogs have a text field. It starts focused, with its whole text selected. The dialog that
  * picks the descriptor to run has a list instead. It starts with the preselected entry selected. Up and Down move the
  * selection, and a click selects an entry. The run dialog has a list of boxes for the bridges to start and one box
- * below it that captures the run to a file. A click on a row ticks or clears its box. Tab and Shift+Tab cycle through
- * the focus stops of [DialogFocusOrder] and never leave the dialog. [ModalDialogLayer] keeps the focus out of the
- * workbench behind it.
+ * below it that captures the run to a file. A click on a row ticks or clears its box. The dialog of a validation shows
+ * its findings as a list of rows in the colours of their severities, which scrolls and leads nowhere when clicked. Its
+ * only button is Close. Tab and Shift+Tab cycle through the focus stops of [DialogFocusOrder] and never leave the
+ * dialog. [ModalDialogLayer] keeps the focus out of the workbench behind it.
  */
 @Composable
 internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResponse) -> Unit) {
@@ -113,7 +119,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
     ) {
         Column(
             Modifier
-                .widthIn(min = 320.dp, max = 520.dp)
+                .widthIn(min = 320.dp, max = if (presentation.findings != null) 760.dp else 520.dp)
                 .background(colors.panel, RoundedCornerShape(6.dp))
                 .border(1.dp, colors.border, RoundedCornerShape(6.dp))
                 .padding(16.dp)
@@ -171,6 +177,10 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                 Spacer(Modifier.height(8.dp))
                 TickRow(label, optioned, WorkbenchDialogTestTags.OPTION) { optioned = !optioned }
             }
+            presentation.findings?.takeIf { it.isNotEmpty() }?.let { findings ->
+                Spacer(Modifier.height(8.dp))
+                FindingRows(findings)
+            }
             if (presentation.input != null) {
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -195,6 +205,32 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         }
     }
     LaunchedEffect(request) { stops.first().requestFocus() }
+}
+
+/**
+ * The [findings] of a report as a list that scrolls once it is taller than a few hundred points. Each row shows its
+ * text in the colour of its severity: errors in the theme's error colour, warnings in its warning colour and the rest
+ * in its info colour. The rows only show text and cannot be clicked.
+ */
+@Composable
+private fun FindingRows(findings: List<FindingRow>) {
+    val colors = KarpfenTheme.colors
+    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 320.dp).border(1.dp, colors.border).testTag(WorkbenchDialogTestTags.FINDINGS)) {
+        itemsIndexed(findings) { index, row ->
+            Text(
+                row.text,
+                color = when (row.severity) {
+                    Severity.ERROR -> colors.error
+                    Severity.WARNING -> colors.warning
+                    Severity.INFO, Severity.HINT -> colors.info
+                },
+                style = KarpfenTheme.typography.ui,
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .testTag(WorkbenchDialogTestTags.finding(index)),
+            )
+        }
+    }
 }
 
 /**

@@ -20,8 +20,8 @@ import java.nio.file.Path
 
 /**
  * What a run needs from the workbench around the runtime state. That is the active editor, the save-all flow, the
- * dialogs and the Runtime tool window. The mediator implements it over its sub-states, so the runtime state never sees
- * them. Use it from the UI thread only.
+ * validation of the project, the dialogs and the Runtime tool window. The mediator implements it over its sub-states,
+ * so the runtime state never sees them. Use it from the UI thread only.
  */
 internal interface RunSupport {
     /** The file of the active editor tab, or null if there is none. */
@@ -32,6 +32,13 @@ internal interface RunSupport {
      * on disk, and it shows a failed save in an error dialog. Returns true if every file was saved.
      */
     suspend fun saveAll(): Boolean
+
+    /**
+     * Validates the whole project through the workbench's validation. Returns true if the project has no error. If it
+     * has one, the report opens in a dialog that says the run is blocked, and this returns false once the dialog is
+     * closed. Warnings alone block nothing and open no dialog.
+     */
+    suspend fun validate(): Boolean
 
     /**
      * Asks the user which of the [descriptors] of the workspace at [root] to run. [preselected] is selected when the

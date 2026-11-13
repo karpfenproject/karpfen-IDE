@@ -46,10 +46,6 @@ internal class KeyedObjects private constructor(val objects: List<KeyedObject>) 
     /** The keys of the index. */
     val ids: Set<String> = objects.mapTo(LinkedHashSet()) { it.key }
 
-    /** The keys that more than one object has, with the number of objects, in the order the keys first appear. */
-    val duplicates: Map<String, Int> =
-        objects.groupingBy { it.key }.eachCount().filterValues { it > 1 }
-
     /**
      * The type of the object with [key] that the runtime keeps, which is the last of equal keys. Returns null if no
      * object has the key.

@@ -32,6 +32,12 @@ public object WorkbenchDialogTestTags {
     /** The single box below the list of boxes, as shown when the user chooses whether to capture a run to a file. */
     public const val OPTION: String = "Workbench.dialog.option"
 
+    /** The list of findings, as shown by the report of a validation. */
+    public const val FINDINGS: String = "Workbench.dialog.findings"
+
+    /** The row at [index] of the list of findings. */
+    public fun finding(index: Int): String = "Workbench.dialog.finding:$index"
+
     /** The dialog's button with the text [label]. */
     public fun button(label: String): String = "Workbench.dialog.button:$label"
 }

@@ -115,11 +115,12 @@ class IdeMenusTest {
     }
 
     @Test
-    fun `Run runs and stops, debugs, starts and stops the runtime, configures a bridge and switches language features`() {
+    fun `Run runs, stops and validates, debugs, starts and stops the runtime, configures a bridge and switches language features`() {
         assertEquals(
             listOf(
                 RuntimeCommandIds.RUN,
                 RuntimeCommandIds.STOP,
+                RuntimeCommandIds.VALIDATE,
                 RuntimeCommandIds.PAUSE,
                 RuntimeCommandIds.RESUME,
                 RuntimeCommandIds.STEP,

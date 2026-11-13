@@ -210,18 +210,18 @@ class PlanChecksTest {
     }
 
     @Test
-    fun `objects sharing a key are a warning at the first of them`() = runTest(timeout = 60.seconds) {
+    fun `objects sharing a key block the deployment with the reader's error at the later of them`() = runTest(timeout = 60.seconds) {
         val workspaces = PlanningWorkspaces(this, root)
         workspaces.copy(SynthesizedModel.LAMP)
         lampModel.replaceText("make object \"spare\":\"Bulb\"", "make object \"bulb\":\"Bulb\"")
 
-        val plan = workspaces.plan(lampDescriptor).ready()
+        val problem = workspaces.plan(lampDescriptor).blocked().single()
 
-        val problem = plan.findings.single()
-        assertEquals(DeployProblemCodes.DUPLICATE_OBJECT_KEY to Severity.WARNING, problem.code to problem.severity)
-        assertTrue("2 objects share the key 'bulb'" in problem.message, problem.message)
+        assertEquals(DeployProblemCodes.CONTEXT_ERRORS to Severity.ERROR, problem.code to problem.severity)
+        assertTrue("already the id" in problem.message, problem.message)
         assertEquals(lampModel, problem.location?.file)
-        assertEquals(setOf("living room", "lamp", "bulb", "wallSwitch"), plan.modelObjectIds)
+        val later = Files.readString(lampModel).lastIndexOf(LATER_BULB) + LATER_BULB.indexOf("bulb")
+        assertEquals(later, problem.location?.range?.start, "at the id of the later object")
     }
 
     @Test
@@ -253,5 +253,10 @@ class PlanChecksTest {
             plan.findings.codes(),
         )
         assertTrue("runtime.image" in plan.findings.last().message, plan.findings.last().message)
+    }
+
+    private companion object {
+        /** The declaration of the spare bulb once the test gave it the id of the first bulb. */
+        const val LATER_BULB = "make object \"bulb\":\"Bulb\""
     }
 }

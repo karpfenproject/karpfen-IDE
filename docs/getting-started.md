@@ -38,6 +38,26 @@ the model and the active states while it runs.
   Without one, the events must be in `EVENTS.kmeta`, and the metamodel is the other `.kmeta` file.
 - To create a descriptor, right-click a folder in the Project tool window and choose New Environment File.
 
+### Validating
+
+The editor checks each file while you type. Validate checks the project as a whole, which takes longer and therefore
+only happens when you ask for it.
+
+| To | Do this |
+|---|---|
+| Validate the project | Click Validate in the bar below the editor, or choose Run > Validate Project. |
+| Validate from a terminal | Run `karpfen validate <folder>`. |
+
+- The answer is a dialog with a summary, such as `2 errors and 1 warning` or `No problems found.`, and a list of the
+  findings, each with its file, its line and what is wrong. Errors come first. Close is its only button.
+- A validation checks what the editor already found, and on top of that what only shows across files: whether the
+  paths in the actions and conditions of a state machine exist on the type it is attached to, whether an operation
+  fits what its path leads to, whether the `$(...)` references in `EVAL` code resolve, whether the macros and events
+  fit their use, and whether every state can be reached.
+- Every run validates the project first. An error anywhere in the project blocks the run, and the dialog says so in
+  its title. Warnings do not block a run and open no dialog.
+- These checks come from dsl-tools. Its guide `guides/verification.md` lists every check with its code.
+
 | Action | macOS | Windows and Linux |
 |---|---|---|
 | Complete Code | Ctrl+M, with the Control key | Ctrl+M, on Windows also Ctrl+Space |
@@ -111,10 +131,10 @@ other, and a click on the size sets it back.
   The IDE never stops a runtime it did not start and cannot show its log. Click Docker to go back.
 
 Run saves all open files first, because it uploads the saved files. It picks the descriptor in the active editor, or
-the only one of the folder, or asks. A run whose files have errors stops before it reaches the runtime and lists the
-errors.
+the only one of the folder, or asks. Then it validates the whole project, as [Validating](#validating) describes. A
+project with an error does not run.
 
-Every run starts with the dialog Run.
+A run of a project without errors goes on with the dialog Run.
 
 | In the dialog | Effect |
 |---|---|

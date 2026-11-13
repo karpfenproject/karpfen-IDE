@@ -38,6 +38,7 @@ import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
+import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -79,6 +80,7 @@ import java.nio.file.Path
  *   zoom, the layout of the tool windows, the runtime choice and the open files, all stored in the folder's
  *   `.karpfenproject`.
  * - [RuntimeHolder] owns the runtime state of the workspace and uses [WorkbenchRunSupport] to reach the workbench.
+ * - [ValidationState] validates the whole project for the Validate button, the command Validate Project and a run.
  * - [LanguageFeatureBinding] hands the language features of the project settings to the workspace and switches them.
  * - [WorkbenchCommands], [RuntimeCommands], [EditorCommands] and [LanguageFeatureCommands] register the commands
  *   through a [ModalCommandRegistry]. They cover enablement including the focus rule, the recent folders, the tool
@@ -112,6 +114,7 @@ internal class DefaultWorkbenchState(
     override val windowTitle: StateFlow<String> get() = holder.windowTitle
     override val runtime: StateFlow<RuntimeState?> get() = runtimes.state
     override val bridgeForm: StateFlow<BridgeFormState?> get() = bridgeForms.form
+    override val validation: ValidationState = ValidationState(ownScope, holder.workspace, dialogs)
 
     private val runner = IntentRunner(ownScope) { intent, error ->
         dialogs.showError("Unexpected error", "'$intent' failed: ${error.message ?: error}")
@@ -130,7 +133,8 @@ internal class DefaultWorkbenchState(
     private val fileOpen = FileOpenFlow(lifecycle, bridgeForms, dialogs, services.fileOperations, services.ioDispatcher)
     private val navigationFlow = NavigationFlow(fileOpen, tabs)
     private val tabFlows = TabFlows(tabs, lifecycle, unsaved, saving, dialogs)
-    private val runtimes = RuntimeHolder(ownScope, services, WorkbenchRunSupport(runner, tabs, saving, dialogs, layout), bindings)
+    private val runtimes =
+        RuntimeHolder(ownScope, services, WorkbenchRunSupport(runner, tabs, saving, dialogs, layout, validation), bindings)
     private val persister = LayoutPersister(ownScope, layout, services.settings)
     private val openFiles = OpenFilesPersister(ownScope, tabs, holder, services.settings)
     private val project = ProjectFlow(services.settings, holder, layout, persister, openFiles, tabs, lifecycle, services.ioDispatcher)
@@ -240,7 +244,7 @@ internal class DefaultWorkbenchState(
             .stateIn(ownScope, SharingStarted.Eagerly, dialogs.current.value ?: bridgeForms.form.value)
         val modal = ModalCommandRegistry(ownScope, registry, covered)
         WorkbenchCommands(ownScope, this, tabs, layout, problems, services.settings).register(modal)
-        RuntimeCommands(ownScope, runtimes.state, layout) { configureBridge() }.register(modal)
+        RuntimeCommands(ownScope, runtimes.state, layout, validation) { configureBridge() }.register(modal)
         EditorCommands(ownScope, tabs.activeEditor, services.editorKeymap).register(modal)
         LanguageFeatureCommands(ownScope, this, holder.workspace, services.settings).register(modal)
     }

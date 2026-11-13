@@ -36,6 +36,7 @@ import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.statusbar.StatusBarState
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
+import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
@@ -116,6 +117,12 @@ public interface WorkbenchState : AutoCloseable {
      * the workspace closes or the workbench is closed.
      */
     public val runtime: StateFlow<RuntimeState?>
+
+    /**
+     * The validation of the whole open project. The Validate button below the editor and the command Validate Project
+     * of the Run menu start it, and Run validates before it deploys. It reports in a dialog.
+     */
+    public val validation: ValidationState
 
     /**
      * The pending dialog. The workbench asks through it about unsaved changes, confirms deletions, asks for new names

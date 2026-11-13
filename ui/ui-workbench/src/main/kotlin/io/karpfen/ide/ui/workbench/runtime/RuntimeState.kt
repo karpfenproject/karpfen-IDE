@@ -69,12 +69,15 @@ import kotlinx.coroutines.withTimeoutOrNull
  * The runtime of one opened workspace and its runs, as the Runtime tool window shows and steers them. It holds the host
  * with its status and log, the runs with the selected one and its debugger, and the commands.
  *
- * A run goes through these steps. It resolves the descriptor. It asks in the run dialog which bridge files to start
- * with the run and whether to capture the run to a file, as [RunChoiceFlow] describes. It saves every open file. It
- * stops the earlier runs of the same descriptor that still prepare, still wait for the runtime, or are live. It
- * prepares the deployment from the saved workspace and waits for the runtime. Then it launches a session that deploys,
- * starts and observes the environment, and the chosen bridges, which start once the environment runs. A captured run
- * starts its [RunCapture] right before the launch. From then on the run's entry follows the session.
+ * A run goes through these steps. It resolves the descriptor. It saves every open file. It validates the whole project,
+ * and a project with an error does not run: the report opens in a dialog that says the run is blocked. It asks in the
+ * run dialog which bridge files to start with the run and whether to capture the run to a file, as [RunChoiceFlow]
+ * describes. It stops the earlier runs of the same descriptor that still prepare, still wait for the runtime, or are
+ * live. It prepares the deployment from the saved workspace and waits for the runtime. A preparation that blocks the
+ * deployment, such as one whose context has errors, ends the run, and its entry lists the findings. Then it launches a
+ * session that deploys, starts and observes the environment, and the chosen bridges, which start once the environment
+ * runs. A captured run starts its [RunCapture] right before the launch. From then on the run's entry follows the
+ * session.
  *
  * The capture of a run ends once the run is finished, which covers a stop, a failure and a replacement by a new run of
  * the same descriptor. It also ends when the run is cleared from the list or the workspace closes.
@@ -250,8 +253,9 @@ public class RuntimeState internal constructor(
     private suspend fun runFlow(given: Path?) {
         val pick = DescriptorResolver.pick(support.activeFile.value, descriptorsOf(workspace.files.value))
         val descriptor = resolver.resolve(given, pick) ?: return
-        val choice = choices.ask() ?: return
         if (!support.saveAll()) return
+        if (!support.validate()) return
+        val choice = choices.ask() ?: return
         stopRunsOf(descriptor)
         val started = clock.instant()
         val id = nextId++

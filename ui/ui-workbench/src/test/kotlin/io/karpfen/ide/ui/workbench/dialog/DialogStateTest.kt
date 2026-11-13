@@ -15,6 +15,9 @@
  */
 package io.karpfen.ide.ui.workbench.dialog
 
+import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
+import io.karpfen.ide.core.workspace.validation.ValidationFinding
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -30,7 +33,8 @@ import kotlin.test.assertTrue
 
 /**
  * Tests [DialogState]. It shows one dialog at a time, accepts only the answers of the request's type, and handles
- * cancellation. The tests also check that [DialogPresentation] offers exactly those answers.
+ * cancellation. The tests also check that [DialogPresentation] offers exactly those answers, and how it presents the
+ * report of a validation.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DialogStateTest {
@@ -91,6 +95,7 @@ class DialogStateTest {
             DialogRequest.Error("Title", "Message"),
             DialogRequest.ConfigureRun(path.parent, emptyList()),
             DialogRequest.ConfigureRun(path.parent, listOf(path.resolveSibling("a.kbridge.json")), setOf(0), capture = true),
+            DialogRequest.ValidationReport("Validate Project", ProjectValidation(path.parent, emptyList())),
         )
         requests.forEach { request ->
             val presentation = DialogPresentation.of(request)
@@ -156,5 +161,49 @@ class DialogStateTest {
         assertFalse(alone.optionTicked)
         assertFalse("bridge" in alone.message, alone.message)
         assertEquals(DialogResponse.RunWith(emptySet(), capture = false), alone.responseFor(DialogChoice.SubmitRun, ""))
+    }
+
+    @Test
+    fun `the validation report sums up the findings, lists one row each and only closes`() {
+        val root = path.parent
+        val findings = listOf(
+            ValidationFinding(root.resolve("lab/robot.kstates"), 13, 22, Severity.ERROR, "project.operation-mismatch", "SET on\n  a relation"),
+            ValidationFinding(root.resolve("robot.kmeta"), 2, 1, Severity.ERROR, "syntax", "missing '}'"),
+            ValidationFinding(root.resolve("robot.kstates"), 4, 16, Severity.WARNING, "project.unreachable-state", "lost"),
+        )
+        val request = DialogRequest.ValidationReport("Run Blocked", ProjectValidation(root, findings))
+
+        val presentation = DialogPresentation.of(request)
+
+        assertEquals("Run Blocked", presentation.title)
+        assertEquals("2 errors and 1 warning", presentation.message)
+        assertEquals(
+            listOf(
+                FindingRow("lab/robot.kstates:13  SET on a relation", Severity.ERROR),
+                FindingRow("robot.kmeta:2  missing '}'", Severity.ERROR),
+                FindingRow("robot.kstates:4  lost", Severity.WARNING),
+            ),
+            presentation.findings,
+        )
+        assertEquals(listOf("Close"), presentation.buttons.map { it.label })
+        assertEquals(DialogResponse.Confirm, presentation.dismiss)
+        assertTrue(request.accepts(DialogResponse.Confirm))
+        assertFalse(request.accepts(DialogResponse.Cancel))
+        assertNull(DialogPresentation.of(DialogRequest.Error("T", "M")).findings, "only the report lists findings")
+    }
+
+    @Test
+    fun `the summary counts errors and warnings in the singular and the plural and says when there is nothing`() {
+        val root = path.parent
+        fun summaryOf(vararg severities: Severity) = ValidationReportTexts.summary(
+            ProjectValidation(root, severities.mapIndexed { line, severity -> ValidationFinding(path, line + 1, 1, severity, "c", "m") }),
+        )
+
+        assertEquals(ValidationReportTexts.NO_PROBLEMS, summaryOf())
+        assertEquals("No problems found.", ValidationReportTexts.NO_PROBLEMS)
+        assertEquals("1 error", summaryOf(Severity.ERROR))
+        assertEquals("3 warnings", summaryOf(Severity.WARNING, Severity.WARNING, Severity.WARNING))
+        assertEquals("1 error and 2 warnings", summaryOf(Severity.ERROR, Severity.WARNING, Severity.WARNING))
+        assertEquals(ValidationReportTexts.NO_ERRORS_OR_WARNINGS, summaryOf(Severity.INFO))
     }
 }

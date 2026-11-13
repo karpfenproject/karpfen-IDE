@@ -61,6 +61,7 @@ import io.karpfen.ide.ui.workbench.statusbar.view.EditorZoomBar
 import io.karpfen.ide.ui.workbench.tabs.ConflictBanner
 import io.karpfen.ide.ui.workbench.tabs.EditorTab
 import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
+import io.karpfen.ide.ui.workbench.validation.ValidateButtonUiState
 import java.nio.file.Path
 
 /**
@@ -73,7 +74,9 @@ import java.nio.file.Path
  *
  * A file with a diagram, which is a state machine, a metamodel or a model, can be shown in three ways, as [viewMode]
  * says: its text alone, its text and its diagram next to each other, or the diagram alone. The buttons for that sit at
- * the left of the bar below the editor and report to [onViewMode]. A click on a box of the diagram calls
+ * the left of the bar below the editor and report to [onViewMode]. After them, and below every editor, the button
+ * Validate validates the whole project through [onValidate]. [validation] says whether it is enabled and whether a
+ * validation runs. A click on a box of the diagram calls
  * [onSelectInText] with the place of its name in the text. The diagram can be arranged by hand, which is stored in a
  * companion file next to the file. The diagram reads that file again whenever [diskRevision] changes, and
  * [onDiagramSaved] is called after it wrote the file. While a model runs, [live] holds what the run adds to the
@@ -113,6 +116,8 @@ internal fun EditorArea(
     live: DiagramLive? = null,
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
+    validation: ValidateButtonUiState = ValidateButtonUiState(),
+    onValidate: () -> Unit = {},
 ) {
     val colors = KarpfenTheme.colors
     val popups = remember { EditorPopups() }
@@ -179,7 +184,10 @@ internal fun EditorArea(
         if (activeEditor != null && activePath != null) {
             Box(Modifier.fillMaxWidth()) {
                 EditorZoomBar(editorFontSize, onZoomEditor, EditorAreaTestTags.ZOOM_BAR)
-                if (hasDiagram) ViewModeSwitch(mode, onViewMode, Modifier.align(Alignment.CenterStart))
+                Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
+                    if (hasDiagram) ViewModeSwitch(mode, onViewMode)
+                    ValidateButton(validation, onValidate)
+                }
             }
         }
     }
@@ -227,6 +235,26 @@ private fun ViewModeSwitch(mode: EditorViewMode, onViewMode: (EditorViewMode) ->
             )
         }
     }
+}
+
+/**
+ * The button that validates the whole project, after the view mode buttons. It shows the [validation]'s label, which
+ * says while a validation runs, and it takes clicks only while the validation is enabled. A click calls [onValidate].
+ * The button never takes the keyboard focus, so the editor keeps it.
+ */
+@Composable
+private fun ValidateButton(validation: ValidateButtonUiState, onValidate: () -> Unit) {
+    val colors = KarpfenTheme.colors
+    Text(
+        validation.label,
+        color = if (validation.enabled) colors.text else colors.textMuted,
+        style = KarpfenTheme.typography.uiSmall,
+        modifier = Modifier
+            .focusProperties { canFocus = false }
+            .clickable(enabled = validation.enabled) { onValidate() }
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .testTag(EditorAreaTestTags.VALIDATE),
+    )
 }
 
 /**

@@ -49,6 +49,7 @@ import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import io.karpfen.ide.ui.workbench.templates.FileTemplates
 import io.karpfen.ide.ui.workbench.templates.TemplateContext
+import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -106,6 +107,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override val windowTitle: StateFlow<String> = MutableStateFlow("karpfen IDE")
     override val runtime: StateFlow<RuntimeState?> = MutableStateFlow(null)
     override val bridgeForm: StateFlow<BridgeFormState?> = MutableStateFlow(null)
+    override val validation: ValidationState get() = unused("validation")
 
     override suspend fun start() {
         calls += "start"

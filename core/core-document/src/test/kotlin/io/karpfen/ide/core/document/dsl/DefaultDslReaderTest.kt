@@ -102,9 +102,14 @@ class DefaultDslReaderTest {
             code = "kstates.feature-off",
             source = DiagnosticSource.DSL_TOOLS,
         )
-        assertEquals(listOf(expected), read.diagnostics)
+        assertEquals(expected, read.diagnostics.first())
+        assertEquals(listOf(HISTORY_WITHOUT_INNER_STATES), read.diagnostics.drop(1).map { it.code }, "the history still counts")
         assertEquals("on", assertNotNull(read.model).states.single().name)
-        assertEquals(emptyList(), reader.kstates(TextSnapshot(text, 0)).diagnostics, "every feature is on by default")
+        assertEquals(
+            listOf(HISTORY_WITHOUT_INNER_STATES),
+            reader.kstates(TextSnapshot(text, 0)).diagnostics.map { it.code },
+            "every feature is on by default, so only the warning about the history is left",
+        )
     }
 
     @Test
@@ -223,5 +228,10 @@ class DefaultDslReaderTest {
     @Test
     fun `a read without a model must report an error`() {
         assertFailsWith<IllegalArgumentException> { ReadResult<Any>(null, emptyList()) }
+    }
+
+    private companion object {
+        /** The dsl-tools code of a history on a state without inner states, which is a warning. */
+        const val HISTORY_WITHOUT_INNER_STATES = "kstates.history-without-inner-states"
     }
 }

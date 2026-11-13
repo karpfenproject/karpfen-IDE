@@ -43,8 +43,9 @@ internal data class DialogButton(val label: String, val choice: DialogChoice, va
  * [title], a [message] and [buttons]. The buttons offer exactly the answers the request accepts. An optional text field
  * starts with the text [input]. An optional list shows [choices] and starts with the entry at [preselected] selected.
  * An optional list of boxes shows [ticks] and starts with the boxes of [preticked] ticked. An optional single box below
- * it shows the label [option] and starts ticked if [optionTicked] is true. [dismiss] is the answer given when the user
- * dismisses the dialog with Escape.
+ * it shows the label [option] and starts ticked if [optionTicked] is true. An optional list of [findings] shows one row
+ * of text per finding, which scrolls and cannot be clicked. [dismiss] is the answer given when the user dismisses the
+ * dialog with Escape.
  */
 internal data class DialogPresentation(
     val title: String,
@@ -58,6 +59,7 @@ internal data class DialogPresentation(
     val preticked: Set<Int> = emptySet(),
     val option: String? = null,
     val optionTicked: Boolean = false,
+    val findings: List<FindingRow>? = null,
 ) {
     /**
      * The response of [choice] while [text] is entered, the list entry at [selected] is selected, the boxes of
@@ -136,6 +138,13 @@ internal data class DialogPresentation(
                 preticked = request.preselected,
                 option = CAPTURE_RUN,
                 optionTicked = request.capture,
+            )
+            is DialogRequest.ValidationReport -> DialogPresentation(
+                title = request.title,
+                message = ValidationReportTexts.summary(request.validation),
+                buttons = listOf(answer("Close", DialogResponse.Confirm, isDefault = true)),
+                dismiss = DialogResponse.Confirm,
+                findings = ValidationReportTexts.rows(request.validation),
             )
             is DialogRequest.Error -> DialogPresentation(
                 title = request.title,

@@ -32,6 +32,8 @@ import io.karpfen.ide.core.workspace.files.FileWatcher
 import io.karpfen.ide.core.workspace.files.WorkspaceScanner
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
+import io.karpfen.ide.core.workspace.validation.ProjectValidator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -41,9 +43,10 @@ import java.nio.file.Path
 
 /**
  * Facade over one opened folder. It offers the file tree and its watching, the open documents, the modeling contexts,
- * the project analysis and the problems of all files. It coordinates its collaborators and implements no domain logic
- * itself. The collaborators are the scanner, the file watcher, the [DocumentManager], the [SourceLoader], the
- * descriptor reader, the context resolver, the project analyzer and the problems aggregator.
+ * the project analysis, the problems of all files and the validation of the whole project. It coordinates its
+ * collaborators and implements no domain logic itself. The collaborators are the scanner, the file watcher, the
+ * [DocumentManager], the [SourceLoader], the descriptor reader, the context resolver, the project analyzer, the
+ * problems aggregator and the project validator.
  *
  * The workspace runs four pipelines. All of them live in a child scope of the factory's scope, and [close] cancels
  * them.
@@ -132,6 +135,17 @@ public interface Workspace : AutoCloseable {
     public suspend fun awaitAnalysis(): ProjectAnalysis
 
     /**
+     * Validates the whole project. It runs an analysis now, as [awaitAnalysis] does, and then lets the
+     * `ProjectValidator` of the workspace check every modeling context of that analysis, with the checks across files
+     * that the continuous analysis leaves out. The report holds those findings together with the [problems] of the
+     * analysis. The validation runs on `WorkspaceOptions.analysisDispatcher`. The Validate button, the run before it
+     * deploys and the command line tool use it.
+     *
+     * @throws IllegalStateException if the workspace is closed.
+     */
+    public suspend fun validate(): ProjectValidation
+
+    /**
      * Stops watching and analysis and closes every open document. Unsaved changes are discarded. Calling it again does
      * nothing.
      */
@@ -149,6 +163,7 @@ public interface Workspace : AutoCloseable {
  *   as described on [Workspace]. Cancelling it has the same effect as [Workspace.close].
  * @param reader the dsl-tools adapter of the default [analyzer].
  * @param fileStore reads files through the default [sourceLoader] and writes them when a document is saved.
+ * @param validator validates the whole project in [Workspace.validate].
  * @throws IllegalArgumentException if [root] is not a directory.
  */
 public fun Workspace(
@@ -163,6 +178,7 @@ public fun Workspace(
     descriptorReader: EnvironmentDescriptorReader = EnvironmentDescriptorReader(),
     contextResolver: ContextResolver = ContextResolver(),
     analyzer: ProjectAnalyzer = ProjectAnalyzer(languages, reader),
+    validator: ProjectValidator = ProjectValidator(),
 ): Workspace {
     val normalizedRoot = root.toAbsolutePath().normalize()
     require(Files.isDirectory(normalizedRoot)) { "workspace root $normalizedRoot is not a directory" }
@@ -176,7 +192,7 @@ public fun Workspace(
         options = options,
         languages = languages,
         collaborators = WorkspaceCollaborators(
-            fileStore, fileWatcher, sourceLoader, descriptorReader, contextResolver, analyzer,
+            fileStore, fileWatcher, sourceLoader, descriptorReader, contextResolver, analyzer, validator,
             documents = documents,
             scanner = WorkspaceScanner(options.ignoredDirectoryNames),
         ),

@@ -84,6 +84,10 @@ refer to.
   operation in the Project tree refreshes the workspace.
 - Whether files next to a descriptor but not named by it should form an implicit context is undecided.
 - The command-line tool cannot deploy. tools/cli already declares a dependency on runtime-session for it.
+- A validation reports only in its dialog. Its findings across files are not in the Problems view and not underlined
+  in the editor, and the dialog does not lead to their places.
+- The copies of the dsl-tools example in the test fixtures are older than the example itself. The copy of the robot
+  still sets relations with `SET`, which the verifier reports, so validating the fixtures finds four errors.
 - `karpfen validate` does not read `.karpfenproject`. It checks with every language feature on, so it accepts a
   project that the IDE blocks because of a feature that is off. The format of the feature lines lives in
   ui-workbench, which the command-line tool does not use.
@@ -92,13 +96,15 @@ refer to.
 - Performance work has not started, for example on the model mirror and on snapshots of large models. The tests tagged
   `budget` hold the targets.
 
-### Checks that belong in dsl-tools
+### Checks that dsl-tools does not make
 
-dsl-tools 2.0 checks the types, properties, relations, references and numbers of a model, the number of initial states,
-the arity of actions and that tick limits count whole ticks. Missing are checks for repeated names and keys,
-transitions and timeouts to unknown states, the number of targets of a `SPLIT` and of sources of a `JOIN`, the
-existence and arity of macros, the model paths in actions and `EVAL` bodies, unreachable states, and a history on a
-state without nested states.
+dsl-tools checks each text in its readers and a project as a whole in its verifier, as its guide
+`guides/verification.md` lists. Still missing:
+
+- Whether the Python code of an `EVAL` block is valid and what it returns. That needs Python.
+- The paths that the runtime reads for the missing arguments of a macro call.
+- A read of an event field in a project without event definitions, which always fails at run time.
+- Whether a metamodel can be instantiated at all, for example when two types must contain each other.
 
 ## In the runtime
 

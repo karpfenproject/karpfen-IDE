@@ -37,10 +37,12 @@ import io.karpfen.ide.core.workspace.document.OpenDocument
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.editor.state.CodeEditorState
 import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +67,21 @@ class FakeWorkspace(override val root: Path) : Workspace {
     override suspend fun refresh() = Unit
 
     override suspend fun awaitAnalysis(): ProjectAnalysis = analysis.value
+
+    /**
+     * What [validate] answers. A test completes it with the report it wants, or leaves it open, so the validation runs
+     * until the test completes it.
+     */
+    var validation: CompletableDeferred<ProjectValidation> = CompletableDeferred(ProjectValidation(root, emptyList()))
+
+    /** How many validations were asked for. */
+    var validations: Int = 0
+        private set
+
+    override suspend fun validate(): ProjectValidation {
+        validations++
+        return validation.await()
+    }
 
     override fun close() = Unit
 }

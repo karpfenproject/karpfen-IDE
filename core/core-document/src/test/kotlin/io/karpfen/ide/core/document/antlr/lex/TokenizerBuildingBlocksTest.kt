@@ -118,7 +118,7 @@ class TokenizerBuildingBlocksTest {
     }
 
     @Test
-    fun `embedded pieces map to token kinds and only double slashes warn`() {
+    fun `embedded pieces map to token kinds`() {
         assertEquals(
             mapOf(
                 EmbeddedKind.CODE to TokenKind.EMBEDDED_CODE, EmbeddedKind.KEYWORD to TokenKind.EMBEDDED_KEYWORD,
@@ -129,12 +129,6 @@ class TokenizerBuildingBlocksTest {
             ),
             EmbeddedKind.entries.associateWith(EmbeddedPieceTokens::kindOf),
         )
-        val warning = EmbeddedPieceTokens.diagnosticOf(EmbeddedPiece(TextRange(4, 9), EmbeddedKind.KARPFEN_COMMENT))
-        assertEquals(TextRange(4, 9), warning?.range)
-        assertEquals(DiagnosticCodes.EVAL_DOUBLE_SLASH, warning?.code)
-        EmbeddedKind.entries.filter { it != EmbeddedKind.KARPFEN_COMMENT }.forEach { kind ->
-            assertNull(EmbeddedPieceTokens.diagnosticOf(EmbeddedPiece(TextRange(0, 1), kind)), "$kind")
-        }
     }
 
     /**

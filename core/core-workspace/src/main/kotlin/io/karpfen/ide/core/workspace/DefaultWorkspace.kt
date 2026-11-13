@@ -38,6 +38,8 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import io.karpfen.ide.core.workspace.problems.ProblemsPublisher
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblemsAggregator
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
+import io.karpfen.ide.core.workspace.validation.ProjectValidator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -50,6 +52,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
@@ -66,6 +69,7 @@ internal class WorkspaceCollaborators(
     val descriptorReader: EnvironmentDescriptorReader,
     val contextResolver: ContextResolver,
     val analyzer: ProjectAnalyzer,
+    val validator: ProjectValidator,
     val documents: WorkspaceDocuments,
     val scanner: WorkspaceScanner,
 )
@@ -171,6 +175,13 @@ internal class DefaultWorkspace(
             problemsPublisher.problems.first { it.generation >= analysis.generation }
             analysis
         }.await()
+    }
+
+    /** Runs an analysis now and validates it with the [WorkspaceCollaborators.validator] on the analysis dispatcher. */
+    override suspend fun validate(): ProjectValidation {
+        val analysis = awaitAnalysis()
+        val problems = problemsPublisher.problems.value
+        return withContext(options.analysisDispatcher) { collaborators.validator.validate(root, analysis, problems) }
     }
 
     override fun close() {

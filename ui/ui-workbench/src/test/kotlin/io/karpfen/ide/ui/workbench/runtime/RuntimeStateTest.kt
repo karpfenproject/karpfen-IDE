@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.runtime
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
@@ -44,7 +45,9 @@ import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
+import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
+import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -67,7 +70,8 @@ import kotlin.time.Duration.Companion.seconds
  * [FakeRuntimeHost][io.karpfen.ide.ui.workbench.testing.FakeRuntimeHost] that answers what each test programs. The
  * sessions are real, and their clients reach the fake runtime, which also answers only what each test programs.
  *
- * The tests cover which descriptor Run picks, saving before preparing, and blocked and failed runs. They follow a
+ * The tests cover which descriptor Run picks, saving before preparing, the validation before the run dialog, and
+ * blocked and failed runs. They follow a
  * launch until the environment runs. They run again, also while the previous run waits for the runtime. They cover
  * stopping, replacing the host when the settings change, and closing the workspace. And they check the bound of the
  * sessions' shutdown and the limit of the runs list. And they capture a run to a file and end the capture with the
@@ -181,7 +185,7 @@ class RuntimeStateTest {
             settle()
             fileStore.failingWrites.add(model)
 
-            val failed = confirmRun(lamp)
+            val failed = runtime.run(lamp)
             answer(DialogRequest.Error::class, DialogResponse.Confirm)
 
             assertTrue(failed.isCompleted)
@@ -198,9 +202,49 @@ class RuntimeStateTest {
     }
 
     @Test
+    fun `an error anywhere in the project blocks the run with the validation report and never asks for the runtime`() =
+        runTest(timeout = TIMEOUT) {
+            val lamp = copy(SynthesizedModel.LAMP)
+            val broken = Files.createDirectories(root.resolve("broken")).resolve("broken.kmeta")
+            Files.writeString(broken, "type \"B\" \"b\" {\n")
+            withWorkbench(settingsDirectory) {
+                open(root)
+
+                val run = runtime.run(lamp)
+                val report = answer(DialogRequest.ValidationReport::class, DialogResponse.Confirm)
+
+                assertTrue(run.isCompleted)
+                assertEquals(ValidationState.RUN_BLOCKED_TITLE, report.title)
+                assertEquals(listOf(broken), report.validation.findings.filter { it.severity == Severity.ERROR }.map { it.path }.distinct())
+                assertTrue(runtime.runs.value.isEmpty(), "a blocked run is not listed")
+                assertEquals(0, runtimeHosts.current.starts)
+                assertNoDialog()
+            }
+        }
+
+    @Test
+    fun `warnings of the validation let the run go on without a report`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP)
+        val other = Files.createDirectories(root.resolve("other"))
+        Files.writeString(other.resolve("other.kmeta"), "type \"T\" \"t\" {\n}\n")
+        Files.writeString(other.resolve("other.kstates"), UNREACHABLE_STATE)
+        withWorkbench(settingsDirectory) {
+            open(root)
+            runtimeHosts.current.outcome = FAILED_HOST
+
+            confirmRun(lamp).joinSettled()
+
+            assertTrue(workspace.validate().warningCount > 0, "the project has warnings")
+            assertEquals(lamp, runtime.runs.value.single().descriptor)
+            assertEquals(1, runtimeHosts.current.starts)
+            assertNoDialog()
+        }
+    }
+
+    @Test
     fun `a blocked preparation lists its findings and never asks for the runtime`() = runTest(timeout = TIMEOUT) {
         val lamp = copy(SynthesizedModel.LAMP)
-        Files.writeString(lamp, Files.readString(lamp).replace("\"attachedTo\": \"lamp\"", "\"attachedTo\": \"ghost\""))
+        Files.writeString(lamp, Files.readString(lamp).replace(SWITCH_ENTRY, "{ \"file\": \"lamp.kstates\", \"attachedTo\": \"lamp\" }"))
         withWorkbench(settingsDirectory) {
             open(root)
 
@@ -486,9 +530,16 @@ class RuntimeStateTest {
         }
     }
 
-    /** Copies [model] into a folder of its own below the workspace root and returns its descriptor. */
-    private fun copy(model: SynthesizedModel): Path =
-        SynthesizedModels.copyTo(root.resolve(model.folder), model, DescriptorTiming.EVENT_SCENARIOS).toAbsolutePath().normalize()
+    /**
+     * Copies [model] into a folder of its own below the workspace root and returns its descriptor. The project settings
+     * switch parallel states on, which the metronome uses, so the synthesized models validate without errors. The other
+     * features stay off, so no run deploys with the debugger.
+     */
+    private fun copy(model: SynthesizedModel): Path {
+        Files.createDirectories(root)
+        switchOnLanguageFeatures(root, setOf(KstatesFeature.PARALLEL))
+        return SynthesizedModels.copyTo(root.resolve(model.folder), model, DescriptorTiming.EVENT_SCENARIOS).toAbsolutePath().normalize()
+    }
 
     /** Runs [descriptor], or the picked descriptor if it is null, and answers the run dialog without bridges or capture. */
     private fun TestWorkbench.confirmRun(descriptor: Path? = null): Job = runtime.run(descriptor).also { answerRun() }
@@ -553,6 +604,21 @@ class RuntimeStateTest {
 
         /** A line the engine trace writes on every tick, which the Log pane leaves out. */
         const val TICK_NOISE = "[12:41:30.123] [env-1] [lamp] TICK_START: tick 3"
+
+        /** A state machine whose second state, `lost`, nothing leads into: a warning of the validation. */
+        val UNREACHABLE_STATE = """
+            STATEMACHINE ATTACHED TO "T" {
+                STATES {
+                    INITIAL STATE "start" { }
+                    STATE "lost" { }
+                }
+                TRANSITIONS {
+                }
+            }
+        """.trimIndent() + "\n"
+
+        /** The entry of the lamp descriptor that attaches the switch machine. */
+        const val SWITCH_ENTRY = "{ \"file\": \"switch.kstates\", \"attachedTo\": \"wallSwitch\" }"
 
         /** The revision of the final model after a stop. */
         const val FINAL_REVISION = 3L

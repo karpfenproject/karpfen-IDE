@@ -41,11 +41,11 @@ class TokenizerExamplesTest {
     }
 
     @Test
-    fun `the only diagnostics of the examples are eval-double-slash warnings`() {
+    fun `the examples tokenize without diagnostics`() {
         for (file in Examples.files()) {
             val result = tokenizeChecked(file.language, file.text, file.path)
 
-            assertTrue(result.diagnostics.all { it.code == DiagnosticCodes.EVAL_DOUBLE_SLASH }, "$file: ${result.diagnostics}")
+            assertTrue(result.diagnostics.isEmpty(), "$file: ${result.diagnostics}")
         }
     }
 

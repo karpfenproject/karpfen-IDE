@@ -30,6 +30,12 @@ public object RuntimeCommandIds {
     /** Stop in the Run menu. It stops the selected run, or the only run that can be stopped. */
     public const val STOP: String = "runtime.stop"
 
+    /**
+     * Validate Project in the Run menu. It validates the whole open project, with the checks across files, and shows
+     * the report in a dialog.
+     */
+    public const val VALIDATE: String = "runtime.validate"
+
     /** Pause in the Run menu. It pauses the selected run through its debugger. */
     public const val PAUSE: String = "runtime.pause"
 

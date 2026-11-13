@@ -38,8 +38,9 @@ import org.antlr.v4.runtime.Token
  * - EVAL bodies and their content come from `EvalBodies.find` and `EvalBodies.scan`. The tree walker shares them, so
  *   highlighting and references agree. CODE becomes EMBEDDED_CODE, KEYWORD becomes EMBEDDED_KEYWORD, STRING becomes
  *   EMBEDDED_STRING, NUMBER becomes EMBEDDED_NUMBER, and a `#` COMMENT becomes EMBEDDED_COMMENT. PATH_REFERENCE and
- *   MACRO_REFERENCE become the token kinds of the same name. A `//` KARPFEN_COMMENT becomes a COMMENT plus an
- *   `eval-double-slash` WARNING with source IDE.
+ *   MACRO_REFERENCE become the token kinds of the same name. A `//` KARPFEN_COMMENT becomes a COMMENT, because the
+ *   karpfen lexer drops it from the Python code. The tokenizer reports nothing for it, since the KStates reader of
+ *   dsl-tools warns about it.
  * - The content ranges of the bodies, `EvalBody.content`, are published as `TokenizeResult.embeddedRegions`. They are
  *   the one answer to whether an offset lies in embedded Python, for the editor and for core-lang.
  * - `EVENT` is an OPERATION inside action blocks and a KEYWORD inside CONDITION blocks. The block structure is tracked
@@ -65,7 +66,6 @@ internal class KstatesTokenizer : Tokenizer {
         val lexed = KarpfenLexers.lex(DslGrammar.KSTATES, text)
         val bodies = EvalBodies.find(lexed.tokens, lexed.offsets)
         val tokens = TokenSequence()
-        val diagnostics = ArrayList<Diagnostic>(lexed.diagnostics)
         val blocks = KstatesBlockTracker()
 
         var nextBody = 0
@@ -75,7 +75,6 @@ internal class KstatesTokenizer : Tokenizer {
             if (body != null && index >= body.firstToken) {
                 for (piece in EvalBodies.scan(text, lexed.tokens, lexed.offsets, body)) {
                     tokens.add(piece.range, EmbeddedPieceTokens.kindOf(piece.kind))
-                    EmbeddedPieceTokens.diagnosticOf(piece)?.let(diagnostics::add)
                 }
                 index = maxOf(index, body.endToken)
                 nextBody++
@@ -91,7 +90,7 @@ internal class KstatesTokenizer : Tokenizer {
         return TokenizeResult(
             version = snapshot.version,
             tokens = tokens.toList(),
-            diagnostics = diagnostics.sortedWith(Diagnostic.ORDER),
+            diagnostics = lexed.diagnostics.sortedWith(Diagnostic.ORDER),
             embeddedRegions = bodies.map { it.content },
         )
     }

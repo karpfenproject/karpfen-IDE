@@ -52,6 +52,7 @@ import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
 import io.karpfen.ide.ui.workbench.tabs.view.CodeCellEditor
 import io.karpfen.ide.ui.workbench.tabs.view.EditorArea
 import io.karpfen.ide.ui.workbench.tabs.view.LocalWindowDensity
+import io.karpfen.ide.ui.workbench.validation.ValidateButtonUiState
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeView
 import java.nio.file.Path
 
@@ -178,6 +179,8 @@ private fun EditorPane(state: WorkbenchState) {
     val workspace by state.workspace.collectAsState()
     val diskRevision = workspace?.scanRevision?.collectAsState()?.value ?: 0L
     val settings by state.settings.collectAsState()
+    val canValidate by state.validation.canValidate.collectAsState()
+    val validating by state.validation.isBusy.collectAsState()
     val running = state.runtime.collectAsState().value?.selected?.collectAsState()?.value?.takeIf { it.isLive }?.session
     val observed = running?.model?.collectAsState()?.value
     val debugger = running?.debugger?.state?.collectAsState()?.value ?: DebuggerState.Unavailable
@@ -212,6 +215,8 @@ private fun EditorPane(state: WorkbenchState) {
         live = live,
         cellEditor = cellEditor,
         languageFeatures = settings.languageFeatures,
+        validation = ValidateButtonUiState(enabled = canValidate, busy = validating),
+        onValidate = { state.validation.validate() },
     )
 }
 

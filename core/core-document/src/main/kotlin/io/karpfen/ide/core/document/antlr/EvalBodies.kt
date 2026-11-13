@@ -61,7 +61,7 @@ internal enum class EmbeddedKind {
 
     /**
      * A `//` comment. It is the karpfen lexer's `LINE_COMMENT`, which drops the rest of the line from the Python code.
-     * The tokenizer emits it as a COMMENT token together with an `eval-double-slash` WARNING.
+     * The tokenizer emits it as a COMMENT token.
      */
     KARPFEN_COMMENT,
 

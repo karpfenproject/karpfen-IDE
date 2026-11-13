@@ -32,6 +32,9 @@ public object EditorAreaTestTags {
     /** The button of the view mode named [label], which is "Text", "Split" or "Diagram". */
     public fun viewMode(label: String): String = "Workbench.viewMode:$label"
 
+    /** The button below the editor that validates the whole project. */
+    public const val VALIDATE: String = "Workbench.validate"
+
     /** The conflict banner of the active tab. */
     public const val CONFLICT_BANNER: String = "Workbench.conflictBanner"
 

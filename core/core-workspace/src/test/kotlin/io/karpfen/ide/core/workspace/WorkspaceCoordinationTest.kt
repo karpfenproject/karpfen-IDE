@@ -37,6 +37,7 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import io.karpfen.ide.core.workspace.fixtures.FakeFileWatcher
 import io.karpfen.ide.core.workspace.fixtures.TestWorkspaces
 import io.karpfen.ide.core.workspace.fixtures.settle
+import io.karpfen.ide.core.workspace.validation.ProjectValidator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -123,7 +124,8 @@ class WorkspaceCoordinationTest {
         analyzer = CountingAnalyzer()
         watcher = workspaces.watcher
         val collaborators = WorkspaceCollaborators(
-            TextFileStore(), watcher, SourceLoader(), EnvironmentDescriptorReader(), ContextResolver(), analyzer, documents, scanner,
+            TextFileStore(), watcher, SourceLoader(), EnvironmentDescriptorReader(), ContextResolver(), analyzer, ProjectValidator(),
+            documents, scanner,
         )
         return DefaultWorkspace(root, backgroundScope, workspaces.options(watch = true), defaultLanguageRegistry(), collaborators)
     }

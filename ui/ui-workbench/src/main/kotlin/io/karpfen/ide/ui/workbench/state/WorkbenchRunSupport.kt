@@ -23,14 +23,15 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.runtime.RunChoice
 import io.karpfen.ide.ui.workbench.runtime.RunSupport
 import io.karpfen.ide.ui.workbench.tabs.EditorTabsState
+import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
 /**
- * The workbench as a run sees it. A run gets the active tab, Save All through the [saving] flow, the choice of the
- * descriptor, the run dialog with the bridges and the capture, the error dialog and the Runtime tool window of the
- * [layout]. Save All and the two choices run in the turn of the [runner], so they never interleave with the dialog of
- * another intent.
+ * The workbench as a run sees it. A run gets the active tab, Save All through the [saving] flow, the validation of the
+ * whole project through [validation], the choice of the descriptor, the run dialog with the bridges and the capture,
+ * the error dialog and the Runtime tool window of the [layout]. Save All and the two choices run in the turn of the
+ * [runner], so they never interleave with the dialog of another intent.
  */
 internal class WorkbenchRunSupport(
     private val runner: IntentRunner,
@@ -38,11 +39,14 @@ internal class WorkbenchRunSupport(
     private val saving: SaveFlow,
     private val dialogs: DialogState,
     private val layout: LayoutState,
+    private val validation: ValidationState,
 ) : RunSupport {
 
     override val activeFile: StateFlow<Path?> get() = tabs.active
 
     override suspend fun saveAll(): Boolean = runner.exclusive { saving.save(tabs.documents().filter { it.isDirty.value }) }
+
+    override suspend fun validate(): Boolean = validation.checkBeforeRun()
 
     override suspend fun chooseDescriptor(root: Path, descriptors: List<Path>, preselected: Path?): Path? = runner.exclusive {
         val request = DialogRequest.ChooseDescriptor(root, descriptors, descriptors.indexOf(preselected).coerceAtLeast(0))

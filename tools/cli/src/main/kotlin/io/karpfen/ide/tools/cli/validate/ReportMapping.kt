@@ -15,31 +15,27 @@
  */
 package io.karpfen.ide.tools.cli.validate
 
-import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
 import java.nio.file.Path
 import kotlin.io.path.invariantSeparatorsPathString
 
 /**
- * The [ValidationReport] of these problems below [root], which is absolute and normalized. There is one
- * [ReportedProblem] per diagnostic, and nothing is filtered or merged, because the workspace's single rule for
- * problems already decided what is reported. Each problem has its path relative to [root] in `/` form, from
- * [reportPath], and the one-based position of `FileProblems.positionOf`. The problems are sorted by path, line and
- * column. Ties keep the files' diagnostic order, `Diagnostic.ORDER`.
+ * The [ValidationReport] of this validation of the project at [root], which is absolute and normalized. There is one
+ * [ReportedProblem] per finding, and nothing is filtered or merged, because the validation of the workspace already
+ * decided what is reported. Each problem has its path relative to [root] in `/` form, from [reportPath], and the
+ * one-based position of its finding. The problems are sorted by path, line and column. Ties keep the order of the
+ * validation, `ValidationFinding.ORDER`.
  */
-internal fun WorkspaceProblems.toValidationReport(root: Path): ValidationReport {
-    val problems = files.flatMap { file ->
-        val path = reportPath(root, file.path)
-        file.diagnostics.map { diagnostic ->
-            val position = file.positionOf(diagnostic)
-            ReportedProblem(
-                path = path,
-                line = position.line + 1,
-                column = position.column + 1,
-                severity = diagnostic.severity,
-                message = diagnostic.message,
-                code = diagnostic.code,
-            )
-        }
+internal fun ProjectValidation.toValidationReport(root: Path): ValidationReport {
+    val problems = findings.map { finding ->
+        ReportedProblem(
+            path = reportPath(root, finding.path),
+            line = finding.line,
+            column = finding.column,
+            severity = finding.severity,
+            message = finding.message,
+            code = finding.code,
+        )
     }
     return ValidationReport(root, problems.sortedWith(REPORT_ORDER))
 }

@@ -24,11 +24,10 @@ import io.karpfen.ide.core.document.parse.ParseOutcome
  * in core-workspace both use it. So an open and an unopened file are merged the same way, and the IDE and the CLI
  * report the same.
  *
- * The merge takes [lexical] whole. These are the tokenizer's diagnostics, which are LEXER errors and
- * `eval-double-slash` warnings. From [parse] it takes the PARSER diagnostics and the standalone DSL_TOOLS diagnostics.
- * The LEXER diagnostics of [parse] come from the parser's own lexer and repeat the tokenizer's, so they are dropped
- * and nothing is reported twice. Last, it takes every list of [external], such as the sources of
- * [ExternalDiagnosticSources].
+ * The merge takes [lexical] whole. These are the tokenizer's diagnostics, which are LEXER errors. From [parse] it takes
+ * the PARSER diagnostics and the standalone DSL_TOOLS diagnostics. The LEXER diagnostics of [parse] come from the
+ * parser's own lexer and repeat the tokenizer's, so they are dropped and nothing is reported twice. Last, it takes
+ * every list of [external], such as the sources of [ExternalDiagnosticSources].
  *
  * All ranges must already refer to the same text. The session maps older ones forward before merging. The result is
  * sorted with [Diagnostic.ORDER] and has no duplicates. The function is pure.

@@ -79,7 +79,11 @@ class WorkspaceLanguageFeaturesTest {
 
         val all = workspace.analysis.value
         assertEquals(TestWorkspaces.ALL_FEATURES, all.languageFeatures, "the change alone analyzed again")
-        assertEquals(emptyList(), all.diagnosticsFor(machine))
+        assertEquals(
+            listOf(EVAL_WITHOUT_RETURN),
+            all.diagnosticsFor(machine).map { it.code },
+            "with every feature on, only the warning about the EVAL code without a return is left",
+        )
         assertEquals(TestWorkspaces.ALL_FEATURES, workspace.languageFeatures.value)
 
         workspace.setLanguageFeatures(TestWorkspaces.ALL_FEATURES - KstatesFeature.PARALLEL)
@@ -149,5 +153,8 @@ class WorkspaceLanguageFeaturesTest {
     private companion object {
         /** The dsl-tools code of a construct of a feature that is off. */
         const val FEATURE_OFF = "kstates.feature-off"
+
+        /** The dsl-tools code of EVAL code without a `return`, which the machine of [write] has once. */
+        const val EVAL_WITHOUT_RETURN = "kstates.eval-without-return"
     }
 }

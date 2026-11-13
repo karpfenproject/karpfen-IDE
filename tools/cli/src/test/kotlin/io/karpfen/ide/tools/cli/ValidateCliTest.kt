@@ -48,8 +48,9 @@ import kotlin.time.TimeSource
 
 /**
  * `karpfen validate` end to end on real folders, through the real workspace on virtual time, with both process streams
- * captured. The folders are the examples, which exit with 0 and print nothing, broken copies, loose files and the
- * shared descriptor examples. What dsl-tools logs stays off unless `--verbose` shows it on standard error.
+ * captured. The folders are the examples, broken copies, loose files and the shared descriptor examples. The examples
+ * read without problems, and the checks across files find only the SET on relations in the cleaning robot of
+ * dsl-tools, [EXAMPLE_FINDINGS]. What dsl-tools logs stays off unless `--verbose` shows it on standard error.
  */
 class ValidateCliTest {
 
@@ -57,15 +58,32 @@ class ValidateCliTest {
     lateinit var dir: Path
 
     @Test
-    fun `the examples validate with exit 0 and print nothing`(reporter: TestReporter) = runTest(timeout = 120.seconds) {
+    fun `the examples validate with exit 1 for the checks across files only`(reporter: TestReporter) = runTest(timeout = 120.seconds) {
         val root = Examples.copyTo(dir)
 
         val mark = TimeSource.Monotonic.markNow()
         val run = runCli(testWorkspaceFactory(this), "validate", root.toString())
-        reporter.publishEntry("karpfen validate <examples>", "${mark.elapsedNow()} (workspace scan, resolution and analysis)")
+        reporter.publishEntry("karpfen validate <examples>", "${mark.elapsedNow()} (workspace scan, resolution, analysis and verification)")
 
-        assertEquals(CliRun(ExitCodes.OK, stdout = "", stderr = ""), run)
+        assertEquals(ExitCodes.ERRORS_FOUND, run.status)
+        assertEquals(EXAMPLE_FINDINGS, run.lines.map { it.withoutMessage() })
+        assertEquals("", run.stderr)
     }
+
+    @Test
+    fun `a project without a descriptor is still verified, and a finding across files is a warning that exits 0`() =
+        runTest(timeout = 60.seconds) {
+            val root = Files.createDirectories(dir.resolve("lamp"))
+            Files.writeString(root.resolve("lamp.kmeta"), "type \"Lamp\" \"l\" {\n    prop(\"mode\", \"string\")\n}\n")
+            Files.writeString(root.resolve("lamp.kstates"), UNREACHABLE_STATE)
+
+            val run = runCli(testWorkspaceFactory(this), "validate", root.toString())
+
+            assertEquals(ExitCodes.OK, run.status)
+            assertEquals(listOf("lamp.kstates:4:16: warning: [$UNREACHABLE]"), run.lines.map { it.withoutMessage() })
+            assertTrue("lost" in run.lines.single(), run.stdout)
+            assertEquals("", run.stderr)
+        }
 
     /**
      * Proves that nothing prints while a workspace analyzes the examples, so the report needs no guard around the
@@ -158,7 +176,13 @@ class ValidateCliTest {
             val atLimitRuns = List(RUNS) { runCli(workspaces, "validate", atLimit.toString()) }
             val beyondRuns = List(RUNS) { runCli(workspaces, "validate", "--format", "json", beyond.toString()) }
 
-            assertEquals(List(RUNS) { CliRun(ExitCodes.OK, stdout = "", stderr = "") }, atLimitRuns)
+            assertEquals(ExitCodes.OK, atLimitRuns.first().status)
+            assertEquals(
+                listOf("deep.kstates:4:8: warning: [$UNREACHABLE]"),
+                atLimitRuns.first().lines.map { it.withoutMessage() },
+                "the states nested within the limit are read, and nothing leads into the inner ones",
+            )
+            assertEquals(List(RUNS) { atLimitRuns.first() }, atLimitRuns)
             assertEquals(ExitCodes.ERRORS_FOUND, beyondRuns.first().status)
             assertTrue(DiagnosticCodes.NESTING_TOO_DEEP in beyondRuns.first().stdout, beyondRuns.first().stdout)
             assertEquals(List(RUNS) { beyondRuns.first() }, beyondRuns)
@@ -195,7 +219,7 @@ class ValidateCliTest {
             assertEquals(ExitCodes.ERRORS_FOUND, run.status)
             assertEquals(
                 listOf("$broken:${line + 1}:${column + 1}: error: missing ',' at '\"number\"' [${DiagnosticCodes.SYNTAX_ERROR}]"),
-                run.lines,
+                run.lines.filterNot { it.endsWith("[$OPERATION_MISMATCH]") },
             )
             assertEquals("", run.stderr, "nothing on stderr but the CLI's own messages (none here)")
         }
@@ -217,7 +241,7 @@ class ValidateCliTest {
                     "$directory/zz.kmeta:1:1: info: [$info]",
                     "$directory/zz.kmeta:3:1: error: missing '}' at '<EOF>' [${DiagnosticCodes.SYNTAX_ERROR}]",
                 ),
-                run.lines.map { it.withoutMessageOf(info) },
+                run.lines.map { it.withoutMessageOf(info) }.filterNot { it.endsWith("[$OPERATION_MISMATCH]") },
             )
             assertEquals("", run.stderr)
         }
@@ -269,7 +293,7 @@ class ValidateCliTest {
         assertEquals("", json.stderr)
         val document = Json.parseToJsonElement(json.stdout).jsonObject
         assertEquals(root.toAbsolutePath().normalize().toString(), document.getValue("root").jsonPrimitive.content)
-        assertEquals(1, document.getValue("errorCount").jsonPrimitive.int)
+        assertEquals(1 + EXAMPLE_FINDINGS.size, document.getValue("errorCount").jsonPrimitive.int)
         assertEquals(0, document.getValue("warningCount").jsonPrimitive.int)
         val asText = document.getValue("problems").jsonArray.map { element ->
             val problem = element.jsonObject.mapValues { (_, value) -> value.jsonPrimitive.content }
@@ -410,6 +434,29 @@ class ValidateCliTest {
          * [DeepNesting.SMALL_STACK], but within the nesting limit of the IDE's syntax analysis.
          */
         const val READER_DEPTH = NestingLimit.MAX_DEPTH - DeepNesting.GUARDS_STRUCTURE_DEPTH
+
+        /** The code of dsl-tools for an operation that does not fit what it works on, such as a SET on a relation. */
+        const val OPERATION_MISMATCH = "project.operation-mismatch"
+
+        /** The code of dsl-tools for a state that nothing leads into. */
+        const val UNREACHABLE = "project.unreachable-state"
+
+        /** What the checks across files find in the examples: the SET on relations in the cleaning robot of dsl-tools. */
+        val EXAMPLE_FINDINGS = listOf(13 to 22, 15 to 22, 24 to 26, 33 to 26).map { (line, column) ->
+            "karpfen-dsl-tools/statemachine_full_example/cleaning_robot.kstates:$line:$column: error: [$OPERATION_MISMATCH]"
+        }
+
+        /** A lamp machine without a descriptor whose second state, `lost`, nothing leads into. */
+        val UNREACHABLE_STATE = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    INITIAL STATE "off" { }
+                    STATE "lost" { }
+                }
+                TRANSITIONS {
+                }
+            }
+        """.trimIndent() + "\n"
 
         /** How often the determinism test validates each folder. */
         const val RUNS = 3

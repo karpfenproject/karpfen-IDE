@@ -1,0 +1,59 @@
+/**
+ * Copyright 2026 Karl Kegel
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.karpfen.ide.core.workspace.validation
+
+import io.karpfen.ide.core.document.Diagnostic
+import io.karpfen.ide.core.document.dsl.DslVerifier
+import io.karpfen.ide.core.document.dsl.MachineToVerify
+import io.karpfen.ide.core.document.dsl.VerificationInput
+import io.karpfen.ide.core.workspace.analysis.ContextAnalysis
+import java.nio.file.Path
+
+/**
+ * Verifies the state machines of one modeling context with the [verifier] of dsl-tools, over the reads the project
+ * analysis kept in `ContextAnalysis.reads`. So the verification works on exactly the texts the analysis read, and no
+ * file is read again.
+ *
+ * The verifier gets the read of the domain metamodel, the read of the event metamodel if the context names one, the
+ * read of the model if the context names exactly one, and the read of each state machine. A machine of a context with
+ * a descriptor carries the object key the descriptor attaches it to. A machine of a context without a descriptor has
+ * no object, so the checks that need one stay silent for it. A file the analysis did not read, because it has syntax
+ * errors or depends on a metamodel with errors, has no read and is left out.
+ *
+ * A context is not verified at all if its domain metamodel has no read, since every check builds on it. It is not
+ * verified either if it names an event metamodel that has no read while its domain metamodel was read without errors.
+ * The events file then has syntax errors of its own, and without its types the verifier would report the event types
+ * a machine names as unknown. The class holds no state.
+ */
+internal class ContextVerification(private val verifier: DslVerifier) {
+
+    /**
+     * The findings of the state machines of [context], each with the path of its machine, in the order of the context.
+     * A machine that the context names twice, attached to two objects, appears twice.
+     */
+    fun findings(context: ContextAnalysis): List<Pair<Path, List<Diagnostic>>> {
+        val reads = context.reads
+        val metamodel = reads.metamodel ?: return emptyList()
+        if (context.context.events != null && reads.events == null && !metamodel.hasErrors) return emptyList()
+        val machines = context.context.stateMachines.mapNotNull { binding ->
+            reads.stateMachines[binding.file]?.let { binding.file to MachineToVerify(it, binding.attachedTo) }
+        }
+        if (machines.isEmpty()) return emptyList()
+        val model = context.context.models.singleOrNull()?.let { reads.models[it] }
+        val findings = verifier.verify(VerificationInput(metamodel, reads.events, model, machines.map { it.second }))
+        return machines.map { it.first }.zip(findings)
+    }
+}

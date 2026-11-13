@@ -364,7 +364,9 @@ code, and all rules live in its test sources.
    skips a file whose text and metamodel did not change. The result is a `ProjectAnalysis` in `Workspace.analysis`.
 7. `ProjectDiagnosticsPublisher` puts the diagnostics of each analyzed file into its open session. `ProblemsPublisher`
    with `WorkspaceProblemsAggregator` publishes `Workspace.problems`, one rule for every diagnostic of every file. The
-   Problems view, the status bar and `karpfen validate` all read this value.
+   Problems view and the status bar read this value.
+8. A validation is asked for by the Validate button, by a run or by `karpfen validate`. `Workspace.validate()` waits
+   for the analysis and lets `ProjectValidator` add what dsl-tools' verifier finds across the files of each context.
 
 ### Running a model
 

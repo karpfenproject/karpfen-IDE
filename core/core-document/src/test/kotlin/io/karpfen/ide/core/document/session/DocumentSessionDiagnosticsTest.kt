@@ -19,6 +19,7 @@ import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.parse.ParseOutcome
+import io.karpfen.ide.core.document.syntax.Tokenizer
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
@@ -60,6 +61,24 @@ class DocumentSessionDiagnosticsTest {
     private val standalone = diagnostic(rangeOf("Robot"), DiagnosticSource.DSL_TOOLS)
     private val project = diagnostic(rangeOf("STATE \"a\""), DiagnosticSource.DSL_TOOLS, "project finding")
 
+    /**
+     * The real tokenizer, which adds a LEXER error at the comment `// floor` of each text that has it. The KStates
+     * tokenizer reports nothing of its own for the source, so this gives the tokens a lexical diagnostic to merge.
+     */
+    private fun flagging(): Tokenizer {
+        val real = realTokenizer()
+        return Tokenizer { snapshot ->
+            val tokens = real.tokenize(snapshot)
+            val at = snapshot.text.indexOf(FLAGGED)
+            if (at < 0) {
+                tokens
+            } else {
+                val finding = diagnostic(TextRange.ofLength(at, FLAGGED.length), DiagnosticSource.LEXER, "lexer finding")
+                tokens.copy(diagnostics = (tokens.diagnostics + finding).sortedWith(Diagnostic.ORDER))
+            }
+        }
+    }
+
     /** The parser outcome of version 0 with every kind of diagnostic. Later versions are clean. */
     private fun richParser() = FakeParser { snapshot ->
         if (snapshot.version == 0L) outcome(0, syntax = listOf(parserError, parserLexerCopy), standalone = listOf(standalone)) else outcome(snapshot.version)
@@ -76,13 +95,13 @@ class DocumentSessionDiagnosticsTest {
     fun `lexical, parser, standalone and external diagnostics are merged by the one rule`() = runTest {
         val text = EditableText(source)
         val v0 = text.snapshot.value
-        val session = session(text, richParser())
+        val session = session(text, richParser(), flagging())
 
         session.setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, v0, listOf(project))
         runCurrent()
 
         val lexical = session.tokens.value.diagnostics
-        assertEquals(listOf(DiagnosticCodes.EVAL_DOUBLE_SLASH), lexical.map { it.code })
+        assertEquals(listOf(DiagnosticCodes.LEXER_ERROR), lexical.map { it.code })
         assertEquals(mergeDiagnostics(lexical, session.parse.value, listOf(listOf(project))), session.diagnostics.value.diagnostics)
         assertEquals(setOf(parserError, standalone, project) + lexical, session.diagnostics.value.diagnostics.toSet())
         assertSame(v0, session.diagnostics.value.snapshot)
@@ -93,7 +112,7 @@ class DocumentSessionDiagnosticsTest {
     fun `sources of older versions are mapped to the newest snapshot with mapRange before merging`() = runTest {
         val text = EditableText(source)
         val v0 = text.snapshot.value
-        val session = session(text, richParser())
+        val session = session(text, richParser(), flagging())
         session.setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, v0, listOf(project))
         runCurrent()
         val parseV0 = session.parse.value!!
@@ -119,7 +138,7 @@ class DocumentSessionDiagnosticsTest {
         val text = EditableText(source)
         val v0 = text.snapshot.value
         val tokenizing = HeldDispatcher()
-        val session = session(text, FakeParser(), config = testConfig().copy(tokenizeDispatcher = tokenizing))
+        val session = session(text, FakeParser(), flagging(), testConfig().copy(tokenizeDispatcher = tokenizing))
         runCurrent()
         val lexicalV0 = session.tokens.value.diagnostics
 
@@ -245,14 +264,14 @@ class DocumentSessionDiagnosticsTest {
     fun `diagnostics whose history was evicted are dropped`() = runTest {
         val text = EditableText(source, historyLimit = 2)
         val v0 = text.snapshot.value
-        val session = session(text, richParser())
+        val session = session(text, richParser(), flagging())
         session.setExternalDiagnostics(ExternalDiagnosticSources.PROJECT, v0, listOf(project))
         runCurrent()
 
         repeat(3) { text.type(0, " ") }
         runCurrent()
 
-        assertEquals(listOf(DiagnosticCodes.EVAL_DOUBLE_SLASH), session.diagnostics.value.diagnostics.map { it.code })
+        assertEquals(listOf(DiagnosticCodes.LEXER_ERROR), session.diagnostics.value.diagnostics.map { it.code })
         assertEquals(3L, session.diagnostics.value.version)
     }
 
@@ -260,7 +279,7 @@ class DocumentSessionDiagnosticsTest {
     fun `an external set reported once outlives the retained edit history`() = runTest {
         val text = EditableText(source, historyLimit = 2)
         val v0 = text.snapshot.value
-        val session = session(text, richParser())
+        val session = session(text, richParser(), flagging())
         val finding = diagnostic(rangeOf("Robot"), DiagnosticSource.IDE, "file finding")
         session.setExternalDiagnostics(ExternalDiagnosticSources.FILE, v0, listOf(finding))
         runCurrent()
@@ -280,5 +299,8 @@ class DocumentSessionDiagnosticsTest {
 
     private companion object {
         const val THREADS = 8
+
+        /** The comment that [flagging] reports. */
+        const val FLAGGED = "// floor"
     }
 }

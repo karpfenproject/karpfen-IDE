@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.dialog
 
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
 import io.karpfen.ide.ui.workbench.templates.FileTemplateKind
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -120,6 +121,18 @@ public sealed interface DialogRequest<out R : DialogResponse> {
                 (response is DialogResponse.RunWith && response.bridges.all { it in bridges.indices })
     }
 
+    /**
+     * Shows the report of a validation of the whole project under [title]: a line that counts the errors and the
+     * warnings, and the findings below it, one per row. The only answer is [DialogResponse.Confirm], given by the
+     * button Close and also when the user dismisses the dialog. Nothing in the dialog leads to a file.
+     *
+     * @property validation the report to show.
+     */
+    public data class ValidationReport(public val title: String, public val validation: ProjectValidation) :
+        DialogRequest<DialogResponse.Confirm> {
+        override fun accepts(response: DialogResponse): Boolean = response == DialogResponse.Confirm
+    }
+
     /** Show an error. The only answer is [DialogResponse.Confirm], also when the user dismisses the dialog. */
     public data class Error(public val title: String, public val message: String) : DialogRequest<DialogResponse.Confirm> {
         override fun accepts(response: DialogResponse): Boolean = response == DialogResponse.Confirm
@@ -134,7 +147,7 @@ public sealed interface DialogResponse {
     /** Discard the changes. */
     public data object Discard : UnsavedChangesAnswer
 
-    /** Confirm the operation: delete, overwrite, or acknowledge an error. */
+    /** Confirm the operation: delete, overwrite, or acknowledge an error or a report. */
     public data object Confirm : ConfirmAnswer
 
     /** Cancel the operation. */

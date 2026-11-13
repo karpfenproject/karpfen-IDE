@@ -25,6 +25,7 @@ import io.karpfen.ide.ui.workbench.command.RuntimeCommandIds
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
+import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -37,22 +38,24 @@ import kotlinx.coroutines.flow.stateIn
 
 /**
  * Registers the runtime commands of `RuntimeCommandIds` over the [runtime] of the opened workspace. They are Run with
- * Shift+F10, Stop with Ctrl+F2 or Cmd+F2 on macOS, Pause, Resume with F9, Step with F8, Start runtime, Stop runtime and
- * Configure Bridge, which calls [configureBridge]. Pause, Resume and Step act on the debugger of the selected run.
+ * Shift+F10, Stop with Ctrl+F2 or Cmd+F2 on macOS, Validate Project without a shortcut, which runs the [validation],
+ * Pause, Resume with F9, Step with F8, Start runtime, Stop runtime and Configure Bridge, which calls [configureBridge].
+ * Pause, Resume and Step act on the debugger of the selected run.
  *
  * Run also shows the Runtime tool window and gives it three quarters of the height below the menu, so the model, the
  * events and the log of the run have room. The Run again button of the tool window leaves the size alone.
  *
- * Run and Configure Bridge are enabled while a workspace is open. Stop is enabled while there is a run it can stop.
- * Pause is enabled while the debugger of the selected run shows it running, and Resume and Step while it shows it
- * paused.
- * Start runtime is enabled while the host has no runtime, that is, while it is stopped or failed. Stop runtime is
- * enabled while the host has a runtime or prepares one.
+ * Run and Configure Bridge are enabled while a workspace is open. Validate Project is enabled while a workspace is open
+ * and no validation runs. Stop is enabled while there is a run it can stop. Pause is enabled while the debugger of the
+ * selected run shows it running, and Resume and Step while it shows it paused. Start runtime is enabled while the host
+ * has no runtime, that is, while it is stopped or failed. Stop runtime is enabled while the host has a runtime or
+ * prepares one.
  */
 internal class RuntimeCommands(
     private val scope: CoroutineScope,
     private val runtime: StateFlow<RuntimeState?>,
     private val layout: LayoutState,
+    private val validation: ValidationState,
     private val configureBridge: () -> Unit,
 ) {
 
@@ -69,6 +72,9 @@ internal class RuntimeCommands(
             },
         )
         registry.register(Command(RuntimeCommandIds.STOP, "Stop", STOP_SHORTCUT, stoppable) { runtime.value?.stopSelected() })
+        registry.register(
+            Command(RuntimeCommandIds.VALIDATE, "Validate Project", isEnabled = validation.canValidate) { validation.validate() },
+        )
         val running = follow(false) { state -> state.debugging.state.map { it == DebuggerState.Running } }
         val paused = follow(false) { state -> state.debugging.state.map { it is DebuggerState.Paused } }
         registry.register(Command(RuntimeCommandIds.PAUSE, "Pause", isEnabled = running) { runtime.value?.debugging?.pause() })

@@ -87,12 +87,6 @@ public object DeployProblemCodes {
     public const val REFERENCE_LOOP: String = "deploy-reference-loop"
 
     /**
-     * Two objects share a key. The runtime keeps the last one, and the mirror cannot tell them apart. This is a
-     * warning.
-     */
-    public const val DUPLICATE_OBJECT_KEY: String = "deploy-duplicate-object-key"
-
-    /**
      * An event domain is named like an attached object key, so forcing that machine's state discards the domain's
      * queued events. This is a warning.
      */
@@ -171,7 +165,7 @@ public object DeployProblemCodes {
     public val ALL: List<String> = listOf(
         NO_CONTEXT, SAVE_FAILED, UNSAVED_FILE, CONTEXT_ERRORS, NO_METAMODEL, NO_MODEL, UNKNOWN_ATTACHMENT,
         DUPLICATE_ATTACHMENT, ATTACHMENT_TYPE, TICK_DELAY_RANGE, TICK_DELAY_ZERO, EVENT_TTL_NEVER_EXPIRES, REFERENCE_LOOP,
-        DUPLICATE_OBJECT_KEY, DOMAIN_IS_ATTACHMENT, OBSERVE_SUPERSEDED, HOSTING_IGNORED, RUNTIME_UNREACHABLE,
+        DOMAIN_IS_ATTACHMENT, OBSERVE_SUPERSEDED, HOSTING_IGNORED, RUNTIME_UNREACHABLE,
         RUNTIME_INCOMPATIBLE, RUNTIME_NO_ANSWER, RUNTIME_REJECTED, RUNTIME_ERROR, HANDSHAKE_REJECTED, CONNECTION_LOST,
         MODEL_DIFFERS, ENGINE_HALTED, ENGINE_SILENT, OBSERVATION_OUT_OF_SYNC, ENVIRONMENT_LEFT_BEHIND, ENVIRONMENT_LOST,
     )

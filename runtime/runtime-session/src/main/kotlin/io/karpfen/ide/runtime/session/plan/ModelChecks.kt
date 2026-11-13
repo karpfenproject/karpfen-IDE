@@ -43,21 +43,3 @@ internal class ReferenceLoopCheck : PlanCheck {
         )
     }
 }
-
-/**
- * Finds keys that several objects of the runtime's index share. The runtime keeps the last one, and observation cannot
- * tell them apart.
- */
-internal class DuplicateObjectKeyCheck : PlanCheck {
-    override fun check(subject: PlanSubject): List<DeployProblem> {
-        val keyed = subject.keyedObjects ?: return emptyList()
-        return keyed.duplicates.map { (key, count) ->
-            DeployProblem(
-                Severity.WARNING,
-                DeployProblemCodes.DUPLICATE_OBJECT_KEY,
-                "$count objects share the key '$key'; the runtime keeps the last, and observation cannot tell them apart.",
-                subject.objectLocation(key),
-            )
-        }
-    }
-}

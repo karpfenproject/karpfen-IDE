@@ -31,6 +31,7 @@ import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.document.fixtures.SmallStackDslReader
 import io.karpfen.ide.core.document.parse.NestingLimit
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
 import io.karpfen.ide.tools.cli.validate.ValidateCommand
 import io.karpfen.ide.tools.cli.validate.ValidationReport
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
@@ -59,6 +60,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.io.path.invariantSeparatorsPathString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -75,8 +77,9 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
  * into the real workbench, and the menus resolve against its commands. The Problems view, the status bar and
  * `karpfen validate` report the same problems for the examples plus the shared descriptor examples. They agree before
  * and after files are opened and closed, descriptors included, because all three map `Workspace.problems`, the one
- * rule for problems. The project switches on every optional language feature there, which is what `karpfen validate`
- * allows. A command-line folder that `main` saw as a directory may be gone, unmounted or deleted, by the
+ * rule for problems. `karpfen validate` adds the findings of the checks across files, as the IDE's own validation of
+ * the project does, and the two validations agree too. The project switches on every optional language feature there,
+ * which is what `karpfen validate` allows. A command-line folder that `main` saw as a directory may be gone, unmounted or deleted, by the
  * time `prepare` opens it. On every platform the Edit menu resolves Complete Code with the accelerator Ctrl+M, written
  * in that platform's notation, and the stroke finds that command. What dsl-tools logs while the IDE analyzes, here the
  * failure of a reader, reaches the Language Tools Output through the composition root, and the View menu opens it.
@@ -182,6 +185,13 @@ class IdeEndToEndTest {
                 "the scenario covers descriptor, context and syntax findings: $cli",
             )
             assertAgree(session.state, cli, "after opening the folder")
+            assertEquals(
+                EXAMPLE_FINDINGS_ACROSS_FILES,
+                cli.filter(::isAcrossFiles).map { it.substringBefore(": error:") },
+                "the checks across files find the SET on relations in the cleaning robot of dsl-tools",
+            )
+            val ide = session.state.workspace.value!!.validate()
+            assertEquals(cli.sorted(), ide.lines().sorted(), "the IDE's validation and karpfen validate")
 
             val opened = listOf(
                 looseMetamodel,
@@ -299,12 +309,22 @@ class IdeEndToEndTest {
                     "${diagnostic.message} [${diagnostic.code}]"
             }
         }
-        assertEquals(cli.sorted(), shown.sorted(), "Problems view and karpfen validate $situation")
+        val analyzed = cli.filterNot(::isAcrossFiles)
+        assertEquals(analyzed.sorted(), shown.sorted(), "Problems view and karpfen validate without the checks across files $situation")
         val status = state.statusBar.state.value
-        assertEquals(cli.count { ": error: " in it }, status.errorCount, "status-bar errors $situation")
-        assertEquals(cli.count { ": warning: " in it }, status.warningCount, "status-bar warnings $situation")
+        assertEquals(analyzed.count { ": error: " in it }, status.errorCount, "status-bar errors $situation")
+        assertEquals(analyzed.count { ": warning: " in it }, status.warningCount, "status-bar warnings $situation")
         assertEquals(status.errorCount, problems.errorCount)
         assertEquals(status.warningCount, problems.warningCount)
+    }
+
+    /** True if [line] of `karpfen validate` reports a check across files, which only a validation runs. */
+    private fun isAcrossFiles(line: String): Boolean = line.endsWith("]") && line.substringAfterLast('[').startsWith("project.")
+
+    /** The findings of this validation in the form of the lines of `karpfen validate`. */
+    private fun ProjectValidation.lines(): List<String> = findings.map {
+        "${root.relativize(it.path).invariantSeparatorsPathString}:${it.line}:${it.column}: ${it.severity.name.lowercase()}: " +
+            "${it.message} [${it.code}]"
     }
 
     private fun ValidationReport.lines(): List<String> = problems.map {
@@ -324,6 +344,14 @@ class IdeEndToEndTest {
     }
 
     private companion object {
+        /**
+         * Where the checks across files find an error in the examples. The cleaning robot of dsl-tools sets the
+         * relations `closest_obstacle`, `closest_wall` and `direction` with SET, which takes a property.
+         */
+        val EXAMPLE_FINDINGS_ACROSS_FILES = listOf(13 to 22, 15 to 22, 24 to 26, 33 to 26).map { (line, column) ->
+            "karpfen-dsl-tools/statemachine_full_example/cleaning_robot.kstates:$line:$column"
+        }
+
         /** The logger of the KStates reader of dsl-tools, which logs a read that fails. */
         const val KSTATES_READER_LOGGER = "${DslToolsLoggers.PARENT}.reader.kstates.KstatesReader"
 

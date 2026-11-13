@@ -16,25 +16,20 @@
 package io.karpfen.ide.tools.cli.validate
 
 import io.karpfen.dsl.states.KstatesFeature
-import io.karpfen.ide.core.document.Diagnostic
-import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.language.LanguageRegistry
-import io.karpfen.ide.core.text.TextRange
-import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.document.DocumentManager
-import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
-import io.karpfen.ide.core.workspace.problems.FileProblems
 import io.karpfen.ide.core.workspace.problems.WorkspaceProblems
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
+import io.karpfen.ide.core.workspace.validation.ValidationFinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -55,13 +50,13 @@ class ValidateCommandTest {
     private val root: Path get() = dir.toAbsolutePath().normalize()
 
     @Test
-    fun `the workspace is refreshed with every language feature, analyzed and closed, and its problems become the report`() = runTest {
-        val workspace = ScriptedWorkspace(root, problemsOf(root.resolve("m.kmeta")))
+    fun `the workspace is refreshed with every language feature, validated and closed, and its validation becomes the report`() = runTest {
+        val workspace = ScriptedWorkspace(root, validationOf(root.resolve("m.kmeta")))
         val command = ValidateCommand(workspace::opened)
 
         val report = command.run(dir)
 
-        assertEquals(listOf("open", "features", "refresh", "awaitAnalysis", "problems", "close"), workspace.calls)
+        assertEquals(listOf("open", "features", "refresh", "validate", "close"), workspace.calls)
         assertEquals(KstatesFeature.ALL, workspace.features)
         assertTrue(workspace.closed)
         assertFalse(workspace.childJob!!.isActive, "the workspace's coroutines are cancelled")
@@ -70,20 +65,20 @@ class ValidateCommandTest {
     }
 
     @Test
-    fun `a failing analysis still closes the workspace`() = runTest {
-        val workspace = ScriptedWorkspace(root, WorkspaceProblems.EMPTY, analysisFailure = IllegalStateException("converter crashed"))
+    fun `a failing validation still closes the workspace`() = runTest {
+        val workspace = ScriptedWorkspace(root, ProjectValidation(root, emptyList()), failure = IllegalStateException("converter crashed"))
         val command = ValidateCommand(workspace::opened)
 
         val failure = assertFailsWith<IllegalStateException> { command.run(dir) }
 
         assertEquals("converter crashed", failure.message)
-        assertEquals(listOf("open", "features", "refresh", "awaitAnalysis", "close"), workspace.calls)
+        assertEquals(listOf("open", "features", "refresh", "validate", "close"), workspace.calls)
         assertFalse(workspace.childJob!!.isActive)
     }
 
     @Test
     fun `a relative directory is validated as an absolute normalized root`() = runTest {
-        val workspace = ScriptedWorkspace(root, WorkspaceProblems.EMPTY)
+        val workspace = ScriptedWorkspace(root, ProjectValidation(root, emptyList()))
         var openedRoot: Path? = null
         val command = ValidateCommand({ path, scope -> openedRoot = path; workspace.opened(path, scope) })
 
@@ -93,18 +88,7 @@ class ValidateCommandTest {
         assertEquals(ValidationReport(root, emptyList()), report)
     }
 
-    private fun problemsOf(path: Path) = WorkspaceProblems(
-        generation = 1,
-        files = listOf(
-            FileProblems(
-                path = path,
-                kind = FileKind.KMETA,
-                diagnostics = listOf(Diagnostic(TextRange(1, 2), Severity.ERROR, "broken", "code", DiagnosticSource.PARSER)),
-                snapshot = TextSnapshot("type", version = 0),
-                isOpen = false,
-            ),
-        ),
-    )
+    private fun validationOf(path: Path) = ProjectValidation(root, listOf(ValidationFinding(path, 1, 2, Severity.ERROR, "code", "broken")))
 
     /**
      * A workspace that records the calls and starts a never-ending child coroutine in the factory's scope, which the
@@ -112,8 +96,8 @@ class ValidateCommandTest {
      */
     private class ScriptedWorkspace(
         override val root: Path,
-        private val result: WorkspaceProblems,
-        private val analysisFailure: Exception? = null,
+        private val result: ProjectValidation,
+        private val failure: Exception? = null,
     ) : Workspace {
         /** The calls in order. */
         val calls = mutableListOf<String>()
@@ -154,15 +138,16 @@ class ValidateCommandTest {
             this.features = features
         }
 
-        override val problems: StateFlow<WorkspaceProblems>
-            get() = MutableStateFlow(result).also { record("problems") }
+        override val problems: StateFlow<WorkspaceProblems> get() = unused()
 
         override suspend fun refresh() = record("refresh")
 
-        override suspend fun awaitAnalysis(): ProjectAnalysis {
-            record("awaitAnalysis")
-            analysisFailure?.let { throw it }
-            return ProjectAnalysis.EMPTY
+        override suspend fun awaitAnalysis(): ProjectAnalysis = unused()
+
+        override suspend fun validate(): ProjectValidation {
+            record("validate")
+            failure?.let { throw it }
+            return result
         }
 
         override fun close() {

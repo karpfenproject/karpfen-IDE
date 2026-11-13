@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.state
 
+import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.Examples
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
@@ -27,12 +28,14 @@ import io.karpfen.ide.ui.foundation.keys.KeyCode
 import io.karpfen.ide.ui.foundation.keys.KeyShortcut
 import io.karpfen.ide.ui.workbench.command.RuntimeCommandIds
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
+import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.settings.ThemeMode
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
+import io.karpfen.ide.ui.workbench.validation.ValidationState
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
@@ -118,6 +121,28 @@ class CommandsTest {
         assertEquals(KeyShortcut(KeyCode.F9), registry.find(RuntimeCommandIds.RESUME)?.shortcut)
         assertEquals(KeyShortcut(KeyCode.F8), registry.find(RuntimeCommandIds.STEP)?.shortcut)
         listOf(RuntimeCommandIds.PAUSE, RuntimeCommandIds.RESUME, RuntimeCommandIds.STEP).forEach { assertFalse(registry.enabled(it), it) }
+    }
+
+    @Test
+    fun `Validate Project needs an open folder and shows the report of the whole project`() = scenario { registry ->
+        assertEquals("Validate Project", registry.find(RuntimeCommandIds.VALIDATE)?.title)
+        assertNull(registry.find(RuntimeCommandIds.VALIDATE)?.shortcut)
+        assertFalse(registry.enabled(RuntimeCommandIds.VALIDATE), "no folder")
+
+        open(root)
+        settle()
+        assertTrue(registry.enabled(RuntimeCommandIds.VALIDATE))
+        assertTrue(registry.execute(RuntimeCommandIds.VALIDATE))
+        val report = answer(DialogRequest.ValidationReport::class, DialogResponse.Confirm)
+
+        assertEquals(ValidationState.TITLE, report.title)
+        assertEquals(
+            listOf(13, 15, 24, 33),
+            report.validation.findings.map { it.line },
+            "the checks across files find the SET on relations in the cleaning robot of dsl-tools, and nothing else",
+        )
+        assertTrue(report.validation.findings.all { it.code == "project.operation-mismatch" && it.severity == Severity.ERROR })
+        assertEquals(0, state.problems.state.value.errorCount, "the continuous analysis does not run the checks across files")
     }
 
     @Test

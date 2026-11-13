@@ -86,9 +86,9 @@ dsl-tools 2.0 and never reads or writes `~/.m2`.
 karpfen validate <folder> [--format text|json] [--verbose]
 ```
 
-It runs the same project analysis as the IDE and reports the same problems as the Problems view. The exit codes are 0
-for no errors, 1 for errors found, 2 for a usage error and 3 for a failure of the tool. Positions are one-based and
-paths are relative to the folder.
+It runs the same validation of the whole project as Validate in the IDE and reports the same findings. The exit codes
+are 0 for no errors, 1 for errors found, 2 for a usage error and 3 for a failure of the tool. Positions are one-based
+and paths are relative to the folder.
 
 ### Settings, logs and launch options
 
@@ -225,6 +225,16 @@ The IDE has no grammar of its own. It runs the ANTLR grammars that dsl-tools shi
 analysis on every edit, and the dsl-tools readers for the project analysis. Semantic checks of the languages belong in
 dsl-tools too. The workspace's own findings are about files, folders and descriptors. The checks before a deployment
 guard against what the runtime would mishandle, such as a reference loop.
+
+Checks come in two kinds. The readers of dsl-tools check one text on every read, which is what the editor and the
+Problems view show. dsl-tools' `ProjectVerifier` checks the files of a project against each other, which costs more
+and only runs in a validation. `DslVerifier` in core-document is the only place that calls it. It works on the
+dsl-tools read results that every `ReadResult` keeps, so no file is read twice. `ProjectValidator` in core-workspace
+hands it each modeling context: the metamodel, the event definitions, the model if the context has exactly one, and
+each state machine with the object its descriptor attaches it to. `Workspace.validate()` answers a `ProjectValidation`
+with the findings of the analysis and of the verifier, errors first. `ValidationState` in ui-workbench runs it for the
+Validate button, for the command Validate Project and before every run, and shows the report in a dialog. An error
+anywhere in the open folder blocks a run.
 
 ### Compose Desktop and a custom editor
 
@@ -490,7 +500,7 @@ Cmd+Shift+7 on a German layout acts as Cmd+/.
 On macOS the app sets `apple.eawt.quitStrategy` to `CLOSE_ALL_WINDOWS`, so Cmd+Q runs the window's close request with
 the unsaved-changes dialog.
 
-Python code in an `EVAL` body uses `#` for comments. The editor warns about `//` there, and Toggle Comment uses `#`
+Python code in an `EVAL` body uses `#` for comments. dsl-tools warns about `//` there, and Toggle Comment uses `#`
 inside an `EVAL` body.
 
 ### Texts, parsing and files

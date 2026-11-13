@@ -40,7 +40,8 @@ import java.nio.file.Path
  * A file is read only if it is free of syntax errors and written in the language of its role, as given by
  * [DescriptorFileRole.language]. So a descriptor that names a `.kstates` file as its metamodel reads nothing, and the
  * resolver reports that on the descriptor. The DSL_TOOLS diagnostics of a read file go to [problems] under its path.
- * Its model goes into the [ContextAnalysis], and it may be partial when the file has errors.
+ * Its model goes into the [ContextAnalysis], and it may be partial when the file has errors. The reads themselves go
+ * into its [ContextReads].
  *
  * The events and the models depend on the domain metamodel. They are read only when the metamodel was read without
  * errors. Against a partial metamodel they would report its errors a second time, as follow-up errors in other files.
@@ -67,40 +68,59 @@ internal class ContextReader(
             ?.let { readable(files, it, DescriptorFileRole.METAMODEL) }
             ?.let { file -> read(file, memory.metamodels, input = null) { reader.kmeta(it) } }
         val domain = metamodel?.takeUnless { it.hasErrors }?.model
-        return ContextAnalysis(
-            context = context,
-            files = files,
-            metamodel = metamodel?.model,
+        val reads = ContextReads(
+            metamodel = metamodel,
             events = domain?.let { readEvents(context, files, it) },
             models = domain?.let { readModels(context, files, it) }.orEmpty(),
             stateMachines = readStateMachines(context, files),
         )
+        return ContextAnalysis(
+            context = context,
+            files = files,
+            metamodel = metamodel?.model,
+            events = reads.events?.model,
+            models = reads.models.modelsOnly(),
+            stateMachines = reads.stateMachines.modelsOnly(),
+            reads = reads,
+        )
     }
 
-    /** The events metamodel of [context], read with the types of [domain] as base types. Null if there is none. */
-    private suspend fun readEvents(context: ModelingContext, files: Map<Path, AnalyzedFile>, domain: Metamodel): Metamodel? =
+    /** The read of the events metamodel of [context], with the types of [domain] as base types. Null if there is none. */
+    private suspend fun readEvents(context: ModelingContext, files: Map<Path, AnalyzedFile>, domain: Metamodel): ReadResult<Metamodel>? =
         context.events
             ?.let { readable(files, it, DescriptorFileRole.EVENTS) }
-            ?.let { file -> read(file, memory.metamodels, input = domain) { reader.kmeta(it, baseTypes = domain.types) }.model }
+            ?.let { file -> read(file, memory.metamodels, input = domain) { reader.kmeta(it, baseTypes = domain.types) } }
 
-    /** The models of [context] read against [domain], by path. */
-    private suspend fun readModels(context: ModelingContext, files: Map<Path, AnalyzedFile>, domain: Metamodel): Map<Path, Model> {
-        val models = LinkedHashMap<Path, Model>()
+    /** The reads of the models of [context] against [domain], by path. */
+    private suspend fun readModels(
+        context: ModelingContext,
+        files: Map<Path, AnalyzedFile>,
+        domain: Metamodel,
+    ): Map<Path, ReadResult<Model>> {
+        val models = LinkedHashMap<Path, ReadResult<Model>>()
         for (path in context.models) {
             val file = readable(files, path, DescriptorFileRole.MODEL) ?: continue
-            read(file, memory.models, input = domain) { reader.kmodel(it, domain) }.model?.let { models[path] = it }
+            models[path] = read(file, memory.models, input = domain) { reader.kmodel(it, domain) }
         }
         return models
     }
 
-    /** The state machines of [context], each read on its own, by path. */
-    private suspend fun readStateMachines(context: ModelingContext, files: Map<Path, AnalyzedFile>): Map<Path, StateMachine> {
-        val stateMachines = LinkedHashMap<Path, StateMachine>()
+    /** The reads of the state machines of [context], each read on its own, by path. */
+    private suspend fun readStateMachines(context: ModelingContext, files: Map<Path, AnalyzedFile>): Map<Path, ReadResult<StateMachine>> {
+        val stateMachines = LinkedHashMap<Path, ReadResult<StateMachine>>()
         for (binding in context.stateMachines) {
             val file = readable(files, binding.file, DescriptorFileRole.STATE_MACHINE) ?: continue
-            read(file, memory.stateMachines, input = languageFeatures) { reader.kstates(it, languageFeatures) }.model?.let { stateMachines[binding.file] = it }
+            stateMachines[binding.file] =
+                read(file, memory.stateMachines, input = languageFeatures) { reader.kstates(it, languageFeatures) }
         }
         return stateMachines
+    }
+
+    /** The models of these reads by path, leaving out the reads that yielded none. */
+    private fun <T : Any> Map<Path, ReadResult<T>>.modelsOnly(): Map<Path, T> {
+        val models = LinkedHashMap<Path, T>()
+        forEach { (path, read) -> read.model?.let { models[path] = it } }
+        return models
     }
 
     /** The file at [path] if it can be read in [role]. It checks for cancellation first. */
