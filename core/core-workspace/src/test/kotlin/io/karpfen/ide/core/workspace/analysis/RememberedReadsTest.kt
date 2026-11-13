@@ -38,8 +38,7 @@ import kotlin.time.Duration.Companion.seconds
  * The analyzer of a workspace remembers its reads. An unchanged file is read once, however often the workspace is
  * analyzed. So an unchanged file that dsl-tools fails on is not logged again on every analysis, while its findings are
  * still reported on every analysis. A changed file is read again, and so is every model of a changed metamodel. The
- * end-to-end tests of the application and of the command line tool show that what dsl-tools logs during a read names
- * the file.
+ * end-to-end tests of the application show that what dsl-tools logs during a read names the file.
  */
 class RememberedReadsTest {
 

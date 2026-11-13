@@ -247,17 +247,33 @@ class DefaultProjectAnalyzerTest {
     }
 
     @Test
-    fun `loose files are analyzed syntax-only and never read by dsl-tools`() = runTest {
-        val loose = root.resolve("loose.kmeta")
-        Files.writeString(loose, "type \"Robot\" \"A robot\" {\n    has(\"arm\", \"MissingType\")\n}\n")
-        val brokenLoose = root.resolve("broken.kstates")
-        Files.writeString(brokenLoose, "STATEMACHINE ATTACHED TO \"Robot\" {\n")
+    fun `a loose state machine is read on its own, loose models, metamodels and files with syntax errors are not`() = runTest {
+        val metamodel = root.resolve("loose.kmeta")
+        Files.writeString(metamodel, "type \"Robot\" \"A robot\" {\n    has(\"arm\", \"MissingType\")\n}\n")
+        val machine = root.resolve("loose.kstates")
+        Files.writeString(
+            machine,
+            "STATEMACHINE ATTACHED TO \"Robot\" {\n    STATES {\n        INITIAL STATE \"a\" {\n            BREAKPOINT { ENTRY }\n" +
+                "        }\n    }\n    TRANSITIONS {\n    }\n}\n",
+        )
+        val model = root.resolve("loose.kmodel")
+        Files.writeString(model, "make object \"r\":\"NoSuchType\" {\n}\n")
+        val broken = root.resolve("broken.kstates")
+        Files.writeString(broken, "STATEMACHINE ATTACHED TO \"Robot\" {\n")
+        val loose = listOf(metamodel, machine, model, broken)
 
-        val analysis = analyzer().analyze(ContextResolution(emptyList(), emptyMap(), listOf(loose, brokenLoose)), DiskSources(), generation = 1)
+        val analysis = analyzer().analyze(
+            ContextResolution(emptyList(), emptyMap(), loose),
+            DiskSources(),
+            generation = 1,
+            languageFeatures = emptySet(),
+        )
 
-        assertEquals(listOf(loose, brokenLoose), analysis.looseFiles.keys.toList())
-        assertEquals(emptyMap(), analysis.diagnostics, "a loose metamodel with a semantic error is not read")
-        assertTrue(analysis.looseFiles.getValue(brokenLoose).ownDiagnostics.any { it.source == DiagnosticSource.PARSER })
+        assertEquals(loose, analysis.looseFiles.keys.toList())
+        assertEquals(setOf(machine), analysis.diagnostics.keys, "only the clean machine is read")
+        assertEquals(listOf("kstates.feature-off"), analysis.diagnosticsFor(machine).map { it.code }, "read with the features of the run")
+        assertTrue(analysis.diagnostics.values.flatten().all { it.source == DiagnosticSource.DSL_TOOLS })
+        assertTrue(analysis.looseFiles.getValue(broken).ownDiagnostics.any { it.source == DiagnosticSource.PARSER })
     }
 
     @Test

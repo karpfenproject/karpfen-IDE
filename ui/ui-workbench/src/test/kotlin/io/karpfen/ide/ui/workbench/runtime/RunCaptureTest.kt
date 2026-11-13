@@ -18,7 +18,6 @@ package io.karpfen.ide.ui.workbench.runtime
 import io.karpfen.ide.core.workspace.WorkspaceOptions
 import io.karpfen.ide.runtime.host.HostLogLine
 import io.karpfen.ide.runtime.host.LogStream
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +46,7 @@ import kotlin.test.assertTrue
 /**
  * Tests the capture of a run's log to a file: the name after the start of the run with a number added on a clash, the
  * header, every line in order and unfiltered with the mark of its stream, the environment line, the end of the capture,
- * the note of a runtime without a log, and the problems of a folder or a file that cannot be written.
+ * and the problems of a folder or a file that cannot be written.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RunCaptureTest {
@@ -62,7 +61,7 @@ class RunCaptureTest {
 
     @Test
     fun `the file is named after the start and holds the header and then every line in order, unfiltered`() = runTest {
-        val capture = assertNotNull(start(RuntimeHostKind.DOCKER))
+        val capture = assertNotNull(start())
 
         log.emit(HostLogLine("Deploying lamp"))
         log.emit(HostLogLine(NOISE))
@@ -93,7 +92,7 @@ class RunCaptureTest {
 
     @Test
     fun `lines after the end of the capture are not written, and the file stays as it was`() = runTest {
-        val capture = assertNotNull(start(RuntimeHostKind.DOCKER))
+        val capture = assertNotNull(start())
         log.emit(HostLogLine("before"))
 
         capture.close()
@@ -110,8 +109,8 @@ class RunCaptureTest {
         Files.createDirectories(folder)
         Files.writeString(folder.resolve("2026-11-13_14-32-05.log"), "an earlier run")
 
-        val second = assertNotNull(start(RuntimeHostKind.DOCKER))
-        val third = assertNotNull(start(RuntimeHostKind.DOCKER))
+        val second = assertNotNull(start())
+        val third = assertNotNull(start())
         advanceUntilIdle()
 
         assertEquals("2026-11-13_14-32-05-2.log", second.file.fileName.toString())
@@ -120,22 +119,11 @@ class RunCaptureTest {
     }
 
     @Test
-    fun `a runtime attached by URL gives no log, and the file says so after the header`() = runTest {
-        val capture = assertNotNull(start(RuntimeHostKind.URL))
-        advanceUntilIdle()
-
-        assertEquals(
-            listOf("# Runtime: attached by URL at http://127.0.0.1:8080", RunCaptures.NO_LOG),
-            Files.readAllLines(capture.file).takeLast(2),
-        )
-    }
-
-    @Test
     fun `a folder that cannot be created starts no capture and tells the problem once`() = runTest {
         Files.createDirectories(root)
         Files.writeString(folder, "a file where the folder belongs")
 
-        val capture = start(RuntimeHostKind.DOCKER)
+        val capture = start()
 
         assertNull(capture)
         assertEquals(1, problems.size, "$problems")
@@ -163,13 +151,13 @@ class RunCaptureTest {
     }
 
     /**
-     * Starts the capture of the lamp's descriptor on the runtime of [host], in a scope on the test's scheduler. The
+     * Starts the capture of the lamp's descriptor on the runtime at [ENDPOINT], in a scope on the test's scheduler. The
      * scope is not the test's background scope, so `advanceUntilIdle` writes the lines.
      */
-    private suspend fun TestScope.start(host: RuntimeHostKind): RunCapture? {
+    private suspend fun TestScope.start(): RunCapture? {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val captures = RunCaptures(CoroutineScope(dispatcher + Job()), root, log, dispatcher, CLOCK)
-        return captures.start(root.resolve("lamp/lamp.kenv.json"), CLOCK.instant(), host, ENDPOINT, problems::add)
+        return captures.start(root.resolve("lamp/lamp.kenv.json"), CLOCK.instant(), ENDPOINT, problems::add)
     }
 
     /** A log whose lines the test emits to the listeners. */

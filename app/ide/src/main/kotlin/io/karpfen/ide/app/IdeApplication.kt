@@ -67,10 +67,10 @@ import kotlin.time.Duration.Companion.milliseconds
  * as the workbench's `OutputBuffer`. For the life of the prepared session, it routes what dsl-tools logs into that
  * buffer, as its `OutputSink`, through [languageToolsLog]. `logback.xml` keeps the same logging off the console.
  *
- * The default [services] get the one `RuntimeSessions()` of the process and the IDE's two runtime hosts from
- * `runtimeHostsClosedAtExit()`: the Docker container of each workspace and a runtime at a URL. When the window is
- * closed and `WorkbenchState.requestExit` allows it, [IdeRunState] shuts the runtime down before the application
- * exits. When the process ends in any other way that still runs its shutdown hooks, the hosts are closed there.
+ * The default [services] get the one `RuntimeSessions()` of the process and the IDE's runtime hosts from
+ * `runtimeHostsClosedAtExit()`, the Docker container of each workspace. When the window is closed and
+ * `WorkbenchState.requestExit` allows it, [IdeRunState] shuts the runtime down before the application exits. When the
+ * process ends in any other way that still runs its shutdown hooks, the hosts are closed there.
  *
  * The app's `main` resolves the home directory before it constructs this class. If
  * `SettingsLocations.HOME_ENVIRONMENT_VARIABLE` is set, its value is copied into the system property

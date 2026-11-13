@@ -34,8 +34,8 @@ import java.nio.file.Path
 /**
  * The settings of the headless mode. They read what belongs to the project as such and write nothing.
  *
- * The optional language features and how the runtime is reached are properties of the project. [openProject] reads
- * them from the project file `.karpfenproject` of the folder, as `ProjectSettingsFile` parses it. Everything else that
+ * The optional language features are a property of the project. [openProject] reads them from the project file
+ * `.karpfenproject` of the folder, as `ProjectSettingsFile` parses it. Everything else that
  * the window remembers there, such as the bridges of the last run, the capture box, the open files and the layout, is
  * left at its default, and so are the user's own settings with the recent folders and the window bounds, which are
  * never read. [update] changes the settings in memory only. Neither the project file nor the user's settings file is
@@ -57,7 +57,7 @@ internal class ReadOnlySettings(private val ioDispatcher: CoroutineDispatcher = 
 
     override suspend fun openProject(root: Path?): IdeSettings {
         val stored = root?.let { withContext(ioDispatcher) { read(it) } } ?: ProjectSettings()
-        val project = ProjectSettings(runtime = stored.runtime, languageFeatures = stored.languageFeatures)
+        val project = ProjectSettings(languageFeatures = stored.languageFeatures)
         return current.value.withProject(project).also { current.value = it }
     }
 

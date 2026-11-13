@@ -92,7 +92,7 @@ internal data class StandaloneResult(val model: DslModel?, val diagnostics: List
  * tree walkers can follow on the stack of the parsing thread. Only a thread with a stack far smaller than the default
  * one meets this. The error becomes a `nesting-too-deep` error at the start of the text. It is logged as one line at
  * INFO and without its stack trace, which would otherwise repeat on every reparse of the text. At INFO it reaches the
- * IDE log. It reaches neither the IDE's console nor the standard error of the command-line tool, because those two show
+ * IDE log. It reaches neither the IDE's console nor the standard error of its headless mode, because those two show
  * only warnings and errors.
  *
  * @throws IllegalArgumentException if [syntax] parses another language than [language].

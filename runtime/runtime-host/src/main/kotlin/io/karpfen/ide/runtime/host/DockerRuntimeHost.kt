@@ -75,8 +75,6 @@ import java.nio.file.Path
  */
 internal class DockerRuntimeHost(workspaceRoot: Path, private val options: HostOptions) : RuntimeHost {
 
-    override val kind: RuntimeHostKind = RuntimeHostKind.DOCKER
-
     /** The status as the host sets it. */
     private val state = MutableStateFlow<HostStatus>(HostStatus.Stopped)
 

@@ -13,51 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.karpfen.ide.tools.cli.validate
+package io.karpfen.ide.app.headless
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** Renders a [ValidationReport] for the console. */
-public fun interface ReportFormatter {
-    /** The complete output for [report]. The TEXT output is empty when there are no problems. */
-    public fun format(report: ValidationReport): String
+/** Renders the report of a validation of the whole project for the console. */
+internal fun interface ReportFormatter {
+    /** The lines of the complete output for [validation], each written as one line. */
+    fun lines(validation: ProjectValidation): List<String>
 }
 
 /** The formatter for [format]. */
-public fun ReportFormatter(format: OutputFormat): ReportFormatter = when (format) {
-    OutputFormat.TEXT -> TextReportFormatter()
+internal fun ReportFormatter(format: OutputFormat): ReportFormatter = when (format) {
+    OutputFormat.TEXT -> ReportFormatter(ValidationLines::of)
     OutputFormat.JSON -> JsonReportFormatter()
 }
 
 /**
- * One line per problem in the form `path:line:col: severity: message [code]`, with one-based positions and the
- * severity in lower case. Each line ends with `\n`. Without problems the output is empty. A multi-line message is
- * joined into one line, so every line is one problem.
- */
-internal class TextReportFormatter : ReportFormatter {
-    override fun format(report: ValidationReport): String = buildString {
-        for (problem in report.problems) {
-            append(problem.path).append(':').append(problem.line).append(':').append(problem.column).append(": ")
-            append(problem.severity.label).append(": ")
-            append(singleLine(problem.message)).append(" [").append(problem.code).append("]\n")
-        }
-    }
-
-    /** [message] with its non-blank lines trimmed and joined by single spaces. */
-    private fun singleLine(message: String): String =
-        message.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
-}
-
-/**
- * A pretty-printed JSON document that ends with `\n`. Its shape is
+ * A pretty-printed JSON document. Its shape is
  * `{"root": "<absolute root>", "errorCount": n, "warningCount": n, "problems": [{"path", "line", "column", "severity",
- * "message", "code"}, …]}`. Positions are one-based, paths are relative to the root with `/` separators, and
- * severities are in lower case.
+ * "message", "code"}, ...]}`, with the members in this order. The problems are those of
+ * [ProjectValidation.toValidationReport], in its order. Positions are one-based, paths are relative to the root with
+ * `/` separators, severities are in lower case, and a message keeps its line breaks.
  */
 internal class JsonReportFormatter : ReportFormatter {
-    override fun format(report: ValidationReport): String {
+    override fun lines(validation: ProjectValidation): List<String> {
+        val report = validation.toValidationReport()
         val document = JsonReport(
             root = report.root.toString(),
             errorCount = report.problems.count { it.severity == Severity.ERROR },
@@ -66,7 +50,7 @@ internal class JsonReportFormatter : ReportFormatter {
                 JsonProblem(problem.path, problem.line, problem.column, problem.severity.label, problem.message, problem.code)
             },
         )
-        return JSON.encodeToString(JsonReport.serializer(), document) + "\n"
+        return JSON.encodeToString(JsonReport.serializer(), document).lines()
     }
 
     /** The serialized shape of the whole report. */
@@ -89,5 +73,5 @@ internal class JsonReportFormatter : ReportFormatter {
     }
 }
 
-/** The severity as both formats print it: `error`, `warning`, `info`, `hint`. */
+/** The severity as the JSON document writes it: `error`, `warning`, `info`, `hint`. */
 private val Severity.label: String get() = name.lowercase()

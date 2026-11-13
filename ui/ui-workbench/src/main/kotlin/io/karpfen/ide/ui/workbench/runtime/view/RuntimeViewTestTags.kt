@@ -15,7 +15,6 @@
  */
 package io.karpfen.ide.ui.workbench.runtime.view
 
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 
 /** Test tags of the Runtime tool window. */
 public object RuntimeViewTestTags {
@@ -48,12 +47,6 @@ public object RuntimeViewTestTags {
 
     /** The header's Stop runtime button. */
     public const val STOP_RUNTIME: String = "Runtime.header.stop"
-
-    /** The URL field of the host selector. */
-    public const val URL_FIELD: String = "Runtime.header.url"
-
-    /** The button that applies the URL field. */
-    public const val URL_APPLY: String = "Runtime.header.urlApply"
 
     /** The empty tool window's explanation of how to run. */
     public const val EMPTY: String = "Runtime.empty"
@@ -105,9 +98,6 @@ public object RuntimeViewTestTags {
 
     /** The full payload of the event chosen in the event log. */
     public const val EVENT_DETAIL: String = "Runtime.events.detail"
-
-    /** The option of the host selector for [kind]. */
-    public fun host(kind: RuntimeHostKind): String = "Runtime.header.host:$kind"
 
     /** The row of the run [id] in the runs list. */
     public fun run(id: Long): String = "Runtime.runs.run:$id"

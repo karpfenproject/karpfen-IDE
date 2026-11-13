@@ -18,7 +18,6 @@ package io.karpfen.ide.ui.workbench.runtime
 import io.karpfen.ide.runtime.host.HostProblem
 import io.karpfen.ide.runtime.host.HostStage
 import io.karpfen.ide.runtime.host.HostStatus
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.message.EngineHalt
@@ -34,7 +33,6 @@ import io.karpfen.ide.runtime.session.observation.ObservedModel
 import io.karpfen.ide.runtime.session.observation.SyncStatus
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.states.MachineActivity
-import io.karpfen.ide.ui.workbench.settings.RuntimeSettings
 import java.nio.file.Path
 import java.time.Instant
 import java.time.ZoneId
@@ -51,21 +49,18 @@ public object RuntimeTexts {
     private val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 
     /**
-     * The host's [status] in words, prefixed by how [settings] reach the runtime, such as
-     * `Docker: building the runtime image, Step 7/14` or `URL: http://127.0.0.1:8080 reachable`.
+     * The host's [status] in words, prefixed by `Docker`, where the IDE runs the runtime, such as
+     * `Docker: building the runtime image, Step 7/14` or `Docker: running at 127.0.0.1:49153`.
      */
-    public fun hostStatus(settings: RuntimeSettings, status: HostStatus): String {
-        val docker = settings.host == RuntimeHostKind.DOCKER
-        val prefix = if (docker) "Docker" else "URL"
+    public fun hostStatus(status: HostStatus): String {
         val words = when (status) {
-            HostStatus.Stopped -> if (docker) "not started" else "${settings.url} not connected"
+            HostStatus.Stopped -> "not started"
             is HostStatus.Preparing -> listOf(stage(status.stage), status.detail).filter { it.isNotBlank() }.joinToString(", ")
-            is HostStatus.Running ->
-                if (docker) "running at ${status.endpoint.host}:${status.endpoint.port}" else "${status.endpoint.httpBase} reachable"
+            is HostStatus.Running -> "running at ${status.endpoint.host}:${status.endpoint.port}"
             is HostStatus.Failed -> hostProblem(status.problem)
             HostStatus.Stopping -> "stopping"
         }
-        return "$prefix: $words"
+        return "Docker: $words"
     }
 
     /** The host's [status] in a few words for the status bar, such as `Runtime: running`. */

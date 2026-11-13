@@ -26,7 +26,7 @@ import kotlin.time.TimeSource
  * Configuration of a [Workspace]. Tests inject test dispatchers on virtual time and a `TestTimeSource`, and they
  * usually turn [watch] off.
  *
- * @property watch whether to watch the file system. The command line tool and most tests pass false and call
+ * @property watch whether to watch the file system. Most tests pass false and call
  *   `refresh()` instead.
  * @property watchDebounce the quiet time after the last file event before a rescan. It is 200 ms by default.
  * @property analysisDebounce the quiet time after the last change before a new analysis. It is 300 ms by default.

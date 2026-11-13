@@ -70,6 +70,9 @@ internal object RunLines {
     /** The line once everything is shut down. */
     const val SHUT_DOWN: String = "Shut down."
 
+    /** The line after the warnings of a project without errors, whose run goes on. */
+    const val GOES_ON_DESPITE_WARNINGS: String = "The run goes on despite the warnings."
+
     /** The line of a run that the errors of the project keep from starting. */
     const val BLOCKED_BY_ERRORS: String = "The run does not start: the project has errors."
 

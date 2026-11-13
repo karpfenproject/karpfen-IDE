@@ -20,19 +20,25 @@ import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModels
 import io.karpfen.ide.ui.workbench.dialog.ValidationReportTexts
 import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers `validate` through [HeadlessValidation] over the IDE's own wiring in a [HeadlessRig]. The project is the
  * synthesized lamp. The tests check the status and the lines of a clean project, of a project with errors and of one
- * with warnings only, and that nothing is written into the project or the user's settings.
+ * with warnings only, the JSON document of a project with errors, and that nothing is written into the project or the
+ * user's settings.
  */
 class HeadlessValidationTest {
 
@@ -85,11 +91,33 @@ class HeadlessValidationTest {
         assertEquals("1 warning", summary)
     }
 
-    /** Validates [root] in a new rig and returns the status with the rig, whose console holds the lines. */
-    private suspend fun kotlinx.coroutines.test.TestScope.validate(): Pair<Int, HeadlessRig> {
+    @Test
+    fun `the JSON format prints one document of the findings and nothing else, and ends with 1 for errors`() = runTest(timeout = TIMEOUT) {
+        SynthesizedModels.copyTo(root, SynthesizedModel.LAMP)
+        replace("lamp.kstates", "STATEMACHINE", "STATMACHINE")
+        addUnreachableState("switch.kstates")
+
+        val (status, rig) = validate(OutputFormat.JSON)
+
+        assertEquals(HeadlessExitCodes.ERRORS_FOUND, status)
+        val document = assertIs<JsonObject>(Json.parseToJsonElement(rig.output.joinToString("\n")))
+        assertEquals(JsonPrimitive(root.toString()), document["root"])
+        assertEquals(JsonPrimitive(1), document["errorCount"])
+        assertEquals(JsonPrimitive(1), document["warningCount"])
+        val problems = assertIs<JsonArray>(document["problems"]).map { assertIs<JsonObject>(it) }
+        assertEquals(listOf("lamp.kstates", "switch.kstates"), problems.map { (it["path"] as JsonPrimitive).content })
+        assertEquals(listOf("error", "warning"), problems.map { (it["severity"] as JsonPrimitive).content })
+        assertEquals(emptyList(), rig.errors)
+    }
+
+    /**
+     * Validates [root] in a new rig, printing in [format], and returns the status with the rig, whose console holds the
+     * lines.
+     */
+    private suspend fun kotlinx.coroutines.test.TestScope.validate(format: OutputFormat = OutputFormat.TEXT): Pair<Int, HeadlessRig> {
         val rig = HeadlessRig(testScheduler, settingsDirectory)
         try {
-            val status = rig.validate(HeadlessCommand.Validate(root))
+            val status = rig.validate(HeadlessCommand.Validate(root, format))
             rig.settle()
             return status.await() to rig
         } finally {

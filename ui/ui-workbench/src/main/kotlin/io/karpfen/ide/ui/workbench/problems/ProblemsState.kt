@@ -79,7 +79,7 @@ public data class ProblemsUiState(
  * The problems of the workspace, grouped by file. It collects `Workspace.problems` in [scope] and maps them through
  * [ProblemsMapping] into groups and items. Each item has a one-based `line:col` from `FileProblems.positionOf` and the
  * version and lineage of the file's snapshot. The class never merges diagnostics itself. `Workspace.problems` is the
- * single rule of core-workspace for that, and the status bar and `karpfen validate` share it.
+ * single rule of core-workspace for that, and the status bar and the validation of the project share it.
  *
  * Binding a workspace is an operation of the mediator and is internal, so no view can bypass the coordinated flows of
  * the workbench.

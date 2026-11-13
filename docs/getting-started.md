@@ -46,7 +46,7 @@ only happens when you ask for it.
 | To | Do this |
 |---|---|
 | Validate the project | Click Validate in the bar below the editor, or choose Run > Validate Project. |
-| Validate from a terminal | Run `karpfen validate <folder>`. |
+| Validate from a terminal | Run `karpfen-ide validate <folder>`, see [Without a window](#without-a-window). |
 
 - The answer is a dialog with a summary, such as `2 errors and 1 warning` or `No problems found.`, and a list of the
   findings, each with its file, its line and what is wrong. Errors come first. Close is its only button.
@@ -56,6 +56,9 @@ only happens when you ask for it.
   fit their use, and whether every state can be reached.
 - Every run validates the project first. An error anywhere in the project blocks the run, and the dialog says so in
   its title. Warnings do not block a run and open no dialog.
+- A state machine file that no descriptor uses is checked on its own as well, with the language features of the
+  project. An error in it blocks a run like any other. A model or metamodel file that no descriptor uses is checked
+  for its syntax only.
 - These checks come from dsl-tools. Its guide `guides/verification.md` lists every check with its code.
 
 | Action | macOS | Windows and Linux |
@@ -125,13 +128,14 @@ other, and a click on the size sets it back.
 
 ### Running
 
-- **In the IDE's Docker container.** This is the default. Each folder gets its own container, which listens only on
-  `127.0.0.1`. The first run builds the runtime image, which takes a few minutes once. Closing the folder or the IDE
-  stops and removes the container. The image stays. It has Python 3 with numpy, scipy, sympy, pandas, regex,
-  python-dateutil and chardet for `EVAL` blocks.
-- **Against a runtime at a URL.** Start a karpfen runtime with IDE support yourself, for example with
-  `runtime/live-runtime.sh up`. In the first line of the Runtime tool window click URL, enter the URL and click Apply.
-  The IDE never stops a runtime it did not start and cannot show its log. Click Docker to go back.
+A model runs in the IDE's own Docker container.
+
+- Each folder gets its own container, which listens only on `127.0.0.1`.
+- The first run builds the runtime image, which takes a few minutes once.
+- Closing the folder or the IDE stops and removes the container. The image stays.
+- The image has Python 3 with numpy, scipy, sympy, pandas, regex, python-dateutil and chardet for `EVAL` blocks.
+- The IDE runs models nowhere else. To run a model on a runtime of your own, use the karpfen-runtime application
+  without the IDE.
 
 Run saves all open files first, because it uploads the saved files. It picks the descriptor in the active editor, or
 the only one of the folder, or asks. Then it validates the whole project, as [Validating](#validating) describes. A
@@ -149,7 +153,6 @@ A run of a project without errors goes on with the dialog Run.
   deployment to the end of the run, also the lines of each tick that the Log pane leaves out.
 - The folder `karpfen-runs` does not show in the Project tool window. The Runtime tool window names the file of the
   selected run.
-- A runtime at a URL gives the IDE no log, so the file then only says so.
 
 Five parts of the state machine language are optional features that each project switches on by hand: histories,
 tick limits, breakpoints, macros, and splits and joins. All of them are off in a new project.
@@ -222,7 +225,7 @@ until you stop it. A run without a window has no debugger.
 | Command | What it does |
 |---|---|
 | `karpfen-ide <folder>` | Opens the window on the folder, as always. |
-| `karpfen-ide validate <folder>` | Validates the whole project, prints the findings and ends. |
+| `karpfen-ide validate <folder> [--format text\|json]` | Validates the whole project, prints the findings and ends. |
 | `karpfen-ide run <folder> [options]` | Validates the project, runs it and prints what happens until it is stopped. |
 | `karpfen-ide validate --help`, `karpfen-ide run --help` | Prints the usage. |
 
@@ -241,6 +244,9 @@ first argument.
 From the sources the folder must be an absolute path. `./gradlew :app:ide:createDistributable` builds the application
 into `app/ide/build/compose/binaries/main/app/`.
 
+On Windows the application is built with a console, so the commands have somewhere to print. Opening the window by a
+double-click therefore also opens a console window.
+
 ### Validating
 
 ```bash
@@ -256,6 +262,43 @@ switch.kstates:3: warning: This EVAL has no return, so it yields no value; retur
 ```
 
 A project without findings prints `No problems found.`
+
+With `--format json` it prints one JSON document instead, for a program to read.
+
+```bash
+karpfen-ide validate examples/lamp --format json
+```
+
+```json
+{
+    "root": "/home/me/karpfen-IDE/examples/lamp",
+    "errorCount": 1,
+    "warningCount": 0,
+    "problems": [
+        {
+            "path": "lamp.kstates",
+            "line": 13,
+            "column": 1,
+            "severity": "error",
+            "message": "mismatched input 'STATMACHINE' expecting 'STATEMACHINE'",
+            "code": "syntax-error"
+        }
+    ]
+}
+```
+
+| Member | Meaning |
+|---|---|
+| `root` | The folder of the project, as an absolute path. |
+| `errorCount`, `warningCount` | How many errors and warnings the project has. |
+| `problems` | The findings, sorted by path, line and column. |
+| `path` | The file, relative to the folder. |
+| `line`, `column` | Where the finding starts. Both count from 1. |
+| `severity` | `error`, `warning`, `info` or `hint`. |
+| `message` | What is wrong, in words. |
+| `code` | The stable name of the kind of finding. |
+
+The exit status is the same in both formats.
 
 ### Running
 
@@ -274,64 +317,78 @@ The options may stand before or after the folder. A value follows its option as 
 
 What a run does, in this order:
 
-1. It validates the whole project. With an error it prints the findings as `validate` does and does not run.
-2. It starts the runtime, as the project says: in the IDE's Docker container or at a URL.
+1. It validates the whole project. With an error it prints the findings as `validate` does and does not run. With
+   warnings only it prints them the same way, then `The run goes on despite the warnings.`, and runs.
+2. It starts the runtime in the IDE's Docker container. The first run builds the runtime image.
 3. It deploys the descriptor and starts the bridges.
 4. It prints what happens until you stop it with Ctrl+C or a terminate signal.
-5. It stops the bridges and the environment, removes the runtime container if it started one, and ends.
+5. It stops the bridges and the environment, removes the runtime container and ends.
 
-This is what a run of the lamp with one bridge prints, here against a runtime at a URL. The switch is pressed
-once through the bridge, and then the run is stopped.
+This is what a run of the lamp with one bridge prints. The switch is pressed once through the bridge, and then the
+run is stopped. The first run prints a line for each step of building the image as well.
 
 ```
 Running lamp.kenv.json with http.kbridge.json
-URL: http://127.0.0.1:65231 not connected
+Docker: not started
 Run lamp: preparing
 Run lamp: waiting for the runtime
-URL: waiting for the runtime
-URL: http://127.0.0.1:65231 reachable
+Docker: checking the Docker engine
+Docker: creating the container
+Docker: starting the container
+Docker: waiting for the runtime
+Docker: running at 127.0.0.1:65457
 Run lamp: deploying
 http.kbridge.json: not running
-Checking the runtime at http://127.0.0.1:65231: done, The runtime is up and supports the IDE
-Creating the environment: done, env-1794578442171
-Connecting to the environment: done, Connected as karpfen-ide-b40647679d4c
+Checking the runtime at http://127.0.0.1:65457: done, The runtime is up and supports the IDE
+Creating the environment: done, env-1794579423685
+Connecting to the environment: done, Connected as karpfen-ide-254666e10161
 Uploading lamp.kmeta: done
 Uploading lamp-events.kmeta: done
 Uploading lamp.kmodel: done
 Attaching lamp.kstates to lamp: done
 Attaching switch.kstates to wallSwitch: done
-Setting the tick delay to 50 ms: done
-Setting the event time to live to 30000 ms: done
+Setting the tick delay to 500 ms: done
+Setting the event time to live to 5000 ms: done
 Listening to 2 event domains: done, service, switch
 Switching on runtime features: skipped, The project switches on no language feature that needs one
 Activating the environment: done
 Switching observation on: done, The runtime read the model as analyzed
 Starting the environment: done
+14:17:03.888  lamp  starts in off
+14:17:03.890  wallSwitch  starts in down
+14:17:03.892  engine  Engine started with 2 state machine(s), tickDelay=500ms
+14:17:03.895  lamp  runs the entry actions of off
 lamp: off
 wallSwitch: down
 Confirming the start: done, Every state machine reported its state
 Run lamp: running
 http.kbridge.json: starting
 http.kbridge.json: running, 0 in, 0 out
-lamp: on
+14:17:04.896  lamp  off -> full
+14:17:04.898  wallSwitch  down -> up
+lamp: on > full
 wallSwitch: up
+14:17:05.397  lamp  runs the entry actions of on
+14:17:05.399  lamp  runs the entry actions of full
+14:17:05.414  wallSwitch  runs the entry actions of up
 Stop requested.
 Shutting down the run and its bridges, then the runtime.
 Run lamp: stopped
 http.kbridge.json: not running
-URL: http://127.0.0.1:65231 not connected
+14:17:06.405  engine  Engine stopped after 5 ticks
+Docker: not started
 Shut down.
 ```
 
 | Line | Meaning |
 |---|---|
 | `Running <descriptor> with <bridges>` | What the run was asked to do. `captured to a file` is added with `--capture`. |
-| `Docker: ...` or `URL: ...` | What the runtime is doing, in the words of the Runtime tool window. |
+| `Docker: ...` | What the runtime container is doing, in the words of the Runtime tool window. |
 | `Run <name>: <phase>` | The phase of the run: preparing, waiting for the runtime, deploying, running, stopped. |
 | `<step>: done`, `skipped` or `failed`, with a detail | A step of the deployment. |
 | `<object>: <states>` | The active states of the state machine on that object, whenever the runtime reports new ones. |
 | `<bridge file>: ...` | The state of a bridge, and once it runs how many messages it took in and sent out. |
-| `<time>  <object>  <text>` | A line of the simplified log, as the Log pane shows it. Only the IDE's Docker container gives a log, so a run against a URL has no such lines. |
+| `<time>  <object>  <text>` | A line of the simplified log, as the Log pane shows it. |
 | `[stdout] ...`, `[stderr] ...` | A line of the runtime's log, with `--verbose`. |
 | `Captured to karpfen-runs/<file>` | Where the run is captured. |
 | `Stop requested.`, `Shutting down ...`, `Shut down.` | The end of the run. What the bridges and the runtime say while they stop stands in between. |
@@ -341,9 +398,9 @@ A run that does not get going says why and ends: `The run does not start: the pr
 
 ### What a run reads from the project
 
-A run without a window takes two things from `.karpfenproject`: which optional language features are on, and how
-the runtime is reached. Everything else in that file, such as the bridges ticked in the window, is ignored. Nothing is
-written, neither to `.karpfenproject` nor to the settings of the user.
+A run without a window takes one thing from `.karpfenproject`: which optional language features are on. Everything
+else in that file, such as the bridges ticked in the window, is ignored. Nothing is written, neither to
+`.karpfenproject` nor to the settings of the user.
 
 Breakpoints never halt a run without a window, also when the project has them switched on.
 
@@ -532,7 +589,7 @@ docker rmi $(docker images --quiet --filter label=io.karpfen.ide.runtime=true)
 ## Good to know
 
 Each project keeps its settings in the file `.karpfenproject` in its folder: the theme, the two zoom sizes, the tool
-windows, the runtime choice, the open files and the bridges of the last run. Open the folder again, on this machine or
+windows, the language features, the open files and the bridges of the last run. Open the folder again, on this machine or
 another, and the IDE looks the way you left it. The file is plain text, so you can read it, edit it and commit it:
 
 ```
@@ -540,7 +597,7 @@ theme = dark
 zoom = 110
 editorFontSize = 14
 pane.runtime = shown 400
-runtime.host = docker
+feature.history = on
 open = lamp.kstates
 active = lamp.kstates
 ```

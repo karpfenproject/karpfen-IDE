@@ -32,8 +32,6 @@ import io.karpfen.ide.core.document.fixtures.SmallStackDslReader
 import io.karpfen.ide.core.document.parse.NestingLimit
 import io.karpfen.ide.core.workspace.diagnostics.WorkspaceDiagnosticCodes
 import io.karpfen.ide.core.workspace.validation.ProjectValidation
-import io.karpfen.ide.tools.cli.validate.ValidateCommand
-import io.karpfen.ide.tools.cli.validate.ValidationReport
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.foundation.command.MenuEntry
@@ -74,13 +72,12 @@ import androidx.compose.ui.input.key.KeyShortcut as ComposeKeyShortcut
 
 /**
  * The composition root over the production wiring. `IdeApplication.prepare` opens the folder given on the command line
- * into the real workbench, and the menus resolve against its commands. The Problems view, the status bar and
- * `karpfen validate` report the same problems for the examples plus the shared descriptor examples. They agree before
- * and after files are opened and closed, descriptors included, because all three map `Workspace.problems`, the one
- * rule for problems. `karpfen validate` adds the findings of the checks across files, as the IDE's own validation of
- * the project does, and the two validations agree too. The project switches on every optional language feature there,
- * which is what `karpfen validate` allows. A command-line folder that `main` saw as a directory may be gone, unmounted or deleted, by the
- * time `prepare` opens it. On every platform the Edit menu resolves Complete Code with the accelerator Ctrl+M, written
+ * into the real workbench, and the menus resolve against its commands. The Problems view, the status bar and the
+ * validation of the whole project report the same problems for the examples plus the shared descriptor examples. They
+ * agree before and after files are opened and closed, descriptors included, because all three map
+ * `Workspace.problems`, the one rule for problems. The validation adds the findings of the checks across files. The
+ * project switches on every optional language feature. A command-line folder that `main` saw as a directory may be
+ * gone, unmounted or deleted, by the time `prepare` opens it. On every platform the Edit menu resolves Complete Code with the accelerator Ctrl+M, written
  * in that platform's notation, and the stroke finds that command. What dsl-tools logs while the IDE analyzes, here the
  * failure of a reader, reaches the Language Tools Output through the composition root, and the View menu opens it.
  */
@@ -159,7 +156,7 @@ class IdeEndToEndTest {
     }
 
     @Test
-    fun `Problems, the status bar and karpfen validate agree, before and after opening and closing files`(reporter: TestReporter) =
+    fun `Problems, the status bar and the validation agree, before and after opening and closing files`(reporter: TestReporter) =
         scenario {
             Examples.copyTo(root)
             DescriptorExamples.copyExplicitContext(root.resolve("ctx-valid"), DescriptorExamples.VALID)
@@ -169,10 +166,10 @@ class IdeEndToEndTest {
             Files.writeString(looseMetamodel, "type \"B\" \"b\" {\n    prop(\"y\", \"number\")\n")
             switchOnEveryLanguageFeature()
             val session = prepare(root)
-            val cli = validate(root)
-            reporter.publishEntry("karpfen validate", cli.joinToString("\n"))
+            val validated = session.state.workspace.value!!.validate().lines()
+            reporter.publishEntry("the validation", validated.joinToString("\n"))
 
-            val codes = cli.map { it.substringAfterLast('[').removeSuffix("]") }.toSet()
+            val codes = validated.map { it.substringAfterLast('[').removeSuffix("]") }.toSet()
             assertTrue(
                 codes.containsAll(
                     listOf(
@@ -182,16 +179,14 @@ class IdeEndToEndTest {
                         WorkspaceDiagnosticCodes.CONTEXT_MULTIPLE_METAMODELS,
                     ),
                 ),
-                "the scenario covers descriptor, context and syntax findings: $cli",
+                "the scenario covers descriptor, context and syntax findings: $validated",
             )
-            assertAgree(session.state, cli, "after opening the folder")
+            assertAgree(session.state, validated, "after opening the folder")
             assertEquals(
                 EXAMPLE_FINDINGS_ACROSS_FILES,
-                cli.filter(::isAcrossFiles).map { it.substringBefore(": error:") },
+                validated.filter(::isAcrossFiles).map { it.substringBefore(": error:") },
                 "the checks across files find the SET on relations in the cleaning robot of dsl-tools",
             )
-            val ide = session.state.workspace.value!!.validate()
-            assertEquals(cli.sorted(), ide.lines().sorted(), "the IDE's validation and karpfen validate")
 
             val opened = listOf(
                 looseMetamodel,
@@ -204,13 +199,13 @@ class IdeEndToEndTest {
             session.state.workspace.value!!.awaitAnalysis()
             settle()
             assertEquals(opened.size, session.state.tabs.tabs.value.size)
-            assertAgree(session.state, cli, "with open files")
+            assertAgree(session.state, validated, "with open files")
 
             opened.forEach { session.state.closeTab(it).also { settle() } }
             session.state.workspace.value!!.awaitAnalysis()
             settle()
             assertEquals(0, session.state.tabs.tabs.value.size)
-            assertAgree(session.state, cli, "after closing them")
+            assertAgree(session.state, validated, "after closing them")
         }
 
     /**
@@ -294,13 +289,11 @@ class IdeEndToEndTest {
         )
     }
 
-    /** `karpfen validate` of [folder] as text lines. This is the CLI's own report, made by its `ValidateCommand`. */
-    private suspend fun EndToEndIde.validate(folder: Path): List<String> {
-        val report = ValidateCommand(cliWorkspaces()).run(folder)
-        return report.lines()
-    }
-
-    private fun assertAgree(state: WorkbenchState, cli: List<String>, situation: String) {
+    /**
+     * Asserts that the Problems view and the status bar show the findings of [validated] that the analysis finds, which
+     * are all but the checks across files, in [situation].
+     */
+    private fun assertAgree(state: WorkbenchState, validated: List<String>, situation: String) {
         val problems = state.problems.state.value
         val shown = problems.groups.flatMap { group ->
             group.items.map { item ->
@@ -309,8 +302,8 @@ class IdeEndToEndTest {
                     "${diagnostic.message} [${diagnostic.code}]"
             }
         }
-        val analyzed = cli.filterNot(::isAcrossFiles)
-        assertEquals(analyzed.sorted(), shown.sorted(), "Problems view and karpfen validate without the checks across files $situation")
+        val analyzed = validated.filterNot(::isAcrossFiles)
+        assertEquals(analyzed.sorted(), shown.sorted(), "Problems view and the validation without the checks across files $situation")
         val status = state.statusBar.state.value
         assertEquals(analyzed.count { ": error: " in it }, status.errorCount, "status-bar errors $situation")
         assertEquals(analyzed.count { ": warning: " in it }, status.warningCount, "status-bar warnings $situation")
@@ -318,17 +311,16 @@ class IdeEndToEndTest {
         assertEquals(status.warningCount, problems.warningCount)
     }
 
-    /** True if [line] of `karpfen validate` reports a check across files, which only a validation runs. */
+    /** True if [line], made by [lines], reports a check across files, which only a validation runs. */
     private fun isAcrossFiles(line: String): Boolean = line.endsWith("]") && line.substringAfterLast('[').startsWith("project.")
 
-    /** The findings of this validation in the form of the lines of `karpfen validate`. */
+    /**
+     * The findings of this validation, one line each in the form `path:line:column: severity: message [code]`, with the
+     * path relative to the root.
+     */
     private fun ProjectValidation.lines(): List<String> = findings.map {
         "${root.relativize(it.path).invariantSeparatorsPathString}:${it.line}:${it.column}: ${it.severity.name.lowercase()}: " +
             "${it.message} [${it.code}]"
-    }
-
-    private fun ValidationReport.lines(): List<String> = problems.map {
-        "${it.path}:${it.line}:${it.column}: ${it.severity.name.lowercase()}: ${it.message} [${it.code}]"
     }
 
     private fun commandIdsOf(entry: MenuEntry): List<String> = when (entry) {

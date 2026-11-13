@@ -26,7 +26,6 @@ import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.session.DocumentSessionConfig
-import io.karpfen.ide.core.workspace.WorkspaceFactory
 import io.karpfen.ide.core.workspace.WorkspaceOptions
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.keys.HostPlatform
@@ -122,9 +121,6 @@ internal class EndToEndIde(
      */
     fun startRun(folder: Path?): IdeRunState =
         IdeRunState(scope, prepare = { application.prepare(scope, folder) }).also { it.start() }
-
-    /** Workspaces like the CLI's, without watching, on the same virtual time, for `ValidateCommand`. */
-    fun cliWorkspaces(): WorkspaceFactory = WorkspaceFactory(workspaceOptions.copy(watch = false), reader = reader)
 
     /** Runs everything due on the virtual clock. */
     fun settle() = scheduler.advanceUntilIdle()

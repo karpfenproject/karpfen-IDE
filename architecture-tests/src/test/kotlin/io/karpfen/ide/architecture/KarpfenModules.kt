@@ -49,7 +49,6 @@ internal object KarpfenModules {
         "ui/ui-diagram" to "io.karpfen.ide.ui.diagram",
         "ui/ui-workbench" to "io.karpfen.ide.ui.workbench",
         "app/ide" to "io.karpfen.ide.app",
-        "tools/cli" to "io.karpfen.ide.tools.cli",
         "architecture-tests" to "io.karpfen.ide.architecture",
     )
 

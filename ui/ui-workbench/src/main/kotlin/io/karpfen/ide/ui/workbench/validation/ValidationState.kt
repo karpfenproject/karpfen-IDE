@@ -22,6 +22,7 @@ import io.karpfen.ide.ui.workbench.dialog.DialogState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -45,6 +46,9 @@ import kotlinx.coroutines.sync.withLock
  * second one. A run that validates while the button's validation runs waits for it and then validates again, so the
  * run always checks the files it saved. Without an open folder there is nothing to validate, and [canValidate] is false.
  *
+ * Whoever needs the report of a check before a run, also one without errors that shows no dialog, registers with
+ * [observeRunChecks]. The headless mode prints the warnings of a run that way.
+ *
  * Use the class from the UI thread only. [validate] launches its work in [scope] and returns its job.
  *
  * @param workspace the workspace of the open folder, or null while none is open.
@@ -57,6 +61,7 @@ public class ValidationState internal constructor(
 ) {
     private val busy = MutableStateFlow(false)
     private val one = Mutex()
+    private val runCheckListeners = ArrayList<(ProjectValidation) -> Unit>()
 
     /** True while a validation runs. */
     public val isBusy: StateFlow<Boolean> get() = busy.asStateFlow()
@@ -85,13 +90,25 @@ public class ValidationState internal constructor(
     }
 
     /**
-     * Validates the whole open project before a run. Returns true if the report has no error. If it has one, it shows
-     * the report in a dialog titled [RUN_BLOCKED_TITLE], waits until it is closed and returns false. A report with
-     * warnings only opens no dialog. Without an open folder, or if the workspace closes meanwhile, it returns false.
+     * Calls [listener] with the report of every check before a run from now on, until the returned handle is disposed.
+     * The listener is called on the UI thread as soon as the report is done, before the run goes on and before a
+     * report with errors is shown.
+     */
+    public fun observeRunChecks(listener: (ProjectValidation) -> Unit): DisposableHandle {
+        runCheckListeners.add(listener)
+        return DisposableHandle { runCheckListeners.remove(listener) }
+    }
+
+    /**
+     * Validates the whole open project before a run and hands the report to the listeners of [observeRunChecks].
+     * Returns true if the report has no error. If it has one, it shows the report in a dialog titled
+     * [RUN_BLOCKED_TITLE], waits until it is closed and returns false. A report with warnings only opens no dialog.
+     * Without an open folder, or if the workspace closes meanwhile, it returns false.
      */
     internal suspend fun checkBeforeRun(): Boolean {
         val opened = workspace.value ?: return false
         val report = validated(opened) ?: return false
+        runCheckListeners.toList().forEach { it(report) }
         if (!report.hasErrors) return true
         dialogs.ask(DialogRequest.ValidationReport(RUN_BLOCKED_TITLE, report))
         return false

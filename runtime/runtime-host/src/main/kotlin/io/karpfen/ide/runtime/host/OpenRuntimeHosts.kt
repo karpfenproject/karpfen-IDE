@@ -23,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * It creates its hosts through [hosts] and hands each one out in a wrapper that behaves like the host. The factory
  * keeps the wrapper until the host is closed. [close] closes every host that is still open, which stops and removes the
- * container of a Docker host. A host that is being closed elsewhere at that moment is not closed a second time. [close]
+ * container of the host. A host that is being closed elsewhere at that moment is not closed a second time. [close]
  * waits until that close has finished, so it returns only when no host of this factory owns a runtime any more. After
  * [close] the factory still creates hosts, but closes each one at once, so it starts nothing.
  *
@@ -43,8 +43,8 @@ public class OpenRuntimeHosts(private val hosts: RuntimeHostFactory) : RuntimeHo
     @Volatile
     private var closed = false
 
-    override fun create(workspaceRoot: Path, settings: RuntimeHostSettings): RuntimeHost {
-        val host = Tracked(hosts.create(workspaceRoot, settings))
+    override fun create(workspaceRoot: Path): RuntimeHost {
+        val host = Tracked(hosts.create(workspaceRoot))
         open += host
         if (closed) host.close()
         return host

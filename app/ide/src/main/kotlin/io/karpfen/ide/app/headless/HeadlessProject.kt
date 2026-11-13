@@ -45,17 +45,18 @@ internal class HeadlessProject(
     companion object {
         /**
          * Opens [folder] through [prepare], which is `IdeApplication.prepare`, in [scope], and starts answering the
-         * dialogs on [console]. Returns the project, or null if the folder could not be opened. The dialog that said
-         * why is written then, and the session is closed again.
+         * dialogs on [console], with the validation reports in [format]. Returns the project, or null if the folder
+         * could not be opened. The dialog that said why is written then, and the session is closed again.
          */
         suspend fun open(
             scope: CoroutineScope,
             folder: Path,
             console: HeadlessConsole,
             prepare: suspend (CoroutineScope, Path) -> IdeSession,
+            format: OutputFormat = OutputFormat.TEXT,
         ): HeadlessProject? {
             val session = prepare(scope, folder)
-            val dialogs = HeadlessDialogs(session.state.dialogs, console)
+            val dialogs = HeadlessDialogs(session.state.dialogs, console, ReportFormatter(format))
             val answering = dialogs.start(scope)
             val workspace = session.state.workspace.value
             if (workspace == null) {

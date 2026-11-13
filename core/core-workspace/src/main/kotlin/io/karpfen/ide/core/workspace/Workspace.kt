@@ -129,8 +129,8 @@ public interface Workspace : AutoCloseable {
 
     /**
      * Runs an analysis of the current state now and returns it once [analysis] and [problems] reflect it. It does not
-     * wait for the debounce and replaces an analysis that is only scheduled. The command line tool and the tests use
-     * it.
+     * wait for the debounce and replaces an analysis that is only scheduled. The preparation of a deployment and the
+     * tests use it.
      */
     public suspend fun awaitAnalysis(): ProjectAnalysis
 
@@ -139,7 +139,7 @@ public interface Workspace : AutoCloseable {
      * `ProjectValidator` of the workspace check every modeling context of that analysis, with the checks across files
      * that the continuous analysis leaves out. The report holds those findings together with the [problems] of the
      * analysis. The validation runs on `WorkspaceOptions.analysisDispatcher`. The Validate button, the run before it
-     * deploys and the command line tool use it.
+     * deploys and `karpfen-ide validate` use it.
      *
      * @throws IllegalStateException if the workspace is closed.
      */
@@ -200,7 +200,7 @@ public fun Workspace(
 }
 
 /**
- * Opens folders as workspaces. The workbench and the command line tool create their [Workspace]s through this seam.
+ * Opens folders as workspaces. The workbench creates its [Workspace]s through this seam.
  * Tests pass a fake, or a factory with test options such as dispatchers, a time source or a file watcher.
  */
 public fun interface WorkspaceFactory {

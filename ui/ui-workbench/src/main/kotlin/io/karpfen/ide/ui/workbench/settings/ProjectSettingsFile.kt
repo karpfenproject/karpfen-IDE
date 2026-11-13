@@ -16,7 +16,6 @@
 package io.karpfen.ide.ui.workbench.settings
 
 import io.karpfen.dsl.states.KstatesFeature
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import kotlin.math.roundToInt
 
 /**
@@ -29,7 +28,6 @@ import kotlin.math.roundToInt
  * zoom = 110
  * editorFontSize = 14
  * pane.runtime = shown 400
- * runtime.host = docker
  * open = lamp.kstates
  * open = lamp.kmeta
  * active = lamp.kstates
@@ -39,12 +37,12 @@ import kotlin.math.roundToInt
  * ```
  *
  * `theme` is `light`, `dark` or `system`. `zoom` is the scale of the workbench in percent. `pane.<name>` is `shown` or
- * `hidden` followed by the size of the tool window in dp. `runtime.host` is `docker` or `url`, and `runtime.url` is the
- * address for the latter. Every open file has its own `open` line, in the order of the tabs. Every bridge that was
- * started with the last run has its own `bridge` line. The line `capture = on` says that the last run was captured to a
- * file. It is only there while that is on, and a capture line with another value counts as off. Every optional language
- * feature that is switched on has its own line `feature.<name> = on`, with the `KstatesFeature.id` as its name, such as
- * `feature.tickLimit = on`. A feature that is off has no line, and a feature line with another value counts as off.
+ * `hidden` followed by the size of the tool window in dp. Every open file has its own `open` line, in the order of the
+ * tabs. Every bridge that was started with the last run has its own `bridge` line. The line `capture = on` says that
+ * the last run was captured to a file. It is only there while that is on, and a capture line with another value counts
+ * as off. Every optional language feature that is switched on has its own line `feature.<name> = on`, with the
+ * `KstatesFeature.id` as its name, such as `feature.tickLimit = on`. A feature that is off has no line, and a feature
+ * line with another value counts as off.
  *
  * Reading never fails. A line with a known key and a value that makes no sense is dropped, and the default stands in.
  * A line with a key that is not known is kept and written back, so files of a newer version survive. That includes a
@@ -97,8 +95,6 @@ public object ProjectSettingsFile {
                 key.startsWith(PANE) -> pane(value)?.let { layout ->
                     settings = settings.copy(toolWindows = settings.toolWindows + (key.removePrefix(PANE).uppercase() to layout))
                 }
-                key == "runtime.host" -> host(value)?.let { settings = settings.copy(runtime = settings.runtime.copy(host = it)) }
-                key == "runtime.url" -> if (value.isNotEmpty()) settings = settings.copy(runtime = settings.runtime.copy(url = value))
                 key == "open" -> if (value.isNotEmpty() && value !in open) open.add(value)
                 key == "active" -> if (value.isNotEmpty()) settings = settings.copy(activeFile = value)
                 key == "bridge" -> if (value.isNotEmpty() && value !in bridges) bridges.add(value)
@@ -126,8 +122,6 @@ public object ProjectSettingsFile {
         settings.toolWindows.toSortedMap().forEach { (name, layout) ->
             appendLine("$PANE${name.lowercase()} = ${if (layout.visible) "shown" else "hidden"} ${layout.size.roundToInt()}")
         }
-        appendLine("runtime.host = ${settings.runtime.host.name.lowercase()}")
-        appendLine("runtime.url = ${settings.runtime.url}")
         settings.openFiles.forEach { appendLine("open = $it") }
         settings.activeFile?.let { appendLine("active = $it") }
         settings.bridges.forEach { appendLine("bridge = $it") }
@@ -140,8 +134,6 @@ public object ProjectSettingsFile {
 
     /** The language feature that the key [key] names after its `feature.` prefix, or null if it names none. */
     private fun feature(key: String): KstatesFeature? = KstatesFeature.byId(key.removePrefix(FEATURE))
-
-    private fun host(value: String): RuntimeHostKind? = RuntimeHostKind.entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
 
     /** The layout that `shown 400` or `hidden 180` describes, or null if the value is something else. */
     private fun pane(value: String): ToolWindowLayout? {

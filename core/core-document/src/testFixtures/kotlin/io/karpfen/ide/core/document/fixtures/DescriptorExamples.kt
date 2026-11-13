@@ -28,8 +28,8 @@ import java.nio.file.Path
  * like the rest of the repository. The files below `examples` are different. They are unmodified copies of example
  * files from the karpfen repositories, and [Examples] loads them.
  *
- * core-workspace uses these descriptors to test descriptor reading and explicit contexts. The CLI and the end-to-end
- * tests use them too, so nobody invents descriptors of their own.
+ * core-workspace uses these descriptors to test descriptor reading and explicit contexts. The end-to-end tests use them
+ * too, so nobody invents descriptors of their own.
  */
 public object DescriptorExamples {
 

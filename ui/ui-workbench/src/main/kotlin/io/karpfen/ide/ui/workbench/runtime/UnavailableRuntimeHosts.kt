@@ -22,8 +22,6 @@ import io.karpfen.ide.runtime.host.HostProblemCode
 import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.runtime.host.RuntimeHost
 import io.karpfen.ide.runtime.host.RuntimeHostFactory
-import io.karpfen.ide.runtime.host.RuntimeHostKind
-import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,13 +32,13 @@ import java.nio.file.Path
 /**
  * The host factory of a composition without runtime hosts. Each host stays stopped and answers every start with
  * [HostProblemCode.ENGINE_UNAVAILABLE]. The workbench services use it unless the composition root hands in the real
- * hosts. Tests that run the production wiring therefore never reach Docker or a runtime at a URL.
+ * hosts. Tests that run the production wiring therefore never reach Docker.
  */
 internal class UnavailableRuntimeHosts : RuntimeHostFactory {
-    override fun create(workspaceRoot: Path, settings: RuntimeHostSettings): RuntimeHost = UnavailableHost(settings.kind)
+    override fun create(workspaceRoot: Path): RuntimeHost = UnavailableHost()
 
     /** A host that never has a runtime. */
-    private class UnavailableHost(override val kind: RuntimeHostKind) : RuntimeHost {
+    private class UnavailableHost : RuntimeHost {
         override val status: StateFlow<HostStatus> = MutableStateFlow<HostStatus>(HostStatus.Stopped).asStateFlow()
 
         override val logs: Flow<HostLogLine> = flowOf(HostLogLine(PROBLEM.message))

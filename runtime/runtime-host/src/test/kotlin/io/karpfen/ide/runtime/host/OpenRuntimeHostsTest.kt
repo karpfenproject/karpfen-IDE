@@ -38,7 +38,7 @@ class OpenRuntimeHostsTest {
     private val created = ArrayList<CountingHost>()
 
     /** The factory under test, over hosts that count their closes. */
-    private val hosts = OpenRuntimeHosts { _, _ -> CountingHost().also { created += it } }
+    private val hosts = OpenRuntimeHosts { _ -> CountingHost().also { created += it } }
 
     @Test
     fun `closing the factory closes the hosts that are still open, each once`() {
@@ -82,7 +82,7 @@ class OpenRuntimeHostsTest {
     }
 
     /** A host of the factory under test. */
-    private fun create(): RuntimeHost = hosts.create(Path.of("workspace"), RuntimeHostSettings(RuntimeHostKind.DOCKER))
+    private fun create(): RuntimeHost = hosts.create(Path.of("workspace"))
 
     /** A host that counts its closes. With [hold] set, a close waits for it after [entered] opened. */
     private class CountingHost : RuntimeHost {
@@ -96,7 +96,6 @@ class OpenRuntimeHostsTest {
         @Volatile
         var hold: CountDownLatch? = null
 
-        override val kind: RuntimeHostKind = RuntimeHostKind.DOCKER
         override val status: StateFlow<HostStatus> = MutableStateFlow(HostStatus.Stopped)
         override val logs: Flow<HostLogLine> = emptyFlow()
 

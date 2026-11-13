@@ -43,7 +43,7 @@ import kotlinx.coroutines.flow.StateFlow
  * The collaborators of the [WorkbenchState], passed in through the constructor. Tests replace any of them with fakes.
  * The class is a plain holder of services and has no value semantics.
  *
- * @property workspaceFactory opens folders. It is the seam of core-workspace, which the CLI shares. A workspace gets
+ * @property workspaceFactory opens folders. It is the seam of core-workspace. A workspace gets
  *   its languages from it as `Workspace.languages`, so the services hold no language registry of their own.
  * @property editorKeymap the single editor keymap of the workbench. Every editor is created with it through
  *   [EditorStateFactory.create], and the editor commands of the menu take their shortcuts from it. The menu and the
@@ -54,8 +54,8 @@ import kotlinx.coroutines.flow.StateFlow
  *   It is the buffer that the application's logging fills, handed over by the composition root.
  * @property runtimeSessions prepares the deployments of the Run command and launches their sessions. There is one per
  *   process. It holds the single ledger of the environments left on a runtime.
- * @property runtimeHosts creates the runtime host of each opened workspace from the runtime settings. Unless the
- *   composition root hands one in, no host ever has a runtime.
+ * @property runtimeHosts creates the runtime host of each opened workspace. Unless the composition root hands one in,
+ *   no host ever has a runtime.
  * @property runtimeClients creates the client of a runtime endpoint. Tests hand in clients of the fake runtime.
  */
 public class WorkbenchServices(

@@ -26,7 +26,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import io.karpfen.ide.runtime.host.HostStatus
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.conformance.DescriptorTiming
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
@@ -57,8 +56,8 @@ import io.karpfen.ide.runtime.session.debug.PausePlace
 /**
  * Tests the composed Runtime tool window over a [FakeRuntimeHost] and runs whose sessions are [FakeRuntimeSession]s
  * that the test drives. The tests cover the explanation in the empty window, the runs list with the selected run, and
- * the Send button of the event injector. They also cover the header with the host's status, its buttons and the host
- * selector, and the runtime segment of the status bar.
+ * the Send button of the event injector. They also cover the header with the host's status and its buttons, and the
+ * runtime segment of the status bar.
  */
 @OptIn(ExperimentalTestApi::class)
 class RuntimeToolWindowUiTest {
@@ -161,9 +160,8 @@ class RuntimeToolWindowUiTest {
     }
 
     @Test
-    fun `the header shows the host's status, starts and stops the runtime and switches the host`() = workbenchUiTest(dir) {
+    fun `the header shows the host's status, starts and stops the runtime`() = workbenchUiTest(dir) {
         openLamp()
-        val runtime = assertNotNull(workbench.state.runtime.value)
         assertFalse(workbench.state.layout.state.value.toolWindow(ToolWindowId.RUNTIME).visible)
 
         tagged(StatusBarTestTags.item(RUNTIME_SEGMENT)).assertTextContains("Runtime: stopped", substring = true)
@@ -189,14 +187,6 @@ class RuntimeToolWindowUiTest {
         settle()
 
         assertEquals(1, docker.stops)
-
-        tagged(RuntimeViewTestTags.host(RuntimeHostKind.URL)).performClick()
-        settle()
-
-        assertEquals(1, docker.closes)
-        assertEquals(RuntimeHostKind.URL, workbench.runtimeHosts.current.settings.kind)
-        tagged(RuntimeViewTestTags.HOST_STATUS).assertTextEquals(RuntimeTexts.hostStatus(runtime.hostSettings.value, HostStatus.Stopped))
-        tagged(RuntimeViewTestTags.URL_FIELD).assertExists()
     }
 
     private val lamp: Path get() = root.resolve(SynthesizedModel.LAMP.folder).resolve(SynthesizedModel.LAMP.descriptorName)

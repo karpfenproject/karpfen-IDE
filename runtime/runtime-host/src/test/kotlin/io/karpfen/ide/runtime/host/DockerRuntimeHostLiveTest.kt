@@ -53,8 +53,8 @@ class DockerRuntimeHostLiveTest {
         val workspaceRoot = folder.resolve("workspace")
         val workspace = WorkspaceContainer(workspaceRoot)
         val engine = DockerJavaEngine((DockerEndpointResolver().resolve() as DockerEndpoint.Local).uri)
-        val first = RuntimeHosts().create(workspaceRoot, RuntimeHostSettings(RuntimeHostKind.DOCKER))
-        val second = RuntimeHosts().create(workspaceRoot, RuntimeHostSettings(RuntimeHostKind.DOCKER))
+        val first = RuntimeHosts().create(workspaceRoot)
+        val second = RuntimeHosts().create(workspaceRoot)
         try {
             val started = assertIs<HostOutcome.Ready>(first.ensureRunning(), "${first.status.value}")
             assertIs<HostStatus.Running>(first.status.value)

@@ -201,7 +201,6 @@ val modulePaths: List<String> = listOf(
     "ui/ui-diagram",
     "ui/ui-workbench",
     "app/ide",
-    "tools/cli",
     "architecture-tests",
 ).map { dir -> ":" + dir.replace('/', ':') }
 
@@ -218,7 +217,7 @@ run {
     gradle.lifecycle.afterProject {
         if (path in conventionModules && !pluginManager.hasPlugin("karpfen.kotlin-jvm")) {
             throw GradleException(
-                "$path does not apply karpfen.kotlin-jvm (directly or through karpfen.compose, karpfen.application or " +
+                "$path does not apply karpfen.kotlin-jvm (directly or through karpfen.compose or " +
                     "karpfen.kotlin-serialization); every module needs it for the module dependency rules " +
                     "(ModuleDependencyRules in build-logic)",
             )

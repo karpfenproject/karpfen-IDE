@@ -38,8 +38,8 @@ import java.nio.file.Path
  *   are all `.kmodel` files, and the state machines are all `.kstates` files, each with a null `attachedTo`. A
  *   directory that contains a descriptor is covered by it. Its karpfen files that no descriptor names are loose files.
  * - [ContextResolution.looseFiles] is exactly the set of karpfen sources of the tree that are in the files of no
- *   context. dsl-tools does not read them, but they are still tokenized and parsed. The rule is the same in the IDE and
- *   in the command line tool.
+ *   context. They are tokenized and parsed, and the project analysis reads a loose state machine with dsl-tools on
+ *   its own.
  * - The findings of the descriptors, from [DescriptorReadResult.diagnostics], are part of
  *   [ContextResolution.diagnostics]. Their syntax errors are not, because those belong to the text of the descriptor.
  * - A directory of the tree that could not be listed, where `WorkspaceNode.Directory.isReadable` is false, is an ERROR

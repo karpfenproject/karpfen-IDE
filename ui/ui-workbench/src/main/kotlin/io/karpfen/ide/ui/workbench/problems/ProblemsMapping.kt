@@ -29,7 +29,8 @@ import java.nio.file.Path
  * snapshot. Items are filtered by severity. The counts are those of the workspace, taken before filtering.
  *
  * The mapping only maps and filters. `Workspace.problems` combines the diagnostics. It is the single problems rule of
- * core-workspace. The Problems view, the status bar and `karpfen validate` all share it, so they always agree.
+ * core-workspace. The Problems view, the status bar and the validation of the project all share it, so they always
+ * agree.
  */
 internal object ProblemsMapping {
 

@@ -30,24 +30,17 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
-/**
- * The factory of the IDE's two hosts: the Docker container the IDE builds and runs for each workspace, and a runtime
- * attached by URL.
- */
+/** The factory of the IDE's host, the Docker container the IDE builds and runs for each workspace. */
 public fun RuntimeHosts(): RuntimeHostFactory = DefaultRuntimeHosts(HostOptions())
 
 /**
- * Creates a [DockerRuntimeHost] or a [UrlRuntimeHost], as the settings choose, both working with [options]. Tests hand
- * in a fake engine, the fake runtime's clients, their own sources and a test dispatcher.
+ * Creates a [DockerRuntimeHost] working with [options]. Tests hand in a fake engine, the fake runtime's clients, their
+ * own sources and a test dispatcher.
  *
  * @param options what the hosts work with.
  */
 internal class DefaultRuntimeHosts(private val options: HostOptions) : RuntimeHostFactory {
-    override fun create(workspaceRoot: Path, settings: RuntimeHostSettings): RuntimeHost =
-        when (settings.kind) {
-            RuntimeHostKind.DOCKER -> DockerRuntimeHost(workspaceRoot, options)
-            RuntimeHostKind.URL -> UrlRuntimeHost(settings.url, options)
-        }
+    override fun create(workspaceRoot: Path): RuntimeHost = DockerRuntimeHost(workspaceRoot, options)
 }
 
 /**

@@ -21,8 +21,6 @@ import io.karpfen.ide.runtime.host.HostOutcome
 import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.runtime.host.RuntimeHost
 import io.karpfen.ide.runtime.host.RuntimeHostFactory
-import io.karpfen.ide.runtime.host.RuntimeHostKind
-import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.session.Preparation
@@ -44,15 +42,8 @@ import java.nio.file.Path
 /**
  * A runtime host that shows the status, answers the start outcome and emits the log lines that its test programs. It
  * counts what it was asked. It starts and stops nothing.
- *
- * @property settings the settings it was created with.
- * @param lifecycle where it records that it was closed.
  */
-class FakeRuntimeHost(
-    val settings: RuntimeHostSettings,
-    var outcome: HostOutcome,
-    private val lifecycle: MutableList<String> = ArrayList(),
-) : RuntimeHost {
+class FakeRuntimeHost(var outcome: HostOutcome) : RuntimeHost {
     /** The status the test sets. */
     val statusFlow = MutableStateFlow<HostStatus>(HostStatus.Stopped)
 
@@ -76,8 +67,6 @@ class FakeRuntimeHost(
     var closes = 0
         private set
 
-    override val kind: RuntimeHostKind get() = settings.kind
-
     override val status: StateFlow<HostStatus> get() = statusFlow.asStateFlow()
 
     override val logs: Flow<HostLogLine> get() = logLines.asSharedFlow()
@@ -94,7 +83,6 @@ class FakeRuntimeHost(
 
     override fun close() {
         closes++
-        lifecycle += "close ${settings.kind}"
     }
 
     companion object {
@@ -113,16 +101,12 @@ class FakeRuntimeHosts(var outcome: HostOutcome = HostOutcome.Ready(FakeRuntimeH
     /** The roots the hosts were created for, oldest first. */
     val roots = ArrayList<Path>()
 
-    /** The creation and the close of every host by its kind, such as `create DOCKER`, in the order they happened. */
-    val lifecycle = ArrayList<String>()
-
     /** The host created last. */
     val current: FakeRuntimeHost get() = created.last()
 
-    override fun create(workspaceRoot: Path, settings: RuntimeHostSettings): RuntimeHost {
+    override fun create(workspaceRoot: Path): RuntimeHost {
         roots.add(workspaceRoot)
-        lifecycle += "create ${settings.kind}"
-        return FakeRuntimeHost(settings, outcome, lifecycle).also { created += it }
+        return FakeRuntimeHost(outcome).also { created += it }
     }
 }
 

@@ -16,8 +16,6 @@
 package io.karpfen.ide.ui.workbench.settings
 
 import io.karpfen.dsl.states.KstatesFeature
-import io.karpfen.ide.runtime.host.RuntimeHostKind
-import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import kotlinx.serialization.Serializable
 
 /**
@@ -39,7 +37,6 @@ import kotlinx.serialization.Serializable
  * @property toolWindows the visibility and size of the tool windows, keyed by tool window name. The key is
  *   `ToolWindowId.name` from the workbench's layout package. A missing entry means the default layout. An unknown
  *   entry is kept but ignored. Part of the project.
- * @property runtime how the IDE reaches the karpfen runtime. Part of the project.
  * @property openFiles the files open in tabs, relative to the project folder with forward slashes, in the order of
  *   the tabs. Part of the project.
  * @property activeFile the file of the active tab, named like the [openFiles], or null. Part of the project.
@@ -59,7 +56,6 @@ public data class IdeSettings(
     public val uiScale: Float = Zoom.DEFAULT_UI_SCALE,
     public val windowBounds: WindowBounds? = null,
     public val toolWindows: Map<String, ToolWindowLayout> = emptyMap(),
-    public val runtime: RuntimeSettings = RuntimeSettings(),
     public val openFiles: List<String> = emptyList(),
     public val activeFile: String? = null,
     public val activeBridges: List<String> = emptyList(),
@@ -121,20 +117,4 @@ public data class ToolWindowLayout(public val visible: Boolean = true, public va
     init {
         require(size > 0f) { "size must be positive, was $size" }
     }
-}
-
-/**
- * How the IDE reaches the karpfen runtime. Either the IDE owns the runtime in a Docker container, or the runtime was
- * started elsewhere and is reached at [url].
- *
- * @property host the kind of host.
- * @property url the base URL of a runtime started elsewhere, used when [host] is [RuntimeHostKind.URL].
- */
-@Serializable
-public data class RuntimeSettings(
-    public val host: RuntimeHostKind = RuntimeHostKind.DOCKER,
-    public val url: String = RuntimeHostSettings.DEFAULT_URL,
-) {
-    /** These settings as the runtime host reads them. */
-    public fun toHostSettings(): RuntimeHostSettings = RuntimeHostSettings(host, url)
 }

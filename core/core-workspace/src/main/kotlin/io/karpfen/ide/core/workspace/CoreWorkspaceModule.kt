@@ -18,7 +18,7 @@ package io.karpfen.ide.core.workspace
 /**
  * Identity of the `core-workspace` module. The module holds the project model: the file tree, the open documents, the
  * environment descriptors, the modeling contexts and the project analysis. It builds on `core-document`. The language
- * services, the runtime session, the diagram notation and the command line tool build on it. Start reading at
+ * services, the runtime session and the diagram notation build on it. Start reading at
  * [Workspace].
  */
 public object CoreWorkspaceModule {

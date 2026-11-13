@@ -57,8 +57,7 @@ import io.karpfen.ide.core.text.TextSnapshot
  * [DslToolsLoggers]. It logs a warning without a stack trace when the text nests deeper than the reader's parser can
  * recurse on the stack of the reading thread. Syntax-clean text within the nesting limit of the parsers,
  * `NestingLimit`, only does that on a stack far smaller than the default one. It logs an error with a stack trace for a
- * defect of the reader. The IDE shows these events in its Language Tools Output and keeps them in its logs. The
- * command-line tool shows them with `--verbose`.
+ * defect of the reader. The IDE shows these events in its Language Tools Output and keeps them in its logs.
  */
 public interface DslReader {
 

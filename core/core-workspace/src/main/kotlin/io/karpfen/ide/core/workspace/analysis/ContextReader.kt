@@ -49,6 +49,12 @@ import java.nio.file.Path
  * So a skipped dependent file reports nothing of its own, and the metamodel's own errors, from syntax or from
  * dsl-tools, explain the gap. The reader checks for cancellation between reads.
  *
+ * A loose state machine, one that no context names, is read on its own through [readLoose], with the features in
+ * [languageFeatures]. Its DSL_TOOLS diagnostics go to [problems] like those of a context file. A loose model or
+ * metamodel is not read. A model needs its metamodel, and a metamodel may use the types of another one, as an events
+ * file does. Only a context tells which files belong together, so a read on its own would report types as unknown
+ * that are defined elsewhere.
+ *
  * A file whose text and input are the same as at its last read in an earlier analysis is not read again. [memory]
  * answers with that earlier read. The input of a state machine is the set [languageFeatures]. The workspace keeps one
  * set object until the features change, so an unchanged set is the same object, and a new set reads every state
@@ -83,6 +89,17 @@ internal class ContextReader(
             stateMachines = reads.stateMachines.modelsOnly(),
             reads = reads,
         )
+    }
+
+    /**
+     * Reads the loose [file] on its own if it is a state machine free of syntax errors, as the class describes, and
+     * records its diagnostics. Any other file reads nothing. It checks for cancellation first.
+     */
+    suspend fun readLoose(file: AnalyzedFile) {
+        currentCoroutineContext().ensureActive()
+        if (file.isReadableAs(DescriptorFileRole.STATE_MACHINE)) {
+            read(file, memory.stateMachines, input = languageFeatures) { reader.kstates(it, languageFeatures) }
+        }
     }
 
     /** The read of the events metamodel of [context], with the types of [domain] as base types. Null if there is none. */
@@ -126,8 +143,11 @@ internal class ContextReader(
     /** The file at [path] if it can be read in [role]. It checks for cancellation first. */
     private suspend fun readable(files: Map<Path, AnalyzedFile>, path: Path, role: DescriptorFileRole): AnalyzedFile? {
         currentCoroutineContext().ensureActive()
-        return files[path]?.takeIf { it.parse.isSyntaxClean && it.parse.language == role.language }
+        return files[path]?.takeIf { it.isReadableAs(role) }
     }
+
+    /** True if this file is free of syntax errors and written in the language of [role]. */
+    private fun AnalyzedFile.isReadableAs(role: DescriptorFileRole): Boolean = parse.isSyntaxClean && parse.language == role.language
 
     /**
      * Reads [file] against [input] with [read], unless [remembered] still holds its read. It records the diagnostics of

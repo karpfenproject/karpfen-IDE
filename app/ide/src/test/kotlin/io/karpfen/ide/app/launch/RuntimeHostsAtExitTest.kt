@@ -21,8 +21,6 @@ import io.karpfen.ide.runtime.host.HostProblem
 import io.karpfen.ide.runtime.host.HostProblemCode
 import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.runtime.host.RuntimeHost
-import io.karpfen.ide.runtime.host.RuntimeHostKind
-import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,10 +42,10 @@ class RuntimeHostsAtExitTest {
         val registered = ArrayList<Thread>()
         val created = ArrayList<ClosableHost>()
         val hosts = runtimeHostsClosedAtExit(
-            hosts = { _, _ -> ClosableHost().also { created += it } },
+            hosts = { _ -> ClosableHost().also { created += it } },
             atExit = ExitSequence { registered += it },
         )
-        hosts.create(Path.of("workspace"), RuntimeHostSettings(RuntimeHostKind.DOCKER))
+        hosts.create(Path.of("workspace"))
         assertEquals(listOf(false), created.map { it.closed })
 
         registered.single().run()
@@ -62,7 +60,7 @@ class RuntimeHostsAtExitTest {
         val atExit = ExitSequence { registered += it }
         assertEquals(emptyList(), registered, "a sequence without steps registers no hook")
 
-        runtimeHostsClosedAtExit(hosts = { _, _ -> ClosableHost() }, atExit = atExit)
+        runtimeHostsClosedAtExit(hosts = { _ -> ClosableHost() }, atExit = atExit)
         atExit.add(ExitSequence.Stage.HOSTS, "second host step") { done += "hosts 2" }
         atExit.add(ExitSequence.Stage.RUNS, "failing run step") { throw IllegalStateException("planted") }
         atExit.add(ExitSequence.Stage.RUNS, "run step") { done += "runs" }
@@ -78,7 +76,6 @@ class RuntimeHostsAtExitTest {
         /** True once [close] was called. */
         var closed = false
 
-        override val kind: RuntimeHostKind = RuntimeHostKind.DOCKER
         override val status: StateFlow<HostStatus> = MutableStateFlow(HostStatus.Stopped)
         override val logs: Flow<HostLogLine> = emptyFlow()
 

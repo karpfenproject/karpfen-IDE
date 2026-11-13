@@ -29,8 +29,8 @@ public object WorkspaceDiagnosticCodes {
 
     /**
      * A file or a directory of the workspace cannot be read, so it, or the files in it, were not analyzed. It is an
-     * ERROR at the start of the file or directory itself. Passing silently would let `karpfen validate` accept a tree
-     * it never saw.
+     * ERROR at the start of the file or directory itself. Passing silently would let a validation of the project accept
+     * a tree it never saw.
      */
     public const val UNREADABLE: String = "unreadable"
 

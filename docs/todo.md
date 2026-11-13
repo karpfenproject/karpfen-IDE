@@ -73,7 +73,7 @@ refer to.
 - A password in the settings of a bridge file is stored as plain text in the project.
 - There is no scripting hook for custom transforms and no native ROS transport.
 
-### Workspace, window and command-line tool
+### Workspace, window and command line
 
 - An exception while the window is composed or drawn freezes the window. It is written to the log, but no error dialog
   appears. Only the diagram view catches its own failures.
@@ -82,21 +82,14 @@ refer to.
 - Whether files next to a descriptor but not named by it should form an implicit context is undecided.
 - A run without a window has no time limit and no way to end by itself when the state machines are done. It ends
   with a signal only.
-- A run without a window prints no warnings of the validation, and with a runtime at a URL it has no log lines to
-  print, only the active states.
-- On Windows the packaged application is built without a console, so the commands without a window probably print
-  nothing there. Nobody has tried it.
-- The small command-line tool `karpfen` cannot run a project. Only the IDE itself can, with `karpfen-ide run`.
-  tools/cli declares a dependency on runtime-session that it does not use.
+- On Windows the packaged application is built with a console, so that the commands without a window can print.
+  Nobody has built or tried it on Windows. Opening the window there also opens a console window.
 - A validation reports only in its dialog. Its findings across files are not in the Problems view and not underlined
   in the editor, and the dialog does not lead to their places.
 - The copies of the dsl-tools example in the test fixtures are older than the example itself. The copy of the robot
   still sets relations with `SET`, which the verifier reports, so validating the fixtures finds four errors.
-- `karpfen validate` does not read `.karpfenproject`. It checks with every language feature on, so it accepts a
-  project that the IDE blocks because of a feature that is off. The format of the feature lines lives in
-  ui-workbench, which the command-line tool does not use.
-- A `.kstates` file that belongs to no modeling context is not checked for features that are off, because only the
-  files of a context are read by dsl-tools.
+- A model or metamodel file that belongs to no modeling context is checked for its syntax only. dsl-tools does not
+  read it, because only a context tells which metamodel it belongs to or builds on.
 - Performance work has not started, for example on the model mirror and on snapshots of large models. The tests tagged
   `budget` hold the targets.
 

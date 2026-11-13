@@ -28,8 +28,6 @@ import io.karpfen.ide.runtime.host.HostOutcome
 import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.runtime.host.RuntimeHost
 import io.karpfen.ide.runtime.host.RuntimeHostFactory
-import io.karpfen.ide.runtime.host.RuntimeHostKind
-import io.karpfen.ide.runtime.host.RuntimeHostSettings
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.session.Preparation
@@ -80,7 +78,7 @@ internal class HeadlessRig(val scheduler: TestCoroutineScheduler, private val se
     /** The scope that drives the workbench, as the thread of the headless mode does. */
     val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
 
-    /** What happened to hosts and sessions, in order, such as `shutdown lamp` and `close DOCKER`. */
+    /** What happened to hosts and sessions, in order, such as `shutdown lamp` and `close host`. */
     val events = ArrayList<String>()
 
     /** The runtime hosts the workspace gets. */
@@ -172,8 +170,7 @@ internal class ScriptedHosts(private val events: MutableList<String>) : RuntimeH
     /** The hosts created so far, oldest first. */
     val created = ArrayList<ScriptedHost>()
 
-    override fun create(workspaceRoot: Path, settings: RuntimeHostSettings): RuntimeHost =
-        ScriptedHost(settings.kind, { outcome }, events).also { created += it }
+    override fun create(workspaceRoot: Path): RuntimeHost = ScriptedHost({ outcome }, events).also { created += it }
 
     companion object {
         /** The endpoint the hosts answer by default. */
@@ -182,14 +179,10 @@ internal class ScriptedHosts(private val events: MutableList<String>) : RuntimeH
 }
 
 /**
- * A runtime host of [kind] that answers what [outcome] gives and shows [statusFlow]. It notes its closing in [events]
- * as `close` and its kind, such as `close DOCKER`.
+ * A runtime host that answers what [outcome] gives and shows [statusFlow]. It notes its closing in [events] as
+ * [CLOSED].
  */
-internal class ScriptedHost(
-    override val kind: RuntimeHostKind,
-    private val outcome: () -> HostOutcome,
-    private val events: MutableList<String>,
-) : RuntimeHost {
+internal class ScriptedHost(private val outcome: () -> HostOutcome, private val events: MutableList<String>) : RuntimeHost {
     /** The status the test sets. */
     val statusFlow = MutableStateFlow<HostStatus>(HostStatus.Stopped)
 
@@ -202,7 +195,12 @@ internal class ScriptedHost(
     override suspend fun stop() = Unit
 
     override fun close() {
-        events += "close $kind"
+        events += CLOSED
+    }
+
+    companion object {
+        /** What a host notes in the events when it is closed. */
+        const val CLOSED: String = "close host"
     }
 }
 

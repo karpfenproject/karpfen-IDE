@@ -31,10 +31,9 @@ starts a container.
 | `./gradlew build` | Compiles everything, runs the unit and architecture tests and checks the module dependencies. |
 | `./gradlew :core:core-lang:test` | Runs the tests of one module. |
 | `./gradlew :app:ide:run` | Starts the IDE. Add `--args=<folder>` to open a folder. |
-| `./gradlew :app:ide:run --args="validate <folder>"` | Validates a project without a window. The folder must be absolute. |
+| `./gradlew :app:ide:run --args="validate <folder>"` | Validates a project without a window. The folder must be absolute. Add `--format json` for a JSON document. |
 | `./gradlew :app:ide:run --args="run <folder> --bridge <file>"` | Runs a project without a window until Ctrl+C. |
 | `./gradlew :app:ide:runWithFailingReaders --args=<folder>` | Starts the IDE with dsl-tools readers that fail on deep nesting, to fill the Language Tools Output. |
-| `./gradlew :tools:cli:installDist` | Builds the command-line tool into `tools/cli/build/install/karpfen/bin/karpfen`. |
 | `./gradlew :app:ide:createDistributable` | Builds the application image without an installer. |
 | `./gradlew :app:ide:packageDistributionForCurrentOS` | Builds the installer of the current platform. |
 | `./gradlew :runtime:runtime-host:liveDockerTest` | Runs the host tests against the local Docker engine. |
@@ -82,15 +81,18 @@ By default dsl-tools is a composite build of the submodule `karpfen-dsl-tools`. 
 from GitHub Packages, with the credentials `GitHubPackagesUsername` and `GitHubPackagesPassword`. The build needs
 dsl-tools 2.0 and never reads or writes `~/.m2`.
 
-### Command-line tool
+### The IDE on the command line
 
 ```bash
-karpfen validate <folder> [--format text|json] [--verbose]
+karpfen-ide validate <folder> [--format text|json]
+karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--verbose]
 ```
 
-It runs the same validation of the whole project as Validate in the IDE and reports the same findings. The exit codes
-are 0 for no errors, 1 for errors found, 2 for a usage error and 3 for a failure of the tool. Positions are one-based
-and paths are relative to the folder.
+The IDE is its own command-line tool. `validate` runs the same validation of the whole project as Validate in the
+window and reports the same findings, read with the language features that `.karpfenproject` switches on. The exit
+codes are 0 for no errors, 1 for errors found, 2 for a usage error and 3 for a failure. Positions are one-based and
+paths are relative to the folder. `ReportFormatter` in the package `headless` of app/ide writes a report as text or
+as JSON. The getting started guide describes both commands for a user.
 
 ### Settings, logs and launch options
 
@@ -131,7 +133,7 @@ above without the exit variable, and check these things on a Mac with the German
 - A change made outside the IDE shows up. On macOS this takes up to about 10 seconds, because the JDK's file watcher
   polls there. An unsaved edit then gets the banner with Reload and Keep mine.
 - Cmd+Q with unsaved changes asks what to do. Window bounds and recent folders come back after a restart.
-- Running a model works against Docker and against a URL.
+- Running a model works in the IDE's Docker container.
 
 ## Conventions
 
@@ -394,10 +396,11 @@ environment, and how to configure it. JSON is not one of the dsl-tools languages
 tolerant JSON parser of its own, because the editor needs a tree of every text, also of a broken one. The workspace
 then decodes the descriptor into `EnvironmentDescriptor`, from which the schema, completion and hover follow.
 
-### The runtime runs in Docker or at a URL
+### The runtime runs in the IDE's Docker container
 
-The IDE never runs the runtime as a local Java process. It either hosts it in its own Docker container, one per
-workspace, or connects to a runtime at a URL. The image is built on first use from the runtime sources that are
+The IDE never runs the runtime as a local Java process, and it never connects to a runtime that someone else
+started. It hosts the runtime in its own Docker container, one per workspace. Who wants a runtime of their own uses
+the karpfen-runtime application without the IDE. The image is built on first use from the runtime sources that are
 bundled into the IDE, so it always matches the client. It holds Python 3 with numpy, scipy, sympy, pandas, regex,
 python-dateutil and chardet, which `EVAL` blocks can import.
 
@@ -546,8 +549,8 @@ Read `EditableText.mapRange`. It is the one rule for moving a range through late
 range older than the kept history of 1000 versions. Typing within 1 second coalesces into one undo step.
 
 Read `DocumentSessionConfig`, `WorkspaceOptions` and `NestingLimit`. Open documents are parsed in syntax-only mode.
-Only the project analysis reads files with dsl-tools, and only files without syntax errors. So the IDE and the
-command-line tool agree, and opening or closing a file changes no finding. The parse waits 120 ms after the last edit,
+Only the project analysis reads files with dsl-tools, and only files without syntax errors. So the window and the
+commands without a window agree, and opening or closing a file changes no finding. The parse waits 120 ms after the last edit,
 the file watcher 200 ms and the project analysis 300 ms. Blocks nested deeper than 300 levels get `nesting-too-deep`
 instead of a parse that could overflow the stack.
 

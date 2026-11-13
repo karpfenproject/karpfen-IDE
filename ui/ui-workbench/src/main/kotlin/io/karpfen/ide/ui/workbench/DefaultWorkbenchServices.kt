@@ -74,7 +74,7 @@ import java.time.Clock
  *
  * The runtime is the composition root's choice. The application passes the single [runtimeSessions] of the process and
  * the IDE's runtime hosts as [runtimeHosts]. Without them the wiring creates sessions of its own and uses hosts that
- * never have a runtime, so a test that runs this wiring never reaches Docker or a runtime at a URL.
+ * never have a runtime, so a test that runs this wiring never reaches Docker.
  */
 public fun defaultWorkbenchServices(
     languageToolsOutput: OutputBuffer,

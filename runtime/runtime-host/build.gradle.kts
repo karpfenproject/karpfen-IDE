@@ -21,9 +21,8 @@ import io.karpfen.ide.buildlogic.TrackedRuntimeFiles
 import java.time.Duration
 
 /**
- * The runtime of a workspace. It is either a container that the IDE builds from the runtime sources bundled with it and
- * runs in the local Docker engine, or a runtime started elsewhere that the IDE attaches to by URL. The IDE never runs the
- * runtime as a local Java process. The ordinary tests talk to Docker through a fake engine. The tests against the local
+ * The runtime of a workspace, a container that the IDE builds from the runtime sources bundled with it and runs in the
+ * local Docker engine. The IDE never runs the runtime as a local Java process. The ordinary tests talk to Docker through a fake engine. The tests against the local
  * Docker engine run only in the opt-in task [LiveDockerTesting.TASK_NAME].
  */
 plugins {

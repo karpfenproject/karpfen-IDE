@@ -28,8 +28,8 @@ import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.nio.file.Path
 
@@ -56,7 +56,7 @@ internal class RunReporter(private val console: HeadlessConsole, private val roo
     /** Follows [runtime] in [scope] until the returned job is cancelled. */
     fun follow(scope: CoroutineScope, runtime: RuntimeState): Job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
         launch(start = CoroutineStart.UNDISPATCHED) {
-            combine(runtime.host, runtime.hostSettings) { status, settings -> RuntimeTexts.hostStatus(settings, status) }
+            runtime.host.map(RuntimeTexts::hostStatus)
                 .distinctUntilChanged()
                 .collect(console::line)
         }

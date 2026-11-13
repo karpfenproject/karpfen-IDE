@@ -21,8 +21,8 @@ package io.karpfen.ide.buildlogic
  * The build enforces the module boundaries, because a layering that lives only in documents erodes. The core modules
  * are the UI-agnostic language core and see only each other. Notation, runtime and bridges build on core. The runtime
  * protocol is the exception. It depends on no IDE module at all, so the bridges built on it stay free of the core. The
- * bridges are headless-first and use only the protocol module of the runtime. The UI sees every layer except the app
- * and the tools. The command-line tools see every layer except the UI and the app. The app wires everything together.
+ * bridges are headless-first and use only the protocol module of the runtime. The UI sees every layer except the app.
+ * The app wires everything together.
  * Every module's `check` verifies the module against [rules], and the architecture tests add the import rules that a
  * dependency matrix cannot express. A new module needs a rule here and an entry in the module table of the
  * architecture tests.
@@ -75,7 +75,6 @@ object ModuleDependencyRules {
         Rule(":bridges:*", listOf(":core:*", ":bridges:*", ":runtime:runtime-protocol")),
         Rule(":ui:*", listOf(":core:*", ":notation:*", ":runtime:*", ":bridges:*", ":ui:*")),
         Rule(":app:*", listOf("*")),
-        Rule(":tools:cli", listOf(":core:*", ":notation:*", ":runtime:*", ":bridges:*")),
         Rule(":architecture-tests", emptyList()),
     )
 

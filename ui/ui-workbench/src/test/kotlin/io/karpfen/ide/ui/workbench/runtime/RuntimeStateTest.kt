@@ -25,7 +25,6 @@ import io.karpfen.ide.runtime.host.HostOutcome
 import io.karpfen.ide.runtime.host.HostProblem
 import io.karpfen.ide.runtime.host.HostProblemCode
 import io.karpfen.ide.runtime.host.LogStream
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -435,32 +434,6 @@ class RuntimeStateTest {
             assertEquals(RunPhase.RUNNING, entry.phase)
             assertNull(entry.captureFile)
             assertTrue(!entry.captureProblem.isNullOrBlank(), "${entry.captureProblem}")
-        }
-    }
-
-    @Test
-    fun `changing the runtime settings closes the host and creates the new one`() = runTest(timeout = TIMEOUT) {
-        copy(SynthesizedModel.LAMP)
-        withWorkbench(settingsDirectory) {
-            open(root)
-            val docker = runtimeHosts.current
-
-            runtime.selectHost(RuntimeHostKind.URL).joinSettled()
-
-            assertEquals(1, docker.closes)
-            assertEquals(
-                listOf("create DOCKER", "create URL", "close DOCKER"),
-                runtimeHosts.lifecycle,
-                "the new host is current before the old one closes",
-            )
-            assertEquals(RuntimeHostKind.URL, runtimeHosts.current.settings.kind)
-            assertEquals(RuntimeHostKind.URL, state.settings.value.runtime.host)
-
-            runtime.setUrl("http://127.0.0.1:9090").joinSettled()
-
-            assertEquals(3, runtimeHosts.created.size)
-            assertEquals("http://127.0.0.1:9090", runtimeHosts.current.settings.url)
-            assertEquals(listOf(root, root, root), runtimeHosts.roots)
         }
     }
 

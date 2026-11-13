@@ -37,6 +37,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -46,7 +47,7 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers [DockerRuntimeHost] against a [FakeDockerEngine] that answers what each test programs. The fake runtime answers
- * the health checks, and everything runs on virtual time. The tests cover adoption and the removal of stale containers,
+ * the health checks, and everything runs on virtual time. The tests check that the default factory creates this host. They cover adoption and the removal of stale containers,
  * the image build and the removal of older images, and the container's configuration and port. They check each failure
  * with its problem code. They check that calls join a start under way and get its answer, a failure or a stop
  * included, that a failed start removes its container and that a closed host starts nothing. They also check that stop
@@ -61,6 +62,11 @@ class DockerRuntimeHostTest {
 
     /** The endpoint of the default container. */
     private val endpoint = RuntimeEndpoint(secure = false, host = "127.0.0.1", port = FakeDockerEngine.HOST_PORT)
+
+    @Test
+    fun `the default factory creates a Docker host`() {
+        RuntimeHosts().create(Path.of("workspace")).use { assertIs<DockerRuntimeHost>(it) }
+    }
 
     @Test
     fun `a running container of this workspace built from the current sources is adopted`() = runTest {

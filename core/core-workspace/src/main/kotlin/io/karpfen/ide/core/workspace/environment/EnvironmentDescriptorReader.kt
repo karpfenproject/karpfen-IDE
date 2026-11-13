@@ -27,7 +27,7 @@ import java.nio.file.Path
  *
  * It never throws. All findings have ranges in the text passed to [read]. That text is the `\n`-normalized text that
  * the workspace's `SourceLoader` loaded, or the editor text of an open descriptor. So `line:col` in the Problems view
- * and in the command line tool is computed as for every other file. There are two kinds of findings.
+ * and in the headless mode is computed as for every other file. There are two kinds of findings.
  * - The syntax errors of the text, in [DescriptorReadResult.syntaxDiagnostics], are the LEXER and PARSER errors of the
  *   environment language, with the codes `lexer-error` and `syntax-error`. They are exactly what the editor computes
  *   for the same text. They belong to the text, as the own diagnostics of a karpfen file do. If there are any, the

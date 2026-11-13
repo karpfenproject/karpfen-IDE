@@ -45,6 +45,25 @@ class HeadlessCommandTest {
     }
 
     @Test
+    fun `validate prints text unless --format chooses json, before or after the folder, with or without an equals sign`() {
+        assertEquals(OutputFormat.TEXT, (parse("validate", "project") as HeadlessCommand.Validate).format)
+        assertEquals(HeadlessCommand.Validate(project, OutputFormat.JSON), parse("validate", "project", "--format", "json"))
+        assertEquals(HeadlessCommand.Validate(project, OutputFormat.JSON), parse("validate", "--format=JSON", "project"))
+        assertEquals(HeadlessCommand.Validate(project, OutputFormat.TEXT), parse("validate", "project", "--format=text"))
+    }
+
+    @Test
+    fun `a missing, unknown or second format and a format for run are usage errors`() {
+        assertEquals(HeadlessCommand.Invalid("--format needs text or json"), parse("validate", "project", "--format"))
+        assertEquals(HeadlessCommand.Invalid("--format takes text or json, not 'xml'"), parse("validate", "project", "--format", "xml"))
+        assertEquals(
+            HeadlessCommand.Invalid("--format may be given once"),
+            parse("validate", "project", "--format", "json", "--format", "text"),
+        )
+        assertEquals(HeadlessCommand.Invalid("run takes no option '--format'"), parse("run", "project", "--format", "json"))
+    }
+
+    @Test
     fun `run without options takes the only descriptor and starts no bridge`() {
         assertEquals(HeadlessCommand.Run(project), parse("run", "project"))
     }
@@ -111,6 +130,7 @@ class HeadlessCommandTest {
         assertEquals(HeadlessCommand.Invalid("unknown option '--bogus'"), parse("run", "project", "--bogus"))
         assertEquals(HeadlessCommand.Invalid("unknown option '--capture=yes'"), parse("run", "project", "--capture=yes"))
         assertEquals(HeadlessCommand.Invalid("validate takes no option '--capture'"), parse("validate", "project", "--capture"))
+        assertEquals(HeadlessCommand.Invalid("unknown option '--bogus'"), parse("validate", "project", "--bogus"))
         assertEquals(
             HeadlessCommand.Invalid("validate takes no option '--descriptor'"),
             parse("validate", "--descriptor", "lamp.kenv.json", "project"),

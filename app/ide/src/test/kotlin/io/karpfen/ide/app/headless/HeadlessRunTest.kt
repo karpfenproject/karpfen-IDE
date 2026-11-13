@@ -51,9 +51,10 @@ import kotlin.time.Duration.Companion.seconds
  * Covers `run` through [HeadlessRun] over the IDE's own wiring in a [HeadlessRig]. The project is the synthesized lamp.
  * The host answers what each test programs, and each run launches a scriptable session that the test drives.
  *
- * The tests cover a run that the project's errors block, the choice of the descriptor and of the bridges with their
- * usage errors, the lines of a run from its start through its steps, its states and its bridges to its capture, a stop
- * that shuts the run down before the host, a run that never gets a debugger, and runs that end on their own.
+ * The tests cover a run that the project's errors block, a run that prints the project's warnings and goes on, the
+ * choice of the descriptor and of the bridges with their usage errors, the lines of a run from its start through its
+ * steps, its states and its bridges to its capture, a stop that shuts the run down before the host, a run that never
+ * gets a debugger, and runs that end on their own.
  */
 class HeadlessRunTest {
 
@@ -84,6 +85,29 @@ class HeadlessRunTest {
                 rig.output.takeLast(3),
             )
             assertEquals(emptyList(), rig.sessions.launched)
+        }
+    }
+
+    @Test
+    fun `a project with warnings only prints them as validate does, says that the run goes on and runs`() = runTest(timeout = TIMEOUT) {
+        lamp()
+        val file = root.resolve("lamp.kstates")
+        Files.writeString(file, Files.readString(file).replaceFirst("    STATES {\n", "    STATES {\n        STATE \"lost\" {\n        }\n"))
+
+        withRig { rig ->
+            val stop = HeadlessStop()
+            val status = rig.run(HeadlessCommand.Run(root), stop)
+            rig.settle()
+
+            val warning = rig.output.indexOfFirst { it.startsWith("lamp.kstates:") && ": warning: " in it }
+            assertTrue(warning > 0, rig.output.toString())
+            assertEquals(listOf("1 warning", RunLines.GOES_ON_DESPITE_WARNINGS), rig.output.subList(warning + 1, warning + 3))
+            assertTrue(rig.output.take(warning).none { it.startsWith("Run ") }, "the warnings come before the run: ${rig.output}")
+            assertEquals(1, rig.sessions.launched.size, "the run goes on")
+
+            stop.request()
+            rig.settle()
+            assertEquals(HeadlessExitCodes.OK, status.await())
         }
     }
 
@@ -185,7 +209,7 @@ class HeadlessRunTest {
 
                 assertEquals(HeadlessExitCodes.OK, status.await())
                 assertEquals(listOf(RunLines.STOP_REQUESTED, RunLines.SHUTTING_DOWN, RunLines.SHUT_DOWN), rig.output.takeLast(3))
-                assertEquals(listOf("shutdown lamp", "close DOCKER"), rig.events, "the run shuts down before the host closes")
+                assertEquals(listOf("shutdown lamp", ScriptedHost.CLOSED), rig.events, "the run shuts down before the host closes")
                 assertEquals(emptyList(), rig.errors)
                 assertEquals(projectFile, Files.readString(root.resolve(ProjectSettings.FILE_NAME)), "the project file stays")
                 assertFalse(Files.exists(settingsDirectory), "the user's settings are not written")
@@ -203,7 +227,7 @@ class HeadlessRunTest {
             assertEquals(HeadlessExitCodes.FAILURE, status.await())
             assertTrue(rig.output.any { it.startsWith("The runtime could not be started: ") && "Docker is not running." in it }, rig.output.toString())
             assertEquals(listOf(RunLines.FAILED, RunLines.SHUTTING_DOWN, RunLines.SHUT_DOWN), rig.output.takeLast(3))
-            assertEquals(listOf("close DOCKER"), rig.events)
+            assertEquals(listOf(ScriptedHost.CLOSED), rig.events)
         }
     }
 
@@ -231,7 +255,7 @@ class HeadlessRunTest {
 
             assertEquals(HeadlessExitCodes.FAILURE, status.await())
             assertEquals(listOf(RunLines.ENDED, RunLines.SHUTTING_DOWN, RunLines.SHUT_DOWN), rig.output.takeLast(3))
-            assertEquals(listOf("shutdown lamp", "close DOCKER"), rig.events)
+            assertEquals(listOf("shutdown lamp", ScriptedHost.CLOSED), rig.events)
         }
     }
 

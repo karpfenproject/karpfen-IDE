@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.karpfen.ide.tools.cli.validate
+package io.karpfen.ide.app.headless
 
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.workspace.validation.ProjectValidation
@@ -22,13 +22,13 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The mapping of a validation of the workspace onto the report: relative `/` paths, positions and their order. */
+/** The mapping of a validation of the project onto the report: relative `/` paths, positions and their order. */
 class ReportMappingTest {
 
     private val root: Path = Path.of("/work/project").toAbsolutePath().normalize()
 
     private fun finding(relative: String, line: Int, column: Int, severity: Severity = Severity.ERROR, code: String = "c$line") =
-        ValidationFinding(root.resolve(relative), line, column, severity, code, "message $line:$column")
+        ValidationFinding(root.resolve(relative).normalize(), line, column, severity, code, "message $line:$column")
 
     private fun validation(vararg findings: ValidationFinding) = ProjectValidation(root, findings.sortedWith(ValidationFinding.ORDER))
 
@@ -38,7 +38,7 @@ class ReportMappingTest {
             finding("a/b/robot.kstates", 1, 1),
             finding("a/b/robot.kstates", 2, 3, Severity.WARNING),
             finding("a/b/robot.kstates", 3, 7, code = "project.unknown-path"),
-        ).toValidationReport(root)
+        ).toValidationReport()
 
         assertEquals(root, report.root)
         assertEquals(
@@ -58,7 +58,7 @@ class ReportMappingTest {
             finding("a.kmodel", 2, 1, Severity.INFO, "info"),
             finding("a.kmodel", 2, 1, Severity.ERROR, "error"),
             finding("a.kmodel", 1, 1),
-        ).toValidationReport(root)
+        ).toValidationReport()
 
         assertEquals(
             listOf("a.kmodel:1:1:c1", "a.kmodel:2:1:error", "a.kmodel:2:1:info", "z.kmeta:2:1:c2"),
@@ -67,19 +67,21 @@ class ReportMappingTest {
     }
 
     @Test
-    fun `no findings give an empty report without errors`() {
-        val report = validation().toValidationReport(root)
-
-        assertEquals(ValidationReport(root, emptyList()), report)
-        assertEquals(false, report.hasErrors)
+    fun `no findings give an empty report`() {
+        assertEquals(ValidationReport(root, emptyList()), validation().toValidationReport())
     }
 
     @Test
-    fun `report paths are relative with slashes below the root and absolute outside it`() {
-        assertEquals("ctx/robot.kenv.json", reportPath(root, root.resolve("ctx").resolve("robot.kenv.json")))
-        assertEquals("x.kmeta", reportPath(root, root.resolve("ctx/../x.kmeta")))
-        assertEquals(".", reportPath(root, root), "the root itself")
+    fun `the root itself is written as a dot and a path outside it in full with slashes`() {
         val outside = root.resolveSibling("other").resolve("y.kmeta")
-        assertEquals(outside.toString().replace('\\', '/'), reportPath(root, outside))
+        val report = ProjectValidation(
+            root,
+            listOf(
+                ValidationFinding(root, 1, 1, Severity.ERROR, "unreadable", "cannot read"),
+                ValidationFinding(outside, 1, 1, Severity.ERROR, "unreadable", "cannot read"),
+            ),
+        ).toValidationReport()
+
+        assertEquals(setOf(".", outside.toString().replace('\\', '/')), report.problems.map { it.path }.toSet())
     }
 }

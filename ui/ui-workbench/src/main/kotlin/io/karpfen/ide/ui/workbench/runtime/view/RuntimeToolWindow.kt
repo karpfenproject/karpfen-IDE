@@ -25,20 +25,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,7 +41,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.runtime.host.HostStatus
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.foundation.theme.KarpfenColors
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
@@ -56,12 +49,11 @@ import io.karpfen.ide.ui.workbench.runtime.RunEntry
 import io.karpfen.ide.ui.workbench.runtime.RunPhase
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
-import io.karpfen.ide.ui.workbench.settings.RuntimeSettings
 import java.nio.file.Path
 
 /**
- * The Runtime tool window over [runtime]. A first line shows the host's status, the Start runtime and Stop runtime
- * buttons and the host selector. A second line shows the runs with the Run again, Stop and Clear finished buttons.
+ * The Runtime tool window over [runtime]. A first line shows the host's status and the Start runtime and Stop runtime
+ * buttons. A second line shows the runs with the Run again, Stop and Clear finished buttons.
  * While the selected run has a debugger and runs, a third line shows the debugger with its buttons. Below them the
  * panes of the selected run fill the whole width. Without runs, the window explains how to run instead. It names the
  * Run command with its shortcut and the descriptor Run would pick.
@@ -71,18 +63,14 @@ import java.nio.file.Path
  */
 @Composable
 internal fun RuntimeToolWindow(runtime: RuntimeState, root: Path, onNavigate: (Location) -> Unit, modifier: Modifier = Modifier) {
-    val settings by runtime.hostSettings.collectAsState()
     val status by runtime.host.collectAsState()
     val runs by runtime.runs.collectAsState()
     val selected by runtime.selected.collectAsState()
     Column(modifier.fillMaxSize()) {
         RuntimeHeader(
-            settings = settings,
             status = status,
             onStart = { runtime.startRuntime() },
             onStop = { runtime.stopRuntime() },
-            onSelectHost = { runtime.selectHost(it) },
-            onApplyUrl = { runtime.setUrl(it) },
         )
         Box(Modifier.fillMaxWidth().height(1.dp).background(KarpfenTheme.colors.border))
         if (runs.isEmpty()) {
@@ -114,20 +102,11 @@ internal fun RuntimeToolWindow(runtime: RuntimeState, root: Path, onNavigate: (L
 }
 
 /**
- * The header of the tool window. It shows the host's [status] in words, the Start runtime and Stop runtime buttons, and
- * the host selector. When the runtime is reached by URL, a URL field and an Apply button follow. Apply hands the text
- * to [onApplyUrl]. It is enabled only while the trimmed text differs from the stored URL. The status text can be
- * selected with the mouse and copied, so an error message can be pasted elsewhere.
+ * The header of the tool window. It shows the host's [status] in words and the Start runtime and Stop runtime buttons.
+ * The status text can be selected with the mouse and copied, so an error message can be pasted elsewhere.
  */
 @Composable
-private fun RuntimeHeader(
-    settings: RuntimeSettings,
-    status: HostStatus,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-    onSelectHost: (RuntimeHostKind) -> Unit,
-    onApplyUrl: (String) -> Unit,
-) {
+private fun RuntimeHeader(status: HostStatus, onStart: () -> Unit, onStop: () -> Unit) {
     val colors = KarpfenTheme.colors
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
@@ -136,7 +115,7 @@ private fun RuntimeHeader(
     ) {
         SelectionContainer(Modifier.weight(1f)) {
             Text(
-                RuntimeTexts.hostStatus(settings, status),
+                RuntimeTexts.hostStatus(status),
                 color = if (status is HostStatus.Failed) colors.error else colors.text,
                 style = KarpfenTheme.typography.uiSmall,
                 modifier = Modifier.testTag(RuntimeViewTestTags.HOST_STATUS),
@@ -145,25 +124,6 @@ private fun RuntimeHeader(
         val idle = status is HostStatus.Stopped || status is HostStatus.Failed
         SmallButton("Start runtime", RuntimeViewTestTags.START_RUNTIME, enabled = idle, onClick = onStart)
         SmallButton("Stop runtime", RuntimeViewTestTags.STOP_RUNTIME, enabled = !idle && status != HostStatus.Stopping, onClick = onStop)
-        RuntimeHostKind.entries.forEach { kind ->
-            FilterChip(
-                selected = settings.host == kind,
-                onClick = { onSelectHost(kind) },
-                label = { Text(if (kind == RuntimeHostKind.DOCKER) "Docker" else "URL", style = KarpfenTheme.typography.uiSmall) },
-                modifier = Modifier.testTag(RuntimeViewTestTags.host(kind)),
-            )
-        }
-        if (settings.host == RuntimeHostKind.URL) {
-            var url by remember(settings.url) { mutableStateOf(settings.url) }
-            OutlinedTextField(
-                value = url,
-                onValueChange = { url = it },
-                singleLine = true,
-                textStyle = KarpfenTheme.typography.uiSmall,
-                modifier = Modifier.width(URL_WIDTH.dp).testTag(RuntimeViewTestTags.URL_FIELD),
-            )
-            SmallButton("Apply", RuntimeViewTestTags.URL_APPLY, enabled = url.trim() != settings.url) { onApplyUrl(url) }
-        }
     }
 }
 
@@ -267,9 +227,6 @@ internal fun SmallButton(label: String, tag: String, enabled: Boolean = true, on
         Text(label, style = KarpfenTheme.typography.uiSmall)
     }
 }
-
-/** The width of the URL field in dp. */
-private const val URL_WIDTH = 240
 
 /** The opacity of a phase label's background. */
 private const val LABEL_ALPHA = 0.15f

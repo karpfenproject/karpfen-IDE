@@ -30,17 +30,17 @@ import java.nio.file.Path
  * atomic move. It restores the line separator and the byte order mark, marks the save point and ignores the watch event
  * it causes itself.
  *
- * FILE findings always follow the disk, so the IDE and `karpfen validate` agree. A successful save clears them with
+ * FILE findings always follow the disk, so the editor and the validation of the project agree. A successful save clears them with
  * `setExternalDiagnostics(FILE, savedSnapshot, emptyList())`, because the written file is valid UTF-8 with one kind of
  * line separator. Every reload replaces them with the new `LoadedSource.diagnostics` for the reloaded snapshot. That
  * holds for an automatic reload and for the reload that resolves a conflict.
  *
  * Every session is created with `SemanticMode.SYNTAX_ONLY`, whatever the role of the file. The session gets the base
  * `WorkspaceOptions.sessionConfig` with that mode. In a workspace the project analysis is the only place where
- * dsl-tools reads files. It reads context files through `DslReader` and never reads loose files. Its DSL_TOOLS
+ * dsl-tools reads files. It reads context files and loose state machines through `DslReader`. Its DSL_TOOLS
  * diagnostics reach the open documents as `ExternalDiagnosticSources.PROJECT`. So opening, closing or reclassifying a
- * file never changes what is reported, and the IDE and the command line tool report the same. A file is reclassified,
- * for example, when it becomes loose because a descriptor appears.
+ * file never changes what is reported, and the editor and the validation of the project report the same. A file is
+ * reclassified, for example, when it becomes loose because a descriptor appears.
  *
  * Call it from the dispatcher of the workspace's scope, as described on `Workspace`. Texts are only changed there.
  */

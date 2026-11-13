@@ -29,9 +29,6 @@ import kotlinx.coroutines.launch
  * puts it, before its short form if it has one. The log is the one the Runtime tool window shows, so the lines the
  * engine writes on every tick are already left out.
  *
- * A runtime reached by URL hands the IDE no log of its own. Its state machines are followed through the active states
- * that [RunReporter] writes.
- *
  * @param console where the lines go.
  * @param verbose whether every line of the log is written.
  */

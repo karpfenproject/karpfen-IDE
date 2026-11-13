@@ -21,8 +21,8 @@ import io.karpfen.ide.core.document.parse.ParseOutcome
 
 /**
  * The one merge rule for the diagnostics of a document. [DocumentSession.diagnostics] and `AnalyzedFile.ownDiagnostics`
- * in core-workspace both use it. So an open and an unopened file are merged the same way, and the IDE and the CLI
- * report the same.
+ * in core-workspace both use it. So an open and an unopened file are merged the same way, and the editor and the
+ * validation of the project report the same.
  *
  * The merge takes [lexical] whole. These are the tokenizer's diagnostics, which are LEXER errors. From [parse] it takes
  * the PARSER diagnostics and the standalone DSL_TOOLS diagnostics. The LEXER diagnostics of [parse] come from the

@@ -53,7 +53,6 @@ class LayerImportRulesTest {
         const val BRIDGES_MQTT = "$IDE.bridges.mqtt"
         const val UI = "$IDE.ui"
         const val APP = "$IDE.app"
-        const val TOOLS = "$IDE.tools"
 
         /** The root packages of Compose Multiplatform. */
         val COMPOSE = listOf("androidx.compose", "org.jetbrains.compose")
@@ -78,8 +77,8 @@ class LayerImportRulesTest {
     fun `core is independent of every other layer and of UI and infrastructure libraries`() {
         assertNoUsages(
             files = KarpfenModules.filesInPackage(CORE),
-            forbidden = listOf(NOTATION, RUNTIME, BRIDGES, UI, APP, TOOLS) + INFRASTRUCTURE,
-            rule = "$CORE.. must not import notation, runtime, bridges, ui, app, tools, " +
+            forbidden = listOf(NOTATION, RUNTIME, BRIDGES, UI, APP) + INFRASTRUCTURE,
+            rule = "$CORE.. must not import notation, runtime, bridges, ui, app, " +
                 "Compose, Ktor, Docker, HiveMQ, JavaFX, AWT or Swing",
         )
     }
@@ -88,27 +87,27 @@ class LayerImportRulesTest {
     fun `notation may use core but no other layer and no UI or infrastructure library`() {
         assertNoUsages(
             files = KarpfenModules.filesInPackage(NOTATION),
-            forbidden = listOf(RUNTIME, BRIDGES, UI, APP, TOOLS) + INFRASTRUCTURE,
-            rule = "$NOTATION.. must not import runtime, bridges, ui, app, tools, Compose, Ktor, Docker, HiveMQ, JavaFX, AWT or Swing",
+            forbidden = listOf(RUNTIME, BRIDGES, UI, APP) + INFRASTRUCTURE,
+            rule = "$NOTATION.. must not import runtime, bridges, ui, app, Compose, Ktor, Docker, HiveMQ, JavaFX, AWT or Swing",
         )
     }
 
     @Test
-    fun `runtime is independent of ui, notation, bridges, app, tools and UI toolkits`() {
+    fun `runtime is independent of ui, notation, bridges, app and UI toolkits`() {
         assertNoUsages(
             files = KarpfenModules.filesInPackage(RUNTIME),
-            forbidden = listOf(UI, NOTATION, BRIDGES, APP, TOOLS) + DESKTOP_UI_TOOLKITS,
-            rule = "$RUNTIME.. must not import ui, notation, bridges, app, tools, Compose, JavaFX, AWT or Swing",
+            forbidden = listOf(UI, NOTATION, BRIDGES, APP) + DESKTOP_UI_TOOLKITS,
+            rule = "$RUNTIME.. must not import ui, notation, bridges, app, Compose, JavaFX, AWT or Swing",
         )
     }
 
     @Test
-    fun `bridges use only the runtime protocol and no ui, notation, app or tools`() {
+    fun `bridges use only the runtime protocol and no ui, notation or app`() {
         val forbiddenRuntime = listOf(RUNTIME)
-        val forbiddenLayers = listOf(UI, NOTATION, APP, TOOLS)
+        val forbiddenLayers = listOf(UI, NOTATION, APP)
         assertNoUsages(
             files = KarpfenModules.filesInPackage(BRIDGES),
-            rule = "$BRIDGES.. may import $RUNTIME_PROTOCOL.. but no other runtime package, and not ui, notation, app or tools",
+            rule = "$BRIDGES.. may import $RUNTIME_PROTOCOL.. but no other runtime package, and not ui, notation or app",
         ) { name ->
             (name.isWithinAny(forbiddenRuntime) && !name.isWithin(RUNTIME_PROTOCOL)) || name.isWithinAny(forbiddenLayers)
         }

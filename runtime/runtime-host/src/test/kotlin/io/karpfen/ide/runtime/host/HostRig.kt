@@ -72,9 +72,6 @@ internal class HostRig(scope: TestScope) {
     /** A Docker host of the workspace [workspace]. */
     fun dockerHost(workspace: Path = WORKSPACE): DockerRuntimeHost = DockerRuntimeHost(workspace, options)
 
-    /** A URL host of [url]. */
-    fun urlHost(url: String): UrlRuntimeHost = UrlRuntimeHost(url, options)
-
     /** Programs the next [times] IDE support checks to succeed, as a runtime with IDE support answers them. */
     fun supportIde(times: Int = 1) {
         repeat(times) {

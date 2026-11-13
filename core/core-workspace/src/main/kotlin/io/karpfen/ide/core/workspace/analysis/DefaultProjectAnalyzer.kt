@@ -24,12 +24,14 @@ import java.nio.file.Path
 
 /**
  * Reads every context in dependency order, following the rules on [ProjectAnalyzer]. The order is metamodel, events,
- * models and then state machines. It coordinates two collaborators per run. [AnalyzedFiles] loads, tokenizes and
- * parses each file once. [ContextReader] does the dsl-tools reads of one context. The project diagnostics start with
- * the diagnostics of the resolution, and the reads add their DSL_TOOLS diagnostics.
+ * models and then state machines. The loose state machines follow, each read on its own. It coordinates two
+ * collaborators per run. [AnalyzedFiles] loads, tokenizes and parses each file once. [ContextReader] does the
+ * dsl-tools reads of one context and of the loose state machines. The project diagnostics start with the diagnostics
+ * of the resolution, and the reads add their DSL_TOOLS diagnostics.
  *
  * The analyzer of a workspace remembers the reads of its runs in a [ReadMemory]. So a run reads only the files whose
- * text, metamodel or set of language features changed since. Each run forgets the reads of the files that no context names any more.
+ * text, metamodel or set of language features changed since. Each run forgets the reads of the files that are neither
+ * named by a context nor loose any more.
  */
 internal class DefaultProjectAnalyzer(
     private val languages: LanguageRegistry,
@@ -53,9 +55,10 @@ internal class DefaultProjectAnalyzer(
             for (path in context.files) files.get(path)?.let { contextFiles[path] = it }
             reads.read(context, contextFiles)
         }
-        memory.retainOnly(resolution.contexts.flatMapTo(HashSet()) { it.files })
         val looseFiles = LinkedHashMap<Path, AnalyzedFile>()
         for (path in resolution.looseFiles) files.get(path)?.let { looseFiles[path] = it }
+        looseFiles.values.forEach { reads.readLoose(it) }
+        memory.retainOnly(resolution.contexts.flatMapTo(HashSet()) { it.files } + resolution.looseFiles)
         return ProjectAnalysis(generation, contexts, diagnostics.build(), looseFiles, languageFeatures)
     }
 }

@@ -31,7 +31,7 @@ import kotlin.test.assertEquals
 /**
  * The ANTLR runtime that the IDE runs with is the one the parsers of dsl-tools were generated for. Every generated lexer
  * and parser checks the version of the runtime when its class is initialized. On a mismatch it writes a warning to
- * standard error, which would reach the IDE's console and the standard error of the command-line tool. The build
+ * standard error, which would reach the IDE's console and the standard error of its headless mode. The build
  * therefore takes the version of the runtime from dsl-tools alone. The test initializes the classes in a class loader
  * of their own, so the check runs however many tests loaded them before.
  */

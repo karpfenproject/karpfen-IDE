@@ -21,9 +21,8 @@ package io.karpfen.ide.core.document.dsl
  * fails. [DslReader] says how. The IDE does not use the converters, which log what they convert at DEBUG, or the file
  * parsers, which log syntax errors as warnings.
  *
- * The applications route this logging by the name of the parent. The IDE keeps it off its console and shows it in its
- * Language Tools Output. The command-line tool keeps it off unless asked for with `--verbose`. Their logging
- * configurations name the same logger, and their tests check that both agree with [PARENT].
+ * The IDE routes this logging by the name of the parent. It keeps it off its console and shows it in its Language
+ * Tools Output. Its logging configuration names the same logger, and its tests check that it agrees with [PARENT].
  *
  * dsl-tools logs a read without naming the text it reads. The project analysis therefore puts the path of the file it
  * hands a reader into the mapped diagnostic context of SLF4J under [FILE_KEY] for the length of the read. Every event

@@ -40,8 +40,8 @@ import kotlin.test.assertTrue
 
 /**
  * Tests [ValidationState] over a [FakeWorkspace] whose validation each test completes when it wants. They cover when a
- * validation can start, the busy state, a second request while one runs, the report dialog, and the check before a run
- * that blocks only on errors.
+ * validation can start, the busy state, a second request while one runs, the report dialog, the check before a run
+ * that blocks only on errors, and the listeners that hear the report of every check before a run.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ValidationStateTest {
@@ -135,6 +135,37 @@ class ValidationStateTest {
         assertFalse(check.isCompleted, "the run waits until the report is closed")
         dialogs.respond(DialogResponse.Confirm)
         assertFalse(check.await())
+    }
+
+    @Test
+    fun `every check before a run hands its report to the listeners before a dialog, until they are disposed`() = runTest {
+        opened.value = workspace
+        val validation = validationIn(this)
+        val heard = ArrayList<ProjectValidation>()
+        val handle = validation.observeRunChecks { report ->
+            assertNull(dialogs.current.value, "the listener hears the report before its dialog")
+            heard += report
+        }
+        val warnings = ProjectValidation(root, listOf(WARNING))
+        workspace.validation = CompletableDeferred(warnings)
+        assertTrue(validation.checkBeforeRun())
+
+        workspace.validation = CompletableDeferred(REPORT)
+        val blocked = async { validation.checkBeforeRun() }
+        runCurrent()
+        dialogs.respond(DialogResponse.Confirm)
+        assertFalse(blocked.await())
+        validation.validate()
+        runCurrent()
+        dialogs.respond(DialogResponse.Confirm)
+        runCurrent()
+
+        assertEquals(listOf(warnings, REPORT), heard, "the button's validation is no check before a run")
+
+        handle.dispose()
+        workspace.validation = CompletableDeferred(warnings)
+        assertTrue(validation.checkBeforeRun())
+        assertEquals(2, heard.size, "a disposed listener hears nothing")
     }
 
     @Test

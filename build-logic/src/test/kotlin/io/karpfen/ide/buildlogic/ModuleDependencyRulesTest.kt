@@ -42,7 +42,7 @@ class ModuleDependencyRulesTest {
     @Test
     fun `core may depend on core only`() {
         assertTrue(ModuleDependencyRules.isAllowed(":core:core-document", ":core:core-text"))
-        listOf(":notation:notation-diagram", ":runtime:runtime-protocol", ":bridges:bridge-api", ":app:ide", ":tools:cli")
+        listOf(":notation:notation-diagram", ":runtime:runtime-protocol", ":bridges:bridge-api", ":app:ide")
             .forEach { assertFalse(ModuleDependencyRules.isAllowed(":core:core-lang", it), it) }
     }
 
@@ -63,14 +63,12 @@ class ModuleDependencyRulesTest {
     }
 
     @Test
-    fun `runtime, ui, app and cli follow the matrix`() {
+    fun `runtime, ui and app follow the matrix`() {
         assertTrue(ModuleDependencyRules.isAllowed(":runtime:runtime-session", ":core:core-workspace"))
         assertFalse(ModuleDependencyRules.isAllowed(":runtime:runtime-host", ":bridges:bridge-api"))
         assertTrue(ModuleDependencyRules.isAllowed(":ui:ui-workbench", ":runtime:runtime-host"))
         assertFalse(ModuleDependencyRules.isAllowed(":ui:ui-workbench", ":app:ide"))
         assertTrue(ModuleDependencyRules.isAllowed(":app:ide", ":ui:ui-workbench"))
-        assertTrue(ModuleDependencyRules.isAllowed(":tools:cli", ":runtime:runtime-session"))
-        assertFalse(ModuleDependencyRules.isAllowed(":tools:cli", ":ui:ui-foundation"))
         assertFalse(ModuleDependencyRules.isAllowed(":architecture-tests", ":core:core-text"))
     }
 

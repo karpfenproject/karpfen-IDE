@@ -56,8 +56,8 @@ public object Examples {
         all.groupBy { it.directory }.toSortedMap().map { (directory, files) -> ExampleContext(directory, files) }
 
     /**
-     * Writes every example file below [target] in the layout `<origin>/<example>/` and returns [target]. Workspace,
-     * CLI and application tests use it when they need a real folder.
+     * Writes every example file below [target] in the layout `<origin>/<example>/` and returns [target]. Workspace
+     * and application tests use it when they need a real folder.
      */
     public fun copyTo(target: Path): Path {
         for (file in all) {

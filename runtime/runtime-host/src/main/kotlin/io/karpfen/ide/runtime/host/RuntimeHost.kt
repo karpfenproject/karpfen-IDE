@@ -20,35 +20,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import java.nio.file.Path
 
-/**
- * The ways the IDE reaches a karpfen runtime. There are exactly two: a container the IDE owns, and a runtime started
- * elsewhere that the IDE attaches to by URL. The IDE never runs the runtime as a local Java process.
- */
-public enum class RuntimeHostKind {
-    /** A Docker container that the IDE builds, starts, watches and stops, one per workspace. */
-    DOCKER,
-
-    /** A runtime started elsewhere, reached at a URL the user gives. */
-    URL,
-}
-
-/**
- * What the user chose for the runtime of a workspace.
- *
- * @property kind how the runtime is reached.
- * @property url the base URL of the runtime, used when [kind] is [RuntimeHostKind.URL], for example
- *   `http://127.0.0.1:8080`.
- */
-public data class RuntimeHostSettings(
-    public val kind: RuntimeHostKind = RuntimeHostKind.DOCKER,
-    public val url: String = DEFAULT_URL,
-) {
-    public companion object {
-        /** The URL a runtime started with its own defaults listens on. */
-        public const val DEFAULT_URL: String = "http://127.0.0.1:8080"
-    }
-}
-
 /** The steps a host goes through before its runtime answers. */
 public enum class HostStage {
     /** Finding the local Docker engine and checking that it answers. */
@@ -90,13 +61,7 @@ public enum class HostProblemCode {
     /** The container stopped while the IDE still used it. */
     CONTAINER_DIED,
 
-    /** The URL is malformed. */
-    URL_INVALID,
-
-    /** Nothing answers at the URL. */
-    URL_UNREACHABLE,
-
-    /** A runtime answers at the URL, but without the support the IDE needs. */
+    /** The runtime in the container answers, but without the support the IDE needs. */
     NO_IDE_SUPPORT,
 }
 
@@ -184,35 +149,31 @@ public data class HostLogLine(public val text: String, public val stream: LogStr
  * starting a second one. [stop] and [close] never touch anything the host did not create.
  */
 public interface RuntimeHost : AutoCloseable {
-    /** How this host reaches its runtime. */
-    public val kind: RuntimeHostKind
-
     /** What the host is doing now. */
     public val status: StateFlow<HostStatus>
 
     /**
      * The runtime's log and the host's account of preparing it, as a hot stream that replays the recent lines to a
-     * new collector. A host that cannot read the runtime's log, such as one attached by URL, says so in one line.
+     * new collector.
      */
     public val logs: Flow<HostLogLine>
 
     /** Starts the runtime if it does not run yet, and answers where it is reached or why there is none. */
     public suspend fun ensureRunning(): HostOutcome
 
-    /** Stops the runtime if this host owns it. A host attached by URL only forgets its runtime. */
+    /** Stops the runtime if this host owns it. */
     public suspend fun stop()
 
     /** Stops the runtime as [stop] does, within a short bound, and releases the host's resources. */
     override fun close()
 }
 
-/** Creates the host of a workspace from the user's choice. */
+/** Creates the host of a workspace. */
 public fun interface RuntimeHostFactory {
     /**
-     * The host for the workspace at [workspaceRoot] as [settings] choose it.
+     * The host for the workspace at [workspaceRoot].
      *
      * @param workspaceRoot the root folder of the workspace, which names and labels the workspace's container.
-     * @param settings how the runtime is reached.
      */
-    public fun create(workspaceRoot: Path, settings: RuntimeHostSettings): RuntimeHost
+    public fun create(workspaceRoot: Path): RuntimeHost
 }

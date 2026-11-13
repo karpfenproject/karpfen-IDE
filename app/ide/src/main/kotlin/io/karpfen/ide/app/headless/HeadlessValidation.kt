@@ -20,9 +20,11 @@ import kotlinx.coroutines.CoroutineScope
 import java.nio.file.Path
 
 /**
- * `karpfen-ide validate <folder>`. It opens the folder as the window does and validates the whole project exactly as
- * Validate in the window does, through the workbench's validation. The report that the window shows in a dialog is
- * written to standard output by [HeadlessDialogs], one line per finding and a summary, as [ValidationLines] describes.
+ * `karpfen-ide validate <folder> [--format text|json]`. It opens the folder as the window does and validates the whole
+ * project exactly as Validate in the window does, through the workbench's validation. The report that the window shows
+ * in a dialog is written to standard output by [HeadlessDialogs] in the format of the command: one line per finding and
+ * a summary, as [ValidationLines] describes, or one JSON document, as [JsonReportFormatter] describes. Nothing else is
+ * written to standard output, so the JSON document can be read by another program.
  *
  * The status is [HeadlessExitCodes.OK] for a project without errors, warnings or not, and
  * [HeadlessExitCodes.ERRORS_FOUND] for one with errors. A folder that cannot be opened, or a validation that gives no
@@ -37,7 +39,7 @@ internal class HeadlessValidation(
 ) {
     /** Validates the project in the folder of [command], driving the workbench in [scope], and returns the status. */
     suspend fun validate(scope: CoroutineScope, command: HeadlessCommand.Validate): Int {
-        val project = HeadlessProject.open(scope, command.folder, console, prepare) ?: return HeadlessExitCodes.FAILURE
+        val project = HeadlessProject.open(scope, command.folder, console, prepare, command.format) ?: return HeadlessExitCodes.FAILURE
         project.use {
             it.state.validation.validate().join()
             val report = it.dialogs.lastReport

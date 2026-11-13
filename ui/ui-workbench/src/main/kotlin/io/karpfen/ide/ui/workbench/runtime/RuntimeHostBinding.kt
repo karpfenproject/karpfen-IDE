@@ -25,7 +25,6 @@ import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.ui.workbench.output.OutputLevel
 import io.karpfen.ide.ui.workbench.output.OutputSink
-import io.karpfen.ide.ui.workbench.settings.RuntimeSettings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -40,27 +39,22 @@ import java.nio.file.Path
 import java.time.Clock
 
 /**
- * The runtime host of one workspace and what depends on it. The host is created through [hosts] from the settings.
+ * The runtime host of one workspace and what depends on it. The host is created through [hosts] for [root].
  * The binding publishes the host's status and writes its log lines to [log]. It also hands every log line, unfiltered,
  * to the listeners that [observe] registers. It keeps one client for the runtime's current endpoint. The client is
  * created when the host reports the runtime as running. It is closed when the endpoint changes or the binding closes.
- *
- * Replacing the settings creates the new host and makes it current at once. Only then is the old host closed, which
- * stops its container. Nothing therefore reaches the old host while it closes.
  *
  * Use the class from the UI thread only. The flows are collected in [scope]. Closing a host blocks, so it runs on
  * [ioDispatcher].
  *
  * @param root the root folder of the workspace.
- * @param settings the settings the first host is created from.
  * @param clients creates the client of an endpoint.
  * @param clock the time of the log lines.
  */
 internal class RuntimeHostBinding(
     private val scope: CoroutineScope,
-    private val root: Path,
-    private val hosts: RuntimeHostFactory,
-    settings: RuntimeSettings,
+    root: Path,
+    hosts: RuntimeHostFactory,
     private val clients: (RuntimeEndpoint) -> RuntimeClient,
     private val log: OutputSink,
     private val ioDispatcher: CoroutineDispatcher,
@@ -68,21 +62,17 @@ internal class RuntimeHostBinding(
 ) : RuntimeLogSource {
     private val hostStatus = MutableStateFlow<HostStatus>(HostStatus.Stopped)
     private val listeners = ArrayList<(HostLogLine) -> Unit>()
-    private var host: RuntimeHost = hosts.create(root, settings.toHostSettings())
-    private var following: List<Job> = follow(host)
+    private val host: RuntimeHost = hosts.create(root)
+    private val following: List<Job> = follow(host)
     private var client: RuntimeClient? = null
     private var open = true
 
-    /** The settings of the current host. */
-    var settings: RuntimeSettings = settings
-        private set
-
-    /** What the current host is doing. */
+    /** What the host is doing. */
     val status: StateFlow<HostStatus> get() = hostStatus.asStateFlow()
 
     /**
-     * Calls [listener] with every log line of the current host and of the hosts that replace it, from now on and
-     * before any filtering, until the returned handle is disposed.
+     * Calls [listener] with every log line of the host, from now on and before any filtering, until the returned handle
+     * is disposed.
      */
     override fun observe(listener: (HostLogLine) -> Unit): DisposableHandle {
         listeners.add(listener)
@@ -92,7 +82,7 @@ internal class RuntimeHostBinding(
     /** Starts the runtime unless it already runs. Returns where the runtime is reached, or why there is none. */
     suspend fun ensureRunning(): HostOutcome = host.ensureRunning()
 
-    /** Stops the runtime of the current host. */
+    /** Stops the runtime of the host. */
     suspend fun stop() {
         host.stop()
     }
@@ -105,20 +95,6 @@ internal class RuntimeHostBinding(
         client?.takeIf { it.endpoint == endpoint }?.let { return it }
         client?.close()
         return clients(endpoint).also { client = it }
-    }
-
-    /**
-     * Creates the host of [next] and makes it current. Then it closes the previous host and its client. A binding that
-     * was closed before is open again afterwards.
-     */
-    suspend fun replace(next: RuntimeSettings) {
-        val previous = host.takeIf { open }
-        detach()
-        settings = next
-        host = hosts.create(root, next.toHostSettings())
-        following = follow(host)
-        open = true
-        previous?.let { withContext(ioDispatcher) { it.close() } }
     }
 
     /**
@@ -152,7 +128,7 @@ internal class RuntimeHostBinding(
         hostStatus.value = HostStatus.Stopped
     }
 
-    /** Stops following the current host and closes its client. */
+    /** Stops following the host and closes its client. */
     private fun detach() {
         following.forEach(Job::cancel)
         client?.close()

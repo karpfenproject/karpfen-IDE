@@ -24,8 +24,7 @@ import java.nio.file.Path
 
 /**
  * Every diagnostic of every file of a workspace, collected by one rule. The Problems view, the counts in the status
- * bar and `karpfen validate` use it unchanged. They only map and filter it. So the IDE and the command line tool
- * always agree.
+ * bar and the validation of the project use it unchanged. They only map and filter it. So they always agree.
  *
  * The rule decides for each file where its diagnostics come from.
  * - For an open document they are the merged diagnostics of its session, `DocumentSession.diagnostics`. These are the
@@ -41,8 +40,8 @@ import java.nio.file.Path
  *
  * Every case merges with the same function, `mergeDiagnostics` of core-document. Project diagnostics never hold the
  * own diagnostics of a file. Karpfen files get DSL_TOOLS diagnostics only from the project analysis, which reads the
- * context files and never the loose files. So opening or closing a file changes no finding. The syntax errors of a
- * closed descriptor are those the reader found in its text, and the session of an open one computes the same.
+ * context files and the loose state machines. So opening or closing a file changes no finding. The syntax errors of
+ * a closed descriptor are those the reader found in its text, and the session of an open one computes the same.
  *
  * Files without diagnostics are absent.
  *
@@ -96,7 +95,7 @@ public data class FileProblems(
 
     /**
      * The zero-based position of the start of the range of [diagnostic] in [snapshot], clamped to the text. Without a
-     * snapshot it is [TextPosition.ORIGIN]. The UI and the command line tool show it one-based.
+     * snapshot it is [TextPosition.ORIGIN]. The UI and the headless mode show it one-based.
      */
     public fun positionOf(diagnostic: Diagnostic): TextPosition =
         snapshot?.let { it.positionOf(diagnostic.range.start.coerceAtMost(it.length)) } ?: TextPosition.ORIGIN

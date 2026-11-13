@@ -43,8 +43,11 @@ import java.nio.file.Path
  *
  * Every context file and every loose file from `ContextResolution.looseFiles` becomes an [AnalyzedFile]. It is
  * tokenized unless [SourceText.tokens] are given, and parsed with `SemanticMode.SYNTAX_ONLY` unless [SourceText.parse]
- * is given. It keeps the [SourceText.fileDiagnostics] of its source. dsl-tools never reads loose files. A file that
- * cannot be read, as described on [AnalysisSources.load], becomes an ERROR `unreadable` in
+ * is given. It keeps the [SourceText.fileDiagnostics] of its source. A loose state machine that is free of syntax
+ * errors is read on its own, with the same features as those of the contexts. Its findings become DSL_TOOLS
+ * diagnostics on it like those of a context file. A loose model or metamodel is not read, because only a context
+ * tells which metamodel it belongs to or builds on. A file that cannot be read, as described on
+ * [AnalysisSources.load], becomes an ERROR `unreadable` in
  * [ProjectAnalysis.diagnostics], so nothing is skipped silently. The result follows the conventions on
  * [ProjectAnalysis] for paths, snapshots and parse modes.
  *

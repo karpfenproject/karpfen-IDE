@@ -34,8 +34,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The validation of a whole project through `Workspace.validate`, on small projects on disk. It covers the findings of
  * the analysis together with the checks across files of dsl-tools, the object a descriptor attaches a machine to, the
- * order of the report with its one-based positions, and that the continuous analysis never runs the checks across
- * files. A recording verifier shows what [ContextVerification] hands over for each context.
+ * order of the report with its one-based positions, the findings of a loose state machine, and that the continuous
+ * analysis never runs the checks across files. A recording verifier shows what [ContextVerification] hands over for each context.
  */
 class ProjectValidatorTest {
 
@@ -99,6 +99,20 @@ class ProjectValidatorTest {
         assertFalse(workspace.problems.value.files.flatMap { it.diagnostics }.any { it.code.startsWith(PROJECT_CHECKS) })
         assertTrue(workspace.validate().findings.any { it.code.startsWith(PROJECT_CHECKS) })
     }
+
+    @Test
+    fun `the report holds what dsl-tools finds in a loose state machine, read with the features of the project`() =
+        runTest(timeout = 60.seconds) {
+            writeLamp(root, machine = CLEAN_MACHINE)
+            Files.writeString(root.resolve("lamp.kenv.json"), descriptorAttachingTo("lamp"))
+            val loose = Files.writeString(root.resolve("spare.kstates"), MACHINE_WITH_BREAKPOINT).toAbsolutePath().normalize()
+
+            val off = TestWorkspaces(this).open(root).validate()
+            val on = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES).validate()
+
+            assertEquals(listOf(loose to FEATURE_OFF), off.findings.map { it.path to it.code })
+            assertEquals(ProjectValidation(root, emptyList()), on)
+        }
 
     @Test
     fun `a clean project has an empty report`() = runTest(timeout = 60.seconds) {
@@ -183,6 +197,9 @@ class ProjectValidatorTest {
         /** The code of a state that nothing leads into. */
         const val UNREACHABLE = "project.unreachable-state"
 
+        /** The code of a construct of a language feature that is off. */
+        const val FEATURE_OFF = "kstates.feature-off"
+
         /** The code of a machine attached to an object of another type than it names. */
         const val ATTACHED_OBJECT_TYPE = "project.attached-object-type"
 
@@ -220,6 +237,19 @@ class ProjectValidatorTest {
                         }
                     }
                     STATE "lost" { }
+                }
+                TRANSITIONS {
+                }
+            }
+        """.trimIndent() + "\n"
+
+        /** A machine that halts at a breakpoint, which needs the language feature of breakpoints. */
+        val MACHINE_WITH_BREAKPOINT = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    INITIAL STATE "off" {
+                        BREAKPOINT { ENTRY }
+                    }
                 }
                 TRANSITIONS {
                 }

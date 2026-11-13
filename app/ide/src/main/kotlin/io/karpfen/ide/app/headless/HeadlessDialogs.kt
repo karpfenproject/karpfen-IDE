@@ -31,8 +31,8 @@ import kotlinx.coroutines.launch
  * class takes that place: it writes what a dialog has to say to the console and answers at once, so no flow of the
  * workbench ever waits for a user who is not there.
  *
- * - A validation report, from Validate or from a run that the project's errors block, is written as
- *   [ValidationLines] says, kept as [lastReport] and acknowledged.
+ * - A validation report, from Validate or from a run that the project's errors block, is written as [formatter]
+ *   puts it, kept as [lastReport] and acknowledged.
  * - An error is written to standard error as a message of the mode, with its title and its text, and acknowledged.
  * - Any other question has no answer on the command line. It is named on standard error and cancelled. The headless
  *   commands are built so that none comes up.
@@ -41,8 +41,14 @@ import kotlinx.coroutines.launch
  *
  * @param dialogs the dialogs of the workbench state.
  * @param console where the dialogs are written.
+ * @param formatter puts a validation report into lines, the text of [ValidationLines] unless a command asks for another
+ *   format.
  */
-internal class HeadlessDialogs(private val dialogs: DialogState, private val console: HeadlessConsole) {
+internal class HeadlessDialogs(
+    private val dialogs: DialogState,
+    private val console: HeadlessConsole,
+    private val formatter: ReportFormatter = ReportFormatter(OutputFormat.TEXT),
+) {
 
     /** The report of the last validation that asked to be shown, or null if none did. */
     var lastReport: ProjectValidation? = null
@@ -62,7 +68,7 @@ internal class HeadlessDialogs(private val dialogs: DialogState, private val con
     private fun answerTo(request: DialogRequest<*>): DialogResponse = when (request) {
         is DialogRequest.ValidationReport -> {
             lastReport = request.validation
-            ValidationLines.of(request.validation).forEach(console::line)
+            formatter.lines(request.validation).forEach(console::line)
             DialogResponse.Confirm
         }
         is DialogRequest.Error -> {

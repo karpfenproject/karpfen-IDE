@@ -16,7 +16,6 @@
 package io.karpfen.ide.ui.workbench.runtime
 
 import io.karpfen.ide.core.workspace.WorkspaceOptions
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -40,8 +39,8 @@ import java.time.format.DateTimeFormatter
  * on are added before the suffix.
  *
  * The file starts with a header of lines that begin with `#`. They name the descriptor relative to [root], the date
- * and time the run started, and how the runtime is reached. A runtime attached by URL gives no log, and the header
- * says so in one more line. The line with the environment key follows later, once the run knows it.
+ * and time the run started, and the address of the runtime in the IDE's Docker container. The line with the environment
+ * key follows later, once the run knows it.
  *
  * The files are created on [ioDispatcher]. Use the class from the UI thread only.
  *
@@ -59,19 +58,18 @@ internal class RunCaptures(
     private val folder: Path = root.resolve(WorkspaceOptions.RUN_CAPTURE_DIRECTORY)
 
     /**
-     * Starts the capture of a run of [descriptor] that started at [started] and reaches its runtime at [endpoint] as
-     * [host] says. Returns the capture, or null if its file could not be created, after telling [onProblem] why.
+     * Starts the capture of a run of [descriptor] that started at [started] and reaches its runtime at [endpoint].
+     * Returns the capture, or null if its file could not be created, after telling [onProblem] why.
      * [onProblem] is also told, once, if writing the file fails later.
      */
     suspend fun start(
         descriptor: Path,
         started: Instant,
-        host: RuntimeHostKind,
         endpoint: RuntimeEndpoint,
         onProblem: (String) -> Unit,
     ): RunCapture? {
         val time = LocalDateTime.ofInstant(started, clock.zone)
-        val header = header(descriptor, time, host, endpoint)
+        val header = header(descriptor, time, endpoint)
         return try {
             val (file, writer) = withContext(ioDispatcher) { create(NAME.format(time), header) }
             RunCapture(file, writer, source, scope, ioDispatcher, onProblem)
@@ -82,16 +80,12 @@ internal class RunCaptures(
     }
 
     /** The header of a capture. */
-    private fun header(descriptor: Path, time: LocalDateTime, host: RuntimeHostKind, endpoint: RuntimeEndpoint): List<String> =
-        listOfNotNull(
+    private fun header(descriptor: Path, time: LocalDateTime, endpoint: RuntimeEndpoint): List<String> =
+        listOf(
             "# karpfen run capture",
             "# Descriptor: ${relative(descriptor)}",
             "# Started: ${STARTED.format(time)}",
-            when (host) {
-                RuntimeHostKind.DOCKER -> "# Runtime: the IDE's Docker container at ${endpoint.httpBase}"
-                RuntimeHostKind.URL -> "# Runtime: attached by URL at ${endpoint.httpBase}"
-            },
-            NO_LOG.takeIf { host == RuntimeHostKind.URL },
+            "# Runtime: the IDE's Docker container at ${endpoint.httpBase}",
         )
 
     /**
@@ -126,9 +120,6 @@ internal class RunCaptures(
     companion object {
         /** What starts the line with the environment key. */
         const val ENVIRONMENT: String = "# Environment: "
-
-        /** The line that says that a runtime attached by URL gives no log. */
-        const val NO_LOG: String = "# The runtime is attached by URL and gives no log, so this file holds no line of it."
 
         /** The suffix of a capture file. */
         const val SUFFIX: String = ".log"

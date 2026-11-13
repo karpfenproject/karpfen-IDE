@@ -17,6 +17,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     id("karpfen.compose")
+    id("karpfen.kotlin-serialization")
     id("karpfen.live-runtime-test")
 }
 
@@ -24,8 +25,7 @@ plugins {
  * The composition root depends on the workbench, which brings ui-editor, ui-foundation and core-lang through a chain
  * of `api` dependencies down to core-text. It also depends on logback, the logging backend. The adapters of the
  * `logging` package implement logback's API to route what dsl-tools logs into the workbench's Language Tools Output.
- * The CLI is a test dependency only, because the end-to-end tests show that the Problems view, the status bar and
- * `karpfen validate` agree on one folder.
+ * kotlinx.serialization writes the JSON document of `karpfen-ide validate --format json`.
  *
  * The tests of the headless mode run a project over the scriptable session of runtime-session's test fixtures and the
  * synthesized models of runtime-protocol's test fixtures. One test runs a project headless against a real runtime. It
@@ -39,7 +39,6 @@ dependencies {
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
-    testImplementation(project(":tools:cli"))
     testImplementation(testFixtures(project(":runtime:runtime-session")))
     testImplementation(testFixtures(project(":runtime:runtime-protocol")))
 }
@@ -66,6 +65,9 @@ dependencies {
  * Each platform takes the application's icon in its own format. The icns and ico files under `src/main/packaging` are
  * made from the two PNG files among the resources. The icns file has the shape of a Mac application icon, like the
  * image the running IDE hands to the Dock. The ico file and the Linux package use the plain square image.
+ *
+ * The Windows launcher is built as a console application. Without a console, Windows gives the process no standard
+ * output and no standard error, and the headless commands `validate` and `run` would print nothing.
  */
 compose.desktop {
     application {
@@ -84,6 +86,7 @@ compose.desktop {
                 iconFile.set(layout.projectDirectory.file("src/main/packaging/karpfen-ide.icns"))
             }
             windows {
+                console = true
                 iconFile.set(layout.projectDirectory.file("src/main/packaging/karpfen-ide.ico"))
             }
             linux {
@@ -99,8 +102,7 @@ compose.desktop {
  * hands-on check fills the Language Tools Output, through `FailingReadersLaunch` of the tests.
  *
  * The task runs on the classpath of the tests. It sets their console-only `logback-test.xml` aside for the production
- * `logback.xml` of this module. That file is named by its URL, because the classpath holds the command-line tool's
- * `logback.xml` too, and a name that two resources answer makes logback print its status on the console.
+ * `logback.xml` of this module, which is named by its URL.
  */
 tasks.register<JavaExec>("runWithFailingReaders") {
     group = "application"

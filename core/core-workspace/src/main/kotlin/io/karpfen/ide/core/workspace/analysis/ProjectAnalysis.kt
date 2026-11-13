@@ -52,8 +52,8 @@ import java.nio.file.Path
  *   syntax errors and loading findings of a descriptor also belong to its own text. The workspace pushes these lists
  *   into the open sessions as the external source `ExternalDiagnosticSources.PROJECT`.
  * @property looseFiles the karpfen sources of the tree that belong to no context, as listed in
- *   `ContextResolution.looseFiles`. They are analyzed for syntax only. dsl-tools never reads them, but their syntax
- *   errors still appear in the problems.
+ *   `ContextResolution.looseFiles`. Their syntax errors appear in the problems. dsl-tools reads a loose state machine
+ *   on its own, and its findings are part of [diagnostics]. A loose model or metamodel is analyzed for syntax only.
  * @property languageFeatures the optional features of KStates that were switched on for this analysis. dsl-tools
  *   reported every construct of another feature in a state machine it read as an error `kstates.feature-off` in
  *   [diagnostics]. A deployment switches on the runtime features of these, and completion offers their constructs.

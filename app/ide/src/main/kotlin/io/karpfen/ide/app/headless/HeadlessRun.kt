@@ -16,6 +16,7 @@
 package io.karpfen.ide.app.headless
 
 import io.karpfen.ide.app.IdeSession
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
 import io.karpfen.ide.ui.workbench.runtime.RunChoice
 import io.karpfen.ide.ui.workbench.runtime.RunPhase
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
@@ -36,7 +37,8 @@ import java.nio.file.Path
  * starts the run through `RuntimeState.run` with a [RunChoice] of those bridges, the capture of the command line and
  * no debugger, so the run never halts at a breakpoint. The run saves nothing, because no file is open, and validates
  * the whole project first. A project with errors does not run: the report is written as `validate` writes it, and the
- * status is [HeadlessExitCodes.ERRORS_FOUND].
+ * status is [HeadlessExitCodes.ERRORS_FOUND]. A project with warnings and no errors runs: its report is written as
+ * `validate` writes it, followed by [RunLines.GOES_ON_DESPITE_WARNINGS], and then the run goes on.
  *
  * While the run goes on, [RunReporter] and [RuntimeLogFollower] write what it does. The run goes on until [stop] is
  * requested, or until it ends on its own: its deployment is blocked or fails, the runtime cannot be reached, or the
@@ -97,6 +99,7 @@ internal class HeadlessRun(
         console.line(RunLines.start(root, chosen.descriptor, chosen.bridges, command.capture))
         val reporting = RunReporter(console, root).follow(scope, runtime)
         val logging = RuntimeLogFollower(console, command.verbose).follow(scope, runtime.logs)
+        val warnings = project.state.validation.observeRunChecks(::writeWarnings)
         try {
             val started = runtime.run(chosen.descriptor, RunChoice(chosen.bridges, command.capture, debugger = false))
             val ended = scope.async { endOf(runtime, started, project) }
@@ -112,9 +115,21 @@ internal class HeadlessRun(
             console.line(RunLines.SHUT_DOWN)
             return end.status
         } finally {
+            warnings.dispose()
             reporting.cancel()
             logging.cancel()
         }
+    }
+
+    /**
+     * Writes [report], the check before the run, as `validate` writes it, followed by
+     * [RunLines.GOES_ON_DESPITE_WARNINGS], if it has warnings and no errors. A report with errors is written by the
+     * dialog that blocks the run, and a report without warnings is not written.
+     */
+    private fun writeWarnings(report: ProjectValidation) {
+        if (report.hasErrors || report.warningCount == 0) return
+        ValidationLines.of(report).forEach(console::line)
+        console.line(RunLines.GOES_ON_DESPITE_WARNINGS)
     }
 
     /**

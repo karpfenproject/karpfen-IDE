@@ -44,7 +44,6 @@ uses `io.karpfen.ide.buildlogic`.
 | runtime | runtime-protocol, runtime-session, runtime-host | The IDE's side of the karpfen runtime. No UI either. |
 | ui | ui-foundation, ui-editor, ui-workbench, ui-diagram | The user interface, built with Compose. |
 | app | app/ide | The desktop application and its composition root. |
-| tools | tools/cli | The `karpfen` command-line tool. |
 | notation | notation-diagram, notation-sync | The diagrams without their UI: model, layout and the step from text to diagram. |
 | bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros | Connect a running model to external systems. The IDE starts the bridges for HTTP, MQTT and ROS with a run. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
@@ -60,7 +59,6 @@ Dependencies only point downwards. The build allows these project dependencies a
 - runtime-session and runtime-host may depend on core and runtime.
 - A bridge may depend on core, other bridges and runtime-protocol. The rest of the runtime is off limits.
 - A UI module may depend on core, notation, runtime, bridges and other UI modules.
-- tools/cli may depend on core, notation, runtime and bridges, but not on the UI or the app.
 - app/ide may depend on every module.
 - architecture-tests depends on no module. It reads the sources of all modules from disk.
 
@@ -73,9 +71,8 @@ ui-workbench to core-lang, which it also gets through ui-editor.
 
 ```mermaid
 flowchart TD
-    subgraph appGroup ["app and tools"]
+    subgraph appGroup ["app"]
         ide["app/ide"]
-        cli["tools/cli"]
     end
     subgraph uiGroup ["ui"]
         workbench["ui-workbench"]
@@ -104,7 +101,6 @@ flowchart TD
     dsltools[("karpfen-dsl-tools")]
 
     ide --> workbench
-    cli --> workspace
     workbench --> editor & session & host & uidiagram & bridges
     editor --> foundation & lang
     uidiagram --> foundation & nsync
@@ -144,9 +140,9 @@ many modules.
 An opened folder. `Workspace` is the facade over the file tree and its watcher in the package `files`, the open
 documents with saving and reloading in `document`, the environment descriptors in `environment`, the modeling contexts
 in `context`, the dsl-tools analysis of every context in `analysis` and the problems of every file in `problems`.
-`WorkspaceFactory` is the seam through which the workbench and the command-line tool open folders. Start at
+`WorkspaceFactory` is the seam through which the workbench opens folders, with a window and without one. Start at
 `Workspace`, then read `ContextResolver`, `ProjectAnalyzer` and `WorkspaceProblems`. It depends on core-document and
-is used by core-lang, runtime-session, notation-diagram and tools/cli. Its test fixtures, `TestWorkspaces` and
+is used by core-lang, runtime-session and notation-diagram. Its test fixtures, `TestWorkspaces` and
 `FakeFileWatcher`, open workspaces on virtual time.
 
 ### core-lang
@@ -177,15 +173,14 @@ prepares a deployment and launches a `RuntimeSession`. Preparing saves, awaits t
 `DeploymentPlanner` in the package `plan`. A session runs the deploy steps of the package `deploy`, observes the model
 with the packages `observation`, `mirror` and `states`, and injects events with the package `events`. Inside a
 session, `SessionConductor` carries out the commands one at a time and `PushRouter` is the only reader of the
-connection's pushes. It depends on runtime-protocol and core-workspace and is used by ui-workbench. tools/cli
-declares it as a dependency but does not use it yet.
+connection's pushes. It depends on runtime-protocol and core-workspace and is used by ui-workbench.
 
 ### runtime-host
 
-Runs or reaches the runtime of a workspace. `RuntimeHost` is that runtime with its status and log, and
-`RuntimeHosts()` is the factory of the IDE's two hosts, and `OpenRuntimeHosts` wraps a factory so that the hosts
-still open can be closed when the process ends. `DockerRuntimeHost` runs a container the IDE owns, built from
-the runtime sources bundled in the package `bundled`. `UrlRuntimeHost` attaches to a runtime started elsewhere. Only
+Runs the runtime of a workspace. `RuntimeHost` is that runtime with its status and log. `RuntimeHosts()` is the
+factory of the IDE's hosts, and `OpenRuntimeHosts` wraps a factory so that the hosts still open can be closed when
+the process ends. `DockerRuntimeHost` is the one host of the IDE. It runs a container the IDE owns, built from the
+runtime sources bundled in the package `bundled`. The IDE attaches to no runtime that someone else started. Only
 the package `docker.engine` uses the Docker client, behind the port `DockerEngine`, and the whole public API stays in
 the root package. It depends on runtime-protocol and is used by ui-workbench and app/ide.
 
@@ -234,15 +229,8 @@ The package `headless` is the IDE without a window. `main` hands a command line 
 to `HeadlessLaunch`, which wires the same workbench over `ReadOnlySettings` and never touches AWT or Compose.
 `HeadlessCommand` parses the command line strictly. `HeadlessValidation` and `HeadlessRun` do the two commands through
 the workbench's own validation and run, `HeadlessDialogs` answers on the console where the window would ask, and
-`RunReporter` prints what a run does. `ExitSequence` in the package `launch` is the one shutdown hook of the process:
+`RunReporter` prints what a run does. `ReportFormatter` writes the report of a validation as text or as JSON. `ExitSequence` in the package `launch` is the one shutdown hook of the process:
 it ends the runs first and closes the runtime hosts after them.
-
-### tools/cli
-
-The `karpfen` command-line tool. `KarpfenCli` parses the arguments with `CliArguments` and answers an exit status from
-`ExitCodes`. `ValidateCommand` in the package `validate` opens a `Workspace` without watching, waits for the analysis
-and reports `Workspace.problems` as text or JSON through `ReportFormatter`. It uses the same problems rule as the IDE,
-so both always agree. It depends on core-workspace. The end-to-end tests of app/ide use it too.
 
 ### notation-diagram, notation-sync and ui-diagram
 
@@ -311,8 +299,8 @@ An included build with the convention plugins that every module applies. `karpfe
 JDK 21, JUnit with the tags that keep time-budget and live tests out of normal test runs, explicit API mode for core,
 notation and runtime, and the task `verifyModuleDependencies`. The other plugins build on it.
 `karpfen.kotlin-serialization` adds kotlinx.serialization, and `karpfen.compose` adds Compose and refuses any module
-outside ui and app. `karpfen.application` serves tools/cli, and `karpfen.live-runtime-test` adds
-the opt-in task `liveRuntimeTest` to the runtime modules and ui-workbench. Read `ModuleDependencyRules` for the dependency rules,
+outside ui and app. `karpfen.live-runtime-test` adds the opt-in task `liveRuntimeTest` to the runtime modules,
+ui-workbench and app/ide. Read `ModuleDependencyRules` for the dependency rules,
 `TestTags` for the test tags and `BundleRuntimeSources` for packing the runtime sources. All library versions live in
 `gradle/libs.versions.toml`.
 
@@ -372,7 +360,7 @@ code, and all rules live in its test sources.
 7. `ProjectDiagnosticsPublisher` puts the diagnostics of each analyzed file into its open session. `ProblemsPublisher`
    with `WorkspaceProblemsAggregator` publishes `Workspace.problems`, one rule for every diagnostic of every file. The
    Problems view and the status bar read this value.
-8. A validation is asked for by the Validate button, by a run or by `karpfen validate`. `Workspace.validate()` waits
+8. A validation is asked for by the Validate button, by a run or by `karpfen-ide validate`. `Workspace.validate()` waits
    for the analysis and lets `ProjectValidator` add what dsl-tools' verifier finds across the files of each context.
 
 ### Running a model
@@ -394,8 +382,7 @@ code, and all rules live in its test sources.
    the image `karpfen-ide/runtime:<hash>` from the bundled sources if it is missing, creates the container with its
    `application.conf` and starts it. In both cases it waits until the runtime answers its health check and supports
    the IDE.
-   `UrlRuntimeHost` only checks the health and the IDE support at its URL. Both answer `HostOutcome.Ready` with the
-   endpoint.
+   It answers `HostOutcome.Ready` with the endpoint.
 4. The binding creates a `RuntimeClient` of runtime-protocol for that endpoint, and `RuntimeSessions.launch` starts a
    `RuntimeSession` that deploys, starts and observes.
 5. The session's `Deployer` runs the steps that `DeploySteps` lists in a `DeployPipeline`: check the runtime, create
@@ -430,8 +417,8 @@ in the sources. `LayerImportRulesTest` decides which libraries each layer may us
 the ui and app modules and every infrastructure library out of core and notation. Inside the runtime modules only the
 Ktor adapter of runtime-protocol uses Ktor, and only the engine adapter of runtime-host uses the Docker client. Only
 bridge-mqtt uses HiveMQ. `ForeignApiConfinementTest` keeps ANTLR in the package `antlr` of core-document, dsl-tools
-beyond its semantic model in the package `dsl`, and logback in the `logging` packages of the application and the
-command-line tool. `ComposeFreeStateTest` and `UiLayeringTest` keep the state holders free of Compose and the views on
+beyond its semantic model in the package `dsl`, and logback in the `logging` package of the application.
+`ComposeFreeStateTest` and `UiLayeringTest` keep the state holders free of Compose and the views on
 top of them. `PackageCycleTest` forbids package cycles inside the core, runtime and UI modules. In a runtime module the
 root package holds only the facade, its factories and its options, and no other package of the module imports it.
 `RuntimeHostApiTest` keeps the public API of runtime-host in its root package. The declarations of its sub-packages

@@ -21,7 +21,6 @@ import io.karpfen.ide.core.workspace.files.WorkspaceTree
 import io.karpfen.ide.runtime.host.HostOutcome
 import io.karpfen.ide.runtime.host.HostStatus
 import io.karpfen.ide.runtime.host.RuntimeHostFactory
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
@@ -40,7 +39,6 @@ import io.karpfen.ide.ui.workbench.bridges.RunBridges
 import io.karpfen.ide.ui.workbench.output.OutputBuffer
 import io.karpfen.ide.ui.workbench.output.OutputState
 import io.karpfen.ide.ui.workbench.output.RingOutputBuffer
-import io.karpfen.ide.ui.workbench.settings.RuntimeSettings
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import java.nio.file.Path
 import java.time.Clock
@@ -58,7 +56,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -83,16 +80,15 @@ import kotlinx.coroutines.withTimeoutOrNull
  * The capture of a run ends once the run is finished, which covers a stop, a failure and a replacement by a new run of
  * the same descriptor. It also ends when the run is cleared from the list or the workspace closes.
  *
- * Changing the runtime settings stops the live runs and replaces the host. The workbench creates one instance per
- * opened workspace and shuts it down when the workspace closes or the IDE exits.
+ * The workbench creates one instance per opened workspace and shuts it down when the workspace closes or the IDE exits.
  *
  * Use the class from the UI thread only. The commands launch their work in [scope] and return its job. The sessions
  * run on their own dispatcher, and their flows are collected in [scope].
  *
  * @param workspace the opened workspace.
  * @param sessions prepares deployments and launches sessions.
- * @param hosts creates the host of the workspace from the settings.
- * @param settings the IDE settings, which hold the runtime settings and receive the host selector's choice.
+ * @param hosts creates the host of the workspace.
+ * @param settings the IDE settings, which remember the choices of the run dialog.
  * @param clients creates the client of a runtime endpoint.
  * @param support the active editor, the save-all flow, the dialogs and the tool window of the workbench.
  * @param ioDispatcher where a host is closed and the captures are written, which blocks.
@@ -104,7 +100,7 @@ public class RuntimeState internal constructor(
     private val workspace: Workspace,
     private val sessions: RuntimeSessions,
     hosts: RuntimeHostFactory,
-    private val settings: SettingsRepository,
+    settings: SettingsRepository,
     clients: (RuntimeEndpoint) -> RuntimeClient,
     private val support: RunSupport,
     private val ioDispatcher: CoroutineDispatcher,
@@ -113,7 +109,7 @@ public class RuntimeState internal constructor(
 ) {
     private val buffer = RingOutputBuffer(capacity = LOG_LINES)
     private val binding = RuntimeHostBinding(
-        scope, workspace.root, hosts, settings.settings.value.runtime, clients, buffer, ioDispatcher, clock,
+        scope, workspace.root, hosts, clients, buffer, ioDispatcher, clock,
     )
     private val list = RunList()
     private val resolver = DescriptorResolver(workspace.root, support)
@@ -126,10 +122,6 @@ public class RuntimeState internal constructor(
 
     /** What the host of the workspace is doing. */
     public val host: StateFlow<HostStatus> get() = binding.status
-
-    /** The runtime settings, which the host selector shows. */
-    public val hostSettings: StateFlow<RuntimeSettings> =
-        settings.settings.map { it.runtime }.stateIn(scope, SharingStarted.Eagerly, settings.settings.value.runtime)
 
     /** The runs, newest first. */
     public val runs: StateFlow<List<RunEntry>> get() = list.runs
@@ -162,9 +154,6 @@ public class RuntimeState internal constructor(
     public val log: OutputState = OutputState(scope, buffer)
 
     init {
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            hostSettings.collect { next -> if (needsNewHost(next)) replaceHost(next) }
-        }
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             list.runs.collect { runs -> runs.filter { it.phase.isFinished }.forEach { launched[it.id]?.capture?.close() } }
         }
@@ -223,13 +212,6 @@ public class RuntimeState internal constructor(
 
     /** The bridges of the launched [entry], or null before the run was launched. */
     public fun bridges(entry: RunEntry): RunBridges? = launched[entry.id]?.bridges
-
-    /** Chooses how the runtime is reached and writes it to the settings. */
-    public fun selectHost(kind: RuntimeHostKind): Job =
-        scope.launch { settings.update { it.copy(runtime = it.runtime.copy(host = kind)) } }
-
-    /** Sets the URL of a runtime reached by URL and writes it to the settings. Surrounding blanks are trimmed. */
-    public fun setUrl(url: String): Job = scope.launch { settings.update { it.copy(runtime = it.runtime.copy(url = url.trim())) } }
 
     /**
      * Shuts down every session and then closes the host. Sessions still busy after [SESSIONS_BOUND] are closed at once.
@@ -321,7 +303,7 @@ public class RuntimeState internal constructor(
      */
     private suspend fun capture(id: Long, started: Instant, outcome: HostOutcome.Ready): RunCapture? {
         val descriptor = list.entry(id)?.descriptor ?: return null
-        val capture = captures.start(descriptor, started, binding.settings.host, outcome.endpoint) { problem ->
+        val capture = captures.start(descriptor, started, outcome.endpoint) { problem ->
             list.update(id) { it.copy(captureProblem = it.captureProblem ?: problem) }
         }
         capture?.let { list.update(id) { entry -> entry.copy(captureFile = it.file) } }
@@ -372,21 +354,6 @@ public class RuntimeState internal constructor(
     private suspend fun shutDown(entries: List<RunEntry>) {
         coroutineScope { entries.mapNotNull { it.session }.forEach { launch { it.shutdown() } } }
         entries.forEach { entry -> list.update(entry.id) { it.copy(phase = RunPhase.STOPPED) } }
-    }
-
-    /** Stops the live runs and replaces the host with one for [next]. */
-    private suspend fun replaceHost(next: RuntimeSettings) {
-        shutDownLiveRuns()
-        binding.replace(next)
-    }
-
-    /**
-     * True if [next] reaches the runtime differently from the current host. A change of the URL only counts when the
-     * runtime is reached by URL.
-     */
-    private fun needsNewHost(next: RuntimeSettings): Boolean {
-        val current = binding.settings
-        return next.host != current.host || (next.host == RuntimeHostKind.URL && next.url != current.url)
     }
 
     /** Selects the run [id] and shows the Runtime tool window. */

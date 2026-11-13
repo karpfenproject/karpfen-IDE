@@ -15,10 +15,7 @@
  */
 package io.karpfen.ide.app.headless
 
-/**
- * The exit statuses of the headless mode. They mean what the statuses of the `karpfen` command-line tool mean, and the
- * run adds its own cases to them.
- */
+/** The exit statuses of the headless mode, those of `validate` and the cases that `run` adds to them. */
 internal object HeadlessExitCodes {
     /** The validation found no error, or the usage was printed on request. */
     const val OK: Int = 0

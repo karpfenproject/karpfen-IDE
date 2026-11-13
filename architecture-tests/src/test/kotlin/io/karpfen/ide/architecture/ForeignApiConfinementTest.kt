@@ -33,8 +33,7 @@ import kotlin.test.assertTrue
  * printers. The semantic model of dsl-tools ([DSL_TOOLS_SEMANTIC_MODEL]) stays usable everywhere. This rule works as an
  * allow-list. A package that dsl-tools adds later is confined until someone adds it to the semantic model on purpose.
  *
- * Logback is only reached from the logging packages of the application and the command-line tool
- * ([LOGGING_PACKAGES]).
+ * Logback is only reached from the logging package of the application ([LOGGING_PACKAGES]).
  *
  * The rules apply to the main, test and testFixtures sources of every module. A fully qualified reference in code
  * counts like an import.
@@ -54,7 +53,7 @@ class ForeignApiConfinementTest {
         /** The dsl-tools package of the readers, the entry points through which the IDE reads its languages. */
         const val DSL_TOOLS_READERS = "$DSL_TOOLS.reader"
 
-        /** The root package of logback, the logging backend of the application and the command-line tool. */
+        /** The root package of logback, the logging backend of the application. */
         const val LOGBACK = "ch.qos.logback"
 
         /** The packages that only the ANTLR adapter package may use. */
@@ -63,8 +62,8 @@ class ForeignApiConfinementTest {
         /** The semantic model of dsl-tools: metamodels, models and state machines, which every package may use. */
         val DSL_TOOLS_SEMANTIC_MODEL = listOf("$DSL_TOOLS.meta", "$DSL_TOOLS.instance", "$DSL_TOOLS.states")
 
-        /** The packages that may use logback: the logging packages of the application and the command-line tool. */
-        val LOGGING_PACKAGES = listOf("io.karpfen.ide.app.logging", "io.karpfen.ide.tools.cli.logging")
+        /** The packages that may use logback: the logging package of the application. */
+        val LOGGING_PACKAGES = listOf("io.karpfen.ide.app.logging")
 
         /** True if [name] lies within ANTLR or the generated parsers, which only the ANTLR adapter may use. */
         fun usesAntlr(name: String): Boolean = name.isWithinAny(ANTLR_PACKAGES)
@@ -100,7 +99,7 @@ class ForeignApiConfinementTest {
     }
 
     @Test
-    fun `only the logging packages of the application and the command-line tool use logback`() {
+    fun `only the logging package of the application uses logback`() {
         assertConfined(
             files = KarpfenModules.moduleFiles.filterNot { it.packageName.isWithinAny(LOGGING_PACKAGES) },
             rule = "Only ${LOGGING_PACKAGES.joinToString { "$it.." }} may use $LOGBACK..; elsewhere log through SLF4J",

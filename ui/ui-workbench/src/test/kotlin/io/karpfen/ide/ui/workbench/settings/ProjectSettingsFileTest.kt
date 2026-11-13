@@ -16,7 +16,6 @@
 package io.karpfen.ide.ui.workbench.settings
 
 import io.karpfen.dsl.states.KstatesFeature
-import io.karpfen.ide.runtime.host.RuntimeHostKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -28,7 +27,6 @@ class ProjectSettingsFileTest {
         uiScale = 1.1f,
         editorFontSize = 14f,
         toolWindows = mapOf("RUNTIME" to ToolWindowLayout(visible = true, size = 400f), "OUTLINE" to ToolWindowLayout(visible = false, size = 240f)),
-        runtime = RuntimeSettings(RuntimeHostKind.URL, "http://127.0.0.1:9000"),
         openFiles = listOf("lamp.kstates", "sub folder/lamp.kmeta"),
         activeFile = "sub folder/lamp.kmeta",
         bridges = listOf("http.kbridge.json", "sub folder/mqtt.kbridge.json"),
@@ -44,8 +42,6 @@ class ProjectSettingsFileTest {
             editorFontSize = 14
             pane.outline = hidden 240
             pane.runtime = shown 400
-            runtime.host = url
-            runtime.url = http://127.0.0.1:9000
             open = lamp.kstates
             open = sub folder/lamp.kmeta
             active = sub folder/lamp.kmeta
@@ -125,12 +121,21 @@ class ProjectSettingsFileTest {
             editorFontSize = 900
             pane.runtime = maybe 400
             pane.outline = shown -3
-            runtime.host = moon
             active = not-open.kmeta
             """.trimIndent(),
         )
 
         assertEquals(ProjectSettings(editorFontSize = Zoom.MAX_EDITOR_FONT_SIZE), read, "the font size is brought into its limits")
+    }
+
+    @Test
+    fun `the runtime lines of an older version are lines the IDE does not know and are kept`() {
+        val text = "runtime.host = url\nruntime.url = http://127.0.0.1:9000\n"
+
+        val read = ProjectSettingsFile.parse(text)
+
+        assertEquals(listOf("runtime.host = url", "runtime.url = http://127.0.0.1:9000"), read.otherLines)
+        assertEquals(read, ProjectSettingsFile.parse(ProjectSettingsFile.format(read)))
     }
 
     @Test

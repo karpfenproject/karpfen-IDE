@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.karpfen.ide.tools.cli.validate
+package io.karpfen.ide.app.headless
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.workspace.validation.ProjectValidation
+import io.karpfen.ide.core.workspace.validation.ValidationFinding
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -24,52 +26,40 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
-/** [ReportFormatter]: the one-line-per-problem text format and the JSON document. */
+/** [ReportFormatter]: the text of [ValidationLines] and the JSON document with its members in their order. */
 class ReportFormatterTest {
 
-    private val root: Path = Path.of("/work/project").toAbsolutePath()
+    private val root: Path = Path.of("/work/project").toAbsolutePath().normalize()
 
-    private val report = ValidationReport(
+    private val validation = ProjectValidation(
         root,
         listOf(
-            ReportedProblem("a/robot.kmeta", 3, 14, Severity.ERROR, "missing ',' at '\"number\"'", "syntax-error"),
-            ReportedProblem("a/robot.kmeta", 4, 1, Severity.WARNING, "first line\n  second line\r\n", "w"),
-            ReportedProblem("b.kenv.json", 1, 2, Severity.INFO, "note", "i"),
-            ReportedProblem("c.kstates", 9, 9, Severity.HINT, "hint", "h"),
-        ),
+            ValidationFinding(root.resolve("a/robot.kmeta"), 3, 14, Severity.ERROR, "syntax-error", "missing ',' at '\"number\"'"),
+            ValidationFinding(root.resolve("a/robot.kmeta"), 4, 1, Severity.WARNING, "w", "first line\n  second line\r\n"),
+            ValidationFinding(root.resolve("b.kenv.json"), 1, 2, Severity.INFO, "i", "note"),
+            ValidationFinding(root.resolve("c.kstates"), 9, 9, Severity.HINT, "h", "hint"),
+        ).sortedWith(ValidationFinding.ORDER),
     )
 
     @Test
-    fun `the text format prints one line per problem with lower-case severities and joined messages`() {
-        val text = ReportFormatter(OutputFormat.TEXT).format(report)
-
-        assertEquals(
-            "a/robot.kmeta:3:14: error: missing ',' at '\"number\"' [syntax-error]\n" +
-                "a/robot.kmeta:4:1: warning: first line second line [w]\n" +
-                "b.kenv.json:1:2: info: note [i]\n" +
-                "c.kstates:9:9: hint: hint [h]\n",
-            text,
-        )
-    }
-
-    @Test
-    fun `the text format prints nothing without problems`() {
-        assertEquals("", ReportFormatter(OutputFormat.TEXT).format(ValidationReport(root, emptyList())))
+    fun `the text format is the lines of the validation as the window's report has them`() {
+        assertEquals(ValidationLines.of(validation), ReportFormatter(OutputFormat.TEXT).lines(validation))
     }
 
     @Test
     fun `the JSON format is a parseable document with the root, the counts and every problem`() {
-        val output = ReportFormatter(OutputFormat.JSON).format(report)
+        val output = ReportFormatter(OutputFormat.JSON).lines(validation).joinToString("\n")
 
-        assertTrue(output.endsWith("}\n"))
         val document = assertIs<JsonObject>(Json.parseToJsonElement(output))
+        assertEquals(listOf("root", "errorCount", "warningCount", "problems"), document.keys.toList())
         assertEquals(JsonPrimitive(root.toString()), document["root"])
         assertEquals(JsonPrimitive(1), document["errorCount"])
         assertEquals(JsonPrimitive(1), document["warningCount"])
         val problems = assertIs<JsonArray>(document["problems"])
-        assertEquals(report.problems.size, problems.size)
+        assertEquals(validation.findings.size, problems.size)
+        val warning = assertIs<JsonObject>(problems[1])
+        assertEquals(listOf("path", "line", "column", "severity", "message", "code"), warning.keys.toList())
         assertEquals(
             JsonObject(
                 mapOf(
@@ -81,15 +71,16 @@ class ReportFormatterTest {
                     "code" to JsonPrimitive("w"),
                 ),
             ),
-            problems[1],
+            warning,
         )
     }
 
     @Test
-    fun `the JSON format of an empty report has an empty problem list`() {
-        val document = Json.parseToJsonElement(ReportFormatter(OutputFormat.JSON).format(ValidationReport(root, emptyList())))
+    fun `the JSON format of an empty validation has an empty problem list`() {
+        val output = ReportFormatter(OutputFormat.JSON).lines(ProjectValidation(root, emptyList())).joinToString("\n")
+        val document = assertIs<JsonObject>(Json.parseToJsonElement(output))
 
-        assertEquals(JsonArray(emptyList()), assertIs<JsonObject>(document)["problems"])
+        assertEquals(JsonArray(emptyList()), document["problems"])
         assertEquals(JsonPrimitive(0), document["errorCount"])
     }
 }

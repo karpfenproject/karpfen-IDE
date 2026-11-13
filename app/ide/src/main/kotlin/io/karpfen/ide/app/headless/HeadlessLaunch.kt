@@ -20,6 +20,7 @@ import io.karpfen.ide.app.IdeSession
 import io.karpfen.ide.app.launch.ExitSequence
 import io.karpfen.ide.app.launch.runtimeHostsClosedAtExit
 import io.karpfen.ide.runtime.host.RuntimeHostFactory
+import io.karpfen.ide.runtime.host.RuntimeHosts
 import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.ui.workbench.defaultWorkbenchServices
 import kotlinx.coroutines.CoroutineScope
@@ -39,8 +40,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Each command opens its folder through `IdeApplication.prepare` over the production services of the workbench, with
  * [ReadOnlySettings] in place of the settings the window reads and writes. `validate` gets no runtime hosts, so it
- * never reaches a runtime. `run` gets the IDE's two runtime hosts, the Docker container of the workspace and a runtime
- * at a URL, and the project file chooses between them as it does in the window.
+ * never reaches a runtime. `run` gets the runtime hosts of [hosts], which are the IDE's Docker container of the
+ * workspace unless a test hands in its own.
  *
  * The workbench state is driven from one thread of its own, as the window drives it from the UI thread. The calling
  * thread waits for the command.
@@ -54,10 +55,12 @@ import kotlin.time.Duration.Companion.seconds
  *
  * @param console where the commands write.
  * @param atExit the one sequence of the process that runs when it ends.
+ * @param hosts creates the runtime host of the folder of a run.
  */
 internal class HeadlessLaunch(
     private val console: HeadlessConsole = HeadlessConsole(),
     private val atExit: ExitSequence = ExitSequence(),
+    private val hosts: RuntimeHostFactory = RuntimeHosts(),
 ) {
     /** Carries out [command] and returns its exit status. */
     fun run(command: HeadlessCommand): Int = when (command) {
@@ -82,9 +85,9 @@ internal class HeadlessLaunch(
         atExit.add(ExitSequence.Stage.RUNS, "stop the headless run") {
             if (!stop.requestAndAwait(STOP_BOUND)) log.warn("The headless run did not shut down within {}", STOP_BOUND)
         }
-        val hosts = runtimeHostsClosedAtExit(atExit = atExit)
+        val open = runtimeHostsClosedAtExit(hosts, atExit)
         return try {
-            onOwnThread { scope -> HeadlessRun(console, prepareWith(hosts), stop).run(scope, command) }
+            onOwnThread { scope -> HeadlessRun(console, prepareWith(open), stop).run(scope, command) }
         } finally {
             stop.finished()
         }
