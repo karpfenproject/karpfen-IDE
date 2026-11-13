@@ -74,12 +74,6 @@ refer to.
 - A bridge in the IDE hears changes of the model only while the run observes it.
 - A password in the settings of a bridge file is stored as plain text in the project.
 - There is no scripting hook for custom transforms and no native ROS transport.
-- A run without a window has no time limit and no way to end by itself when the state machines are done. It ends
-  with a signal only.
-- A run without a window prints no warnings of the validation, and with a runtime at a URL it has no log lines to
-  print, only the active states.
-- On Windows the packaged application is built without a console, so the commands without a window probably print
-  nothing there. Nobody has tried it.
 
 ### Workspace, window and command-line tool
 
@@ -88,6 +82,12 @@ refer to.
 - There is no Refresh command. After the file watcher failed, changes made outside the IDE show up only when a file
   operation in the Project tree refreshes the workspace.
 - Whether files next to a descriptor but not named by it should form an implicit context is undecided.
+- A run without a window has no time limit and no way to end by itself when the state machines are done. It ends
+  with a signal only.
+- A run without a window prints no warnings of the validation, and with a runtime at a URL it has no log lines to
+  print, only the active states.
+- On Windows the packaged application is built without a console, so the commands without a window probably print
+  nothing there. Nobody has tried it.
 - The small command-line tool `karpfen` cannot run a project. Only the IDE itself can, with `karpfen-ide run`.
   tools/cli declares a dependency on runtime-session that it does not use.
 - A validation reports only in its dialog. Its findings across files are not in the Problems view and not underlined
