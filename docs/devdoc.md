@@ -279,6 +279,12 @@ ui-workbench tells what the selected run adds to the diagram of the active file,
 for a state machine file, taken from the stacks the session observes. The canvas marks those states, the innermost
 one with a fill. The runtime does not report which transition fired, so no transition is marked.
 
+A rename stays in one file and works in both directions. A rename in the diagram edits the text of that file. A
+rename in the text keeps the element in its place: before a changed diagram is drawn, `DiagramEditing.follow` carries
+the layout by hand over with `DiagramArrangement.followed`, which compares the diagram before and after the change
+and finds what was only renamed. No other file is touched by a rename, on purpose. The modeler updates the files that
+use a name by hand.
+
 The notation is hybrid. The structure is drawn, and code stays text. A `DiagramCells` tells which pieces of code a
 diagram shows folded up, as `DiagramCell`s: the entry and do blocks of a state and the condition of a transition. The
 canvas draws a marker for each and opens a clicked cell in `CodeCellPane`. Saving goes the same way as any other

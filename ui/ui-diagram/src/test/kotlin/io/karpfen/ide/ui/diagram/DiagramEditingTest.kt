@@ -164,6 +164,36 @@ class DiagramEditingTest {
     }
 
     @Test
+    fun `a state renamed in the text keeps its place in a layout by hand, and the layout is saved`() {
+        val off = automatic.states.getValue("off").center
+        editing.follow(diagram)
+        editing.startDrag(diagram, automatic, off)
+        editing.dragTo(diagram, DiagramPoint(off.x + 50f, off.y))
+        editing.endDrag(diagram)
+        val place = assertNotNull(editing.vis).boxes.getValue("off")
+        val renamed = diagramOf(MACHINE.replace("STATE \"off\"", "STATE \"dark\""))
+
+        editing.follow(renamed)
+        editing.follow(renamed)
+
+        assertEquals(place, assertNotNull(editing.vis).boxes["dark"])
+        assertNull(assertNotNull(editing.vis).boxes["off"])
+        assertEquals(1, saved.size, "following alone saves nothing")
+        editing.diagramChanged(renamed)
+        assertEquals(place, saved.last().boxes["dark"])
+        assertEquals(2, saved.size)
+    }
+
+    @Test
+    fun `an automatic layout has nothing to carry over`() {
+        editing.follow(diagram)
+        editing.follow(diagramOf(MACHINE.replace("STATE \"off\"", "STATE \"dark\"")))
+
+        assertNull(editing.vis)
+        assertEquals(emptyList(), saved)
+    }
+
+    @Test
     fun `a change that only renames leaves an automatic layout automatic`() {
         val change = assertNotNull(StatechartEdits.rename(MACHINE, diagram, "on", "lit"))
 

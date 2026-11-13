@@ -43,6 +43,12 @@ public object StatechartArrangement : DiagramArrangement<StatechartDiagram, Stat
 
     override fun prune(diagram: StatechartDiagram, vis: VisLayout): VisLayout = VisEditing.prune(diagram, vis)
 
+    override fun followed(before: StatechartDiagram, after: StatechartDiagram, vis: VisLayout): VisLayout = VisEditing.rekeyed(
+        vis,
+        boxes = VisEditing.renamed(before.allStates().map { it.name }, after.allStates().map { it.name }),
+        lines = VisEditing.renamed(before.transitions.map { it.id }, after.transitions.map { it.id }),
+    )
+
     override fun lines(diagram: StatechartDiagram): Set<String> =
         diagram.transitions.filter { it.kind == TransitionKind.NORMAL }.map { it.id }.toSet()
 

@@ -57,6 +57,14 @@ public interface DiagramArrangement<D, L : DiagramLayout> {
      */
     public fun prune(diagram: D, vis: VisLayout): VisLayout
 
+    /**
+     * [vis] carried over from the diagram [before] a change of the text to the diagram [after] it. An element that
+     * was only renamed in the text keeps its place, its size, its waypoints and the place of its label. The renaming
+     * is found by comparing the two diagrams, so it does not matter whether the name was changed in the text or
+     * through the diagram.
+     */
+    public fun followed(before: D, after: D, vis: VisLayout): VisLayout
+
     /** The ids of the lines of [diagram] that can be bent at waypoints. */
     public fun lines(diagram: D): Set<String>
 

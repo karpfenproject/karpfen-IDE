@@ -160,6 +160,36 @@ class VisEditingTest {
     }
 
     @Test
+    fun `a name counts as changed if the old one is gone and the new one was not there`() {
+        assertEquals(mapOf("off" to "dark"), VisEditing.renamed(listOf("off", "on", "broken"), listOf("dark", "on", "broken")))
+        assertEquals(mapOf("a" to "x", "c" to "z"), VisEditing.renamed(listOf("a", "b", "c"), listOf("x", "b", "z")))
+        assertEquals(emptyMap(), VisEditing.renamed(listOf("a", "b"), listOf("b", "a")), "changed places are no renaming")
+        assertEquals(emptyMap(), VisEditing.renamed(listOf("a", "b"), listOf("a", "b", "c")), "an added element is no renaming")
+        assertEquals(emptyMap(), VisEditing.renamed(listOf("a", "b"), listOf("a", "b")))
+    }
+
+    @Test
+    fun `a state renamed in the text keeps its place, and so do its lines once the transitions name it`() {
+        val moved = VisEditing.moveLabel(frozen, "NORMAL:off->full#1", DiagramPoint(20f, 0f))
+            .let { it.copy(waypoints = it.waypoints + ("NORMAL:off->full#1" to listOf(DiagramPoint(50f, 60f)))) }
+        val declared = LampStateMachine.diagramOf(LampStateMachine.LAMP.replace("INITIAL STATE \"off\"", "INITIAL STATE \"dark\""))
+
+        val first = StatechartArrangement.followed(lamp, declared, moved)
+
+        assertEquals(moved.boxes.getValue("off"), first.boxes["dark"])
+        assertNull(first.boxes["off"])
+        assertEquals(moved.waypoints, first.waypoints, "the transitions still name the old state, so their lines keep their ids")
+
+        val everywhere = LampStateMachine.diagramOf(LampStateMachine.LAMP.replace("\"off\"", "\"dark\""))
+        val second = StatechartArrangement.followed(declared, everywhere, first)
+
+        assertEquals(listOf(DiagramPoint(50f, 60f)), second.waypoints["NORMAL:dark->full#1"])
+        assertEquals(DiagramPoint(20f, 0f), second.labels["NORMAL:dark->full#1"])
+        assertNull(second.waypoints["NORMAL:off->full#1"])
+        assertEquals(frozen, StatechartArrangement.followed(lamp, lamp, frozen))
+    }
+
+    @Test
     fun `the text wins - what the text no longer has is dropped`() {
         val stale = frozen.copy(
             boxes = frozen.boxes + ("gone" to DiagramPoint(0f, 0f)) + ("on" to DiagramPoint(0f, 0f)),

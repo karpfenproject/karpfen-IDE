@@ -175,6 +175,22 @@ class StructureLayoutTest {
     }
 
     @Test
+    fun `a type renamed in the text keeps its place and the lines that start at it`() {
+        val vis = VisLayout(
+            boxes = mapOf("Lamp" to DiagramPoint(100f, 100f), "Bulb" to DiagramPoint(100f, 300f)),
+            waypoints = mapOf("has:Lamp.bulb" to listOf(DiagramPoint(50f, 200f))),
+            labels = mapOf("has:Lamp.spare" to DiagramPoint(20f, 0f)),
+        )
+        val renamed = LampStructure.typesOf(LampStructure.METAMODEL.replace("type \"Lamp\"", "type \"Torch\""))
+
+        val followed = StructureArrangement.followed(types, renamed, vis)
+
+        assertEquals(mapOf("Torch" to DiagramPoint(100f, 100f), "Bulb" to DiagramPoint(100f, 300f)), followed.boxes)
+        assertEquals(mapOf("has:Torch.bulb" to listOf(DiagramPoint(50f, 200f))), followed.waypoints)
+        assertEquals(mapOf("has:Torch.spare" to DiagramPoint(20f, 0f)), followed.labels)
+    }
+
+    @Test
     fun `pruning drops what the text no longer has`() {
         val vis = VisLayout(
             boxes = mapOf("Lamp" to DiagramPoint(0f, 0f), "Gone" to DiagramPoint(10f, 10f)),

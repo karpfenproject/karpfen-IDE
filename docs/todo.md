@@ -24,14 +24,13 @@ refer to.
   so it cannot offer them.
 - An opened code cell has the code editor with colours, but without completion, hover and checks, because it holds
   a piece of a file. It closes without saving when the text changes underneath it.
-- Renaming through a diagram stays in the file. A renamed type is not renamed in the models and state machines that
-  use it, and a renamed object not in the descriptors that attach a state machine to it.
+- A rename is found by comparing the diagram before and after a change of the text. Renaming one element while
+  adding or removing another in the same edit is not recognized, and the renamed element is placed as new.
 - A statechart marks the active states of a run, but not which transition fired, because the runtime does not
   report that.
 - A change of the layout by hand cannot be undone, and there is no command that goes back to the automatic layout.
   Deleting the `.vis` file by hand does that.
 - Renaming or deleting a model file leaves its `.vis` file behind under the old name.
-- A state, type or object that is renamed in the text loses its place and is placed as a new element.
 - The lines of splits and joins have no waypoints.
 - In a statechart a label may cover another line. The class and object diagrams move a label to the free side.
 - The view mode of a file, Text, Split or Diagram, is not stored in the project file.

@@ -125,6 +125,31 @@ public object VisEditing {
     }
 
     /**
+     * The names that changed between two versions of a list of elements, each old name with its new one. The lists
+     * are the elements of a diagram before and after a change of the text, in the order of the text. Two lists of
+     * the same length are compared place by place. A name counts as changed if the old one is gone and the new one
+     * was not there before. So an element that was renamed in the text is found, and elements that only changed
+     * places are not taken for renamed. Lists of different lengths give nothing, because then elements were added or
+     * removed.
+     */
+    public fun renamed(before: List<String>, after: List<String>): Map<String, String> {
+        if (before.size != after.size) return emptyMap()
+        val was = before.toSet()
+        val now = after.toSet()
+        return before.zip(after).filter { (old, new) -> old != new && old !in now && new !in was }.toMap()
+    }
+
+    /**
+     * [vis] with its entries moved to new ids: the boxes and frames as [boxes] says, and the bars, waypoints and
+     * labels as [lines] says, each from an old id to a new one. So an element that was renamed keeps its place.
+     */
+    public fun rekeyed(vis: VisLayout, boxes: Map<String, String>, lines: Map<String, String>): VisLayout {
+        if (boxes.isEmpty() && lines.isEmpty()) return vis
+        fun <V> Map<String, V>.by(names: Map<String, String>): Map<String, V> = mapKeys { names[it.key] ?: it.key }
+        return VisLayout(vis.boxes.by(boxes), vis.bars.by(lines), vis.waypoints.by(lines), vis.labels.by(lines), vis.frames.by(boxes))
+    }
+
+    /**
      * The waypoint of [vis] within [tolerance] of [point], as the id of its line and its index, or null. Only the
      * lines with an id in [lines] count.
      */

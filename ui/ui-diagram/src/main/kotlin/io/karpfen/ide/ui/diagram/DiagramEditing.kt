@@ -39,6 +39,9 @@ import io.karpfen.ide.notation.diagram.layout.VisLayout
  * line, a side or corner of a box that can be sized, a bar or a box, whichever lies under the pointer, in this order. A secondary click offers to remove the waypoint under the pointer
  * or to add one to the line under it. The change is made when the user takes the offer in the context menu.
  *
+ * The layout follows the text. When the diagram changes because the text changed, [follow] carries the layout over,
+ * so an element that was renamed in the text keeps its place.
+ *
  * After every finished change, [save] gets the layout to write. What the text no longer has is dropped from it first.
  * [loaded] takes in what was read from the companion file. It is ignored while the user drags and while a change of
  * the user is still on its way to the file, so a reload never undoes what the user just did.
@@ -70,6 +73,7 @@ internal class DiagramEditing<D, L : DiagramLayout>(
     private var drag: Drag? = null
     private var unsaved: VisLayout? = null
     private var awaitsDiagram = false
+    private var followed: D? = null
 
     /** What is being dragged, the layout it started from, and what [vis] was before, to go back if nothing moved. */
     private class Drag(val target: Target, val base: VisLayout, val previous: VisLayout?, val start: DiagramPoint)
@@ -134,6 +138,23 @@ internal class DiagramEditing<D, L : DiagramLayout>(
         val next = transform(base)
         vis = next
         unsaved = next
+        awaitsDiagram = true
+    }
+
+    /**
+     * Carries the layout by hand over to [diagram], which the view is about to show in place of the one before. An
+     * element that was renamed in the text keeps its place. The call changes nothing else and may be repeated for
+     * the same diagram. A layout that changed this way is saved at the next [diagramChanged].
+     */
+    fun follow(diagram: D) {
+        val before = followed
+        followed = diagram
+        val current = vis
+        if (before == null || before == diagram || current == null || isDragging) return
+        val carried = arrangement.followed(before, diagram, current)
+        if (carried == current) return
+        vis = carried
+        unsaved = carried
         awaitsDiagram = true
     }
 

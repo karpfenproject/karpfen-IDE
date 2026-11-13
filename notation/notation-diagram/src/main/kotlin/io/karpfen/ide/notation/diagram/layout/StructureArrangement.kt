@@ -92,6 +92,21 @@ public object StructureArrangement : DiagramArrangement<StructureDiagram, Struct
         )
     }
 
+    /**
+     * [vis] carried over to the diagram [after] a change of the text. A renamed box keeps its place. The id of a link
+     * names the box it starts at, so the links of a renamed box get new ids, and their waypoints and labels follow.
+     * That holds also where the renaming turned some relation to the old name into a row, which changes the number
+     * of links. A link whose relation was renamed is found by its place among the links.
+     */
+    override fun followed(before: StructureDiagram, after: StructureDiagram, vis: VisLayout): VisLayout {
+        val boxes = VisEditing.renamed(before.nodes.map { it.id }, after.nodes.map { it.id })
+        val ofRenamedBoxes = before.links.mapNotNull { link ->
+            boxes[link.source]?.let { new -> link.id to link.id.replaceFirst(":${link.source}.", ":$new.") }
+        }
+        val renamedRelations = VisEditing.renamed(before.links.map { it.id }, after.links.map { it.id })
+        return VisEditing.rekeyed(vis, boxes, ofRenamedBoxes.toMap() + renamedRelations)
+    }
+
     override fun lines(diagram: StructureDiagram): Set<String> = diagram.links.map { it.id }.toSet()
 
     override fun labelled(diagram: StructureDiagram): Set<String> = diagram.links.filter { it.label.isNotEmpty() }.map { it.id }.toSet()

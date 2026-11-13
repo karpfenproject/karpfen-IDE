@@ -104,6 +104,9 @@ import kotlinx.coroutines.withContext
  * The code cells of the notation are drawn as small markers, a circle with a plus. A click on a marker opens the cell
  * in a pane over the canvas, where its code is edited as text and saved into the model.
  *
+ * When the text changes, the layout by hand follows it before the new diagram is drawn. So a state, a type or an
+ * object that was renamed in the text stays where it is.
+ *
  * The first drawing is fitted into the view. After that the view keeps the zoom and the position the user chose.
  *
  * Nothing a notation does here can take the window down. Measuring, laying out, drawing and every gesture run
@@ -139,6 +142,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     }
     val widths = remember(texts, density) { TextMeasurer { texts.widthOf(it) / density } }
     SideEffect { editing.measurer = widths }
+    remember(editing, diagram) { faults.attempt("carrying the layout over to the changed text") { editing.follow(diagram) } }
     val vis = editing.vis
     val automatic by produceState<DiagramDrawing<D, L>?>(null, notation, diagram, texts, vis == null) {
         if (vis == null) {
