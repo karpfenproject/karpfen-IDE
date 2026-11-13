@@ -26,8 +26,9 @@ import java.nio.file.Path
  * Projects the parse outcomes of one document onto what the Outline shows.
  *
  * The Outline shows the latest parse while it is free of syntax diagnostics. Otherwise it shows the last good parse.
- * If there never was a good parse, it shows the broken one. It also highlights the chain of nodes that contain the
- * caret.
+ * If there never was a good parse, it shows the broken one. Of the outline of that parse it shows the nodes that
+ * [OutlineSelection] picks: types, objects, states and transitions, and the keys of a descriptor. It also highlights
+ * the chain of shown nodes that contain the caret.
  *
  * The nodes keep the ranges of the parse they come from. Navigation maps those ranges into the live text, as
  * [OutlineUiState.locationOf] describes. The highlight needs the ranges in the caret's text instead. [OutlineRanges]
@@ -39,19 +40,32 @@ import java.nio.file.Path
 internal class OutlineProjection(private val path: Path, text: EditableText) {
 
     private val ranges = OutlineRanges(text)
+    private var selectedFrom: ParseOutcome? = null
+    private var selection: OutlineSelection = OutlineSelection.of(emptyList())
 
     /** The outline of [parse] or [lastGoodParse] for the text [snapshot] with the caret at [caret]. */
     fun of(parse: ParseOutcome?, lastGoodParse: ParseOutcome?, snapshot: TextSnapshot, caret: Int): OutlineUiState {
         val source = chooseOutcome(parse, lastGoodParse) ?: return OutlineUiState(path = path)
         val offset = caret.coerceIn(0, snapshot.length)
+        val shown = selectionOf(source)
+        val rangeOf = ranges.at(source, snapshot)
         return OutlineUiState(
             path = path,
             version = source.version,
             lineage = snapshot.lineage,
-            nodes = source.outline,
-            highlighted = pathAt(source.outline, offset, ranges.at(source, snapshot)),
+            nodes = shown.nodes,
+            highlighted = pathAt(shown.nodes, offset) { node -> rangeOf(shown.original(node)) },
             isStale = source.version != snapshot.version,
         )
+    }
+
+    /** What the Outline shows of the outline of [source]. It is made once for each parse and kept until the next. */
+    private fun selectionOf(source: ParseOutcome): OutlineSelection {
+        if (source !== selectedFrom) {
+            selection = OutlineSelection.of(source.outline)
+            selectedFrom = source
+        }
+        return selection
     }
 
     /**

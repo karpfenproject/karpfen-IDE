@@ -386,7 +386,7 @@ class WorkbenchUiTest {
         openExamples()
         openFromTree(machine)
         val outline = workbench.state.outline.state.value
-        val observe = outline.nodes.single().children.first { it.name == "observe" }
+        val observe = outline.nodes.first { it.name == "observe" }
         assertTrue(outline.nodes.isNotEmpty())
 
         test.onNodeWithText("observe").performClick()
@@ -401,7 +401,7 @@ class WorkbenchUiTest {
         workbenchUiTest(dir) {
             openExamples()
             openFromTree(machine)
-            val observe = workbench.state.outline.state.value.nodes.single().children.first { it.name == "observe" }
+            val observe = workbench.state.outline.state.value.nodes.first { it.name == "observe" }
             val editor = assertNotNull(workbench.state.tabs.editorFor(machine))
             editor.caret.moveTo(observe.selectionRange.start + "observe".length)
             settle()

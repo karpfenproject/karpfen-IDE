@@ -35,8 +35,9 @@ import java.nio.file.Path
  * @property version the version of the parse that [nodes] come from. While the text has syntax errors, that is the last
  *   good parse. Navigation uses it to map the node ranges into the live text. Null when nothing is outlined.
  * @property lineage the text lineage of the document, see `TextLineage`. Null when nothing is outlined.
- * @property nodes the outline of the active document's latest parse. While the text has syntax errors, it is the
- *   outline of the last good parse.
+ * @property nodes what the Outline shows of the active document's latest parse: the types of a metamodel, the objects
+ *   of a model, the states and transitions of a state machine, and the keys of a descriptor. While the text has
+ *   syntax errors, it is taken from the last good parse.
  * @property highlighted the chain of nodes that contain the caret, innermost last. The tree highlights them.
  * @property isStale true if [nodes] come from an older version than the current text.
  */

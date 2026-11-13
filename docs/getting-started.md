@@ -30,8 +30,8 @@ the model and the active states while it runs.
 
 - Open a folder. The Project tool window shows its files in three sections: the project file and the descriptors at
   the top, the model files in the middle, the bridge files at the bottom.
-- The editor colours the text and underlines errors within a second. The Outline shows the structure of the active
-  file. Resting the mouse on a name shows what it is.
+- The editor colours the text and underlines errors within a second. The Outline shows what the active file is
+  made of: the types of a metamodel, the objects of a model, the states and transitions of a state machine. Resting the mouse on a name shows what it is.
 - The label `Problems` at the left of the status bar gets a red icon and a number when the folder has problems. A
   click opens the list.
 - The karpfen files of one folder are checked as one system. A descriptor says exactly which files belong together.

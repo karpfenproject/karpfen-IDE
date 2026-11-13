@@ -93,13 +93,13 @@ class OutlineStateTest {
         assertEquals(0L, state.version)
         assertTrue(state.lineage === document.session.text.lineage)
         assertFalse(state.isStale)
-        assertEquals(SymbolKind.STATEMACHINE, state.nodes.single().kind)
+        assertEquals(setOf(SymbolKind.STATE, SymbolKind.TRANSITION), state.nodes.map { it.kind }.toSet(), "the states and transitions are at the top")
 
         val offset = machine.indexOf("STATE \"drive fast\"") + 8
         editor().caret.moveTo(offset)
         advanceUntilIdle()
         val names = outline.state.value.highlighted.map { it.name }
-        assertEquals(listOf("drive", "drive fast"), names.takeLast(2))
+        assertEquals(listOf("drive", "drive fast"), names)
         assertTrue(outline.state.value.highlighted.zipWithNext().all { (outer, inner) -> inner in outer.children })
     }
 
