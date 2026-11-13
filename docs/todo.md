@@ -143,9 +143,9 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
   sockets, so clients must connect again. The runtime does not document this, and the IDE never does it.
 - There is no version endpoint, no published image, no configuration through environment variables and no
   authentication. Access keys are predictable, and the runtime prints them on its console.
-- The runtime reads uploads with the dsl-tools 1.0 parser from its own nested submodule, so upload errors carry no
-  positions. That parser reads a tick limit whose number is not whole as a state without the limit and says nothing.
-  The IDE's editor reports it.
+- The runtime reads every upload with all optional language features on. The IDE checks the features of the project
+  before a run, so a text with a feature that is off never reaches the runtime from the IDE, but another client can
+  upload it.
 - The runtime's documentation of `eventConsumptionOnFire` does not match what the engine does.
 - A JSON event payload with a repeated key or a scalar of the wrong type silently becomes null as a whole, and every
   relation in a JSON payload creates new objects, `knows` included. The event still fires, without its payload. The

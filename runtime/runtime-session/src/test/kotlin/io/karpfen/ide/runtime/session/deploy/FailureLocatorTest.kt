@@ -16,10 +16,14 @@
 package io.karpfen.ide.runtime.session.deploy
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
+import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.UploadError
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleRefusal
@@ -28,6 +32,7 @@ import io.karpfen.ide.runtime.protocol.lifecycle.Uploads
 import io.karpfen.ide.runtime.protocol.message.ProtocolViolation
 import io.karpfen.ide.runtime.protocol.message.ViolationKind
 import io.karpfen.ide.runtime.session.plan.PlannedUpload
+import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.problem.SourceLocation
 import kotlin.test.Test
@@ -36,62 +41,106 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Covers how the failure locator turns the runtime's failures during a deployment into problems. The known texts of the
- * runtime's model parser are located at the object they name. Other parser texts and internal errors are located at the
- * uploaded file, and an unknown attachment at the descriptor. The tests also cover failures of the runtime check,
- * failures without a location, which are described by themselves, and refusals of the environment handle.
+ * Covers how the failure locator turns the runtime's failures during a deployment into problems. An upload refused for
+ * the errors in its text becomes one problem per error at its place in the uploaded text, clamped into the text. Other
+ * rejections and internal errors of an upload are located at the uploaded file, and an unknown attachment at the
+ * descriptor. The tests also cover failures of the runtime check, failures without a location, which are described by
+ * themselves, and refusals of the environment handle.
  */
 class FailureLocatorTest {
 
     private val locator = FailureLocator(LampPlans.plan(), ENDPOINT)
 
-    private fun objectAt(key: String): SourceLocation? = LampPlans.locations.objectIn(LampPlans.modelFile, key)
-
     private fun fileOf(upload: PlannedUpload): SourceLocation =
         SourceLocation(upload.file, null, upload.snapshot)
 
+    /** The empty range at [offset] of the model text. */
+    private fun modelAt(offset: Int): SourceLocation =
+        SourceLocation(LampPlans.modelFile, TextRange.empty(offset), LampPlans.modelSnapshot)
+
+    /** The one problem of the failed outcome of [failure] in a step of [kind] that uploads [upload]. */
+    private fun problemOf(kind: DeployStepKind, upload: PlannedUpload?, failure: RuntimeFailure): DeployProblem =
+        locator.locate(kind, upload, failure).problems.single()
+
     @Test
-    fun `a known text of the model parser points at the declaration of the object it names`() {
-        val texts = mapOf(
-            "Unknown class type 'Bulbb' for object 'spare'" to "spare",
-            "Unknown property 'watts' for class type 'Bulb' in object 'bulb'" to "bulb",
-            "Unknown object property 'socket' for class type 'Lamp' in object 'lamp'" to "lamp",
-            "Could not resolve reference to object with id 'nowhere' in property 'switch' of object 'lamp'" to "lamp",
+    fun `a refused upload becomes one problem per error at the place of each error in the uploaded text`() {
+        val rejection = UploadRejection(
+            RejectedUpload.Model,
+            listOf(
+                UploadError(1, 8, "Unknown class type 'Lmap' of object 'lamp'", "kmodel.unknown-class-type"),
+                UploadError(1, 52, "Unknown class type 'Bulbb' of object 'spare'", "kmodel.unknown-class-type"),
+            ),
+        )
+        val failure = Failures.refused(RuntimeRoute.SET_MODEL, rejection)
+
+        val outcome = locator.locate(DeployStepKind.UPLOAD_MODEL, LampPlans.model, failure)
+
+        assertEquals(
+            listOf(
+                DeployProblem(
+                    Severity.ERROR,
+                    DeployProblemCodes.RUNTIME_REJECTED,
+                    "The runtime refused lamp.kmodel: Unknown class type 'Lmap' of object 'lamp'",
+                    modelAt(7),
+                ),
+                DeployProblem(
+                    Severity.ERROR,
+                    DeployProblemCodes.RUNTIME_REJECTED,
+                    "The runtime refused lamp.kmodel: Unknown class type 'Bulbb' of object 'spare'",
+                    modelAt(51),
+                ),
+            ),
+            outcome.problems,
+        )
+        assertEquals("The runtime refused lamp.kmodel with 2 errors.", outcome.summary)
+        assertEquals(failure, outcome.failure)
+    }
+
+    @Test
+    fun `a refused upload with one error is summarized by its problem`() {
+        val failure = Failures.refused(RuntimeRoute.SET_STATE_MACHINE, RejectedUpload.StateMachine("lamp"), "Unknown state 'of'", "kstates.unknown-state")
+
+        val outcome = locator.locate(DeployStepKind.ATTACH_STATE_MACHINE, LampPlans.lampMachine, failure)
+
+        val problem = outcome.problems.single()
+        assertEquals("The runtime refused lamp.kstates: Unknown state 'of'", problem.message)
+        assertEquals(SourceLocation(LampPlans.lampMachine.file, TextRange.empty(0), LampPlans.lampMachine.snapshot), problem.location)
+        assertEquals(problem.message, outcome.summary)
+    }
+
+    @Test
+    fun `a place beyond the uploaded text is clamped to the end of its line or of the text`() {
+        val text = LampPlans.MODEL_TEXT
+        val rejection = UploadRejection(
+            RejectedUpload.Model,
+            listOf(
+                UploadError(1, text.length + 40, "Expected '}'", "syntax.error"),
+                UploadError(7, 3, "Unexpected end of the text", "syntax.error"),
+            ),
         )
 
-        texts.forEach { (text, key) ->
-            val problem = locator.locate(DeployStepKind.UPLOAD_MODEL, LampPlans.model, Failures.refused(RuntimeRoute.SET_MODEL, text))
+        val problems = locator.locate(DeployStepKind.UPLOAD_MODEL, LampPlans.model, Failures.refused(RuntimeRoute.SET_MODEL, rejection)).problems
 
-            assertEquals(DeployProblemCodes.RUNTIME_REJECTED to Severity.ERROR, problem.code to problem.severity)
-            assertEquals(objectAt(key), problem.location, text)
-            assertTrue(text in problem.message && "lamp.kmodel" in problem.message, problem.message)
-        }
+        assertEquals(listOf(modelAt(text.length), modelAt(text.length)), problems.map { it.location })
     }
 
     @Test
-    fun `a known text naming an object the model does not declare points at the model file`() {
-        val failure = Failures.refused(RuntimeRoute.SET_MODEL, "Unknown class type 'Bulbb' for object 'attic'")
-
-        val problem = locator.locate(DeployStepKind.UPLOAD_MODEL, LampPlans.model, failure)
-
-        assertEquals(fileOf(LampPlans.model), problem.location)
-    }
-
-    @Test
-    fun `other parser texts point at the uploaded file`() {
+    fun `a rejection of an upload with a text the client does not know is one problem at the uploaded file`() {
         val cases = listOf(
-            Triple(DeployStepKind.UPLOAD_METAMODEL, LampPlans.metamodel, "KMeta content does not define any types"),
-            Triple(DeployStepKind.UPLOAD_EVENTS, LampPlans.events, "Unknown target class type 'Pose' for property"),
-            Triple(DeployStepKind.ATTACH_STATE_MACHINE, LampPlans.lampMachine, "Exactly one state must be marked as INITIAL, but found 0."),
-            Triple(DeployStepKind.ATTACH_STATE_MACHINE, LampPlans.switchMachine, "Operation SET expects 2 arguments, but was called as 1."),
-            Triple(DeployStepKind.UPLOAD_MODEL, LampPlans.model, "For input string: \"bright\""),
+            Triple(DeployStepKind.UPLOAD_METAMODEL, LampPlans.metamodel, RuntimeRoute.SET_METAMODEL),
+            Triple(DeployStepKind.UPLOAD_EVENTS, LampPlans.events, RuntimeRoute.SET_EVENT_DEFINITIONS),
+            Triple(DeployStepKind.UPLOAD_MODEL, LampPlans.model, RuntimeRoute.SET_MODEL),
+            Triple(DeployStepKind.ATTACH_STATE_MACHINE, LampPlans.switchMachine, RuntimeRoute.SET_STATE_MACHINE),
         )
 
-        cases.forEach { (kind, upload, text) ->
-            val problem = locator.locate(kind, upload, Failures.refused(RuntimeRoute.SET_MODEL, text))
+        cases.forEach { (kind, upload, route) ->
+            val outcome = locator.locate(kind, upload, Failures.unknownText(route, "Something went wrong"))
 
+            val problem = outcome.problems.single()
             assertEquals(DeployProblemCodes.RUNTIME_REJECTED, problem.code)
-            assertEquals(fileOf(upload), problem.location, text)
+            assertEquals("The runtime refused ${upload.fileName}: Something went wrong", problem.message)
+            assertEquals(fileOf(upload), problem.location)
+            assertEquals(problem.message, outcome.summary)
         }
     }
 
@@ -99,32 +148,21 @@ class FailureLocatorTest {
     fun `any other rejection of an upload points at the uploaded file`() {
         val failure = Failures.rejected(RuntimeRoute.SET_MODEL, RuntimeText.METAMODEL_REQUIRED, mapOf("env" to ENVIRONMENT.value))
 
-        val problem = locator.locate(DeployStepKind.UPLOAD_MODEL, LampPlans.model, failure)
+        val problem = problemOf(DeployStepKind.UPLOAD_MODEL, LampPlans.model, failure)
 
         assertEquals(DeployProblemCodes.RUNTIME_REJECTED, problem.code)
         assertEquals(fileOf(LampPlans.model), problem.location)
     }
 
     @Test
-    fun `an internal error on an upload says that the older parser could not read the file and quotes its text`() {
-        val text = "Cannot invoke \"org.antlr.v4.runtime.Token.getText()\" because the return value of \"name()\" is null"
+    fun `an internal error on an upload is an error of the runtime at the uploaded file with the runtime's text`() {
+        val text = "Cannot invoke \"String.length()\" because \"name\" is null"
 
-        val problem = locator.locate(DeployStepKind.UPLOAD_EVENTS, LampPlans.events, Failures.fault(RuntimeRoute.SET_EVENT_DEFINITIONS, text))
+        val problem = problemOf(DeployStepKind.UPLOAD_EVENTS, LampPlans.events, Failures.fault(RuntimeRoute.SET_EVENT_DEFINITIONS, text))
 
         assertEquals(DeployProblemCodes.RUNTIME_ERROR to Severity.ERROR, problem.code to problem.severity)
-        assertTrue("dsl-tools 1.0" in problem.message && "lamp-events.kmeta" in problem.message, problem.message)
-        assertTrue("\"$text\"" in problem.message, problem.message)
+        assertEquals("The runtime failed with an internal error while taking lamp-events.kmeta: $text", problem.message)
         assertEquals(fileOf(LampPlans.events), problem.location)
-    }
-
-    @Test
-    fun `an internal error naming an object of the model points at its declaration`() {
-        val failure = Failures.fault(RuntimeRoute.SET_MODEL, "Unknown property 'watts' for class type 'Bulb' in object 'spare'")
-
-        val problem = locator.locate(DeployStepKind.UPLOAD_MODEL, LampPlans.model, failure)
-
-        assertEquals(DeployProblemCodes.RUNTIME_ERROR, problem.code)
-        assertEquals(objectAt("spare"), problem.location)
     }
 
     @Test
@@ -135,7 +173,7 @@ class FailureLocatorTest {
             mapOf("env" to ENVIRONMENT.value, "keys" to "wallSwitch"),
         )
 
-        val problem = locator.locate(DeployStepKind.ACTIVATE, null, failure)
+        val problem = problemOf(DeployStepKind.ACTIVATE, null, failure)
 
         assertEquals(DeployProblemCodes.RUNTIME_REJECTED, problem.code)
         assertEquals(SourceLocation(LampPlans.descriptor, null, null), problem.location)
@@ -144,18 +182,18 @@ class FailureLocatorTest {
 
     @Test
     fun `a runtime that cannot be reached or lacks the IDE's routes fails the check`() {
-        val unreachable = locator.locate(DeployStepKind.CHECK_RUNTIME, null, Failures.unreachable(RuntimeRoute.HEALTH))
-        val lacking = locator.locate(
+        val unreachable = problemOf(DeployStepKind.CHECK_RUNTIME, null, Failures.unreachable(RuntimeRoute.HEALTH))
+        val lacking = problemOf(
             DeployStepKind.CHECK_RUNTIME,
             null,
             RuntimeFailure.UnexpectedStatus(RuntimeRoute.MODEL_SNAPSHOT, 404, "Not Found"),
         )
-        val foreign = locator.locate(
+        val foreign = problemOf(
             DeployStepKind.CHECK_RUNTIME,
             null,
             RuntimeFailure.Rejected(RuntimeRoute.MODEL_SNAPSHOT, 400, RejectionKind.UNCLASSIFIED, "nope", emptyMap()),
         )
-        val silent = locator.locate(DeployStepKind.CHECK_RUNTIME, null, Failures.noAnswer(RuntimeRoute.HEALTH))
+        val silent = problemOf(DeployStepKind.CHECK_RUNTIME, null, Failures.noAnswer(RuntimeRoute.HEALTH))
 
         assertEquals(DeployProblemCodes.RUNTIME_UNREACHABLE, unreachable.code)
         assertTrue("http://127.0.0.1:8080" in unreachable.message, unreachable.message)
@@ -192,7 +230,7 @@ class FailureLocatorTest {
         )
 
         cases.forEach { (kind, failure, code) ->
-            val problem = locator.locate(kind, null, failure)
+            val problem = problemOf(kind, null, failure)
 
             assertEquals(code to failure.describe(), problem.code to problem.message)
             assertNull(problem.location)
@@ -201,7 +239,7 @@ class FailureLocatorTest {
 
     @Test
     fun `an environment the runtime no longer knows is lost, also on an upload`() {
-        val problem = locator.locate(DeployStepKind.UPLOAD_MODEL, LampPlans.model, Failures.unknownEnvironment(RuntimeRoute.SET_MODEL))
+        val problem = problemOf(DeployStepKind.UPLOAD_MODEL, LampPlans.model, Failures.unknownEnvironment(RuntimeRoute.SET_MODEL))
 
         assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, problem.code)
         assertNull(problem.location)

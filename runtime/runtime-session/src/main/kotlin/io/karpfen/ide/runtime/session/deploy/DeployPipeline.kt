@@ -103,9 +103,9 @@ internal class DeployPipeline(private val steps: List<DeployStep>, private val c
                 }
                 is StepOutcome.Skipped -> board.update(index, StepStatus.SKIPPED, outcome.detail)
                 is StepOutcome.Failed -> {
-                    board.update(index, StepStatus.FAILED, outcome.problem.message)
-                    logger.info("Deployment of {} failed at '{}': {}", run.plan.name, step.title, outcome.problem.message)
-                    val failure = DeployFailure(board.step(index), outcome.problem, outcome.failure)
+                    board.update(index, StepStatus.FAILED, outcome.summary)
+                    logger.info("Deployment of {} failed at '{}': {}", run.plan.name, step.title, outcome.summary)
+                    val failure = DeployFailure(board.step(index), outcome.problems, outcome.failure)
                     return DeploymentResult.Failed(failure, cleanup.clean(run))
                 }
             }

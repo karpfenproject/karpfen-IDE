@@ -15,6 +15,9 @@
  */
 package io.karpfen.ide.runtime.protocol.conformance
 
+import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
+import io.karpfen.ide.runtime.protocol.catalogue.UploadError
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.message.JsonReading
 import io.karpfen.ide.runtime.protocol.message.RuntimeJson
 import io.karpfen.ide.runtime.protocol.message.WireValue
@@ -177,10 +180,20 @@ public object SynthesizedModels {
 
     /**
      * A failure input in the lamp's folder. It is the lamp's model with the spare bulb `spare` typed `Bulbb`, which the
-     * runtime's parser refuses with 400 `Unknown class type 'Bulbb' for object 'spare'`. Otherwise it equals
-     * `lamp.kmodel`. Scenarios upload it raw, and [copyTo] never copies it.
+     * runtime refuses with 400 and the body of [LAMP_UNKNOWN_TYPE_REJECTION]. Otherwise it equals `lamp.kmodel`.
+     * Scenarios upload it raw, and [copyTo] never copies it.
      */
     public const val LAMP_UNKNOWN_TYPE: String = "lamp-unknown-type.kmodel"
+
+    /**
+     * The runtime's answer to [LAMP_UNKNOWN_TYPE] uploaded as the model of an environment with the lamp's metamodel. The
+     * KModel reader of karpfen-dsl-tools, which the runtime reads uploads with, finds one error: the unknown class type
+     * at line 8, column 46, which is the first letter of `Bulbb` inside its quotes.
+     */
+    public val LAMP_UNKNOWN_TYPE_REJECTION: UploadRejection = UploadRejection(
+        RejectedUpload.Model,
+        listOf(UploadError(8, 46, "Unknown class type 'Bulbb' of object 'spare'", "kmodel.unknown-class-type")),
+    )
 
     /** The failure inputs of [model], which its folder holds besides the files its descriptor names. */
     public fun failureInputs(model: SynthesizedModel): List<String> =

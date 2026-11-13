@@ -18,13 +18,15 @@ package io.karpfen.ide.runtime.protocol.api
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
  * Covers [RejectionClassifier]. Every text of the runtime is classified as its kind with its placeholder values, also
- * with an empty environment key. Texts only match as a whole. An unknown text is a content rejection on the upload
- * routes and unclassified everywhere else.
+ * with an empty environment key. Texts only match as a whole. The body of a refused upload is a content rejection with
+ * its parsed body on the upload routes when it comes with 400. Any other text is unclassified, also on the upload
+ * routes.
  */
 class RejectionClassifierTest {
 
@@ -78,8 +80,8 @@ class RejectionClassifierTest {
     }
 
     @Test
-    fun `an unknown text is a content rejection on an upload route and unclassified elsewhere`() {
-        val parserText = "Unknown class type 'Lmap' for object 'lamp'"
+    fun `a refused upload is a content rejection with its parsed body on every upload route`() {
+        val body = "Upload of the model rejected: 1 error\n8:46: Unknown class type 'Bulbb' of object 'spare' (kmodel.unknown-class-type)"
         val uploads = RuntimeRoute.entries.filter { it.body.modelingText }
 
         assertEquals(
@@ -87,14 +89,38 @@ class RejectionClassifierTest {
             uploads,
         )
         uploads.forEach { route ->
-            listOf(400, 409).forEach { status ->
-                val rejection = RejectionClassifier.classify(route, status, parserText)
-                assertEquals(RejectionKind.CONTENT_REJECTED, rejection.kind)
-                assertEquals(emptyMap(), rejection.captured)
-            }
+            val rejection = RejectionClassifier.classify(route, 400, body)
+
+            assertEquals(RejectionKind.CONTENT_REJECTED, rejection.kind, "$route")
+            assertEquals(UploadRejection.parse(body), rejection.content)
+            assertEquals(body, rejection.message)
+            assertEquals(emptyMap(), rejection.captured)
         }
-        (RuntimeRoute.entries - uploads.toSet()).forEach { route ->
-            assertEquals(RejectionKind.UNCLASSIFIED, RejectionClassifier.classify(route, 400, parserText).kind)
+    }
+
+    @Test
+    fun `a refused upload's body with 409 or on a route without an upload is unclassified`() {
+        val body = "Upload of the metamodel rejected: 1 error\n1:1: KMeta content defines no type (kmeta.no-types)"
+
+        val conflict = RejectionClassifier.classify(RuntimeRoute.SET_METAMODEL, 409, body)
+
+        assertEquals(RejectionKind.UNCLASSIFIED to null, conflict.kind to conflict.content)
+        (RuntimeRoute.entries.filter { !it.body.modelingText }).forEach { route ->
+            assertEquals(RejectionKind.UNCLASSIFIED, RejectionClassifier.classify(route, 400, body).kind, "$route")
+        }
+    }
+
+    @Test
+    fun `an unknown text is unclassified on an upload route as on every other route`() {
+        val unknown = "Unknown class type 'Lmap' for object 'lamp'"
+
+        RuntimeRoute.entries.forEach { route ->
+            listOf(400, 409).forEach { status ->
+                val rejection = RejectionClassifier.classify(route, status, unknown)
+
+                assertEquals(RejectionKind.UNCLASSIFIED to null, rejection.kind to rejection.content, "$route with $status")
+                assertEquals(unknown, rejection.message)
+            }
         }
     }
 

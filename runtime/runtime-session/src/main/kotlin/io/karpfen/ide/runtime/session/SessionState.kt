@@ -67,10 +67,18 @@ public sealed interface SessionState {
     /**
      * The deployment failed, or the session lost its environment or its connection for good.
      *
-     * @property problem why.
+     * @property problems why, at least one problem. A deployment that failed because the runtime refused an upload for
+     *   its content has one problem per error in the uploaded file. Every other failure has one problem.
      * @property leftBehind the ledger entry of the environment that stays on the runtime, or null if none stays.
      */
-    public data class Failed(public val problem: DeployProblem, public val leftBehind: LedgerEntry?) : SessionState
+    public data class Failed(public val problems: List<DeployProblem>, public val leftBehind: LedgerEntry?) : SessionState {
+        init {
+            require(problems.isNotEmpty()) { "a failed session has at least one problem" }
+        }
+
+        /** The session failed for the one [problem], leaving [leftBehind] on the runtime. */
+        public constructor(problem: DeployProblem, leftBehind: LedgerEntry?) : this(listOf(problem), leftBehind)
+    }
 
     /** The session was closed. It does nothing any more. */
     public data object Closed : SessionState

@@ -116,7 +116,10 @@ public object DeployProblemCodes {
     /** The runtime did not answer in time, or the connection broke during a call. This is an error. */
     public const val RUNTIME_NO_ANSWER: String = "runtime-no-answer"
 
-    /** The runtime refused a call with 400 or 409 and its text. This is an error. */
+    /**
+     * The runtime refused a call with 400 or 409 and its text. An upload refused for the errors in its text gives one
+     * such problem per error, at its place in the uploaded file. This is an error.
+     */
     public const val RUNTIME_REJECTED: String = "runtime-rejected"
 
     /** The runtime failed with an internal error, status 500. This is an error. */

@@ -172,7 +172,7 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
         val session = launch(prepared, options)
         val state = awaitValue("the end of the deployment of ${prepared.plan.name}", session.state, within) { it != SessionState.Deploying }
         when {
-            state is SessionState.Failed -> fail("The deployment of ${prepared.plan.name} failed: ${state.problem}. $diagnostics")
+            state is SessionState.Failed -> fail("The deployment of ${prepared.plan.name} failed: ${state.problems}. $diagnostics")
             options.start -> assertIs<SessionState.Running>(state, diagnostics)
             else -> assertIs<SessionState.Ready>(state, diagnostics)
         }

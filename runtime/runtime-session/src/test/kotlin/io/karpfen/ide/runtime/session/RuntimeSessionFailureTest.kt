@@ -15,10 +15,16 @@
  */
 package io.karpfen.ide.runtime.session
 
+import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.text.TextRange
+import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.UploadError
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
+import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModels
 import io.karpfen.ide.runtime.protocol.connection.ReconnectPolicy
 import io.karpfen.ide.runtime.protocol.fake.FakeResponse
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
@@ -26,7 +32,9 @@ import io.karpfen.ide.runtime.protocol.transport.TransportFailure
 import io.karpfen.ide.runtime.session.deploy.DeployStepKind
 import io.karpfen.ide.runtime.session.deploy.LedgerDisposition
 import io.karpfen.ide.runtime.session.deploy.StepStatus
+import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
+import io.karpfen.ide.runtime.session.problem.SourceLocation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -68,11 +76,11 @@ class RuntimeSessionFailureTest {
         val session = rig.launch(deployment)
         val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it != SessionState.Deploying })
 
-        assertEquals(case.code, failed.problem.code, "the problem of a failure at $step: ${failed.problem} in ${session.progress.value.current}")
+        assertEquals(listOf(case.code), failed.problems.map { it.code }, "the problem of a failure at $step: ${failed.problems} in ${session.progress.value.current}")
         assertEquals(case.leftBehind, failed.leftBehind?.disposition, "what stays after a failure at $step")
         assertEquals(listOfNotNull(case.leftBehind), rig.ledger.entries.value.map { it.disposition })
         assertEquals(step, session.progress.value.steps.single { it.status == StepStatus.FAILED }.kind)
-        assertTrue(failed.problem in session.problems.value, "${session.problems.value}")
+        assertTrue(session.problems.value.containsAll(failed.problems), "${session.problems.value}")
         if (case.leftBehind != null && case.leftBehind != LedgerDisposition.UNKNOWN) {
             assertTrue(session.problems.value.any { it.code == DeployProblemCodes.ENVIRONMENT_LEFT_BEHIND }, "${session.problems.value}")
         }
@@ -102,6 +110,49 @@ class RuntimeSessionFailureTest {
     }
 
     @Test
+    fun `a model the runtime refuses for two errors fails the session with one problem at the place of each error`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val model = deployment.prepared.plan.model
+        rig.fake.respond(RuntimeRoute.MODEL_SNAPSHOT, SessionRig.missingEnvironmentKey())
+        val rejection = UploadRejection(
+            RejectedUpload.Model,
+            listOf(
+                UploadError(2, 5, "Unknown relation 'lamb' of class type 'Room'", "kmodel.unknown-relation"),
+                UploadError(4, 200, "'warm' is not a number, but prop 'watts' is of type 'number'", "kmodel.invalid-number"),
+            ),
+        )
+        rig.fake.respond(RuntimeRoute.SET_MODEL, FakeResponse.rejected(rejection))
+
+        val session = rig.launch(deployment)
+        val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it != SessionState.Deploying })
+
+        val snapshot = model.snapshot
+        assertEquals(
+            listOf(
+                DeployProblem(
+                    Severity.ERROR,
+                    DeployProblemCodes.RUNTIME_REJECTED,
+                    "The runtime refused lamp.kmodel: Unknown relation 'lamb' of class type 'Room'",
+                    SourceLocation(model.file, TextRange.empty(snapshot.offsetOf(1, 4)), snapshot),
+                ),
+                DeployProblem(
+                    Severity.ERROR,
+                    DeployProblemCodes.RUNTIME_REJECTED,
+                    "The runtime refused lamp.kmodel: 'warm' is not a number, but prop 'watts' is of type 'number'",
+                    SourceLocation(model.file, TextRange.empty(snapshot.lineRange(3).end), snapshot),
+                ),
+            ),
+            failed.problems,
+        )
+        assertTrue(session.problems.value.containsAll(failed.problems), "${session.problems.value}")
+        val step = session.progress.value.steps.single { it.status == StepStatus.FAILED }
+        assertEquals(DeployStepKind.UPLOAD_MODEL to "The runtime refused lamp.kmodel with 2 errors.", step.kind to step.detail)
+        assertEquals(listOf(LedgerDisposition.LEFT_CONFIGURED), rig.ledger.entries.value.map { it.disposition })
+        session.close()
+    }
+
+    @Test
     fun `a handshake the runtime rejects after the deployment's checks fails the session and stops the environment`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
@@ -112,7 +163,7 @@ class RuntimeSessionFailureTest {
         val session = rig.launch(deployment)
         val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it is SessionState.Failed && it.leftBehind != null })
 
-        assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED, failed.problem.code)
+        assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED, failed.problems.single().code)
         assertEquals(LedgerDisposition.STOPPED, failed.leftBehind?.disposition)
         assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
         assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
@@ -129,7 +180,7 @@ class RuntimeSessionFailureTest {
         val session = rig.launch(deployment)
         val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it != SessionState.Deploying })
 
-        assertEquals(DeployProblemCodes.RUNTIME_INCOMPATIBLE, failed.problem.code)
+        assertEquals(DeployProblemCodes.RUNTIME_INCOMPATIBLE, failed.problems.single().code)
         assertNull(failed.leftBehind)
         assertEquals(listOf(RuntimeRoute.HEALTH, RuntimeRoute.MODEL_SNAPSHOT), rig.fake.requests.map { it.route })
         assertEquals(emptyList(), rig.ledger.entries.value)
@@ -145,7 +196,7 @@ class RuntimeSessionFailureTest {
         val session = rig.launch(deployment)
         val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it != SessionState.Deploying })
 
-        assertEquals(DeployProblemCodes.ENGINE_HALTED, failed.problem.code)
+        assertEquals(DeployProblemCodes.ENGINE_HALTED, failed.problems.single().code)
         assertEquals(LedgerDisposition.STOPPED, failed.leftBehind?.disposition)
         assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
         assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
@@ -184,11 +235,11 @@ class RuntimeSessionFailureTest {
                 Failure(DeployProblemCodes.RUNTIME_ERROR, configured)
             }
             DeployStepKind.UPLOAD_EVENTS -> {
-                fake.respond(RuntimeRoute.SET_EVENT_DEFINITIONS, FakeResponse(FakeResponse.BAD_REQUEST, "KMeta content does not define any types", FakeResponse.TEXT))
+                fake.respond(RuntimeRoute.SET_EVENT_DEFINITIONS, FakeResponse(FakeResponse.BAD_REQUEST, "Something the client does not know", FakeResponse.TEXT))
                 Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
             }
             DeployStepKind.UPLOAD_MODEL -> {
-                fake.respond(RuntimeRoute.SET_MODEL, FakeResponse(FakeResponse.BAD_REQUEST, "Unknown class type 'Bulbb' for object 'spare'", FakeResponse.TEXT))
+                fake.respond(RuntimeRoute.SET_MODEL, FakeResponse.rejected(SynthesizedModels.LAMP_UNKNOWN_TYPE_REJECTION))
                 Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
             }
             DeployStepKind.ATTACH_STATE_MACHINE -> {

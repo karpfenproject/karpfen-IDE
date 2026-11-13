@@ -56,7 +56,8 @@ import kotlin.test.assertTrue
  * - Every route behaves in a configuring, an activated, a running and a stopped environment with the exact statuses
  *   and texts of the catalogue. A state forced in a running environment is applied at its next tick.
  * - Uploads the runtime refuses leave the environment configuring. These are an unknown type, an attachment to a
- *   missing object and a reference loop.
+ *   missing object and a reference loop. A model with an unknown type is refused with 400 and the body that lists its
+ *   one error with its line, column and code, and the environment stays without a model.
  * - Environment keys are unique and access keys are single-use, both in the runtime's shapes.
  * - The handshake is silent, and it has three refusals.
  * - The snapshot has its member order and the revision 0 before the start. Its roots are written like `objectChanged`
@@ -282,11 +283,13 @@ abstract class RuntimeContract {
         val unknownType = create()
         ok(RuntimeRoute.SET_METAMODEL, ENV_KEY to unknownType, upload = lamp(LAMP_FILES.metamodel))
         val refused = call(RuntimeRoute.SET_MODEL, ENV_KEY to unknownType, body = lamp(SynthesizedModels.LAMP_UNKNOWN_TYPE))
-        assertEquals(BAD_REQUEST to "Unknown class type 'Bulbb' for object 'spare'", refused.status to refused.body)
+        assertEquals(BAD_REQUEST to SynthesizedModels.LAMP_UNKNOWN_TYPE_REJECTION.render(), refused.status to refused.body)
+        val classified = RejectionClassifier.classify(RuntimeRoute.SET_MODEL, refused.status, refused.body)
         assertEquals(
-            RejectionKind.CONTENT_REJECTED,
-            RejectionClassifier.classify(RuntimeRoute.SET_MODEL, refused.status, refused.body).kind,
+            RejectionKind.CONTENT_REJECTED to SynthesizedModels.LAMP_UNKNOWN_TYPE_REJECTION,
+            classified.kind to classified.content,
         )
+        rejected(CONFLICT, RuntimeText.NO_MODEL, mapOf("env" to unknownType), RuntimeRoute.MODEL_SNAPSHOT, ENV_KEY to unknownType)
 
         val ghost = create()
         uploadLampModels(ghost)

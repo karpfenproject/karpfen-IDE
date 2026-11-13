@@ -16,15 +16,17 @@
 package io.karpfen.ide.runtime.session.deploy
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.runtime.protocol.api.Reach
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
+import io.karpfen.ide.runtime.protocol.catalogue.UploadError
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleRefusal
 import io.karpfen.ide.runtime.session.plan.DeploymentPlan
 import io.karpfen.ide.runtime.session.plan.PlannedUpload
-import io.karpfen.ide.runtime.session.plan.UploadRole
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.problem.SourceLocation
@@ -33,50 +35,55 @@ import io.karpfen.ide.runtime.session.problem.SourceLocation
  * Turns the runtime's failures during a deployment into problems. Each problem is located in the workspace where the
  * failure points.
  *
- * - A rejection of an uploaded text, or an internal error while reading it, points at that upload's file. When the
- *   text is a known text of the runtime's parser that names an object, it points at that object's declaration in the
- *   model instead. A rejection saying that the environment does not exist is the one exception. It is about the
- *   environment, not about the upload.
- * - An internal error on an upload says that the runtime's older parser could not read the file, and it quotes the
- *   parser's text.
+ * - An upload the runtime refused for its content becomes one problem per error the runtime lists, in the order of
+ *   the text. Each points at the place of its error in the uploaded text, which is the text the deployment analyzed
+ *   and sent. The runtime names only where an error starts, so the range of a problem is that position, empty, and
+ *   clamped into the text. Each message says that the runtime refused the file and gives the runtime's message for
+ *   the error.
+ * - Any other rejection of an upload is one problem at the uploaded file with the runtime's text. A rejection saying
+ *   that the environment does not exist is the one exception. It is about the environment, not about the upload.
+ * - An internal error of the runtime on an upload is an error of the runtime at the uploaded file, with the runtime's
+ *   text.
  * - An activation refused because a machine is attached to a key that the model lacks points at the descriptor.
  * - A failure while checking the runtime means the runtime is unreachable or incompatible.
  * - Every other failure has no location and is described by the failure itself, see [unlocated].
  *
- * The parser texts are those of the runtime's dsl-tools 1.0 converters `KmetaDSLConverter`, `KmodelDSLConverter` and
- * `KstatesDSLConverter` in `dsl/textual`, at the commit the runtime pins.
- *
- * @param plan the plan deployed, whose declarations locate the subjects of the parser's texts.
+ * @param plan the plan deployed, whose descriptor locates a refused activation.
  * @param endpoint the runtime deployed to, named in the problems.
  */
 internal class FailureLocator(private val plan: DeploymentPlan, private val endpoint: RuntimeEndpoint) {
 
-    /** The problem of [failure] in a step of [kind], which uploads [upload] if it is an upload step. */
-    fun locate(kind: DeployStepKind, upload: PlannedUpload?, failure: RuntimeFailure): DeployProblem =
+    /** The failed outcome of a step of [kind] for [failure], located in [upload] if the step uploads it. */
+    fun locate(kind: DeployStepKind, upload: PlannedUpload?, failure: RuntimeFailure): StepOutcome.Failed =
         when {
-            kind == DeployStepKind.CHECK_RUNTIME && failure.reach == Reach.ANSWERED -> problem(
+            kind == DeployStepKind.CHECK_RUNTIME && failure.reach == Reach.ANSWERED -> single(
                 DeployProblemCodes.RUNTIME_INCOMPATIBLE,
                 "The runtime at ${endpoint.httpBase} lacks the IDE's routes or is not a karpfen runtime with IDE support: " +
                     failure.describe(),
                 null,
+                failure,
             )
-            upload != null && failure is RuntimeFailure.ServerFault -> problem(
+            upload != null && failure is RuntimeFailure.ServerFault -> single(
                 DeployProblemCodes.RUNTIME_ERROR,
-                "The runtime's older parser (dsl-tools 1.0) could not read ${upload.fileName}: \"${failure.message}\"",
-                subjectOf(failure.message, upload) ?: fileOf(upload),
+                "The runtime failed with an internal error while taking ${upload.fileName}: ${failure.message}",
+                fileOf(upload),
+                failure,
             )
-            upload != null && failure is RuntimeFailure.Rejected && failure.kind != RejectionKind.UNKNOWN_ENVIRONMENT -> problem(
-                DeployProblemCodes.RUNTIME_REJECTED,
-                "The runtime refused ${upload.fileName}: ${failure.message}",
-                subjectOf(failure.message, upload) ?: fileOf(upload),
-            )
+            upload != null && failure is RuntimeFailure.Rejected && failure.kind != RejectionKind.UNKNOWN_ENVIRONMENT ->
+                failure.content?.let { content -> refusedContent(upload, content, failure) } ?: single(
+                    DeployProblemCodes.RUNTIME_REJECTED,
+                    "The runtime refused ${upload.fileName}: ${failure.message}",
+                    fileOf(upload),
+                    failure,
+                )
             kind == DeployStepKind.ACTIVATE && failure is RuntimeFailure.Rejected && failure.kind == RejectionKind.UNKNOWN_ATTACHMENT ->
-                problem(
+                single(
                     DeployProblemCodes.RUNTIME_REJECTED,
                     "The runtime refused the activation: ${failure.message}",
                     SourceLocation(plan.descriptor, null, null),
+                    failure,
                 )
-            else -> unlocated(failure)
+            else -> StepOutcome.Failed(unlocated(failure), failure)
         }
 
     /** The problem of a call the environment's handle refused in its phase, without sending it. */
@@ -122,27 +129,35 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
                 problem(DeployProblemCodes.RUNTIME_INCOMPATIBLE, failure.describe(), null)
         }
 
-    /** The declaration of the subject a known parser [text] names, in the file of [upload], or null. */
-    private fun subjectOf(text: String, upload: PlannedUpload): SourceLocation? {
-        if (upload.role != UploadRole.MODEL) return null
-        val key = OBJECT_TEXTS.firstNotNullOfOrNull { pattern -> pattern.matchEntire(text)?.groupValues?.last() } ?: return null
-        return plan.locations.objectIn(upload.file, key)
+    /**
+     * The failed outcome of [upload], which the runtime refused for its [content] with [failure]. It has one problem
+     * per error. With one error the problem's message is the summary, otherwise the summary counts the errors.
+     */
+    private fun refusedContent(upload: PlannedUpload, content: UploadRejection, failure: RuntimeFailure): StepOutcome.Failed {
+        val problems = content.errors.map { error ->
+            problem(DeployProblemCodes.RUNTIME_REJECTED, "The runtime refused ${upload.fileName}: ${error.message}", placeOf(error, upload))
+        }
+        val summary = problems.singleOrNull()?.message ?: "The runtime refused ${upload.fileName} with ${problems.size} errors."
+        return StepOutcome.Failed(summary, problems, failure)
+    }
+
+    /**
+     * The place of [error] in the text of [upload]. The runtime counts lines and columns from 1, and the text counts
+     * them from 0. A line or a column beyond the text is clamped to the end of the text or of its line.
+     */
+    private fun placeOf(error: UploadError, upload: PlannedUpload): SourceLocation {
+        val offset = upload.snapshot.offsetOf(error.line - 1, error.column - 1)
+        return SourceLocation(upload.file, TextRange.empty(offset), upload.snapshot)
     }
 
     /** The file of [upload] as a whole. */
     private fun fileOf(upload: PlannedUpload): SourceLocation = SourceLocation(upload.file, null, upload.snapshot)
 
+    /** The failed outcome of [failure] that is one ERROR with [code], [message] and [location]. */
+    private fun single(code: String, message: String, location: SourceLocation?, failure: RuntimeFailure): StepOutcome.Failed =
+        StepOutcome.Failed(problem(code, message, location), failure)
+
     /** An ERROR with [code], [message] and [location]. */
     private fun problem(code: String, message: String, location: SourceLocation?): DeployProblem =
         DeployProblem(Severity.ERROR, code, message, location)
-
-    private companion object {
-        /** The texts of the runtime's model parser that name an object, with the object's key as their last group. */
-        private val OBJECT_TEXTS = listOf(
-            Regex("Unknown class type '(.*)' for object '(.*)'"),
-            Regex("Unknown property '(.*)' for class type '(.*)' in object '(.*)'"),
-            Regex("Unknown object property '(.*)' for class type '(.*)' in object '(.*)'"),
-            Regex("Could not resolve reference to object with id '(.*)' in property '(.*)' of object '(.*)'"),
-        )
-    }
 }

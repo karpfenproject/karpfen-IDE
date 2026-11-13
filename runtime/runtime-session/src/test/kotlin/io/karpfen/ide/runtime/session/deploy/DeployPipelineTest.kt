@@ -235,7 +235,7 @@ class DeployPipelineTest {
 
         assertEquals(4_000, currentTime - started)
         assertEquals(DeployStepKind.ACTIVATE, failed.failure.step.kind)
-        assertEquals(DeployProblemCodes.CONNECTION_LOST to Severity.ERROR, failed.failure.problem.code to failed.failure.problem.severity)
+        assertEquals(DeployProblemCodes.CONNECTION_LOST to Severity.ERROR, failed.failure.problems.single().code to failed.failure.problems.single().severity)
         assertEquals(emptyList(), rig.script.callsOf("activate"))
     }
 
@@ -247,8 +247,8 @@ class DeployPipelineTest {
         val failed = rig.deploy().failed()
 
         assertEquals(DeployStepKind.ACTIVATE, failed.failure.step.kind)
-        assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED, failed.failure.problem.code)
-        assertTrue("Invalid credentials" in failed.failure.problem.message, failed.failure.problem.message)
+        assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED, failed.failure.problems.single().code)
+        assertTrue("Invalid credentials" in failed.failure.problems.single().message, failed.failure.problems.single().message)
         assertEquals(listOf("disconnect", "close"), rig.script.callsAfter("awaitOpen"))
         assertEquals(LedgerDisposition.LEFT_CONFIGURED, failed.cleanup.leftBehind?.disposition)
     }
@@ -262,7 +262,7 @@ class DeployPipelineTest {
         val failed = rig.deploy().failed()
 
         assertEquals(DeployStepKind.START, failed.failure.step.kind)
-        assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED, failed.failure.problem.code)
+        assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED, failed.failure.problems.single().code)
         assertEquals(emptyList(), rig.script.callsOf("start"))
         assertEquals(listOf("stop", "disconnect", "close"), rig.script.callsAfter("awaitOpen"))
         assertEquals(LedgerDisposition.STOPPED, failed.cleanup.leftBehind?.disposition)
@@ -276,7 +276,7 @@ class DeployPipelineTest {
         val failed = rig.deploy().failed()
 
         assertEquals(DeployStepKind.CONNECT, failed.failure.step.kind)
-        assertEquals(DeployProblemCodes.CONNECTION_LOST, failed.failure.problem.code)
+        assertEquals(DeployProblemCodes.CONNECTION_LOST, failed.failure.problems.single().code)
         assertNull(failed.failure.failure)
         assertEquals(emptyList(), rig.script.callsOf("setMetamodel"))
     }
@@ -313,7 +313,7 @@ class DeployPipelineTest {
         val failed = rig.deploy().failed()
 
         assertEquals(DeployStepKind.CONFIRM_START, failed.failure.step.kind)
-        assertEquals(DeployProblemCodes.ENGINE_HALTED to Severity.ERROR, failed.failure.problem.code to failed.failure.problem.severity)
+        assertEquals(DeployProblemCodes.ENGINE_HALTED to Severity.ERROR, failed.failure.problems.single().code to failed.failure.problems.single().severity)
         assertEquals(listOf("stop", "disconnect", "close"), rig.script.callsAfter("pull"))
         assertEquals(LedgerDisposition.STOPPED, failed.cleanup.leftBehind?.disposition)
     }

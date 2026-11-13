@@ -172,7 +172,7 @@ class RuntimeSessionContractTest {
         val requests = CompletableDeferred<DeployRequest>()
         val failure = DeployFailure(
             StepProgress(DeployStepKind.CREATE, "Creating the environment", StepStatus.FAILED, "Unexpected error"),
-            DeployProblem(Severity.ERROR, DeployProblemCodes.RUNTIME_ERROR, "Unexpected error", null),
+            listOf(DeployProblem(Severity.ERROR, DeployProblemCodes.RUNTIME_ERROR, "Unexpected error", null)),
             null,
         )
         val deployer = Deployer { request, _ ->
@@ -192,7 +192,7 @@ class RuntimeSessionContractTest {
         assertSame(rig.client, request.client)
         assertEquals(session.clientId, request.clientId)
         assertEquals(options, request.options)
-        assertEquals(SessionState.Failed(failure.problem, null), rig.awaitState(session) { it is SessionState.Failed })
+        assertEquals(SessionState.Failed(failure.problems, null), rig.awaitState(session) { it is SessionState.Failed })
         session.close()
     }
 

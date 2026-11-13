@@ -514,10 +514,11 @@ paused, because halted already means that the engine ended on its own. `Debugger
 tool window, and `DiagramLives` hands the paused place to an open statechart, which frames it. Problems carry a code, such as `deploy-unsaved-file` or
 `deploy-reference-loop`.
 
-The runtime reads uploads with its older parser, so a text that the IDE reads cleanly may still be rejected without a
-position. The run is blocked on the IDE's own findings before anything is uploaded, `FailureLocator` maps the known
-texts of the runtime's parser to the declaration they name, and the first snapshot is compared with the model the IDE
-analyzed. Each object that differs gets the warning `deploy-model-differs`.
+The runtime reads uploads with the readers of dsl-tools 2.0, the library the IDE reads with. The run is blocked on the
+IDE's own findings before anything is uploaded, so the runtime rarely refuses a file the IDE accepted. When it does,
+it answers with every error of the text and its line and column. `UploadRejection` of runtime-protocol parses that
+answer, and `FailureLocator` turns each error into a problem at its place in the uploaded file. The first snapshot is
+compared with the model the IDE analyzed. Each object that differs gets the warning `deploy-model-differs`.
 
 Read `ObservationReducer`. A mirror starts from a snapshot and then applies pushes in revision order. A gap in the
 revisions or a reconnect triggers a fresh snapshot. The runtime answers a snapshot only at a tick boundary and waits

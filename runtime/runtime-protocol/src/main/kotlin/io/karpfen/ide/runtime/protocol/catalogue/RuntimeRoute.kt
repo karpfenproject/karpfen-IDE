@@ -30,8 +30,8 @@ public enum class HttpVerb {
 /**
  * What a [RuntimeRoute] takes as its request body.
  *
- * @property modelingText true for a modeling text, which the runtime's parser reads. A rejection of such a body with a
- *   text of its own is a rejection of the uploaded content.
+ * @property modelingText true for a modeling text, which the runtime reads with the readers of karpfen-dsl-tools. Only
+ *   a route with such a body can be refused for its content, with the body that [UploadRejection] parses.
  */
 public enum class BodyKind(public val modelingText: Boolean) {
     /** No body. */

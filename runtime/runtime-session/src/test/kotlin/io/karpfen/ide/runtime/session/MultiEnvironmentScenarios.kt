@@ -183,7 +183,7 @@ abstract class MultiEnvironmentScenarios {
         val rejected = rawEnvironment()
         upload(rejected, RuntimeRoute.SET_METAMODEL, SynthesizedModel.LAMP, "lamp.kmeta")
         val refused = call(RuntimeRoute.SET_MODEL, "envKey" to rejected, body = SynthesizedModels.text(SynthesizedModel.LAMP, SynthesizedModels.LAMP_UNKNOWN_TYPE))
-        assertEquals(BAD_REQUEST to "Unknown class type 'Bulbb' for object 'spare'", refused.status to refused.body)
+        assertEquals(BAD_REQUEST to SynthesizedModels.LAMP_UNKNOWN_TYPE_REJECTION.render(), refused.status to refused.body)
         neighboursReact()
 
         val ghost = rawEnvironment()

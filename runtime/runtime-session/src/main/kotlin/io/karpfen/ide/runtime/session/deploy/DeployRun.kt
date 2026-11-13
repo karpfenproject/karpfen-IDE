@@ -117,9 +117,8 @@ internal class DeployRun(
         listener.connected(connection)
     }
 
-    /** The failed outcome of the running step for [failure], located at [upload] if the step uploads it. */
-    fun failed(failure: RuntimeFailure, upload: PlannedUpload? = null): StepOutcome.Failed =
-        StepOutcome.Failed(locator.locate(stepKind, upload, failure), failure)
+    /** The failed outcome of the running step for [failure], located in [upload] if the step uploads it. */
+    fun failed(failure: RuntimeFailure, upload: PlannedUpload? = null): StepOutcome.Failed = locator.locate(stepKind, upload, failure)
 
     /**
      * The outcome of the running step for the call [outcome]. A call that succeeded leads to [done] with its value. A

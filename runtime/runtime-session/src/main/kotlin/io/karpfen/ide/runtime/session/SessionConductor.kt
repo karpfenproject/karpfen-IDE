@@ -343,16 +343,16 @@ internal class SessionConductor(
     }
 
     /**
-     * Takes the end of the deployment. A failed deployment fails the session with its problem and with what its
-     * cleanup left behind. Shutdowns that waited for the deployment run afterwards.
+     * Takes the end of the deployment. A failed deployment raises its problems and fails the session with them and with
+     * what its cleanup left behind. Shutdowns that waited for the deployment run afterwards.
      */
     private suspend fun deployEnded(result: DeploymentResult) {
         when (result) {
             is DeploymentResult.Deployed -> deployed(result)
             is DeploymentResult.Failed -> {
-                raise(result.failure.problem)
+                result.failure.problems.forEach(::raise)
                 result.cleanup.leftBehind?.leftBehind()?.let(::raise)
-                publish(SessionState.Failed(result.failure.problem, result.cleanup.leftBehind))
+                publish(SessionState.Failed(result.failure.problems, result.cleanup.leftBehind))
             }
         }
         shutdownsAfterDeployment.toList().also { shutdownsAfterDeployment.clear() }.forEach(::shutdown)

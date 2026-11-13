@@ -295,7 +295,7 @@ class RuntimeSessionLifecycleTest {
         rig.linkOf(session).drop()
         val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it is SessionState.Failed })
 
-        assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, failed.problem.code)
+        assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, failed.problems.single().code)
         assertEquals(listOf(LedgerDisposition.LOST), rig.ledger.entries.value.map { it.disposition })
         assertIs<ConnectionState.Ended>(session.connection.value)
         session.close()

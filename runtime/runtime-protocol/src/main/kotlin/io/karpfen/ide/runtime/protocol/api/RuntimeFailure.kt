@@ -17,6 +17,7 @@ package io.karpfen.ide.runtime.protocol.api
 
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.message.ProtocolViolation
 
 /** How far a failed call got, which decides whether the runtime may have applied it. */
@@ -78,11 +79,13 @@ public sealed interface RuntimeFailure {
      * The runtime refused the call with 400 or 409 and one of its texts.
      *
      * @property status the HTTP status, 400 or 409.
-     * @property kind the kind of the text, [RejectionKind.CONTENT_REJECTED] or [RejectionKind.UNCLASSIFIED] if it is
-     *   none of the known texts.
+     * @property kind the kind of the text. It is [RejectionKind.CONTENT_REJECTED] for an upload whose text has errors,
+     *   and [RejectionKind.UNCLASSIFIED] for a text the client does not know.
      * @property message the body, the runtime's text.
      * @property captured the placeholder values of the matched text, such as the parameter name of a missing parameter.
-     *   It is empty for a text without placeholders and for an unknown text.
+     *   It is empty for a text without placeholders, for a refused upload and for an unknown text.
+     * @property content the parsed body of an upload refused for its content. It is present exactly when [kind] is
+     *   [RejectionKind.CONTENT_REJECTED], and it lists the errors with their places in the uploaded text.
      */
     public data class Rejected(
         override val route: RuntimeRoute,
@@ -90,7 +93,14 @@ public sealed interface RuntimeFailure {
         public val kind: RejectionKind,
         public val message: String,
         public val captured: Map<String, String>,
+        public val content: UploadRejection? = null,
     ) : RuntimeFailure {
+        init {
+            require((kind == RejectionKind.CONTENT_REJECTED) == (content != null)) {
+                "exactly a rejection of the content carries the parsed body: $kind with $content"
+            }
+        }
+
         override val reach: Reach get() = Reach.ANSWERED
 
         override fun describe(): String = sentence("The runtime rejected ${call(route)} with status $status: $message")

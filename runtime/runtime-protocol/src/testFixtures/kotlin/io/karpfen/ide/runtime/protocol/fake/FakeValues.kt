@@ -18,11 +18,12 @@ package io.karpfen.ide.runtime.protocol.fake
 import io.karpfen.ide.runtime.protocol.catalogue.HttpVerb
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 
 /**
  * An answer that a test programs for the [FakeRuntime], exactly as the runtime would send it. It has a status, a body
  * and a content type. The body is a literal text, usually one of the runtime goldens, written with the runtime wire
- * writer or rendered from a [RuntimeText].
+ * writer or rendered from a [RuntimeText] or an [UploadRejection].
  *
  * @property status the HTTP status.
  * @property body the response body.
@@ -60,6 +61,9 @@ public data class FakeResponse(public val status: Int, public val body: String =
         /** A rejection with [status] and the runtime's [text] rendered with [values]. */
         public fun rejected(status: Int, text: RuntimeText, values: Map<String, String> = emptyMap()): FakeResponse =
             FakeResponse(status, text.render(values), TEXT)
+
+        /** The rejection of an upload whose text has errors, with the status 400 and the body of [rejection]. */
+        public fun rejected(rejection: UploadRejection): FakeResponse = FakeResponse(BAD_REQUEST, rejection.render(), TEXT)
     }
 }
 

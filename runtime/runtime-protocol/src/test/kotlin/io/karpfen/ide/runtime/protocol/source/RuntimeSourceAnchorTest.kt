@@ -45,8 +45,9 @@ import kotlin.test.assertTrue
  * - The names of the debugger's features, their messages and the members of the breakpoint status.
  * - The `engineStatus` push of that status to every connected client when the engine thread waits and goes on.
  *
- * A failure names the file and the snippet that no longer occurs. The texts of the runtime's older dsl-tools parser
- * are not anchored. The live runs cover them.
+ * A failure names the file and the snippet that no longer occurs. The body with which the runtime refuses an upload
+ * for the errors in its text, which `UploadRejection` reads, is not anchored, and neither are the messages of the
+ * dsl-tools readers in it. The live runs cover them.
  *
  * Moving the karpfen-runtime submodule makes these anchors, the route completeness and the template goldens fail
  * exactly where facts changed. Then update the catalogue, the fake runtime's defaults and the runtime goldens together

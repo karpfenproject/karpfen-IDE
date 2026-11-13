@@ -53,8 +53,17 @@ internal sealed interface StepOutcome {
     /**
      * The step failed. The deployment stops here.
      *
-     * @property problem the problem the failure is.
+     * @property summary what went wrong, in one sentence, which the progress shows as the detail of the failed step.
+     * @property problems the problems the failure is, at least one. A refused upload has one problem per error the
+     *   runtime found in its text, in the order of the text.
      * @property failure the runtime's failure behind it, or null.
      */
-    data class Failed(val problem: DeployProblem, val failure: RuntimeFailure?) : StepOutcome
+    data class Failed(val summary: String, val problems: List<DeployProblem>, val failure: RuntimeFailure?) : StepOutcome {
+        init {
+            require(problems.isNotEmpty()) { "a failed step has at least one problem" }
+        }
+
+        /** A failure that is the one [problem], summarized by its message. */
+        constructor(problem: DeployProblem, failure: RuntimeFailure?) : this(problem.message, listOf(problem), failure)
+    }
 }

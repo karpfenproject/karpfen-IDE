@@ -17,6 +17,7 @@ package io.karpfen.ide.runtime.session.deploy
 
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
+import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -64,7 +65,7 @@ class DeployCleanupTest {
 
         assertEquals(case.kind, failed.failure.step.kind)
         assertEquals(StepStatus.FAILED, failed.failure.step.status)
-        assertEquals(case.code to Severity.ERROR, failed.failure.problem.code to failed.failure.problem.severity)
+        assertEquals(case.code to Severity.ERROR, failed.failure.problems.single().code to failed.failure.problems.single().severity)
         val steps = rig.listener.last.steps
         val failedAt = steps.indexOfFirst { it.status == StepStatus.FAILED }
         assertEquals(failed.failure.step, steps[failedAt])
@@ -100,7 +101,7 @@ class DeployCleanupTest {
 
         val failed = rig.deploy().failed()
 
-        assertEquals(DeployProblemCodes.RUNTIME_NO_ANSWER, failed.failure.problem.code)
+        assertEquals(DeployProblemCodes.RUNTIME_NO_ANSWER, failed.failure.problems.single().code)
         val entry = assertNotNull(failed.cleanup.leftBehind)
         assertEquals(LedgerDisposition.UNKNOWN to null, entry.disposition to entry.key)
         assertEquals(listOf(entry), rig.ledger.entries.value)
@@ -115,8 +116,8 @@ class DeployCleanupTest {
 
         val failed = rig.deploy().failed()
 
-        assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, failed.failure.problem.code)
-        assertNull(failed.failure.problem.location)
+        assertEquals(DeployProblemCodes.ENVIRONMENT_LOST, failed.failure.problems.single().code)
+        assertNull(failed.failure.problems.single().location)
         assertEquals(listOf("disconnect", "close"), rig.script.callsAfter("setModel"))
         val entry = assertNotNull(failed.cleanup.leftBehind)
         assertEquals(LedgerDisposition.LOST, entry.disposition)
@@ -131,7 +132,7 @@ class DeployCleanupTest {
 
         val failed = rig.deploy().failed()
 
-        assertEquals(DeployProblemCodes.RUNTIME_NO_ANSWER, failed.failure.problem.code)
+        assertEquals(DeployProblemCodes.RUNTIME_NO_ANSWER, failed.failure.problems.single().code)
         assertEquals(listOf("stop", "disconnect", "close"), rig.script.callsAfter("activate"))
         assertEquals(LedgerDisposition.STOPPED, failed.cleanup.leftBehind?.disposition)
     }
@@ -157,7 +158,7 @@ class DeployCleanupTest {
 
         val failed = rig.deploy().failed()
 
-        assertEquals(DeployProblemCodes.RUNTIME_ERROR, failed.failure.problem.code)
+        assertEquals(DeployProblemCodes.RUNTIME_ERROR, failed.failure.problems.single().code)
         assertEquals(LedgerDisposition.UNKNOWN, failed.cleanup.leftBehind?.disposition)
         assertTrue(failed.cleanup.actions.first().startsWith("Stopping $ENVIRONMENT failed"), "${failed.cleanup.actions}")
     }
@@ -207,7 +208,7 @@ class DeployCleanupTest {
         UPLOAD_METAMODEL(
             DeployStepKind.UPLOAD_METAMODEL, "setMetamodel", DeployProblemCodes.RUNTIME_REJECTED, listOf("disconnect", "close"),
             LedgerDisposition.LEFT_CONFIGURED,
-            { it.fail("setMetamodel", Failures.refused(RuntimeRoute.SET_METAMODEL, "KMeta content does not define any types")) },
+            { it.fail("setMetamodel", Failures.refused(RuntimeRoute.SET_METAMODEL, RejectedUpload.Metamodel, "KMeta content defines no type", "kmeta.no-types")) },
         ),
         UPLOAD_EVENTS(
             DeployStepKind.UPLOAD_EVENTS, "setEventDefinitions", DeployProblemCodes.RUNTIME_ERROR, listOf("disconnect", "close"),
@@ -230,7 +231,12 @@ class DeployCleanupTest {
             {
                 it.fail(
                     "setStateMachine",
-                    Failures.refused(RuntimeRoute.SET_STATE_MACHINE, "Exactly one state must be marked as INITIAL, but found 2."),
+                    Failures.refused(
+                        RuntimeRoute.SET_STATE_MACHINE,
+                        RejectedUpload.StateMachine("wallSwitch"),
+                        "Exactly one state must be marked as INITIAL, but found 2",
+                        "kstates.initial-state-count",
+                    ),
                 )
             },
         ),

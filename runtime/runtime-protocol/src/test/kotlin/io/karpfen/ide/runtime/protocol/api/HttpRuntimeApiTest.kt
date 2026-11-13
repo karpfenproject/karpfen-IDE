@@ -20,9 +20,12 @@ import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.HttpVerb
+import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.UploadError
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.doubles.ScriptedHttp
 import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
@@ -296,6 +299,31 @@ class HttpRuntimeApiTest {
         assertEquals(409, active.status)
         assertEquals(RejectionKind.UNKNOWN_ENVIRONMENT, assertIs<RuntimeFailure.Rejected>(assertFailure(api.runEnvironment(environment))).kind)
         assertEquals(RejectionKind.UNEXPECTED_ERROR, assertIs<RuntimeFailure.Rejected>(assertFailure(api.health())).kind)
+    }
+
+    @Test
+    fun `an upload refused for its content carries its errors, and an unknown text of an upload stays unclassified`() = runTest {
+        val api = api()
+        val body = "Upload of the state machine for 'lamp' rejected: 2 errors\n" +
+            "3:5: Exactly one state must be marked as INITIAL, but found 0 (kstates.initial-state-count)\n" +
+            "9:12: Unknown state 'of' (kstates.unknown-state)"
+        http.reject(400, body).reject(400, "Something went wrong")
+
+        val refused = assertIs<RuntimeFailure.Rejected>(assertFailure(api.setStateMachine(environment, "lamp", "STATE")))
+        val unknown = assertIs<RuntimeFailure.Rejected>(assertFailure(api.setModel(environment, "make object")))
+
+        assertEquals(RejectionKind.CONTENT_REJECTED, refused.kind)
+        assertEquals(
+            UploadRejection(
+                RejectedUpload.StateMachine("lamp"),
+                listOf(
+                    UploadError(3, 5, "Exactly one state must be marked as INITIAL, but found 0", "kstates.initial-state-count"),
+                    UploadError(9, 12, "Unknown state 'of'", "kstates.unknown-state"),
+                ),
+            ),
+            refused.content,
+        )
+        assertEquals(RejectionKind.UNCLASSIFIED to null, unknown.kind to unknown.content)
     }
 
     @Test

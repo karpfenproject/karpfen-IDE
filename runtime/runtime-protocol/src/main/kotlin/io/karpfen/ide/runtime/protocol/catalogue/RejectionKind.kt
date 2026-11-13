@@ -17,7 +17,8 @@ package io.karpfen.ide.runtime.protocol.catalogue
 
 /**
  * Why the runtime rejected a call with 400 or 409. There is one kind per text of [RuntimeText]. Two kinds come on top.
- * [CONTENT_REJECTED] stands for an upload the runtime's parser refused, and [UNCLASSIFIED] stands for any other text.
+ * [CONTENT_REJECTED] stands for an upload whose text has errors, answered with the body that [UploadRejection]
+ * parses, and [UNCLASSIFIED] stands for any other text.
  */
 public enum class RejectionKind {
     /** A query parameter is missing. The text names the first missing one in the order the runtime checks them. */
@@ -92,7 +93,10 @@ public enum class RejectionKind {
     /** The runtime failed with an exception without a message. */
     UNEXPECTED_ERROR,
 
-    /** The runtime's parser refused an uploaded modeling text, without a position. */
+    /**
+     * The runtime's reader found errors in an uploaded modeling text and refused it with 400. The body names the upload
+     * and lists every error with its line and column, as [UploadRejection] describes. The environment stays as it was.
+     */
     CONTENT_REJECTED,
 
     /** A rejection whose text is none of the known ones. */

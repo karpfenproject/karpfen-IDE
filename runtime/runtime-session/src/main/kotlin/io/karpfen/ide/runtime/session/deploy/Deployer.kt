@@ -148,16 +148,22 @@ public data class DeployTiming(
 /**
  * Why a deployment failed. Immutable.
  *
- * @property step the step that failed, with its final status.
- * @property problem the problem the failure is, located where it can be.
+ * @property step the step that failed, with its final status and, as its detail, the failure in one sentence.
+ * @property problems the problems the failure is, each located where it can be. There is at least one. An upload the
+ *   runtime refused for its content has one problem per error, each at its place in the uploaded file, in the order of
+ *   the text. Every other failure is one problem.
  * @property failure the runtime's failure behind it, or null if the deployment failed for another reason, such as an
  *   ended connection.
  */
 public data class DeployFailure(
     public val step: StepProgress,
-    public val problem: DeployProblem,
+    public val problems: List<DeployProblem>,
     public val failure: RuntimeFailure?,
-)
+) {
+    init {
+        require(problems.isNotEmpty()) { "a failed deployment has at least one problem" }
+    }
+}
 
 /** How a deployment ended. */
 public sealed interface DeploymentResult {

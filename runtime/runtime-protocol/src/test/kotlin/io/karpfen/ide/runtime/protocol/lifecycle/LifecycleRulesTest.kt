@@ -17,8 +17,11 @@ package io.karpfen.ide.runtime.protocol.lifecycle
 
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
+import io.karpfen.ide.runtime.protocol.catalogue.UploadError
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ACTIVATE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ACTIVATE_FEATURE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.DEACTIVATE_FEATURE
@@ -106,8 +109,15 @@ class LifecycleRulesTest {
     /** The route of the failures, which the rules do not look at. */
     private val route = RuntimeRoute.RUN_ENVIRONMENT
 
-    /** A rejection of [kind]. */
-    private fun rejected(kind: RejectionKind) = RuntimeFailure.Rejected(route, 409, kind, "text", emptyMap())
+    /** A rejection of [kind]. A rejection of the content carries a refused model with one error. */
+    private fun rejected(kind: RejectionKind): RuntimeFailure.Rejected {
+        val content = if (kind == RejectionKind.CONTENT_REJECTED) {
+            UploadRejection(RejectedUpload.Model, listOf(UploadError(1, 1, "broken", "kmodel.invalid-number")))
+        } else {
+            null
+        }
+        return RuntimeFailure.Rejected(route, 409, kind, content?.render() ?: "text", emptyMap(), content)
+    }
 
     /** The failures that leave open whether the call was applied. */
     private val unknownOutcomes: List<RuntimeFailure> = listOf(

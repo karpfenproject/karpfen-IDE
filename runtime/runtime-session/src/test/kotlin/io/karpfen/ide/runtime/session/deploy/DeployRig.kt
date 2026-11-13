@@ -19,9 +19,12 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
+import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.UploadError
+import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.session.plan.AttachedMachine
@@ -163,9 +166,17 @@ internal object Failures {
     fun rejected(route: RuntimeRoute, text: RuntimeText, values: Map<String, String>, status: Int = 409): RuntimeFailure =
         RuntimeFailure.Rejected(route, status, text.kind, text.render(values), values)
 
-    /** The runtime's parser refused the text sent to [route] with [message]. */
-    fun refused(route: RuntimeRoute, message: String): RuntimeFailure =
-        RuntimeFailure.Rejected(route, 400, RejectionKind.CONTENT_REJECTED, message, emptyMap())
+    /** The runtime refused the text sent to [route] for its errors, answering with the body of [rejection]. */
+    fun refused(route: RuntimeRoute, rejection: UploadRejection): RuntimeFailure =
+        RuntimeFailure.Rejected(route, 400, RejectionKind.CONTENT_REJECTED, rejection.render(), emptyMap(), rejection)
+
+    /** The runtime refused the [upload] sent to [route] for one error with [message] and [code] at its first character. */
+    fun refused(route: RuntimeRoute, upload: RejectedUpload, message: String, code: String): RuntimeFailure =
+        refused(route, UploadRejection(upload, listOf(UploadError(1, 1, message, code))))
+
+    /** The runtime rejected [route] with [text], which is none of the texts the client knows. */
+    fun unknownText(route: RuntimeRoute, text: String): RuntimeFailure =
+        RuntimeFailure.Rejected(route, 400, RejectionKind.UNCLASSIFIED, text, emptyMap())
 
     /** The runtime failed with an internal error on [route]. */
     fun fault(route: RuntimeRoute, message: String): RuntimeFailure = RuntimeFailure.ServerFault(route, message)
