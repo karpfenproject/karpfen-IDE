@@ -54,7 +54,8 @@ public data class StructureLayout(
 
     override fun boxOf(id: String): DiagramBox? = boxes[id]
 
-    override fun labelAt(point: DiagramPoint): String? = routes.firstOrNull { it.label?.contains(point) == true }?.linkId
+    override val labels: Map<String, DiagramBox>
+        get() = routes.mapNotNull { route -> route.label?.let { route.linkId to it } }.toMap()
 
     /**
      * The index of the row of the box [id] that is drawn at [point], or null if the point is on no row of that box.

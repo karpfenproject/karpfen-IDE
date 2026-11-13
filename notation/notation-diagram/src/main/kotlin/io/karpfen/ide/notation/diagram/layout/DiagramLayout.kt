@@ -40,8 +40,11 @@ public interface DiagramLayout {
     /** The box with the id [id], or null if the layout has no such box. */
     public fun boxOf(id: String): DiagramBox?
 
+    /** The box of the label of each line that has one, by the id of the line. */
+    public val labels: Map<String, DiagramBox>
+
     /** The id of the line whose label is drawn at [point], or null. */
-    public fun labelAt(point: DiagramPoint): String?
+    public fun labelAt(point: DiagramPoint): String? = labels.entries.firstOrNull { point in it.value }?.key
 
     /**
      * Where [point] takes hold of the border of a box that can be sized, or null. The point must lie within

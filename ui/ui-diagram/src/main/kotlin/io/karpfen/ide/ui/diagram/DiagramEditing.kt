@@ -24,6 +24,8 @@ import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.FrameGrip
+import io.karpfen.ide.notation.diagram.layout.TextMeasurer
+import io.karpfen.ide.notation.diagram.layout.frozen
 import io.karpfen.ide.notation.diagram.layout.VisEditing
 import io.karpfen.ide.notation.diagram.layout.VisLayout
 
@@ -59,6 +61,12 @@ internal class DiagramEditing<D, L : DiagramLayout>(
     var isDragging: Boolean by mutableStateOf(false)
         private set
 
+    /**
+     * Tells how wide the texts of the diagram are. The canvas sets it to the measure of its font. It is needed where
+     * the layout on screen is fixed, to keep every label where it is drawn.
+     */
+    var measurer: TextMeasurer = TextMeasurer.estimating()
+
     private var drag: Drag? = null
     private var unsaved: VisLayout? = null
     private var awaitsDiagram = false
@@ -86,7 +94,7 @@ internal class DiagramEditing<D, L : DiagramLayout>(
             ?: layout.barAt(point)?.let(Target::Bar)
             ?: layout.boxAt(point)?.let(Target::Box)
             ?: return false
-        val base = current ?: arrangement.freeze(diagram, layout)
+        val base = current ?: arrangement.frozen(diagram, layout, measurer)
         drag = Drag(target, base, current, point)
         vis = base
         isDragging = true
@@ -122,7 +130,7 @@ internal class DiagramEditing<D, L : DiagramLayout>(
      */
     fun changed(diagram: D, layout: L, change: DiagramChange) {
         val transform = change.layout ?: return
-        val base = vis ?: if (change.arranges) arrangement.freeze(diagram, layout) else return
+        val base = vis ?: if (change.arranges) arrangement.frozen(diagram, layout, measurer) else return
         val next = transform(base)
         vis = next
         unsaved = next
@@ -160,7 +168,7 @@ internal class DiagramEditing<D, L : DiagramLayout>(
         }
         val line = layout.lineAt(point, DiagramLayout.HIT_TOLERANCE) ?: return null
         return DiagramOffer(ADD_WAYPOINT) {
-            store(diagram, VisEditing.addWaypoint(current ?: arrangement.freeze(diagram, layout), line.id, point, line.points))
+            store(diagram, VisEditing.addWaypoint(current ?: arrangement.frozen(diagram, layout, measurer), line.id, point, line.points))
         }
     }
 

@@ -72,6 +72,18 @@ class StructureLayoutTest {
     }
 
     @Test
+    fun `fixing the layout keeps every label where the automatic layout drew it`() {
+        val frozen = StructureArrangement.frozen(types, automatic, text)
+        val byHand = StructureArrangement.byHand(types, frozen, text)
+
+        automatic.labels.forEach { (id, drawn) ->
+            val kept = assertNotNull(byHand.labels[id], id)
+            assertTrue(Geometry.distance(drawn.center, kept.center) <= DiagramGrid.STEP, "the label of $id jumped from $drawn to $kept")
+        }
+        assertEquals(StructureArrangement.freeze(types, automatic).boxes, frozen.boxes, "nothing else is different")
+    }
+
+    @Test
     fun `a box by hand sits on its stored point, and a new one is placed right of the others`() {
         val vis = VisLayout(boxes = mapOf("Bulb" to DiagramPoint(100f, 300f), "Lamp" to DiagramPoint(100f, 100f)))
 

@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -132,6 +133,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
         }
     }
     val widths = remember(texts, density) { TextMeasurer { texts.widthOf(it) / density } }
+    SideEffect { editing.measurer = widths }
     val vis = editing.vis
     val automatic by produceState<DiagramDrawing<D, L>?>(null, notation, diagram, texts, vis == null) {
         if (vis == null) {

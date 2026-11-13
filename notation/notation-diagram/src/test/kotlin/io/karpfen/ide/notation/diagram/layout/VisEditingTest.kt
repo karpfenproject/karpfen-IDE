@@ -43,6 +43,16 @@ class VisEditingTest {
     }
 
     @Test
+    fun `fixing the layout keeps every label where the automatic layout drew it`() {
+        val kept = ManualStatechartLayout.of(lamp, StatechartArrangement.frozen(lamp, automatic, text), text).labels
+
+        automatic.labels.forEach { (id, drawn) ->
+            val now = assertNotNull(kept[id], id)
+            assertTrue(Geometry.distance(drawn.center, now.center) <= DiagramGrid.STEP, "the label of $id jumped from $drawn to $now")
+        }
+    }
+
+    @Test
     fun `moving a state moves it on the grid and nothing else`() {
         val moved = VisEditing.moveState(lamp, frozen, "off", DiagramPoint(23f, -8f))
 

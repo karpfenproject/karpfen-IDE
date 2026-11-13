@@ -66,3 +66,19 @@ public interface DiagramArrangement<D, L : DiagramLayout> {
     /** Where the text names the element that the box [box] of [diagram] stands for, or null if there is none. */
     public fun placeInText(diagram: D, box: String): TextRange?
 }
+
+/**
+ * The [layout] of [diagram] as a [VisLayout] that draws the same picture by hand. It is [DiagramArrangement.freeze]
+ * with the labels kept in place: a label that the layout by hand would draw somewhere else than [layout] does is
+ * stored with the distance between the two. So the first change by hand moves nothing but what the user moved.
+ */
+public fun <D, L : DiagramLayout> DiagramArrangement<D, L>.frozen(diagram: D, layout: L, text: TextMeasurer): VisLayout {
+    val vis = freeze(diagram, layout)
+    val usual = byHand(diagram, vis, text).labels
+    val kept = layout.labels.mapNotNull { (id, drawn) ->
+        val there = usual[id] ?: return@mapNotNull null
+        val offset = DiagramGrid.snap(DiagramPoint(drawn.center.x - there.center.x, drawn.center.y - there.center.y))
+        if (offset.x == 0f && offset.y == 0f) null else id to offset
+    }
+    return vis.copy(labels = kept.toMap())
+}

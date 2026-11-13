@@ -118,7 +118,8 @@ public data class StatechartLayout(
 
     override fun boxOf(id: String): DiagramBox? = states[id]
 
-    override fun labelAt(point: DiagramPoint): String? = routes.firstOrNull { it.label?.contains(point) == true }?.transitionId
+    override val labels: Map<String, DiagramBox>
+        get() = routes.mapNotNull { route -> route.transitionId?.let { id -> route.label?.let { id to it } } }.toMap()
 
     /**
      * The hold of [point] on the border of a state with nested states. Those are the states whose box surrounds the

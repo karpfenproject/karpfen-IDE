@@ -103,7 +103,7 @@ public object ManualStructureLayout {
      * The box of the label of [link] beside the middle of the line through [points], or null for a link without one.
      * The label stands to the right of or above its line. Where it would cover one of the [others], the lines of the
      * other links, and the other side is free, it stands to the left or below instead. A label the user moved stands
-     * [offset] away from its usual place and is not looked after any further.
+     * [offset] away from that place.
      */
     private fun labelOn(
         points: List<DiagramPoint>,
@@ -115,9 +115,8 @@ public object ManualStructureLayout {
         if (link.label.isEmpty()) return null
         val width = text.widthOf(link.label) + StructureMetrics.LABEL_PADDING
         val usual = LineRouting.captionBeside(points, width, StructureMetrics.LABEL_HEIGHT)
-        if (offset != null) return LineRouting.moved(usual, offset)
-        if (others.none { Geometry.crosses(usual, it) }) return usual
         val opposite = LineRouting.captionBeside(points, width, StructureMetrics.LABEL_HEIGHT, otherSide = true)
-        return if (others.none { Geometry.crosses(opposite, it) }) opposite else usual
+        val free = if (others.any { Geometry.crosses(usual, it) } && others.none { Geometry.crosses(opposite, it) }) opposite else usual
+        return LineRouting.moved(free, offset)
     }
 }

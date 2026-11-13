@@ -125,7 +125,8 @@ class DiagramEditingTest {
         editing.endDrag(diagram)
 
         val vis = assertNotNull(editing.vis)
-        assertEquals(mapOf(id to DiagramPoint(30f, 0f)), vis.labels)
+        val moved = assertNotNull(layoutOf(vis).labels[id])
+        assertTrue(kotlin.math.abs(moved.center.x - label.center.x - 30f) <= 10f && kotlin.math.abs(moved.center.y - label.center.y) <= 10f, "$label became $moved")
         assertEquals(listOf(vis), saved)
         assertEquals(automatic.states.keys, layoutOf(vis).states.keys)
     }
