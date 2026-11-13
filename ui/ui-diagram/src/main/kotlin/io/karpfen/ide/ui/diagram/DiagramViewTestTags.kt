@@ -47,6 +47,12 @@ public object DiagramViewTestTags {
     /** The button that closes the opened cell without writing. */
     public const val CELL_CLOSE: String = "Diagram.cell.close"
 
+    /** The head of the opened cell, by which it is moved. */
+    public const val CELL_HEAD: String = "Diagram.cell.head"
+
+    /** The hold named [grip] on a side or corner of the opened cell, such as `BOTTOM_RIGHT`, by which it is sized. */
+    public fun cellGrip(grip: String): String = "Diagram.cell.grip:$grip"
+
     /** What the view says while there is nothing to draw. */
     public const val EMPTY: String = "Diagram.empty"
 

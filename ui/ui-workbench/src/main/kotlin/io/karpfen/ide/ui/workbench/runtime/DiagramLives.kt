@@ -15,49 +15,22 @@
  */
 package io.karpfen.ide.ui.workbench.runtime
 
-import io.karpfen.ide.runtime.session.mirror.MirrorSnapshot
-import io.karpfen.ide.runtime.session.mirror.PropertyValue
-import io.karpfen.ide.runtime.session.mirror.ScalarValue
 import io.karpfen.ide.runtime.session.states.ActiveStates
 import io.karpfen.ide.ui.diagram.DiagramLive
 import java.nio.file.Path
 
 /**
- * Tells what a run adds to the diagram of a file. The diagram of a state machine file gets the states its machine is
- * in. The diagram of the model file gets the values its objects have now. Every other file gets nothing.
+ * Tells what a run adds to the diagram of a file. The statechart of a state machine file gets the states its machine
+ * is in. Every other file gets nothing.
  */
 internal object DiagramLives {
 
     /**
-     * What the run with the active [states] and the model [mirror], which was started from [modelFile], adds to the
-     * diagram of [file], or null if the run has nothing to do with that file. A state machine that is attached to
-     * several objects shows the states of all of them.
+     * What the run with the active [states] adds to the diagram of [file], or null if no state machine of the run
+     * comes from that file. A state machine that is attached to several objects shows the states of all of them.
      */
-    fun of(states: ActiveStates, mirror: MirrorSnapshot, modelFile: Path, file: Path): DiagramLive? {
-        val machines = states.machines.values.filter { same(it.file, file) }
-        return when {
-            machines.isNotEmpty() -> DiagramLive(active = machines.flatMap { it.stack }.toSet())
-            same(modelFile, file) -> DiagramLive(
-                values = mirror.objects.mapValues { (_, item) -> item.properties.map { it.key to text(it.value) } },
-            )
-            else -> null
-        }
+    fun of(states: ActiveStates, file: Path): DiagramLive? {
+        val machines = states.machines.values.filter { it.file.toAbsolutePath().normalize() == file.toAbsolutePath().normalize() }
+        return if (machines.isEmpty()) null else DiagramLive(active = machines.flatMap { it.stack }.toSet())
     }
-
-    private fun same(first: Path, second: Path): Boolean = first.toAbsolutePath().normalize() == second.toAbsolutePath().normalize()
-
-    private fun text(value: PropertyValue): String = when (value) {
-        is PropertyValue.Single -> text(value.value)
-        is PropertyValue.Many -> value.values.joinToString(", ", "[", "]", transform = ::text)
-    }
-
-    /** [value] as a row shows it. A whole number is written without a fraction. */
-    private fun text(value: ScalarValue): String = when (value) {
-        is ScalarValue.Number -> if (value.value % 1.0 == 0.0 && kotlin.math.abs(value.value) < WHOLE_LIMIT) value.value.toLong().toString() else value.value.toString()
-        is ScalarValue.Text -> value.value
-        is ScalarValue.Flag -> value.value.toString()
-    }
-
-    /** Above this size a number is written as the runtime gives it, also when it has no fraction. */
-    private const val WHOLE_LIMIT = 1e15
 }

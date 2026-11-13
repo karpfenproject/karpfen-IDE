@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
@@ -173,6 +174,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     var menu by remember(drawing) { mutableStateOf<MenuRequest?>(null) }
     var pointer by remember { mutableStateOf<DiagramPoint?>(null) }
     var mode by remember { mutableStateOf<CanvasMode>(CanvasMode.Idle) }
+    var cellSize by remember { mutableStateOf<Size?>(null) }
     val change by rememberUpdatedState(onChange)
 
     fun pointAt(position: Offset): DiagramPoint {
@@ -324,7 +326,8 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
                 notation.painter.paint(this, shown.diagram, shown.layout, shown.texts, colors, faults)
             }
             faults.attempt("marking what is active in the running model") {
-                drawActiveMarks(active.mapNotNull(shown.layout::boxOf), colors)
+                val boxes = active.mapNotNull(shown.layout::boxOf)
+                drawActiveMarks(boxes, colors)
             }
             faults.attempt("drawing the markers of the code cells") {
                 cells.forEach { cell -> drawCellMarker(cell.box, cell.word.takeIf { it.isNotEmpty() }?.let { shown.texts[TextRole.ROW, it] }, colors) }
@@ -376,6 +379,8 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             waiting.position,
             viewSize,
             cellEditor,
+            cellSize,
+            onSize = { cellSize = it },
             onSave = { code -> run(DiagramAction.Change("Edit code") { waiting.cell.save(code) }, waiting.position) },
             onClose = { mode = CanvasMode.Idle },
         )

@@ -16,14 +16,10 @@
 package io.karpfen.ide.ui.diagram
 
 /**
- * What a running model adds to the diagram of one of its files.
+ * What a running model adds to the diagram of one of its files: the states its state machine is in, which a
+ * statechart marks. The other diagrams show nothing of a run.
  *
- * @property active the ids of the boxes that are active now, which the diagram marks. In a statechart these are the
- *   states the state machine is in.
- * @property values the properties the objects of the running model have now, by the key of the object, each as its
- *   name and its value. An object diagram shows them in place of the values of the text.
+ * @property active the ids of the boxes that are active now. In a statechart these are the names of the active
+ *   states, the outer ones included.
  */
-public data class DiagramLive(
-    public val active: Set<String> = emptySet(),
-    public val values: Map<String, List<Pair<String, String>>> = emptyMap(),
-)
+public data class DiagramLive(public val active: Set<String> = emptySet())

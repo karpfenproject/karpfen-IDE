@@ -26,9 +26,8 @@ refer to.
   a piece of a file. It closes without saving when the text changes underneath it.
 - Renaming through a diagram stays in the file. A renamed type is not renamed in the models and state machines that
   use it, and a renamed object not in the descriptors that attach a state machine to it.
-- The diagrams show the active states and the current values of a run, but not which transition fired, because the
-  runtime does not report that. Objects that a run creates or deletes do not appear in the object diagram, which
-  shows the objects of the text.
+- A statechart marks the active states of a run, but not which transition fired, because the runtime does not
+  report that.
 - A change of the layout by hand cannot be undone, and there is no command that goes back to the automatic layout.
   Deleting the `.vis` file by hand does that.
 - Renaming or deleting a model file leaves its `.vis` file behind under the old name.

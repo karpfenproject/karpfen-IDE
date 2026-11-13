@@ -184,7 +184,7 @@ private fun EditorPane(state: WorkbenchState) {
         if (running == null || observed == null || file == null) {
             null
         } else {
-            DiagramLives.of(observed.states, observed.mirror, running.prepared.plan.model.file, file)
+            DiagramLives.of(observed.states, file)
         }
     }
     val services by state.languageServices.collectAsState()

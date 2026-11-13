@@ -28,7 +28,6 @@ import io.karpfen.ide.notation.diagram.layout.StructureArrangement
 import io.karpfen.ide.notation.diagram.layout.StructureLayout
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.structure.StructureDiagram
-import io.karpfen.ide.notation.diagram.structure.withValues
 import io.karpfen.ide.notation.sync.DiagramProjection
 
 /**
@@ -43,7 +42,6 @@ import io.karpfen.ide.notation.sync.DiagramProjection
  * @property nothingToDraw what the view says while the text holds nothing that makes a diagram.
  * @property actions tells what the user can do at a point of the diagram, which the view offers in its context menu.
  * @property cells tells which pieces of code the diagram shows folded up, to be opened and edited as text.
- * @property live gives the diagram as it shows a running model, which may differ in what its boxes say.
  */
 internal class DiagramNotation<D : Any, L : DiagramLayout>(
     val projection: DiagramProjection<D>,
@@ -52,7 +50,6 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
     val nothingToDraw: String,
     val actions: DiagramActions<D, L> = DiagramActions.none(),
     val cells: DiagramCells<D, L> = DiagramCells.none(),
-    val live: (D, DiagramLive) -> D = { diagram, _ -> diagram },
 ) {
     companion object {
         /** The statechart of a state machine file. */
@@ -81,7 +78,6 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StructurePainter,
             "No objects to draw yet. The diagram appears once the text can be read.",
             StructureActions,
-            live = { diagram, live -> diagram.withValues(live.values) },
         )
     }
 }

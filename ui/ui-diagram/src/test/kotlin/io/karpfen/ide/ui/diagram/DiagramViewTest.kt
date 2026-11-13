@@ -32,6 +32,7 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.v2.runComposeUiTest
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
@@ -217,6 +218,27 @@ class DiagramViewTest {
         waitForIdle()
         onNodeWithTag(DiagramViewTestTags.CELL).assertDoesNotExist()
         assertEquals(1, changes.size, "closing writes nothing")
+    }
+
+    @Test
+    fun `the opened code cell is sized by its corner and moved by its head`() = runComposeUiTest {
+        show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, WITH_ENTRY))
+        awaitDrawing()
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + Offset(0f, 14f)) }
+        waitForIdle()
+        val before = onNodeWithTag(DiagramViewTestTags.CELL).fetchSemanticsNode().boundsInRoot
+
+        onNodeWithTag(DiagramViewTestTags.cellGrip("TOP_LEFT")).performTouchInput { swipe(center, center + Offset(-60f, -40f)) }
+        waitForIdle()
+        val sized = onNodeWithTag(DiagramViewTestTags.CELL).fetchSemanticsNode().boundsInRoot
+        assertTrue(sized.width > before.width + 30f && sized.height > before.height + 20f, "$before became $sized")
+        assertEquals(before.right, sized.right, "the opposite side stays")
+
+        onNodeWithTag(DiagramViewTestTags.CELL_HEAD).performTouchInput { swipe(center, center + Offset(-50f, 30f)) }
+        waitForIdle()
+        val moved = onNodeWithTag(DiagramViewTestTags.CELL).fetchSemanticsNode().boundsInRoot
+        assertTrue(moved.left < sized.left - 20f && moved.top > sized.top + 10f, "$sized became $moved")
+        assertEquals(sized.width, moved.width)
     }
 
     @Test

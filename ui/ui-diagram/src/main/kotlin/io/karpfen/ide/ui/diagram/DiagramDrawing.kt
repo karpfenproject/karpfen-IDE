@@ -66,12 +66,16 @@ internal fun DrawScope.drawWaypoints(waypoints: List<DiagramPoint>, colors: Karp
     }
 }
 
-/** Marks the [boxes] that are active in a running model: each is filled lightly and gets a strong border. */
+/**
+ * Marks the [boxes] that are active in a running model. Each gets a strong border. A box that holds no other active
+ * box is filled lightly as well, so the innermost active state stands out and the states around it do not hide it.
+ */
 internal fun DrawScope.drawActiveMarks(boxes: List<DiagramBox>, colors: KarpfenColors) {
     val unit = density
-    boxes.forEach {
-        drawRect(colors.info.copy(alpha = ACTIVE_ALPHA), it.topLeft(unit), it.size(unit))
-        drawRect(colors.info, it.topLeft(unit), it.size(unit), style = Stroke(ACTIVE_BORDER * unit))
+    boxes.forEach { box ->
+        val innermost = boxes.none { other -> other != box && box.contains(other.center) && other.width * other.height < box.width * box.height }
+        if (innermost) drawRect(colors.info.copy(alpha = ACTIVE_ALPHA), box.topLeft(unit), box.size(unit))
+        drawRect(colors.info, box.topLeft(unit), box.size(unit), style = Stroke(ACTIVE_BORDER * unit))
     }
 }
 

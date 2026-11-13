@@ -66,8 +66,8 @@ import kotlinx.coroutines.withContext
  * is how changes made to it by other tools come in. The text always wins: what the companion file says about elements
  * the text does not have is ignored.
  *
- * While a model runs, [live] holds what the run adds to the diagram: the active states are marked in a statechart,
- * and an object diagram shows the current values of the objects. It is null while nothing runs.
+ * While a model runs, [live] holds what the run adds to the diagram: a statechart marks the states its machine is
+ * in. It is null while nothing runs, and for a file the run has nothing to mark in.
  *
  * A code cell that the user opens holds [cellEditor], the editor of the host, or a plain text field without one.
  *
@@ -132,11 +132,7 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
                 session.text.apply(made.edits, EditOrigin.Command(DIAGRAM_EDIT)) != null
         }
     }
-    val diagram = state.diagram
-    val running = remember(notation, state, live) {
-        if (live == null || diagram == null) state else state.copy(diagram = notation.live(diagram, live))
-    }
-    DiagramView(notation, running, editing, modifier, onSelect, change, live?.active.orEmpty(), cellEditor)
+    DiagramView(notation, state, editing, modifier, onSelect, change, live?.active.orEmpty(), cellEditor)
 }
 
 /**

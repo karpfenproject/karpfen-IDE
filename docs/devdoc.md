@@ -274,11 +274,10 @@ block and takes a construct out with its lines. A new type becomes the first typ
 of a metamodel is its root type. A change can also say what it
 means for the layout by hand: a new state is placed where the user clicked, and a renamed state keeps its place.
 
-While a run is live, the diagrams show it. `DiagramLives` in ui-workbench tells what the selected run adds to the
-diagram of the active file, as a `DiagramLive`: the active states for a state machine file, taken from the stacks the
-session observes, and the current values of the objects for the model file, taken from the mirror. The canvas marks
-the active boxes, and the object diagram is drawn with `StructureDiagram.withValues`. The runtime does not report
-which transition fired, so no transition is marked.
+While a run is live, an open statechart shows it, and nothing else of the diagrams does. `DiagramLives` in
+ui-workbench tells what the selected run adds to the diagram of the active file, as a `DiagramLive`: the active states
+for a state machine file, taken from the stacks the session observes. The canvas marks those states, the innermost
+one with a fill. The runtime does not report which transition fired, so no transition is marked.
 
 The notation is hybrid. The structure is drawn, and code stays text. A `DiagramCells` tells which pieces of code a
 diagram shows folded up, as `DiagramCell`s: the entry and do blocks of a state and the condition of a transition. The

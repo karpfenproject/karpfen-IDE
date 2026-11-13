@@ -15,12 +15,6 @@
  */
 package io.karpfen.ide.ui.workbench.runtime
 
-import io.karpfen.ide.runtime.session.mirror.MirrorObject
-import io.karpfen.ide.runtime.session.mirror.MirrorProperty
-import io.karpfen.ide.runtime.session.mirror.MirrorSnapshot
-import io.karpfen.ide.runtime.session.mirror.ObjectOrigin
-import io.karpfen.ide.runtime.session.mirror.PropertyValue
-import io.karpfen.ide.runtime.session.mirror.ScalarValue
 import io.karpfen.ide.runtime.session.states.ActiveStates
 import io.karpfen.ide.runtime.session.states.MachineActivity
 import io.karpfen.ide.runtime.session.states.StackOrigin
@@ -30,7 +24,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Tests what a run adds to the diagram of a file: active states for a state machine, current values for the model. */
+/** Tests what a run adds to the diagram of a file: the active states for a state machine file, and nothing else. */
 class DiagramLivesTest {
 
     private val folder: Path = Path.of("/ws/lamp").toAbsolutePath()
@@ -45,46 +39,16 @@ class DiagramLivesTest {
         unknownElements = emptyMap(),
     )
 
-    private val mirror = MirrorSnapshot(
-        objects = mapOf(
-            "bulb" to MirrorObject(
-                id = "bulb",
-                typeName = "Bulb",
-                properties = listOf(
-                    MirrorProperty("watts", PropertyValue.Single(ScalarValue.Number(30.0))),
-                    MirrorProperty("lit", PropertyValue.Single(ScalarValue.Flag(true))),
-                    MirrorProperty("ratio", PropertyValue.Single(ScalarValue.Number(0.75))),
-                    MirrorProperty("presses", PropertyValue.Many(listOf(ScalarValue.Text("up"), ScalarValue.Text("down")))),
-                ),
-                relations = emptyList(),
-                origin = ObjectOrigin.entries.first(),
-                revision = 3,
-            ),
-        ),
-        roots = emptyList(),
-        containment = emptyMap(),
-    )
-
     @Test
     fun `the diagram of a state machine file gets the states its machine is in`() {
-        assertEquals(DiagramLive(active = setOf("on", "full")), DiagramLives.of(states, mirror, model, machine))
-        assertEquals(DiagramLive(active = setOf("up")), DiagramLives.of(states, mirror, model, folder.resolve("./switch.kstates")))
+        assertEquals(DiagramLive(active = setOf("on", "full")), DiagramLives.of(states, machine))
+        assertEquals(DiagramLive(active = setOf("up")), DiagramLives.of(states, folder.resolve("./switch.kstates")))
     }
 
     @Test
-    fun `the diagram of the model file gets the current values, written as a row shows them`() {
-        val live = DiagramLives.of(states, mirror, model, model)
-
-        assertEquals(
-            mapOf("bulb" to listOf("watts" to "30", "lit" to "true", "ratio" to "0.75", "presses" to "[up, down]")),
-            live?.values,
-        )
-        assertEquals(emptySet(), live?.active)
-    }
-
-    @Test
-    fun `a file the run has nothing to do with gets nothing`() {
-        assertNull(DiagramLives.of(states, mirror, model, folder.resolve("lamp.kmeta")))
-        assertNull(DiagramLives.of(states, mirror, model, Path.of("/elsewhere/lamp.kmodel").toAbsolutePath()))
+    fun `a file without a state machine of the run gets nothing`() {
+        assertNull(DiagramLives.of(states, model))
+        assertNull(DiagramLives.of(states, folder.resolve("lamp.kmeta")))
+        assertNull(DiagramLives.of(states, Path.of("/elsewhere/lamp.kstates").toAbsolutePath()))
     }
 }

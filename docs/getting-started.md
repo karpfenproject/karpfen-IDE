@@ -81,14 +81,14 @@ other, and a click on the size sets it back.
   a property, an object it has, or a reference to an object you then click. A right-click on a row edits or deletes
   the statement behind it, and one on a line renames or deletes the relation.
 - A small circle with a plus marks code that is folded up: the entry and do actions of a state, and the condition
-  of a transition. Click it to open the code in a pane over the diagram, edit it and click Save. A transition without
+  of a transition. Click it to open the code in a pane over the diagram, edit it and click Save. Drag the head of the pane to move
+  it, and a side or a corner to size it. A transition without
   a condition has an empty one to write into.
 - Every such change is an edit of the text, which Undo in the editor takes back.
 - The text always wins. What the `.vis` file says about something the text no longer has is dropped. Delete the
   `.vis` file to go back to the automatic layout.
-- While a model runs, the statechart of a state machine marks the states the machine is in, and the object diagram
-  of the model shows the current values of the objects. They follow the run that is selected in the Runtime tool
-  window, as long as observation is on.
+- While a model runs, the statechart of a state machine marks the states the machine is in. It follows the run that
+  is selected in the Runtime tool window, as long as observation is on.
 - In the Project tool window the `.vis` file shows below its model file, behind an arrow. It opens as greyed-out text
   that you cannot edit.
 

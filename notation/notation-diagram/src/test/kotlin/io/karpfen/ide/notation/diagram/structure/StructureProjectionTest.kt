@@ -97,17 +97,6 @@ class StructureProjectionTest {
     }
 
     @Test
-    fun `an object diagram shows the values of a running model in place of those of the text`() {
-        val running = objects.withValues(mapOf("bulb" to listOf("maxWatts" to "40", "watts" to "30"), "lamp" to listOf("mode" to "on")))
-
-        assertEquals(listOf("maxWatts = 40", "watts = 30"), running.node("bulb")?.rows, "a property the text does not set gets a row")
-        assertEquals(listOf("mode = on", "fuse = fuseBox"), running.node("lamp")?.rows)
-        assertEquals(objects.node("wallSwitch"), running.node("wallSwitch"), "an object without values stays as it is")
-        assertEquals(objects.links, running.links)
-        assertEquals(types, types.withValues(mapOf("Bulb" to listOf("lit" to "true"))), "a class diagram has no values")
-    }
-
-    @Test
     fun `a long value is cut`() {
         val long = LampStructure.objectsOf("""make object "a":"A" { prop("note") -> "${"x".repeat(80)}" }""")
         val row = long.nodes.single().rows.single()
