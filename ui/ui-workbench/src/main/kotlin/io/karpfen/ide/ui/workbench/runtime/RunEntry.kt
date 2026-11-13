@@ -85,6 +85,9 @@ public enum class RunPhase {
  * @property hostProblem why the runtime could not be started, or null.
  * @property session the session of the run once it was launched, or null before.
  * @property environment the key of the deployed environment once the session knows it, or null.
+ * @property captureFile the absolute path of the file that captures the runtime's log of the run, or null if the run
+ *   is not captured.
+ * @property captureProblem why the run could not be captured to its file, or null. Only the first problem is kept.
  */
 public data class RunEntry(
     public val id: Long,
@@ -95,6 +98,8 @@ public data class RunEntry(
     public val hostProblem: HostProblem? = null,
     public val session: RuntimeSession? = null,
     public val environment: EnvironmentKey? = null,
+    public val captureFile: Path? = null,
+    public val captureProblem: String? = null,
 ) {
     /** True while the environment of the run can be stopped, which is while it is activated or runs. */
     public val isStoppable: Boolean

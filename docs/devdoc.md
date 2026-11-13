@@ -421,6 +421,11 @@ runs and 500 events per run. Run is Shift+F10 and Stop is Ctrl+F2, or Cmd+F2 on 
 given, the one in the active editor, the only one in the workspace, or the one the user picks. Run gives the Runtime
 tool window three quarters of the workbench's height.
 
+A run that was started with Capture run to file ticked gets a `RunCapture`. `RunCaptures` makes the file in
+`WorkspaceOptions.RUN_CAPTURE_DIRECTORY`, a folder the workspace never scans. `RuntimeHostBinding` hands the capture
+every line of the host's log before it drops the tick lines for the Log pane. The capture ends when the run ends or
+is released. A file that cannot be written does not stop the run. The run shows the problem instead.
+
 The IDE's container runs the runtime with engine tracing on, because the trace is the only place where the runtime
 tells which transition fired. The engine writes several trace lines on every tick. `RuntimeHostBinding` drops those
 lines, as `EngineTrace.isTickNoise` decides. The simplified log of `StatechartLog` shows the remaining trace lines in

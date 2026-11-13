@@ -163,12 +163,13 @@ private fun statechartLine(line: OutputLine, subjectWidth: Int, colors: KarpfenC
 }
 
 /**
- * What the run [entry] has to tell, above its log. It shows why the runtime could not be started and the findings that
- * block the run. Once the run is launched, it shows the active states of each state machine and one line about the
- * deployment, followed by the [bridges] that were started with the run. A click on the line about the deployment
- * opens the details: the connection, every deploy step and the session's problems.
- * The details start open while the deployment is under way or has a problem, and closed once it went through. A click
- * on a finding with a file calls [onNavigate]. All of the text can be selected with the mouse and copied.
+ * What the run [entry] has to tell, above its log. It shows why the runtime could not be started, the file the run is
+ * captured to and why the capture failed, and the findings that block the run. Once the run is launched, it shows the
+ * active states of each state machine and one line about the deployment, followed by the [bridges] that were started
+ * with the run. A click on the line about the deployment opens the details: the connection, every deploy step and the
+ * session's problems. The details start open while the deployment is under way or has a problem, and closed once it
+ * went through. A click on a finding with a file calls [onNavigate]. All of the text can be selected with the mouse and
+ * copied.
  */
 @Composable
 private fun RunSummary(entry: RunEntry, bridges: RunBridges?, root: Path, onNavigate: (Location) -> Unit) {
@@ -182,6 +183,8 @@ private fun RunSummary(entry: RunEntry, bridges: RunBridges?, root: Path, onNavi
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         ) {
             entry.hostProblem?.let { Line("The runtime could not be started: ${RuntimeTexts.hostProblem(it)}", colors.error) }
+            entry.captureFile?.let { CaptureLine(RuntimeTexts.captured(it, root)) }
+            entry.captureProblem?.let { Line(RuntimeTexts.captureProblem(it), colors.error) }
             if (entry.findings.isNotEmpty()) {
                 Heading("Findings that block the run")
                 Problems(entry.findings, root, onNavigate)
@@ -252,6 +255,17 @@ private fun Problems(problems: List<DeployProblem>, root: Path, onNavigate: (Loc
                 .testTag(RuntimeViewTestTags.finding(index)),
         )
     }
+}
+
+/** The line of [text] that says where the run is captured, tagged for tests. */
+@Composable
+private fun CaptureLine(text: String) {
+    Text(
+        text,
+        color = KarpfenTheme.colors.textMuted,
+        style = KarpfenTheme.typography.uiSmall,
+        modifier = Modifier.testTag(RuntimeViewTestTags.CAPTURE),
+    )
 }
 
 /** What the pane named [title] shows before the run was launched, since it needs the run's session. */

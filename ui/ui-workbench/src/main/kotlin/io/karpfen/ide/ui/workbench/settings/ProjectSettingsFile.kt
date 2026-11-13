@@ -34,15 +34,17 @@ import kotlin.math.roundToInt
  * open = lamp.kmeta
  * active = lamp.kstates
  * bridge = http.kbridge.json
+ * capture = on
  * feature.history = on
  * ```
  *
  * `theme` is `light`, `dark` or `system`. `zoom` is the scale of the workbench in percent. `pane.<name>` is `shown` or
- * `hidden` followed by the size of the tool window in dp. `runtime.host` is `docker` or `url`, and `runtime.url` is
- * the address for the latter. Every open file has its own `open` line, in the order of the tabs. Every bridge that was
- * started with the last run has its own `bridge` line. Every optional language feature that is switched on has its own
- * line `feature.<name> = on`, with the `KstatesFeature.id` as its name, such as `feature.tickLimit = on`. A
- * feature that is off has no line, and a feature line with another value counts as off.
+ * `hidden` followed by the size of the tool window in dp. `runtime.host` is `docker` or `url`, and `runtime.url` is the
+ * address for the latter. Every open file has its own `open` line, in the order of the tabs. Every bridge that was
+ * started with the last run has its own `bridge` line. The line `capture = on` says that the last run was captured to a
+ * file. It is only there while that is on, and a capture line with another value counts as off. Every optional language
+ * feature that is switched on has its own line `feature.<name> = on`, with the `KstatesFeature.id` as its name, such as
+ * `feature.tickLimit = on`. A feature that is off has no line, and a feature line with another value counts as off.
  *
  * Reading never fails. A line with a known key and a value that makes no sense is dropped, and the default stands in.
  * A line with a key that is not known is kept and written back, so files of a newer version survive. That includes a
@@ -62,7 +64,10 @@ public object ProjectSettingsFile {
     /** The prefix of the keys of the language features. */
     private const val FEATURE = "feature."
 
-    /** The value of a language feature that is switched on. */
+    /** The key of the line that says whether runs are captured to files. */
+    private const val CAPTURE = "capture"
+
+    /** The value of a language feature or of the capture that is switched on. */
     private const val ON = "on"
 
     /** The percent in one whole. */
@@ -97,6 +102,7 @@ public object ProjectSettingsFile {
                 key == "open" -> if (value.isNotEmpty() && value !in open) open.add(value)
                 key == "active" -> if (value.isNotEmpty()) settings = settings.copy(activeFile = value)
                 key == "bridge" -> if (value.isNotEmpty() && value !in bridges) bridges.add(value)
+                key == CAPTURE -> settings = settings.copy(capture = value.equals(ON, ignoreCase = true))
                 key.startsWith(FEATURE) && feature(key) != null ->
                     if (value.equals(ON, ignoreCase = true)) features.add(checkNotNull(feature(key)))
                 else -> others.add(trimmed)
@@ -125,6 +131,7 @@ public object ProjectSettingsFile {
         settings.openFiles.forEach { appendLine("open = $it") }
         settings.activeFile?.let { appendLine("active = $it") }
         settings.bridges.forEach { appendLine("bridge = $it") }
+        if (settings.capture) appendLine("$CAPTURE = $ON")
         KstatesFeature.entries.filter { it in settings.languageFeatures }.forEach { appendLine("$FEATURE${it.id} = $ON") }
         settings.otherLines.forEach(::appendLine)
     }

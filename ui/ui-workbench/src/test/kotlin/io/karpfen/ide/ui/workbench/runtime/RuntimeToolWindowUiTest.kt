@@ -37,6 +37,7 @@ import io.karpfen.ide.runtime.session.fixtures.FakeRuntimeSession
 import io.karpfen.ide.runtime.session.fixtures.FakeSessionCommand
 import io.karpfen.ide.ui.foundation.widgets.StatusBarTestTags
 import io.karpfen.ide.ui.workbench.WorkbenchUi
+import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.runtime.view.RuntimeViewTestTags
 import io.karpfen.ide.ui.workbench.testing.FakeRuntimeHost
@@ -211,9 +212,11 @@ class RuntimeToolWindowUiTest {
         settle()
     }
 
-    /** Runs the lamp and returns the session that the run launched. */
+    /** Runs the lamp, answers the run dialog without bridges or capture, and returns the session that the run launched. */
     private fun WorkbenchUi.launched(): FakeRuntimeSession {
         assertNotNull(workbench.state.runtime.value).run(lamp)
+        settle()
+        workbench.state.dialogs.respond(DialogResponse.RunWith(emptySet(), capture = false))
         settle()
         return workbench.scriptedSessions.launched.single()
     }

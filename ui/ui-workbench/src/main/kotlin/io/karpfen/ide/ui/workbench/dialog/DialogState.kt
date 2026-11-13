@@ -96,25 +96,28 @@ public sealed interface DialogRequest<out R : DialogResponse> {
     }
 
     /**
-     * Asks which of the bridge files of the workspace at [root] to start with a run. Every file has a box to tick, and
-     * the boxes of [preselected] are ticked when the dialog opens. The answer may tick none.
+     * Asks how to run a descriptor of the workspace at [root]. Every bridge file of the workspace has a box to tick,
+     * and the boxes of [preselected] are ticked when the dialog opens. Below them, one more box says whether the run is
+     * captured to a file. It is ticked when the dialog opens if [capture] is true. A workspace without bridge files
+     * shows only that box. The answer may tick no box at all.
      *
-     * @property bridges the bridge files, in the order they are listed.
-     * @property preselected the positions of the files that are ticked at first.
+     * @property bridges the bridge files, in the order they are listed. The list is empty if the workspace has none.
+     * @property preselected the positions of the bridge files that are ticked at first.
+     * @property capture whether the box that captures the run is ticked at first.
      */
-    public data class ChooseBridges(
+    public data class ConfigureRun(
         public val root: Path,
         public val bridges: List<Path>,
         public val preselected: Set<Int> = emptySet(),
-    ) : DialogRequest<TickAnswer> {
+        public val capture: Boolean = false,
+    ) : DialogRequest<RunAnswer> {
         init {
-            require(bridges.isNotEmpty()) { "there is no bridge to choose" }
             require(preselected.all { it in bridges.indices }) { "a preselected index is out of ${bridges.indices}" }
         }
 
         override fun accepts(response: DialogResponse): Boolean =
             response == DialogResponse.Cancel ||
-                (response is DialogResponse.Ticked && response.indices.all { it in bridges.indices })
+                (response is DialogResponse.RunWith && response.bridges.all { it in bridges.indices })
     }
 
     /** Show an error. The only answer is [DialogResponse.Confirm], also when the user dismisses the dialog. */
@@ -135,7 +138,7 @@ public sealed interface DialogResponse {
     public data object Confirm : ConfirmAnswer
 
     /** Cancel the operation. */
-    public data object Cancel : UnsavedChangesAnswer, ConfirmAnswer, TextAnswer, ChoiceAnswer, TickAnswer
+    public data object Cancel : UnsavedChangesAnswer, ConfirmAnswer, TextAnswer, ChoiceAnswer, RunAnswer
 
     /** The entered text, such as the new name of a renamed file or the name of a new file. */
     public data class Text(public val value: String) : TextAnswer
@@ -144,11 +147,12 @@ public sealed interface DialogResponse {
     public data class Chosen(public val index: Int) : ChoiceAnswer
 
     /**
-     * The entries the user ticked, by their positions in the list, as the answer to [DialogRequest.ChooseBridges].
+     * How to run, as the answer to [DialogRequest.ConfigureRun].
      *
-     * @property indices the positions of the ticked entries. The set is empty if none is ticked.
+     * @property bridges the positions of the ticked bridge files. The set is empty if none is ticked.
+     * @property capture whether the run is captured to a file.
      */
-    public data class Ticked(public val indices: Set<Int>) : TickAnswer
+    public data class RunWith(public val bridges: Set<Int>, public val capture: Boolean) : RunAnswer
 }
 
 /** The answers to [DialogRequest.UnsavedChanges], which are Save, Discard and Cancel. */
@@ -163,8 +167,8 @@ public sealed interface TextAnswer : DialogResponse
 /** The answers to [DialogRequest.ChooseDescriptor] and [DialogRequest.ChooseBridgeFile], which are Chosen and Cancel. */
 public sealed interface ChoiceAnswer : DialogResponse
 
-/** The answers to [DialogRequest.ChooseBridges], which are Ticked and Cancel. */
-public sealed interface TickAnswer : DialogResponse
+/** The answers to [DialogRequest.ConfigureRun], which are RunWith and Cancel. */
+public sealed interface RunAnswer : DialogResponse
 
 /**
  * Holds the pending dialog. The workbench mediator and the application's crash handling suspend in [ask] until the

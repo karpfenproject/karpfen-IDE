@@ -114,6 +114,20 @@ Run saves all open files first, because it uploads the saved files. It picks the
 the only one of the folder, or asks. A run whose files have errors stops before it reaches the runtime and lists the
 errors.
 
+Every run starts with the dialog Run.
+
+| In the dialog | Effect |
+|---|---|
+| A box per bridge file, if the project has any | The ticked bridges start with the run. |
+| Capture run to file | The run writes the whole log of the runtime into `karpfen-runs/` in the project, in a file named after the date and time, such as `2026-11-13_14-32-05.log`. |
+
+- The boxes you ticked last time are ticked again.
+- A captured file starts with a few lines about the run. Then it holds every line of the runtime's log from the
+  deployment to the end of the run, also the lines of each tick that the Log pane leaves out.
+- The folder `karpfen-runs` does not show in the Project tool window. The Runtime tool window names the file of the
+  selected run.
+- A runtime at a URL gives the IDE no log, so the file then only says so.
+
 Five parts of the state machine language are optional features that each project switches on by hand: histories,
 tick limits, breakpoints, macros, and splits and joins. All of them are off in a new project.
 
@@ -171,8 +185,8 @@ A run halts at the breakpoints of its state machines once breakpoints are switch
   active states of a state machine or an event has something new.
 - You do not write a bridge file by hand. Configure Bridge in the Run menu, or a click on a bridge file, opens a form.
   Pick lists the events, properties and state machines of the project.
-- When the project has bridge files, Run asks which of them to start. The boxes you ticked last time are ticked
-  again. The bridges start once the environment runs and stop with it.
+- When the project has bridge files, the dialog Run lists them, and you tick the ones to start. The bridges start
+  once the environment runs and stop with it.
 - Outbound routes that follow a property or a state machine need observation switched on.
 
 ## Walkthrough: the lamp
@@ -235,7 +249,7 @@ and `Runtime: stopped`.
 ### 4. Run it
 
 1. Choose Run in the Run menu, or press Shift+F10. On a Mac keyboard you may have to hold Fn.
-2. The dialog Bridges asks which bridges to start. Leave the boxes unticked and click Run.
+2. The dialog Run lists the bridges and the box Capture run to file. Leave the boxes unticked and click Run.
 
 Expected:
 
@@ -311,7 +325,7 @@ If a file has an error, the run is `blocked`, and the Log pane lists the error u
 
 ### 9. Try a bridge
 
-1. Run again, tick `http.kbridge.json` in the dialog Bridges and click Run. Expected: the Log pane lists the bridge
+1. Run again, tick `http.kbridge.json` in the dialog Run and click Run. Expected: the Log pane lists the bridge
    below the deployment.
 2. In a terminal, press the wall switch and make the lamp dimmer:
 

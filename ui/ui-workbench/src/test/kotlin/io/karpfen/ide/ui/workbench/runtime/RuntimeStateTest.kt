@@ -18,9 +18,12 @@ package io.karpfen.ide.ui.workbench.runtime
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.core.workspace.WorkspaceOptions
+import io.karpfen.ide.runtime.host.HostLogLine
 import io.karpfen.ide.runtime.host.HostOutcome
 import io.karpfen.ide.runtime.host.HostProblem
 import io.karpfen.ide.runtime.host.HostProblemCode
+import io.karpfen.ide.runtime.host.LogStream
 import io.karpfen.ide.runtime.host.RuntimeHostKind
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
@@ -43,6 +46,7 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.io.TempDir
@@ -66,7 +70,8 @@ import kotlin.time.Duration.Companion.seconds
  * The tests cover which descriptor Run picks, saving before preparing, and blocked and failed runs. They follow a
  * launch until the environment runs. They run again, also while the previous run waits for the runtime. They cover
  * stopping, replacing the host when the settings change, and closing the workspace. And they check the bound of the
- * sessions' shutdown and the limit of the runs list.
+ * sessions' shutdown and the limit of the runs list. And they capture a run to a file and end the capture with the
+ * run.
  */
 class RuntimeStateTest {
 
@@ -85,7 +90,7 @@ class RuntimeStateTest {
             runtimeHosts.current.outcome = FAILED_HOST
             openEditor(lamp)
 
-            runtime.run(metronome).joinSettled()
+            confirmRun(metronome).joinSettled()
 
             assertEquals(metronome, runtime.runs.value.single().descriptor)
             assertNoDialog()
@@ -101,7 +106,7 @@ class RuntimeStateTest {
             runtimeHosts.current.outcome = FAILED_HOST
             openEditor(metronome)
 
-            runtime.run().joinSettled()
+            confirmRun().joinSettled()
 
             assertEquals(metronome, runtime.runs.value.single().descriptor)
         }
@@ -114,7 +119,7 @@ class RuntimeStateTest {
             open(root)
             runtimeHosts.current.outcome = FAILED_HOST
 
-            runtime.run().joinSettled()
+            confirmRun().joinSettled()
 
             assertEquals(lamp, runtime.runs.value.single().descriptor)
             assertEquals("lamp", runtime.runs.value.single().planName)
@@ -131,6 +136,7 @@ class RuntimeStateTest {
 
             val first = runtime.run()
             val asked = answer(DialogRequest.ChooseDescriptor::class, DialogResponse.Chosen(1))
+            answerRun()
 
             assertTrue(first.isCompleted)
             assertEquals(listOf(lamp, metronome), asked.descriptors)
@@ -175,7 +181,7 @@ class RuntimeStateTest {
             settle()
             fileStore.failingWrites.add(model)
 
-            val failed = runtime.run(lamp)
+            val failed = confirmRun(lamp)
             answer(DialogRequest.Error::class, DialogResponse.Confirm)
 
             assertTrue(failed.isCompleted)
@@ -183,7 +189,7 @@ class RuntimeStateTest {
             assertTrue(document(model).isDirty.value)
 
             fileStore.failingWrites.clear()
-            runtime.run(lamp).joinSettled()
+            confirmRun(lamp).joinSettled()
 
             assertFalse(document(model).isDirty.value, "saved before the run")
             assertTrue(Files.readString(model).startsWith("\n"))
@@ -198,7 +204,7 @@ class RuntimeStateTest {
         withWorkbench(settingsDirectory) {
             open(root)
 
-            runtime.run(lamp).joinSettled()
+            confirmRun(lamp).joinSettled()
 
             val entry = runtime.runs.value.single()
             assertEquals(RunPhase.BLOCKED, entry.phase)
@@ -214,7 +220,7 @@ class RuntimeStateTest {
             open(root)
             runtimeHosts.current.outcome = FAILED_HOST
 
-            runtime.run(lamp).joinSettled()
+            confirmRun(lamp).joinSettled()
 
             val entry = runtime.runs.value.single()
             assertEquals(RunPhase.FAILED, entry.phase)
@@ -230,7 +236,7 @@ class RuntimeStateTest {
             open(root)
             programDeployment(lamp, ENV_1)
 
-            runtime.run(lamp).joinSettled()
+            confirmRun(lamp).joinSettled()
 
             val entry = runtime.runs.value.single()
             assertEquals(RunPhase.RUNNING, entry.phase)
@@ -250,12 +256,12 @@ class RuntimeStateTest {
         withWorkbench(settingsDirectory) {
             open(root)
             programDeployment(lamp, ENV_1)
-            runtime.run(lamp).joinSettled()
+            confirmRun(lamp).joinSettled()
             val first = runtime.runs.value.single()
             programStop(lamp, first, ENV_1)
             programDeployment(lamp, ENV_2)
 
-            runtime.rerun(first).joinSettled()
+            runtime.rerun(first).also { answerRun() }.joinSettled()
 
             val (second, previous) = runtime.runs.value
             assertEquals(first.id, previous.id)
@@ -274,12 +280,10 @@ class RuntimeStateTest {
             open(root)
             val starting = CompletableDeferred<Unit>()
             runtimeHosts.current.held = starting
-            val first = runtime.run(lamp)
-            settle()
+            val first = confirmRun(lamp)
             assertEquals(RunPhase.WAITING_FOR_RUNTIME, runtime.runs.value.single().phase)
 
-            val second = runtime.run(lamp)
-            settle()
+            val second = confirmRun(lamp)
             starting.complete(Unit)
             second.joinSettled()
 
@@ -298,7 +302,7 @@ class RuntimeStateTest {
         withWorkbench(settingsDirectory) {
             open(root)
             programDeployment(lamp, ENV_1)
-            runtime.run(lamp).joinSettled()
+            confirmRun(lamp).joinSettled()
             val entry = runtime.runs.value.single()
             programStop(lamp, entry, ENV_1)
 
@@ -307,6 +311,86 @@ class RuntimeStateTest {
             assertEquals(RunPhase.STOPPED, runtime.runs.value.single().phase)
             assertIs<SessionState.Stopped>(entry.session?.state?.value)
             assertEquals(1, fakeRuntime.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
+        }
+    }
+
+    @Test
+    fun `a captured run writes the whole log of the runtime into a file of the project until it is stopped`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP)
+        withWorkbench(settingsDirectory) {
+            open(root)
+            val host = runtimeHosts.current
+            programDeployment(lamp, ENV_1)
+            host.logLines.emit(HostLogLine("before the run"))
+            settle()
+
+            val run = runtime.run(lamp)
+            val asked = answerRun(capture = true)
+            run.joinSettled()
+            host.logLines.emit(HostLogLine(TICK_NOISE))
+            host.logLines.emit(HostLogLine("Exception in thread main", LogStream.STDERR))
+            settle()
+
+            assertEquals(false, asked.capture, "the box starts clear in a new project")
+            val entry = runtime.runs.value.single()
+            val file = assertNotNull(entry.captureFile)
+            assertEquals(root.resolve(WorkspaceOptions.RUN_CAPTURE_DIRECTORY), file.parent)
+            assertTrue(Regex("""\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.log""").matches(file.fileName.toString()), "$file")
+            assertNull(entry.captureProblem)
+            val lines = Files.readAllLines(file)
+            assertEquals("# Descriptor: ${root.relativize(lamp).joinToString("/")}", lines[1])
+            assertTrue("# Environment: $ENV_1" in lines, "$lines")
+            assertEquals(listOf("stdout $TICK_NOISE", "stderr Exception in thread main"), lines.takeLast(2))
+            assertTrue(lines.none { "before the run" in it }, "the capture starts with the deployment")
+            assertTrue(state.settings.value.captureRuns, "the choice is remembered")
+
+            programStop(lamp, entry, ENV_1)
+            runtime.stopSelected().joinSettled()
+            host.logLines.emit(HostLogLine("after the stop"))
+            settle()
+
+            assertTrue(Files.readAllLines(file).none { "after the stop" in it }, "the capture ends with the run")
+
+            workspace.refresh()
+            settle()
+            assertTrue(workspace.files.value.files().none { it.path.startsWith(file.parent) }, "the captures are not part of the project")
+
+            runtime.run(lamp)
+            assertTrue(answer(DialogRequest.ConfigureRun::class, DialogResponse.Cancel).capture, "the box starts ticked the next time")
+        }
+    }
+
+    @Test
+    fun `a run without the capture writes no file`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP)
+        withWorkbench(settingsDirectory) {
+            open(root)
+            programDeployment(lamp, ENV_1)
+
+            confirmRun(lamp).joinSettled()
+            runtimeHosts.current.logLines.emit(HostLogLine("a line"))
+            settle()
+
+            assertNull(runtime.runs.value.single().captureFile)
+            assertFalse(Files.exists(root.resolve(WorkspaceOptions.RUN_CAPTURE_DIRECTORY)))
+            assertFalse(state.settings.value.captureRuns)
+        }
+    }
+
+    @Test
+    fun `a capture that cannot be written leaves the run going and says why`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP)
+        Files.writeString(root.resolve(WorkspaceOptions.RUN_CAPTURE_DIRECTORY), "a file where the folder belongs")
+        withWorkbench(settingsDirectory) {
+            open(root)
+            programDeployment(lamp, ENV_1)
+
+            runtime.run(lamp).also { answerRun(capture = true) }.joinSettled()
+
+            val entry = runtime.runs.value.single()
+            assertEquals(RunPhase.RUNNING, entry.phase)
+            assertNull(entry.captureFile)
+            assertTrue(!entry.captureProblem.isNullOrBlank(), "${entry.captureProblem}")
         }
     }
 
@@ -344,7 +428,7 @@ class RuntimeStateTest {
             open(root)
             val host = runtimeHosts.current
             programDeployment(lamp, ENV_1)
-            runtime.run(lamp).joinSettled()
+            confirmRun(lamp).joinSettled()
             val entry = runtime.runs.value.single()
             programStop(lamp, entry, ENV_1)
 
@@ -365,7 +449,7 @@ class RuntimeStateTest {
             open(root)
             val host = runtimeHosts.current
             programDeployment(lamp, ENV_1)
-            runtime.run(lamp).joinSettled()
+            confirmRun(lamp).joinSettled()
             val entry = runtime.runs.value.single()
             fakeRuntime.hang(RuntimeRoute.STOP_ENVIRONMENT)
 
@@ -392,7 +476,7 @@ class RuntimeStateTest {
             open(root)
             runtimeHosts.current.outcome = FAILED_HOST
 
-            repeat(RunList.MAX_RUNS + 1) { runtime.run(lamp).joinSettled() }
+            repeat(RunList.MAX_RUNS + 1) { confirmRun(lamp).joinSettled() }
 
             assertEquals((RunList.MAX_RUNS + 1 downTo 2).map { it.toLong() }, runtime.runs.value.map { it.id })
 
@@ -405,6 +489,9 @@ class RuntimeStateTest {
     /** Copies [model] into a folder of its own below the workspace root and returns its descriptor. */
     private fun copy(model: SynthesizedModel): Path =
         SynthesizedModels.copyTo(root.resolve(model.folder), model, DescriptorTiming.EVENT_SCENARIOS).toAbsolutePath().normalize()
+
+    /** Runs [descriptor], or the picked descriptor if it is null, and answers the run dialog without bridges or capture. */
+    private fun TestWorkbench.confirmRun(descriptor: Path? = null): Job = runtime.run(descriptor).also { answerRun() }
 
     /** The runtime state of the opened workspace. */
     private val TestWorkbench.runtime: RuntimeState
@@ -463,6 +550,9 @@ class RuntimeStateTest {
         /** The first and second environment the fake runtime creates. */
         val ENV_1: String = FakeRuntime.environmentKey(1)
         val ENV_2: String = FakeRuntime.environmentKey(2)
+
+        /** A line the engine trace writes on every tick, which the Log pane leaves out. */
+        const val TICK_NOISE = "[12:41:30.123] [env-1] [lamp] TICK_START: tick 3"
 
         /** The revision of the final model after a stop. */
         const val FINAL_REVISION = 3L

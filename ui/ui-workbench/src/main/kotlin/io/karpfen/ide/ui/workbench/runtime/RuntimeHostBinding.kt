@@ -29,6 +29,7 @@ import io.karpfen.ide.ui.workbench.settings.RuntimeSettings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,9 +41,9 @@ import java.time.Clock
 
 /**
  * The runtime host of one workspace and what depends on it. The host is created through [hosts] from the settings.
- * The binding publishes the host's status and writes its log lines to [log]. It keeps one client for the runtime's
- * current endpoint. The client is created when the host reports the runtime as running. It is closed when the
- * endpoint changes or the binding closes.
+ * The binding publishes the host's status and writes its log lines to [log]. It also hands every log line, unfiltered,
+ * to the listeners that [observe] registers. It keeps one client for the runtime's current endpoint. The client is
+ * created when the host reports the runtime as running. It is closed when the endpoint changes or the binding closes.
  *
  * Replacing the settings creates the new host and makes it current at once. Only then is the old host closed, which
  * stops its container. Nothing therefore reaches the old host while it closes.
@@ -64,8 +65,9 @@ internal class RuntimeHostBinding(
     private val log: OutputSink,
     private val ioDispatcher: CoroutineDispatcher,
     private val clock: Clock,
-) {
+) : RuntimeLogSource {
     private val hostStatus = MutableStateFlow<HostStatus>(HostStatus.Stopped)
+    private val listeners = ArrayList<(HostLogLine) -> Unit>()
     private var host: RuntimeHost = hosts.create(root, settings.toHostSettings())
     private var following: List<Job> = follow(host)
     private var client: RuntimeClient? = null
@@ -77,6 +79,15 @@ internal class RuntimeHostBinding(
 
     /** What the current host is doing. */
     val status: StateFlow<HostStatus> get() = hostStatus.asStateFlow()
+
+    /**
+     * Calls [listener] with every log line of the current host and of the hosts that replace it, from now on and
+     * before any filtering, until the returned handle is disposed.
+     */
+    override fun observe(listener: (HostLogLine) -> Unit): DisposableHandle {
+        listeners.add(listener)
+        return DisposableHandle { listeners.remove(listener) }
+    }
 
     /** Starts the runtime unless it already runs. Returns where the runtime is reached, or why there is none. */
     suspend fun ensureRunning(): HostOutcome = host.ensureRunning()
@@ -163,11 +174,13 @@ internal class RuntimeHostBinding(
     )
 
     /**
-     * Writes [line] to the log. Standard error becomes an error and everything else becomes information. The logger
-     * name is the stream's name in lower case. The lines that the engine trace writes on every tick are left out, as
-     * [EngineTrace.isTickNoise] tells. They would push everything else out of the log within seconds.
+     * Hands [line] to the listeners and writes it to the log. Standard error becomes an error and everything else
+     * becomes information. The logger name is the stream's name in lower case. The lines that the engine trace writes
+     * on every tick are left out, as [EngineTrace.isTickNoise] tells. They would push everything else out of the log
+     * within seconds.
      */
     private fun write(line: HostLogLine) {
+        listeners.toList().forEach { it(line) }
         if (EngineTrace.isTickNoise(line.text)) return
         val level = if (line.stream == LogStream.STDERR) OutputLevel.ERROR else OutputLevel.INFO
         log.append(clock.instant(), level, line.stream.name.lowercase(), line.text, null)

@@ -62,7 +62,10 @@ refer to.
   one run without a change of the text, which the IDE does not use.
 - The debugger learns where a run is paused by asking the runtime every 300 ms, because the runtime sends no message
   when its engine halts.
-- Recording the events of a run and replaying them, which the runtime offers, has no place in the IDE.
+- Recording the events of a run and replaying them, which the runtime offers, has no place in the IDE. A run can
+  only be captured to a file as text.
+- A captured file holds the log of the whole runtime while its run lives. With two runs at once, each file also holds
+  the lines of the other run. Lines that the runtime writes before the deployment are not in the file.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
 
 ### Bridges

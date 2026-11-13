@@ -31,6 +31,9 @@ public object RuntimeViewTestTags {
     /** The line about the deployment in the Log pane. A click opens and closes the details. */
     public const val DEPLOYMENT: String = "Runtime.log.deployment"
 
+    /** The line above the log that names the file the run is captured to. */
+    public const val CAPTURE: String = "Runtime.log.capture"
+
     /** The explanation of the event form. */
     public const val SEND_HELP: String = "Runtime.injector.help"
 

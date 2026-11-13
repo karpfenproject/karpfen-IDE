@@ -91,6 +91,26 @@ class ProjectSettingsFileTest {
     }
 
     @Test
+    fun `the capture is one line after the bridges while it is on and no line while it is off`() {
+        val captured = settings.copy(capture = true)
+
+        val text = ProjectSettingsFile.format(captured)
+
+        assertEquals("capture = on", text.lines().dropWhile { !it.startsWith("bridge") }.dropWhile { it.startsWith("bridge") }.first())
+        assertEquals(captured, ProjectSettingsFile.parse(text))
+        assertEquals(false, ProjectSettings().capture, "runs are not captured by default")
+        assertEquals(emptyList(), ProjectSettingsFile.format(settings).lines().filter { it.startsWith("capture") })
+    }
+
+    @Test
+    fun `a capture line that is not on counts as off`() {
+        assertEquals(true, ProjectSettingsFile.parse("capture = ON\n").capture)
+        assertEquals(false, ProjectSettingsFile.parse("capture = off\n").capture)
+        assertEquals(false, ProjectSettingsFile.parse("capture = yes\n").capture)
+        assertEquals(emptyList(), ProjectSettingsFile.parse("capture = yes\n").otherLines, "the line is known, so it is not kept")
+    }
+
+    @Test
     fun `an empty file and a file of comments hold the defaults`() {
         assertEquals(ProjectSettings(), ProjectSettingsFile.parse(""))
         assertEquals(ProjectSettings(), ProjectSettingsFile.parse("# nothing here\n\n   # nor here\n"))

@@ -40,10 +40,11 @@ internal interface RunSupport {
     suspend fun chooseDescriptor(root: Path, descriptors: List<Path>, preselected: Path?): Path?
 
     /**
-     * Asks the user which of the [bridges] of the workspace at [root] to start with the run. The boxes of [preselected]
-     * are ticked when the dialog opens. Returns the ticked bridges, which may be none, or null if the user cancelled.
+     * Asks the user how to run: which of the [bridges] of the workspace at [root] to start with the run, and whether to
+     * capture the run to a file. The dialog opens with the boxes of [preselected] ticked and the capture box ticked if
+     * [capture] is true. Returns the choice, or null if the user cancelled.
      */
-    suspend fun chooseBridges(root: Path, bridges: List<Path>, preselected: Set<Path>): List<Path>?
+    suspend fun configureRun(root: Path, bridges: List<Path>, preselected: Set<Path>, capture: Boolean): RunChoice?
 
     /** Shows an error dialog with [title] and [message] and returns once it is acknowledged. */
     suspend fun showError(title: String, message: String)

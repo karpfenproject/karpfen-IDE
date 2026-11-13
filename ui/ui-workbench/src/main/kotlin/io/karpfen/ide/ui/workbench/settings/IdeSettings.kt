@@ -44,7 +44,9 @@ import kotlinx.serialization.Serializable
  *   the tabs. Part of the project.
  * @property activeFile the file of the active tab, named like the [openFiles], or null. Part of the project.
  * @property activeBridges the bridge files that were started with the last run, named like the [openFiles]. The
- *   dialog that asks which bridges to start with a run has them ticked. Part of the project.
+ *   run dialog has them ticked. Part of the project.
+ * @property captureRuns whether the last run was started with its capture to a file switched on. The run dialog has
+ *   its capture box ticked if so. Part of the project.
  * @property languageFeatures the optional language features of KStates that are switched on for the project. All are
  *   off by default. Part of the project.
  * @property otherProjectLines the lines of the project file that this version does not understand. They are kept so
@@ -61,6 +63,7 @@ public data class IdeSettings(
     public val openFiles: List<String> = emptyList(),
     public val activeFile: String? = null,
     public val activeBridges: List<String> = emptyList(),
+    public val captureRuns: Boolean = false,
     public val languageFeatures: Set<KstatesFeature> = emptySet(),
     public val otherProjectLines: List<String> = emptyList(),
 ) {

@@ -19,7 +19,7 @@ import java.nio.file.Path
 
 /**
  * What pressing a dialog button does. [Answer] answers with a fixed response. [SubmitText] answers with the entered
- * text. [SubmitSelection] answers with the selected entry of the list. [SubmitTicked] answers with the ticked entries.
+ * text. [SubmitSelection] answers with the selected entry of the list. [SubmitRun] answers with the ticked boxes.
  */
 internal sealed interface DialogChoice {
     /** Answers with [response]. */
@@ -31,8 +31,8 @@ internal sealed interface DialogChoice {
     /** Answers with the selected entry of the list. */
     data object SubmitSelection : DialogChoice
 
-    /** Answers with the entries whose boxes are ticked. */
-    data object SubmitTicked : DialogChoice
+    /** Answers how to run: with the ticked boxes of the list and whether the box of the option below it is ticked. */
+    data object SubmitRun : DialogChoice
 }
 
 /** A button of a dialog. Enter also presses the button whose [isDefault] is true. */
@@ -42,8 +42,9 @@ internal data class DialogButton(val label: String, val choice: DialogChoice, va
  * How a [DialogRequest] is shown. It holds presentation only, so the dialog composable just renders it. A dialog has a
  * [title], a [message] and [buttons]. The buttons offer exactly the answers the request accepts. An optional text field
  * starts with the text [input]. An optional list shows [choices] and starts with the entry at [preselected] selected.
- * An optional list of boxes shows [ticks] and starts with the boxes of [preticked] ticked. [dismiss] is the answer given
- * when the user dismisses the dialog with Escape.
+ * An optional list of boxes shows [ticks] and starts with the boxes of [preticked] ticked. An optional single box below
+ * it shows the label [option] and starts ticked if [optionTicked] is true. [dismiss] is the answer given when the user
+ * dismisses the dialog with Escape.
  */
 internal data class DialogPresentation(
     val title: String,
@@ -55,22 +56,25 @@ internal data class DialogPresentation(
     val preselected: Int = 0,
     val ticks: List<String>? = null,
     val preticked: Set<Int> = emptySet(),
+    val option: String? = null,
+    val optionTicked: Boolean = false,
 ) {
     /**
-     * The response of [choice] while [text] is entered, the list entry at [selected] is selected and the boxes of
-     * [ticked] are ticked. Returns null if the choice is not possible right now, which is the case for a text answer
-     * while the text is blank.
+     * The response of [choice] while [text] is entered, the list entry at [selected] is selected, the boxes of
+     * [ticked] are ticked and the box of the option is [optioned]. Returns null if the choice is not possible right
+     * now, which is the case for a text answer while the text is blank.
      */
     fun responseFor(
         choice: DialogChoice,
         text: String,
         selected: Int = preselected,
         ticked: Set<Int> = preticked,
+        optioned: Boolean = optionTicked,
     ): DialogResponse? = when (choice) {
         is DialogChoice.Answer -> choice.response
         DialogChoice.SubmitText -> text.trim().takeIf { it.isNotEmpty() }?.let(DialogResponse::Text)
         DialogChoice.SubmitSelection -> DialogResponse.Chosen(selected)
-        DialogChoice.SubmitTicked -> DialogResponse.Ticked(ticked)
+        DialogChoice.SubmitRun -> DialogResponse.RunWith(ticked, optioned)
     }
 
     companion object {
@@ -120,16 +124,18 @@ internal data class DialogPresentation(
                 dismiss = DialogResponse.Cancel,
                 choices = request.bridges.map { request.root.relativize(it).toString() } + NEW_BRIDGE,
             )
-            is DialogRequest.ChooseBridges -> DialogPresentation(
-                title = "Bridges",
-                message = "Tick the bridges to start with this run. The choice is remembered for the next run.",
+            is DialogRequest.ConfigureRun -> DialogPresentation(
+                title = "Run",
+                message = if (request.bridges.isEmpty()) RUN_CHOICE_REMEMBERED else "$TICK_BRIDGES $RUN_CHOICE_REMEMBERED",
                 buttons = listOf(
-                    DialogButton("Run", DialogChoice.SubmitTicked, isDefault = true),
+                    DialogButton("Run", DialogChoice.SubmitRun, isDefault = true),
                     answer("Cancel", DialogResponse.Cancel),
                 ),
                 dismiss = DialogResponse.Cancel,
                 ticks = request.bridges.map { request.root.relativize(it).toString() },
                 preticked = request.preselected,
+                option = CAPTURE_RUN,
+                optionTicked = request.capture,
             )
             is DialogRequest.Error -> DialogPresentation(
                 title = request.title,
@@ -168,6 +174,15 @@ internal data class DialogPresentation(
 
         /** The last entry of the list that picks the bridge to configure. */
         const val NEW_BRIDGE = "New bridge"
+
+        /** The label of the box that captures a run to a file. */
+        const val CAPTURE_RUN = "Capture run to file"
+
+        /** What the run dialog asks of a workspace with bridge files. */
+        private const val TICK_BRIDGES = "Tick the bridges to start with this run."
+
+        /** What the run dialog says about its choices. */
+        private const val RUN_CHOICE_REMEMBERED = "The choices are remembered for the next run."
 
         private fun submit(label: String) = DialogButton(label, DialogChoice.SubmitText, isDefault = true)
 

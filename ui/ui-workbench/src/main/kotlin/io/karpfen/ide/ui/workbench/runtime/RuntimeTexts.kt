@@ -80,6 +80,18 @@ public object RuntimeTexts {
     /** The message of [problem], followed by its hint if it has one. */
     public fun hostProblem(problem: HostProblem): String = listOfNotNull(problem.message, problem.hint).joinToString(" ")
 
+    /**
+     * The line that says into which [file] a run is captured, with the file relative to [root] and forward slashes,
+     * such as `Captured to karpfen-runs/2026-11-13_14-32-05.log`.
+     */
+    public fun captured(file: Path, root: Path): String {
+        val shown = if (file.startsWith(root)) root.relativize(file).joinToString("/") else file.toString()
+        return "Captured to $shown"
+    }
+
+    /** The line that says why a run could not be captured to its file, for the [reason] the capture gave. */
+    public fun captureProblem(reason: String): String = "The run could not be captured to a file: $reason"
+
     /** The label of [phase]. */
     public fun phase(phase: RunPhase): String = when (phase) {
         RunPhase.PREPARING -> "preparing"

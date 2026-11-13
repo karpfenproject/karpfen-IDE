@@ -15,10 +15,12 @@
  */
 package io.karpfen.ide.ui.workbench.dialog.view
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -55,6 +58,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -73,9 +77,10 @@ import io.karpfen.ide.ui.workbench.dialog.DialogResponse
  *
  * The rename and new file dialogs have a text field. It starts focused, with its whole text selected. The dialog that
  * picks the descriptor to run has a list instead. It starts with the preselected entry selected. Up and Down move the
- * selection, and a click selects an entry. The dialog that asks which bridges to start has a list of boxes, and a click
- * on a row ticks or clears its box. Tab and Shift+Tab cycle through the focus stops of [DialogFocusOrder] and
- * never leave the dialog. [ModalDialogLayer] keeps the focus out of the workbench behind it.
+ * selection, and a click selects an entry. The run dialog has a list of boxes for the bridges to start and one box
+ * below it that captures the run to a file. A click on a row ticks or clears its box. Tab and Shift+Tab cycle through
+ * the focus stops of [DialogFocusOrder] and never leave the dialog. [ModalDialogLayer] keeps the focus out of the
+ * workbench behind it.
  */
 @Composable
 internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResponse) -> Unit) {
@@ -87,6 +92,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
     }
     var selected by remember(request) { mutableStateOf(presentation.preselected) }
     var ticked by remember(request) { mutableStateOf(presentation.preticked) }
+    var optioned by remember(request) { mutableStateOf(presentation.optionTicked) }
     val stops = remember(request) { List(presentation.buttons.size + 1) { FocusRequester() } }
     val order = DialogFocusOrder.of(presentation, text.text)
     fun Modifier.focusStop(stop: Int): Modifier = focusRequester(stops[stop]).focusProperties {
@@ -94,7 +100,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         previous = stops[order.previous(stop)]
     }
     fun press(button: DialogButton) {
-        presentation.responseFor(button.choice, text.text, selected, ticked)?.let(onRespond)
+        presentation.responseFor(button.choice, text.text, selected, ticked, optioned)?.let(onRespond)
     }
     val choices = presentation.choices
     val colors = KarpfenTheme.colors
@@ -144,31 +150,26 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(if (index == selected) colors.selection else Color.Transparent)
-                                .clickable { selected = index }
+                                .clickable(remember { MutableInteractionSource() }, LocalIndication.current) { selected = index }
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                 .testTag(WorkbenchDialogTestTags.choice(index)),
                         )
                     }
                 }
             }
-            presentation.ticks?.let { ticks ->
+            presentation.ticks?.takeIf { it.isNotEmpty() }?.let { ticks ->
                 Spacer(Modifier.height(8.dp))
                 Column(Modifier.fillMaxWidth().border(1.dp, colors.border)) {
                     ticks.forEachIndexed { index, label ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { ticked = if (index in ticked) ticked - index else ticked + index }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .testTag(WorkbenchDialogTestTags.tick(index)),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Checkbox(checked = index in ticked, onCheckedChange = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(label, color = colors.text, style = KarpfenTheme.typography.ui)
+                        TickRow(label, index in ticked, WorkbenchDialogTestTags.tick(index)) {
+                            ticked = if (index in ticked) ticked - index else ticked + index
                         }
                     }
                 }
+            }
+            presentation.option?.let { label ->
+                Spacer(Modifier.height(8.dp))
+                TickRow(label, optioned, WorkbenchDialogTestTags.OPTION) { optioned = !optioned }
             }
             if (presentation.input != null) {
                 Spacer(Modifier.height(8.dp))
@@ -182,7 +183,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                 presentation.buttons.forEachIndexed { index, button ->
-                    val enabled = presentation.responseFor(button.choice, text.text, selected, ticked) != null
+                    val enabled = presentation.responseFor(button.choice, text.text, selected, ticked, optioned) != null
                     val tagged = Modifier.testTag(WorkbenchDialogTestTags.button(button.label)).focusStop(index + 1)
                     if (button.isDefault) {
                         Button(onClick = { press(button) }, enabled = enabled, modifier = tagged) { Text(button.label) }
@@ -194,4 +195,26 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         }
     }
     LaunchedEffect(request) { stops.first().requestFocus() }
+}
+
+/**
+ * A row with a box and its [label], ticked if [checked], tagged [tag]. A click on the row calls [onToggle].
+ *
+ * The row has an interaction source of its own. With the one a plain click handler makes on its first press, the
+ * first click after the dialog opened is lost under the layer that keeps clicks away from the workbench.
+ */
+@Composable
+private fun TickRow(label: String, checked: Boolean, tag: String, onToggle: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(checked, remember { MutableInteractionSource() }, LocalIndication.current, role = Role.Checkbox) { onToggle() }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .testTag(tag),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Spacer(Modifier.width(8.dp))
+        Text(label, color = KarpfenTheme.colors.text, style = KarpfenTheme.typography.ui)
+    }
 }

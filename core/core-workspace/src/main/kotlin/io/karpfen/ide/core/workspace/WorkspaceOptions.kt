@@ -55,8 +55,17 @@ public data class WorkspaceOptions(
     }
 
     public companion object {
-        /** Directories ignored by default: version control, build output, IDE settings and package caches. */
+        /**
+         * The folder in the project folder that holds the captured runs of the IDE. It holds log files only, so it is
+         * ignored like build output.
+         */
+        public const val RUN_CAPTURE_DIRECTORY: String = "karpfen-runs"
+
+        /**
+         * Directories ignored by default: version control, build output, IDE settings, package caches and the
+         * [RUN_CAPTURE_DIRECTORY].
+         */
         public val DEFAULT_IGNORED_DIRECTORIES: Set<String> =
-            setOf(".git", ".gradle", "build", "out", ".idea", ".kotlin", "node_modules")
+            setOf(".git", ".gradle", "build", "out", ".idea", ".kotlin", "node_modules", RUN_CAPTURE_DIRECTORY)
     }
 }

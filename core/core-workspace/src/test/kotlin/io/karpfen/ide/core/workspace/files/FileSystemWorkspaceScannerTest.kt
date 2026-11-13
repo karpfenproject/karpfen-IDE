@@ -76,6 +76,18 @@ class FileSystemWorkspaceScannerTest {
     }
 
     @Test
+    fun `the folder of the captured runs is ignored`() {
+        write("${WorkspaceOptions.RUN_CAPTURE_DIRECTORY}/2026-11-13_14-32-05.log")
+        write("${WorkspaceOptions.RUN_CAPTURE_DIRECTORY}/stray.kmeta")
+        write("kept.kmeta")
+
+        val tree = scanner.scan(dir)
+
+        assertEquals(listOf("kept.kmeta"), tree.files().map { it.name })
+        assertTrue(tree.root.children.none { it.name == WorkspaceOptions.RUN_CAPTURE_DIRECTORY })
+    }
+
+    @Test
     fun `nodes carry absolute normalized paths and file kinds`() {
         write("ctx/EVENTS.kmeta")
         write("ctx/robot.kenv.json")

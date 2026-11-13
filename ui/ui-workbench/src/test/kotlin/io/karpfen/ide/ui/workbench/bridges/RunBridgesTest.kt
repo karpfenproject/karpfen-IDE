@@ -65,7 +65,7 @@ import kotlin.time.Duration.Companion.seconds
  * Tests the bridges of a run. The sessions are scripted fakes that the tests drive through their writable flows, and
  * the HTTP bridge is the real one on a free port of this machine.
  *
- * The tests cover the dialog that asks which bridges to start, the remembered choice, starting the bridges when the
+ * The tests cover the run dialog that asks which bridges to start, the remembered choice, starting the bridges when the
  * environment runs and stopping them with it, a bridge that cannot be built, and the link between a bridge and the
  * session of the run.
  */
@@ -88,7 +88,7 @@ class RunBridgesTest {
             open(root)
 
             val run = runtime.run(lamp)
-            val asked = answer(DialogRequest.ChooseBridges::class, DialogResponse.Ticked(setOf(0, 1)))
+            val asked = answerRun(setOf(0, 1))
             run.joinSettled()
 
             assertEquals(listOf(http, ros), asked.bridges)
@@ -127,7 +127,7 @@ class RunBridgesTest {
             open(root)
 
             val first = runtime.run(lamp)
-            val shown = answer(DialogRequest.ChooseBridges::class, DialogResponse.Ticked(setOf(0)))
+            val shown = answerRun(setOf(0))
             first.joinSettled()
 
             assertEquals(second, shown.bridges.first(), "the bridge files are listed in the order of the project tree")
@@ -136,7 +136,7 @@ class RunBridgesTest {
             assertEquals(listOf(second), runtime.bridges(runtime.runs.value.first())?.runs?.value?.map { it.file })
 
             val again = runtime.run(lamp)
-            val asked = answer(DialogRequest.ChooseBridges::class, DialogResponse.Cancel)
+            val asked = answer(DialogRequest.ConfigureRun::class, DialogResponse.Cancel)
             again.joinSettled()
 
             assertEquals(setOf(0), asked.preselected, "the last choice is ticked")
@@ -144,7 +144,7 @@ class RunBridgesTest {
             assertEquals(listOf("lab/b.kbridge.json"), state.settings.value.activeBridges, "a cancelled choice is not remembered")
 
             val none = runtime.run(lamp)
-            answer(DialogRequest.ChooseBridges::class, DialogResponse.Ticked(emptySet()))
+            answerRun(emptySet())
             none.joinSettled()
 
             assertEquals(emptyList(), state.settings.value.activeBridges)
@@ -160,7 +160,7 @@ class RunBridgesTest {
         withWorkbench(settingsDirectory, scriptSessions = true) {
             open(root)
             val run = runtime.run(lamp)
-            answer(DialogRequest.ChooseBridges::class, DialogResponse.Ticked(setOf(0)))
+            answerRun(setOf(0))
             run.joinSettled()
             val session = scriptedSessions.launched.single()
             session.availabilityFlow.value = InjectionAvailability.Live

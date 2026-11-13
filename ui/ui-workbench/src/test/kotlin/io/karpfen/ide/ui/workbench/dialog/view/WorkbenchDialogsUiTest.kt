@@ -68,28 +68,54 @@ class WorkbenchDialogsUiTest {
     }
 
     @Test
-    fun `the bridges dialog starts with the remembered boxes ticked and answers with the ticked ones`() = runComposeUiTest {
+    fun `the run dialog starts with the remembered boxes ticked and answers with the ticked ones`() = runComposeUiTest {
         val answers = mutableListOf<DialogResponse>()
         val root = Path.of("/ws").toAbsolutePath()
         val bridges = listOf(root.resolve("http.kbridge.json"), root.resolve("lab/mqtt.kbridge.json"), root.resolve("ros.kbridge.json"))
         setContent {
             KarpfenTheme(darkTheme = false) {
-                WorkbenchDialogs(DialogRequest.ChooseBridges(root, bridges, preselected = setOf(1))) { answers.add(it) }
+                WorkbenchDialogs(DialogRequest.ConfigureRun(root, bridges, preselected = setOf(1), capture = true)) { answers.add(it) }
             }
         }
         onNodeWithText("http.kbridge.json").assertIsDisplayed()
+        onNodeWithText("Capture run to file").assertIsDisplayed()
         onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.tick(0)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.tick(1)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.tick(2)).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.OPTION).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.DIALOG).performKeyInput { pressKey(Key.Enter) }
         onNodeWithTag(WorkbenchDialogTestTags.tick(0)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.tick(2)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.DIALOG).performKeyInput { pressKey(Key.Escape) }
         assertEquals(
-            listOf(DialogResponse.Ticked(setOf(1)), DialogResponse.Ticked(setOf(0, 2)), DialogResponse.Ticked(emptySet()), DialogResponse.Cancel),
+            listOf(
+                DialogResponse.RunWith(setOf(1), capture = true),
+                DialogResponse.RunWith(setOf(0, 2), capture = false),
+                DialogResponse.RunWith(emptySet(), capture = false),
+                DialogResponse.Cancel,
+            ),
             answers.toList(),
+        )
+    }
+
+    @Test
+    fun `the run dialog of a project without bridge files has only the capture box`() = runComposeUiTest {
+        val answers = mutableListOf<DialogResponse>()
+        val root = Path.of("/ws").toAbsolutePath()
+        setContent {
+            KarpfenTheme(darkTheme = false) { WorkbenchDialogs(DialogRequest.ConfigureRun(root, emptyList())) { answers.add(it) } }
+        }
+        onNodeWithTag(WorkbenchDialogTestTags.tick(0)).assertDoesNotExist()
+        onNodeWithTag(WorkbenchDialogTestTags.OPTION).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.OPTION).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
+        assertEquals(
+            listOf<DialogResponse>(DialogResponse.RunWith(emptySet(), capture = true), DialogResponse.RunWith(emptySet(), capture = false)),
+            answers.toList(),
+            "the first click after the dialog opened must tick the box",
         )
     }
 
