@@ -17,6 +17,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     id("karpfen.compose")
+    id("karpfen.live-runtime-test")
 }
 
 /**
@@ -25,6 +26,10 @@ plugins {
  * `logging` package implement logback's API to route what dsl-tools logs into the workbench's Language Tools Output.
  * The CLI is a test dependency only, because the end-to-end tests show that the Problems view, the status bar and
  * `karpfen validate` agree on one folder.
+ *
+ * The tests of the headless mode run a project over the scriptable session of runtime-session's test fixtures and the
+ * synthesized models of runtime-protocol's test fixtures. One test runs a project headless against a real runtime. It
+ * runs only in the opt-in task of `karpfen.live-runtime-test`.
  */
 dependencies {
     implementation(project(":ui:ui-workbench"))
@@ -35,6 +40,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
     testImplementation(project(":tools:cli"))
+    testImplementation(testFixtures(project(":runtime:runtime-session")))
+    testImplementation(testFixtures(project(":runtime:runtime-protocol")))
 }
 
 /**

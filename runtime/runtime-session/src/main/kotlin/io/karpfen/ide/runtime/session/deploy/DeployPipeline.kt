@@ -26,13 +26,15 @@ import kotlin.coroutines.cancellation.CancellationException
  * The steps of deploying a plan, in the order they run. The deployment checks the runtime, creates the environment and
  * connects. It uploads the metamodel, the event definitions and the model, and attaches each state machine in
  * descriptor order. It sets the tick delay and the event time to live, listens to the event domains and switches on the
- * runtime features the state machines need. Then it activates, observes, starts and confirms the start. Steps that the plan or the options do not need are still present
- * and are skipped, so the progress always shows the same steps. Stateless.
+ * runtime features the state machines need, as the options apply them to the plan. Then it activates, observes, starts
+ * and confirms the start. Steps that the plan or the options do not need are still present and are skipped, so the
+ * progress always shows the same steps. Stateless.
  */
 internal object DeploySteps {
-    /** The steps of deploying [plan] to [endpoint] with [options]. */
-    fun of(plan: DeploymentPlan, options: DeployOptions, endpoint: RuntimeEndpoint): List<DeployStep> =
-        buildList {
+    /** The steps of deploying [planned] to [endpoint] with [options], which [DeployOptions.applyTo] applies to it first. */
+    fun of(planned: DeploymentPlan, options: DeployOptions, endpoint: RuntimeEndpoint): List<DeployStep> {
+        val plan = options.applyTo(planned)
+        return buildList {
             add(CheckRuntimeStep(endpoint))
             add(CreateEnvironmentStep())
             add(ConnectStep())
@@ -66,6 +68,7 @@ internal object DeploySteps {
                 add(SkippedStep(DeployStepKind.CONFIRM_START, "Confirming the start", "The environment is not started"))
             }
         }
+    }
 }
 
 /**

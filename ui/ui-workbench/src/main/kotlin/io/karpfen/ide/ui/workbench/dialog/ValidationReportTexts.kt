@@ -28,21 +28,24 @@ import kotlin.io.path.invariantSeparatorsPathString
  */
 internal data class FindingRow(val text: String, val severity: Severity)
 
-/** The texts of the dialog that shows a [ProjectValidation]. The object is pure and holds no state. */
-internal object ValidationReportTexts {
+/**
+ * The texts of a [ProjectValidation]: those of the dialog that shows it in the window, and the parts every other
+ * report of a validation shares with it, such as the headless mode's lines. The object is pure and holds no state.
+ */
+public object ValidationReportTexts {
 
     /** The summary of the report when it has no finding at all. */
-    const val NO_PROBLEMS: String = "No problems found."
+    public const val NO_PROBLEMS: String = "No problems found."
 
     /** The summary of a report whose findings are neither errors nor warnings. */
-    const val NO_ERRORS_OR_WARNINGS: String = "No errors or warnings."
+    public const val NO_ERRORS_OR_WARNINGS: String = "No errors or warnings."
 
     /**
      * The line that sums up [validation]: the counts of its errors and warnings, such as `2 errors and 1 warning`,
      * `1 error` or `3 warnings`. A report without errors and warnings says [NO_PROBLEMS], or [NO_ERRORS_OR_WARNINGS] if
      * it still has findings of another severity.
      */
-    fun summary(validation: ProjectValidation): String {
+    public fun summary(validation: ProjectValidation): String {
         val counts = listOfNotNull(
             count(validation.errorCount, "error"),
             count(validation.warningCount, "warning"),
@@ -55,19 +58,24 @@ internal object ValidationReportTexts {
     }
 
     /**
-     * One row per finding of [validation], in its order. A row reads `<file>:<line>  <message>`, with the file relative
-     * to the project and `/` between its parts, and the message on one line.
+     * The file of [finding] as a report of [validation] names it: relative to the project with `/` between its parts,
+     * `.` for the project folder itself, and the whole path for a file outside the project.
      */
-    fun rows(validation: ProjectValidation): List<FindingRow> =
-        validation.findings.map { FindingRow(rowOf(validation, it), it.severity) }
-
-    /** The text of the row of [finding] in [validation]. */
-    private fun rowOf(validation: ProjectValidation, finding: ValidationFinding): String {
+    public fun file(validation: ProjectValidation, finding: ValidationFinding): String {
         val path = if (finding.path.startsWith(validation.root)) validation.root.relativize(finding.path) else finding.path
-        val file = path.invariantSeparatorsPathString.ifEmpty { "." }
-        val message = finding.message.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
-        return "$file:${finding.line}  $message"
+        return path.invariantSeparatorsPathString.ifEmpty { "." }
     }
+
+    /** The message of [finding] on one line: its lines trimmed, the empty ones left out, and the rest joined by blanks. */
+    public fun message(finding: ValidationFinding): String =
+        finding.message.lines().map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" ")
+
+    /**
+     * One row per finding of [validation], in its order. A row reads `<file>:<line>  <message>`, with the file as
+     * [file] names it and the message as [message] puts it.
+     */
+    internal fun rows(validation: ProjectValidation): List<FindingRow> =
+        validation.findings.map { FindingRow("${file(validation, it)}:${it.line}  ${message(it)}", it.severity) }
 
     /** [count] of [noun], with the noun in the plural unless the count is one, or null if [count] is zero. */
     private fun count(count: Int, noun: String): String? = when (count) {

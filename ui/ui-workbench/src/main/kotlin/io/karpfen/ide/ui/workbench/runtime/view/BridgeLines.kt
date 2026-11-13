@@ -22,9 +22,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import io.karpfen.ide.bridges.api.BridgeState
-import io.karpfen.ide.bridges.api.RouteStatus
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
-import io.karpfen.ide.ui.workbench.bridges.BridgeRun
+import io.karpfen.ide.ui.workbench.bridges.BridgeTexts
 import io.karpfen.ide.ui.workbench.bridges.RunBridges
 
 /**
@@ -49,30 +48,5 @@ internal fun BridgeLines(bridges: RunBridges) {
         (run.status.inbound + run.status.outbound).filter { it.dropped > 0 || it.failed > 0 }.forEach { route ->
             Line("    ${BridgeTexts.trouble(route)}", colors.warning)
         }
-    }
-}
-
-/** The wording of the bridge lines. */
-internal object BridgeTexts {
-
-    /** The line of [run], such as `http.kbridge.json: running, 3 in, 12 out`. */
-    fun line(run: BridgeRun): String {
-        val status = run.status
-        val state = when (status.state) {
-            BridgeState.STOPPED -> "not running"
-            BridgeState.STARTING -> "starting"
-            BridgeState.RUNNING -> "running, ${status.inbound.sumOf { it.delivered }} in, ${status.outbound.sumOf { it.delivered }} out"
-            BridgeState.FAILED -> "failed. ${status.problem ?: "The reason is not known."}"
-        }
-        return "${run.name}: $state"
-    }
-
-    /** What went wrong on [route], such as `/dim to switch/dim: 2 failed (The message is not JSON.)`. */
-    fun trouble(route: RouteStatus): String {
-        val counts = listOfNotNull(
-            "${route.dropped} dropped".takeIf { route.dropped > 0 },
-            "${route.failed} failed".takeIf { route.failed > 0 },
-        ).joinToString(", ")
-        return "${route.label}: $counts" + (route.lastError?.let { " ($it)" } ?: "")
     }
 }

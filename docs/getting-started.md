@@ -209,6 +209,152 @@ A run halts at the breakpoints of its state machines once breakpoints are switch
   once the environment runs and stop with it.
 - Outbound routes that follow a property or a state machine need observation switched on.
 
+## Without a window
+
+The IDE also works from a terminal, without a window. It validates a project, and it runs a project with its bridges
+until you stop it. A run without a window has no debugger.
+
+### The commands
+
+| Command | What it does |
+|---|---|
+| `karpfen-ide <folder>` | Opens the window on the folder, as always. |
+| `karpfen-ide validate <folder>` | Validates the whole project, prints the findings and ends. |
+| `karpfen-ide run <folder> [options]` | Validates the project, runs it and prints what happens until it is stopped. |
+| `karpfen-ide validate --help`, `karpfen-ide run --help` | Prints the usage. |
+
+A folder that is itself named `validate` or `run` must be written with a path in front, as in `./run`, when it is the
+first argument.
+
+### Starting it
+
+| From | Command |
+|---|---|
+| The sources | `./gradlew :app:ide:run --args="validate /absolute/path/to/project"` |
+| The application on macOS | `karpfen-ide.app/Contents/MacOS/karpfen-ide validate <folder>` |
+| The application on Linux | `karpfen-ide/bin/karpfen-ide validate <folder>` |
+| The application on Windows | `karpfen-ide\karpfen-ide.exe validate <folder>` |
+
+From the sources the folder must be an absolute path. `./gradlew :app:ide:createDistributable` builds the application
+into `app/ide/build/compose/binaries/main/app/`.
+
+### Validating
+
+```bash
+karpfen-ide validate examples/lamp
+```
+
+It prints one line per finding, errors first, and then a summary. The checks are those of Validate in the window.
+
+```
+lamp.kstates:13: error: mismatched input 'STATMACHINE' expecting 'STATEMACHINE'
+switch.kstates:3: warning: This EVAL has no return, so it yields no value; return the value it computes
+1 error and 1 warning
+```
+
+A project without findings prints `No problems found.`
+
+### Running
+
+```bash
+karpfen-ide run examples/lamp --descriptor lamp.kenv.json --bridge http.kbridge.json --capture
+```
+
+| Option | Meaning |
+|---|---|
+| `--descriptor <file>` | The descriptor to run, relative to the folder or absolute. It can be left out when the project has exactly one. |
+| `--bridge <file>` | A bridge file of the project to start with the run. Give the option once per bridge. Without it no bridge starts. |
+| `--capture` | Writes the log of the run to a file in `karpfen-runs/`, as the box in the window's run dialog does. |
+| `--verbose` | Also prints every line of the runtime's log. |
+
+The options may stand before or after the folder. A value follows its option as the next argument or after `=`.
+
+What a run does, in this order:
+
+1. It validates the whole project. With an error it prints the findings as `validate` does and does not run.
+2. It starts the runtime, as the project says: in the IDE's Docker container or at a URL.
+3. It deploys the descriptor and starts the bridges.
+4. It prints what happens until you stop it with Ctrl+C or a terminate signal.
+5. It stops the bridges and the environment, removes the runtime container if it started one, and ends.
+
+This is what a run of the lamp with one bridge prints, here against a runtime at a URL. The switch is pressed
+once through the bridge, and then the run is stopped.
+
+```
+Running lamp.kenv.json with http.kbridge.json
+URL: http://127.0.0.1:65231 not connected
+Run lamp: preparing
+Run lamp: waiting for the runtime
+URL: waiting for the runtime
+URL: http://127.0.0.1:65231 reachable
+Run lamp: deploying
+http.kbridge.json: not running
+Checking the runtime at http://127.0.0.1:65231: done, The runtime is up and supports the IDE
+Creating the environment: done, env-1794578442171
+Connecting to the environment: done, Connected as karpfen-ide-b40647679d4c
+Uploading lamp.kmeta: done
+Uploading lamp-events.kmeta: done
+Uploading lamp.kmodel: done
+Attaching lamp.kstates to lamp: done
+Attaching switch.kstates to wallSwitch: done
+Setting the tick delay to 50 ms: done
+Setting the event time to live to 30000 ms: done
+Listening to 2 event domains: done, service, switch
+Switching on runtime features: skipped, The project switches on no language feature that needs one
+Activating the environment: done
+Switching observation on: done, The runtime read the model as analyzed
+Starting the environment: done
+lamp: off
+wallSwitch: down
+Confirming the start: done, Every state machine reported its state
+Run lamp: running
+http.kbridge.json: starting
+http.kbridge.json: running, 0 in, 0 out
+lamp: on
+wallSwitch: up
+Stop requested.
+Shutting down the run and its bridges, then the runtime.
+Run lamp: stopped
+http.kbridge.json: not running
+URL: http://127.0.0.1:65231 not connected
+Shut down.
+```
+
+| Line | Meaning |
+|---|---|
+| `Running <descriptor> with <bridges>` | What the run was asked to do. `captured to a file` is added with `--capture`. |
+| `Docker: ...` or `URL: ...` | What the runtime is doing, in the words of the Runtime tool window. |
+| `Run <name>: <phase>` | The phase of the run: preparing, waiting for the runtime, deploying, running, stopped. |
+| `<step>: done`, `skipped` or `failed`, with a detail | A step of the deployment. |
+| `<object>: <states>` | The active states of the state machine on that object, whenever the runtime reports new ones. |
+| `<bridge file>: ...` | The state of a bridge, and once it runs how many messages it took in and sent out. |
+| `<time>  <object>  <text>` | A line of the simplified log, as the Log pane shows it. Only the IDE's Docker container gives a log, so a run against a URL has no such lines. |
+| `[stdout] ...`, `[stderr] ...` | A line of the runtime's log, with `--verbose`. |
+| `Captured to karpfen-runs/<file>` | Where the run is captured. |
+| `Stop requested.`, `Shutting down ...`, `Shut down.` | The end of the run. What the bridges and the runtime say while they stop stands in between. |
+
+A run that does not get going says why and ends: `The run does not start: the project has errors.`,
+`The run does not start: the deployment is blocked.`, `The run failed.` or `The run ended on its own.`
+
+### What a run reads from the project
+
+A run without a window takes two things from `.karpfenproject`: which optional language features are on, and how
+the runtime is reached. Everything else in that file, such as the bridges ticked in the window, is ignored. Nothing is
+written, neither to `.karpfenproject` nor to the settings of the user.
+
+Breakpoints never halt a run without a window, also when the project has them switched on.
+
+### Exit statuses
+
+| Status | Meaning |
+|---|---|
+| 0 | The validation found no error. Warnings are allowed. |
+| 1 | The project has errors. A run did not start. |
+| 2 | The command line was wrong. A message and the usage are printed. |
+| 3 | A run could not start, failed or ended on its own, or the folder could not be opened. |
+
+A run that is stopped by a signal ends with the status the system gives a process that got that signal.
+
 ## Walkthrough: the lamp
 
 The folder `examples/lamp` holds a small system. A living room has a lamp and a wall switch.

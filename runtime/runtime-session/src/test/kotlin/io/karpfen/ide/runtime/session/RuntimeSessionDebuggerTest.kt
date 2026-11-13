@@ -48,7 +48,8 @@ import kotlin.test.assertTrue
  * running, paused at a breakpoint or paused between two ticks. Pausing, resuming and stepping send their messages to
  * `TickByTick`. A pause and a resume are noted in the journal. Commands that do not fit the debugger's state are
  * refused without a call, a step the engine does not apply is refused with its answer, and a status that cannot be
- * read keeps the last state without a problem. A session without breakpoints has no debugger, and while the
+ * read keeps the last state without a problem. A session without breakpoints has no debugger, and neither has a
+ * session launched without one, which leaves `Breakpoint` off although the project has breakpoints on. While the
  * environment does not run the debugger is unavailable and the session refuses its commands.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -189,6 +190,26 @@ class RuntimeSessionDebuggerTest {
         )
         assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.SEND_MESSAGE_TO_FEATURE))
         assertEquals(listOf(FeatureName.BREAKPOINT.value), rig.fake.requests(RuntimeRoute.ACTIVATE_FEATURE).map { it.parameter(FEATURE) })
+        session.close()
+    }
+
+    @Test
+    fun `a session launched without a debugger switches no Breakpoint on and has no debugger, also with breakpoints on`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP, DEBUGGED)
+        assertTrue(FeatureName.BREAKPOINT in deployment.prepared.plan.features)
+        rig.programDeployment(deployment)
+        val session = rig.launch(deployment, DeployOptions(debugger = false))
+        assertIs<SessionState.Running>(rig.awaitState(session) { it != SessionState.Deploying })
+        advanceTimeBy(INTERVAL * 4)
+        runCurrent()
+
+        assertFalse(session.debugger.isPresent)
+        assertEquals(DebuggerState.Unavailable, session.debugger.state.value)
+        assertFalse(FeatureName.BREAKPOINT in session.prepared.plan.features)
+        val switchedOn = rig.fake.requests(RuntimeRoute.ACTIVATE_FEATURE).map { it.parameter(FEATURE) }
+        assertFalse(FeatureName.BREAKPOINT.value in switchedOn, "$switchedOn")
+        assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.SEND_MESSAGE_TO_FEATURE))
         session.close()
     }
 

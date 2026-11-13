@@ -21,8 +21,8 @@
 #   build               Check the local Docker engine and the runtime checkout, then build the test image.
 #   up                  Build, start one runtime, wait until it is healthy, print its URL, run id and how to remove it.
 #   test [gradle args]  Remove orphans of this checkout, build, start a runtime, run the live tests of both runtime
-#                       modules and of ui-workbench (or the given Gradle arguments) against it, tear it down and exit
-#                       with Gradle's status.
+#                       modules, of ui-workbench and of the IDE application (or the given Gradle arguments) against it,
+#                       tear it down and exit with Gradle's status.
 #   down [run id]       Tear down one run of this checkout, or all of them.
 #   status              List the containers, volumes and images of the harness.
 #   cleanup             Remove every container, volume and image of the harness, verify, and report what stays.
@@ -266,7 +266,7 @@ command_test() {
         "$REPOSITORY/gradlew" -p "$REPOSITORY" --continue "$@" \
             "-Pkarpfen.runtime.url=$URL" "-Pkarpfen.runtime.logs=$RUN_DIR" || status=$?
     else
-        tasks=":runtime:runtime-protocol:liveRuntimeTest :runtime:runtime-session:liveRuntimeTest :ui:ui-workbench:liveRuntimeTest"
+        tasks=":runtime:runtime-protocol:liveRuntimeTest :runtime:runtime-session:liveRuntimeTest :ui:ui-workbench:liveRuntimeTest :app:ide:liveRuntimeTest"
         "$REPOSITORY/gradlew" -p "$REPOSITORY" --continue $tasks \
             "-Pkarpfen.runtime.url=$URL" "-Pkarpfen.runtime.logs=$RUN_DIR" || status=$?
     fi

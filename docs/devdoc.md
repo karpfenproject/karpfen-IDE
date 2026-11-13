@@ -31,6 +31,8 @@ starts a container.
 | `./gradlew build` | Compiles everything, runs the unit and architecture tests and checks the module dependencies. |
 | `./gradlew :core:core-lang:test` | Runs the tests of one module. |
 | `./gradlew :app:ide:run` | Starts the IDE. Add `--args=<folder>` to open a folder. |
+| `./gradlew :app:ide:run --args="validate <folder>"` | Validates a project without a window. The folder must be absolute. |
+| `./gradlew :app:ide:run --args="run <folder> --bridge <file>"` | Runs a project without a window until Ctrl+C. |
 | `./gradlew :app:ide:runWithFailingReaders --args=<folder>` | Starts the IDE with dsl-tools readers that fail on deep nesting, to fill the Language Tools Output. |
 | `./gradlew :tools:cli:installDist` | Builds the command-line tool into `tools/cli/build/install/karpfen/bin/karpfen`. |
 | `./gradlew :app:ide:createDistributable` | Builds the application image without an installer. |
@@ -49,7 +51,7 @@ build-logic names them.
 
 - `budget` marks time-budget tests. No task runs them, because the wall clock is too unreliable to judge them.
 - `live-runtime` marks tests against a real karpfen runtime. They run only in the task `liveRuntimeTest` of
-  runtime-protocol, runtime-session and ui-workbench.
+  runtime-protocol, runtime-session, ui-workbench and app/ide.
 - `live-docker` marks tests against the local Docker engine. They run only in `liveDockerTest` of runtime-host.
 
 `BudgetTestTaggingTest` and `LiveRuntimeTaggingTest` check that every such test carries its tag. A test class against
@@ -63,7 +65,7 @@ not local, because the runtime has no authentication.
 
 | Command | What it does |
 |---|---|
-| `runtime/live-runtime.sh test [gradle args]` | Builds the image, starts a runtime, runs the live tests and tears it down. Gradle arguments replace the three live tasks. |
+| `runtime/live-runtime.sh test [gradle args]` | Builds the image, starts a runtime, runs the live tests and tears it down. Gradle arguments replace the four live tasks. |
 | `runtime/live-runtime.sh up` | Starts one runtime and prints its URL and how to remove it. |
 | `runtime/live-runtime.sh down [run id]` | Tears down one run, or all of them. |
 | `runtime/live-runtime.sh status` | Lists the containers, volumes and images of the script. |
@@ -235,6 +237,32 @@ each state machine with the object its descriptor attaches it to. `Workspace.val
 with the findings of the analysis and of the verifier, errors first. `ValidationState` in ui-workbench runs it for the
 Validate button, for the command Validate Project and before every run, and shows the report in a dialog. An error
 anywhere in the open folder blocks a run.
+
+### The IDE also runs without a window
+
+`karpfen-ide validate <folder>` and `karpfen-ide run <folder>` use the IDE's own program, so a run from a terminal
+does exactly what a run in the window does: the same validation, the same deployment, the same bridges and the same
+capture. The package `headless` in app/ide holds no second run path. It opens the folder through
+`IdeApplication.prepare`, like the window, and calls `WorkbenchState.validation.validate()` and
+`RuntimeState.run(descriptor, RunChoice)`. Where the window asks through a dialog, `HeadlessDialogs` answers on the
+console: it prints a validation report and an error, and cancels any other question.
+
+Three things differ from the window on purpose.
+
+- Nothing is written. `ReadOnlySettings` reads the language features and the runtime host from `.karpfenproject` and
+  keeps every change in memory. It never reads or writes the settings of the user.
+- There is no debugger. The run is launched with `RunChoice(debugger = false)`, and `DeployOptions.applyTo` then
+  leaves the runtime feature Breakpoint out of the plan, so the engine can never halt with nobody to resume it.
+- The command line is strict. The window ignores a wrong argument with a warning, so a typo never keeps it from
+  starting. A headless command ends with status 2 and the usage instead.
+
+The process has one shutdown hook, `ExitSequence`. JVM hooks run at the same time in no order, so two hooks, one for
+the run and one for the hosts, would race. The sequence has two stages: the runs with their bridges first, the
+runtime hosts after them. A run adds a step that asks it to stop and waits for it. `runtimeHostsClosedAtExit` adds
+the step that closes the hosts. The window uses the same sequence with only the second stage.
+
+The workbench state is used from one thread, which is the UI thread in the window. Without a window it is a thread
+of its own that `HeadlessLaunch` makes.
 
 ### Compose Desktop and a custom editor
 

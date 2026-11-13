@@ -32,8 +32,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers [runtimeHostsClosedAtExit] with a registration the test keeps instead of a shutdown hook. The test checks that
- * exactly one thread is registered and that running it closes a host that is still open.
+ * Covers [runtimeHostsClosedAtExit] and the [ExitSequence] it adds its step to, with a registration the test keeps
+ * instead of a shutdown hook. The tests check that exactly one thread is registered for any number of steps, that
+ * running it closes a host that is still open, and that the steps of the runs come before those of the hosts, whatever
+ * order they were added in, also when one of them fails.
  */
 class RuntimeHostsAtExitTest {
 
@@ -41,13 +43,34 @@ class RuntimeHostsAtExitTest {
     fun `the registered thread closes the hosts that are still open`() {
         val registered = ArrayList<Thread>()
         val created = ArrayList<ClosableHost>()
-        val hosts = runtimeHostsClosedAtExit(hosts = { _, _ -> ClosableHost().also { created += it } }, atExit = { registered += it })
+        val hosts = runtimeHostsClosedAtExit(
+            hosts = { _, _ -> ClosableHost().also { created += it } },
+            atExit = ExitSequence { registered += it },
+        )
         hosts.create(Path.of("workspace"), RuntimeHostSettings(RuntimeHostKind.DOCKER))
         assertEquals(listOf(false), created.map { it.closed })
 
         registered.single().run()
 
         assertEquals(listOf(true), created.map { it.closed })
+    }
+
+    @Test
+    fun `one hook runs the runs before the hosts, in the order of each stage, past a step that fails`() {
+        val registered = ArrayList<Thread>()
+        val done = ArrayList<String>()
+        val atExit = ExitSequence { registered += it }
+        assertEquals(emptyList(), registered, "a sequence without steps registers no hook")
+
+        runtimeHostsClosedAtExit(hosts = { _, _ -> ClosableHost() }, atExit = atExit)
+        atExit.add(ExitSequence.Stage.HOSTS, "second host step") { done += "hosts 2" }
+        atExit.add(ExitSequence.Stage.RUNS, "failing run step") { throw IllegalStateException("planted") }
+        atExit.add(ExitSequence.Stage.RUNS, "run step") { done += "runs" }
+        atExit.add(ExitSequence.Stage.HOSTS, "third host step") { done += "hosts 3" }
+
+        registered.single().run()
+
+        assertEquals(listOf("runs", "hosts 2", "hosts 3"), done)
     }
 
     /** A host that only knows whether it was closed. */

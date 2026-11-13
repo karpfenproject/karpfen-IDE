@@ -17,7 +17,8 @@ package io.karpfen.ide.buildlogic
 
 /**
  * The names of the opt-in task that runs the tests against a real karpfen runtime ([TestTags.LIVE_RUNTIME]), as the
- * `karpfen.live-runtime-test` convention plugin registers it in the runtime modules and in ui-workbench. One
+ * `karpfen.live-runtime-test` convention plugin registers it in the runtime modules, in ui-workbench and in the IDE
+ * application. One
  * declaration for the task, its group, its two properties and its build service, which the plugin, runtime-session's
  * ordering of the live tasks and the functional test of the plugin share.
  */

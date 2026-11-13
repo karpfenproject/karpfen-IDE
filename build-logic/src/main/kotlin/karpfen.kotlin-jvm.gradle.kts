@@ -65,8 +65,8 @@ dependencies {
 /**
  * Runs the tests on the JUnit Platform and reports failures with their full stack traces. Every test task excludes the
  * time-budget tests ([TestTags.BUDGET]), and [TestTags] explains why they never run. The tests against a real runtime
- * ([TestTags.LIVE_RUNTIME]) are excluded from every test task except the live task of the runtime modules and of
- * ui-workbench, [LiveRuntimeTesting.TASK_NAME]. The tests against the local Docker engine ([TestTags.LIVE_DOCKER]) are excluded from
+ * ([TestTags.LIVE_RUNTIME]) are excluded from every test task except the live task of the runtime modules, of
+ * ui-workbench and of the IDE application, [LiveRuntimeTesting.TASK_NAME]. The tests against the local Docker engine ([TestTags.LIVE_DOCKER]) are excluded from
  * every test task except runtime-host's [LiveDockerTesting.TASK_NAME]. A live task must not inherit the exclusion of its
  * own tag, or it would find no test.
  */

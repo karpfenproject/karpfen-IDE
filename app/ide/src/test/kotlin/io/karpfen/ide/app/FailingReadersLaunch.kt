@@ -29,18 +29,21 @@ import kotlin.system.exitProcess
  * The Gradle task `runWithFailingReaders` of this module starts it.
  */
 public fun main(args: Array<String>) {
-    val status = launch(args) { exitAfterMs ->
-        IdeApplication(
-            exitAfterMs,
-            services = { output ->
-                defaultWorkbenchServices(
-                    output,
-                    dslReader = SmallStackDslReader(),
-                    runtimeSessions = RuntimeSessions(),
-                    runtimeHosts = RuntimeHosts(),
-                )
-            },
-        )
-    }
+    val status = launch(
+        args,
+        application = { exitAfterMs ->
+            IdeApplication(
+                exitAfterMs,
+                services = { output ->
+                    defaultWorkbenchServices(
+                        output,
+                        dslReader = SmallStackDslReader(),
+                        runtimeSessions = RuntimeSessions(),
+                        runtimeHosts = RuntimeHosts(),
+                    )
+                },
+            )
+        },
+    )
     exitProcess(status)
 }

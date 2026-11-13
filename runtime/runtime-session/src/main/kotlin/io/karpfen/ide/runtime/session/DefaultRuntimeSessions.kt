@@ -26,7 +26,9 @@ import java.nio.file.Path
 
 /**
  * The default [RuntimeSessions]. It prepares deployments on the dispatcher of the options. All sessions it launches
- * record in one ledger and deploy with one deployer.
+ * record in one ledger and deploy with one deployer. A session gets the prepared deployment as its [DeployOptions]
+ * apply it, so `RuntimeSession.prepared` names the runtime features the deployment really switches on, and a session
+ * launched without a debugger has none. Options that change nothing hand the session the prepared deployment itself.
  *
  * @param options how the sessions run.
  * @param ledger where the sessions record the environments they leave.
@@ -48,6 +50,9 @@ internal class DefaultRuntimeSessions(
         client: RuntimeClient,
         scope: CoroutineScope,
         options: DeployOptions,
-    ): RuntimeSession =
-        DefaultRuntimeSession(prepared, client, scope, options, this.options, ledger, deployer).also { it.begin() }
+    ): RuntimeSession {
+        val plan = options.applyTo(prepared.plan)
+        val deployed = if (plan === prepared.plan) prepared else prepared.copy(plan = plan)
+        return DefaultRuntimeSession(deployed, client, scope, options, this.options, ledger, deployer).also { it.begin() }
+    }
 }

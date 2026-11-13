@@ -76,8 +76,9 @@ import kotlinx.coroutines.withTimeoutOrNull
  * live. It prepares the deployment from the saved workspace and waits for the runtime. A preparation that blocks the
  * deployment, such as one whose context has errors, ends the run, and its entry lists the findings. Then it launches a
  * session that deploys, starts and observes the environment, and the chosen bridges, which start once the environment
- * runs. A captured run starts its [RunCapture] right before the launch. From then on the run's entry follows the
- * session.
+ * runs. A captured run starts its [RunCapture] right before the launch. A run whose choice leaves the debugger out
+ * deploys without the runtime's feature `Breakpoint`, as [RunChoice.debugger] describes. From then on the run's entry
+ * follows the session.
  *
  * The capture of a run ends once the run is finished, which covers a stop, a failure and a replacement by a new run of
  * the same descriptor. It also ends when the run is cleared from the list or the workspace closes.
@@ -170,7 +171,14 @@ public class RuntimeState internal constructor(
     }
 
     /** Runs [descriptor], or the descriptor the workspace and the active editor pick, as the class describes. */
-    public fun run(descriptor: Path? = null): Job = scope.launch { runFlow(descriptor) }
+    public fun run(descriptor: Path? = null): Job = scope.launch { runFlow(descriptor, null) }
+
+    /**
+     * Runs [descriptor] as [choice] says, without the run dialog. The steps are those the class describes, except that
+     * the choice is given instead of asked for, and it is not remembered in the project. This is how a run is started
+     * where nobody answers the run dialog, such as the headless mode of the IDE.
+     */
+    public fun run(descriptor: Path, choice: RunChoice): Job = scope.launch { runFlow(descriptor, choice) }
 
     /** Runs the descriptor of [entry] again. */
     public fun rerun(entry: RunEntry): Job = run(entry.descriptor)
@@ -249,13 +257,16 @@ public class RuntimeState internal constructor(
         log.bindVisibility(visible)
     }
 
-    /** The steps of a run of [given], or of the picked descriptor when [given] is null. */
-    private suspend fun runFlow(given: Path?) {
+    /**
+     * The steps of a run of [given], or of the picked descriptor when [given] is null. The run goes as [preset] says,
+     * or as the run dialog answers when [preset] is null.
+     */
+    private suspend fun runFlow(given: Path?, preset: RunChoice?) {
         val pick = DescriptorResolver.pick(support.activeFile.value, descriptorsOf(workspace.files.value))
         val descriptor = resolver.resolve(given, pick) ?: return
         if (!support.saveAll()) return
         if (!support.validate()) return
-        val choice = choices.ask() ?: return
+        val choice = preset ?: choices.ask() ?: return
         stopRunsOf(descriptor)
         val started = clock.instant()
         val id = nextId++
@@ -291,7 +302,7 @@ public class RuntimeState internal constructor(
                     return
                 }
                 val client = binding.clientFor(outcome.endpoint)
-                val session = sessions.launch(prepared, client, scope, DeployOptions(start = true, observe = true))
+                val session = sessions.launch(prepared, client, scope, DeployOptions(start = true, observe = true, debugger = choice.debugger))
                 list.update(id) { it.copy(phase = RunPhase.DEPLOYING, session = session) }
                 launched[id] = Launched(
                     RunDetails(session, scope) { request -> session.events.inject(request) },

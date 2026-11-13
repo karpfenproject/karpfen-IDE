@@ -37,8 +37,8 @@ import java.nio.file.Path
  * @property domains the event domains the state machines use in conditions and actions, sorted and distinct. The
  *   deployment registers a listener for each.
  * @property features the runtime features the deployment switches on before it activates the environment, distinct, in
- *   that order. They belong to the language features switched on for the project: `History` for histories and
- *   `TickLimit` for tick limits. The list is empty if neither is switched on.
+ *   that order. They belong to the language features switched on for the project: `History` for histories,
+ *   `TickLimit` for tick limits and `Breakpoint` for breakpoints. The list is empty if none of them is switched on.
  * @property modelObjectIds the keys of the model's objects in the runtime's index of the model.
  * @property locations where the objects, types and states of the uploaded files are declared.
  * @property findings the warnings and infos of the checks. A plan holds no ERROR.
@@ -71,6 +71,20 @@ public class DeploymentPlan private constructor(
     /** The state machine uploads, in descriptor order. */
     public val machines: List<PlannedUpload>
         get() = uploads.filter { it.role == UploadRole.STATE_MACHINE }
+
+    /**
+     * This plan without the runtime feature [feature]: the same plan with [feature] left out of [features], or this
+     * plan itself if it does not list [feature]. Everything else stays as it is.
+     */
+    public fun withoutFeature(feature: FeatureName): DeploymentPlan =
+        if (feature !in features) {
+            this
+        } else {
+            DeploymentPlan(
+                name, descriptor, generation, uploads, attachments, configuration, domains, features - feature, modelObjectIds,
+                locations, findings,
+            )
+        }
 
     override fun toString(): String =
         "DeploymentPlan(name=$name, generation=$generation, uploads=${uploads.map { it.fileName }}, " +

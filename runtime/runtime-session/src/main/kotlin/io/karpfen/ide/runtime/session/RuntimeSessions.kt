@@ -45,7 +45,9 @@ public interface RuntimeSessions {
 
     /**
      * Launches a session that deploys [prepared] to the runtime of [client] as [options] say, in a supervisor child of
-     * [scope]. Returns at once, in [SessionState.Deploying], with a fresh client id.
+     * [scope]. Returns at once, in [SessionState.Deploying], with a fresh client id. The session's
+     * `RuntimeSession.prepared` is [prepared] with the plan that `DeployOptions.applyTo` makes of it, so a launch
+     * without a debugger switches no `Breakpoint` on and has no debugger.
      */
     public fun launch(
         prepared: PreparedDeployment,

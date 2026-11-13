@@ -230,6 +230,13 @@ registered commands, `IdeWindow.kt` holds the window and `IdeRunState` shuts the
 dsl-tools logs into the workbench's Language Tools Output, and `logback.xml` in the module's resources configures the
 logging. It depends on ui-workbench and logback. Its build script also holds the packaging into dmg, msi and deb.
 
+The package `headless` is the IDE without a window. `main` hands a command line that starts with `validate` or `run`
+to `HeadlessLaunch`, which wires the same workbench over `ReadOnlySettings` and never touches AWT or Compose.
+`HeadlessCommand` parses the command line strictly. `HeadlessValidation` and `HeadlessRun` do the two commands through
+the workbench's own validation and run, `HeadlessDialogs` answers on the console where the window would ask, and
+`RunReporter` prints what a run does. `ExitSequence` in the package `launch` is the one shutdown hook of the process:
+it ends the runs first and closes the runtime hosts after them.
+
 ### tools/cli
 
 The `karpfen` command-line tool. `KarpfenCli` parses the arguments with `CliArguments` and answers an exit status from

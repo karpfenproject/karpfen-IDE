@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.session.deploy
 import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.connection.RuntimeConnection
 import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.protocol.lifecycle.RuntimeEnvironment
@@ -30,12 +31,27 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * How a deployment ends. Immutable.
+ * How a deployment ends and whether it brings a debugger along. Immutable.
  *
  * @property start true to start the environment after activating it. Otherwise it stays activated and ready to start.
  * @property observe true to switch observation on as part of the deployment. Otherwise the model is read back once.
+ * @property debugger true to switch on every runtime feature the plan lists, which includes `Breakpoint` when the
+ *   project has breakpoints switched on, so the session offers a debugger. False leaves `Breakpoint` off whatever the
+ *   plan lists. The engine then reads the breakpoints of the state machines and never halts at them, and the session
+ *   has no debugger. The other runtime features of the plan are switched on either way.
  */
-public data class DeployOptions(public val start: Boolean = true, public val observe: Boolean = true)
+public data class DeployOptions(
+    public val start: Boolean = true,
+    public val observe: Boolean = true,
+    public val debugger: Boolean = true,
+) {
+    /**
+     * [plan] as a deployment with these options carries it out. It is [plan] itself with [debugger] on, and [plan]
+     * without the runtime feature `Breakpoint` with [debugger] off. Launching a session and building the deploy steps
+     * both go through this function, so the steps and the session's debugger always agree.
+     */
+    public fun applyTo(plan: DeploymentPlan): DeploymentPlan = if (debugger) plan else plan.withoutFeature(FeatureName.BREAKPOINT)
+}
 
 /**
  * Hears what a deployment does, while it does it. The deployer calls it in the deploying coroutine. An implementation

@@ -44,7 +44,7 @@ import java.nio.file.Path
 import java.time.Clock
 
 /**
- * Builds the production collaborators of the workbench. They are JSON settings in [settingsDirectory], the built-in
+ * Builds the production collaborators of the workbench. They are the [settings], the built-in
  * languages, real workspaces, the default language services, editors that share one [clipboard] and one keymap for
  * [platform], the desktop file operations, the native folder chooser and the built-in templates. CPU work such as
  * tokenizing, parsing, analysis, highlighting, find, completion and hover runs on [backgroundDispatcher]. File I/O runs
@@ -67,6 +67,10 @@ import java.time.Clock
  * [languageToolsOutput] has no default. It is the buffer that the application's logging fills with what the language
  * tools log. The composition root passes the buffer it routes that logging into, so no caller can end up with an
  * output that nothing fills.
+ *
+ * [settings] are the JSON settings in [settingsDirectory] with the project file of the open folder, unless the
+ * composition root hands in a repository of its own. The headless mode does that, with one that reads the project file
+ * and writes nothing.
  *
  * The runtime is the composition root's choice. The application passes the single [runtimeSessions] of the process and
  * the IDE's runtime hosts as [runtimeHosts]. Without them the wiring creates sessions of its own and uses hosts that
@@ -91,9 +95,10 @@ public fun defaultWorkbenchServices(
     dslReader: DslReader = DslReader(),
     runtimeSessions: RuntimeSessions = RuntimeSessions(),
     runtimeHosts: RuntimeHostFactory = UnavailableRuntimeHosts(),
+    settings: SettingsRepository = SettingsRepository(settingsDirectory, ioDispatcher, clock),
 ): WorkbenchServices {
     return WorkbenchServices(
-        settings = SettingsRepository(settingsDirectory, ioDispatcher, clock),
+        settings = settings,
         workspaceFactory = WorkspaceFactory(workspaceOptions, fileWatcher, dslReader),
         languageServicesFactory = { workspace -> defaultLanguageServices(workspace.analysis, files = workspace.files) },
         editorStateFactory = { session, languageServices, scope, settings, keymap ->
