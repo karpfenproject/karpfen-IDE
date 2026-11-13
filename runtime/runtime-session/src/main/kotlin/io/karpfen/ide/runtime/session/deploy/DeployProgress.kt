@@ -51,6 +51,12 @@ public enum class DeployStepKind {
     /** Registers a listener for every event domain the state machines use. It is skipped when there are none. */
     LISTEN_DOMAINS,
 
+    /**
+     * Switches on the runtime features the state machines need, before the activation. It is skipped when they need
+     * none.
+     */
+    SWITCH_FEATURES_ON,
+
     /** Activates the environment. */
     ACTIVATE,
 

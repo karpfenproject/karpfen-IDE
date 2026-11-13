@@ -20,9 +20,13 @@ import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ACTIVATE
+import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ACTIVATE_FEATURE
+import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.DEACTIVATE_FEATURE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.FORCE_STATE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.INJECT_EVENT
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ISSUE_ACCESS_KEY
+import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.MESSAGE_FEATURE
+import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_ACTIVE_FEATURES
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_SNAPSHOT
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_STATE_MACHINE_SOURCE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.REGISTER_DOMAIN_LISTENER
@@ -71,6 +75,8 @@ class LifecycleRulesTest {
     private val configuringCalls = setOf(SET_STATE_MACHINE, SET_TICK_DELAY, SET_EVENT_TTL, REGISTER_OBJECT_OBSERVER, REGISTER_DOMAIN_LISTENER)
     /** The reads, allowed unless the environment is lost. */
     private val reads = setOf(READ_STATE_MACHINE_SOURCE, READ_SNAPSHOT)
+    /** The feature operations, allowed in every phase of an existing environment. */
+    private val features = setOf(ACTIVATE_FEATURE, DEACTIVATE_FEATURE, READ_ACTIVE_FEATURES, MESSAGE_FEATURE)
 
     /**
      * The verdict table. For each phase it lists the operations that are sent. Every other operation is refused, and a
@@ -78,22 +84,22 @@ class LifecycleRulesTest {
      */
     private val sent: Map<EnvironmentPhase, Set<LifecycleOperation>> = mapOf(
         EnvironmentPhase.Configuring(nothing) to
-            configuringCalls + reads + setOf(SET_METAMODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(SET_METAMODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
         EnvironmentPhase.Configuring(metamodel) to
-            configuringCalls + reads + setOf(SET_METAMODEL, SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(SET_METAMODEL, SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
         EnvironmentPhase.Configuring(metamodelAndEvents) to
-            configuringCalls + reads + setOf(SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
         EnvironmentPhase.Configuring(metamodelAndModel) to
-            configuringCalls + reads + setOf(SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, ACTIVATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, ACTIVATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
         EnvironmentPhase.Configuring(nothing.copy(model = true)) to
-            configuringCalls + reads + setOf(ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
         EnvironmentPhase.Activated to
-            reads + setOf(ISSUE_ACCESS_KEY, START, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT),
+            features + reads + setOf(ISSUE_ACCESS_KEY, START, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT),
         EnvironmentPhase.Running to
-            reads + setOf(ISSUE_ACCESS_KEY, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT),
-        EnvironmentPhase.Halted to reads + setOf(ISSUE_ACCESS_KEY, STOP, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
-        EnvironmentPhase.Stopped to reads + setOf(UNSUBSCRIBE_MODEL),
-        uncertain to reads + setOf(STOP, UNSUBSCRIBE_MODEL),
+            features + reads + setOf(ISSUE_ACCESS_KEY, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT),
+        EnvironmentPhase.Halted to features + reads + setOf(ISSUE_ACCESS_KEY, STOP, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+        EnvironmentPhase.Stopped to features + reads + setOf(UNSUBSCRIBE_MODEL),
+        uncertain to features + reads + setOf(STOP, UNSUBSCRIBE_MODEL),
         lost to emptySet(),
     )
 

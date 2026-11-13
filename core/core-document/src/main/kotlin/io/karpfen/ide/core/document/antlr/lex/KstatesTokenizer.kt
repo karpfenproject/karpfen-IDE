@@ -101,10 +101,11 @@ internal class KstatesTokenizer : Tokenizer {
  * The KStates vocabulary outside EVAL bodies. It classifies these token types:
  * - the operations of [KarpfenSyntax.KSTATES_OPERATIONS]. The grammar accepts each operation in both cases with one
  *   token type, which is found by name in the lexer's vocabulary.
- * - every other grammar keyword, including `EVENT`. The tokenizer turns `EVENT` into an OPERATION in action blocks.
+ * - every other grammar keyword, including `EVENT` and the words of histories, tick limits and breakpoints. The
+ *   tokenizer turns `EVENT` into an OPERATION in action blocks.
  * - double-quoted and single-quoted strings.
  * - identifiers, such as `list` in a type expression.
- * - numbers, `->`, punctuation and the hidden `//` comments.
+ * - numbers, `->`, punctuation with the `:` of tick limits, and the hidden `//` comments.
  *
  * `WS` is skipped, and the catch-all `SYMBOL` falls back to ERROR.
  */
@@ -116,7 +117,9 @@ internal val KSTATES_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
         KstatesLexer.MACRO, KstatesLexer.EVAL, KstatesLexer.TRANSITIONS, KstatesLexer.TRANSITION, KstatesLexer.SPLIT,
         KstatesLexer.JOIN, KstatesLexer.NOT, KstatesLexer.LOOPING, KstatesLexer.CONDITION, KstatesLexer.VALUE,
         KstatesLexer.MACROS, KstatesLexer.TAKES, KstatesLexer.RETURNS, KstatesLexer.DEFINITION, KstatesLexer.REFERENCE,
-        KstatesLexer.IF, KstatesLexer.IN, KstatesLexer.SCOPE,
+        KstatesLexer.IF, KstatesLexer.IN, KstatesLexer.SCOPE, KstatesLexer.SHALLOW, KstatesLexer.DEEP, KstatesLexer.HISTORY,
+        KstatesLexer.BREAKPOINT, KstatesLexer.EXIT, KstatesLexer.START, KstatesLexer.END, KstatesLexer.TICK, KstatesLexer.LIMIT,
+        KstatesLexer.DELAY, KstatesLexer.TIMEOUT, KstatesLexer.AFTER,
     ),
     TokenKind.STRING to intArrayOf(KstatesLexer.STRING, KstatesLexer.SSTRING),
     TokenKind.IDENTIFIER to intArrayOf(KstatesLexer.IDENT),
@@ -124,6 +127,7 @@ internal val KSTATES_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
     TokenKind.OPERATOR to intArrayOf(KstatesLexer.ARROW),
     TokenKind.PUNCTUATION to intArrayOf(
         KstatesLexer.LBRACE, KstatesLexer.RBRACE, KstatesLexer.LPAREN, KstatesLexer.RPAREN, KstatesLexer.COMMA,
+        KstatesLexer.COLON,
     ),
     TokenKind.COMMENT to intArrayOf(KstatesLexer.LINE_COMMENT),
 )

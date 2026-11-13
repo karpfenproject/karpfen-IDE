@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session.plan
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import java.nio.file.Path
 
@@ -35,6 +36,10 @@ import java.nio.file.Path
  * @property configuration the tick delay and the event time to live the deployment sends.
  * @property domains the event domains the state machines use in conditions and actions, sorted and distinct. The
  *   deployment registers a listener for each.
+ * @property features the runtime features the state machines need, distinct, in the order the deployment switches them
+ *   on before it activates the environment. They are the language features whose words the machines use: `History`
+ *   for a state with a history and `TickLimit` for a state with a delay or a timeout. The list is empty if the
+ *   machines use none.
  * @property modelObjectIds the keys of the model's objects in the runtime's index of the model.
  * @property locations where the objects, types and states of the uploaded files are declared.
  * @property findings the warnings and infos of the checks. A plan holds no ERROR.
@@ -47,6 +52,7 @@ public class DeploymentPlan private constructor(
     public val attachments: List<AttachedMachine>,
     public val configuration: DeployConfiguration,
     public val domains: List<String>,
+    public val features: List<FeatureName>,
     public val modelObjectIds: Set<String>,
     public val locations: DeclarationLocations,
     public val findings: List<DeployProblem>,
@@ -69,7 +75,7 @@ public class DeploymentPlan private constructor(
 
     override fun toString(): String =
         "DeploymentPlan(name=$name, generation=$generation, uploads=${uploads.map { it.fileName }}, " +
-            "attachments=${attachments.map { it.attachedTo }}, configuration=$configuration, domains=$domains)"
+            "attachments=${attachments.map { it.attachedTo }}, configuration=$configuration, domains=$domains, features=$features)"
 
     /**
      * Builds a [DeploymentPlan], with one setter per property, and checks its invariants in [build]. Not thread-safe.
@@ -96,6 +102,9 @@ public class DeploymentPlan private constructor(
 
         /** The plan's event domains. */
         private var domains: List<String> = emptyList()
+
+        /** The plan's runtime features. */
+        private var features: List<FeatureName> = emptyList()
 
         /** The plan's object keys. */
         private var modelObjectIds: Set<String> = emptySet()
@@ -127,6 +136,9 @@ public class DeploymentPlan private constructor(
         /** Sets the event domains. There are none unless set. */
         public fun domains(domains: List<String>): Builder = apply { this.domains = domains.toList() }
 
+        /** Sets the runtime features, in the order they are switched on. There are none unless set. */
+        public fun features(features: List<FeatureName>): Builder = apply { this.features = features.toList() }
+
         /** Sets the keys of the model's objects. There are none unless set. */
         public fun modelObjectIds(modelObjectIds: Set<String>): Builder = apply { this.modelObjectIds = modelObjectIds.toSet() }
 
@@ -142,8 +154,8 @@ public class DeploymentPlan private constructor(
          * @throws IllegalArgumentException if the name or the descriptor is missing. It is also thrown if the uploads
          *   do not have the expected shape. That shape is exactly one metamodel upload first, at most one events upload
          *   right after it, exactly one model upload after both, and then the state machine uploads with distinct keys.
-         *   The state machine uploads match [attachments] in order by key and file. A blank or repeated domain and a
-         *   finding that is an error throw it as well.
+         *   The state machine uploads match [attachments] in order by key and file. A blank or repeated domain, a
+         *   repeated feature and a finding that is an error throw it as well.
          */
         public fun build(): DeploymentPlan {
             val name = requireNotNull(name) { "a plan needs the name of its context" }
@@ -151,10 +163,11 @@ public class DeploymentPlan private constructor(
             checkUploads()
             require(domains.none { it.isBlank() }) { "an event domain is never blank: $domains" }
             require(domains.toSet().size == domains.size) { "each event domain is listed once: $domains" }
+            require(features.toSet().size == features.size) { "each feature is listed once: $features" }
             require(findings.none { it.severity == Severity.ERROR }) { "a plan holds no ERROR: $findings" }
             return DeploymentPlan(
-                name, descriptor, generation, uploads, attachments, configuration, domains, modelObjectIds, locations,
-                findings,
+                name, descriptor, generation, uploads, attachments, configuration, domains, features, modelObjectIds,
+                locations, findings,
             )
         }
 

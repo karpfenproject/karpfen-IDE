@@ -25,8 +25,8 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.notation.diagram.text.TextBlocks
 
 /**
- * The code cells of a statechart: the entry actions and the do actions of every state that has them, and the
- * condition of every transition. A transition without a condition has a cell too. It is empty, and code written into
+ * The code cells of a statechart: the tick limit, the entry actions and the do actions of every state that has them,
+ * and the condition of every transition. A tick limit whose code is deleted is taken out of its state. A transition without a condition has a cell too. It is empty, and code written into
  * it becomes the condition. A condition whose code is deleted is taken out of the transition, because the language
  * knows no empty condition.
  */
@@ -39,13 +39,18 @@ public object StatechartCells : DiagramCells<StatechartDiagram, StatechartLayout
             val box = layout.states[state.name] ?: return@flatMap emptyList()
             val places = StatechartMetrics.cellBoxes(state, box)
             listOfNotNull(
+                state.tickLimitRange?.let { Triple(StatechartMetrics.LIMIT_WORD, "Tick limit of ${state.name}", it) },
                 state.entryRange?.let { Triple(StatechartMetrics.ENTRY_WORD, "Entry actions of ${state.name}", it) },
                 state.doRange?.let { Triple(StatechartMetrics.DO_WORD, "Do actions of ${state.name}", it) },
             ).mapNotNull { (word, title, range) ->
                 val block = TextBlocks.blockFrom(source, range.start) ?: return@mapNotNull null
                 val place = places[word] ?: return@mapNotNull null
                 DiagramCell("${state.name}.$word", title, word, place, TextBlocks.inner(source, block)) { code ->
-                    replaced(source, block, TextBlocks.braced(code, TextBlocks.indentOf(source, block.start)))
+                    if (word == StatechartMetrics.LIMIT_WORD && code.isBlank()) {
+                        DiagramChange(listOf(TextBlocks.removal(source, range)))
+                    } else {
+                        replaced(source, block, TextBlocks.braced(code, TextBlocks.indentOf(source, block.start)))
+                    }
                 }
             }
         }

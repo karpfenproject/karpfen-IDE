@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.session.deploy
 
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.session.plan.PlannedUpload
 import io.karpfen.ide.runtime.session.plan.UploadRole
@@ -110,6 +111,31 @@ internal class ListenDomainsStep(private val domains: List<String>) : DeployStep
             if (outcome !is CallOutcome.Done) return run.settle(outcome)
         }
         return StepOutcome.Done(domains.joinToString())
+    }
+}
+
+/**
+ * Switches on the runtime features the state machines need, so that the runtime applies the words of the machines that
+ * only such a feature gives meaning to. It runs before the activation, while the environment is configuring. It
+ * reports each feature as it goes and stops at the first switch that does not succeed, which fails the deployment.
+ *
+ * @param features the features, at least one, in the order they are switched on.
+ */
+internal class SwitchFeaturesOnStep(private val features: List<FeatureName>) : DeployStep {
+    init {
+        require(features.isNotEmpty()) { "without features the step is skipped" }
+    }
+
+    override val kind: DeployStepKind = DeployStepKind.SWITCH_FEATURES_ON
+    override val title: String = "Switching on ${features.joinToString()}"
+
+    override suspend fun execute(run: DeployRun): StepOutcome {
+        features.forEachIndexed { index, feature ->
+            run.report("${index + 1} of ${features.size}: $feature")
+            val outcome = run.createdEnvironment.activateFeature(feature)
+            if (outcome !is CallOutcome.Done) return run.settle(outcome)
+        }
+        return StepOutcome.Done(features.joinToString())
     }
 }
 

@@ -32,6 +32,10 @@ refer to.
   Deleting the `.vis` file by hand does that.
 - Renaming or deleting a model file leaves its `.vis` file behind under the old name.
 - The lines of splits and joins have no waypoints.
+- The timeout of a state is not drawn as a line to the state it leads to. It shows only in the tick limit cell of
+  its state.
+- The history badge of a state is not part of its size, so in a narrow state with nested states it can lie over the
+  markers of the code cells.
 - In a statechart a label may cover another line. The class and object diagrams move a label to the free side.
 - The view mode of a file, Text, Split or Diagram, is not stored in the project file.
 - The class diagram shows the types of one file only, so a relation to a type of another metamodel file is a row and
@@ -54,8 +58,10 @@ refer to.
 - When the watcher gives up on a container that still runs, the next start adopts it and follows its log from the
   container's start again. The Log pane then probably shows earlier lines twice. This follows from the code and has
   not been seen.
-- Stepping the engine tick by tick and breakpoints on transitions are missing. They need a step mode in the runtime's
-  engine.
+- The IDE has no debugger. The runtime can halt at the breakpoints of states and transitions and run tick by tick,
+  through its features Breakpoint and TickByTick, and the editor and the statechart show and edit breakpoints. But
+  nothing in the IDE switches these features on, shows where a run halted, or resumes and steps it. Recording and
+  replaying events, the runtime's other new features, have no place in the IDE either.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
 
 ### Bridges
@@ -79,10 +85,11 @@ refer to.
 
 ### Checks that belong in dsl-tools
 
-dsl-tools 2.0 checks the types, properties, relations, references and numbers of a model, the number of initial states
-and the arity of actions. Missing are checks for repeated names and keys, transitions to unknown states, the number of
-targets of a `SPLIT` and of sources of a `JOIN`, the existence and arity of macros, the model paths in actions and
-`EVAL` bodies, and unreachable states.
+dsl-tools 2.0 checks the types, properties, relations, references and numbers of a model, the number of initial states,
+the arity of actions and that tick limits count whole ticks. Missing are checks for repeated names and keys,
+transitions and timeouts to unknown states, the number of targets of a `SPLIT` and of sources of a `JOIN`, the
+existence and arity of macros, the model paths in actions and `EVAL` bodies, unreachable states, and a history on a
+state without nested states.
 
 ## In the runtime
 
@@ -92,6 +99,24 @@ targets of a `SPLIT` and of sources of a `JOIN`, the existence and arity of macr
   to a stopped environment are queued anyway.
 - The engine skips the entry block of a state that a join leaves in the next tick. The test for it in
   `ObservationScenarios` is disabled until the runtime is fixed.
+- After the `ENTRY` block of an outer state the engine also checks the transitions of the nested states it has not
+  entered yet. If one fires, the `ENTRY` blocks of those nested states never run.
+- A transition into a state with nested states stops at that state and does not go on to its `INITIAL` nested state.
+  A transition to the state itself enters the state around it again as well. Both are documented, and nobody has
+  decided whether they are wanted.
+- `NOT LOOPING` has no effect on a `SPLIT` or a `JOIN`. An event that fires a `JOIN` is not scoped to the target, and
+  the same event can fire the same join again.
+- Histories, tick limits and breakpoints only work in an environment whose feature is switched on. The IDE switches
+  on the two language features a run needs. Another client has to do that by itself.
+- A history is never forgotten while the engine runs, and a state that remembers a state never rests as the innermost
+  state, so its `DO` block does not run any more.
+- The runtime does not tell whether its engine is halted at a breakpoint, or where. A debugger needs that. A
+  breakpoint override names a transition by the text form the engine prints for it, which two transitions can share.
+- The features use `kapt` to register themselves, which copies every comment into generated Java. A comment with a
+  backslash followed by `u` breaks the build there.
+- Building the runtime rewrites the generated parsers in its nested dsl-tools checkout with other line endings. The
+  IDE packs the runtime sources from the working tree, so such a build changes the hash that names the runtime
+  image. `git -C karpfen-runtime/karpfen-dsl-tools checkout -- .` brings the files back.
 - Known objects are written nested instead of by reference, so reference loops cannot be deployed.
 - `NaN` and `Infinity` are written as bare literals, which is not JSON. What they should become is undecided.
 - One broadcaster serves all clients, so one slow client can stall the others. A queue per client would fix it.
@@ -106,7 +131,8 @@ targets of a `SPLIT` and of sources of a `JOIN`, the existence and arity of macr
 - There is no version endpoint, no published image, no configuration through environment variables and no
   authentication. Access keys are predictable, and the runtime prints them on its console.
 - The runtime reads uploads with the dsl-tools 1.0 parser from its own nested submodule, so upload errors carry no
-  positions.
+  positions. That parser reads a tick limit whose number is not whole as a state without the limit and says nothing.
+  The IDE's editor reports it.
 - The runtime's documentation of `eventConsumptionOnFire` does not match what the engine does.
 - A JSON event payload with a repeated key or a scalar of the wrong type silently becomes null as a whole, and every
   relation in a JSON payload creates new objects, `knows` included. The event still fires, without its payload. The

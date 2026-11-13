@@ -146,6 +146,9 @@ public object WireNames {
     /** The prefix of every environment key, `env-<epoch millis>`. */
     public const val ENVIRONMENT_KEY_PREFIX: String = "env-"
 
+    /** Separates the feature names in the runtime's answers that list features. */
+    public const val FEATURE_SEPARATOR: String = ","
+
     /** The prefix of every access key, `ak-<clientId>-<epoch millis>-<0..9999>`. */
     public const val ACCESS_KEY_PREFIX: String = "ak-"
 }

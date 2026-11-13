@@ -79,7 +79,10 @@ internal sealed interface ProbeResult {
  * running, halted or uncertain environment, and the handle answers it locally for a stopped one. A forced state is
  * allowed while activated or running. Reading the source or a snapshot is allowed unless the environment is lost.
  * Subscribing is allowed while configuring, activated, running or halted. Unsubscribing is allowed unless the
- * environment is lost. Injecting an event is allowed while activated or running.
+ * environment is lost. Injecting an event is allowed while activated or running. The feature operations, which switch
+ * a feature on or off, read the features that are on and send a feature a message, are allowed in every phase in which
+ * the environment exists. That is every phase except lost, the uncertain one included, because the runtime switches
+ * features from the creation of an environment on, before, while and after it runs.
  *
  * The transitions work as follows. A success of a configuring call adds to the uploads. A success of activate, start
  * and stop moves to activated, running and stopped. A snapshot reports its phase. Other successes change nothing. Some
@@ -99,8 +102,20 @@ internal sealed interface ProbeResult {
  */
 internal object LifecycleRules {
 
+    /** The operations on the features of an environment, which every phase of an existing environment allows. */
+    private val FEATURE_OPERATIONS: Set<LifecycleOperation> = setOf(
+        LifecycleOperation.ACTIVATE_FEATURE,
+        LifecycleOperation.DEACTIVATE_FEATURE,
+        LifecycleOperation.READ_ACTIVE_FEATURES,
+        LifecycleOperation.MESSAGE_FEATURE,
+    )
+
     /** Whether [operation] may be sent in [phase]. */
     fun verdict(phase: EnvironmentPhase, operation: LifecycleOperation): Verdict =
+        if (operation in FEATURE_OPERATIONS && phase !is EnvironmentPhase.Lost) Verdict.Send else phaseVerdict(phase, operation)
+
+    /** Whether [operation] may be sent in [phase], by the rules of the phase. A feature operation reaches it only when lost. */
+    private fun phaseVerdict(phase: EnvironmentPhase, operation: LifecycleOperation): Verdict =
         when (phase) {
             is EnvironmentPhase.Configuring -> configuring(phase.uploads, operation)
             EnvironmentPhase.Activated -> activated(operation)
@@ -216,6 +231,8 @@ internal object LifecycleRules {
             LifecycleOperation.REGISTER_OBJECT_OBSERVER, LifecycleOperation.REGISTER_DOMAIN_LISTENER,
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.READ_STATE_MACHINE_SOURCE,
             LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.ACTIVATE_FEATURE, LifecycleOperation.DEACTIVATE_FEATURE,
+            LifecycleOperation.READ_ACTIVE_FEATURES, LifecycleOperation.MESSAGE_FEATURE,
             -> Verdict.Send
             LifecycleOperation.ACTIVATE -> if (uploads.metamodel && uploads.model) {
                 Verdict.Send

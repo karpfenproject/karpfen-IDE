@@ -15,7 +15,6 @@
  */
 package io.karpfen.ide.runtime.protocol.api
 
-import io.karpfen.ide.runtime.protocol.catalogue.BodyKind
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -24,9 +23,10 @@ import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
  * Classifies the body of a rejection by the runtime's texts. A rejection has the status 400 or 409.
  *
  * A body counts as one of the [RuntimeText]s only if it is that whole text. The texts are disjoint, so at most one
- * matches. A body that matches none of them becomes [RejectionKind.CONTENT_REJECTED] on a route that uploads a body.
- * There the runtime's parser refused the text with a message of its own and without a position. On every other route
- * such a body becomes [RejectionKind.UNCLASSIFIED]. The object holds no state.
+ * matches. A body that matches none of them becomes [RejectionKind.CONTENT_REJECTED] on a route that uploads a modeling
+ * text. There the runtime's parser refused the text with a message of its own and without a position. On every other
+ * route such a body becomes [RejectionKind.UNCLASSIFIED], also on the route that sends a message to a feature. The
+ * object holds no state.
  */
 internal object RejectionClassifier {
 
@@ -36,7 +36,7 @@ internal object RejectionClassifier {
             val captured = text.match(body) ?: continue
             return RuntimeFailure.Rejected(route, status, text.kind, body, captured)
         }
-        val kind = if (route.body != BodyKind.NONE && status in REJECTION_STATUSES) {
+        val kind = if (route.body.modelingText && status in REJECTION_STATUSES) {
             RejectionKind.CONTENT_REJECTED
         } else {
             RejectionKind.UNCLASSIFIED

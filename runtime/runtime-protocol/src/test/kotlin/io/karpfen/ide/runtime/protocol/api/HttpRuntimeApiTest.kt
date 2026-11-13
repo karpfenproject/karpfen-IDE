@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.protocol.api
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.HttpVerb
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
@@ -98,6 +99,19 @@ class HttpRuntimeApiTest {
                 get("/observatory/statemachine", "envKey" to environment.value, "modelElement" to "lamp"),
             suspend { api.registerObservatoryClient(client, environment, "*"); Unit } to
                 post("/observatory/registerClient", "clientId" to client.value, "envKey" to environment.value, "modelElement" to "*"),
+            suspend { api.registeredFeatures(); Unit } to get("/getRegisteredFeatures"),
+            suspend { api.activateFeature(environment, FeatureName.HISTORY); Unit } to
+                post("/activateFeature", "envKey" to environment.value, "featureName" to "History"),
+            suspend { api.activeFeatures(environment); Unit } to get("/getActiveFeatures", "envKey" to environment.value),
+            suspend { api.deactivateFeature(environment, FeatureName.TICK_LIMIT); Unit } to
+                post("/deactivateFeature", "envKey" to environment.value, "featureName" to "TickLimit"),
+            suspend { api.sendMessageToFeature(environment, FeatureName("TickByTick"), "tick:3"); Unit } to
+                TextRequest(
+                    HttpVerb.POST,
+                    "/sendMessageToFeature",
+                    listOf("envKey" to environment.value, "featureName" to "TickByTick"),
+                    "tick:3",
+                ),
             suspend { api.modelSnapshot(environment); Unit } to get("/observatory/model", "envKey" to environment.value),
             suspend { api.subscribeModel(environment, client); Unit } to
                 post("/observatory/subscribeModel", "envKey" to environment.value, "clientId" to client.value),
@@ -146,6 +160,71 @@ class HttpRuntimeApiTest {
         )
         assertEquals(RuntimeResult.Ok("STATEMACHINE ATTACHED TO lamp : Lamp\n"), api.stateMachineSource(environment, "lamp"))
         assertEquals(RuntimeResult.Ok(Unit), api.runEnvironment(environment))
+    }
+
+    @Test
+    fun `feature lists are read as sets of names and a feature's answer is taken as it is`() = runTest {
+        val api = api()
+        http.ok("TickLimit,History,Breakpoint,TickByTick")
+            .ok("")
+            .ok("History")
+            .ok("execution is advancing 3 ticks")
+            .ok("")
+
+        assertEquals(
+            RuntimeResult.Ok(setOf(FeatureName.TICK_LIMIT, FeatureName.HISTORY, FeatureName("Breakpoint"), FeatureName("TickByTick"))),
+            api.registeredFeatures(),
+        )
+        assertEquals(RuntimeResult.Ok(emptySet()), api.activeFeatures(environment))
+        assertEquals(RuntimeResult.Ok(setOf(FeatureName.HISTORY)), api.activeFeatures(environment))
+        assertEquals(
+            RuntimeResult.Ok("execution is advancing 3 ticks"),
+            api.sendMessageToFeature(environment, FeatureName("TickByTick"), "tick:3"),
+        )
+        assertEquals(RuntimeResult.Ok(""), api.sendMessageToFeature(environment, FeatureName("EventRecording"), "start"))
+    }
+
+    @Test
+    fun `a feature list with an empty or spaced name is a violation of the protocol`() = runTest {
+        val api = api()
+        http.ok("History,,TickLimit").ok("History, TickLimit").ok(",")
+
+        repeat(3) {
+            val violated = assertIs<RuntimeFailure.ProtocolViolated>(assertFailure(api.activeFeatures(environment)))
+            assertEquals(ViolationKind.UNEXPECTED_BODY, violated.violation.kind)
+        }
+    }
+
+    @Test
+    fun `the feature rejections are classified by their texts, and a feature's own refusal stays unclassified`() = runTest {
+        val api = api()
+        http.reject(400, "Feature 'Histroy' is not registered")
+            .reject(400, "Feature 'History' is already active in environment ${environment.value}")
+            .reject(400, "Feature 'TickLimit' is not active in environment ${environment.value}")
+            .reject(400, "TickByTick has not been activated in environment ${environment.value}")
+            .reject(409, "FeatureManager is already updating features")
+            .reject(400, "Invalid message: jump")
+
+        val unknown = assertIs<RuntimeFailure.Rejected>(assertFailure(api.activateFeature(environment, FeatureName("Histroy"))))
+        assertEquals(RejectionKind.UNKNOWN_FEATURE to mapOf("feature" to "Histroy"), unknown.kind to unknown.captured)
+        assertEquals(
+            RejectionKind.FEATURE_ALREADY_ACTIVE,
+            assertIs<RuntimeFailure.Rejected>(assertFailure(api.activateFeature(environment, FeatureName.HISTORY))).kind,
+        )
+        assertEquals(
+            RejectionKind.FEATURE_NOT_ACTIVE,
+            assertIs<RuntimeFailure.Rejected>(assertFailure(api.deactivateFeature(environment, FeatureName.TICK_LIMIT))).kind,
+        )
+        val notOn = assertIs<RuntimeFailure.Rejected>(assertFailure(api.sendMessageToFeature(environment, FeatureName("TickByTick"), "pause")))
+        assertEquals(RejectionKind.FEATURE_NOT_ACTIVATED to mapOf("feature" to "TickByTick", "env" to environment.value), notOn.kind to notOn.captured)
+        assertEquals(
+            RejectionKind.FEATURES_BUSY,
+            assertIs<RuntimeFailure.Rejected>(assertFailure(api.activateFeature(environment, FeatureName.HISTORY))).kind,
+        )
+        assertEquals(
+            RejectionKind.UNCLASSIFIED,
+            assertIs<RuntimeFailure.Rejected>(assertFailure(api.sendMessageToFeature(environment, FeatureName("TickByTick"), "jump"))).kind,
+        )
     }
 
     @Test

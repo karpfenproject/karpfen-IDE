@@ -52,8 +52,15 @@ public data class StatechartDiagram(
  * @property entryRange the whole `ENTRY { ... }` block of the state in the text, or null if it has none.
  * @property doRange the whole `DO { ... }` block of the state in the text, or null if it has none.
  * @property children the states nested in this one, in the order of the text.
- * @property range the whole `STATE "name" { ... }` in the text.
+ * @property range the whole `STATE "name" { ... }` in the text, from `INITIAL` or the history in front of it on.
  * @property nameRange the name inside its quotes.
+ * @property history what the state remembers about its nested states.
+ * @property breakpointRange the whole `BREAKPOINT { ... }` block of the state in the text, or null if it has none.
+ * @property entryBreakpoint true if that block names `ENTRY`, so a debugger halts before the state is entered.
+ * @property exitBreakpoint true if that block names `EXIT`, so a debugger halts before the state is left.
+ * @property tickLimitRange the whole `TICK LIMIT { ... }` block of the state in the text, or null if it has none.
+ * @property delay the ticks the state stays active at least, or null without a `DELAY`.
+ * @property timeout after how many ticks the state is left for which state, or null without a `TIMEOUT`.
  */
 public data class StateNode(
     public val name: String,
@@ -63,12 +70,22 @@ public data class StateNode(
     public val children: List<StateNode>,
     public val range: TextRange,
     public val nameRange: TextRange,
+    public val history: StateHistory = StateHistory.NONE,
+    public val breakpointRange: TextRange? = null,
+    public val entryBreakpoint: Boolean = false,
+    public val exitBreakpoint: Boolean = false,
+    public val tickLimitRange: TextRange? = null,
+    public val delay: Long? = null,
+    public val timeout: StateTimeout? = null,
 ) {
     /** True if the state has an `ENTRY` block. */
     public val hasEntry: Boolean get() = entryRange != null
 
     /** True if the state has a `DO` block. */
     public val hasDo: Boolean get() = doRange != null
+
+    /** True if the state has a `TICK LIMIT` block. */
+    public val hasTickLimit: Boolean get() = tickLimitRange != null
 
     /** True if the state has states nested in it. */
     public val isComposite: Boolean get() = children.isNotEmpty()
@@ -103,6 +120,9 @@ public enum class TransitionKind {
  * @property notLooping true for a transition marked `NOT LOOPING`.
  * @property range the whole transition in the text.
  * @property conditionRange the whole `CONDITION { ... }` block of the transition in the text, or null if it has none.
+ * @property breakpointRange the whole `BREAKPOINT { ... }` block of the transition in the text, or null if it has none.
+ * @property startBreakpoint true if that block names `START`, so a debugger halts before the transition.
+ * @property endBreakpoint true if that block names `END`, so a debugger halts after the transition.
  */
 public data class TransitionEdge(
     public val id: String,
@@ -114,6 +134,9 @@ public data class TransitionEdge(
     public val notLooping: Boolean,
     public val range: TextRange,
     public val conditionRange: TextRange? = null,
+    public val breakpointRange: TextRange? = null,
+    public val startBreakpoint: Boolean = false,
+    public val endBreakpoint: Boolean = false,
 ) {
     /**
      * What a drawing writes next to the transition: its priority and, if it has a condition, the label after a colon,

@@ -15,7 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.conformance
 
-import io.karpfen.ide.runtime.protocol.catalogue.HttpVerb
+import io.karpfen.ide.runtime.protocol.catalogue.BodyKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
@@ -71,11 +71,11 @@ internal class RawRuntime(val scope: RuntimeScenarioScope, private val webSocket
     private val launched = MutableStateFlow<Set<String>>(emptySet())
 
     /**
-     * Sends [route] with the query [parameters] in the order given, and with [body] for a PUT. Returns the runtime's
-     * answer. A transport failure fails the scenario.
+     * Sends [route] with the query [parameters] in the order given, and with [body] for a route that takes one. Returns
+     * the runtime's answer. A transport failure fails the scenario.
      */
     suspend fun call(route: RuntimeRoute, vararg parameters: Pair<String, String>, body: String = ""): HttpOutcome.Answered {
-        val request = TextRequest(route.verb, route.path, parameters.toList(), body.takeIf { route.verb == HttpVerb.PUT })
+        val request = TextRequest(route.verb, route.path, parameters.toList(), body.takeIf { route.body != BodyKind.NONE })
         val environment = request.query.firstOrNull { it.first == ENV_KEY }?.second
         if (environment != null && route in LAUNCHING) launched.update { it + environment }
         val answer = when (val outcome = scope.transports.http.exchange(request)) {

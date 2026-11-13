@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.protocol.lifecycle
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import kotlinx.coroutines.flow.StateFlow
 
@@ -154,4 +155,26 @@ public interface RuntimeEnvironment {
      * lost.
      */
     public suspend fun unsubscribeModel(client: ClientId): CallOutcome<Unit>
+
+    /**
+     * Switches [feature] on, together with the features it needs. It is allowed unless the environment is lost, because
+     * the runtime switches features in every phase of an existing environment. The runtime refuses a feature that is on
+     * already or that it does not know. A feature changes how the engine runs, never the phase.
+     */
+    public suspend fun activateFeature(feature: FeatureName): CallOutcome<Unit>
+
+    /**
+     * Switches [feature] off, together with the features that need it. It is allowed unless the environment is lost.
+     * The runtime refuses a feature that is not on or that it does not know.
+     */
+    public suspend fun deactivateFeature(feature: FeatureName): CallOutcome<Unit>
+
+    /** Reads the names of the features that are on. It is allowed unless the environment is lost. */
+    public suspend fun activeFeatures(): CallOutcome<Set<FeatureName>>
+
+    /**
+     * Sends [message] to [feature] and returns the feature's answer. It is allowed unless the environment is lost. The
+     * runtime refuses a message to a feature that is not on, and a feature refuses a message it does not understand.
+     */
+    public suspend fun messageFeature(feature: FeatureName, message: String): CallOutcome<String>
 }

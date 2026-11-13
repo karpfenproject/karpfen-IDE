@@ -286,13 +286,20 @@ and finds what was only renamed. No other file is touched by a rename, on purpos
 use a name by hand.
 
 The notation is hybrid. The structure is drawn, and code stays text. A `DiagramCells` tells which pieces of code a
-diagram shows folded up, as `DiagramCell`s: the entry and do blocks of a state and the condition of a transition. The
+diagram shows folded up, as `DiagramCell`s: the tick limit and the entry and do blocks of a state and the condition of
+a transition. The
 canvas draws a marker for each and opens a clicked cell in `CodeCellPane`. Saving goes the same way as any other
 change. The pane holds a `DiagramCellEditor`, which the host of the diagram hands in, because ui-diagram does not know
 the code editor. ui-workbench hands in `CodeCellEditor`: the code editor of the IDE on a small document of its own,
 with `fragmentSupport` of the language of the file, so the code is coloured and edited like the file but not checked.
 Edit as text in the context menus opens a whole construct in the same pane, which makes everything the text can say
 reachable from the diagram.
+
+The outline of a state machine names its states, transitions and blocks. What it leaves out, a statechart reads from
+the text of each element: `StateOptionReader` finds the history in front of `STATE` and the `BREAKPOINT` and
+`TICK LIMIT` blocks that open a body. The language puts these two blocks first, so the reader never takes a block of
+a nested state for one of the state around it. `StatechartPainter` draws a history as a badge and a breakpoint as a
+dot. Breakpoints only have a meaning in a runtime whose Breakpoint feature is on, which the IDE never switches on.
 
 ### Bridges run inside the IDE
 
@@ -426,7 +433,9 @@ independent.
 
 Read `DeployStepKind` and the `deploy` package of runtime-session. A deployment checks the runtime, creates the
 environment, connects, uploads the files, attaches the state machines, sets the timing, listens to the domains,
-activates, starts observing and starts. Problems carry a code, such as `deploy-unsaved-file` or
+switches on the runtime features its state machines need, activates, starts observing and starts. `LanguageFeature`
+knows which words of a state machine need which feature: a history needs History, a delay or a timeout needs
+TickLimit. The runtime reads these words in every environment but applies them only where the feature is on. Problems carry a code, such as `deploy-unsaved-file` or
 `deploy-reference-loop`.
 
 The runtime reads uploads with its older parser, so a text that the IDE reads cleanly may still be rejected without a

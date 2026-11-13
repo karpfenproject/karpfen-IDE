@@ -22,6 +22,7 @@ import io.karpfen.ide.runtime.protocol.api.RuntimeTimeouts
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.HttpVerb
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
@@ -75,11 +76,11 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Contract test of the public surface of the runtime protocol. The catalogue equals the runtime's 21 routes. The
+ * Contract test of the public surface of the runtime protocol. The catalogue equals the runtime's 26 routes. The
  * options and policies have their documented defaults. The public values are immutable and compared by value. The
  * factory wires a client to the transports it is given. That client runs every call on the dispatcher of the options
- * and hands out handles in the phase `Configuring` with nothing uploaded. It connects with keys from the handle or from
- * a given issuer, and it closes the transports once.
+ * and hands out handles in the phase `Configuring` with nothing uploaded. It lists the runtime's registered features.
+ * It connects with keys from the handle or from a given issuer, and it closes the transports once.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeProtocolContractTest {
@@ -133,7 +134,7 @@ class RuntimeProtocolContractTest {
     )
 
     @Test
-    fun `the catalogue equals the runtime's 21 routes`() {
+    fun `the catalogue equals the runtime's 26 routes`() {
         assertEquals(
             listOf(
                 "POST /createEnvironment", "PUT /setMetamodel", "PUT /setModel", "PUT /setEventDefinitions",
@@ -141,6 +142,8 @@ class RuntimeProtocolContractTest {
                 "POST /registerObjectObserver", "POST /registerDomainListener", "POST /registerClientForWebSocket",
                 "POST /runEnvironment", "POST /startEnvironment", "POST /stopEnvironment", "GET /health",
                 "GET /observatory/environments", "GET /observatory/statemachine", "POST /observatory/registerClient",
+                "GET /getRegisteredFeatures", "POST /activateFeature", "GET /getActiveFeatures", "POST /deactivateFeature",
+                "POST /sendMessageToFeature",
                 "GET /observatory/model", "POST /observatory/subscribeModel", "POST /observatory/unsubscribeModel",
             ),
             RuntimeRoute.entries.map { "${it.verb} ${it.path}" },
@@ -205,6 +208,14 @@ class RuntimeProtocolContractTest {
             ),
             http.requests,
         )
+    }
+
+    @Test
+    fun `the factory's client lists the runtime's registered features`() = runTest {
+        http.ok("History,TickLimit")
+
+        assertEquals(RuntimeResult.Ok(setOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT)), client().registeredFeatures())
+        assertEquals(listOf(TextRequest(HttpVerb.GET, "/getRegisteredFeatures", emptyList(), null)), http.requests)
     }
 
     @Test

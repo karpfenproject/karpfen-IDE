@@ -53,9 +53,10 @@ class KstatesCompletionTest {
     fun `structural keywords depend on the enclosing block`() {
         assertEquals(listOf("STATEMACHINE ATTACHED TO \"…\" { }"), labelsIn("‸"))
         assertEquals(listOf("MACROS { }", "STATES { }", "TRANSITIONS { }"), labelsIn(machine("  ‸")))
-        assertEquals(listOf("INITIAL STATE \"…\" { }", "STATE \"…\" { }"), labelsIn(machine(" STATES {\n  ‸\n }")))
+        val states = listOf("DEEP HISTORY STATE \"…\" { }", "INITIAL STATE \"…\" { }", "SHALLOW HISTORY STATE \"…\" { }", "STATE \"…\" { }")
+        assertEquals(states, labelsIn(machine(" STATES {\n  ‸\n }")))
         assertEquals(
-            listOf("DO { }", "ENTRY { }", "INITIAL STATE \"…\" { }", "STATE \"…\" { }"),
+            (listOf("BREAKPOINT { }", "DO { }", "ENTRY { }", "TICK LIMIT { }") + states).sorted(),
             labelsIn(machine(" STATES {\n  STATE \"a\" {\n   ‸\n  }\n }")),
         )
         assertEquals(
@@ -63,7 +64,7 @@ class KstatesCompletionTest {
             labelsIn(machine(" STATES { }\n TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" { }\n  ‸\n }")),
         )
         assertEquals(listOf("NOT LOOPING"), labelsIn(machine(" TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" ‸ { }\n }")))
-        assertEquals(listOf("CONDITION { }"), labelsIn(machine(" TRANSITIONS {\n  SPLIT \"a\" -> \"b\", \"c\" { ‸ }\n }")))
+        assertEquals(listOf("BREAKPOINT { }", "CONDITION { }"), labelsIn(machine(" TRANSITIONS {\n  SPLIT \"a\" -> \"b\", \"c\" { ‸ }\n }")))
         assertEquals(
             listOf("EVAL { }", "EVENT(\"…\", \"…\")", "VALUE(\"…\")"),
             labelsIn(machine(" TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" { CONDITION { EVENT(\"d\", \"n\")\n ‸ } }\n }")),
@@ -74,6 +75,26 @@ class KstatesCompletionTest {
             labelsIn(machine(" MACROS {\n  MACRO \"m\" {\n   TAKES(\"p\", \"Vector\")\n   ‸\n  }\n }")),
         )
         assertEquals(listOf("EVAL { }"), labelsIn(machine(" MACROS { MACRO \"m\" { RETURNS(\"number\") DEFINITION { ‸ } } }")))
+    }
+
+    @Test
+    fun `breakpoint and tick limit blocks offer their words, and a timeout completes its target state`() {
+        val state = { body: String -> machine(" STATES {\n  DEEP HISTORY STATE \"a\" {\n$body\n  }\n  STATE \"b\" { }\n }") }
+
+        assertEquals(listOf("ENTRY", "EXIT"), labelsIn(state("   BREAKPOINT { ‸ }")))
+        assertEquals(
+            listOf("END", "START"),
+            labelsIn(machine(" STATES { }\n TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" { BREAKPOINT { ‸ } }\n }")),
+        )
+        assertEquals(
+            listOf("DELAY: … TICKS", "TIMEOUT: AFTER … TICKS TRANSITION TO \"…\""),
+            labelsIn(state("   TICK LIMIT {\n    ‸\n   }")),
+        )
+        assertEquals(listOf("a", "b"), labelsIn(state("   TICK LIMIT { TIMEOUT: AFTER 3 TICKS TRANSITION TO \"‸\" }")))
+        assertEquals(
+            listOf("DO { }", "ENTRY { }").let { blocks -> blocks.all { it in labelsIn(state("   BREAKPOINT { ENTRY }\n   TICK LIMIT { DELAY: 2 TICKS }\n   ‸")) } },
+            true,
+        )
     }
 
     @Test

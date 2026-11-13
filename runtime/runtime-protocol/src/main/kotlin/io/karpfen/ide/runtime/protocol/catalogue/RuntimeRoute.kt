@@ -20,26 +20,34 @@ public enum class HttpVerb {
     /** Reads and sends no request body. */
     GET,
 
-    /** Acts and sends no request body. Every value travels in the query. */
+    /** Acts. Every value travels in the query, and only a message to a feature also sends a request body. */
     POST,
 
     /** Uploads a modeling text as the request body. */
     PUT,
 }
 
-/** What a [RuntimeRoute] takes as its request body. */
-public enum class BodyKind {
+/**
+ * What a [RuntimeRoute] takes as its request body.
+ *
+ * @property modelingText true for a modeling text, which the runtime's parser reads. A rejection of such a body with a
+ *   text of its own is a rejection of the uploaded content.
+ */
+public enum class BodyKind(public val modelingText: Boolean) {
     /** No body. */
-    NONE,
+    NONE(modelingText = false),
 
     /** A metamodel text (`.kmeta`). It is either the domain metamodel or the event definitions. */
-    KMETA,
+    KMETA(modelingText = true),
 
     /** A model text (`.kmodel`). */
-    KMODEL,
+    KMODEL(modelingText = true),
 
     /** A state machine text (`.kstates`). */
-    KSTATES,
+    KSTATES(modelingText = true),
+
+    /** A message to a feature, a plain text that the feature reads and answers. */
+    FEATURE_MESSAGE(modelingText = false),
 }
 
 /** What the body of a successful answer of a [RuntimeRoute] holds. */
@@ -64,6 +72,12 @@ public enum class ResponseKind {
 
     /** The model snapshot of an environment, with its phase, revision, active stacks and root objects. */
     MODEL_SNAPSHOT,
+
+    /** Feature names separated by [WireNames.FEATURE_SEPARATOR], in no particular order. An empty text names none. */
+    FEATURE_NAMES,
+
+    /** The answer of a feature to a message, a plain text taken as it is. */
+    FEATURE_ANSWER,
 }
 
 /**
@@ -85,7 +99,7 @@ public enum class TimeoutClass {
 }
 
 /**
- * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 18 routes of the runtime's
+ * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 23 routes of the runtime's
  * `HTTPRoutes` in their order, followed by the three routes that its `ModelObservationRoutes` adds. Everything the
  * client sends is built from an entry, and the fake runtime dispatches by it.
  *
@@ -216,6 +230,42 @@ public enum class RuntimeRoute(
     REGISTER_OBSERVATORY_CLIENT(
         HttpVerb.POST, "/observatory/registerClient", listOf("clientId", "envKey", "modelElement"),
         BodyKind.NONE, ResponseKind.ACCESS_KEY, TimeoutClass.QUICK,
+    ),
+
+    /** Answers the names of every feature the runtime knows. */
+    GET_REGISTERED_FEATURES(
+        HttpVerb.GET, "/getRegisteredFeatures", emptyList(),
+        BodyKind.NONE, ResponseKind.FEATURE_NAMES, TimeoutClass.QUICK,
+    ),
+
+    /**
+     * Switches a feature on in an environment, together with the features it needs. It works in every phase of an
+     * existing environment, and it is refused for a feature that is on already.
+     */
+    ACTIVATE_FEATURE(
+        HttpVerb.POST, "/activateFeature", listOf("envKey", "featureName"),
+        BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
+    ),
+
+    /** Answers the names of the features that are on in an environment. */
+    GET_ACTIVE_FEATURES(
+        HttpVerb.GET, "/getActiveFeatures", listOf("envKey"),
+        BodyKind.NONE, ResponseKind.FEATURE_NAMES, TimeoutClass.QUICK,
+    ),
+
+    /**
+     * Switches a feature off in an environment, together with the features that need it. It is refused for a feature
+     * that is not on.
+     */
+    DEACTIVATE_FEATURE(
+        HttpVerb.POST, "/deactivateFeature", listOf("envKey", "featureName"),
+        BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
+    ),
+
+    /** Sends a message to a feature that is on in an environment and answers what the feature answers. */
+    SEND_MESSAGE_TO_FEATURE(
+        HttpVerb.POST, "/sendMessageToFeature", listOf("envKey", "featureName"),
+        BodyKind.FEATURE_MESSAGE, ResponseKind.FEATURE_ANSWER, TimeoutClass.QUICK,
     ),
 
     /** Answers the model snapshot of an environment, read between two ticks. */

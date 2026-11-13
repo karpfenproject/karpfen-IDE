@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.protocol.api
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 
@@ -94,6 +95,21 @@ internal interface RuntimeApi {
      * client for the stack changes of the machine on [modelElement]. The value `*` stands for every machine.
      */
     suspend fun registerObservatoryClient(client: ClientId, environment: EnvironmentKey, modelElement: String): RuntimeResult<AccessKey>
+
+    /** `GET /getRegisteredFeatures`: the names of every feature the runtime knows. */
+    suspend fun registeredFeatures(): RuntimeResult<Set<FeatureName>>
+
+    /** `POST /activateFeature`: switches [feature] on in [environment], together with the features it needs. */
+    suspend fun activateFeature(environment: EnvironmentKey, feature: FeatureName): RuntimeResult<Unit>
+
+    /** `GET /getActiveFeatures`: the names of the features that are on in [environment]. */
+    suspend fun activeFeatures(environment: EnvironmentKey): RuntimeResult<Set<FeatureName>>
+
+    /** `POST /deactivateFeature`: switches [feature] off in [environment], together with the features that need it. */
+    suspend fun deactivateFeature(environment: EnvironmentKey, feature: FeatureName): RuntimeResult<Unit>
+
+    /** `POST /sendMessageToFeature`: sends [message] to [feature] in [environment] and returns the feature's answer. */
+    suspend fun sendMessageToFeature(environment: EnvironmentKey, feature: FeatureName, message: String): RuntimeResult<String>
 
     /** `GET /observatory/model`: the model snapshot of [environment]. */
     suspend fun modelSnapshot(environment: EnvironmentKey): RuntimeResult<RuntimeModelSnapshot>

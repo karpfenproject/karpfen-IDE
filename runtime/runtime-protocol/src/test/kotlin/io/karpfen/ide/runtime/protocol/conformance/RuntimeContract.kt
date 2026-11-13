@@ -64,6 +64,8 @@ import kotlin.test.assertTrue
  * - Pushes for a client without a session are dropped.
  * - A stop closes the sockets with `Environment stopped`. After that the environment stays readable, and a start runs
  *   it again.
+ * - Features are switched on and off, listed and sent messages while configuring, running and stopped, and their
+ *   refusals have the catalogue's texts.
  *
  * The scenarios run only against a real runtime, in [LiveRuntimeContractTest]. Failures that only a fake can produce
  * are ordinary tests of the client against the fake runtime. Every scenario stops the environments it launched when it
@@ -118,6 +120,47 @@ abstract class RuntimeContract {
                 upload = lamp(LAMP_FILES.metamodel),
             )
         }
+    }
+
+    @Test
+    fun `features are switched, listed and sent messages in every phase with the catalogue's texts`() = scenario {
+        val environment = create()
+        val env = mapOf("env" to environment)
+        val registered = call(RuntimeRoute.GET_REGISTERED_FEATURES)
+        assertEquals(OK, registered.status, registered.body)
+        val names = registered.body.split(WireNames.FEATURE_SEPARATOR)
+        assertTrue(names.containsAll(listOf("History", "TickLimit", "TickByTick")), registered.body)
+
+        expect(OK, "", RuntimeRoute.GET_ACTIVE_FEATURES, ENV_KEY to environment)
+        ok(RuntimeRoute.ACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "History")
+        expect(OK, "History", RuntimeRoute.GET_ACTIVE_FEATURES, ENV_KEY to environment)
+        rejected(
+            BAD_REQUEST, RuntimeText.FEATURE_ALREADY_ACTIVE, env + ("feature" to "History"),
+            RuntimeRoute.ACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "History",
+        )
+        rejected(
+            BAD_REQUEST, RuntimeText.UNKNOWN_FEATURE, mapOf("feature" to "Histroy"),
+            RuntimeRoute.ACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "Histroy",
+        )
+        rejected(
+            BAD_REQUEST, RuntimeText.FEATURE_NOT_ACTIVE, env + ("feature" to "TickLimit"),
+            RuntimeRoute.DEACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickLimit",
+        )
+        rejected(
+            BAD_REQUEST, RuntimeText.FEATURE_NOT_ACTIVATED, env + ("feature" to "TickByTick"),
+            RuntimeRoute.SEND_MESSAGE_TO_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick", upload = "pause",
+        )
+
+        uploadLamp(environment)
+        ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+        ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+        ok(RuntimeRoute.ACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick")
+        expect(OK, "execution paused", RuntimeRoute.SEND_MESSAGE_TO_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick", upload = "pause")
+        ok(RuntimeRoute.DEACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "TickByTick")
+        ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+
+        ok(RuntimeRoute.DEACTIVATE_FEATURE, ENV_KEY to environment, FEATURE_NAME to "History")
+        expect(OK, "", RuntimeRoute.GET_ACTIVE_FEATURES, ENV_KEY to environment)
     }
 
     @Test
@@ -563,6 +606,9 @@ abstract class RuntimeContract {
         /** The event time to live the lamp scenarios configure. */
         const val EVENT_TTL_MS = 30_000L
 
+        /** The query parameter that names a feature. */
+        const val FEATURE_NAME = "featureName"
+
         /** The parameters that must be numbers. */
         val NUMERIC = setOf("milliseconds", "ttlMs")
 
@@ -590,6 +636,7 @@ abstract class RuntimeContract {
                 "modelElement", "attachedTo", "objectId" -> "lamp"
                 "state" -> "off"
                 "domain" -> "switch"
+                FEATURE_NAME -> "History"
                 else -> "ide-live-sample"
             }
 

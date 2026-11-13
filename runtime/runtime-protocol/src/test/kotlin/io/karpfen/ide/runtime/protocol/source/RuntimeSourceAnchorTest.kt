@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.source
 
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
@@ -37,6 +38,7 @@ import kotlin.test.assertTrue
  * - The members and phases of the snapshot with its wait for a tick boundary.
  * - The decisive lines of the runtime's JSON writer.
  * - The members of the `stateChange` and `domainEvent` payloads.
+ * - The names of the language features and the separator of the feature lists.
  *
  * A failure names the file and the snippet that no longer occurs. The texts of the runtime's older dsl-tools parser
  * are not anchored. The live runs cover them.
@@ -264,6 +266,19 @@ class RuntimeSourceAnchorTest {
         )
     }
 
+    @Test
+    fun `the language features are registered under the catalogue's names and listed with its separator`() {
+        assertAnchored(
+            listOf(
+                SourceAnchor(HISTORY_FEATURE, "registryName = \"${FeatureName.HISTORY.value}\""),
+                SourceAnchor(TICK_LIMIT_FEATURE, "registryName = \"${FeatureName.TICK_LIMIT.value}\""),
+                SourceAnchor(HTTP_ROUTES, "featureNames.joinToString(separator = \"${WireNames.FEATURE_SEPARATOR}\")"),
+                SourceAnchor(HTTP_ROUTES, "activeFeatureNames.joinToString(separator = \"${WireNames.FEATURE_SEPARATOR}\")"),
+                SourceAnchor(HTTP_ROUTES, "call.respond(HttpStatusCode.OK, APIService.sendMessage(envKey, feature, message))"),
+            ),
+        )
+    }
+
     /** Fails naming every anchor of [anchors] that does not hold in the checkout. */
     private fun assertAnchored(anchors: List<SourceAnchor>) {
         val missing = anchors.filterNot { it.holdsIn(checkout) }
@@ -299,6 +314,9 @@ class RuntimeSourceAnchorTest {
         const val BROADCASTER = "$SERVER/websocket/WebSocketBroadcaster.kt"
         const val MODEL_JSON_WRITER = "$ENGINE/exec/ModelJsonWriter.kt"
         const val EVENT = "$ENGINE/messages/Event.kt"
+        const val FEATURE_MANAGER = "$ENGINE/features/FeatureManager.kt"
+        const val HISTORY_FEATURE = "$ENGINE/features/language/HistoryFeature.kt"
+        const val TICK_LIMIT_FEATURE = "$ENGINE/features/language/TickLimitFeature.kt"
 
         /** The routes the runtime's model observation adds, declared in their own file. */
         val OBSERVATION = setOf(RuntimeRoute.MODEL_SNAPSHOT, RuntimeRoute.SUBSCRIBE_MODEL, RuntimeRoute.UNSUBSCRIBE_MODEL)
@@ -314,6 +332,9 @@ class RuntimeSourceAnchorTest {
 
         /** The environment key as most runtime functions name it. */
         val ENV = mapOf("env" to "\$envKey")
+
+        /** The feature name as the runtime's feature functions name it. */
+        val FEATURE = mapOf("feature" to "\$featureName")
 
         /**
          * Where the runtime writes each rejection text, as a string literal whose placeholders are the Kotlin
@@ -360,6 +381,18 @@ class RuntimeSourceAnchorTest {
             RuntimeText.NO_SESSION to listOf(
                 SourceAnchor(SUBSCRIPTION_SERVICE, literal(RuntimeText.NO_SESSION, ENV + ("client" to "\$clientId"))),
             ),
+            RuntimeText.UNKNOWN_FEATURE to listOf(SourceAnchor(API_SERVICE, literal(RuntimeText.UNKNOWN_FEATURE, FEATURE))),
+            RuntimeText.FEATURE_ALREADY_ACTIVE to listOf(
+                SourceAnchor(API_SERVICE, literal(RuntimeText.FEATURE_ALREADY_ACTIVE, ENV + FEATURE)),
+            ),
+            RuntimeText.FEATURE_NOT_ACTIVE to listOf(SourceAnchor(API_SERVICE, literal(RuntimeText.FEATURE_NOT_ACTIVE, ENV + FEATURE))),
+            RuntimeText.FEATURE_NOT_ACTIVATED to listOf(
+                SourceAnchor(
+                    API_SERVICE,
+                    literal(RuntimeText.FEATURE_NOT_ACTIVATED, ENV + ("feature" to "\${FeatureRegistry.getNameByClass(featureClass)}")),
+                ),
+            ),
+            RuntimeText.FEATURES_BUSY to listOf(SourceAnchor(FEATURE_MANAGER, literal(RuntimeText.FEATURES_BUSY, emptyMap()))),
             RuntimeText.UNEXPECTED_ERROR to listOf(SourceAnchor(HTTP_ROUTES, "e.message ?: \"${RuntimeText.UNEXPECTED_ERROR.template}\"")),
         )
     }

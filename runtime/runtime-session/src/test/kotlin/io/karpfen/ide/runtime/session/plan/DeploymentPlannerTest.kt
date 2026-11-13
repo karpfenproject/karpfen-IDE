@@ -21,6 +21,7 @@ import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.workspace.fixtures.openDocument
 import io.karpfen.ide.core.workspace.fixtures.settle
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.conformance.DescriptorTiming
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModels
@@ -39,7 +40,8 @@ import kotlin.time.Duration.Companion.seconds
  * Covers [DeploymentPlanner] over real workspaces. The single robot and the lamp are planned with their uploads in
  * order from the analyzed snapshots. Their attachments, domains and configuration come from the descriptor or the
  * defaults. The ring is blocked by its reference loop. The gate reads the diagnostics of the analyzed snapshots rather
- * than those of a newer editor text. Unsaved files block, and `_` is kept as an object key.
+ * than those of a newer editor text. Unsaved files block, and `_` is kept as an object key. A plan lists the runtime
+ * features that its machines need.
  */
 class DeploymentPlannerTest {
 
@@ -98,6 +100,19 @@ class DeploymentPlannerTest {
         assertEquals(DeployConfiguration(20, 500), plan.configuration)
         assertEquals(setOf("living room", "lamp", "bulb", "spare", "wallSwitch"), plan.modelObjectIds)
         assertEquals(emptyList(), plan.findings)
+    }
+
+    @Test
+    fun `a plan switches on the runtime features its machines need, and the lamp needs none`() = runTest(timeout = 60.seconds) {
+        val workspaces = PlanningWorkspaces(this, root)
+        val descriptor = workspaces.copy(SynthesizedModel.LAMP)
+        assertEquals(emptyList(), workspaces.plan(descriptor).ready().features)
+
+        root.resolve("lamp/lamp.kstates").replaceText("""        STATE "on" {""", """        SHALLOW HISTORY STATE "on" {""")
+        assertEquals(listOf(FeatureName.HISTORY), workspaces.plan(descriptor).ready().features)
+
+        root.resolve("lamp/switch.kstates").replaceText("""        STATE "up" {""", """        STATE "up" {""" + "\n" + TIMEOUT)
+        assertEquals(listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT), workspaces.plan(descriptor).ready().features)
     }
 
     @Test
@@ -188,5 +203,12 @@ class DeploymentPlannerTest {
         val plan = workspaces.plan(descriptor).ready()
 
         assertEquals(setOf("living room", "lamp", "bulb", "_", "wallSwitch"), plan.modelObjectIds)
+    }
+
+    private companion object {
+        /** A tick limit with a timeout, written as the first block of the switch's state `up`. */
+        const val TIMEOUT: String = """            TICK LIMIT {
+                TIMEOUT: AFTER 10 TICKS TRANSITION TO "back down"
+            }"""
     }
 }

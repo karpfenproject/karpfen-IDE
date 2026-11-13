@@ -46,7 +46,7 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers a session whose deployment fails or is cancelled, end to end against the fake runtime, which answers only
- * what each test programs. A failure at any step fails the session with the step's problem. This happens after the
+ * what each test programs. The lamp deployed there has a history, so that its deployment switches on a runtime feature. A failure at any step fails the session with the step's problem. This happens after the
  * cleanup that the phase calls for, and the session carries the ledger entry of what stays. Closing the session at any
  * step cancels the deployment, and its cleanup still runs and records. A runtime without IDE support is refused before
  * anything is created. An engine that halts right after the start fails the deployment, which then stops the
@@ -62,7 +62,7 @@ class RuntimeSessionFailureTest {
     @EnumSource(DeployStepKind::class)
     fun `a failure at every step fails the session with the step's problem and the cleanup of its phase`(step: DeployStepKind) = runTest {
         val rig = SessionRig(this, root)
-        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val deployment = rig.preparedWithHistory()
         val case = failureAt(step, rig, deployment)
 
         val session = rig.launch(deployment)
@@ -84,7 +84,7 @@ class RuntimeSessionFailureTest {
     @EnumSource(DeployStepKind::class)
     fun `closing the session at every step cancels the deployment, whose cleanup runs and records what stays`(step: DeployStepKind) = runTest {
         val rig = SessionRig(this, root)
-        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        val deployment = rig.preparedWithHistory()
         val expected = hangAt(step, rig, deployment)
         val session = rig.launch(deployment)
         advanceTimeBy(1.seconds)
@@ -207,6 +207,13 @@ class RuntimeSessionFailureTest {
                 fake.respond(RuntimeRoute.REGISTER_DOMAIN_LISTENER, boom, where = mapOf("domain" to "switch"))
                 Failure(DeployProblemCodes.RUNTIME_ERROR, configured)
             }
+            DeployStepKind.SWITCH_FEATURES_ON -> {
+                fake.respond(
+                    RuntimeRoute.ACTIVATE_FEATURE,
+                    FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.UNKNOWN_FEATURE, mapOf("feature" to "History")),
+                )
+                Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
+            }
             DeployStepKind.ACTIVATE -> {
                 fake.respond(
                     RuntimeRoute.RUN_ENVIRONMENT,
@@ -246,6 +253,7 @@ class RuntimeSessionFailureTest {
             DeployStepKind.SET_TICK_DELAY -> configured.also { fake.hang(RuntimeRoute.SET_TICK_DELAY) }
             DeployStepKind.SET_EVENT_TTL -> configured.also { fake.hang(RuntimeRoute.SET_EVENT_TTL) }
             DeployStepKind.LISTEN_DOMAINS -> configured.also { fake.hang(RuntimeRoute.REGISTER_DOMAIN_LISTENER) }
+            DeployStepKind.SWITCH_FEATURES_ON -> configured.also { fake.hang(RuntimeRoute.ACTIVATE_FEATURE) }
             DeployStepKind.ACTIVATE -> LedgerDisposition.STOPPED.also { fake.hang(RuntimeRoute.RUN_ENVIRONMENT) }
             DeployStepKind.OBSERVE -> LedgerDisposition.STOPPED.also { fake.hang(RuntimeRoute.SUBSCRIBE_MODEL) }
             DeployStepKind.START -> LedgerDisposition.STOPPED.also { fake.hang(RuntimeRoute.START_ENVIRONMENT) }

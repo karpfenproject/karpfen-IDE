@@ -37,7 +37,7 @@ import kotlinx.coroutines.ensureActive
 
 /**
  * The HTTP seam over a Ktor [client]. The URL is the endpoint's base with the request's path. The query is appended as
- * parameters that the client's own [QueryEncoding] has already encoded. A PUT body is sent as
+ * parameters that the client's own [QueryEncoding] has already encoded. A request body is sent as
  * `text/plain; charset=UTF-8`. Every response body is read as UTF-8 text, whatever its content type says.
  *
  * Exceptions become [HttpOutcome.Failed] through [TransportFailures]. A cancellation of the caller is rethrown. Ktor

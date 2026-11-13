@@ -42,15 +42,16 @@ import java.net.ConnectException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
  * Covers [KtorRuntimeHttp] over Ktor's mock engine. The URL is built from the endpoint's base and the request's path,
- * and the client encodes the query itself. PUT bodies go as UTF-8 `text/plain`, and POST and GET have no body. Every
- * answer is passed through with its status, its UTF-8 text and its content type. Failures to connect count as
- * unreachable, and failures after the request was handed over count as interruptions. The caller's cancellation is
- * rethrown.
+ * and the client encodes the query itself. PUT bodies and the message of a POST to a feature go as UTF-8 `text/plain`,
+ * and other POST and GET requests have no body. Every answer is passed through with its status, its UTF-8 text and its
+ * content type. Failures to connect count as unreachable, and failures after the request was handed over count as
+ * interruptions. The caller's cancellation is rethrown.
  */
 class KtorRuntimeHttpTest {
 
@@ -117,7 +118,22 @@ class KtorRuntimeHttpTest {
     }
 
     @Test
-    fun `POST and GET requests carry no body`() = runTest {
+    fun `the message of a POST to a feature is sent as UTF-8 text`() = runTest {
+        withHttp({ respond("execution paused") }) { http, engine ->
+            val answer = http.exchange(
+                TextRequest(HttpVerb.POST, "/sendMessageToFeature", listOf("envKey" to "env-1", "featureName" to "TickByTick"), "pause"),
+            )
+
+            val request = requestOf(engine)
+            assertEquals(HttpMethod.Post, request.method)
+            assertEquals("text/plain; charset=UTF-8", request.body.contentType.toString())
+            assertEquals("pause", request.body.toByteArray().decodeToString())
+            assertEquals("execution paused", assertIs<HttpOutcome.Answered>(answer).body)
+        }
+    }
+
+    @Test
+    fun `POST and GET requests without a body carry none`() = runTest {
         withHttp({ respond("") }) { http, engine ->
             http.exchange(TextRequest(HttpVerb.POST, "/runEnvironment", listOf("envKey" to "env-1"), null))
             http.exchange(TextRequest(HttpVerb.GET, "/health", emptyList(), null))

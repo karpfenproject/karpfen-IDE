@@ -75,6 +75,18 @@ public enum class LifecycleOperation {
 
     /** Send an event over the connection. */
     INJECT_EVENT,
+
+    /** Switch a feature on. */
+    ACTIVATE_FEATURE,
+
+    /** Switch a feature off. */
+    DEACTIVATE_FEATURE,
+
+    /** Read which features are on. */
+    READ_ACTIVE_FEATURES,
+
+    /** Send a message to a feature. */
+    MESSAGE_FEATURE,
 }
 
 /**

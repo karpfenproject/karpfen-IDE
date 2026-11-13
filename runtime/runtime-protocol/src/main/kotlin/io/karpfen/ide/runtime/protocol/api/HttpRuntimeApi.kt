@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.protocol.api
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
@@ -113,6 +114,21 @@ internal class HttpRuntimeApi(
             null,
             SuccessBodies.accessKey(client),
         )
+
+    override suspend fun registeredFeatures(): RuntimeResult<Set<FeatureName>> =
+        call(RuntimeRoute.GET_REGISTERED_FEATURES, emptyList(), null, SuccessBodies.FEATURE_NAMES)
+
+    override suspend fun activateFeature(environment: EnvironmentKey, feature: FeatureName): RuntimeResult<Unit> =
+        call(RuntimeRoute.ACTIVATE_FEATURE, listOf(environment.value, feature.value), null, SuccessBodies.EMPTY)
+
+    override suspend fun activeFeatures(environment: EnvironmentKey): RuntimeResult<Set<FeatureName>> =
+        call(RuntimeRoute.GET_ACTIVE_FEATURES, listOf(environment.value), null, SuccessBodies.FEATURE_NAMES)
+
+    override suspend fun deactivateFeature(environment: EnvironmentKey, feature: FeatureName): RuntimeResult<Unit> =
+        call(RuntimeRoute.DEACTIVATE_FEATURE, listOf(environment.value, feature.value), null, SuccessBodies.EMPTY)
+
+    override suspend fun sendMessageToFeature(environment: EnvironmentKey, feature: FeatureName, message: String): RuntimeResult<String> =
+        call(RuntimeRoute.SEND_MESSAGE_TO_FEATURE, listOf(environment.value, feature.value), message, SuccessBodies.FEATURE_ANSWER)
 
     override suspend fun modelSnapshot(environment: EnvironmentKey): RuntimeResult<RuntimeModelSnapshot> =
         call(RuntimeRoute.MODEL_SNAPSHOT, listOf(environment.value), null, SuccessBodies.snapshot(environment))

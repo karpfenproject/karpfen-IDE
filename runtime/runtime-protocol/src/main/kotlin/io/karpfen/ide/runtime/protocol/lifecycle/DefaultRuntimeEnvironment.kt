@@ -20,6 +20,7 @@ import io.karpfen.ide.runtime.protocol.api.RuntimeResult
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
@@ -127,6 +128,18 @@ internal class DefaultRuntimeEnvironment(
 
     override suspend fun unsubscribeModel(client: ClientId): CallOutcome<Unit> =
         perform(LifecycleOperation.UNSUBSCRIBE_MODEL) { api.unsubscribeModel(key, client) }
+
+    override suspend fun activateFeature(feature: FeatureName): CallOutcome<Unit> =
+        perform(LifecycleOperation.ACTIVATE_FEATURE) { api.activateFeature(key, feature) }
+
+    override suspend fun deactivateFeature(feature: FeatureName): CallOutcome<Unit> =
+        perform(LifecycleOperation.DEACTIVATE_FEATURE) { api.deactivateFeature(key, feature) }
+
+    override suspend fun activeFeatures(): CallOutcome<Set<FeatureName>> =
+        perform(LifecycleOperation.READ_ACTIVE_FEATURES) { api.activeFeatures(key) }
+
+    override suspend fun messageFeature(feature: FeatureName, message: String): CallOutcome<String> =
+        perform(LifecycleOperation.MESSAGE_FEATURE) { api.sendMessageToFeature(key, feature, message) }
 
     /**
      * Performs [operation] with [call] under the mutex. A refusing verdict refuses the operation. A verdict to answer

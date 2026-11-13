@@ -28,7 +28,7 @@ public object StatechartMetrics {
     /** The height of a state without nested states. */
     public const val STATE_HEIGHT: Float = 36f
 
-    /** The extra height of a state that has an entry or a do block, for the line that says so. */
+    /** The extra height of a state that has a tick limit, an entry or a do block, for the line that says so. */
     public const val BLOCK_LINE: Float = 16f
 
     /** The smallest width of a state. */
@@ -82,12 +82,25 @@ public object StatechartMetrics {
     /** The word behind the marker of the do block of a state. */
     public const val DO_WORD: String = "do"
 
+    /** The word behind the marker of the tick limit of a state. */
+    public const val LIMIT_WORD: String = "limit"
+
+    /** The diameter of the badge of a history, the circle with an H in it. */
+    public const val BADGE: Float = 16f
+
+    /** The radius of the dot of a breakpoint. */
+    public const val BREAKPOINT_DOT: Float = 4f
+
     /** The width of the box of [state] if it has no nested states, with a name as wide as [text] says. */
     public fun leafWidth(state: StateNode, text: TextMeasurer): Float =
         maxOf(text.widthOf(state.name) + 2 * NAME_PADDING, MIN_STATE_WIDTH, cellsWidth(state) + 2 * CELL_GAP)
 
-    /** The words of the code cells of [state], in the order they are drawn: its entry block, then its do block. */
-    public fun cellWords(state: StateNode): List<String> = listOfNotNull(ENTRY_WORD.takeIf { state.hasEntry }, DO_WORD.takeIf { state.hasDo })
+    /**
+     * The words of the code cells of [state], in the order they are drawn: its tick limit, then its entry block, then
+     * its do block.
+     */
+    public fun cellWords(state: StateNode): List<String> =
+        listOfNotNull(LIMIT_WORD.takeIf { state.hasTickLimit }, ENTRY_WORD.takeIf { state.hasEntry }, DO_WORD.takeIf { state.hasDo })
 
     /**
      * Where the code cells of [state] are drawn in its box [box], by their words. Each cell is a marker with its word
@@ -115,5 +128,5 @@ public object StatechartMetrics {
     }
 
     /** The height of the box of [state] if it has no nested states. */
-    public fun leafHeight(state: StateNode): Float = if (state.hasEntry || state.hasDo) STATE_HEIGHT + BLOCK_LINE else STATE_HEIGHT
+    public fun leafHeight(state: StateNode): Float = if (cellWords(state).isNotEmpty()) STATE_HEIGHT + BLOCK_LINE else STATE_HEIGHT
 }

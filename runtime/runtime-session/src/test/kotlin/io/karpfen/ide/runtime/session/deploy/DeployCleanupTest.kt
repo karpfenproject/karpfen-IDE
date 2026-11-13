@@ -259,6 +259,16 @@ class DeployCleanupTest {
                 )
             },
         ),
+        SWITCH_FEATURES_ON(
+            DeployStepKind.SWITCH_FEATURES_ON, "activateFeature", DeployProblemCodes.RUNTIME_REJECTED,
+            listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED,
+            {
+                it.fail(
+                    "activateFeature",
+                    Failures.rejected(RuntimeRoute.ACTIVATE_FEATURE, RuntimeText.UNKNOWN_FEATURE, mapOf("feature" to "History"), 400),
+                )
+            },
+        ),
         ACTIVATE(
             DeployStepKind.ACTIVATE, "activate", DeployProblemCodes.RUNTIME_REJECTED, listOf("disconnect", "close"),
             LedgerDisposition.LEFT_CONFIGURED,
@@ -329,6 +339,9 @@ class DeployCleanupTest {
         SET_EVENT_TTL(DeployStepKind.SET_EVENT_TTL, "setEventTtl", listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED),
         LISTEN_DOMAINS(
             DeployStepKind.LISTEN_DOMAINS, "registerDomainListener", listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED,
+        ),
+        SWITCH_FEATURES_ON(
+            DeployStepKind.SWITCH_FEATURES_ON, "activateFeature", listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED,
         ),
         ACTIVATE(DeployStepKind.ACTIVATE, "activate", listOf("stop", "disconnect", "close"), LedgerDisposition.STOPPED),
         OBSERVE(DeployStepKind.OBSERVE, "switchOn", listOf("stop", "disconnect", "close"), LedgerDisposition.STOPPED),

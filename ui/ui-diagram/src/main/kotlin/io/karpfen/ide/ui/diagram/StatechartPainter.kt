@@ -24,6 +24,7 @@ import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.RouteKind
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
 import io.karpfen.ide.notation.diagram.layout.StatechartMetrics
+import io.karpfen.ide.notation.diagram.statechart.StateHistory
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.ui.foundation.theme.KarpfenColors
@@ -32,8 +33,11 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenColors
  * Draws a statechart.
  *
  * States are drawn parents first, so nested states lie on top of their parent. A state with nested states shows its
- * name in a row at its top. A state without shows it in its middle, above the room for the markers of its entry and
- * do blocks, which the canvas draws. The marker of an initial state is a filled dot. The bars of splits and joins are filled. Every line ends
+ * name in a row at its top. A state without shows it in its middle, above the room for the markers of its tick limit
+ * and its entry and do blocks, which the canvas draws. A history is a small circle with an `H` for a shallow one and
+ * `H*` for a deep one, behind the name of a state with nested states. A breakpoint is a dot in the colour of errors:
+ * on the left border of a state for its entry and on the right border for its exit, in front of the caption of a
+ * transition for its start and behind it for its end. The marker of an initial state is a filled dot. The bars of splits and joins are filled. Every line ends
  * in an arrowhead, except the lines that lead into a bar. The caption of a transition is written on a patch in the
  * colour of the background.
  */
@@ -45,11 +49,23 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
     /** The room left of the name in the top row of a state with nested states. */
     private const val NAME_INSET = 10f
 
+    /** The letter in the badge of a shallow history. */
+    private const val SHALLOW_MARK = "H"
+
+    /** The letters in the badge of a deep history. */
+    private const val DEEP_MARK = "H*"
+
+    /** The room between the name of a state and the badge of its history, and between the badge and the border. */
+    private const val BADGE_GAP = 6f
+
+    /** How far below the top of a state the dots of its breakpoints sit on its border. */
+    private const val DOT_DROP = 12f
+
     override fun texts(diagram: StatechartDiagram): Map<TextRole, Collection<String>> {
         val states = diagram.allStates()
         return mapOf(
             TextRole.TITLE to states.map { it.name },
-            TextRole.ROW to listOf(StatechartMetrics.ENTRY_WORD, StatechartMetrics.DO_WORD),
+            TextRole.ROW to listOf(StatechartMetrics.LIMIT_WORD, StatechartMetrics.ENTRY_WORD, StatechartMetrics.DO_WORD, SHALLOW_MARK, DEEP_MARK),
             TextRole.LABEL to diagram.transitions.map { it.caption },
         )
     }
@@ -79,12 +95,32 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
                 if (pixels != null && route.kind != RouteKind.INTO_BAR) scope.drawFilledArrowhead(pixels, colors.textMuted)
             }
         }
-        val captions = diagram.transitions.associate { it.id to it.caption }
+        val transitions = diagram.transitions.associateBy { it.id }
         layout.routes.forEach { route ->
             val label = route.label ?: return@forEach
-            val caption = captions[route.transitionId]?.let { texts[TextRole.LABEL, it] } ?: return@forEach
-            faults.attempt("writing the caption of ${route.transitionId}") { scope.drawCaption(label, caption, colors) }
+            val transition = transitions[route.transitionId] ?: return@forEach
+            val caption = texts[TextRole.LABEL, transition.caption] ?: return@forEach
+            faults.attempt("writing the caption of ${route.transitionId}") {
+                scope.drawCaption(label, caption, colors)
+                val reach = StatechartMetrics.BREAKPOINT_DOT + 1f
+                if (transition.startBreakpoint) scope.drawBreakpoint(label.x - reach, label.center.y, colors)
+                if (transition.endBreakpoint) scope.drawBreakpoint(label.right + reach, label.center.y, colors)
+            }
         }
+    }
+
+    /** Draws the dot of a breakpoint with its middle at ([x], [y]) in the units of the diagram. */
+    private fun DrawScope.drawBreakpoint(x: Float, y: Float, colors: KarpfenColors) {
+        drawCircle(colors.error, radius = StatechartMetrics.BREAKPOINT_DOT * density, center = Offset(x * density, y * density))
+    }
+
+    /** Draws the badge of the history [history] with its left edge at [left] and its middle at the height [middle], in pixels. */
+    private fun DrawScope.drawHistory(history: StateHistory, left: Float, middle: Float, texts: DiagramTexts, colors: KarpfenColors) {
+        val mark = texts[TextRole.ROW, if (history == StateHistory.DEEP) DEEP_MARK else SHALLOW_MARK] ?: return
+        val radius = StatechartMetrics.BADGE * density / 2f
+        val center = Offset(left + radius, middle)
+        drawCircle(colors.textMuted, radius = radius, center = center, style = Stroke(BORDER * density))
+        drawText(mark, topLeft = Offset(center.x - mark.size.width / 2f, center.y - mark.size.height / 2f))
     }
 
     private fun DrawScope.drawState(state: StateNode, box: DiagramBox, layout: StatechartLayout, texts: DiagramTexts, colors: KarpfenColors) {
@@ -94,14 +130,23 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
         val size = box.size(unit)
         drawRoundRect(if (state.isComposite) colors.window else colors.panel, topLeft, size, corner)
         drawRoundRect(colors.border, topLeft, size, corner, style = Stroke(BORDER * unit))
+        if (state.entryBreakpoint) drawBreakpoint(box.x, box.y + DOT_DROP, colors)
+        if (state.exitBreakpoint) drawBreakpoint(box.right, box.y + DOT_DROP, colors)
         val name = texts[TextRole.TITLE, state.name] ?: return
         if (state.isComposite) {
             val header = layout.headerHeight * unit
             drawText(name, topLeft = topLeft + Offset(NAME_INSET * unit, (header - name.size.height) / 2f))
             drawLine(colors.border, topLeft + Offset(0f, header), topLeft + Offset(size.width, header), strokeWidth = BORDER * unit)
+            if (state.history != StateHistory.NONE) {
+                drawHistory(state.history, topLeft.x + (NAME_INSET + BADGE_GAP) * unit + name.size.width, topLeft.y + header / 2f, texts, colors)
+            }
             return
         }
-        val cells = if (state.hasEntry || state.hasDo) StatechartMetrics.BLOCK_LINE * unit else 0f
+        val cells = if (StatechartMetrics.cellWords(state).isNotEmpty()) StatechartMetrics.BLOCK_LINE * unit else 0f
         drawText(name, topLeft = Offset(topLeft.x + (size.width - name.size.width) / 2f, topLeft.y + (size.height - cells - name.size.height) / 2f))
+        if (state.history != StateHistory.NONE) {
+            val reach = (StatechartMetrics.BADGE + BADGE_GAP) * unit
+            drawHistory(state.history, topLeft.x + size.width - reach, topLeft.y + reach / 2f, texts, colors)
+        }
     }
 }

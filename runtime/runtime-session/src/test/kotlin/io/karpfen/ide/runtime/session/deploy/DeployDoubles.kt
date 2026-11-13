@@ -22,6 +22,7 @@ import io.karpfen.ide.runtime.protocol.api.RuntimeResult
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.connection.AccessKeyIssuer
@@ -152,6 +153,8 @@ internal class ScriptedClient(private val script: DeployScript) : RuntimeClient 
 
     override suspend fun checkIdeSupport(): RuntimeResult<Unit> = result("checkIdeSupport") { }
 
+    override suspend fun registeredFeatures(): RuntimeResult<Set<FeatureName>> = result("registeredFeatures") { emptySet() }
+
     override suspend fun activeEnvironments(): RuntimeResult<List<ActiveEnvironment>> = result("activeEnvironments") { emptyList() }
 
     override suspend fun createEnvironment(): RuntimeResult<RuntimeEnvironment> =
@@ -240,6 +243,15 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
     override suspend fun subscribeModel(client: ClientId): CallOutcome<Unit> = outcome("subscribeModel", client) { }
 
     override suspend fun unsubscribeModel(client: ClientId): CallOutcome<Unit> = outcome("unsubscribeModel", client) { }
+
+    override suspend fun activateFeature(feature: FeatureName): CallOutcome<Unit> = outcome("activateFeature", feature) { }
+
+    override suspend fun deactivateFeature(feature: FeatureName): CallOutcome<Unit> = outcome("deactivateFeature", feature) { }
+
+    override suspend fun activeFeatures(): CallOutcome<Set<FeatureName>> = outcome("activeFeatures") { emptySet() }
+
+    override suspend fun messageFeature(feature: FeatureName, message: String): CallOutcome<String> =
+        outcome("messageFeature", feature, message) { "" }
 
     /**
      * The model as the runtime would read it now. It has no objects, and a state for every attached machine once the

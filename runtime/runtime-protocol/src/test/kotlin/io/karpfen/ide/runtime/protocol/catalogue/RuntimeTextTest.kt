@@ -133,6 +133,7 @@ class RuntimeTextTest {
             "keys" to "ghost, phantom",
             "id" to "a",
             "ms" to "10000",
+            "feature" to "TickLimit",
         )
     }
 }

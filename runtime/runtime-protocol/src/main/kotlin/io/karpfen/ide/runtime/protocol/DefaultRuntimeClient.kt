@@ -21,6 +21,7 @@ import io.karpfen.ide.runtime.protocol.api.RuntimeApi
 import io.karpfen.ide.runtime.protocol.api.RuntimeResult
 import io.karpfen.ide.runtime.protocol.api.map
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.connection.AccessKeyIssuer
 import io.karpfen.ide.runtime.protocol.connection.DefaultRuntimeConnection
@@ -53,6 +54,9 @@ internal class DefaultRuntimeClient(
     override suspend fun health(): RuntimeResult<Unit> = withContext(options.dispatcher) { api.health() }
 
     override suspend fun checkIdeSupport(): RuntimeResult<Unit> = withContext(options.dispatcher) { api.probeSnapshotRoute() }
+
+    override suspend fun registeredFeatures(): RuntimeResult<Set<FeatureName>> =
+        withContext(options.dispatcher) { api.registeredFeatures() }
 
     override suspend fun activeEnvironments(): RuntimeResult<List<ActiveEnvironment>> =
         withContext(options.dispatcher) { api.listEnvironments() }

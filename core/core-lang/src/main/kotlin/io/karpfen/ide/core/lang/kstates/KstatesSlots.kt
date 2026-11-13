@@ -95,7 +95,7 @@ internal enum class KstatesPosition {
     /** In the states block, where states go. */
     STATES,
 
-    /** In a state, where entry and do blocks and nested states go. */
+    /** In a state, where its breakpoints, its tick limit, entry and do blocks and nested states go. */
     STATE_BODY,
 
     /**
@@ -110,8 +110,17 @@ internal enum class KstatesPosition {
     /** After the states of a transition header, where `NOT LOOPING` goes. */
     TRANSITION_HEADER,
 
-    /** In a transition, where its condition goes. */
+    /** In a transition, where its breakpoints and its condition go. */
     TRANSITION_BODY,
+
+    /** In the breakpoint block of a state, where `ENTRY` and `EXIT` go. */
+    STATE_BREAKPOINTS,
+
+    /** In the breakpoint block of a transition, where `START` and `END` go. */
+    TRANSITION_BREAKPOINTS,
+
+    /** In the tick limit block of a state, where its delay and its timeout go. */
+    TICK_LIMIT,
 
     /** In a condition, where event clauses, Python guards and boolean path guards go. */
     CONDITION,
@@ -194,13 +203,18 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         }
     }
 
-    /** The slot of a string that is no call argument. The statement before the string decides what it names. */
+    /**
+     * The slot of a string that is no call argument. The statement before the string decides what it names. After
+     * `TRANSITION TO` it is the state a timeout leads to.
+     */
     private fun headerString(statement: List<ContextToken>, name: String, range: TextRange, context: CaretContext): KstatesSlot {
         val last = statement.lastOrNull()
         return when {
             last == null -> KstatesSlot.None
             isTransitionHeader(statement) && last.kind != TokenKind.STRING -> KstatesSlot.StateName(name, range, isDeclaration = false)
             last.isKeyword(STATE) -> KstatesSlot.StateName(name, range, isDeclaration = true)
+            last.isKeyword(TO) && statement.getOrNull(statement.size - 2)?.isKeyword(TRANSITION) == true ->
+                KstatesSlot.StateName(name, range, isDeclaration = false)
             last.kind == TokenKind.KEYWORD && last.text.uppercase() == AS -> KstatesSlot.BindingName(name, range)
             last.isKeyword(TO) && statement.getOrNull(statement.size - 2)?.isKeyword(ATTACHED) == true ->
                 KstatesSlot.TypeName(name, range, primitives = false)
@@ -237,19 +251,28 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             return KstatesSlot.Keywords(KstatesPosition.TRANSITION_HEADER)
         }
         if (statement.isNotEmpty() && statement.last().text != ")") return KstatesSlot.None
-        val position = if (frame == null) KstatesPosition.TOP_LEVEL.takeIf { statement.isEmpty() } else positionIn(frame, block)
+        val position = if (frame == null) KstatesPosition.TOP_LEVEL.takeIf { statement.isEmpty() } else positionIn(context.blocks, block)
         return position?.let(KstatesSlot::Keywords) ?: KstatesSlot.None
     }
 
     /**
-     * The keyword position inside [frame], whose introducing keyword is [block]. It is found by the kind of the block,
-     * or else by the keyword.
+     * The keyword position inside the innermost of [frames], whose introducing keyword is [block]. It is found by the
+     * kind of the block, or else by the keyword. A breakpoint block is positioned by the block around it, which is a
+     * state or a transition.
      */
-    private fun positionIn(frame: BlockFrame, block: String?): KstatesPosition? = when (KstatesBlocks.blockKindOf(frame)) {
+    private fun positionIn(frames: List<BlockFrame>, block: String?): KstatesPosition? = when (KstatesBlocks.blockKindOf(frames.last())) {
         KstatesBlockKind.ACTION -> KstatesPosition.ACTIONS
         KstatesBlockKind.CONDITION -> KstatesPosition.CONDITION
-        KstatesBlockKind.OTHER -> POSITIONS[block]
+        KstatesBlockKind.OTHER -> if (block == KarpfenSyntax.KSTATES_BREAKPOINT_BLOCK) breakpointsIn(frames) else POSITIONS[block]
     }
+
+    /** The position inside the breakpoint block that is the innermost of [frames], by the block around it. */
+    private fun breakpointsIn(frames: List<BlockFrame>): KstatesPosition? =
+        when (frames.getOrNull(frames.size - 2)?.let(KstatesBlocks::kindOf)) {
+            STATE -> KstatesPosition.STATE_BREAKPOINTS
+            in TRANSITION_KEYWORDS -> KstatesPosition.TRANSITION_BREAKPOINTS
+            else -> null
+        }
 
     /**
      * True if the statement ends with `TRANSITION`, `SPLIT` or `JOIN` followed only by state strings, commas and
@@ -280,6 +303,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         const val TO = "TO"
         const val ATTACHED = "ATTACHED"
         const val TRANSITIONS = "TRANSITIONS"
+        const val TRANSITION = "TRANSITION"
 
         /** The keywords that start a transition. */
         val TRANSITION_KEYWORDS: Set<String> = setOf("TRANSITION", "SPLIT", "JOIN")
@@ -303,6 +327,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             MACROS to KstatesPosition.MACROS,
             MACRO to KstatesPosition.MACRO_BODY,
             "DEFINITION" to KstatesPosition.DEFINITION,
+            KarpfenSyntax.KSTATES_TICK_LIMIT_BLOCK to KstatesPosition.TICK_LIMIT,
         )
     }
 }

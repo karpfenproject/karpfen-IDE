@@ -19,6 +19,7 @@ import io.karpfen.ide.notation.diagram.layout.DiagramLayout
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.Geometry
 import io.karpfen.ide.notation.diagram.layout.StatechartLayout
+import io.karpfen.ide.notation.diagram.statechart.StateHistory
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
@@ -27,10 +28,12 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  * What a user can do at a point of a statechart.
  *
  * - On the line or the label of a transition: edit it as text, give a split one more target or a join one more
- *   source, move it earlier or later in the order that is its priority, mark it as not looping, and delete it.
- * - On a state: rename it, edit it as text, add a state inside it, start a transition at it, give it entry or do actions, make it the
- *   initial state, move it out of its parent or into another state, and delete it. The empty room inside a state with
- *   nested states counts as that state.
+ *   source, move it earlier or later in the order that is its priority, mark it as not looping, set and remove its
+ *   breakpoints, and delete it.
+ * - On a state: rename it, edit it as text, add a state inside it, start a transition at it, give it entry or do
+ *   actions, make it the initial state, give a state with nested states a history or take it away, give it a tick
+ *   limit, set and remove its breakpoints, move it out of its parent or into another state, and delete it. The empty
+ *   room inside a state with nested states counts as that state.
  * - On the empty canvas: add a state, add an initial state, add a transition, a split or a join between states that
  *   the user clicks one after the other, and edit the macros as text.
  */
@@ -64,6 +67,22 @@ public object StatechartActions : DiagramActions<StatechartDiagram, StatechartLa
             DiagramAction.Change("Add entry actions") { StatechartEdits.addBlock(source, diagram, name, StatechartEdits.ENTRY) }.takeIf { !state.hasEntry },
             DiagramAction.Change("Add do actions") { StatechartEdits.addBlock(source, diagram, name, StatechartEdits.DO) }.takeIf { !state.hasDo },
             DiagramAction.Change("Make initial state") { StatechartEdits.makeInitial(source, diagram, name) }.takeIf { !state.isInitial },
+            DiagramAction.Change("Remember the last inner state (shallow history)") {
+                StatechartEdits.setHistory(source, diagram, name, StateHistory.SHALLOW)
+            }.takeIf { state.isComposite && state.history != StateHistory.SHALLOW },
+            DiagramAction.Change("Remember the last innermost state (deep history)") {
+                StatechartEdits.setHistory(source, diagram, name, StateHistory.DEEP)
+            }.takeIf { state.isComposite && state.history != StateHistory.DEEP },
+            DiagramAction.Change("Remove history") {
+                StatechartEdits.setHistory(source, diagram, name, StateHistory.NONE)
+            }.takeIf { state.history != StateHistory.NONE },
+            DiagramAction.Change("Add tick limit") { StatechartEdits.addTickLimit(source, diagram, name) }.takeIf { !state.hasTickLimit },
+            DiagramAction.Change(if (state.entryBreakpoint) "Remove breakpoint at entry" else "Add breakpoint at entry") {
+                StatechartEdits.setStateBreakpoints(source, diagram, name, !state.entryBreakpoint, state.exitBreakpoint)
+            },
+            DiagramAction.Change(if (state.exitBreakpoint) "Remove breakpoint at exit" else "Add breakpoint at exit") {
+                StatechartEdits.setStateBreakpoints(source, diagram, name, state.entryBreakpoint, !state.exitBreakpoint)
+            },
             DiagramAction.Change("Make outer state") {
                 StatechartEdits.moveTo(source, diagram, name, parent?.let { diagram.parentOf(it.name) }?.name)
             }.takeIf { parent != null },
@@ -94,6 +113,12 @@ public object StatechartActions : DiagramActions<StatechartDiagram, StatechartLa
             }.takeIf { transition.priority < diagram.transitions.size },
             DiagramAction.Change(if (transition.notLooping) "Allow looping" else "Mark as not looping") {
                 StatechartEdits.toggleLooping(source, diagram, id)
+            },
+            DiagramAction.Change(if (transition.startBreakpoint) "Remove breakpoint at start" else "Add breakpoint at start") {
+                StatechartEdits.setTransitionBreakpoints(source, diagram, id, !transition.startBreakpoint, transition.endBreakpoint)
+            },
+            DiagramAction.Change(if (transition.endBreakpoint) "Remove breakpoint at end" else "Add breakpoint at end") {
+                StatechartEdits.setTransitionBreakpoints(source, diagram, id, transition.startBreakpoint, !transition.endBreakpoint)
             },
             DiagramAction.Change("Delete transition") { StatechartEdits.deleteTransition(source, diagram, id) },
         )

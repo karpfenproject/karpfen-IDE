@@ -76,10 +76,19 @@ public object KarpfenSyntax {
     /** The KStates keyword that opens a condition block. `EVENT` is a condition keyword there. */
     public const val KSTATES_CONDITION_BLOCK: String = "CONDITION"
 
-    /** The KStates keywords that open every other block: structure blocks, macro definitions and EVAL bodies. */
+    /** The KStates keyword that opens the breakpoint block of a state or a transition. */
+    public const val KSTATES_BREAKPOINT_BLOCK: String = "BREAKPOINT"
+
+    /** The KStates keyword that opens the block of a tick limit, the second word of `TICK LIMIT`. */
+    public const val KSTATES_TICK_LIMIT_BLOCK: String = "LIMIT"
+
+    /**
+     * The KStates keywords that open every other block: structure blocks, macro definitions, EVAL bodies, and the
+     * breakpoint and tick limit blocks.
+     */
     public val KSTATES_STRUCTURE_BLOCKS: Set<String> = setOf(
         "STATEMACHINE", "STATES", "INITIAL", "STATE", "TRANSITIONS", "TRANSITION", "SPLIT", "JOIN", "MACROS", "MACRO",
-        "DEFINITION", "EVAL",
+        "DEFINITION", "EVAL", KSTATES_BREAKPOINT_BLOCK, KSTATES_TICK_LIMIT_BLOCK,
     )
 
     /**

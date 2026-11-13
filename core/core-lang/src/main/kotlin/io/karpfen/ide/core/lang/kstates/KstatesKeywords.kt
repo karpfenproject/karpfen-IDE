@@ -29,6 +29,14 @@ internal object KstatesKeywords {
     private val STATE = Snippet("STATE \"…\" { }", "STATE \"\$0\" { }", detail = "state")
     /** The initial state of a states block. */
     private val INITIAL_STATE = Snippet("INITIAL STATE \"…\" { }", "INITIAL STATE \"\$0\" { }", detail = "initial state")
+    /** A state that remembers its directly nested state. */
+    private val SHALLOW_HISTORY_STATE =
+        Snippet("SHALLOW HISTORY STATE \"…\" { }", "SHALLOW HISTORY STATE \"\$0\" { }", detail = "state with a shallow history")
+    /** A state that remembers its innermost state. */
+    private val DEEP_HISTORY_STATE =
+        Snippet("DEEP HISTORY STATE \"…\" { }", "DEEP HISTORY STATE \"\$0\" { }", detail = "state with a deep history")
+    /** The breakpoints of a state or a transition. */
+    private val BREAKPOINT = Snippet("BREAKPOINT { }", "BREAKPOINT { \$0 }", detail = "breakpoints")
     /** An event, emitted as an action or awaited in a condition. */
     private val EVENT = Snippet("EVENT(\"…\", \"…\")", "EVENT(\"\$0\", \"\")", detail = "event")
     /** An embedded Python body. */
@@ -67,12 +75,31 @@ internal object KstatesKeywords {
             Snippet("TRANSITIONS { }", "TRANSITIONS { \$0 }", detail = "transitions block"),
             Snippet("MACROS { }", "MACROS { \$0 }", detail = "macros block"),
         ),
-        KstatesPosition.STATES to listOf(STATE, INITIAL_STATE),
+        KstatesPosition.STATES to listOf(STATE, INITIAL_STATE, SHALLOW_HISTORY_STATE, DEEP_HISTORY_STATE),
         KstatesPosition.STATE_BODY to listOf(
+            BREAKPOINT,
+            Snippet("TICK LIMIT { }", "TICK LIMIT { \$0 }", detail = "delay and timeout"),
             Snippet("ENTRY { }", "ENTRY { \$0 }", detail = "entry actions"),
             Snippet("DO { }", "DO { \$0 }", detail = "do actions"),
             STATE,
             INITIAL_STATE,
+            SHALLOW_HISTORY_STATE,
+            DEEP_HISTORY_STATE,
+        ),
+        KstatesPosition.STATE_BREAKPOINTS to listOf(
+            Snippet.keyword("ENTRY", detail = "halt before the state is entered"),
+            Snippet.keyword("EXIT", detail = "halt before the state is left"),
+        ),
+        KstatesPosition.TRANSITION_BREAKPOINTS to listOf(
+            Snippet.keyword("START", detail = "halt before the transition"),
+            Snippet.keyword("END", detail = "halt after the transition"),
+        ),
+        KstatesPosition.TICK_LIMIT to listOf(
+            Snippet("DELAY: … TICKS", "DELAY: \$0 TICKS", detail = "least ticks in the state"),
+            Snippet(
+                "TIMEOUT: AFTER … TICKS TRANSITION TO \"…\"", "TIMEOUT: AFTER \$0 TICKS TRANSITION TO \"\"",
+                detail = "leave the state after ticks",
+            ),
         ),
         KstatesPosition.ACTIONS to ACTIONS,
         KstatesPosition.TRANSITIONS to listOf(
@@ -81,7 +108,7 @@ internal object KstatesKeywords {
             Snippet("JOIN \"…\", \"…\" -> \"…\" { }", "JOIN \"\$0\", \"\" -> \"\" { }", detail = "join parallel states"),
         ),
         KstatesPosition.TRANSITION_HEADER to listOf(Snippet.keyword("NOT LOOPING", detail = "no self-loop")),
-        KstatesPosition.TRANSITION_BODY to listOf(Snippet("CONDITION { }", "CONDITION { \$0 }", detail = "guard")),
+        KstatesPosition.TRANSITION_BODY to listOf(BREAKPOINT, Snippet("CONDITION { }", "CONDITION { \$0 }", detail = "guard")),
         KstatesPosition.CONDITION to listOf(
             EVENT.copy(detail = "event clause"),
             EVAL.copy(detail = "Python guard"),

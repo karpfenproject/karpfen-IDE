@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.session.deploy
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -72,7 +73,8 @@ internal class DeployRig(private val scope: TestScope) {
 
 /**
  * Plans of a lamp with a wall switch, built without a workspace. They hold a metamodel, event definitions, a model with
- * the objects `lamp`, `bulb` and `spare`, and two machines attached to `lamp` and `wallSwitch`.
+ * the objects `lamp`, `bulb` and `spare`, and two machines attached to `lamp` and `wallSwitch`. Unless a test says
+ * otherwise, the machines need the runtime features `History` and `TickLimit`.
  */
 internal object LampPlans {
     /** The folder of the lamp's files. */
@@ -111,11 +113,14 @@ internal object LampPlans {
         snapshots = mapOf(modelFile to modelSnapshot),
     )
 
-    /** The plan of the lamp with [configuration] and [domains], with the event definitions if [withEvents]. */
+    /**
+     * The plan of the lamp with [configuration], [domains] and [features], with the event definitions if [withEvents].
+     */
     fun plan(
         configuration: DeployConfiguration = DeployConfiguration(20, 1500),
         domains: List<String> = listOf("service", "switch"),
         withEvents: Boolean = true,
+        features: List<FeatureName> = listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT),
     ): DeploymentPlan =
         DeploymentPlan.Builder()
             .name("lamp")
@@ -130,6 +135,7 @@ internal object LampPlans {
             )
             .configuration(configuration)
             .domains(domains)
+            .features(features)
             .modelObjectIds(setOf("lamp", "bulb", "spare", "wallSwitch"))
             .locations(locations)
             .build()

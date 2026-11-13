@@ -21,20 +21,20 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * Covers the values of the transport seams. A request has a body exactly when it is a PUT, and transports are released
- * once.
+ * Covers the values of the transport seams. A PUT always has a body, a GET never has one and a POST may have one, and
+ * transports are released once.
  */
 class TransportValuesTest {
 
     @Test
-    fun `a request carries a body exactly when it uploads with PUT`() {
+    fun `a PUT carries a body, a GET none, and a POST one only when it has a message`() {
         val upload = TextRequest(HttpVerb.PUT, "/setModel", listOf("envKey" to "env-1"), "make object \"a\":\"A\" { }")
         assertEquals("/setModel", upload.path)
         TextRequest(HttpVerb.GET, "/observatory/model", emptyList(), null)
         TextRequest(HttpVerb.POST, "/runEnvironment", listOf("envKey" to "env-1"), null)
+        TextRequest(HttpVerb.POST, "/sendMessageToFeature", listOf("envKey" to "env-1", "featureName" to "TickByTick"), "pause")
 
         assertFailsWith<IllegalArgumentException> { TextRequest(HttpVerb.PUT, "/setModel", listOf("envKey" to "env-1"), null) }
-        assertFailsWith<IllegalArgumentException> { TextRequest(HttpVerb.POST, "/runEnvironment", emptyList(), "") }
         assertFailsWith<IllegalArgumentException> { TextRequest(HttpVerb.GET, "/health", emptyList(), "") }
     }
 

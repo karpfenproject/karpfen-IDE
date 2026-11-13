@@ -21,6 +21,7 @@ import io.karpfen.ide.runtime.protocol.api.RuntimeTimeouts
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -54,7 +55,8 @@ import kotlin.time.Duration.Companion.seconds
  * wire. A cancelled activation completes and records its phase before the cancellation is rethrown. Unknown outcomes
  * and rejections that show another phase are probed with a snapshot. A failed probe leaves the phase uncertain. A
  * halted engine shows only through a snapshot. A stopped environment stays stopped while the runtime still reports its
- * last tick. An environment the runtime forgot is lost.
+ * last tick. An environment the runtime forgot is lost. Features are switched, listed and sent messages in every phase of
+ * an existing environment without moving the phase.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class DefaultRuntimeEnvironmentTest {
@@ -428,5 +430,67 @@ class DefaultRuntimeEnvironmentTest {
 
         assertEquals(EnvironmentPhase.Configuring(Uploads.NONE), handle.phase.value)
         assertEquals(listOf("/observatory/statemachine", "/observatory/subscribeModel", "/observatory/unsubscribeModel"), http.paths)
+    }
+
+    @Test
+    fun `features are switched, listed and sent messages in every phase of an existing environment and leave the phase`() = runTest {
+        val handle = handle()
+
+        assertEquals(CallOutcome.Done(Unit), handle.activateFeature(FeatureName.HISTORY))
+        assertEquals(EnvironmentPhase.Configuring(Uploads.NONE), handle.phase.value)
+        configure(handle)
+        handle.activate()
+        http.ok("History")
+        assertEquals(CallOutcome.Done(setOf(FeatureName.HISTORY)), handle.activeFeatures())
+        assertEquals(EnvironmentPhase.Activated, handle.phase.value)
+        handle.start()
+        http.ok("execution paused")
+        assertEquals(CallOutcome.Done("execution paused"), handle.messageFeature(FeatureName("TickByTick"), "pause"))
+        assertEquals(EnvironmentPhase.Running, handle.phase.value)
+        handle.stop()
+        assertEquals(CallOutcome.Done(Unit), handle.deactivateFeature(FeatureName.HISTORY))
+        http.ok("")
+        assertEquals(CallOutcome.Done(emptySet()), handle.activeFeatures())
+        assertEquals(EnvironmentPhase.Stopped, handle.phase.value)
+
+        val sent = http.requests.drop(4)
+        assertEquals(
+            listOf("/getActiveFeatures", "/startEnvironment", "/sendMessageToFeature", "/stopEnvironment", "/deactivateFeature", "/getActiveFeatures"),
+            sent.map { it.path },
+        )
+        assertEquals("pause", sent[2].body)
+        assertEquals(listOf("envKey" to environment.value, "featureName" to "TickByTick"), sent[2].query)
+    }
+
+    @Test
+    fun `a rejected feature switch leaves the phase, and a lost environment refuses every feature operation`() = runTest {
+        val handle = handle()
+        http.reject(400, "Feature 'History' is already active in environment ${environment.value}")
+            .reject(400, textOf(RuntimeText.UNKNOWN_ENVIRONMENT))
+
+        val already = assertIs<RuntimeFailure.Rejected>(assertIs<CallOutcome.Failed>(handle.activateFeature(FeatureName.HISTORY)).failure)
+        assertEquals(RejectionKind.FEATURE_ALREADY_ACTIVE, already.kind)
+        assertEquals(EnvironmentPhase.Configuring(Uploads.NONE), handle.phase.value)
+        assertIs<CallOutcome.Failed>(handle.deactivateFeature(FeatureName.TICK_LIMIT))
+        assertIs<EnvironmentPhase.Lost>(handle.phase.value)
+        val before = http.requests.size
+
+        val refusals = listOf(
+            handle.activateFeature(FeatureName.HISTORY),
+            handle.deactivateFeature(FeatureName.HISTORY),
+            handle.activeFeatures(),
+            handle.messageFeature(FeatureName("TickByTick"), "resume"),
+        ).map { assertIs<CallOutcome.Refused>(it).refusal.operation }
+
+        assertEquals(
+            listOf(
+                LifecycleOperation.ACTIVATE_FEATURE,
+                LifecycleOperation.DEACTIVATE_FEATURE,
+                LifecycleOperation.READ_ACTIVE_FEATURES,
+                LifecycleOperation.MESSAGE_FEATURE,
+            ),
+            refusals,
+        )
+        assertEquals(before, http.requests.size)
     }
 }

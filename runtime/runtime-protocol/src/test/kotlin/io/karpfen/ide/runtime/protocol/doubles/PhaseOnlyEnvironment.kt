@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.protocol.doubles
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation
@@ -95,6 +96,15 @@ class PhaseOnlyEnvironment(
     override suspend fun subscribeModel(client: ClientId): CallOutcome<Unit> = refuse(LifecycleOperation.SUBSCRIBE_MODEL)
 
     override suspend fun unsubscribeModel(client: ClientId): CallOutcome<Unit> = refuse(LifecycleOperation.UNSUBSCRIBE_MODEL)
+
+    override suspend fun activateFeature(feature: FeatureName): CallOutcome<Unit> = refuse(LifecycleOperation.ACTIVATE_FEATURE)
+
+    override suspend fun deactivateFeature(feature: FeatureName): CallOutcome<Unit> = refuse(LifecycleOperation.DEACTIVATE_FEATURE)
+
+    override suspend fun activeFeatures(): CallOutcome<Set<FeatureName>> = refuse(LifecycleOperation.READ_ACTIVE_FEATURES)
+
+    override suspend fun messageFeature(feature: FeatureName, message: String): CallOutcome<String> =
+        refuse(LifecycleOperation.MESSAGE_FEATURE)
 
     /** The refusal of [operation], since this double has no runtime behind it. */
     private fun refuse(operation: LifecycleOperation): CallOutcome<Nothing> =

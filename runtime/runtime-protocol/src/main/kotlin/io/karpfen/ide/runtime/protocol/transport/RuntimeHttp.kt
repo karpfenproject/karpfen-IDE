@@ -25,9 +25,10 @@ import io.karpfen.ide.runtime.protocol.catalogue.HttpVerb
  * @property query the query parameters in the order they are sent, with unencoded values. The transport percent-encodes
  *   every value itself. It keeps unreserved characters and writes every other byte of the UTF-8 encoding as `%XX`, so a
  *   space becomes `%20`.
- * @property body the UTF-8 text of the request body, sent as `text/plain; charset=UTF-8`. It is present exactly for
- *   [HttpVerb.PUT].
- * @throws IllegalArgumentException if a body is given for a GET or POST, or none for a PUT.
+ * @property body the UTF-8 text of the request body, sent as `text/plain; charset=UTF-8`. A [HttpVerb.PUT] always has
+ *   one, a [HttpVerb.GET] never has one, and a [HttpVerb.POST] has one only when its route takes a body, which is the
+ *   message to a feature.
+ * @throws IllegalArgumentException if a body is given for a GET, or none for a PUT.
  */
 public data class TextRequest(
     public val verb: HttpVerb,
@@ -36,7 +37,8 @@ public data class TextRequest(
     public val body: String?,
 ) {
     init {
-        require((verb == HttpVerb.PUT) == (body != null)) { "a $verb request to $path ${if (body == null) "needs" else "takes no"} body" }
+        require(verb != HttpVerb.PUT || body != null) { "a $verb request to $path needs a body" }
+        require(verb != HttpVerb.GET || body == null) { "a $verb request to $path takes no body" }
     }
 }
 

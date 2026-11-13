@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.protocol
 import io.karpfen.ide.runtime.protocol.api.ActiveEnvironment
 import io.karpfen.ide.runtime.protocol.api.RuntimeResult
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.connection.AccessKeyIssuer
 import io.karpfen.ide.runtime.protocol.connection.RuntimeConnection
@@ -49,6 +50,12 @@ public interface RuntimeClient : AutoCloseable {
      * that means the runtime lacks IDE support.
      */
     public suspend fun checkIdeSupport(): RuntimeResult<Unit>
+
+    /**
+     * The names of every feature the runtime knows (`GET /getRegisteredFeatures`). An environment switches them on and
+     * off through its [RuntimeEnvironment] handle.
+     */
+    public suspend fun registeredFeatures(): RuntimeResult<Set<FeatureName>>
 
     /** The environments the runtime lists: activated, running, halted and stopped ones. */
     public suspend fun activeEnvironments(): RuntimeResult<List<ActiveEnvironment>>

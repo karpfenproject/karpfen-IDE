@@ -19,13 +19,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers the 21 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
+ * Covers the 26 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
  * has its verb, path, parameters in the order the runtime checks them, body, answer and timeout class.
  */
 class RuntimeRouteTest {
 
     @Test
-    fun `the catalogue holds the 21 routes in the order of the runtime's route files`() {
+    fun `the catalogue holds the 26 routes in the order of the runtime's route files`() {
         assertEquals(
             listOf(
                 "POST /createEnvironment" to emptyList(),
@@ -46,6 +46,11 @@ class RuntimeRouteTest {
                 "GET /observatory/environments" to emptyList(),
                 "GET /observatory/statemachine" to listOf("envKey", "modelElement"),
                 "POST /observatory/registerClient" to listOf("clientId", "envKey", "modelElement"),
+                "GET /getRegisteredFeatures" to emptyList(),
+                "POST /activateFeature" to listOf("envKey", "featureName"),
+                "GET /getActiveFeatures" to listOf("envKey"),
+                "POST /deactivateFeature" to listOf("envKey", "featureName"),
+                "POST /sendMessageToFeature" to listOf("envKey", "featureName"),
                 "GET /observatory/model" to listOf("envKey"),
                 "POST /observatory/subscribeModel" to listOf("envKey", "clientId"),
                 "POST /observatory/unsubscribeModel" to listOf("envKey", "clientId"),
@@ -55,17 +60,20 @@ class RuntimeRouteTest {
     }
 
     @Test
-    fun `only the uploads take a body, each of its language`() {
+    fun `only the uploads and the message to a feature take a body, each upload a modeling text of its language`() {
         assertEquals(
             mapOf(
                 RuntimeRoute.SET_METAMODEL to BodyKind.KMETA,
                 RuntimeRoute.SET_MODEL to BodyKind.KMODEL,
                 RuntimeRoute.SET_EVENT_DEFINITIONS to BodyKind.KMETA,
                 RuntimeRoute.SET_STATE_MACHINE to BodyKind.KSTATES,
+                RuntimeRoute.SEND_MESSAGE_TO_FEATURE to BodyKind.FEATURE_MESSAGE,
             ),
             RuntimeRoute.entries.filter { it.body != BodyKind.NONE }.associateWith { it.body },
         )
-        assertEquals(RuntimeRoute.entries.filter { it.verb == HttpVerb.PUT }, RuntimeRoute.entries.filter { it.body != BodyKind.NONE })
+        assertEquals(RuntimeRoute.entries.filter { it.verb == HttpVerb.PUT }, RuntimeRoute.entries.filter { it.body.modelingText })
+        assertEquals(listOf(BodyKind.KMETA, BodyKind.KMODEL, BodyKind.KSTATES), BodyKind.entries.filter { it.modelingText })
+        assertEquals(emptyList(), RuntimeRoute.entries.filter { it.verb == HttpVerb.GET && it.body != BodyKind.NONE })
     }
 
     @Test
@@ -78,13 +86,16 @@ class RuntimeRouteTest {
                 RuntimeRoute.LIST_ENVIRONMENTS to ResponseKind.ENVIRONMENT_LIST,
                 RuntimeRoute.STATE_MACHINE_SOURCE to ResponseKind.STATE_MACHINE_SOURCE,
                 RuntimeRoute.REGISTER_OBSERVATORY_CLIENT to ResponseKind.ACCESS_KEY,
+                RuntimeRoute.GET_REGISTERED_FEATURES to ResponseKind.FEATURE_NAMES,
+                RuntimeRoute.GET_ACTIVE_FEATURES to ResponseKind.FEATURE_NAMES,
+                RuntimeRoute.SEND_MESSAGE_TO_FEATURE to ResponseKind.FEATURE_ANSWER,
                 RuntimeRoute.MODEL_SNAPSHOT to ResponseKind.MODEL_SNAPSHOT,
             ),
             RuntimeRoute.entries.filter { it.response != ResponseKind.EMPTY }.associateWith { it.response },
         )
         assertEquals(
             mapOf(
-                TimeoutClass.QUICK to 15,
+                TimeoutClass.QUICK to 20,
                 TimeoutClass.UPLOAD to 4,
                 TimeoutClass.STOP to 1,
                 TimeoutClass.SNAPSHOT to 1,

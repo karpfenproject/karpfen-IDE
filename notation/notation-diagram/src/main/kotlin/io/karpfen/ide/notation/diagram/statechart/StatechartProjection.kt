@@ -25,8 +25,9 @@ import io.karpfen.ide.core.text.TextRange
  * no second parser.
  *
  * The outline names the states with their nesting and the transitions with their places in the text. What it leaves
- * out is read from the text of each element: whether a state is the initial one, which states a transition names on
- * which side of its arrow, whether it is marked `NOT LOOPING`, and its condition.
+ * out is read from the text of each element: whether a state is the initial one, its history, its breakpoints and its
+ * tick limit, which states a transition names on which side of its arrow, whether it is marked `NOT LOOPING`, its
+ * breakpoints and its condition.
  *
  * A condition becomes a short label. An `EVENT("switch", "press")` clause reads `switch/press`, a `VALUE("p")` clause
  * reads `p`, and an `EVAL { return x > 1 }` clause reads `[x > 1]`. Several clauses are joined by `&`, since all of
@@ -61,15 +62,28 @@ public object StatechartProjection {
         return StatechartDiagram(machine.detail, states, transitions, machine.range)
     }
 
-    private fun state(text: String, node: OutlineNode): StateNode = StateNode(
-        name = node.name,
-        isInitial = text.startsWith("INITIAL", node.range.start),
-        entryRange = node.children.firstOrNull { it.kind == SymbolKind.ENTRY_BLOCK }?.range,
-        doRange = node.children.firstOrNull { it.kind == SymbolKind.DO_BLOCK }?.range,
-        children = node.children.filter { it.kind == SymbolKind.STATE }.map { state(text, it) },
-        range = node.range,
-        nameRange = node.selectionRange,
-    )
+    /** The state of [node] with the states nested in it. Its history, breakpoints and tick limit are read from [text]. */
+    private fun state(text: String, node: OutlineNode): StateNode {
+        val open = text.indexOf('{', minOf(node.selectionRange.end + 1, text.length))
+        val leading = if (open < 0) LeadingBlocks(null, null) else StateOptionReader.leadingOf(text, open)
+        val halts = StateOptionReader.wordsOf(text, leading.breakpoint)
+        return StateNode(
+            name = node.name,
+            isInitial = text.startsWith("INITIAL", node.range.start),
+            entryRange = node.children.firstOrNull { it.kind == SymbolKind.ENTRY_BLOCK }?.range,
+            doRange = node.children.firstOrNull { it.kind == SymbolKind.DO_BLOCK }?.range,
+            children = node.children.filter { it.kind == SymbolKind.STATE }.map { state(text, it) },
+            range = node.range,
+            nameRange = node.selectionRange,
+            history = StateOptionReader.historyOf(text.substring(node.range.start, maxOf(node.range.start, node.selectionRange.start))),
+            breakpointRange = leading.breakpoint,
+            entryBreakpoint = "ENTRY" in halts,
+            exitBreakpoint = "EXIT" in halts,
+            tickLimitRange = leading.tickLimit,
+            delay = StateOptionReader.delayOf(text, leading.tickLimit),
+            timeout = StateOptionReader.timeoutOf(text, leading.tickLimit),
+        )
+    }
 
     /**
      * The transition of [node], which is the one at [priority] in the text. [counts] holds how often each combination
@@ -90,6 +104,8 @@ public object StatechartProjection {
             kind == TransitionKind.JOIN -> names.dropLast(1).map { it.second } to names.takeLast(1).map { it.second }
             else -> names.take(1).map { it.second } to names.drop(1).map { it.second }
         }
+        val breakpoint = StateOptionReader.breakpointOf(text, node.range.start + header.length)
+        val halts = StateOptionReader.wordsOf(text, breakpoint)
         val signature = "$kind:${sources.joinToString(",")}->${targets.joinToString(",")}"
         val ordinal = counts.merge(signature, 1, Int::plus)
         return TransitionEdge(
@@ -104,6 +120,9 @@ public object StatechartProjection {
             conditionRange = CONDITION.find(whole)?.let { match ->
                 TextRange(node.range.start + match.range.first, node.range.start + closingBrace(whole, match.range.last) + 1)
             },
+            breakpointRange = breakpoint,
+            startBreakpoint = "START" in halts,
+            endBreakpoint = "END" in halts,
         )
     }
 

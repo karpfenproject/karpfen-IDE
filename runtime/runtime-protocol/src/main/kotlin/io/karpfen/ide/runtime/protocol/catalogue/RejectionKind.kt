@@ -74,10 +74,25 @@ public enum class RejectionKind {
     /** The client subscribed to the model without an attached WebSocket session. */
     NO_SESSION,
 
+    /** The runtime does not know the named feature. */
+    UNKNOWN_FEATURE,
+
+    /** The feature to switch on is on already in the environment. */
+    FEATURE_ALREADY_ACTIVE,
+
+    /** The feature to switch off is not on in the environment. */
+    FEATURE_NOT_ACTIVE,
+
+    /** A message went to a feature that is not on in the environment. */
+    FEATURE_NOT_ACTIVATED,
+
+    /** Another switch of the environment's features was under way, so this one was refused. */
+    FEATURES_BUSY,
+
     /** The runtime failed with an exception without a message. */
     UNEXPECTED_ERROR,
 
-    /** The runtime's parser refused an uploaded text, without a position. */
+    /** The runtime's parser refused an uploaded modeling text, without a position. */
     CONTENT_REJECTED,
 
     /** A rejection whose text is none of the known ones. */

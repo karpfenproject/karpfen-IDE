@@ -21,6 +21,7 @@ import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramGrid
 import io.karpfen.ide.notation.diagram.layout.DiagramPoint
 import io.karpfen.ide.notation.diagram.layout.VisLayout
+import io.karpfen.ide.notation.diagram.statechart.StateHistory
 import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
@@ -116,14 +117,15 @@ public object StatechartEdits {
 
     /**
      * Makes the state [name] the initial state of its level. A state of the same level that was the initial one is an
-     * ordinary state afterwards.
+     * ordinary state afterwards. Both keep their histories.
      */
     public fun makeInitial(text: String, diagram: StatechartDiagram, name: String): DiagramChange? {
         val state = diagram.state(name)?.takeIf { !it.isInitial } ?: return null
         val siblings = diagram.parentOf(name)?.children ?: diagram.states
         val demoted = siblings.filter { it.isInitial }.map { sibling ->
-            val keyword = text.indexOf(STATE, sibling.range.start + INITIAL.length)
-            TextEdit(TextRange(sibling.range.start, keyword), "")
+            val word = sibling.range.start + INITIAL.length
+            val next = (word until sibling.nameRange.start).firstOrNull { !text[it].isWhitespace() } ?: word
+            TextEdit(TextRange(sibling.range.start, next), "")
         }
         return DiagramChange(demoted + TextEdit(TextRange(state.range.start, state.range.start), "$INITIAL "))
     }
@@ -142,14 +144,85 @@ public object StatechartEdits {
 
     /**
      * Gives the state [name] an empty block of the kind [keyword], which is `ENTRY` or `DO`. The entry block comes
-     * first in a state and the do block second, as the language wants it.
+     * after the breakpoints and the tick limit of the state and the do block after the entry block, as the language
+     * wants it.
      */
     public fun addBlock(text: String, diagram: StatechartDiagram, name: String, keyword: String): DiagramChange? {
         val state = diagram.state(name) ?: return null
         val isEntry = keyword == ENTRY
         if (if (isEntry) state.hasEntry else state.hasDo) return null
         val body = bodyOf(text, state) ?: return null
-        return DiagramChange(listOf(TextBlocks.insert(text, body, "$keyword { }", after = if (isEntry) null else state.entryRange)))
+        val leading = state.tickLimitRange ?: state.breakpointRange
+        return DiagramChange(listOf(TextBlocks.insert(text, body, "$keyword { }", after = if (isEntry) leading else state.entryRange ?: leading)))
+    }
+
+    /**
+     * Gives the state [name] the history [history], or takes its history away for [StateHistory.NONE]. The words of a
+     * history stand between `INITIAL` and `STATE`.
+     */
+    public fun setHistory(text: String, diagram: StatechartDiagram, name: String, history: StateHistory): DiagramChange? {
+        val state = diagram.state(name)?.takeIf { it.history != history } ?: return null
+        val header = text.substring(state.range.start, state.nameRange.start)
+        val words = when (history) {
+            StateHistory.NONE -> ""
+            StateHistory.SHALLOW -> "SHALLOW HISTORY "
+            StateHistory.DEEP -> "DEEP HISTORY "
+        }
+        val written = HISTORY.find(header)
+        val edit = if (written != null) {
+            TextEdit(TextRange(state.range.start + written.range.first, state.range.start + written.range.last + 1), words)
+        } else {
+            val keyword = header.lastIndexOf(STATE).takeIf { it >= 0 } ?: return null
+            (state.range.start + keyword).let { TextEdit(TextRange(it, it), words) }
+        }
+        return DiagramChange(listOf(edit))
+    }
+
+    /**
+     * Sets the breakpoints of the state [name]: one before it is entered for [entry], one before it is left for
+     * [exit]. A state without either has no `BREAKPOINT` block.
+     */
+    public fun setStateBreakpoints(text: String, diagram: StatechartDiagram, name: String, entry: Boolean, exit: Boolean): DiagramChange? {
+        val state = diagram.state(name) ?: return null
+        if (state.entryBreakpoint == entry && state.exitBreakpoint == exit) return null
+        val body = bodyOf(text, state) ?: return null
+        return breakpoints(text, body, state.breakpointRange, listOfNotNull("ENTRY".takeIf { entry }, "EXIT".takeIf { exit }))
+    }
+
+    /**
+     * Sets the breakpoints of the transition [id]: one before it changes the active states for [start], one after it
+     * for [end]. A transition without either has no `BREAKPOINT` block.
+     */
+    public fun setTransitionBreakpoints(text: String, diagram: StatechartDiagram, id: String, start: Boolean, end: Boolean): DiagramChange? {
+        val transition = diagram.transitions.firstOrNull { it.id == id } ?: return null
+        if (transition.startBreakpoint == start && transition.endBreakpoint == end) return null
+        val body = TextBlocks.blockFrom(text, transition.range.start) ?: return null
+        return breakpoints(text, body, transition.breakpointRange, listOfNotNull("START".takeIf { start }, "END".takeIf { end }))
+    }
+
+    /**
+     * Gives the state [name] a tick limit with a delay of one tick, which the user then edits in its code cell. The
+     * tick limit comes after the breakpoints of the state and before its actions.
+     */
+    public fun addTickLimit(text: String, diagram: StatechartDiagram, name: String): DiagramChange? {
+        val state = diagram.state(name)?.takeIf { !it.hasTickLimit } ?: return null
+        val body = bodyOf(text, state) ?: return null
+        return DiagramChange(listOf(TextBlocks.insert(text, body, "TICK LIMIT { DELAY: 1 TICK }", after = state.breakpointRange)))
+    }
+
+    /**
+     * The change that makes the `BREAKPOINT` block of the body [body] name [words]. The block [written] is rewritten,
+     * or taken out if no word is left. Without a block one is put first into the body, where the language wants it.
+     */
+    private fun breakpoints(text: String, body: TextRange, written: TextRange?, words: List<String>): DiagramChange? {
+        val block = "BREAKPOINT { ${words.joinToString(" ")} }"
+        val edit = when {
+            written != null && words.isEmpty() -> TextBlocks.removal(text, written)
+            written != null -> TextEdit(written, block)
+            words.isEmpty() -> return null
+            else -> TextBlocks.insert(text, body, block, after = null)
+        }
+        return DiagramChange(listOf(edit))
     }
 
     /**
@@ -236,6 +309,7 @@ public object StatechartEdits {
     }
 
     private const val MACROS = "MACROS"
+    private val HISTORY = Regex("""\b(SHALLOW|DEEP)\s+HISTORY\s+""")
     private val NOT_LOOPING = Regex("""\s+NOT\s+LOOPING\b""")
 
     /** The keyword of the entry block of a state. */

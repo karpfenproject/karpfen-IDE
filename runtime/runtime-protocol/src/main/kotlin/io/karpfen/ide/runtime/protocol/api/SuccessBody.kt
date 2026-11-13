@@ -18,6 +18,7 @@ package io.karpfen.ide.runtime.protocol.api
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.ResponseKind
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 import io.karpfen.ide.runtime.protocol.message.JsonReading
@@ -63,6 +64,9 @@ internal fun interface SuccessBody<out T> {
  *   `modelElements`. The members may come in any order, and other members are ignored.
  * - [STATE_MACHINE_SOURCE] takes the body as it is.
  * - [snapshot] reads the snapshot as [SnapshotReader] does. The snapshot's environment must be the requested one.
+ * - [FEATURE_NAMES] reads feature names separated by [WireNames.FEATURE_SEPARATOR]. An empty body names none. Every
+ *   name must be a [FeatureName].
+ * - [FEATURE_ANSWER] takes the body as it is.
  */
 internal object SuccessBodies {
 
@@ -118,6 +122,19 @@ internal object SuccessBodies {
 
     /** The uploaded text of a state machine, as it is. */
     val STATE_MACHINE_SOURCE: SuccessBody<String> = SuccessBody { body -> BodyReading.Read(body) }
+
+    /** The names of features, as a set. */
+    val FEATURE_NAMES: SuccessBody<Set<FeatureName>> = SuccessBody { body ->
+        if (body.isEmpty()) return@SuccessBody BodyReading.Read(emptySet())
+        val names = body.split(WireNames.FEATURE_SEPARATOR).map { name ->
+            runCatching { FeatureName(name) }.getOrNull()
+                ?: return@SuccessBody BodyReading.Unexpected("the body is not a list of feature names separated by '${WireNames.FEATURE_SEPARATOR}'")
+        }
+        BodyReading.Read(names.toSet())
+    }
+
+    /** The answer of a feature to a message, as it is. */
+    val FEATURE_ANSWER: SuccessBody<String> = SuccessBody { body -> BodyReading.Read(body) }
 
     /** A new access key of [client]. */
     fun accessKey(client: ClientId): SuccessBody<AccessKey> {

@@ -27,6 +27,7 @@ package io.karpfen.ide.runtime.protocol.catalogue
  * - `{keys}` is a comma-separated list of object keys.
  * - `{id}` is an object id.
  * - `{ms}` is a number of milliseconds.
+ * - `{feature}` is a feature name.
  *
  * A body counts as one of these texts only if it is the whole text, as [match] checks. `{env}` and `{client}` match a
  * run of non-whitespace characters, which may be empty, because the runtime renders a present but empty parameter as
@@ -114,6 +115,27 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
 
     /** `observatory/subscribeModel` by a client without an attached WebSocket session (409). */
     NO_SESSION("Client {client} has no open WebSocket session for environment {env}", RejectionKind.NO_SESSION),
+
+    /** A feature route names a feature the runtime does not know (400). */
+    UNKNOWN_FEATURE("Feature '{feature}' is not registered", RejectionKind.UNKNOWN_FEATURE),
+
+    /** `activateFeature` for a feature that is on already in the environment (400). */
+    FEATURE_ALREADY_ACTIVE(
+        "Feature '{feature}' is already active in environment {env}",
+        RejectionKind.FEATURE_ALREADY_ACTIVE,
+    ),
+
+    /** `deactivateFeature` for a feature that is not on in the environment (400). */
+    FEATURE_NOT_ACTIVE("Feature '{feature}' is not active in environment {env}", RejectionKind.FEATURE_NOT_ACTIVE),
+
+    /** `sendMessageToFeature` to a feature that is not on in the environment (400). This text does not quote the name. */
+    FEATURE_NOT_ACTIVATED(
+        "{feature} has not been activated in environment {env}",
+        RejectionKind.FEATURE_NOT_ACTIVATED,
+    ),
+
+    /** `activateFeature` or `deactivateFeature` while another switch of the environment's features is under way (409). */
+    FEATURES_BUSY("FeatureManager is already updating features", RejectionKind.FEATURES_BUSY),
 
     /** An exception without a message, answered with 400, 409 or 500. */
     UNEXPECTED_ERROR("Unexpected error", RejectionKind.UNEXPECTED_ERROR),

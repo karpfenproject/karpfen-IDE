@@ -45,6 +45,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.withTimeout
+import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.random.Random
 import kotlin.test.assertIs
@@ -101,9 +102,13 @@ internal class SessionRig(
     /** The workspaces of the test. */
     private val workspaces = TestWorkspaces(scope)
 
-    /** Copies [model] with [timing] into a folder of its own, opens the workspace and returns both. */
-    fun open(model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.EVENT_SCENARIOS): Opened {
+    /**
+     * Copies [model] with [timing] into a folder of its own, lets [edit] change the copied files in that folder, opens
+     * the workspace and returns both.
+     */
+    fun open(model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.EVENT_SCENARIOS, edit: (Path) -> Unit = {}): Opened {
         val descriptor = SynthesizedModels.copyTo(root.resolve(model.folder), model, timing)
+        edit(descriptor.parent)
         return Opened(workspaces.open(root), descriptor)
     }
 
@@ -120,11 +125,21 @@ internal class SessionRig(
             is Preparation.Blocked -> fail("the deployment is blocked: ${preparation.findings}")
         }
 
-    /** The prepared deployment of [model]. */
-    suspend fun prepared(model: SynthesizedModel): Deployment {
-        val opened = open(model)
+    /** The prepared deployment of [model], whose copied files [edit] may change in their folder first. */
+    suspend fun prepared(model: SynthesizedModel, edit: (Path) -> Unit = {}): Deployment {
+        val opened = open(model, edit = edit)
         return Deployment(prepare(opened), opened)
     }
+
+    /**
+     * The prepared deployment of the lamp whose state `on` has a shallow history, so that the deployment switches on
+     * the runtime feature `History` before it activates the environment.
+     */
+    suspend fun preparedWithHistory(): Deployment =
+        prepared(SynthesizedModel.LAMP) { folder ->
+            val machine = folder.resolve("lamp.kstates")
+            Files.writeString(machine, Files.readString(machine).replace(ON_STATE, "SHALLOW HISTORY $ON_STATE"))
+        }
 
     /** Launches a session of [deployment] in the test's background scope. */
     fun launch(deployment: Deployment, options: DeployOptions = DeployOptions()): RuntimeSession =
@@ -260,6 +275,9 @@ internal class SessionRig(
 
         /** The query parameter of an environment's key. */
         const val ENV_KEY: String = "envKey"
+
+        /** The head of the lamp machine's state `on`, as `lamp.kstates` writes it. */
+        private const val ON_STATE: String = "STATE \"on\" {"
 
         /** How long a test waits for a state, on virtual time. */
         val PATIENCE = 5.minutes

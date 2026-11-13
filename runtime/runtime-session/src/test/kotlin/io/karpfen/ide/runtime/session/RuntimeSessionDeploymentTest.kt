@@ -38,7 +38,8 @@ import kotlin.test.assertTrue
  * Covers deploying through a session end to end against the fake runtime, which answers only what each test programs.
  * The requests of a deployment of the lamp and of the single robot arrive in the order of the deployment's steps. They
  * carry the deploy configuration and a listener per domain. The progress reaches its end. The session runs with the
- * reported stacks in place of the predictions, with observation on and with events injectable. A deployment without
+ * reported stacks in place of the predictions, with observation on and with events injectable. A lamp with a history
+ * switches the runtime feature `History` on before the activation. A deployment without
  * start ends ready, and a deployment without observation ends with a pulled model.
  */
 class RuntimeSessionDeploymentTest {
@@ -74,6 +75,34 @@ class RuntimeSessionDeploymentTest {
         )
         assertEquals(listOf(deployment.prepared.plan.model.snapshot.text), rig.fake.requests(RuntimeRoute.SET_MODEL).map { it.body })
         assertTrue(rig.fake.handshakes.single().startsWith("${session.clientId.value}:env-1:"), rig.fake.handshakes.toString())
+        session.close()
+    }
+
+    @Test
+    fun `a lamp with a history switches History on after the domain listeners and before the activation`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.preparedWithHistory()
+
+        val session = rig.running(deployment)
+
+        val routes = rig.fake.requests.map { it.route }
+        val switching = routes.indexOf(RuntimeRoute.ACTIVATE_FEATURE)
+        assertEquals(RuntimeRoute.REGISTER_DOMAIN_LISTENER, routes[switching - 1])
+        assertEquals(RuntimeRoute.RUN_ENVIRONMENT, routes[switching + 1])
+        val switched = rig.fake.requests(RuntimeRoute.ACTIVATE_FEATURE).single()
+        assertEquals(listOf("envKey" to "env-1", "featureName" to "History"), switched.parameters)
+        assertEquals(StepStatus.DONE, session.progress.value.steps.single { it.kind == DeployStepKind.SWITCH_FEATURES_ON }.status)
+        session.close()
+    }
+
+    @Test
+    fun `the plain lamp needs no runtime feature, so none is switched on`() = runTest {
+        val rig = SessionRig(this, root)
+
+        val session = rig.running(rig.prepared(SynthesizedModel.LAMP))
+
+        assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.ACTIVATE_FEATURE))
+        assertEquals(StepStatus.SKIPPED, session.progress.value.steps.single { it.kind == DeployStepKind.SWITCH_FEATURES_ON }.status)
         session.close()
     }
 

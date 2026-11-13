@@ -74,6 +74,11 @@ other, and a click on the size sets it back.
   a transition, adds entry or do actions, makes it the initial state, or moves it out of or into another state. On a
   transition it changes the priority, sets the mark not looping, or deletes the transition. Where an entry needs
   another state, the states to choose from are marked, and you click one.
+- A state can remember where it was left, limit its ticks and halt a debugger. A small circle with `H` marks a
+  shallow history, one with `H*` a deep history. A red dot on the left border of a state is a breakpoint at its
+  entry, one on the right border a breakpoint at its exit. A red dot in front of the caption of a transition is a
+  breakpoint at its start, one behind it a breakpoint at its end. The menu of a state sets and removes its history
+  and its breakpoints and adds a tick limit. The menu of a transition sets and removes its breakpoints.
 - Edit as text, on a state, a transition, a type, an object or a relation, opens that piece of the text in a pane
   over the diagram. So whatever the menu has no entry for can still be done there.
 - Right-click in a class diagram to add a type, and on a type to rename or delete it, to add a property, or to add
@@ -83,10 +88,10 @@ other, and a click on the size sets it back.
 - A rename works in both directions within one file. Rename in the diagram and the text follows. Rename a state,
   a type or an object in the text and it keeps its place in the diagram. Other files that use the name are not
   changed. Update them by hand.
-- A small circle with a plus marks code that is folded up: the entry and do actions of a state, and the condition
-  of a transition. Click it to open the code in a pane over the diagram, edit it and click Save. Drag the head of the pane to move
+- A small circle with a plus marks code that is folded up: the tick limit and the entry and do actions of a state,
+  and the condition of a transition. Click it to open the code in a pane over the diagram, edit it and click Save. Drag the head of the pane to move
   it, and a side or a corner to size it. A transition without
-  a condition has an empty one to write into.
+  a condition has an empty one to write into. A tick limit whose code you delete is taken out of its state.
 - Every such change is an edit of the text, which Undo in the editor takes back.
 - The text always wins. What the `.vis` file says about something the text no longer has is dropped. Delete the
   `.vis` file to go back to the automatic layout.
@@ -108,6 +113,10 @@ other, and a click on the size sets it back.
 Run saves all open files first, because it uploads the saved files. It picks the descriptor in the active editor, or
 the only one of the folder, or asks. A run whose files have errors stops before it reaches the runtime and lists the
 errors.
+
+A state machine with a history or a tick limit needs a feature of the runtime, History or TickLimit. A run switches
+on what its state machines need, in its step Switching on runtime features. Breakpoints are written and
+shown, but no run halts at them, because the IDE has no debugger yet.
 
 ### While a model runs
 

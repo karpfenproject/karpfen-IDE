@@ -15,7 +15,6 @@
  */
 package io.karpfen.ide.runtime.protocol.api
 
-import io.karpfen.ide.runtime.protocol.catalogue.BodyKind
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -38,6 +37,7 @@ class RejectionClassifierTest {
         "state" to "full power",
         "keys" to "turtle, lamp",
         "id" to "APB 2101",
+        "feature" to "TickByTick",
         "ms" to "10000",
     )
 
@@ -80,7 +80,7 @@ class RejectionClassifierTest {
     @Test
     fun `an unknown text is a content rejection on an upload route and unclassified elsewhere`() {
         val parserText = "Unknown class type 'Lmap' for object 'lamp'"
-        val uploads = RuntimeRoute.entries.filter { it.body != BodyKind.NONE }
+        val uploads = RuntimeRoute.entries.filter { it.body.modelingText }
 
         assertEquals(
             listOf(RuntimeRoute.SET_METAMODEL, RuntimeRoute.SET_MODEL, RuntimeRoute.SET_EVENT_DEFINITIONS, RuntimeRoute.SET_STATE_MACHINE),

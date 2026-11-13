@@ -41,8 +41,8 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers the deploy pipeline with doubles of the client, the environment handle, the connection and the observation.
- * It checks the steps in order with their titles and calls, that the configuration is always sent, and the progress
- * after every transition. It also checks skipped steps, the wait for the open connection before activating and
+ * It checks the steps in order with their titles and calls, that the configuration is always sent, that the runtime
+ * features are switched on before the activation, and the progress after every transition. It also checks skipped steps, the wait for the open connection before activating and
  * starting, observation on and off, and read-back differences as warnings. The start confirmation is checked for
  * success, halt, silence and its bounds on virtual time.
  */
@@ -71,6 +71,7 @@ class DeployPipelineTest {
                 DeployStepKind.SET_TICK_DELAY to "Setting the tick delay to 20 ms",
                 DeployStepKind.SET_EVENT_TTL to "Setting the event time to live to 1500 ms",
                 DeployStepKind.LISTEN_DOMAINS to "Listening to 2 event domains",
+                DeployStepKind.SWITCH_FEATURES_ON to "Switching on History, TickLimit",
                 DeployStepKind.ACTIVATE to "Activating the environment",
                 DeployStepKind.OBSERVE to "Switching observation on",
                 DeployStepKind.START to "Starting the environment",
@@ -106,6 +107,8 @@ class DeployPipelineTest {
                 "setEventTtl(1500)",
                 "registerDomainListener($CLIENT, service)",
                 "registerDomainListener($CLIENT, switch)",
+                "activateFeature(History)",
+                "activateFeature(TickLimit)",
                 "awaitOpen(10s)",
                 "activate",
                 "switchOn",
@@ -138,7 +141,7 @@ class DeployPipelineTest {
         val first = published.first()
         assertTrue(first.steps.all { it.status == StepStatus.PENDING }, "$first")
         assertNull(first.environment)
-        assertEquals(15, first.total)
+        assertEquals(16, first.total)
         published.zipWithNext().forEach { (before, after) ->
             val changed = before.steps.indices.filter { before.steps[it] != after.steps[it] }
             assertTrue(changed.size == 1 || before.environment != after.environment, "one transition at a time: $before -> $after")
@@ -148,25 +151,48 @@ class DeployPipelineTest {
             .filter { it.status == StepStatus.RUNNING }
             .map { it.detail }
         assertEquals(listOf(null, "1 of 2: service", "2 of 2: switch"), listening)
+        val switching = published
+            .map { progress -> progress.steps.single { it.kind == DeployStepKind.SWITCH_FEATURES_ON } }
+            .filter { it.status != StepStatus.PENDING }
+            .map { it.status to it.detail }
+            .distinct()
+        assertEquals(
+            listOf(
+                StepStatus.RUNNING to null,
+                StepStatus.RUNNING to "1 of 2: History",
+                StepStatus.RUNNING to "2 of 2: TickLimit",
+                StepStatus.DONE to "History, TickLimit",
+            ),
+            switching,
+        )
         val statuses = published.map { progress -> progress.steps.first { it.kind == DeployStepKind.UPLOAD_MODEL }.status }.distinct()
         assertEquals(listOf(StepStatus.PENDING, StepStatus.RUNNING, StepStatus.DONE), statuses)
-        assertEquals(15, rig.listener.last.completed)
+        assertEquals(16, rig.listener.last.completed)
         assertNull(rig.listener.last.current)
     }
 
     @Test
-    fun `without event definitions, event domains or a start those steps are skipped`() = runTest {
+    fun `without event definitions, event domains, runtime features or a start those steps are skipped`() = runTest {
         val rig = DeployRig(this)
 
-        rig.deploy(LampPlans.plan(domains = emptyList(), withEvents = false), DeployOptions(start = false)).deployed()
+        rig.deploy(LampPlans.plan(domains = emptyList(), withEvents = false, features = emptyList()), DeployOptions(start = false)).deployed()
 
         val skipped = rig.listener.last.steps.filter { it.status == StepStatus.SKIPPED }.map { it.kind }
         assertEquals(
-            listOf(DeployStepKind.UPLOAD_EVENTS, DeployStepKind.LISTEN_DOMAINS, DeployStepKind.START, DeployStepKind.CONFIRM_START),
+            listOf(
+                DeployStepKind.UPLOAD_EVENTS,
+                DeployStepKind.LISTEN_DOMAINS,
+                DeployStepKind.SWITCH_FEATURES_ON,
+                DeployStepKind.START,
+                DeployStepKind.CONFIRM_START,
+            ),
             skipped,
         )
-        assertEquals(15, rig.listener.last.completed)
-        assertEquals(emptyList(), rig.script.callsOf("setEventDefinitions") + rig.script.callsOf("registerDomainListener"))
+        assertEquals(16, rig.listener.last.completed)
+        assertEquals(
+            emptyList(),
+            rig.script.callsOf("setEventDefinitions") + rig.script.callsOf("registerDomainListener") + rig.script.callsOf("activateFeature"),
+        )
         assertEquals(listOf("switchOn", "differences(0)"), rig.script.callsAfter("activate"))
     }
 
