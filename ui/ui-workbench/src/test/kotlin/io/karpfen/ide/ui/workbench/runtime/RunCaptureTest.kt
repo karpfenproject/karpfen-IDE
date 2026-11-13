@@ -65,7 +65,7 @@ class RunCaptureTest {
         val capture = assertNotNull(start(RuntimeHostKind.DOCKER))
 
         log.emit(HostLogLine("Deploying lamp"))
-        log.emit(HostLogLine(TICK_NOISE))
+        log.emit(HostLogLine(NOISE))
         log.emit(HostLogLine("[12:41:30.130] [env-1] [lamp] TRANSITION_FIRED: off -> on | from=off, to=on"))
         capture.environment(EnvironmentKey("env-1"))
         capture.environment(EnvironmentKey("env-1"))
@@ -80,14 +80,14 @@ class RunCaptureTest {
                 "# Started: 2026-11-13 14:32:05",
                 "# Runtime: the IDE's Docker container at http://127.0.0.1:8080",
                 "stdout Deploying lamp",
-                "stdout $TICK_NOISE",
+                "stdout $NOISE",
                 "stdout [12:41:30.130] [env-1] [lamp] TRANSITION_FIRED: off -> on | from=off, to=on",
                 "# Environment: env-1",
                 "stderr Exception in thread main",
             ),
             Files.readAllLines(capture.file),
         )
-        assertTrue(EngineTrace.isTickNoise(TICK_NOISE), "the Log pane leaves this line out")
+        assertTrue(EngineTrace.isNoise(NOISE), "the Log pane leaves this line out")
         assertEquals(emptyList(), problems)
     }
 
@@ -211,6 +211,6 @@ class RunCaptureTest {
         val ENDPOINT: RuntimeEndpoint = RuntimeEndpoint.parse("http://127.0.0.1:8080")
 
         /** A line the engine trace writes on every tick, which the Log pane leaves out. */
-        const val TICK_NOISE = "[12:41:30.123] [env-1] [lamp] TICK_START: tick 3"
+        const val NOISE = "[12:41:30.123] [env-1] [lamp] TICK_START: tick 3"
     }
 }

@@ -26,8 +26,6 @@ refer to.
   a piece of a file. It closes without saving when the text changes underneath it.
 - A rename is found by comparing the diagram before and after a change of the text. Renaming one element while
   adding or removing another in the same edit is not recognized, and the renamed element is placed as new.
-- A statechart marks the active states of a run, but not which transition fired, because the runtime does not
-  report that.
 - A change of the layout by hand cannot be undone, and there is no command that goes back to the automatic layout.
   Deleting the `.vis` file by hand does that.
 - Renaming or deleting a model file leaves its `.vis` file behind under the old name.
@@ -58,14 +56,16 @@ refer to.
 - When the watcher gives up on a container that still runs, the next start adopts it and follows its log from the
   container's start again. The Log pane then probably shows earlier lines twice. This follows from the code and has
   not been seen.
-- The debugger halts only at breakpoints written in the text. The runtime can also set and remove breakpoints for
-  one run without a change of the text, which the IDE does not use.
 - The debugger learns where a run is paused by asking the runtime every 300 ms, because the runtime sends no message
   when its engine halts.
 - Recording the events of a run and replaying them, which the runtime offers, has no place in the IDE. A run can
   only be captured to a file as text.
 - A captured file holds the log of the whole runtime while its run lives. With two runs at once, each file also holds
   the lines of the other run. Lines that the runtime writes before the deployment are not in the file.
+- The times in the simplified log are those of the runtime's clock, which is UTC in the IDE's container, not the
+  local time.
+- Stopping a run without a window that was started through Gradle makes the Gradle task fail, because the process
+  ends with the status of its signal.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
 
 ### Bridges
@@ -107,7 +107,6 @@ refer to.
 dsl-tools checks each text in its readers and a project as a whole in its verifier, as its guide
 `guides/verification.md` lists. Still missing:
 
-- Whether the Python code of an `EVAL` block is valid and what it returns. That needs Python.
 - The paths that the runtime reads for the missing arguments of a macro call.
 - A read of an event field in a project without event definitions, which always fails at run time.
 - Whether a metamodel can be instantiated at all, for example when two types must contain each other.

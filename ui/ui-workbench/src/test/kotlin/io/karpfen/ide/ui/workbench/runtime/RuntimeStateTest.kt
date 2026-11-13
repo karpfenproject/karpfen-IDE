@@ -371,7 +371,7 @@ class RuntimeStateTest {
             val run = runtime.run(lamp)
             val asked = answerRun(capture = true)
             run.joinSettled()
-            host.logLines.emit(HostLogLine(TICK_NOISE))
+            host.logLines.emit(HostLogLine(NOISE))
             host.logLines.emit(HostLogLine("Exception in thread main", LogStream.STDERR))
             settle()
 
@@ -384,7 +384,7 @@ class RuntimeStateTest {
             val lines = Files.readAllLines(file)
             assertEquals("# Descriptor: ${root.relativize(lamp).joinToString("/")}", lines[1])
             assertTrue("# Environment: $ENV_1" in lines, "$lines")
-            assertEquals(listOf("stdout $TICK_NOISE", "stderr Exception in thread main"), lines.takeLast(2))
+            assertEquals(listOf("stdout $NOISE", "stderr Exception in thread main"), lines.takeLast(2))
             assertTrue(lines.none { "before the run" in it }, "the capture starts with the deployment")
             assertTrue(state.settings.value.captureRuns, "the choice is remembered")
 
@@ -603,7 +603,7 @@ class RuntimeStateTest {
         val ENV_2: String = FakeRuntime.environmentKey(2)
 
         /** A line the engine trace writes on every tick, which the Log pane leaves out. */
-        const val TICK_NOISE = "[12:41:30.123] [env-1] [lamp] TICK_START: tick 3"
+        const val NOISE = "[12:41:30.123] [env-1] [lamp] TICK_START: tick 3"
 
         /** A state machine whose second state, `lost`, nothing leads into: a warning of the validation. */
         val UNREACHABLE_STATE = """

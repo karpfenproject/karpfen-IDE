@@ -176,12 +176,12 @@ internal class RuntimeHostBinding(
     /**
      * Hands [line] to the listeners and writes it to the log. Standard error becomes an error and everything else
      * becomes information. The logger name is the stream's name in lower case. The lines that the engine trace writes
-     * on every tick are left out, as [EngineTrace.isTickNoise] tells. They would push everything else out of the log
+     * on every tick are left out, as [EngineTrace.isNoise] tells. They would push everything else out of the log
      * within seconds.
      */
     private fun write(line: HostLogLine) {
         listeners.toList().forEach { it(line) }
-        if (EngineTrace.isTickNoise(line.text)) return
+        if (EngineTrace.isNoise(line.text)) return
         val level = if (line.stream == LogStream.STDERR) OutputLevel.ERROR else OutputLevel.INFO
         log.append(clock.instant(), level, line.stream.name.lowercase(), line.text, null)
     }

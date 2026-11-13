@@ -466,7 +466,7 @@ is released. A file that cannot be written does not stop the run. The run shows 
 
 The IDE's container runs the runtime with engine tracing on, because the trace is the only place where the runtime
 tells which transition fired. The engine writes several trace lines on every tick. `RuntimeHostBinding` drops those
-lines, as `EngineTrace.isTickNoise` decides. The simplified log of `StatechartLog` shows the remaining trace lines in
+lines, as `EngineTrace.isNoise` decides. The simplified log of `StatechartLog` shows the remaining trace lines in
 a few words each.
 
 Two zoom controls change `uiScale` and `editorFontSize`. `Workbench` applies `uiScale` by scaling the density, so

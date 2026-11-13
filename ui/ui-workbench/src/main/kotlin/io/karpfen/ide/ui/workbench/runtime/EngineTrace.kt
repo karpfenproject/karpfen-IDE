@@ -47,19 +47,23 @@ public data class EngineTraceLine(
  * log is built from it.
  *
  * The engine writes several lines on every tick of every state machine, whether or not anything happens. They say
- * that a tick started and ended and that a state has no actions to run. [isTickNoise] recognizes them, so they never
- * reach the log. What is left are the steps a reader follows: the initial states, the transitions, splits and joins,
- * the entry actions, and errors. [describe] puts such a step into a few words.
+ * that a tick started and ended and that a state has no actions to run. It also announces every transition, split
+ * and join before it applies it, in the words of the line that follows once it is applied. [isNoise] recognizes
+ * both, so they never reach the log. What is left are the steps a reader follows: the initial states, the
+ * transitions, splits and joins, the entry actions, and errors. [describe] puts such a step into a few words.
  */
 public object EngineTrace {
 
     /** The machine name the engine uses for itself. */
     public const val WHOLE_ENGINE: String = "*"
 
-    /** The kinds the engine writes on every tick. They carry no news. */
-    private val TICK_NOISE = setOf(
+    /**
+     * The kinds that carry no news: those the engine writes on every tick, and the announcements of a transition, a
+     * split and a join, which the line of the applied one repeats.
+     */
+    private val NOISE = setOf(
         "TICK_START", "TICK_END", "STATE_DO_EXEC", "STATE_DO_SKIP", "STATE_ENTRY_SKIP", "TRANSITION_CHECK",
-        "TRANSITION_SKIPPED_LOOP",
+        "TRANSITION_SKIPPED_LOOP", "TRANSITION_START", "SPLIT_START", "JOIN_START",
     )
 
     /** The kinds that report an error. */
@@ -83,8 +87,8 @@ public object EngineTrace {
         return EngineTraceLine(time, environment, machine, kind, message, details)
     }
 
-    /** True if [text] is a trace line that the engine writes on every tick. */
-    public fun isTickNoise(text: String): Boolean = parse(text)?.kind in TICK_NOISE
+    /** True if [text] is a trace line that carries no news, as the class describes. */
+    public fun isNoise(text: String): Boolean = parse(text)?.kind in NOISE
 
     /**
      * What [line] means, in a few words. A transition reads `off -> on`, the way a state machine file writes it. The

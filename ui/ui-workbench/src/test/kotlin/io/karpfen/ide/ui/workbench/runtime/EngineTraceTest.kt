@@ -50,17 +50,20 @@ class EngineTraceTest {
     }
 
     @Test
-    fun `the lines of every tick are noise, the steps of a state machine are not`() {
+    fun `the lines of every tick and the announcements of transitions are noise, the steps of a state machine are not`() {
         listOf(
             "[12:41:30.000] [env-1] [lamp] TICK_START: Tick #7 | state=off",
+            "[12:41:30.122] [env-1] [lamp] TRANSITION_START: off -> on | from=off, to=on",
+            "[12:41:30.122] [env-1] [lamp] SPLIT_START: off -> a,b | from=off, to=a,b",
+            "[12:41:30.122] [env-1] [lamp] JOIN_START: a,b -> on | from=a,b, to=on",
             "[12:41:30.001] [env-1] [lamp] STATE_DO_SKIP: onDo for state 'off' is empty \u2014 skipped | state=off",
             "[12:41:30.002] [env-1] [lamp] TICK_END: Tick #7 completed | state=off",
-        ).forEach { assertTrue(EngineTrace.isTickNoise(it), it) }
+        ).forEach { assertTrue(EngineTrace.isNoise(it), it) }
         listOf(
             "[12:41:30.123] [env-1] [lamp] TRANSITION_FIRED: off -> on | from=off, to=on",
             "[12:41:30.124] [env-1] [lamp] ACTION_ERROR: Error in onEntry for state 'on': boom | state=on",
             "[WebSocket] Connection closed",
-        ).forEach { assertFalse(EngineTrace.isTickNoise(it), it) }
+        ).forEach { assertFalse(EngineTrace.isNoise(it), it) }
     }
 
     @Test
