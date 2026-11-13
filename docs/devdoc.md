@@ -2,9 +2,9 @@
 
 These notes are for the people who maintain the karpfen IDE. They explain how to build and test it, the conventions
 the code follows, the main design decisions and the behaviour that surprises people. The [README](../README.md) gives
-the short overview, the [getting started guide](getting-started.md) walks through a first model, the
-[architecture document](archdoc.md) explains the modules, and [todo.md](todo.md) lists what is open. Everything else
-lives in the KDoc of the types named here. Search for a type name to find its file.
+the short overview, the [reference](reference/README.md) walks through a first model and describes the IDE for its
+users, the [architecture document](archdoc.md) explains the modules, and [todo.md](todo.md) lists what is open.
+Everything else lives in the KDoc of the types named here. Search for a type name to find its file.
 
 ## Building and testing
 
@@ -92,7 +92,7 @@ The IDE is its own command-line tool. `validate` runs the same validation of the
 window and reports the same findings, read with the language features that `.karpfenproject` switches on. The exit
 codes are 0 for no errors, 1 for errors found, 2 for a usage error and 3 for a failure. Positions are one-based and
 paths are relative to the folder. `ReportFormatter` in the package `headless` of app/ide writes a report as text or
-as JSON. The getting started guide describes both commands for a user.
+as JSON. [4.8 Command line](reference/4.8-command-line.md) describes both commands for a user.
 
 ### Settings, logs and launch options
 
@@ -145,8 +145,29 @@ no line comments and no block comments other than KDoc. Never write the characte
 comment inside comment text, because Kotlin nests block comments. Every Kotlin file and Gradle script starts with the
 Apache 2.0 license header.
 
-Markdown is kept to `README.md`, the four documents in `docs` and the license notice of the copied example files.
-These documents stay short and point to the code. KDoc never sends the reader to a markdown document.
+Markdown is kept to `README.md`, the three developer documents in `docs` (these notes, the architecture and the open
+points), the reference in `docs/reference` and the license notice of the copied example files. The developer
+documents stay short and point to the code. KDoc never sends the reader to a markdown document.
+
+The reference is the documentation for users of karpfen, who are modelers and engineers. It is one numbered tree
+across three repositories. Chapters 1 and 4 are here, chapter 2 is in karpfen-dsl-tools and chapter 3 in
+karpfen-runtime, each in `docs/reference`. `docs/reference/README.md` here lists the whole tree. A website is to be
+generated from these files, so they keep a fixed form:
+
+- A file holds one section with its subsections and is named `<number>-<name>.md`. Its first line is
+  `# <number> <Title>`. Subsections carry their full number, as in `## 4.3.1 Views`, at most four parts deep, in order
+  and without gaps. A chapter head such as `4-ide.md`, whose sections are files of their own, has no subheadings.
+- Every code block names its language: `kmeta`, `kmodel`, `kstates`, `json`, `bash`, `python`, `kotlin`, `http` or
+  `text`.
+- A link inside a repository is relative. A link into another repository goes to the file on `main` on GitHub. The
+  text of a link to a section starts with its number and title.
+- There is no front matter, no HTML, no image and no table of contents in a file.
+
+`ReferenceMarkdownTest` checks this form here. `ReferenceExamplesTest` in karpfen-dsl-tools reads the examples of
+chapter 2 with the real readers. Write the reference for someone who has not seen the code: what a thing is, how to
+use it, what happens and what goes wrong, each rule with the smallest example that shows it. Keep out what only a
+developer of karpfen needs. The reference uses one term per thing, no bold and no italics, no sales words, no
+sentence that announces or sums up, and no contrast with a claim nobody made.
 
 Write plain and simple English in short sentences. Name things in words, never by an id from another document or a
 numbered step of a plan. Do not use the em dash, the en dash, the middle dot, the bullet or the Unicode arrows.

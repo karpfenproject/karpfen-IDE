@@ -3,8 +3,8 @@
 This document is a map of the karpfen IDE code base. It names the modules, says what each one is for, how they depend
 on each other and which types to read first. The details live in the KDoc of the types it names. Search for a type
 name to find its file. How to build and run the IDE is in the [README](../README.md) and the
-[getting started guide](getting-started.md). Design decisions and behaviour worth knowing are in the
-[developer notes](devdoc.md).
+[getting started chapter](reference/1-getting-started.md) of the [reference](reference/README.md). Design decisions
+and behaviour worth knowing are in the [developer notes](devdoc.md).
 
 ## The IDE and the repositories it builds on
 
@@ -48,7 +48,7 @@ uses `io.karpfen.ide.buildlogic`.
 | bridges | bridge-api, bridge-mapping, bridge-http, bridge-mqtt, bridge-ros | Connect a running model to external systems. The IDE starts the bridges for HTTP, MQTT and ROS with a run. |
 | build tooling | build-logic, architecture-tests | Convention plugins, dependency rules, architecture tests. |
 
-Next to the modules, the folder `examples` holds the lamp model of the getting started guide, and the script
+Next to the modules, the folder `examples` holds the lamp model of the getting started chapter, and the script
 `runtime/live-runtime.sh` runs a runtime in Docker for the live tests.
 
 Dependencies only point downwards. The build allows these project dependencies and no others:

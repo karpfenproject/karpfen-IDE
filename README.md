@@ -36,10 +36,10 @@ The first line validates the project and prints its findings. The second runs it
 
 ## Documentation
 
-- [Getting started](docs/getting-started.md): the idea behind karpfen, the modes of the IDE, the use without a window
-  and a walkthrough with the lamp example.
+- [Reference](docs/reference/README.md): the reference for users of karpfen, from getting started with the lamp example
+  to every part of the IDE, with links to the chapters on the languages and the runtime.
 - [Architecture](docs/archdoc.md): the modules and how they depend on each other.
-- [Developer notes](docs/devdoc.md): how to build and test, the conventions, the key design decisions and behaviour
+- [Developer notes](docs/devdoc.md): how to build and test, the conventions, the main design decisions and behaviour
   worth knowing.
 - [Open points](docs/todo.md): what is missing, unfinished or undecided.
 

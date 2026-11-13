@@ -120,6 +120,17 @@ class ReferenceIdsTest {
     }
 
     @Test
+    fun `the numbered headings and links of the reference are no reference ids`() {
+        listOf(
+            "# 4.3 Diagrams",
+            "## 4.3.2 Reading a statechart",
+            "### 4.3.4.1 On the canvas",
+            "see [4.5.2 Starting a run](4.5-running.md#452-starting-a-run) and [2.3 KStates](2.3-kstates.md#239-breakpoints)",
+            "the steps of [4.5.2 Starting a run](#452-starting-a-run), the phase `running`",
+        ).forEach { prose -> assertEquals(emptyList(), idsIn(prose), prose) }
+    }
+
+    @Test
     fun `ids are ordered by their offset in the text`() {
         assertEquals(
             listOf(ReferenceId("(D1)", 0), ReferenceId("WP-LANG", 16), ReferenceId("§2", 30)),

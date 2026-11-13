@@ -33,9 +33,13 @@ import kotlin.test.assertTrue
  * Every one of these files starts with the Apache 2.0 license header ([LicenseHeader]), exactly once and before
  * anything else. The header is KDoc in form, and it is the one KDoc that documents no declaration.
  *
- * Markdown is kept minimal. The only markdown files are the README, the documents in `docs` and the license notice
- * of the example files that the test fixtures copy from other repositories ([ALLOWED_MARKDOWN]). Everything else a
- * reader of the code needs is in KDoc.
+ * Markdown is kept minimal. The only markdown files are the README, the documents in `docs`, the files of the
+ * reference in `docs/reference` and the license notice of the example files that the test fixtures copy from other
+ * repositories ([ALLOWED_MARKDOWN]). Everything else a reader of the code needs is in KDoc.
+ *
+ * The reference is the documentation for the users of karpfen. Its files are fixed by the joint tree of the three
+ * karpfen repositories ([REFERENCE_FILES]), and each of them keeps the form that [ReferenceMarkdown] checks: numbered
+ * headings in order, code blocks that name their language, and prose without bold, dashes and arrows.
  *
  * Documentation is written for a human reader in plain sentences. It names what it refers to in words instead of by
  * an id that has to be looked up in another document. [ReferenceIds] lists the ids that are rejected. It also does
@@ -76,14 +80,14 @@ class DocumentationStyleTest {
     }
 
     @Test
-    fun `the guarded documents are the guides, resources and catalog`() {
+    fun `the guarded documents are the documents in docs, the reference, the resources and the catalog`() {
         val paths = documents.map { it.relativePath }.toSet()
 
         assertEquals(emptyList(), REQUIRED_DOCUMENTS.filterNot { it in paths }, "documents missing from the guarded documents")
     }
 
     @Test
-    fun `markdown exists only as the README, the guides and the license notice of the example files`() {
+    fun `markdown exists only as the README, the documents in docs, the reference and the license notice of the example files`() {
         val markdown = DocumentedFiles.markdownPaths
         assertTrue("README.md" in markdown, "the README is not among the markdown files; this check would be vacuous")
 
@@ -91,7 +95,7 @@ class DocumentationStyleTest {
         assertTrue(
             unexpected.isEmpty(),
             "Markdown is kept minimal. The only markdown files are ${ALLOWED_MARKDOWN.joinToString()}. Put the content " +
-                "of these files into the KDoc of the code it explains, or into one of the guides in docs, and delete " +
+                "of these files into the KDoc of the code it explains, or into one of the documents in docs, and delete " +
                 "them:\n" + unexpected.joinToString("\n"),
         )
     }
@@ -178,27 +182,66 @@ class DocumentationStyleTest {
         )
     }
 
+    @Test
+    fun `every file of the reference starts with its heading of the joint tree and keeps the form of the reference`() {
+        val byPath = documents.associateBy { it.relativePath }
+        val wrongHeadings = REFERENCE_FILES.mapNotNull { (path, heading) ->
+            val first = byPath[path]?.text?.lineSequence()?.firstOrNull()
+            "$path starts with '$first' instead of '$heading'".takeIf { first != heading }
+        }
+        val violations = REFERENCE_FILES.keys.mapNotNull(byPath::get).flatMap { file ->
+            ReferenceMarkdown.violationsIn(file.relativePath.substringAfterLast('/'), file.text).map { "${file.relativePath}  $it" }
+        }
+        assertTrue(
+            (wrongHeadings + violations).isEmpty(),
+            "The files of the reference keep the form that the generator of the website reads. Fix:\n" +
+                (wrongHeadings + violations).joinToString("\n"),
+        )
+    }
+
     /** The 1-based line of the character at [offset] of [text]. */
     private fun lineOf(text: String, offset: Int): Int = text.substring(0, offset).count { it == '\n' } + 1
 
     private companion object {
         /**
-         * The documents that the guarded documents must include. They are the README, the three guides, the logging
-         * configuration of the application and the version catalog, one of each kind.
+         * The files of the reference that belong to this repository, with the first line each must have. The joint
+         * tree of the three karpfen repositories fixes their names and headings. Chapter 1 and chapter 4 are here,
+         * and the README of the reference holds the table of the whole tree.
          */
-        val REQUIRED_DOCUMENTS = listOf(
-            "README.md", "docs/getting-started.md", "docs/archdoc.md", "docs/devdoc.md",
-            "app/ide/src/main/resources/logback.xml", "gradle/libs.versions.toml",
+        val REFERENCE_FILES: Map<String, String> = mapOf(
+            "docs/reference/1-getting-started.md" to "# 1 Getting started",
+            "docs/reference/4-ide.md" to "# 4 The IDE",
+            "docs/reference/4.1-projects.md" to "# 4.1 Projects",
+            "docs/reference/4.2-text-editor.md" to "# 4.2 Text editor",
+            "docs/reference/4.3-diagrams.md" to "# 4.3 Diagrams",
+            "docs/reference/4.4-validating.md" to "# 4.4 Validating",
+            "docs/reference/4.5-running.md" to "# 4.5 Running",
+            "docs/reference/4.6-debugging.md" to "# 4.6 Debugging",
+            "docs/reference/4.7-bridges.md" to "# 4.7 Bridges",
+            "docs/reference/4.8-command-line.md" to "# 4.8 Command line",
         )
 
+        /** The README of the reference, the table of the joint tree. It has no numbered sections. */
+        const val REFERENCE_README: String = "docs/reference/README.md"
+
         /**
-         * The only markdown files of the repository. They are the README, the getting started guide, the architecture
-         * guide, the developer guide, the list of open points and the license notice of the example files that
+         * The documents that the guarded documents must include. They are the README, the architecture document, the
+         * developer notes, every file of the reference, the logging configuration of the application and the version
+         * catalog.
+         */
+        val REQUIRED_DOCUMENTS = listOf(
+            "README.md", "docs/archdoc.md", "docs/devdoc.md", REFERENCE_README,
+            "app/ide/src/main/resources/logback.xml", "gradle/libs.versions.toml",
+        ) + REFERENCE_FILES.keys
+
+        /**
+         * The only markdown files of the repository. They are the README, the architecture document, the developer
+         * notes, the list of open points, the files of the reference and the license notice of the example files that
          * core-document's test fixtures copy from the karpfen-runtime and karpfen-dsl-tools repositories.
          */
         val ALLOWED_MARKDOWN = setOf(
-            "README.md", "docs/getting-started.md", "docs/archdoc.md", "docs/devdoc.md", "docs/todo.md",
+            "README.md", "docs/archdoc.md", "docs/devdoc.md", "docs/todo.md", REFERENCE_README,
             "core/core-document/src/testFixtures/resources/examples/NOTICE.md",
-        )
+        ) + REFERENCE_FILES.keys
     }
 }

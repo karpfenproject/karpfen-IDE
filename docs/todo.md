@@ -99,8 +99,8 @@ refer to.
 
 ### Checks that dsl-tools does not make
 
-dsl-tools checks each text in its readers and a project as a whole in its verifier, as its guide
-`guides/verification.md` lists. Still missing:
+dsl-tools checks each text in its readers and a project as a whole in its verifier, as its reference
+`karpfen-dsl-tools/docs/reference/2.4-checks.md` lists. Still missing:
 
 - The paths that the runtime reads for the missing arguments of a macro call.
 - A read of an event field in a project without event definitions, which always fails at run time.
@@ -129,9 +129,6 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
   share.
 - The features use `kapt` to register themselves, which copies every comment into generated Java. A comment with a
   backslash followed by `u` breaks the build there.
-- Building the runtime rewrites the generated parsers in its nested dsl-tools checkout with other line endings. The
-  IDE packs the runtime sources from the working tree, so such a build changes the hash that names the runtime
-  image. `git -C karpfen-runtime/karpfen-dsl-tools checkout -- .` brings the files back.
 - Known objects are written nested instead of by reference, so reference loops cannot be deployed.
 - `NaN` and `Infinity` are written as bare literals, which is not JSON. What they should become is undecided.
 - One broadcaster serves all clients, so one slow client can stall the others. A queue per client would fix it.
@@ -148,7 +145,11 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 - The runtime reads every upload with all optional language features on. The IDE checks the features of the project
   before a run, so a text with a feature that is off never reaches the runtime from the IDE, but another client can
   upload it.
-- The runtime's documentation of `eventConsumptionOnFire` does not match what the engine does.
+- The options `logging.level`, `logging.consoleOutput`, `websocket.queueTimeoutMs` and `engineTracing.simpleTrace` of
+  the runtime's `application.conf` are read and change nothing.
+- The time to live of an injected or replayed event counts from the upload of the list, so an event that is due
+  later than its time to live has expired when its tick comes. Replayed events are not read against the event
+  definitions, so a path into `event` finds nothing for them.
 - A JSON event payload with a repeated key or a scalar of the wrong type silently becomes null as a whole, and every
   relation in a JSON payload creates new objects, `knows` included. The event still fires, without its payload. The
   injector's checks in `PayloadDiagnosticCodes` catch these cases before an event is sent.
@@ -156,9 +157,9 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
   the name of a top-level state therefore makes the reported stack ambiguous. `StackSegmenter` explains the effect.
 - The runtime never reads the type a state machine names after `ATTACHED TO`. It treats `_` as an ordinary object key
   and keeps the last of two objects with the same key. The deploy checks report both before a run.
-- The branch with IDE support changed what the runtime sends and accepts. An environment is activated at most once,
-  and pushes carry revisions and domain events. Nobody has checked whether other clients of the runtime rely on the
-  old behaviour. That matters before the branch is merged, and whether to merge it is undecided.
+- The IDE support changed what the runtime sends and accepts, and it is part of the runtime's `main` now. An
+  environment is activated at most once, pushes carry revisions and domain events, and an upload with errors is
+  refused. Nobody has checked whether other clients of the runtime rely on the old behaviour.
 
 ## In the build and on other platforms
 
