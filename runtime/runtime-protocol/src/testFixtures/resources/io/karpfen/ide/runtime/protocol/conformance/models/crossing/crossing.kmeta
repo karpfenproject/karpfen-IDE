@@ -1,0 +1,3 @@
+type "Crossing" "A pedestrian crossing with one light for the cars" {
+    prop("light", "string")
+}

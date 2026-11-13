@@ -1,0 +1,1 @@
+make object "crossing":"Crossing" { prop("light") -> "green" }

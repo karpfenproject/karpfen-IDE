@@ -35,6 +35,7 @@ import io.karpfen.ide.runtime.protocol.message.WireValue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -123,6 +124,26 @@ class RoutedBridgeTest {
 
         assertEquals(listOf(ExternalMessage("home/watts", "40"), ExternalMessage("home/watts", "30")), endpoint.published)
         assertEquals(RouteStatus("bulb/watts to home/watts", received = 2, delivered = 2), bridge.status.value.outbound.single())
+    }
+
+    @Test
+    fun `what the model reports while the endpoint opens goes out once it is open`() = runTest {
+        val bridge = bridge(outbound = listOf(OutboundRoute(OutboundSource.Property("bulb", "watts"), "home/watts")))
+        val opening = CompletableDeferred<Unit>().also { endpoint.opening = it }
+        val starting = launch { bridge.start() }
+        runCurrent()
+
+        link.report(changed("bulb", """{"watts": 40}"""))
+        runCurrent()
+        assertEquals(emptyList(), endpoint.published)
+        assertEquals(RouteStatus("bulb/watts to home/watts", received = 1), bridge.status.value.outbound.single())
+
+        opening.complete(Unit)
+        starting.join()
+        runCurrent()
+
+        assertEquals(listOf(ExternalMessage("home/watts", "40")), endpoint.published)
+        assertEquals(RouteStatus("bulb/watts to home/watts", received = 1, delivered = 1), bridge.status.value.outbound.single())
     }
 
     @Test
@@ -224,22 +245,30 @@ class RoutedBridgeTest {
 
     private fun published(name: String) = io.karpfen.ide.runtime.protocol.message.PublishedEvent(name, "{}", "json", "INTERNAL", 0, 1000)
 
-    /** An external system in memory. It records what a bridge publishes and lets a test make messages arrive. */
+    /**
+     * An external system in memory. It records what a bridge publishes and lets a test make messages arrive. A test can
+     * hold its opening back with [opening], and it takes nothing before it is open.
+     */
     private class FakeEndpoint : BridgeEndpoint {
         private val arriving = MutableSharedFlow<ExternalMessage>(extraBufferCapacity = 64)
         val published = ArrayList<ExternalMessage>()
         var opened: Set<String> = emptySet()
         var openOutcome: Delivery = Delivery.Delivered
+        var opening: CompletableDeferred<Unit>? = null
         var closes = 0
+        private var isOpen = false
 
         override val incoming get() = arriving
 
         override suspend fun open(addresses: Set<String>): Delivery {
+            opening?.await()
             opened = addresses
+            isOpen = openOutcome == Delivery.Delivered
             return openOutcome
         }
 
         override suspend fun publish(message: ExternalMessage): Delivery {
+            if (!isOpen) return Delivery.Failed("The endpoint is not open.")
             published += message
             return Delivery.Delivered
         }

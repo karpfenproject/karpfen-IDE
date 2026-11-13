@@ -1,0 +1,41 @@
+STATEMACHINE ATTACHED TO "Crossing" {
+    STATES {
+        INITIAL DEEP HISTORY STATE "operating" {
+            STATE "cars go" {
+                ENTRY {
+                    SET("light", "green")
+                }
+            }
+            STATE "cars wait" {
+                TICK LIMIT {
+                    TIMEOUT: AFTER 100 TICKS TRANSITION TO "cars go"
+                }
+                ENTRY {
+                    SET("light", "red")
+                }
+            }
+        }
+        STATE "maintenance" {
+            ENTRY {
+                SET("light", "blinking")
+            }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "cars go" -> "cars wait" {
+            CONDITION {
+                EVENT("street", "pedestrian")
+            }
+        }
+        TRANSITION "operating" -> "maintenance" {
+            CONDITION {
+                EVENT("street", "service")
+            }
+        }
+        TRANSITION "maintenance" -> "operating" {
+            CONDITION {
+                EVENT("street", "resume")
+            }
+        }
+    }
+}

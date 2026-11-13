@@ -85,7 +85,7 @@ class MirrorSeederTest {
         val contexts = AnalyzedContexts.runtimeExamples(this, root.resolve("examples")) +
             AnalyzedContexts.allSynthesized(this, root.resolve("synthesized"))
 
-        assertEquals(8, contexts.size)
+        assertEquals(9, contexts.size)
         contexts.forEach { context -> assertSeedOf(context) }
     }
 

@@ -42,7 +42,7 @@ class MirrorRoundTripTest {
         val contexts = AnalyzedContexts.runtimeExamples(this, root.resolve("examples")) +
             AnalyzedContexts.allSynthesized(this, root.resolve("synthesized")).filter { it.name != RING }
 
-        assertEquals(7, contexts.size)
+        assertEquals(8, contexts.size)
         contexts.forEach { context -> assertRoundTrip(context) }
     }
 

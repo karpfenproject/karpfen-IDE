@@ -94,6 +94,20 @@ public enum class SynthesizedModel(public val folder: String) {
      * to `a`. The model uses no event domain.
      */
     RING("ring"),
+
+    /**
+     * A pedestrian crossing with one light for the cars. `operating` has a deep history and the nested states
+     * `cars go` and `cars wait`. `cars wait` has a timeout of 100 ticks that leads back to `cars go`. `maintenance`
+     * stands beside `operating`.
+     *
+     * The folder holds `crossing.kmeta`, `crossing-events.kmeta`, `crossing.kmodel` and `crossing.kstates`.
+     * `crossing.kstates` is attached to `crossing`. The event domain is `street` with `pedestrian`, `service` and
+     * `resume`.
+     *
+     * The model covers the optional language features that need a feature of the runtime: a history that leads back
+     * to the nested state the machine left, and a tick limit that leaves a state by itself.
+     */
+    CROSSING("crossing"),
     ;
 
     /** The file name of the model's descriptor. */

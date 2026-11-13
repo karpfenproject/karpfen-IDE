@@ -26,6 +26,7 @@ import io.karpfen.ide.bridges.api.FlowPolicy
 import io.karpfen.ide.bridges.api.ModelLink
 import io.karpfen.ide.bridges.api.OutboundSource
 import io.karpfen.ide.bridges.api.RouteStatus
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -60,7 +61,9 @@ import kotlinx.coroutines.withContext
  * differs from the one they sent last, because the model reports an object whenever any of its properties changes.
  *
  * The bridge starts to read both sides before it opens the endpoint, so a message that arrives the moment the
- * endpoint is open is not lost.
+ * endpoint is open is not lost. What the model reports while the endpoint opens waits in the lines of the outbound
+ * routes and goes out once the endpoint is open. So the value a property route or a state route says at the start
+ * is not lost to an endpoint that takes a while to connect.
  *
  * The bridge works in a child scope of [scope]. [stop] ends that work, and so does cancelling [scope].
  */
@@ -85,7 +88,8 @@ public class RoutedBridge(
     override suspend fun start(): Unit = lifecycle.withLock {
         if (work != null) return
         current.update { it.copy(state = BridgeState.STARTING, problem = null) }
-        val running = run()
+        val open = CompletableDeferred<Unit>()
+        val running = run(open)
         when (val opened = endpoint.open(config.inbound.map { it.from }.toSet())) {
             is Delivery.Failed -> {
                 running.cancelAndJoin()
@@ -94,6 +98,7 @@ public class RoutedBridge(
             Delivery.Delivered -> {
                 work = running
                 current.update { it.copy(state = BridgeState.RUNNING) }
+                open.complete(Unit)
             }
         }
     }
@@ -112,8 +117,11 @@ public class RoutedBridge(
         }
     }
 
-    /** Starts the workers of all routes and the two readers that feed them, and returns the job that holds them. */
-    private fun run(): Job {
+    /**
+     * Starts the workers of all routes and the two readers that feed them, and returns the job that holds them. The
+     * workers of the outbound routes hand nothing to the endpoint before [open] completes.
+     */
+    private fun run(open: CompletableDeferred<Unit>): Job {
         val job = SupervisorJob(scope.coroutineContext.job)
         val workers = CoroutineScope(scope.coroutineContext + job)
         val inbound = config.inbound.mapIndexed { index, route ->
@@ -133,6 +141,7 @@ public class RoutedBridge(
         val outbound = config.outbound.mapIndexed { index, route ->
             val line = line<ExternalMessage>(route.flow) { count(index, inbound = false) { it.copy(dropped = it.dropped + 1) } }
             workers.launch {
+                open.await()
                 for (message in line) {
                     record(index, inbound = false, endpoint.publish(message))
                     pause(route.flow)

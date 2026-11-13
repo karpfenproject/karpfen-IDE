@@ -1,0 +1,3 @@
+type "pedestrian" "A pedestrian asks to cross" { }
+type "service" "The crossing goes into maintenance" { }
+type "resume" "The crossing comes back from maintenance" { }

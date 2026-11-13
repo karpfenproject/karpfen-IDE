@@ -1,0 +1,8 @@
+{
+  "metamodel": "crossing.kmeta",
+  "events": "crossing-events.kmeta",
+  "model": "crossing.kmodel",
+  "stateMachines": [
+    { "file": "crossing.kstates", "attachedTo": "crossing" }
+  ]
+}

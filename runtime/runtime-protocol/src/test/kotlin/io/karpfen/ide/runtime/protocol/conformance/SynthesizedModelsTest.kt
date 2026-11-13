@@ -80,6 +80,7 @@ class SynthesizedModelsTest {
                 SynthesizedModel.METRONOME to listOf("metronome.kstates" to "metronome"),
                 SynthesizedModel.DEPOT to listOf("depot.kstates" to "depot"),
                 SynthesizedModel.RING to listOf("ring.kstates" to "a"),
+                SynthesizedModel.CROSSING to listOf("crossing.kstates" to "crossing"),
             ),
             SynthesizedModel.entries.associateWith { model -> SynthesizedModels.files(model).machines.map { it.file to it.attachedTo } },
         )

@@ -54,6 +54,7 @@ class ActiveStatesTest {
                 "metronome/metronome" to listOf("rest"),
                 "depot/depot" to listOf("idle"),
                 "ring/a" to listOf("visit"),
+                "crossing/crossing" to listOf("operating", "cars go"),
             ),
             stacks,
         )

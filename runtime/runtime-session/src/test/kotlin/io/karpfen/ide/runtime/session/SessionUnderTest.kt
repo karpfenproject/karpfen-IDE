@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.session
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.WorkspaceOptions
@@ -142,9 +143,15 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
     fun copy(model: SynthesizedModel, timing: DescriptorTiming = DescriptorTiming.EVENT_SCENARIOS): Path =
         SynthesizedModels.copyTo(root.resolve("${model.folder}-${folders.incrementAndGet()}"), model, timing)
 
-    /** Opens the folder of [descriptor] as a workspace with real options, without watching. */
-    fun open(descriptor: Path): Workspace =
-        Workspace(descriptor.parent, this, WorkspaceOptions(watch = false)).also { workspaces += it }
+    /**
+     * Opens the folder of [descriptor] as a workspace with real options, without watching, as a project that has
+     * [features] switched on. By default that is every optional language feature, so a model may use all of them.
+     */
+    fun open(descriptor: Path, features: Set<KstatesFeature> = KstatesFeature.ALL): Workspace =
+        Workspace(descriptor.parent, this, WorkspaceOptions(watch = false)).also {
+            it.setLanguageFeatures(features)
+            workspaces += it
+        }
 
     /** Prepares the deployment of [descriptor] in [workspace]. It fails the scenario if the deployment is blocked. */
     suspend fun prepare(workspace: Workspace, descriptor: Path): PreparedDeployment =
