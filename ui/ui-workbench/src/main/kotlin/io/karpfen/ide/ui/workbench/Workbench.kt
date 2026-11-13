@@ -193,10 +193,10 @@ private fun EditorPane(state: WorkbenchState) {
         }
     }
     val services by state.languageServices.collectAsState()
-    val cellEditor = remember(activeEditor, services) {
+    val cellEditor = remember(activeEditor, services, workspace) {
         val editor = activeEditor
         val known = services
-        if (editor == null || known == null) null else CodeCellEditor(editor, known)
+        if (editor == null || known == null) null else CodeCellEditor(editor, known, workspace)
     }
     EditorArea(
         tabs = tabs,

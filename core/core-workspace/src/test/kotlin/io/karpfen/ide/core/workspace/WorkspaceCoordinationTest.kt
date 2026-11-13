@@ -16,9 +16,11 @@
 package io.karpfen.ide.core.workspace
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
 import io.karpfen.ide.core.text.EditOrigin
 import io.karpfen.ide.core.text.TextEdit
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.analysis.AnalysisSources
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
@@ -105,6 +107,8 @@ class WorkspaceCoordinationTest {
             runs++
             return ProjectAnalysis(generation, emptyList(), resolution.diagnostics)
         }
+
+        override suspend fun readInPlace(analysis: ProjectAnalysis, path: Path, text: TextSnapshot): List<Diagnostic> = emptyList()
     }
 
     private lateinit var scanner: FakeScanner

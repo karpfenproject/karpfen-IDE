@@ -124,6 +124,9 @@ other, and a click on the size sets it back.
   and the condition of a transition. Click it to open the code in a pane over the diagram, edit it and click Save. Drag the head of the pane to move
   it, and a side or a corner to size it. A transition without
   a condition has an empty one to write into. A tick limit whose code you delete is taken out of its state.
+- The pane is the text editor on that piece of the file. It completes with Ctrl+Space, shows what a name is when the
+  mouse rests on it, and underlines errors and warnings as the text editor does, with the language features of the
+  project. It shows only what concerns the code in the pane. Go to definition and find references do nothing there.
 - Every such change is an edit of the text, which Undo in the editor takes back.
 - The text always wins. What the `.vis` file says about something the text no longer has is dropped. Delete the
   `.vis` file to go back to the automatic layout.

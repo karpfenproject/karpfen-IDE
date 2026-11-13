@@ -16,6 +16,7 @@
 package io.karpfen.ide.core.workspace.analysis
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.context.ContextState
@@ -68,6 +69,8 @@ class AnalysisSchedulerTest {
             failure?.let { throw it }
             return ProjectAnalysis(generation, emptyList(), emptyMap())
         }
+
+        override suspend fun readInPlace(analysis: ProjectAnalysis, path: Path, text: TextSnapshot): List<Diagnostic> = emptyList()
     }
 
     private val noSources = AnalysisSources { null }

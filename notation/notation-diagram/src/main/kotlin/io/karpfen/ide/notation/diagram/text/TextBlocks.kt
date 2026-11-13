@@ -97,16 +97,21 @@ internal object TextBlocks {
      * than the line the block closes on. A statement of several lines keeps the indentation its lines have among each
      * other.
      */
-    fun append(text: String, block: TextRange, statement: String): TextEdit {
+    fun append(text: String, block: TextRange, statement: String): TextEdit =
+        append(text, block, WovenText.literal(statement)).edit()
+
+    /** The edit of [append] for a [statement] that holds code of a cell, which knows where that code stands. */
+    fun append(text: String, block: TextRange, statement: WovenText): WovenEdit {
         val close = block.end - 1
         val lineStart = lineStartOf(text, close)
         val before = text.substring(lineStart, close)
         val outer = indentOf(text, close)
+        val indented = statement.indented(outer + INDENT)
         return if (before.isBlank() && lineStart > block.start) {
-            TextEdit(TextRange(lineStart, lineStart), indented(statement, outer + INDENT) + "\n")
+            WovenEdit(TextRange(lineStart, lineStart), indented + WovenText.literal("\n"))
         } else {
             val gap = close - text.substring(block.start + 1, close).takeLastWhile { it == ' ' || it == '\t' }.length
-            TextEdit(TextRange(gap, close), "\n" + indented(statement, outer + INDENT) + "\n" + outer)
+            WovenEdit(TextRange(gap, close), WovenText.literal("\n") + indented + WovenText.literal("\n" + outer))
         }
     }
 
@@ -153,16 +158,20 @@ internal object TextBlocks {
     }
 
     /**
-     * A block with [content] between its braces, to stand on a line that is indented by [indent]. Nothing gives an
-     * empty block, one line gives a block on one line, and several lines give a block with each line one step deeper
-     * than [indent].
+     * A block with [content] between its braces, to stand on a line that is indented by [indent]. Blank lines around
+     * the content are left out. Nothing gives an empty block, one line gives a block on one line without the
+     * whitespace at the ends of the line, and several lines give a block with each line one step deeper than [indent]
+     * and each blank line empty. The written text knows where each line of [content] stands in it, and an empty block
+     * knows the place between its braces.
      */
-    fun braced(content: String, indent: String): String {
-        val lines = content.lines().dropWhile { it.isBlank() }.dropLastWhile { it.isBlank() }
+    fun braced(content: String, indent: String): WovenText {
+        val lines = CodeLine.trimmedLinesOf(content)
         return when (lines.size) {
-            0 -> "{ }"
-            1 -> "{ ${lines.single().trim()} }"
-            else -> "{\n" + lines.joinToString("\n") { if (it.isBlank()) "" else indent + INDENT + it } + "\n" + indent + "}"
+            0 -> WovenText.placeFor("{ }", 2)
+            1 -> WovenText.literal("{ ") + lines.single().trimmed() + WovenText.literal(" }")
+            else -> WovenText.literal("{\n") +
+                WovenText.joined(lines.map { if (it.isBlank) it.emptied() else WovenText.literal(indent + INDENT) + it.whole() }, "\n") +
+                WovenText.literal("\n" + indent + "}")
         }
     }
 
@@ -171,11 +180,17 @@ internal object TextBlocks {
 
     /**
      * [statement] ready to stand in a place whose line is indented by [indent]: its first line as it is, every other
-     * line behind [indent]. Blank lines around it are dropped. It is what undoes [lifted].
+     * line behind [indent], each without the whitespace at its end, and each blank line empty. Blank lines around it
+     * are dropped. It is what undoes [lifted]. The written text knows where each line of [statement] stands in it, and
+     * a blank [statement] gives an empty text without a place for code.
      */
-    fun placed(statement: String, indent: String): String {
-        val lines = statement.lines().dropWhile { it.isBlank() }.dropLastWhile { it.isBlank() }
-        return lines.mapIndexed { index, line -> if (index == 0 || line.isBlank()) line.trimEnd() else indent + line.trimEnd() }.joinToString("\n")
+    fun placed(statement: String, indent: String): WovenText {
+        val lines = CodeLine.trimmedLinesOf(statement)
+        if (lines.isEmpty()) return WovenText.literal("")
+        return WovenText.joined(
+            lines.mapIndexed { index, line -> if (index == 0 || line.isBlank) line.trimmedEnd() else WovenText.literal(indent) + line.trimmedEnd() },
+            "\n",
+        )
     }
 
     /** The whitespace at the start of the line that holds [offset] of [text]. */
@@ -184,8 +199,7 @@ internal object TextBlocks {
 
     private fun lineStartOf(text: String, offset: Int): Int = text.lastIndexOf('\n', offset - 1) + 1
 
-    private fun indented(statement: String, indent: String): String =
-        statement.lines().joinToString("\n") { if (it.isBlank()) it else indent + it }
+    private fun indented(statement: String, indent: String): String = WovenText.literal(statement).indented(indent).text
 
     /** True if the [length] characters at [index] of [text] are a whole word and not a part of a longer one. */
     private fun isWord(text: String, index: Int, length: Int): Boolean {

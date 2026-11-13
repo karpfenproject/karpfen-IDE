@@ -17,6 +17,7 @@ package io.karpfen.ide.ui.diagram
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import io.karpfen.ide.notation.diagram.edit.DiagramCell
 
 /**
  * The editor that an opened code cell of a diagram holds. The diagram module does not know the code editor of the
@@ -24,9 +25,10 @@ import androidx.compose.ui.Modifier
  */
 public fun interface DiagramCellEditor {
     /**
-     * Shows [code], the code of a cell as it stands when the cell opens, to be edited. Every change of the text goes
-     * to [onCode] with the whole new text. [modifier] gives the editor its place in the cell.
+     * Shows the code of [cell], as it stands when the cell opens, to be edited. Every change of the text goes to
+     * [onCode] with the whole new text. The editor may use `DiagramCell.frame` to see the code in its place in the
+     * file. [modifier] gives the editor its place in the cell.
      */
     @Composable
-    public fun Editor(code: String, onCode: (String) -> Unit, modifier: Modifier)
+    public fun Editor(cell: DiagramCell, onCode: (String) -> Unit, modifier: Modifier)
 }

@@ -16,9 +16,11 @@
 package io.karpfen.ide.core.workspace
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
 import io.karpfen.ide.core.workspace.context.ContextResolution
@@ -144,6 +146,17 @@ public interface Workspace : AutoCloseable {
      * @throws IllegalStateException if the workspace is closed.
      */
     public suspend fun validate(): ProjectValidation
+
+    /**
+     * The DSL_TOOLS diagnostics that the file at [path] would get from the project analysis if its text were [text],
+     * in the coordinates of [text]. The text is read as the latest [analysis] would read the file, in its role in its
+     * modeling context and against the other files of that context as the analysis read them, with the language
+     * features of that analysis. Nothing else changes: the open document of [path], the [analysis] and the [problems]
+     * stay as they are. A text with syntax errors, and a file the analysis does not read, give an empty list. The
+     * checks across files of [validate] are not made. It runs on `WorkspaceOptions.analysisDispatcher`. A code cell of
+     * a diagram uses it to check its code in its place in the file.
+     */
+    public suspend fun readInPlace(path: Path, text: TextSnapshot): List<Diagnostic>
 
     /**
      * Stops watching and analysis and closes every open document. Unsaved changes are discarded. Calling it again does

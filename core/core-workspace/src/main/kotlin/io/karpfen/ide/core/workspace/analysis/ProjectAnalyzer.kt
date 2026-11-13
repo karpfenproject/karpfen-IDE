@@ -70,6 +70,16 @@ public interface ProjectAnalyzer {
         generation: Long,
         languageFeatures: Set<KstatesFeature> = KstatesFeature.ALL,
     ): ProjectAnalysis
+
+    /**
+     * The DSL_TOOLS diagnostics that the file at [path] would get in [analysis] if its text were [text], in the
+     * coordinates of [text]. The text is read by the rules of [analyze], in the role its file has in its context and
+     * against the reads of the other files of that context in [analysis], or on its own if the file is a loose state
+     * machine. State machines are read with the `ProjectAnalysis.languageFeatures` of [analysis]. A text with syntax
+     * errors, and a file that [analysis] would not read, give an empty list. No other file is read again, and
+     * [analysis] stays as it is. It suspends only to check for cancellation and never throws otherwise.
+     */
+    public suspend fun readInPlace(analysis: ProjectAnalysis, path: Path, text: TextSnapshot): List<Diagnostic>
 }
 
 /** The default [ProjectAnalyzer]. It parses the files for which [AnalysisSources] supplied no current parse. */

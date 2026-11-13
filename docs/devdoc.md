@@ -335,10 +335,21 @@ diagram shows folded up, as `DiagramCell`s: the tick limit and the entry and do 
 a transition. The
 canvas draws a marker for each and opens a clicked cell in `CodeCellPane`. Saving goes the same way as any other
 change. The pane holds a `DiagramCellEditor`, which the host of the diagram hands in, because ui-diagram does not know
-the code editor. ui-workbench hands in `CodeCellEditor`: the code editor of the IDE on a small document of its own,
-with `fragmentSupport` of the language of the file, so the code is coloured and edited like the file but not checked.
+the code editor. ui-workbench hands in `CodeCellEditor`: the code editor of the IDE on a small document of its own.
 Edit as text in the context menus opens a whole construct in the same pane, which makes everything the text can say
 reachable from the diagram.
+
+The language sees the code of a cell in its place in the file. A cell answers a `CellFrame` for its current code: the
+whole text of the file as saving the cell would write it, and the mapping of positions between the code and that
+text. The frame is made from the same written text that saving writes (`WovenText` in notation-diagram), so the two
+cannot drift apart, and it is the only place that maps positions of a cell. `FramedDocument` in core-document
+decorates the language support of the file so that the cell's document is parsed as the whole text and gets the
+syntax errors and semantic colours of its own part. `framedLanguageServices` in core-lang decorates the workspace's
+language services for completion and hover, asked under the path of the file. `launchFramedChecks` in core-workspace
+reads the whole text in place with `Workspace.readInPlace`, the read of the project analysis for that one file, and
+puts the findings that lie in the code into the cell. `CodeCellSession` in ui-workbench wires these for a cell. A
+cell without a frame, such as a blank condition that saving would remove, falls back to `fragmentSupport`, which
+colours the code and checks nothing.
 
 A statechart has two kinds of edge, both a `StatechartEdge`: a `TransitionEdge` for a transition, a split or a join
 of the file, and a `TimeoutEdge` for the timeout of a state, which the engine takes by itself. `StatechartIds` holds

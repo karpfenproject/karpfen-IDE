@@ -27,6 +27,7 @@ import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.StatechartIds
 import io.karpfen.ide.notation.diagram.statechart.TransitionKind
 import io.karpfen.ide.notation.diagram.text.TextBlocks
+import io.karpfen.ide.notation.diagram.text.WovenText
 
 /**
  * The changes of a state machine that its statechart offers, each as edits of the text. Every function takes the text
@@ -300,13 +301,12 @@ public object StatechartEdits {
     public fun macros(text: String, diagram: StatechartDiagram): DiagramCell? {
         val machine = TextBlocks.blockFrom(text, diagram.range.start) ?: return null
         val block = TextBlocks.blockNamed(text, MACROS, machine)
-        return DiagramCell("macros", "Macros", "", DiagramBox(0f, 0f, 0f, 0f), block?.let { TextBlocks.inner(text, it) }.orEmpty()) { code ->
+        return DiagramCell("macros", "Macros", "", DiagramBox(0f, 0f, 0f, 0f), block?.let { TextBlocks.inner(text, it) }.orEmpty(), text) { code ->
             when {
-                block != null -> TextEdit(block, TextBlocks.braced(code, TextBlocks.indentOf(text, block.start)))
-                    .takeIf { it.newText != text.substring(block.start, block.end) }
+                block != null -> CellWrite.placing(block, TextBlocks.braced(code, TextBlocks.indentOf(text, block.start)))
                 code.isBlank() -> null
-                else -> TextBlocks.append(text, machine, "$MACROS ${TextBlocks.braced(code, "")}")
-            }?.let { DiagramChange(listOf(it)) }
+                else -> CellWrite.placing(TextBlocks.append(text, machine, WovenText.literal("$MACROS ") + TextBlocks.braced(code, "")))
+            }
         }
     }
 

@@ -22,8 +22,10 @@ refer to.
   join with two sources, and more are added one at a time. The macros of a state machine are edited as text only.
 - The type of a new object in the object diagram is typed in. The diagram does not know the types of the metamodel,
   so it cannot offer them.
-- An opened code cell has the code editor with colours, but without completion, hover and checks, because it holds
-  a piece of a file. It closes without saving when the text changes underneath it.
+- An opened code cell has no go to definition and no find references. A blank cell that saving would remove, such as
+  an empty condition or tick limit, completes like a lone piece of text until something is typed. A cell closes
+  without saving when the text changes underneath it. Nobody has tried how the checks of a cell perform on a large
+  file.
 - A rename is found by comparing the diagram before and after a change of the text. Renaming one element while
   adding or removing another in the same edit is not recognized, and the renamed element is placed as new.
 - A change of the layout by hand cannot be undone, and there is no command that goes back to the automatic layout.

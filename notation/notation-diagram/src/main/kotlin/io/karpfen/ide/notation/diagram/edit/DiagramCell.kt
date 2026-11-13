@@ -19,12 +19,19 @@ import io.karpfen.ide.core.text.TextEdit
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.notation.diagram.layout.DiagramBox
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
+import io.karpfen.ide.notation.diagram.text.CellFrame
 import io.karpfen.ide.notation.diagram.text.TextBlocks
+import io.karpfen.ide.notation.diagram.text.WovenEdit
+import io.karpfen.ide.notation.diagram.text.WovenText
 
 /**
  * A piece of code that a diagram shows folded up, such as the entry actions of a state or the condition of a
  * transition. The diagram draws a small marker for it, and a click on the marker opens the code to be edited. So the
  * structure of a model is edited as a drawing and its code as text, both in the same view.
+ *
+ * One rule tells what saving a code writes into the text the cell was made from. [save] gives that as a change, and
+ * [frame] gives the whole text it writes together with the mapping of positions between the code and that text, so
+ * the language can see the code of an open cell in its place in the file.
  *
  * @property key identifies the cell within its diagram.
  * @property title what the code is, in words, as the head of the opened cell says it.
@@ -32,16 +39,55 @@ import io.karpfen.ide.notation.diagram.text.TextBlocks
  * @property box where the marker and its word are drawn. A click in it opens the cell.
  * @property code the code as the user edits it, without the braces around it and without the indentation its lines
  *   share.
- * @property save gives the change that writes the edited code back into the text, or null if nothing changes.
  */
-public class DiagramCell(
+public class DiagramCell internal constructor(
     public val key: String,
     public val title: String,
     public val word: String,
     public val box: DiagramBox,
     public val code: String,
-    public val save: (String) -> DiagramChange?,
-)
+    private val source: String,
+    private val write: (String) -> CellWrite?,
+) {
+
+    /** The change that writes [code] back into the text, or null if nothing changes. */
+    public fun save(code: String): DiagramChange? {
+        val edit = write(code)?.edit ?: return null
+        return if (source.substring(edit.range.start, edit.range.end) == edit.newText) null else DiagramChange(listOf(edit))
+    }
+
+    /**
+     * The text of the file as it would be if [code] were saved now, with the mapping of positions between [code] and
+     * that text. It is null if saving [code] leaves no place for it in the text, as when a blank code takes a tick
+     * limit or a condition out, or when saving it changes nothing because there is no block to write it into.
+     */
+    public fun frame(code: String): CellFrame? {
+        val written = write(code) ?: return null
+        val placed = written.code ?: return null
+        return CellFrame.of(source, code, written.edit.range, placed)
+    }
+}
+
+/**
+ * What saving one code of a [DiagramCell] writes into the text: one edit, and if the code stands in its new text, the
+ * written text that knows where.
+ *
+ * @property edit the edit of the text.
+ * @property code the new text of [edit] with the places of the code in it, or null if the edit takes the code out.
+ */
+internal class CellWrite private constructor(val edit: TextEdit, val code: WovenText?) {
+
+    companion object {
+        /** The edit that puts [written] in the place of [range]. */
+        fun placing(range: TextRange, written: WovenText): CellWrite = CellWrite(TextEdit(range, written.text), written)
+
+        /** The edit [woven], whose new text holds the code. */
+        fun placing(woven: WovenEdit): CellWrite = placing(woven.range, woven.written)
+
+        /** The edit [edit], which takes the code out of the text. */
+        fun removing(edit: TextEdit): CellWrite = CellWrite(edit, null)
+    }
+}
 
 /** Makes the code cells that show a whole construct of the text, such as a state or a relation with all it holds. */
 public object ConstructCells {
@@ -52,12 +98,11 @@ public object ConstructCells {
      * the construct out of the text.
      */
     public fun of(key: String, title: String, source: String, range: TextRange): DiagramCell =
-        DiagramCell(key, title, "", DiagramBox(0f, 0f, 0f, 0f), TextBlocks.lifted(source, range)) { code ->
-            val placed = TextBlocks.placed(code, TextBlocks.indentOf(source, range.start))
-            when {
-                code.isBlank() -> DiagramChange(listOf(TextBlocks.removal(source, range)))
-                placed == source.substring(range.start, range.end) -> null
-                else -> DiagramChange(listOf(TextEdit(range, placed)))
+        DiagramCell(key, title, "", DiagramBox(0f, 0f, 0f, 0f), TextBlocks.lifted(source, range), source) { code ->
+            if (code.isBlank()) {
+                CellWrite.removing(TextBlocks.removal(source, range))
+            } else {
+                CellWrite.placing(range, TextBlocks.placed(code, TextBlocks.indentOf(source, range.start)))
             }
         }
 }

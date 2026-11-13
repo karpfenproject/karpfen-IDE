@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.testing
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.language.LanguageRegistry
 import io.karpfen.ide.core.document.registry.defaultLanguageRegistry
@@ -26,6 +27,7 @@ import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.services.defaultLanguageServices
 import io.karpfen.ide.core.text.EditableText
 import io.karpfen.ide.core.text.LineSeparator
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.context.ContextResolution
@@ -82,6 +84,11 @@ class FakeWorkspace(override val root: Path) : Workspace {
         validations++
         return validation.await()
     }
+
+    /** What [readInPlace] answers for every text. */
+    var readsInPlace: List<Diagnostic> = emptyList()
+
+    override suspend fun readInPlace(path: Path, text: TextSnapshot): List<Diagnostic> = readsInPlace
 
     override fun close() = Unit
 }

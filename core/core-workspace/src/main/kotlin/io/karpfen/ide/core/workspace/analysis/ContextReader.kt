@@ -70,9 +70,7 @@ internal class ContextReader(
 
     /** The analysis of [context]. [files] holds its readable files by path. */
     suspend fun read(context: ModelingContext, files: Map<Path, AnalyzedFile>): ContextAnalysis {
-        val metamodel = context.metamodel
-            ?.let { readable(files, it, DescriptorFileRole.METAMODEL) }
-            ?.let { file -> read(file, memory.metamodels, input = null) { reader.kmeta(it) } }
+        val metamodel = readMetamodel(context, files)
         val domain = metamodel?.takeUnless { it.hasErrors }?.model
         val reads = ContextReads(
             metamodel = metamodel,
@@ -92,6 +90,24 @@ internal class ContextReader(
     }
 
     /**
+     * Reads [file] in the place of the file of the same path in [context], an analyzed context, by the same rules as
+     * [read] and with the reads of the other files of [context] as they are. So the file is read in its role in the
+     * context: as the metamodel, as the events or as a model against the metamodel of [context] if that was read
+     * without errors, or as a state machine with [languageFeatures]. No other file is read again. The diagnostics of
+     * the read go to [problems] under the path of [file].
+     */
+    suspend fun readAlone(context: ContextAnalysis, file: AnalyzedFile) {
+        val files = mapOf(file.path to file)
+        readMetamodel(context.context, files)
+        val domain = context.reads.metamodel?.takeUnless { it.hasErrors }?.model
+        if (domain != null) {
+            readEvents(context.context, files, domain)
+            readModels(context.context, files, domain)
+        }
+        readStateMachines(context.context, files)
+    }
+
+    /**
      * Reads the loose [file] on its own if it is a state machine free of syntax errors, as the class describes, and
      * records its diagnostics. Any other file reads nothing. It checks for cancellation first.
      */
@@ -101,6 +117,12 @@ internal class ContextReader(
             read(file, memory.stateMachines, input = languageFeatures) { reader.kstates(it, languageFeatures) }
         }
     }
+
+    /** The read of the domain metamodel of [context], or null if [files] cannot read it. */
+    private suspend fun readMetamodel(context: ModelingContext, files: Map<Path, AnalyzedFile>): ReadResult<Metamodel>? =
+        context.metamodel
+            ?.let { readable(files, it, DescriptorFileRole.METAMODEL) }
+            ?.let { file -> read(file, memory.metamodels, input = null) { reader.kmeta(it) } }
 
     /** The read of the events metamodel of [context], with the types of [domain] as base types. Null if there is none. */
     private suspend fun readEvents(context: ModelingContext, files: Map<Path, AnalyzedFile>, domain: Metamodel): ReadResult<Metamodel>? =

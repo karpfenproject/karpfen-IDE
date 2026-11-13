@@ -16,10 +16,16 @@
 package io.karpfen.ide.core.workspace.analysis
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.dsl.DslReader
 import io.karpfen.ide.core.document.language.LanguageRegistry
+import io.karpfen.ide.core.document.parse.SemanticMode
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.context.ContextResolution
 import io.karpfen.ide.core.workspace.diagnostics.DiagnosticsByFile
+import io.karpfen.ide.core.workspace.files.FileKind
+import kotlinx.coroutines.CancellationException
+import org.slf4j.LoggerFactory
 import java.nio.file.Path
 
 /**
@@ -60,5 +66,35 @@ internal class DefaultProjectAnalyzer(
         looseFiles.values.forEach { reads.readLoose(it) }
         memory.retainOnly(resolution.contexts.flatMapTo(HashSet()) { it.files } + resolution.looseFiles)
         return ProjectAnalysis(generation, contexts, diagnostics.build(), looseFiles, languageFeatures)
+    }
+
+    /**
+     * Parses [text] with the support of the language of [path] and lets a [ContextReader] of its own read it in the
+     * context of [path] in [analysis], or on its own if [path] is a loose file. The reader has a fresh memory, so the
+     * reads of the analysis runs stay untouched. An unexpected failure is logged and gives an empty list.
+     */
+    override suspend fun readInPlace(analysis: ProjectAnalysis, path: Path, text: TextSnapshot): List<Diagnostic> {
+        val name = path.fileName?.toString() ?: return emptyList()
+        val support = languages.supportFor(name) ?: return emptyList()
+        return try {
+            val file = AnalyzedFile(path, FileKind.of(name), text, support.parser.parse(text, SemanticMode.SYNTAX_ONLY))
+            val problems = DiagnosticsByFile()
+            val reads = ContextReader(reader, ReadMemory(), problems, analysis.languageFeatures)
+            val context = analysis.contextOf(path)
+            when {
+                context != null -> reads.readAlone(context, file)
+                path in analysis.looseFiles -> reads.readLoose(file)
+            }
+            problems.build()[path].orEmpty()
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (e: Exception) {
+            logger.error("Reading a text in the place of {} failed", path, e)
+            emptyList()
+        }
+    }
+
+    private companion object {
+        private val logger = LoggerFactory.getLogger(DefaultProjectAnalyzer::class.java)
     }
 }

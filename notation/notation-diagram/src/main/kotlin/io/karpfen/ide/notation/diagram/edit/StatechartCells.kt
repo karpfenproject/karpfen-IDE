@@ -24,6 +24,7 @@ import io.karpfen.ide.notation.diagram.statechart.StateNode
 import io.karpfen.ide.notation.diagram.statechart.StatechartDiagram
 import io.karpfen.ide.notation.diagram.statechart.TransitionEdge
 import io.karpfen.ide.notation.diagram.text.TextBlocks
+import io.karpfen.ide.notation.diagram.text.WovenText
 
 /**
  * The code cells of a statechart: the tick limit, the entry actions and the do actions of every state that has them,
@@ -72,11 +73,11 @@ public object StatechartCells : DiagramCells<StatechartDiagram, StatechartLayout
             StatechartMetrics.ENTRY_WORD -> "Entry actions of ${state.name}"
             else -> "Do actions of ${state.name}"
         }
-        return DiagramCell("${state.name}.$word", title, word, place, TextBlocks.inner(source, block)) { code ->
+        return DiagramCell("${state.name}.$word", title, word, place, TextBlocks.inner(source, block), source) { code ->
             if (word == StatechartMetrics.LIMIT_WORD && code.isBlank()) {
-                DiagramChange(listOf(TextBlocks.removal(source, range)))
+                CellWrite.removing(TextBlocks.removal(source, range))
             } else {
-                replaced(source, block, TextBlocks.braced(code, TextBlocks.indentOf(source, block.start)))
+                CellWrite.placing(block, TextBlocks.braced(code, TextBlocks.indentOf(source, block.start)))
             }
         }
     }
@@ -87,18 +88,17 @@ public object StatechartCells : DiagramCells<StatechartDiagram, StatechartLayout
         val block = transition.conditionRange?.let { TextBlocks.blockFrom(source, it.start) }
         val indent = TextBlocks.indentOf(source, transition.range.start)
         val title = "Condition of ${transition.sources.joinToString(", ")} to ${transition.targets.joinToString(", ")}"
-        return DiagramCell(transition.id, title, "", place, block?.let { TextBlocks.inner(source, it) }.orEmpty()) { code ->
+        return DiagramCell(transition.id, title, "", place, block?.let { TextBlocks.inner(source, it) }.orEmpty(), source) { code ->
             val inner = TextBlocks.deeper(indent)
             when {
                 code.isBlank() && block == null -> null
-                code.isBlank() -> replaced(source, body, "{ }")
-                block != null -> replaced(source, block, TextBlocks.braced(code, TextBlocks.indentOf(source, block.start)))
-                else -> replaced(source, body, "{\n$inner$CONDITION ${TextBlocks.braced(code, inner)}\n$indent}")
+                code.isBlank() -> CellWrite.removing(TextEdit(body, "{ }"))
+                block != null -> CellWrite.placing(block, TextBlocks.braced(code, TextBlocks.indentOf(source, block.start)))
+                else -> CellWrite.placing(
+                    body,
+                    WovenText.literal("{\n$inner$CONDITION ") + TextBlocks.braced(code, inner) + WovenText.literal("\n$indent}"),
+                )
             }
         }
     }
-
-    /** The change that puts [text] in the place of [range] of [source], or null if it stands there already. */
-    private fun replaced(source: String, range: TextRange, text: String): DiagramChange? =
-        if (source.substring(range.start, range.end) == text) null else DiagramChange(listOf(TextEdit(range, text)))
 }

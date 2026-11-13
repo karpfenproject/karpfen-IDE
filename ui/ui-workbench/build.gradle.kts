@@ -46,6 +46,7 @@ dependencies {
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(testFixtures(project(":core:core-document")))
+    testImplementation(testFixtures(project(":core:core-workspace")))
     testImplementation(testFixtures(project(":runtime:runtime-session")))
     testImplementation(libs.moquette.broker)
 }

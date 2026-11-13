@@ -16,7 +16,9 @@
 package io.karpfen.ide.core.workspace
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.core.document.Diagnostic
 import io.karpfen.ide.core.document.language.LanguageRegistry
+import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.core.workspace.analysis.AnalysisScheduler
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalyzer
@@ -182,6 +184,12 @@ internal class DefaultWorkspace(
         val analysis = awaitAnalysis()
         val problems = problemsPublisher.problems.value
         return withContext(options.analysisDispatcher) { collaborators.validator.validate(root, analysis, problems) }
+    }
+
+    /** Reads [text] in the place of [path] in the latest [analysis] with the analyzer, on the analysis dispatcher. */
+    override suspend fun readInPlace(path: Path, text: TextSnapshot): List<Diagnostic> {
+        val latest = analysis.value
+        return withContext(options.analysisDispatcher) { collaborators.analyzer.readInPlace(latest, path, text) }
     }
 
     override fun close() {

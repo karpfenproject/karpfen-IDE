@@ -157,7 +157,7 @@ internal fun CodeCellPane(
                 CellButton("Close", DiagramViewTestTags.CELL_CLOSE, onClose)
             }
             if (editor != null) {
-                key(cell.key) { editor.Editor(cell.code, { edited = it }, Modifier.weight(1f).fillMaxWidth().background(colors.window)) }
+                key(cell.key) { editor.Editor(cell, { edited = it }, Modifier.weight(1f).fillMaxWidth().background(colors.window)) }
             } else BasicTextField(
                 value = value,
                 onValueChange = {
