@@ -99,6 +99,21 @@ internal class VisLanguageSupport : LanguageSupport {
     override val lineComment: String? = null
 }
 
+/**
+ * The support for a piece of a text of the language of [whole], such as the entry actions of one state. The piece is
+ * coloured like the language, with the tokenizer of [whole]. Nothing checks it, because a piece is no whole file and
+ * the analyzer of the language would find fault with every one.
+ */
+public fun fragmentSupport(whole: LanguageSupport): LanguageSupport = FragmentLanguageSupport(whole)
+
+/** The [LanguageSupport] behind [fragmentSupport]. */
+private class FragmentLanguageSupport(whole: LanguageSupport) : LanguageSupport {
+    override val language: KarpfenLanguage = whole.language
+    override val tokenizer: Tokenizer = whole.tokenizer
+    override val parser: DocumentParser = ComposedDocumentParser(language, UncheckedSyntaxAnalyzer(language), semantics = null)
+    override val lineComment: String? = whole.lineComment
+}
+
 /** A [SyntaxAnalyzer] for a [language] whose text the IDE shows but does not check. It finds nothing in any text. */
 private class UncheckedSyntaxAnalyzer(override val language: KarpfenLanguage) : SyntaxAnalyzer {
     override fun analyze(snapshot: TextSnapshot): SyntaxAnalysis =

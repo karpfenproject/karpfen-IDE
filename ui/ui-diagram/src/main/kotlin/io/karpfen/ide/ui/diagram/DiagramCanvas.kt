@@ -118,6 +118,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     faults: DiagramFaults,
     source: String?,
     active: Set<String>,
+    cellEditor: DiagramCellEditor?,
     onChange: (DiagramChange) -> Boolean,
     onSelect: (TextRange) -> Unit,
 ) {
@@ -374,6 +375,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             waiting.cell,
             waiting.position,
             viewSize,
+            cellEditor,
             onSave = { code -> run(DiagramAction.Change("Edit code") { waiting.cell.save(code) }, waiting.position) },
             onClose = { mode = CanvasMode.Idle },
         )

@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,16 +79,24 @@ internal sealed interface CanvasMode {
 
 /**
  * The opened code [cell]: a small pane over the canvas near [position], kept inside a view of the size [viewSize].
- * Its head says what the code is and has the buttons Save and Close. Below is the code in a field that takes the
- * keyboard focus. Save, or Enter with Ctrl or Cmd, hands the code to [onSave]. Close or Escape calls [onClose] and
- * drops what was typed.
+ * Its head says what the code is and has the buttons Save and Close. Below is the code, in the [editor] the host of
+ * the diagram handed in, or in a plain text field without one. Save, or Enter with Ctrl or Cmd, hands the code to
+ * [onSave]. Close calls [onClose] and drops what was typed, and so does Escape in the plain field.
  */
 @Composable
-internal fun CodeCellPane(cell: DiagramCell, position: Offset, viewSize: IntSize, onSave: (String) -> Unit, onClose: () -> Unit) {
+internal fun CodeCellPane(
+    cell: DiagramCell,
+    position: Offset,
+    viewSize: IntSize,
+    editor: DiagramCellEditor?,
+    onSave: (String) -> Unit,
+    onClose: () -> Unit,
+) {
     val colors = KarpfenTheme.colors
     var value by remember(cell.key) { mutableStateOf(TextFieldValue(cell.code)) }
+    var edited by remember(cell.key) { mutableStateOf(cell.code) }
     val focus = remember { FocusRequester() }
-    LaunchedEffect(cell.key) { focus.requestFocus() }
+    LaunchedEffect(cell.key) { if (editor == null) focus.requestFocus() }
     Column(
         Modifier
             .offset {
@@ -99,16 +108,30 @@ internal fun CodeCellPane(cell: DiagramCell, position: Offset, viewSize: IntSize
             .size(CELL_WIDTH.dp, CELL_HEIGHT.dp)
             .background(colors.panel)
             .border(1.dp, colors.accent)
+            .onPreviewKeyEvent { event ->
+                val enter = event.key == Key.Enter || event.key == Key.NumPadEnter
+                if (event.type == KeyEventType.KeyDown && enter && (event.isCtrlPressed || event.isMetaPressed)) {
+                    onSave(edited)
+                    true
+                } else {
+                    false
+                }
+            }
             .testTag(DiagramViewTestTags.CELL),
     ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(cell.title, color = colors.textMuted, style = KarpfenTheme.typography.uiSmall, maxLines = 1, modifier = Modifier.weight(1f))
-            CellButton("Save", DiagramViewTestTags.CELL_SAVE) { onSave(value.text) }
+            CellButton("Save", DiagramViewTestTags.CELL_SAVE) { onSave(edited) }
             CellButton("Close", DiagramViewTestTags.CELL_CLOSE, onClose)
         }
-        BasicTextField(
+        if (editor != null) {
+            key(cell.key) { editor.Editor(cell.code, { edited = it }, Modifier.weight(1f).fillMaxWidth().background(colors.window)) }
+        } else BasicTextField(
             value = value,
-            onValueChange = { value = it },
+            onValueChange = {
+                value = it
+                edited = it.text
+            },
             textStyle = KarpfenTheme.typography.monospace.copy(color = colors.text),
             cursorBrush = SolidColor(colors.text),
             modifier = Modifier
@@ -119,17 +142,11 @@ internal fun CodeCellPane(cell: DiagramCell, position: Offset, viewSize: IntSize
                 .padding(6.dp)
                 .focusRequester(focus)
                 .onPreviewKeyEvent { event ->
-                    when {
-                        event.type != KeyEventType.KeyDown -> false
-                        event.key == Key.Escape -> {
-                            onClose()
-                            true
-                        }
-                        (event.key == Key.Enter || event.key == Key.NumPadEnter) && (event.isCtrlPressed || event.isMetaPressed) -> {
-                            onSave(value.text)
-                            true
-                        }
-                        else -> false
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                        onClose()
+                        true
+                    } else {
+                        false
                     }
                 }
                 .testTag(DiagramViewTestTags.CELL_CODE),

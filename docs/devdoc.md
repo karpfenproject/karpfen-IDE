@@ -283,7 +283,11 @@ which transition fired, so no transition is marked.
 The notation is hybrid. The structure is drawn, and code stays text. A `DiagramCells` tells which pieces of code a
 diagram shows folded up, as `DiagramCell`s: the entry and do blocks of a state and the condition of a transition. The
 canvas draws a marker for each and opens a clicked cell in `CodeCellPane`. Saving goes the same way as any other
-change. The pane is a plain text field so far.
+change. The pane holds a `DiagramCellEditor`, which the host of the diagram hands in, because ui-diagram does not know
+the code editor. ui-workbench hands in `CodeCellEditor`: the code editor of the IDE on a small document of its own,
+with `fragmentSupport` of the language of the file, so the code is coloured and edited like the file but not checked.
+Edit as text in the context menus opens a whole construct in the same pane, which makes everything the text can say
+reachable from the diagram.
 
 ### Bridges run inside the IDE
 

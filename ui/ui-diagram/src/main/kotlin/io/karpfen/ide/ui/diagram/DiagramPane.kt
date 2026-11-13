@@ -69,6 +69,8 @@ import kotlinx.coroutines.withContext
  * While a model runs, [live] holds what the run adds to the diagram: the active states are marked in a statechart,
  * and an object diagram shows the current values of the objects. It is null while nothing runs.
  *
+ * A code cell that the user opens holds [cellEditor], the editor of the host, or a plain text field without one.
+ *
  * The context menu of the diagram changes the model. Every such change is one edit of the text of [session], which
  * the editor can undo like any other. It is only made while the diagram shows the current text.
  */
@@ -80,13 +82,14 @@ public fun DiagramPane(
     modifier: Modifier = Modifier,
     reloadKey: Any? = null,
     live: DiagramLive? = null,
+    cellEditor: DiagramCellEditor? = null,
     onSelect: (TextRange) -> Unit = {},
     onLayoutSaved: () -> Unit = {},
 ) {
     when (kind) {
-        DiagramKind.STATECHART -> NotationPane(DiagramNotation.STATECHART, session, modelFile, modifier, reloadKey, live, onSelect, onLayoutSaved)
-        DiagramKind.TYPES -> NotationPane(DiagramNotation.TYPES, session, modelFile, modifier, reloadKey, live, onSelect, onLayoutSaved)
-        DiagramKind.OBJECTS -> NotationPane(DiagramNotation.OBJECTS, session, modelFile, modifier, reloadKey, live, onSelect, onLayoutSaved)
+        DiagramKind.STATECHART -> NotationPane(DiagramNotation.STATECHART, session, modelFile, modifier, reloadKey, live, cellEditor, onSelect, onLayoutSaved)
+        DiagramKind.TYPES -> NotationPane(DiagramNotation.TYPES, session, modelFile, modifier, reloadKey, live, cellEditor, onSelect, onLayoutSaved)
+        DiagramKind.OBJECTS -> NotationPane(DiagramNotation.OBJECTS, session, modelFile, modifier, reloadKey, live, cellEditor, onSelect, onLayoutSaved)
     }
 }
 
@@ -99,6 +102,7 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
     modifier: Modifier,
     reloadKey: Any?,
     live: DiagramLive?,
+    cellEditor: DiagramCellEditor?,
     onSelect: (TextRange) -> Unit,
     onLayoutSaved: () -> Unit,
 ) {
@@ -132,7 +136,7 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
     val running = remember(notation, state, live) {
         if (live == null || diagram == null) state else state.copy(diagram = notation.live(diagram, live))
     }
-    DiagramView(notation, running, editing, modifier, onSelect, change, live?.active.orEmpty())
+    DiagramView(notation, running, editing, modifier, onSelect, change, live?.active.orEmpty(), cellEditor)
 }
 
 /**
@@ -154,6 +158,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
     onSelect: (TextRange) -> Unit = {},
     onChange: (DiagramChange) -> Boolean = { false },
     active: Set<String> = emptySet(),
+    cellEditor: DiagramCellEditor? = null,
 ) {
     val colors = KarpfenTheme.colors
     val diagram = state.diagram
@@ -168,7 +173,7 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
                 modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(DiagramViewTestTags.EMPTY),
             )
         } else {
-            DiagramCanvas(notation, diagram, editing, faults, state.source?.text, active, onChange, onSelect)
+            DiagramCanvas(notation, diagram, editing, faults, state.source?.text, active, cellEditor, onChange, onSelect)
         }
         val fault = state.problem?.let { "The diagram could not be derived from the text: $it. This is the last diagram that could." } ?: faults.note
         Column(

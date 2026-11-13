@@ -22,8 +22,8 @@ refer to.
   join with two sources, and more are added one at a time. The macros of a state machine are edited as text only.
 - The type of a new object in the object diagram is typed in. The diagram does not know the types of the metamodel,
   so it cannot offer them.
-- An opened code cell is a plain text field without highlighting, completion and checks. It closes without saving
-  when the text changes underneath it.
+- An opened code cell has the code editor with colours, but without completion, hover and checks, because it holds
+  a piece of a file. It closes without saving when the text changes underneath it.
 - Renaming through a diagram stays in the file. A renamed type is not renamed in the models and state machines that
   use it, and a renamed object not in the descriptors that attach a state machine to it.
 - The diagrams show the active states and the current values of a run, but not which transition fired, because the

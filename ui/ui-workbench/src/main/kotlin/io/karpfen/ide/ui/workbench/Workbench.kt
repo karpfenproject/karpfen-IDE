@@ -48,6 +48,7 @@ import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.view.StatusBarActions
 import io.karpfen.ide.ui.workbench.statusbar.view.WorkbenchStatusBar
 import io.karpfen.ide.ui.workbench.tabs.EditorViewMode
+import io.karpfen.ide.ui.workbench.tabs.view.CodeCellEditor
 import io.karpfen.ide.ui.workbench.tabs.view.EditorArea
 import io.karpfen.ide.ui.workbench.tabs.view.LocalWindowDensity
 import io.karpfen.ide.ui.workbench.welcome.view.WelcomeView
@@ -186,6 +187,12 @@ private fun EditorPane(state: WorkbenchState) {
             DiagramLives.of(observed.states, observed.mirror, running.prepared.plan.model.file, file)
         }
     }
+    val services by state.languageServices.collectAsState()
+    val cellEditor = remember(activeEditor, services) {
+        val editor = activeEditor
+        val known = services
+        if (editor == null || known == null) null else CodeCellEditor(editor, known)
+    }
     EditorArea(
         tabs = tabs,
         activePath = active,
@@ -201,6 +208,7 @@ private fun EditorPane(state: WorkbenchState) {
         diskRevision = diskRevision,
         onDiagramSaved = { state.refreshFiles() },
         live = live,
+        cellEditor = cellEditor,
     )
 }
 
