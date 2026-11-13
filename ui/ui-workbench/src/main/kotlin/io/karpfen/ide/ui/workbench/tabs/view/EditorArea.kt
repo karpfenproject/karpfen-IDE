@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.document.ConflictResolution
+import io.karpfen.ide.ui.diagram.DiagramLive
 import io.karpfen.ide.ui.diagram.DiagramPane
 import io.karpfen.ide.ui.editor.popup.EditorPopups
 import io.karpfen.ide.ui.editor.state.CodeEditorState
@@ -73,7 +74,8 @@ import java.nio.file.Path
  * the left of the bar below the editor and report to [onViewMode]. A click on a box of the diagram calls
  * [onSelectInText] with the place of its name in the text. The diagram can be arranged by hand, which is stored in a
  * companion file next to the file. The diagram reads that file again whenever [diskRevision] changes, and
- * [onDiagramSaved] is called after it wrote the file.
+ * [onDiagramSaved] is called after it wrote the file. While a model runs, [live] holds what the run adds to the
+ * diagram of the active file, such as the active states.
  *
  * The editor and its popups are drawn at the density of the window, not at the zoomed density of the workbench around
  * them. The size of the editor's text therefore depends only on its font size. The tab strip, the banner and the zoom
@@ -104,6 +106,7 @@ internal fun EditorArea(
     diskRevision: Long,
     onDiagramSaved: () -> Unit,
     modifier: Modifier = Modifier,
+    live: DiagramLive? = null,
 ) {
     val colors = KarpfenTheme.colors
     val popups = remember { EditorPopups() }
@@ -144,6 +147,7 @@ internal fun EditorArea(
                                 kind = diagramKind,
                                 modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.DIAGRAM),
                                 reloadKey = diskRevision,
+                                live = live,
                                 onSelect = onSelectInText,
                                 onLayoutSaved = onDiagramSaved,
                             )

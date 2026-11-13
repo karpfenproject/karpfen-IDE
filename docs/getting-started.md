@@ -86,6 +86,9 @@ other, and a click on the size sets it back.
 - Every such change is an edit of the text, which Undo in the editor takes back.
 - The text always wins. What the `.vis` file says about something the text no longer has is dropped. Delete the
   `.vis` file to go back to the automatic layout.
+- While a model runs, the statechart of a state machine marks the states the machine is in, and the object diagram
+  of the model shows the current values of the objects. They follow the run that is selected in the Runtime tool
+  window, as long as observation is on.
 - In the Project tool window the `.vis` file shows below its model file, behind an arrow. It opens as greyed-out text
   that you cannot edit.
 

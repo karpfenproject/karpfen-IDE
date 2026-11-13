@@ -42,6 +42,7 @@ import io.karpfen.ide.ui.workbench.outline.view.OutlineView
 import io.karpfen.ide.ui.workbench.output.view.OutputView
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsView
 import io.karpfen.ide.ui.workbench.projecttree.view.ProjectTreeView
+import io.karpfen.ide.ui.workbench.runtime.DiagramLives
 import io.karpfen.ide.ui.workbench.runtime.view.RuntimeToolWindow
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.view.StatusBarActions
@@ -175,6 +176,16 @@ private fun EditorPane(state: WorkbenchState) {
     val workspace by state.workspace.collectAsState()
     val diskRevision = workspace?.scanRevision?.collectAsState()?.value ?: 0L
     val settings by state.settings.collectAsState()
+    val running = state.runtime.collectAsState().value?.selected?.collectAsState()?.value?.takeIf { it.isLive }?.session
+    val observed = running?.model?.collectAsState()?.value
+    val live = remember(observed, active) {
+        val file = active
+        if (running == null || observed == null || file == null) {
+            null
+        } else {
+            DiagramLives.of(observed.states, observed.mirror, running.prepared.plan.model.file, file)
+        }
+    }
     EditorArea(
         tabs = tabs,
         activePath = active,
@@ -189,6 +200,7 @@ private fun EditorPane(state: WorkbenchState) {
         onSelectInText = { range -> active?.let { state.navigateTo(Location(it, range)) } },
         diskRevision = diskRevision,
         onDiagramSaved = { state.refreshFiles() },
+        live = live,
     )
 }
 

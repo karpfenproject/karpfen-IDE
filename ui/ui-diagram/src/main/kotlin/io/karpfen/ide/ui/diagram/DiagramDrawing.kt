@@ -66,6 +66,15 @@ internal fun DrawScope.drawWaypoints(waypoints: List<DiagramPoint>, colors: Karp
     }
 }
 
+/** Marks the [boxes] that are active in a running model: each is filled lightly and gets a strong border. */
+internal fun DrawScope.drawActiveMarks(boxes: List<DiagramBox>, colors: KarpfenColors) {
+    val unit = density
+    boxes.forEach {
+        drawRect(colors.info.copy(alpha = ACTIVE_ALPHA), it.topLeft(unit), it.size(unit))
+        drawRect(colors.info, it.topLeft(unit), it.size(unit), style = Stroke(ACTIVE_BORDER * unit))
+    }
+}
+
 /**
  * Draws the marker of a code cell at the left end of [box]: a small circle with a plus, which says that there is code
  * to open. The [word] of the cell, if it has one, is written behind the marker.
@@ -174,6 +183,12 @@ internal const val ARROW_LENGTH: Float = 9f
 
 /** The width of an arrowhead at its base. */
 internal const val ARROW_WIDTH: Float = 7f
+
+/** How strongly an active box is filled. */
+private const val ACTIVE_ALPHA = 0.14f
+
+/** The width of the border of an active box. */
+private const val ACTIVE_BORDER = 2.5f
 
 /** How far the arms of the plus in the marker of a code cell reach, as a share of the radius of the marker. */
 private const val PLUS_ARM = 0.55f

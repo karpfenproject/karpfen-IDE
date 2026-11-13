@@ -98,6 +98,8 @@ import kotlinx.coroutines.withContext
  * model is an edit of [source], the text the diagram was derived from, and goes to [onChange], which answers whether
  * the text took it.
  *
+ * The boxes with an id in [active] are marked, which shows the states a running state machine is in.
+ *
  * The code cells of the notation are drawn as small markers, a circle with a plus. A click on a marker opens the cell
  * in a pane over the canvas, where its code is edited as text and saved into the model.
  *
@@ -115,6 +117,7 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     editing: DiagramEditing<D, L>,
     faults: DiagramFaults,
     source: String?,
+    active: Set<String>,
     onChange: (DiagramChange) -> Boolean,
     onSelect: (TextRange) -> Unit,
 ) {
@@ -318,6 +321,9 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
         }) {
             faults.attempt("drawing the diagram") {
                 notation.painter.paint(this, shown.diagram, shown.layout, shown.texts, colors, faults)
+            }
+            faults.attempt("marking what is active in the running model") {
+                drawActiveMarks(active.mapNotNull(shown.layout::boxOf), colors)
             }
             faults.attempt("drawing the markers of the code cells") {
                 cells.forEach { cell -> drawCellMarker(cell.box, cell.word.takeIf { it.isNotEmpty() }?.let { shown.texts[TextRole.ROW, it] }, colors) }
