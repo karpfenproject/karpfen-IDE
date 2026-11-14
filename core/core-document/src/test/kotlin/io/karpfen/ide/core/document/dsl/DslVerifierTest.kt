@@ -27,8 +27,8 @@ import kotlin.test.assertTrue
 
 /**
  * The adapter over the project verifier of dsl-tools on real reads: findings across files in the coordinates of the
- * state machine they concern, the attached object handed to the verifier, and nothing for reads that keep no dsl-tools
- * result.
+ * state machine or the metamodel they concern, the attached object handed to the verifier, no unknown names while a
+ * machine is unread, and nothing for reads that keep no dsl-tools result.
  */
 class DslVerifierTest {
 
@@ -90,6 +90,22 @@ class DslVerifierTest {
         assertEquals(machine, byHand, "a read equals another of the same model and diagnostics")
     }
 
+    @Test
+    fun `the findings about a metamodel are in its own text, and none while a machine is unread`() {
+        val behaving = reader.kmeta(TextSnapshot(BEHAVING_METAMODEL, 0))
+        val clean = reader.kstates(TextSnapshot(CLEAN_MACHINE, 0))
+
+        val findings = verifier.verify(VerificationInput(behaving, null, null, listOf(MachineToVerify(clean, "lamp"))))
+        val unknown = findings.metamodel.single()
+        assertEquals(Severity.ERROR to DiagnosticSource.DSL_TOOLS, unknown.severity to unknown.source)
+        assertTrue(BEHAVING_METAMODEL.substring(unknown.range.start, unknown.range.end).contains("glowing"), "${unknown.range}")
+        assertEquals(emptyList(), findings.events)
+
+        val incomplete = verifier.verify(VerificationInput(behaving, null, null, listOf(MachineToVerify(clean, "lamp")), unreadMachines = 1))
+        assertEquals(emptyList(), incomplete.metamodel, "the missing machine may be the one the clause names")
+        assertEquals(listOf(emptyList()), incomplete.stateMachines)
+    }
+
     private companion object {
         /** The code of an attached object of another type than the machine is attached to. */
         const val ATTACHED_OBJECT_TYPE = "project.attached-object-type"
@@ -104,6 +120,13 @@ class DslVerifierTest {
             type "Room" "r" {
                 has("lamp", "Lamp")
                 has("switch", "Switch")
+            }
+        """.trimIndent() + "\n"
+
+        /** A metamodel whose type behaves after a state machine that no file declares. */
+        val BEHAVING_METAMODEL = """
+            type "Lamp" "l" behaves after "glowing" {
+                prop("mode", "string")
             }
         """.trimIndent() + "\n"
 

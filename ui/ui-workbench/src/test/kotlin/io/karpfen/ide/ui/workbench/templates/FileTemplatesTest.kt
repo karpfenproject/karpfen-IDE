@@ -143,6 +143,25 @@ class FileTemplatesTest {
     }
 
     @Test
+    fun `the environment template lists an attachable state machine as a definition without attachedTo`() {
+        val machines = listOf("room.kstates", "glowing.kstates").map { directory.resolve(it) }
+        val context = ModelingContext(directory, null, directory.resolve("spares.kmeta"), null, emptyList(), machines.map { StateMachineBinding(it, null) })
+        val template = TemplateContext(
+            directory, context,
+            objects = listOf(ModelObject("room", "Room")),
+            stateMachineTypes = mapOf(machines[0] to "Room", machines[1] to "Bulb"),
+            definitions = setOf(machines[1]),
+        )
+
+        val descriptor = descriptorOf(templates.content(FileTemplateKind.ENVIRONMENT, "spares", template))
+
+        assertEquals(
+            listOf(EnvironmentDescriptor.StateMachineEntry("room.kstates", "room"), EnvironmentDescriptor.StateMachineEntry("glowing.kstates")),
+            descriptor.stateMachines,
+        )
+    }
+
+    @Test
     fun `the environment template observes every object and the event domains of the state machines`() {
         val descriptor = descriptorOf(
             templates.content(FileTemplateKind.ENVIRONMENT, "lab", TemplateContext(directory, eventDomains = listOf("internal", "public"))),
