@@ -60,6 +60,8 @@ public data class StructureDiagram(
  * @property range the whole declaration in the text.
  * @property nameRange the name inside its quotes.
  * @property rowRanges the statement in the text that each of the [rows] shows, in the same order.
+ * @property behaviour the `behaves after` clause of a type, or null if the type has none. It is shown as the first of
+ *   the [rows], and its range is the first of the [rowRanges].
  */
 public data class StructureNode(
     public val id: String,
@@ -68,7 +70,18 @@ public data class StructureNode(
     public val range: TextRange,
     public val nameRange: TextRange,
     public val rowRanges: List<TextRange>,
+    public val behaviour: TypeBehaviour? = null,
 )
+
+/**
+ * The clause `behaves after "name"` in the header of a type, which gives every object of the type an instance of the
+ * attachable state machine of that name.
+ *
+ * @property machine the name of the state machine.
+ * @property range the whole clause, from `behaves` to the closing quote.
+ * @property machineRange the name inside its quotes.
+ */
+public data class TypeBehaviour(public val machine: String, public val range: TextRange, public val machineRange: TextRange)
 
 /** The two kinds of link between boxes. */
 public enum class LinkKind {

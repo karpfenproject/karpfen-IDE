@@ -138,7 +138,7 @@ class ElkStatechartLayouterTest {
 
     @Test
     fun `a diagram without states has an empty layout`() {
-        assertEquals(StatechartLayout.EMPTY, StatechartLayouter().layout(StatechartDiagram(null, emptyList(), emptyList(), TextRange(0, 0)), TextMeasurer.estimating()))
+        assertEquals(StatechartLayout.EMPTY, StatechartLayouter().layout(StatechartDiagram(null, emptyList(), emptyList(), emptyList(), TextRange(0, 0)), TextMeasurer.estimating()))
     }
 
     @Test

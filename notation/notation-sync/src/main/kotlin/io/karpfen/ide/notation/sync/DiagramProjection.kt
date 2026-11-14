@@ -39,7 +39,7 @@ public fun interface DiagramProjection<out D : Any> {
         public val STATECHART: DiagramProjection<StatechartDiagram> = DiagramProjection(StatechartProjection::of)
 
         /** The class diagram of a `.kmeta` file. */
-        public val TYPES: DiagramProjection<StructureDiagram> = DiagramProjection { _, outline -> MetamodelProjection.of(outline) }
+        public val TYPES: DiagramProjection<StructureDiagram> = DiagramProjection { text, outline -> MetamodelProjection.of(outline, text) }
 
         /** The object diagram of a `.kmodel` file. */
         public val OBJECTS: DiagramProjection<StructureDiagram> = DiagramProjection { _, outline -> ModelProjection.of(outline) }

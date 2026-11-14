@@ -53,6 +53,21 @@ class StructureProjectionTest {
     }
 
     @Test
+    fun `a type that behaves after a state machine shows the clause as its first row`() {
+        val text = "type \"Bulb\" \"Glows, it behaves after \" behaves after \"glowing\" {\n    prop(\"lit\", \"boolean\")\n}\n" +
+            "type \"Lamp\" \"behaves after \" {\n}\n"
+        val bulb = LampStructure.typesOf(text).node("Bulb")!!
+
+        assertEquals(listOf("behaves after glowing", "lit: boolean"), bulb.rows)
+        val behaviour = bulb.behaviour!!
+        assertEquals("glowing", behaviour.machine)
+        assertEquals("behaves after \"glowing\"", text.substring(behaviour.range.start, behaviour.range.end))
+        assertEquals("glowing", text.substring(behaviour.machineRange.start, behaviour.machineRange.end))
+        assertEquals(behaviour.range, bulb.rowRanges.first())
+        assertEquals(null, LampStructure.typesOf(text).node("Lamp")?.behaviour, "the words in a description are no clause")
+    }
+
+    @Test
     fun `the name range of a type is its name in the text`() {
         val name = LampStructure.METAMODEL.indexOf("Lamp")
         assertEquals(TextRange(name, name + "Lamp".length), types.node("Lamp")?.nameRange)
