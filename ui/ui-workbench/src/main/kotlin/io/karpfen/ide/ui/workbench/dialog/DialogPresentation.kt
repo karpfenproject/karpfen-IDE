@@ -31,7 +31,7 @@ internal sealed interface DialogChoice {
     /** Answers with the selected entry of the list. */
     data object SubmitSelection : DialogChoice
 
-    /** Answers how to run: with the ticked boxes of the list and whether the box of the option below it is ticked. */
+    /** Answers how to run: with the ticked boxes of the list and whether the boxes of the options below it are ticked. */
     data object SubmitRun : DialogChoice
 }
 
@@ -43,7 +43,8 @@ internal data class DialogButton(val label: String, val choice: DialogChoice, va
  * [title], a [message] and [buttons]. The buttons offer exactly the answers the request accepts. An optional text field
  * starts with the text [input]. An optional list shows [choices] and starts with the entry at [preselected] selected.
  * An optional list of boxes shows [ticks] and starts with the boxes of [preticked] ticked. An optional single box below
- * it shows the label [option] and starts ticked if [optionTicked] is true. An optional list of [findings] shows one row
+ * it shows the label [option] and starts ticked if [optionTicked] is true. An optional second box below that one shows
+ * the label [secondOption] and starts ticked if [secondOptionTicked] is true. An optional list of [findings] shows one row
  * of text per finding, which scrolls and cannot be clicked. [dismiss] is the answer given when the user dismisses the
  * dialog with Escape.
  */
@@ -59,11 +60,14 @@ internal data class DialogPresentation(
     val preticked: Set<Int> = emptySet(),
     val option: String? = null,
     val optionTicked: Boolean = false,
+    val secondOption: String? = null,
+    val secondOptionTicked: Boolean = false,
     val findings: List<FindingRow>? = null,
 ) {
     /**
      * The response of [choice] while [text] is entered, the list entry at [selected] is selected, the boxes of
-     * [ticked] are ticked and the box of the option is [optioned]. Returns null if the choice is not possible right
+     * [ticked] are ticked, the box of the option is [optioned] and the box of the second option is [secondOptioned].
+     * Returns null if the choice is not possible right
      * now, which is the case for a text answer while the text is blank.
      */
     fun responseFor(
@@ -72,11 +76,12 @@ internal data class DialogPresentation(
         selected: Int = preselected,
         ticked: Set<Int> = preticked,
         optioned: Boolean = optionTicked,
+        secondOptioned: Boolean = secondOptionTicked,
     ): DialogResponse? = when (choice) {
         is DialogChoice.Answer -> choice.response
         DialogChoice.SubmitText -> text.trim().takeIf { it.isNotEmpty() }?.let(DialogResponse::Text)
         DialogChoice.SubmitSelection -> DialogResponse.Chosen(selected)
-        DialogChoice.SubmitRun -> DialogResponse.RunWith(ticked, optioned)
+        DialogChoice.SubmitRun -> DialogResponse.RunWith(ticked, optioned, secondOption != null && secondOptioned)
     }
 
     companion object {
@@ -138,6 +143,8 @@ internal data class DialogPresentation(
                 preticked = request.preselected,
                 option = CAPTURE_RUN,
                 optionTicked = request.capture,
+                secondOption = request.trueParallel?.let { TRUE_PARALLEL_RUN },
+                secondOptionTicked = request.trueParallel == true,
             )
             is DialogRequest.ValidationReport -> DialogPresentation(
                 title = request.title,
@@ -186,6 +193,9 @@ internal data class DialogPresentation(
 
         /** The label of the box that captures a run to a file. */
         const val CAPTURE_RUN = "Capture run to file"
+
+        /** The label of the box that steps the parallel branches of a run on threads of their own. */
+        const val TRUE_PARALLEL_RUN = "Run parallel branches on threads of their own (TrueParallel)"
 
         /** What the run dialog asks of a workspace with bridge files. */
         private const val TICK_BRIDGES = "Tick the bridges to start with this run."

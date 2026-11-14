@@ -39,18 +39,27 @@ import kotlin.time.Duration.Companion.seconds
  *   project has breakpoints switched on, so the session offers a debugger. False leaves `Breakpoint` off whatever the
  *   plan lists. The engine then reads the breakpoints of the state machines and never halts at them, and the session
  *   has no debugger. The other runtime features of the plan are switched on either way.
+ * @property trueParallel true to switch on the runtime feature `TrueParallel` as well, after the features of the
+ *   plan, so the engine steps the branches of a split state machine on threads of their own. A runtime that does not
+ *   know the feature refuses it, and the deployment fails. False leaves the feature off, and the branches step one
+ *   after the other.
  */
 public data class DeployOptions(
     public val start: Boolean = true,
     public val observe: Boolean = true,
     public val debugger: Boolean = true,
+    public val trueParallel: Boolean = false,
 ) {
     /**
-     * [plan] as a deployment with these options carries it out. It is [plan] itself with [debugger] on, and [plan]
-     * without the runtime feature `Breakpoint` with [debugger] off. Launching a session and building the deploy steps
-     * both go through this function, so the steps and the session's debugger always agree.
+     * [plan] as a deployment with these options carries it out. It is [plan] without the runtime feature `Breakpoint`
+     * when [debugger] is off, and with the runtime feature `TrueParallel` added at the end when [trueParallel] is on.
+     * Launching a session and building the deploy steps both go through this function, so the steps and the session
+     * always agree.
      */
-    public fun applyTo(plan: DeploymentPlan): DeploymentPlan = if (debugger) plan else plan.withoutFeature(FeatureName.BREAKPOINT)
+    public fun applyTo(plan: DeploymentPlan): DeploymentPlan {
+        val debugged = if (debugger) plan else plan.withoutFeature(FeatureName.BREAKPOINT)
+        return if (trueParallel) debugged.withFeature(FeatureName.TRUE_PARALLEL) else debugged
+    }
 }
 
 /**

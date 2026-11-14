@@ -46,6 +46,8 @@ import io.karpfen.ide.runtime.session.problem.SourceLocation
  *   text.
  * - An activation refused because a machine is attached to a key that the model lacks points at the descriptor.
  * - A failure while checking the runtime means the runtime is unreachable or incompatible.
+ * - A feature the runtime refuses to switch on because it does not know it means the runtime is older than the IDE.
+ *   The problem names the feature.
  * - Every other failure has no location and is described by the failure itself, see [unlocated].
  *
  * @param plan the plan deployed, whose descriptor locates a refused activation.
@@ -83,6 +85,14 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
                     SourceLocation(plan.descriptor, null, null),
                     failure,
                 )
+            kind == DeployStepKind.SWITCH_FEATURES_ON && failure is RuntimeFailure.Rejected &&
+                failure.kind == RejectionKind.UNKNOWN_FEATURE -> single(
+                DeployProblemCodes.RUNTIME_INCOMPATIBLE,
+                "The runtime at ${endpoint.httpBase} does not know the feature ${failure.captured[FEATURE_PLACEHOLDER]}, " +
+                    "so it is older than the IDE. Use a runtime that knows it, or run without it.",
+                null,
+                failure,
+            )
             else -> StepOutcome.Failed(unlocated(failure), failure)
         }
 
@@ -160,4 +170,9 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
     /** An ERROR with [code], [message] and [location]. */
     private fun problem(code: String, message: String, location: SourceLocation?): DeployProblem =
         DeployProblem(Severity.ERROR, code, message, location)
+
+    private companion object {
+        /** The placeholder of the runtime's text for an unknown feature that holds the feature's name. */
+        const val FEATURE_PLACEHOLDER = "feature"
+    }
 }

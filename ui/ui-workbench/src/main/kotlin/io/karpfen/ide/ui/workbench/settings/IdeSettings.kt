@@ -44,6 +44,9 @@ import kotlinx.serialization.Serializable
  *   run dialog has them ticked. Part of the project.
  * @property captureRuns whether the last run was started with its capture to a file switched on. The run dialog has
  *   its capture box ticked if so. Part of the project.
+ * @property trueParallelRuns whether the last run was started with the parallel branches of its state machines on
+ *   threads of their own. The run dialog has its box for that ticked if so, when it offers the box. Part of the
+ *   project.
  * @property languageFeatures the optional language features of KStates that are switched on for the project. All are
  *   off by default. Part of the project.
  * @property otherProjectLines the lines of the project file that this version does not understand. They are kept so
@@ -60,6 +63,7 @@ public data class IdeSettings(
     public val activeFile: String? = null,
     public val activeBridges: List<String> = emptyList(),
     public val captureRuns: Boolean = false,
+    public val trueParallelRuns: Boolean = false,
     public val languageFeatures: Set<KstatesFeature> = emptySet(),
     public val otherProjectLines: List<String> = emptyList(),
 ) {

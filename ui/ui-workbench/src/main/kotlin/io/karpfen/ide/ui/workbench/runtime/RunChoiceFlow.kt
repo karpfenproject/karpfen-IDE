@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.ui.workbench.runtime
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.ui.workbench.bridges.BridgeLoader
@@ -23,7 +24,10 @@ import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 /**
  * Asks how to run a descriptor of [workspace] and remembers the answer in the project. The run dialog lists the bridge
  * files of the workspace with the bridges of the last run ticked, and the box that captures the run to a file, ticked
- * if the last run was captured. The choice is written to the settings only if it differs from what they hold.
+ * if the last run was captured. While the project has the language feature for splits and joins switched on, the
+ * dialog also offers the box that steps parallel branches on threads of their own, ticked if the last run did. Without
+ * that language feature the box is not offered, the run keeps its branches on one thread, and the remembered choice
+ * stays as it is. The choice is written to the settings only if it differs from what they hold.
  *
  * Use the class from the UI thread only.
  *
@@ -42,11 +46,14 @@ internal class RunChoiceFlow(
         val stored = settings.settings.value
         val last = stored.activeBridges.toSet()
         val ticked = files.filter { BridgeLoader.nameOf(root, it) in last }.toSet()
-        val choice = support.configureRun(root, files, ticked, stored.captureRuns) ?: return null
+        val offered = KstatesFeature.PARALLEL in stored.languageFeatures
+        val choice = support.configureRun(root, files, ticked, stored.captureRuns, stored.trueParallelRuns.takeIf { offered })
+            ?: return null
         val names = choice.bridges.map { BridgeLoader.nameOf(root, it) }
         val current = settings.settings.value
-        if (names != current.activeBridges || choice.capture != current.captureRuns) {
-            settings.update { it.copy(activeBridges = names, captureRuns = choice.capture) }
+        val trueParallel = if (offered) choice.trueParallel else current.trueParallelRuns
+        if (names != current.activeBridges || choice.capture != current.captureRuns || trueParallel != current.trueParallelRuns) {
+            settings.update { it.copy(activeBridges = names, captureRuns = choice.capture, trueParallelRuns = trueParallel) }
         }
         return choice
     }

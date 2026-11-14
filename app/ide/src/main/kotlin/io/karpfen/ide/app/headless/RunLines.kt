@@ -29,10 +29,14 @@ import java.nio.file.Path
  */
 internal object RunLines {
 
-    /** The line that opens a run of [descriptor] with [bridges], both named relative to [root], captured if [capture]. */
-    fun start(root: Path, descriptor: Path, bridges: List<Path>, capture: Boolean): String {
+    /**
+     * The line that opens a run of [descriptor] with [bridges], both named relative to [root], captured if [capture]
+     * and with parallel branches on threads of their own if [trueParallel].
+     */
+    fun start(root: Path, descriptor: Path, bridges: List<Path>, capture: Boolean, trueParallel: Boolean = false): String {
         val with = if (bridges.isEmpty()) "" else " with " + bridges.joinToString(", ") { nameOf(root, it) }
-        return "Running ${nameOf(root, descriptor)}$with" + if (capture) ", captured to a file" else ""
+        return "Running ${nameOf(root, descriptor)}$with" + (if (capture) ", captured to a file" else "") +
+            if (trueParallel) ", parallel branches on threads of their own" else ""
     }
 
     /** The phase of the run [entry], such as `Run lamp: waiting for the runtime`. */

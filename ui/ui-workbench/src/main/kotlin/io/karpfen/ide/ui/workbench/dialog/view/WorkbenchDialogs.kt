@@ -99,6 +99,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
     var selected by remember(request) { mutableStateOf(presentation.preselected) }
     var ticked by remember(request) { mutableStateOf(presentation.preticked) }
     var optioned by remember(request) { mutableStateOf(presentation.optionTicked) }
+    var secondOptioned by remember(request) { mutableStateOf(presentation.secondOptionTicked) }
     val stops = remember(request) { List(presentation.buttons.size + 1) { FocusRequester() } }
     val order = DialogFocusOrder.of(presentation, text.text)
     fun Modifier.focusStop(stop: Int): Modifier = focusRequester(stops[stop]).focusProperties {
@@ -106,7 +107,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
         previous = stops[order.previous(stop)]
     }
     fun press(button: DialogButton) {
-        presentation.responseFor(button.choice, text.text, selected, ticked, optioned)?.let(onRespond)
+        presentation.responseFor(button.choice, text.text, selected, ticked, optioned, secondOptioned)?.let(onRespond)
     }
     val choices = presentation.choices
     val colors = KarpfenTheme.colors
@@ -177,6 +178,9 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
                 Spacer(Modifier.height(8.dp))
                 TickRow(label, optioned, WorkbenchDialogTestTags.OPTION) { optioned = !optioned }
             }
+            presentation.secondOption?.let { label ->
+                TickRow(label, secondOptioned, WorkbenchDialogTestTags.SECOND_OPTION) { secondOptioned = !secondOptioned }
+            }
             presentation.findings?.takeIf { it.isNotEmpty() }?.let { findings ->
                 Spacer(Modifier.height(8.dp))
                 FindingRows(findings)
@@ -193,7 +197,7 @@ internal fun WorkbenchDialogs(request: DialogRequest<*>?, onRespond: (DialogResp
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                 presentation.buttons.forEachIndexed { index, button ->
-                    val enabled = presentation.responseFor(button.choice, text.text, selected, ticked, optioned) != null
+                    val enabled = presentation.responseFor(button.choice, text.text, selected, ticked, optioned, secondOptioned) != null
                     val tagged = Modifier.testTag(WorkbenchDialogTestTags.button(button.label)).focusStop(index + 1)
                     if (button.isDefault) {
                         Button(onClick = { press(button) }, enabled = enabled, modifier = tagged) { Text(button.label) }

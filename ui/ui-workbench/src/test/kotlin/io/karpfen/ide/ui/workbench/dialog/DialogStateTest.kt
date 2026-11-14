@@ -164,6 +164,30 @@ class DialogStateTest {
     }
 
     @Test
+    fun `the run dialog offers the box for true parallel branches only when asked to, and accepts it ticked only then`() {
+        val root = path.parent
+        val offered = DialogRequest.ConfigureRun(root, emptyList(), trueParallel = true)
+        val plain = DialogRequest.ConfigureRun(root, emptyList())
+
+        assertTrue(offered.accepts(DialogResponse.RunWith(emptySet(), capture = false, trueParallel = true)))
+        assertTrue(offered.accepts(DialogResponse.RunWith(emptySet(), capture = false, trueParallel = false)))
+        assertTrue(plain.accepts(DialogResponse.RunWith(emptySet(), capture = false)))
+        assertFalse(plain.accepts(DialogResponse.RunWith(emptySet(), capture = false, trueParallel = true)), "the box is not offered")
+
+        val shown = DialogPresentation.of(offered)
+        assertEquals("Run parallel branches on threads of their own (TrueParallel)", shown.secondOption)
+        assertTrue(shown.secondOptionTicked)
+        assertEquals(DialogResponse.RunWith(emptySet(), capture = false, trueParallel = true), shown.responseFor(DialogChoice.SubmitRun, ""))
+        assertEquals(
+            DialogResponse.RunWith(emptySet(), capture = false, trueParallel = false),
+            shown.responseFor(DialogChoice.SubmitRun, "", secondOptioned = false),
+        )
+        val hidden = DialogPresentation.of(plain)
+        assertNull(hidden.secondOption)
+        assertEquals(DialogResponse.RunWith(emptySet(), capture = false), hidden.responseFor(DialogChoice.SubmitRun, "", secondOptioned = true))
+    }
+
+    @Test
     fun `the validation report sums up the findings, lists one row each and only closes`() {
         val root = path.parent
         val findings = listOf(

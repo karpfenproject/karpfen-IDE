@@ -151,6 +151,35 @@ class HeadlessRunTest {
     }
 
     @Test
+    fun `true parallel branches need splits and joins switched on for the project`() = runTest(timeout = TIMEOUT) {
+        lamp()
+        withRig { rig ->
+            assertUsageError(
+                rig,
+                HeadlessCommand.Run(root, trueParallel = true),
+                "--true-parallel needs splits and joins switched on for the project (feature.parallel = on in .karpfenproject)",
+            )
+        }
+    }
+
+    @Test
+    fun `a run with true parallel branches deploys with TrueParallel and says so in its first line`() = runTest(timeout = TIMEOUT) {
+        lamp(setOf(KstatesFeature.PARALLEL))
+        withRig { rig ->
+            val stop = HeadlessStop()
+            val status = rig.run(HeadlessCommand.Run(root, trueParallel = true), stop)
+            rig.settle()
+
+            assertEquals(true, rig.sessions.options.single().trueParallel)
+            assertEquals("Running lamp.kenv.json, parallel branches on threads of their own", rig.output.first())
+
+            stop.request()
+            rig.settle()
+            assertEquals(HeadlessExitCodes.OK, status.await())
+        }
+    }
+
+    @Test
     fun `a chosen descriptor of several runs`() = runTest(timeout = TIMEOUT) {
         lamp()
         SynthesizedModels.copyTo(root.resolve("second"), SynthesizedModel.LAMP)

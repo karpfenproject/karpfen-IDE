@@ -113,6 +113,7 @@ class WorkbenchDialogsUiTest {
             KarpfenTheme(darkTheme = false) { WorkbenchDialogs(DialogRequest.ConfigureRun(root, emptyList())) { answers.add(it) } }
         }
         onNodeWithTag(WorkbenchDialogTestTags.tick(0)).assertDoesNotExist()
+        onNodeWithTag(WorkbenchDialogTestTags.SECOND_OPTION).assertDoesNotExist()
         onNodeWithTag(WorkbenchDialogTestTags.OPTION).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.OPTION).performClick()
@@ -121,6 +122,28 @@ class WorkbenchDialogsUiTest {
             listOf<DialogResponse>(DialogResponse.RunWith(emptySet(), capture = true), DialogResponse.RunWith(emptySet(), capture = false)),
             answers.toList(),
             "the first click after the dialog opened must tick the box",
+        )
+    }
+
+    @Test
+    fun `the run dialog that offers true parallel branches has a second box below the capture box`() = runComposeUiTest {
+        val answers = mutableListOf<DialogResponse>()
+        val root = Path.of("/ws").toAbsolutePath()
+        setContent {
+            KarpfenTheme(darkTheme = false) {
+                WorkbenchDialogs(DialogRequest.ConfigureRun(root, emptyList(), trueParallel = true)) { answers.add(it) }
+            }
+        }
+        onNodeWithText("Run parallel branches on threads of their own (TrueParallel)").assertIsDisplayed()
+        onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.SECOND_OPTION).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
+        assertEquals(
+            listOf<DialogResponse>(
+                DialogResponse.RunWith(emptySet(), capture = false, trueParallel = true),
+                DialogResponse.RunWith(emptySet(), capture = false, trueParallel = false),
+            ),
+            answers.toList(),
         )
     }
 

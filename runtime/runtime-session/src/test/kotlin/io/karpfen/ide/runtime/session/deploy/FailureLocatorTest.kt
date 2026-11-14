@@ -205,6 +205,21 @@ class FailureLocatorTest {
     }
 
     @Test
+    fun `a feature the runtime does not know means an older runtime, and the problem names the feature`() {
+        val failure = Failures.rejected(RuntimeRoute.ACTIVATE_FEATURE, RuntimeText.UNKNOWN_FEATURE, mapOf("feature" to "TrueParallel"), 400)
+
+        val problem = problemOf(DeployStepKind.SWITCH_FEATURES_ON, null, failure)
+
+        assertEquals(DeployProblemCodes.RUNTIME_INCOMPATIBLE, problem.code)
+        assertEquals(
+            "The runtime at http://127.0.0.1:8080 does not know the feature TrueParallel, so it is older than the IDE. " +
+                "Use a runtime that knows it, or run without it.",
+            problem.message,
+        )
+        assertNull(problem.location)
+    }
+
+    @Test
     fun `other failures have no location and are described by the failure`() {
         val cases = listOf(
             Triple(DeployStepKind.SET_TICK_DELAY, Failures.noAnswer(RuntimeRoute.SET_TICK_DELAY), DeployProblemCodes.RUNTIME_NO_ANSWER),

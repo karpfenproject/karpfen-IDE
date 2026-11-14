@@ -49,9 +49,11 @@ internal interface RunSupport {
     /**
      * Asks the user how to run: which of the [bridges] of the workspace at [root] to start with the run, and whether to
      * capture the run to a file. The dialog opens with the boxes of [preselected] ticked and the capture box ticked if
-     * [capture] is true. Returns the choice, or null if the user cancelled.
+     * [capture] is true. With [trueParallel] not null the dialog also asks whether the parallel branches of the state
+     * machines step on threads of their own, with that box ticked if [trueParallel] is true; with null it does not
+     * ask, and the choice leaves them on one thread. Returns the choice, or null if the user cancelled.
      */
-    suspend fun configureRun(root: Path, bridges: List<Path>, preselected: Set<Path>, capture: Boolean): RunChoice?
+    suspend fun configureRun(root: Path, bridges: List<Path>, preselected: Set<Path>, capture: Boolean, trueParallel: Boolean?): RunChoice?
 
     /** Shows an error dialog with [title] and [message] and returns once it is acknowledged. */
     suspend fun showError(title: String, message: String)

@@ -86,6 +86,20 @@ public class DeploymentPlan private constructor(
             )
         }
 
+    /**
+     * This plan with the runtime feature [feature]: the same plan with [feature] added at the end of [features], or
+     * this plan itself if it lists [feature] already. Everything else stays as it is.
+     */
+    public fun withFeature(feature: FeatureName): DeploymentPlan =
+        if (feature in features) {
+            this
+        } else {
+            DeploymentPlan(
+                name, descriptor, generation, uploads, attachments, configuration, domains, features + feature, modelObjectIds,
+                locations, findings,
+            )
+        }
+
     override fun toString(): String =
         "DeploymentPlan(name=$name, generation=$generation, uploads=${uploads.map { it.fileName }}, " +
             "attachments=${attachments.map { it.attachedTo }}, configuration=$configuration, domains=$domains, features=$features)"

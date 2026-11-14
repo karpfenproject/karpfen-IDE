@@ -263,7 +263,7 @@ class RuntimeSessionFailureTest {
                     RuntimeRoute.ACTIVATE_FEATURE,
                     FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.UNKNOWN_FEATURE, mapOf("feature" to "History")),
                 )
-                Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
+                Failure(DeployProblemCodes.RUNTIME_INCOMPATIBLE, configured)
             }
             DeployStepKind.ACTIVATE -> {
                 fake.respond(

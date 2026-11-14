@@ -107,6 +107,21 @@ class ProjectSettingsFileTest {
     }
 
     @Test
+    fun `true parallel branches are one line after the capture while on, no line while off, and other values count as off`() {
+        val parallel = settings.copy(capture = true, trueParallel = true)
+
+        val text = ProjectSettingsFile.format(parallel)
+
+        assertEquals("trueParallel = on", text.lines().dropWhile { !it.startsWith("capture") }.drop(1).first())
+        assertEquals(parallel, ProjectSettingsFile.parse(text))
+        assertEquals(false, ProjectSettings().trueParallel, "runs do not step parallel branches on threads by default")
+        assertEquals(emptyList(), ProjectSettingsFile.format(settings).lines().filter { it.startsWith("trueParallel") })
+        assertEquals(true, ProjectSettingsFile.parse("trueParallel = ON\n").trueParallel)
+        assertEquals(false, ProjectSettingsFile.parse("trueParallel = yes\n").trueParallel)
+        assertEquals(emptyList(), ProjectSettingsFile.parse("trueParallel = yes\n").otherLines, "the line is known, so it is not kept")
+    }
+
+    @Test
     fun `an empty file and a file of comments hold the defaults`() {
         assertEquals(ProjectSettings(), ProjectSettingsFile.parse(""))
         assertEquals(ProjectSettings(), ProjectSettingsFile.parse("# nothing here\n\n   # nor here\n"))

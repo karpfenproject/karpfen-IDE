@@ -197,6 +197,24 @@ class DeployPipelineTest {
     }
 
     @Test
+    fun `true parallel switches TrueParallel on after the features of the plan, also when the plan has none`() = runTest {
+        val withFeatures = DeployRig(this)
+        withFeatures.deploy(LampPlans.plan(), DeployOptions(trueParallel = true)).deployed()
+        val withoutFeatures = DeployRig(this)
+        withoutFeatures.deploy(LampPlans.plan(features = emptyList()), DeployOptions(trueParallel = true)).deployed()
+
+        assertEquals(
+            listOf("activateFeature(History)", "activateFeature(TickLimit)", "activateFeature(TrueParallel)"),
+            withFeatures.script.callsOf("activateFeature"),
+        )
+        assertEquals(
+            "Switching on History, TickLimit, TrueParallel",
+            withFeatures.listener.last.steps.single { it.kind == DeployStepKind.SWITCH_FEATURES_ON }.title,
+        )
+        assertEquals(listOf("activateFeature(TrueParallel)"), withoutFeatures.script.callsOf("activateFeature"))
+    }
+
+    @Test
     fun `with observation off the model is read back once instead of switching observation on`() = runTest {
         val rig = DeployRig(this)
 

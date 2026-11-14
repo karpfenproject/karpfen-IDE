@@ -34,8 +34,8 @@ import java.nio.file.Path
  *
  * It opens the folder as the window does, with the settings the project file gives the run. It takes the descriptor
  * and the bridge files from the command line as [RunSelection] describes, and a wrong one is a usage error. Then it
- * starts the run through `RuntimeState.run` with a [RunChoice] of those bridges, the capture of the command line and
- * no debugger, so the run never halts at a breakpoint. The run saves nothing, because no file is open, and validates
+ * starts the run through `RuntimeState.run` with a [RunChoice] of those bridges, the capture and the true parallel
+ * branches of the command line, and no debugger, so the run never halts at a breakpoint. The run saves nothing, because no file is open, and validates
  * the whole project first. A project with errors does not run: the report is written as `validate` writes it, and the
  * status is [HeadlessExitCodes.ERRORS_FOUND]. A project with warnings and no errors runs: its report is written as
  * `validate` writes it, followed by [RunLines.GOES_ON_DESPITE_WARNINGS], and then the run goes on.
@@ -71,7 +71,12 @@ internal class HeadlessRun(
     suspend fun run(scope: CoroutineScope, command: HeadlessCommand.Run): Int {
         val project = HeadlessProject.open(scope, command.folder, console, prepare) ?: return HeadlessExitCodes.FAILURE
         project.use {
-            val selection = RunSelection.of(command, project.workspace.root, project.workspace.files.value)
+            val selection = RunSelection.of(
+                command,
+                project.workspace.root,
+                project.workspace.files.value,
+                project.state.settings.value.languageFeatures,
+            )
             if (selection is RunSelection.Wrong) {
                 console.message(selection.message)
                 console.error(HeadlessUsage.TEXT)
@@ -96,12 +101,12 @@ internal class HeadlessRun(
         command: HeadlessCommand.Run,
     ): Int {
         val root = project.workspace.root
-        console.line(RunLines.start(root, chosen.descriptor, chosen.bridges, command.capture))
+        console.line(RunLines.start(root, chosen.descriptor, chosen.bridges, command.capture, command.trueParallel))
         val reporting = RunReporter(console, root).follow(scope, runtime)
         val logging = RuntimeLogFollower(console, command.verbose).follow(scope, runtime.logs)
         val warnings = project.state.validation.observeRunChecks(::writeWarnings)
         try {
-            val started = runtime.run(chosen.descriptor, RunChoice(chosen.bridges, command.capture, debugger = false))
+            val started = runtime.run(chosen.descriptor, RunChoice(chosen.bridges, command.capture, debugger = false, trueParallel = command.trueParallel))
             val ended = scope.async { endOf(runtime, started, project) }
             val end = select {
                 stop.requested.onAwait { RunEnd.STOPPED }

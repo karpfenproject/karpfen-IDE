@@ -15,8 +15,10 @@
  */
 package io.karpfen.ide.app.headless
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.workspace.files.FileKind
 import io.karpfen.ide.core.workspace.files.WorkspaceTree
+import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import java.nio.file.Path
 
 /** What a headless run deploys and starts, or why the command line does not name it. */
@@ -41,9 +43,15 @@ internal sealed interface RunSelection {
          * Without the option it is the only descriptor of the project. A project with none, or with several, is a
          * usage error, and the message lists them. Each `--bridge` must name a bridge file of the project, and the
          * message of a wrong one lists the bridge files there are. The lists follow the order of the project tree,
-         * which puts folders before files.
+         * which puts folders before files. `--true-parallel` needs the language feature for splits and joins switched
+         * on among [languageFeatures], the features of the project; without it the option is a usage error.
          */
-        fun of(command: HeadlessCommand.Run, root: Path, tree: WorkspaceTree): RunSelection {
+        fun of(
+            command: HeadlessCommand.Run,
+            root: Path,
+            tree: WorkspaceTree,
+            languageFeatures: Set<KstatesFeature> = emptySet(),
+        ): RunSelection {
             val descriptors = tree.files(FileKind.ENV_DESCRIPTOR).map { it.path }
             val descriptor = when {
                 command.descriptor != null -> command.descriptor.takeIf { it in descriptors }
@@ -55,6 +63,12 @@ internal sealed interface RunSelection {
             val bridgeFiles = tree.files(FileKind.BRIDGE).map { it.path }
             command.bridges.firstOrNull { it !in bridgeFiles }?.let { wrong ->
                 return Wrong("${RunLines.nameOf(root, wrong)} is no bridge file of the project; ${listed(root, bridgeFiles, BRIDGES)}")
+            }
+            if (command.trueParallel && KstatesFeature.PARALLEL !in languageFeatures) {
+                return Wrong(
+                    "--true-parallel needs splits and joins switched on for the project " +
+                        "(feature.${KstatesFeature.PARALLEL.id} = on in ${ProjectSettings.FILE_NAME})",
+                )
             }
             return Chosen(descriptor, command.bridges)
         }

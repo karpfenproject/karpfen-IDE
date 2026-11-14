@@ -32,6 +32,9 @@ public object WorkbenchDialogTestTags {
     /** The single box below the list of boxes, as shown when the user chooses whether to capture a run to a file. */
     public const val OPTION: String = "Workbench.dialog.option"
 
+    /** The box below [OPTION], as shown when the user chooses whether parallel branches step on threads of their own. */
+    public const val SECOND_OPTION: String = "Workbench.dialog.secondOption"
+
     /** The list of findings, as shown by the report of a validation. */
     public const val FINDINGS: String = "Workbench.dialog.findings"
 

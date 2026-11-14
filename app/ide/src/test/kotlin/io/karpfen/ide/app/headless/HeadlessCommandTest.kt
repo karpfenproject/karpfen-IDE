@@ -61,6 +61,7 @@ class HeadlessCommandTest {
             parse("validate", "project", "--format", "json", "--format", "text"),
         )
         assertEquals(HeadlessCommand.Invalid("run takes no option '--format'"), parse("run", "project", "--format", "json"))
+        assertEquals(HeadlessCommand.Invalid("validate takes no option '--true-parallel'"), parse("validate", "project", "--true-parallel"))
     }
 
     @Test
@@ -72,7 +73,7 @@ class HeadlessCommandTest {
     fun `run reads every option before and after the folder, with values as the next argument or after an equals sign`() {
         val command = parse(
             "run", "--capture", "project", "--descriptor", "lamp/lamp.kenv.json",
-            "--bridge=http.kbridge.json", "--bridge", "lab/ros.kbridge.json", "--verbose",
+            "--bridge=http.kbridge.json", "--bridge", "lab/ros.kbridge.json", "--verbose", "--true-parallel",
         )
 
         assertEquals(
@@ -82,6 +83,7 @@ class HeadlessCommandTest {
                 bridges = listOf(project.resolve("http.kbridge.json"), project.resolve("lab/ros.kbridge.json")),
                 capture = true,
                 verbose = true,
+                trueParallel = true,
             ),
             command,
         )

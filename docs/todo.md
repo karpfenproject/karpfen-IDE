@@ -67,6 +67,8 @@ refer to.
 - Stopping a run without a window that was started through Gradle makes the Gradle task fail, because the process
   ends with the status of its signal.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
+- A run with TrueParallel has been tested with fakes and by the runtime's own tests only, not in the window against
+  the real runtime.
 
 ### Bridges
 
@@ -127,6 +129,12 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
   state, so its `DO` block does not run any more.
 - A breakpoint override names a transition by the text form the engine prints for it, which two transitions can
   share.
+- With TrueParallel, the calls of concurrent branches into Python each get a Python process of their own. The tests
+  of that path are tagged `python` and have not been run. Calls into one shared Python process would be wrong.
+- With TrueParallel, stopping an environment while one branch halts at a breakpoint and another waits to halt takes
+  about five seconds, because the waiting branch only ends when the engine thread is interrupted.
+- With TrueParallel, the actions of one branch are atomic one by one, but a branch that reads a value and writes it
+  back later can lose the write of another branch in between. The model offers no transaction over several actions.
 - The features use `kapt` to register themselves, which copies every comment into generated Java. A comment with a
   backslash followed by `u` breaks the build there.
 - Known objects are written nested instead of by reference, so reference loops cannot be deployed.

@@ -56,11 +56,21 @@ internal class WorkbenchRunSupport(
         }
     }
 
-    override suspend fun configureRun(root: Path, bridges: List<Path>, preselected: Set<Path>, capture: Boolean): RunChoice? =
+    override suspend fun configureRun(
+        root: Path,
+        bridges: List<Path>,
+        preselected: Set<Path>,
+        capture: Boolean,
+        trueParallel: Boolean?,
+    ): RunChoice? =
         runner.exclusive {
             val ticked = bridges.indices.filter { bridges[it] in preselected }.toSet()
-            when (val answer = dialogs.ask(DialogRequest.ConfigureRun(root, bridges, ticked, capture))) {
-                is DialogResponse.RunWith -> RunChoice(bridges.filterIndexed { index, _ -> index in answer.bridges }, answer.capture)
+            when (val answer = dialogs.ask(DialogRequest.ConfigureRun(root, bridges, ticked, capture, trueParallel))) {
+                is DialogResponse.RunWith -> RunChoice(
+                    bridges.filterIndexed { index, _ -> index in answer.bridges },
+                    answer.capture,
+                    trueParallel = answer.trueParallel,
+                )
                 DialogResponse.Cancel -> null
             }
         }

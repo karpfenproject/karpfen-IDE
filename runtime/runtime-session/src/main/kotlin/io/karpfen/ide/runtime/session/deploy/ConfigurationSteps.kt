@@ -116,7 +116,8 @@ internal class ListenDomainsStep(private val domains: List<String>) : DeployStep
 
 /**
  * Switches on the runtime features of the language features that are switched on for the project, so that the runtime
- * applies the words of the machines that only such a feature gives meaning to. It runs before the activation, while the environment is configuring. It
+ * applies the words of the machines that only such a feature gives meaning to, and the features the run asks for, such
+ * as `TrueParallel`. It runs before the activation, while the environment is configuring. It
  * reports each feature as it goes and stops at the first switch that does not succeed, which fails the deployment.
  *
  * @param features the features, at least one, in the order they are switched on.

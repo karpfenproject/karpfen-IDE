@@ -18,8 +18,8 @@ package io.karpfen.ide.ui.workbench.runtime
 import java.nio.file.Path
 
 /**
- * How a descriptor is run: which bridges start with it, whether it is captured to a file and whether it brings a
- * debugger along. In the window the user makes the choice in the run dialog, and a run there always has the debugger
+ * How a descriptor is run: which bridges start with it, whether it is captured to a file, whether it brings a
+ * debugger along and whether the parallel branches of its state machines step on threads of their own. In the window the user makes the choice in the run dialog, and a run there always has the debugger
  * the project asks for. A caller that runs without a dialog, through `RuntimeState.run` with a choice, makes it
  * itself.
  *
@@ -28,9 +28,13 @@ import java.nio.file.Path
  * @property debugger whether the deployment switches on the runtime's feature `Breakpoint` when the project has
  *   breakpoints switched on, so the run halts at them and offers a debugger. Without it the run never halts, and the
  *   breakpoints in the texts stay allowed or forbidden as the project says.
+ * @property trueParallel whether the deployment switches on the runtime's feature `TrueParallel`, so the branches of
+ *   a split state machine step at the same time, each on a thread of its own. Without it they step one after the
+ *   other. A runtime that does not know the feature fails the deployment.
  */
 public data class RunChoice(
     public val bridges: List<Path>,
     public val capture: Boolean,
     public val debugger: Boolean = true,
+    public val trueParallel: Boolean = false,
 )

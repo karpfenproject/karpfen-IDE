@@ -107,7 +107,7 @@ dsl-tools 2.0 and never reads or writes `~/.m2`.
 
 ```bash
 karpfen-ide validate <folder> [--format text|json]
-karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--verbose]
+karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--true-parallel] [--verbose]
 ```
 
 The IDE is its own command-line tool. `validate` runs the same validation of the whole project as Validate in the
@@ -302,7 +302,9 @@ Three things differ from the window on purpose.
 - Nothing is written. `ReadOnlySettings` reads the language features and the runtime host from `.karpfenproject` and
   keeps every change in memory. It never reads or writes the settings of the user.
 - There is no debugger. The run is launched with `RunChoice(debugger = false)`, and `DeployOptions.applyTo` then
-  leaves the runtime feature Breakpoint out of the plan, so the engine can never halt with nobody to resume it.
+  leaves the runtime feature Breakpoint out of the plan, so the engine can never halt with nobody to resume it. The same
+  function adds TrueParallel at the end of the plan's features when the choice asks for it, in the window and on the
+  command line alike.
 - The command line is strict. The window ignores a wrong argument with a warning, so a typo never keeps it from
   starting. A headless command ends with status 2 and the usage instead.
 
