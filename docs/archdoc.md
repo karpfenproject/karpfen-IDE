@@ -221,6 +221,8 @@ and bridge-ros, and is used by app/ide.
 The desktop application. `main` resolves the home directory and the launch options and starts `IdeApplication`, the
 composition root, which wires everything by hand without a framework. `IdeMenus` lays out the menus over the
 registered commands, `IdeWindow.kt` holds the window and `IdeRunState` shuts the runtime down when the window closes.
+The workbench opens no window itself: it asks the `DetachedWindowHost` it is given for the window of the detached
+Runtime tool window, and `DesktopDetachedWindowHost` in the package `window` is the one that opens it.
 `CrashHandling` turns unexpected exceptions into a log entry and an error dialog. The package `logging` routes what
 dsl-tools logs into the workbench's Language Tools Output, and `logback.xml` in the module's resources configures the
 logging. It depends on ui-workbench and logback. Its build script also holds the packaging into dmg, msi and deb.
