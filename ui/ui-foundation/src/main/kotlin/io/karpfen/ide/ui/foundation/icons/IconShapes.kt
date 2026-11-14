@@ -28,8 +28,8 @@ import io.karpfen.ide.ui.foundation.icons.IconDrawing.stroked
 
 /**
  * The shapes of [KarpfenIcons]. File and severity icons carry their own mid-tone colours, which are readable on the
- * light and on the dark palette. Glyph icons, such as close, the chevrons and search, are drawn in [TINTABLE] black and
- * are meant to be tinted.
+ * light and on the dark palette. Glyph icons, such as close, the chevrons, search, detach and dock, are drawn in
+ * [TINTABLE] black and are meant to be tinted.
  */
 internal object IconShapes {
 
@@ -146,6 +146,27 @@ internal object IconShapes {
         stroked(TINTABLE) { circle(7f, 7f, 4.25f) }
         stroked(TINTABLE, width = 1.75f) { polyline(10.2f, 10.2f, 13.75f, 13.75f) }
     }
+
+    /** Detach: a tintable window frame, open at the top right, with an arrow leaving it through the gap. */
+    fun detach(): ImageVector = icon("Detach") {
+        stroked(TINTABLE) {
+            windowFrame()
+            polyline(7.5f, 8.5f, 13.5f, 2.5f)
+            polyline(9f, 2.5f, 13.5f, 2.5f, 13.5f, 7f)
+        }
+    }
+
+    /** Dock: the window frame of [detach] with an arrow entering it through the gap. */
+    fun dock(): ImageVector = icon("Dock") {
+        stroked(TINTABLE) {
+            windowFrame()
+            polyline(13.5f, 2.5f, 7.5f, 8.5f)
+            polyline(7.5f, 4f, 7.5f, 8.5f, 12f, 8.5f)
+        }
+    }
+
+    /** The frame of [detach] and [dock]: a square from 2.5 to 12.5 with a gap at its top right corner. */
+    private fun PathBuilder.windowFrame() = polyline(6.5f, 3.5f, 2.5f, 3.5f, 2.5f, 13.5f, 12.5f, 13.5f, 12.5f, 9.5f)
 
     /** The rounded tile behind the file-type glyphs. */
     private fun PathBuilder.tile() = roundedRect(1.5f, 1.5f, 14.5f, 14.5f, 3f)

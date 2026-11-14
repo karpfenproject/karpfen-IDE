@@ -23,8 +23,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
  *
  * All icons are 16 by 16 dp. The file-type icons [Folder], [File], [Kmeta], [Kmodel], [Kstates] and [Json] and the
  * severity icons [Error], [Warning] and [Info] carry their own colours. Render them untinted, with `Image` or with
- * `Icon` and `tint = Color.Unspecified`. The glyph icons [Close], [ChevronRight], [ChevronDown] and [Search] are black
- * and meant to be tinted with a palette colour, for example
+ * `Icon` and `tint = Color.Unspecified`. The glyph icons [Close], [ChevronRight], [ChevronDown], [Search], [Detach]
+ * and [Dock] are black and meant to be tinted with a palette colour, for example
  * `Icon(KarpfenIcons.Close, null, tint = KarpfenTheme.colors.textMuted)`.
  */
 public object KarpfenIcons {
@@ -42,6 +42,8 @@ public object KarpfenIcons {
     private val chevronRightIcon by lazy(IconShapes::chevronRight)
     private val chevronDownIcon by lazy(IconShapes::chevronDown)
     private val searchIcon by lazy(IconShapes::search)
+    private val detachIcon by lazy(IconShapes::detach)
+    private val dockIcon by lazy(IconShapes::dock)
 
     /** A folder. */
     public val Folder: ImageVector get() = folderIcon
@@ -81,4 +83,10 @@ public object KarpfenIcons {
 
     /** Search (find bar). */
     public val Search: ImageVector get() = searchIcon
+
+    /** Detach (moves a tool window into a window of its own). */
+    public val Detach: ImageVector get() = detachIcon
+
+    /** Dock (moves a detached tool window back into the main window). */
+    public val Dock: ImageVector get() = dockIcon
 }
