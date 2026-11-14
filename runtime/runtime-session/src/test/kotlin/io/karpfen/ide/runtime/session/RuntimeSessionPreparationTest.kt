@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.session
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.core.document.fixtures.ExampleOrigin
@@ -52,12 +53,25 @@ import kotlin.test.assertTrue
  * model, for the single robot and for the runtime's four examples. Preparing saves open documents first, so what is
  * uploaded, checked and seeded is the edited text. An edited descriptor's configuration is deployed. An analysis that
  * still holds the descriptor's earlier text blocks the deployment. A document that cannot be saved blocks the
- * deployment as well.
+ * deployment as well. The relay of the TrueParallel scenarios prepares without findings.
  */
 class RuntimeSessionPreparationTest {
 
     @TempDir
     lateinit var root: Path
+
+    @Test
+    fun `the relay of the TrueParallel scenarios prepares without findings and needs no runtime feature`() = runTest {
+        val sessions = sessions(this)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = setOf(KstatesFeature.PARALLEL))
+        val descriptor = RelayModel.writeTo(root)
+
+        val prepared = assertIs<Preparation.Ready>(sessions.prepare(workspace, descriptor)).prepared
+
+        assertEquals(emptyList(), prepared.plan.findings)
+        assertEquals(emptyList(), prepared.plan.features)
+        assertEquals(listOf(RelayModel.RELAY), prepared.plan.attachments.map { it.attachedTo })
+    }
 
     @Test
     fun `every synthesized model but the ring prepares without errors, and the ring is blocked by its reference loop`() = runTest {
