@@ -106,9 +106,9 @@ class EnvironmentSchemaTest {
                     "The state machine: a .kstates file, relative to this descriptor.",
                 ),
                 DescriptorKey(
-                    "attachedTo", ValueShape.ObjectKey, isRequired = true, isNullable = false,
+                    "attachedTo", ValueShape.ObjectKey, isRequired = false, isNullable = true,
                     "The key of the model object the state machine runs attached to; its type should be the type the state " +
-                        "machine names after ATTACHED TO.",
+                        "machine names after ATTACHED TO. Left out for an attachable state machine.",
                 ),
             ),
             entry.keys,

@@ -71,6 +71,8 @@ public enum class FileTemplateKind(public val language: KarpfenLanguage) {
  *   whose type is unknown is absent.
  * @property eventDomains the event domains that the context's state machines use through `EVENT("domain", …)`. They
  *   are sorted and contain no repetitions.
+ * @property definitions the state machines of the context that have the attachable form, which a descriptor lists as
+ *   definitions without `attachedTo`.
  */
 public data class TemplateContext(
     public val directory: Path,
@@ -79,6 +81,7 @@ public data class TemplateContext(
     public val objects: List<ModelObject> = emptyList(),
     public val stateMachineTypes: Map<Path, String> = emptyMap(),
     public val eventDomains: List<String> = emptyList(),
+    public val definitions: Set<Path> = emptySet(),
 )
 
 /**
@@ -98,7 +101,8 @@ public data class TemplateContext(
  * attached to the first object that the ranking rule of [AttachmentCandidate.rank] proposes for it. That is the first
  * object of its `ATTACHED TO` type, otherwise the first object, and otherwise the placeholder `"object"`. In the
  * single_robot_example, for example, `cleaning_robot.kstates` is attached to `"turtle"`, which is the Robot and not the
- * root Room. When the state machines use event domains, the descriptor observes every object and those domains.
+ * root Room. An attachable state machine is listed without `attachedTo`, as a definition. When the state machines use
+ * event domains, the descriptor observes every object and those domains.
  * Without a context, it names files after the descriptor. They are reported as `descriptor-missing-file` until they
  * are created. The descriptor must read without diagnostics, apart from missing referenced files. It opens in an
  * editor tab like every karpfen file.

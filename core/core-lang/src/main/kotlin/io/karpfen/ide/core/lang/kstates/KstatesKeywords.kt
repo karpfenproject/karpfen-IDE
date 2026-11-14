@@ -56,13 +56,17 @@ internal object KstatesKeywords {
         "SETOBJ" to "set a relation",
         "APPENDOBJ" to "append to a relation",
         "DROPOBJ" to "remove an object",
+        "EXCHANGE" to "replace the state machine of an object",
     )
+
+    /** The operations that write a construct of an optional language feature, with that feature. */
+    private val OPERATION_FEATURES: Map<String, KstatesFeature> = mapOf("EXCHANGE" to KstatesFeature.ATTACHMENT)
 
     /**
      * The offers of an action block. These are every operation, an emitted event, the scope guard and the macro
-     * binding, which needs macros.
+     * binding, which needs macros. `EXCHANGE` needs dynamic attachment.
      */
-    private val ACTIONS: List<Offer> = KarpfenSyntax.KSTATES_OPERATIONS.map { Offer(operation(it)) } + listOf(
+    private val ACTIONS: List<Offer> = KarpfenSyntax.KSTATES_OPERATIONS.map { Offer(operation(it), OPERATION_FEATURES[it]) } + listOf(
         Offer(EVENT.copy(detail = "emit an event")),
         Offer(Snippet("IF IN SCOPE(\"…\") { }", "IF IN SCOPE(\"\$0\") { }", detail = "guard on paths in scope")),
         Offer(Snippet("WITH … AS \"…\" { }", "WITH MACRO(\"\$0\") AS \"\" { }", detail = "bind a macro result"), KstatesFeature.MACROS),
@@ -72,6 +76,22 @@ internal object KstatesKeywords {
     private val BY_POSITION: Map<KstatesPosition, List<Offer>> = mapOf(
         KstatesPosition.TOP_LEVEL to offers(
             Snippet("STATEMACHINE ATTACHED TO \"…\" { }", "STATEMACHINE ATTACHED TO \"\$0\" { }", detail = "state machine"),
+        ) + offers(
+            KstatesFeature.ATTACHMENT,
+            Snippet(
+                "STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE \"\$0\" ATTACHABLE TO \"\" { }",
+                detail = "attachable state machine",
+            ),
+        ),
+        KstatesPosition.MACHINE_HEADER to offers(
+            Snippet("ATTACHED TO \"…\"", "ATTACHED TO \"\$0\"", detail = "attached to the object of a type"),
+        ) + offers(
+            KstatesFeature.ATTACHMENT,
+            Snippet("\"…\" ATTACHABLE TO \"…\"", "\"\$0\" ATTACHABLE TO \"\"", detail = "attachable to types, by name"),
+        ),
+        KstatesPosition.NAMED_MACHINE_HEADER to offers(
+            KstatesFeature.ATTACHMENT,
+            Snippet("ATTACHABLE TO \"…\"", "ATTACHABLE TO \"\$0\"", detail = "attachable to types"),
         ),
         KstatesPosition.MACHINE to offers(
             Snippet("STATES { }", "STATES { \$0 }", detail = "states block"),
@@ -107,6 +127,10 @@ internal object KstatesKeywords {
             ),
         ),
         KstatesPosition.ACTIONS to ACTIONS,
+        KstatesPosition.OBJECT_RULE_END to offers(
+            KstatesFeature.ATTACHMENT,
+            Snippet("ATTACH \"…\"", "ATTACH \"\$0\"", detail = "attach a state machine to the new object"),
+        ) + ACTIONS,
         KstatesPosition.TRANSITIONS to
             offers(Snippet("TRANSITION \"…\" -> \"…\" { }", "TRANSITION \"\$0\" -> \"\" { }", detail = "transition")) +
             offers(

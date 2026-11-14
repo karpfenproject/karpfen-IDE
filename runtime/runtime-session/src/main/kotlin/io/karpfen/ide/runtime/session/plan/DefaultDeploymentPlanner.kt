@@ -62,7 +62,7 @@ internal class DefaultDeploymentPlanner(
             return PlannedUpload(role, file, analyzed.snapshot, attachedTo)
         }
         val machines = subject.machines.map { machine ->
-            upload(UploadRole.STATE_MACHINE, machine.file, checkNotNull(machine.attachedTo) { "an explicit context attaches every machine" })
+            upload(UploadRole.STATE_MACHINE, machine.file, checkNotNull(machine.attachedTo) { "a subject that passed the checks has no definitions" })
         }
         val symbols = ContextSymbols(subject.analysis)
         val attachments = machines.map { machine ->

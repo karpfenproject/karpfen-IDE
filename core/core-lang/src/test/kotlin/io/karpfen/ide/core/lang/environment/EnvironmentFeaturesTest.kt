@@ -75,7 +75,7 @@ class EnvironmentFeaturesTest {
         assertEquals("\"model\": \"".length, model.caretOffsetInInsert)
         assertEquals("a file path, required", model.detail)
         assertTrue(model.documentation!!.contains(".kmodel"))
-        assertEquals("\"stateMachines\": [ { \"file\": \"\", \"attachedTo\": \"\" } ]", items.single { it.label == "stateMachines" }.insertText)
+        assertEquals("\"stateMachines\": [ { \"file\": \"\" } ]", items.single { it.label == "stateMachines" }.insertText)
         assertEquals("\"tickDelayMs\": 50", items.single { it.label == "tickDelayMs" }.insertText)
         assertEquals("\"observe\": { \"objects\": \"\" }", items.single { it.label == "observe" }.insertText)
     }

@@ -16,6 +16,7 @@
 package io.karpfen.ide.core.workspace.context
 
 import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
+import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
@@ -36,7 +37,8 @@ import java.nio.file.Path
  * @property metamodel the domain metamodel, or null if the context has none.
  * @property events the event metamodel, or null. In an implicit context it is `EVENTS.kmeta`.
  * @property models the models of the context. An explicit context has at most one.
- * @property stateMachines the state machines of the context. In an explicit context they carry their attachments.
+ * @property stateMachines the state machines of the context. In an explicit context they carry their attachments, and
+ *   the entries without one are the attachable state machines the environment knows as definitions.
  * @property environment the typed descriptor the context was resolved from, decoded from the same text as
  *   [descriptor]. It is null for an implicit context.
  */
@@ -67,7 +69,17 @@ public data class ModelingContext(
 }
 
 /**
- * A state machine of a context. [attachedTo] is the object key from the descriptor, `stateMachines[].attachedTo`. It
- * is null in implicit contexts, where the `ATTACHED TO` type in the file still applies.
+ * A state machine of a context.
+ *
+ * @property file the state machine file.
+ * @property attachedTo the object key from the descriptor, `stateMachines[].attachedTo`. In an explicit context an
+ *   entry without it names an attachable state machine, a definition that the environment knows by its name. It is
+ *   null for every machine of an implicit context, where the header of each file says which form it has.
+ * @property reference where the descriptor names [file], the inside of the string of `stateMachines[].file`, so that a
+ *   finding about the entry can point at it. It is null in an implicit context.
  */
-public data class StateMachineBinding(public val file: Path, public val attachedTo: String?)
+public data class StateMachineBinding(
+    public val file: Path,
+    public val attachedTo: String?,
+    public val reference: TextRange? = null,
+)

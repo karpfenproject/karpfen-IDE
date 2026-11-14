@@ -41,7 +41,7 @@ class DslVerifierTest {
 
     @Test
     fun `the reads of a project are verified, with each finding in the text of its state machine`() {
-        val findings = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, "lamp")))).single()
+        val findings = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, "lamp")))).stateMachines.single()
 
         val unknown = findings.single { it.code == "project.unknown-path" }
         assertEquals(Severity.ERROR, unknown.severity)
@@ -55,8 +55,8 @@ class DslVerifierTest {
 
     @Test
     fun `the attached object reaches the verifier, which checks its type`() {
-        val onSwitch = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, "wall")))).single()
-        val withoutObject = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, null)))).single()
+        val onSwitch = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, "wall")))).stateMachines.single()
+        val withoutObject = verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(machine, null)))).stateMachines.single()
 
         assertEquals(listOf(Severity.ERROR), onSwitch.filter { it.code == ATTACHED_OBJECT_TYPE }.map { it.severity })
         assertTrue(withoutObject.none { it.code == ATTACHED_OBJECT_TYPE }, "$withoutObject")
@@ -67,7 +67,7 @@ class DslVerifierTest {
         val clean = reader.kstates(TextSnapshot(CLEAN_MACHINE, 0))
         val findings = verifier.verify(
             VerificationInput(metamodel, null, model, listOf(MachineToVerify(clean, "lamp"), MachineToVerify(machine, "lamp"))),
-        )
+        ).stateMachines
 
         assertEquals(2, findings.size)
         assertEquals(emptyList(), findings[0])
@@ -80,11 +80,11 @@ class DslVerifierTest {
 
         assertEquals(
             listOf(emptyList()),
-            verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(byHand, "lamp")))),
+            verifier.verify(VerificationInput(metamodel, null, model, listOf(MachineToVerify(byHand, "lamp")))).stateMachines,
         )
         assertEquals(
             listOf(emptyList()),
-            verifier.verify(VerificationInput(ReadResult(metamodel.model, metamodel.diagnostics), null, model, listOf(MachineToVerify(machine, "lamp")))),
+            verifier.verify(VerificationInput(ReadResult(metamodel.model, metamodel.diagnostics), null, model, listOf(MachineToVerify(machine, "lamp")))).stateMachines,
             "without the metamodel's own read no machine is verified",
         )
         assertEquals(machine, byHand, "a read equals another of the same model and diagnostics")

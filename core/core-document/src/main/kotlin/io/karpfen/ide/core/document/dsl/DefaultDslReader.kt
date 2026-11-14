@@ -37,18 +37,19 @@ import org.slf4j.LoggerFactory
  * The class holds no state. It is thread-safe as long as its readers keep no state between reads, and the readers of
  * dsl-tools keep none.
  *
- * @param kmetaReader the KMeta reader over the given base types, created for each read.
+ * @param kmetaReader the KMeta reader over the given base types that allows the given optional features, created for
+ *   each read.
  * @param kmodelReader the KModel reader against the given metamodel, created for each read.
  * @param kstatesReader the KStates reader that allows the given optional features, created for each read.
  */
 internal class DefaultDslReader(
-    private val kmetaReader: (baseTypes: List<ClassType>) -> TextReader<Metamodel>,
+    private val kmetaReader: (baseTypes: List<ClassType>, features: Set<KstatesFeature>) -> TextReader<Metamodel>,
     private val kmodelReader: (metamodel: Metamodel) -> TextReader<Model>,
     private val kstatesReader: (features: Set<KstatesFeature>) -> TextReader<StateMachine>,
 ) : DslReader {
 
-    override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> =
-        read(source, kmetaReader(baseTypes))
+    override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>, features: Set<KstatesFeature>): ReadResult<Metamodel> =
+        read(source, kmetaReader(baseTypes, features))
 
     override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
         read(source, kmodelReader(metamodel))

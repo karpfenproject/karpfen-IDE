@@ -21,6 +21,7 @@ import io.karpfen.ide.core.lang.context.CaretContext
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.feature.HoverProvider
 import io.karpfen.ide.core.lang.modelpath.PathOrigin
+import io.karpfen.ide.core.lang.symbols.AttachableMachines
 import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
@@ -34,6 +35,8 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
  * - On a type or event name it shows `TypeInfo.hoverText` from [types].
  * - On the relation of a SETOBJ it shows the signature of the member.
  * - On a WITH binding or a TAKES parameter it shows its type.
+ * - On the name of an attachable state machine it shows the machine with its types, such as
+ *   `state machine "blinking" attachable to Bulb, Lamp`.
  */
 internal class KstatesHoverProvider(
     private val slots: KstatesSlots,
@@ -60,6 +63,8 @@ internal class KstatesHoverProvider(
             is KstatesSlot.ParameterName -> declarations.all(SymbolKind.MACRO_PARAMETER)
                 .firstOrNull { it.declaration.name == slot.name && it.declaration.container == KstatesBlocks.macroOf(context.blocks) }
                 ?.let { Hover(slot.range, "parameter ${slot.name}: ${it.declaration.typeName.orEmpty()}") }
+            is KstatesSlot.StateMachineName -> AttachableMachines(request).named(slot.name).firstOrNull()
+                ?.let { Hover(slot.range, it.hoverText) }
             is KstatesSlot.Keywords, is KstatesSlot.EventDomain, KstatesSlot.None -> null
         }
     }

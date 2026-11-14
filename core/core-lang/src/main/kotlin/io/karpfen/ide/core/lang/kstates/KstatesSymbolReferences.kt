@@ -46,6 +46,7 @@ internal class KstatesSymbolReferences(
                 emptyList()
             }
             is ContextSymbol.Member -> relationArguments(symbol, file, scope) + pathSegments(symbol, file, scope)
+            is ContextSymbol.StateMachine -> emptyList()
         }
     }
 

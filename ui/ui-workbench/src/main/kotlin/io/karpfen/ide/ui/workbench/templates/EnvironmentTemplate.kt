@@ -28,7 +28,8 @@ import java.nio.file.Path
  * The descriptor names the files of the directory's current context. It names them the way descriptors name files,
  * through [DescriptorPaths.relative], so creating the descriptor keeps them in one context. Each state machine is
  * attached to the object that [AttachmentCandidate.rank] proposes first. That is the same rule the descriptor
- * completion ranks by. If no object is proposed, the machine is attached to [PLACEHOLDER_OBJECT]. When the state
+ * completion ranks by. If no object is proposed, the machine is attached to [PLACEHOLDER_OBJECT]. An attachable state
+ * machine, one of `TemplateContext.definitions`, is listed without `attachedTo` as a definition. When the state
  * machines use event domains, an `observe` section watches every object through [EnvironmentSchema.EVERY_OBJECT] and
  * lists those domains. Without a context, the descriptor names files after itself.
  *
@@ -61,7 +62,9 @@ internal object EnvironmentTemplate {
             metamodel = modeling?.metamodel?.let(relative) ?: "$baseName.kmeta",
             events = modeling?.events?.let(relative),
             model = modeling?.models?.firstOrNull()?.let(relative) ?: "$baseName.kmodel",
-            stateMachines = machines.map { EnvironmentDescriptor.StateMachineEntry(relative(it), attachedTo(it, context)) },
+            stateMachines = machines.map { file ->
+                EnvironmentDescriptor.StateMachineEntry(relative(file), attachedTo(file, context).takeUnless { file in context.definitions })
+            },
             observe = context.eventDomains.takeIf { it.isNotEmpty() }?.let {
                 EnvironmentDescriptor.ObserveSpec(EnvironmentSchema.EVERY_OBJECT, it)
             },

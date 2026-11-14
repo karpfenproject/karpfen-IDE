@@ -81,6 +81,7 @@ internal class DefaultHighlightProvider : HighlightProvider {
             SemanticKind.DESCRIPTION -> HighlightStyle.DESCRIPTION
             SemanticKind.BINDING_NAME -> HighlightStyle.BINDING_NAME
             SemanticKind.FILE_PATH -> HighlightStyle.FILE_PATH
+            SemanticKind.STATE_MACHINE_NAME -> HighlightStyle.STATE_MACHINE_NAME
         }
     }
 }

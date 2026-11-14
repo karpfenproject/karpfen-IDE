@@ -64,6 +64,7 @@ internal class KmodelNavigationProvider(
     private fun declarationOf(request: FeatureRequest, symbol: ContextSymbol): Location? = when (symbol) {
         is ContextSymbol.Type -> types.type(request, symbol.name)?.declaration
         is ContextSymbol.Member -> types.type(request, symbol.owner)?.member(symbol.name)?.declaration
+        is ContextSymbol.StateMachine -> null
     }
 
     /** The declarations of the object [name] in the file. */

@@ -44,11 +44,14 @@ internal class KmetaTokenizer : Tokenizer {
 }
 
 /**
- * The KMeta vocabulary. `type`, `prop`, `has`, `knows` and `list` are keywords. The grammar skips `WS` and `COMMENT`,
- * so they have no entry.
+ * The KMeta vocabulary. `type`, `prop`, `has`, `knows`, `list` and the two words of the clause `behaves after` are
+ * keywords. The grammar skips `WS` and `COMMENT`, so they have no entry.
  */
 internal val KMETA_TOKEN_KINDS: TokenKindTable = TokenKindTable.of(
-    TokenKind.KEYWORD to intArrayOf(KmetaLexer.TYPE, KmetaLexer.PROP, KmetaLexer.HAS, KmetaLexer.KNOWS, KmetaLexer.LIST),
+    TokenKind.KEYWORD to intArrayOf(
+        KmetaLexer.TYPE, KmetaLexer.PROP, KmetaLexer.HAS, KmetaLexer.KNOWS, KmetaLexer.LIST, KmetaLexer.BEHAVES,
+        KmetaLexer.AFTER,
+    ),
     TokenKind.PUNCTUATION to
         intArrayOf(KmetaLexer.LBRACE, KmetaLexer.RBRACE, KmetaLexer.LPAREN, KmetaLexer.RPAREN, KmetaLexer.COMMA),
     TokenKind.STRING to intArrayOf(KmetaLexer.STRING),

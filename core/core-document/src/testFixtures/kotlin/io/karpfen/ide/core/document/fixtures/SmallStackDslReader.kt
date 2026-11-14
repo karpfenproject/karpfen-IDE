@@ -34,8 +34,8 @@ import io.karpfen.ide.core.text.TextSnapshot
  */
 public class SmallStackDslReader(private val delegate: DslReader = DslReader()) : DslReader {
 
-    override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> =
-        DeepNesting.onStack(DeepNesting.SMALL_STACK) { delegate.kmeta(source, baseTypes) }
+    override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>, features: Set<KstatesFeature>): ReadResult<Metamodel> =
+        DeepNesting.onStack(DeepNesting.SMALL_STACK) { delegate.kmeta(source, baseTypes, features) }
 
     override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
         DeepNesting.onStack(DeepNesting.SMALL_STACK) { delegate.kmodel(source, metamodel) }

@@ -18,12 +18,13 @@ package io.karpfen.ide.core.lang.kmeta
 import io.karpfen.ide.core.lang.Hover
 import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.feature.HoverProvider
+import io.karpfen.ide.core.lang.symbols.AttachableMachines
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
  * Hover in KMeta. On a type it shows `TypeInfo.hoverText`. On a property or relation it shows `MemberInfo.signature`,
  * such as `prop x: number`, `has position: Vector` or `knows obstacles: list(Obstacle)`. Both are looked up in
- * [types].
+ * [types]. On the name of `behaves after "x"` it shows the attachable state machine of the context with its types.
  */
 internal class KmetaHoverProvider(private val slots: KmetaSlots, private val types: TypeCatalog) : HoverProvider {
 
@@ -37,6 +38,8 @@ internal class KmetaHoverProvider(private val slots: KmetaSlots, private val typ
             }
             is KmetaSlot.MemberName -> slot.owner?.let { types.type(request, it) }?.member(slot.name)
                 ?.let { Hover(slot.range, it.signature) }
-            KmetaSlot.TopLevel, is KmetaSlot.TypeBody, KmetaSlot.None -> null
+            is KmetaSlot.StateMachineName -> AttachableMachines(request).named(slot.name).firstOrNull()
+                ?.let { Hover(slot.range, it.hoverText) }
+            KmetaSlot.TopLevel, is KmetaSlot.TypeBody, is KmetaSlot.TypeHeader, KmetaSlot.None -> null
         }
 }

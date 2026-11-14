@@ -31,6 +31,9 @@ import org.antlr.v4.runtime.tree.TerminalNode
  *   qualified with the source path and with a PROPERTY_NAME span. `EVENT("d", "n")` as an action names an event domain
  *   and an event. A `MACRO("m")` right side is a macro call. String right sides are values, not references. EVAL right
  *   sides are read lexically by [EmbeddedCode].
+ * - The string right side of `EXCHANGE("p", "x")` and the string after the `ATTACH` of `SETOBJ` or `APPENDOBJ` name an
+ *   attachable state machine. Each is a STATE_MACHINE reference with a STATE_MACHINE_NAME span. A `MACRO("m")` after
+ *   `ATTACH` is a macro call like every other right side.
  * - In `IF IN SCOPE("p", "q") { }` every string is a MODEL_PATH, and the block is walked in place.
  * - `WITH MACRO("m") AS "x" { }` is a macro call plus a BINDING declaration with the state as container and a
  *   BINDING_NAME span. It also gets an outline node with the macro name as detail. The children of that node are the
@@ -72,6 +75,16 @@ internal class KstatesActionWalker(
             }
         }
         rightSide?.macro_call()?.let(references::macroCall)
+        if (operation == KstatesParser.EXCHANGE) stateMachineName(rightSide)
+        ctx.attach_clause()?.action_right_side()?.let { attached ->
+            stateMachineName(attached)
+            attached.macro_call()?.let(references::macroCall)
+        }
+    }
+
+    /** Records the string of [value], a right side that names a state machine, as a STATE_MACHINE reference. */
+    private fun stateMachineName(value: KstatesParser.Action_right_sideContext?) {
+        collector.reference(ReferenceKind.STATE_MACHINE, tree.quoted(tree.terminal(value, KstatesParser.STRING)), span = SemanticKind.STATE_MACHINE_NAME)
     }
 
     /** Records a `WITH MACRO("m") AS "x"` binding of [state] and returns its outline node. */

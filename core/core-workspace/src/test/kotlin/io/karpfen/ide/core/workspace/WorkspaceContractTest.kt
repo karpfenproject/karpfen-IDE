@@ -162,7 +162,7 @@ class WorkspaceContractTest {
         val workspace = codes(WorkspaceDiagnosticCodes)
         val document = codes(DiagnosticCodes)
 
-        assertEquals(8, workspace.size, "reflection found $workspace")
+        assertEquals(9, workspace.size, "reflection found $workspace")
         assertTrue(document.isNotEmpty())
         assertEquals((workspace + document).size, (workspace + document).toSet().size, "a code is defined twice")
     }

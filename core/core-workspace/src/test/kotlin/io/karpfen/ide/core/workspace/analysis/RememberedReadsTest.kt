@@ -52,8 +52,8 @@ class RememberedReadsTest {
         /** The text of each read, in the order of the reads. */
         val texts = mutableListOf<String>()
 
-        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> =
-            delegate.kmeta(source.also(::record), baseTypes)
+        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>, features: Set<KstatesFeature>): ReadResult<Metamodel> =
+            delegate.kmeta(source.also(::record), baseTypes, features)
 
         override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
             delegate.kmodel(source.also(::record), metamodel)
@@ -132,23 +132,24 @@ class RememberedReadsTest {
     }
 
     @Test
-    fun `a changed set of language features reads the state machines again and nothing else`() = runTest(timeout = 60.seconds) {
-        val context = robotContext()
-        val reader = RecordingReader()
-        val analyzer = ProjectAnalyzer(defaultLanguageRegistry(), reader)
-        val resolution = resolve(root)
-        val history = setOf(KstatesFeature.HISTORY)
-        analyzer.analyze(resolution, DiskSources(), generation = 1)
-        val firstReads = reader.texts.size
+    fun `a changed set of language features reads the state machines and the metamodels again with what depends on them`() =
+        runTest(timeout = 60.seconds) {
+            val context = robotContext()
+            val reader = RecordingReader()
+            val analyzer = ProjectAnalyzer(defaultLanguageRegistry(), reader)
+            val resolution = resolve(root)
+            val history = setOf(KstatesFeature.HISTORY)
+            analyzer.analyze(resolution, DiskSources(), generation = 1)
+            val firstReads = reader.texts.size
 
-        val changed = analyzer.analyze(resolution, DiskSources(), generation = 2, languageFeatures = history)
-        val secondReads = reader.texts.size
-        analyzer.analyze(resolution, DiskSources(), generation = 3, languageFeatures = history)
+            val changed = analyzer.analyze(resolution, DiskSources(), generation = 2, languageFeatures = history)
+            val secondReads = reader.texts.size
+            analyzer.analyze(resolution, DiskSources(), generation = 3, languageFeatures = history)
 
-        assertEquals(listOf("cleaning_robot.kstates"), reader.filesReadIn(context, from = firstReads))
-        assertEquals(secondReads, reader.texts.size, "the same set is not read again")
-        assertEquals(history, changed.languageFeatures)
-    }
+            assertEquals(ROBOT_FILES.sorted(), reader.filesReadIn(context, from = firstReads).sorted(), "the model depends on the metamodel")
+            assertEquals(secondReads, reader.texts.size, "the same set is not read again")
+            assertEquals(history, changed.languageFeatures)
+        }
 
     private companion object {
         /** The files of the single-robot example, each of which dsl-tools reads, in alphabetical order. */

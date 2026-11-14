@@ -17,13 +17,15 @@ package io.karpfen.ide.core.document.antlr.tree
 
 import io.karpfen.dsl.grammar.kmeta.KmetaParser
 import io.karpfen.ide.core.document.parse.OutlineNode
+import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolKind
 
 /**
  * Walks a KMeta tree and records what it declares.
  * - `type "N" "D" { }` becomes a TYPE declaration with a TYPE_NAME span on N and a DESCRIPTION span on D. The outline
- *   detail is the description.
+ *   detail is the description. The name of `behaves after "x"` in its header is a STATE_MACHINE reference with a
+ *   STATE_MACHINE_NAME span.
  * - `prop("k", V)`, `has("k", V)` and `knows("k", V)` become SIMPLE_PROPERTY, HAS_RELATION and KNOWS_RELATION
  *   declarations with a PROPERTY_NAME span on k. Their container is the type. Their type name and outline detail are
  *   `V` or `list(V)`. Each also records a type reference to V. The reference is a PRIMITIVE_TYPE for `number`,
@@ -38,6 +40,8 @@ internal class KmetaTreeWalker(private val tree: ParsedTree<*>, private val coll
     private fun type(ctx: KmetaParser.Type_definitionContext): OutlineNode {
         val (name, description) = tree.quotedStrings(ctx, KmetaParser.STRING).let { it.getOrNull(0) to it.getOrNull(1) }
         collector.span(description?.inner, SemanticKind.DESCRIPTION)
+        val behaviour = tree.quoted(tree.terminal(ctx.behaviour_clause(), KmetaParser.STRING))
+        collector.reference(ReferenceKind.STATE_MACHINE, behaviour, span = SemanticKind.STATE_MACHINE_NAME)
         val rules = ctx.rule_list()?.rule_().orEmpty().mapNotNull { rule(it, name?.value.orEmpty()) }
         val node = outlineNode(
             SymbolKind.TYPE, name?.value.orEmpty(), description?.value, tree.rangeOf(ctx), tree.selectionOf(name, ctx), rules,

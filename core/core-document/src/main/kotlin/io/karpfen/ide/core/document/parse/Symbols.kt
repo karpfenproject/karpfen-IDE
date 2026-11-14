@@ -33,8 +33,8 @@ import io.karpfen.ide.core.text.TextRange
  *   its type, such as `T` of `"key":"T"`. For a SIMPLE_PROPERTY it is the primitive, such as `number`. For a
  *   HAS_RELATION or KNOWS_RELATION it is the target, such as `Vector` or `list(Obstacle)`. For a MACRO_PARAMETER it is
  *   the parameter type, such as `Vector`, `number` or `list(Obstacle)`. For a MACRO it is its RETURNS expression, such
- *   as `number` or `reference(Obstacle)`. For a STATEMACHINE it is the `ATTACHED TO` type. It is null for every other
- *   kind, and when the type is missing in broken text.
+ *   as `number` or `reference(Obstacle)`. For a STATEMACHINE it is the `ATTACHED TO` type, or the first type after
+ *   `ATTACHABLE TO`. It is null for every other kind, and when the type is missing in broken text.
  */
 public data class SymbolDeclaration(
     public val kind: SymbolKind,
@@ -46,6 +46,20 @@ public data class SymbolDeclaration(
 ) {
     init {
         require(nameRange in range) { "nameRange $nameRange must lie within range $range" }
+    }
+
+    /**
+     * True for the declaration of an attachable state machine, `STATEMACHINE "name" ATTACHABLE TO ...`, which is
+     * named after its name string. The declaration of an attached state machine is named [ATTACHED_MACHINE_NAME]
+     * instead, because that form has no name.
+     */
+    public val isAttachableStateMachine: Boolean
+        get() = kind == SymbolKind.STATEMACHINE && name != ATTACHED_MACHINE_NAME
+
+    /** The names shared by the declarations. */
+    public companion object {
+        /** The name of the STATEMACHINE declaration of an attached state machine, its keyword `STATEMACHINE`. */
+        public const val ATTACHED_MACHINE_NAME: String = "STATEMACHINE"
     }
 }
 

@@ -30,6 +30,7 @@ import io.karpfen.ide.core.lang.kstates.KstatesLanguageFeatures
 import io.karpfen.ide.core.lang.kstates.KstatesSymbolReferences
 import io.karpfen.ide.core.lang.modelpath.ModelPathResolver
 import io.karpfen.ide.core.lang.navigation.ContextReferences
+import io.karpfen.ide.core.lang.navigation.StateMachineReferences
 import io.karpfen.ide.core.lang.navigation.TypeReferences
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.vis.VisLanguageFeatures
@@ -70,7 +71,9 @@ public fun karpfenLanguageFeatures(): List<LanguageFeatures> {
     val types = TypeCatalog()
     val paths = ModelPathResolver()
     val scopes = DefaultKstatesPathScopes(types)
-    val references = ContextReferences(listOf(TypeReferences(), KmodelKeyReferences(), KstatesSymbolReferences(scopes, paths)))
+    val references = ContextReferences(
+        listOf(TypeReferences(), KmodelKeyReferences(), KstatesSymbolReferences(scopes, paths), StateMachineReferences()),
+    )
     val highlight = DefaultHighlightProvider()
     val brackets = TokenBracketMatcher()
     return listOf(

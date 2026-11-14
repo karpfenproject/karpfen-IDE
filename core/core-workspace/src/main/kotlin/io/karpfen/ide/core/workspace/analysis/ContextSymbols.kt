@@ -47,9 +47,19 @@ public class ContextSymbols(private val analysis: ProjectAnalysis) {
             ?.map { ModelObject(it.name, it.typeName) }
             .orEmpty()
 
-    /** The type the state machine at [machine] names after `ATTACHED TO`, or null if it is unknown. */
+    /**
+     * The type the state machine at [machine] names after `ATTACHED TO`, or the first type after `ATTACHABLE TO`, or
+     * null if it is unknown.
+     */
     public fun attachedTypeOf(machine: Path): String? =
         indexOf(machine)?.declarationsOf(SymbolKind.STATEMACHINE)?.firstOrNull()?.typeName
+
+    /**
+     * True if the state machine at [machine] has the attachable form `STATEMACHINE "name" ATTACHABLE TO`, which a
+     * descriptor lists without `attachedTo` as a definition. False for the attached form and if the form is unknown.
+     */
+    public fun isAttachable(machine: Path): Boolean =
+        indexOf(machine)?.declarationsOf(SymbolKind.STATEMACHINE)?.firstOrNull()?.isAttachableStateMachine == true
 
     /**
      * The event domains the state machines at [machines] use in `EVENT("domain", ...)`. They are sorted, each appears

@@ -29,7 +29,9 @@ import java.nio.file.Path
  * Analyzes every modeling context with dsl-tools. It goes through the core-document [DslReader] adapter only. The
  * metamodel is read with `kmeta`. The events are read with `kmeta` and the types of the metamodel as base types. Each
  * model is read with `kmodel` against the metamodel. Each state machine is read with `kstates` and the optional features
- * of KStates switched on for the run, so that each construct of another feature is an error `kstates.feature-off`. What
+ * of KStates switched on for the run, so that each construct of another feature is an error `kstates.feature-off`. The
+ * metamodel and the events are read with the same features, so that a `behaves after` while dynamic attachment is off
+ * is an error `kmeta.feature-off`. What
  * the dsl-tools
  * readers find becomes DSL_TOOLS diagnostics on the file they read, at the ranges they report. The models they read,
  * partial ones included, become the [ContextAnalysis]. The IDE adds no validation rules of its own beyond what
@@ -75,7 +77,7 @@ public interface ProjectAnalyzer {
      * The DSL_TOOLS diagnostics that the file at [path] would get in [analysis] if its text were [text], in the
      * coordinates of [text]. The text is read by the rules of [analyze], in the role its file has in its context and
      * against the reads of the other files of that context in [analysis], or on its own if the file is a loose state
-     * machine. State machines are read with the `ProjectAnalysis.languageFeatures` of [analysis]. A text with syntax
+     * machine. State machines and metamodels are read with the `ProjectAnalysis.languageFeatures` of [analysis]. A text with syntax
      * errors, and a file that [analysis] would not read, give an empty list. No other file is read again, and
      * [analysis] stays as it is. It suspends only to check for cancellation and never throws otherwise.
      */

@@ -20,6 +20,7 @@ import io.karpfen.ide.core.lang.feature.FeatureRequest
 import io.karpfen.ide.core.lang.feature.NavigationProvider
 import io.karpfen.ide.core.lang.navigation.ContextReferences
 import io.karpfen.ide.core.lang.navigation.ContextSymbol
+import io.karpfen.ide.core.lang.symbols.AttachableMachines
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 
 /**
@@ -48,12 +49,14 @@ internal class KmetaNavigationProvider(
             is KmetaSlot.TypeName -> ContextSymbol.Type(slot.name)
             is KmetaSlot.TypeArgument -> ContextSymbol.Type(slot.name).takeIf { !slot.primitive && slot.inString }
             is KmetaSlot.MemberName -> slot.owner?.let { ContextSymbol.Member(it, slot.name) }
-            KmetaSlot.TopLevel, is KmetaSlot.TypeBody, KmetaSlot.None -> null
+            is KmetaSlot.StateMachineName -> ContextSymbol.StateMachine(slot.name)
+            KmetaSlot.TopLevel, is KmetaSlot.TypeBody, is KmetaSlot.TypeHeader, KmetaSlot.None -> null
         }?.takeIf { it.name.isNotBlank() }
 
     /** The declaration of [symbol] in the type catalog, or null if the type or member is unknown. */
     private fun declarationOf(request: FeatureRequest, symbol: ContextSymbol): Location? = when (symbol) {
         is ContextSymbol.Type -> types.type(request, symbol.name)?.declaration
         is ContextSymbol.Member -> types.type(request, symbol.owner)?.member(symbol.name)?.declaration
+        is ContextSymbol.StateMachine -> AttachableMachines(request).named(symbol.name).firstOrNull()?.location
     }
 }

@@ -24,6 +24,7 @@ import io.karpfen.ide.core.lang.feature.NavigationProvider
 import io.karpfen.ide.core.lang.modelpath.PathOrigin
 import io.karpfen.ide.core.lang.navigation.ContextReferences
 import io.karpfen.ide.core.lang.navigation.ContextSymbol
+import io.karpfen.ide.core.lang.symbols.AttachableMachines
 import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
@@ -34,6 +35,8 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
  * - `ATTACHED TO`, TAKES and RETURNS types lead to the TYPE declaration in the metamodel of the context, through
  *   [types].
  * - Event names lead to the event type.
+ * - The name after `ATTACH` and the second argument of `EXCHANGE` lead to the attachable state machine of the context
+ *   with that name, and its declaration finds them across the context.
  * - Model path segments lead to the member declarations in the metamodel, through [paths] and
  *   `PathMember.declaration`. WITH bindings and macro parameters lead to their declarations, and `self` and `event`
  *   lead to the type.
@@ -89,6 +92,10 @@ internal class KstatesNavigationProvider(
             is KstatesSlot.BindingName -> Target.Binding(slot.name, Location(request.document.path, slot.range, request.document.text))
             is KstatesSlot.ParameterName -> Target.Binding(slot.name, Location(request.document.path, slot.range, request.document.text))
             is KstatesSlot.TypeName -> if (slot.inString) typeTarget(request, slot.name) else null
+            is KstatesSlot.StateMachineName -> Target.Shared(
+                ContextSymbol.StateMachine(slot.name),
+                AttachableMachines(request).named(slot.name).firstOrNull()?.location,
+            )
             is KstatesSlot.EventName -> Target.Shared(
                 ContextSymbol.Type(slot.name),
                 types.contextTypes(request).firstOrNull { it.origin == TypeOrigin.EVENTS && it.name == slot.name }?.declaration,

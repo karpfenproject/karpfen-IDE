@@ -41,7 +41,7 @@ public enum class SymbolKind {
     /** KModel `knows("k") -> "obj"`. */
     KNOWS_ASSIGNMENT,
 
-    /** KStates `STATEMACHINE ATTACHED TO "T" { ... }`. */
+    /** KStates `STATEMACHINE ATTACHED TO "T" { ... }` or `STATEMACHINE "name" ATTACHABLE TO "A", "B" { ... }`. */
     STATEMACHINE,
 
     /** KStates `STATE "s" { ... }`, and also `INITIAL STATE`. */
@@ -112,4 +112,10 @@ public enum class ReferenceKind {
 
     /** The event domain argument of `EVENT("d", "n")`. */
     EVENT_DOMAIN,
+
+    /**
+     * The name of an attachable state machine: in KMeta `behaves after "x"`, in KStates the string after `ATTACH` and
+     * the string that is the second operand of `EXCHANGE`. A name that an `EVAL` or a `MACRO` computes is no reference.
+     */
+    STATE_MACHINE,
 }

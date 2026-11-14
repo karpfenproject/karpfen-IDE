@@ -56,6 +56,12 @@ public object DeployProblemCodes {
     public const val UNKNOWN_ATTACHMENT: String = "deploy-unknown-attachment"
 
     /**
+     * The descriptor lists a state machine without `attachedTo`, which makes it a definition. The deployment of the IDE
+     * uploads attached state machines only, so it does not deploy such a context. This is an error.
+     */
+    public const val DEFINITIONS_UNSUPPORTED: String = "deploy-definitions-unsupported"
+
+    /**
      * Two state machines are attached to the same key. The runtime would silently keep the last one. This is an error.
      */
     public const val DUPLICATE_ATTACHMENT: String = "deploy-duplicate-attachment"
@@ -166,7 +172,7 @@ public object DeployProblemCodes {
 
     /** Every code, in the order the constants are declared. */
     public val ALL: List<String> = listOf(
-        NO_CONTEXT, SAVE_FAILED, UNSAVED_FILE, CONTEXT_ERRORS, NO_METAMODEL, NO_MODEL, UNKNOWN_ATTACHMENT,
+        NO_CONTEXT, SAVE_FAILED, UNSAVED_FILE, CONTEXT_ERRORS, NO_METAMODEL, NO_MODEL, UNKNOWN_ATTACHMENT, DEFINITIONS_UNSUPPORTED,
         DUPLICATE_ATTACHMENT, ATTACHMENT_TYPE, TICK_DELAY_RANGE, TICK_DELAY_ZERO, EVENT_TTL_NEVER_EXPIRES, REFERENCE_LOOP,
         DOMAIN_IS_ATTACHMENT, OBSERVE_SUPERSEDED, HOSTING_IGNORED, RUNTIME_UNREACHABLE,
         RUNTIME_INCOMPATIBLE, RUNTIME_NO_ANSWER, RUNTIME_REJECTED, RUNTIME_ERROR, HANDSHAKE_REJECTED, CONNECTION_LOST,

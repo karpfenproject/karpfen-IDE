@@ -162,7 +162,7 @@ class DescriptorCompletionAcceptanceTest {
         )
         val machines = accept("{ \"stateMachines\": [ { \"file\": \"a\", \"attachedTo\": \"b\" } ‸ ] }", "{ … }")
         assertEquals(
-            "{ \"stateMachines\": [ { \"file\": \"a\", \"attachedTo\": \"b\" } , { \"file\": \"‸\", \"attachedTo\": \"\" } ] }",
+            "{ \"stateMachines\": [ { \"file\": \"a\", \"attachedTo\": \"b\" } , { \"file\": \"‸\" } ] }",
             machines,
         )
         assertEquals(listOf("numpy"), complete("{ \"runtime\": { \"pythonPackages\": [ \"scipy\" ‸ ] } }").map { it.label })
