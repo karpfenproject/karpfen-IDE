@@ -478,7 +478,7 @@ the client is tested against.
 
 A run deploys what is on disk, never unsaved editor text. The Run action saves every open file first. The descriptor
 holds the whole deploy configuration, so a run can be repeated without the IDE's state. Every deployment sends the
-tick delay and the event time to live. A stopped environment is final. Running again creates a new one.
+tick delay and the event time to live. A stopped environment is final for the IDE. Running again creates a new one.
 
 ### Product choices
 
@@ -621,6 +621,11 @@ Read `DefaultRuntimeConnection`, `LifecycleRules` and `RuntimeJson`.
   socket. A half-open old socket still swallows pushes until the runtime's ping drops it. The model then
   resynchronizes, at worst about 75 s late, and domain events lost in that time are not recovered.
 - Forcing a state makes the runtime discard all queued external events of the environment.
+- A stop only freezes an environment, and the runtime keeps the sockets of its clients open. It pushes an
+  `engineStatus` notice with the member `phase`. The connection ends as stopped on the notice of a stop, or as soon as
+  the handle's phase is stopped, and closes its socket itself. A run whose environment another client stops ends the
+  same way. The runtime closes the sockets only when it ends, with 1001 `Runtime stopped`, which ends the connection
+  as lost.
 
 ### Keyboard handling
 

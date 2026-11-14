@@ -122,8 +122,9 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 
 - There is no channel that reports engine errors to the client. The IDE only sees that the engine halted or went
   silent and points to the runtime log.
-- Environments cannot be deleted, so they pile up in a long-running runtime. Access keys never expire, and events sent
-  to a stopped environment are queued anyway.
+- Environments cannot be deleted, so they pile up in a long-running runtime. A stop only freezes an environment, so
+  every stopped environment stays in the runtime with its instances, its waiting events and its Python sessions until
+  the runtime ends. Access keys never expire.
 - The engine skips the entry block of a state that a join leaves in the next tick. The test for it in
   `ObservationScenarios` is disabled until the runtime is fixed.
 - After the `ENTRY` block of an outer state the engine also checks the transitions of the nested states it has not
@@ -156,10 +157,9 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 - Pushes still queued when an environment stops are dropped.
 - A macro that changes an existing object sends no push. Setting a scalar that was never written does send one.
 - The runtime pushes nothing when a transition fires or an event is consumed, so a live view cannot show either.
-- Starting a stopped environment restarts it from the initial states over the changed model. The stop closed its
-  sockets, so clients must connect again. The runtime does not document this, and the IDE never does it.
-- A stop closes the trace file of the engine, and a later start does not open it again. An environment that was
-  stopped and started again writes no trace, so the log of its state machines would stay empty from then on.
+- A start after a stop lets the frozen environment continue, and the sockets of its clients stay open across the stop.
+  The IDE does not use this: Stop ends a run for good, and a run whose environment another client stops ends as well,
+  even if that client starts the environment again. The IDE closes its own socket in both cases.
 - There is no version endpoint, no published image, no configuration through environment variables and no
   authentication. Access keys are predictable, and the runtime prints them on its console.
 - The runtime reads every upload with all optional language features on. The IDE checks the features of the project
@@ -175,8 +175,6 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
   injector's checks in `PayloadDiagnosticCodes` catch these cases before an event is sent.
 - State names are global in the runtime, and its lookups take the first match depth-first. A nested state that shares
   the name of a top-level state therefore makes the reported stack ambiguous. `StackSegmenter` explains the effect.
-- A dictionary that an `EVAL` or a `MACRO` returns with the `__id__` of an existing object changes that object in place
-  and can replace what it holds without a drop, so the state machines of objects removed that way are not ended.
 - The runtime never reads the type a state machine names after `ATTACHED TO`. It treats `_` as an ordinary object key
   and keeps the last of two objects with the same key. The deploy checks report both before a run.
 - The IDE support changed what the runtime sends and accepts, and it is part of the runtime's `main` now. An
