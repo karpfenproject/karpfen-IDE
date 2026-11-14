@@ -25,6 +25,7 @@ import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
 import io.karpfen.ide.runtime.protocol.conformance.eventually
 import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.protocol.lifecycle.RuntimeEnvironment
+import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.states.StackOrigin
@@ -163,7 +164,7 @@ abstract class AttachmentScenarios {
         assertEquals(OK, call(RuntimeRoute.START_ENVIRONMENT, "envKey" to environment).status, diagnostics)
         try {
             val restarted = eventually("the instances of the restart") {
-                session.snapshot().takeIf { it.phase == "RUNNING" && created in it.stateMachines }
+                session.snapshot().takeIf { it.phase == RuntimePhase.RUNNING.wireName && created in it.stateMachines }
             }
             assertEquals(listOf("room", "bulb", "spare", created), restarted.stateMachines.keys.toList(), diagnostics)
             assertEquals(mapOf("room" to null, "bulb" to "glowing", "spare" to "glowing", created to "glowing"), restarted.stateMachines)

@@ -88,7 +88,7 @@ abstract class RuntimeContract {
     @Test
     fun `every route refuses a missing parameter with the text of the first one it checks`() = scenario {
         RuntimeRoute.entries.filter { it.parameters.isNotEmpty() }.forEach { route ->
-            route.parameters.indices.forEach { present ->
+            route.parameters.indices.filter { route.parameters[it] !in route.optional }.forEach { present ->
                 val given = route.parameters.take(present).map { it to sampleValue(it, "env-1") }
                 val missing = route.parameters[present]
                 val text = if (missing in NUMERIC) RuntimeText.INVALID_PARAMETER else RuntimeText.MISSING_PARAMETER
@@ -665,7 +665,13 @@ abstract class RuntimeContract {
         val NUMERIC = setOf("milliseconds", "ttlMs")
 
         /** The message types of the pushes that carry a revision. */
-        val OBSERVATIONS = setOf(WireNames.OBJECT_CHANGED, WireNames.OBJECT_DELETED, WireNames.STATE_CHANGE)
+        val OBSERVATIONS = setOf(
+            WireNames.OBJECT_CHANGED,
+            WireNames.OBJECT_DELETED,
+            WireNames.STATE_CHANGE,
+            WireNames.STATE_MACHINE_ATTACHED,
+            WireNames.STATE_MACHINE_DETACHED,
+        )
 
         /** The shape of an environment key. */
         val ENVIRONMENT_KEY = Regex("""env-\d+""")

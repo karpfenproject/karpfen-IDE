@@ -261,7 +261,7 @@ internal class RawLink(val link: WebSocketLink, scope: RuntimeScenarioScope) {
         envelopes.filter { RawRuntime.string(it, WireNames.MESSAGE_TYPE) == messageType }
             .map { it[WireNames.PAYLOAD] as WireValue.WireObject }
 
-    /** The revisions of the object and stack pushes received so far, in order. */
+    /** The revisions of the object, stack and instance pushes received so far, in order. */
     val revisions: List<Long>
         get() = envelopes.filter { RawRuntime.string(it, WireNames.MESSAGE_TYPE) in REVISED }
             .map { ((it[WireNames.PAYLOAD] as WireValue.WireObject)[WireNames.REVISION] as WireValue.WireNumber).value.toLong() }
@@ -278,6 +278,12 @@ internal class RawLink(val link: WebSocketLink, scope: RuntimeScenarioScope) {
 
     private companion object {
         /** The message types that carry a revision. */
-        val REVISED = setOf(WireNames.OBJECT_CHANGED, WireNames.OBJECT_DELETED, WireNames.STATE_CHANGE)
+        val REVISED = setOf(
+            WireNames.OBJECT_CHANGED,
+            WireNames.OBJECT_DELETED,
+            WireNames.STATE_CHANGE,
+            WireNames.STATE_MACHINE_ATTACHED,
+            WireNames.STATE_MACHINE_DETACHED,
+        )
     }
 }
