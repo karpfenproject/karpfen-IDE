@@ -75,9 +75,12 @@ refer to.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
 - A run with TrueParallel has been tested with fakes and by the runtime's own tests only, not in the window against
   the real runtime.
-- A context whose descriptor lists definitions, entries without `attachedTo`, cannot be deployed yet. The check
-  `deploy-definitions-unsupported` blocks it, and the Runtime tool window, live highlighting, the debugger and the run
-  without a window know only state machines attached by the descriptor.
+- The statechart of a definition shows one instance at a time. It cannot show several instances at once or compare
+  them, and the Model pane does not say which state machine an object runs.
+- The active states above the log list every instance on one line each. A run with many instances of definitions
+  makes that list long, and it has no filter.
+- Live scenarios of dynamic attachment exist, `LiveAttachmentScenariosTest` and the spares run of
+  `LiveHeadlessRunTest`, but nobody has run them yet against the real runtime.
 
 ### Bridges
 
@@ -172,6 +175,8 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
   injector's checks in `PayloadDiagnosticCodes` catch these cases before an event is sent.
 - State names are global in the runtime, and its lookups take the first match depth-first. A nested state that shares
   the name of a top-level state therefore makes the reported stack ambiguous. `StackSegmenter` explains the effect.
+- A dictionary that an `EVAL` or a `MACRO` returns with the `__id__` of an existing object changes that object in place
+  and can replace what it holds without a drop, so the state machines of objects removed that way are not ended.
 - The runtime never reads the type a state machine names after `ATTACHED TO`. It treats `_` as an ordinary object key
   and keeps the last of two objects with the same key. The deploy checks report both before a run.
 - The IDE support changed what the runtime sends and accepts, and it is part of the runtime's `main` now. An

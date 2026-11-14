@@ -549,8 +549,8 @@ independent.
 ### Deployment and observation
 
 Read `DeployStepKind` and the `deploy` package of runtime-session. A deployment checks the runtime, creates the
-environment, connects, uploads the files, attaches the state machines, sets the timing, listens to the domains,
-switches on the runtime features of the project, activates, starts observing and starts.
+environment, connects, uploads the files, attaches the state machines and uploads the definitions, sets the timing,
+listens to the domains, switches on the runtime features of the project, activates, starts observing and starts.
 
 Histories, tick limits, breakpoints, macros, splits and joins, and dynamic attachment are optional features of the
 languages, listed by dsl-tools' `KstatesFeature`. A project switches them on by hand, and `.karpfenproject` stores
@@ -565,9 +565,20 @@ attachment need nothing in the runtime.
 
 A descriptor entry without `attachedTo` hands an attachable state machine to the environment as a definition.
 `StateMachineForms` in core-workspace checks during the analysis that the form of each listed file fits its entry,
-from the syntax index, and reports `descriptor-state-machine-form` at the file value of the entry. The deployment
-uploads attached state machines only, and `DefinitionsCheck` in runtime-session blocks a context that lists
-definitions with `deploy-definitions-unsupported`.
+from the syntax index, and reports `descriptor-state-machine-form` at the file value of the entry. The plan uploads a
+definition with the role `UploadRole.DEFINITION`, without a key, in descriptor order among the attached state
+machines, and keeps the definitions as `DeploymentPlan.definitions`. `DefinitionNotListedCheck` and
+`AttachedDefinitionNotListedCheck` compare the names that `behaves after`, `ATTACH` and `EXCHANGE` use with the listed
+definitions, which only the deployment knows; whether a name exists in the project is a check of dsl-tools.
+
+Which objects run which state machine changes during a run. The runtime announces each instance with the push
+`stateMachineAttached` and its end with `stateMachineDetached`, both with the object key and the definition name, or
+null for an attached state machine, and both count as revisions. The snapshot carries the same record as
+`stateMachines`. `ActiveStatesReducer` keeps `ActiveStates.machines` equal to that record: the attached layouts before
+the start, then the announced instances in their order, each with the `DefinitionLayout` of its definition from
+`PreparedDeployment.definitions`. Everything that lists machines reads that map, so the Runtime tool window, the
+statecharts through `DiagramLives`, the bridges and the run without a window follow instances as they come and go.
+`StatechartLogReader` tells an exchange from a detach followed by an attach in the runtime's trace.
 
 A session whose deployment switched Breakpoint on has a debugger, `RuntimeSession.debugger`. The runtime sends an
 `engineStatus` message whenever its engine starts to wait and when it goes on. The session's router hands these to
