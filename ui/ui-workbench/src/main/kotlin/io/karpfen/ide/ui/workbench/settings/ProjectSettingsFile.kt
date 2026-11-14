@@ -37,7 +37,8 @@ import kotlin.math.roundToInt
  * ```
  *
  * `theme` is `light`, `dark` or `system`. `zoom` is the scale of the workbench in percent. `pane.<name>` is `shown` or
- * `hidden` followed by the size of the tool window in dp. Every open file has its own `open` line, in the order of the
+ * `hidden` followed by the size of the tool window in dp. A third word `detached` says that the tool window is shown in
+ * a window of its own, as in `pane.runtime = shown 400 detached`. The size is then the one of its docked place. Every open file has its own `open` line, in the order of the
  * tabs. Every bridge that was started with the last run has its own `bridge` line. The line `capture = on` says that
  * the last run was captured to a file. It is only there while that is on, and a capture line with another value counts
  * as off. Every optional language feature that is switched on has its own line `feature.<name> = on`, with the
@@ -58,6 +59,9 @@ public object ProjectSettingsFile {
 
     /** The prefix of the keys of the tool windows. */
     private const val PANE = "pane."
+
+    /** The third word of a tool window's line when the tool window is detached. */
+    private const val DETACHED = "detached"
 
     /** The prefix of the keys of the language features. */
     private const val FEATURE = "feature."
@@ -120,7 +124,8 @@ public object ProjectSettingsFile {
         appendLine("zoom = ${(settings.uiScale * PERCENT).roundToInt()}")
         appendLine("editorFontSize = ${settings.editorFontSize.roundToInt()}")
         settings.toolWindows.toSortedMap().forEach { (name, layout) ->
-            appendLine("$PANE${name.lowercase()} = ${if (layout.visible) "shown" else "hidden"} ${layout.size.roundToInt()}")
+            val place = if (layout.detached) " $DETACHED" else ""
+            appendLine("$PANE${name.lowercase()} = ${if (layout.visible) "shown" else "hidden"} ${layout.size.roundToInt()}$place")
         }
         settings.openFiles.forEach { appendLine("open = $it") }
         settings.activeFile?.let { appendLine("active = $it") }
@@ -135,7 +140,11 @@ public object ProjectSettingsFile {
     /** The language feature that the key [key] names after its `feature.` prefix, or null if it names none. */
     private fun feature(key: String): KstatesFeature? = KstatesFeature.byId(key.removePrefix(FEATURE))
 
-    /** The layout that `shown 400` or `hidden 180` describes, or null if the value is something else. */
+    /**
+     * The layout that `shown 400`, `hidden 180` or `shown 400 detached` describes, or null if the value is something
+     * else. Any other third word counts as docked, and words after the third are ignored. Whether
+     * the tool window may be detached at all is decided by the layout that reads these settings.
+     */
     private fun pane(value: String): ToolWindowLayout? {
         val parts = value.split(Regex("\\s+"))
         val visible = when (parts.getOrNull(0)?.lowercase()) {
@@ -144,6 +153,7 @@ public object ProjectSettingsFile {
             else -> return null
         }
         val size = parts.getOrNull(1)?.toFloatOrNull()?.takeIf { it > 0f } ?: return null
-        return ToolWindowLayout(visible, size)
+        val detached = parts.getOrNull(2).equals(DETACHED, ignoreCase = true)
+        return ToolWindowLayout(visible, size, detached)
     }
 }

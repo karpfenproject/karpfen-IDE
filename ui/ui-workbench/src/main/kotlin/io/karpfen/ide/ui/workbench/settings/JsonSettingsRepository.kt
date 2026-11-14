@@ -176,13 +176,18 @@ internal class JsonSettingsRepository(
      * ignored, so a file from the time when it held everything still loads.
      */
     @Serializable
-    private data class UserSettings(val recentFolders: List<String> = emptyList(), val windowBounds: WindowBounds? = null) {
+    private data class UserSettings(
+        val recentFolders: List<String> = emptyList(),
+        val windowBounds: WindowBounds? = null,
+        val runtimeWindowBounds: WindowBounds? = null,
+    ) {
         /** These settings with the defaults for the project part. The [IdeSettings] invariants are checked here. */
-        fun toSettings(): IdeSettings = IdeSettings(recentFolders = recentFolders, windowBounds = windowBounds)
+        fun toSettings(): IdeSettings =
+            IdeSettings(recentFolders = recentFolders, windowBounds = windowBounds, runtimeWindowBounds = runtimeWindowBounds)
     }
 
     /** The part of these settings that goes to `settings.json`. */
-    private val IdeSettings.user: UserSettings get() = UserSettings(recentFolders, windowBounds)
+    private val IdeSettings.user: UserSettings get() = UserSettings(recentFolders, windowBounds, runtimeWindowBounds)
 
     private companion object {
         private val logger = LoggerFactory.getLogger(JsonSettingsRepository::class.java)

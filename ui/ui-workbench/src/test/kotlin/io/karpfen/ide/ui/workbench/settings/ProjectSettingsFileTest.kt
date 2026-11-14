@@ -18,6 +18,7 @@ package io.karpfen.ide.ui.workbench.settings
 import io.karpfen.dsl.states.KstatesFeature
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /** Tests the plain text format of the project file `.karpfenproject`. */
 class ProjectSettingsFileTest {
@@ -56,6 +57,23 @@ class ProjectSettingsFileTest {
     fun `what is written reads back to the same settings`() {
         assertEquals(settings, ProjectSettingsFile.parse(ProjectSettingsFile.format(settings)))
         assertEquals(ProjectSettings(), ProjectSettingsFile.parse(ProjectSettingsFile.format(ProjectSettings())))
+    }
+
+    @Test
+    fun `a detached tool window has the word detached after its size and reads back`() {
+        val detached = ProjectSettings(toolWindows = mapOf("RUNTIME" to ToolWindowLayout(visible = true, size = 400f, detached = true)))
+        val text = ProjectSettingsFile.format(detached)
+        assertTrue("pane.runtime = shown 400 detached" in text.lines())
+        assertEquals(detached, ProjectSettingsFile.parse(text))
+        assertEquals(
+            ToolWindowLayout(visible = false, size = 300f, detached = true),
+            ProjectSettingsFile.parse("pane.runtime = hidden 300 DETACHED").toolWindows["RUNTIME"],
+        )
+        assertEquals(
+            ToolWindowLayout(visible = true, size = 300f),
+            ProjectSettingsFile.parse("pane.runtime = shown 300 floating").toolWindows["RUNTIME"],
+            "another third word counts as docked",
+        )
     }
 
     @Test

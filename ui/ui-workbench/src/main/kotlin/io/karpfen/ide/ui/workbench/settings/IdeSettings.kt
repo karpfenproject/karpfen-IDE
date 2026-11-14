@@ -21,7 +21,7 @@ import kotlinx.serialization.Serializable
 /**
  * The settings the IDE works with. They come from two places, and the [SettingsRepository] keeps them apart.
  *
- * [recentFolders] and [windowBounds] belong to the user and the machine. They are stored as JSON in the IDE's home
+ * [recentFolders], [windowBounds] and [runtimeWindowBounds] belong to the user and the machine. They are stored as JSON in the IDE's home
  * directory. Everything else belongs to the open project and is stored in the file `.karpfenproject` in the project
  * folder, as [ProjectSettings] describes. While no folder is open, the project part holds its defaults and is not
  * stored anywhere.
@@ -34,7 +34,10 @@ import kotlinx.serialization.Serializable
  * @property uiScale the factor by which the whole workbench is drawn larger or smaller, 1 for the normal size. The
  *   status bar's zoom buttons change it. Part of the project.
  * @property windowBounds the last bounds of the main window, or null for the default placement.
- * @property toolWindows the visibility and size of the tool windows, keyed by tool window name. The key is
+ * @property runtimeWindowBounds the last bounds of the window that holds the detached Runtime tool window, or null for
+ *   its default placement. They are screen positions like [windowBounds], so they stay with the user and the machine
+ *   while whether the tool window is detached belongs to the project.
+ * @property toolWindows the visibility, size and place of the tool windows, keyed by tool window name. The key is
  *   `ToolWindowId.name` from the workbench's layout package. A missing entry means the default layout. An unknown
  *   entry is kept but ignored. Part of the project.
  * @property openFiles the files open in tabs, relative to the project folder with forward slashes, in the order of
@@ -55,6 +58,7 @@ public data class IdeSettings(
     public val editorFontSize: Float = Zoom.DEFAULT_EDITOR_FONT_SIZE,
     public val uiScale: Float = Zoom.DEFAULT_UI_SCALE,
     public val windowBounds: WindowBounds? = null,
+    public val runtimeWindowBounds: WindowBounds? = null,
     public val toolWindows: Map<String, ToolWindowLayout> = emptyMap(),
     public val openFiles: List<String> = emptyList(),
     public val activeFile: String? = null,
@@ -110,10 +114,12 @@ public data class WindowBounds(
 
 /**
  * The persisted layout of one tool window. It says whether the window is [visible] and gives its [size] in dp, which
- * is the width of a side window or the height of a bottom window.
+ * is the width of a side window or the height of a bottom window. [detached] says whether the tool window is shown in
+ * a window of its own instead of in its place in the main window. Only a detachable tool window is ever detached. Its
+ * [size] stays the size of its docked place, so docking it again restores that size.
  */
 @Serializable
-public data class ToolWindowLayout(public val visible: Boolean = true, public val size: Float) {
+public data class ToolWindowLayout(public val visible: Boolean = true, public val size: Float, public val detached: Boolean = false) {
     init {
         require(size > 0f) { "size must be positive, was $size" }
     }

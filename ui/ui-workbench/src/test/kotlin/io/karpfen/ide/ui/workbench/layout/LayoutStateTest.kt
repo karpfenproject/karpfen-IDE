@@ -21,6 +21,7 @@ import io.karpfen.ide.ui.workbench.settings.ToolWindowLayout
 import io.karpfen.ide.ui.workbench.settings.WindowBounds
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -93,6 +94,100 @@ class LayoutStateTest {
         layout.restore(settings)
         assertEquals(LayoutUiState.of(settings), layout.state.value)
         assertTrue(layout.state.value.toolWindow(ToolWindowId.PROJECT).visible)
+    }
+
+    @Test
+    fun `only the Runtime tool window is detachable`() {
+        assertEquals(listOf(ToolWindowId.RUNTIME), ToolWindowId.entries.filter { it.detachable })
+        assertFailsWith<IllegalArgumentException> { LayoutState().toggleDetached(ToolWindowId.PROJECT) }
+    }
+
+    @Test
+    fun `detaching moves the tool window out of its docked place and docking puts it back with its size`() {
+        val layout = LayoutState()
+        val runtime = ToolWindowId.RUNTIME
+        layout.resizeToolWindow(runtime, 333f)
+
+        layout.toggleDetached(runtime)
+        assertTrue(layout.state.value.isDetached(runtime), "detaching shows the hidden tool window in its own window")
+        assertFalse(layout.state.value.isDocked(runtime))
+
+        layout.toggleDetached(runtime)
+        assertTrue(layout.state.value.isDocked(runtime))
+        assertFalse(layout.state.value.isDetached(runtime))
+        assertEquals(333f, layout.state.value.toolWindow(runtime).size)
+
+        layout.toggleDetached(runtime)
+        layout.dockToolWindow(runtime)
+        assertTrue(layout.state.value.isDocked(runtime), "closing the detached window docks it and keeps it shown")
+        layout.dockToolWindow(runtime)
+        assertTrue(layout.state.value.isDocked(runtime), "docking a docked tool window keeps it as it is")
+    }
+
+    @Test
+    fun `hiding a detached tool window keeps its place, so showing it again opens its window again`() {
+        val layout = LayoutState()
+        val runtime = ToolWindowId.RUNTIME
+        layout.toggleDetached(runtime)
+
+        layout.toggleToolWindow(runtime)
+        assertFalse(layout.state.value.isDetached(runtime))
+        assertFalse(layout.state.value.isDocked(runtime))
+        assertTrue(layout.state.value.toolWindow(runtime).detached)
+
+        layout.toggleToolWindow(runtime)
+        assertTrue(layout.state.value.isDetached(runtime))
+    }
+
+    @Test
+    fun `showing or expanding a detached tool window raises its window and leaves the docked size alone`() {
+        val layout = LayoutState()
+        val runtime = ToolWindowId.RUNTIME
+        layout.reportAvailableHeight(800f)
+        layout.showToolWindow(runtime)
+        layout.expandToolWindow(runtime, 0.75f)
+        assertEquals(0, layout.raiseRequests.value, "a docked tool window has no window to raise")
+        assertEquals(600f, layout.state.value.toolWindow(runtime).size)
+
+        layout.resizeToolWindow(runtime, 250f)
+        layout.toggleDetached(runtime)
+        layout.expandToolWindow(runtime, 0.75f)
+        assertEquals(1, layout.raiseRequests.value)
+        assertEquals(250f, layout.state.value.toolWindow(runtime).size)
+        assertTrue(layout.state.value.isDetached(runtime))
+
+        layout.toggleToolWindow(runtime)
+        layout.showToolWindow(runtime)
+        assertEquals(2, layout.raiseRequests.value)
+        assertTrue(layout.state.value.isDetached(runtime), "showing a hidden detached tool window opens its window")
+
+        layout.showToolWindow(ToolWindowId.OUTPUT)
+        assertEquals(2, layout.raiseRequests.value, "showing another tool window raises nothing")
+    }
+
+    @Test
+    fun `the detached place and the bounds of its window are read from and written to the settings`() {
+        val bounds = WindowBounds(x = 900, y = 30, width = 960, height = 600)
+        val settings = IdeSettings(
+            runtimeWindowBounds = bounds,
+            toolWindows = mapOf(
+                "RUNTIME" to ToolWindowLayout(visible = true, size = 400f, detached = true),
+                "PROBLEMS" to ToolWindowLayout(visible = true, size = 200f, detached = true),
+            ),
+        )
+        val read = LayoutUiState.of(settings)
+        assertTrue(read.isDetached(ToolWindowId.RUNTIME))
+        assertEquals(bounds, read.runtimeWindowBounds)
+        assertTrue(read.isDocked(ToolWindowId.PROBLEMS), "a tool window that is not detachable is read as docked")
+
+        val layout = LayoutState()
+        val moved = WindowBounds(x = 10, y = 20, width = 700, height = 500)
+        layout.updateRuntimeWindowBounds(moved)
+        layout.toggleDetached(ToolWindowId.RUNTIME)
+        val written = layout.state.value.applyTo(IdeSettings())
+        assertEquals(moved, written.runtimeWindowBounds)
+        assertEquals(true, written.toolWindows["RUNTIME"]?.detached)
+        assertEquals(layout.state.value, LayoutUiState.of(written))
     }
 
     @Test

@@ -30,7 +30,7 @@ import io.karpfen.dsl.states.KstatesFeature
  * @property theme the light or dark theme.
  * @property uiScale the factor by which the whole workbench is drawn larger or smaller, 1 for the normal size.
  * @property editorFontSize the font size of the editors in sp.
- * @property toolWindows the visibility and size of the tool windows, keyed by `ToolWindowId.name`.
+ * @property toolWindows the visibility, size and place of the tool windows, keyed by `ToolWindowId.name`.
  * @property openFiles the files that are open in tabs, in the order of the tabs.
  * @property activeFile the file of the active tab, or null if no tab is open.
  * @property bridges the bridge files that were started with the last run, named like the open files.
@@ -65,7 +65,10 @@ public val IdeSettings.project: ProjectSettings
         languageFeatures, otherProjectLines,
     )
 
-/** These settings with the project part replaced by [project]. The recent folders and the window bounds stay. */
+/**
+ * These settings with the project part replaced by [project]. The recent folders and the bounds of the main window and
+ * of the detached Runtime tool window stay.
+ */
 public fun IdeSettings.withProject(project: ProjectSettings): IdeSettings = copy(
     theme = project.theme,
     uiScale = project.uiScale,
