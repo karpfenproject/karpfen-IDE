@@ -75,6 +75,18 @@ public object RuntimeWireWriter {
             .toString()
 
     /**
+     * The `stateMachineAttached` or `stateMachineDetached` payload with `modelElementId`, `stateMachine` and `revision`,
+     * built with org.json as the runtime's `ObservationRelay.lifecyclePayload` builds it, in org.json's member order. A
+     * null [stateMachine] is written as JSON `null`, as `JSONObject.NULL` is.
+     */
+    public fun stateMachinePayload(modelElementId: String, stateMachine: String?, revision: Long): String =
+        JSONObject()
+            .put("modelElementId", modelElementId)
+            .put("stateMachine", stateMachine ?: JSONObject.NULL)
+            .put("revision", revision)
+            .toString()
+
+    /**
      * The `domainEvent` payload `{"domain":…,"payload":…}`. The domain is quoted. The published event is an org.json
      * object with `event`, `payload`, `payloadFormat`, `source`, `timestamp` and `ttlMs` in org.json's member order. It
      * ports the runtime's `ObservationRelay.onPublished` and `ClientSessionManager.notifyDomainEvent`.
@@ -162,9 +174,10 @@ public object RuntimeWireWriter {
 
     /**
      * The model snapshot body as the runtime's `ModelSnapshot.toJson` writes it. Its shape is `{"environmentKey":…,
-     * "phase":…,"revision":…,"activeStates":{…},"roots":[…]}` with no whitespace. The strings are quoted with [quote]
-     * and the stacks come in the order of [activeStates]. Every root's JSON from [roots] is spliced in as written,
-     * separated by commas.
+     * "phase":…,"revision":…,"activeStates":{…},"stateMachines":{…},"roots":[…]}` with no whitespace. The strings are
+     * quoted with [quote], the stacks come in the order of [activeStates] and the instances in the order of
+     * [stateMachines], a null definition name written as `null`. Every root's JSON from [roots] is spliced in as
+     * written, separated by commas.
      */
     public fun snapshot(
         environmentKey: String,
@@ -172,12 +185,14 @@ public object RuntimeWireWriter {
         revision: Long,
         activeStates: Map<String, List<String>>,
         roots: List<String>,
+        stateMachines: Map<String, String?> = emptyMap(),
     ): String {
         val stacks = activeStates.entries.joinToString(",") { (machine, stack) ->
             "${quote(machine)}:[${stack.joinToString(",") { quote(it) }}]"
         }
+        val machines = stateMachines.entries.joinToString(",") { (key, name) -> "${quote(key)}:${name?.let(::quote) ?: "null"}" }
         return "{\"environmentKey\":${quote(environmentKey)},\"phase\":${quote(phase.wireName)},\"revision\":$revision," +
-            "\"activeStates\":{$stacks},\"roots\":[${roots.joinToString(",")}]}"
+            "\"activeStates\":{$stacks},\"stateMachines\":{$machines},\"roots\":[${roots.joinToString(",")}]}"
     }
 
     /**

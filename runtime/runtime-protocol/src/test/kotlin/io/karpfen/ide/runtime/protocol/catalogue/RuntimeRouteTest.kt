@@ -19,13 +19,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers the 26 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
+ * Covers the 27 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
  * has its verb, path, parameters in the order the runtime checks them, body, answer and timeout class.
  */
 class RuntimeRouteTest {
 
     @Test
-    fun `the catalogue holds the 26 routes in the order of the runtime's route files`() {
+    fun `the catalogue holds the 27 routes in the order of the runtime's route files`() {
         assertEquals(
             listOf(
                 "POST /createEnvironment" to emptyList(),
@@ -44,7 +44,8 @@ class RuntimeRouteTest {
                 "POST /stopEnvironment" to listOf("envKey"),
                 "GET /health" to emptyList(),
                 "GET /observatory/environments" to emptyList(),
-                "GET /observatory/statemachine" to listOf("envKey", "modelElement"),
+                "GET /observatory/statemachine" to listOf("envKey", "modelElement", "name"),
+                "GET /observatory/stateMachines" to listOf("envKey"),
                 "POST /observatory/registerClient" to listOf("clientId", "envKey", "modelElement"),
                 "GET /getRegisteredFeatures" to emptyList(),
                 "POST /activateFeature" to listOf("envKey", "featureName"),
@@ -85,6 +86,7 @@ class RuntimeRouteTest {
                 RuntimeRoute.HEALTH to ResponseKind.HEALTH,
                 RuntimeRoute.LIST_ENVIRONMENTS to ResponseKind.ENVIRONMENT_LIST,
                 RuntimeRoute.STATE_MACHINE_SOURCE to ResponseKind.STATE_MACHINE_SOURCE,
+                RuntimeRoute.LIST_STATE_MACHINES to ResponseKind.STATE_MACHINE_HOLDINGS,
                 RuntimeRoute.REGISTER_OBSERVATORY_CLIENT to ResponseKind.ACCESS_KEY,
                 RuntimeRoute.GET_REGISTERED_FEATURES to ResponseKind.FEATURE_NAMES,
                 RuntimeRoute.GET_ACTIVE_FEATURES to ResponseKind.FEATURE_NAMES,
@@ -95,7 +97,7 @@ class RuntimeRouteTest {
         )
         assertEquals(
             mapOf(
-                TimeoutClass.QUICK to 20,
+                TimeoutClass.QUICK to 21,
                 TimeoutClass.UPLOAD to 4,
                 TimeoutClass.STOP to 1,
                 TimeoutClass.SNAPSHOT to 1,
@@ -105,6 +107,18 @@ class RuntimeRouteTest {
         assertEquals(TimeoutClass.STOP, RuntimeRoute.STOP_ENVIRONMENT.timeout)
         assertEquals(TimeoutClass.SNAPSHOT, RuntimeRoute.MODEL_SNAPSHOT.timeout)
         assertEquals(TimeoutClass.UPLOAD, RuntimeRoute.SET_STATE_MACHINE.timeout)
+    }
+
+    @Test
+    fun `only the upload of a state machine and the read of its text take optional parameters`() {
+        assertEquals(
+            mapOf(
+                RuntimeRoute.SET_STATE_MACHINE to setOf("attachedTo"),
+                RuntimeRoute.STATE_MACHINE_SOURCE to setOf("modelElement", "name"),
+            ),
+            RuntimeRoute.entries.filter { it.optional.isNotEmpty() }.associateWith { it.optional },
+        )
+        assertEquals(emptyList(), RuntimeRoute.entries.filterNot { it.parameters.containsAll(it.optional) })
     }
 
     @Test

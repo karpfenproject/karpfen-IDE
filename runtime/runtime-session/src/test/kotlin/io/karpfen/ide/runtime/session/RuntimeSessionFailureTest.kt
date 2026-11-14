@@ -67,7 +67,7 @@ class RuntimeSessionFailureTest {
     lateinit var root: Path
 
     @ParameterizedTest
-    @EnumSource(DeployStepKind::class)
+    @EnumSource(DeployStepKind::class, names = ["DEFINE_STATE_MACHINE"], mode = EnumSource.Mode.EXCLUDE)
     fun `a failure at every step fails the session with the step's problem and the cleanup of its phase`(step: DeployStepKind) = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.preparedWithHistory()
@@ -89,7 +89,7 @@ class RuntimeSessionFailureTest {
     }
 
     @ParameterizedTest
-    @EnumSource(DeployStepKind::class)
+    @EnumSource(DeployStepKind::class, names = ["DEFINE_STATE_MACHINE"], mode = EnumSource.Mode.EXCLUDE)
     fun `closing the session at every step cancels the deployment, whose cleanup runs and records what stays`(step: DeployStepKind) = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.preparedWithHistory()
@@ -246,6 +246,7 @@ class RuntimeSessionFailureTest {
                 fake.respond(RuntimeRoute.SET_STATE_MACHINE, boom, where = mapOf("attachedTo" to "wallSwitch"))
                 Failure(DeployProblemCodes.RUNTIME_ERROR, configured)
             }
+            DeployStepKind.DEFINE_STATE_MACHINE -> error("the lamp has no definitions")
             DeployStepKind.SET_TICK_DELAY -> {
                 fake.respond(RuntimeRoute.SET_TICK_DELAY, FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.INVALID_PARAMETER, mapOf("name" to "milliseconds")))
                 Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
@@ -301,6 +302,7 @@ class RuntimeSessionFailureTest {
             DeployStepKind.UPLOAD_EVENTS -> configured.also { fake.hang(RuntimeRoute.SET_EVENT_DEFINITIONS) }
             DeployStepKind.UPLOAD_MODEL -> configured.also { fake.hang(RuntimeRoute.SET_MODEL) }
             DeployStepKind.ATTACH_STATE_MACHINE -> configured.also { fake.hang(RuntimeRoute.SET_STATE_MACHINE) }
+            DeployStepKind.DEFINE_STATE_MACHINE -> error("the lamp has no definitions")
             DeployStepKind.SET_TICK_DELAY -> configured.also { fake.hang(RuntimeRoute.SET_TICK_DELAY) }
             DeployStepKind.SET_EVENT_TTL -> configured.also { fake.hang(RuntimeRoute.SET_EVENT_TTL) }
             DeployStepKind.LISTEN_DOMAINS -> configured.also { fake.hang(RuntimeRoute.REGISTER_DOMAIN_LISTENER) }

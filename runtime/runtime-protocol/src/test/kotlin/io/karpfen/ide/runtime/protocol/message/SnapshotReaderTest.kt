@@ -48,6 +48,7 @@ class SnapshotReaderTest {
             57,
             linkedMapOf("turtle" to listOf("observe", "react to obstacle"), "lamp" to listOf("off")),
             listOf(RuntimeWireWriter.objectJson(lamp)),
+            linkedMapOf("turtle" to null, "lamp" to "blinking"),
         )
 
         val snapshot = assertIs<SnapshotReading.Read>(read(body)).snapshot
@@ -57,6 +58,8 @@ class SnapshotReaderTest {
         assertEquals(57, snapshot.revision)
         assertEquals(listOf("turtle", "lamp"), snapshot.activeStates.keys.toList())
         assertEquals(listOf("observe", "react to obstacle"), snapshot.activeStates["turtle"])
+        assertEquals(linkedMapOf("turtle" to null, "lamp" to "blinking"), snapshot.stateMachines)
+        assertEquals(listOf("turtle", "lamp"), snapshot.stateMachines.keys.toList())
         val root = snapshot.roots.single()
         assertEquals(WireValue.WireString("lamp"), root["__id__"])
         assertEquals(WireValue.WireNumber(0.5), root["brightness"])
@@ -64,7 +67,7 @@ class SnapshotReaderTest {
 
     @Test
     fun `a snapshot before the first tick has no stacks and revision zero, in any member order`() {
-        val body = """{"roots":[],"activeStates":{},"revision":0,"phase":"configuring","environmentKey":"env-1"}"""
+        val body = """{"roots":[],"stateMachines":{},"activeStates":{},"revision":0,"phase":"configuring","environmentKey":"env-1"}"""
 
         val snapshot = assertIs<SnapshotReading.Read>(read(body)).snapshot
 
@@ -78,6 +81,7 @@ class SnapshotReaderTest {
             "phase" to "\"running\"",
             "revision" to "3",
             "activeStates" to """{"lamp":["on"]}""",
+            "stateMachines" to """{"lamp":null,"bulb":"glowing"}""",
             "roots" to """[{"__id__": "lamp", "__type__": "Lamp"}]""",
         )
         fun body(change: Pair<String, String?>): String =
@@ -95,6 +99,9 @@ class SnapshotReaderTest {
             "activeStates" to """{"lamp":"on"}""",
             "activeStates" to """{"lamp":[1]}""",
             "activeStates" to "[]",
+            "stateMachines" to null,
+            "stateMachines" to """{"lamp":1}""",
+            "stateMachines" to """{"lamp":["glowing"]}""",
             "roots" to """[{"__id__": "lamp"}]""",
             "roots" to """["lamp"]""",
             "roots" to null,

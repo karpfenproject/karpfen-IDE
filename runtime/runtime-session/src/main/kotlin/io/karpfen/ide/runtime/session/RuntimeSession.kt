@@ -122,7 +122,10 @@ public interface RuntimeSession : AutoCloseable {
     public suspend fun stop(): SessionCommandOutcome
 
     /**
-     * Forces the machine attached to [attachedTo] into [state] at the next tick, without running any `ENTRY` block.
+     * Forces the state machine instance on the object with the key [attachedTo] into [state] at the next tick, without
+     * running any `ENTRY` block. The instance is the one the object has in the latest tick: the attached state machine
+     * or the instance of a definition the object got by `behaves after`, `ATTACH` or `EXCHANGE`. [state] is a state of
+     * the state machine that instance runs.
      *
      * Forcing has side effects in the runtime. It discards every event still queued in the whole environment, and at
      * the next tick it also discards the events of the domain named like [attachedTo]. A state forced before the first

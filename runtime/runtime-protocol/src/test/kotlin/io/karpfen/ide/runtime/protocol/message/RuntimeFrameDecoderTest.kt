@@ -17,6 +17,7 @@ package io.karpfen.ide.runtime.protocol.message
 
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.golden.RuntimeGoldens
 import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
 import io.karpfen.ide.runtime.protocol.golden.fakeObject
 import kotlin.test.Test
@@ -83,6 +84,36 @@ class RuntimeFrameDecoderTest {
             ),
             pushOf(frame("domainEvent", """{"domain":"public","payload":$inner}""")).push,
         )
+    }
+
+    @Test
+    fun `stateMachineAttached and stateMachineDetached decode with a definition name or null for an attached state machine`() {
+        assertEquals(
+            RuntimePush.StateMachineAttached("gen_Bulb_0", "blinking", 61),
+            pushOf(RuntimeGoldens.STATE_MACHINE_ATTACHED).push,
+        )
+        assertEquals(
+            RuntimePush.StateMachineDetached("living room", null, 62),
+            pushOf(RuntimeGoldens.STATE_MACHINE_DETACHED).push,
+        )
+        assertEquals(
+            RuntimePush.StateMachineDetached("bulb", "glowing", 15),
+            pushOf(frame("stateMachineDetached", """{"modelElementId":"bulb","revision":15,"stateMachine":"glowing"}""")).push,
+        )
+    }
+
+    @Test
+    fun `a state machine push without its object, its name or its revision is malformed`() {
+        listOf(
+            """{"stateMachine":"blinking","revision":1}""",
+            """{"modelElementId":"bulb","revision":1}""",
+            """{"modelElementId":"bulb","stateMachine":3,"revision":1}""",
+            """{"modelElementId":"bulb","stateMachine":"blinking"}""",
+        ).forEach { payload ->
+            val violation = violationOf(frame("stateMachineAttached", payload))
+            assertEquals(ViolationKind.MALFORMED_PAYLOAD, violation.kind, payload)
+            assertEquals("stateMachineAttached", violation.messageType)
+        }
     }
 
     @Test

@@ -27,16 +27,19 @@ public enum class StackOrigin {
 }
 
 /**
- * The active state configuration of one attached machine.
+ * The active state configuration of one state machine instance. An object has at most one instance, so the key of the
+ * object identifies it.
  *
- * @property attachedTo the key of the object the machine runs attached to.
- * @property file the machine's file.
+ * @property attachedTo the key of the object the instance runs on. It is the `modelElementId` of its pushes.
+ * @property file the file of the state machine the instance runs: the attached file, or the file of the definition.
  * @property stack the flat stack as the runtime writes it. It holds the plain state names of every parallel branch,
  *   outermost first. The branches are concatenated in split-target order.
  * @property regions the stack split into its branches. Each branch starts at a top-level state.
- * @property previous the stack the machine showed before this one, or null if it showed none. It is kept for
+ * @property previous the stack the instance showed before this one, or null if it showed none. It is kept for
  *   animation.
  * @property origin whether the stack is predicted or reported.
+ * @property definition the name of the attachable state machine the instance runs, or null for a state machine that
+ *   the deployment attached to the object.
  */
 public data class MachineActivity(
     public val attachedTo: String,
@@ -45,14 +48,19 @@ public data class MachineActivity(
     public val regions: List<List<String>>,
     public val previous: List<String>?,
     public val origin: StackOrigin,
+    public val definition: String? = null,
 )
 
 /**
  * The active state configurations of an environment. Immutable.
  *
- * @property machines every attached machine by its attachment key, in the order of the deployment.
- * @property unknownElements stacks the runtime reported for keys the deployment attaches no machine to, by key, in the
- *   order they were first reported.
+ * @property machines every state machine instance the environment has by the key of its object. Before the start
+ *   these are the attached machines of the deployment in its order. After the start they are the instances the
+ *   runtime announced, in the order of their announcement: an instance appears when it is attached and is gone when
+ *   it is detached.
+ * @property unknownElements stacks the runtime reported for keys the IDE cannot map to a state machine file, by key, in
+ *   the order they were first reported. That is a key without an announced instance, or an instance of a definition
+ *   the deployment did not upload.
  */
 public data class ActiveStates(
     public val machines: Map<String, MachineActivity>,
@@ -60,64 +68,126 @@ public data class ActiveStates(
 )
 
 /**
- * Applies the runtime's stack reports to the [ActiveStates] of the machines [layouts] describes. Pure and stateless
- * apart from the layouts, so it can be shared.
+ * Applies the runtime's reports of stacks and instances to the [ActiveStates] of a deployment. The deployment attaches
+ * the machines of [layouts] to objects by key and hands the attachable state machines of [definitions] to the
+ * environment, whose instances the runtime announces with the name of their definition. Pure and stateless apart from
+ * the layouts, so it can be shared.
  *
- * Before the first report, each machine shows its predicted initial stack with [StackOrigin.PREDICTED]. A report
- * replaces it with [StackOrigin.REPORTED] and keeps the stack shown before as [MachineActivity.previous], for
- * animation. A report or snapshot that shows the same stack again keeps the previous stack as it was. A report for a
- * key that the deployment attaches no machine to goes to [ActiveStates.unknownElements].
+ * Before the first report, each attached machine shows its predicted initial stack with [StackOrigin.PREDICTED]. An
+ * announced instance shows the predicted initial stack of its state machine until it reports. A report replaces the
+ * stack with [StackOrigin.REPORTED] and keeps the stack shown before as [MachineActivity.previous], for animation. A
+ * report or snapshot that shows the same stack again keeps the previous stack as it was. A detached instance is
+ * removed with its stack. An instance announced again under a key that has one, as at a restart of the environment,
+ * replaces it.
  *
  * @param layouts the layouts of the attached machines. A key attached twice keeps its first layout.
+ * @param definitions the layouts of the definitions. A name given twice keeps its first layout.
  */
-public class ActiveStatesReducer(layouts: List<MachineLayout>) {
+public class ActiveStatesReducer(layouts: List<MachineLayout>, definitions: List<DefinitionLayout> = emptyList()) {
     /** The layouts by attachment key, in deployment order. */
-    private val layouts: Map<String, MachineLayout> = LinkedHashMap<String, MachineLayout>().also { map ->
-        layouts.forEach { map.putIfAbsent(it.attachedTo, it) }
+    private val layouts: Map<String, Shape> = LinkedHashMap<String, Shape>().also { map ->
+        layouts.forEach { map.putIfAbsent(it.attachedTo, Shape(null, it.file, it.topLevelStates, it.initialStack)) }
     }
 
-    /** The segmenters by attachment key. */
-    private val segmenters: Map<String, StackSegmenter> = this.layouts.mapValues { StackSegmenter(it.value.topLevelStates) }
+    /** The layouts of the definitions by name. */
+    private val definitions: Map<String, Shape> = LinkedHashMap<String, Shape>().also { map ->
+        definitions.forEach { map.putIfAbsent(it.name, Shape(it.name, it.file, it.topLevelStates, it.initialStack)) }
+    }
 
-    /** Every machine with its predicted initial stack. */
-    public fun initial(): ActiveStates = ActiveStates(layouts.mapValues { predicted(it.value) }, emptyMap())
+    /** Every attached machine with its predicted initial stack. */
+    public fun initial(): ActiveStates = ActiveStates(layouts.mapValues { (key, shape) -> predicted(key, shape) }, emptyMap())
 
-    /** [states] after the runtime reported [stack] for [modelElementId]. */
+    /**
+     * [states] after the runtime reported [stack] for [modelElementId]. A key without an announced instance takes the
+     * attached machine of the key, if the deployment attached one, because its announcement may lie before the
+     * observation began. Any other key goes to [ActiveStates.unknownElements].
+     */
     public fun reported(states: ActiveStates, modelElementId: String, stack: List<String>): ActiveStates {
-        val layout = layouts[modelElementId] ?: return states.copy(unknownElements = states.unknownElements + (modelElementId to stack.toList()))
-        val activity = activity(layout, stack.toList(), states.machines[modelElementId], StackOrigin.REPORTED)
+        val before = states.machines[modelElementId]
+        val shape = before?.let { shapeOf(it.attachedTo, it.definition) } ?: layouts[modelElementId]
+            ?: return states.copy(unknownElements = states.unknownElements + (modelElementId to stack.toList()))
+        val activity = activity(modelElementId, shape, stack.toList(), before, StackOrigin.REPORTED)
         return states.copy(machines = states.machines + (modelElementId to activity))
     }
 
     /**
-     * [states] after a snapshot's `activeStates` [reported]. Listed machines become reported. Machines that the
-     * snapshot does not list return to their prediction, because they had no tick since the start. The unknown
-     * elements become exactly the listed keys that the deployment does not attach.
+     * [states] after the runtime announced an instance of [definition] on [modelElementId], or of the machine the
+     * deployment attached to the key when [definition] is null. The instance shows the predicted initial stack of its
+     * state machine. An instance whose state machine the deployment did not upload goes to
+     * [ActiveStates.unknownElements] without a stack.
      */
-    public fun replaced(states: ActiveStates, reported: Map<String, List<String>>): ActiveStates {
-        val machines = layouts.mapValues { (key, layout) ->
-            val before = states.machines[key]
-            reported[key]?.let { activity(layout, it.toList(), before, StackOrigin.REPORTED) }
-                ?: activity(layout, layout.initialStack, before, StackOrigin.PREDICTED)
+    public fun attached(states: ActiveStates, modelElementId: String, definition: String?): ActiveStates {
+        val shape = shapeOf(modelElementId, definition)
+            ?: return ActiveStates(states.machines - modelElementId, states.unknownElements + (modelElementId to emptyList()))
+        return ActiveStates(states.machines + (modelElementId to predicted(modelElementId, shape)), states.unknownElements - modelElementId)
+    }
+
+    /** [states] after the instance on [modelElementId] left. Its stack is gone with it. */
+    public fun detached(states: ActiveStates, modelElementId: String): ActiveStates =
+        ActiveStates(states.machines - modelElementId, states.unknownElements - modelElementId)
+
+    /**
+     * [states] after a snapshot's `activeStates` [reported] and `stateMachines` [instances].
+     *
+     * Before the environment [started], the snapshot lists no instances. The attached machines then stay: listed ones
+     * become reported, the others return to their prediction. Once started, the machines become the listed instances
+     * in their order, each reported if the snapshot has its stack and predicted otherwise, since it had no step yet.
+     * A reported key that is not listed but has an attached machine follows them as that machine. A snapshot of a
+     * started environment that lists no instance at all is read like one before the start, since a runtime that keeps
+     * the record of instances lists at least the attached machines of a started environment whose objects exist. The
+     * unknown elements become the reported keys that are not such a machine and the listed instances of definitions the
+     * deployment did not upload.
+     */
+    public fun replaced(
+        states: ActiveStates,
+        reported: Map<String, List<String>>,
+        instances: Map<String, String?> = emptyMap(),
+        started: Boolean = false,
+    ): ActiveStates {
+        val listed: Map<String, Shape?> = if (started && instances.isNotEmpty()) {
+            instances.mapValues { (key, name) -> shapeOf(key, name) } + reported.keys.filter { it !in instances && it in layouts }.associateWith { layouts[it] }
+        } else {
+            layouts
         }
-        val unknown = reported.filterKeys { it !in layouts }.mapValues { it.value.toList() }
+        val machines = LinkedHashMap<String, MachineActivity>()
+        listed.forEach { (key, shape) ->
+            if (shape == null) return@forEach
+            val before = states.machines[key]?.takeIf { it.definition == shape.definition }
+            machines[key] = reported[key]?.let { activity(key, shape, it.toList(), before, StackOrigin.REPORTED) }
+                ?: activity(key, shape, shape.initialStack, before, StackOrigin.PREDICTED)
+        }
+        val unknown = LinkedHashMap<String, List<String>>()
+        reported.filterKeys { it !in machines }.forEach { (key, stack) -> unknown[key] = stack.toList() }
+        listed.filter { it.value == null }.keys.forEach { unknown.putIfAbsent(it, emptyList()) }
         return ActiveStates(machines, unknown)
     }
 
-    /** The predicted activity of [layout] before anything was shown. */
-    private fun predicted(layout: MachineLayout): MachineActivity =
-        MachineActivity(layout.attachedTo, layout.file, layout.initialStack, regionsOf(layout, layout.initialStack), null, StackOrigin.PREDICTED)
+    /** The shape of the instance on [key] that runs [definition], or the attached machine of [key] when it is null. */
+    private fun shapeOf(key: String, definition: String?): Shape? = if (definition != null) definitions[definition] else layouts[key]
+
+    /** The predicted activity of an instance on [key] of [shape] before anything was shown. */
+    private fun predicted(key: String, shape: Shape): MachineActivity =
+        MachineActivity(key, shape.file, shape.initialStack, shape.regions(shape.initialStack), null, StackOrigin.PREDICTED, shape.definition)
 
     /**
-     * The activity of [layout] showing [stack] with [origin] after [before]. The stack shown before becomes
-     * [MachineActivity.previous]. When the stack stays the same, the previous stack of [before] is kept instead.
+     * The activity of the instance on [key] of [shape] showing [stack] with [origin] after [before]. The stack shown
+     * before becomes [MachineActivity.previous]. When the stack stays the same, the previous stack of [before] is kept
+     * instead.
      */
-    private fun activity(layout: MachineLayout, stack: List<String>, before: MachineActivity?, origin: StackOrigin): MachineActivity {
+    private fun activity(key: String, shape: Shape, stack: List<String>, before: MachineActivity?, origin: StackOrigin): MachineActivity {
         val previous = if (before?.stack == stack) before.previous else before?.stack
-        return MachineActivity(layout.attachedTo, layout.file, stack, regionsOf(layout, stack), previous, origin)
+        return MachineActivity(key, shape.file, stack, shape.regions(stack), previous, origin, shape.definition)
     }
 
-    /** [stack] of the machine of [layout] split into its branches. */
-    private fun regionsOf(layout: MachineLayout, stack: List<String>): List<List<String>> =
-        segmenters.getValue(layout.attachedTo).regions(stack)
+    /**
+     * What every instance of one state machine shares: its definition name, or null for an attached machine, its file,
+     * its top-level states and its initial stack.
+     */
+    private class Shape(val definition: String?, val file: Path, topLevelStates: List<String>, val initialStack: List<String>) {
+        /** The segmenter of the stacks of the state machine. */
+        private val segmenter = StackSegmenter(topLevelStates)
+
+        /** [stack] split into its branches. */
+        fun regions(stack: List<String>): List<List<String>> = segmenter.regions(stack)
+    }
 }

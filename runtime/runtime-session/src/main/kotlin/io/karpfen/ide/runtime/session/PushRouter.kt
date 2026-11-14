@@ -147,7 +147,10 @@ internal class PushRouter(
 
     /** The live switch and the observed model. */
     private val observer = ModelObserver(
-        reducer = ObservationReducer(MirrorReducer(prepared.schema, prepared.plan.modelObjectIds), ActiveStatesReducer(prepared.layouts)),
+        reducer = ObservationReducer(
+            MirrorReducer(prepared.schema, prepared.plan.modelObjectIds),
+            ActiveStatesReducer(prepared.layouts, prepared.definitions),
+        ),
         port = port,
         seed = prepared.seed,
         settings = settings,
@@ -329,11 +332,15 @@ internal class PushRouter(
             is RuntimePush.ObjectChanged -> applied(event, WireNames.OBJECT_CHANGED, listOf(push.objectId), push.revision)
             is RuntimePush.ObjectDeleted -> applied(event, WireNames.OBJECT_DELETED, listOf(push.objectId), push.revision)
             is RuntimePush.StateChanged -> applied(event, WireNames.STATE_CHANGE, listOf(push.modelElementId), push.revision)
+            is RuntimePush.StateMachineAttached ->
+                applied(event, WireNames.STATE_MACHINE_ATTACHED, listOf(push.modelElementId), push.revision)
+            is RuntimePush.StateMachineDetached ->
+                applied(event, WireNames.STATE_MACHINE_DETACHED, listOf(push.modelElementId), push.revision)
         }
     }
 
     /**
-     * Hands the object or stack push of [event] to the observation and journals it if the observation applied it. A
+     * Hands the object, stack or state machine push of [event] to the observation and journals it if the observation applied it. A
      * push that a snapshot already covers is not applied, and neither is a push that reveals a gap.
      */
     private suspend fun applied(event: ConnectionEvent.Received, messageType: String, ids: List<String>, revision: Long) {

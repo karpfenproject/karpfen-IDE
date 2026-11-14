@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -184,12 +185,14 @@ private fun EditorPane(state: WorkbenchState) {
     val running = state.runtime.collectAsState().value?.selected?.collectAsState()?.value?.takeIf { it.isLive }?.session
     val observed = running?.model?.collectAsState()?.value
     val debugger = running?.debugger?.state?.collectAsState()?.value ?: DebuggerState.Unavailable
-    val live = remember(observed, debugger, active) {
+    val chosenInstances = remember(running) { mutableStateMapOf<Path, String>() }
+    val chosen = active?.let { chosenInstances[it] }
+    val run = remember(observed, debugger, active, chosen) {
         val file = active
         if (running == null || observed == null || file == null) {
             null
         } else {
-            DiagramLives.of(observed.states, file, debugger)
+            DiagramLives.of(observed.states, file, debugger, chosen)
         }
     }
     val services by state.languageServices.collectAsState()
@@ -212,7 +215,8 @@ private fun EditorPane(state: WorkbenchState) {
         onSelectInText = { range -> active?.let { state.navigateTo(Location(it, range)) } },
         diskRevision = diskRevision,
         onDiagramSaved = { state.refreshFiles() },
-        live = live,
+        run = run,
+        onShowInstance = { key -> active?.let { chosenInstances[it] = key } },
         cellEditor = cellEditor,
         languageFeatures = settings.languageFeatures,
         validation = ValidateButtonUiState(enabled = canValidate, busy = validating),

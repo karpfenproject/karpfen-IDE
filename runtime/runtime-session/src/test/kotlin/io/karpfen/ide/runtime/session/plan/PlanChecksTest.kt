@@ -109,20 +109,33 @@ class PlanChecksTest {
     }
 
     @Test
-    fun `a state machine listed without attachedTo is a definition and blocks at the descriptor`() = runTest(timeout = 60.seconds) {
+    fun `a definition listed in the descriptor passes and becomes a definition upload of the plan`() = runTest(timeout = 60.seconds) {
         val workspaces = PlanningWorkspaces(this, root)
         workspaces.copy(SynthesizedModel.LAMP)
-        Files.writeString(
-            root.resolve("lamp/glowing.kstates"),
-            "STATEMACHINE \"glowing\" ATTACHABLE TO \"Lamp\" {\n    STATES {\n        INITIAL STATE \"dark\" { }\n    }\n    TRANSITIONS { }\n}\n",
-        )
+        Files.writeString(root.resolve("lamp/glowing.kstates"), GLOWING)
         lampDescriptor.replaceText("\"stateMachines\": [", "\"stateMachines\": [\n    { \"file\": \"glowing.kstates\" },")
+
+        val plan = workspaces.plan(lampDescriptor, features = KstatesFeature.ALL).ready()
+
+        assertEquals(listOf("glowing"), plan.definitions.map { it.name })
+        assertEquals(listOf("Lamp", "Bulb"), plan.definitions.single().types)
+        assertEquals(listOf("glowing.kstates"), plan.definitionUploads.map { it.fileName })
+        assertEquals(listOf(null), plan.definitionUploads.map { it.attachedTo })
+        val afterModel = plan.uploads.dropWhile { it.role != UploadRole.MODEL }.drop(1).map { it.role }
+        assertEquals(listOf(UploadRole.DEFINITION, UploadRole.STATE_MACHINE, UploadRole.STATE_MACHINE), afterModel)
+    }
+
+    @Test
+    fun `a type that behaves after a state machine the descriptor does not list blocks at the descriptor`() = runTest(timeout = 60.seconds) {
+        val workspaces = PlanningWorkspaces(this, root)
+        workspaces.copy(SynthesizedModel.LAMP)
+        Files.writeString(root.resolve("lamp/glowing.kstates"), GLOWING)
+        root.resolve("lamp/lamp.kmeta").replaceText("type \"Bulb\" \"A light bulb\"", "type \"Bulb\" \"A light bulb\" behaves after \"glowing\"")
 
         val problem = workspaces.plan(lampDescriptor, features = KstatesFeature.ALL).blocked().single()
 
-        assertEquals(DeployProblemCodes.DEFINITIONS_UNSUPPORTED to Severity.ERROR, problem.code to problem.severity, problem.message)
-        assertEquals(DeployProblemCodes.DEFINITIONS_UNSUPPORTED to Severity.ERROR, problem.code to problem.severity)
-        assertTrue(problem.message.startsWith("glowing.kstates has no 'attachedTo'"), problem.message)
+        assertEquals(DeployProblemCodes.DEFINITION_NOT_LISTED to Severity.ERROR, problem.code to problem.severity, problem.message)
+        assertTrue(problem.message.startsWith("'Bulb' behaves after 'glowing'"), problem.message)
         assertEquals(lampDescriptor, problem.location?.file)
     }
 
@@ -277,5 +290,9 @@ class PlanChecksTest {
     private companion object {
         /** The declaration of the spare bulb once the test gave it the id of the first bulb. */
         const val LATER_BULB = "make object \"bulb\":\"Bulb\""
+
+        /** An attachable state machine named glowing for lamps and bulbs, with one state. */
+        const val GLOWING = "STATEMACHINE \"glowing\" ATTACHABLE TO \"Lamp\", \"Bulb\" {\n    STATES {\n        INITIAL STATE \"dark\" { }\n    }\n" +
+            "    TRANSITIONS { }\n}\n"
     }
 }

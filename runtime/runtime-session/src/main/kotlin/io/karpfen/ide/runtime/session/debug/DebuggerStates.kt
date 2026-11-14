@@ -42,7 +42,8 @@ internal object DebuggerStates {
 
     /**
      * The journal's note of a pause at [place], such as `Paused before the entry of the state cars wait of crossing.`
-     * The machine is named by the key of the object it is attached to.
+     * The state machine is named by the key of the object its instance runs on, which tells the instances of one
+     * definition apart.
      */
     fun note(place: PausePlace): String = when (place) {
         PausePlace.BetweenTicks -> "Paused between two ticks."

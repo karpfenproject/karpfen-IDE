@@ -82,6 +82,8 @@ class HttpRuntimeApiTest {
                 put("/setEventDefinitions", listOf("envKey" to environment.value), "events"),
             suspend { api.setStateMachine(environment, "APB 2101", "machine"); Unit } to
                 put("/setStateMachine", listOf("envKey" to environment.value, "attachedTo" to "APB 2101"), "machine"),
+            suspend { api.setStateMachine(environment, null, "definition"); Unit } to
+                put("/setStateMachine", listOf("envKey" to environment.value), "definition"),
             suspend { api.setTickDelay(environment, 50); Unit } to
                 post("/setTickDelay", "envKey" to environment.value, "milliseconds" to "50"),
             suspend { api.setActiveState(environment, "living room", "full power"); Unit } to
@@ -100,6 +102,7 @@ class HttpRuntimeApiTest {
             suspend { api.listEnvironments(); Unit } to get("/observatory/environments"),
             suspend { api.stateMachineSource(environment, "lamp"); Unit } to
                 get("/observatory/statemachine", "envKey" to environment.value, "modelElement" to "lamp"),
+            suspend { api.stateMachines(environment); Unit } to get("/observatory/stateMachines", "envKey" to environment.value),
             suspend { api.registerObservatoryClient(client, environment, "*"); Unit } to
                 post("/observatory/registerClient", "clientId" to client.value, "envKey" to environment.value, "modelElement" to "*"),
             suspend { api.registeredFeatures(); Unit } to get("/getRegisteredFeatures"),
@@ -133,7 +136,29 @@ class HttpRuntimeApiTest {
     fun `a blank parameter value is refused before anything is sent`() = runTest {
         assertFailsWith<IllegalArgumentException> { api().setStateMachine(environment, " ", "machine") }
         assertFailsWith<IllegalArgumentException> { api().registerDomainListener(environment, client, "") }
+        assertFailsWith<IllegalArgumentException> { api().setStateMachine(environment, "", "definition") }
         assertEquals(emptyList(), http.requests)
+    }
+
+    @Test
+    fun `the holdings of an environment are read by member name, an attached instance with a null definition`() = runTest {
+        val api = api()
+        http.ok(
+            """{"attached":["living room"],"definitions":[{"name":"glowing","types":["Bulb"]},{"name":"flickering","types":["Bulb","Lamp"]}],""" +
+                """"instances":[{"modelElement":"living room","stateMachine":null},{"modelElement":"bulb","stateMachine":"glowing"}]}""",
+        ).ok("""{"attached":[],"definitions":[{"name":"glowing"}],"instances":[]}""")
+
+        assertEquals(
+            RuntimeResult.Ok(
+                StateMachineHoldings(
+                    attached = listOf("living room"),
+                    definitions = listOf(HeldDefinition("glowing", listOf("Bulb")), HeldDefinition("flickering", listOf("Bulb", "Lamp"))),
+                    instances = listOf(HeldInstance("living room", null), HeldInstance("bulb", "glowing")),
+                ),
+            ),
+            api.stateMachines(environment),
+        )
+        assertIs<RuntimeFailure.ProtocolViolated>(assertFailure(api.stateMachines(environment)))
     }
 
     @Test
@@ -324,6 +349,23 @@ class HttpRuntimeApiTest {
             refused.content,
         )
         assertEquals(RejectionKind.UNCLASSIFIED to null, unknown.kind to unknown.content)
+    }
+
+    @Test
+    fun `a definition refused for its content or its form is told apart from an attached state machine`() = runTest {
+        val api = api()
+        val content = "Upload of the attachable state machine rejected: 1 error\n1:13: Unknown type 'Bulb' (project.unknown-attached-type)"
+        val wrongForm = RuntimeText.ATTACHABLE_FORM_REQUIRED.render(emptyMap())
+        val attachedForm = RuntimeText.ATTACHED_FORM_REQUIRED.render(mapOf("element" to "lamp", "machine" to "glowing"))
+        http.reject(400, content).reject(400, wrongForm).reject(400, attachedForm)
+
+        val refused = assertIs<RuntimeFailure.Rejected>(assertFailure(api.setStateMachine(environment, null, "STATEMACHINE")))
+        val form = assertIs<RuntimeFailure.Rejected>(assertFailure(api.setStateMachine(environment, null, "STATEMACHINE")))
+        val attached = assertIs<RuntimeFailure.Rejected>(assertFailure(api.setStateMachine(environment, "lamp", "STATEMACHINE")))
+
+        assertEquals(RejectedUpload.AttachableStateMachine, refused.content?.upload)
+        assertEquals(RejectionKind.ATTACHABLE_FORM_REQUIRED, form.kind)
+        assertEquals(RejectionKind.ATTACHED_FORM_REQUIRED to mapOf("element" to "lamp", "machine" to "glowing"), attached.kind to attached.captured)
     }
 
     @Test

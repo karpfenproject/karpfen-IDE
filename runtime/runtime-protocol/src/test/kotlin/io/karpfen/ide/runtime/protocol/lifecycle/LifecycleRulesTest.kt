@@ -32,6 +32,7 @@ import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.MESSAGE_FEAT
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_ACTIVE_FEATURES
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_SNAPSHOT
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_STATE_MACHINE_SOURCE
+import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.READ_STATE_MACHINES
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.REGISTER_DOMAIN_LISTENER
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.REGISTER_OBJECT_OBSERVER
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.SET_EVENT_DEFINITIONS
@@ -77,7 +78,7 @@ class LifecycleRulesTest {
     /** The configuring calls that need nothing uploaded before. */
     private val configuringCalls = setOf(SET_STATE_MACHINE, SET_TICK_DELAY, SET_EVENT_TTL, REGISTER_OBJECT_OBSERVER, REGISTER_DOMAIN_LISTENER)
     /** The reads, allowed unless the environment is lost. */
-    private val reads = setOf(READ_STATE_MACHINE_SOURCE, READ_SNAPSHOT)
+    private val reads = setOf(READ_STATE_MACHINE_SOURCE, READ_STATE_MACHINES, READ_SNAPSHOT)
     /** The feature operations, allowed in every phase of an existing environment. */
     private val features = setOf(ACTIVATE_FEATURE, DEACTIVATE_FEATURE, READ_ACTIVE_FEATURES, MESSAGE_FEATURE)
 

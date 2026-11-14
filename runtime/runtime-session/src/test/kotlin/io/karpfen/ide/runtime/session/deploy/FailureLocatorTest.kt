@@ -181,6 +181,38 @@ class FailureLocatorTest {
     }
 
     @Test
+    fun `an activation refused for a missing or unattachable definition points at the descriptor`() {
+        val missing = Failures.rejected(
+            RuntimeRoute.RUN_ENVIRONMENT,
+            RuntimeText.MISSING_DEFINITION,
+            mapOf("env" to ENVIRONMENT.value, "entries" to "'Bulb' behaves after 'glowing'"),
+        )
+        val unattachable = Failures.rejected(
+            RuntimeRoute.RUN_ENVIRONMENT,
+            RuntimeText.UNATTACHABLE_DEFINITION,
+            mapOf("env" to ENVIRONMENT.value, "entries" to "'Bulb' behaves after 'glowing', which is attachable to 'Lamp'"),
+        )
+
+        listOf(missing, unattachable).forEach { failure ->
+            val problem = problemOf(DeployStepKind.ACTIVATE, null, failure)
+            assertEquals(DeployProblemCodes.RUNTIME_REJECTED, problem.code)
+            assertEquals(SourceLocation(LampPlans.descriptor, null, null), problem.location)
+            assertTrue("'Bulb' behaves after 'glowing'" in problem.message, problem.message)
+        }
+    }
+
+    @Test
+    fun `a definition refused for its form is one problem at the definition's file`() {
+        val failure = Failures.rejected(RuntimeRoute.SET_STATE_MACHINE, RuntimeText.ATTACHABLE_FORM_REQUIRED, emptyMap(), status = 400)
+
+        val problem = problemOf(DeployStepKind.DEFINE_STATE_MACHINE, LampPlans.glowingDefinition, failure)
+
+        assertEquals(DeployProblemCodes.RUNTIME_REJECTED, problem.code)
+        assertEquals(LampPlans.glowingDefinition.file, problem.location?.file)
+        assertTrue(problem.message.startsWith("The runtime refused glowing.kstates: A state machine without attachedTo"), problem.message)
+    }
+
+    @Test
     fun `a runtime that cannot be reached or lacks the IDE's routes fails the check`() {
         val unreachable = problemOf(DeployStepKind.CHECK_RUNTIME, null, Failures.unreachable(RuntimeRoute.HEALTH))
         val lacking = problemOf(

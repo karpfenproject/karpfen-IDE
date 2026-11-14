@@ -42,7 +42,9 @@ import java.nio.file.Path
  * - why the runtime could not be started, where the run is captured and why its capture failed,
  * - the findings that block the deployment and the problems of the session, each once,
  * - every step of the deployment once it is done, skipped or failed,
- * - the active states of each state machine whenever the runtime reports a new stack, such as `lamp: on`,
+ * - the active states of each state machine instance whenever the runtime reports a new stack, such as `lamp: on` or
+ *   `gen_Bulb_0 (glowing): lit`; an instance that left and one that later runs on the same object count as two,
+ *   so the first stack of the later one is written too,
  * - each bridge whenever its state changes, and each route of a bridge whenever it drops or fails another message.
  *
  * The headless mode starts one run, so the reporter follows the newest run of the list. The log of the runtime has a
@@ -120,6 +122,7 @@ internal class RunReporter(private val console: HeadlessConsole, private val roo
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
             val written = HashMap<String, List<String>>()
             session.model.collect { model ->
+                written.keys.retainAll(model.states.machines.keys)
                 model.states.machines.values
                     .filter { it.origin == StackOrigin.REPORTED && written[it.attachedTo] != it.stack }
                     .forEach { machine ->

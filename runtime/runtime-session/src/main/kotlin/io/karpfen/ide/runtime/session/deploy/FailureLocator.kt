@@ -44,7 +44,9 @@ import io.karpfen.ide.runtime.session.problem.SourceLocation
  *   that the environment does not exist is the one exception. It is about the environment, not about the upload.
  * - An internal error of the runtime on an upload is an error of the runtime at the uploaded file, with the runtime's
  *   text.
- * - An activation refused because a machine is attached to a key that the model lacks points at the descriptor.
+ * - An activation refused because a machine is attached to a key that the model lacks points at the descriptor. So does
+ *   an activation refused because a type behaves after a state machine the environment does not hold as a definition,
+ *   or holds as one that is not attachable to the type, since the descriptor lists the definitions.
  * - A failure while checking the runtime means the runtime is unreachable or incompatible.
  * - A feature the runtime refuses to switch on because it does not know it means the runtime is older than the IDE.
  *   The problem names the feature.
@@ -78,7 +80,7 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
                     fileOf(upload),
                     failure,
                 )
-            kind == DeployStepKind.ACTIVATE && failure is RuntimeFailure.Rejected && failure.kind == RejectionKind.UNKNOWN_ATTACHMENT ->
+            kind == DeployStepKind.ACTIVATE && failure is RuntimeFailure.Rejected && failure.kind in DESCRIPTOR_REFUSALS ->
                 single(
                     DeployProblemCodes.RUNTIME_REJECTED,
                     "The runtime refused the activation: ${failure.message}",
@@ -174,5 +176,12 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
     private companion object {
         /** The placeholder of the runtime's text for an unknown feature that holds the feature's name. */
         const val FEATURE_PLACEHOLDER = "feature"
+
+        /** The refusals of an activation that the descriptor explains. */
+        val DESCRIPTOR_REFUSALS: Set<RejectionKind> = setOf(
+            RejectionKind.UNKNOWN_ATTACHMENT,
+            RejectionKind.MISSING_DEFINITION,
+            RejectionKind.UNATTACHABLE_DEFINITION,
+        )
     }
 }

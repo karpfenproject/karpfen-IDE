@@ -46,7 +46,6 @@ import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.document.ConflictResolution
 import io.karpfen.ide.ui.diagram.DiagramCellEditor
-import io.karpfen.ide.ui.diagram.DiagramLive
 import io.karpfen.ide.ui.diagram.DiagramPane
 import io.karpfen.ide.ui.editor.popup.EditorPopups
 import io.karpfen.ide.ui.editor.state.CodeEditorState
@@ -57,6 +56,7 @@ import io.karpfen.ide.ui.foundation.layout.SplitSide
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.foundation.widgets.TabStrip
 import io.karpfen.ide.ui.workbench.settings.ZoomStep
+import io.karpfen.ide.ui.workbench.runtime.DiagramRun
 import io.karpfen.ide.ui.workbench.statusbar.view.EditorZoomBar
 import io.karpfen.ide.ui.workbench.tabs.ConflictBanner
 import io.karpfen.ide.ui.workbench.tabs.EditorTab
@@ -79,8 +79,11 @@ import java.nio.file.Path
  * validation runs. A click on a box of the diagram calls
  * [onSelectInText] with the place of its name in the text. The diagram can be arranged by hand, which is stored in a
  * companion file next to the file. The diagram reads that file again whenever [diskRevision] changes, and
- * [onDiagramSaved] is called after it wrote the file. While a model runs, [live] holds what the run adds to the
- * diagram of the active file, such as the active states. An opened code cell of the diagram holds [cellEditor]. The
+ * [onDiagramSaved] is called after it wrote the file. While a model runs, [run] holds what the run adds to the
+ * diagram of the active file, such as the active states of one instance. While the diagram shows and more than one
+ * instance runs the file, the bar names them after the Validate button, marks the one shown, and reports a click on
+ * another to [onShowInstance]. While the debugger holds the shown instance at a breakpoint, the others take no clicks.
+ * An opened code cell of the diagram holds [cellEditor]. The
  * context menu of a statechart offers the constructs of the optional language features in [languageFeatures] only, the
  * features switched on for the project.
  *
@@ -113,7 +116,8 @@ internal fun EditorArea(
     diskRevision: Long,
     onDiagramSaved: () -> Unit,
     modifier: Modifier = Modifier,
-    live: DiagramLive? = null,
+    run: DiagramRun? = null,
+    onShowInstance: (String) -> Unit = {},
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
     validation: ValidateButtonUiState = ValidateButtonUiState(),
@@ -158,7 +162,7 @@ internal fun EditorArea(
                                 kind = diagramKind,
                                 modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.DIAGRAM),
                                 reloadKey = diskRevision,
-                                live = live,
+                                live = run?.live,
                                 cellEditor = cellEditor,
                                 languageFeatures = languageFeatures,
                                 onSelect = onSelectInText,
@@ -187,6 +191,7 @@ internal fun EditorArea(
                 Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
                     if (hasDiagram) ViewModeSwitch(mode, onViewMode)
                     ValidateButton(validation, onValidate)
+                    if (mode != EditorViewMode.TEXT && run != null && run.instances.size > 1) InstanceSwitch(run, onShowInstance)
                 }
             }
         }
@@ -232,6 +237,33 @@ private fun ViewModeSwitch(mode: EditorViewMode, onViewMode: (EditorViewMode) ->
                     .clickable { onViewMode(each) }
                     .padding(horizontal = 8.dp, vertical = 2.dp)
                     .testTag(EditorAreaTestTags.viewMode(each.label)),
+            )
+        }
+    }
+}
+
+/**
+ * The instances of [run] as buttons, each labelled with the key of its object and the name of its definition. The
+ * button of the instance shown is marked. A click on another reports its key to [onShowInstance], unless the debugger
+ * holds the shown instance at a breakpoint. The buttons never take the keyboard focus.
+ */
+@Composable
+private fun InstanceSwitch(run: DiagramRun, onShowInstance: (String) -> Unit) {
+    val colors = KarpfenTheme.colors
+    Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Live:", color = colors.textMuted, style = KarpfenTheme.typography.uiSmall, modifier = Modifier.padding(horizontal = 4.dp))
+        run.instances.forEach { instance ->
+            val shown = instance.key == run.shown
+            Text(
+                instance.definition?.let { "${instance.key} ($it)" } ?: instance.key,
+                color = if (shown || !run.fixed) colors.text else colors.textMuted,
+                style = KarpfenTheme.typography.uiSmall,
+                modifier = Modifier
+                    .focusProperties { canFocus = false }
+                    .background(if (shown) colors.selection else Color.Transparent)
+                    .clickable(enabled = !run.fixed && !shown) { onShowInstance(instance.key) }
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                    .testTag(EditorAreaTestTags.liveInstance(instance.key)),
             )
         }
     }

@@ -24,8 +24,8 @@ import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * The steps of deploying a plan, in the order they run. The deployment checks the runtime, creates the environment and
- * connects. It uploads the metamodel, the event definitions and the model, and attaches each state machine in
- * descriptor order. It sets the tick delay and the event time to live, listens to the event domains and switches on the
+ * connects. It uploads the metamodel, the event definitions and the model, and then, in descriptor order, attaches
+ * each attached state machine and uploads each definition. It sets the tick delay and the event time to live, listens to the event domains and switches on the
  * runtime features the state machines need, as the options apply them to the plan. Then it activates, observes, starts
  * and confirms the start. Steps that the plan or the options do not need are still present and are skipped, so the
  * progress always shows the same steps. Stateless.
@@ -41,7 +41,13 @@ internal object DeploySteps {
             add(UploadStep(plan.metamodel))
             add(plan.events?.let(::UploadStep) ?: SkippedStep(DeployStepKind.UPLOAD_EVENTS, "Uploading the event definitions", "The context has no event definitions"))
             add(UploadStep(plan.model))
-            plan.uploads.filter { it.role == UploadRole.STATE_MACHINE }.forEach { add(AttachStep(it)) }
+            plan.uploads.forEach { upload ->
+                when (upload.role) {
+                    UploadRole.STATE_MACHINE -> add(AttachStep(upload))
+                    UploadRole.DEFINITION -> add(DefineStep(upload))
+                    else -> Unit
+                }
+            }
             add(TickDelayStep(plan.configuration.tickDelayMs))
             add(EventTtlStep(plan.configuration.eventTtlMs))
             add(

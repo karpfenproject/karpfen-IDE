@@ -31,6 +31,7 @@ import io.karpfen.ide.runtime.protocol.connection.ConnectionEvent
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.connection.RuntimeConnection
 import io.karpfen.ide.runtime.protocol.connection.SendOutcome
+import io.karpfen.ide.runtime.protocol.api.StateMachineHoldings
 import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation
@@ -197,6 +198,9 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
     /** The keys state machines were attached to, in order. */
     val attached: MutableList<String> = mutableListOf()
 
+    /** The texts of the definitions uploaded, in order. */
+    val defined: MutableList<String> = mutableListOf()
+
     /** Moves the phase to [phase], as a snapshot read through the real handle would. */
     fun settle(phase: EnvironmentPhase) {
         current.value = phase
@@ -212,6 +216,8 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
 
     override suspend fun setStateMachine(attachedTo: String, text: String): CallOutcome<Unit> =
         outcome("setStateMachine", attachedTo, text) { attached += attachedTo }
+
+    override suspend fun defineStateMachine(text: String): CallOutcome<Unit> = outcome("defineStateMachine", text) { defined += text }
 
     override suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit> = outcome("setTickDelay", milliseconds) { }
 
@@ -237,6 +243,9 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
 
     override suspend fun stateMachineSource(modelElement: String): CallOutcome<String> =
         outcome("stateMachineSource", modelElement) { "" }
+
+    override suspend fun stateMachines(): CallOutcome<StateMachineHoldings> =
+        outcome("stateMachines") { StateMachineHoldings(emptyList(), emptyList(), emptyList()) }
 
     override suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot> = outcome("snapshot") { modelAsRead() }
 

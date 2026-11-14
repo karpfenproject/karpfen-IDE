@@ -20,6 +20,7 @@ import io.karpfen.ide.runtime.session.mirror.MirrorSnapshot
 import io.karpfen.ide.runtime.session.plan.DeploymentPlan
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.schema.TypeSchema
+import io.karpfen.ide.runtime.session.states.DefinitionLayout
 import io.karpfen.ide.runtime.session.states.MachineLayout
 
 /**
@@ -30,6 +31,7 @@ import io.karpfen.ide.runtime.session.states.MachineLayout
  * @property schema the types of the domain metamodel, with which the runtime's JSON is read.
  * @property seed the model as the IDE analyzed it. It is what the runtime is expected to report before anything ran.
  * @property layouts one layout per attached state machine, in descriptor order, with its predicted initial stack.
+ * @property definitions one layout per definition, in descriptor order, which the instances of the definition share.
  * @property catalog the injectable events of every event domain the state machines use.
  */
 public data class PreparedDeployment(
@@ -38,6 +40,7 @@ public data class PreparedDeployment(
     public val seed: MirrorSnapshot,
     public val layouts: List<MachineLayout>,
     public val catalog: EventCatalog,
+    public val definitions: List<DefinitionLayout> = emptyList(),
 )
 
 /** What preparing a deployment returns, which is a prepared deployment or the problems that block it. Immutable. */

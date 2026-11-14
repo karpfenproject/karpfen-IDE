@@ -17,6 +17,7 @@ package io.karpfen.ide.app.headless
 
 import io.karpfen.ide.ui.workbench.output.OutputBuffer
 import io.karpfen.ide.ui.workbench.runtime.StatechartLog
+import io.karpfen.ide.ui.workbench.runtime.StatechartLogReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -25,7 +26,8 @@ import kotlinx.coroutines.launch
 /**
  * Writes the log of the runtime of a headless run as it arrives. Every line that the Log pane's Simplified view shows,
  * which is every step of the engine trace and every error, is written in that view's short form, as
- * [RunLines.statechart] puts it. With [verbose] every line of the log is also written as it is, as [RunLines.raw]
+ * [RunLines.statechart] puts it, read in order by one [StatechartLogReader], so an exchange reads as one.
+ * With [verbose] every line of the log is also written as it is, as [RunLines.raw]
  * puts it, before its short form if it has one. The log is the one the Runtime tool window shows, so the lines the
  * engine writes on every tick are already left out.
  *
@@ -40,11 +42,12 @@ internal class RuntimeLogFollower(private val console: HeadlessConsole, private 
      */
     fun follow(scope: CoroutineScope, log: OutputBuffer): Job = scope.launch(start = CoroutineStart.UNDISPATCHED) {
         var written = 0L
+        val reader = StatechartLogReader()
         log.revision.collect {
             val lines = log.snapshot().lines.filter { it.sequence > written }
             lines.forEach { line ->
                 if (verbose) console.line(RunLines.raw(line))
-                if (StatechartLog.shows(line)) console.line(RunLines.statechart(line))
+                if (StatechartLog.shows(line)) console.line(RunLines.statechart(reader.read(line)))
             }
             lines.lastOrNull()?.let { written = it.sequence }
         }

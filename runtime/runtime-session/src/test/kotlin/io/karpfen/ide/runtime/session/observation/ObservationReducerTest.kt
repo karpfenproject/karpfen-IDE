@@ -27,6 +27,7 @@ import io.karpfen.ide.runtime.session.examples.WireTexts
 import io.karpfen.ide.runtime.session.mirror.PropertyValue
 import io.karpfen.ide.runtime.session.mirror.ScalarValue
 import io.karpfen.ide.runtime.session.states.ActiveStatesReducer
+import io.karpfen.ide.runtime.session.states.DefinitionLayout
 import io.karpfen.ide.runtime.session.states.MachineLayout
 import io.karpfen.ide.runtime.session.states.StackOrigin
 import java.nio.file.Path
@@ -312,6 +313,41 @@ class ObservationReducerTest {
     }
 
     /** The state after switching on and reading a snapshot of the seed at revision [at] with [activeStates]. */
+    @Test
+    fun `while live, an attached and a detached push add and remove an instance and count as revisions`() {
+        val withInstances = ObservationReducer(lamp.reducer(), ActiveStatesReducer(listOf(LAMP, SWITCH), listOf(GLOWING)))
+        val synchronizing = withInstances.apply(withInstances.initial(lamp.seed), ObservationInput.SwitchedOn).state
+        val live = withInstances.apply(synchronizing, ObservationInput.SnapshotRead(snapshot(revision = 5))).state
+
+        val attachedStep = withInstances.apply(live, ObservationInput.Pushed(RuntimePush.StateMachineAttached("bulb", "glowing", 6)))
+        val instance = attachedStep.state.model.states.machines.getValue("bulb")
+        assertEquals("glowing" to listOf("dark"), instance.definition to instance.stack)
+        assertEquals(setOf("bulb"), attachedStep.update?.machines)
+        assertEquals(SyncStatus.Live(6), attachedStep.state.model.sync)
+
+        val detachedStep = withInstances.apply(attachedStep.state, ObservationInput.Pushed(RuntimePush.StateMachineDetached("bulb", "glowing", 7)))
+        assertNull(detachedStep.state.model.states.machines["bulb"])
+        assertEquals(SyncStatus.Live(7), detachedStep.state.model.sync)
+
+        val afterGap = withInstances.apply(detachedStep.state, ObservationInput.Pushed(RuntimePush.StateChanged("lamp", listOf("on"), 9)))
+        assertEquals(SyncStatus.Synchronizing(SyncReason.GAP), afterGap.state.model.sync)
+    }
+
+    @Test
+    fun `a snapshot of a running environment shows the instances of its record with their definitions`() {
+        val withInstances = ObservationReducer(lamp.reducer(), ActiveStatesReducer(listOf(LAMP, SWITCH), listOf(GLOWING)))
+        val synchronizing = withInstances.apply(withInstances.initial(lamp.seed), ObservationInput.SwitchedOn).state
+        val read = RuntimeModelSnapshot(
+            EnvironmentKey("env-1"), RuntimePhase.RUNNING, 8, mapOf("lamp" to listOf("on"), "bulb" to listOf("lit")), lamp.wireRoots(),
+            stateMachines = linkedMapOf("lamp" to null, "wallSwitch" to null, "bulb" to "glowing"),
+        )
+
+        val states = withInstances.apply(synchronizing, ObservationInput.SnapshotRead(read)).state.model.states
+
+        assertEquals(listOf("lamp", "wallSwitch", "bulb"), states.machines.keys.toList())
+        assertEquals("glowing" to listOf("lit"), states.machines.getValue("bulb").let { it.definition to it.stack })
+    }
+
     private fun live(at: Long, activeStates: Map<String, List<String>> = emptyMap()): ObservationState {
         val synchronizing = reducer.apply(reducer.initial(lamp.seed), ObservationInput.SwitchedOn).state
         return reducer.apply(synchronizing, ObservationInput.SnapshotRead(snapshot(revision = at, activeStates = activeStates))).state
@@ -352,6 +388,9 @@ class ObservationReducerTest {
 
         /** The wall switch's machine. */
         val SWITCH = MachineLayout("wallSwitch", Path.of("switch.kstates"), listOf("down", "up", "back down"), listOf("down"))
+
+        /** A definition whose instances run on bulbs. */
+        val GLOWING = DefinitionLayout("glowing", Path.of("glowing.kstates"), listOf("dark", "lit"), listOf("dark"))
 
         /** The spare bulb as the runtime writes it. */
         const val SPARE = "{\"__id__\": \"spare\", \"__type__\": \"Bulb\", \"watts\": 60, \"lit\": false}"
