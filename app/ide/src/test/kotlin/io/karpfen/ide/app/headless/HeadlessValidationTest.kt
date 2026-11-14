@@ -124,18 +124,6 @@ class HeadlessValidationTest {
         }
 
     @Test
-    fun `without its settings the attachment example reports its constructs as switched off`() = runTest(timeout = TIMEOUT) {
-        copyExample("spares")
-        Files.delete(root.resolve(ProjectSettings.FILE_NAME))
-
-        val (status, rig) = validate()
-
-        assertEquals(HeadlessExitCodes.ERRORS_FOUND, status)
-        val files = rig.output.dropLast(1).map { it.substringBefore(':') }.toSet()
-        assertTrue(files.containsAll(listOf("spares.kmeta", "glowing.kstates", "room.kstates")), "${rig.output}")
-    }
-
-    @Test
     fun `a behaves after that names no attachable state machine is an error at the metamodel`() = runTest(timeout = TIMEOUT) {
         copyExample("spares")
         replace("spares.kmeta", "behaves after \"glowing\"", "behaves after \"gone\"")

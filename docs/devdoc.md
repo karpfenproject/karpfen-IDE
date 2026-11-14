@@ -550,16 +550,16 @@ Read `DeployStepKind` and the `deploy` package of runtime-session. A deployment 
 environment, connects, uploads the files, attaches the state machines and uploads the definitions, sets the timing,
 listens to the domains, switches on the runtime features of the project, activates, starts observing and starts.
 
-Histories, tick limits, breakpoints, macros, splits and joins, and dynamic attachment are optional features of the
-languages, listed by dsl-tools' `KstatesFeature`. A project switches them on by hand, and `.karpfenproject` stores
+Histories, tick limits, breakpoints, macros, and splits and joins are optional features of the state machine
+language, listed by dsl-tools' `KstatesFeature`. A project switches them on by hand, and `.karpfenproject` stores
 each one that is on as a line `feature.<id> = on`. `LanguageFeatureBinding` hands the set to the workspace, which
 analyzes again when it changes. The analysis passes it to dsl-tools' `KstatesReader`, which reports every construct
-of a feature that is off as the error `kstates.feature-off`, and to the `KmetaReader` of the metamodel and the event
-definitions, which reports `behaves after` as `kmeta.feature-off`. That error blocks a run like any other. Completion and
+of a feature that is off as the error `kstates.feature-off`. That error blocks a run like any other. Completion and
 the statechart menu read the set and leave out what is off. `LanguageFeature` in runtime-session maps what is on to
 runtime features: histories to History, tick limits to TickLimit and breakpoints to Breakpoint. The runtime reads
-these words in every environment but applies them only where its feature is on. Macros, splits and joins, and dynamic
-attachment need nothing in the runtime.
+these words in every environment but applies them only where its feature is on. Macros, and splits and joins, need
+nothing in the runtime. Dynamic attachment is no optional feature: attachable state machines, `behaves after`,
+`ATTACH`, `DETACH` and `EXCHANGE` are always part of the languages.
 
 A descriptor entry without `attachedTo` hands an attachable state machine to the environment as a definition.
 `StateMachineForms` in core-workspace checks during the analysis that the form of each listed file fits its entry,

@@ -15,7 +15,6 @@
  */
 package io.karpfen.ide.core.lang.symbols
 
-import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.KarpfenLanguage
 import io.karpfen.ide.core.document.fixtures.ExampleContext
 import io.karpfen.ide.core.document.fixtures.ExampleFile
@@ -34,8 +33,7 @@ import kotlin.test.assertTrue
 /**
  * Covers the names of attachable state machines across the files of a context: completion after `ATTACHABLE TO`,
  * after `behaves after`, after `ATTACH` and as the second operand of `EXCHANGE`, the ranking by the suited type, hover,
- * go to definition and find references in KMeta and KStates, and the constructs that are not offered while the feature
- * is off.
+ * go to definition and find references in KMeta and KStates, also with every optional language feature off.
  */
 class AttachableMachinesTest {
 
@@ -81,14 +79,14 @@ class AttachableMachinesTest {
     }
 
     @Test
-    fun `while the feature is off none of its constructs is offered`() {
-        val off = ServicesProbe(analysis.copy(languageFeatures = KstatesFeature.ALL - KstatesFeature.ATTACHMENT))
+    fun `the constructs are offered with every optional language feature off`() {
+        val plain = ServicesProbe(analysis.copy(languageFeatures = emptySet()))
         val metamodel = document("spares.kmeta")
         val room = document("room.kstates") { it.replace(" ATTACH \"glowing\"", " ") }
 
-        assertTrue(off.labels(metamodel, after(metamodel.text.text, "\"A lamp\" ")).none { it.startsWith("behaves") })
-        assertTrue(off.labels(room, after(room.text.text, "\"lamp->bulb->watts\")) ")).none { it.startsWith("ATTACH") })
-        assertTrue(off.labels(room, after(room.text.text, "ENTRY {\n")).none { it.startsWith("EXCHANGE") })
+        assertTrue("behaves after \"…\"" in plain.labels(metamodel, after(metamodel.text.text, "\"A lamp\" ")))
+        assertTrue("ATTACH \"…\"" in plain.labels(room, after(room.text.text, "\"lamp->bulb->watts\")) ")))
+        assertTrue("EXCHANGE(\"…\", …)" in plain.labels(room, after(room.text.text, "ENTRY {\n")))
     }
 
     @Test

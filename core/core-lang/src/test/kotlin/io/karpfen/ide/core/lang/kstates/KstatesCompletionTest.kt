@@ -116,8 +116,8 @@ class KstatesCompletionTest {
         assertEquals(listOf("CONDITION { }"), labels(machine(" TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" { ‸ }\n }")))
         assertEquals(emptyList(), labels(machine(" MACROS {\n  ‸\n }")))
         val actions = labels(stateBody("   DO {\n    ‸\n   }"))
-        assertTrue("SET(\"…\", …)" in actions && actions.none { it.startsWith("WITH") || it.startsWith("EXCHANGE") }, "$actions")
-        assertEquals(listOf("STATEMACHINE ATTACHED TO \"…\" { }"), labels("‸"))
+        assertTrue("SET(\"…\", …)" in actions && "EXCHANGE(\"…\", …)" in actions && actions.none { it.startsWith("WITH") }, "$actions")
+        assertEquals(listOf("STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE ATTACHED TO \"…\" { }"), labels("‸"))
         assertEquals(listOf("EVAL { }"), labels(stateBody("   DO {\n    SET(\"log\", ‸)\n   }")))
     }
 

@@ -202,13 +202,12 @@ class DefaultDslReaderTest {
         val metamodels = mutableListOf<Metamodel>()
         val featureSets = mutableListOf<Set<KstatesFeature>>()
         val recording = DefaultDslReader(
-            kmetaReader = { types, features -> baseTypes += types; featureSets += features; KmetaReader(types, features) },
+            kmetaReader = { types -> baseTypes += types; KmetaReader(types) },
             kmodelReader = { metamodel -> metamodels += metamodel; KmodelReader(metamodel) },
             kstatesReader = { features -> featureSets += features; KstatesReader(features) },
         )
 
-        val attachment = setOf(KstatesFeature.ATTACHMENT)
-        recording.kmeta(TextSnapshot("type \"move\" \"m\" {\n    has(\"to\", \"Point\")\n}\n", 0), domain.types, attachment)
+        recording.kmeta(TextSnapshot("type \"move\" \"m\" {\n    has(\"to\", \"Point\")\n}\n", 0), domain.types)
         recording.kmodel(TextSnapshot("make object \"p\":\"Point\" {\n}\n", 0), domain)
 
         assertEquals<List<List<ClassType>>>(listOf(domain.types), baseTypes)
@@ -217,13 +216,13 @@ class DefaultDslReaderTest {
         val history = setOf(KstatesFeature.HISTORY)
         recording.kstates(TextSnapshot("", 0))
         recording.kstates(TextSnapshot("", 0), history)
-        assertEquals(listOf(attachment, KstatesFeature.ALL, history), featureSets)
+        assertEquals(listOf(KstatesFeature.ALL, history), featureSets)
     }
 
     /** A [DefaultDslReader] whose readers of every language read with [read]. */
     private fun readingWith(read: (String) -> Nothing): DefaultDslReader {
         val failing = TextReader<Nothing> { text -> read(text) }
-        return DefaultDslReader(kmetaReader = { _, _ -> failing }, kmodelReader = { failing }, kstatesReader = { failing })
+        return DefaultDslReader(kmetaReader = { failing }, kmodelReader = { failing }, kstatesReader = { failing })
     }
 
     @Test

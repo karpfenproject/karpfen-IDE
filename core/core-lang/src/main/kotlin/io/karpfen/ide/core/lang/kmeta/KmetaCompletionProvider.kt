@@ -15,7 +15,6 @@
  */
 package io.karpfen.ide.core.lang.kmeta
 
-import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.syntax.KarpfenSyntax
 import io.karpfen.ide.core.lang.CompletionItem
 import io.karpfen.ide.core.lang.CompletionKind
@@ -32,9 +31,9 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
  * `prop`, `has`, `knows` and `list` snippets. At the second argument of `prop(` it offers `number`, `string` and
  * `boolean`. At the type argument of `has(`, `knows(` or `list(` it offers the types of [types]. These are the types
  * declared in the file, plus the domain types of the context when the file is `EVENTS.kmeta`. Outside quotes, names
- * are inserted with quotes, and `list("…")` is offered as well. While dynamic attachment is on, it offers the clause
- * `behaves after "…"` after the description of a domain type, and the attachable state machines of the context inside
- * that clause, those attachable to the type first.
+ * are inserted with quotes, and `list("…")` is offered as well. It offers the clause `behaves after "…"` after the
+ * description of a domain type, and the attachable state machines of the context inside that clause, those attachable
+ * to the type first.
  */
 internal class KmetaCompletionProvider(
     private val slots: KmetaSlots,
@@ -51,12 +50,7 @@ internal class KmetaCompletionProvider(
                 val names = if (slot.primitive) primitives(slot) else typeNames(request, slot)
                 names + if (slot.listAllowed && !slot.inString) listOf(LIST_SNIPPET.item(replace, rank = 2)) else emptyList()
             }
-            is KmetaSlot.TypeHeader ->
-                if (KstatesFeature.ATTACHMENT in request.project.languageFeatures && !request.isEventsDocument) {
-                    listOf(BEHAVES_AFTER_SNIPPET.item(replace))
-                } else {
-                    emptyList()
-                }
+            is KmetaSlot.TypeHeader -> if (request.isEventsDocument) emptyList() else listOf(BEHAVES_AFTER_SNIPPET.item(replace))
             is KmetaSlot.StateMachineName -> AttachableMachines(request).items(slot.range, suitedType = slot.owner)
             is KmetaSlot.TypeName, is KmetaSlot.MemberName, KmetaSlot.None -> emptyList()
         }

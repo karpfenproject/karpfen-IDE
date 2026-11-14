@@ -79,8 +79,8 @@ refer to.
   them, and the Model pane does not say which state machine an object runs.
 - The active states above the log list every instance on one line each. A run with many instances of definitions
   makes that list long, and it has no filter.
-- Live scenarios of dynamic attachment exist, `LiveAttachmentScenariosTest` and the spares run of
-  `LiveHeadlessRunTest`, but nobody has run them yet against the real runtime.
+- Dynamic attachment has run against the real runtime in the live scenarios of runtime-session and in the spares run
+  of `LiveHeadlessRunTest`, but nobody has tried it by hand in the window yet.
 
 ### Bridges
 

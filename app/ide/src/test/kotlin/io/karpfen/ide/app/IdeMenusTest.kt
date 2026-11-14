@@ -140,7 +140,6 @@ class IdeMenusTest {
                 "workbench.languageFeature.breakpoints",
                 "workbench.languageFeature.macros",
                 "workbench.languageFeature.parallel",
-                "workbench.languageFeature.attachment",
                 "workbench.projectFeature.trueParallel",
             ),
             features.itemIds(),

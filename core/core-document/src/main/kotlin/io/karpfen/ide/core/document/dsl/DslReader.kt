@@ -64,16 +64,9 @@ public interface DslReader {
     /**
      * Reads a `.kmeta` file. [baseTypes] are types of another metamodel that the file may refer to but does not define.
      * This is how `EVENTS.kmeta` reuses the types of the domain metamodel for its event payloads. The base types become
-     * part of the metamodel read. [features] are the optional language features the text may use. Of them KMeta knows
-     * only dynamic attachment, whose clause `behaves after` the reader reports as an error with code `kmeta.feature-off`
-     * while the feature is off, and still builds into the type. Every feature is on by default, which is how the
-     * standalone semantics of a file read it.
+     * part of the metamodel read.
      */
-    public fun kmeta(
-        source: TextSnapshot,
-        baseTypes: List<ClassType> = emptyList(),
-        features: Set<KstatesFeature> = KstatesFeature.ALL,
-    ): ReadResult<Metamodel>
+    public fun kmeta(source: TextSnapshot, baseTypes: List<ClassType> = emptyList()): ReadResult<Metamodel>
 
     /** Reads a `.kmodel` file against [metamodel]. */
     public fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model>
@@ -89,7 +82,7 @@ public interface DslReader {
 
 /** The default [DslReader] over the readers of dsl-tools. */
 public fun DslReader(): DslReader = DefaultDslReader(
-    kmetaReader = { baseTypes, features -> KmetaReader(baseTypes, features) },
+    kmetaReader = ::KmetaReader,
     kmodelReader = ::KmodelReader,
     kstatesReader = ::KstatesReader,
 )

@@ -72,7 +72,6 @@ class LanguageFeatureCommandsTest {
                 "Switch On Breakpoints",
                 "Switch On Macros",
                 "Switch On Splits and joins",
-                "Switch On Dynamic attachment",
             ),
             KstatesFeature.entries.map { registry.switchOf(it).title },
         )
