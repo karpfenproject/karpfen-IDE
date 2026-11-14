@@ -41,8 +41,6 @@ refer to.
 - The class diagram shows the types of one file only, so a relation to a type of another metamodel file is a row and
   not a link.
 - Dragging and the context menu were tried in tests only for the class and object diagrams, not in the window.
-- The statechart draws no header, so the attached type of a state machine and the name and types of an attachable one
-  are in the diagram model but not on the canvas.
 - No menu adds `ATTACH` or `EXCHANGE`. They are written in the cells of the entry and do actions, which complete and
   check them.
 - The class diagram asks for the name after `behaves after` as plain text. It does not offer the attachable state

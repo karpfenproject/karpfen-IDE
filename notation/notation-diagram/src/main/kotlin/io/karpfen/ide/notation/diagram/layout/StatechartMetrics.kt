@@ -27,6 +27,12 @@ public object StatechartMetrics {
     /** The room at the top of the box of a state with nested states, which holds its name. */
     public const val HEADER: Float = 26f
 
+    /** The height of the title line above the drawing, which says what the header of the state machine declares. */
+    public const val TITLE_HEIGHT: Float = 20f
+
+    /** The room between the title line and the topmost element of the drawing below it. */
+    public const val TITLE_GAP: Float = 16f
+
     /** The height of a state without nested states. */
     public const val STATE_HEIGHT: Float = 36f
 

@@ -91,6 +91,8 @@ public data class EdgeRoute(
  *   view fits [bounds] and not the rectangle from the origin to [width] and [height].
  * @property height the height of the whole drawing.
  * @property headerHeight the room at the top of a state's box that holds its name.
+ * @property title where the title line of the state machine is written, or null for a drawing without one. It sits
+ *   above everything else, see [titled], so it never covers a state and moves along when the drawing grows upwards.
  */
 public data class StatechartLayout(
     public val states: Map<String, DiagramBox>,
@@ -100,13 +102,33 @@ public data class StatechartLayout(
     public val width: Float,
     public val height: Float,
     public val headerHeight: Float,
+    public val title: DiagramBox? = null,
 ) : DiagramLayout {
     override val bounds: DiagramBox
+        get() = title?.let { drawingBounds.union(it) } ?: drawingBounds
+
+    /** The smallest rectangle around the states, markers, bars, lines and captions, without the title line. */
+    private val drawingBounds: DiagramBox
         get() {
             val boxes = states.values + initialMarkers.values + bars.values + routes.mapNotNull { it.label } +
                 routes.flatMap { route -> route.points.map { DiagramBox(it.x, it.y, 0f, 0f) } }
             return boxes.reduceOrNull(DiagramBox::union) ?: DiagramBox(0f, 0f, 0f, 0f)
         }
+
+    /**
+     * This layout with the title line [text], as wide as [measurer] says, written above the drawing. The line stands
+     * in the middle of the width of the drawing, and [StatechartMetrics.TITLE_GAP] lies between it and the topmost
+     * element. The
+     * place is taken from the other elements every time the layout is made, so the line follows the layout by hand
+     * and never collides with a state. Without states, or with a null [text], the layout has no title line.
+     */
+    public fun titled(text: String?, measurer: TextMeasurer): StatechartLayout {
+        if (text == null || states.isEmpty()) return copy(title = null)
+        val below = drawingBounds
+        val height = StatechartMetrics.TITLE_HEIGHT
+        val width = measurer.widthOf(text)
+        return copy(title = DiagramBox(below.center.x - width / 2f, below.y - StatechartMetrics.TITLE_GAP - height, width, height))
+    }
 
     /** The id of the split or join whose bar is drawn at [point], or null. */
     override fun barAt(point: DiagramPoint): String? = bars.entries.firstOrNull { point in it.value.grownBy(HIT_TOLERANCE) }?.key

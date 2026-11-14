@@ -41,6 +41,18 @@ public data class StatechartDiagram(
     /** The type an attached state machine is attached to, or null for an attachable one and if the text names none. */
     public val attachedTo: String? get() = if (name == null) types.firstOrNull() else null
 
+    /**
+     * The line that heads the drawing and says what the header of the text declares: the name, `ATTACHABLE TO` and
+     * the types of an attachable state machine, such as `glowing ATTACHABLE TO Lamp, Fan`, or `ATTACHED TO` and the
+     * type of an attached one, such as `ATTACHED TO Lamp`. It is null for an attached state machine whose text names
+     * no type.
+     */
+    public val title: String?
+        get() = when {
+            name != null -> listOf(name, ATTACHABLE_TO, types.joinToString(", ")).filter { it.isNotEmpty() }.joinToString(" ")
+            else -> attachedTo?.let { "$ATTACHED_TO $it" }
+        }
+
     /** Every state, the nested ones included, each parent before its children. */
     public fun allStates(): List<StateNode> = states.flatMap { it.withDescendants() }
 
@@ -76,6 +88,11 @@ public data class StatechartDiagram(
             edge.kind == kind && edge.sources.toSet() == sources.toSet() && edge.targets.toSet() == targets.toSet()
         }
         return transitions.firstOrNull { it.priority == index + 1 }?.takeIf(fits) ?: transitions.firstOrNull(fits)
+    }
+
+    private companion object {
+        const val ATTACHABLE_TO = "ATTACHABLE TO"
+        const val ATTACHED_TO = "ATTACHED TO"
     }
 }
 

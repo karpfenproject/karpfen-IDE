@@ -40,6 +40,7 @@ import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.text.TextSnapshot
 import io.karpfen.ide.notation.diagram.edit.DiagramChange
 import io.karpfen.ide.notation.diagram.layout.DiagramLayout
+import io.karpfen.ide.notation.diagram.layout.StatechartMetrics
 import io.karpfen.ide.notation.diagram.layout.VisLayout
 import io.karpfen.ide.notation.sync.DiagramState
 import io.karpfen.ide.notation.sync.DiagramTracker
@@ -201,7 +202,7 @@ class DiagramViewTest {
         show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, WITH_ENTRY), onChange = { changes += it })
         awaitDrawing()
 
-        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + Offset(0f, 14f)) }
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + CELL_ROW) }
         waitForIdle()
         onNodeWithTag(DiagramViewTestTags.CELL_CODE).assertTextEquals("SET(\"mode\", \"on\")")
 
@@ -212,7 +213,7 @@ class DiagramViewTest {
         onNodeWithTag(DiagramViewTestTags.CELL).assertDoesNotExist()
         assertEquals(listOf("{ SET(\"mode\", \"lit\") }"), changes.single().edits.map { it.newText })
 
-        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + Offset(0f, 14f)) }
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + CELL_ROW) }
         waitForIdle()
         onNodeWithTag(DiagramViewTestTags.CELL_CLOSE).performClick()
         waitForIdle()
@@ -224,7 +225,7 @@ class DiagramViewTest {
     fun `the opened code cell is sized by its corner and moved by its head`() = runComposeUiTest {
         show(DiagramNotation.STATECHART, stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, WITH_ENTRY))
         awaitDrawing()
-        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + Offset(0f, 14f)) }
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performTouchInput { click(center + CELL_ROW) }
         waitForIdle()
         val before = onNodeWithTag(DiagramViewTestTags.CELL).fetchSemanticsNode().boundsInRoot
 
@@ -336,7 +337,17 @@ class DiagramViewTest {
             }
         """.trimIndent()
 
-        /** One state with an entry block. Its marker stands in the middle of the fitted drawing, below the name. */
+        /**
+         * How far below the middle of the canvas the row of the code cells of the single state of [WITH_ENTRY] lies.
+         * The view centres the drawing with the title line above it, so the state sits half the room of the title
+         * lower than the middle.
+         */
+        val CELL_ROW = Offset(0f, 14f + (StatechartMetrics.TITLE_HEIGHT + StatechartMetrics.TITLE_GAP) / 2f)
+
+        /**
+         * One state with an entry block. Its marker stands below the name, in the middle of the width of the fitted
+         * drawing.
+         */
         val WITH_ENTRY = """
             STATEMACHINE ATTACHED TO "Lamp" {
                 STATES {

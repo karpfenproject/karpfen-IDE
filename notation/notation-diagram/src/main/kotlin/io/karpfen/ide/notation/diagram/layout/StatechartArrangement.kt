@@ -25,16 +25,19 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  * How a statechart is laid out. The boxes are its states, by their names. A state with nested states takes them along
  * when it is moved, and it can be sized. The lines that can be bent are those of the normal transitions, of the
  * timeouts and of the splits and joins, where each line between a state and the bar is bent on its own. Every
- * transition and every timeout has a caption that can be moved.
+ * transition and every timeout has a caption that can be moved. Both the automatic layout and the layout by hand
+ * carry the title line of the state machine above the drawing, see [StatechartLayout.titled]. The title line cannot
+ * be moved and is not stored in the layout file.
  */
 public object StatechartArrangement : DiagramArrangement<StatechartDiagram, StatechartLayout> {
 
     override fun isEmpty(diagram: StatechartDiagram): Boolean = diagram.states.isEmpty()
 
-    override fun automatic(diagram: StatechartDiagram, text: TextMeasurer): StatechartLayout = StatechartLayouter().layout(diagram, text)
+    override fun automatic(diagram: StatechartDiagram, text: TextMeasurer): StatechartLayout =
+        StatechartLayouter().layout(diagram, text).titled(diagram.title, text)
 
     override fun byHand(diagram: StatechartDiagram, vis: VisLayout, text: TextMeasurer): StatechartLayout =
-        ManualStatechartLayout.of(diagram, vis, text)
+        ManualStatechartLayout.of(diagram, vis, text).titled(diagram.title, text)
 
     override fun freeze(diagram: StatechartDiagram, layout: StatechartLayout): VisLayout = VisEditing.freeze(diagram, layout)
 

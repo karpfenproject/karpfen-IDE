@@ -410,6 +410,11 @@ a nested state for one of the state around it. `StatechartPainter` draws a histo
 dot. Breakpoints only have a meaning in a runtime whose Breakpoint feature is on, which a run switches on when the
 project has breakpoints on.
 
+`StatechartDiagram.title` is the header of the text as one line. `StatechartArrangement` asks
+`StatechartLayout.titled` to place it above the other elements after both the automatic layout and the layout by
+hand, so it is derived anew from every layout, takes part in the bounds that the view fits and never enters the
+`.vis` file.
+
 ### Bridges run inside the IDE
 
 A bridge connects a running model to an external system: HTTP, MQTT or ROS. It is a plain Kotlin component with a
