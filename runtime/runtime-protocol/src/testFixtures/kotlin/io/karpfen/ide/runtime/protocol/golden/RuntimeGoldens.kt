@@ -71,6 +71,31 @@ public object RuntimeGoldens {
         """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"stateChange","payload":$STATE_CHANGE_PAYLOAD}"""
 
     /**
+     * The `stateMachineAttached` payload of an instance of the attachable state machine `blinking` on the object
+     * `gen_Bulb_0` at revision 61, as `ObservationRelay.lifecyclePayload` builds it with org.json 20240303. org.json
+     * writes the members in the order `stateMachine`, `modelElementId`, `revision`.
+     */
+    public const val STATE_MACHINE_ATTACHED_PAYLOAD: String =
+        """{"stateMachine":"blinking","modelElementId":"gen_Bulb_0","revision":61}"""
+
+    /** The `stateMachineAttached` push of [STATE_MACHINE_ATTACHED_PAYLOAD], as `OutgoingMessage.toJson` wraps it. */
+    public const val STATE_MACHINE_ATTACHED: String =
+        """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"stateMachineAttached",""" +
+            """"payload":$STATE_MACHINE_ATTACHED_PAYLOAD}"""
+
+    /**
+     * The `stateMachineDetached` payload of the state machine that the run configuration attached to `living room`, at
+     * revision 62. Its `stateMachine` is JSON `null`, because an attached state machine has no name.
+     */
+    public const val STATE_MACHINE_DETACHED_PAYLOAD: String =
+        """{"stateMachine":null,"modelElementId":"living room","revision":62}"""
+
+    /** The `stateMachineDetached` push of [STATE_MACHINE_DETACHED_PAYLOAD], as `OutgoingMessage.toJson` wraps it. */
+    public const val STATE_MACHINE_DETACHED: String =
+        """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"stateMachineDetached",""" +
+            """"payload":$STATE_MACHINE_DETACHED_PAYLOAD}"""
+
+    /**
      * The published event `start` of the domain `public`, injected over the WebSocket without a payload, as
      * `ObservationRelay.onPublished` builds it with org.json 20240303. The members come in org.json's order `payload`,
      * `source`, `ttlMs`, `event`, `payloadFormat`, `timestamp`.
@@ -147,10 +172,11 @@ public object RuntimeGoldens {
 
     /**
      * The snapshot of an activated lamp environment [ENVIRONMENT] before its start, as `ModelSnapshot.toJson` writes
-     * it. It has the phase `activated`, the revision 0, no active stacks yet, and the [LAMP_ROOT].
+     * it. It has the phase `activated`, the revision 0, no active stacks and no state machine instances yet, and the
+     * [LAMP_ROOT].
      */
     public const val LAMP_SNAPSHOT_BEFORE_START: String =
-        """{"environmentKey":"$ENVIRONMENT","phase":"activated","revision":0,"activeStates":{},"roots":[$LAMP_ROOT]}"""
+        """{"environmentKey":"$ENVIRONMENT","phase":"activated","revision":0,"activeStates":{},"stateMachines":{},"roots":[$LAMP_ROOT]}"""
 
     /**
      * The full value of `turtle` of the single robot example, as `ModelJsonWriter.write` writes it. These are the bytes

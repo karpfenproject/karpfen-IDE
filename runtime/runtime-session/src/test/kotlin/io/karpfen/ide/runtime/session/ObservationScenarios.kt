@@ -284,6 +284,8 @@ abstract class ObservationScenarios {
                 is RuntimePush.ObjectChanged -> push.revision
                 is RuntimePush.ObjectDeleted -> push.revision
                 is RuntimePush.StateChanged -> push.revision
+                is RuntimePush.StateMachineAttached -> push.revision
+                is RuntimePush.StateMachineDetached -> push.revision
                 is RuntimePush.DomainEvent, is RuntimePush.EngineStatusChanged, is RuntimePush.Unrecognized -> 0
             }
     }

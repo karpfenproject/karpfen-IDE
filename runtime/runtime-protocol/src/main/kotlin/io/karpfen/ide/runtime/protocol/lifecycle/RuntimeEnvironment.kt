@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.lifecycle
 
+import io.karpfen.ide.runtime.protocol.api.StateMachineHoldings
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
@@ -79,6 +80,14 @@ public interface RuntimeEnvironment {
      */
     public suspend fun setStateMachine(attachedTo: String, text: String): CallOutcome<Unit>
 
+    /**
+     * Uploads the attachable state machine [text], which the environment keeps as a definition under its name. A
+     * second upload of the same name replaces the first. It is allowed while configuring. The environment builds an
+     * instance of a definition for every object whose type behaves after it, and for an object that a rule attaches
+     * it to or exchanges it on.
+     */
+    public suspend fun defineStateMachine(text: String): CallOutcome<Unit>
+
     /** Sets the tick delay to [milliseconds]. It is allowed while configuring. */
     public suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit>
 
@@ -131,10 +140,16 @@ public interface RuntimeEnvironment {
     public suspend fun forceState(modelElement: String, state: String): CallOutcome<Unit>
 
     /**
-     * Reads the state machine text uploaded for [modelElement], as it was uploaded. It is allowed unless the
-     * environment is lost.
+     * Reads the state machine text that the instance on [modelElement] runs, as it was uploaded: the definition it was
+     * built from, or the text attached to the object. It is allowed unless the environment is lost.
      */
     public suspend fun stateMachineSource(modelElement: String): CallOutcome<String>
+
+    /**
+     * Reads what the environment holds of state machines: the attached ones, the definitions and the instances. It is
+     * allowed unless the environment is lost.
+     */
+    public suspend fun stateMachines(): CallOutcome<StateMachineHoldings>
 
     /**
      * Reads a snapshot of the model, taken between two ticks of a running environment. The snapshot's phase settles the

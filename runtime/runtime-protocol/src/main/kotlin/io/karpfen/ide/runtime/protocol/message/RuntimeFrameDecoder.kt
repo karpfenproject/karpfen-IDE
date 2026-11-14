@@ -35,6 +35,8 @@ import io.karpfen.ide.runtime.protocol.catalogue.WireNames
  *   runtime wrote, so it is applied under its own id.
  * - An `objectDeleted` payload has a string `objectId` and an integral `revision`.
  * - A `stateChange` payload has a string `modelElementId`, an array of strings `stack` and an integral `revision`.
+ * - A `stateMachineAttached` or `stateMachineDetached` payload has a string `modelElementId`, a `stateMachine` that is
+ *   a string or `null` and an integral `revision`, in any order.
  * - A `domainEvent` payload has a string `domain` and an object `payload`. The members of that inner object make the
  *   [PublishedEvent]. `event`, `payload`, `payloadFormat` and `source` are strings, and `timestamp` and `ttlMs` are
  *   integral numbers. A missing or mistyped member leaves the event null and adds a [ViolationKind.MALFORMED_PAYLOAD]
@@ -116,6 +118,7 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
                 WireNames.OBJECT_CHANGED -> objectChanged(payload)
                 WireNames.OBJECT_DELETED -> objectDeleted(payload)
                 WireNames.STATE_CHANGE -> stateChange(payload)
+                WireNames.STATE_MACHINE_ATTACHED, WireNames.STATE_MACHINE_DETACHED -> stateMachine(type, payload)
                 WireNames.DOMAIN_EVENT -> domainEvent(payload)
                 WireNames.ENGINE_STATUS -> engineStatus(payload)
                 else -> DecodedFrame.Push(RuntimePush.Unrecognized(type, CompactJson.write(payload)), emptyList())
@@ -166,6 +169,22 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
             val stack = members.stringsMember(WireNames.STACK) ?: return missing(WireNames.STACK, "an array of strings")
             val revision = members.integralMember(WireNames.REVISION) ?: return missingRevision()
             return DecodedFrame.Push(RuntimePush.StateChanged(element, stack, revision), emptyList())
+        }
+
+        /** Reads a `stateMachineAttached` or `stateMachineDetached` payload of [type], whose members org.json writes. */
+        private fun stateMachine(type: String, payload: WireValue): DecodedFrame {
+            val members = payload as? WireValue.WireObject ?: return malformed("the payload is not an object")
+            val element = members.stringMember(WireNames.MODEL_ELEMENT_ID)
+                ?: return missing(WireNames.MODEL_ELEMENT_ID, "a string")
+            val name = members.nullableStringMember(WireNames.STATE_MACHINE) as? NullableText.Present
+                ?: return missing(WireNames.STATE_MACHINE, "a string or null")
+            val revision = members.integralMember(WireNames.REVISION) ?: return missingRevision()
+            val push = if (type == WireNames.STATE_MACHINE_ATTACHED) {
+                RuntimePush.StateMachineAttached(element, name.text, revision)
+            } else {
+                RuntimePush.StateMachineDetached(element, name.text, revision)
+            }
+            return DecodedFrame.Push(push, emptyList())
         }
 
         /** Reads a `domainEvent` payload. A published event that cannot be read leaves the event null. */

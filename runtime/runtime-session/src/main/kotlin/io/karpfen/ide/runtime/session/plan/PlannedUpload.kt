@@ -34,6 +34,12 @@ public enum class UploadRole {
 
     /** A state machine, attached to one object key. */
     STATE_MACHINE,
+
+    /**
+     * An attachable state machine, uploaded without an object key. The runtime keeps it under its name as a definition,
+     * which `behaves after`, `ATTACH` and `EXCHANGE` start instances of.
+     */
+    DEFINITION,
 }
 
 /**
@@ -61,6 +67,19 @@ public data class PlannedUpload(
     public val fileName: String
         get() = file.fileName?.toString() ?: file.toString()
 }
+
+/**
+ * A definition of the plan: an attachable state machine the environment holds under its name. Immutable.
+ *
+ * @property name the name of the state machine, which instances of it report as their definition.
+ * @property file the state machine's file.
+ * @property types the types the state machine is attachable to.
+ */
+public data class DefinedMachine(
+    public val name: String,
+    public val file: Path,
+    public val types: List<String>,
+)
 
 /**
  * A state machine of the plan and what it is attached to. Immutable.

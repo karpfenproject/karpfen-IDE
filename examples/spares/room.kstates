@@ -1,9 +1,9 @@
 // The state machine of the room. The descriptor attaches it to the object "room".
 //
 // stock adds a new bulb to the shelf and attaches "glowing" to it by name. flicker exchanges
-// the state machine of the bulb in the lamp for "flickering". replace removes the bulb from
-// the lamp, which ends its state machine, and screws in a new one, which gets "glowing"
-// through the behaves after of its type.
+// the state machine of the bulb in the lamp for "flickering". replace screws a new bulb with the
+// watts of the old one into the lamp. The old bulb leaves the model, which ends its state machine,
+// and the new one gets "glowing" through the behaves after of its type.
 STATEMACHINE ATTACHED TO "Room" {
     STATES {
         INITIAL STATE "ready" { }
@@ -19,8 +19,7 @@ STATEMACHINE ATTACHED TO "Room" {
         }
         STATE "replaced" {
             ENTRY {
-                DROPOBJ("lamp->bulb")
-                SETOBJ("lamp", "bulb", MACRO("new bulb", "spares->watts"))
+                SETOBJ("lamp", "bulb", MACRO("new bulb", "lamp->bulb->watts"))
             }
         }
     }

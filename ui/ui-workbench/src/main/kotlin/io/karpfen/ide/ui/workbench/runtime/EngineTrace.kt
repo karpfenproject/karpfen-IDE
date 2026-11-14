@@ -21,7 +21,7 @@ package io.karpfen.ide.ui.workbench.runtime
  *
  * @property time the time of day the engine wrote, with milliseconds.
  * @property environment the key of the environment the engine runs.
- * @property machine the key of the object the state machine is attached to, or `*` for the engine as a whole.
+ * @property machine the key of the object the state machine instance runs on, or `*` for the engine as a whole.
  * @property kind the kind of step, as the engine names it, for example `TRANSITION_FIRED`.
  * @property message what the engine says about the step.
  * @property details the values the engine adds after the message, by their names.
@@ -50,7 +50,8 @@ public data class EngineTraceLine(
  * that a tick started and ended and that a state has no actions to run. It also announces every transition, split
  * and join before it applies it, in the words of the line that follows once it is applied. [isNoise] recognizes
  * both, so they never reach the log. What is left are the steps a reader follows: the initial states, the
- * transitions, splits and joins, the entry actions, and errors. [describe] puts such a step into a few words.
+ * transitions, splits and joins, the entry actions, the state machines that objects get and lose, and errors.
+ * [describe] puts such a step into a few words.
  */
 public object EngineTrace {
 
@@ -65,6 +66,15 @@ public object EngineTrace {
         "TICK_START", "TICK_END", "STATE_DO_EXEC", "STATE_DO_SKIP", "STATE_ENTRY_SKIP", "TRANSITION_CHECK",
         "TRANSITION_SKIPPED_LOOP", "TRANSITION_START", "SPLIT_START", "JOIN_START",
     )
+
+    /** The kind of the line on which an object gets a state machine instance. */
+    internal const val ATTACHED: String = "STATE_MACHINE_ATTACHED"
+
+    /** The kind of the line on which an object loses its state machine instance. */
+    internal const val DETACHED: String = "STATE_MACHINE_DETACHED"
+
+    /** The detail that names the definition an instance runs. It is empty for an attached state machine. */
+    private const val STATE_MACHINE = "stateMachine"
 
     /** The kinds that report an error. */
     internal val ERRORS = setOf("ACTION_ERROR", "ENGINE_ERROR")
@@ -92,7 +102,9 @@ public object EngineTrace {
 
     /**
      * What [line] means, in a few words. A transition reads `off -> on`, the way a state machine file writes it. The
-     * state names of splits and joins are separated by commas. Kinds without a wording of their own keep the engine's
+     * state names of splits and joins are separated by commas. An object that gets or loses an instance of a
+     * definition reads `attaches glowing` or `detaches glowing`; for a state machine the descriptor attached, the
+     * definition's name is replaced by `its state machine`. Kinds without a wording of their own keep the engine's
      * message.
      */
     public fun describe(line: EngineTraceLine): String = when (line.kind) {
@@ -104,8 +116,23 @@ public object EngineTrace {
         "SPLIT_FIRED" -> "split ${spaced(line.message)}"
         "JOIN_FIRED" -> "join ${spaced(line.message)}"
         "STATE_ENTRY_EXEC" -> "runs the entry actions of ${line.details["state"] ?: line.message}"
+        ATTACHED -> "attaches ${machineOf(line)}"
+        DETACHED -> "detaches ${machineOf(line)}"
         else -> line.message
     }
+
+    /**
+     * The words of an object that got [attached] in place of [detached] by an `EXCHANGE`, such as
+     * `exchanges glowing for flickering`.
+     */
+    internal fun exchanged(detached: EngineTraceLine, attached: EngineTraceLine): String =
+        "exchanges ${machineOf(detached)} for ${machineOf(attached)}"
+
+    /**
+     * The state machine a lifecycle [line] is about: the name of the definition, or `its state machine` for a state
+     * machine the descriptor attached.
+     */
+    private fun machineOf(line: EngineTraceLine): String = line.details[STATE_MACHINE]?.takeIf { it.isNotEmpty() } ?: "its state machine"
 
     /** [text] with a blank after every comma that has none. */
     private fun spaced(text: String): String = text.replace(Regex(",(?! )"), ", ")

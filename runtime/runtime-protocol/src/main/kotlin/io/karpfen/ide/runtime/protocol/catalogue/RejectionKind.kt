@@ -42,6 +42,21 @@ public enum class RejectionKind {
     /** A state machine is attached to an object key the model does not have, so the activation was refused. */
     UNKNOWN_ATTACHMENT,
 
+    /**
+     * A type of the metamodel behaves after a name that no attachable state machine of the environment has, so the
+     * activation was refused.
+     */
+    MISSING_DEFINITION,
+
+    /** A type behaves after an attachable state machine that does not list it, so the activation was refused. */
+    UNATTACHABLE_DEFINITION,
+
+    /** A state machine uploaded with `attachedTo` has the attachable form. */
+    ATTACHED_FORM_REQUIRED,
+
+    /** A state machine uploaded without `attachedTo` has the attached form. */
+    ATTACHABLE_FORM_REQUIRED,
+
     /** The environment was started or stopped before it was activated. */
     NOT_ACTIVATED,
 
@@ -59,6 +74,9 @@ public enum class RejectionKind {
 
     /** No state machine text was uploaded for the model element. */
     NO_STATE_MACHINE_SOURCE,
+
+    /** No attachable state machine of the environment has the name asked for. */
+    NO_ATTACHABLE_STATE_MACHINE,
 
     /** The snapshot of a configuring environment without a model. */
     NO_MODEL,

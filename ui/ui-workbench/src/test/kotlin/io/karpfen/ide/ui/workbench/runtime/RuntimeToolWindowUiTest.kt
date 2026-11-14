@@ -114,7 +114,7 @@ class RuntimeToolWindowUiTest {
 
             session.debuggerFlow.value = DebuggerState.Paused(PausePlace.AtBreakpoint(EngineHalt.AtState("lamp", "on", StateTiming.ENTRY)))
             settle()
-            tagged(RuntimeViewTestTags.PAUSE_PLACE).assertTextEquals("Paused before the entry of on")
+            tagged(RuntimeViewTestTags.PAUSE_PLACE).assertTextEquals("Paused before the entry of on in lamp")
             tagged(RuntimeViewTestTags.PAUSE).assertDoesNotExist()
             tagged(RuntimeViewTestTags.STEP).performClick()
             settle()

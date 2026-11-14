@@ -21,14 +21,15 @@ import io.karpfen.ide.runtime.session.schema.TypeSchema
 import java.nio.file.Path
 
 /**
- * Where an attached machine listens to or raises an event.
+ * Where a state machine of the deployment listens to or raises an event.
  *
- * @property attachedTo the key of the object the machine runs attached to.
+ * @property attachedTo the key of the object the machine runs attached to, or null for a definition, whose instances
+ *   run on the objects the run gives them.
  * @property file the machine's file.
  * @property states the states whose transitions listen to the event, or whose actions raise it, each once, in file
  *   order.
  */
-public data class EventRef(public val attachedTo: String, public val file: Path, public val states: List<String>)
+public data class EventRef(public val attachedTo: String?, public val file: Path, public val states: List<String>)
 
 /** Which type of the event metamodel the runtime parses an event's payload against. */
 public enum class PayloadTypeOrigin {
@@ -117,10 +118,10 @@ public data class EventCatalog(
 }
 
 /**
- * An attached state machine as the catalog builder reads it.
+ * A state machine of the deployment as the catalog builder reads it, attached or a definition.
  *
- * @property attachedTo the key of the object it runs attached to.
+ * @property attachedTo the key of the object it runs attached to, or null for a definition.
  * @property file its file.
  * @property machine the analyzed machine. It is read during the preparation only.
  */
-public data class ListeningMachine(public val attachedTo: String, public val file: Path, public val machine: StateMachine)
+public data class ListeningMachine(public val attachedTo: String?, public val file: Path, public val machine: StateMachine)

@@ -94,6 +94,40 @@ class EngineTraceTest {
         assertEquals("wallSwitch".length, StatechartLog.subjectWidth(listOf(step, engine, failed, stderr)))
     }
 
+    @Test
+    fun `an object that gets or loses a state machine says so, with the definition or its own state machine`() {
+        assertEquals("attaches glowing", describe("STATE_MACHINE_ATTACHED: State machine 'glowing' attached | stateMachine=glowing"))
+        assertEquals("detaches glowing", describe("STATE_MACHINE_DETACHED: State machine 'glowing' detached | stateMachine=glowing"))
+        assertEquals(
+            "attaches its state machine",
+            describe("STATE_MACHINE_ATTACHED: State machine of the run configuration attached | stateMachine="),
+        )
+        assertFalse(EngineTrace.isNoise("[12:00:00.000] [env-1] [bulb] STATE_MACHINE_DETACHED: State machine 'glowing' detached | stateMachine=glowing"))
+    }
+
+    @Test
+    fun `read in order, a detached and an attached line of one object in one group read as an exchange`() {
+        val detachedBulb = line(1, OutputLevel.INFO, "[12:00:01.000] [env-1] [bulb] STATE_MACHINE_DETACHED: State machine 'glowing' detached | stateMachine=glowing")
+        val detachedSpare = line(2, OutputLevel.INFO, "[12:00:01.000] [env-1] [spare] STATE_MACHINE_DETACHED: State machine 'glowing' detached | stateMachine=glowing")
+        val attachedBulb = line(3, OutputLevel.INFO, "[12:00:01.001] [env-1] [bulb] STATE_MACHINE_ATTACHED: State machine 'flickering' attached | stateMachine=flickering")
+        val step = line(4, OutputLevel.INFO, "[12:00:01.500] [env-1] [bulb] TRANSITION_FIRED: on -> off | from=on, to=off")
+        val attachedLater = line(5, OutputLevel.INFO, "[12:00:02.000] [env-1] [spare] STATE_MACHINE_ATTACHED: State machine 'glowing' attached | stateMachine=glowing")
+
+        val texts = StatechartLog.entries(listOf(detachedBulb, detachedSpare, attachedBulb, step, attachedLater)).map { it.subject to it.text }
+
+        assertEquals(
+            listOf(
+                "bulb" to "detaches glowing",
+                "spare" to "detaches glowing",
+                "bulb" to "exchanges glowing for flickering",
+                "bulb" to "on -> off",
+                "spare" to "attaches glowing",
+            ),
+            texts,
+        )
+        assertEquals("attaches flickering", StatechartLog.entry(attachedBulb).text)
+    }
+
     /** The description of the trace line with the [rest] after the time, the environment and the machine. */
     private fun describe(rest: String): String = EngineTrace.describe(checkNotNull(EngineTrace.parse("[12:00:00.000] [env-1] [lamp] $rest")))
 

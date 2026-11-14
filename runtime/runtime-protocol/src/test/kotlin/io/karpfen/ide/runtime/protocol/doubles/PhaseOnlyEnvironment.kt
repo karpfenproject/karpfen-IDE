@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.doubles
 
+import io.karpfen.ide.runtime.protocol.api.StateMachineHoldings
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
@@ -67,6 +68,8 @@ class PhaseOnlyEnvironment(
 
     override suspend fun setStateMachine(attachedTo: String, text: String): CallOutcome<Unit> = refuse(LifecycleOperation.SET_STATE_MACHINE)
 
+    override suspend fun defineStateMachine(text: String): CallOutcome<Unit> = refuse(LifecycleOperation.SET_STATE_MACHINE)
+
     override suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit> = refuse(LifecycleOperation.SET_TICK_DELAY)
 
     override suspend fun setEventTtl(milliseconds: Long): CallOutcome<Unit> = refuse(LifecycleOperation.SET_EVENT_TTL)
@@ -90,6 +93,8 @@ class PhaseOnlyEnvironment(
 
     override suspend fun stateMachineSource(modelElement: String): CallOutcome<String> =
         refuse(LifecycleOperation.READ_STATE_MACHINE_SOURCE)
+
+    override suspend fun stateMachines(): CallOutcome<StateMachineHoldings> = refuse(LifecycleOperation.READ_STATE_MACHINES)
 
     override suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot> = refuse(LifecycleOperation.READ_SNAPSHOT)
 

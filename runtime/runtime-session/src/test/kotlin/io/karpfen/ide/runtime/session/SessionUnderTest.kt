@@ -236,7 +236,10 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
         }
         val roots = (body["roots"] as WireValue.WireArray).items.map { it as WireValue.WireObject }
         val mirror = MirrorReducer(prepared.schema, prepared.plan.modelObjectIds).replace(roots, revision).snapshot
-        return RawSnapshot((body["phase"] as WireValue.WireString).value, revision, stacks, mirror)
+        val instances = (body["stateMachines"] as? WireValue.WireObject)?.fields.orEmpty().associate { field ->
+            field.name to (field.value as? WireValue.WireString)?.value
+        }
+        return RawSnapshot((body["phase"] as WireValue.WireString).value, revision, stacks, mirror, instances)
     }
 
     /**
@@ -329,8 +332,16 @@ class RawObserver(val environment: EnvironmentKey, val clientId: ClientId, priva
  * @property revision its revision.
  * @property stacks the active stack of every machine that reported one.
  * @property mirror its roots, read as the session reads them.
+ * @property stateMachines its record of state machine instances: the key of every object with an instance and the name
+ *   of the definition the instance runs, or null for an attached state machine.
  */
-data class RawSnapshot(val phase: String, val revision: Long, val stacks: Map<String, List<String>>, val mirror: MirrorSnapshot)
+data class RawSnapshot(
+    val phase: String,
+    val revision: Long,
+    val stacks: Map<String, List<String>>,
+    val mirror: MirrorSnapshot,
+    val stateMachines: Map<String, String?> = emptyMap(),
+)
 
 /** The environment of this session, which every session has once its deployment created it. */
 val RuntimeSession.environment: EnvironmentKey

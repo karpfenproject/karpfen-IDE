@@ -92,6 +92,7 @@ class TemplateGoldenTest {
                 "ModelJsonWriter.quote(phase.wireName)" to RuntimeWireWriter.quote(RuntimePhase.ACTIVATED.wireName),
                 "revision" to "0",
                 "states" to "",
+                "machines" to "",
                 "roots.joinToString(\",\")" to RuntimeGoldens.LAMP_ROOT,
             ),
         )
@@ -113,6 +114,8 @@ class TemplateGoldenTest {
         )
         assertEquals(RuntimeGoldens.OBJECT_DELETED_PAYLOAD, RuntimeWireWriter.objectDeletedPayload("gen_Drone_4", 59))
         assertEquals(RuntimeGoldens.STATE_CHANGE_PAYLOAD, RuntimeWireWriter.stateChangePayload("turtle", listOf("observe"), 60))
+        assertEquals(RuntimeGoldens.STATE_MACHINE_ATTACHED_PAYLOAD, RuntimeWireWriter.stateMachinePayload("gen_Bulb_0", "blinking", 61))
+        assertEquals(RuntimeGoldens.STATE_MACHINE_DETACHED_PAYLOAD, RuntimeWireWriter.stateMachinePayload("living room", null, 62))
         assertEquals(
             RuntimeGoldens.DOMAIN_EVENT_PAYLOAD,
             RuntimeWireWriter.domainEventPayload("public", "start", "", "none", "EXTERNAL_MESSAGE", 1_761_560_130_123, 3000),
@@ -241,6 +244,8 @@ class TemplateGoldenTest {
             Triple("objectChanged", RuntimeGoldens.OBJECT_CHANGED_PAYLOAD, RuntimeGoldens.OBJECT_CHANGED),
             Triple("objectDeleted", RuntimeGoldens.OBJECT_DELETED_PAYLOAD, RuntimeGoldens.OBJECT_DELETED),
             Triple("stateChange", RuntimeGoldens.STATE_CHANGE_PAYLOAD, RuntimeGoldens.STATE_CHANGE),
+            Triple("stateMachineAttached", RuntimeGoldens.STATE_MACHINE_ATTACHED_PAYLOAD, RuntimeGoldens.STATE_MACHINE_ATTACHED),
+            Triple("stateMachineDetached", RuntimeGoldens.STATE_MACHINE_DETACHED_PAYLOAD, RuntimeGoldens.STATE_MACHINE_DETACHED),
             Triple("domainEvent", RuntimeGoldens.DOMAIN_EVENT_PAYLOAD, RuntimeGoldens.DOMAIN_EVENT),
             Triple("engineStatus", RuntimeGoldens.ENGINE_STATUS_HALTED_PAYLOAD, RuntimeGoldens.ENGINE_STATUS_HALTED),
             Triple("engineStatus", RuntimeGoldens.ENGINE_STATUS_RUNNING_PAYLOAD, RuntimeGoldens.ENGINE_STATUS_RUNNING),

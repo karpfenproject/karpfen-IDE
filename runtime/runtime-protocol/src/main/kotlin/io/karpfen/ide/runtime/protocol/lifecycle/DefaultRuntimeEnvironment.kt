@@ -17,6 +17,7 @@ package io.karpfen.ide.runtime.protocol.lifecycle
 
 import io.karpfen.ide.runtime.protocol.api.RuntimeApi
 import io.karpfen.ide.runtime.protocol.api.RuntimeResult
+import io.karpfen.ide.runtime.protocol.api.StateMachineHoldings
 import io.karpfen.ide.runtime.protocol.catalogue.AccessKey
 import io.karpfen.ide.runtime.protocol.catalogue.ClientId
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
@@ -84,6 +85,9 @@ internal class DefaultRuntimeEnvironment(
     override suspend fun setStateMachine(attachedTo: String, text: String): CallOutcome<Unit> =
         perform(LifecycleOperation.SET_STATE_MACHINE, attachedTo) { api.setStateMachine(key, attachedTo, text) }
 
+    override suspend fun defineStateMachine(text: String): CallOutcome<Unit> =
+        perform(LifecycleOperation.SET_STATE_MACHINE) { api.setStateMachine(key, null, text) }
+
     override suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit> =
         perform(LifecycleOperation.SET_TICK_DELAY) { api.setTickDelay(key, milliseconds) }
 
@@ -119,6 +123,9 @@ internal class DefaultRuntimeEnvironment(
 
     override suspend fun stateMachineSource(modelElement: String): CallOutcome<String> =
         perform(LifecycleOperation.READ_STATE_MACHINE_SOURCE) { api.stateMachineSource(key, modelElement) }
+
+    override suspend fun stateMachines(): CallOutcome<StateMachineHoldings> =
+        perform(LifecycleOperation.READ_STATE_MACHINES) { api.stateMachines(key) }
 
     override suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot> =
         perform(LifecycleOperation.READ_SNAPSHOT, settle = LifecycleRules::afterSnapshot) { api.modelSnapshot(key) }

@@ -22,11 +22,15 @@ import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.ResponseKind
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 import io.karpfen.ide.runtime.protocol.message.JsonReading
+import io.karpfen.ide.runtime.protocol.message.NullableText
 import io.karpfen.ide.runtime.protocol.message.RuntimeJson
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.protocol.message.SnapshotReader
 import io.karpfen.ide.runtime.protocol.message.SnapshotReading
 import io.karpfen.ide.runtime.protocol.message.WireValue
+import io.karpfen.ide.runtime.protocol.message.nullableStringMember
+import io.karpfen.ide.runtime.protocol.message.stringMember
+import io.karpfen.ide.runtime.protocol.message.stringsMember
 import org.slf4j.LoggerFactory
 
 /** What a [SuccessBody] made of the body of a successful answer. */
@@ -63,6 +67,9 @@ internal fun interface SuccessBody<out T> {
  * - [ENVIRONMENT_LIST] expects a JSON array of objects. Each object has a string `envKey` and an array of strings
  *   `modelElements`. The members may come in any order, and other members are ignored.
  * - [STATE_MACHINE_SOURCE] takes the body as it is.
+ * - [STATE_MACHINE_HOLDINGS] expects a JSON object with the array of strings `attached`, the array `definitions` of
+ *   objects with a string `name` and an array of strings `types`, and the array `instances` of objects with a string
+ *   `modelElement` and a `stateMachine` that is a string or `null`. Members are read by name.
  * - [snapshot] reads the snapshot as [SnapshotReader] does. The snapshot's environment must be the requested one.
  * - [FEATURE_NAMES] reads feature names separated by [WireNames.FEATURE_SEPARATOR]. An empty body names none. Every
  *   name must be a [FeatureName].
@@ -123,6 +130,20 @@ internal object SuccessBodies {
     /** The uploaded text of a state machine, as it is. */
     val STATE_MACHINE_SOURCE: SuccessBody<String> = SuccessBody { body -> BodyReading.Read(body) }
 
+    /** What an environment holds of state machines. */
+    val STATE_MACHINE_HOLDINGS: SuccessBody<StateMachineHoldings> = SuccessBody { body ->
+        val members = (RuntimeJson.read(body) as? JsonReading.Read)?.value as? WireValue.WireObject
+        val holdings = members?.let(::holdingsOf)
+        if (holdings != null) {
+            BodyReading.Read(holdings)
+        } else {
+            BodyReading.Unexpected(
+                "the body is not a JSON object with '${WireNames.HELD_ATTACHED}', '${WireNames.HELD_DEFINITIONS}' and " +
+                    "'${WireNames.HELD_INSTANCES}' as the runtime writes them",
+            )
+        }
+    }
+
     /** The names of features, as a set. */
     val FEATURE_NAMES: SuccessBody<Set<FeatureName>> = SuccessBody { body ->
         if (body.isEmpty()) return@SuccessBody BodyReading.Read(emptySet())
@@ -168,6 +189,24 @@ internal object SuccessBodies {
             ?.map { (it as? WireValue.WireString)?.value ?: return null } ?: return null
         val environment = runCatching { EnvironmentKey(key) }.getOrNull() ?: return null
         return ActiveEnvironment(environment, elements)
+    }
+
+    /** The holdings that [members] describe, or null if a member is missing or of the wrong form. */
+    private fun holdingsOf(members: WireValue.WireObject): StateMachineHoldings? {
+        val attached = members.stringsMember(WireNames.HELD_ATTACHED) ?: return null
+        val definitions = (members[WireNames.HELD_DEFINITIONS] as? WireValue.WireArray)?.items?.map { item ->
+            val definition = item as? WireValue.WireObject ?: return null
+            HeldDefinition(
+                definition.stringMember(WireNames.HELD_NAME) ?: return null,
+                definition.stringsMember(WireNames.HELD_TYPES) ?: return null,
+            )
+        } ?: return null
+        val instances = (members[WireNames.HELD_INSTANCES] as? WireValue.WireArray)?.items?.map { item ->
+            val instance = item as? WireValue.WireObject ?: return null
+            val name = instance.nullableStringMember(WireNames.STATE_MACHINE) as? NullableText.Present ?: return null
+            HeldInstance(instance.stringMember(WireNames.HELD_MODEL_ELEMENT) ?: return null, name.text)
+        } ?: return null
+        return StateMachineHoldings(attached, definitions, instances)
     }
 
     /** The reading of a body that is not a list of environments. */

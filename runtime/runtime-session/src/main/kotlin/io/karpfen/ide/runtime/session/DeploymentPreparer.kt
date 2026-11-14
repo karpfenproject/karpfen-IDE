@@ -34,6 +34,7 @@ import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.problem.SourceLocation
 import io.karpfen.ide.runtime.session.schema.TypeSchema
+import io.karpfen.ide.runtime.session.states.DefinitionLayout
 import io.karpfen.ide.runtime.session.states.MachineLayout
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
@@ -107,9 +108,13 @@ internal class DeploymentPreparer(
             val machine = checkNotNull(context.stateMachines[attachment.file]) { "a ready plan has every state machine analyzed" }
             ListeningMachine(attachment.attachedTo, attachment.file, machine)
         }
+        val definitions = plan.definitions.map { definition ->
+            val machine = checkNotNull(context.stateMachines[definition.file]) { "a ready plan has every definition analyzed" }
+            definition to ListeningMachine(null, definition.file, machine)
+        }
         val catalog = EventCatalogBuilder.build(
             domains = plan.domains,
-            machines = machines,
+            machines = machines + definitions.map { it.second },
             eventsMetamodel = context.events,
             eventTypeNames = plan.events?.let { ContextSymbols(analysis).typeNamesOf(it.file) }.orEmpty(),
             sources = EventSources(plan.metamodel.snapshot, plan.events?.snapshot),
@@ -118,8 +123,9 @@ internal class DeploymentPreparer(
             plan = plan,
             schema = schema,
             seed = MirrorSeeder.seed(model, schema),
-            layouts = machines.map { MachineLayout.of(it.attachedTo, it.file, it.machine) },
+            layouts = machines.map { MachineLayout.of(checkNotNull(it.attachedTo), it.file, it.machine) },
             catalog = catalog,
+            definitions = definitions.map { (definition, listening) -> DefinitionLayout.of(definition.name, definition.file, listening.machine) },
         )
     }
 

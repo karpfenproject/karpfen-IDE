@@ -56,8 +56,13 @@ public enum class RuntimePhase(public val wireName: String) {
  * @property environment the environment.
  * @property phase the lifecycle phase the runtime derived.
  * @property revision the revision of the last observation the snapshot contains. It is 0 before anything happened.
- * @property activeStates the last reported active stack of each state machine, keyed by the machine's `attachedTo`
- *   key. The machines come in the order they first reported. The map is empty before the first tick after a start.
+ * @property activeStates the last reported active stack of each state machine instance, keyed by the key of its
+ *   object. The instances come in the order they first reported. The map is empty before the first tick after a start,
+ *   and an instance that left is no longer in it.
+ * @property stateMachines the state machine instances as the runtime announced them, keyed by the key of their object,
+ *   each with the name of the attachable state machine it runs or null for a state machine attached by the run
+ *   configuration. The instances come in the order they were announced. The map is empty before the first start and
+ *   holds the instances of the last run after a stop.
  * @property roots every root object of the model in model order, each as an `objectChanged` push writes its value.
  * @throws IllegalArgumentException if [revision] is negative.
  */
@@ -67,6 +72,7 @@ public data class RuntimeModelSnapshot(
     public val revision: Long,
     public val activeStates: Map<String, List<String>>,
     public val roots: List<WireValue.WireObject>,
+    public val stateMachines: Map<String, String?> = emptyMap(),
 ) {
     init {
         require(revision >= 0) { "a snapshot's revision is never negative, not $revision" }

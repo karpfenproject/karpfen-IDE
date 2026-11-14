@@ -50,6 +50,19 @@ public object WireNames {
     public const val ENGINE_STATUS: String = "engineStatus"
 
     /**
+     * The message type of a state machine instance that appeared on an object, at the start of an environment for every
+     * instance of the start and at the end of a tick for every instance the tick attached. Its payload has
+     * [MODEL_ELEMENT_ID], [STATE_MACHINE] and [REVISION].
+     */
+    public const val STATE_MACHINE_ATTACHED: String = "stateMachineAttached"
+
+    /**
+     * The message type of a state machine instance that left its object, at the end of the tick that removed the
+     * object or exchanged the state machine. Its payload has the members of [STATE_MACHINE_ATTACHED].
+     */
+    public const val STATE_MACHINE_DETACHED: String = "stateMachineDetached"
+
+    /**
      * The environment key, a member of the push envelope and of the snapshot. In an inbound event frame, the member of
      * this name holds the event's domain instead.
      */
@@ -77,8 +90,18 @@ public object WireNames {
     /** The object's JSON, a member of the `objectChanged` payload. */
     public const val VALUE: String = "value"
 
-    /** The `attachedTo` key of the machine, a member of the `stateChange` payload. */
+    /**
+     * The key of the object whose state machine instance a push is about, a member of the `stateChange`,
+     * `stateMachineAttached` and `stateMachineDetached` payloads and of a halt.
+     */
     public const val MODEL_ELEMENT_ID: String = "modelElementId"
+
+    /**
+     * The name of the attachable state machine an instance runs, or JSON `null` for a state machine attached by the run
+     * configuration. It is a member of the `stateMachineAttached` and `stateMachineDetached` payloads and of an
+     * instance in the answer of `GET /observatory/stateMachines`.
+     */
+    public const val STATE_MACHINE: String = "stateMachine"
 
     /** The active stack, a member of the `stateChange` payload. */
     public const val STACK: String = "stack"
@@ -112,6 +135,30 @@ public object WireNames {
 
     /** The active stacks by machine, a member of the snapshot. */
     public const val ACTIVE_STATES: String = "activeStates"
+
+    /**
+     * The state machine instances by the key of their object, each the name of its definition or `null`, a member of
+     * the snapshot between [ACTIVE_STATES] and [ROOTS].
+     */
+    public const val STATE_MACHINES: String = "stateMachines"
+
+    /** The keys of the state machines uploaded with `attachedTo`, a member of the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_ATTACHED: String = "attached"
+
+    /** The attachable state machines, a member of the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_DEFINITIONS: String = "definitions"
+
+    /** The state machine instances, a member of the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_INSTANCES: String = "instances"
+
+    /** The name of an attachable state machine in the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_NAME: String = "name"
+
+    /** The types an attachable state machine lists, in the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_TYPES: String = "types"
+
+    /** The key of the object of an instance, in the answer of `GET /observatory/stateMachines`. */
+    public const val HELD_MODEL_ELEMENT: String = "modelElement"
 
     /** The root objects of the model, a member of the snapshot. */
     public const val ROOTS: String = "roots"

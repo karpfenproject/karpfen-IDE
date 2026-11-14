@@ -22,6 +22,7 @@ import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.connection.HandshakeRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.protocol.lifecycle.RuntimeEnvironment
+import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.session.plan.DeployConfiguration
 import io.karpfen.ide.runtime.session.problem.DeployProblem
@@ -119,6 +120,45 @@ class DeployPipelineTest {
             ),
             rig.script.log,
         )
+    }
+
+    @Test
+    fun `a definition is uploaded without a key in descriptor order among the attached machines, before the activation`() = runTest {
+        val rig = DeployRig(this)
+
+        rig.deploy(LampPlans.plan(withDefinition = true)).deployed()
+
+        val machineSteps = rig.listener.last.steps.filter { it.kind == DeployStepKind.ATTACH_STATE_MACHINE || it.kind == DeployStepKind.DEFINE_STATE_MACHINE }
+        assertEquals(
+            listOf(
+                DeployStepKind.ATTACH_STATE_MACHINE to "Attaching lamp.kstates to lamp",
+                DeployStepKind.DEFINE_STATE_MACHINE to "Uploading the definition glowing.kstates",
+                DeployStepKind.ATTACH_STATE_MACHINE to "Attaching switch.kstates to wallSwitch",
+            ),
+            machineSteps.map { it.kind to it.title },
+        )
+        val log = rig.script.log
+        assertTrue(log.indexOf("defineStateMachine(text of glowing.kstates)") in log.indexOf("setStateMachine(lamp, text of lamp.kstates)")..log.indexOf("activate"), "$log")
+    }
+
+    @Test
+    fun `the start is confirmed only once every instance of the snapshot's record reports a state`() = runTest {
+        val rig = DeployRig(this)
+        val withInstance = mapOf("lamp" to null, "wallSwitch" to null, "bulb" to "glowing")
+        rig.script.pullAnswers += CallOutcome.Done(
+            RuntimeModelSnapshot(ENVIRONMENT, RuntimePhase.RUNNING, 3, mapOf("lamp" to listOf("off"), "wallSwitch" to listOf("down")), emptyList(), withInstance),
+        )
+        rig.script.pullAnswers += CallOutcome.Done(
+            RuntimeModelSnapshot(
+                ENVIRONMENT, RuntimePhase.RUNNING, 4, mapOf("lamp" to listOf("off"), "wallSwitch" to listOf("down"), "bulb" to listOf("dark")),
+                emptyList(), withInstance,
+            ),
+        )
+
+        rig.deploy(LampPlans.plan(withDefinition = true)).deployed()
+
+        assertEquals(2, rig.script.pullTimes.size)
+        assertEquals(StepStatus.DONE, rig.listener.last.steps.single { it.kind == DeployStepKind.CONFIRM_START }.status)
     }
 
     @Test

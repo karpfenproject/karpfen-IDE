@@ -33,8 +33,8 @@ import kotlin.time.TimeSource
 
 /**
  * The gateway over the HTTP seam. It builds every request from the route's catalogue entry alone, with the parameters
- * in catalogue order. It sends the request through [http] within the timeout of the route's timeout class and
- * interprets the answer with [ResponseInterpreter].
+ * in catalogue order. An optional parameter without a value is left out of the request. It sends the request through
+ * [http] within the timeout of the route's timeout class and interprets the answer with [ResponseInterpreter].
  *
  * The timeout is the gateway's own. When it expires, the call becomes a [RuntimeFailure.NoAnswer] with `timedOut` set.
  * A cancellation of the caller is rethrown, and that includes an enclosing timeout. Transport failures map by how far
@@ -64,7 +64,7 @@ internal class HttpRuntimeApi(
     override suspend fun setEventDefinitions(environment: EnvironmentKey, text: String): RuntimeResult<Unit> =
         call(RuntimeRoute.SET_EVENT_DEFINITIONS, listOf(environment.value), text, SuccessBodies.EMPTY)
 
-    override suspend fun setStateMachine(environment: EnvironmentKey, attachedTo: String, text: String): RuntimeResult<Unit> =
+    override suspend fun setStateMachine(environment: EnvironmentKey, attachedTo: String?, text: String): RuntimeResult<Unit> =
         call(RuntimeRoute.SET_STATE_MACHINE, listOf(environment.value, attachedTo), text, SuccessBodies.EMPTY)
 
     override suspend fun setTickDelay(environment: EnvironmentKey, milliseconds: Int): RuntimeResult<Unit> =
@@ -101,7 +101,10 @@ internal class HttpRuntimeApi(
         call(RuntimeRoute.LIST_ENVIRONMENTS, emptyList(), null, SuccessBodies.ENVIRONMENT_LIST)
 
     override suspend fun stateMachineSource(environment: EnvironmentKey, modelElement: String): RuntimeResult<String> =
-        call(RuntimeRoute.STATE_MACHINE_SOURCE, listOf(environment.value, modelElement), null, SuccessBodies.STATE_MACHINE_SOURCE)
+        call(RuntimeRoute.STATE_MACHINE_SOURCE, listOf(environment.value, modelElement, null), null, SuccessBodies.STATE_MACHINE_SOURCE)
+
+    override suspend fun stateMachines(environment: EnvironmentKey): RuntimeResult<StateMachineHoldings> =
+        call(RuntimeRoute.LIST_STATE_MACHINES, listOf(environment.value), null, SuccessBodies.STATE_MACHINE_HOLDINGS)
 
     override suspend fun registerObservatoryClient(
         client: ClientId,
@@ -154,15 +157,18 @@ internal class HttpRuntimeApi(
 
     /**
      * Calls [route] with the parameter [values] in catalogue order and the request [body], and reads a success with
-     * [success]. A wrong number of values or a blank value is a programming error. It throws
-     * [IllegalArgumentException] before anything is sent.
+     * [success]. A null value leaves its parameter out of the request. A wrong number of values, a blank value or a
+     * null for a required parameter is a programming error. It throws [IllegalArgumentException] before anything is
+     * sent.
      */
-    private suspend fun <T> call(route: RuntimeRoute, values: List<String>, body: String?, success: SuccessBody<T>): RuntimeResult<T> {
+    private suspend fun <T> call(route: RuntimeRoute, values: List<String?>, body: String?, success: SuccessBody<T>): RuntimeResult<T> {
         require(values.size == route.parameters.size) { "$route takes ${route.parameters}, not $values" }
-        route.parameters.zip(values).forEach { (name, value) ->
-            require(value.isNotBlank()) { "the parameter '$name' of $route must not be blank" }
+        val query = route.parameters.zip(values).mapNotNull { (name, value) ->
+            require(value != null || name in route.optional) { "the parameter '$name' of $route is required" }
+            require(value == null || value.isNotBlank()) { "the parameter '$name' of $route must not be blank" }
+            value?.let { name to it }
         }
-        return when (val outcome = exchange(route, TextRequest(route.verb, route.path, route.parameters.zip(values), body))) {
+        return when (val outcome = exchange(route, TextRequest(route.verb, route.path, query, body))) {
             is Exchange.Failed -> RuntimeResult.Failed(outcome.failure)
             is Exchange.Answered -> ResponseInterpreter.interpret(route, outcome.answer, success)
         }

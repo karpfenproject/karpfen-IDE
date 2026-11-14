@@ -40,6 +40,8 @@ class RejectionClassifierTest {
         "keys" to "turtle, lamp",
         "id" to "APB 2101",
         "feature" to "TickByTick",
+        "machine" to "blinking",
+        "entries" to "'Bulb' behaves after 'glowing'",
         "ms" to "10000",
     )
 

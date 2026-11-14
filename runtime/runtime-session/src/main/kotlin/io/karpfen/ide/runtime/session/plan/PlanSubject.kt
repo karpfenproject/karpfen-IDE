@@ -68,6 +68,18 @@ internal class PlanSubject(
     val machines: List<StateMachineBinding>
         get() = modelingContext?.stateMachines.orEmpty()
 
+    /** The state machines the descriptor lists without `attachedTo`, which are the definitions, in descriptor order. */
+    val definitions: List<StateMachineBinding>
+        get() = machines.filter { it.attachedTo == null }
+
+    /**
+     * The names of the definitions as dsl-tools read them. A definition whose file was not read, or that has the
+     * attached form, has no name and is left out.
+     */
+    val definitionNames: Set<String> by lazy {
+        definitions.mapNotNullTo(LinkedHashSet()) { context?.stateMachines?.get(it.file)?.name }
+    }
+
     /** The files of the context and the descriptor, which is everything the gate reads. */
     val gatedFiles: List<Path>
         get() = modelingContext?.files.orEmpty() + listOf(descriptor)

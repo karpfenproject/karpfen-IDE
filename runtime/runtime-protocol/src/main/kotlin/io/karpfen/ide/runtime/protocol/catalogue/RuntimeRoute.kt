@@ -70,6 +70,12 @@ public enum class ResponseKind {
     /** The state machine text that was uploaded for a model element, as it was uploaded. */
     STATE_MACHINE_SOURCE,
 
+    /**
+     * The JSON object of the state machines an environment holds: the keys of the attached state machines, the
+     * attachable state machines with their types and the instances with their objects and definitions.
+     */
+    STATE_MACHINE_HOLDINGS,
+
     /** The model snapshot of an environment, with its phase, revision, active stacks and root objects. */
     MODEL_SNAPSHOT,
 
@@ -99,19 +105,22 @@ public enum class TimeoutClass {
 }
 
 /**
- * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 23 routes of the runtime's
+ * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 24 routes of the runtime's
  * `HTTPRoutes` in their order, followed by the three routes that its `ModelObservationRoutes` adds. Everything the
  * client sends is built from an entry, and the fake runtime dispatches by it.
  *
- * Query parameters are listed in the order the runtime checks them. When several are missing, the first of them names
- * the error `Missing required parameter: <name>`. A parameter that is present but empty counts as present.
+ * Query parameters are listed in the order the runtime reads them. When several required ones are missing, the first
+ * of them names the error `Missing required parameter: <name>`. A parameter that is present but empty counts as
+ * present. An optional parameter may be left out of the request, and the runtime then does something else: an upload
+ * of a state machine without `attachedTo` keeps an attachable state machine under its name.
  *
  * @property verb the HTTP method.
  * @property path the path below the runtime's base URL.
- * @property parameters the names of the query parameters, in the order the runtime checks them.
+ * @property parameters the names of the query parameters, in the order the runtime reads them.
  * @property body what the request body holds.
  * @property response what the body of a successful answer holds.
  * @property timeout how long the client waits for the answer.
+ * @property optional the names among [parameters] that a request may leave out.
  */
 public enum class RuntimeRoute(
     public val verb: HttpVerb,
@@ -120,6 +129,7 @@ public enum class RuntimeRoute(
     public val body: BodyKind,
     public val response: ResponseKind,
     public val timeout: TimeoutClass,
+    public val optional: Set<String> = emptySet(),
 ) {
     /** Creates an environment and returns its key. The runtime never hands out a key twice. */
     CREATE_ENVIRONMENT(
@@ -145,10 +155,14 @@ public enum class RuntimeRoute(
         BodyKind.KMETA, ResponseKind.EMPTY, TimeoutClass.UPLOAD,
     ),
 
-    /** Attaches a state machine to the object with the key `attachedTo`. */
+    /**
+     * Uploads a state machine. With `attachedTo` the text has the attached form and is attached to the object with that
+     * key. Without it the text has the attachable form and is kept as a definition under its name. A second upload for
+     * the same key or name replaces the first at its place.
+     */
     SET_STATE_MACHINE(
         HttpVerb.PUT, "/setStateMachine", listOf("envKey", "attachedTo"),
-        BodyKind.KSTATES, ResponseKind.EMPTY, TimeoutClass.UPLOAD,
+        BodyKind.KSTATES, ResponseKind.EMPTY, TimeoutClass.UPLOAD, optional = setOf("attachedTo"),
     ),
 
     /** Sets the tick delay of a configuring environment, an integer number of milliseconds. */
@@ -211,16 +225,33 @@ public enum class RuntimeRoute(
         BodyKind.NONE, ResponseKind.HEALTH, TimeoutClass.QUICK,
     ),
 
-    /** Lists the activated, running, halted and stopped environments with their attached model elements. */
+    /**
+     * Lists the activated, running, halted and stopped environments with the keys of the objects that have a state
+     * machine instance.
+     */
     LIST_ENVIRONMENTS(
         HttpVerb.GET, "/observatory/environments", emptyList(),
         BodyKind.NONE, ResponseKind.ENVIRONMENT_LIST, TimeoutClass.QUICK,
     ),
 
-    /** Answers the state machine text uploaded for a model element. */
+    /**
+     * Answers a state machine text. With `modelElement` it is the text the instance on that object runs, the definition
+     * or the attached text. With `name` instead it is the text of the attachable state machine of that name. Without
+     * both the runtime answers `Missing required parameter: modelElement`.
+     */
     STATE_MACHINE_SOURCE(
-        HttpVerb.GET, "/observatory/statemachine", listOf("envKey", "modelElement"),
-        BodyKind.NONE, ResponseKind.STATE_MACHINE_SOURCE, TimeoutClass.QUICK,
+        HttpVerb.GET, "/observatory/statemachine", listOf("envKey", "modelElement", "name"),
+        BodyKind.NONE, ResponseKind.STATE_MACHINE_SOURCE, TimeoutClass.QUICK, optional = setOf("modelElement", "name"),
+    ),
+
+    /**
+     * Answers what an environment holds of state machines, in every phase: the attached ones, the attachable ones and
+     * the instances. The instances are empty before activation, the ones the start will build until the first tick and
+     * those of the latest tick after it.
+     */
+    LIST_STATE_MACHINES(
+        HttpVerb.GET, "/observatory/stateMachines", listOf("envKey"),
+        BodyKind.NONE, ResponseKind.STATE_MACHINE_HOLDINGS, TimeoutClass.QUICK,
     ),
 
     /**

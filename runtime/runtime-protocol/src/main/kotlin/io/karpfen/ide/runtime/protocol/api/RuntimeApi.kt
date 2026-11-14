@@ -48,8 +48,11 @@ internal interface RuntimeApi {
     /** `PUT /setEventDefinitions`: uploads the event definitions [text] of [environment]. */
     suspend fun setEventDefinitions(environment: EnvironmentKey, text: String): RuntimeResult<Unit>
 
-    /** `PUT /setStateMachine`: attaches the state machine [text] to the object [attachedTo] of [environment]. */
-    suspend fun setStateMachine(environment: EnvironmentKey, attachedTo: String, text: String): RuntimeResult<Unit>
+    /**
+     * `PUT /setStateMachine`: attaches the state machine [text] to the object [attachedTo] of [environment], or keeps
+     * the attachable state machine [text] under its name when [attachedTo] is null.
+     */
+    suspend fun setStateMachine(environment: EnvironmentKey, attachedTo: String?, text: String): RuntimeResult<Unit>
 
     /** `POST /setTickDelay`: sets the tick delay of [environment] to [milliseconds]. */
     suspend fun setTickDelay(environment: EnvironmentKey, milliseconds: Int): RuntimeResult<Unit>
@@ -87,8 +90,14 @@ internal interface RuntimeApi {
     /** `GET /observatory/environments`: the activated, running, halted and stopped environments. */
     suspend fun listEnvironments(): RuntimeResult<List<ActiveEnvironment>>
 
-    /** `GET /observatory/statemachine`: the state machine text uploaded for [modelElement] of [environment]. */
+    /**
+     * `GET /observatory/statemachine`: the state machine text that the instance on [modelElement] of [environment]
+     * runs, the attachable state machine it was built from or the text attached to the object.
+     */
     suspend fun stateMachineSource(environment: EnvironmentKey, modelElement: String): RuntimeResult<String>
+
+    /** `GET /observatory/stateMachines`: the attached state machines, the definitions and the instances of [environment]. */
+    suspend fun stateMachines(environment: EnvironmentKey): RuntimeResult<StateMachineHoldings>
 
     /**
      * `POST /observatory/registerClient`: an access key of [client] for [environment]. The call also registers the

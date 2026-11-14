@@ -61,8 +61,18 @@ internal class DefaultDeploymentPlanner(
             val analyzed = checkNotNull(context.files[file]) { "a subject that passed the gate has every file analyzed" }
             return PlannedUpload(role, file, analyzed.snapshot, attachedTo)
         }
-        val machines = subject.machines.map { machine ->
-            upload(UploadRole.STATE_MACHINE, machine.file, checkNotNull(machine.attachedTo) { "a subject that passed the checks has no definitions" })
+        val machineUploads = subject.machines.map { machine ->
+            val key = machine.attachedTo
+            if (key == null) upload(UploadRole.DEFINITION, machine.file) else upload(UploadRole.STATE_MACHINE, machine.file, key)
+        }
+        val machines = machineUploads.filter { it.role == UploadRole.STATE_MACHINE }
+        val definitions = subject.definitions.map { definition ->
+            val machine = context.stateMachines[definition.file]
+            DefinedMachine(
+                name = checkNotNull(machine?.name) { "a subject that passed the gate has a name for every definition" },
+                file = definition.file,
+                types = machine?.types.orEmpty(),
+            )
         }
         val symbols = ContextSymbols(subject.analysis)
         val attachments = machines.map { machine ->
@@ -78,13 +88,14 @@ internal class DefaultDeploymentPlanner(
             upload(UploadRole.METAMODEL, checkNotNull(modelingContext.metamodel)),
             modelingContext.events?.let { upload(UploadRole.EVENTS, it) },
             upload(UploadRole.MODEL, checkNotNull(subject.modelFile)),
-        ) + machines
+        ) + machineUploads
         return DeploymentPlan.Builder()
             .name(modelingContext.name)
             .descriptor(subject.descriptor)
             .generation(subject.analysis.generation)
             .uploads(uploads)
             .attachments(attachments)
+            .definitions(definitions)
             .configuration(DeployConfiguration.of(environment))
             .domains(subject.domains)
             .features(LanguageFeature.runtimeFeaturesOf(subject.analysis.languageFeatures))

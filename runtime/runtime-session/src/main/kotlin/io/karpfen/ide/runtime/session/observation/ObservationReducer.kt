@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session.observation
 
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
+import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.session.mirror.DifferenceKind
 import io.karpfen.ide.runtime.session.mirror.MirrorChange
@@ -54,7 +55,7 @@ internal sealed interface ObservationInput {
     data object SwitchedOff : ObservationInput
 
     /**
-     * A push of the runtime arrived. Only object and stack pushes concern the observation.
+     * A push of the runtime arrived. Only object, stack and state machine pushes concern the observation.
      *
      * @property push the push.
      */
@@ -119,14 +120,17 @@ internal data class ObservationStep(
  * - Switching on sets the mode to on. The model synchronizes because it was switched on, and a snapshot is requested.
  * - Switching off sets the mode to off. The model counts as pulled at the last revision, or as predicted if nothing
  *   was read yet. The mirror keeps its state.
- * - An object or stack push is ignored while the mode is off. Pushes that were enqueued before the unsubscription may
- *   still arrive.
- * - An object or stack push is also ignored while the model synchronizes. The pending snapshot is read later, so it
+ * - An object, stack or state machine push is ignored while the mode is off. Pushes that were enqueued before the
+ *   unsubscription may still arrive.
+ * - Such a push is also ignored while the model synchronizes. The pending snapshot is read later, so it
  *   covers the push.
  * - While the model is live at revision L, a push at L or below is ignored. A push at L + 1 is applied, the model
  *   becomes live at L + 1, and there is an update. A push above L + 1 reveals a gap. The model then synchronizes, a
- *   snapshot is requested, and an anomaly names the missed revisions.
- * - A snapshot read at the last applied revision or later replaces the mirror and the states and sets the phase. The
+ *   snapshot is requested, and an anomaly names the missed revisions. The runtime numbers object, stack and state
+ *   machine pushes with one counter, so the rule holds for all three. A state machine push adds an instance to the
+ *   active states or removes it with its stack.
+ * - A snapshot read at the last applied revision or later replaces the mirror and the states and sets the phase. Once
+ *   the snapshot's phase shows that the environment started, the states hold exactly the instances it lists. The
  *   model becomes live when observation is on. It still synchronizes because of the reconnect when observation is on
  *   while the link is down. It counts as pulled when observation is off, and as final after the stop. There is one
  *   update that lists what differs from before. An older snapshot is ignored.
@@ -192,6 +196,8 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
             is RuntimePush.ObjectChanged -> push.revision
             is RuntimePush.ObjectDeleted -> push.revision
             is RuntimePush.StateChanged -> push.revision
+            is RuntimePush.StateMachineAttached -> push.revision
+            is RuntimePush.StateMachineDetached -> push.revision
             is RuntimePush.DomainEvent, is RuntimePush.EngineStatusChanged, is RuntimePush.Unrecognized -> return unchanged(state)
         }
         val sync = state.model.sync
@@ -217,6 +223,14 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
                 val states = states.reported(model.states, push.modelElementId, push.stack)
                 Triple(model.copy(states = states), update(revision, MirrorChange.NONE, setOf(push.modelElementId)), emptyList())
             }
+            is RuntimePush.StateMachineAttached -> {
+                val states = states.attached(model.states, push.modelElementId, push.stateMachine)
+                Triple(model.copy(states = states), update(revision, MirrorChange.NONE, setOf(push.modelElementId)), emptyList())
+            }
+            is RuntimePush.StateMachineDetached -> {
+                val states = states.detached(model.states, push.modelElementId)
+                Triple(model.copy(states = states), update(revision, MirrorChange.NONE, setOf(push.modelElementId)), emptyList())
+            }
             is RuntimePush.ObjectChanged -> mirrorApplied(model, revision, mirror.changed(model.mirror, push))
             is RuntimePush.ObjectDeleted -> mirrorApplied(model, revision, mirror.deleted(model.mirror, push))
             is RuntimePush.DomainEvent, is RuntimePush.EngineStatusChanged, is RuntimePush.Unrecognized -> return unchanged(state)
@@ -240,7 +254,7 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
         }
         val before = state.model
         val step = mirror.replace(snapshot.roots, snapshot.revision)
-        val states = states.replaced(before.states, snapshot.activeStates)
+        val states = states.replaced(before.states, snapshot.activeStates, snapshot.stateMachines, snapshot.phase in STARTED)
         val sync = when {
             state.stopped -> SyncStatus.Final(snapshot.revision)
             before.mode == ObservationMode.OFF -> SyncStatus.Pulled(snapshot.revision)
@@ -313,15 +327,20 @@ internal class ObservationReducer(private val mirror: MirrorReducer, private val
     private fun idsOf(differences: List<ObjectDifference>, kind: DifferenceKind): Set<String> =
         differences.filter { it.kind == kind }.mapTo(LinkedHashSet()) { it.id }
 
-    /** The attachment keys whose stack, origin or presence differs between [before] and [after]. */
+    /** The attachment keys whose stack, origin, definition or presence differs between [before] and [after]. */
     private fun changedMachines(before: ActiveStates, after: ActiveStates): Set<String> {
         val machines = (before.machines.keys + after.machines.keys).filterTo(LinkedHashSet()) { key ->
             val old = before.machines[key]
             val new = after.machines[key]
-            old?.stack != new?.stack || old?.origin != new?.origin
+            old?.stack != new?.stack || old?.origin != new?.origin || old?.definition != new?.definition
         }
         (before.unknownElements.keys + after.unknownElements.keys)
             .filterTo(machines) { before.unknownElements[it] != after.unknownElements[it] }
         return machines
+    }
+
+    private companion object {
+        /** The phases of an environment that started at least once, whose snapshot lists its instances. */
+        val STARTED: Set<RuntimePhase> = setOf(RuntimePhase.RUNNING, RuntimePhase.HALTED, RuntimePhase.STOPPED)
     }
 }

@@ -50,6 +50,14 @@ public sealed interface RejectedUpload {
 
         override val words: String get() = "state machine for '$attachedTo'"
     }
+
+    /**
+     * An attachable state machine, sent to `PUT /setStateMachine` without `attachedTo`. The first line does not name
+     * it, because the runtime could not read its name from a text with errors.
+     */
+    public data object AttachableStateMachine : RejectedUpload {
+        override val words: String get() = "attachable state machine"
+    }
 }
 
 /**
@@ -111,14 +119,14 @@ public data class UploadRejection(public val upload: RejectedUpload, public val 
         private const val LINE_SEPARATOR: String = "\n"
 
         /** The first line, with the upload as its first group and the number of errors and its noun after it. */
-        private val HEADLINE = Regex("""Upload of the (metamodel|model|event definitions|state machine for '([^\n]*)') rejected: ([1-9]\d{0,8}) (errors?)""")
+        private val HEADLINE = Regex("""Upload of the (metamodel|model|event definitions|attachable state machine|state machine for '([^\n]*)') rejected: ([1-9]\d{0,8}) (errors?)""")
 
         /** A line of one error, with the line, the column, the message and the code as its groups. */
         private val ERROR_LINE = Regex("""([1-9]\d{0,8}):([1-9]\d{0,8}): ([^\n]+) \(([^\s()]+)\)""")
 
         /**
          * Parses [body] if it is exactly the body of a refused upload, and returns null for any other text. The parse
-         * is strict. The first line must name one of the four uploads, the number of errors must be the number of the
+         * is strict. The first line must name one of the five uploads, the number of errors must be the number of the
          * lines that follow and agree with its noun, and every following line must be the line of one error. A
          * trailing line feed, an empty line, a number with a leading zero or a line of any other form makes the whole
          * body unknown.
@@ -133,12 +141,13 @@ public data class UploadRejection(public val upload: RejectedUpload, public val 
             return UploadRejection(upload, errors)
         }
 
-        /** The upload that the first line names with [words], with [attachedTo] for a state machine. */
+        /** The upload that the first line names with [words], with [attachedTo] for an attached state machine. */
         private fun uploadOf(words: String, attachedTo: String): RejectedUpload =
             when (words) {
                 RejectedUpload.Metamodel.words -> RejectedUpload.Metamodel
                 RejectedUpload.Model.words -> RejectedUpload.Model
                 RejectedUpload.EventDefinitions.words -> RejectedUpload.EventDefinitions
+                RejectedUpload.AttachableStateMachine.words -> RejectedUpload.AttachableStateMachine
                 else -> RejectedUpload.StateMachine(attachedTo)
             }
 

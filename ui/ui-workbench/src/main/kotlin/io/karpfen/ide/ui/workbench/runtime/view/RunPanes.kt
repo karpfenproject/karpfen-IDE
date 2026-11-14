@@ -62,6 +62,7 @@ import io.karpfen.ide.ui.workbench.runtime.RunEntry
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 import io.karpfen.ide.ui.workbench.runtime.StatechartLog
+import io.karpfen.ide.ui.workbench.runtime.StatechartLogEntry
 import io.karpfen.ide.ui.workbench.runtime.navigationTarget
 import java.nio.file.Path
 
@@ -120,9 +121,14 @@ private fun LogPane(runtime: RuntimeState, entry: RunEntry, root: Path, onNaviga
     val log by runtime.log.state.collectAsState()
     var simplified by remember { mutableStateOf(true) }
     val shown = remember(log, simplified) { if (simplified) log.copy(lines = log.lines.filter(StatechartLog::shows)) else log }
-    val subjectWidth = remember(shown, simplified) { if (simplified) StatechartLog.subjectWidth(shown.lines) else 0 }
+    val entries = remember(shown, simplified) {
+        if (simplified) shown.lines.map { it.sequence }.zip(StatechartLog.entries(shown.lines)).toMap() else emptyMap()
+    }
+    val subjectWidth = remember(entries) { StatechartLog.widthOf(entries.values) }
     val colors = KarpfenTheme.colors
-    val statechartText: (OutputLine) -> AnnotatedString = { line -> statechartLine(line, subjectWidth, colors) }
+    val statechartText: (OutputLine) -> AnnotatedString = { line ->
+        statechartLine(entries[line.sequence] ?: StatechartLog.entry(line), subjectWidth, colors)
+    }
     OutputView(
         shown,
         onFollowChange = runtime.log::setFollow,
@@ -146,11 +152,10 @@ private fun LogPane(runtime: RuntimeState, entry: RunEntry, root: Path, onNaviga
 }
 
 /**
- * One [line] of the simplified log. The time is muted, the state machine's name is in the accent colour and padded to
+ * One [entry] of the simplified log. The time is muted, the state machine's name is in the accent colour and padded to
  * [subjectWidth] characters, and the text follows. An error is in the error colour as a whole.
  */
-private fun statechartLine(line: OutputLine, subjectWidth: Int, colors: KarpfenColors): AnnotatedString = buildAnnotatedString {
-    val entry = StatechartLog.entry(line)
+private fun statechartLine(entry: StatechartLogEntry, subjectWidth: Int, colors: KarpfenColors): AnnotatedString = buildAnnotatedString {
     val error = entry.isError
     withStyle(SpanStyle(color = if (error) colors.error else colors.textMuted)) { append("${entry.time}  ") }
     if (subjectWidth > 0) {

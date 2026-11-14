@@ -43,6 +43,7 @@ internal sealed interface SnapshotReading {
  * - `phase` is the wire name of a [RuntimePhase].
  * - `revision` is an integral number of at least 0.
  * - `activeStates` is an object whose members are arrays of strings. Their order is kept.
+ * - `stateMachines` is an object whose members are strings or `null`. Their order is kept.
  * - `roots` is an array of objects that each have a string `__id__` and a string `__type__`.
  *
  * Anything else becomes a violation of the kind [ViolationKind.UNEXPECTED_BODY]. The object holds no state.
@@ -63,9 +64,28 @@ internal object SnapshotReader {
             ?: return unexpected(body, "the member '${WireNames.REVISION}' is missing or not an integral number of at least 0")
         val activeStates = members.objectMember(WireNames.ACTIVE_STATES)?.let { activeStates(it) }
             ?: return unexpected(body, "the member '${WireNames.ACTIVE_STATES}' is missing or not an object of string arrays")
+        val machines = members.objectMember(WireNames.STATE_MACHINES)?.let { stateMachines(it) }
+            ?: return unexpected(body, "the member '${WireNames.STATE_MACHINES}' is missing or not an object of strings and nulls")
         val roots = (members[WireNames.ROOTS] as? WireValue.WireArray)?.let { roots(it) }
             ?: return unexpected(body, "the member '${WireNames.ROOTS}' is missing or not an array of the runtime's objects")
-        return SnapshotReading.Read(RuntimeModelSnapshot(EnvironmentKey(key), phase, revision, activeStates, roots))
+        return SnapshotReading.Read(RuntimeModelSnapshot(EnvironmentKey(key), phase, revision, activeStates, roots, machines))
+    }
+
+    /**
+     * The definition names of [machines] by object key in their order, or null if a member is neither a string nor
+     * `null`. A key that occurs twice keeps its first name.
+     */
+    private fun stateMachines(machines: WireValue.WireObject): Map<String, String?>? {
+        val names = LinkedHashMap<String, String?>()
+        machines.fields.forEach { field ->
+            val name = when (val value = field.value) {
+                is WireValue.WireString -> value.value
+                WireValue.WireNull -> null
+                else -> return null
+            }
+            if (field.name !in names) names[field.name] = name
+        }
+        return names
     }
 
     /**

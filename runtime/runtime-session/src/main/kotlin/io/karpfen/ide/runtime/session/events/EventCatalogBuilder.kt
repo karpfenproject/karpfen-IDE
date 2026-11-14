@@ -128,8 +128,8 @@ public object EventCatalogBuilder {
 
     /** States collected per machine, each machine and state once, in the order they were met. */
     private class StatesByMachine {
-        /** The states by machine. A machine is keyed by its attachment key and its file. */
-        private val states = LinkedHashMap<Pair<String, Path>, LinkedHashSet<String>>()
+        /** The states by machine. A machine is keyed by its attachment key, null for a definition, and its file. */
+        private val states = LinkedHashMap<Pair<String?, Path>, LinkedHashSet<String>>()
 
         /** Adds [stateNames] of [machine]. */
         fun add(machine: ListeningMachine, stateNames: List<String>) {

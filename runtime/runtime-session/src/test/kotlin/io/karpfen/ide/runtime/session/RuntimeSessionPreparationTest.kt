@@ -74,6 +74,44 @@ class RuntimeSessionPreparationTest {
     }
 
     @Test
+    fun `the shelf of the attachment scenarios prepares with its definitions, their layouts and their events`() = runTest {
+        val sessions = sessions(this)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = KstatesFeature.ALL)
+        val descriptor = ShelfModel.writeTo(root)
+
+        val prepared = assertIs<Preparation.Ready>(sessions.prepare(workspace, descriptor)).prepared
+
+        assertEquals(emptyList(), prepared.plan.findings.filter { it.severity != Severity.INFO }, "${prepared.plan.findings}")
+        assertEquals(listOf("room"), prepared.plan.attachments.map { it.attachedTo })
+        assertEquals(listOf("glowing" to listOf("Bulb"), "blinking" to listOf("Bulb")), prepared.plan.definitions.map { it.name to it.types })
+        assertEquals(
+            listOf("glowing" to listOf("dark"), "blinking" to listOf("on")),
+            prepared.definitions.map { it.name to it.initialStack },
+        )
+        assertEquals(listOf("service"), prepared.plan.domains)
+        val dim = checkNotNull(prepared.catalog.event("service", "dim"))
+        assertEquals(listOf(null to listOf("on")), dim.listeners.map { it.attachedTo to it.states })
+    }
+
+    @Test
+    fun `a shelf whose descriptor lists no definition is blocked, and its literal ATTACH and EXCHANGE are warned about`() = runTest {
+        val sessions = sessions(this)
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = KstatesFeature.ALL)
+        val descriptor = ShelfModel.writeTo(root, definitions = emptyList())
+
+        val findings = assertIs<Preparation.Blocked>(sessions.prepare(workspace, descriptor)).findings
+
+        assertEquals(
+            listOf(DeployProblemCodes.DEFINITION_NOT_LISTED to Severity.ERROR, DeployProblemCodes.ATTACHED_DEFINITION_NOT_LISTED to Severity.WARNING),
+            findings.map { it.code to it.severity },
+            "$findings",
+        )
+        assertEquals("room.kstates attaches 'blinking', but the descriptor lists no definition of that name; the runtime fails that action " +
+            "when it runs.", findings.last().message)
+        assertEquals(descriptor.resolveSibling("room.kstates"), findings.last().location?.file)
+    }
+
+    @Test
     fun `every synthesized model but the ring prepares without errors, and the ring is blocked by its reference loop`() = runTest {
         val sessions = sessions(this)
         val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)

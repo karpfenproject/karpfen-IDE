@@ -124,10 +124,14 @@ public object RuntimeTexts {
     }
 
     /**
-     * The active states of [machine]. The text starts with the machine's attachment key and then lists its state
-     * stack as a path, for example `turtle: drive > drive fast`.
+     * The active states of [machine]. The text starts with the key of the object the instance runs on, followed by the
+     * name of its definition in parentheses for an instance of a definition, and then lists its state stack as a path,
+     * for example `turtle: drive > drive fast` or `gen_Bulb_0 (glowing): lit`.
      */
-    public fun activeStates(machine: MachineActivity): String = "${machine.attachedTo}: ${machine.stack.joinToString(" > ")}"
+    public fun activeStates(machine: MachineActivity): String {
+        val instance = machine.definition?.let { "${machine.attachedTo} ($it)" } ?: machine.attachedTo
+        return "$instance: ${machine.stack.joinToString(" > ")}"
+    }
 
     /** The connection [state] in words. */
     public fun connection(state: ConnectionState): String = when (state) {
@@ -221,17 +225,19 @@ public object RuntimeTexts {
     public fun payload(entry: DomainEventEntry): String = entry.event.event?.payload ?: entry.event.rawPayload
 
     /**
-     * Where the debugger paused a run, as a line for the user, such as `Paused before the entry of cars wait`,
-     * `Paused after the transition cars wait to cars go` or `Paused between two ticks`. The states of a split or a join
-     * are joined by "and".
+     * Where the debugger paused a run, as a line for the user, such as `Paused before the entry of cars wait in
+     * crossing`, `Paused after the transition cars wait to cars go in crossing` or `Paused between two ticks`. A pause
+     * at a breakpoint ends with the key of the object whose state machine instance the engine halted, since several
+     * objects may run the same state machine. The states of a split or a join are joined by "and".
      */
     public fun pause(place: PausePlace): String = when (place) {
         PausePlace.BetweenTicks -> "Paused between two ticks"
         is PausePlace.AtBreakpoint -> when (val halt = place.halt) {
-            is EngineHalt.AtState -> "Paused before the ${if (halt.timing == StateTiming.ENTRY) "entry" else "exit"} of ${halt.state}"
+            is EngineHalt.AtState ->
+                "Paused before the ${if (halt.timing == StateTiming.ENTRY) "entry" else "exit"} of ${halt.state} in ${halt.attachedTo}"
             is EngineHalt.AtTransition -> {
                 val side = if (halt.timing == TransitionTiming.START) "before" else "after"
-                "Paused $side the transition ${halt.from.joinToString(" and ")} to ${halt.to.joinToString(" and ")}"
+                "Paused $side the transition ${halt.from.joinToString(" and ")} to ${halt.to.joinToString(" and ")} in ${halt.attachedTo}"
             }
         }
     }

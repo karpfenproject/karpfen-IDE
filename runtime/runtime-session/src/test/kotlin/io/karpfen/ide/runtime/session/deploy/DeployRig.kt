@@ -29,6 +29,7 @@ import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.session.plan.AttachedMachine
 import io.karpfen.ide.runtime.session.plan.DeclarationLocations
+import io.karpfen.ide.runtime.session.plan.DefinedMachine
 import io.karpfen.ide.runtime.session.plan.DeployConfiguration
 import io.karpfen.ide.runtime.session.plan.DeploymentPlan
 import io.karpfen.ide.runtime.session.plan.PlannedUpload
@@ -110,6 +111,9 @@ internal object LampPlans {
     /** The machine of the wall switch. */
     val switchMachine: PlannedUpload = upload(UploadRole.STATE_MACHINE, "switch.kstates", "wallSwitch")
 
+    /** An attachable state machine named glowing, uploaded as a definition. */
+    val glowingDefinition: PlannedUpload = upload(UploadRole.DEFINITION, "glowing.kstates")
+
     /** Where the model's objects are declared, which is at their keys in the model text. */
     val locations: DeclarationLocations = DeclarationLocations(
         objects = mapOf(modelFile to listOf("lamp", "bulb", "spare").associateWith { rangeOf(it) }),
@@ -117,19 +121,24 @@ internal object LampPlans {
     )
 
     /**
-     * The plan of the lamp with [configuration], [domains] and [features], with the event definitions if [withEvents].
+     * The plan of the lamp with [configuration], [domains] and [features], with the event definitions if [withEvents]
+     * and with the definition glowing between the two attached machines if [withDefinition].
      */
     fun plan(
         configuration: DeployConfiguration = DeployConfiguration(20, 1500),
         domains: List<String> = listOf("service", "switch"),
         withEvents: Boolean = true,
         features: List<FeatureName> = listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT),
+        withDefinition: Boolean = false,
     ): DeploymentPlan =
         DeploymentPlan.Builder()
             .name("lamp")
             .descriptor(descriptor)
             .generation(3)
-            .uploads(listOfNotNull(metamodel, events.takeIf { withEvents }, model, lampMachine, switchMachine))
+            .uploads(
+                listOfNotNull(metamodel, events.takeIf { withEvents }, model, lampMachine, glowingDefinition.takeIf { withDefinition }, switchMachine),
+            )
+            .definitions(if (withDefinition) listOf(DefinedMachine("glowing", glowingDefinition.file, listOf("Bulb"))) else emptyList())
             .attachments(
                 listOf(
                     AttachedMachine("lamp", lampMachine.file, "Lamp", "Lamp"),

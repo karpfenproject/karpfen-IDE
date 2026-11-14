@@ -30,9 +30,12 @@ import java.nio.file.Path
  * @property descriptor the path of the environment descriptor.
  * @property generation the generation of the analysis the plan was read from.
  * @property uploads the texts to upload, in upload order. First the metamodel, then the event definitions if there
- *   are any, then the model, and then the state machines in descriptor order. That order becomes the runtime's tick
- *   order.
+ *   are any, then the model, and then the state machines in descriptor order, attached ones and definitions as the
+ *   descriptor lists them. The runtime steps the attached state machines in the order they were uploaded, before the
+ *   instances of definitions. It reads a definition only when the environment is activated and when an action attaches
+ *   it, so its place among the attached uploads changes nothing.
  * @property attachments the state machines and what they are attached to, in descriptor order.
+ * @property definitions the definitions the environment holds, in descriptor order.
  * @property configuration the tick delay and the event time to live the deployment sends.
  * @property domains the event domains the state machines use in conditions and actions, sorted and distinct. The
  *   deployment registers a listener for each.
@@ -49,6 +52,7 @@ public class DeploymentPlan private constructor(
     public val generation: Long,
     public val uploads: List<PlannedUpload>,
     public val attachments: List<AttachedMachine>,
+    public val definitions: List<DefinedMachine>,
     public val configuration: DeployConfiguration,
     public val domains: List<String>,
     public val features: List<FeatureName>,
@@ -68,9 +72,13 @@ public class DeploymentPlan private constructor(
     public val model: PlannedUpload
         get() = uploads.single { it.role == UploadRole.MODEL }
 
-    /** The state machine uploads, in descriptor order. */
+    /** The uploads of the attached state machines, in descriptor order. */
     public val machines: List<PlannedUpload>
         get() = uploads.filter { it.role == UploadRole.STATE_MACHINE }
+
+    /** The uploads of the definitions, in descriptor order. */
+    public val definitionUploads: List<PlannedUpload>
+        get() = uploads.filter { it.role == UploadRole.DEFINITION }
 
     /**
      * This plan without the runtime feature [feature]: the same plan with [feature] left out of [features], or this
@@ -81,8 +89,8 @@ public class DeploymentPlan private constructor(
             this
         } else {
             DeploymentPlan(
-                name, descriptor, generation, uploads, attachments, configuration, domains, features - feature, modelObjectIds,
-                locations, findings,
+                name, descriptor, generation, uploads, attachments, definitions, configuration, domains, features - feature,
+                modelObjectIds, locations, findings,
             )
         }
 
@@ -95,14 +103,14 @@ public class DeploymentPlan private constructor(
             this
         } else {
             DeploymentPlan(
-                name, descriptor, generation, uploads, attachments, configuration, domains, features + feature, modelObjectIds,
-                locations, findings,
+                name, descriptor, generation, uploads, attachments, definitions, configuration, domains, features + feature,
+                modelObjectIds, locations, findings,
             )
         }
 
     override fun toString(): String =
         "DeploymentPlan(name=$name, generation=$generation, uploads=${uploads.map { it.fileName }}, " +
-            "attachments=${attachments.map { it.attachedTo }}, configuration=$configuration, domains=$domains, features=$features)"
+            "attachments=${attachments.map { it.attachedTo }}, definitions=${definitions.map { it.name }}, configuration=$configuration, domains=$domains, features=$features)"
 
     /**
      * Builds a [DeploymentPlan], with one setter per property, and checks its invariants in [build]. Not thread-safe.
@@ -123,6 +131,9 @@ public class DeploymentPlan private constructor(
 
         /** The plan's attachments. */
         private var attachments: List<AttachedMachine> = emptyList()
+
+        /** The plan's definitions. */
+        private var definitions: List<DefinedMachine> = emptyList()
 
         /** The plan's configuration. */
         private var configuration: DeployConfiguration = DeployConfiguration.DEFAULT
@@ -157,6 +168,9 @@ public class DeploymentPlan private constructor(
         /** Sets the attachments, in descriptor order. There are none unless set. */
         public fun attachments(attachments: List<AttachedMachine>): Builder = apply { this.attachments = attachments.toList() }
 
+        /** Sets the definitions, in descriptor order. There are none unless set. */
+        public fun definitions(definitions: List<DefinedMachine>): Builder = apply { this.definitions = definitions.toList() }
+
         /** Sets the deploy configuration. It is the defaults of the descriptor format unless set. */
         public fun configuration(configuration: DeployConfiguration): Builder = apply { this.configuration = configuration }
 
@@ -180,9 +194,10 @@ public class DeploymentPlan private constructor(
          *
          * @throws IllegalArgumentException if the name or the descriptor is missing. It is also thrown if the uploads
          *   do not have the expected shape. That shape is exactly one metamodel upload first, at most one events upload
-         *   right after it, exactly one model upload after both, and then the state machine uploads with distinct keys.
-         *   The state machine uploads match [attachments] in order by key and file. A blank or repeated domain, a
-         *   repeated feature and a finding that is an error throw it as well.
+         *   right after it, exactly one model upload after both, and then the state machine and definition uploads,
+         *   the state machines with distinct keys. The state machine uploads match [attachments] in order by key and
+         *   file, the definition uploads match [definitions] in order by file. A blank or repeated domain, a repeated
+         *   feature and a finding that is an error throw it as well.
          */
         public fun build(): DeploymentPlan {
             val name = requireNotNull(name) { "a plan needs the name of its context" }
@@ -193,12 +208,12 @@ public class DeploymentPlan private constructor(
             require(features.toSet().size == features.size) { "each feature is listed once: $features" }
             require(findings.none { it.severity == Severity.ERROR }) { "a plan holds no ERROR: $findings" }
             return DeploymentPlan(
-                name, descriptor, generation, uploads, attachments, configuration, domains, features, modelObjectIds,
-                locations, findings,
+                name, descriptor, generation, uploads, attachments, definitions, configuration, domains, features,
+                modelObjectIds, locations, findings,
             )
         }
 
-        /** Checks the order of the uploads and that the state machine uploads match the attachments. */
+        /** Checks the order of the uploads and that the state machine uploads match the attachments and definitions. */
         private fun checkUploads() {
             val roles = uploads.map { it.role }
             require(roles.firstOrNull() == UploadRole.METAMODEL && roles.count { it == UploadRole.METAMODEL } == 1) {
@@ -212,8 +227,14 @@ public class DeploymentPlan private constructor(
             require(roles.getOrNull(modelIndex) == UploadRole.MODEL && roles.count { it == UploadRole.MODEL } == 1) {
                 "a plan uploads exactly one model, after the metamodel and the event definitions: $roles"
             }
-            val machines = uploads.drop(modelIndex + 1)
-            require(machines.all { it.role == UploadRole.STATE_MACHINE }) { "only state machines follow the model: $roles" }
+            val following = uploads.drop(modelIndex + 1)
+            require(following.all { it.role == UploadRole.STATE_MACHINE || it.role == UploadRole.DEFINITION }) {
+                "only state machines follow the model: $roles"
+            }
+            require(following.filter { it.role == UploadRole.DEFINITION }.map { it.file } == definitions.map { it.file }) {
+                "the definition uploads match the definitions in order: ${definitions.map { it.name }}"
+            }
+            val machines = following.filter { it.role == UploadRole.STATE_MACHINE }
             val keys = machines.map { it.attachedTo }
             require(keys.toSet().size == keys.size) { "each object key has at most one state machine: $keys" }
             require(machines.map { it.attachedTo to it.file } == attachments.map { it.attachedTo to it.file }) {

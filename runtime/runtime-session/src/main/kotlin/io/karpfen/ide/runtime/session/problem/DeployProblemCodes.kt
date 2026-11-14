@@ -56,10 +56,18 @@ public object DeployProblemCodes {
     public const val UNKNOWN_ATTACHMENT: String = "deploy-unknown-attachment"
 
     /**
-     * The descriptor lists a state machine without `attachedTo`, which makes it a definition. The deployment of the IDE
-     * uploads attached state machines only, so it does not deploy such a context. This is an error.
+     * A type of the domain metamodel behaves after a state machine that the descriptor does not list as a definition.
+     * The runtime refuses to activate the environment, since the objects of that type would have no state machine to
+     * run. This is an error.
      */
-    public const val DEFINITIONS_UNSUPPORTED: String = "deploy-definitions-unsupported"
+    public const val DEFINITION_NOT_LISTED: String = "deploy-definition-not-listed"
+
+    /**
+     * A state machine of the context attaches or exchanges, by a literal name, a state machine that the descriptor does
+     * not list as a definition. The runtime fails that rule when it runs and writes the failure to its trace. This is
+     * a warning.
+     */
+    public const val ATTACHED_DEFINITION_NOT_LISTED: String = "deploy-attached-definition-not-listed"
 
     /**
      * Two state machines are attached to the same key. The runtime would silently keep the last one. This is an error.
@@ -172,8 +180,9 @@ public object DeployProblemCodes {
 
     /** Every code, in the order the constants are declared. */
     public val ALL: List<String> = listOf(
-        NO_CONTEXT, SAVE_FAILED, UNSAVED_FILE, CONTEXT_ERRORS, NO_METAMODEL, NO_MODEL, UNKNOWN_ATTACHMENT, DEFINITIONS_UNSUPPORTED,
-        DUPLICATE_ATTACHMENT, ATTACHMENT_TYPE, TICK_DELAY_RANGE, TICK_DELAY_ZERO, EVENT_TTL_NEVER_EXPIRES, REFERENCE_LOOP,
+        NO_CONTEXT, SAVE_FAILED, UNSAVED_FILE, CONTEXT_ERRORS, NO_METAMODEL, NO_MODEL, UNKNOWN_ATTACHMENT, DEFINITION_NOT_LISTED,
+        ATTACHED_DEFINITION_NOT_LISTED, DUPLICATE_ATTACHMENT, ATTACHMENT_TYPE, TICK_DELAY_RANGE, TICK_DELAY_ZERO,
+        EVENT_TTL_NEVER_EXPIRES, REFERENCE_LOOP,
         DOMAIN_IS_ATTACHMENT, OBSERVE_SUPERSEDED, HOSTING_IGNORED, RUNTIME_UNREACHABLE,
         RUNTIME_INCOMPATIBLE, RUNTIME_NO_ANSWER, RUNTIME_REJECTED, RUNTIME_ERROR, HANDSHAKE_REJECTED, CONNECTION_LOST,
         MODEL_DIFFERS, ENGINE_HALTED, ENGINE_SILENT, OBSERVATION_OUT_OF_SYNC, ENVIRONMENT_LEFT_BEHIND, ENVIRONMENT_LOST,

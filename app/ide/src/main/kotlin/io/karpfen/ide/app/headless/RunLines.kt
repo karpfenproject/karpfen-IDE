@@ -20,6 +20,7 @@ import io.karpfen.ide.ui.workbench.output.OutputLine
 import io.karpfen.ide.ui.workbench.runtime.RunEntry
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 import io.karpfen.ide.ui.workbench.runtime.StatechartLog
+import io.karpfen.ide.ui.workbench.runtime.StatechartLogEntry
 import java.nio.file.Path
 
 /**
@@ -50,8 +51,13 @@ internal object RunLines {
         "${problem.severity.name.lowercase()}: ${RuntimeTexts.problem(problem, root)}"
 
     /** One line of the runtime's log in the short form of the Log pane's Simplified view, such as `12:41:30.123  lamp  starts in off`. */
-    fun statechart(line: OutputLine): String {
-        val entry = StatechartLog.entry(line)
+    fun statechart(line: OutputLine): String = statechart(StatechartLog.entry(line))
+
+    /**
+     * One [entry] of the Log pane's Simplified view in its short form, such as `12:41:30.123  gen_Bulb_0  attaches
+     * glowing`.
+     */
+    fun statechart(entry: StatechartLogEntry): String {
         return listOf(entry.time, entry.subject, entry.text).filter { it.isNotEmpty() }.joinToString(SEPARATOR)
     }
 

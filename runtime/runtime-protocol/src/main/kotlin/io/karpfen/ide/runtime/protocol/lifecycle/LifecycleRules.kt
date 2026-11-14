@@ -229,7 +229,7 @@ internal object LifecycleRules {
             }
             LifecycleOperation.SET_STATE_MACHINE, LifecycleOperation.SET_TICK_DELAY, LifecycleOperation.SET_EVENT_TTL,
             LifecycleOperation.REGISTER_OBJECT_OBSERVER, LifecycleOperation.REGISTER_DOMAIN_LISTENER,
-            LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.READ_STATE_MACHINE_SOURCE,
+            LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
             LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL,
             LifecycleOperation.ACTIVATE_FEATURE, LifecycleOperation.DEACTIVATE_FEATURE,
             LifecycleOperation.READ_ACTIVE_FEATURES, LifecycleOperation.MESSAGE_FEATURE,
@@ -250,7 +250,8 @@ internal object LifecycleRules {
         when (operation) {
             LifecycleOperation.ACTIVATE -> Verdict.Refuse("the environment is activated already")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.START, LifecycleOperation.STOP,
-            LifecycleOperation.FORCE_STATE, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_SNAPSHOT,
+            LifecycleOperation.FORCE_STATE, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
+            LifecycleOperation.READ_SNAPSHOT,
             LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL, LifecycleOperation.INJECT_EVENT,
             -> Verdict.Send
             else -> frozen()
@@ -262,7 +263,7 @@ internal object LifecycleRules {
             LifecycleOperation.ACTIVATE -> Verdict.Refuse("the environment is activated already")
             LifecycleOperation.START -> Verdict.Refuse("the environment runs already")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.STOP, LifecycleOperation.FORCE_STATE,
-            LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_SNAPSHOT,
+            LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES, LifecycleOperation.READ_SNAPSHOT,
             LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL, LifecycleOperation.INJECT_EVENT,
             -> Verdict.Send
             else -> frozen()
@@ -276,7 +277,8 @@ internal object LifecycleRules {
             LifecycleOperation.FORCE_STATE -> Verdict.Refuse("the engine ended on its own, so a forced state would never apply")
             LifecycleOperation.INJECT_EVENT -> Verdict.Refuse("the engine ended on its own, so no event would be handled")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.STOP, LifecycleOperation.READ_STATE_MACHINE_SOURCE,
-            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.READ_STATE_MACHINES, LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL,
+            LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             else -> frozen()
         }
@@ -285,8 +287,8 @@ internal object LifecycleRules {
     private fun stopped(operation: LifecycleOperation): Verdict =
         when (operation) {
             LifecycleOperation.STOP -> Verdict.AnswerLocally
-            LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_SNAPSHOT,
-            LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
+            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.SUBSCRIBE_MODEL ->
                 Verdict.Refuse("the runtime closed the environment's sockets when it stopped")
@@ -296,8 +298,8 @@ internal object LifecycleRules {
     /** The verdicts while the phase is uncertain. */
     private fun uncertain(operation: LifecycleOperation): Verdict =
         when (operation) {
-            LifecycleOperation.STOP, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_SNAPSHOT,
-            LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.STOP, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
+            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             else -> Verdict.Refuse("the environment's phase is uncertain; a snapshot resolves it")
         }

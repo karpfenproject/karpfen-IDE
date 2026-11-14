@@ -70,7 +70,7 @@ class RuntimeSourceAnchorTest {
         val problems = RuntimeRoute.entries.flatMap { route ->
             val declaration = RouteDeclarations.of(checkout.text(fileOf(route))).routes
                 .single { it.verb == route.verb.name && it.path == route.path }
-            val texts = route.parameters.map { name -> "\"${missingText(name)}\"" }.filterNot { it in declaration.block }
+            val texts = (route.parameters - route.optional).map { name -> "\"${missingText(name)}\"" }.filterNot { it in declaration.block }
             listOfNotNull("$route reads ${declaration.parameterReads}".takeIf { declaration.parameterReads != route.parameters }) +
                 texts.map { "$route lacks $it" }
         }
@@ -204,7 +204,9 @@ class RuntimeSourceAnchorTest {
     @Test
     fun `the snapshot writes its members in the order the snapshot reader takes, with the phases it knows`() {
         val snapshot = checkout.text(MODEL_SNAPSHOT)
-        val members = listOf(WireNames.ENVIRONMENT_KEY, WireNames.PHASE, WireNames.REVISION, WireNames.ACTIVE_STATES, WireNames.ROOTS)
+        val members = listOf(
+            WireNames.ENVIRONMENT_KEY, WireNames.PHASE, WireNames.REVISION, WireNames.ACTIVE_STATES, WireNames.STATE_MACHINES, WireNames.ROOTS,
+        )
         val positions = members.map { snapshot.indexOf("\\\"$it\\\":") }
 
         assertTrue(positions.none { it < 0 }, "members missing from $MODEL_SNAPSHOT: ${members.filterIndexed { i, _ -> positions[i] < 0 }}")
@@ -269,6 +271,29 @@ class RuntimeSourceAnchorTest {
                 "sessions.notifyObjectChange(environmentKey, objectId, jsonValue, revision.next())",
                 "sessions.notifyObjectDeleted(environmentKey, objectId, revision.next())",
             ).map { SourceAnchor(OBSERVATION_RELAY, it) },
+        )
+    }
+
+    @Test
+    fun `instances are announced as stateMachineAttached and stateMachineDetached with the members the decoder reads`() {
+        assertAnchored(
+            listOf(
+                SourceAnchor(OBSERVATION_RELAY, "\"${WireNames.STATE_MACHINE_ATTACHED}\", lifecyclePayload(objectId, definitionName)"),
+                SourceAnchor(OBSERVATION_RELAY, "\"${WireNames.STATE_MACHINE_DETACHED}\", lifecyclePayload(objectId, definitionName)"),
+                SourceAnchor(OBSERVATION_RELAY, ".put(\"${WireNames.MODEL_ELEMENT_ID}\", objectId)"),
+                SourceAnchor(OBSERVATION_RELAY, ".put(\"${WireNames.STATE_MACHINE}\", definitionName ?: JSONObject.NULL)"),
+                SourceAnchor(OBSERVATION_RELAY, ".put(\"${WireNames.REVISION}\", revision.next())"),
+                SourceAnchor(OBSERVATION_RELAY, "activeStacks.forget(objectId)"),
+                SourceAnchor(SESSION_MANAGER, "enqueue(environmentKey, stackRecipients(environmentKey, modelElementId), messageType, payload)"),
+                SourceAnchor(MODEL_SNAPSHOT, "\"\\\"${WireNames.STATE_MACHINES}\\\":{\$machines},\" +"),
+                SourceAnchor(MODEL_SNAPSHOT, "definition?.let(ModelJsonWriter::quote) ?: \"null\""),
+                SourceAnchor(STATE_MACHINE_HOLDINGS, "\"{\\\"${WireNames.HELD_ATTACHED}\\\":[\$keys],\\\"${WireNames.HELD_DEFINITIONS}\\\":[\$named],\\\"${WireNames.HELD_INSTANCES}\\\":[\$running]}\""),
+                SourceAnchor(STATE_MACHINE_HOLDINGS, "\"{\\\"${WireNames.HELD_NAME}\\\":\${quote(name)},\\\"${WireNames.HELD_TYPES}\\\":["),
+                SourceAnchor(
+                    STATE_MACHINE_HOLDINGS,
+                    "\"{\\\"${WireNames.HELD_MODEL_ELEMENT}\\\":\${quote(objectId)},\\\"${WireNames.STATE_MACHINE}\\\":\${definition?.let(::quote) ?: \"null\"}}\"",
+                ),
+            ),
         )
     }
 
@@ -362,6 +387,7 @@ class RuntimeSourceAnchorTest {
         const val SNAPSHOT_SERVICE = "$SERVER/observation/ModelSnapshotService.kt"
         const val SUBSCRIPTION_SERVICE = "$SERVER/observation/ModelSubscriptionService.kt"
         const val MODEL_SNAPSHOT = "$SERVER/observation/ModelSnapshot.kt"
+        const val STATE_MACHINE_HOLDINGS = "$SERVER/server/StateMachineHoldings.kt"
         const val ENVIRONMENT_PHASE = "$SERVER/observation/EnvironmentPhase.kt"
         const val SESSION_MANAGER = "$SERVER/websocket/ClientSessionManager.kt"
         const val WEB_SOCKET_MESSAGE = "$SERVER/websocket/WebSocketMessage.kt"
@@ -416,6 +442,26 @@ class RuntimeSourceAnchorTest {
             RuntimeText.UNKNOWN_ATTACHMENT to listOf(
                 SourceAnchor(API_SERVICE, literal(RuntimeText.UNKNOWN_ATTACHMENT, ENV + ("keys" to "")) + " +"),
                 SourceAnchor(API_SERVICE, "missingAttachments.joinToString(\", \")"),
+            ),
+            RuntimeText.MISSING_DEFINITION to listOf(
+                SourceAnchor(API_SERVICE, literal(RuntimeText.MISSING_DEFINITION, ENV + ("entries" to "")) + " +"),
+                SourceAnchor(API_SERVICE, "problems.missing.joinToString(\", \")"),
+            ),
+            RuntimeText.UNATTACHABLE_DEFINITION to listOf(
+                SourceAnchor(API_SERVICE, literal(RuntimeText.UNATTACHABLE_DEFINITION, ENV + ("entries" to "")) + " +"),
+                SourceAnchor(API_SERVICE, "problems.mismatched.joinToString(\"; \")"),
+            ),
+            RuntimeText.ATTACHED_FORM_REQUIRED to listOf(
+                SourceAnchor(API_SERVICE, "\"The state machine for '\$modelElement' must have the attached form STATEMACHINE ATTACHED TO \" +"),
+                SourceAnchor(API_SERVICE, "\"\\\"Type\\\", but it is the attachable state machine '\${stateMachine.name}'; upload an attachable \" +"),
+                SourceAnchor(API_SERVICE, "\"state machine without attachedTo\""),
+            ),
+            RuntimeText.ATTACHABLE_FORM_REQUIRED to listOf(
+                SourceAnchor(API_SERVICE, "\"A state machine without attachedTo must have the attachable form STATEMACHINE \\\"name\\\" \" +"),
+                SourceAnchor(API_SERVICE, "\"ATTACHABLE TO \\\"Type\\\"; give attachedTo for a state machine ATTACHED TO a type\""),
+            ),
+            RuntimeText.NO_ATTACHABLE_STATE_MACHINE to listOf(
+                SourceAnchor(API_SERVICE, literal(RuntimeText.NO_ATTACHABLE_STATE_MACHINE, ENV + ("machine" to "\$name"))),
             ),
             RuntimeText.NOT_ACTIVATED to listOf(SourceAnchor(ENVIRONMENT_HANDLER, literal(RuntimeText.NOT_ACTIVATED, ENV))),
             RuntimeText.NO_EXECUTION_THREAD to listOf(SourceAnchor(API_SERVICE, literal(RuntimeText.NO_EXECUTION_THREAD, ENV))),
