@@ -141,11 +141,11 @@ public object ProjectSettingsFile {
 
     private fun theme(value: String): ThemeMode? = ThemeMode.entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
 
-    /** The language feature that the key [key] names after its `feature.` prefix, or null if it names none. */
-    private fun feature(key: String): KstatesFeature? = KstatesFeature.byId(key.removePrefix(FEATURE))
-
     /** The feature of the project that the key [key] names after its `feature.` prefix, or null if it names none. */
     private fun projectFeature(key: String): ProjectFeature? = ProjectFeature.byId(key.removePrefix(FEATURE))
+
+    /** The language feature that the key [key] names after its `feature.` prefix, or null if it names none. */
+    private fun feature(key: String): KstatesFeature? = KstatesFeature.byId(key.removePrefix(FEATURE))
 
     /** The layout that `shown 400` or `hidden 180` describes, or null if the value is something else. */
     private fun pane(value: String): ToolWindowLayout? {
