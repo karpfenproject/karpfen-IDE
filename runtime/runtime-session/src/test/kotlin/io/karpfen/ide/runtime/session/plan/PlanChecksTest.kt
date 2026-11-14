@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.session.plan
 
+import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.fixtures.DescriptorExamples
 import io.karpfen.ide.runtime.protocol.conformance.DescriptorTiming
@@ -104,6 +105,24 @@ class PlanChecksTest {
 
         assertEquals(DeployProblemCodes.UNKNOWN_ATTACHMENT to Severity.ERROR, problem.code to problem.severity)
         assertTrue("'nobody'" in problem.message, problem.message)
+        assertEquals(lampDescriptor, problem.location?.file)
+    }
+
+    @Test
+    fun `a state machine listed without attachedTo is a definition and blocks at the descriptor`() = runTest(timeout = 60.seconds) {
+        val workspaces = PlanningWorkspaces(this, root)
+        workspaces.copy(SynthesizedModel.LAMP)
+        Files.writeString(
+            root.resolve("lamp/glowing.kstates"),
+            "STATEMACHINE \"glowing\" ATTACHABLE TO \"Lamp\" {\n    STATES {\n        INITIAL STATE \"dark\" { }\n    }\n    TRANSITIONS { }\n}\n",
+        )
+        lampDescriptor.replaceText("\"stateMachines\": [", "\"stateMachines\": [\n    { \"file\": \"glowing.kstates\" },")
+
+        val problem = workspaces.plan(lampDescriptor, features = KstatesFeature.ALL).blocked().single()
+
+        assertEquals(DeployProblemCodes.DEFINITIONS_UNSUPPORTED to Severity.ERROR, problem.code to problem.severity, problem.message)
+        assertEquals(DeployProblemCodes.DEFINITIONS_UNSUPPORTED to Severity.ERROR, problem.code to problem.severity)
+        assertTrue(problem.message.startsWith("glowing.kstates has no 'attachedTo'"), problem.message)
         assertEquals(lampDescriptor, problem.location?.file)
     }
 

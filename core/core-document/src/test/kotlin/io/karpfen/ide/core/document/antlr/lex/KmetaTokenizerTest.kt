@@ -57,6 +57,18 @@ class KmetaTokenizerTest {
     }
 
     @Test
+    fun `behaves after is two keywords between the description and the body`() {
+        assertEquals(
+            listOf(
+                TokenKind.KEYWORD to "type", TokenKind.STRING to "\"Bulb\"", TokenKind.STRING to "\"A bulb\"",
+                TokenKind.KEYWORD to "behaves", TokenKind.KEYWORD to "after", TokenKind.STRING to "\"glowing\"",
+                TokenKind.PUNCTUATION to "{", TokenKind.PUNCTUATION to "}",
+            ),
+            kinds("type \"Bulb\" \"A bulb\" behaves after \"glowing\" {\n}"),
+        )
+    }
+
+    @Test
     fun `recovers the comments the lexer skips`() {
         val text = "// head\ntype \"A\" \"d\" { // inline }\n}\r\n// tail"
 

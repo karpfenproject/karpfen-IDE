@@ -22,8 +22,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /**
- * Covers [LanguageFeature]: histories switch on `History`, tick limits `TickLimit` and breakpoints `Breakpoint`. Macros
- * and splits and joins switch nothing on. The runtime features are listed once each, in the order of the language
+ * Covers [LanguageFeature]: histories switch on `History`, tick limits `TickLimit` and breakpoints `Breakpoint`. Macros,
+ * splits and joins and dynamic attachment switch nothing on. The runtime features are listed once each, in the order of the language
  * features.
  */
 class LanguageFeatureTest {
@@ -36,8 +36,8 @@ class LanguageFeatureTest {
     }
 
     @Test
-    fun `macros and splits and joins switch nothing on`() {
-        listOf(KstatesFeature.MACROS, KstatesFeature.PARALLEL).forEach {
+    fun `macros, splits and joins and dynamic attachment switch nothing on`() {
+        listOf(KstatesFeature.MACROS, KstatesFeature.PARALLEL, KstatesFeature.ATTACHMENT).forEach {
             assertNull(LanguageFeature.runtimeFeatureOf(it), "$it")
         }
         assertEquals(emptyList(), LanguageFeature.runtimeFeaturesOf(setOf(KstatesFeature.PARALLEL, KstatesFeature.MACROS)))

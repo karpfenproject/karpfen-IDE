@@ -142,6 +142,19 @@ class KmetaSyntaxAnalyzerTest {
     }
 
     @Test
+    fun `behaves after names a state machine`() {
+        val text = "type \"Bulb\" \"A bulb\" behaves after \"glowing\" {\n    prop(\"lit\", \"boolean\")\n}\n"
+        val result = analyze(KarpfenLanguage.KMETA, text)
+        checkInvariants(text, result, "behaves after")
+
+        assertEquals(emptyList(), result.syntaxDiagnostics)
+        val reference = result.index.referencesOf(ReferenceKind.STATE_MACHINE).single()
+        assertEquals("glowing" to "glowing", reference.name to text.at(reference.range))
+        assertTrue(result.semanticSpans.any { it.kind == SemanticKind.STATE_MACHINE_NAME && text.at(it.range) == "glowing" })
+        assertEquals(listOf("Bulb", "lit"), result.index.declarations.map { it.name })
+    }
+
+    @Test
     fun `the examples yield the expected declarations`() {
         val file = Examples.file("karpfen-runtime/single_robot_example/cleaning_robot.kmeta")
         val result = analyze(KarpfenLanguage.KMETA, file.text)

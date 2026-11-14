@@ -104,6 +104,21 @@ class KstatesTokenizerTest {
     }
 
     @Test
+    fun `the words of dynamic attachment are keywords and EXCHANGE is an operation in both cases`() {
+        val text = "STATEMACHINE \"glowing\" ATTACHABLE TO \"Bulb\", \"Lamp\" { STATES { INITIAL STATE \"a\" { ENTRY {\n" +
+            "APPENDOBJ(\"self\", \"spares\", MACRO(\"m\")) ATTACH \"glowing\"\n" +
+            "setobj(\"self\", \"bulb\", MACRO(\"m\")) attach \"glowing\"\n" +
+            "EXCHANGE(\"bulb\", \"steady\")\nexchange(\"bulb\", \"steady\")\n} } } }"
+
+        assertEquals(listOf(TokenKind.KEYWORD), kindsOf(text, "ATTACHABLE"))
+        assertEquals(listOf(TokenKind.KEYWORD), kindsOf(text, "ATTACH"))
+        assertEquals(listOf(TokenKind.KEYWORD), kindsOf(text, "attach"))
+        assertEquals(listOf(TokenKind.OPERATION), kindsOf(text, "EXCHANGE"))
+        assertEquals(listOf(TokenKind.OPERATION), kindsOf(text, "exchange"))
+        assertTrue(tokenize(text).diagnostics.isEmpty())
+    }
+
+    @Test
     fun `EVENT is an operation in action blocks and a keyword in conditions`() {
         assertEquals(listOf(TokenKind.OPERATION, TokenKind.KEYWORD), kindsOf(machine, "EVENT"))
     }
