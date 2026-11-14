@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.settings
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import kotlin.math.roundToInt
 
 /**
@@ -33,18 +34,19 @@ import kotlin.math.roundToInt
  * active = lamp.kstates
  * bridge = http.kbridge.json
  * capture = on
- * trueParallel = on
  * feature.parallel = on
+ * feature.trueParallel = on
  * ```
  *
  * `theme` is `light`, `dark` or `system`. `zoom` is the scale of the workbench in percent. `pane.<name>` is `shown` or
  * `hidden` followed by the size of the tool window in dp. Every open file has its own `open` line, in the order of the
  * tabs. Every bridge that was started with the last run has its own `bridge` line. The line `capture = on` says that
  * the last run was captured to a file. It is only there while that is on, and a capture line with another value counts
- * as off. The line `trueParallel = on` says that the last run stepped the parallel branches of its state machines on
- * threads of their own, and it follows the same rule. Every optional language feature that is switched on has its own line `feature.<name> = on`, with the
+ * as off. Every optional language feature that is switched on has its own line `feature.<name> = on`, with the
  * `KstatesFeature.id` as its name, such as `feature.tickLimit = on`. A feature that is off has no line, and a feature
- * line with another value counts as off.
+ * line with another value counts as off. A feature of the project, a `ProjectFeature`, has a line of the same form
+ * with its own id, such as `feature.trueParallel = on`, written after the lines of the language features. It is read
+ * only together with the language feature it requires: without that one, the line is dropped.
  *
  * Reading never fails. A line with a known key and a value that makes no sense is dropped, and the default stands in.
  * A line with a key that is not known is kept and written back, so files of a newer version survive. That includes a
@@ -67,10 +69,7 @@ public object ProjectSettingsFile {
     /** The key of the line that says whether runs are captured to files. */
     private const val CAPTURE = "capture"
 
-    /** The key of the line that says whether runs step parallel branches on threads of their own. */
-    private const val TRUE_PARALLEL = "trueParallel"
-
-    /** The value of a language feature, of the capture or of true parallel branches that is switched on. */
+    /** The value of a language feature or of the capture that is switched on. */
     private const val ON = "on"
 
     /** The percent in one whole. */
@@ -82,6 +81,7 @@ public object ProjectSettingsFile {
         val open = ArrayList<String>()
         val bridges = ArrayList<String>()
         val features = LinkedHashSet<KstatesFeature>()
+        val projectFeatures = LinkedHashSet<ProjectFeature>()
         val others = ArrayList<String>()
         for (line in text.lines()) {
             val trimmed = line.trim()
@@ -104,9 +104,10 @@ public object ProjectSettingsFile {
                 key == "active" -> if (value.isNotEmpty()) settings = settings.copy(activeFile = value)
                 key == "bridge" -> if (value.isNotEmpty() && value !in bridges) bridges.add(value)
                 key == CAPTURE -> settings = settings.copy(capture = value.equals(ON, ignoreCase = true))
-                key == TRUE_PARALLEL -> settings = settings.copy(trueParallel = value.equals(ON, ignoreCase = true))
                 key.startsWith(FEATURE) && feature(key) != null ->
                     if (value.equals(ON, ignoreCase = true)) features.add(checkNotNull(feature(key)))
+                key.startsWith(FEATURE) && projectFeature(key) != null ->
+                    if (value.equals(ON, ignoreCase = true)) projectFeatures.add(checkNotNull(projectFeature(key)))
                 else -> others.add(trimmed)
             }
         }
@@ -115,6 +116,7 @@ public object ProjectSettingsFile {
             activeFile = settings.activeFile?.takeIf { it in open },
             bridges = bridges,
             languageFeatures = features,
+            projectFeatures = ProjectFeature.allowedBy(projectFeatures, features),
             otherLines = others,
         )
     }
@@ -132,8 +134,8 @@ public object ProjectSettingsFile {
         settings.activeFile?.let { appendLine("active = $it") }
         settings.bridges.forEach { appendLine("bridge = $it") }
         if (settings.capture) appendLine("$CAPTURE = $ON")
-        if (settings.trueParallel) appendLine("$TRUE_PARALLEL = $ON")
         KstatesFeature.entries.filter { it in settings.languageFeatures }.forEach { appendLine("$FEATURE${it.id} = $ON") }
+        ProjectFeature.entries.filter { it in settings.projectFeatures }.forEach { appendLine("$FEATURE${it.id} = $ON") }
         settings.otherLines.forEach(::appendLine)
     }
 
@@ -141,6 +143,9 @@ public object ProjectSettingsFile {
 
     /** The language feature that the key [key] names after its `feature.` prefix, or null if it names none. */
     private fun feature(key: String): KstatesFeature? = KstatesFeature.byId(key.removePrefix(FEATURE))
+
+    /** The feature of the project that the key [key] names after its `feature.` prefix, or null if it names none. */
+    private fun projectFeature(key: String): ProjectFeature? = ProjectFeature.byId(key.removePrefix(FEATURE))
 
     /** The layout that `shown 400` or `hidden 180` describes, or null if the value is something else. */
     private fun pane(value: String): ToolWindowLayout? {

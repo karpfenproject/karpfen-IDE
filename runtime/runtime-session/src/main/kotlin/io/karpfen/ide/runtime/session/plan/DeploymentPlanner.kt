@@ -40,9 +40,10 @@ public interface DeploymentPlanner {
     /**
      * Plans the deployment of the explicit context of [descriptor] from [analysis]. [unsaved] holds the paths whose
      * open document still differs from its saved state or from the snapshot the analysis read. If it holds a file of
-     * the context or the descriptor, the deployment is blocked.
+     * the context or the descriptor, the deployment is blocked. [projectFeatures] are the features of the project that
+     * add runtime features to the plan.
      */
-    public fun plan(analysis: ProjectAnalysis, descriptor: Path, unsaved: Set<Path>): PlanResult
+    public fun plan(analysis: ProjectAnalysis, descriptor: Path, unsaved: Set<Path>, projectFeatures: Set<ProjectFeature> = emptySet()): PlanResult
 }
 
 /** Creates the planner with every check of the problems gate and every preflight check. */

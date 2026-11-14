@@ -16,13 +16,14 @@
 package io.karpfen.ide.ui.workbench.settings
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 
 /**
  * The settings that belong to one project, which is the folder the IDE has open. They are stored in the file
  * `.karpfenproject` in that folder, so a project carries them along when it is copied or checked out on another
  * machine. They are the look of the workbench, the layout of its tool windows, which files are open, which bridges
- * were started with the last run, whether runs are captured to files or run their parallel branches on threads of
- * their own, and which optional language features are switched on.
+ * were started with the last run, whether runs are captured to files, and which optional language features and
+ * features of the project are switched on.
  *
  * Nothing in here depends on the machine. The open files are named relative to the project folder with forward
  * slashes. The place of the window on the screen and the recent folders stay in the settings of the user.
@@ -35,10 +36,10 @@ import io.karpfen.dsl.states.KstatesFeature
  * @property activeFile the file of the active tab, or null if no tab is open.
  * @property bridges the bridge files that were started with the last run, named like the open files.
  * @property capture whether the last run was started with its capture to a file switched on.
- * @property trueParallel whether the last run was started with the parallel branches of its state machines on
- *   threads of their own, which the runtime feature `TrueParallel` does. It is off by default.
  * @property languageFeatures the optional language features of KStates that are switched on for the project. All are
  *   off by default.
+ * @property projectFeatures the features of the project that only switch a feature of the runtime on in its runs. All
+ *   are off by default, and each one is on only while the language feature it requires is on as well.
  * @property otherLines the lines of the file that this version does not understand. They are written back unchanged,
  *   so a project file that a newer version wrote loses nothing.
  */
@@ -51,8 +52,8 @@ public data class ProjectSettings(
     public val activeFile: String? = null,
     public val bridges: List<String> = emptyList(),
     public val capture: Boolean = false,
-    public val trueParallel: Boolean = false,
     public val languageFeatures: Set<KstatesFeature> = emptySet(),
+    public val projectFeatures: Set<ProjectFeature> = emptySet(),
     public val otherLines: List<String> = emptyList(),
 ) {
     public companion object {
@@ -65,7 +66,7 @@ public data class ProjectSettings(
 public val IdeSettings.project: ProjectSettings
     get() = ProjectSettings(
         theme, uiScale, editorFontSize, toolWindows, openFiles, activeFile, activeBridges, captureRuns,
-        trueParallelRuns, languageFeatures, otherProjectLines,
+        languageFeatures, projectFeatures, otherProjectLines,
     )
 
 /** These settings with the project part replaced by [project]. The recent folders and the window bounds stay. */
@@ -78,7 +79,7 @@ public fun IdeSettings.withProject(project: ProjectSettings): IdeSettings = copy
     activeFile = project.activeFile,
     activeBridges = project.bridges,
     captureRuns = project.capture,
-    trueParallelRuns = project.trueParallel,
     languageFeatures = project.languageFeatures,
+    projectFeatures = project.projectFeatures,
     otherProjectLines = project.otherLines,
 )

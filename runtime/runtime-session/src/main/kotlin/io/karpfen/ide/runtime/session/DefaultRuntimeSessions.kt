@@ -20,6 +20,7 @@ import io.karpfen.ide.runtime.protocol.RuntimeClient
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
 import io.karpfen.ide.runtime.session.deploy.Deployer
 import io.karpfen.ide.runtime.session.deploy.EnvironmentLedger
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 import java.nio.file.Path
@@ -42,8 +43,8 @@ internal class DefaultRuntimeSessions(
     private val deployer: Deployer,
 ) : RuntimeSessions {
 
-    override suspend fun prepare(workspace: Workspace, descriptor: Path): Preparation =
-        withContext(options.dispatcher) { preparer.prepare(workspace, descriptor) }
+    override suspend fun prepare(workspace: Workspace, descriptor: Path, projectFeatures: Set<ProjectFeature>): Preparation =
+        withContext(options.dispatcher) { preparer.prepare(workspace, descriptor, projectFeatures) }
 
     override fun launch(
         prepared: PreparedDeployment,

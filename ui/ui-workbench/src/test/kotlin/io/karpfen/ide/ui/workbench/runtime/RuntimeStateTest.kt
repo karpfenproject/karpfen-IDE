@@ -40,13 +40,13 @@ import io.karpfen.ide.runtime.session.Preparation
 import io.karpfen.ide.runtime.session.SessionState
 import io.karpfen.ide.runtime.session.fixtures.ModelWireText
 import io.karpfen.ide.runtime.session.observation.ObservationMode
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettingsFile
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
-import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CompletableDeferred
@@ -76,7 +76,7 @@ import kotlin.time.Duration.Companion.seconds
  * launch until the environment runs. They run again, also while the previous run waits for the runtime. They cover
  * stopping, replacing the host when the settings change, and closing the workspace. And they check the bound of the
  * sessions' shutdown and the limit of the runs list. And they capture a run to a file and end the capture with the
- * run. And they switch true parallel branches on, which the run dialog offers only with splits and joins switched on.
+ * run. And they run a project with TrueParallel on, also against a runtime that does not know it.
  */
 class RuntimeStateTest {
 
@@ -406,31 +406,22 @@ class RuntimeStateTest {
     }
 
     @Test
-    fun `a run with true parallel branches switches TrueParallel on and is remembered`() = runTest(timeout = TIMEOUT) {
-        val lamp = copy(SynthesizedModel.LAMP)
+    fun `a project with TrueParallel on switches it on in every run`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP, setOf(ProjectFeature.TRUE_PARALLEL))
         withWorkbench(settingsDirectory) {
             open(root)
             programDeployment(lamp, ENV_1)
 
-            val run = runtime.run(lamp)
-            val asked = answer(DialogRequest.ConfigureRun::class, DialogResponse.RunWith(emptySet(), capture = false, trueParallel = true))
-            run.joinSettled()
+            confirmRun(lamp).joinSettled()
 
-            assertEquals(false, asked.trueParallel, "the box is offered with splits and joins switched on, and starts clear")
             assertEquals(listOf("TrueParallel"), fakeRuntime.requests(RuntimeRoute.ACTIVATE_FEATURE).map { it.parameter(FEATURE_NAME) })
             assertEquals(RunPhase.RUNNING, runtime.runs.value.single().phase)
-            assertTrue(state.settings.value.trueParallelRuns, "the choice is remembered")
-
-            programStop(lamp, runtime.runs.value.single(), ENV_1)
-            runtime.stopSelected().joinSettled()
-            runtime.run(lamp)
-            assertEquals(true, answer(DialogRequest.ConfigureRun::class, DialogResponse.Cancel).trueParallel, "the box starts ticked the next time")
         }
     }
 
     @Test
     fun `a runtime that does not know TrueParallel fails the run with a problem that names the feature`() = runTest(timeout = TIMEOUT) {
-        val lamp = copy(SynthesizedModel.LAMP)
+        val lamp = copy(SynthesizedModel.LAMP, setOf(ProjectFeature.TRUE_PARALLEL))
         withWorkbench(settingsDirectory) {
             open(root)
             programDeployment(lamp, ENV_1)
@@ -439,35 +430,12 @@ class RuntimeStateTest {
                 FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.UNKNOWN_FEATURE, mapOf("feature" to "TrueParallel")),
             )
 
-            val run = runtime.run(lamp)
-            answer(DialogRequest.ConfigureRun::class, DialogResponse.RunWith(emptySet(), capture = false, trueParallel = true))
-            run.joinSettled()
+            confirmRun(lamp).joinSettled()
 
             val entry = runtime.runs.value.single()
             assertEquals(RunPhase.FAILED, entry.phase)
             val problems = assertIs<SessionState.Failed>(entry.session?.state?.value).problems
             assertTrue(problems.any { "feature TrueParallel" in it.message && "older than the IDE" in it.message }, "$problems")
-        }
-    }
-
-    @Test
-    fun `without splits and joins the run dialog does not offer true parallel branches and keeps the remembered choice`() = runTest(timeout = TIMEOUT) {
-        val lamp = copy(SynthesizedModel.LAMP)
-        Files.writeString(
-            root.resolve(ProjectSettings.FILE_NAME),
-            ProjectSettingsFile.format(ProjectSettings(trueParallel = true)),
-        )
-        withWorkbench(settingsDirectory) {
-            open(root)
-            programDeployment(lamp, ENV_1)
-
-            val run = runtime.run(lamp)
-            val asked = answerRun()
-            run.joinSettled()
-
-            assertNull(asked.trueParallel)
-            assertEquals(emptyList(), fakeRuntime.requests(RuntimeRoute.ACTIVATE_FEATURE))
-            assertTrue(state.settings.value.trueParallelRuns, "the choice of an earlier run stays")
         }
     }
 
@@ -574,11 +542,14 @@ class RuntimeStateTest {
     /**
      * Copies [model] into a folder of its own below the workspace root and returns its descriptor. The project settings
      * switch parallel states on, which the metronome uses, so the synthesized models validate without errors. The other
-     * features stay off, so no run deploys with the debugger.
+     * features stay off, so no run deploys with the debugger. The features of the project in [projectFeatures] are on.
      */
-    private fun copy(model: SynthesizedModel): Path {
+    private fun copy(model: SynthesizedModel, projectFeatures: Set<ProjectFeature> = emptySet()): Path {
         Files.createDirectories(root)
-        switchOnLanguageFeatures(root, setOf(KstatesFeature.PARALLEL))
+        Files.writeString(
+            root.resolve(ProjectSettings.FILE_NAME),
+            ProjectSettingsFile.format(ProjectSettings(languageFeatures = setOf(KstatesFeature.PARALLEL), projectFeatures = projectFeatures)),
+        )
         return SynthesizedModels.copyTo(root.resolve(model.folder), model, DescriptorTiming.EVENT_SCENARIOS).toAbsolutePath().normalize()
     }
 

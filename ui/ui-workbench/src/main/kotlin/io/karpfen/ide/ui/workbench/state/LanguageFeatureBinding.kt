@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.state
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.workbench.settings.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -30,8 +31,11 @@ import kotlinx.coroutines.launch
  * project settings are the one place where the choice lives. The workspace gets them when a folder opens and again
  * whenever they change, and its analysis follows.
  *
- * [switch] changes the choice of the open project. Without an open folder there is no project to store it in, so it
- * does nothing then.
+ * The two `switch` functions change the choice of the open project, for a language feature and for a feature of the
+ * project. Without an open folder there is no project to store it in, so they do nothing then. A feature of the
+ * project is never handed to the workspace, because the language tools do not know it. It can be on only while the
+ * language feature it requires is on: switching it on does nothing while that one is off, and switching that language
+ * feature off switches it off as well.
  */
 internal class LanguageFeatureBinding(
     private val holder: WorkspaceHolder,
@@ -48,11 +52,30 @@ internal class LanguageFeatureBinding(
         }.collect { }
     }
 
-    /** Switches [feature] on or off, as [on] says, in the settings of the open project. */
+    /**
+     * Switches [feature] on or off, as [on] says, in the settings of the open project. Switching it off also switches
+     * off the features of the project that require it.
+     */
     suspend fun switch(feature: KstatesFeature, on: Boolean) {
         if (holder.workspace.value == null) return
         settings.update { stored ->
-            stored.copy(languageFeatures = if (on) stored.languageFeatures + feature else stored.languageFeatures - feature)
+            val languageFeatures = if (on) stored.languageFeatures + feature else stored.languageFeatures - feature
+            stored.copy(languageFeatures = languageFeatures, projectFeatures = ProjectFeature.allowedBy(stored.projectFeatures, languageFeatures))
+        }
+    }
+
+    /**
+     * Switches the feature of the project [feature] on or off, as [on] says, in the settings of the open project.
+     * Switching it on does nothing while the language feature it requires is off.
+     */
+    suspend fun switch(feature: ProjectFeature, on: Boolean) {
+        if (holder.workspace.value == null) return
+        settings.update { stored ->
+            when {
+                !on -> stored.copy(projectFeatures = stored.projectFeatures - feature)
+                feature.requires in stored.languageFeatures -> stored.copy(projectFeatures = stored.projectFeatures + feature)
+                else -> stored
+            }
         }
     }
 }

@@ -52,8 +52,12 @@ internal class PlanningWorkspaces(private val scope: TestScope, val root: Path) 
      * Plans [descriptor] from a fresh analysis of [root] with [features] switched on, with [unsaved] as the unsaved
      * paths.
      */
-    suspend fun plan(descriptor: Path, unsaved: Set<Path> = emptySet(), features: Set<KstatesFeature> = PLAIN_FEATURES): PlanResult =
-        DeploymentPlanner().plan(analyze(features), descriptor, unsaved)
+    suspend fun plan(
+        descriptor: Path,
+        unsaved: Set<Path> = emptySet(),
+        features: Set<KstatesFeature> = PLAIN_FEATURES,
+        projectFeatures: Set<ProjectFeature> = emptySet(),
+    ): PlanResult = DeploymentPlanner().plan(analyze(features), descriptor, unsaved, projectFeatures)
 }
 
 /**

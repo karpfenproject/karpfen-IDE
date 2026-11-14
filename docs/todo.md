@@ -67,8 +67,8 @@ refer to.
 - Stopping a run without a window that was started through Gradle makes the Gradle task fail, because the process
   ends with the status of its signal.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
-- A run with TrueParallel has been tested with fakes and by the runtime's own tests only, not in the window against
-  the real runtime.
+- TrueParallel has run against the real runtime in the live scenarios of runtime-session, but nobody has tried it by
+  hand in the window yet.
 
 ### Bridges
 

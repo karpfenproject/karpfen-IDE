@@ -32,8 +32,8 @@ internal sealed interface HeadlessCommand {
     data class Validate(val folder: Path, val format: OutputFormat = OutputFormat.TEXT) : HeadlessCommand
 
     /**
-     * `karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--true-parallel] [--verbose]`:
-     * runs the project in [folder] until it is stopped.
+     * `karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--verbose]`: runs the project in
+     * [folder] until it is stopped.
      *
      * @property folder the project folder, absolute and normalized. It is an existing directory.
      * @property descriptor the environment descriptor to run, resolved against [folder] and normalized, or null to
@@ -41,8 +41,6 @@ internal sealed interface HeadlessCommand {
      * @property bridges the bridge files to start with the run, resolved against [folder] and normalized, in the
      *   order they were named, each once. Empty starts no bridge.
      * @property capture whether the run is captured to a file in the project.
-     * @property trueParallel whether the parallel branches of the state machines step on threads of their own, which
-     *   the runtime feature `TrueParallel` does.
      * @property verbose whether every line of the runtime's log is printed too.
      */
     data class Run(
@@ -51,7 +49,6 @@ internal sealed interface HeadlessCommand {
         val bridges: List<Path> = emptyList(),
         val capture: Boolean = false,
         val verbose: Boolean = false,
-        val trueParallel: Boolean = false,
     ) : HeadlessCommand
 
     /** `--help` or `-h` after a headless command. The usage is printed, and the status is 0. */
@@ -102,7 +99,6 @@ private class HeadlessArguments(
     private var format: OutputFormat? = null
     private val bridges = ArrayList<String>()
     private var capture = false
-    private var trueParallel = false
     private var verbose = false
     private var optionsEnded = false
 
@@ -118,7 +114,6 @@ private class HeadlessArguments(
                 arg in HELP_FLAGS -> return HeadlessCommand.Help
                 option !in OPTIONS.getValue(command) -> refusal(arg, option)
                 arg == CAPTURE -> null.also { capture = true }
-                arg == TRUE_PARALLEL -> null.also { trueParallel = true }
                 arg == VERBOSE -> null.also { verbose = true }
                 option in VALUE_OPTIONS -> {
                     val value = if ('=' in arg) arg.substringAfter('=') else args.getOrNull(++index)
@@ -143,7 +138,7 @@ private class HeadlessArguments(
         val resolvedBridges = bridges.map { root.resolve(pathOf(it) ?: return HeadlessCommand.Invalid("invalid path '$it'")).normalize() }
         val twice = resolvedBridges.groupBy { it }.filterValues { it.size > 1 }.keys.firstOrNull()
         if (twice != null) return HeadlessCommand.Invalid("the bridge ${root.relativize(twice)} is named twice")
-        return HeadlessCommand.Run(root, resolvedDescriptor, resolvedBridges, capture, verbose, trueParallel)
+        return HeadlessCommand.Run(root, resolvedDescriptor, resolvedBridges, capture, verbose)
     }
 
     /**
@@ -197,9 +192,6 @@ private class HeadlessArguments(
         /** The option that captures the run to a file. */
         const val CAPTURE = "--capture"
 
-        /** The option that steps the parallel branches of the state machines on threads of their own. */
-        const val TRUE_PARALLEL = "--true-parallel"
-
         /** The option that prints every line of the runtime's log. */
         const val VERBOSE = "--verbose"
 
@@ -218,7 +210,7 @@ private class HeadlessArguments(
         /** The options each command takes, by the word of the command. */
         val OPTIONS: Map<String, Set<String>> = mapOf(
             HeadlessCommand.VALIDATE to setOf(FORMAT),
-            HeadlessCommand.RUN to setOf(DESCRIPTOR, BRIDGE, CAPTURE, TRUE_PARALLEL, VERBOSE),
+            HeadlessCommand.RUN to setOf(DESCRIPTOR, BRIDGE, CAPTURE, VERBOSE),
         )
 
         /** The options that ask for the usage. */

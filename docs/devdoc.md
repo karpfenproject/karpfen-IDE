@@ -107,7 +107,7 @@ dsl-tools 2.0 and never reads or writes `~/.m2`.
 
 ```bash
 karpfen-ide validate <folder> [--format text|json]
-karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--true-parallel] [--verbose]
+karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--verbose]
 ```
 
 The IDE is its own command-line tool. `validate` runs the same validation of the whole project as Validate in the
@@ -299,12 +299,10 @@ console: it prints a validation report and an error, and cancels any other quest
 
 Three things differ from the window on purpose.
 
-- Nothing is written. `ReadOnlySettings` reads the language features and the runtime host from `.karpfenproject` and
-  keeps every change in memory. It never reads or writes the settings of the user.
+- Nothing is written. `ReadOnlySettings` reads the language features, the features of the project and the runtime
+  host from `.karpfenproject` and keeps every change in memory. It never reads or writes the settings of the user.
 - There is no debugger. The run is launched with `RunChoice(debugger = false)`, and `DeployOptions.applyTo` then
-  leaves the runtime feature Breakpoint out of the plan, so the engine can never halt with nobody to resume it. The same
-  function adds TrueParallel at the end of the plan's features when the choice asks for it, in the window and on the
-  command line alike.
+  leaves the runtime feature Breakpoint out of the plan, so the engine can never halt with nobody to resume it.
 - The command line is strict. The window ignores a wrong argument with a warning, so a typo never keeps it from
   starting. A headless command ends with status 2 and the usage instead.
 
@@ -559,6 +557,14 @@ the statechart menu read the set and leave out what is off. `LanguageFeature` in
 runtime features: histories to History, tick limits to TickLimit and breakpoints to Breakpoint. The runtime reads
 these words in every environment but applies them only where its feature is on. Macros, and splits and joins, need
 nothing in the runtime.
+
+A project also has features that are no part of the language, `ProjectFeature` in runtime-session. TrueParallel is
+the one there is. It is stored as `feature.trueParallel = on`, switched through `LanguageFeatureBinding` and the Run
+menu next to the language features, and never handed to the workspace or dsl-tools. It requires splits and joins:
+its switch is disabled while they are off, switching them off switches it off, and `ProjectSettingsFile` drops its
+line when they are off. `RuntimeState` hands the features of the project to `RuntimeSessions.prepare`, and the
+planner appends their runtime features after those of the language features, so TrueParallel is switched on in the
+same deploy step as History and TickLimit.
 
 A session whose deployment switched Breakpoint on has a debugger, `RuntimeSession.debugger`. The runtime sends an
 `engineStatus` message whenever its engine starts to wait and when it goes on. The session's router hands these to

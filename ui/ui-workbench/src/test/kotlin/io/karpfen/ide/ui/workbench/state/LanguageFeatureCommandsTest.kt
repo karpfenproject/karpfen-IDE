@@ -17,6 +17,7 @@ package io.karpfen.ide.ui.workbench.state
 
 import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.document.fixtures.Examples
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
 import io.karpfen.ide.ui.workbench.settings.ProjectSettings
@@ -38,7 +39,8 @@ import kotlin.time.Duration.Companion.seconds
  * The switches of the optional language features of KStates in the Run menu. Each feature has one command whose title
  * says what a click does. A click stores the choice in the project file, hands it to the workspace and analyzes the
  * project again. The commands are disabled while no folder is open. The examples use the optional constructs, so they
- * have errors until the features are switched on.
+ * have errors until the features are switched on. The switch of TrueParallel, a feature of the project, is enabled
+ * only while splits and joins are on, goes off with them, and is never handed to the workspace.
  */
 class LanguageFeatureCommandsTest {
 
@@ -111,5 +113,47 @@ class LanguageFeatureCommandsTest {
         val codes = state.problems.state.value.local.flatMap { group -> group.items.map { it.diagnostic.code } }
         assertTrue(codes.isNotEmpty() && codes.all { it == "kstates.feature-off" }, "$codes")
         assertFalse("feature.macros = on" in Files.readAllLines(root.resolve(ProjectSettings.FILE_NAME)))
+    }
+
+    /** The registered switch of the feature of the project [feature]. */
+    private fun CommandRegistry.switchOf(feature: ProjectFeature) =
+        assertNotNull(find(WorkbenchCommandIds.projectFeature(feature)), "no switch of $feature")
+
+    @Test
+    fun `TrueParallel can be switched on only while splits and joins are on, and leaves the workspace alone`() = scenario { registry ->
+        open(root)
+        val parallel = registry.switchOf(ProjectFeature.TRUE_PARALLEL)
+        assertEquals("Switch On Parallel branches on threads", parallel.title)
+        assertFalse(parallel.isEnabled.value, "disabled while splits and joins are off")
+
+        registry.execute(WorkbenchCommandIds.languageFeature(KstatesFeature.PARALLEL))
+        settle()
+        assertTrue(registry.switchOf(ProjectFeature.TRUE_PARALLEL).isEnabled.value)
+        registry.execute(WorkbenchCommandIds.projectFeature(ProjectFeature.TRUE_PARALLEL))
+        settle()
+
+        assertEquals(setOf(ProjectFeature.TRUE_PARALLEL), state.settings.value.projectFeatures)
+        assertEquals(setOf(KstatesFeature.PARALLEL), workspace.languageFeatures.value, "the language tools never see it")
+        assertEquals("Switch Off Parallel branches on threads", registry.switchOf(ProjectFeature.TRUE_PARALLEL).title)
+        val lines = Files.readAllLines(root.resolve(ProjectSettings.FILE_NAME))
+        assertEquals(listOf("feature.parallel = on", "feature.trueParallel = on"), lines.filter { it.startsWith("feature.") })
+    }
+
+    @Test
+    fun `switching splits and joins off switches TrueParallel off as well`() = scenario { registry ->
+        open(root)
+        registry.execute(WorkbenchCommandIds.languageFeature(KstatesFeature.PARALLEL))
+        settle()
+        registry.execute(WorkbenchCommandIds.projectFeature(ProjectFeature.TRUE_PARALLEL))
+        settle()
+
+        registry.execute(WorkbenchCommandIds.languageFeature(KstatesFeature.PARALLEL))
+        settle()
+
+        assertEquals(emptySet(), state.settings.value.projectFeatures)
+        val parallel = registry.switchOf(ProjectFeature.TRUE_PARALLEL)
+        assertEquals("Switch On Parallel branches on threads", parallel.title)
+        assertFalse(parallel.isEnabled.value)
+        assertTrue(Files.readAllLines(root.resolve(ProjectSettings.FILE_NAME)).none { it.startsWith("feature.") })
     }
 }

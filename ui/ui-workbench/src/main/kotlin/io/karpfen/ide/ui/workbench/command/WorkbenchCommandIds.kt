@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.command
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 
 /**
@@ -67,4 +68,14 @@ public object WorkbenchCommandIds {
      * needs no new constant here. The menus iterate over `KstatesFeature.entries`.
      */
     public fun languageFeature(feature: KstatesFeature): String = LANGUAGE_FEATURE_PREFIX + feature.id
+
+    /** Prefix of the switches of the features of the project in the Run menu. [projectFeature] builds the full ids. */
+    public const val PROJECT_FEATURE_PREFIX: String = "workbench.projectFeature."
+
+    /**
+     * The id of the command that switches the feature of the project [feature] on or off, for example
+     * `workbench.projectFeature.trueParallel`. The id is derived from `ProjectFeature.id`. The menus iterate over
+     * `ProjectFeature.entries`.
+     */
+    public fun projectFeature(feature: ProjectFeature): String = PROJECT_FEATURE_PREFIX + feature.id
 }

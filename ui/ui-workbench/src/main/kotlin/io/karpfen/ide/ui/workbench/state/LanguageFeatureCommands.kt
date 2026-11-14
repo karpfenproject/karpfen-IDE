@@ -17,6 +17,7 @@ package io.karpfen.ide.ui.workbench.state
 
 import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.core.workspace.Workspace
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.foundation.command.Command
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.command.WorkbenchCommandIds
@@ -25,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -36,6 +38,9 @@ import kotlinx.coroutines.launch
  * title says what a click does: `Switch On Histories` while histories are off and `Switch Off Histories` while they
  * are on. The commands are registered again with the new title whenever the features in the settings change. They
  * are enabled while a folder is open in [workspace].
+ *
+ * It also registers one command per feature of the project, `WorkbenchCommandIds.projectFeature`, titled the same way.
+ * Such a command is enabled only while a folder is open and the language feature that the feature requires is on.
  */
 internal class LanguageFeatureCommands(
     private val scope: CoroutineScope,
@@ -47,12 +52,24 @@ internal class LanguageFeatureCommands(
     /** Registers the commands in [registry] and keeps their titles in step with the settings. */
     fun register(registry: CommandRegistry) {
         val open = workspace.map { it != null }.stateIn(scope, SharingStarted.Eagerly, workspace.value != null)
+        val allowed = ProjectFeature.entries.associateWith { feature ->
+            combine(open, settings.settings) { isOpen, stored -> isOpen && feature.requires in stored.languageFeatures }
+                .stateIn(scope, SharingStarted.Eagerly, open.value && feature.requires in settings.settings.value.languageFeatures)
+        }
         scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            settings.settings.map { it.languageFeatures }.distinctUntilChanged().collect { switchedOn ->
+            settings.settings.map { it.languageFeatures to it.projectFeatures }.distinctUntilChanged().collect { (switchedOn, projectOn) ->
+                ProjectFeature.entries.forEach { feature ->
+                    val on = feature in projectOn
+                    registry.register(
+                        Command(WorkbenchCommandIds.projectFeature(feature), titleOf(feature.displayName, on), isEnabled = allowed.getValue(feature)) {
+                            intents.switchProjectFeature(feature, !on)
+                        },
+                    )
+                }
                 KstatesFeature.entries.forEach { feature ->
                     val on = feature in switchedOn
                     registry.register(
-                        Command(WorkbenchCommandIds.languageFeature(feature), titleOf(feature, on), isEnabled = open) {
+                        Command(WorkbenchCommandIds.languageFeature(feature), titleOf(feature.displayName, on), isEnabled = open) {
                             intents.switchLanguageFeature(feature, !on)
                         },
                     )
@@ -62,8 +79,7 @@ internal class LanguageFeatureCommands(
     }
 
     companion object {
-        /** The title of the switch of [feature], which says what a click does while the feature is [on] or off. */
-        fun titleOf(feature: KstatesFeature, on: Boolean): String =
-            "Switch ${if (on) "Off" else "On"} ${feature.displayName}"
+        /** The title of the switch of the feature named [name], which says what a click does while it is [on] or off. */
+        fun titleOf(name: String, on: Boolean): String = "Switch ${if (on) "Off" else "On"} $name"
     }
 }

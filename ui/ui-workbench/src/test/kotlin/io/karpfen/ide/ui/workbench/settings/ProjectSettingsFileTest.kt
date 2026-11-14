@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.settings
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -107,18 +108,18 @@ class ProjectSettingsFileTest {
     }
 
     @Test
-    fun `true parallel branches are one line after the capture while on, no line while off, and other values count as off`() {
-        val parallel = settings.copy(capture = true, trueParallel = true)
+    fun `a feature of the project is a feature line after the language features, read only with the one it requires`() {
+        val parallel = settings.copy(languageFeatures = setOf(KstatesFeature.PARALLEL), projectFeatures = setOf(ProjectFeature.TRUE_PARALLEL))
 
         val text = ProjectSettingsFile.format(parallel)
 
-        assertEquals("trueParallel = on", text.lines().dropWhile { !it.startsWith("capture") }.drop(1).first())
+        assertEquals(listOf("feature.parallel = on", "feature.trueParallel = on"), text.lines().filter { it.startsWith("feature.") })
         assertEquals(parallel, ProjectSettingsFile.parse(text))
-        assertEquals(false, ProjectSettings().trueParallel, "runs do not step parallel branches on threads by default")
-        assertEquals(emptyList(), ProjectSettingsFile.format(settings).lines().filter { it.startsWith("trueParallel") })
-        assertEquals(true, ProjectSettingsFile.parse("trueParallel = ON\n").trueParallel)
-        assertEquals(false, ProjectSettingsFile.parse("trueParallel = yes\n").trueParallel)
-        assertEquals(emptyList(), ProjectSettingsFile.parse("trueParallel = yes\n").otherLines, "the line is known, so it is not kept")
+        assertEquals(emptySet(), ProjectSettings().projectFeatures, "off by default")
+        val alone = ProjectSettingsFile.parse("feature.trueParallel = on\n")
+        assertEquals(emptySet(), alone.projectFeatures, "without splits and joins the line is dropped")
+        assertEquals(emptyList(), alone.otherLines)
+        assertEquals(emptySet(), ProjectSettingsFile.parse("feature.parallel = on\nfeature.trueParallel = off\n").projectFeatures)
     }
 
     @Test

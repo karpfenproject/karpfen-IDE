@@ -25,8 +25,7 @@ internal object HeadlessUsage {
         Usage:
           karpfen-ide [<folder>]
           karpfen-ide validate <folder> [--format text|json]
-          karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture]
-                                [--true-parallel] [--verbose]
+          karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--verbose]
 
         validate --format json prints one JSON document:
           {"root": "<absolute folder>", "errorCount": <n>, "warningCount": <n>,

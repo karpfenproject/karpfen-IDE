@@ -99,23 +99,18 @@ public sealed interface DialogRequest<out R : DialogResponse> {
     /**
      * Asks how to run a descriptor of the workspace at [root]. Every bridge file of the workspace has a box to tick,
      * and the boxes of [preselected] are ticked when the dialog opens. Below them, one more box says whether the run is
-     * captured to a file. It is ticked when the dialog opens if [capture] is true. When [trueParallel] is not null, a
-     * last box says whether the parallel branches of the state machines step on threads of their own, ticked when the
-     * dialog opens if [trueParallel] is true. A workspace without bridge files shows only the boxes below the list. The
-     * answer may tick no box at all.
+     * captured to a file. It is ticked when the dialog opens if [capture] is true. A workspace without bridge files
+     * shows only that box. The answer may tick no box at all.
      *
      * @property bridges the bridge files, in the order they are listed. The list is empty if the workspace has none.
      * @property preselected the positions of the bridge files that are ticked at first.
      * @property capture whether the box that captures the run is ticked at first.
-     * @property trueParallel whether the box for parallel branches on threads of their own is ticked at first, or null
-     *   if the dialog does not offer it. An answer can tick that box only if the dialog offers it.
      */
     public data class ConfigureRun(
         public val root: Path,
         public val bridges: List<Path>,
         public val preselected: Set<Int> = emptySet(),
         public val capture: Boolean = false,
-        public val trueParallel: Boolean? = null,
     ) : DialogRequest<RunAnswer> {
         init {
             require(preselected.all { it in bridges.indices }) { "a preselected index is out of ${bridges.indices}" }
@@ -123,10 +118,7 @@ public sealed interface DialogRequest<out R : DialogResponse> {
 
         override fun accepts(response: DialogResponse): Boolean =
             response == DialogResponse.Cancel ||
-                (
-                    response is DialogResponse.RunWith && response.bridges.all { it in bridges.indices } &&
-                        (trueParallel != null || !response.trueParallel)
-                    )
+                (response is DialogResponse.RunWith && response.bridges.all { it in bridges.indices })
     }
 
     /**
@@ -172,13 +164,8 @@ public sealed interface DialogResponse {
      *
      * @property bridges the positions of the ticked bridge files. The set is empty if none is ticked.
      * @property capture whether the run is captured to a file.
-     * @property trueParallel whether the parallel branches of the state machines step on threads of their own.
      */
-    public data class RunWith(
-        public val bridges: Set<Int>,
-        public val capture: Boolean,
-        public val trueParallel: Boolean = false,
-    ) : RunAnswer
+    public data class RunWith(public val bridges: Set<Int>, public val capture: Boolean) : RunAnswer
 }
 
 /** The answers to [DialogRequest.UnsavedChanges], which are Save, Discard and Cancel. */

@@ -22,6 +22,7 @@ import io.karpfen.ide.runtime.session.deploy.DeployOptions
 import io.karpfen.ide.runtime.session.deploy.Deployer
 import io.karpfen.ide.runtime.session.deploy.EnvironmentLedger
 import io.karpfen.ide.runtime.session.plan.DeploymentPlanner
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import kotlinx.coroutines.CoroutineScope
 import java.nio.file.Path
 
@@ -39,9 +40,10 @@ public interface RuntimeSessions {
      * deployment uploads the saved files. Then it awaits the analysis. It refuses when a file of the context or the
      * descriptor still differs from its saved state. Otherwise it plans the deployment, and the problems gate checks
      * exactly the analyzed texts that the deployment uploads. Last, it turns the analysis into the immutable values a
-     * session needs. Nothing it returns holds a dsl-tools object.
+     * session needs. Nothing it returns holds a dsl-tools object. The plan switches on the runtime features of the
+     * language features of the analysis and of the [projectFeatures] of the project.
      */
-    public suspend fun prepare(workspace: Workspace, descriptor: Path): Preparation
+    public suspend fun prepare(workspace: Workspace, descriptor: Path, projectFeatures: Set<ProjectFeature> = emptySet()): Preparation
 
     /**
      * Launches a session that deploys [prepared] to the runtime of [client] as [options] say, in a supervisor child of

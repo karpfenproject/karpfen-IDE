@@ -17,7 +17,7 @@ package io.karpfen.ide.runtime.session
 
 import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
-import io.karpfen.ide.runtime.session.deploy.DeployOptions
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
@@ -28,15 +28,16 @@ import kotlin.test.assertEquals
  * Covers the runtime feature TrueParallel through a session against a real runtime. The relay below splits into a
  * left and a right branch on the event `go` of the domain `signal`. Each branch takes its own steps, writes its own
  * property and appends its name to the shared list `trail`, and a join then leads both branches into `joined`.
- * The project has splits and joins switched on and no other language feature, so the plan itself switches no runtime
- * feature on.
+ * The project has splits and joins switched on and no other language feature, so no language feature adds a runtime
+ * feature to the plan.
  *
- * Deployed with [DeployOptions.trueParallel], the environment has exactly TrueParallel active, and the relay reaches the
- * same final model as without it. The order of the two names in `trail` is not fixed while the branches step at the
+ * Prepared for a project with [ProjectFeature.TRUE_PARALLEL] switched on, the plan lists TrueParallel, the deployment
+ * switches it on, the environment has exactly TrueParallel active, and the relay reaches the same final model as
+ * without it. The order of the two names in `trail` is not fixed while the branches step at the
  * same time, so the scenarios compare it sorted. The session cannot read the runtime's log, which would name the
  * threads `Branch-<id>`, so these scenarios prove that the feature runs end to end through the deployment, and the
  * runtime's engine tests (`TrueParallelEngineTest`) prove that the branches step at the same time on threads of
- * their own. Without the option, no feature is active and the branches step one after the other.
+ * their own. Without the project feature, no feature is active and the branches step one after the other.
  */
 abstract class TrueParallelScenarios {
 
@@ -49,7 +50,7 @@ abstract class TrueParallelScenarios {
 
     @Test
     fun `with TrueParallel the feature is active, both branches write the model, and the join fires`() = runtime.run(root) {
-        val session = deployRelay(DeployOptions(trueParallel = true))
+        val session = deployRelay(setOf(ProjectFeature.TRUE_PARALLEL))
 
         assertEquals(setOf(TRUE_PARALLEL), activeFeatures(session), diagnostics)
         awaitJoined(session)
@@ -57,18 +58,21 @@ abstract class TrueParallelScenarios {
 
     @Test
     fun `without TrueParallel the same relay reaches the same model and no feature is active`() = runtime.run(root) {
-        val session = deployRelay(DeployOptions())
+        val session = deployRelay(emptySet())
 
         assertEquals(emptySet(), activeFeatures(session), diagnostics)
         awaitJoined(session)
     }
 
-    /** Writes the relay into a folder of its own, opens it with splits and joins on, and deploys it as [options] say. */
-    private suspend fun SessionScenario.deployRelay(options: DeployOptions): RuntimeSession {
-        val folder = Files.createDirectories(root.resolve(if (options.trueParallel) "relay-parallel" else "relay-plain"))
+    /**
+     * Writes the relay into a folder of its own, opens it with splits and joins on, and deploys it for a project with
+     * [projectFeatures] switched on.
+     */
+    private suspend fun SessionScenario.deployRelay(projectFeatures: Set<ProjectFeature>): RuntimeSession {
+        val folder = Files.createDirectories(root.resolve(if (projectFeatures.isEmpty()) "relay-plain" else "relay-parallel"))
         val descriptor = RelayModel.writeTo(folder)
-        val prepared = prepare(open(descriptor, features = setOf(KstatesFeature.PARALLEL)), descriptor)
-        val session = deploy(prepared, options)
+        val prepared = prepare(open(descriptor, features = setOf(KstatesFeature.PARALLEL)), descriptor, projectFeatures)
+        val session = deploy(prepared)
         session.awaitStack(RELAY, listOf("idle"))
         return session
     }

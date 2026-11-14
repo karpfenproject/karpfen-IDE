@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session.deploy
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
@@ -197,21 +198,20 @@ class DeployPipelineTest {
     }
 
     @Test
-    fun `true parallel switches TrueParallel on after the features of the plan, also when the plan has none`() = runTest {
-        val withFeatures = DeployRig(this)
-        withFeatures.deploy(LampPlans.plan(), DeployOptions(trueParallel = true)).deployed()
-        val withoutFeatures = DeployRig(this)
-        withoutFeatures.deploy(LampPlans.plan(features = emptyList()), DeployOptions(trueParallel = true)).deployed()
+    fun `TrueParallel in the plan is switched on after the features of the language, in the same step`() = runTest {
+        val rig = DeployRig(this)
+        val features = listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT, FeatureName.TRUE_PARALLEL)
+
+        rig.deploy(LampPlans.plan(features = features)).deployed()
 
         assertEquals(
             listOf("activateFeature(History)", "activateFeature(TickLimit)", "activateFeature(TrueParallel)"),
-            withFeatures.script.callsOf("activateFeature"),
+            rig.script.callsOf("activateFeature"),
         )
         assertEquals(
             "Switching on History, TickLimit, TrueParallel",
-            withFeatures.listener.last.steps.single { it.kind == DeployStepKind.SWITCH_FEATURES_ON }.title,
+            rig.listener.last.steps.single { it.kind == DeployStepKind.SWITCH_FEATURES_ON }.title,
         )
-        assertEquals(listOf("activateFeature(TrueParallel)"), withoutFeatures.script.callsOf("activateFeature"))
     }
 
     @Test

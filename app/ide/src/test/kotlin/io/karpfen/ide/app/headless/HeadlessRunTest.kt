@@ -22,6 +22,7 @@ import io.karpfen.ide.runtime.host.HostOutcome
 import io.karpfen.ide.runtime.host.HostProblem
 import io.karpfen.ide.runtime.host.HostProblemCode
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModels
 import io.karpfen.ide.runtime.session.SessionState
@@ -30,6 +31,7 @@ import io.karpfen.ide.runtime.session.deploy.DeployStepKind
 import io.karpfen.ide.runtime.session.deploy.StepProgress
 import io.karpfen.ide.runtime.session.deploy.StepStatus
 import io.karpfen.ide.runtime.session.fixtures.FakeRuntimeSession
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.states.ActiveStatesReducer
 import io.karpfen.ide.ui.workbench.runtime.RunPhase
@@ -151,27 +153,33 @@ class HeadlessRunTest {
     }
 
     @Test
-    fun `true parallel branches need splits and joins switched on for the project`() = runTest(timeout = TIMEOUT) {
-        lamp()
+    fun `a project with TrueParallel on deploys with it and says so in the first line of the run`() = runTest(timeout = TIMEOUT) {
+        lamp(setOf(KstatesFeature.PARALLEL), setOf(ProjectFeature.TRUE_PARALLEL))
         withRig { rig ->
-            assertUsageError(
-                rig,
-                HeadlessCommand.Run(root, trueParallel = true),
-                "--true-parallel needs splits and joins switched on for the project (feature.parallel = on in .karpfenproject)",
-            )
+            val stop = HeadlessStop()
+            val status = rig.run(HeadlessCommand.Run(root), stop)
+            rig.settle()
+
+            assertEquals(listOf(FeatureName.TRUE_PARALLEL), rig.sessions.launched.single().prepared.plan.features)
+            assertEquals("Running lamp.kenv.json, parallel branches on threads of their own", rig.output.first())
+
+            stop.request()
+            rig.settle()
+            assertEquals(HeadlessExitCodes.OK, status.await())
         }
     }
 
     @Test
-    fun `a run with true parallel branches deploys with TrueParallel and says so in its first line`() = runTest(timeout = TIMEOUT) {
-        lamp(setOf(KstatesFeature.PARALLEL))
+    fun `a TrueParallel line without splits and joins has no effect`() = runTest(timeout = TIMEOUT) {
+        lamp()
+        Files.writeString(root.resolve(ProjectSettings.FILE_NAME), "feature.trueParallel = on\n")
         withRig { rig ->
             val stop = HeadlessStop()
-            val status = rig.run(HeadlessCommand.Run(root, trueParallel = true), stop)
+            val status = rig.run(HeadlessCommand.Run(root), stop)
             rig.settle()
 
-            assertEquals(true, rig.sessions.options.single().trueParallel)
-            assertEquals("Running lamp.kenv.json, parallel branches on threads of their own", rig.output.first())
+            assertEquals(emptyList(), rig.sessions.launched.single().prepared.plan.features)
+            assertEquals("Running lamp.kenv.json", rig.output.first())
 
             stop.request()
             rig.settle()
@@ -311,12 +319,15 @@ class HeadlessRunTest {
 
     /**
      * Writes a fresh lamp into the project folder, replacing an earlier one, with a project file that switches
-     * [features] on.
+     * [features] and [projectFeatures] on.
      */
-    private fun lamp(features: Set<KstatesFeature> = emptySet()) {
+    private fun lamp(features: Set<KstatesFeature> = emptySet(), projectFeatures: Set<ProjectFeature> = emptySet()) {
         if (Files.exists(root)) root.toFile().deleteRecursively()
         SynthesizedModels.copyTo(root, SynthesizedModel.LAMP)
-        Files.writeString(root.resolve(ProjectSettings.FILE_NAME), ProjectSettingsFile.format(ProjectSettings(languageFeatures = features)))
+        Files.writeString(
+            root.resolve(ProjectSettings.FILE_NAME),
+            ProjectSettingsFile.format(ProjectSettings(languageFeatures = features, projectFeatures = projectFeatures)),
+        )
     }
 
     /** Writes a ROS bridge named [name] whose address no rosbridge server has, so it fails as soon as it starts. */
