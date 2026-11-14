@@ -278,7 +278,9 @@ Problems view show. dsl-tools' `ProjectVerifier` checks the files of a project a
 and only runs in a validation. `DslVerifier` in core-document is the only place that calls it. It works on the
 dsl-tools read results that every `ReadResult` keeps, so no file is read twice. `ProjectValidator` in core-workspace
 hands it each modeling context: the metamodel, the event definitions, the model if the context has exactly one, and
-each state machine with the object its descriptor attaches it to. `Workspace.validate()` answers a `ProjectValidation`
+each state machine with the object its descriptor attaches it to. The attachable state machines go in without an
+object, and the number of machines without a read goes in too, so the verifier reports no name as unknown while one
+of them is missing. The verifier's findings about the metamodel and the event definitions land on those files. `Workspace.validate()` answers a `ProjectValidation`
 with the findings of the analysis and of the verifier, errors first. `ValidationState` in ui-workbench runs it for the
 Validate button, for the command Validate Project and before every run, shows the report in a dialog and keeps the
 last report. An error anywhere in the open folder blocks a run.
@@ -550,15 +552,22 @@ Read `DeployStepKind` and the `deploy` package of runtime-session. A deployment 
 environment, connects, uploads the files, attaches the state machines, sets the timing, listens to the domains,
 switches on the runtime features of the project, activates, starts observing and starts.
 
-Histories, tick limits, breakpoints, macros, and splits and joins are optional features of the state machine
-language, listed by dsl-tools' `KstatesFeature`. A project switches them on by hand, and `.karpfenproject` stores
+Histories, tick limits, breakpoints, macros, splits and joins, and dynamic attachment are optional features of the
+languages, listed by dsl-tools' `KstatesFeature`. A project switches them on by hand, and `.karpfenproject` stores
 each one that is on as a line `feature.<id> = on`. `LanguageFeatureBinding` hands the set to the workspace, which
 analyzes again when it changes. The analysis passes it to dsl-tools' `KstatesReader`, which reports every construct
-of a feature that is off as the error `kstates.feature-off`. That error blocks a run like any other. Completion and
+of a feature that is off as the error `kstates.feature-off`, and to the `KmetaReader` of the metamodel and the event
+definitions, which reports `behaves after` as `kmeta.feature-off`. That error blocks a run like any other. Completion and
 the statechart menu read the set and leave out what is off. `LanguageFeature` in runtime-session maps what is on to
 runtime features: histories to History, tick limits to TickLimit and breakpoints to Breakpoint. The runtime reads
-these words in every environment but applies them only where its feature is on. Macros, and splits and joins, need
-nothing in the runtime.
+these words in every environment but applies them only where its feature is on. Macros, splits and joins, and dynamic
+attachment need nothing in the runtime.
+
+A descriptor entry without `attachedTo` hands an attachable state machine to the environment as a definition.
+`StateMachineForms` in core-workspace checks during the analysis that the form of each listed file fits its entry,
+from the syntax index, and reports `descriptor-state-machine-form` at the file value of the entry. The deployment
+uploads attached state machines only, and `DefinitionsCheck` in runtime-session blocks a context that lists
+definitions with `deploy-definitions-unsupported`.
 
 A session whose deployment switched Breakpoint on has a debugger, `RuntimeSession.debugger`. The runtime sends an
 `engineStatus` message whenever its engine starts to wait and when it goes on. The session's router hands these to

@@ -41,6 +41,12 @@ refer to.
 - The class diagram shows the types of one file only, so a relation to a type of another metamodel file is a row and
   not a link.
 - Dragging and the context menu were tried in tests only for the class and object diagrams, not in the window.
+- The statechart draws no header, so the attached type of a state machine and the name and types of an attachable one
+  are in the diagram model but not on the canvas.
+- No menu adds `ATTACH` or `EXCHANGE`. They are written in the cells of the entry and do actions, which complete and
+  check them.
+- The class diagram asks for the name after `behaves after` as plain text. It does not offer the attachable state
+  machines of the context, because the diagram knows only its own file.
 
 ### Running models
 
@@ -69,6 +75,9 @@ refer to.
 - An embedded runtime does not exist. Its path `runtime/runtime-embedded` is not in the settings.
 - A run with TrueParallel has been tested with fakes and by the runtime's own tests only, not in the window against
   the real runtime.
+- A context whose descriptor lists definitions, entries without `attachedTo`, cannot be deployed yet. The check
+  `deploy-definitions-unsupported` blocks it, and the Runtime tool window, live highlighting, the debugger and the run
+  without a window know only state machines attached by the descriptor.
 
 ### Bridges
 
