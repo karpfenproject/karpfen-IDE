@@ -137,6 +137,17 @@ public object RuntimeGoldens {
         """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"engineStatus","payload":$ENGINE_STATUS_RUNNING_PAYLOAD}"""
 
     /**
+     * The `engineStatus` notice that a stop froze an environment without `TickByTick`, as
+     * `ObservationRelay.onPhaseChanged` writes it with org.json 20240303. org.json writes the members in the order
+     * `phase`, `paused`, `waiting`.
+     */
+    public const val ENGINE_STATUS_STOPPED_PAYLOAD: String = """{"phase":"stopped","paused":false,"waiting":false}"""
+
+    /** The `engineStatus` push of [ENGINE_STATUS_STOPPED_PAYLOAD], as `ClientSessionManager.notifyEngineStatus` sends it. */
+    public const val ENGINE_STATUS_STOPPED: String =
+        """{"environmentKey":"$ENVIRONMENT","clientId":"$CLIENT","messageType":"engineStatus","payload":$ENGINE_STATUS_STOPPED_PAYLOAD}"""
+
+    /**
      * A handshake that the runtime's `/ws` handler accepts. It is the client id, the environment key and the access key
      * joined by `:`. The access key has the shape `ak-<clientId>-<millis>-<0..9999>` that `ClientSessionManager`
      * issues.
@@ -269,7 +280,8 @@ public object RuntimeGoldens {
 
     /** Every push golden of [ENVIRONMENT] and [CLIENT], in the order of their declarations. */
     public val PUSHES: List<String> = listOf(
-        OBJECT_CHANGED, OBJECT_DELETED, STATE_CHANGE, DOMAIN_EVENT, ENGINE_STATUS_HALTED, ENGINE_STATUS_RUNNING, TURTLE_CHANGED,
+        OBJECT_CHANGED, OBJECT_DELETED, STATE_CHANGE, DOMAIN_EVENT, ENGINE_STATUS_HALTED, ENGINE_STATUS_RUNNING, ENGINE_STATUS_STOPPED,
+        TURTLE_CHANGED,
         ESCAPES_CHANGED, NON_FINITE_CHANGED, RELATIONS_CHANGED, STATE_CHANGE_REORDERED, DOMAIN_EVENT_REORDERED,
     )
 }

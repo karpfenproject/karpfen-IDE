@@ -24,6 +24,7 @@ import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
 import io.karpfen.ide.runtime.protocol.connection.ReconnectPolicy
+import io.karpfen.ide.runtime.protocol.fake.FakeClose
 import io.karpfen.ide.runtime.protocol.fake.FakeResponse
 import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.transport.TransportFailure
@@ -117,7 +118,7 @@ class RuntimeSessionLifecycleTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
-        closeLinkOnStop(rig, session)
+        pushNoticeOnStop(rig, session)
         rig.programSnapshot(deployment, "env-1", RuntimePhase.RUNNING, 3)
 
         assertEquals(SessionCommandOutcome.Done, session.stop())
@@ -143,7 +144,7 @@ class RuntimeSessionLifecycleTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
-        closeLinkOnStop(rig, session)
+        pushNoticeOnStop(rig, session)
         val noBoundary =
             FakeResponse.rejected(FakeResponse.CONFLICT, RuntimeText.TICK_BOUNDARY_TIMEOUT, mapOf("env" to "env-1", "ms" to "10000"))
         rig.fake.respond(RuntimeRoute.MODEL_SNAPSHOT, noBoundary)
@@ -303,18 +304,24 @@ class RuntimeSessionLifecycleTest {
     }
 
     @Test
-    fun `a stop the session did not make is settled by reading the final model`() = runTest {
+    fun `a stop the session did not make is settled on the runtime's notice by reading the final model and closing the link`() = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
         rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 4)
 
-        rig.linkOf(session).closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED)
+        val link = rig.linkOf(session)
+        link.pushStopNotice()
         assertIs<SessionState.Stopped>(rig.awaitState(session) { it is SessionState.Stopped })
 
         assertEquals(SyncStatus.Final(4), session.model.value.sync)
         assertEquals(emptyList(), rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT))
         assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(listOf(FakeClose(WireNames.CLOSE_NORMAL, "Client closed the connection")), link.clientCloses, "the session closes the open link")
+        runCurrent()
+        val notes = session.journal().filterIsInstance<SessionActivity.Note>().map { it.text }
+        assertTrue("The runtime reports that the environment stopped; it keeps the environment frozen." in notes, "$notes")
+        assertTrue(notes.any { it.startsWith("The environment env-1 was stopped by somebody else than the session, so the run ended.") }, "$notes")
         session.close()
     }
 
@@ -441,17 +448,18 @@ class RuntimeSessionLifecycleTest {
     }
 
     /**
-     * Programs the answers of a stop of [session]. The runtime closes the link, and the final model is at revision 3.
+     * Programs the answers of a stop of [session]. The runtime pushes the notice of the stop and keeps the link open, and
+     * the final model is at revision 3.
      */
     private fun programStop(rig: SessionRig, deployment: SessionRig.Deployment, session: RuntimeSession) {
-        closeLinkOnStop(rig, session)
+        pushNoticeOnStop(rig, session)
         rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, 3)
     }
 
-    /** Programs the runtime to close the open links of [session] after the next stop, as the runtime does. */
-    private fun closeLinkOnStop(rig: SessionRig, session: RuntimeSession) {
+    /** Programs the runtime to push the notice of the next stop on the open links of [session], as the runtime does. */
+    private fun pushNoticeOnStop(rig: SessionRig, session: RuntimeSession) {
         rig.fake.after(RuntimeRoute.STOP_ENVIRONMENT) {
-            linksOf(session.clientId.value).filter { it.isOpen }.forEach { it.closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED) }
+            linksOf(session.clientId.value).filter { it.isOpen }.forEach { it.pushStopNotice() }
         }
     }
 

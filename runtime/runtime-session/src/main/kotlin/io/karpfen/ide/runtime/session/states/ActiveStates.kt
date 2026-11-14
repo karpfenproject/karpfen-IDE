@@ -77,8 +77,7 @@ public data class ActiveStates(
  * announced instance shows the predicted initial stack of its state machine until it reports. A report replaces the
  * stack with [StackOrigin.REPORTED] and keeps the stack shown before as [MachineActivity.previous], for animation. A
  * report or snapshot that shows the same stack again keeps the previous stack as it was. A detached instance is
- * removed with its stack. An instance announced again under a key that has one, as at a restart of the environment,
- * replaces it.
+ * removed with its stack. An instance announced again under a key that has one replaces it.
  *
  * @param layouts the layouts of the attached machines. A key attached twice keeps its first layout.
  * @param definitions the layouts of the definitions. A name given twice keeps its first layout.

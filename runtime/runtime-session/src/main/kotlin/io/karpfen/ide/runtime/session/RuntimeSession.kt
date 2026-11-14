@@ -29,7 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
  * One deployed environment and everything the IDE does with it. That covers the deployment's progress, the commands of
  * its lifecycle, the observed model with its live switch, the domain events, the event injector and a journal. A
  * session deploys a fresh environment when it is launched and never adopts or restarts one. A stopped environment is
- * final.
+ * final for the session. The runtime keeps it frozen until the runtime ends, and the session never starts it again.
  *
  * The table lists the commands that each state allows. Debugging stands for the commands of the [debugger]. Any
  * other command answers [SessionCommandOutcome.Refused].
@@ -116,8 +116,8 @@ public interface RuntimeSession : AutoCloseable {
     public suspend fun start(): SessionCommandOutcome
 
     /**
-     * Stops the environment for good. The runtime closes the connection, and the session reads the final model and
-     * records the environment as stopped in the ledger.
+     * Stops the environment for good. The runtime freezes it and keeps the socket open, so the session closes its
+     * connection itself, reads the final model and records the environment as stopped in the ledger.
      */
     public suspend fun stop(): SessionCommandOutcome
 

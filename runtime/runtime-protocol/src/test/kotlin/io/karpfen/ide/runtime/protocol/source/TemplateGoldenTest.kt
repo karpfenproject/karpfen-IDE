@@ -125,6 +125,10 @@ class TemplateGoldenTest {
             RuntimeWireWriter.engineStatusPayload(true, true, RuntimeWireWriter.stateHalt("crossing", "entry", "cars wait")),
         )
         assertEquals(RuntimeGoldens.ENGINE_STATUS_RUNNING_PAYLOAD, RuntimeWireWriter.engineStatusPayload(paused = false, waiting = false))
+        assertEquals(
+            RuntimeGoldens.ENGINE_STATUS_STOPPED_PAYLOAD,
+            RuntimeWireWriter.engineStatusPayload(paused = false, waiting = false, phase = "stopped"),
+        )
         GOLDEN_PUSHES.forEach { (messageType, payload, frame) ->
             assertEquals(frame, RuntimeWireWriter.envelope(RuntimeGoldens.ENVIRONMENT, RuntimeGoldens.CLIENT, messageType, payload))
         }
@@ -249,6 +253,7 @@ class TemplateGoldenTest {
             Triple("domainEvent", RuntimeGoldens.DOMAIN_EVENT_PAYLOAD, RuntimeGoldens.DOMAIN_EVENT),
             Triple("engineStatus", RuntimeGoldens.ENGINE_STATUS_HALTED_PAYLOAD, RuntimeGoldens.ENGINE_STATUS_HALTED),
             Triple("engineStatus", RuntimeGoldens.ENGINE_STATUS_RUNNING_PAYLOAD, RuntimeGoldens.ENGINE_STATUS_RUNNING),
+            Triple("engineStatus", RuntimeGoldens.ENGINE_STATUS_STOPPED_PAYLOAD, RuntimeGoldens.ENGINE_STATUS_STOPPED),
         )
     }
 }

@@ -39,8 +39,10 @@ import kotlinx.coroutines.withTimeoutOrNull
  * coroutine starts at once, even if the session is closed right after, and the stop call itself cannot be cancelled.
  * So closing during a stop never leaves the environment both running and unrecorded.
  *
- * 1. It stops the environment. This call cannot be cancelled and is bounded in time. The runtime then closes the
- *    connection with `Environment stopped`.
+ * 1. It stops the environment. This call cannot be cancelled and is bounded in time. The runtime freezes the
+ *    environment and keeps it until the runtime ends, but the session never starts it again. The runtime keeps the
+ *    socket open and pushes the `engineStatus` notice of the stop, and the connection ends and closes its link itself,
+ *    on that notice or on the handle's stopped phase, whichever comes first.
  * 2. It records the environment as stopped once it stopped. If the session was closed during a stop that failed, it
  *    records the environment as the stop left it.
  * 3. It lets the connection end by itself and then disconnects it. Disconnecting does nothing if the connection ended
@@ -92,8 +94,9 @@ internal class EnvironmentStopper(
     }
 
     /**
-     * Lets [connection] end by itself after a stop, because the runtime closes it and the environment's phase ends it.
-     * Then it disconnects the connection, which does nothing if it ended already. Both waits are bounded.
+     * Lets [connection] end by itself after a stop, because the environment's stopped phase and the runtime's notice of
+     * the stop end it, and the connection then closes its link itself. Then it disconnects the connection, which does
+     * nothing if it ended already. Both waits are bounded.
      */
     suspend fun letEnd(connection: RuntimeConnection) {
         withTimeoutOrNull(bounds.disconnect) { connection.state.first { it is ConnectionState.Ended } }

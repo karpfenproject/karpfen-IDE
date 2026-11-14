@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
@@ -436,6 +437,11 @@ internal class SessionConductor(
         }
     }
 
+    /** The journal's note on a stop of [environment] that the session did not make. */
+    private fun stoppedElsewhere(environment: EnvironmentKey): String =
+        "The environment $environment was stopped by somebody else than the session, so the run ended. The runtime keeps " +
+            "the environment frozen; the IDE does not follow it if somebody starts it again."
+
     /**
      * Settles a stop that the session did not make. It reads the final model, lets the connection end and records the
      * environment as stopped.
@@ -448,7 +454,7 @@ internal class SessionConductor(
         departure.record(environment.key, LedgerDisposition.STOPPED, "Stopped by somebody else than the session.")
         settledPhase = EnvironmentPhase.Stopped
         publish(SessionState.Stopped(environment.key))
-        record(SessionActivity.Note("The environment ${environment.key} was stopped by somebody else than the session.", clock.elapsed()))
+        record(SessionActivity.Note(stoppedElsewhere(environment.key), clock.elapsed()))
     }
 
     /**

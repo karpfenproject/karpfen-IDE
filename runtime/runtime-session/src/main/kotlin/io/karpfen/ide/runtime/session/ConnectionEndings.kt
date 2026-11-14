@@ -59,9 +59,14 @@ internal sealed interface EndingVerdict {
  * |---|---|
  * | handshake rejected | failed with `handshake-rejected`, and the environment is stopped |
  * | environment stopped | stopped, with the final model it reads |
- * | environment lost | failed with `environment-lost` |
+ * | environment lost, also because the runtime ended | failed with `environment-lost` |
  * | gave up reconnecting | unchanged, with the warning `connection-lost` |
  * | disconnected | unchanged, because the session disconnected itself |
+ *
+ * Somebody else stopped the environment when the runtime pushes the `engineStatus` notice of a stop that the session
+ * did not ask for. The runtime keeps that environment frozen and keeps the socket open, and somebody may start it
+ * again. The session still ends its run there, closes its link and never follows the environment again, because a
+ * session never continues a stopped environment.
  *
  * After the connection gave up reconnecting, no push arrives any more. An observation that is on therefore stays
  * synchronizing, while pulls still read the model.

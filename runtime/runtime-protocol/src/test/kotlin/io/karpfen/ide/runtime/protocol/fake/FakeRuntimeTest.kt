@@ -216,14 +216,14 @@ class FakeRuntimeTest {
         fake.pushToClient("ide-a", RuntimeGoldens.OBJECT_CHANGED)
         assertTrue(fake.links[0].push(RuntimeGoldens.OBJECT_DELETED))
         assertTrue(fake.links[0].pushBinary(3))
-        fake.links[0].closeByRuntime(1000, "Environment stopped")
+        fake.links[0].closeByRuntime(1001, "Runtime stopped")
         fake.links[1].drop()
 
         assertEquals(LinkFrame.Text(RuntimeGoldens.OBJECT_CHANGED), first.incoming.receive())
         assertEquals(LinkFrame.Text(RuntimeGoldens.OBJECT_DELETED), first.incoming.receive())
         assertEquals(LinkFrame.Binary(3), first.incoming.receive())
         assertTrue(first.incoming.receiveCatching().isClosed)
-        assertEquals(LinkClosure(1000, "Environment stopped", byClient = false), first.closure.await())
+        assertEquals(LinkClosure(1001, "Runtime stopped", byClient = false), first.closure.await())
         assertEquals(LinkClosure(null, null, byClient = false), second.closure.await())
         assertFalse(fake.links[0].push(RuntimeGoldens.STATE_CHANGE), "a closed link takes no frames")
     }

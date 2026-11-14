@@ -95,8 +95,9 @@ internal sealed interface ProbeResult {
  *
  * A stopped environment stays stopped, whatever a later snapshot or probe reports, until the runtime no longer knows
  * it. While the engine's last tick still ends, the runtime reports the stopped environment as running or finds no tick
- * boundary in it. If a call in that tick never returns, this lasts for good. The client never restarts a stopped
- * environment.
+ * boundary in it. If a call in that tick never returns, this lasts for good. The runtime freezes a stopped environment
+ * and would let a start continue it with everything it held, but the client never starts a stopped environment again
+ * and connects to none. The environment stays frozen in the runtime until the runtime ends.
  *
  * The object holds no state.
  */
@@ -291,8 +292,8 @@ internal object LifecycleRules {
             LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.SUBSCRIBE_MODEL ->
-                Verdict.Refuse("the runtime closed the environment's sockets when it stopped")
-            else -> Verdict.Refuse("a stopped environment is final; running again deploys a fresh environment")
+                Verdict.Refuse("the client connects to no stopped environment; it stays frozen in the runtime")
+            else -> Verdict.Refuse("the client never continues a stopped environment; running again deploys a fresh environment")
         }
 
     /** The verdicts while the phase is uncertain. */
@@ -329,7 +330,8 @@ internal object LifecycleRules {
     /**
      * The phase that a report of the runtime establishes over the believed [phase]. It is [reported], unless [phase] is
      * stopped and [reported] is not lost. While the engine's last tick ends, the runtime reports a stopped environment
-     * as running or finds no tick boundary in it. A stopped environment is final for the client.
+     * as running or finds no tick boundary in it. A stopped environment is final for the client, although the runtime
+     * keeps it frozen.
      */
     private fun reportedOver(phase: EnvironmentPhase, reported: EnvironmentPhase): EnvironmentPhase =
         if (phase == EnvironmentPhase.Stopped && reported !is EnvironmentPhase.Lost) phase else reported

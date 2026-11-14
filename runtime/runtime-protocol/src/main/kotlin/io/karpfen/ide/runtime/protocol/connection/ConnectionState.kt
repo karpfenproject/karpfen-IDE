@@ -47,8 +47,8 @@ public sealed interface ConnectionEnd {
     public data class HandshakeRejected(public val rejection: HandshakeRejection) : ConnectionEnd
 
     /**
-     * The environment was stopped. Either the runtime closed the link with `Environment stopped`, or the handle saw the
-     * stop.
+     * The environment was stopped. Either the runtime pushed the `engineStatus` notice with the phase `stopped`, or the
+     * handle saw the stop. The environment stays frozen in the runtime until the runtime ends.
      */
     public data object EnvironmentStopped : ConnectionEnd
 

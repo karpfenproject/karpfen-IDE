@@ -29,7 +29,9 @@ import io.karpfen.ide.runtime.protocol.message.EventFrame
 import io.karpfen.ide.runtime.protocol.message.EventFrameEncoder
 import io.karpfen.ide.runtime.protocol.message.EventPayload
 import io.karpfen.ide.runtime.protocol.message.RuntimeModelSnapshot
+import io.karpfen.ide.runtime.protocol.message.RuntimePhase
 import io.karpfen.ide.runtime.protocol.message.RuntimePush
+import io.karpfen.ide.runtime.protocol.transport.LinkClosure
 import io.karpfen.ide.runtime.protocol.message.WireValue
 import io.karpfen.ide.runtime.protocol.transport.ConnectOutcome
 import io.karpfen.ide.runtime.protocol.transport.HttpOutcome
@@ -51,7 +53,8 @@ import kotlin.test.assertTrue
  *   close the socket with their reasons.
  * - A link the client closes is replaced on a fresh key with the same client id. It receives pushes again after the
  *   subscription is confirmed.
- * - The runtime's close at a stop ends the connection as stopped.
+ * - The runtime's notice of a stop ends the connection as stopped, and the client closes the socket the runtime keeps
+ *   open.
  * - Text with spaces and an en dash survives the wire in snapshots, stacks, forced-state requests and pushed values.
  *
  * The scenarios run only against a real runtime, in [LiveConnectionScenariosTest]. A half-open old link that heals
@@ -148,7 +151,7 @@ abstract class ConnectionScenarios {
     }
 
     @Test
-    fun `the runtime's close at a stop ends the connection as stopped`() = scenario {
+    fun `the runtime's notice of a stop ends the connection as stopped, and the client closes the socket the runtime keeps open`() = scenario {
         val (environment, connection) = runningLamp()
         val link = links.opened.single()
         val stop = TextRequest(HttpVerb.POST, RuntimeRoute.STOP_ENVIRONMENT.path, listOf("envKey" to environment.key.value), null)
@@ -157,7 +160,12 @@ abstract class ConnectionScenarios {
 
         val ended = scope.awaitValue("the end of the connection", connection.connection.state) { it is ConnectionState.Ended }
         assertEquals(ConnectionEnd.EnvironmentStopped, (ended as ConnectionState.Ended).end)
-        assertRuntimeClosed(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED, link.closure.await())
+        assertTrue(
+            connection.pushes.any { it is RuntimePush.EngineStatusChanged && it.phase == RuntimePhase.STOPPED },
+            "the notice of the stop: ${connection.pushes}",
+        )
+        val closure = link.closure.await()
+        assertEquals(LinkClosure(WireNames.CLOSE_NORMAL, "Client closed the connection", byClient = true), closure)
     }
 
     @Test

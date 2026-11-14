@@ -115,13 +115,15 @@ public object RuntimeWireWriter {
      * The `engineStatus` payload, built with org.json as the runtime's `TickByTickFeature.engineStatus` builds it, in
      * org.json's member order. It has [paused] and [waiting] and, if [halt] is not null, the halt, which is the JSON
      * that [stateHalt] or [transitionHalt] writes. The feature `Breakpoint` answers `getStatus` with the same text.
+     * With a [phase], `stopped` or `running`, it is the notice of a stop or a start, which the runtime's
+     * `ObservationRelay.onPhaseChanged` writes by reading the status again and adding the member `phase`.
      */
-    public fun engineStatusPayload(paused: Boolean, waiting: Boolean, halt: String? = null): String {
+    public fun engineStatusPayload(paused: Boolean, waiting: Boolean, halt: String? = null, phase: String? = null): String {
         val status = JSONObject()
         status.put("paused", paused)
         status.put("waiting", waiting)
         halt?.let { status.put("halt", JSONObject(it)) }
-        return status.toString()
+        return phase?.let { JSONObject(status.toString()).put("phase", it).toString() } ?: status.toString()
     }
 
     /**

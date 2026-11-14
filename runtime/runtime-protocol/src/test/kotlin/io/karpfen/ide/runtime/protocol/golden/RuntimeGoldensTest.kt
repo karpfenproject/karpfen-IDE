@@ -72,10 +72,11 @@ class RuntimeGoldensTest {
                 ),
                 RuntimePush.EngineStatusChanged(EngineStatus(true, true, EngineHalt.AtState("crossing", "cars wait", StateTiming.ENTRY))),
                 RuntimePush.EngineStatusChanged(EngineStatus(paused = false, waiting = false, halt = null)),
+                RuntimePush.EngineStatusChanged(EngineStatus(paused = false, waiting = false, halt = null), RuntimePhase.STOPPED),
             ),
             listOf(
                 RuntimeGoldens.OBJECT_CHANGED, RuntimeGoldens.OBJECT_DELETED, RuntimeGoldens.STATE_CHANGE, RuntimeGoldens.DOMAIN_EVENT,
-                RuntimeGoldens.ENGINE_STATUS_HALTED, RuntimeGoldens.ENGINE_STATUS_RUNNING,
+                RuntimeGoldens.ENGINE_STATUS_HALTED, RuntimeGoldens.ENGINE_STATUS_RUNNING, RuntimeGoldens.ENGINE_STATUS_STOPPED,
             ).map { push(it) },
         )
     }

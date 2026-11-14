@@ -32,8 +32,9 @@ import kotlinx.coroutines.flow.StateFlow
  * Before every call the handle checks the operation against the phase. That check is the verdict [allows] returns. The
  * handle refuses what the runtime would mishandle and then sends nothing. Configuring calls are allowed only while
  * configuring. The metamodel comes before the event definitions and the model. Activation needs both the metamodel and
- * the model. A start needs an activated environment. A stopped environment is never restarted, because a stopped
- * environment is final. Running the model again deploys a fresh environment.
+ * the model. A start needs an activated environment. A stopped environment is never started again: the runtime would
+ * let it continue where it froze, but for the client a stopped environment is final. Running the model again deploys
+ * a fresh environment.
  *
  * After every call the handle updates the phase from the outcome. Two cases are settled by reading a snapshot, whose
  * phase the runtime reports. The first is a rejection that shows the runtime's phase differs from the one the handle
@@ -109,7 +110,7 @@ public interface RuntimeEnvironment {
     /**
      * Has a single-use access key issued for a WebSocket connection of [client], with the stack changes [observatory]
      * asks for. It is allowed while configuring, activated, running or halted. It is refused for a stopped environment,
-     * because the runtime closes the sockets of a stopped environment.
+     * because the client follows no stopped environment, although the runtime keeps it frozen and would connect.
      */
     public suspend fun issueAccessKey(client: ClientId, observatory: Observatory): CallOutcome<AccessKey>
 
@@ -124,8 +125,10 @@ public interface RuntimeEnvironment {
     public suspend fun start(): CallOutcome<Unit>
 
     /**
-     * Stops the environment. The runtime closes its WebSocket sessions with `Environment stopped`. For an environment
-     * that is already stopped, the handle answers locally. It completes even when the caller is cancelled.
+     * Stops the environment. The runtime freezes it, keeps it until the runtime ends and pushes the `engineStatus` notice
+     * with the phase `stopped` to every connected client, whose sockets stay open. The connections of this handle end as
+     * soon as its phase is stopped. For an environment that is already stopped, the handle answers locally. It completes
+     * even when the caller is cancelled.
      */
     public suspend fun stop(): CallOutcome<Unit>
 

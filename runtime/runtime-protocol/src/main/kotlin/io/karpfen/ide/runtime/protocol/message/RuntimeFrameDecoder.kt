@@ -210,14 +210,26 @@ public class RuntimeFrameDecoder(private val environment: EnvironmentKey, privat
             return DecodedFrame.Push(RuntimePush.DomainEvent(domain, event, CompactJson.write(inner)), violations)
         }
 
-        /** Reads an `engineStatus` payload, whose members org.json writes in its own order. */
+        /**
+         * Reads an `engineStatus` payload, whose members org.json writes in its own order. A payload with the member
+         * `phase` is the notice of a stop or a start, and its phase must be `stopped` or `running`.
+         */
         private fun engineStatus(payload: WireValue): DecodedFrame {
             val status = EngineMessages.status(payload)
                 ?: return malformed(
                     "the payload is not an engine status: it lacks the boolean '${WireNames.PAUSED}' or the boolean " +
                         "'${WireNames.WAITING}', or its '${WireNames.HALT}' is not a halt as the runtime writes it",
                 )
-            return DecodedFrame.Push(RuntimePush.EngineStatusChanged(status), emptyList())
+            val phase = when (val member = (payload as WireValue.WireObject)[WireNames.PHASE]) {
+                null -> null
+                else -> (member as? WireValue.WireString)?.value?.let(RuntimePhase::ofWireName)
+                    ?.takeIf { it == RuntimePhase.STOPPED || it == RuntimePhase.RUNNING }
+                    ?: return malformed(
+                        "the '${WireNames.PHASE}' of an engine status is neither '${RuntimePhase.STOPPED.wireName}' nor " +
+                            "'${RuntimePhase.RUNNING.wireName}'",
+                    )
+            }
+            return DecodedFrame.Push(RuntimePush.EngineStatusChanged(status, phase), emptyList())
         }
 
         /** The published event of [inner], read by member name, or null if a member is missing or mistyped. */

@@ -207,13 +207,16 @@ public enum class RuntimeRoute(
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
     ),
 
-    /** Starts the engine of an activated environment and answers at once. */
+    /** Starts the engine of an activated environment, or lets a stopped one continue, and answers at once. */
     START_ENVIRONMENT(
         HttpVerb.POST, "/startEnvironment", listOf("envKey"),
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
     ),
 
-    /** Stops an environment, joining its engine for up to about 5 s, and closes its WebSocket sessions. */
+    /**
+     * Stops an environment, joining its engine for up to about 5 s. The runtime freezes it, keeps its WebSocket sessions
+     * open and tells them with an `engineStatus` notice. A start of a stopped environment would continue it.
+     */
     STOP_ENVIRONMENT(
         HttpVerb.POST, "/stopEnvironment", listOf("envKey"),
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.STOP,

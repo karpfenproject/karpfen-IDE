@@ -43,7 +43,8 @@ import kotlin.test.assertTrue
  * - The members of the `stateChange` and `domainEvent` payloads.
  * - The names of the language features and the separator of the feature lists.
  * - The names of the debugger's features, their messages and the members of the breakpoint status.
- * - The `engineStatus` push of that status to every connected client when the engine thread waits and goes on.
+ * - The `engineStatus` push of that status to every connected client when the engine thread waits and goes on, and
+ *   with the member `phase` when a stop freezes the environment and a start lets it continue.
  *
  * A failure names the file and the snippet that no longer occurs. The body with which the runtime refuses an upload
  * for the errors in its text, which `UploadRejection` reads, is not anchored, and neither are the messages of the
@@ -128,7 +129,7 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(KTOR_SERVER, closeAnchor("CANNOT_ACCEPT", WireNames.REASON_INVALID_CREDENTIALS)),
                 SourceAnchor(KTOR_SERVER, "pingPeriod = Duration.ofSeconds(60)"),
                 SourceAnchor(KTOR_SERVER, "timeout = Duration.ofSeconds(15)"),
-                SourceAnchor(SESSION_MANAGER, "CloseReason(CloseReason.Codes.NORMAL, \"${WireNames.REASON_ENVIRONMENT_STOPPED}\")"),
+                SourceAnchor(ENVIRONMENT_HANDLER, "CloseReason(CloseReason.Codes.GOING_AWAY, \"${WireNames.REASON_RUNTIME_STOPPED}\")"),
                 SourceAnchor(SESSION_MANAGER, "clientSessions[environmentKey]?.values?.firstOrNull { it.clientId == clientId }"),
             ),
         )
@@ -354,6 +355,21 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(ENVIRONMENT_THREAD, "engine.onEngineStatusChanged = relay::onEngineStatusChanged"),
                 SourceAnchor(OBSERVATION_RELAY, "sessions.notifyEngineStatus(environmentKey, status)"),
                 SourceAnchor(SESSION_MANAGER, "enqueue(environmentKey, connectedClients(environmentKey), \"${WireNames.ENGINE_STATUS}\", payload)"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a stop and a start that continues push engineStatus with the phase, and only the end of the runtime closes the sockets`() {
+        assertAnchored(
+            listOf(
+                SourceAnchor(ENVIRONMENT_THREAD, "relay?.onPhaseChanged(EnvironmentPhase.STOPPED, engineStatus())"),
+                SourceAnchor(ENVIRONMENT_THREAD, "if (continues) relay?.onPhaseChanged(EnvironmentPhase.RUNNING, engineStatus())"),
+                SourceAnchor(OBSERVATION_RELAY, "JSONObject(status).put(\"${WireNames.PHASE}\", phase.wireName)"),
+                SourceAnchor(ENVIRONMENT_PHASE, "STOPPED(\"${RuntimePhase.STOPPED.wireName}\")"),
+                SourceAnchor(ENVIRONMENT_PHASE, "RUNNING(\"${RuntimePhase.RUNNING.wireName}\")"),
+                SourceAnchor(ENVIRONMENT_HANDLER, "if (envThread.stop()) {"),
+                SourceAnchor(ENVIRONMENT_HANDLER, "fun shutdown() {"),
             ),
         )
     }

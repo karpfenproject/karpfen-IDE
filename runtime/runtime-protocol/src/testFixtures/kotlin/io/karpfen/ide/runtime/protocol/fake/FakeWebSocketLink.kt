@@ -16,6 +16,8 @@
 package io.karpfen.ide.runtime.protocol.fake
 
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
+import io.karpfen.ide.runtime.protocol.golden.RuntimeGoldens
+import io.karpfen.ide.runtime.protocol.golden.RuntimeWireWriter
 import io.karpfen.ide.runtime.protocol.transport.LinkClosure
 import io.karpfen.ide.runtime.protocol.transport.LinkFrame
 import io.karpfen.ide.runtime.protocol.transport.LinkSendResult
@@ -29,7 +31,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
  * One WebSocket that the client opened to the [FakeRuntime]. The test plays the runtime's side. It sends frames with
- * [push], closes the link with [closeByRuntime], or drops it without a close frame with [drop]. The link records what
+ * [push] or [pushStopNotice], closes the link with [closeByRuntime], or drops it without a close frame with [drop]. The link records what
  * the client sent. The first text is the handshake, and the texts after it are the client's frames.
  *
  * The link answers the handshake only if the test programmed a close for it with [FakeRuntime.closeHandshake]. The link
@@ -93,6 +95,17 @@ public class FakeWebSocketLink internal constructor(
 
     /** Sends a binary frame of [size] bytes as the runtime. Returns false if the link is closed. */
     public fun pushBinary(size: Int): Boolean = deliver(LinkFrame.Binary(size))
+
+    /**
+     * Sends the runtime's `engineStatus` notice that a stop froze the environment, with the fixed payload
+     * [RuntimeGoldens.ENGINE_STATUS_STOPPED_PAYLOAD], addressed to the client and the environment of the handshake. The
+     * runtime keeps a link open at a stop, so this link stays open. Returns false if the link is closed or has no
+     * handshake yet.
+     */
+    public fun pushStopNotice(): Boolean {
+        val parts = handshake?.split(WireNames.HANDSHAKE_SEPARATOR)?.takeIf { it.size == 3 } ?: return false
+        return push(RuntimeWireWriter.envelope(parts[1], parts[0], WireNames.ENGINE_STATUS, RuntimeGoldens.ENGINE_STATUS_STOPPED_PAYLOAD))
+    }
 
     /** Closes the link as the runtime, with the close frame [code] and [reason]. Does nothing if already closed. */
     public fun closeByRuntime(code: Int, reason: String) {

@@ -127,9 +127,15 @@ public sealed interface RuntimePush {
      * on. It sends one when the thread starts to wait, between two ticks or at a breakpoint, and one when it goes on.
      * A pause that was asked for while the engine still finishes its tick is told only once the thread waits.
      *
+     * The runtime sends the same message, with the member `phase`, to every connected client when a stop freezes the
+     * environment ([RuntimePhase.STOPPED]) and when a start lets a stopped environment continue
+     * ([RuntimePhase.RUNNING]), with or without `TickByTick`. The sockets stay open across a stop. The status of such a
+     * notice is the `TickByTick` status at that moment, both false without the feature.
+     *
      * @property status the engine's status, the same object that the feature `Breakpoint` answers to `getStatus`.
+     * @property phase the phase a stop or a start just reached, or null for the pushes of `TickByTick`.
      */
-    public data class EngineStatusChanged(public val status: EngineStatus) : RuntimePush
+    public data class EngineStatusChanged(public val status: EngineStatus, public val phase: RuntimePhase? = null) : RuntimePush
 
     /**
      * A message of a type the client does not know. It is not a violation, because the runtime may add types.

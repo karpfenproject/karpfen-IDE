@@ -156,6 +156,22 @@ class RuntimeFrameDecoderTest {
     }
 
     @Test
+    fun `an engineStatus notice of a stop or a start decodes to the status with its phase`() {
+        val stopped = RuntimeWireWriter.engineStatusPayload(paused = true, waiting = true, phase = "stopped")
+        val running = RuntimeWireWriter.engineStatusPayload(paused = false, waiting = false, phase = "running")
+
+        assertEquals(
+            listOf(
+                RuntimePush.EngineStatusChanged(EngineStatus(paused = true, waiting = true, halt = null), RuntimePhase.STOPPED),
+                RuntimePush.EngineStatusChanged(EngineStatus(paused = false, waiting = false, halt = null), RuntimePhase.RUNNING),
+            ),
+            listOf(stopped, running).map { pushOf(frame("engineStatus", it)) }.onEach {
+                assertEquals(emptyList(), it.violations)
+            }.map { it.push },
+        )
+    }
+
+    @Test
     fun `an engineStatus payload that is not a status is malformed`() {
         listOf(
             "[]",
@@ -165,6 +181,8 @@ class RuntimeFrameDecoderTest {
             """{"paused":true,"waiting":true,"halt":"cars wait"}""",
             """{"paused":true,"waiting":true,"halt":{"modelElementId":"crossing","timing":"start","state":"cars wait"}}""",
             """{"paused":true,"waiting":true,"halt":{"timing":"entry","state":"cars wait"}}""",
+            """{"paused":false,"waiting":false,"phase":"halted"}""",
+            """{"paused":false,"waiting":false,"phase":true}""",
         ).forEach { payload ->
             val violation = violationOf(frame("engineStatus", payload))
             assertEquals(ViolationKind.MALFORMED_PAYLOAD, violation.kind, payload)

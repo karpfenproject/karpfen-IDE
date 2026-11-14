@@ -172,8 +172,11 @@ public object WireNames {
     /** The payload format of a KModel payload. */
     public const val FORMAT_KMODEL: String = "kmodel"
 
-    /** The close code of a normal close, also the runtime's close of the sockets of a stopped environment. */
+    /** The close code of a normal close, which the client uses when it closes a link itself. */
     public const val CLOSE_NORMAL: Int = 1000
+
+    /** The close code with which the runtime closes every socket when it ends. */
+    public const val CLOSE_GOING_AWAY: Int = 1001
 
     /** The close code of a refused handshake. */
     public const val CLOSE_CANNOT_ACCEPT: Int = 1003
@@ -193,8 +196,8 @@ public object WireNames {
     /** The close reason of a connection that missed a pong. */
     public const val REASON_PING_TIMEOUT: String = "Ping timeout"
 
-    /** The close reason of the sockets of an environment that was stopped. */
-    public const val REASON_ENVIRONMENT_STOPPED: String = "Environment stopped"
+    /** The close reason of the sockets of every environment when the runtime ends. */
+    public const val REASON_RUNTIME_STOPPED: String = "Runtime stopped"
 
     /** The prefix of every environment key, `env-<epoch millis>`. */
     public const val ENVIRONMENT_KEY_PREFIX: String = "env-"

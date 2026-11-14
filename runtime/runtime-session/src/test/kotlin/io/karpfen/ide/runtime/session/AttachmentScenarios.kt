@@ -44,13 +44,16 @@ import kotlin.test.assertTrue
  * state machine `glowing`, and the descriptor lists `glowing` and `blinking` as definitions next to the room's
  * attached state machine. The room reacts to the events of the domain `service`: `stock` puts a new bulb on the shelf
  * with `ATTACH "blinking"`, `plain` puts one there without `ATTACH`, `flicker` exchanges the state machine of the
- * lamp's bulb for `blinking`, and `drop` removes the lamp's bulb. A `blinking` instance stays in `on` until `dim`.
+ * lamp's bulb for `blinking`, `drop` removes the lamp's bulb, and `rebulb` gives the lamp a new bulb through a
+ * dictionary with the `__id__` of the lamp. A `blinking` instance stays in `on` until `dim`.
  *
  * The scenarios check what the session knows about the instances at every moment: those the start builds through
  * `behaves after`, those that `ATTACH` and the type of a created object bring, the exchange of one instance for
- * another on the same object, the instance that leaves with its object, and that the session's view agrees with a
- * snapshot read afresh. They also restart the environment with raw requests, since a session never starts a stopped
- * environment again, and check the refusals of the runtime that the IDE maps to problems. Creating a bulb runs an EVAL
+ * another on the same object, the instance that leaves with its object, also with an object that a dictionary with
+ * the `__id__` of its holder no longer holds, and that the session's view agrees with a snapshot read afresh. They
+ * also start a stopped environment again with raw requests, since a session never does, and check that the frozen
+ * environment continues with every instance and its stack, and the refusals of the runtime that the IDE maps to
+ * problems. Creating a bulb runs an EVAL
  * that returns a dictionary, so the runtime needs Python, which the runtime's container has.
  */
 abstract class AttachmentScenarios {
@@ -154,24 +157,72 @@ abstract class AttachmentScenarios {
     }
 
     @Test
-    fun `a restart rebuilds the instances from the model, and those of ATTACH do not come back`() = runtime.run(root) {
-        val session = deployShelf("restart")
-        session.inject("service", "stock")
-        val created = awaitNewInstance(session, "blinking")
-        assertEquals(SessionCommandOutcome.Done, session.stop(), diagnostics)
-
-        val environment = session.environment.value
-        assertEquals(OK, call(RuntimeRoute.START_ENVIRONMENT, "envKey" to environment).status, diagnostics)
-        try {
-            val restarted = eventually("the instances of the restart") {
-                session.snapshot().takeIf { it.phase == RuntimePhase.RUNNING.wireName && created in it.stateMachines }
+    fun `a stop freezes every instance, also those of ATTACH and EXCHANGE, and a start continues them without announcing any again`() =
+        runtime.run(root) {
+            val session = deployShelf("freeze")
+            session.inject("service", "stock")
+            val created = awaitNewInstance(session, "blinking")
+            session.awaitStack(created, listOf("on"))
+            session.inject("service", "flicker")
+            session.awaitModel("the bulb running blinking in on") { model ->
+                model.states.machines["bulb"]?.let { it.definition == "blinking" && it.origin == StackOrigin.REPORTED } == true
             }
-            assertEquals(listOf("room", "bulb", "spare", created), restarted.stateMachines.keys.toList(), diagnostics)
-            assertEquals(mapOf("room" to null, "bulb" to "glowing", "spare" to "glowing", created to "glowing"), restarted.stateMachines)
-        } finally {
-            call(RuntimeRoute.STOP_ENVIRONMENT, "envKey" to environment)
+            val running = eventually("a snapshot that agrees with the session") {
+                session.snapshot().takeIf { it.stacks == session.model.value.stacks && it.stateMachines == definitionsOf(session) }
+            }
+            assertEquals(SessionCommandOutcome.Done, session.stop(), diagnostics)
+
+            val environment = session.environment.value
+            val frozen = session.snapshot()
+            assertEquals(RuntimePhase.STOPPED.wireName, frozen.phase, diagnostics)
+            assertEquals(running.stateMachines, frozen.stateMachines, diagnostics)
+            assertEquals(running.stacks, frozen.stacks, diagnostics)
+            assertEquals(
+                mapOf("room" to null, "bulb" to "blinking", "spare" to "glowing", created to "blinking"),
+                frozen.stateMachines,
+                diagnostics,
+            )
+            assertEquals(OK, call(RuntimeRoute.SET_ACTIVE_STATE, "envKey" to environment, "modelElement" to created, "state" to "off").status)
+            assertEquals(OK, call(RuntimeRoute.START_ENVIRONMENT, "envKey" to environment).status, diagnostics)
+            try {
+                val continued = eventually("the forced state of the created bulb after the start") {
+                    session.snapshot().takeIf { it.phase == RuntimePhase.RUNNING.wireName && it.stacks[created] == listOf("off") }
+                }
+                assertEquals(frozen.stateMachines, continued.stateMachines, diagnostics)
+                assertEquals(frozen.stacks + (created to listOf("off")), continued.stacks, diagnostics)
+                assertEquals(frozen.revision + 1, continued.revision, "only the forced state is a new observation. $diagnostics")
+            } finally {
+                call(RuntimeRoute.STOP_ENVIRONMENT, "envKey" to environment)
+            }
         }
-    }
+
+    @Test
+    fun `a dictionary with the id of an existing object removes the object it no longer holds and gives the new one the instance of its type`() =
+        runtime.run(root) {
+            val session = deployShelf("identity")
+            session.awaitStack("bulb", listOf("lit"))
+
+            session.inject("service", "rebulb")
+            val created = awaitNewInstance(session, "glowing")
+            session.awaitStack(created, listOf("lit"))
+            val model = session.awaitModel("the old bulb gone with its instance") { "bulb" !in it.states.machines && "bulb" !in it.mirror.objects }
+
+            assertEquals(listOf("room", "spare", created), model.states.machines.keys.toList(), diagnostics)
+            assertTrue("lamp" in model.mirror.objects && created in model.mirror.objects, diagnostics)
+            val lifecycle = session.received().filter { it is RuntimePush.StateMachineAttached || it is RuntimePush.StateMachineDetached }
+            assertEquals(
+                listOf("detached bulb glowing", "attached $created glowing"),
+                lifecycle.takeLast(2).map { push ->
+                    when (push) {
+                        is RuntimePush.StateMachineDetached -> "detached ${push.modelElementId} ${push.stateMachine}"
+                        is RuntimePush.StateMachineAttached -> "attached ${push.modelElementId} ${push.stateMachine}"
+                        else -> error("not a lifecycle push: $push")
+                    }
+                },
+                diagnostics,
+            )
+            assertTrue(session.received().any { it is RuntimePush.ObjectDeleted && it.objectId == "bulb" }, diagnostics)
+        }
 
     @Test
     fun `a type that behaves after a state machine the descriptor does not list is refused before and by the runtime`() = runtime.run(root) {
@@ -321,6 +372,7 @@ internal object ShelfModel {
             type "flicker" "Exchanges the state machine of the lamp's bulb for blinking" { }
             type "drop" "Removes the lamp's bulb" { }
             type "dim" "Turns every blinking bulb off" { }
+            type "rebulb" "Gives the lamp a new bulb through a dictionary with the id of the lamp" { }
         """.trimIndent(),
         "shelf.kmodel" to """
             make object "room":"Room" {
@@ -388,6 +440,11 @@ internal object ShelfModel {
                             DROPOBJ("lamp->bulb")
                         }
                     }
+                    STATE "rebulbed" {
+                        ENTRY {
+                            SETOBJ("self", "lamp", EVAL { return {"__id__": "lamp", "bulb": {"watts": 60, "lit": False}} })
+                        }
+                    }
                 }
                 TRANSITIONS {
                     TRANSITION "ready" -> "stocked" {
@@ -402,10 +459,14 @@ internal object ShelfModel {
                     TRANSITION "ready" -> "dropped" {
                         CONDITION { EVENT("service", "drop") }
                     }
+                    TRANSITION "ready" -> "rebulbed" {
+                        CONDITION { EVENT("service", "rebulb") }
+                    }
                     TRANSITION "stocked" -> "ready" { }
                     TRANSITION "plain" -> "ready" { }
                     TRANSITION "flickered" -> "ready" { }
                     TRANSITION "dropped" -> "ready" { }
+                    TRANSITION "rebulbed" -> "ready" { }
                 }
             }
         """.trimIndent(),

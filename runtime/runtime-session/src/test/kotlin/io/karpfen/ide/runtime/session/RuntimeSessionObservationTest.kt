@@ -247,7 +247,7 @@ class RuntimeSessionObservationTest {
         val deployment = rig.prepared(SynthesizedModel.LAMP)
         val session = rig.running(deployment)
         rig.fake.after(RuntimeRoute.STOP_ENVIRONMENT) {
-            linksOf(session.clientId.value).filter { it.isOpen }.forEach { it.closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_STOPPED) }
+            linksOf(session.clientId.value).filter { it.isOpen }.forEach { it.pushStopNotice() }
         }
         rig.programSnapshot(deployment, "env-1", RuntimePhase.STOPPED, AFTER_BURST)
         val stopped = CompletableDeferred<SessionCommandOutcome>()

@@ -30,6 +30,8 @@ import io.karpfen.ide.runtime.protocol.message.EventFrame
 import io.karpfen.ide.runtime.protocol.message.EventFrameEncoder
 import io.karpfen.ide.runtime.protocol.message.ProtocolViolation
 import io.karpfen.ide.runtime.protocol.message.RuntimeFrameDecoder
+import io.karpfen.ide.runtime.protocol.message.RuntimePhase
+import io.karpfen.ide.runtime.protocol.message.RuntimePush
 import io.karpfen.ide.runtime.protocol.message.ViolationKind
 import io.karpfen.ide.runtime.protocol.transport.ConnectOutcome
 import io.karpfen.ide.runtime.protocol.transport.LinkClosure
@@ -80,8 +82,12 @@ import kotlin.time.Duration
  * this client never stalls the runtime's single broadcaster.
  *
  * The connection ends when the runtime closes the link with 1003, which means a rejected handshake, whenever that close
- * comes. It ends with the close `Environment stopped`, and when the handle's phase becomes stopped. It ends when the
- * runtime rejects a key issuance for an unknown environment, and when the handle's phase becomes lost. It ends with
+ * comes. It ends as stopped when the runtime pushes the `engineStatus` notice with the phase `stopped`, and when the
+ * handle's phase becomes stopped. The runtime keeps the socket open across a stop, so the connection then closes the
+ * link itself, after it handed the notice on. A stopped environment stays frozen in the runtime, and a client that
+ * ended its connection never hears that somebody started it again. The connection ends as lost when the runtime closes
+ * the link with 1001 `Runtime stopped`, which it does for every socket when it ends. It ends as lost when the runtime
+ * rejects a key issuance for an unknown environment, and when the handle's phase becomes lost. It ends with
  * [disconnect] or [close], and with a cancellation of [parent]'s scope, also before the first [open]. It also ends
  * after the policy's limit of failed attempts in a row. Any other close the client did not ask for is an interruption,
  * and a reconnect follows after the policy's delay.
@@ -251,7 +257,10 @@ internal class DefaultRuntimeConnection(
                     retries = 0
                     mutableState.update(ConnectionState.Open(epoch))
                     channel.trySend(ConnectionEvent.Opened(epoch))
-                    val closure = runLink(result.link)
+                    val closure = when (val run = runLink(result.link)) {
+                        LinkRun.StopNoticed -> return ConnectionEnd.EnvironmentStopped
+                        is LinkRun.Closed -> run.closure
+                    }
                     endOf(closure)?.let { return it }
                     channel.trySend(ConnectionEvent.Interrupted(closure))
                     mutableState.update(ConnectionState.Reconnecting(1, closure))
@@ -298,27 +307,26 @@ internal class DefaultRuntimeConnection(
     }
 
     /**
-     * Runs one open [link]. A reader coroutine decodes its frames into events until the link's frames end. Then the
-     * function returns the link's closure.
+     * Runs one open [link]. A reader coroutine decodes its frames into events until the link's frames end, or until it
+     * hands on the notice of a stop. Then the function returns how the link's run ended.
      */
-    private suspend fun runLink(link: WebSocketLink): LinkClosure {
-        coroutineScope {
-            launch { read(link) }
-        }
-        return link.closure.await()
+    private suspend fun runLink(link: WebSocketLink): LinkRun {
+        return if (read(link)) LinkRun.StopNoticed else LinkRun.Closed(link.closure.await())
     }
 
     /**
      * Decodes the frames of [link] and hands the events on without suspending. A binary frame becomes a violation of
-     * the kind [ViolationKind.BINARY_FRAME].
+     * the kind [ViolationKind.BINARY_FRAME]. It stops reading after the `engineStatus` notice with the phase `stopped`
+     * and returns true. It returns false when the link's frames end.
      */
-    private suspend fun read(link: WebSocketLink) {
+    private suspend fun read(link: WebSocketLink): Boolean {
         for (frame in link.incoming) {
             when (frame) {
                 is LinkFrame.Text -> when (val decoded = decoder.decode(frame.text)) {
                     is DecodedFrame.Push -> {
                         decoded.violations.forEach { channel.trySend(ConnectionEvent.Violated(it)) }
                         channel.trySend(ConnectionEvent.Received(decoded.push))
+                        if (decoded.push.isStopNotice()) return true
                     }
                     is DecodedFrame.Violation -> channel.trySend(ConnectionEvent.Violated(decoded.violation))
                 }
@@ -329,14 +337,18 @@ internal class DefaultRuntimeConnection(
                 )
             }
         }
+        return false
     }
+
+    /** True for the `engineStatus` notice that a stop froze the environment. */
+    private fun RuntimePush.isStopNotice(): Boolean = this is RuntimePush.EngineStatusChanged && phase == RuntimePhase.STOPPED
 
     /** The end that [closure] means, or null if it is an interruption to reconnect after. */
     private fun endOf(closure: LinkClosure): ConnectionEnd? =
         when {
             closure.code == WireNames.CLOSE_CANNOT_ACCEPT -> ConnectionEnd.HandshakeRejected(rejectionOf(closure))
-            closure.code == WireNames.CLOSE_NORMAL && closure.reason == WireNames.REASON_ENVIRONMENT_STOPPED ->
-                ConnectionEnd.EnvironmentStopped
+            closure.code == WireNames.CLOSE_GOING_AWAY && closure.reason == WireNames.REASON_RUNTIME_STOPPED ->
+                ConnectionEnd.EnvironmentLost(RUNTIME_ENDED)
             else -> null
         }
 
@@ -388,6 +400,19 @@ internal class DefaultRuntimeConnection(
     private fun RuntimeFailure.isUnknownEnvironment(): Boolean =
         this is RuntimeFailure.Rejected && kind == RejectionKind.UNKNOWN_ENVIRONMENT
 
+    /** How the run of one open link ended. */
+    private sealed interface LinkRun {
+        /** The runtime pushed the notice of a stop. The link is still open, and the connection closes it. */
+        data object StopNoticed : LinkRun
+
+        /**
+         * The link closed.
+         *
+         * @property closure how.
+         */
+        data class Closed(val closure: LinkClosure) : LinkRun
+    }
+
     /** How one attempt ended. */
     private sealed interface Attempt {
         /** A link is open and the handshake was sent. */
@@ -406,6 +431,9 @@ internal class DefaultRuntimeConnection(
 
         /** The prefix of the name of a connection's scope. */
         const val NAME_PREFIX = "runtime-connection-"
+
+        /** Why a connection whose link the runtime closed with `Runtime stopped` counts as lost. */
+        const val RUNTIME_ENDED = "the runtime ended and closed every connection"
 
         /** The reason of the client's own normal close. */
         const val CLIENT_CLOSE_REASON = "Client closed the connection"
