@@ -160,6 +160,8 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 - The runtime pushes nothing when a transition fires or an event is consumed, so a live view cannot show either.
 - Starting a stopped environment restarts it from the initial states over the changed model. The stop closed its
   sockets, so clients must connect again. The runtime does not document this, and the IDE never does it.
+- A stop closes the trace file of the engine, and a later start does not open it again. An environment that was
+  stopped and started again writes no trace, so the log of its state machines would stay empty from then on.
 - There is no version endpoint, no published image, no configuration through environment variables and no
   authentication. Access keys are predictable, and the runtime prints them on its console.
 - The runtime reads every upload with all optional language features on. The IDE checks the features of the project
