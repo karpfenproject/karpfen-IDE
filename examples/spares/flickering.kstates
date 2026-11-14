@@ -1,0 +1,20 @@
+// An attachable state machine that the room exchanges for the one of the bulb in the lamp.
+// The bulb goes on and off in every tick.
+STATEMACHINE "flickering" ATTACHABLE TO "Bulb" {
+    STATES {
+        INITIAL STATE "on" {
+            ENTRY {
+                SET("lit", "true")
+            }
+        }
+        STATE "off" {
+            ENTRY {
+                SET("lit", "false")
+            }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "on" -> "off" { }
+        TRANSITION "off" -> "on" { }
+    }
+}

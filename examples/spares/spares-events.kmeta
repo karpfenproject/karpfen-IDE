@@ -1,0 +1,9 @@
+// The events of the spares example, all in the domain "service".
+// stock puts a new bulb on the shelf, flicker makes the bulb in the lamp flicker,
+// and replace throws the bulb in the lamp away and screws in a new one.
+type "stock" "Puts a new spare bulb on the shelf" {
+}
+type "flicker" "Makes the bulb in the lamp flicker" {
+}
+type "replace" "Replaces the bulb in the lamp with a new one" {
+}

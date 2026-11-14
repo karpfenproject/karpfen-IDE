@@ -1,0 +1,21 @@
+// An attachable state machine. It is no attachment of its own: every bulb gets an instance of it,
+// through the behaves after of its type or through an ATTACH clause. A bulb with watts lights up.
+STATEMACHINE "glowing" ATTACHABLE TO "Bulb" {
+    STATES {
+        INITIAL STATE "dark" {
+            ENTRY {
+                SET("lit", "false")
+            }
+        }
+        STATE "lit" {
+            ENTRY {
+                SET("lit", "true")
+            }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "dark" -> "lit" {
+            CONDITION { EVAL { return $(watts) > 0 } }
+        }
+    }
+}
