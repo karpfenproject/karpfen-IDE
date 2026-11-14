@@ -25,7 +25,8 @@ import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
  * language features that are switched on for the project, whether the machines use them or not. A session whose
  * deployment switched `Breakpoint` on offers a debugger that pauses, resumes and steps the engine.
  *
- * Macros and splits and joins have no runtime feature. A [ProjectFeature] can add one for splits and joins.
+ * Macros, splits and joins and dynamic attachment have no runtime feature. A [ProjectFeature] can add one for splits
+ * and joins.
  */
 internal object LanguageFeature {
 
@@ -34,7 +35,7 @@ internal object LanguageFeature {
         KstatesFeature.HISTORY -> FeatureName.HISTORY
         KstatesFeature.TICK_LIMIT -> FeatureName.TICK_LIMIT
         KstatesFeature.BREAKPOINTS -> FeatureName.BREAKPOINT
-        KstatesFeature.MACROS, KstatesFeature.PARALLEL -> null
+        KstatesFeature.MACROS, KstatesFeature.PARALLEL, KstatesFeature.ATTACHMENT -> null
     }
 
     /**

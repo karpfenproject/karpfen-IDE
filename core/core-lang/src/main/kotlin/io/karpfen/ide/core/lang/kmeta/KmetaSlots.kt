@@ -53,6 +53,15 @@ internal sealed interface KmetaSlot {
         val listAllowed: Boolean,
     ) : KmetaSlot
 
+    /**
+     * After the description in the header of the type [owner], where the clause `behaves after "…"` goes. The header
+     * has no such clause yet.
+     */
+    data class TypeHeader(val owner: String?) : KmetaSlot
+
+    /** The name of an attachable state machine in the clause `behaves after "x"` of the type [owner]. */
+    data class StateMachineName(val owner: String?, val name: String, val range: TextRange) : KmetaSlot
+
     /** Anything else, such as descriptions, comments and broken positions. */
     data object None : KmetaSlot
 }
@@ -79,9 +88,11 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
             val range = if (string.closed) string.contentRange else context.replaceRange
             val name = document.text.substring(range)
             val afterTypeKeyword = context.statement.lastOrNull()?.let { it.kind == TokenKind.KEYWORD && it.text == TYPE } == true
+            val afterBehaves = context.statement.lastOrNull()?.let { it.kind == TokenKind.KEYWORD && it.text == AFTER } == true
             val member = call?.takeIf { it.argumentIndex == 0 }?.let { MemberKind.ofKeyword(it.name) }
             return when {
                 call == null && afterTypeKeyword -> KmetaSlot.TypeName(name, range)
+                call == null && afterBehaves -> KmetaSlot.StateMachineName(typeNameOf(context.statement), name, range)
                 call == null -> KmetaSlot.None
                 member != null -> KmetaSlot.MemberName(owner, member, name, range)
                 else -> typeArgument(call, name, range, inString = true) ?: KmetaSlot.None
@@ -89,6 +100,7 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
         }
         if (call != null) return typeArgument(call, "", context.replaceRange, inString = false) ?: KmetaSlot.None
         return when {
+            isDescribedHeader(context.statement) -> KmetaSlot.TypeHeader(typeNameOf(context.statement))
             context.blocks.isEmpty() -> if (context.statement.isEmpty()) KmetaSlot.TopLevel else KmetaSlot.None
             typeNameOf(context.blocks.last().header) != null -> KmetaSlot.TypeBody(owner)
             else -> KmetaSlot.None
@@ -114,6 +126,15 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
     private fun ruleOfList(list: CallContext): String? =
         list.parent?.takeIf { MemberKind.ofKeyword(it.name) != null && it.argumentIndex == 1 }?.name
 
+    /**
+     * True if [statement] ends with a whole `type "N" "D"` and nothing after it, which is where the clause
+     * `behaves after` goes.
+     */
+    private fun isDescribedHeader(statement: List<ContextToken>): Boolean {
+        val type = statement.indexOfLast { it.kind == TokenKind.KEYWORD && it.text == TYPE }
+        return type >= 0 && type == statement.size - 3 && statement.takeLast(2).all { it.kind == TokenKind.STRING }
+    }
+
     /** The name `N` of a `type "N" "D"` block header, or null for other headers. */
     private fun typeNameOf(header: List<ContextToken>): String? {
         val type = header.indexOfLast { it.kind == TokenKind.KEYWORD && it.text == TYPE }
@@ -123,5 +144,6 @@ internal class KmetaSlots(private val caretContexts: CaretContextDetector) {
     private companion object {
         const val TYPE = "type"
         const val LIST = "list"
+        const val AFTER = "after"
     }
 }

@@ -48,7 +48,7 @@ class StandaloneSemanticsTest {
         private val machine: ReadResult<StateMachine>? = null,
     ) : DslReader {
         val calls = ArrayList<String>()
-        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> {
+        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>, features: Set<KstatesFeature>): ReadResult<Metamodel> {
             calls += "kmeta(${source.text}, baseTypes=${baseTypes.size})"
             return metamodel!!
         }

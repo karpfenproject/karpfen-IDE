@@ -20,14 +20,33 @@ import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 
 /**
+ * Finds the state machines that the descriptor lists without `attachedTo`. Such an entry hands an attachable state
+ * machine to the environment as a definition. The deployment uploads attached state machines only, each with the key
+ * of its object, so it blocks a context with definitions instead of uploading them in a form the runtime refuses.
+ */
+internal class DefinitionsCheck : PlanCheck {
+    override fun check(subject: PlanSubject): List<DeployProblem> =
+        subject.machines.filter { it.attachedTo == null }.map { machine ->
+            DeployProblem(
+                Severity.ERROR,
+                DeployProblemCodes.DEFINITIONS_UNSUPPORTED,
+                "${subject.nameOf(machine.file)} has no 'attachedTo' and is a definition; the IDE deploys attached state " +
+                    "machines only.",
+                subject.descriptorLocation,
+            )
+        }
+}
+
+/**
  * Finds state machines attached to a key that no object of the runtime's index of the model has. The runtime refuses
- * to activate such an environment.
+ * to activate such an environment. An entry without a key is a definition, which [DefinitionsCheck] covers.
  */
 internal class UnknownAttachmentCheck : PlanCheck {
     override fun check(subject: PlanSubject): List<DeployProblem> {
         val keyed = subject.keyedObjects ?: return emptyList()
         val model = subject.modelFile?.let(subject::nameOf) ?: return emptyList()
-        return subject.machines.filter { it.attachedTo.isNullOrBlank() || it.attachedTo !in keyed.ids }.map { machine ->
+        val attached = subject.machines.filter { it.attachedTo != null }
+        return attached.filter { it.attachedTo.isNullOrBlank() || it.attachedTo !in keyed.ids }.map { machine ->
             DeployProblem(
                 Severity.ERROR,
                 DeployProblemCodes.UNKNOWN_ATTACHMENT,

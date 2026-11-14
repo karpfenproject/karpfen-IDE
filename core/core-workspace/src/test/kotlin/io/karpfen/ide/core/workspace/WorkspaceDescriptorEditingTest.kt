@@ -62,8 +62,8 @@ class WorkspaceDescriptorEditingTest {
         var reads: Int = 0
             private set
 
-        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> =
-            delegate.kmeta(source, baseTypes).also { reads++ }
+        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>, features: Set<KstatesFeature>): ReadResult<Metamodel> =
+            delegate.kmeta(source, baseTypes, features).also { reads++ }
 
         override fun kmodel(source: TextSnapshot, metamodel: Metamodel): ReadResult<Model> =
             delegate.kmodel(source, metamodel).also { reads++ }

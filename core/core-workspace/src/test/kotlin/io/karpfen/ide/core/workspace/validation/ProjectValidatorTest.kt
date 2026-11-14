@@ -20,6 +20,7 @@ import io.karpfen.ide.core.document.DiagnosticCodes
 import io.karpfen.ide.core.document.DiagnosticSource
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.document.dsl.DslVerifier
+import io.karpfen.ide.core.document.dsl.VerificationFindings
 import io.karpfen.ide.core.document.dsl.VerificationInput
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.core.workspace.files.FileKind
@@ -118,8 +119,8 @@ class ProjectValidatorTest {
             val fresh = Diagnostic(TextRange(4, 6), Severity.ERROR, "fresh", "project.fresh", DiagnosticSource.DSL_TOOLS)
             val problems = WorkspaceProblems(1, listOf(FileProblems(machine, FileKind.KSTATES, listOf(known), snapshot, isOpen = false)))
             val verifier = object : DslVerifier {
-                override fun verify(input: VerificationInput): List<List<Diagnostic>> =
-                    input.stateMachines.map { listOf(fresh, known, fresh) }
+                override fun verify(input: VerificationInput): VerificationFindings =
+                    VerificationFindings(input.stateMachines.map { listOf(fresh, known, fresh) })
             }
 
             val report = DefaultProjectValidator(ContextVerification(verifier)).validate(root, analysis, problems)
@@ -194,12 +195,18 @@ class ProjectValidatorTest {
 
             val findings = analysis.contexts.flatMap { ContextVerification(recording).findings(it) }
 
-            assertEquals(listOf(listOf("wall"), listOf(null)), recording.inputs.map { input -> input.stateMachines.map { it.attachedObjectId } })
-            assertTrue(recording.inputs.all { it.model != null && it.events == null }, "each context names one model and no events")
             assertEquals(
-                listOf(withDescriptor.resolve("lamp.kstates"), root.resolve("b/lamp.kstates")),
+                listOf(listOf("wall"), listOf(null), emptyList()),
+                recording.inputs.map { input -> input.stateMachines.map { it.attachedObjectId } },
+            )
+            assertTrue(recording.inputs.take(2).all { it.model != null && it.events == null }, "each context names one model and no events")
+            assertEquals(
+                listOf(
+                    withDescriptor.resolve("lamp.kstates"), withDescriptor.resolve("lamp.kmeta"), root.resolve("b/lamp.kstates"),
+                    root.resolve("b/lamp.kmeta"), metamodelOnly.resolve("only.kmeta"),
+                ),
                 findings.map { it.first },
-                "a context without state machines is not verified",
+                "the metamodel of a context without state machines is verified for its behaves after clauses",
             )
         }
 
@@ -237,9 +244,9 @@ class ProjectValidatorTest {
     private class RecordingVerifier : DslVerifier {
         val inputs = mutableListOf<VerificationInput>()
 
-        override fun verify(input: VerificationInput): List<List<Diagnostic>> {
+        override fun verify(input: VerificationInput): VerificationFindings {
             inputs += input
-            return input.stateMachines.map { emptyList() }
+            return VerificationFindings(input.stateMachines.map { emptyList() })
         }
     }
 

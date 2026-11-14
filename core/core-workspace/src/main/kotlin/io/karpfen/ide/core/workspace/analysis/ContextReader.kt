@@ -36,6 +36,8 @@ import java.nio.file.Path
  * core-workspace never calls dsl-tools directly. The files are read in dependency order. First comes the domain
  * metamodel. Then the events are read with the types of the metamodel as base types. Then each model is read against
  * the metamodel. Each state machine is read on its own, with the optional features of KStates in [languageFeatures].
+ * The two metamodels are read with the same features, because the clause `behaves after` belongs to the feature of
+ * dynamic attachment.
  *
  * A file is read only if it is free of syntax errors and written in the language of its role, as given by
  * [DescriptorFileRole.language]. So a descriptor that names a `.kstates` file as its metamodel reads nothing, and the
@@ -56,9 +58,10 @@ import java.nio.file.Path
  * that are defined elsewhere.
  *
  * A file whose text and input are the same as at its last read in an earlier analysis is not read again. [memory]
- * answers with that earlier read. The input of a state machine is the set [languageFeatures]. The workspace keeps one
- * set object until the features change, so an unchanged set is the same object, and a new set reads every state
- * machine again. While a file is read, the mapped diagnostic context of the logging names it under
+ * answers with that earlier read. The input of a state machine and of the domain metamodel is the set
+ * [languageFeatures]. The workspace keeps one set object until the features change, so an unchanged set is the same
+ * object, and a new set reads every state machine and every domain metamodel again. The input of the events is the
+ * domain metamodel, which is a new object whenever the features change, so the events are read again then too. While a file is read, the mapped diagnostic context of the logging names it under
  * [DslToolsLoggers.FILE_KEY]. So whatever dsl-tools logs during the read says which file it was.
  */
 internal class ContextReader(
@@ -122,13 +125,13 @@ internal class ContextReader(
     private suspend fun readMetamodel(context: ModelingContext, files: Map<Path, AnalyzedFile>): ReadResult<Metamodel>? =
         context.metamodel
             ?.let { readable(files, it, DescriptorFileRole.METAMODEL) }
-            ?.let { file -> read(file, memory.metamodels, input = null) { reader.kmeta(it) } }
+            ?.let { file -> read(file, memory.metamodels, input = languageFeatures) { reader.kmeta(it, features = languageFeatures) } }
 
     /** The read of the events metamodel of [context], with the types of [domain] as base types. Null if there is none. */
     private suspend fun readEvents(context: ModelingContext, files: Map<Path, AnalyzedFile>, domain: Metamodel): ReadResult<Metamodel>? =
         context.events
             ?.let { readable(files, it, DescriptorFileRole.EVENTS) }
-            ?.let { file -> read(file, memory.metamodels, input = domain) { reader.kmeta(it, baseTypes = domain.types) } }
+            ?.let { file -> read(file, memory.metamodels, input = domain) { reader.kmeta(it, domain.types, languageFeatures) } }
 
     /** The reads of the models of [context] against [domain], by path. */
     private suspend fun readModels(

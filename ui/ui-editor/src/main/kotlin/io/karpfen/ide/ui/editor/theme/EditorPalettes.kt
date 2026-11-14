@@ -146,6 +146,7 @@ internal object EditorPalettes {
             HighlightStyle.PROPERTY_NAME -> SpanStyle(color = propertyName)
             HighlightStyle.OBJECT_NAME -> SpanStyle(color = objectName)
             HighlightStyle.STATE_NAME -> SpanStyle(color = stateName)
+            HighlightStyle.STATE_MACHINE_NAME -> SpanStyle(color = stateName, fontStyle = FontStyle.Italic)
             HighlightStyle.MACRO_NAME, HighlightStyle.MACRO_REFERENCE -> SpanStyle(color = macroName)
             HighlightStyle.EVENT_NAME, HighlightStyle.EVENT_DOMAIN -> SpanStyle(color = eventName)
             HighlightStyle.MODEL_PATH, HighlightStyle.PATH_REFERENCE -> SpanStyle(color = modelPath)

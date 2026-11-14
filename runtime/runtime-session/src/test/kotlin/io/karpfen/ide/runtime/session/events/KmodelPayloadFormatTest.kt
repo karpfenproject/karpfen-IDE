@@ -186,10 +186,10 @@ class KmodelPayloadFormatTest {
         val baseTypeNames = ArrayList<List<String>>()
 
         /** Counts and reads the metamodel. */
-        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>): ReadResult<Metamodel> {
+        override fun kmeta(source: TextSnapshot, baseTypes: List<ClassType>, features: Set<KstatesFeature>): ReadResult<Metamodel> {
             metamodelReads++
             baseTypeNames += baseTypes.map { it.name }
-            return delegate.kmeta(source, baseTypes)
+            return delegate.kmeta(source, baseTypes, features)
         }
 
         /** Counts and reads the model. */

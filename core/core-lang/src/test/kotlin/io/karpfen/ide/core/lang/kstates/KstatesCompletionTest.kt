@@ -55,7 +55,7 @@ class KstatesCompletionTest {
 
     @Test
     fun `structural keywords depend on the enclosing block`() {
-        assertEquals(listOf("STATEMACHINE ATTACHED TO \"…\" { }"), labelsIn("‸"))
+        assertEquals(listOf("STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE ATTACHED TO \"…\" { }"), labelsIn("‸"))
         assertEquals(listOf("MACROS { }", "STATES { }", "TRANSITIONS { }"), labelsIn(machine("  ‸")))
         val states = listOf("DEEP HISTORY STATE \"…\" { }", "INITIAL STATE \"…\" { }", "SHALLOW HISTORY STATE \"…\" { }", "STATE \"…\" { }")
         assertEquals(states, labelsIn(machine(" STATES {\n  ‸\n }")))
@@ -116,7 +116,8 @@ class KstatesCompletionTest {
         assertEquals(listOf("CONDITION { }"), labels(machine(" TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" { ‸ }\n }")))
         assertEquals(emptyList(), labels(machine(" MACROS {\n  ‸\n }")))
         val actions = labels(stateBody("   DO {\n    ‸\n   }"))
-        assertTrue("SET(\"…\", …)" in actions && actions.none { it.startsWith("WITH") }, "$actions")
+        assertTrue("SET(\"…\", …)" in actions && actions.none { it.startsWith("WITH") || it.startsWith("EXCHANGE") }, "$actions")
+        assertEquals(listOf("STATEMACHINE ATTACHED TO \"…\" { }"), labels("‸"))
         assertEquals(listOf("EVAL { }"), labels(stateBody("   DO {\n    SET(\"log\", ‸)\n   }")))
     }
 
@@ -137,7 +138,7 @@ class KstatesCompletionTest {
     fun `action blocks offer the operations, EVENT, IF IN SCOPE and WITH, also after earlier actions and blocks`() {
         val actions = listOf(
             "APPEND(\"…\", …)", "APPENDOBJ(\"…\", \"…\", …)", "DROPLIST(\"…\")", "DROPOBJ(\"…\")", "EVENT(\"…\", \"…\")",
-            "IF IN SCOPE(\"…\") { }", "SET(\"…\", …)", "SETLIST(\"…\", …)", "SETOBJ(\"…\", \"…\", …)",
+            "EXCHANGE(\"…\", …)", "IF IN SCOPE(\"…\") { }", "SET(\"…\", …)", "SETLIST(\"…\", …)", "SETOBJ(\"…\", \"…\", …)",
             "WITH … AS \"…\" { }",
         )
         val state = { body: String -> machine(" STATES {\n  STATE \"a\" {\n   DO {\n$body\n   }\n  }\n }") }
