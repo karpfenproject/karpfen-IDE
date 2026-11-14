@@ -1,0 +1,12 @@
+{
+  "metamodel": "spares.kmeta",
+  "events": "spares-events.kmeta",
+  "model": "spares.kmodel",
+  "stateMachines": [
+    { "file": "room.kstates", "attachedTo": "room" },
+    { "file": "glowing.kstates" },
+    { "file": "flickering.kstates" }
+  ],
+  "tickDelayMs": 500,
+  "eventTtlMs": 5000
+}

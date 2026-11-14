@@ -38,7 +38,7 @@ import kotlin.time.Duration.Companion.seconds
  * Covers `validate` through [HeadlessValidation] over the IDE's own wiring in a [HeadlessRig]. The project is the
  * synthesized lamp. The tests check the status and the lines of a clean project, of a project with errors and of one
  * with warnings only, the JSON document of a project with errors, and that nothing is written into the project or the
- * user's settings.
+ * user's settings. The example projects of the repository validate without problems.
  */
 class HeadlessValidationTest {
 
@@ -108,6 +108,49 @@ class HeadlessValidationTest {
         assertEquals(listOf("lamp.kstates", "switch.kstates"), problems.map { (it["path"] as JsonPrimitive).content })
         assertEquals(listOf("error", "warning"), problems.map { (it["severity"] as JsonPrimitive).content })
         assertEquals(emptyList(), rig.errors)
+    }
+
+    @Test
+    fun `the example projects of the repository validate without problems, with the language features of their settings`() =
+        runTest(timeout = TIMEOUT) {
+            for (example in listOf("lamp", "spares")) {
+                copyExample(example)
+
+                val (status, rig) = validate()
+
+                assertEquals(HeadlessExitCodes.OK to listOf(ValidationReportTexts.NO_PROBLEMS), status to rig.output, example)
+                root.toFile().deleteRecursively()
+            }
+        }
+
+    @Test
+    fun `without its settings the attachment example reports its constructs as switched off`() = runTest(timeout = TIMEOUT) {
+        copyExample("spares")
+        Files.delete(root.resolve(ProjectSettings.FILE_NAME))
+
+        val (status, rig) = validate()
+
+        assertEquals(HeadlessExitCodes.ERRORS_FOUND, status)
+        val files = rig.output.dropLast(1).map { it.substringBefore(':') }.toSet()
+        assertTrue(files.containsAll(listOf("spares.kmeta", "glowing.kstates", "room.kstates")), "${rig.output}")
+    }
+
+    @Test
+    fun `a behaves after that names no attachable state machine is an error at the metamodel`() = runTest(timeout = TIMEOUT) {
+        copyExample("spares")
+        replace("spares.kmeta", "behaves after \"glowing\"", "behaves after \"gone\"")
+
+        val (status, rig) = validate()
+
+        assertEquals(HeadlessExitCodes.ERRORS_FOUND, status)
+        assertTrue(rig.output.first().startsWith("spares.kmeta:4: error: "), "${rig.output}")
+        assertEquals("1 error", rig.output.last())
+    }
+
+    /** Copies the example project [name] of the repository, its settings file included, to [root]. */
+    private fun copyExample(name: String) {
+        val examples = Path.of(checkNotNull(System.getProperty("karpfen.examples")) { "the build names the examples" })
+        examples.resolve(name).toFile().copyRecursively(root.toFile())
     }
 
     /**

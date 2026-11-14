@@ -1,0 +1,14 @@
+// The metamodel of the spares example. A room holds a lamp and a shelf of spare bulbs.
+// Every bulb behaves after the attachable state machine "glowing", so each bulb of the
+// model gets its own instance of it when a run starts, and so does each bulb a rule creates.
+type "Bulb" "A light bulb that burns with watts" behaves after "glowing" {
+    prop("watts", "number")
+    prop("lit", "boolean")
+}
+type "Lamp" "A lamp with one bulb" {
+    has("bulb", "Bulb")
+}
+type "Room" "The room with the lamp and the spare bulbs" {
+    has("lamp", "Lamp")
+    has("spares", list("Bulb"))
+}

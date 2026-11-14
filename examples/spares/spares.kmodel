@@ -1,0 +1,14 @@
+// The model the spares example starts from: a room with a lamp and one spare bulb.
+// Both bulbs get an instance of "glowing" when a run starts, because their type behaves after it.
+make object "room":"Room" {
+    has("lamp") -> make object "lamp":"Lamp" {
+        has("bulb") -> make object "bulb":"Bulb" {
+            prop("watts") -> "40"
+            prop("lit") -> "false"
+        }
+    }
+    has("spares") -> make object "spare":"Bulb" {
+        prop("watts") -> "60"
+        prop("lit") -> "false"
+    }
+}

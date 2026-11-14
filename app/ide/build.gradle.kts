@@ -29,7 +29,8 @@ plugins {
  *
  * The tests of the headless mode run a project over the scriptable session of runtime-session's test fixtures and the
  * synthesized models of runtime-protocol's test fixtures. One test runs a project headless against a real runtime. It
- * runs only in the opt-in task of `karpfen.live-runtime-test`.
+ * runs only in the opt-in task of `karpfen.live-runtime-test`. The tests that validate the example projects of the
+ * repository find them through the system property `karpfen.examples`, and the folder is an input of the tests.
  */
 dependencies {
     implementation(project(":ui:ui-workbench"))
@@ -41,6 +42,12 @@ dependencies {
     testImplementation(testFixtures(project(":core:core-document")))
     testImplementation(testFixtures(project(":runtime:runtime-session")))
     testImplementation(testFixtures(project(":runtime:runtime-protocol")))
+}
+
+tasks.test {
+    val examples = rootProject.layout.projectDirectory.dir("examples")
+    inputs.dir(examples).withPropertyName("examples").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("karpfen.examples", examples.asFile.absolutePath)
 }
 
 /**
