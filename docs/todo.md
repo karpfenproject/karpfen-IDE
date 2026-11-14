@@ -79,9 +79,9 @@ refer to.
 
 - An exception while the window is composed or drawn freezes the window. It is written to the log, but no error dialog
   appears. Only the diagram view catches its own failures.
-- Detaching the Runtime tool window was tested with a stand-in for the separate window only. Nobody has tried the
-  real window, its menus, its zoom on a second screen with another scale, or how it comes to the front, on any
-  platform. The scroll positions and the widths of the panes start anew when it moves between the two places.
+- Detaching and docking the Runtime tool window was tried by hand on macOS with a running lamp. Nobody has tried the
+  zoom of the separate window on a second screen with another scale, or the window on Windows and Linux. The scroll
+  positions and the widths of the panes start anew when it moves between the two places.
 - There is no Refresh command. After the file watcher failed, changes made outside the IDE show up only when a file
   operation in the Project tree refreshes the workspace.
 - Whether files next to a descriptor but not named by it should form an implicit context is undecided.
