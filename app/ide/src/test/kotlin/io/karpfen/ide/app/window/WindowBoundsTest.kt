@@ -47,6 +47,7 @@ class WindowBoundsTest {
         assertEquals(WindowPlacement.Floating, state.placement)
         assertEquals(WindowPosition.Aligned(Alignment.Center), state.position)
         assertEquals(DEFAULT_WINDOW_SIZE, state.size)
+        assertEquals(DEFAULT_DETACHED_WINDOW_SIZE, initialWindowState(null, listOf(screen), DEFAULT_DETACHED_WINDOW_SIZE).size)
     }
 
     @Test

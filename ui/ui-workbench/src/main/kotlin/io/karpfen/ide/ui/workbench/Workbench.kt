@@ -28,17 +28,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
 import io.karpfen.ide.ui.editor.theme.lightEditorTheme
+import io.karpfen.ide.ui.foundation.layout.ToolWindow
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.workbench.bridges.view.BridgeFormLayer
 import io.karpfen.ide.ui.workbench.dialog.view.ModalDialogLayer
+import io.karpfen.ide.ui.workbench.layout.LayoutUiState
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
 import io.karpfen.ide.ui.workbench.layout.isDark
+import io.karpfen.ide.ui.workbench.layout.view.DetachedWindow
+import io.karpfen.ide.ui.workbench.layout.view.DetachedWindowHost
+import io.karpfen.ide.ui.workbench.layout.view.LayoutViewTestTags
+import io.karpfen.ide.ui.workbench.layout.view.ToolWindowPlaceButton
 import io.karpfen.ide.ui.workbench.outline.view.OutlineView
 import io.karpfen.ide.ui.workbench.output.view.OutputView
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsView
@@ -86,63 +93,118 @@ import java.nio.file.Path
  * launches no coroutines for intents. The pending dialog is modal for both the pointer and the keyboard, which
  * [ModalDialogLayer] enforces. The form of a bridge file, [BridgeFormLayer], lies over the workbench and under the
  * dialogs, so a question about the form shows on top of it.
+ *
+ * The Runtime tool window can be detached into a window of its own. The frame of the docked tool window carries the
+ * detach button, and while the tool window is detached the composable asks [detachedWindows] for the window that
+ * holds it, see [DetachedRuntimeWindow]. The application supplies a host that opens an operating system window. The
+ * default [DetachedWindowHost.None] opens none, which serves where there is no desktop.
  */
 @Composable
-public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier) {
+public fun Workbench(state: WorkbenchState, modifier: Modifier = Modifier, detachedWindows: DetachedWindowHost = DetachedWindowHost.None) {
     val layout by state.layout.state.collectAsState()
     val settings by state.settings.collectAsState()
     val dark = layout.theme.isDark(isSystemInDarkTheme())
+    WorkbenchTheme(dark, settings.uiScale) {
+        val workspace by state.workspace.collectAsState()
+        val dialog by state.dialogs.current.collectAsState()
+        ModalDialogLayer(dialog, state.dialogs::respond, modifier.fillMaxSize().background(KarpfenTheme.colors.window)) {
+            val bridgeForm by state.bridgeForm.collectAsState()
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    if (workspace == null) {
+                        WelcomeView(
+                            recentFolders = settings.recentFolders,
+                            onOpenFolder = { state.chooseAndOpenFolder() },
+                            onOpenRecent = { state.openFolder(Path.of(it)) },
+                        )
+                    } else {
+                        WorkbenchLayout(
+                            layout = layout,
+                            layoutState = state.layout,
+                            panes = WorkbenchPanes(
+                                project = { ProjectPane(state) },
+                                editor = { EditorPane(state) },
+                                outline = { OutlinePane(state) },
+                                problems = { ProblemsPane(state) },
+                                output = { OutputPane(state) },
+                                runtime = { RuntimePane(state) },
+                            ),
+                        )
+                        if (layout.isDetached(ToolWindowId.RUNTIME)) {
+                            DetachedRuntimeWindow(state, layout, dark, settings.uiScale, detachedWindows)
+                        }
+                    }
+                }
+                val status by state.statusBar.state.collectAsState()
+                WorkbenchStatusBar(
+                    status,
+                    uiScale = settings.uiScale,
+                    actions = remember(state) {
+                        StatusBarActions(
+                            onToggleProblems = { state.layout.toggleToolWindow(ToolWindowId.PROBLEMS) },
+                            onShowOutput = { state.layout.showToolWindow(ToolWindowId.OUTPUT) },
+                            onShowRuntime = { state.layout.showToolWindow(ToolWindowId.RUNTIME) },
+                            onZoomUi = { state.zoomUi(it) },
+                        )
+                    },
+                )
+            }
+            BridgeFormLayer(bridgeForm, onSave = { state.saveBridgeForm() }, onClose = state::closeBridgeForm)
+        }
+    }
+}
+
+/**
+ * Provides the light or dark `KarpfenTheme`, the matching `LocalEditorTheme` and the zoom of the workbench to
+ * [content]. The zoom is the density of the window the content is drawn in, taken from `LocalDensity`, times
+ * [uiScale]. That window density stays available as [LocalWindowDensity] for the editor. Both the main window and the
+ * window of a detached tool window draw through it, so each is zoomed from its own screen's density.
+ */
+@Composable
+private fun WorkbenchTheme(dark: Boolean, uiScale: Float, content: @Composable () -> Unit) {
     val window = LocalDensity.current
-    val zoomed = remember(window, settings.uiScale) { Density(window.density * settings.uiScale, window.fontScale) }
+    val zoomed = remember(window, uiScale) { Density(window.density * uiScale, window.fontScale) }
     KarpfenTheme(darkTheme = dark) {
         CompositionLocalProvider(
             LocalEditorTheme provides if (dark) darkEditorTheme() else lightEditorTheme(),
             LocalDensity provides zoomed,
             LocalWindowDensity provides window,
-        ) {
-            val workspace by state.workspace.collectAsState()
-            val dialog by state.dialogs.current.collectAsState()
-            ModalDialogLayer(dialog, state.dialogs::respond, modifier.fillMaxSize().background(KarpfenTheme.colors.window)) {
-                val bridgeForm by state.bridgeForm.collectAsState()
-                Column(Modifier.fillMaxSize()) {
-                    Box(Modifier.weight(1f).fillMaxWidth()) {
-                        if (workspace == null) {
-                            WelcomeView(
-                                recentFolders = settings.recentFolders,
-                                onOpenFolder = { state.chooseAndOpenFolder() },
-                                onOpenRecent = { state.openFolder(Path.of(it)) },
-                            )
-                        } else {
-                            WorkbenchLayout(
-                                layout = layout,
-                                layoutState = state.layout,
-                                panes = WorkbenchPanes(
-                                    project = { ProjectPane(state) },
-                                    editor = { EditorPane(state) },
-                                    outline = { OutlinePane(state) },
-                                    problems = { ProblemsPane(state) },
-                                    output = { OutputPane(state) },
-                                    runtime = { RuntimePane(state) },
-                                ),
-                            )
-                        }
-                    }
-                    val status by state.statusBar.state.collectAsState()
-                    WorkbenchStatusBar(
-                        status,
-                        uiScale = settings.uiScale,
-                        actions = remember(state) {
-                            StatusBarActions(
-                                onToggleProblems = { state.layout.toggleToolWindow(ToolWindowId.PROBLEMS) },
-                                onShowOutput = { state.layout.showToolWindow(ToolWindowId.OUTPUT) },
-                                onShowRuntime = { state.layout.showToolWindow(ToolWindowId.RUNTIME) },
-                                onZoomUi = { state.zoomUi(it) },
-                            )
-                        },
-                    )
-                }
-                BridgeFormLayer(bridgeForm, onSave = { state.saveBridgeForm() }, onClose = state::closeBridgeForm)
-            }
+            content = content,
+        )
+    }
+}
+
+/**
+ * The detached Runtime tool window in a window of its own, opened through [host]. The window's title is the tool
+ * window's title followed by the main window's title, so it names the project. It opens with the bounds that
+ * [layout] remembers and reports its new bounds back to the layout. Its frame carries the dock button, and closing the
+ * window docks the tool window as well. The content is the same [RuntimePane] as in the docked place, drawn in the
+ * theme and zoom of the workbench.
+ *
+ * The workbench only calls this while a folder is open, so the window closes with the project and with the main
+ * window. The state of the Runtime tool window lives in `RuntimeState`, so runs, the selected run, observation and the
+ * collection of the log carry over between both places. What only the composition remembers, such as scroll positions
+ * and the widths of the panes, starts afresh in the other place.
+ */
+@Composable
+private fun DetachedRuntimeWindow(state: WorkbenchState, layout: LayoutUiState, dark: Boolean, uiScale: Float, host: DetachedWindowHost) {
+    val id = ToolWindowId.RUNTIME
+    val title by state.windowTitle.collectAsState()
+    val raises by state.layout.raiseRequests.collectAsState()
+    val window = DetachedWindow(
+        title = "${id.title} - $title",
+        initialBounds = layout.runtimeWindowBounds,
+        raiseRequests = raises,
+        onBoundsChange = state.layout::updateRuntimeWindowBounds,
+        onCloseRequest = { state.layout.dockToolWindow(id) },
+    )
+    host.Window(window) {
+        WorkbenchTheme(dark, uiScale) {
+            ToolWindow(
+                title = id.title,
+                modifier = Modifier.fillMaxSize().testTag(LayoutViewTestTags.detachedToolWindow(id)),
+                actions = { ToolWindowPlaceButton(id, detached = true, onClick = { state.layout.toggleDetached(id) }) },
+            ) { RuntimePane(state) }
         }
     }
 }

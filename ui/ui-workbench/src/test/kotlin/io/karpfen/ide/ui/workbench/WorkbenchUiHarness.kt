@@ -25,6 +25,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.v2.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.ui.foundation.widgets.TreeViewTestTags
+import io.karpfen.ide.ui.workbench.layout.view.DetachedWindowHost
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.test.TestDispatcher
@@ -57,14 +58,20 @@ class WorkbenchUi(val test: ComposeUiTest, val workbench: TestWorkbench) {
 
 /**
  * Runs [block] with a composed workbench of 1280 by 860 dp whose settings live below [directory]. With
- * [scriptSessions], runs launch scriptable sessions.
+ * [scriptSessions], runs launch scriptable sessions. A detached tool window goes to [detachedWindows], which opens no
+ * window by default.
  */
 @OptIn(ExperimentalTestApi::class)
-fun workbenchUiTest(directory: Path, scriptSessions: Boolean = false, block: suspend WorkbenchUi.() -> Unit) = runComposeUiTest {
+fun workbenchUiTest(
+    directory: Path,
+    scriptSessions: Boolean = false,
+    detachedWindows: DetachedWindowHost = DetachedWindowHost.None,
+    block: suspend WorkbenchUi.() -> Unit,
+) = runComposeUiTest {
     val scheduler = (currentCoroutineContext()[ContinuationInterceptor] as TestDispatcher).scheduler
     val workbench = TestWorkbench(scheduler, directory.resolve("settings"), scriptSessions = scriptSessions)
     setContent {
-        Box(Modifier.size(1280.dp, 860.dp)) { Workbench(workbench.state) }
+        Box(Modifier.size(1280.dp, 860.dp)) { Workbench(workbench.state, detachedWindows = detachedWindows) }
     }
     try {
         WorkbenchUi(this, workbench).block()
