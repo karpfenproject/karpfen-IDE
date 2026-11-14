@@ -70,7 +70,7 @@ internal object LampStructure {
 
     /** The class diagram of the metamodel [text]. */
     fun typesOf(text: String): StructureDiagram =
-        MetamodelProjection.of(defaultLanguageRegistry().support(KarpfenLanguage.KMETA).parser.parse(TextSnapshot(text, 0)).outline)
+        MetamodelProjection.of(defaultLanguageRegistry().support(KarpfenLanguage.KMETA).parser.parse(TextSnapshot(text, 0)).outline, text)
 
     /** The object diagram of the model [text]. */
     fun objectsOf(text: String): StructureDiagram =

@@ -22,18 +22,25 @@ import io.karpfen.ide.core.text.TextRange
  * derived from the text of a `.kstates` file by [StatechartProjection] and holds no positions. Where the elements are
  * drawn is the business of the layout.
  *
- * @property attachedTo the type the state machine is attached to, or null if the text names none.
+ * @property name the name of an attachable state machine, `STATEMACHINE "name" ATTACHABLE TO ...`, or null for an
+ *   attached state machine, which has no name.
+ * @property types the types after `ATTACHED TO` or `ATTACHABLE TO`, in the order of the header. An attached state
+ *   machine has one, and the list is empty if the text names none.
  * @property states the top-level states in the order of the text.
  * @property transitions all transitions in the order of the text. The order matters, because the engine takes the
  *   first transition that can fire.
  * @property range the whole state machine in the text.
  */
 public data class StatechartDiagram(
-    public val attachedTo: String?,
+    public val name: String?,
+    public val types: List<String>,
     public val states: List<StateNode>,
     public val transitions: List<TransitionEdge>,
     public val range: TextRange,
 ) {
+    /** The type an attached state machine is attached to, or null for an attachable one and if the text names none. */
+    public val attachedTo: String? get() = if (name == null) types.firstOrNull() else null
+
     /** Every state, the nested ones included, each parent before its children. */
     public fun allStates(): List<StateNode> = states.flatMap { it.withDescendants() }
 
