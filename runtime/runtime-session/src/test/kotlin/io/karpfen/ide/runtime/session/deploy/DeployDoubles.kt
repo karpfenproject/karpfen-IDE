@@ -238,6 +238,8 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
 
     override suspend fun stop(): CallOutcome<Unit> = lifecycle("stop", EnvironmentPhase.Stopped)
 
+    override suspend fun drop(): CallOutcome<Unit> = lifecycle("drop", EnvironmentPhase.Dropped)
+
     override suspend fun forceState(modelElement: String, state: String): CallOutcome<Unit> =
         outcome("forceState", modelElement, state) { }
 

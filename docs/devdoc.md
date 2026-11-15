@@ -609,6 +609,18 @@ it answers with every error of the text and its line and column. `UploadRejectio
 answer, and `FailureLocator` turns each error into a problem at its place in the uploaded file. The first snapshot is
 compared with the model the IDE analyzed. Each object that differs gets the warning `deploy-model-differs`.
 
+Every end of a run drops its environment. `SessionStops` stops the environment, lets the connection end, reads the
+model a last time and then hands the environment to `EnvironmentDropper`, so Stop, a run that replaces another,
+closing the project, Stop runtime, quitting and the end of a run without a window all drop the same way. The conductor
+drops after the final read when somebody else stops the environment, and on a lost environment it tries the drop on
+a coroutine of its own. A failed deployment drops through the ledger's disposer, `DropEnvironments`. `EnvironmentDrop`
+bounds each drop by `DeployTiming.dropBound` and turns the answer into a `DropResult`: dropped, gone or kept with a
+reason. A kept environment gives the info `environment-left-behind` and a note in the journal, and never fails the
+end of the run. `EnvironmentDeparture` records the outcome once in `EnvironmentLedger`. After the drop the session is
+stopped, and stopped refuses every command, so Pull, the observation switch, the injector, the debugger and the
+bridges ask the runtime nothing more. `ModelControls` in ui-workbench greys out Pull and the switch from then on. A
+plain `close()` of a session still leaves its environment on the runtime.
+
 Read `ObservationReducer`. A mirror starts from a snapshot and then applies pushes in revision order. A gap in the
 revisions or a reconnect triggers a fresh snapshot. The runtime answers a snapshot only at a tick boundary and waits
 up to 10 s for one, so snapshots get slow on a large model or with long Python calls in a tick.
@@ -626,8 +638,11 @@ Read `DefaultRuntimeConnection`, `LifecycleRules` and `RuntimeJson`.
 - A stop only freezes an environment, and the runtime keeps the sockets of its clients open. It pushes an
   `engineStatus` notice with the member `phase`. The connection ends as stopped on the notice of a stop, or as soon as
   the handle's phase is stopped, and closes its socket itself. A run whose environment another client stops ends the
-  same way. The runtime closes the sockets only when it ends, with 1001 `Runtime stopped`, which ends the connection
-  as lost.
+  same way. The runtime closes the sockets when it ends, with 1001 `Runtime stopped`, which ends the connection as
+  lost, and when the environment is dropped, with 1000 `Environment dropped`, which ends it as dropped.
+- `POST /dropEnvironment` removes an environment in any phase, after its engine ended. The handle's `drop()` sends it
+  in every phase and makes the phase `Dropped`, which is final and refuses every other operation. A key the runtime
+  no longer knows makes the phase lost. An older runtime without the route answers 404.
 
 ### Keyboard handling
 

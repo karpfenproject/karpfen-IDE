@@ -47,7 +47,7 @@ import kotlin.test.assertTrue
  * the single robot equals the seed, and after the start only the initial entry blocks changed it. A pull while
  * observation is off shows the model of a snapshot. While observation is off, no object or stack push reaches the
  * session. Switching on in the middle of a burst neither loses nor reorders anything. Switching off and on again
- * converges every time. Observation belongs to one client. A stopped environment can still be pulled. Domain events
+ * converges every time. Observation belongs to one client. A stopped run refuses a pull and keeps the model of its final read. Domain events
  * keep flowing while observation is off. The check that every burst raises an internal domain event waits for a fix of
  * the runtime. The runtime skips the entry block of a state that a join leaves in the next tick.
  *
@@ -189,14 +189,14 @@ abstract class ObservationScenarios {
     }
 
     @Test
-    fun `a stopped environment can still be pulled`() = runtime.run(root) {
+    fun `a stopped run refuses a pull and keeps the model of its final read`() = runtime.run(root) {
         val session = deploy(SynthesizedModel.LAMP)
 
         assertEquals(SessionCommandOutcome.Done, session.stop())
-        val pulled = session.pulled()
 
-        assertEquals(RuntimePhase.STOPPED, pulled.phase)
-        assertIs<SyncStatus.Final>(pulled.sync)
+        assertIs<SessionCommandOutcome.Refused>(session.pull(), diagnostics)
+        assertEquals(RuntimePhase.STOPPED, session.model.value.phase)
+        assertIs<SyncStatus.Final>(session.model.value.sync)
     }
 
     @Test

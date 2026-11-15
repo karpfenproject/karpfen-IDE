@@ -48,7 +48,8 @@ refer to.
 
 ### Running models
 
-- After a restart the IDE does not adopt the environments it left on a runtime.
+- After a restart the IDE does not adopt or drop the environments an earlier process left on a runtime, which only
+  happens when a drop failed or the process was killed outright.
 - Deployment problems are shown in the run, not in the Problems view.
 - The descriptor template still writes the `observe` key, which deployment ignores.
 - The descriptor keys `runtime.image`, `runtime.pythonPackages` and `bridges` are accepted but ignored. So `EVAL`
@@ -122,9 +123,9 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 
 - There is no channel that reports engine errors to the client. The IDE only sees that the engine halted or went
   silent and points to the runtime log.
-- Environments cannot be deleted, so they pile up in a long-running runtime. A stop only freezes an environment, so
-  every stopped environment stays in the runtime with its instances, its waiting events and its Python sessions until
-  the runtime ends. Access keys never expire.
+- An environment that the IDE could not drop, because the runtime was gone or the drop took too long, stays in the
+  runtime with its instances, its waiting events and its Python sessions until the runtime ends. So do the
+  environments of a process that was killed outright. Access keys never expire.
 - The engine skips the entry block of a state that a join leaves in the next tick. The test for it in
   `ObservationScenarios` is disabled until the runtime is fixed.
 - After the `ENTRY` block of an outer state the engine also checks the transitions of the nested states it has not
@@ -158,8 +159,8 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
 - A macro that changes an existing object sends no push. Setting a scalar that was never written does send one.
 - The runtime pushes nothing when a transition fires or an event is consumed, so a live view cannot show either.
 - A start after a stop lets the frozen environment continue, and the sockets of its clients stay open across the stop.
-  The IDE does not use this: Stop ends a run for good, and a run whose environment another client stops ends as well,
-  even if that client starts the environment again. The IDE closes its own socket in both cases.
+  The IDE does not use this: Stop ends a run for good and drops its environment, and a run whose environment another
+  client stops ends and drops it as well.
 - There is no version endpoint, no published image, no configuration through environment variables and no
   authentication. Access keys are predictable, and the runtime prints them on its console.
 - The runtime reads every upload with all optional language features on. The IDE checks the features of the project

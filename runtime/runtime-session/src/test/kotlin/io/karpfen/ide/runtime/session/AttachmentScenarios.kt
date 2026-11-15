@@ -51,8 +51,8 @@ import kotlin.test.assertTrue
  * `behaves after`, those that `ATTACH` and the type of a created object bring, the exchange of one instance for
  * another on the same object, the instance that leaves with its object, also with an object that a dictionary with
  * the `__id__` of its holder no longer holds, and that the session's view agrees with a snapshot read afresh. They
- * also start a stopped environment again with raw requests, since a session never does, and check that the frozen
- * environment continues with every instance and its stack, and the refusals of the runtime that the IDE maps to
+ * also stop an environment with raw requests after its session closed, since a session drops what it stops, start it
+ * again and check that the frozen environment continues with every instance and its stack, and the refusals of the runtime that the IDE maps to
  * problems. Creating a bulb runs an EVAL
  * that returns a dictionary, so the runtime needs Python, which the runtime's container has.
  */
@@ -170,9 +170,10 @@ abstract class AttachmentScenarios {
             val running = eventually("a snapshot that agrees with the session") {
                 session.snapshot().takeIf { it.stacks == session.model.value.stacks && it.stateMachines == definitionsOf(session) }
             }
-            assertEquals(SessionCommandOutcome.Done, session.stop(), diagnostics)
-
             val environment = session.environment.value
+            session.close()
+            assertEquals(OK, call(RuntimeRoute.STOP_ENVIRONMENT, "envKey" to environment).status, diagnostics)
+
             val frozen = session.snapshot()
             assertEquals(RuntimePhase.STOPPED.wireName, frozen.phase, diagnostics)
             assertEquals(running.stateMachines, frozen.stateMachines, diagnostics)
@@ -192,7 +193,7 @@ abstract class AttachmentScenarios {
                 assertEquals(frozen.stacks + (created to listOf("off")), continued.stacks, diagnostics)
                 assertEquals(frozen.revision + 1, continued.revision, "only the forced state is a new observation. $diagnostics")
             } finally {
-                call(RuntimeRoute.STOP_ENVIRONMENT, "envKey" to environment)
+                call(RuntimeRoute.DROP_ENVIRONMENT, "envKey" to environment)
             }
         }
 

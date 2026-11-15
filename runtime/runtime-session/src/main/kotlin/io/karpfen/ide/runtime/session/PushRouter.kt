@@ -347,7 +347,7 @@ internal class PushRouter(
     /** The journal's note on the runtime's notice that a stop or a start brought the environment into [phase]. */
     private fun phaseNotice(phase: RuntimePhase): String =
         if (phase == RuntimePhase.STOPPED) {
-            "The runtime reports that the environment stopped; it keeps the environment frozen."
+            "The runtime reports that the environment stopped."
         } else {
             "The runtime reports that the environment runs again after a stop."
         }

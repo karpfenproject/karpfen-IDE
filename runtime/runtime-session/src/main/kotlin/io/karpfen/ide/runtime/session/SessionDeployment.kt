@@ -43,7 +43,7 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * Closing the session cancels the deployment, and the deployment's own cleanup then runs. A deployment can still
  * succeed although the session was closed meanwhile. That happens when the close came after the deployment's last
- * suspension. Such an environment is stopped, disconnected and recorded here, as the cleanup would have done.
+ * suspension. Such an environment is stopped, disconnected, dropped and recorded here, as the cleanup would have done.
  *
  * @param prepared what the session deploys.
  * @param client the client of the runtime.
@@ -53,6 +53,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * @param router the session's router.
  * @param inbox the conductor's inbox.
  * @param departure records the environment once and tells whether the session was closed meanwhile.
+ * @param dropper drops and records an environment the deployment finished after the session was closed.
  * @param bounds the bounds of stopping and disconnecting.
  * @param scope the session's scope, in which the deployment and its connection run.
  */
@@ -65,6 +66,7 @@ internal class SessionDeployment(
     private val router: PushRouter,
     private val inbox: ConductorInbox,
     private val departure: EnvironmentDeparture,
+    private val dropper: EnvironmentDropper,
     private val bounds: CleanupBounds,
     private val scope: CoroutineScope,
 ) {
@@ -96,15 +98,15 @@ internal class SessionDeployment(
 
     /**
      * Takes care of an environment that the deployment finished after the session was closed. It stops the
-     * environment, as the cleanup of a cancelled deployment would. Then it disconnects and records the environment.
-     * The stop and the disconnect are each bounded in time.
+     * environment, as the cleanup of a cancelled deployment would. Then it disconnects, drops and records the
+     * environment. The stop, the disconnect and the drop are each bounded in time.
      */
     private suspend fun abandon(deployed: DeploymentResult.Deployed) {
         val environment = deployed.environment
         withTimeoutOrNull(bounds.stop) { environment.stop() }
         withTimeoutOrNull(bounds.disconnect) { deployed.connection.disconnect() }
         deployed.connection.close()
-        departure.leave(environment.key, environment.phase.value, "Stopped because the session was closed while it deployed.")
+        dropper.drop(environment, "Stopped because the session was closed while it deployed.")
     }
 
     /**

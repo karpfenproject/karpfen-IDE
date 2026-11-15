@@ -28,8 +28,11 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * One deployed environment and everything the IDE does with it. That covers the deployment's progress, the commands of
  * its lifecycle, the observed model with its live switch, the domain events, the event injector and a journal. A
- * session deploys a fresh environment when it is launched and never adopts or restarts one. A stopped environment is
- * final for the session. The runtime keeps it frozen until the runtime ends, and the session never starts it again.
+ * session deploys a fresh environment when it is launched and never adopts or restarts one. A run that ends for good,
+ * whether the session stops it, somebody else stops it or the environment is lost, reads the final model first and
+ * then drops the environment, so that the runtime keeps nothing of it. A drop that fails is noted in the journal and
+ * leaves the environment recorded in the ledger as it stays. From then on the session asks the runtime nothing about
+ * the environment, and the model stays as the session read it last.
  *
  * The table lists the commands that each state allows. Debugging stands for the commands of the [debugger]. Any
  * other command answers [SessionCommandOutcome.Refused].
@@ -42,7 +45,7 @@ import kotlinx.coroutines.flow.StateFlow
  * | running | [stop], [forceState], injecting, [setObservation], [pull], debugging, [shutdown], [close] |
  * | halted | [stop], switching observation off, [pull], [shutdown], [close] |
  * | stopping | [close] |
- * | stopped | [pull], [close] |
+ * | stopped | [close] |
  * | failed | [close] |
  * | closed | nothing |
  *
@@ -117,7 +120,8 @@ public interface RuntimeSession : AutoCloseable {
 
     /**
      * Stops the environment for good. The runtime freezes it and keeps the socket open, so the session closes its
-     * connection itself, reads the final model and records the environment as stopped in the ledger.
+     * connection itself and reads the final model. Then it drops the environment and records in the ledger what became
+     * of it. The runtime answers the drop at once, because the stop ended the engine already.
      */
     public suspend fun stop(): SessionCommandOutcome
 
@@ -147,7 +151,8 @@ public interface RuntimeSession : AutoCloseable {
 
     /**
      * Ends the session cleanly. It waits for a running deployment to end and stops the environment if it is activated,
-     * running or halted. Then it closes the session and waits until all its work has ended, cleanups included.
+     * running or halted, which drops it too. Then it closes the session and waits until all its work has ended, cleanups
+     * and drops included. Each of those is bounded in time.
      */
     public suspend fun shutdown()
 
@@ -155,9 +160,10 @@ public interface RuntimeSession : AutoCloseable {
      * Closes the session at once, without suspending. Calling it again does nothing.
      *
      * While the deployment runs, closing cancels it. The deployment's cleanup then stops an environment that was
-     * activated already and records it in the ledger. That cleanup cannot be cancelled and is bounded in time.
-     * Otherwise closing cancels the session's own work, closes the connection and leaves the environment on the runtime
-     * as it is. The ledger records it as left activated, left running, left halted or stopped.
+     * activated already, drops it and records it in the ledger. That cleanup cannot be cancelled and is bounded in
+     * time. A stop or a drop that runs goes on to its end and records the environment. Otherwise closing cancels the
+     * session's own work, closes the connection and leaves the environment on the runtime as it is, which is what
+     * [shutdown] avoids. The ledger records it as left activated, left running, left halted or stopped.
      */
     override fun close()
 }

@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.karpfen.ide.runtime.session.observation.ObservationMode
 import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
+import io.karpfen.ide.ui.workbench.runtime.ModelControls
 import io.karpfen.ide.ui.workbench.runtime.ModelTreeRow
 import io.karpfen.ide.ui.workbench.runtime.RunDetails
 import io.karpfen.ide.ui.workbench.runtime.RunEntry
@@ -48,13 +49,15 @@ import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 /**
  * The Model pane of the launched run [entry]. A first row holds the title and the Expand all and Collapse all buttons,
  * which open and close every object of the tree at once. A second row holds the observation switch, the Pull button
- * and a status line with the mode, the sync status and the revision. The model tree fills the rest of the pane. A
+ * and a status line with the mode, the sync status and the revision. The switch and the button are enabled as
+ * [ModelControls] says, so a run that ended shows the model its session read last and asks the runtime nothing. The model tree fills the rest of the pane. A
  * click on an object row opens or closes it. A click on a link selects its target, and the list scrolls to it.
  * Objects that the runtime created while the environment ran are marked.
  */
 @Composable
 internal fun ModelPane(runtime: RuntimeState, entry: RunEntry, details: RunDetails) {
     val model by details.session.model.collectAsState()
+    val state by details.session.state.collectAsState()
     val rows by details.modelTree.rows.collectAsState()
     val colors = KarpfenTheme.colors
     Column(Modifier.fillMaxSize()) {
@@ -76,9 +79,10 @@ internal fun ModelPane(runtime: RuntimeState, entry: RunEntry, details: RunDetai
             Switch(
                 checked = model.mode == ObservationMode.ON,
                 onCheckedChange = { runtime.setObservation(entry, it) },
+                enabled = ModelControls.switches(state, model.mode),
                 modifier = Modifier.testTag(RuntimeViewTestTags.OBSERVATION),
             )
-            SmallButton("Pull", RuntimeViewTestTags.PULL) { runtime.pull(entry) }
+            SmallButton("Pull", RuntimeViewTestTags.PULL, enabled = ModelControls.pulls(state)) { runtime.pull(entry) }
             Text(
                 "${RuntimeTexts.mode(model)}, ${RuntimeTexts.sync(model)}",
                 color = colors.textMuted,

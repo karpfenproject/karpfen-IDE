@@ -56,6 +56,7 @@ internal sealed interface PhaseVerdict {
  * | running | running |
  * | halted, as a snapshot revealed | halted, with the problem `engine-halted` |
  * | stopped | stopped |
+ * | dropped | stopped |
  * | uncertain | unchanged, with the problem `runtime-no-answer` |
  * | lost | failed, with the problem `environment-lost` |
  *
@@ -70,7 +71,7 @@ internal object PhaseStates {
             EnvironmentPhase.Activated -> PhaseVerdict.Becomes(SessionState.Ready(environment), null)
             EnvironmentPhase.Running -> PhaseVerdict.Becomes(SessionState.Running(environment), null)
             EnvironmentPhase.Halted -> PhaseVerdict.Becomes(SessionState.Halted(environment), halted(environment))
-            EnvironmentPhase.Stopped -> PhaseVerdict.Becomes(SessionState.Stopped(environment), null)
+            EnvironmentPhase.Stopped, EnvironmentPhase.Dropped -> PhaseVerdict.Becomes(SessionState.Stopped(environment), null)
             is EnvironmentPhase.Uncertain -> PhaseVerdict.Keeps(
                 DeployProblem(
                     Severity.ERROR,

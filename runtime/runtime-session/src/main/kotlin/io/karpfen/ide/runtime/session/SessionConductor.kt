@@ -39,8 +39,11 @@ import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
@@ -63,8 +66,14 @@ import kotlin.coroutines.cancellation.CancellationException
  * stop runs.
  *
  * After the deployment, the end of the connection is handled as [ConnectionEndings] says. A refused handshake fails
- * the session and stops the environment. A stop that the session did not make is settled by reading the final model. A
- * lost environment fails the session. A connection that gave up reconnecting is a warning.
+ * the session and stops the environment. A stop that the session did not make is settled by reading the final model
+ * and dropping the environment. A drop that the session did not make ends the run with the model the session saw
+ * last. A lost environment fails the session, and the session still tries to read the final model and to drop the
+ * environment in the background. A connection that gave up reconnecting is a warning.
+ *
+ * Every run that ends for good drops its environment through the [dropper], after the final model was read, so that
+ * the runtime keeps nothing of it. Afterwards nothing asks the runtime about the environment again: a stopped or
+ * failed session takes no command, and events and the debugger's questions are refused.
  *
  * Events go through the inbox like commands, so an event sent after a stop is refused. So do the debugger's questions to
  * the runtime's features, which are answered only while the environment runs.
@@ -78,6 +87,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * @param departure records the environment once and settles a close that races the deployment.
  * @param calls makes the calls of the commands and events.
  * @param stopper stops the environment on its own coroutine.
+ * @param dropper drops the environment at the end of a run that the session did not stop itself.
  * @param clock the session's clock.
  * @param scope the session's scope.
  */
@@ -89,6 +99,7 @@ internal class SessionConductor(
     private val departure: EnvironmentDeparture,
     private val calls: SessionCalls,
     private val stopper: EnvironmentStopper,
+    private val dropper: EnvironmentDropper,
     private val clock: SessionClock,
     private val scope: CoroutineScope,
 ) {
@@ -345,15 +356,16 @@ internal class SessionConductor(
 
     /**
      * Takes the end of the deployment. A failed deployment raises its problems and fails the session with them and with
-     * what its cleanup left behind. Shutdowns that waited for the deployment run afterwards.
+     * the ledger entry of the environment its cleanup left on the runtime, if the cleanup could not drop it. Shutdowns that waited for the deployment run afterwards.
      */
     private suspend fun deployEnded(result: DeploymentResult) {
         when (result) {
             is DeploymentResult.Deployed -> deployed(result)
             is DeploymentResult.Failed -> {
                 result.failure.problems.forEach(::raise)
-                result.cleanup.leftBehind?.leftBehind()?.let(::raise)
-                publish(SessionState.Failed(result.failure.problems, result.cleanup.leftBehind))
+                val stays = result.cleanup.leftBehind?.takeIf { it.leftBehind() != null }
+                stays?.leftBehind()?.let(::raise)
+                publish(SessionState.Failed(result.failure.problems, stays))
             }
         }
         shutdownsAfterDeployment.toList().also { shutdownsAfterDeployment.clear() }.forEach(::shutdown)
@@ -430,6 +442,7 @@ internal class SessionConductor(
                     beginStop(StopWaiter.None, failure = verdict.problem)
                 }
                 EndingVerdict.StoppedElsewhere -> finalizeStop()
+                EndingVerdict.DroppedElsewhere -> droppedElsewhere()
                 is EndingVerdict.Loses -> lose(verdict.problem)
                 is EndingVerdict.Warns -> raise(verdict.problem)
                 EndingVerdict.Ignored -> Unit
@@ -437,36 +450,55 @@ internal class SessionConductor(
         }
     }
 
-    /** The journal's note on a stop of [environment] that the session did not make. */
-    private fun stoppedElsewhere(environment: EnvironmentKey): String =
-        "The environment $environment was stopped by somebody else than the session, so the run ended. The runtime keeps " +
-            "the environment frozen; the IDE does not follow it if somebody starts it again."
-
     /**
-     * Settles a stop that the session did not make. It reads the final model, lets the connection end and records the
-     * environment as stopped.
+     * Settles a stop that the session did not make. It reads the final model, lets the connection end, notes that the
+     * run ended and drops the environment, which records it. The session is stopped afterwards.
      */
     private suspend fun finalizeStop() {
         finalized = true
         val environment = environment()
         router.environmentStopped()
         connection?.let { stopper.letEnd(it) }
-        departure.record(environment.key, LedgerDisposition.STOPPED, "Stopped by somebody else than the session.")
+        record(SessionActivity.Note(stoppedElsewhere(environment.key), clock.elapsed()))
+        dropper.drop(environment, "Stopped by somebody else than the session.")
         settledPhase = EnvironmentPhase.Stopped
         publish(SessionState.Stopped(environment.key))
-        record(SessionActivity.Note(stoppedElsewhere(environment.key), clock.elapsed()))
+    }
+
+    /**
+     * Settles a drop that the session did not make. The runtime keeps nothing of the environment, so the model stays
+     * as the session saw it last, and the session asks the runtime nothing more. It closes the connection, records the
+     * environment as dropped, notes that the run ended and is stopped.
+     */
+    private fun droppedElsewhere() {
+        finalized = true
+        val environment = environment()
+        connection?.close()
+        departure.record(environment.key, LedgerDisposition.DROPPED, "Dropped by somebody else than the session.")
+        record(SessionActivity.Note(droppedElsewhere(environment.key), clock.elapsed()))
+        settledPhase = EnvironmentPhase.Dropped
+        publish(SessionState.Stopped(environment.key))
     }
 
     /**
      * The session lost its environment for good. It records the environment as lost, fails with [problem] and closes
-     * the connection. A session that failed already stays as it is.
+     * the connection. A session that failed already stays as it is. On a coroutine of its own, which starts at once so
+     * that a close right after cannot skip it, it then reads the final model, unless the handle knows the environment
+     * is lost, and drops the environment. Either may fail, because the environment or the whole runtime is gone.
      */
     private fun lose(problem: DeployProblem) {
         if (status.state.value is SessionState.Failed) return
-        departure.record(environment().key, LedgerDisposition.LOST, "The runtime no longer knows the environment.")
+        val environment = environment()
+        departure.record(environment.key, LedgerDisposition.LOST, "The runtime no longer knows the environment.")
         raise(problem)
         publish(SessionState.Failed(problem, null))
         connection?.close()
+        scope.launch(CoroutineName("session-drop"), start = CoroutineStart.UNDISPATCHED) {
+            withContext(NonCancellable) {
+                if (environment.phase.value !is EnvironmentPhase.Lost) router.environmentStopped()
+                dropper.drop(environment, "Lost by the session.")
+            }
+        }
     }
 
     /** Takes the connection's new [state] for the injection availability. */
@@ -493,6 +525,15 @@ internal class SessionConductor(
 
     /** The environment, which every command after the deployment has. */
     private fun environment(): RuntimeEnvironment = checkNotNull(created.get()) { "the environment exists once the deployment ended" }
+
+    /** The journal's note on a stop of [environment] that the session did not make. */
+    private fun stoppedElsewhere(environment: EnvironmentKey): String =
+        "The environment $environment was stopped by somebody else than the session, so the run ended."
+
+    /** The journal's note on a drop of [environment] that the session did not make. */
+    private fun droppedElsewhere(environment: EnvironmentKey): String =
+        "The environment $environment was dropped by somebody else than the session, so the run ended. The runtime keeps " +
+            "nothing of it; the model shows what the session saw last."
 
     private companion object {
         /** The conductor's logger. */

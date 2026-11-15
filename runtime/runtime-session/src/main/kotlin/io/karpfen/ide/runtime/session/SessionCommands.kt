@@ -102,11 +102,12 @@ internal enum class DebuggerAction(val message: String, val description: String)
  * | running | stop, force state, observation on and off, pull, injecting events, pause, resume, step |
  * | halted | stop, observation off, pull |
  * | stopping | none |
- * | stopped | pull |
+ * | stopped | none |
  * | failed, closed | none |
  *
- * Events injected while the session is ready are queued until the start. Shutting down and closing are not commands of
- * this table. The conductor handles them on their own.
+ * A stopped session has read its final model and dropped its environment, so the runtime keeps nothing it could ask
+ * about. Events injected while the session is ready are queued until the start. Shutting down and closing are not
+ * commands of this table. The conductor handles them on their own.
  */
 internal object CommandRules {
     /** Why [command] is refused in [state], or null if it is allowed. */
@@ -116,8 +117,7 @@ internal object CommandRules {
             is SessionState.Running -> command != SessionCommand.Start
             is SessionState.Halted ->
                 command == SessionCommand.Stop || command == SessionCommand.Pull || command == SessionCommand.SetObservation(on = false)
-            is SessionState.Stopped -> command == SessionCommand.Pull
-            SessionState.Deploying, is SessionState.Stopping, is SessionState.Failed, SessionState.Closed -> false
+            SessionState.Deploying, is SessionState.Stopping, is SessionState.Stopped, is SessionState.Failed, SessionState.Closed -> false
         }
         return if (allowed) null else "${command.description} is not possible while ${describe(state)}."
     }
@@ -134,7 +134,7 @@ internal object CommandRules {
             is SessionState.Running -> "the environment runs"
             is SessionState.Halted -> "the environment's engine has halted"
             is SessionState.Stopping -> "the environment is being stopped"
-            is SessionState.Stopped -> "the environment is stopped"
+            is SessionState.Stopped -> "the run has ended"
             is SessionState.Failed -> "the session has failed"
             SessionState.Closed -> "the session is closed"
         }

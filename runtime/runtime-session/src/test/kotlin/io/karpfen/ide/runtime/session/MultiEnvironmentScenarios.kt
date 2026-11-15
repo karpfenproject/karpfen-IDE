@@ -45,7 +45,7 @@ import kotlin.time.Duration
 /**
  * Covers several environments in one runtime against a real runtime. They are deployed and driven through sessions of
  * one client and through raw requests. Environments side by side change only themselves. A metronome keeps running
- * while lamps are deployed, pressed and stopped around it. Concurrent workers churn through deployments with distinct
+ * while lamps are deployed, pressed and stopped around it, and the stopped lamps are no longer listed. Concurrent workers churn through deployments with distinct
  * keys and no protocol violation. Environment keys stay unique for one client and for independent clients.
  * Environments that fail leave their neighbours reacting. The failures are a rejected upload, an attachment to an
  * unknown object and a reference loop.
@@ -115,7 +115,7 @@ abstract class MultiEnvironmentScenarios {
 
         assertEquals(List(bursts) { BURST }.flatten(), beatsOf(metronome.pulled().mirror))
         val listed = listing().map { it.key }
-        assertTrue(listed.containsAll(lamps + metronome.environment), "listed $listed, deployed ${lamps + metronome.environment}")
+        assertTrue(metronome.environment in listed && lamps.none { it in listed }, "listed $listed, stopped $lamps, running ${metronome.environment}")
     }
 
     @Test

@@ -85,7 +85,7 @@ class SessionUnderTest(private val runtime: RuntimeUnderTest, private val endpoi
 
     /**
      * Runs [scenario] against the runtime with its models below [root]. At its end the sessions it launched are shut
-     * down, so it leaves its environments stopped, and its workspaces are closed.
+     * down, which stops and drops their environments, and its workspaces are closed.
      */
     fun run(root: Path, scenario: suspend SessionScenario.() -> Unit) {
         runtime.run {
@@ -283,7 +283,7 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
         assertEquals(emptyList(), MirrorComparison.differences(snapshot.mirror, model.value.mirror), "the mirror of $environmentOrNull. $diagnostics")
     }
 
-    /** Shuts every launched session down, which stops its environment, and closes the workspaces. */
+    /** Shuts every launched session down, which stops and drops its environment, and closes the workspaces. */
     suspend fun finish() {
         launched.forEach { it.shutdown() }
         workspaces.forEach { it.close() }

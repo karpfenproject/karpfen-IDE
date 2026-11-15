@@ -28,20 +28,23 @@ import kotlin.time.Duration
  * What the cleanup after a failed or cancelled deployment did. Immutable.
  *
  * @property actions what it did, in words, in order.
- * @property leftBehind the ledger entry of the environment that stays on the runtime, or null if nothing was created.
+ * @property leftBehind the ledger entry of what became of the created environment, or null if nothing was created. Its
+ *   [LedgerEntry.leftBehind] tells whether the environment stays on the runtime.
  */
 public data class CleanupReport(public val actions: List<String>, public val leftBehind: LedgerEntry?)
 
 /**
- * The bounds of the calls of a cleanup and of a session's stop. Immutable.
+ * The bounds of the calls of a cleanup and of the end of a session. Immutable.
  *
  * @property stop how long stopping the environment may take, including the probe that may follow the stop call.
  * @property disconnect how long closing the connection may take.
+ * @property drop how long dropping the environment may take.
  */
-internal data class CleanupBounds(val stop: Duration, val disconnect: Duration) {
+internal data class CleanupBounds(val stop: Duration, val disconnect: Duration, val drop: Duration) {
     companion object {
         /** The bounds [timing] sets. */
-        fun of(timing: DeployTiming): CleanupBounds = CleanupBounds(stop = timing.stopBound, disconnect = timing.disconnectBound)
+        fun of(timing: DeployTiming): CleanupBounds =
+            CleanupBounds(stop = timing.stopBound, disconnect = timing.disconnectBound, drop = timing.dropBound)
     }
 }
 
@@ -59,7 +62,8 @@ internal data class CleanupBounds(val stop: Duration, val disconnect: Duration) 
  * - A stopped environment is disconnected. Then the [disposer] records it as stopped.
  *
  * After disconnecting, the cleanup also closes the connection, so that nothing of a failed deployment keeps running in
- * the connection's scope.
+ * the connection's scope. The default [disposer], [DropEnvironments], drops the environment, so that the runtime keeps
+ * nothing of the failed deployment.
  *
  * @param ledger the ledger an unknown creation and a lost environment are recorded in.
  * @param disposer what happens to an environment that stays.

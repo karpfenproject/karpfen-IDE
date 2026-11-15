@@ -20,7 +20,6 @@ import io.karpfen.ide.runtime.protocol.connection.RuntimeConnection
 import io.karpfen.ide.runtime.protocol.lifecycle.CallOutcome
 import io.karpfen.ide.runtime.protocol.lifecycle.RuntimeEnvironment
 import io.karpfen.ide.runtime.session.deploy.CleanupBounds
-import io.karpfen.ide.runtime.session.deploy.LedgerDisposition
 import io.karpfen.ide.runtime.session.deploy.LedgerEntry
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import kotlinx.coroutines.CompletableDeferred
@@ -40,21 +39,25 @@ import kotlinx.coroutines.withTimeoutOrNull
  * So closing during a stop never leaves the environment both running and unrecorded.
  *
  * 1. It stops the environment. This call cannot be cancelled and is bounded in time. The runtime freezes the
- *    environment and keeps it until the runtime ends, but the session never starts it again. The runtime keeps the
- *    socket open and pushes the `engineStatus` notice of the stop, and the connection ends and closes its link itself,
- *    on that notice or on the handle's stopped phase, whichever comes first.
- * 2. It records the environment as stopped once it stopped. If the session was closed during a stop that failed, it
- *    records the environment as the stop left it.
- * 3. It lets the connection end by itself and then disconnects it. Disconnecting does nothing if the connection ended
+ *    environment, and the session never starts it again. The runtime keeps the socket open and pushes the
+ *    `engineStatus` notice of the stop, and the connection ends and closes its link itself, on that notice or on the
+ *    handle's stopped phase, whichever comes first. If the session was closed during a stop that failed, it records
+ *    the environment as the stop left it.
+ * 2. It lets the connection end by itself and then disconnects it. Disconnecting does nothing if the connection ended
  *    already. Both waits are bounded.
- * 4. It has the router read the final model, which marks the observed model as final.
- * 5. It reports [ConductorMessage.StopFinished] with the stop's outcome and the ledger entry.
+ * 3. It has the router read the final model, which marks the observed model as final.
+ * 4. It drops the environment through the [dropper], which records it. The engine ended with the stop, so the runtime
+ *    answers the drop at once. The drop runs even when the session is closed during steps 2 and 3.
+ * 5. It reports [ConductorMessage.StopFinished] with the stop's outcome and, if the drop failed, the ledger entry of
+ *    the environment that stays on the runtime.
  *
- * Steps 3 and 4 run only when the stop succeeded.
+ * Steps 2 to 4 run only when the stop succeeded. Nothing asks the runtime about the environment after the drop, because
+ * a stopped session takes no command.
  *
  * @param router the session's router.
  * @param inbox the conductor's inbox.
  * @param departure records the environment once.
+ * @param dropper drops the environment after the stop.
  * @param bounds the bounds of stopping and disconnecting.
  * @param scope the session's scope.
  */
@@ -62,6 +65,7 @@ internal class EnvironmentStopper(
     private val router: PushRouter,
     private val inbox: ConductorInbox,
     private val departure: EnvironmentDeparture,
+    private val dropper: EnvironmentDropper,
     private val bounds: CleanupBounds,
     private val scope: CoroutineScope,
 ) {
@@ -73,23 +77,24 @@ internal class EnvironmentStopper(
     fun launch(environment: RuntimeEnvironment, connection: RuntimeConnection?) {
         departure.stopStarts()
         scope.launch(CoroutineName("session-stop"), start = CoroutineStart.UNDISPATCHED) {
-            var entry: LedgerEntry? = null
             val outcome = withContext(NonCancellable) {
                 val stopped = withTimeoutOrNull(bounds.stop) { environment.stop() }
-                val closedMeanwhile = departure.stopEnded()
-                entry = when {
-                    stopped is CallOutcome.Done -> departure.record(environment.key, LedgerDisposition.STOPPED, "Stopped by the session.")
-                    closedMeanwhile ->
-                        departure.leave(environment.key, environment.phase.value, "Left on the runtime when the session was closed during a stop that failed.")
-                    else -> null
+                val closedMeanwhile = departure.stopEnded(stopped is CallOutcome.Done)
+                if (stopped !is CallOutcome.Done && closedMeanwhile) {
+                    departure.leave(environment.key, environment.phase.value, "Left on the runtime when the session was closed during a stop that failed.")
                 }
                 stopped
             }
+            var entry: LedgerEntry? = null
             if (outcome is CallOutcome.Done) {
-                connection?.let { letEnd(it) }
-                router.environmentStopped()
+                try {
+                    connection?.let { letEnd(it) }
+                    router.environmentStopped()
+                } finally {
+                    entry = dropper.drop(environment, "Stopped by the session.")
+                }
             }
-            inbox.offer(ConductorMessage.StopFinished(outcome, entry))
+            inbox.offer(ConductorMessage.StopFinished(outcome, entry?.takeIf { it.leftBehind() != null }))
         }
     }
 

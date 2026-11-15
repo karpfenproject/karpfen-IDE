@@ -142,6 +142,7 @@ public object RuntimeTexts {
         is ConnectionState.Ended -> "ended: " + when (val end = state.end) {
             is ConnectionEnd.HandshakeRejected -> "the handshake was rejected"
             ConnectionEnd.EnvironmentStopped -> "the environment stopped"
+            ConnectionEnd.EnvironmentDropped -> "the environment was dropped"
             is ConnectionEnd.EnvironmentLost -> end.reason
             ConnectionEnd.Disconnected -> "disconnected"
             is ConnectionEnd.GaveUp -> "gave up after ${end.attempts} attempts (${end.lastFailure})"

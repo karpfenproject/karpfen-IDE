@@ -47,6 +47,7 @@ import java.nio.file.Path
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
@@ -54,11 +55,12 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * Covers a session whose deployment fails or is cancelled, end to end against the fake runtime, which answers only
- * what each test programs. The lamp deployed there has a history, so that its deployment switches on a runtime feature. A failure at any step fails the session with the step's problem. This happens after the
- * cleanup that the phase calls for, and the session carries the ledger entry of what stays. Closing the session at any
- * step cancels the deployment, and its cleanup still runs and records. A runtime without IDE support is refused before
- * anything is created. An engine that halts right after the start fails the deployment, which then stops the
- * environment.
+ * what each test programs. The lamp deployed there has a history, so that its deployment switches on a runtime feature.
+ * A failure at any step fails the session with the step's problem. This happens after the cleanup that the phase calls
+ * for, which drops the environment, and the session carries the ledger entry of what stays only when the drop fails.
+ * Closing the session at any step cancels the deployment, and its cleanup still runs, drops and records. A runtime
+ * without IDE support is refused before anything is created. An engine that halts right after the start fails the
+ * deployment, which then stops and drops the environment.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RuntimeSessionFailureTest {
@@ -77,13 +79,13 @@ class RuntimeSessionFailureTest {
         val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it != SessionState.Deploying })
 
         assertEquals(listOf(case.code), failed.problems.map { it.code }, "the problem of a failure at $step: ${failed.problems} in ${session.progress.value.current}")
-        assertEquals(case.leftBehind, failed.leftBehind?.disposition, "what stays after a failure at $step")
-        assertEquals(listOfNotNull(case.leftBehind), rig.ledger.entries.value.map { it.disposition })
+        assertNull(failed.leftBehind, "nothing stays after a failure at $step")
+        assertEquals(listOfNotNull(case.recorded), rig.ledger.entries.value.map { it.disposition })
         assertEquals(step, session.progress.value.steps.single { it.status == StepStatus.FAILED }.kind)
         assertTrue(session.problems.value.containsAll(failed.problems), "${session.problems.value}")
-        if (case.leftBehind != null && case.leftBehind != LedgerDisposition.UNKNOWN) {
-            assertTrue(session.problems.value.any { it.code == DeployProblemCodes.ENVIRONMENT_LEFT_BEHIND }, "${session.problems.value}")
-        }
+        assertTrue(session.problems.value.none { it.code == DeployProblemCodes.ENVIRONMENT_LEFT_BEHIND }, "${session.problems.value}")
+        val drops = if (case.recorded == LedgerDisposition.DROPPED) 1 else 0
+        assertEquals(drops, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size, "the drops after a failure at $step")
         assertEquals(SessionCommandOutcome.Refused(failed, "Pulling the model is not possible while the session has failed."), session.pull())
         session.close()
     }
@@ -105,7 +107,8 @@ class RuntimeSessionFailureTest {
 
         assertEquals(SessionState.Closed, session.state.value)
         assertEquals(listOfNotNull(expected), rig.ledger.entries.value.map { it.disposition }, "what stays after closing at $step")
-        if (expected == LedgerDisposition.STOPPED) assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
+        if (step >= DeployStepKind.ACTIVATE) assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
+        if (expected == LedgerDisposition.DROPPED) assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
         assertTrue(rig.fake.links.none { it.isOpen }, "no link stays open")
     }
 
@@ -148,7 +151,30 @@ class RuntimeSessionFailureTest {
         assertTrue(session.problems.value.containsAll(failed.problems), "${session.problems.value}")
         val step = session.progress.value.steps.single { it.status == StepStatus.FAILED }
         assertEquals(DeployStepKind.UPLOAD_MODEL to "The runtime refused lamp.kmodel with 2 errors.", step.kind to step.detail)
-        assertEquals(listOf(LedgerDisposition.LEFT_CONFIGURED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
+        session.close()
+    }
+
+    @Test
+    fun `a drop the runtime does not have leaves the environment of a failed deployment recorded as it stays, with the INFO`() = runTest {
+        val rig = SessionRig(this, root)
+        val deployment = rig.prepared(SynthesizedModel.LAMP)
+        rig.fake.respond(RuntimeRoute.MODEL_SNAPSHOT, SessionRig.missingEnvironmentKey())
+        rig.fake.respond(RuntimeRoute.SET_MODEL, FakeResponse.rejected(SynthesizedModels.LAMP_UNKNOWN_TYPE_REJECTION))
+        rig.fake.respond(RuntimeRoute.DROP_ENVIRONMENT, FakeResponse(FakeResponse.NOT_FOUND))
+
+        val session = rig.launch(deployment)
+        val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it != SessionState.Deploying })
+
+        val stays = assertNotNull(failed.leftBehind)
+        assertEquals(LedgerDisposition.LEFT_CONFIGURED, stays.disposition)
+        assertEquals(listOf(stays), rig.ledger.entries.value)
+        val info = session.problems.value.single { it.code == DeployProblemCodes.ENVIRONMENT_LEFT_BEHIND }
+        assertEquals(
+            "Environment env-1 stays on the runtime at ${SessionRig.ENDPOINT.httpBase} (configuring). The runtime at " +
+                "${SessionRig.ENDPOINT.httpBase} cannot drop environments, so it is older than the IDE; the environment env-1 stays there.",
+            info.message,
+        )
         session.close()
     }
 
@@ -161,15 +187,19 @@ class RuntimeSessionFailureTest {
         rig.fake.closeHandshake(WireNames.CLOSE_CANNOT_ACCEPT, WireNames.REASON_INVALID_CREDENTIALS)
 
         val session = rig.launch(deployment)
-        val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it is SessionState.Failed && it.leftBehind != null })
+        rig.awaitState(session) { it is SessionState.Failed }
+        advanceTimeBy(1.minutes)
+        runCurrent()
+        val failed = assertIs<SessionState.Failed>(session.state.value)
 
         assertEquals(DeployProblemCodes.HANDSHAKE_REJECTED, failed.problems.single().code)
-        assertEquals(LedgerDisposition.STOPPED, failed.leftBehind?.disposition)
+        assertNull(failed.leftBehind)
         assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
         assertEquals(SessionCommandOutcome.Refused(failed, "Starting the environment is not possible while the session has failed."), session.start())
         session.close()
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition }, "recorded once")
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition }, "recorded once")
     }
 
     @Test
@@ -197,18 +227,19 @@ class RuntimeSessionFailureTest {
         val failed = assertIs<SessionState.Failed>(rig.awaitState(session) { it != SessionState.Deploying })
 
         assertEquals(DeployProblemCodes.ENGINE_HALTED, failed.problems.single().code)
-        assertEquals(LedgerDisposition.STOPPED, failed.leftBehind?.disposition)
+        assertNull(failed.leftBehind)
         assertEquals(1, rig.fake.requests(RuntimeRoute.STOP_ENVIRONMENT).size)
-        assertEquals(listOf(LedgerDisposition.STOPPED), rig.ledger.entries.value.map { it.disposition })
+        assertEquals(1, rig.fake.requests(RuntimeRoute.DROP_ENVIRONMENT).size)
+        assertEquals(listOf(LedgerDisposition.DROPPED), rig.ledger.entries.value.map { it.disposition })
     }
 
     /**
      * A failure the test programs.
      *
      * @property code the code of the session's problem.
-     * @property leftBehind what the ledger records, or null for nothing.
+     * @property recorded what the ledger records, or null for nothing.
      */
-    private data class Failure(val code: String, val leftBehind: LedgerDisposition?)
+    private data class Failure(val code: String, val recorded: LedgerDisposition?)
 
     /** Programs the answers of a deployment of [deployment] that fails at [step], and returns what follows. */
     private fun TestScope.failureAt(step: DeployStepKind, rig: SessionRig, deployment: SessionRig.Deployment): Failure {
@@ -216,7 +247,7 @@ class RuntimeSessionFailureTest {
         val boom = FakeResponse(FakeResponse.SERVER_ERROR, "Unexpected error", FakeResponse.TEXT)
         if (step != DeployStepKind.CHECK_RUNTIME) fake.respond(RuntimeRoute.MODEL_SNAPSHOT, SessionRig.missingEnvironmentKey())
         if (step > DeployStepKind.OBSERVE) rig.programSnapshot(deployment, "env-1", RuntimePhase.ACTIVATED, 0)
-        val configured = LedgerDisposition.LEFT_CONFIGURED
+        val dropped = LedgerDisposition.DROPPED
         return when (step) {
             DeployStepKind.CHECK_RUNTIME -> {
                 fake.fail(RuntimeRoute.HEALTH, TransportFailure.Unreachable("Connection refused"))
@@ -228,62 +259,62 @@ class RuntimeSessionFailureTest {
             }
             DeployStepKind.CONNECT -> {
                 repeat(ReconnectPolicy().maxAttempts) { fake.refuseConnect(TransportFailure.Unreachable("Connection refused")) }
-                Failure(DeployProblemCodes.CONNECTION_LOST, configured)
+                Failure(DeployProblemCodes.CONNECTION_LOST, dropped)
             }
             DeployStepKind.UPLOAD_METAMODEL -> {
                 fake.respond(RuntimeRoute.SET_METAMODEL, boom)
-                Failure(DeployProblemCodes.RUNTIME_ERROR, configured)
+                Failure(DeployProblemCodes.RUNTIME_ERROR, dropped)
             }
             DeployStepKind.UPLOAD_EVENTS -> {
                 fake.respond(RuntimeRoute.SET_EVENT_DEFINITIONS, FakeResponse(FakeResponse.BAD_REQUEST, "Something the client does not know", FakeResponse.TEXT))
-                Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
+                Failure(DeployProblemCodes.RUNTIME_REJECTED, dropped)
             }
             DeployStepKind.UPLOAD_MODEL -> {
                 fake.respond(RuntimeRoute.SET_MODEL, FakeResponse.rejected(SynthesizedModels.LAMP_UNKNOWN_TYPE_REJECTION))
-                Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
+                Failure(DeployProblemCodes.RUNTIME_REJECTED, dropped)
             }
             DeployStepKind.ATTACH_STATE_MACHINE -> {
                 fake.respond(RuntimeRoute.SET_STATE_MACHINE, boom, where = mapOf("attachedTo" to "wallSwitch"))
-                Failure(DeployProblemCodes.RUNTIME_ERROR, configured)
+                Failure(DeployProblemCodes.RUNTIME_ERROR, dropped)
             }
             DeployStepKind.DEFINE_STATE_MACHINE -> error("the lamp has no definitions")
             DeployStepKind.SET_TICK_DELAY -> {
                 fake.respond(RuntimeRoute.SET_TICK_DELAY, FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.INVALID_PARAMETER, mapOf("name" to "milliseconds")))
-                Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
+                Failure(DeployProblemCodes.RUNTIME_REJECTED, dropped)
             }
             DeployStepKind.SET_EVENT_TTL -> {
                 fake.respond(RuntimeRoute.SET_EVENT_TTL, FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.INVALID_PARAMETER, mapOf("name" to "ttlMs")))
-                Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
+                Failure(DeployProblemCodes.RUNTIME_REJECTED, dropped)
             }
             DeployStepKind.LISTEN_DOMAINS -> {
                 fake.respond(RuntimeRoute.REGISTER_DOMAIN_LISTENER, boom, where = mapOf("domain" to "switch"))
-                Failure(DeployProblemCodes.RUNTIME_ERROR, configured)
+                Failure(DeployProblemCodes.RUNTIME_ERROR, dropped)
             }
             DeployStepKind.SWITCH_FEATURES_ON -> {
                 fake.respond(
                     RuntimeRoute.ACTIVATE_FEATURE,
                     FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.UNKNOWN_FEATURE, mapOf("feature" to "History")),
                 )
-                Failure(DeployProblemCodes.RUNTIME_INCOMPATIBLE, configured)
+                Failure(DeployProblemCodes.RUNTIME_INCOMPATIBLE, dropped)
             }
             DeployStepKind.ACTIVATE -> {
                 fake.respond(
                     RuntimeRoute.RUN_ENVIRONMENT,
                     FakeResponse.rejected(FakeResponse.CONFLICT, RuntimeText.UNKNOWN_ATTACHMENT, mapOf("env" to "env-1", "keys" to "ghost")),
                 )
-                Failure(DeployProblemCodes.RUNTIME_REJECTED, configured)
+                Failure(DeployProblemCodes.RUNTIME_REJECTED, dropped)
             }
             DeployStepKind.OBSERVE -> {
                 fake.respond(RuntimeRoute.SUBSCRIBE_MODEL, boom)
-                Failure(DeployProblemCodes.RUNTIME_ERROR, LedgerDisposition.STOPPED)
+                Failure(DeployProblemCodes.RUNTIME_ERROR, dropped)
             }
             DeployStepKind.START -> {
                 fake.respond(RuntimeRoute.START_ENVIRONMENT, boom)
-                Failure(DeployProblemCodes.RUNTIME_ERROR, LedgerDisposition.STOPPED)
+                Failure(DeployProblemCodes.RUNTIME_ERROR, dropped)
             }
             DeployStepKind.CONFIRM_START -> {
                 rig.programSnapshot(deployment, "env-1", RuntimePhase.HALTED, 0)
-                Failure(DeployProblemCodes.ENGINE_HALTED, LedgerDisposition.STOPPED)
+                Failure(DeployProblemCodes.ENGINE_HALTED, dropped)
             }
         }
     }
@@ -293,24 +324,24 @@ class RuntimeSessionFailureTest {
         val fake = rig.fake
         if (step != DeployStepKind.CHECK_RUNTIME) fake.respond(RuntimeRoute.MODEL_SNAPSHOT, SessionRig.missingEnvironmentKey())
         if (step > DeployStepKind.OBSERVE) rig.programSnapshot(deployment, "env-1", RuntimePhase.ACTIVATED, 0)
-        val configured = LedgerDisposition.LEFT_CONFIGURED
+        val dropped = LedgerDisposition.DROPPED
         return when (step) {
             DeployStepKind.CHECK_RUNTIME -> null.also { fake.hang(RuntimeRoute.HEALTH) }
             DeployStepKind.CREATE -> LedgerDisposition.UNKNOWN.also { fake.hang(RuntimeRoute.CREATE_ENVIRONMENT) }
-            DeployStepKind.CONNECT -> configured.also { fake.hangConnect() }
-            DeployStepKind.UPLOAD_METAMODEL -> configured.also { fake.hang(RuntimeRoute.SET_METAMODEL) }
-            DeployStepKind.UPLOAD_EVENTS -> configured.also { fake.hang(RuntimeRoute.SET_EVENT_DEFINITIONS) }
-            DeployStepKind.UPLOAD_MODEL -> configured.also { fake.hang(RuntimeRoute.SET_MODEL) }
-            DeployStepKind.ATTACH_STATE_MACHINE -> configured.also { fake.hang(RuntimeRoute.SET_STATE_MACHINE) }
+            DeployStepKind.CONNECT -> dropped.also { fake.hangConnect() }
+            DeployStepKind.UPLOAD_METAMODEL -> dropped.also { fake.hang(RuntimeRoute.SET_METAMODEL) }
+            DeployStepKind.UPLOAD_EVENTS -> dropped.also { fake.hang(RuntimeRoute.SET_EVENT_DEFINITIONS) }
+            DeployStepKind.UPLOAD_MODEL -> dropped.also { fake.hang(RuntimeRoute.SET_MODEL) }
+            DeployStepKind.ATTACH_STATE_MACHINE -> dropped.also { fake.hang(RuntimeRoute.SET_STATE_MACHINE) }
             DeployStepKind.DEFINE_STATE_MACHINE -> error("the lamp has no definitions")
-            DeployStepKind.SET_TICK_DELAY -> configured.also { fake.hang(RuntimeRoute.SET_TICK_DELAY) }
-            DeployStepKind.SET_EVENT_TTL -> configured.also { fake.hang(RuntimeRoute.SET_EVENT_TTL) }
-            DeployStepKind.LISTEN_DOMAINS -> configured.also { fake.hang(RuntimeRoute.REGISTER_DOMAIN_LISTENER) }
-            DeployStepKind.SWITCH_FEATURES_ON -> configured.also { fake.hang(RuntimeRoute.ACTIVATE_FEATURE) }
-            DeployStepKind.ACTIVATE -> LedgerDisposition.STOPPED.also { fake.hang(RuntimeRoute.RUN_ENVIRONMENT) }
-            DeployStepKind.OBSERVE -> LedgerDisposition.STOPPED.also { fake.hang(RuntimeRoute.SUBSCRIBE_MODEL) }
-            DeployStepKind.START -> LedgerDisposition.STOPPED.also { fake.hang(RuntimeRoute.START_ENVIRONMENT) }
-            DeployStepKind.CONFIRM_START -> LedgerDisposition.STOPPED.also { fake.hang(RuntimeRoute.MODEL_SNAPSHOT, where = mapOf(SessionRig.ENV_KEY to "env-1")) }
+            DeployStepKind.SET_TICK_DELAY -> dropped.also { fake.hang(RuntimeRoute.SET_TICK_DELAY) }
+            DeployStepKind.SET_EVENT_TTL -> dropped.also { fake.hang(RuntimeRoute.SET_EVENT_TTL) }
+            DeployStepKind.LISTEN_DOMAINS -> dropped.also { fake.hang(RuntimeRoute.REGISTER_DOMAIN_LISTENER) }
+            DeployStepKind.SWITCH_FEATURES_ON -> dropped.also { fake.hang(RuntimeRoute.ACTIVATE_FEATURE) }
+            DeployStepKind.ACTIVATE -> dropped.also { fake.hang(RuntimeRoute.RUN_ENVIRONMENT) }
+            DeployStepKind.OBSERVE -> dropped.also { fake.hang(RuntimeRoute.SUBSCRIBE_MODEL) }
+            DeployStepKind.START -> dropped.also { fake.hang(RuntimeRoute.START_ENVIRONMENT) }
+            DeployStepKind.CONFIRM_START -> dropped.also { fake.hang(RuntimeRoute.MODEL_SNAPSHOT, where = mapOf(SessionRig.ENV_KEY to "env-1")) }
         }
     }
 }
