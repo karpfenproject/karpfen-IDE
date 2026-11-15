@@ -581,7 +581,9 @@ null for an attached state machine, and both count as revisions. The snapshot ca
 the start, then the announced instances in their order, each with the `DefinitionLayout` of its definition from
 `PreparedDeployment.definitions`. Everything that lists machines reads that map, so the Runtime tool window, the
 statecharts through `DiagramLives`, the bridges and the run without a window follow instances as they come and go.
-`StatechartLogReader` tells an exchange from a detach followed by an attach in the runtime's trace.
+`StatechartLogReader` reads the trace in order and keeps the live paths of each object: a split replaces its path by
+the paths it starts, a join, an exchange or a forced initial state replaces the paths it ends by its own, and a detach
+forgets them. It puts `path N: ` in front of a line only while the object has more than one live path.
 
 A project also has features that are no part of the language, `ProjectFeature` in runtime-session. TrueParallel is
 the one there is. It is stored as `feature.trueParallel = on`, switched through `LanguageFeatureBinding` and the Run

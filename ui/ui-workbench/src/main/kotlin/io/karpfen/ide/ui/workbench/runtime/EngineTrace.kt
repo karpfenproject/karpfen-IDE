@@ -17,7 +17,11 @@ package io.karpfen.ide.ui.workbench.runtime
 
 /**
  * One line of the runtime's engine trace, taken apart. The engine writes such a line for every step of a state
- * machine, in the form `[12:41:30.123] [env-1] [lamp] TRANSITION_FIRED: off -> on | from=off, to=on`.
+ * machine, in the form `[12:41:30.123] [env-1] [lamp] TRANSITION_FIRED: off -> on | path=0, from=off, to=on, stack=on`.
+ *
+ * Every line of a state machine names its path, a number that counts per object from 0 for the life of the
+ * environment and is never used twice: `path` for the path a line is on, `paths` while the state machine is split,
+ * `starts` for the paths a split starts and `ends` for the paths a join, a forced state or an exchange ends.
  *
  * @property time the time of day the engine wrote, with milliseconds.
  * @property environment the key of the environment the engine runs.
@@ -50,7 +54,7 @@ public data class EngineTraceLine(
  * that a tick started and ended and that a state has no actions to run. It also announces every transition, split
  * and join before it applies it, in the words of the line that follows once it is applied. [isNoise] recognizes
  * both, so they never reach the log. What is left are the steps a reader follows: the initial states, the
- * transitions, splits and joins, the entry actions, the state machines that objects get and lose, and errors.
+ * transitions, splits and joins, the entry actions, the state machines that objects get, exchange and lose, and errors.
  * [describe] puts such a step into a few words.
  */
 public object EngineTrace {
@@ -73,8 +77,35 @@ public object EngineTrace {
     /** The kind of the line on which an object loses its state machine instance. */
     internal const val DETACHED: String = "STATE_MACHINE_DETACHED"
 
+    /** The kind of the line on which an `EXCHANGE` ends the instance of an object and starts another on it. */
+    internal const val EXCHANGED: String = "STATE_MACHINE_EXCHANGED"
+
+    /** The kind of the line of a split that fired. */
+    internal const val SPLIT: String = "SPLIT_FIRED"
+
+    /** The kind of the line of a join that fired. */
+    internal const val JOIN: String = "JOIN_FIRED"
+
+    /** The kind of the line of an initial or a forced stack. */
+    internal const val INITIAL: String = "INITIAL_STATE"
+
     /** The detail that names the definition an instance runs. It is empty for an attached state machine. */
     private const val STATE_MACHINE = "stateMachine"
+
+    /** The detail of an exchange line that names the definition that ended, empty for an attached state machine. */
+    private const val ENDED = "ended"
+
+    /** The detail of an exchange line that names the definition that started. */
+    private const val STARTED = "started"
+
+    /** The detail that names the path a line is on, or the path a join, a forced state or an exchange starts. */
+    internal const val PATH: String = "path"
+
+    /** The detail that names the paths a split starts, separated by commas. */
+    internal const val STARTS: String = "starts"
+
+    /** The detail that names the paths a join, a forced state or an exchange ends, separated by commas. */
+    internal const val ENDS: String = "ends"
 
     /** The kinds that report an error. */
     internal val ERRORS = setOf("ACTION_ERROR", "ENGINE_ERROR")
@@ -85,13 +116,19 @@ public object EngineTrace {
     /** What separates the message from the details. */
     private const val DETAILS = " | "
 
+    /**
+     * What separates two details: a comma and a blank before the next name and its `=`. A value may hold commas, such
+     * as the states of a stack or the paths a split starts, but never a comma and a blank before a name.
+     */
+    private val DETAIL_SEPARATOR = Regex(""", (?=[A-Za-z]+=)""")
+
     /** Takes [text] apart, or returns null if it is not a line of the engine trace. */
     public fun parse(text: String): EngineTraceLine? {
         val match = LINE.matchEntire(text.trimEnd()) ?: return null
         val (time, environment, machine, kind, rest) = match.destructured
         val message = rest.substringBefore(DETAILS)
         val details = rest.substringAfter(DETAILS, "")
-            .split(", ")
+            .split(DETAIL_SEPARATOR)
             .filter { '=' in it }
             .associate { it.substringBefore('=') to it.substringAfter('=') }
         return EngineTraceLine(time, environment, machine, kind, message, details)
@@ -102,37 +139,40 @@ public object EngineTrace {
 
     /**
      * What [line] means, in a few words. A transition reads `off -> on`, the way a state machine file writes it. The
-     * state names of splits and joins are separated by commas. An object that gets or loses an instance of a
-     * definition reads `attaches glowing` or `detaches glowing`; for a state machine the descriptor attached, the
-     * definition's name is replaced by `its state machine`. Kinds without a wording of their own keep the engine's
-     * message.
+     * state names of splits and joins are separated by commas, and they name the paths they start and end, such as
+     * `split off -> a, b into paths 1, 2` and `join a, b -> on from paths 1, 2`. An object that gets or loses an
+     * instance of a definition reads `attaches glowing` or `detaches glowing`, and an `EXCHANGE` reads
+     * `exchanges glowing for blinking`; for a state machine the descriptor attached, the definition's name is replaced
+     * by `its state machine`. Kinds without a wording of their own keep the engine's message.
      */
     public fun describe(line: EngineTraceLine): String = when (line.kind) {
-        "INITIAL_STATE" -> {
+        INITIAL -> {
             val stack = line.details["stack"]?.split(',')?.joinToString(" > ") ?: line.message.substringAfter(": ")
             if (line.message.startsWith("Forced")) "set to $stack" else "starts in $stack"
         }
         "TRANSITION_FIRED" -> line.message
-        "SPLIT_FIRED" -> "split ${spaced(line.message)}"
-        "JOIN_FIRED" -> "join ${spaced(line.message)}"
+        SPLIT -> "split ${spaced(line.message)}" + pathsOf(line, STARTS, " into")
+        JOIN -> "join ${spaced(line.message)}" + pathsOf(line, ENDS, " from")
         "STATE_ENTRY_EXEC" -> "runs the entry actions of ${line.details["state"] ?: line.message}"
-        ATTACHED -> "attaches ${machineOf(line)}"
-        DETACHED -> "detaches ${machineOf(line)}"
+        ATTACHED -> "attaches ${machineOf(line.details[STATE_MACHINE])}"
+        DETACHED -> "detaches ${machineOf(line.details[STATE_MACHINE])}"
+        EXCHANGED -> "exchanges ${machineOf(line.details[ENDED])} for ${machineOf(line.details[STARTED])}"
         else -> line.message
     }
 
-    /**
-     * The words of an object that got [attached] in place of [detached] by an `EXCHANGE`, such as
-     * `exchanges glowing for flickering`.
-     */
-    internal fun exchanged(detached: EngineTraceLine, attached: EngineTraceLine): String =
-        "exchanges ${machineOf(detached)} for ${machineOf(attached)}"
+    /** The numbers of the paths in the detail [name] of [line], or an empty list if it has none. */
+    internal fun numbers(line: EngineTraceLine, name: String): List<String> =
+        line.details[name]?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
+
+    /** ` into paths 1, 2` for [lead] ` into` and the paths in the detail [name] of [line], or nothing without them. */
+    private fun pathsOf(line: EngineTraceLine, name: String, lead: String): String =
+        numbers(line, name).takeIf { it.isNotEmpty() }?.let { "$lead paths ${it.joinToString(", ")}" } ?: ""
 
     /**
-     * The state machine a lifecycle [line] is about: the name of the definition, or `its state machine` for a state
-     * machine the descriptor attached.
+     * The state machine that a lifecycle line names with [definition]: the name of the definition, or
+     * `its state machine` for a state machine the descriptor attached, whose name is empty.
      */
-    private fun machineOf(line: EngineTraceLine): String = line.details[STATE_MACHINE]?.takeIf { it.isNotEmpty() } ?: "its state machine"
+    private fun machineOf(definition: String?): String = definition?.takeIf { it.isNotEmpty() } ?: "its state machine"
 
     /** [text] with a blank after every comma that has none. */
     private fun spaced(text: String): String = text.replace(Regex(",(?! )"), ", ")

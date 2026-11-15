@@ -45,10 +45,11 @@ public data class StatechartLogEntry(
  * also shows every error line, because an error in an action or in Python explains why a state machine did not do
  * what was expected.
  *
- * An `EXCHANGE` shows as two lines of the engine on the same object: the old instance is detached, then the new one
- * attached. The engine writes the lines of the instances that leave and join in one tick together, the detached ones
- * first, so an attached line is an exchange if the detached line of its object comes before it in the same group.
- * [StatechartLogReader] reads lines in order and remembers that group; [entry] reads a single line without it.
+ * While a state machine is split, its lines run on several paths at once, and the lines of the paths interleave. The
+ * engine names the path of every line. [StatechartLogReader] reads lines in order, follows which paths each state
+ * machine has, and puts `path 1: ` before the text of a line while its state machine has more than one path. A state
+ * machine that never splits never shows a path. The split and join lines name the paths they start and end. [entry]
+ * reads a single line without that knowledge, so it shows no path.
  */
 public object StatechartLog {
 
@@ -61,13 +62,13 @@ public object StatechartLog {
     /** True if the simplified log shows [line]. That is a step of the engine trace or an error. */
     public fun shows(line: OutputLine): Boolean = line.level == OutputLevel.ERROR || EngineTrace.parse(line.message) != null
 
-    /** [lines], in order, as the simplified log shows them, with exchanges recognized. */
+    /** [lines], in order, as the simplified log shows them, with the paths of split state machines. */
     public fun entries(lines: List<OutputLine>): List<StatechartLogEntry> {
         val reader = StatechartLogReader()
         return lines.map(reader::read)
     }
 
-    /** [line] as the simplified log shows it, read on its own, so an exchange reads as an attachment. */
+    /** [line] as the simplified log shows it, read on its own, so it shows no path. */
     public fun entry(line: OutputLine): StatechartLogEntry {
         val step = EngineTrace.parse(line.message)
             ?: return StatechartLogEntry(TIME.format(line.time), "", line.message, line.level == OutputLevel.ERROR)
@@ -86,32 +87,44 @@ public object StatechartLog {
 }
 
 /**
- * Reads the lines of the runtime's log in order as the simplified log shows them. It remembers the group of lifecycle
- * lines of each environment that the engine is writing, the lines on which objects get and lose instances, so it reads
- * an attached line as an exchange if the detached line of the same object came before it in the group. Any other line
- * of the engine trace of that environment ends the group. Not thread-safe; a reader belongs to one caller.
+ * Reads the lines of the runtime's log in order as the simplified log shows them. It follows the paths of every state
+ * machine instance, by environment and object, from the lines that start and end paths:
+ * - an attached line starts the instance on its `path`, and a detached line ends the instance;
+ * - a split line ends its `path` and starts the paths in `starts`;
+ * - a join line, a forced stack and an exchange line end the paths in `ends` and start their `path`.
+ *
+ * A line whose state machine has more than one path then reads `path 1: ` before its text, for the path it names. A
+ * split line is judged by the paths before it, every other line by the paths after it. A state machine whose split
+ * the reader did not see, because the log started later, shows no paths until its next attach, exchange, join or
+ * forced stack. Not thread-safe; a reader belongs to one caller.
  */
 public class StatechartLogReader {
-    /** The detached lines of the group each environment is writing, by environment and then by object key. */
-    private val detached = HashMap<String, LinkedHashMap<String, EngineTraceLine>>()
+    /** The paths of each state machine instance, by environment and then by object key. */
+    private val paths = HashMap<String, HashMap<String, Set<String>>>()
 
     /** [line] as the simplified log shows it, after the lines read before. */
     public fun read(line: OutputLine): StatechartLogEntry {
-        val step = EngineTrace.parse(line.message) ?: return StatechartLog.entry(line)
-        val group = detached.getOrPut(step.environment) { LinkedHashMap() }
+        val entry = StatechartLog.entry(line)
+        val step = EngineTrace.parse(line.message) ?: return entry
+        val instances = paths.getOrPut(step.environment) { HashMap() }
+        val before = instances[step.machine].orEmpty()
+        val after = next(step, before)
+        if (after == null) instances.remove(step.machine) else instances[step.machine] = after
+        val shown = if (step.kind == EngineTrace.SPLIT) before else after.orEmpty()
+        val path = step.details[EngineTrace.PATH]?.takeIf { shown.size > 1 && it in shown } ?: return entry
+        return entry.copy(text = "path $path: ${entry.text}")
+    }
+
+    /** The paths of the instance after [step], given those [before] it, or null once the instance ended. */
+    private fun next(step: EngineTraceLine, before: Set<String>): Set<String>? {
+        val path = step.details[EngineTrace.PATH]
         return when (step.kind) {
-            EngineTrace.DETACHED -> {
-                group[step.machine] = step
-                StatechartLog.entry(line)
-            }
-            EngineTrace.ATTACHED -> {
-                val old = group.remove(step.machine) ?: return StatechartLog.entry(line)
-                StatechartLogEntry(step.time, step.subject, EngineTrace.exchanged(old, step), line.level == OutputLevel.ERROR)
-            }
-            else -> {
-                group.clear()
-                StatechartLog.entry(line)
-            }
+            EngineTrace.ATTACHED -> setOfNotNull(path)
+            EngineTrace.DETACHED -> null
+            EngineTrace.SPLIT -> before - setOfNotNull(path) + EngineTrace.numbers(step, EngineTrace.STARTS)
+            EngineTrace.JOIN, EngineTrace.EXCHANGED, EngineTrace.INITIAL ->
+                if (path == null) before else before - EngineTrace.numbers(step, EngineTrace.ENDS).toSet() + path
+            else -> before
         }
     }
 }
