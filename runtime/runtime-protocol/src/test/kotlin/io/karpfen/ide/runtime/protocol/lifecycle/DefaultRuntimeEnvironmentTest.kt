@@ -219,6 +219,65 @@ class DefaultRuntimeEnvironmentTest {
     }
 
     @Test
+    fun `a drop after the stop makes the environment dropped for good, and the handle refuses everything but another drop`() = runTest {
+        val handle = handle()
+        configure(handle)
+        handle.activate()
+        handle.start()
+        handle.stop()
+
+        assertEquals(CallOutcome.Done(Unit), handle.drop())
+
+        assertEquals(EnvironmentPhase.Dropped, handle.phase.value)
+        (LifecycleOperation.entries - LifecycleOperation.DROP).forEach { operation -> assertNotNull(handle.allows(operation), "$operation") }
+        assertIs<CallOutcome.Refused>(handle.snapshot())
+        assertIs<CallOutcome.Refused>(handle.activeFeatures())
+        assertEquals(CallOutcome.Done(Unit), handle.drop())
+        assertEquals(listOf("envKey" to environment.value), http.requests.last().query)
+        assertEquals(
+            listOf("/setMetamodel", "/setModel", "/runEnvironment", "/startEnvironment", "/stopEnvironment", "/dropEnvironment"),
+            http.paths,
+        )
+    }
+
+    @Test
+    fun `a running environment is dropped without a stop, and a configuring one too`() = runTest {
+        val running = handle()
+        configure(running)
+        running.activate()
+        running.start()
+        assertEquals(CallOutcome.Done(Unit), running.drop())
+        assertEquals(EnvironmentPhase.Dropped, running.phase.value)
+
+        val configuring = handle()
+        assertEquals(CallOutcome.Done(Unit), configuring.drop())
+        assertEquals(EnvironmentPhase.Dropped, configuring.phase.value)
+        assertEquals(
+            listOf("/setMetamodel", "/setModel", "/runEnvironment", "/startEnvironment", "/dropEnvironment", "/dropEnvironment"),
+            http.paths,
+        )
+    }
+
+    @Test
+    fun `a drop the runtime does not know is lost, and one of a runtime without the route leaves the phase without a probe`() = runTest {
+        val gone = handle()
+        configure(gone)
+        http.reject(400, textOf(RuntimeText.UNKNOWN_ENVIRONMENT))
+        val unknown = assertIs<CallOutcome.Failed>(gone.drop())
+        assertEquals(RejectionKind.UNKNOWN_ENVIRONMENT, assertIs<RuntimeFailure.Rejected>(unknown.failure).kind)
+        assertIs<EnvironmentPhase.Lost>(gone.phase.value)
+
+        val older = handle()
+        configure(older)
+        older.activate()
+        http.answer(404, "")
+        val missing = assertIs<CallOutcome.Failed>(older.drop())
+        assertEquals(404, assertIs<RuntimeFailure.UnexpectedStatus>(missing.failure).status)
+        assertEquals(EnvironmentPhase.Activated, older.phase.value)
+        assertEquals("/dropEnvironment", http.paths.last())
+    }
+
+    @Test
     fun `access keys are issued through the route the observatory asks for`() = runTest {
         val handle = handle()
         val keys = (1..3).map { "ak-${client.value}-1761555601234-$it" }
@@ -387,9 +446,10 @@ class DefaultRuntimeEnvironmentTest {
 
         assertEquals(RejectionKind.UNKNOWN_ENVIRONMENT, assertIs<RuntimeFailure.Rejected>(outcome.failure).kind)
         assertIs<EnvironmentPhase.Lost>(handle.phase.value)
-        LifecycleOperation.entries.forEach { operation -> assertNotNull(handle.allows(operation), "$operation") }
+        (LifecycleOperation.entries - LifecycleOperation.DROP).forEach { operation -> assertNotNull(handle.allows(operation), "$operation") }
         assertIs<CallOutcome.Refused>(handle.snapshot())
         assertIs<CallOutcome.Refused>(handle.stop())
+        assertEquals(CallOutcome.Done(Unit), handle.drop())
         assertEquals(listOf("/setMetamodel"), http.paths)
     }
 

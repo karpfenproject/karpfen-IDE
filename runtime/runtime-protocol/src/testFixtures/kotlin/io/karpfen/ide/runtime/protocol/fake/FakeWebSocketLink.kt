@@ -107,6 +107,14 @@ public class FakeWebSocketLink internal constructor(
         return push(RuntimeWireWriter.envelope(parts[1], parts[0], WireNames.ENGINE_STATUS, RuntimeGoldens.ENGINE_STATUS_STOPPED_PAYLOAD))
     }
 
+    /**
+     * Closes the link as the runtime closes the sockets of a dropped environment, with 1000 `Environment dropped`.
+     * Does nothing if already closed.
+     */
+    public fun closeAsDropped() {
+        closeByRuntime(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_DROPPED)
+    }
+
     /** Closes the link as the runtime, with the close frame [code] and [reason]. Does nothing if already closed. */
     public fun closeByRuntime(code: Int, reason: String) {
         end(LinkClosure(code, reason, byClient = false))

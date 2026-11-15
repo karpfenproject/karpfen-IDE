@@ -102,6 +102,13 @@ public sealed interface EnvironmentPhase {
     public data object Stopped : EnvironmentPhase
 
     /**
+     * Dropped by the client. The runtime ended the engine and keeps nothing of the environment, and every later call
+     * with its key would answer as for an environment that does not exist. This phase is final, and the handle refuses
+     * every operation in it except another drop, which it answers locally.
+     */
+    public data object Dropped : EnvironmentPhase
+
+    /**
      * A call may or may not have been applied, and the runtime could not be asked which. The next call that reads the
      * phase resolves it.
      *

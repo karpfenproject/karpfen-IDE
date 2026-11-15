@@ -89,6 +89,8 @@ class PhaseOnlyEnvironment(
 
     override suspend fun stop(): CallOutcome<Unit> = refuse(LifecycleOperation.STOP)
 
+    override suspend fun drop(): CallOutcome<Unit> = refuse(LifecycleOperation.DROP)
+
     override suspend fun forceState(modelElement: String, state: String): CallOutcome<Unit> = refuse(LifecycleOperation.FORCE_STATE)
 
     override suspend fun stateMachineSource(modelElement: String): CallOutcome<String> =

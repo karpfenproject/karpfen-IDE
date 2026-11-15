@@ -58,6 +58,9 @@ public enum class LifecycleOperation {
     /** Stop the environment. */
     STOP,
 
+    /** Drop the environment, so that the runtime keeps nothing of it. */
+    DROP,
+
     /** Force the active state of a machine. */
     FORCE_STATE,
 

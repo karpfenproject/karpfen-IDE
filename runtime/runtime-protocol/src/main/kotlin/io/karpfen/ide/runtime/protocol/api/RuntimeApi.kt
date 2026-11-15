@@ -84,6 +84,9 @@ internal interface RuntimeApi {
     /** `POST /stopEnvironment`: stops [environment]. */
     suspend fun stopEnvironment(environment: EnvironmentKey): RuntimeResult<Unit>
 
+    /** `POST /dropEnvironment`: drops [environment], so that the runtime keeps nothing of it. */
+    suspend fun dropEnvironment(environment: EnvironmentKey): RuntimeResult<Unit>
+
     /** `GET /health`: whether the runtime is up. */
     suspend fun health(): RuntimeResult<Unit>
 

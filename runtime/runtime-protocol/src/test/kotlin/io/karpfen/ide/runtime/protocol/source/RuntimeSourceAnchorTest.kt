@@ -130,6 +130,7 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(KTOR_SERVER, "pingPeriod = Duration.ofSeconds(60)"),
                 SourceAnchor(KTOR_SERVER, "timeout = Duration.ofSeconds(15)"),
                 SourceAnchor(ENVIRONMENT_HANDLER, "CloseReason(CloseReason.Codes.GOING_AWAY, \"${WireNames.REASON_RUNTIME_STOPPED}\")"),
+                SourceAnchor(ENVIRONMENT_HANDLER, "CloseReason(CloseReason.Codes.NORMAL, \"${WireNames.REASON_ENVIRONMENT_DROPPED}\")"),
                 SourceAnchor(SESSION_MANAGER, "clientSessions[environmentKey]?.values?.firstOrNull { it.clientId == clientId }"),
             ),
         )
@@ -141,7 +142,7 @@ class RuntimeSourceAnchorTest {
             listOf(
                 SourceAnchor(ENVIRONMENT_HANDLER, "newEnvironment(\"${WireNames.ENVIRONMENT_KEY_PREFIX}\$millis\")"),
                 SourceAnchor(ENVIRONMENT_HANDLER, "if (envs.putIfAbsent(env.key, env) == null)"),
-                SourceAnchor(ENVIRONMENT_HANDLER, "millis++"),
+                SourceAnchor(ENVIRONMENT_HANDLER, "lastKeyMillis.updateAndGet { last -> maxOf(System.currentTimeMillis(), last + 1) }"),
                 SourceAnchor(
                     SESSION_MANAGER,
                     "\"${WireNames.ACCESS_KEY_PREFIX}\$clientId-\${System.currentTimeMillis()}-\${(Math.random() * 10000).toInt()}\"",
@@ -370,6 +371,19 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(ENVIRONMENT_PHASE, "RUNNING(\"${RuntimePhase.RUNNING.wireName}\")"),
                 SourceAnchor(ENVIRONMENT_HANDLER, "if (envThread.stop()) {"),
                 SourceAnchor(ENVIRONMENT_HANDLER, "fun shutdown() {"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a drop ends the engine, closes the sockets with its reason and forgets the key, so later calls find no environment`() {
+        val unknown = RuntimeText.UNKNOWN_ENVIRONMENT.render(mapOf("env" to "\$envKey"))
+        assertAnchored(
+            listOf(
+                SourceAnchor(API_SERVICE, "EnvironmentHandler.dropEnv(envKey)"),
+                SourceAnchor(ENVIRONMENT_HANDLER, "envs.remove(envKey) ?: throw IllegalArgumentException(\"$unknown\")"),
+                SourceAnchor(ENVIRONMENT_HANDLER, "activeEnvs.remove(envKey)"),
+                SourceAnchor(ENVIRONMENT_HANDLER, "clientSessionManager.closeSessions(sessions, DROPPED)"),
             ),
         )
     }

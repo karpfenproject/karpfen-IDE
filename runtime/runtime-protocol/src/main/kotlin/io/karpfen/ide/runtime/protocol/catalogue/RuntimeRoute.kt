@@ -105,7 +105,7 @@ public enum class TimeoutClass {
 }
 
 /**
- * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 24 routes of the runtime's
+ * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 25 routes of the runtime's
  * `HTTPRoutes` in their order, followed by the three routes that its `ModelObservationRoutes` adds. Everything the
  * client sends is built from an entry, and the fake runtime dispatches by it.
  *
@@ -219,6 +219,16 @@ public enum class RuntimeRoute(
      */
     STOP_ENVIRONMENT(
         HttpVerb.POST, "/stopEnvironment", listOf("envKey"),
+        BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.STOP,
+    ),
+
+    /**
+     * Drops an environment in any phase and answers after its engine ended, which takes up to about 5 s. The runtime
+     * closes the WebSocket sessions of the environment with 1000 `Environment dropped`, and every later call with the
+     * key answers as for an environment that does not exist.
+     */
+    DROP_ENVIRONMENT(
+        HttpVerb.POST, "/dropEnvironment", listOf("envKey"),
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.STOP,
     ),
 

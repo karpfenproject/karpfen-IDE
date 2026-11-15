@@ -25,6 +25,7 @@ import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ACTIVATE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ACTIVATE_FEATURE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.DEACTIVATE_FEATURE
+import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.DROP
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.FORCE_STATE
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.INJECT_EVENT
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ISSUE_ACCESS_KEY
@@ -58,7 +59,8 @@ import kotlin.test.assertTrue
  * Covers [LifecycleRules] exhaustively. The tests check the verdict of every operation in every phase against the
  * lifecycle's verdict table, and the phase after every success. They check the resolution of every kind of failure and
  * every rejection kind for every operation against the transition table. They also check every probe result, the
- * reconciliation with a snapshot's phase, and a stopped environment that stays stopped.
+ * reconciliation with a snapshot's phase, a stopped environment that stays stopped and a dropped one that stays
+ * dropped.
  */
 class LifecycleRulesTest {
 
@@ -83,28 +85,30 @@ class LifecycleRulesTest {
     private val features = setOf(ACTIVATE_FEATURE, DEACTIVATE_FEATURE, READ_ACTIVE_FEATURES, MESSAGE_FEATURE)
 
     /**
-     * The verdict table. For each phase it lists the operations that are sent. Every other operation is refused, and a
-     * stop of a stopped environment is answered locally.
+     * The verdict table. For each phase it lists the operations that are sent. Every other operation is refused, a
+     * stop of a stopped environment is answered locally, and so is a drop of a lost or a dropped one. Every phase of an
+     * existing environment sends a drop.
      */
     private val sent: Map<EnvironmentPhase, Set<LifecycleOperation>> = mapOf(
         EnvironmentPhase.Configuring(nothing) to
-            features + configuringCalls + reads + setOf(SET_METAMODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(SET_METAMODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
         EnvironmentPhase.Configuring(metamodel) to
-            features + configuringCalls + reads + setOf(SET_METAMODEL, SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(SET_METAMODEL, SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
         EnvironmentPhase.Configuring(metamodelAndEvents) to
-            features + configuringCalls + reads + setOf(SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
         EnvironmentPhase.Configuring(metamodelAndModel) to
-            features + configuringCalls + reads + setOf(SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, ACTIVATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(SET_EVENT_DEFINITIONS, SET_MODEL, ISSUE_ACCESS_KEY, ACTIVATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
         EnvironmentPhase.Configuring(nothing.copy(model = true)) to
-            features + configuringCalls + reads + setOf(ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
+            features + configuringCalls + reads + setOf(ISSUE_ACCESS_KEY, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
         EnvironmentPhase.Activated to
-            features + reads + setOf(ISSUE_ACCESS_KEY, START, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT),
+            features + reads + setOf(ISSUE_ACCESS_KEY, START, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT, DROP),
         EnvironmentPhase.Running to
-            features + reads + setOf(ISSUE_ACCESS_KEY, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT),
-        EnvironmentPhase.Halted to features + reads + setOf(ISSUE_ACCESS_KEY, STOP, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL),
-        EnvironmentPhase.Stopped to features + reads + setOf(UNSUBSCRIBE_MODEL),
-        uncertain to features + reads + setOf(STOP, UNSUBSCRIBE_MODEL),
+            features + reads + setOf(ISSUE_ACCESS_KEY, STOP, FORCE_STATE, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, INJECT_EVENT, DROP),
+        EnvironmentPhase.Halted to features + reads + setOf(ISSUE_ACCESS_KEY, STOP, SUBSCRIBE_MODEL, UNSUBSCRIBE_MODEL, DROP),
+        EnvironmentPhase.Stopped to features + reads + setOf(UNSUBSCRIBE_MODEL, DROP),
+        uncertain to features + reads + setOf(STOP, UNSUBSCRIBE_MODEL, DROP),
         lost to emptySet(),
+        EnvironmentPhase.Dropped to emptySet(),
     )
 
     /** The route of the failures, which the rules do not look at. */
@@ -134,12 +138,14 @@ class LifecycleRulesTest {
 
     @Test
     fun `every operation in every phase gets the verdict of the table`() {
-        assertEquals(PhaseKind.entries.size + 6, sent.size)
+        assertEquals(PhaseKind.entries.size + 7, sent.size)
         sent.forEach { (phase, operations) ->
             LifecycleOperation.entries.forEach { operation ->
                 val verdict = LifecycleRules.verdict(phase, operation)
                 when {
                     phase == EnvironmentPhase.Stopped && operation == STOP -> assertEquals(Verdict.AnswerLocally, verdict, "$operation in $phase")
+                    (phase == lost || phase == EnvironmentPhase.Dropped) && operation == DROP ->
+                        assertEquals(Verdict.AnswerLocally, verdict, "$operation in $phase")
                     operation in operations -> assertEquals(Verdict.Send, verdict, "$operation in $phase")
                     else -> assertTrue(assertIs<Verdict.Refuse>(verdict, "$operation in $phase").reason.isNotBlank())
                 }
@@ -166,6 +172,7 @@ class LifecycleRulesTest {
                 ACTIVATE -> EnvironmentPhase.Activated
                 START -> EnvironmentPhase.Running
                 STOP -> EnvironmentPhase.Stopped
+                DROP -> EnvironmentPhase.Dropped
                 else -> EnvironmentPhase.Configuring(expected[operation] ?: nothing)
             }
             assertEquals(wanted, after, "$operation")
@@ -179,7 +186,7 @@ class LifecycleRulesTest {
     }
 
     @Test
-    fun `nothing sent changes nothing, and an unknown outcome is probed only for activate, start and stop`() {
+    fun `nothing sent changes nothing, and an unknown outcome is probed only for activate, start and stop of an environment not dropped`() {
         sent.keys.forEach { phase ->
             LifecycleOperation.entries.forEach { operation ->
                 assertEquals(
@@ -187,7 +194,8 @@ class LifecycleRulesTest {
                     LifecycleRules.afterFailure(phase, operation, RuntimeFailure.Unreachable(route, "refused")),
                 )
                 unknownOutcomes.forEach { failure ->
-                    val expected = if (operation in setOf(ACTIVATE, START, STOP)) OutcomeResolution.Probe else OutcomeResolution.Settled(phase)
+                    val probed = operation in setOf(ACTIVATE, START, STOP) && phase != EnvironmentPhase.Dropped
+                    val expected = if (probed) OutcomeResolution.Probe else OutcomeResolution.Settled(phase)
                     assertEquals(expected, LifecycleRules.afterFailure(phase, operation, failure), "$failure of $operation in $phase")
                 }
             }
@@ -201,6 +209,8 @@ class LifecycleRulesTest {
             LifecycleOperation.entries.forEach { operation ->
                 RejectionKind.entries.forEach { kind ->
                     val expected: OutcomeResolution = when {
+                        phase == EnvironmentPhase.Dropped -> OutcomeResolution.Settled(phase)
+                        operation == DROP -> if (kind == RejectionKind.UNKNOWN_ENVIRONMENT) lostResolution() else OutcomeResolution.Settled(phase)
                         operation == ACTIVATE -> when (kind) {
                             RejectionKind.ALREADY_ACTIVE -> OutcomeResolution.Probe
                             RejectionKind.UNKNOWN_ENVIRONMENT -> lostResolution()
@@ -330,6 +340,31 @@ class LifecycleRulesTest {
         assertEquals(PhaseKind.STOPPED, LifecycleRules.kindOf(EnvironmentPhase.Stopped))
         assertEquals(null, LifecycleRules.kindOf(uncertain))
         assertEquals(null, LifecycleRules.kindOf(lost))
+        assertEquals(null, LifecycleRules.kindOf(EnvironmentPhase.Dropped))
+    }
+
+    @Test
+    fun `a dropped environment stays dropped whatever a snapshot or a probe reports`() {
+        val dropped = EnvironmentPhase.Dropped
+        val gone = ProbeResult.Failed(RuntimeFailure.Rejected(RuntimeRoute.MODEL_SNAPSHOT, 400, RejectionKind.UNKNOWN_ENVIRONMENT, "text", emptyMap()))
+
+        RuntimePhase.entries.forEach { reported ->
+            assertEquals(dropped, LifecycleRules.afterSnapshot(dropped, snapshot(reported)), "a snapshot that reports $reported")
+            assertEquals(dropped, LifecycleRules.afterProbe(dropped, DROP, ProbeResult.Reported(snapshot(reported))))
+        }
+        assertEquals(dropped, LifecycleRules.afterProbe(dropped, DROP, gone))
+        assertEquals(dropped, LifecycleRules.afterSuccess(dropped, READ_SNAPSHOT))
+    }
+
+    @Test
+    fun `a failed drop is never probed, and only an unknown environment changes the phase`() {
+        unknownOutcomes.forEach { failure ->
+            assertEquals(OutcomeResolution.Settled(EnvironmentPhase.Stopped), LifecycleRules.afterFailure(EnvironmentPhase.Stopped, DROP, failure))
+        }
+        val notFound = RuntimeFailure.UnexpectedStatus(RuntimeRoute.DROP_ENVIRONMENT, 404, "")
+        assertEquals(OutcomeResolution.Settled(EnvironmentPhase.Running), LifecycleRules.afterFailure(EnvironmentPhase.Running, DROP, notFound))
+        val gone = LifecycleRules.afterFailure(EnvironmentPhase.Stopped, DROP, rejected(RejectionKind.UNKNOWN_ENVIRONMENT))
+        assertIs<EnvironmentPhase.Lost>(assertIs<OutcomeResolution.Settled>(gone).phase)
     }
 
     /** Stands for a settled lost phase, whose reason the transition tests do not compare. */

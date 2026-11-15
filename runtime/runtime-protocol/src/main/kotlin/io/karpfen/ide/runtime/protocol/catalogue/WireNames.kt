@@ -196,6 +196,9 @@ public object WireNames {
     /** The close reason of a connection that missed a pong. */
     public const val REASON_PING_TIMEOUT: String = "Ping timeout"
 
+    /** The close reason, with [CLOSE_NORMAL], of the sockets of an environment that `POST /dropEnvironment` dropped. */
+    public const val REASON_ENVIRONMENT_DROPPED: String = "Environment dropped"
+
     /** The close reason of the sockets of every environment when the runtime ends. */
     public const val REASON_RUNTIME_STOPPED: String = "Runtime stopped"
 

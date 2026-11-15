@@ -19,13 +19,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Covers the 27 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
+ * Covers the 28 routes of [RuntimeRoute] for the runtime with IDE support, in the order of its route files. Each route
  * has its verb, path, parameters in the order the runtime checks them, body, answer and timeout class.
  */
 class RuntimeRouteTest {
 
     @Test
-    fun `the catalogue holds the 27 routes in the order of the runtime's route files`() {
+    fun `the catalogue holds the 28 routes in the order of the runtime's route files`() {
         assertEquals(
             listOf(
                 "POST /createEnvironment" to emptyList(),
@@ -42,6 +42,7 @@ class RuntimeRouteTest {
                 "POST /runEnvironment" to listOf("envKey"),
                 "POST /startEnvironment" to listOf("envKey"),
                 "POST /stopEnvironment" to listOf("envKey"),
+                "POST /dropEnvironment" to listOf("envKey"),
                 "GET /health" to emptyList(),
                 "GET /observatory/environments" to emptyList(),
                 "GET /observatory/statemachine" to listOf("envKey", "modelElement", "name"),
@@ -99,12 +100,13 @@ class RuntimeRouteTest {
             mapOf(
                 TimeoutClass.QUICK to 21,
                 TimeoutClass.UPLOAD to 4,
-                TimeoutClass.STOP to 1,
+                TimeoutClass.STOP to 2,
                 TimeoutClass.SNAPSHOT to 1,
             ),
             RuntimeRoute.entries.groupingBy { it.timeout }.eachCount(),
         )
         assertEquals(TimeoutClass.STOP, RuntimeRoute.STOP_ENVIRONMENT.timeout)
+        assertEquals(TimeoutClass.STOP, RuntimeRoute.DROP_ENVIRONMENT.timeout)
         assertEquals(TimeoutClass.SNAPSHOT, RuntimeRoute.MODEL_SNAPSHOT.timeout)
         assertEquals(TimeoutClass.UPLOAD, RuntimeRoute.SET_STATE_MACHINE.timeout)
     }

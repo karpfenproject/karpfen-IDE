@@ -94,6 +94,9 @@ internal class HttpRuntimeApi(
     override suspend fun stopEnvironment(environment: EnvironmentKey): RuntimeResult<Unit> =
         call(RuntimeRoute.STOP_ENVIRONMENT, listOf(environment.value), null, SuccessBodies.EMPTY)
 
+    override suspend fun dropEnvironment(environment: EnvironmentKey): RuntimeResult<Unit> =
+        call(RuntimeRoute.DROP_ENVIRONMENT, listOf(environment.value), null, SuccessBodies.EMPTY)
+
     override suspend fun health(): RuntimeResult<Unit> =
         call(RuntimeRoute.HEALTH, emptyList(), null, SuccessBodies.HEALTH)
 

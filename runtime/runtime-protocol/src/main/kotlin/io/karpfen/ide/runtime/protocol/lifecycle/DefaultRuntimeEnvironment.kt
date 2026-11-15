@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory
  * not go through [snapshot], which would take the mutex a second time. The gateway bounds the probe by the snapshot
  * timeout.
  *
- * Activation, start and stop run in a non-cancellable context together with their probes, bounded by the timeouts of
+ * Activation, start, stop and drop run in a non-cancellable context together with their probes, bounded by the timeouts of
  * their routes. A cancelled caller waits for the outcome. The phase is recorded, and then the cancellation is
  * rethrown.
  *
@@ -117,6 +117,9 @@ internal class DefaultRuntimeEnvironment(
 
     override suspend fun stop(): CallOutcome<Unit> =
         perform(LifecycleOperation.STOP, completesWhenCancelled = true, localAnswer = Unit) { api.stopEnvironment(key) }
+
+    override suspend fun drop(): CallOutcome<Unit> =
+        perform(LifecycleOperation.DROP, completesWhenCancelled = true, localAnswer = Unit) { api.dropEnvironment(key) }
 
     override suspend fun forceState(modelElement: String, state: String): CallOutcome<Unit> =
         perform(LifecycleOperation.FORCE_STATE) { api.setActiveState(key, modelElement, state) }

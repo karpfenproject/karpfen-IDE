@@ -74,10 +74,13 @@ import kotlin.test.assertTrue
  *   phase `running`, from the same stacks, with the next revisions and without announcing an instance again.
  * - Features are switched on and off, listed and sent messages while configuring, running and stopped, and their
  *   refusals have the catalogue's texts.
+ * - A drop removes a configuring, an activated, a running and a stopped environment. Its sockets close with the normal
+ *   code and the reason `Environment dropped`, it is no longer listed, and its key is then rejected like an absent one,
+ *   also by a second drop.
  *
  * The scenarios run only against a real runtime, in [LiveRuntimeContractTest]. Failures that only a fake can produce
- * are ordinary tests of the client against the fake runtime. Every scenario stops the environments it launched when it
- * ends, also when it fails.
+ * are ordinary tests of the client against the fake runtime. Every scenario stops the environments it launched and did
+ * not drop when it ends, also when it fails.
  */
 abstract class RuntimeContract {
 
@@ -615,6 +618,37 @@ abstract class RuntimeContract {
         assertEquals(RuntimePhase.RUNNING.wireName, string(snapshot(environment), WireNames.PHASE))
         ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
         assertEquals(RuntimePhase.STOPPED.wireName, string(snapshot(environment), WireNames.PHASE))
+    }
+
+    @Test
+    fun `a drop removes an environment in every phase, closes its sockets and leaves its key absent`() = scenario {
+        val launches = mapOf(
+            "configuring" to emptyList(),
+            "activated" to listOf(RuntimeRoute.RUN_ENVIRONMENT),
+            "running" to listOf(RuntimeRoute.RUN_ENVIRONMENT, RuntimeRoute.START_ENVIRONMENT),
+            "stopped" to listOf(RuntimeRoute.RUN_ENVIRONMENT, RuntimeRoute.START_ENVIRONMENT, RuntimeRoute.STOP_ENVIRONMENT),
+        )
+        launches.forEach { (phase, routes) ->
+            val environment = create()
+            val client = clientId()
+            uploadLamp(environment)
+            val link = connect(client, environment)
+            subscribe(client, environment)
+            routes.forEach { ok(it, ENV_KEY to environment) }
+            val env = mapOf("env" to environment)
+
+            ok(RuntimeRoute.DROP_ENVIRONMENT, ENV_KEY to environment)
+
+            assertEquals(
+                LinkClosure(WireNames.CLOSE_NORMAL, WireNames.REASON_ENVIRONMENT_DROPPED, byClient = false),
+                withTimeout(scope.patience.reaction) { link.link.closure.await() },
+                "the socket of a $phase environment",
+            )
+            rejected(BAD_REQUEST, RuntimeText.UNKNOWN_ENVIRONMENT, env, RuntimeRoute.MODEL_SNAPSHOT, ENV_KEY to environment)
+            rejected(BAD_REQUEST, RuntimeText.UNKNOWN_ENVIRONMENT, env, RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+            rejected(BAD_REQUEST, RuntimeText.UNKNOWN_ENVIRONMENT, env, RuntimeRoute.DROP_ENVIRONMENT, ENV_KEY to environment)
+            assertFalse(listed().any { it.first == environment }, "a dropped $phase environment is not listed")
+        }
     }
 
     /** Runs [body] as a scenario against [runtime] with the raw view of it, which stops what it launched at the end. */

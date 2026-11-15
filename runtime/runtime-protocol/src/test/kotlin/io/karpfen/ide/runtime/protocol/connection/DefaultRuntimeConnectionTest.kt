@@ -296,6 +296,23 @@ class DefaultRuntimeConnectionTest {
     }
 
     @Test
+    fun `the runtime's close of a dropped environment ends the connection as dropped without a reconnect`() = runTest {
+        val connection = connection(ReconnectPolicy(firstDelay = 1.seconds))
+        val (events, collector) = collect(connection)
+        connection.open()
+
+        connector.links.single().closeByRuntime(1000, "Environment dropped")
+        runCurrent()
+        advanceTimeBy(1.minutes)
+        runCurrent()
+
+        assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentDropped), connection.state.value)
+        assertEquals(ConnectionEvent.Ended(ConnectionEnd.EnvironmentDropped), events.last())
+        assertTrue(collector.isCompleted)
+        assertEquals(1, connector.links.size)
+    }
+
+    @Test
     fun `a close with the reason of the former stop is an interruption to reconnect after`() = runTest {
         val connection = connection(ReconnectPolicy(firstDelay = 1.seconds))
         connection.open()
@@ -406,7 +423,7 @@ class DefaultRuntimeConnectionTest {
     }
 
     @Test
-    fun `the handle's phase ends the connection when it becomes stopped or lost`() = runTest {
+    fun `the handle's phase ends the connection when it becomes stopped, lost or dropped`() = runTest {
         val stopped = connection()
         stopped.open()
         handle.moveTo(EnvironmentPhase.Stopped)
@@ -423,10 +440,19 @@ class DefaultRuntimeConnectionTest {
 
         assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentLost("the runtime restarted")), lost.state.value)
         assertEquals(1000, connector.links[1].closes.single().first)
+
+        handle.moveTo(EnvironmentPhase.Running)
+        val dropped = connection()
+        dropped.open()
+        handle.moveTo(EnvironmentPhase.Dropped)
+        runCurrent()
+
+        assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentDropped), dropped.state.value)
+        assertEquals(1000, connector.links[2].closes.single().first)
     }
 
     @Test
-    fun `a key refused while the phase is uncertain is a failed attempt, a refused one of a stopped environment ends it`() = runTest {
+    fun `a key refused while the phase is uncertain is a failed attempt, a refused one of a stopped or dropped environment ends it`() = runTest {
         val uncertain = EnvironmentPhase.Uncertain(setOf(PhaseKind.ACTIVATED, PhaseKind.RUNNING), "start", Uploads.NONE)
         issuances += CallOutcome.Refused(LifecycleRefusal(LifecycleOperation.ISSUE_ACCESS_KEY, uncertain, "uncertain"))
         val retried = connection(ReconnectPolicy(firstDelay = 1.seconds))
@@ -436,6 +462,8 @@ class DefaultRuntimeConnectionTest {
 
         issuances += CallOutcome.Refused(LifecycleRefusal(LifecycleOperation.ISSUE_ACCESS_KEY, EnvironmentPhase.Stopped, "stopped"))
         assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentStopped), connection().open())
+        issuances += CallOutcome.Refused(LifecycleRefusal(LifecycleOperation.ISSUE_ACCESS_KEY, EnvironmentPhase.Dropped, "dropped"))
+        assertEquals(ConnectionState.Ended(ConnectionEnd.EnvironmentDropped), connection().open())
         assertEquals(1, connector.links.size)
     }
 

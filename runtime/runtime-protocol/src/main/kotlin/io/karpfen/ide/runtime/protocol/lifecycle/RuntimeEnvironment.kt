@@ -40,14 +40,15 @@ import kotlinx.coroutines.flow.StateFlow
  * phase the runtime reports. The first is a rejection that shows the runtime's phase differs from the one the handle
  * believes. The second is an outcome that leaves open whether the call was applied. What cannot be settled becomes
  * [EnvironmentPhase.Uncertain]. A key the runtime no longer knows becomes [EnvironmentPhase.Lost]. A stopped
- * environment stays stopped whatever a later snapshot reports, unless it is lost.
+ * environment stays stopped whatever a later snapshot reports, unless it is lost. A dropped environment is
+ * [EnvironmentPhase.Dropped] for good.
  *
  * Every function may be called from any coroutine. The handle serializes its calls, so two calls never overlap on the
  * wire and the phase changes in call order. The handle is the only writer of [phase].
  *
  * A refused operation returns [CallOutcome.Refused] and sends nothing. A failed call returns [CallOutcome.Failed]. No
- * function throws for a runtime or transport failure. [activate], [start] and [stop] complete even when the caller is
- * cancelled. They record the outcome in [phase] and then rethrow the cancellation. A `CancellationException` of the
+ * function throws for a runtime or transport failure. [activate], [start], [stop] and [drop] complete even when the
+ * caller is cancelled. They record the outcome in [phase] and then rethrow the cancellation. A `CancellationException` of the
  * caller is always rethrown.
  */
 public interface RuntimeEnvironment {
@@ -131,6 +132,15 @@ public interface RuntimeEnvironment {
      * even when the caller is cancelled.
      */
     public suspend fun stop(): CallOutcome<Unit>
+
+    /**
+     * Drops the environment in whatever phase it is. The runtime ends the engine, which takes up to about 5 s, answers
+     * then, closes the WebSocket sessions of the environment with 1000 `Environment dropped` and keeps nothing of it.
+     * The phase becomes [EnvironmentPhase.Dropped], in which the handle refuses everything except another drop, and
+     * the connections of this handle end. For a lost or an already dropped environment, the handle answers locally. A
+     * rejection for an unknown environment makes the phase lost. It completes even when the caller is cancelled.
+     */
+    public suspend fun drop(): CallOutcome<Unit>
 
     /**
      * Forces the machine attached to [modelElement] into [state] at the next tick. It is allowed while activated or

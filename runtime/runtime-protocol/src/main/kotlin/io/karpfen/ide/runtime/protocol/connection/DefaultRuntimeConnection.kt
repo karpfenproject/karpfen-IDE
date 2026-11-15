@@ -226,12 +226,17 @@ internal class DefaultRuntimeConnection(
         }
     }
 
-    /** Suspends until the handle's phase is stopped or lost, and returns the end that follows from it. */
+    /** Suspends until the handle's phase is stopped, dropped or lost, and returns the end that follows from it. */
     private suspend fun phaseEnd(): ConnectionEnd =
-        when (val phase = handle.phase.first { it is EnvironmentPhase.Stopped || it is EnvironmentPhase.Lost }) {
+        when (val phase = handle.phase.first { it.endsConnections() }) {
             is EnvironmentPhase.Lost -> ConnectionEnd.EnvironmentLost(phase.reason)
+            EnvironmentPhase.Dropped -> ConnectionEnd.EnvironmentDropped
             else -> ConnectionEnd.EnvironmentStopped
         }
+
+    /** True for the phases in which no connection to the environment goes on. */
+    private fun EnvironmentPhase.endsConnections(): Boolean =
+        this == EnvironmentPhase.Stopped || this == EnvironmentPhase.Dropped || this is EnvironmentPhase.Lost
 
     /**
      * Makes attempts and runs the links they open until one of them ends the connection, and returns that end. An
@@ -273,7 +278,7 @@ internal class DefaultRuntimeConnection(
 
     /**
      * Makes one attempt. It takes a fresh key, closes the previous link, opens a new link and sends the handshake. A
-     * key issuance that shows the environment stopped or lost ends the connection. A runtime rejection for an unknown
+     * key issuance that shows the environment stopped, dropped or lost ends the connection. A runtime rejection for an unknown
      * environment counts as lost. Any other refusal or failure only fails the attempt.
      */
     private suspend fun attemptOnce(): Attempt {
@@ -281,6 +286,7 @@ internal class DefaultRuntimeConnection(
             is CallOutcome.Done -> issued.value
             is CallOutcome.Refused -> return when (val phase = issued.refusal.phase) {
                 EnvironmentPhase.Stopped -> Attempt.Ended(ConnectionEnd.EnvironmentStopped)
+                EnvironmentPhase.Dropped -> Attempt.Ended(ConnectionEnd.EnvironmentDropped)
                 is EnvironmentPhase.Lost -> Attempt.Ended(ConnectionEnd.EnvironmentLost(phase.reason))
                 else -> Attempt.Failed("the access key was refused: ${issued.refusal.reason}")
             }
@@ -349,6 +355,8 @@ internal class DefaultRuntimeConnection(
             closure.code == WireNames.CLOSE_CANNOT_ACCEPT -> ConnectionEnd.HandshakeRejected(rejectionOf(closure))
             closure.code == WireNames.CLOSE_GOING_AWAY && closure.reason == WireNames.REASON_RUNTIME_STOPPED ->
                 ConnectionEnd.EnvironmentLost(RUNTIME_ENDED)
+            closure.code == WireNames.CLOSE_NORMAL && closure.reason == WireNames.REASON_ENVIRONMENT_DROPPED ->
+                ConnectionEnd.EnvironmentDropped
             else -> null
         }
 

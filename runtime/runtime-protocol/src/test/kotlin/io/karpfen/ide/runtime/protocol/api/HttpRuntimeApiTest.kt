@@ -98,6 +98,7 @@ class HttpRuntimeApiTest {
             suspend { api.runEnvironment(environment); Unit } to post("/runEnvironment", "envKey" to environment.value),
             suspend { api.startEnvironment(environment); Unit } to post("/startEnvironment", "envKey" to environment.value),
             suspend { api.stopEnvironment(environment); Unit } to post("/stopEnvironment", "envKey" to environment.value),
+            suspend { api.dropEnvironment(environment); Unit } to post("/dropEnvironment", "envKey" to environment.value),
             suspend { api.health(); Unit } to get("/health"),
             suspend { api.listEnvironments(); Unit } to get("/observatory/environments"),
             suspend { api.stateMachineSource(environment, "lamp"); Unit } to
