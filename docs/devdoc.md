@@ -185,12 +185,15 @@ generated from these files, so they keep a fixed form:
 - A link inside a repository is relative. A link into another repository goes to the file on `main` on GitHub. The
   text of a link to a section starts with its number and title.
 - There is no front matter, no HTML, no image and no table of contents in a file.
+- A name that the reader has to find on screen, such as a menu entry, a button, a checkbox or the title of a tool
+  window or a dialog, is written in single stars exactly as the screen shows it, as in `*Run > Start Runtime*`, and the
+  website prints it in italics. No other star stands outside code in backticks, and a heading holds none.
 
 `ReferenceMarkdownTest` checks this form here. `ReferenceExamplesTest` in karpfen-dsl-tools reads the examples of
 chapter 2 with the real readers. Write the reference for someone who has not seen the code: what a thing is, how to
 use it, what happens and what goes wrong, each rule with the smallest example that shows it. Keep out what only a
-developer of karpfen needs. The reference uses one term per thing, no bold and no italics, no sales words, no
-sentence that announces or sums up, and no contrast with a claim nobody made.
+developer of karpfen needs. The reference uses one term per thing, no bold and no italics other than these names, no
+sales words, no sentence that announces or sums up, and no contrast with a claim nobody made.
 
 Write plain and simple English in short sentences. Name things in words, never by an id from another document or a
 numbered step of a plan. Do not use the em dash, the en dash, the middle dot, the bullet or the Unicode arrows.

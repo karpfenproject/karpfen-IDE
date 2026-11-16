@@ -30,6 +30,8 @@ package io.karpfen.ide.architecture
  *
  * Every fenced code block names its language, one of [LANGUAGES]. Outside code blocks the text does without bold, the
  * em dash, the en dash, the middle dot and arrows, also the ASCII arrows `->`, `<-` and `=>` outside code in backticks.
+ * A star outside code in backticks belongs to a label in single stars, the name of something the IDE shows on screen,
+ * in the one form that [ReferenceLabels] accepts. A heading holds no star.
  *
  * The rules are line based. A line that starts with three backticks, after any indentation, opens or closes a fenced
  * code block. Headings inside a code block are text of the block.
@@ -161,6 +163,7 @@ internal object ReferenceMarkdown {
                 CHARACTERS[char]?.let { add("$it is not used outside code blocks") }
                 if (char in ARROWS) add("an arrow U+%04X is not used outside code blocks".format(char.code))
             }
+            addAll(ReferenceLabels.violationsIn(line))
         }
     }
 }

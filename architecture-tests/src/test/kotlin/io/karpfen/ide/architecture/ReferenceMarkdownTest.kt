@@ -98,4 +98,13 @@ class ReferenceMarkdownTest {
         }
         assertEquals(emptyList(), violations("$good\n\nThe arrow `->` in code and a hyphen-joined word.\n"))
     }
+
+    @Test
+    fun `stars outside code form labels, and a heading or a code block keeps its stars out of the check`() {
+        assertEquals(emptyList(), violations("$good\n\nThe button *Fit* and *Run > Start Runtime*.\n\n| *Edit* | *Undo* |\n"))
+        assertEquals(emptyList(), violations("$good\n\n```text\n* not a label *\n```\n"))
+        assertEquals(listOf("line 21: a heading holds no star"), violations("$good\n\n## 4.3.3 The button *Fit*\n"))
+        val loose = violations("$good\n\nThe button * Fit *.\n")
+        assertTrue(loose.isNotEmpty() && loose.all { it.startsWith("line 21:") }, loose.toString())
+    }
 }
