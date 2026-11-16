@@ -53,6 +53,7 @@ import io.karpfen.ide.ui.workbench.output.view.OutputView
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsView
 import io.karpfen.ide.ui.workbench.projecttree.view.ProjectTreeView
 import io.karpfen.ide.ui.workbench.runtime.DiagramLives
+import io.karpfen.ide.ui.workbench.runtime.LiveInstance
 import io.karpfen.ide.ui.workbench.runtime.view.RuntimeToolWindow
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.view.StatusBarActions
@@ -248,7 +249,7 @@ private fun EditorPane(state: WorkbenchState) {
     val running = state.runtime.collectAsState().value?.selected?.collectAsState()?.value?.takeIf { it.isLive }?.session
     val observed = running?.model?.collectAsState()?.value
     val debugger = running?.debugger?.state?.collectAsState()?.value ?: DebuggerState.Unavailable
-    val chosenInstances = remember(running) { mutableStateMapOf<Path, String>() }
+    val chosenInstances = remember(running) { mutableStateMapOf<Path, LiveInstance>() }
     val chosen = active?.let { chosenInstances[it] }
     val run = remember(observed, debugger, active, chosen) {
         val file = active
@@ -286,7 +287,7 @@ private fun EditorPane(state: WorkbenchState) {
         diskRevision = diskRevision,
         onDiagramSaved = { state.refreshFiles() },
         run = run,
-        onShowInstance = { key -> active?.let { chosenInstances[it] = key } },
+        onShowInstance = { use -> active?.let { chosenInstances[it] = use } },
         cellEditor = cellEditor,
         languageFeatures = settings.languageFeatures,
         validation = ValidateButtonUiState(enabled = canValidate, busy = validating),

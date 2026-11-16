@@ -113,7 +113,7 @@ class HeadlessValidationTest {
     @Test
     fun `the example projects of the repository validate without problems, with the language features of their settings`() =
         runTest(timeout = TIMEOUT) {
-            for (example in listOf("lamp", "spares")) {
+            for (example in listOf("lamp", "spares", "pages")) {
                 copyExample(example)
 
                 val (status, rig) = validate()

@@ -57,6 +57,7 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenTheme
 import io.karpfen.ide.ui.foundation.widgets.TabStrip
 import io.karpfen.ide.ui.workbench.settings.ZoomStep
 import io.karpfen.ide.ui.workbench.runtime.DiagramRun
+import io.karpfen.ide.ui.workbench.runtime.LiveInstance
 import io.karpfen.ide.ui.workbench.statusbar.view.EditorZoomBar
 import io.karpfen.ide.ui.workbench.tabs.ConflictBanner
 import io.karpfen.ide.ui.workbench.tabs.EditorTab
@@ -80,9 +81,10 @@ import java.nio.file.Path
  * [onSelectInText] with the place of its name in the text. The diagram can be arranged by hand, which is stored in a
  * companion file next to the file. The diagram reads that file again whenever [diskRevision] changes, and
  * [onDiagramSaved] is called after it wrote the file. While a model runs, [run] holds what the run adds to the
- * diagram of the active file, such as the active states of one instance. While the diagram shows and more than one
- * instance runs the file, the bar names them after the Validate button, marks the one shown, and reports a click on
- * another to [onShowInstance]. While the debugger holds the shown instance at a breakpoint, the others take no clicks.
+ * diagram of the active file, such as the active states of one instance. While the diagram shows and the run uses the
+ * file more than once, or the file is a fragment, the bar names the uses after the Validate button, each by its
+ * instance and, for a fragment, by the container state that uses it. It marks the use shown and reports a click on
+ * another to [onShowInstance]. While the debugger holds the shown use at a breakpoint, the others take no clicks.
  * An opened code cell of the diagram holds [cellEditor]. The
  * context menu of a statechart offers the constructs of the optional language features in [languageFeatures] only, the
  * features switched on for the project.
@@ -122,7 +124,7 @@ internal fun EditorArea(
     onDiagramSaved: () -> Unit,
     modifier: Modifier = Modifier,
     run: DiagramRun? = null,
-    onShowInstance: (String) -> Unit = {},
+    onShowInstance: (LiveInstance) -> Unit = {},
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
     validation: ValidateButtonUiState = ValidateButtonUiState(),
@@ -205,7 +207,7 @@ internal fun EditorArea(
                 Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {
                     if (hasDiagram) ViewModeSwitch(mode, onViewMode)
                     ValidateButton(validation, onValidate)
-                    if (mode != EditorViewMode.TEXT && run != null && run.instances.size > 1) InstanceSwitch(run, onShowInstance)
+                    if (mode != EditorViewMode.TEXT && run != null && run.offersChoice) InstanceSwitch(run, onShowInstance)
                 }
             }
         }
@@ -257,27 +259,28 @@ private fun ViewModeSwitch(mode: EditorViewMode, onViewMode: (EditorViewMode) ->
 }
 
 /**
- * The instances of [run] as buttons, each labelled with the key of its object and the name of its definition. The
- * button of the instance shown is marked. A click on another reports its key to [onShowInstance], unless the debugger
- * holds the shown instance at a breakpoint. The buttons never take the keyboard focus.
+ * The uses of [run] as buttons, each labelled with the key of its object, the name of its definition and, in the
+ * diagram of a fragment, the container state that uses it. The button of the use shown is marked. A click on another
+ * reports it to [onShowInstance], unless the debugger holds the shown use at a breakpoint. The buttons never take the
+ * keyboard focus.
  */
 @Composable
-private fun InstanceSwitch(run: DiagramRun, onShowInstance: (String) -> Unit) {
+private fun InstanceSwitch(run: DiagramRun, onShowInstance: (LiveInstance) -> Unit) {
     val colors = KarpfenTheme.colors
     Row(Modifier.padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("Live:", color = colors.textMuted, style = KarpfenTheme.typography.uiSmall, modifier = Modifier.padding(horizontal = 4.dp))
         run.instances.forEach { instance ->
-            val shown = instance.key == run.shown
+            val shown = instance == run.shown
             Text(
-                instance.definition?.let { "${instance.key} ($it)" } ?: instance.key,
+                instance.label,
                 color = if (shown || !run.fixed) colors.text else colors.textMuted,
                 style = KarpfenTheme.typography.uiSmall,
                 modifier = Modifier
                     .focusProperties { canFocus = false }
                     .background(if (shown) colors.selection else Color.Transparent)
-                    .clickable(enabled = !run.fixed && !shown) { onShowInstance(instance.key) }
+                    .clickable(enabled = !run.fixed && !shown) { onShowInstance(instance) }
                     .padding(horizontal = 8.dp, vertical = 2.dp)
-                    .testTag(EditorAreaTestTags.liveInstance(instance.key)),
+                    .testTag(EditorAreaTestTags.liveInstance(instance.key, instance.page)),
             )
         }
     }
