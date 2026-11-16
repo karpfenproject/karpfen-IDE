@@ -190,6 +190,17 @@ public object RuntimeGoldens {
         """{"environmentKey":"$ENVIRONMENT","phase":"activated","revision":0,"activeStates":{},"stateMachines":{},"roots":[$LAMP_ROOT]}"""
 
     /**
+     * The numbers of a running environment [ENVIRONMENT] after three ticks, as `RunMetricsAnswer.toJson` writes them. The
+     * first tick spent almost all of its time in four calls that opened a Python process, the seven computed calls were
+     * quick, and the result cache is on but served nothing yet. The cache way writes its time as the integer 0.
+     */
+    public const val METRICS: String =
+        """{"environmentKey":"$ENVIRONMENT","phase":"running","ticks":3,""" +
+            """"tickMs":{"total":58.307912,"mean":19.435971,"max":58.127,"recent":[58.127,0.051904,0.129008]},""" +
+            """"pythonMs":57.686084,"outsidePythonMs":0.621828,"calls":{"computed":{"count":7,"ms":0.071204},""" +
+            """"openProcess":{"count":4,"ms":57.686084},"cache":{"count":0,"ms":0}},"resultCaching":true}"""
+
+    /**
      * The full value of `turtle` of the single robot example, as `ModelJsonWriter.write` writes it. These are the bytes
      * that the runtime's own `ModelJsonWriterTest` holds for the cleaning robot. The `has` children are nested, and the
      * `knows` targets are written in full where they are referred to. So `chair` and `wall_top` appear twice in one

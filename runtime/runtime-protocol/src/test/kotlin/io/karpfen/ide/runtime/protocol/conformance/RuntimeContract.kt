@@ -15,7 +15,12 @@
  */
 package io.karpfen.ide.runtime.protocol.conformance
 
+import io.karpfen.ide.runtime.protocol.api.BodyReading
+import io.karpfen.ide.runtime.protocol.api.CodeWay
 import io.karpfen.ide.runtime.protocol.api.RejectionClassifier
+import io.karpfen.ide.runtime.protocol.api.RunMetrics
+import io.karpfen.ide.runtime.protocol.api.SuccessBodies
+import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
 import io.karpfen.ide.runtime.protocol.catalogue.FlatteningProblemLine
 import io.karpfen.ide.runtime.protocol.catalogue.FlatteningRejection
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
@@ -49,6 +54,7 @@ import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -81,6 +87,9 @@ import kotlin.test.assertTrue
  *   uploaded is refused with 409 and the body that lists the problem with its state machine, and the environment stays
  *   configuring. A fragment uploaded with `attachedTo` is refused with its text. Uploaded without it, the fragment lets
  *   the activation succeed.
+ * - The result cache is switched off and on before the activation and refused after it. The numbers of an activated
+ *   and of a running environment are read as the client reads them, with the switch, every way of code and the
+ *   ticks counted since the start. A configuring environment has no numbers yet.
  * - A drop removes a configuring, an activated, a running and a stopped environment. Its sockets close with the normal
  *   code and the reason `Environment dropped`, it is no longer listed, and its key is then rejected like an absent one,
  *   also by a second drop.
@@ -122,6 +131,14 @@ abstract class RuntimeContract {
             RuntimeRoute.SET_EVENT_TTL,
             ENV_KEY to "env-1",
             "ttlMs" to "1.5",
+        )
+        rejected(
+            BAD_REQUEST,
+            RuntimeText.INVALID_PARAMETER,
+            mapOf("name" to "enabled"),
+            RuntimeRoute.SET_RESULT_CACHING,
+            ENV_KEY to "env-1",
+            "enabled" to "maybe",
         )
     }
 
@@ -245,6 +262,7 @@ abstract class RuntimeContract {
         rejected(CONFLICT, RuntimeText.MODELS_REQUIRED, env, RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
         rejected(CONFLICT, RuntimeText.NOT_ACTIVATED, env, RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
         rejected(CONFLICT, RuntimeText.NOT_ACTIVATED, env, RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+        rejected(CONFLICT, RuntimeText.NOT_ACTIVE, env, RuntimeRoute.RUN_METRICS, ENV_KEY to environment)
         rejected(
             CONFLICT,
             RuntimeText.NOT_ACTIVE,
@@ -458,6 +476,42 @@ abstract class RuntimeContract {
         }
         ok(RuntimeRoute.UNSUBSCRIBE_MODEL, ENV_KEY to environment, CLIENT_ID to client)
         ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+    }
+
+    @Test
+    fun `the result cache is switched off and on before the activation, and the numbers of a short run show the switch`() = scenario {
+        listOf(false, true).forEach { caching ->
+            val environment = create()
+            uploadLamp(environment)
+            ok(RuntimeRoute.SET_RESULT_CACHING, ENV_KEY to environment, "enabled" to caching.toString())
+            ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+            val key = EnvironmentKey(environment)
+
+            val activated = metrics(key)
+            assertEquals(RuntimePhase.ACTIVATED to caching, activated.phase to activated.resultCaching)
+            assertEquals(CodeWay.entries.toSet(), activated.calls.keys)
+            rejected(
+                CONFLICT, RuntimeText.ALREADY_ACTIVE, mapOf("env" to environment),
+                RuntimeRoute.SET_RESULT_CACHING, ENV_KEY to environment, "enabled" to (!caching).toString(),
+            )
+            ok(RuntimeRoute.START_ENVIRONMENT, ENV_KEY to environment)
+            val running = scope.eventually("a tick counted with the cache ${if (caching) "on" else "off"}") {
+                metrics(key).takeIf { it.ticks > 0 }
+            }
+
+            assertEquals(RuntimePhase.RUNNING to caching, running.phase to running.resultCaching)
+            assertTrue(running.tickMs.recent.isNotEmpty() && running.tickMs.total >= running.tickMs.max, "$running")
+            assertTrue(running.calls.values.all { it.count >= 0 && it.ms >= 0.0 }, "$running")
+            ok(RuntimeRoute.STOP_ENVIRONMENT, ENV_KEY to environment)
+        }
+    }
+
+    /** The numbers of [environment] as the client reads them, which must be answered with 200. */
+    private suspend fun RawRuntime.metrics(environment: EnvironmentKey): RunMetrics {
+        val answer = call(RuntimeRoute.RUN_METRICS, ENV_KEY to environment.value)
+        assertEquals(OK, answer.status, answer.body)
+        val reading = SuccessBodies.metrics(environment).read(answer.body)
+        return assertIs<BodyReading.Read<RunMetrics>>(reading, answer.body).value
     }
 
     @Test
@@ -729,6 +783,7 @@ abstract class RuntimeContract {
             ),
             Triple(RuntimeRoute.SET_TICK_DELAY, listOf(ENV_KEY to environment, "milliseconds" to "50"), ""),
             Triple(RuntimeRoute.SET_EVENT_TTL, listOf(ENV_KEY to environment, "ttlMs" to "3000"), ""),
+            Triple(RuntimeRoute.SET_RESULT_CACHING, listOf(ENV_KEY to environment, "enabled" to "false"), ""),
             Triple(RuntimeRoute.REGISTER_OBJECT_OBSERVER, listOf(ENV_KEY to environment, CLIENT_ID to client, "objectId" to "lamp"), ""),
             Triple(RuntimeRoute.REGISTER_DOMAIN_LISTENER, listOf(ENV_KEY to environment, CLIENT_ID to client, "domain" to "switch"), ""),
         )
@@ -746,8 +801,8 @@ abstract class RuntimeContract {
         /** The query parameter that names a feature. */
         const val FEATURE_NAME = "featureName"
 
-        /** The parameters that must be numbers. */
-        val NUMERIC = setOf("milliseconds", "ttlMs")
+        /** The parameters that must be numbers or booleans, refused with the text of an invalid parameter. */
+        val NUMERIC = setOf("milliseconds", "ttlMs", "enabled")
 
         /** The message types of the pushes that carry a revision. */
         val OBSERVATIONS = setOf(
@@ -807,6 +862,7 @@ abstract class RuntimeContract {
                 ENV_KEY -> environment
                 "milliseconds" -> "50"
                 "ttlMs" -> "3000"
+                "enabled" -> "true"
                 "modelElement", "attachedTo", "objectId" -> "lamp"
                 "state" -> "off"
                 "domain" -> "switch"

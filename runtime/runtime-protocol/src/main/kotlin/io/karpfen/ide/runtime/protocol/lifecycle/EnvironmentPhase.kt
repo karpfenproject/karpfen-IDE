@@ -44,6 +44,7 @@ public enum class PhaseKind {
  * @property machines the `attachedTo` keys of the uploaded state machines.
  * @property tickDelay true if the tick delay was set.
  * @property eventTtl true if the event time to live was set.
+ * @property resultCaching true if the result cache was switched on or off.
  * @property observers the number of object observers registered.
  * @property listeners the number of domain listeners registered.
  */
@@ -54,6 +55,7 @@ public data class Uploads(
     public val machines: Set<String>,
     public val tickDelay: Boolean,
     public val eventTtl: Boolean,
+    public val resultCaching: Boolean,
     public val observers: Int,
     public val listeners: Int,
 ) {
@@ -66,6 +68,7 @@ public data class Uploads(
             machines = emptySet(),
             tickDelay = false,
             eventTtl = false,
+            resultCaching = false,
             observers = 0,
             listeners = 0,
         )

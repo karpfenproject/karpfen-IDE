@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.lifecycle
 
+import io.karpfen.ide.runtime.protocol.api.RunMetrics
 import io.karpfen.ide.runtime.protocol.api.RuntimeApi
 import io.karpfen.ide.runtime.protocol.api.RuntimeResult
 import io.karpfen.ide.runtime.protocol.api.StateMachineHoldings
@@ -97,6 +98,9 @@ internal class DefaultRuntimeEnvironment(
     override suspend fun setEventTtl(milliseconds: Long): CallOutcome<Unit> =
         perform(LifecycleOperation.SET_EVENT_TTL) { api.setEventTtl(key, milliseconds) }
 
+    override suspend fun setResultCaching(enabled: Boolean): CallOutcome<Unit> =
+        perform(LifecycleOperation.SET_RESULT_CACHING) { api.setResultCaching(key, enabled) }
+
     override suspend fun registerObjectObserver(client: ClientId, objectId: String): CallOutcome<Unit> =
         perform(LifecycleOperation.REGISTER_OBJECT_OBSERVER) { api.registerObjectObserver(key, client, objectId) }
 
@@ -135,6 +139,9 @@ internal class DefaultRuntimeEnvironment(
 
     override suspend fun snapshot(): CallOutcome<RuntimeModelSnapshot> =
         perform(LifecycleOperation.READ_SNAPSHOT, settle = LifecycleRules::afterSnapshot) { api.modelSnapshot(key) }
+
+    override suspend fun metrics(): CallOutcome<RunMetrics> =
+        perform(LifecycleOperation.READ_METRICS) { api.runMetrics(key) }
 
     override suspend fun subscribeModel(client: ClientId): CallOutcome<Unit> =
         perform(LifecycleOperation.SUBSCRIBE_MODEL) { api.subscribeModel(key, client) }

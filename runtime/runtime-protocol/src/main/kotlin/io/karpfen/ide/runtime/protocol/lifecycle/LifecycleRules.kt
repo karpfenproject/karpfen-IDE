@@ -70,14 +70,17 @@ internal sealed interface ProbeResult {
  * The environment lifecycle as pure functions. They decide which operation may be sent in which phase, and which phase
  * follows each outcome. The environment handle asks [verdict] before every call and the other functions after it.
  *
- * The verdicts work as follows. The configuring calls are the uploads, the tick delay, the time to live, the observers
- * and the listeners. They are allowed only while configuring, because the runtime freezes them at activation. The
+ * The verdicts work as follows. The configuring calls are the uploads, the tick delay, the time to live, the switch of
+ * the result cache, the observers and the listeners. They are allowed only while configuring, because the runtime
+ * freezes them at activation. The
  * metamodel is allowed only before the event definitions and the model, because those two are bound to its types.
  * Those two are allowed only after the metamodel. Access keys are allowed in every phase except stopped, uncertain and
  * lost. Activation is allowed once, while configuring with a metamodel and a model. A start is allowed only for an
  * activated environment, so a halted or stopped environment is never restarted. A stop is allowed for an activated,
  * running, halted or uncertain environment, and the handle answers it locally for a stopped one. A forced state is
  * allowed while activated or running. Reading the source or a snapshot is allowed unless the environment is lost.
+ * Reading the numbers is allowed in the same phases except while configuring, because the runtime counts from the
+ * activation on and refuses the read before it.
  * Subscribing is allowed while configuring, activated, running or halted. Unsubscribing is allowed unless the
  * environment is lost. Injecting an event is allowed while activated or running. The feature operations, which switch
  * a feature on or off, read the features that are on and send a feature a message, are allowed in every phase in which
@@ -253,6 +256,7 @@ internal object LifecycleRules {
                 Verdict.Refuse("the metamodel must be uploaded first")
             }
             LifecycleOperation.SET_STATE_MACHINE, LifecycleOperation.SET_TICK_DELAY, LifecycleOperation.SET_EVENT_TTL,
+            LifecycleOperation.SET_RESULT_CACHING,
             LifecycleOperation.REGISTER_OBJECT_OBSERVER, LifecycleOperation.REGISTER_DOMAIN_LISTENER,
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
             LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL,
@@ -269,6 +273,7 @@ internal object LifecycleRules {
             LifecycleOperation.DROP -> Verdict.Send
             LifecycleOperation.FORCE_STATE -> Verdict.Refuse("a state can only be forced in an activated or running environment")
             LifecycleOperation.INJECT_EVENT -> Verdict.Refuse("the runtime drops events sent before activation")
+            LifecycleOperation.READ_METRICS -> Verdict.Refuse("the runtime counts from the activation on")
         }
 
     /** The verdicts while activated. */
@@ -277,7 +282,7 @@ internal object LifecycleRules {
             LifecycleOperation.ACTIVATE -> Verdict.Refuse("the environment is activated already")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.START, LifecycleOperation.STOP,
             LifecycleOperation.FORCE_STATE, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
-            LifecycleOperation.READ_SNAPSHOT,
+            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.READ_METRICS,
             LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL, LifecycleOperation.INJECT_EVENT,
             -> Verdict.Send
             else -> frozen()
@@ -290,7 +295,7 @@ internal object LifecycleRules {
             LifecycleOperation.START -> Verdict.Refuse("the environment runs already")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.STOP, LifecycleOperation.FORCE_STATE,
             LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES, LifecycleOperation.READ_SNAPSHOT,
-            LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL, LifecycleOperation.INJECT_EVENT,
+            LifecycleOperation.READ_METRICS, LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL, LifecycleOperation.INJECT_EVENT,
             -> Verdict.Send
             else -> frozen()
         }
@@ -303,8 +308,8 @@ internal object LifecycleRules {
             LifecycleOperation.FORCE_STATE -> Verdict.Refuse("the engine ended on its own, so a forced state would never apply")
             LifecycleOperation.INJECT_EVENT -> Verdict.Refuse("the engine ended on its own, so no event would be handled")
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.STOP, LifecycleOperation.READ_STATE_MACHINE_SOURCE,
-            LifecycleOperation.READ_STATE_MACHINES, LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.SUBSCRIBE_MODEL,
-            LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.READ_STATE_MACHINES, LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.READ_METRICS,
+            LifecycleOperation.SUBSCRIBE_MODEL, LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             else -> frozen()
         }
@@ -314,7 +319,7 @@ internal object LifecycleRules {
         when (operation) {
             LifecycleOperation.STOP -> Verdict.AnswerLocally
             LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
-            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.READ_METRICS, LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             LifecycleOperation.ISSUE_ACCESS_KEY, LifecycleOperation.SUBSCRIBE_MODEL ->
                 Verdict.Refuse("the client connects to no stopped environment; it stays frozen in the runtime")
@@ -325,7 +330,7 @@ internal object LifecycleRules {
     private fun uncertain(operation: LifecycleOperation): Verdict =
         when (operation) {
             LifecycleOperation.STOP, LifecycleOperation.READ_STATE_MACHINE_SOURCE, LifecycleOperation.READ_STATE_MACHINES,
-            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.UNSUBSCRIBE_MODEL,
+            LifecycleOperation.READ_SNAPSHOT, LifecycleOperation.READ_METRICS, LifecycleOperation.UNSUBSCRIBE_MODEL,
             -> Verdict.Send
             else -> Verdict.Refuse("the environment's phase is uncertain; a snapshot resolves it")
         }
@@ -409,6 +414,7 @@ internal object LifecycleRules {
             LifecycleOperation.SET_STATE_MACHINE -> copy(machines = machines + listOfNotNull(attachedTo))
             LifecycleOperation.SET_TICK_DELAY -> copy(tickDelay = true)
             LifecycleOperation.SET_EVENT_TTL -> copy(eventTtl = true)
+            LifecycleOperation.SET_RESULT_CACHING -> copy(resultCaching = true)
             LifecycleOperation.REGISTER_OBJECT_OBSERVER -> copy(observers = observers + 1)
             LifecycleOperation.REGISTER_DOMAIN_LISTENER -> copy(listeners = listeners + 1)
             else -> this

@@ -74,6 +74,7 @@ internal fun interface SuccessBody<out T> {
  * - [FEATURE_NAMES] reads feature names separated by [WireNames.FEATURE_SEPARATOR]. An empty body names none. Every
  *   name must be a [FeatureName].
  * - [FEATURE_ANSWER] takes the body as it is.
+ * - [metrics] reads the numbers as [RunMetricsReader] does. They must be those of the requested environment.
  */
 internal object SuccessBodies {
 
@@ -178,6 +179,17 @@ internal object SuccessBodies {
             } else {
                 BodyReading.Unexpected("the snapshot is of environment '${reading.snapshot.environment}', not of '$environment'")
             }
+        }
+    }
+
+    /** The numbers of [environment]. */
+    fun metrics(environment: EnvironmentKey): SuccessBody<RunMetrics> = SuccessBody { body ->
+        val metrics = RunMetricsReader.read(body)
+        when {
+            metrics == null -> BodyReading.Unexpected("the body is not the numbers of an environment as the runtime writes them")
+            metrics.environment != environment ->
+                BodyReading.Unexpected("the numbers are of environment '${metrics.environment}', not of '$environment'")
+            else -> BodyReading.Read(metrics)
         }
     }
 

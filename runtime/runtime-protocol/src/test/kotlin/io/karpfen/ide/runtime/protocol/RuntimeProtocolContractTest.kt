@@ -76,7 +76,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 
 /**
- * Contract test of the public surface of the runtime protocol. The catalogue equals the runtime's 28 routes. The
+ * Contract test of the public surface of the runtime protocol. The catalogue equals the runtime's 30 routes. The
  * options and policies have their documented defaults. The public values are immutable and compared by value. The
  * factory wires a client to the transports it is given. That client runs every call on the dispatcher of the options
  * and hands out handles in the phase `Configuring` with nothing uploaded. It lists the runtime's registered features.
@@ -135,11 +135,11 @@ class RuntimeProtocolContractTest {
     )
 
     @Test
-    fun `the catalogue equals the runtime's 28 routes`() {
+    fun `the catalogue equals the runtime's 30 routes`() {
         assertEquals(
             listOf(
                 "POST /createEnvironment", "PUT /setMetamodel", "PUT /setModel", "PUT /setEventDefinitions",
-                "PUT /setStateMachine", "POST /setTickDelay", "POST /setActiveState", "POST /setEventTtl",
+                "PUT /setStateMachine", "POST /setTickDelay", "POST /setResultCaching", "POST /setActiveState", "POST /setEventTtl",
                 "POST /registerObjectObserver", "POST /registerDomainListener", "POST /registerClientForWebSocket",
                 "POST /runEnvironment", "POST /startEnvironment", "POST /stopEnvironment", "POST /dropEnvironment",
                 "GET /health",
@@ -148,6 +148,7 @@ class RuntimeProtocolContractTest {
                 "GET /getRegisteredFeatures", "POST /activateFeature", "GET /getActiveFeatures", "POST /deactivateFeature",
                 "POST /sendMessageToFeature",
                 "GET /observatory/model", "POST /observatory/subscribeModel", "POST /observatory/unsubscribeModel",
+                "GET /observatory/metrics",
             ),
             RuntimeRoute.entries.map { "${it.verb} ${it.path}" },
         )

@@ -82,6 +82,12 @@ public enum class ResponseKind {
     /** Feature names separated by [WireNames.FEATURE_SEPARATOR], in no particular order. An empty text names none. */
     FEATURE_NAMES,
 
+    /**
+     * The numbers of an activated environment as one JSON object: its phase, its ticks and their durations, the time
+     * its ticks waited for Python and the calls of code by the way they ran.
+     */
+    RUN_METRICS,
+
     /** The answer of a feature to a message, a plain text taken as it is. */
     FEATURE_ANSWER,
 }
@@ -105,8 +111,9 @@ public enum class TimeoutClass {
 }
 
 /**
- * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 25 routes of the runtime's
- * `HTTPRoutes` in their order, followed by the three routes that its `ModelObservationRoutes` adds. Everything the
+ * The HTTP routes of the karpfen runtime with IDE support, as data. The entries are the 26 routes of the runtime's
+ * `HTTPRoutes` in their order, followed by the three routes that its `ModelObservationRoutes` adds and the one route of
+ * its `RunMetricsRoutes`. Everything the
  * client sends is built from an entry, and the fake runtime dispatches by it.
  *
  * Query parameters are listed in the order the runtime reads them. When several required ones are missing, the first
@@ -168,6 +175,15 @@ public enum class RuntimeRoute(
     /** Sets the tick delay of a configuring environment, an integer number of milliseconds. */
     SET_TICK_DELAY(
         HttpVerb.POST, "/setTickDelay", listOf("envKey", "milliseconds"),
+        BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
+    ),
+
+    /**
+     * Switches the result cache of a configuring environment on or off, with `enabled` `true` or `false`. The engine
+     * takes the setting at the activation, and without the call it takes the runtime's configured default.
+     */
+    SET_RESULT_CACHING(
+        HttpVerb.POST, "/setResultCaching", listOf("envKey", "enabled"),
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
     ),
 
@@ -328,5 +344,14 @@ public enum class RuntimeRoute(
     UNSUBSCRIBE_MODEL(
         HttpVerb.POST, "/observatory/unsubscribeModel", listOf("envKey", "clientId"),
         BodyKind.NONE, ResponseKind.EMPTY, TimeoutClass.QUICK,
+    ),
+
+    /**
+     * Answers the numbers of an environment from its activation on, at once and without waiting for a tick boundary.
+     * Before the activation the runtime refuses it with the text of an environment that is not active.
+     */
+    RUN_METRICS(
+        HttpVerb.GET, "/observatory/metrics", listOf("envKey"),
+        BodyKind.NONE, ResponseKind.RUN_METRICS, TimeoutClass.QUICK,
     ),
 }
