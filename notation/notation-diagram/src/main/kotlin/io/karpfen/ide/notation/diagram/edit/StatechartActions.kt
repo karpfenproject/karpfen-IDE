@@ -215,7 +215,7 @@ public class StatechartActions(
             },
             DiagramAction.Change("Add initial state") {
                 StatechartEdits.addState(source, diagram, null, StatechartEdits.freshName(diagram), initial = true, at = point)
-            }.takeIf { diagram.states.none { it.isInitial } },
+            }.takeIf { diagram.allStates().none { it.isInitial } },
             DiagramAction.Choose("Add container state", usable) { fragment ->
                 DiagramAction.Change("Add container state") {
                     PageEdits.addContainer(source, diagram, null, StatechartEdits.freshName(diagram, fragment), fragment, at = point)

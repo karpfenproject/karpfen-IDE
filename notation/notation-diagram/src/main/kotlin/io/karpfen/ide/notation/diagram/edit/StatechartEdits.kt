@@ -52,7 +52,8 @@ public object StatechartEdits {
     /**
      * Adds the state [name] at the top level, or nested in the state [parent]. With [at] the new state is drawn with
      * its middle there. With [parentFrame] the state [parent] is drawn at least as large as that box, which keeps a
-     * parent that had no nested states before from shrinking around its first one.
+     * parent that had no nested states before from shrinking around its first one. A state marked [initial] is added
+     * only while no state of the file is initial, since a file has one initial state at any depth.
      */
     public fun addState(
         text: String,
@@ -63,6 +64,7 @@ public object StatechartEdits {
         at: DiagramPoint? = null,
         parentFrame: DiagramBox? = null,
     ): DiagramChange? {
+        if (initial && diagram.allStates().any { it.isInitial }) return null
         val statement = (if (initial) "$INITIAL " else "") + "$STATE ${quoted(name)} { }"
         return addStatement(text, diagram, parent, name, statement, at, parentFrame)
     }
@@ -135,13 +137,12 @@ public object StatechartEdits {
     }
 
     /**
-     * Makes the state [name] the initial state of its level. A state of the same level that was the initial one is an
-     * ordinary state afterwards. Both keep their histories.
+     * Makes the state [name] the initial state of the state machine. A file has one initial state at any depth, so the
+     * state that was marked initial, wherever it stands, is an ordinary state afterwards. Both keep their histories.
      */
     public fun makeInitial(text: String, diagram: StatechartDiagram, name: String): DiagramChange? {
         val state = diagram.state(name)?.takeIf { !it.isInitial } ?: return null
-        val siblings = diagram.parentOf(name)?.children ?: diagram.states
-        val demoted = siblings.filter { it.isInitial }.map { sibling ->
+        val demoted = diagram.allStates().filter { it.isInitial }.map { sibling ->
             val word = sibling.range.start + INITIAL.length
             val next = (word until sibling.nameRange.start).firstOrNull { !text[it].isWhitespace() } ?: word
             TextEdit(TextRange(sibling.range.start, next), "")

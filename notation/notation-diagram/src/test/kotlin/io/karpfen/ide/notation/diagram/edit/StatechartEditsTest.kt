@@ -59,11 +59,20 @@ class StatechartEditsTest {
         assertEquals(listOf("full", "brighter", "blinking"), nested.state("on")?.children?.map { it.name })
 
         val frame = DiagramBox(0f, 0f, 80f, 36f)
-        val change = assertNotNull(StatechartEdits.addState(text, lamp, "broken", "shards", initial = true, parentFrame = frame))
+        val change = assertNotNull(StatechartEdits.addState(text, lamp, "broken", "shards", initial = false, parentFrame = frame))
         val first = read(applied(change))
         assertEquals(listOf("shards"), first.state("broken")?.children?.map { it.name })
-        assertTrue(first.state("shards")?.isInitial == true)
         assertEquals(mapOf("broken" to frame), assertNotNull(change.layout)(VisLayout()).frames)
+    }
+
+    @Test
+    fun `an initial state is added only to a file without one, since a file has one initial state at any depth`() {
+        assertNull(StatechartEdits.addState(text, lamp, "broken", "shards", initial = true), "off is initial")
+        assertNull(StatechartEdits.addState(text, lamp, null, "idle", initial = true), "off is initial")
+
+        val unmarked = text.replace("INITIAL STATE \"off\"", "STATE \"off\"")
+        val added = read(applied(assertNotNull(StatechartEdits.addState(unmarked, read(unmarked), null, "idle", initial = true)), unmarked))
+        assertEquals(listOf("idle"), added.allStates().filter { it.isInitial }.map { it.name })
     }
 
     @Test
@@ -118,13 +127,16 @@ class StatechartEditsTest {
     }
 
     @Test
-    fun `making a state the initial one demotes the one that was`() {
+    fun `making a state the initial one takes the mark from wherever it stands in the file`() {
         val after = read(applied(assertNotNull(StatechartEdits.makeInitial(text, lamp, "broken"))))
 
         assertEquals(listOf(false, false, true), after.states.map { it.isInitial })
         assertNull(StatechartEdits.makeInitial(text, lamp, "off"), "it is the initial state already")
         val inner = read(applied(assertNotNull(StatechartEdits.makeInitial(text, lamp, "brighter"))))
-        assertTrue(inner.state("brighter")?.isInitial == true && inner.state("off")?.isInitial == true, "each level has its own")
+        assertEquals(listOf("brighter"), inner.allStates().filter { it.isInitial }.map { it.name }, "the file keeps one mark at any depth")
+        val moved = applied(assertNotNull(StatechartEdits.makeInitial(text, lamp, "brighter")))
+        val back = applied(assertNotNull(StatechartEdits.makeInitial(moved, inner, "off")), moved)
+        assertEquals(listOf("off"), read(back).allStates().filter { it.isInitial }.map { it.name }, "the mark leaves the inner state")
     }
 
     @Test
