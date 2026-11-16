@@ -114,6 +114,49 @@ internal object LampStateMachine {
         }
     """.trimIndent()
 
+    /** A fragment of a lamp: a self test that ends in one of two final states. */
+    val BULB_TEST = """
+        STATEMACHINE "bulb test" FRAGMENT {
+            STATES {
+                INITIAL STATE "powered" { }
+                FINAL STATE "passed" { BREAKPOINT { ENTRY } }
+                FINAL STATE "failed" { }
+            }
+            TRANSITIONS {
+                TRANSITION "powered" -> "passed" { CONDITION { VALUE("bulb->lit") } }
+                TRANSITION "powered" -> "failed" { }
+            }
+        }
+    """.trimIndent()
+
+    /** A lamp whose self test is the page of a container state, with a second container state nested in a state. */
+    val PAGED = """
+        STATEMACHINE ATTACHED TO "Lamp" {
+            STATES {
+                INITIAL STATE "off" { }
+                SHALLOW HISTORY CONTAINER STATE "self test" USE "bulb test" {
+                    TICK LIMIT { TIMEOUT: AFTER 50 TICKS TRANSITION TO "off" }
+                }
+                STATE "on" {
+                    INITIAL CONTAINER STATE "check" USE "switch test" { }
+                }
+            }
+            TRANSITIONS {
+                TRANSITION "off" -> "self test" { CONDITION { EVENT("service", "test") } }
+                TRANSITION "self test" -> "on" {
+                    CONDITION { DONE }
+                }
+                TRANSITION "self test" -> "off" { CONDITION { EVENT("switch", "press") } }
+                TRANSITION "on" -> "off" {
+                    CONDITION {
+                        DONE
+                        EVENT("switch", "press")
+                    }
+                }
+            }
+        }
+    """.trimIndent()
+
     /** The diagram of the state machine [text]. */
     fun diagramOf(text: String): StatechartDiagram {
         val outcome = defaultLanguageRegistry().support(KarpfenLanguage.KSTATES).parser.parse(TextSnapshot(text, 0))

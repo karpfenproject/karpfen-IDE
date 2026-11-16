@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.api
 
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningRejection
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -124,6 +125,22 @@ class RejectionClassifierTest {
                 assertEquals(unknown, rejection.message)
             }
         }
+    }
+
+    @Test
+    fun `a refused activation that lists problems of flattening is a refused flattening with its parsed body`() {
+        val body = "Environment with key env-1 has state machines that cannot be flattened:\n" +
+            "State machine for 'lamp': Container state 'self test' of the state machine attached to 'Lamp' uses 'bulb test', " +
+            "but no fragment is named 'bulb test'"
+
+        val rejection = RejectionClassifier.classify(RuntimeRoute.RUN_ENVIRONMENT, 409, body)
+
+        assertEquals(RejectionKind.NOT_FLATTENED, rejection.kind)
+        assertEquals(FlatteningRejection.parse(body), rejection.flattening)
+        assertEquals(body, rejection.message)
+        assertEquals(emptyMap(), rejection.captured)
+        assertEquals(RejectionKind.UNCLASSIFIED, RejectionClassifier.classify(RuntimeRoute.RUN_ENVIRONMENT, 400, body).kind)
+        assertEquals(RejectionKind.UNCLASSIFIED, RejectionClassifier.classify(RuntimeRoute.START_ENVIRONMENT, 409, body).kind)
     }
 
     @Test

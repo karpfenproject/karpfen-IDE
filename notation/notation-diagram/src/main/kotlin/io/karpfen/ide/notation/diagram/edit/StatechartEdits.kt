@@ -52,7 +52,8 @@ public object StatechartEdits {
     /**
      * Adds the state [name] at the top level, or nested in the state [parent]. With [at] the new state is drawn with
      * its middle there. With [parentFrame] the state [parent] is drawn at least as large as that box, which keeps a
-     * parent that had no nested states before from shrinking around its first one.
+     * parent that had no nested states before from shrinking around its first one. A state marked [initial] is added
+     * only while no state of the file is initial, since a file has one initial state at any depth.
      */
     public fun addState(
         text: String,
@@ -63,9 +64,26 @@ public object StatechartEdits {
         at: DiagramPoint? = null,
         parentFrame: DiagramBox? = null,
     ): DiagramChange? {
+        if (initial && diagram.allStates().any { it.isInitial }) return null
+        val statement = (if (initial) "$INITIAL " else "") + "$STATE ${quoted(name)} { }"
+        return addStatement(text, diagram, parent, name, statement, at, parentFrame)
+    }
+
+    /**
+     * Adds the state [name], which [statement] declares, at the top level or nested in the state [parent], placed as
+     * [addState] places a state. It is the common part of adding a state of any kind.
+     */
+    internal fun addStatement(
+        text: String,
+        diagram: StatechartDiagram,
+        parent: String?,
+        name: String,
+        statement: String,
+        at: DiagramPoint?,
+        parentFrame: DiagramBox?,
+    ): DiagramChange? {
         if (name.isBlank() || diagram.state(name) != null) return null
         val block = (if (parent == null) statesBlock(text, diagram) else diagram.state(parent)?.let { bodyOf(text, it) }) ?: return null
-        val statement = (if (initial) "$INITIAL " else "") + "$STATE ${quoted(name)} { }"
         return DiagramChange(listOf(TextBlocks.append(text, block, statement)), arranges = at != null) { vis ->
             vis.copy(
                 boxes = if (at == null) vis.boxes else vis.boxes + (name to DiagramGrid.snap(at)),
@@ -119,13 +137,12 @@ public object StatechartEdits {
     }
 
     /**
-     * Makes the state [name] the initial state of its level. A state of the same level that was the initial one is an
-     * ordinary state afterwards. Both keep their histories.
+     * Makes the state [name] the initial state of the state machine. A file has one initial state at any depth, so the
+     * state that was marked initial, wherever it stands, is an ordinary state afterwards. Both keep their histories.
      */
     public fun makeInitial(text: String, diagram: StatechartDiagram, name: String): DiagramChange? {
         val state = diagram.state(name)?.takeIf { !it.isInitial } ?: return null
-        val siblings = diagram.parentOf(name)?.children ?: diagram.states
-        val demoted = siblings.filter { it.isInitial }.map { sibling ->
+        val demoted = diagram.allStates().filter { it.isInitial }.map { sibling ->
             val word = sibling.range.start + INITIAL.length
             val next = (word until sibling.nameRange.start).firstOrNull { !text[it].isWhitespace() } ?: word
             TextEdit(TextRange(sibling.range.start, next), "")
@@ -321,7 +338,7 @@ public object StatechartEdits {
     public const val DO: String = "DO"
 
     /** The braces of the state [state] with everything between them. The search starts behind the quote that ends its name. */
-    private fun bodyOf(text: String, state: StateNode): TextRange? = TextBlocks.blockFrom(text, state.nameRange.end + 1)
+    internal fun bodyOf(text: String, state: StateNode): TextRange? = TextBlocks.blockFrom(text, state.nameRange.end + 1)
 
     private fun statesBlock(text: String, diagram: StatechartDiagram): TextRange? = blockOf(text, diagram, "STATES")
 
@@ -332,7 +349,7 @@ public object StatechartEdits {
         TextBlocks.blockFrom(text, diagram.range.start)?.let { TextBlocks.blockNamed(text, keyword, it) }
 
     /** [name] as a string literal of the language. A double quote inside it becomes a single one. */
-    private fun quoted(name: String): String = "\"" + name.trim().replace('"', '\'') + "\""
+    internal fun quoted(name: String): String = "\"" + name.trim().replace('"', '\'') + "\""
 
     /** A change of [edits], or null if two of them overlap, in which case nothing is changed. */
     private fun disjoint(edits: List<TextEdit>): DiagramChange? {

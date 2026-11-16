@@ -16,10 +16,13 @@
 package io.karpfen.ide.runtime.protocol.conformance
 
 import io.karpfen.ide.runtime.protocol.api.RejectionClassifier
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningProblemLine
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningRejection
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.UnflattenedMachine
 import io.karpfen.ide.runtime.protocol.catalogue.WireNames
 import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.BAD_REQUEST
 import io.karpfen.ide.runtime.protocol.conformance.RawRuntime.Companion.CLIENT_ID
@@ -74,6 +77,10 @@ import kotlin.test.assertTrue
  *   phase `running`, from the same stacks, with the next revisions and without announcing an instance again.
  * - Features are switched on and off, listed and sent messages while configuring, running and stopped, and their
  *   refusals have the catalogue's texts.
+ * - An activation of an environment whose attached state machine has a container state of a fragment that was not
+ *   uploaded is refused with 409 and the body that lists the problem with its state machine, and the environment stays
+ *   configuring. A fragment uploaded with `attachedTo` is refused with its text. Uploaded without it, the fragment lets
+ *   the activation succeed.
  * - A drop removes a configuring, an activated, a running and a stopped environment. Its sockets close with the normal
  *   code and the reason `Environment dropped`, it is no longer listed, and its key is then rejected like an absent one,
  *   also by a second drop.
@@ -313,6 +320,44 @@ abstract class RuntimeContract {
         ok(RuntimeRoute.SET_MODEL, ENV_KEY to ring, upload = SynthesizedModels.text(SynthesizedModel.RING, "ring.kmodel"))
         rejected(CONFLICT, RuntimeText.REFERENCE_LOOP, mapOf("id" to "a"), RuntimeRoute.MODEL_SNAPSHOT, ENV_KEY to ring)
     }
+
+    @Test
+    fun `an activation without a fragment that a container state uses is refused with its problems and succeeds after the upload`() =
+        scenario {
+            val environment = create()
+            uploadLampModels(environment)
+            ok(RuntimeRoute.SET_STATE_MACHINE, ENV_KEY to environment, "attachedTo" to "lamp", upload = PAGED_LAMP)
+
+            val refused = call(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+            val expected = FlatteningRejection(
+                environment,
+                listOf(
+                    FlatteningProblemLine(
+                        UnflattenedMachine.Attached("lamp"),
+                        "Container state 'self test' of the state machine attached to 'Lamp' uses 'bulb test', but no fragment " +
+                            "is named 'bulb test'",
+                    ),
+                ),
+            )
+            assertEquals(CONFLICT to expected.render(), refused.status to refused.body)
+            val classified = RejectionClassifier.classify(RuntimeRoute.RUN_ENVIRONMENT, refused.status, refused.body)
+            assertEquals(RejectionKind.NOT_FLATTENED to expected, classified.kind to classified.flattening)
+            assertEquals(RuntimePhase.CONFIGURING.wireName, string(snapshot(environment), WireNames.PHASE))
+
+            rejected(
+                BAD_REQUEST,
+                RuntimeText.ATTACHED_FRAGMENT,
+                mapOf("element" to "lamp", "machine" to "bulb test"),
+                RuntimeRoute.SET_STATE_MACHINE,
+                ENV_KEY to environment,
+                "attachedTo" to "lamp",
+                upload = BULB_TEST,
+            )
+            ok(RuntimeRoute.SET_STATE_MACHINE, ENV_KEY to environment, upload = BULB_TEST)
+            ok(RuntimeRoute.RUN_ENVIRONMENT, ENV_KEY to environment)
+            assertEquals(RuntimePhase.ACTIVATED.wireName, string(snapshot(environment), WireNames.PHASE))
+            ok(RuntimeRoute.DROP_ENVIRONMENT, ENV_KEY to environment)
+        }
 
     @Test
     fun `an activated environment refuses changes and answers the snapshot golden before its start`() = scenario {
@@ -718,6 +763,37 @@ abstract class RuntimeContract {
 
         /** The files of the lamp. */
         val LAMP_FILES: ModelFiles = RawRuntime.LAMP_FILES
+
+        /**
+         * A state machine of the lamp whose state `self test` is a container state of the fragment `bulb test`. It
+         * starts in `off` and enters the container on a press.
+         */
+        val PAGED_LAMP: String = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    INITIAL STATE "off" { }
+                    CONTAINER STATE "self test" USE "bulb test" { }
+                }
+                TRANSITIONS {
+                    TRANSITION "off" -> "self test" {
+                        CONDITION { EVENT("switch", "press") }
+                    }
+                }
+            }
+        """.trimIndent()
+
+        /** The fragment `bulb test` that [PAGED_LAMP] uses: it starts in `lit` and passes into its final state. */
+        val BULB_TEST: String = """
+            STATEMACHINE "bulb test" FRAGMENT {
+                STATES {
+                    INITIAL STATE "lit" { }
+                    FINAL STATE "passed" { }
+                }
+                TRANSITIONS {
+                    TRANSITION "lit" -> "passed" { }
+                }
+            }
+        """.trimIndent()
 
         /** The frame that injects a `press` of the domain `switch`. */
         val PRESS: String = EventFrameEncoder.encode(EventFrame("switch", "press", EventPayload.None))

@@ -1,0 +1,10 @@
+// The metamodel of the pages example: a lamp with a bulb.
+type "Bulb" "A light bulb. It burns with watts, which never exceeds maxWatts" {
+    prop("maxWatts", "number")
+    prop("watts", "number")
+    prop("lit", "boolean")
+}
+type "Lamp" "A lamp with a bulb" {
+    prop("mode", "string")
+    has("bulb", "Bulb")
+}

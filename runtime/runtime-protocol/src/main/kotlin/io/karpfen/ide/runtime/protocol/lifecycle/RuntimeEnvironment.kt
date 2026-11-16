@@ -90,6 +90,15 @@ public interface RuntimeEnvironment {
      */
     public suspend fun defineStateMachine(text: String): CallOutcome<Unit>
 
+    /**
+     * Uploads the fragment [text], `STATEMACHINE "name" FRAGMENT`, which the environment keeps under its name. It goes
+     * to the same route as a definition, without an object key. Fragments and attachable state machines share one
+     * name space, and a later upload of a name replaces the earlier one. It is allowed while configuring. The
+     * environment never runs a fragment on its own: at the activation it flattens every attached and attachable state
+     * machine with the fragments it holds, so every fragment that a container state uses must be uploaded before.
+     */
+    public suspend fun uploadFragment(text: String): CallOutcome<Unit>
+
     /** Sets the tick delay to [milliseconds]. It is allowed while configuring. */
     public suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit>
 

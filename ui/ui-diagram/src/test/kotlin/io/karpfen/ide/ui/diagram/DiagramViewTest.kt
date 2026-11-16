@@ -271,6 +271,29 @@ class DiagramViewTest {
         onNodeWithText("Add waypoint").assertDoesNotExist()
     }
 
+    @Test
+    fun `a container state chooses another fragment in a second menu and opens its page`() = runComposeUiTest {
+        val changes = ArrayList<DiagramChange>()
+        val followed = ArrayList<String>()
+        val state = stateOf(DiagramNotation.STATECHART, KarpfenLanguage.KSTATES, CONTAINER)
+        show(DiagramNotation.STATECHART, state, onChange = { changes += it }, fragments = listOf("bulb test", "switch test"), onFollow = { followed += it })
+        awaitDrawing()
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("Use another fragment").performClick()
+        waitForIdle()
+        onNodeWithText("switch test").performClick()
+        waitForIdle()
+        assertEquals(listOf("switch test"), changes.single().edits.map { it.newText })
+
+        onNodeWithTag(DiagramViewTestTags.CANVAS).performMouseInput { rightClick(center) }
+        waitForIdle()
+        onNodeWithText("Open page bulb test").performClick()
+        waitForIdle()
+        assertEquals(listOf("bulb test"), followed)
+    }
+
     /** Waits until the layout, which is computed off the UI thread, is there. The zoom buttons appear with it. */
     private fun ComposeUiTest.awaitDrawing() {
         waitUntil(timeoutMillis = 10_000) { onAllNodesWithTag(DiagramViewTestTags.ZOOM).fetchSemanticsNodes().isNotEmpty() }
@@ -282,6 +305,8 @@ class DiagramViewTest {
         state: DiagramState<D>,
         onSave: (VisLayout) -> Unit = {},
         onChange: (DiagramChange) -> Unit = {},
+        fragments: List<String> = emptyList(),
+        onFollow: (String) -> Unit = {},
         onSelect: (TextRange) -> Unit = {},
     ) {
         val editing = DiagramEditing(notation.arrangement, onSave)
@@ -289,7 +314,11 @@ class DiagramViewTest {
             onChange(made)
             true
         }
-        setContent { KarpfenTheme(darkTheme = false) { DiagramView(notation, state, editing, onSelect = onSelect, onChange = change) } }
+        setContent {
+            KarpfenTheme(darkTheme = false) {
+                DiagramView(notation, state, editing, onSelect = onSelect, onChange = change, fragments = fragments, onFollow = onFollow)
+            }
+        }
         waitForIdle()
     }
 
@@ -354,6 +383,16 @@ class DiagramViewTest {
                     STATE "alone" {
                         ENTRY { SET("mode", "on") }
                     }
+                }
+                TRANSITIONS { }
+            }
+        """.trimIndent()
+
+        /** One container state that runs the fragment `bulb test`. */
+        val CONTAINER = """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    CONTAINER STATE "self test" USE "bulb test" { }
                 }
                 TRANSITIONS { }
             }

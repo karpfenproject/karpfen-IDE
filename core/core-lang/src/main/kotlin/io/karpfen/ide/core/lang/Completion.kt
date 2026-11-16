@@ -77,7 +77,7 @@ public enum class CompletionKind {
     /** A macro name. */
     MACRO,
 
-    /** The name of an attachable state machine. */
+    /** The name of an attachable state machine or of a fragment. */
     STATE_MACHINE,
 
     /** An event name. */

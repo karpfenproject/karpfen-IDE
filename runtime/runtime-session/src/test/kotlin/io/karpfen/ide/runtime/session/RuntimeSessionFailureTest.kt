@@ -69,7 +69,7 @@ class RuntimeSessionFailureTest {
     lateinit var root: Path
 
     @ParameterizedTest
-    @EnumSource(DeployStepKind::class, names = ["DEFINE_STATE_MACHINE"], mode = EnumSource.Mode.EXCLUDE)
+    @EnumSource(DeployStepKind::class, names = ["DEFINE_STATE_MACHINE", "UPLOAD_FRAGMENT"], mode = EnumSource.Mode.EXCLUDE)
     fun `a failure at every step fails the session with the step's problem and the cleanup of its phase`(step: DeployStepKind) = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.preparedWithHistory()
@@ -91,7 +91,7 @@ class RuntimeSessionFailureTest {
     }
 
     @ParameterizedTest
-    @EnumSource(DeployStepKind::class, names = ["DEFINE_STATE_MACHINE"], mode = EnumSource.Mode.EXCLUDE)
+    @EnumSource(DeployStepKind::class, names = ["DEFINE_STATE_MACHINE", "UPLOAD_FRAGMENT"], mode = EnumSource.Mode.EXCLUDE)
     fun `closing the session at every step cancels the deployment, whose cleanup runs and records what stays`(step: DeployStepKind) = runTest {
         val rig = SessionRig(this, root)
         val deployment = rig.preparedWithHistory()
@@ -278,6 +278,7 @@ class RuntimeSessionFailureTest {
                 Failure(DeployProblemCodes.RUNTIME_ERROR, dropped)
             }
             DeployStepKind.DEFINE_STATE_MACHINE -> error("the lamp has no definitions")
+            DeployStepKind.UPLOAD_FRAGMENT -> error("the lamp has no fragments")
             DeployStepKind.SET_TICK_DELAY -> {
                 fake.respond(RuntimeRoute.SET_TICK_DELAY, FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.INVALID_PARAMETER, mapOf("name" to "milliseconds")))
                 Failure(DeployProblemCodes.RUNTIME_REJECTED, dropped)
@@ -334,6 +335,7 @@ class RuntimeSessionFailureTest {
             DeployStepKind.UPLOAD_MODEL -> dropped.also { fake.hang(RuntimeRoute.SET_MODEL) }
             DeployStepKind.ATTACH_STATE_MACHINE -> dropped.also { fake.hang(RuntimeRoute.SET_STATE_MACHINE) }
             DeployStepKind.DEFINE_STATE_MACHINE -> error("the lamp has no definitions")
+            DeployStepKind.UPLOAD_FRAGMENT -> error("the lamp has no fragments")
             DeployStepKind.SET_TICK_DELAY -> dropped.also { fake.hang(RuntimeRoute.SET_TICK_DELAY) }
             DeployStepKind.SET_EVENT_TTL -> dropped.also { fake.hang(RuntimeRoute.SET_EVENT_TTL) }
             DeployStepKind.LISTEN_DOMAINS -> dropped.also { fake.hang(RuntimeRoute.REGISTER_DOMAIN_LISTENER) }

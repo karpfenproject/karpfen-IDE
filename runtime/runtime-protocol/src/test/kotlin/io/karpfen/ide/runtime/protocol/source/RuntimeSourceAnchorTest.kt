@@ -96,6 +96,31 @@ class RuntimeSourceAnchorTest {
     }
 
     @Test
+    fun `a refused activation lists every problem of flattening on its own line as FlatteningRejection reads it`() {
+        assertAnchored(
+            listOf(
+                SourceAnchor(ENVIRONMENT_HANDLER, "val stateMachines = ComposedStateMachines.of(env)"),
+                SourceAnchor(COMPOSED_STATE_MACHINES, "\"Environment with key \${environment.key} has state machines that cannot be flattened:\\n\" +"),
+                SourceAnchor(COMPOSED_STATE_MACHINES, "problems.joinToString(\"\\n\")"),
+                SourceAnchor(COMPOSED_STATE_MACHINES, "result.problems.forEach { problems.add(\"\$label: \${it.message}\") }"),
+                SourceAnchor(COMPOSED_STATE_MACHINES, "flat(\"State machine for '\$key'\", machine)"),
+                SourceAnchor(COMPOSED_STATE_MACHINES, "flat(\"Attachable state machine '\$name'\", machine)"),
+                SourceAnchor(HTTP_ROUTES, "is IllegalStateException -> HttpStatusCode.Conflict"),
+            ),
+        )
+    }
+
+    @Test
+    fun `an upload without attachedTo that reads as a fragment is named a fragment in its refusal`() {
+        assertAnchored(
+            listOf(
+                SourceAnchor(API_SERVICE, "read.model?.isFragment == true -> \"fragment\""),
+                SourceAnchor(API_SERVICE, "else -> \"attachable state machine\""),
+            ),
+        )
+    }
+
+    @Test
     fun `errors are answered with the statuses and bodies the gateway interprets`() {
         assertAnchored(
             listOf(
@@ -412,6 +437,7 @@ class RuntimeSourceAnchorTest {
         const val KTOR_SERVER = "$SERVER/server/KtorServer.kt"
         const val API_SERVICE = "$SERVER/server/APIService.kt"
         const val ENVIRONMENT_HANDLER = "$SERVER/env/EnvironmentHandler.kt"
+        const val COMPOSED_STATE_MACHINES = "$SERVER/env/ComposedStateMachines.kt"
         const val OBSERVATION_ROUTES = "$SERVER/observation/ModelObservationRoutes.kt"
         const val OBSERVATION_RELAY = "$SERVER/observation/ObservationRelay.kt"
         const val SNAPSHOT_SERVICE = "$SERVER/observation/ModelSnapshotService.kt"
@@ -486,9 +512,14 @@ class RuntimeSourceAnchorTest {
                 SourceAnchor(API_SERVICE, "\"\\\"Type\\\", but it is the attachable state machine '\${stateMachine.name}'; upload an attachable \" +"),
                 SourceAnchor(API_SERVICE, "\"state machine without attachedTo\""),
             ),
+            RuntimeText.ATTACHED_FRAGMENT to listOf(
+                SourceAnchor(API_SERVICE, "\"The state machine for '\$modelElement' must have the attached form STATEMACHINE ATTACHED TO \" +"),
+                SourceAnchor(API_SERVICE, "\"\\\"Type\\\", but it is the fragment '\${stateMachine.name}'; upload a fragment without attachedTo\""),
+            ),
             RuntimeText.ATTACHABLE_FORM_REQUIRED to listOf(
                 SourceAnchor(API_SERVICE, "\"A state machine without attachedTo must have the attachable form STATEMACHINE \\\"name\\\" \" +"),
-                SourceAnchor(API_SERVICE, "\"ATTACHABLE TO \\\"Type\\\"; give attachedTo for a state machine ATTACHED TO a type\""),
+                SourceAnchor(API_SERVICE, "\"ATTACHABLE TO \\\"Type\\\" or the fragment form STATEMACHINE \\\"name\\\" FRAGMENT; give \" +"),
+                SourceAnchor(API_SERVICE, "\"attachedTo for a state machine ATTACHED TO a type\""),
             ),
             RuntimeText.NO_ATTACHABLE_STATE_MACHINE to listOf(
                 SourceAnchor(API_SERVICE, literal(RuntimeText.NO_ATTACHABLE_STATE_MACHINE, ENV + ("machine" to "\$name"))),

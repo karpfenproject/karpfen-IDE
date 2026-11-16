@@ -19,8 +19,10 @@ import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.runtime.protocol.api.Reach
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningRejection
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeEndpoint
+import io.karpfen.ide.runtime.protocol.catalogue.UnflattenedMachine
 import io.karpfen.ide.runtime.protocol.catalogue.UploadError
 import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
@@ -30,6 +32,7 @@ import io.karpfen.ide.runtime.session.plan.PlannedUpload
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.problem.SourceLocation
+import java.nio.file.Path
 
 /**
  * Turns the runtime's failures during a deployment into problems. Each problem is located in the workspace where the
@@ -44,6 +47,10 @@ import io.karpfen.ide.runtime.session.problem.SourceLocation
  *   that the environment does not exist is the one exception. It is about the environment, not about the upload.
  * - An internal error of the runtime on an upload is an error of the runtime at the uploaded file, with the runtime's
  *   text.
+ * - An activation refused because state machines do not flatten becomes one problem per line of the runtime's
+ *   refusal, each with the runtime's words, at the file of the state machine the line names. The checks before the
+ *   deployment flatten with the same function of dsl-tools, so this only happens when the runtime still disagrees,
+ *   and the runtime's words must reach the user.
  * - An activation refused because a machine is attached to a key that the model lacks points at the descriptor. So does
  *   an activation refused because a type behaves after a state machine the environment does not hold as a definition,
  *   or holds as one that is not attachable to the type, since the descriptor lists the definitions.
@@ -80,6 +87,8 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
                     fileOf(upload),
                     failure,
                 )
+            kind == DeployStepKind.ACTIVATE && failure is RuntimeFailure.Rejected && failure.flattening != null ->
+                refusedFlattening(checkNotNull(failure.flattening), failure)
             kind == DeployStepKind.ACTIVATE && failure is RuntimeFailure.Rejected && failure.kind in DESCRIPTOR_REFUSALS ->
                 single(
                     DeployProblemCodes.RUNTIME_REJECTED,
@@ -151,6 +160,34 @@ internal class FailureLocator(private val plan: DeploymentPlan, private val endp
         }
         val summary = problems.singleOrNull()?.message ?: "The runtime refused ${upload.fileName} with ${problems.size} errors."
         return StepOutcome.Failed(summary, problems, failure)
+    }
+
+    /**
+     * The failed outcome of an activation that the runtime refused with [failure], because the state machines of
+     * [flattening] do not flatten. It has one problem per line of the runtime, in its order, each with the runtime's
+     * words and at the file of the state machine the line names. A state machine the plan does not know points at the
+     * descriptor. With one problem the problem's message is the summary, otherwise the summary counts the problems.
+     */
+    private fun refusedFlattening(flattening: FlatteningRejection, failure: RuntimeFailure): StepOutcome.Failed {
+        val problems = flattening.problems.map { line ->
+            val file = fileOf(line.machine)
+            val upload = plan.uploads.firstOrNull { it.file == file }
+            problem(
+                DeployProblemCodes.RUNTIME_REJECTED,
+                "The runtime refused the activation, because ${upload?.fileName ?: line.machine.words} cannot be flattened: " +
+                    "${line.message}.",
+                upload?.let(::fileOf) ?: SourceLocation(plan.descriptor, null, null),
+            )
+        }
+        val summary = problems.singleOrNull()?.message
+            ?: "The runtime refused the activation, because ${problems.size} problems keep state machines from being flattened."
+        return StepOutcome.Failed(summary, problems, failure)
+    }
+
+    /** The file of the state machine the runtime names [machine], or null if the plan has none of that key or name. */
+    private fun fileOf(machine: UnflattenedMachine): Path? = when (machine) {
+        is UnflattenedMachine.Attached -> plan.attachments.firstOrNull { it.attachedTo == machine.attachedTo }?.file
+        is UnflattenedMachine.Attachable -> plan.definitions.firstOrNull { it.name == machine.name }?.file
     }
 
     /**

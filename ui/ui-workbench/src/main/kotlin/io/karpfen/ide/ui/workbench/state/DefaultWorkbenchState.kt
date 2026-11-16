@@ -68,6 +68,7 @@ import java.nio.file.Path
  * - [UnsavedChangesFlow] asks about unsaved changes before a tab closes, the folder switches, a file is renamed or the
  *   IDE exits.
  * - [FileOpenFlow] and [NavigationFlow] open files and navigate to locations.
+ * - [PageFlow] steps between the pages of a state machine: from a container state to its fragment and back.
  * - [TabFlows] closes tabs, saves them and resolves conflicts with changes on disk.
  * - [FolderFlow] opens, switches and closes the workspace folder.
  * - [FileOperationFlows] creates files with a `TemplateContext` from [TemplateContextBuilder], deletes files and shows
@@ -134,6 +135,7 @@ internal class DefaultWorkbenchState(
     private val bridgeForms = BridgeFormFlow(holder, projectTree, dialogs, services.settings, services.ioDispatcher)
     private val fileOpen = FileOpenFlow(lifecycle, bridgeForms, dialogs, services.fileOperations, services.ioDispatcher)
     private val navigationFlow = NavigationFlow(fileOpen, tabs)
+    private val pages = PageFlow(holder, fileOpen, tabs, dialogs)
     private val tabFlows = TabFlows(tabs, lifecycle, unsaved, saving, dialogs)
     private val runtimes =
         RuntimeHolder(ownScope, services, WorkbenchRunSupport(runner, tabs, saving, dialogs, layout, validation), bindings)
@@ -169,6 +171,12 @@ internal class DefaultWorkbenchState(
     override fun openFile(path: Path): Job = runner.launch("open file") { fileOpen.openFile(path.normalized()) }
 
     override fun navigateTo(location: Location): Job = runner.launch("navigate") { navigationFlow.navigateTo(location) }
+
+    override fun openPage(from: Path, fragment: String): Job =
+        runner.launch("open page") { pages.openPage(from.normalized(), fragment) }
+
+    override fun openWithDiagram(path: Path, from: Path): Job =
+        runner.launch("open diagram") { pages.openWithDiagram(path.normalized(), from.normalized()) }
 
     override fun openNode(path: Path): Job {
         if (!projectTree.isDirectory(path)) return openFile(path)

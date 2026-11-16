@@ -20,16 +20,26 @@ import io.karpfen.ide.core.workspace.analysis.AttachmentCandidate
 import io.karpfen.ide.core.workspace.analysis.ContextSymbols
 import io.karpfen.ide.core.workspace.analysis.ModelObject
 import io.karpfen.ide.core.workspace.context.ModelingContext
+import io.karpfen.ide.core.workspace.files.FileKind
 import java.nio.file.Path
 
 /**
  * The kinds of files that the project tree can create through the New entries of its context menu. A kind names the
- * [language] of its files. It takes the file name suffix and the name it shows from that language. A created file
- * therefore always has a name by which `KarpfenLanguage.fromFileName` recognizes the language.
+ * [language] of its files. It takes the file name suffix and the name it shows from that language, except a fragment,
+ * which is KStates text with the suffix `.frag.kstates`. A created file therefore always has a name by which
+ * `KarpfenLanguage.fromFileName` recognizes the language and `FileKind.of` the kind.
  *
  * @property language the karpfen language of the files of this kind.
+ * @property suffix the file name suffix including its dot, such as `.kmeta` or `.kenv.json`. It is the language's
+ *   extension after a dot, and `.frag.kstates` for a fragment.
+ * @property displayName the kind's name in menus and dialogs. It is the language's display name followed by "File",
+ *   such as "KMeta File", and "Fragment File" for a fragment.
  */
-public enum class FileTemplateKind(public val language: KarpfenLanguage) {
+public enum class FileTemplateKind(
+    public val language: KarpfenLanguage,
+    public val suffix: String = ".${language.extension}",
+    public val displayName: String = "${language.displayName} File",
+) {
     /** A metamodel with one example type. */
     KMETA(KarpfenLanguage.KMETA),
 
@@ -39,20 +49,11 @@ public enum class FileTemplateKind(public val language: KarpfenLanguage) {
     /** A state machine with one initial state. */
     KSTATES(KarpfenLanguage.KSTATES),
 
+    /** A fragment named after the file, with an initial state and a final state. */
+    FRAGMENT(KarpfenLanguage.KSTATES, FileKind.FRAGMENT_SUFFIX, "Fragment File"),
+
     /** An environment descriptor, `*.kenv.json`. */
     ENVIRONMENT(KarpfenLanguage.ENVIRONMENT),
-    ;
-
-    /**
-     * The file name suffix including its dot, such as `.kmeta` or `.kenv.json`. It is the language's extension after a
-     * dot.
-     */
-    public val suffix: String get() = ".${language.extension}"
-
-    /**
-     * The kind's name in menus and dialogs. It is the language's display name followed by "File", such as "KMeta File".
-     */
-    public val displayName: String get() = "${language.displayName} File"
 }
 
 /**
@@ -71,8 +72,8 @@ public enum class FileTemplateKind(public val language: KarpfenLanguage) {
  *   whose type is unknown is absent.
  * @property eventDomains the event domains that the context's state machines use through `EVENT("domain", …)`. They
  *   are sorted and contain no repetitions.
- * @property definitions the state machines of the context that have the attachable form, which a descriptor lists as
- *   definitions without `attachedTo`.
+ * @property definitions the state machines of the context that a descriptor lists without `attachedTo`: those with the
+ *   attachable form, which become definitions, and the fragments.
  */
 public data class TemplateContext(
     public val directory: Path,
@@ -95,13 +96,16 @@ public data class TemplateContext(
  *
  * A new KStates file is `ATTACHED TO` the context's first domain type when that is known. It has one initial state.
  *
+ * A new fragment is named after its file, so `bulb test.frag.kstates` holds `STATEMACHINE "bulb test" FRAGMENT`. It has
+ * an initial state, a final state and a transition between them.
+ *
  * A new environment descriptor names the files of the directory's current context. These are the metamodel, the
  * events, the first model and the state machines. The paths are relative to the directory. Creating the descriptor
  * therefore keeps the directory's files in one context instead of turning them into loose files. Each state machine is
  * attached to the first object that the ranking rule of [AttachmentCandidate.rank] proposes for it. That is the first
  * object of its `ATTACHED TO` type, otherwise the first object, and otherwise the placeholder `"object"`. In the
  * single_robot_example, for example, `cleaning_robot.kstates` is attached to `"turtle"`, which is the Robot and not the
- * root Room. An attachable state machine is listed without `attachedTo`, as a definition. When the state machines use
+ * root Room. An attachable state machine and a fragment are listed without `attachedTo`. When the state machines use
  * event domains, the descriptor observes every object and those domains.
  * Without a context, it names files after the descriptor. They are reported as `descriptor-missing-file` until they
  * are created. The descriptor must read without diagnostics, apart from missing referenced files. It opens in an
@@ -138,6 +142,7 @@ internal class DefaultFileTemplates : FileTemplates {
             FileTemplateKind.KMETA -> KarpfenSourceTemplates.kmeta(name)
             FileTemplateKind.KMODEL -> KarpfenSourceTemplates.kmodel(name, context)
             FileTemplateKind.KSTATES -> KarpfenSourceTemplates.kstates(name, context)
+            FileTemplateKind.FRAGMENT -> KarpfenSourceTemplates.fragment(name)
             FileTemplateKind.ENVIRONMENT -> EnvironmentTemplate.content(name, context)
         }
     }

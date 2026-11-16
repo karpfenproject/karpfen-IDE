@@ -37,6 +37,17 @@ class FileKindTest {
     }
 
     @Test
+    fun `a fragment is a KStates file of its own kind, named with frag kstates`() {
+        assertEquals(FileKind.FRAGMENT, FileKind.of("bulb test.frag.kstates"))
+        assertEquals(FileKind.FRAGMENT, FileKind.of("wiring.FRAG.KStates"))
+        assertEquals(FileKind.KSTATES, FileKind.of(".frag.kstates"))
+        assertEquals(FileKind.KSTATES, FileKind.of("lamp.kstates"))
+        assertEquals(KarpfenLanguage.KSTATES, FileKind.FRAGMENT.language)
+        assertTrue(FileKind.FRAGMENT.isKarpfenSource)
+        assertEquals(listOf(FileKind.KSTATES, FileKind.FRAGMENT), FileKind.entries.filter { it.isStateMachine })
+    }
+
+    @Test
     fun `the event metamodel is EVENTS kmeta in any case, and only that name`() {
         assertEquals(FileKind.EVENTS_KMETA, FileKind.of("EVENTS.kmeta"))
         assertEquals(FileKind.EVENTS_KMETA, FileKind.of("events.kmeta"))
@@ -76,7 +87,7 @@ class FileKindTest {
                 DescriptorFileRole.METAMODEL to listOf(FileKind.KMETA, FileKind.EVENTS_KMETA),
                 DescriptorFileRole.EVENTS to listOf(FileKind.KMETA, FileKind.EVENTS_KMETA),
                 DescriptorFileRole.MODEL to listOf(FileKind.KMODEL),
-                DescriptorFileRole.STATE_MACHINE to listOf(FileKind.KSTATES),
+                DescriptorFileRole.STATE_MACHINE to listOf(FileKind.KSTATES, FileKind.FRAGMENT),
                 DescriptorFileRole.BRIDGE to FileKind.entries,
             ),
             DescriptorFileRole.entries.associateWith { role -> FileKind.entries.filter { it.fits(role) } },
@@ -90,7 +101,7 @@ class FileKindTest {
                 DescriptorFileRole.METAMODEL to listOf(FileKind.KMETA),
                 DescriptorFileRole.EVENTS to listOf(FileKind.EVENTS_KMETA),
                 DescriptorFileRole.MODEL to listOf(FileKind.KMODEL),
-                DescriptorFileRole.STATE_MACHINE to listOf(FileKind.KSTATES),
+                DescriptorFileRole.STATE_MACHINE to listOf(FileKind.KSTATES, FileKind.FRAGMENT),
                 DescriptorFileRole.BRIDGE to listOf(FileKind.BRIDGE),
             ),
             DescriptorFileRole.entries.associateWith { role -> FileKind.entries.filter { it.isUsualFor(role) } },

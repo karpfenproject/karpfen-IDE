@@ -82,7 +82,7 @@ class CreateFileFlowTest {
             assertTrue(state.projectTree.tree.value?.find(created) != null, "the workspace was refreshed")
         }
         assertEquals(
-            listOf("robot.kmeta", "robot.kmodel", "robot.kstates", "robot.kenv.json"),
+            listOf("robot.kmeta", "robot.kmodel", "robot.kstates", "robot.frag.kstates", "robot.kenv.json"),
             state.tabs.tabs.value.map { it.title },
             "karpfen files and descriptors open in tabs",
         )
@@ -90,7 +90,7 @@ class CreateFileFlowTest {
 
         workspace.awaitAnalysis()
         settle()
-        listOf("robot.kmeta", "robot.kmodel", "robot.kstates", "robot.kenv.json").forEach { name ->
+        listOf("robot.kmeta", "robot.kmodel", "robot.kstates", "robot.frag.kstates", "robot.kenv.json").forEach { name ->
             assertEquals(emptyList(), diagnosticsOf(empty.resolve(name)).filter { it.severity == Severity.ERROR }, name)
         }
     }

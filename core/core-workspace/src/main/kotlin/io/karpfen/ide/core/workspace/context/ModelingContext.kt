@@ -73,7 +73,8 @@ public data class ModelingContext(
  *
  * @property file the state machine file.
  * @property attachedTo the object key from the descriptor, `stateMachines[].attachedTo`. In an explicit context an
- *   entry without it names an attachable state machine, a definition that the environment knows by its name. It is
+ *   entry without it names an attachable state machine, a definition that the environment knows by its name, or a
+ *   fragment, which container states use by its name. It is
  *   null for every machine of an implicit context, where the header of each file says which form it has.
  * @property reference where the descriptor names [file], the inside of the string of `stateMachines[].file`, so that a
  *   finding about the entry can point at it. It is null in an implicit context.

@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
 import io.karpfen.ide.core.lang.Location
+import io.karpfen.ide.core.workspace.analysis.ProjectFragments
 import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
@@ -52,6 +53,7 @@ import io.karpfen.ide.ui.workbench.output.view.OutputView
 import io.karpfen.ide.ui.workbench.problems.view.ProblemsView
 import io.karpfen.ide.ui.workbench.projecttree.view.ProjectTreeView
 import io.karpfen.ide.ui.workbench.runtime.DiagramLives
+import io.karpfen.ide.ui.workbench.runtime.LiveInstance
 import io.karpfen.ide.ui.workbench.runtime.view.RuntimeToolWindow
 import io.karpfen.ide.ui.workbench.state.WorkbenchState
 import io.karpfen.ide.ui.workbench.statusbar.view.StatusBarActions
@@ -247,7 +249,7 @@ private fun EditorPane(state: WorkbenchState) {
     val running = state.runtime.collectAsState().value?.selected?.collectAsState()?.value?.takeIf { it.isLive }?.session
     val observed = running?.model?.collectAsState()?.value
     val debugger = running?.debugger?.state?.collectAsState()?.value ?: DebuggerState.Unavailable
-    val chosenInstances = remember(running) { mutableStateMapOf<Path, String>() }
+    val chosenInstances = remember(running) { mutableStateMapOf<Path, LiveInstance>() }
     val chosen = active?.let { chosenInstances[it] }
     val run = remember(observed, debugger, active, chosen) {
         val file = active
@@ -256,6 +258,13 @@ private fun EditorPane(state: WorkbenchState) {
         } else {
             DiagramLives.of(observed.states, file, debugger, chosen)
         }
+    }
+    val analysis = workspace?.analysis?.collectAsState()?.value
+    val pages = remember(analysis) { analysis?.let(::ProjectFragments) }
+    val fragments = remember(pages) { pages?.names().orEmpty() }
+    val pageUsers = remember(pages, active) {
+        val file = active
+        pages?.all()?.firstOrNull { it.path == file }?.let { pages.usersOf(it.name) }
     }
     val services by state.languageServices.collectAsState()
     val cellEditor = remember(activeEditor, services, workspace) {
@@ -278,11 +287,15 @@ private fun EditorPane(state: WorkbenchState) {
         diskRevision = diskRevision,
         onDiagramSaved = { state.refreshFiles() },
         run = run,
-        onShowInstance = { key -> active?.let { chosenInstances[it] = key } },
+        onShowInstance = { use -> active?.let { chosenInstances[it] = use } },
         cellEditor = cellEditor,
         languageFeatures = settings.languageFeatures,
         validation = ValidateButtonUiState(enabled = canValidate, busy = validating),
         onValidate = { state.validation.validate() },
+        fragments = fragments,
+        onOpenPage = { name -> active?.let { state.openPage(it, name) } },
+        pageUsers = pageUsers,
+        onOpenUser = { user -> active?.let { state.openWithDiagram(user, it) } },
     )
 }
 

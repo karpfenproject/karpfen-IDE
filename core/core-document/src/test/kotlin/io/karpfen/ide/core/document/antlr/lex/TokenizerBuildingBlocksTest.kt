@@ -88,9 +88,9 @@ class TokenizerBuildingBlocksTest {
         fun unclassified(vocabulary: Vocabulary, table: TokenKindTable): Set<String> =
             (1..vocabulary.maxTokenType).filterNot(table::classifies).map(vocabulary::getSymbolicName).toSet()
 
-        assertEquals(setOf("WS", "COMMENT"), unclassified(KmetaLexer.VOCABULARY, KMETA_TOKEN_KINDS))
-        assertEquals(setOf("WS", "COMMENT"), unclassified(KmodelLexer.VOCABULARY, KMODEL_TOKEN_KINDS))
-        assertEquals(setOf("WS", "SYMBOL"), unclassified(KstatesLexer.VOCABULARY, KSTATES_TOKEN_KINDS))
+        assertEquals(setOf("WS", "COMMENT", "BYTE_ORDER_MARK"), unclassified(KmetaLexer.VOCABULARY, KMETA_TOKEN_KINDS))
+        assertEquals(setOf("WS", "COMMENT", "BYTE_ORDER_MARK"), unclassified(KmodelLexer.VOCABULARY, KMODEL_TOKEN_KINDS))
+        assertEquals(setOf("WS", "SYMBOL", "BYTE_ORDER_MARK"), unclassified(KstatesLexer.VOCABULARY, KSTATES_TOKEN_KINDS))
     }
 
     @Test

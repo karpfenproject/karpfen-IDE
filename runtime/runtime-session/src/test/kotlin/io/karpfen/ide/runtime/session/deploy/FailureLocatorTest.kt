@@ -18,10 +18,13 @@ package io.karpfen.ide.runtime.session.deploy
 import io.karpfen.ide.core.document.Severity
 import io.karpfen.ide.core.text.TextRange
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningProblemLine
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningRejection
 import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
+import io.karpfen.ide.runtime.protocol.catalogue.UnflattenedMachine
 import io.karpfen.ide.runtime.protocol.catalogue.UploadError
 import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.EnvironmentPhase
@@ -202,6 +205,40 @@ class FailureLocatorTest {
     }
 
     @Test
+    fun `an activation refused for state machines that do not flatten is one problem per line at each machine's file`() {
+        val flattening = FlatteningRejection(
+            ENVIRONMENT.value,
+            listOf(
+                FlatteningProblemLine(UnflattenedMachine.Attached("lamp"), MISSING_FRAGMENT),
+                FlatteningProblemLine(UnflattenedMachine.Attachable("glowing"), MISSING_MACRO),
+                FlatteningProblemLine(UnflattenedMachine.Attachable("unknown"), MISSING_MACRO),
+            ),
+        )
+        val failure = RuntimeFailure.Rejected(
+            RuntimeRoute.RUN_ENVIRONMENT,
+            409,
+            RejectionKind.NOT_FLATTENED,
+            flattening.render(),
+            emptyMap(),
+            flattening = flattening,
+        )
+
+        val outcome = FailureLocator(LampPlans.plan(withDefinition = true), ENDPOINT).locate(DeployStepKind.ACTIVATE, null, failure)
+
+        assertEquals(listOf(DeployProblemCodes.RUNTIME_REJECTED), outcome.problems.map { it.code }.distinct())
+        assertEquals(
+            listOf(fileOf(LampPlans.lampMachine), fileOf(LampPlans.glowingDefinition), SourceLocation(LampPlans.descriptor, null, null)),
+            outcome.problems.map { it.location },
+        )
+        assertEquals(
+            "The runtime refused the activation, because lamp.kstates cannot be flattened: $MISSING_FRAGMENT.",
+            outcome.problems.first().message,
+        )
+        assertTrue("Attachable state machine 'unknown' cannot be flattened" in outcome.problems.last().message, outcome.problems.last().message)
+        assertEquals("The runtime refused the activation, because 3 problems keep state machines from being flattened.", outcome.summary)
+    }
+
+    @Test
     fun `a definition refused for its form is one problem at the definition's file`() {
         val failure = Failures.rejected(RuntimeRoute.SET_STATE_MACHINE, RuntimeText.ATTACHABLE_FORM_REQUIRED, emptyMap(), status = 400)
 
@@ -306,5 +343,14 @@ class FailureLocatorTest {
         assertEquals(DeployProblemCodes.RUNTIME_NO_ANSWER, locator.refused(uncertain).code)
         assertEquals(DeployProblemCodes.RUNTIME_REJECTED, locator.refused(refused).code)
         assertTrue("frozen at activation" in locator.refused(refused).message)
+    }
+
+    private companion object {
+        /** The message of dsl-tools for a container state that uses a fragment no state machine has. */
+        const val MISSING_FRAGMENT = "Container state 'self test' of the state machine attached to 'Lamp' uses 'bulb test', but no " +
+            "fragment is named 'bulb test'"
+
+        /** The message of dsl-tools for a macro call that no file of a composition defines. */
+        const val MISSING_MACRO = "No file of the composition of state machine 'glowing' defines a macro named 'warm up'"
     }
 }

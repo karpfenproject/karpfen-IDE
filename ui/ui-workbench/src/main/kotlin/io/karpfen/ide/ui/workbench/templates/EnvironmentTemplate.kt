@@ -29,7 +29,7 @@ import java.nio.file.Path
  * through [DescriptorPaths.relative], so creating the descriptor keeps them in one context. Each state machine is
  * attached to the object that [AttachmentCandidate.rank] proposes first. That is the same rule the descriptor
  * completion ranks by. If no object is proposed, the machine is attached to [PLACEHOLDER_OBJECT]. An attachable state
- * machine, one of `TemplateContext.definitions`, is listed without `attachedTo` as a definition. When the state
+ * machine or a fragment, one of `TemplateContext.definitions`, is listed without `attachedTo`. When the state
  * machines use event domains, an `observe` section watches every object through [EnvironmentSchema.EVERY_OBJECT] and
  * lists those domains. Without a context, the descriptor names files after itself.
  *

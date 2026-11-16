@@ -148,6 +148,8 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun openFile(path: Path): Job = unexpected("openFile")
     override fun navigateTo(location: Location): Job = unexpected("navigateTo")
     override fun openNode(path: Path): Job = unexpected("openNode")
+    override fun openPage(from: Path, fragment: String): Job = unexpected("openPage")
+    override fun openWithDiagram(path: Path, from: Path): Job = unexpected("openWithDiagram")
     override fun switchLanguageFeature(feature: KstatesFeature, on: Boolean): Job = unexpected("switchLanguageFeature")
     override fun switchProjectFeature(feature: ProjectFeature, on: Boolean): Job = unexpected("switchProjectFeature")
     override fun runTreeCommand(command: ProjectTreeCommand): Job = unexpected("runTreeCommand")

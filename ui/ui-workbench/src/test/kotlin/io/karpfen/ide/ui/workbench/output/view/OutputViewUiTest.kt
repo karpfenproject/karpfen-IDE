@@ -62,7 +62,7 @@ class OutputViewUiTest {
     private val time: Instant = Instant.parse("2026-10-22T10:15:30.123Z")
 
     private fun line(sequence: Long, level: OutputLevel = OutputLevel.DEBUG, message: String = "line $sequence") =
-        OutputLine(sequence, time, level, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", message)
+        OutputLine(sequence, time, level, "io.karpfen.dsl.reader.kmeta.KmetaReader", message)
 
     /** The calls of the view's callbacks. */
     private class Calls {
@@ -116,7 +116,7 @@ class OutputViewUiTest {
 
         onNodeWithTag(OutputViewTestTags.line(1))
             .assertTextContains("WARN", substring = true)
-            .assertTextContains("KmetaDSLConverter - KMeta syntax error at line 1:5", substring = true)
+            .assertTextContains("KmetaReader - KMeta syntax error at line 1:5", substring = true)
     }
 
     @Test
@@ -124,7 +124,7 @@ class OutputViewUiTest {
         view(OutputUiState(lines = listOf(line(1, OutputLevel.WARNING, "failed").copy(file = "/work/robot/robot.kstates"))))
 
         onNodeWithTag(OutputViewTestTags.line(1))
-            .assertTextContains("KmetaDSLConverter [/work/robot/robot.kstates] - failed", substring = true)
+            .assertTextContains("KmetaReader [/work/robot/robot.kstates] - failed", substring = true)
     }
 
     @Test

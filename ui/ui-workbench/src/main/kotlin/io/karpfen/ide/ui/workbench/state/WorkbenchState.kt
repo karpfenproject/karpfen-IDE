@@ -204,6 +204,19 @@ public interface WorkbenchState : AutoCloseable {
     public fun navigateTo(location: Location): Job
 
     /**
+     * Opens the diagram of the fragment named [fragment], the page of a container state in the diagram of the file at
+     * [from]. The fragment is found by its name, one of the modeling context of [from] first. Its file opens with its
+     * diagram shown the way [from] shows its diagram. A name that no file declares becomes an error dialog.
+     */
+    public fun openPage(from: Path, fragment: String): Job
+
+    /**
+     * Opens [path] with its diagram shown the way the file at [from] shows its diagram. The diagram of a fragment
+     * uses it to go back to a file whose container states run the fragment.
+     */
+    public fun openWithDiagram(path: Path, from: Path): Job
+
+    /**
      * Opens the project tree node [path] after a double-click or Enter. A directory of the tree is expanded or
      * collapsed at once through `ProjectTreeState.toggle`, and the returned job is already complete. Anything else is
      * opened with [openFile].

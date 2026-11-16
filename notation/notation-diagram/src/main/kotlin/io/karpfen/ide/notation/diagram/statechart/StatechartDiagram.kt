@@ -22,14 +22,18 @@ import io.karpfen.ide.core.text.TextRange
  * derived from the text of a `.kstates` file by [StatechartProjection] and holds no positions. Where the elements are
  * drawn is the business of the layout.
  *
- * @property name the name of an attachable state machine, `STATEMACHINE "name" ATTACHABLE TO ...`, or null for an
- *   attached state machine, which has no name.
+ * The same diagram shows a fragment, `STATEMACHINE "name" FRAGMENT`, which is a page of other state machines: their
+ * container states run it as their inner states.
+ *
+ * @property name the name of an attachable state machine, `STATEMACHINE "name" ATTACHABLE TO ...`, or of a fragment,
+ *   or null for an attached state machine, which has no name.
  * @property types the types after `ATTACHED TO` or `ATTACHABLE TO`, in the order of the header. An attached state
- *   machine has one, and the list is empty if the text names none.
+ *   machine has one, and the list is empty if the text names none. A fragment has none.
  * @property states the top-level states in the order of the text.
  * @property transitions all transitions in the order of the text. The order matters, because the engine takes the
  *   first transition that can fire.
  * @property range the whole state machine in the text.
+ * @property isFragment true for a fragment.
  */
 public data class StatechartDiagram(
     public val name: String?,
@@ -37,18 +41,24 @@ public data class StatechartDiagram(
     public val states: List<StateNode>,
     public val transitions: List<TransitionEdge>,
     public val range: TextRange,
+    public val isFragment: Boolean = false,
 ) {
-    /** The type an attached state machine is attached to, or null for an attachable one and if the text names none. */
-    public val attachedTo: String? get() = if (name == null) types.firstOrNull() else null
+    /**
+     * The type an attached state machine is attached to, or null for an attachable one, for a fragment and if the text
+     * names none.
+     */
+    public val attachedTo: String? get() = if (name == null && !isFragment) types.firstOrNull() else null
 
     /**
      * The line that heads the drawing and says what the header of the text declares: the name, `ATTACHABLE TO` and
      * the types of an attachable state machine, such as `glowing ATTACHABLE TO Lamp, Fan`, or `ATTACHED TO` and the
-     * type of an attached one, such as `ATTACHED TO Lamp`. It is null for an attached state machine whose text names
-     * no type.
+     * type of an attached one, such as `ATTACHED TO Lamp`. A fragment is headed by its name and `FRAGMENT`, such as
+     * `bulb test FRAGMENT`, or `FRAGMENT` alone while it has no name. It is null for an attached state machine whose
+     * text names no type.
      */
     public val title: String?
         get() = when {
+            isFragment -> listOfNotNull(name?.takeIf { it.isNotEmpty() }, FRAGMENT).joinToString(" ")
             name != null -> listOf(name, ATTACHABLE_TO, types.joinToString(", ")).filter { it.isNotEmpty() }.joinToString(" ")
             else -> attachedTo?.let { "$ATTACHED_TO $it" }
         }
@@ -93,6 +103,7 @@ public data class StatechartDiagram(
     private companion object {
         const val ATTACHABLE_TO = "ATTACHABLE TO"
         const val ATTACHED_TO = "ATTACHED TO"
+        const val FRAGMENT = "FRAGMENT"
     }
 }
 
@@ -113,6 +124,10 @@ public data class StatechartDiagram(
  * @property tickLimitRange the whole `TICK LIMIT { ... }` block of the state in the text, or null if it has none.
  * @property delay the ticks the state stays active at least, or null without a `DELAY`.
  * @property timeout after how many ticks the state is left for which state, or null without a `TIMEOUT`.
+ * @property fragment the name of the fragment a container state uses, `CONTAINER STATE "name" USE "fragment"`. It is
+ *   empty for a container state that names no fragment yet and null for every other state.
+ * @property fragmentRange the name of that fragment inside its quotes, or null where the text has no `USE`.
+ * @property isFinal true for a `FINAL STATE`, which ends a fragment.
  */
 public data class StateNode(
     public val name: String,
@@ -129,7 +144,16 @@ public data class StateNode(
     public val tickLimitRange: TextRange? = null,
     public val delay: Long? = null,
     public val timeout: StateTimeout? = null,
+    public val fragment: String? = null,
+    public val fragmentRange: TextRange? = null,
+    public val isFinal: Boolean = false,
 ) {
+    /**
+     * True for a `CONTAINER STATE`, which runs a fragment as its inner states. Its own braces hold no states, so it is
+     * drawn as a box without nested states, and its fragment is a page of its own.
+     */
+    public val isContainer: Boolean get() = fragment != null
+
     /** True if the state has an `ENTRY` block. */
     public val hasEntry: Boolean get() = entryRange != null
 
@@ -175,6 +199,8 @@ public enum class TransitionKind {
  * @property breakpointRange the whole `BREAKPOINT { ... }` block of the transition in the text, or null if it has none.
  * @property startBreakpoint true if that block names `START`, so a debugger halts before the transition.
  * @property endBreakpoint true if that block names `END`, so a debugger halts after the transition.
+ * @property doneRange the clause `DONE` in the condition, or null if the condition has none. The clause holds once
+ *   the container state the transition leaves has reached a final state of its fragment.
  */
 public data class TransitionEdge(
     override val id: String,
@@ -189,7 +215,11 @@ public data class TransitionEdge(
     public val breakpointRange: TextRange? = null,
     public val startBreakpoint: Boolean = false,
     public val endBreakpoint: Boolean = false,
+    public val doneRange: TextRange? = null,
 ) : StatechartEdge {
+    /** True if the condition of the transition holds the clause `DONE`. */
+    public val isDone: Boolean get() = doneRange != null
+
     /**
      * What a drawing writes next to the transition: its priority and, if it has a condition, the label after a colon,
      * as in `3: switch/dim`. The priority is always shown, because the order of the transitions decides which one

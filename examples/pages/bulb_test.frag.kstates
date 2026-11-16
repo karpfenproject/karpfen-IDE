@@ -1,0 +1,27 @@
+// The self test of the lamp. It checks the wiring first, which is the fragment
+// "wiring_check" run by the container state "wiring". Then it lights the bulb at half
+// its power and passes. A smash while the wiring is checked makes the test fail.
+STATEMACHINE "bulb_test" FRAGMENT {
+    STATES {
+        INITIAL CONTAINER STATE "wiring" USE "wiring_check" { }
+        STATE "powered" {
+            ENTRY {
+                SET("bulb->watts", EVAL { return $(bulb->maxWatts) / 2 })
+                SET("bulb->lit", "true")
+            }
+        }
+        FINAL STATE "passed" { }
+        FINAL STATE "failed" { }
+    }
+    TRANSITIONS {
+        TRANSITION "wiring" -> "failed" {
+            CONDITION { EVENT("service", "smash") }
+        }
+        TRANSITION "wiring" -> "powered" {
+            CONDITION { DONE }
+        }
+        TRANSITION "powered" -> "passed" {
+            CONDITION { VALUE("bulb->lit") }
+        }
+    }
+}

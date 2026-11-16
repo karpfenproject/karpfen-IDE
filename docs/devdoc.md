@@ -279,8 +279,8 @@ Problems view show. dsl-tools' `ProjectVerifier` checks the files of a project a
 and only runs in a validation. `DslVerifier` in core-document is the only place that calls it. It works on the
 dsl-tools read results that every `ReadResult` keeps, so no file is read twice. `ProjectValidator` in core-workspace
 hands it each modeling context: the metamodel, the event definitions, the model if the context has exactly one, and
-each state machine with the object its descriptor attaches it to. The attachable state machines go in without an
-object, and the number of machines without a read goes in too, so the verifier reports no name as unknown while one
+each state machine with the object its descriptor attaches it to. The attachable state machines and the fragments go
+in without an object, and the number of machines without a read goes in too, so the verifier reports no name as unknown while one
 of them is missing. The verifier's findings about the metamodel and the event definitions land on those files. `Workspace.validate()` answers a `ProjectValidation`
 with the findings of the analysis and of the verifier, errors first. `ValidationState` in ui-workbench runs it for the
 Validate button, for the command Validate Project and before every run, shows the report in a dialog and keeps the
@@ -356,7 +356,10 @@ note over the drawing says what failed. New code in the view follows the same ru
 
 A graphical edit is a small text edit, so comments and formatting survive and the text stays the only thing that is
 written. A `DiagramActions` tells what the user can do at a point of a diagram, as `DiagramAction`s: one that changes
-the model at once, one that first needs a click on a box, and one that first needs a name. The canvas shows them as
+the model at once, one that first needs a click on a box, one that first needs a choice among a few names, which the
+canvas shows as a second menu, and one that first needs a name. A `Follow` changes nothing and hands a name of the
+model, such as the fragment of a container state, to the host of the pane, which opens the file of that name. A
+`DiagramActions` may also name the action of a double click, which is one of its menu entries. The canvas shows them as
 the context menu and runs the chain. The last action gives a `DiagramChange`, a list of text edits against the text
 the diagram was derived from, which `DiagramState.source` holds. `DiagramPane` applies it as one undoable change, and
 only while the document is still at that text. `StatechartEdits` makes the edits of a state machine and
@@ -574,6 +577,18 @@ definition with the role `UploadRole.DEFINITION`, without a key, in descriptor o
 machines, and keeps the definitions as `DeploymentPlan.definitions`. `DefinitionNotListedCheck` and
 `AttachedDefinitionNotListedCheck` compare the names that `behaves after`, `ATTACH` and `EXCHANGE` use with the listed
 definitions, which only the deployment knows; whether a name exists in the project is a check of dsl-tools.
+
+A fragment, `STATEMACHINE "name" FRAGMENT`, is a page of other state machines. `FileKind.FRAGMENT` is a file named
+`*.frag.kstates`, a state machine file like any other for contexts and analysis, and `FragmentFileNames` warns about a
+file name that does not fit its fragment. The syntax adapter reads a fragment through dsl-tools' `KstatesEntryRule`,
+which chooses the entry rule of the grammar; it is the one piece of dsl-tools besides the generated parser that the
+adapter package may use. A descriptor lists a fragment without `attachedTo`, and `StateMachineForms` knows the three
+forms. Every fragment of a context reaches the verifier with the state machines, which flattens each composition and
+reports its findings in the file whose text they concern. `ProjectFragments` answers from the syntax indexes which
+fragments the project declares and which files use them; completion, go to definition, the choice of a fragment in the
+statechart and `PageFlow` in ui-workbench, which steps between a container state and its fragment, all ask it. The
+statechart draws each file on its own: a container state is a box with the name of its fragment, and its page is the
+diagram of the fragment file.
 
 Which objects run which state machine changes during a run. The runtime announces each instance with the push
 `stateMachineAttached` and its end with `stateMachineDetached`, both with the object key and the definition name, or

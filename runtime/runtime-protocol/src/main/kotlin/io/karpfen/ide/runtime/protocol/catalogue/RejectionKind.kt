@@ -16,9 +16,10 @@
 package io.karpfen.ide.runtime.protocol.catalogue
 
 /**
- * Why the runtime rejected a call with 400 or 409. There is one kind per text of [RuntimeText]. Two kinds come on top.
- * [CONTENT_REJECTED] stands for an upload whose text has errors, answered with the body that [UploadRejection]
- * parses, and [UNCLASSIFIED] stands for any other text.
+ * Why the runtime rejected a call with 400 or 409. There is one kind per text of [RuntimeText]. Three kinds come on
+ * top. [CONTENT_REJECTED] stands for an upload whose text has errors, answered with the body that [UploadRejection]
+ * parses, [NOT_FLATTENED] for an activation refused with the body that [FlatteningRejection] parses, and
+ * [UNCLASSIFIED] stands for any other text.
  */
 public enum class RejectionKind {
     /** A query parameter is missing. The text names the first missing one in the order the runtime checks them. */
@@ -53,6 +54,9 @@ public enum class RejectionKind {
 
     /** A state machine uploaded with `attachedTo` has the attachable form. */
     ATTACHED_FORM_REQUIRED,
+
+    /** A fragment was uploaded with `attachedTo`. A fragment runs only inside a container state and is never attached. */
+    ATTACHED_FRAGMENT,
 
     /** A state machine uploaded without `attachedTo` has the attached form. */
     ATTACHABLE_FORM_REQUIRED,
@@ -116,6 +120,14 @@ public enum class RejectionKind {
      * and lists every error with its line and column, as [UploadRejection] describes. The environment stays as it was.
      */
     CONTENT_REJECTED,
+
+    /**
+     * The runtime refused to activate the environment because at least one of its state machines does not flatten with
+     * the fragments the environment holds, for example because a container state uses a fragment that was not
+     * uploaded. The body lists every problem on a line of its own, as [FlatteningRejection] describes. Nothing was
+     * activated, and the environment stays configuring.
+     */
+    NOT_FLATTENED,
 
     /** A rejection whose text is none of the known ones. */
     UNCLASSIFIED,

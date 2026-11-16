@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session.plan
 
 import io.karpfen.dsl.instance.Model
+import io.karpfen.ide.core.document.dsl.DslFlattener
 import io.karpfen.ide.core.document.environment.EnvironmentDescriptor
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
@@ -35,11 +36,13 @@ import java.nio.file.Path
  * @property analysis the analysis the plan is read from.
  * @property descriptor the absolute, normalized path of the environment descriptor.
  * @property unsaved the absolute, normalized paths that differ from their saved state.
+ * @param flattener flattens the compositions of the context.
  */
 internal class PlanSubject(
     val analysis: ProjectAnalysis,
     val descriptor: Path,
     val unsaved: Set<Path>,
+    private val flattener: DslFlattener = DslFlattener(),
 ) {
     /** The analysis of the explicit context of [descriptor], or null if the descriptor resolves to none. */
     val context: ContextAnalysis? = analysis.contexts.firstOrNull { it.context.descriptor == descriptor }
@@ -68,9 +71,22 @@ internal class PlanSubject(
     val machines: List<StateMachineBinding>
         get() = modelingContext?.stateMachines.orEmpty()
 
-    /** The state machines the descriptor lists without `attachedTo`, which are the definitions, in descriptor order. */
+    /**
+     * The state machines the descriptor lists without `attachedTo` that are no fragments, which are the definitions, in
+     * descriptor order. A file that was not read counts as a definition, since only its read tells what it is.
+     */
     val definitions: List<StateMachineBinding>
-        get() = machines.filter { it.attachedTo == null }
+        get() = machines.filter { it.attachedTo == null && !isFragment(it.file) }
+
+    /** The fragments the descriptor lists, in descriptor order. They are listed without `attachedTo`. */
+    val fragments: List<StateMachineBinding>
+        get() = machines.filter { it.attachedTo == null && isFragment(it.file) }
+
+    /**
+     * The compositions of the state machines of the context, each flattened with the state machines the descriptor
+     * lists, as the runtime flattens them at the activation.
+     */
+    val compositions: Compositions by lazy { Compositions(context?.stateMachines.orEmpty(), flattener) }
 
     /**
      * The names of the definitions as dsl-tools read them. A definition whose file was not read, or that has the
@@ -119,6 +135,9 @@ internal class PlanSubject(
     /** The declaration of the object with [key] in the model, or the model file as a whole. */
     fun objectLocation(key: String): SourceLocation? =
         modelFile?.let { file -> locations.objectIn(file, key) ?: fileLocation(file) }
+
+    /** True if dsl-tools read [file] of the context as a fragment. */
+    fun isFragment(file: Path): Boolean = context?.stateMachines?.get(file)?.isFragment == true
 
     /** The file name of [file], as messages show it. */
     fun nameOf(file: Path): String = file.fileName?.toString() ?: file.toString()

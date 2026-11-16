@@ -27,3 +27,13 @@ dependencies {
     implementation(libs.bundles.elk)
     implementation(libs.kotlinx.serialization.json)
 }
+
+/**
+ * The test that reads the example texts of the reference chapter on diagrams finds the reference through the system
+ * property `karpfen.reference`, and the folder is an input of the tests.
+ */
+tasks.withType<Test>().configureEach {
+    val reference = rootProject.layout.projectDirectory.dir("docs/reference")
+    inputs.dir(reference).withPropertyName("reference").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("karpfen.reference", reference.asFile.absolutePath)
+}

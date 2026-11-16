@@ -45,6 +45,12 @@ refer to.
   check them.
 - The class diagram asks for the name after `behaves after` as plain text. It does not offer the attachable state
   machines of the context, because the diagram knows only its own file.
+- The statechart of a state machine shows a container state as one box. The states of its fragment are drawn only in
+  the diagram of the fragment, and no view shows a composition as a whole.
+- The drawing of container states and final states, the second menu of the fragments, Open page with its double-click
+  and the bar of the users of a fragment were tested headless only. Nobody has looked at them in the window.
+- The bar of the users of a fragment names files by their file names, so two users of the same name in different
+  folders read alike.
 
 ### Running models
 
@@ -80,6 +86,13 @@ refer to.
   makes that list long, and it has no filter.
 - Dynamic attachment has run against the real runtime in the live scenarios of runtime-session and in the spares run
   of `LiveHeadlessRunTest`, but nobody has tried it by hand in the window yet.
+- Pages have live scenarios in runtime-session, `LivePageScenariosTest`, but nobody has run a composition by hand in
+  the window yet, and no run of `examples/pages` is part of `LiveHeadlessRunTest`.
+- A fragment the descriptor does not list is reported by the project validation as an unknown fragment, which blocks
+  the run before the preparation can report `deploy-fragment-not-listed` with the file of the fragment. Both the
+  window and the command line validate first, so that code is a second guard and does not show in practice.
+- A pause at a transition that the engine makes up, with no index of the text, is found in a fragment by its states.
+  Where the same states have several transitions, the statechart may mark another one of them.
 
 ### Bridges
 

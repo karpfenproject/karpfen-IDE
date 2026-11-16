@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.api
 
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningRejection
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeText
@@ -27,6 +28,11 @@ import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
  * matches. A body that matches none of them becomes [RejectionKind.CONTENT_REJECTED] if the route uploads a modeling
  * text, the status is 400 and [UploadRejection.parse] reads the body. That is the runtime's answer to an upload whose
  * text has errors, and the rejection carries the parsed body. This is the only place that parses it.
+ *
+ * A body of `POST /runEnvironment` with the status 409 that [FlatteningRejection.parse] reads becomes
+ * [RejectionKind.NOT_FLATTENED]. That is the runtime's answer to an activation whose state machines do not flatten
+ * with the fragments the environment holds, and the rejection carries the parsed body. This is the only place that
+ * parses it.
  *
  * Every other body becomes [RejectionKind.UNCLASSIFIED], on an upload route as on any other route. The runtime refuses
  * the content of every upload with the body of [UploadRejection], so a text of another form on an upload route is not
@@ -42,8 +48,12 @@ internal object RejectionClassifier {
             return RuntimeFailure.Rejected(route, status, text.kind, body, captured)
         }
         val content = if (route.body.modelingText && status == CONTENT_STATUS) UploadRejection.parse(body) else null
-        val kind = if (content != null) RejectionKind.CONTENT_REJECTED else RejectionKind.UNCLASSIFIED
-        return RuntimeFailure.Rejected(route, status, kind, body, emptyMap(), content)
+        if (content != null) return RuntimeFailure.Rejected(route, status, RejectionKind.CONTENT_REJECTED, body, emptyMap(), content)
+        val flattening = if (route == RuntimeRoute.RUN_ENVIRONMENT && status == CONFLICT_STATUS) FlatteningRejection.parse(body) else null
+        if (flattening != null) {
+            return RuntimeFailure.Rejected(route, status, RejectionKind.NOT_FLATTENED, body, emptyMap(), flattening = flattening)
+        }
+        return RuntimeFailure.Rejected(route, status, RejectionKind.UNCLASSIFIED, body, emptyMap())
     }
 
     /** The statuses with which the runtime rejects a call: 400 for an illegal argument, 409 for an illegal state. */
@@ -51,4 +61,7 @@ internal object RejectionClassifier {
 
     /** The status with which the runtime refuses an upload whose text has errors. */
     private const val CONTENT_STATUS: Int = 400
+
+    /** The status with which the runtime refuses an activation whose state machines do not flatten. */
+    private const val CONFLICT_STATUS: Int = 409
 }

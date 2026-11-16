@@ -52,6 +52,9 @@ internal sealed interface KstatesSlot {
      */
     data class StateMachineName(val name: String, val range: TextRange, val isDeclaration: Boolean) : KstatesSlot
 
+    /** The name of a fragment after `USE` in `CONTAINER STATE "s" USE "f"`, which is a reference. */
+    data class FragmentName(val name: String, val range: TextRange) : KstatesSlot
+
     /**
      * A type. This is `ATTACHED TO "T"`, a type after `ATTACHABLE TO`, a TAKES or RETURNS type, or `list(` or
      * `reference(` inside them.
@@ -226,8 +229,8 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
     /**
      * The slot of a string that is no call argument. The statement before the string decides what it names. After
      * `TRANSITION TO` it is the state a timeout leads to. After `STATEMACHINE` it is the name of an attachable state
-     * machine, after `ATTACHED TO`, `ATTACHABLE TO` and a comma of an attachable header it is a type, and after
-     * `ATTACH` it names an attachable state machine.
+     * machine or a fragment, after `ATTACHED TO`, `ATTACHABLE TO` and a comma of an attachable header it is a type,
+     * after `ATTACH` it names an attachable state machine, and after `USE` a fragment.
      */
     private fun headerString(statement: List<ContextToken>, name: String, range: TextRange, context: CaretContext): KstatesSlot {
         val last = statement.lastOrNull()
@@ -243,6 +246,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
             last.text == "," && isAttachableHeader(statement) -> KstatesSlot.TypeName(name, range, primitives = false)
             last.isKeyword(STATEMACHINE) && statement.size == 1 -> KstatesSlot.StateMachineName(name, range, isDeclaration = true)
             last.isAttach() -> KstatesSlot.StateMachineName(name, range, isDeclaration = false)
+            last.isKeyword(USE) -> KstatesSlot.FragmentName(name, range)
             last.isKeyword(MACRO) && context.innermostBlock?.let(KstatesBlocks::kindOf) == MACROS ->
                 KstatesSlot.MacroName(name, range, isDeclaration = true)
             else -> KstatesSlot.None
@@ -372,6 +376,7 @@ internal class KstatesSlots(private val caretContexts: CaretContextDetector) {
         const val ATTACHED = "ATTACHED"
         const val ATTACHABLE = "ATTACHABLE"
         const val ATTACH = "ATTACH"
+        const val USE = "USE"
         const val EXCHANGE = "EXCHANGE"
         const val STATEMACHINE = "STATEMACHINE"
         const val TRANSITIONS = "TRANSITIONS"

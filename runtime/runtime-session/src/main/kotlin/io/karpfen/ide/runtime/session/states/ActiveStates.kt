@@ -32,14 +32,17 @@ public enum class StackOrigin {
  *
  * @property attachedTo the key of the object the instance runs on. It is the `modelElementId` of its pushes.
  * @property file the file of the state machine the instance runs: the attached file, or the file of the definition.
- * @property stack the flat stack as the runtime writes it. It holds the plain state names of every parallel branch,
- *   outermost first. The branches are concatenated in split-target order.
+ * @property stack the flat stack as the runtime writes it. It holds the state names of every parallel branch, outermost
+ *   first, as the flat state machine names them: a state of a fragment as `<container>/<state>`. The branches are
+ *   concatenated in split-target order.
  * @property regions the stack split into its branches. Each branch starts at a top-level state.
  * @property previous the stack the instance showed before this one, or null if it showed none. It is kept for
  *   animation.
  * @property origin whether the stack is predicted or reported.
  * @property definition the name of the attachable state machine the instance runs, or null for a state machine that
  *   the deployment attached to the object.
+ * @property pages where the states and transitions of the instance were written: in the file of its state machine, or
+ *   in a fragment that one of its container states uses.
  */
 public data class MachineActivity(
     public val attachedTo: String,
@@ -49,6 +52,7 @@ public data class MachineActivity(
     public val previous: List<String>?,
     public val origin: StackOrigin,
     public val definition: String? = null,
+    public val pages: MachinePages = MachinePages.NONE,
 )
 
 /**
@@ -85,12 +89,12 @@ public data class ActiveStates(
 public class ActiveStatesReducer(layouts: List<MachineLayout>, definitions: List<DefinitionLayout> = emptyList()) {
     /** The layouts by attachment key, in deployment order. */
     private val layouts: Map<String, Shape> = LinkedHashMap<String, Shape>().also { map ->
-        layouts.forEach { map.putIfAbsent(it.attachedTo, Shape(null, it.file, it.topLevelStates, it.initialStack)) }
+        layouts.forEach { map.putIfAbsent(it.attachedTo, Shape(null, it.file, it.topLevelStates, it.initialStack, it.pages)) }
     }
 
     /** The layouts of the definitions by name. */
     private val definitions: Map<String, Shape> = LinkedHashMap<String, Shape>().also { map ->
-        definitions.forEach { map.putIfAbsent(it.name, Shape(it.name, it.file, it.topLevelStates, it.initialStack)) }
+        definitions.forEach { map.putIfAbsent(it.name, Shape(it.name, it.file, it.topLevelStates, it.initialStack, it.pages)) }
     }
 
     /** Every attached machine with its predicted initial stack. */
@@ -166,7 +170,9 @@ public class ActiveStatesReducer(layouts: List<MachineLayout>, definitions: List
 
     /** The predicted activity of an instance on [key] of [shape] before anything was shown. */
     private fun predicted(key: String, shape: Shape): MachineActivity =
-        MachineActivity(key, shape.file, shape.initialStack, shape.regions(shape.initialStack), null, StackOrigin.PREDICTED, shape.definition)
+        MachineActivity(
+            key, shape.file, shape.initialStack, shape.regions(shape.initialStack), null, StackOrigin.PREDICTED, shape.definition, shape.pages,
+        )
 
     /**
      * The activity of the instance on [key] of [shape] showing [stack] with [origin] after [before]. The stack shown
@@ -175,14 +181,20 @@ public class ActiveStatesReducer(layouts: List<MachineLayout>, definitions: List
      */
     private fun activity(key: String, shape: Shape, stack: List<String>, before: MachineActivity?, origin: StackOrigin): MachineActivity {
         val previous = if (before?.stack == stack) before.previous else before?.stack
-        return MachineActivity(key, shape.file, stack, shape.regions(stack), previous, origin, shape.definition)
+        return MachineActivity(key, shape.file, stack, shape.regions(stack), previous, origin, shape.definition, shape.pages)
     }
 
     /**
      * What every instance of one state machine shares: its definition name, or null for an attached machine, its file,
-     * its top-level states and its initial stack.
+     * its top-level states, its initial stack and its pages.
      */
-    private class Shape(val definition: String?, val file: Path, topLevelStates: List<String>, val initialStack: List<String>) {
+    private class Shape(
+        val definition: String?,
+        val file: Path,
+        topLevelStates: List<String>,
+        val initialStack: List<String>,
+        val pages: MachinePages,
+    ) {
         /** The segmenter of the stacks of the state machine. */
         private val segmenter = StackSegmenter(topLevelStates)
 

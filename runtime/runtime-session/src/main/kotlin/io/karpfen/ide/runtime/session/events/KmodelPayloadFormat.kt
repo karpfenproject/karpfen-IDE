@@ -33,14 +33,15 @@ import kotlin.concurrent.withLock
 
 /**
  * KModel payloads. They are checked the way the runtime's `KmodelDSLConverter.parseSingleObject` reads them. The
- * snippet is parsed as a model against the event metamodel. Its first root object is the payload. The payload has its
- * own type, and the runtime does not compare that type with the event's name.
+ * snippet is read as a whole model against the event metamodel, and its one root object is the payload. The runtime
+ * reads it strictly: any error of the reader makes the payload null. The payload has its own type, and the runtime does
+ * not compare that type with the event's name.
  *
  * The snippet is first parsed syntax-only with core-document's KModel parser. Only syntax-clean text is then read with
  * dsl-tools against the event metamodel. A KModel text holds exactly one root object, both in the IDE's grammar and in
- * the runtime's. The runtime's parser recovers from further root objects after the first and takes the first. So a
- * snippet that is nothing but root objects one after the other is checked as its first root object, with a warning on
- * the others. A blank snippet holds no object at all.
+ * the runtime's, and the runtime reads a text with further root objects as a text with an error. So a snippet that is
+ * nothing but root objects one after the other gets an error on the others, and its first root object is still checked
+ * so that its own findings show too. A blank snippet holds no object at all.
  *
  * This format reads the event metamodel itself from the uploaded texts, the same way the runtime builds it. That is the
  * events file with the domain metamodel's types as base types. It is read lazily on the first check. It is kept behind
@@ -94,7 +95,7 @@ internal class KmodelPayloadFormat(
             found += PayloadDiagnosticCodes.finding(
                 PayloadDiagnosticCodes.KMODEL_SEVERAL_OBJECTS,
                 TextRange(roots[1].range.start, roots.last().range.end),
-                "The payload declares ${roots.size} root objects; the runtime takes the first and ignores the others.",
+                "The payload declares ${roots.size} root objects, but a KModel text has one; the runtime reads none of them and the payload is null.",
             )
         }
         val snapshot = TextSnapshot(text.substring(0, first.range.end), 0)

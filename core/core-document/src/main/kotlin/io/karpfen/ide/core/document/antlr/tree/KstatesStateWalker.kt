@@ -17,6 +17,7 @@ package io.karpfen.ide.core.document.antlr.tree
 
 import io.karpfen.dsl.grammar.kstates.KstatesParser
 import io.karpfen.ide.core.document.parse.OutlineNode
+import io.karpfen.ide.core.document.parse.ReferenceKind
 import io.karpfen.ide.core.document.parse.SemanticKind
 import io.karpfen.ide.core.document.parse.SymbolKind
 import io.karpfen.ide.core.text.TextRange
@@ -27,6 +28,11 @@ import org.antlr.v4.runtime.ParserRuleContext
  * declaration with a STATE_NAME span. Its container is the parent state, or null at the top level. It also gets an
  * outline node. The children of that node are its ENTRY and DO block nodes and its nested states. A block node is
  * named `ENTRY` or `DO` and selects its keyword. Its children are the WITH bindings that [KstatesActionWalker] finds.
+ *
+ * A container state, `CONTAINER STATE "s" USE "f"`, and a final state, `FINAL STATE "s"`, are states like any other.
+ * The outline node of a container state has the detail `USE f`, which names the fragment it uses, and that of a final
+ * state the detail `FINAL`. Every other state has no detail. The name after `USE` is a FRAGMENT reference with a
+ * STATE_MACHINE_NAME span, also on a state that is no container, where the reader of dsl-tools reports it.
  */
 internal class KstatesStateWalker(
     private val tree: ParsedTree<*>,
@@ -46,9 +52,24 @@ internal class KstatesStateWalker(
             ctx.do_block()?.let { block(SymbolKind.DO_BLOCK, "DO", it, KstatesParser.DO, it.action_block(), stateName) },
         )
         val children = blocks + ctx.state_definition().map { state(it, stateName) }
-        val node = outlineNode(SymbolKind.STATE, stateName, null, tree.rangeOf(ctx), tree.selectionOf(name, ctx), children)
+        val fragment = ctx.fragment_use()?.let { tree.quoted(tree.terminal(it, KstatesParser.STRING)) }
+        collector.reference(ReferenceKind.FRAGMENT, fragment, span = SemanticKind.STATE_MACHINE_NAME)
+        val node = outlineNode(SymbolKind.STATE, stateName, detailOf(ctx, fragment?.value), tree.rangeOf(ctx), tree.selectionOf(name, ctx), children)
         collector.declare(SymbolKind.STATE, name, node.range, container = parent, span = SemanticKind.STATE_NAME)
         return node
+    }
+
+    /**
+     * The detail of the outline node of the state of [ctx]: `USE` and the name of the fragment, [fragment], for a
+     * container state, `FINAL` for a final state, and null for every other state.
+     */
+    private fun detailOf(ctx: KstatesParser.State_definitionContext, fragment: String?): String? {
+        val kind = ctx.state_kind()
+        return when {
+            tree.terminal(kind, KstatesParser.CONTAINER) != null -> listOfNotNull(USE, fragment).joinToString(" ")
+            tree.terminal(kind, KstatesParser.FINAL) != null -> FINAL
+            else -> null
+        }
     }
 
     /**
@@ -67,5 +88,13 @@ internal class KstatesStateWalker(
         val keyword = tree.terminal(ctx, keywordType)
         val selection = tree.rangeOf(keyword) ?: TextRange.empty(range.start)
         return outlineNode(kind, keywordText, null, range, selection, actions.walk(actionBlock, state))
+    }
+
+    private companion object {
+        /** The word in front of the fragment in the detail of a container state. */
+        const val USE = "USE"
+
+        /** The detail of a final state. */
+        const val FINAL = "FINAL"
     }
 }

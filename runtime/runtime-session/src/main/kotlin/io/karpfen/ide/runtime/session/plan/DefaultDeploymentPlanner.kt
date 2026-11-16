@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session.plan
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.dsl.DslFlattener
 import io.karpfen.ide.core.workspace.analysis.ContextSymbols
 import io.karpfen.ide.core.workspace.analysis.ProjectAnalysis
 import io.karpfen.ide.runtime.session.problem.DeployProblem
@@ -37,14 +38,16 @@ import java.nio.file.Path
  *
  * @param gate the checks of the problems gate, in report order.
  * @param preflight the preflight checks, in report order.
+ * @param flattener flattens the compositions of the context for the checks.
  */
 internal class DefaultDeploymentPlanner(
     private val gate: List<PlanCheck>,
     private val preflight: List<PlanCheck>,
+    private val flattener: DslFlattener = DslFlattener(),
 ) : DeploymentPlanner {
 
     override fun plan(analysis: ProjectAnalysis, descriptor: Path, unsaved: Set<Path>, projectFeatures: Set<ProjectFeature>): PlanResult {
-        val subject = PlanSubject(analysis, normalized(descriptor), unsaved.mapTo(HashSet(), ::normalized))
+        val subject = PlanSubject(analysis, normalized(descriptor), unsaved.mapTo(HashSet(), ::normalized), flattener)
         val gateFindings = gate.flatMap { it.check(subject) }
         if (gateFindings.hasError()) return blocked(subject, gateFindings)
         val findings = gateFindings + preflight.flatMap { it.check(subject) }
@@ -64,7 +67,11 @@ internal class DefaultDeploymentPlanner(
         }
         val machineUploads = subject.machines.map { machine ->
             val key = machine.attachedTo
-            if (key == null) upload(UploadRole.DEFINITION, machine.file) else upload(UploadRole.STATE_MACHINE, machine.file, key)
+            when {
+                key != null -> upload(UploadRole.STATE_MACHINE, machine.file, key)
+                subject.isFragment(machine.file) -> upload(UploadRole.FRAGMENT, machine.file)
+                else -> upload(UploadRole.DEFINITION, machine.file)
+            }
         }
         val machines = machineUploads.filter { it.role == UploadRole.STATE_MACHINE }
         val definitions = subject.definitions.map { definition ->

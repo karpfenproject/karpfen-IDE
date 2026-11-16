@@ -32,8 +32,17 @@ public object EditorAreaTestTags {
     /** The button of the view mode named [label], which is "Text", "Split" or "Diagram". */
     public fun viewMode(label: String): String = "Workbench.viewMode:$label"
 
-    /** The button below the editor that shows the states of the instance on the object with [key] in the diagram. */
-    public fun liveInstance(key: String): String = "Workbench.liveInstance:$key"
+    /**
+     * The button below the editor that shows the states of the instance on the object with [key] in the diagram, in
+     * the diagram of a fragment those of the copy that the container state [page] of the instance uses.
+     */
+    public fun liveInstance(key: String, page: String? = null): String = "Workbench.liveInstance:$key" + (page?.let { "@$it" } ?: "")
+
+    /** The bar above the diagram of a fragment that names the files using it. */
+    public const val PAGE_USERS: String = "Workbench.pageUsers"
+
+    /** The link of the bar above the diagram of a fragment that opens the file named [fileName]. */
+    public fun pageUser(fileName: String): String = "Workbench.pageUser:$fileName"
 
     /** The button below the editor that validates the whole project. */
     public const val VALIDATE: String = "Workbench.validate"

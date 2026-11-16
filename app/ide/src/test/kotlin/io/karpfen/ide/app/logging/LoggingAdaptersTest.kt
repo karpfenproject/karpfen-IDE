@@ -46,7 +46,7 @@ class LoggingAdaptersTest {
     fun `the appender hands each event to the sink with its time, level, logger and formatted message`() {
         val output = RingOutputBuffer()
         val appender = OutputSinkAppender(output).apply { context = this@LoggingAdaptersTest.context; start() }
-        val event = event("io.karpfen.dsl.dsl.textual.KmodelDSLConverter", Level.DEBUG, "Object {} of type {}", "turtle", "Robot")
+        val event = event("io.karpfen.dsl.reader.kmodel.KmodelReader", Level.DEBUG, "Object {} of type {}", "turtle", "Robot")
         event.setInstant(Instant.parse("2026-10-22T10:15:30.123Z"))
 
         appender.doAppend(event)
@@ -55,7 +55,7 @@ class LoggingAdaptersTest {
             listOf(
                 OutputLine(
                     1, Instant.parse("2026-10-22T10:15:30.123Z"), OutputLevel.DEBUG,
-                    "io.karpfen.dsl.dsl.textual.KmodelDSLConverter", "Object turtle of type Robot",
+                    "io.karpfen.dsl.reader.kmodel.KmodelReader", "Object turtle of type Robot",
                 ),
             ),
             output.snapshot().lines,
@@ -120,9 +120,9 @@ class LoggingAdaptersTest {
     fun `the filter denies dsl-tools events below its level and nothing else`() {
         val filter = DslToolsThresholdFilter().apply { level = "WARN"; context = this@LoggingAdaptersTest.context; start() }
 
-        assertEquals(FilterReply.DENY, filter.decide(event("io.karpfen.dsl.dsl.textual.KmetaDSLConverter", Level.DEBUG, "dump")))
+        assertEquals(FilterReply.DENY, filter.decide(event("io.karpfen.dsl.reader.kmeta.KmetaReader", Level.DEBUG, "dump")))
         assertEquals(FilterReply.DENY, filter.decide(event("io.karpfen.dsl", Level.INFO, "info")))
-        assertEquals(FilterReply.NEUTRAL, filter.decide(event("io.karpfen.dsl.parser.KmetaFileParser", Level.WARN, "syntax")))
+        assertEquals(FilterReply.NEUTRAL, filter.decide(event("io.karpfen.dsl.reader.kstates.KstatesReader", Level.WARN, "syntax")))
         assertEquals(FilterReply.NEUTRAL, filter.decide(event("io.karpfen.dsl.X", Level.ERROR, "failed")))
         assertEquals(FilterReply.NEUTRAL, filter.decide(event("io.karpfen.ide.app.Main", Level.DEBUG, "the IDE's own")))
         assertEquals(FilterReply.NEUTRAL, filter.decide(event("io.karpfen.dslx.Other", Level.DEBUG, "not dsl-tools")))

@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session.states
 
 import io.karpfen.dsl.states.State
+import io.karpfen.dsl.states.StateMachine
 import io.karpfen.dsl.states.actions.ActionBlock
 import io.karpfen.ide.runtime.session.examples.AnalyzedContexts
 import io.karpfen.ide.runtime.session.examples.DslTexts
@@ -119,8 +120,28 @@ class ActiveStatesTest {
 
         assertEquals(listOf("b", "b1", "b1x"), layout.initialStack)
         assertEquals(listOf("a", "b"), layout.topLevelStates)
-        assertEquals(listOf("first", "inner"), InitialStackPredictor.predict(listOf(state("first", state("inner")), state("second"))))
-        assertEquals(emptyList(), InitialStackPredictor.predict(emptyList()))
+        assertEquals(listOf("first", "inner"), InitialStackPredictor.predict(machineOf(state("first", state("inner")), state("second"))))
+        assertEquals(emptyList(), InitialStackPredictor.predict(machineOf()))
+    }
+
+    @Test
+    fun `the initial stack goes to the one state marked initial in the file, through the states around it`() {
+        val marked = DslTexts.machine(
+            """
+            STATEMACHINE ATTACHED TO "Lamp" {
+                STATES {
+                    STATE "off" { }
+                    STATE "on" {
+                        STATE "bright" { }
+                        INITIAL STATE "dimmed" { }
+                    }
+                }
+                TRANSITIONS { }
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(listOf("on", "dimmed"), MachineLayout.of("lamp", Path.of("lamp.kstates"), marked).initialStack)
     }
 
     @Test
@@ -216,5 +237,8 @@ class ActiveStatesTest {
         /** A state [name] without actions and not marked initial, with [inner] states. */
         fun state(name: String, vararg inner: State): State =
             State(name, ActionBlock(mutableListOf()), ActionBlock(mutableListOf()), inner.toMutableList())
+
+        /** A state machine attached to `Robot` with the top-level [states] and nothing else. */
+        fun machineOf(vararg states: State): StateMachine = StateMachine("Robot", states.toMutableList(), mutableListOf(), mutableListOf())
     }
 }

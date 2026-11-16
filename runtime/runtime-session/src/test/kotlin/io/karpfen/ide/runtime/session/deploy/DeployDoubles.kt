@@ -201,6 +201,9 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
     /** The texts of the definitions uploaded, in order. */
     val defined: MutableList<String> = mutableListOf()
 
+    /** The texts uploaded as fragments, in order. */
+    val fragments: MutableList<String> = mutableListOf()
+
     /** Moves the phase to [phase], as a snapshot read through the real handle would. */
     fun settle(phase: EnvironmentPhase) {
         current.value = phase
@@ -218,6 +221,8 @@ internal class ScriptedEnvironment(override val key: EnvironmentKey, private val
         outcome("setStateMachine", attachedTo, text) { attached += attachedTo }
 
     override suspend fun defineStateMachine(text: String): CallOutcome<Unit> = outcome("defineStateMachine", text) { defined += text }
+
+    override suspend fun uploadFragment(text: String): CallOutcome<Unit> = outcome("uploadFragment", text) { fragments += text }
 
     override suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit> = outcome("setTickDelay", milliseconds) { }
 

@@ -62,6 +62,12 @@ public class ContextSymbols(private val analysis: ProjectAnalysis) {
         indexOf(machine)?.declarationsOf(SymbolKind.STATEMACHINE)?.firstOrNull()?.isAttachableStateMachine == true
 
     /**
+     * True if the state machine at [machine] is a fragment, `STATEMACHINE "name" FRAGMENT`, which a descriptor lists
+     * without `attachedTo`. False for the other forms and if the form is unknown.
+     */
+    public fun isFragment(machine: Path): Boolean = indexOf(machine)?.declarationsOf(SymbolKind.FRAGMENT)?.isNotEmpty() == true
+
+    /**
      * The event domains the state machines at [machines] use in `EVENT("domain", ...)`. They are sorted, each appears
      * once, and blank ones are left out.
      */

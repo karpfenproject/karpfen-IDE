@@ -44,7 +44,13 @@ public enum class SymbolKind {
     /** KStates `STATEMACHINE ATTACHED TO "T" { ... }` or `STATEMACHINE "name" ATTACHABLE TO "A", "B" { ... }`. */
     STATEMACHINE,
 
-    /** KStates `STATE "s" { ... }`, and also `INITIAL STATE`. */
+    /**
+     * KStates `STATEMACHINE "name" FRAGMENT { ... }`, a state machine that container states of other state machines
+     * use by its name and that is attached to nothing.
+     */
+    FRAGMENT,
+
+    /** KStates `STATE "s" { ... }`, and also `INITIAL STATE`, `CONTAINER STATE "s" USE "f"` and `FINAL STATE "s"`. */
     STATE,
 
     /** KStates `ENTRY { ... }`. */
@@ -118,4 +124,7 @@ public enum class ReferenceKind {
      * the string that is the second operand of `EXCHANGE`. A name that an `EVAL` or a `MACRO` computes is no reference.
      */
     STATE_MACHINE,
+
+    /** The name of a fragment after `USE` in KStates `CONTAINER STATE "s" USE "f"`. */
+    FRAGMENT,
 }

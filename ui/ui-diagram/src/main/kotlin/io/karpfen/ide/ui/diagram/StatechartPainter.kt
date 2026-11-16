@@ -17,6 +17,7 @@ package io.karpfen.ide.ui.diagram
 
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.drawText
@@ -33,13 +34,17 @@ import io.karpfen.ide.ui.foundation.theme.KarpfenColors
 /**
  * Draws a statechart.
  *
- * The title line of the state machine, its name and the types it is attachable to or the type it is attached to, is
- * written above the drawing where the layout places it, in the style of the names of states.
+ * The title line of the state machine, its name and the types it is attachable to or the type it is attached to, or
+ * the name of a fragment with the word `FRAGMENT`, is written above the drawing where the layout places it, in the
+ * style of the names of states.
  *
  * States are drawn parents first, so nested states lie on top of their parent. A state with nested states shows its
  * name in a row at its top. A state without shows it in its middle, above the room for the markers of its tick limit
  * and its entry and do blocks, which the canvas draws. A history is a small circle with an `H` for a shallow one and
- * `H*` for a deep one, behind the name of a state with nested states. A breakpoint is a dot in the colour of errors:
+ * `H*` for a deep one, behind the name of a state with nested states. A container state is drawn like a state without
+ * nested states, since its inner states are those of its fragment, which is a page of its own. Below its name a row
+ * shows a page mark, a sheet with a folded corner, and the name of the fragment. A final state carries the mark of the
+ * end of a state machine in its upper right corner, a ring around a dot. A breakpoint is a dot in the colour of errors:
  * on the left border of a state for its entry and on the right border for its exit, in front of the caption of a
  * transition for its start and behind it for its end. The marker of an initial state is a filled dot. The bars of
  * splits and joins are filled. Every line ends in an arrowhead, except the lines that lead into a bar. The line of a
@@ -70,6 +75,12 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
     /** How far below the top of a state the dots of its breakpoints sit on its border. */
     private const val DOT_DROP = 12f
 
+    /** The part of the width of the page mark that its folded corner takes. */
+    private const val FOLD = 0.4f
+
+    /** The radius of the dot of the mark of a final state, as a part of the radius of its ring. */
+    private const val FINAL_DOT = 0.55f
+
     /** The length of a dash, and of a gap, in the line of a timeout. */
     private const val TIMEOUT_DASH = 5f
 
@@ -77,7 +88,8 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
         val states = diagram.allStates()
         return mapOf(
             TextRole.TITLE to states.map { it.name } + listOfNotNull(diagram.title),
-            TextRole.ROW to listOf(StatechartMetrics.LIMIT_WORD, StatechartMetrics.ENTRY_WORD, StatechartMetrics.DO_WORD, SHALLOW_MARK, DEEP_MARK),
+            TextRole.ROW to listOf(StatechartMetrics.LIMIT_WORD, StatechartMetrics.ENTRY_WORD, StatechartMetrics.DO_WORD, SHALLOW_MARK, DEEP_MARK) +
+                states.mapNotNull { state -> state.fragment?.takeIf { it.isNotEmpty() } },
             TextRole.LABEL to diagram.edges().map { it.caption },
         )
     }
@@ -183,10 +195,64 @@ internal object StatechartPainter : DiagramPainter<StatechartDiagram, Statechart
             return
         }
         val cells = if (StatechartMetrics.cellWords(state).isNotEmpty()) StatechartMetrics.BLOCK_LINE * unit else 0f
-        drawText(name, topLeft = Offset(topLeft.x + (size.width - name.size.width) / 2f, topLeft.y + (size.height - cells - name.size.height) / 2f))
+        val page = if (state.isContainer) StatechartMetrics.PAGE_LINE * unit else 0f
+        drawText(name, topLeft = Offset(topLeft.x + (size.width - name.size.width) / 2f, topLeft.y + (size.height - cells - page - name.size.height) / 2f))
+        StatechartMetrics.pageRow(state, box)?.let { row -> drawPageRow(state, row, texts, colors) }
+        val reach = (StatechartMetrics.BADGE + BADGE_GAP) * unit
         if (state.history != StateHistory.NONE) {
-            val reach = (StatechartMetrics.BADGE + BADGE_GAP) * unit
             drawHistory(state.history, topLeft.x + size.width - reach, topLeft.y + reach / 2f, texts, colors)
         }
+        if (state.isFinal) drawFinalMark(topLeft.x + size.width - reach, topLeft.y + reach / 2f, colors)
+    }
+
+    /**
+     * Draws the row [row] of the container state [state]: the page mark and the name of its fragment, together in the
+     * middle of the row. A container state that names no fragment shows the mark alone.
+     */
+    private fun DrawScope.drawPageRow(state: StateNode, row: DiagramBox, texts: DiagramTexts, colors: KarpfenColors) {
+        val unit = density
+        val fragment = state.fragment?.takeIf { it.isNotEmpty() }?.let { texts[TextRole.ROW, it] }
+        val mark = StatechartMetrics.PAGE_MARK * unit
+        val width = mark + if (fragment == null) 0f else StatechartMetrics.PAGE_GAP * unit + fragment.size.width
+        val left = row.center.x * unit - width / 2f
+        val middle = row.center.y * unit
+        drawPageMark(left, middle, colors)
+        if (fragment != null) {
+            drawText(fragment, topLeft = Offset(left + mark + StatechartMetrics.PAGE_GAP * unit, middle - fragment.size.height / 2f))
+        }
+    }
+
+    /** Draws the page mark with its left edge at [left] and its middle at the height [middle], in pixels. */
+    private fun DrawScope.drawPageMark(left: Float, middle: Float, colors: KarpfenColors) {
+        val width = StatechartMetrics.PAGE_MARK * density
+        val height = StatechartMetrics.PAGE_MARK_HEIGHT * density
+        val fold = width * FOLD
+        val top = middle - height / 2f
+        val sheet = Path().apply {
+            moveTo(left, top)
+            lineTo(left + width - fold, top)
+            lineTo(left + width, top + fold)
+            lineTo(left + width, top + height)
+            lineTo(left, top + height)
+            close()
+        }
+        val corner = Path().apply {
+            moveTo(left + width - fold, top)
+            lineTo(left + width - fold, top + fold)
+            lineTo(left + width, top + fold)
+        }
+        drawPath(sheet, colors.textMuted, style = Stroke(BORDER * density))
+        drawPath(corner, colors.textMuted, style = Stroke(BORDER * density))
+    }
+
+    /**
+     * Draws the mark of a final state, a ring around a dot, with its left edge at [left] and its middle at the height
+     * [middle], in pixels.
+     */
+    private fun DrawScope.drawFinalMark(left: Float, middle: Float, colors: KarpfenColors) {
+        val radius = StatechartMetrics.BADGE * density / 2f
+        val center = Offset(left + radius, middle)
+        drawCircle(colors.text, radius = radius, center = center, style = Stroke(BORDER * density))
+        drawCircle(colors.text, radius = radius * FINAL_DOT, center = center)
     }
 }

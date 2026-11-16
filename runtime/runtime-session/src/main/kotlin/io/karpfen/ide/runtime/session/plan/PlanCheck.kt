@@ -42,6 +42,8 @@ internal object PlanChecks {
         UnknownAttachmentCheck(),
         DefinitionNotListedCheck(),
         AttachedDefinitionNotListedCheck(),
+        FragmentNotListedCheck(),
+        CompositionCheck(),
         DuplicateAttachmentCheck(),
         AttachmentTypeCheck(),
         TickDelayRangeCheck(),

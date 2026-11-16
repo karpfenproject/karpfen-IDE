@@ -26,13 +26,14 @@ import io.karpfen.ide.core.text.TextRange
  * no second parser.
  *
  * The outline names the states with their nesting and the transitions with their places in the text. What it leaves
- * out is read from the text of each element: whether a state is the initial one, its history, its breakpoints and its
- * tick limit, which states a transition names on which side of its arrow, whether it is marked `NOT LOOPING`, its
- * breakpoints and its condition.
+ * out is read from the text of each element: whether a state is the initial one, a container state with the fragment
+ * it uses or a final state, its history, its breakpoints and its tick limit, which states a transition names on which
+ * side of its arrow, whether it is marked `NOT LOOPING`, its breakpoints and its condition. The outline of a fragment
+ * is headed by a node of its own kind, so the projection takes either head.
  *
  * A condition becomes a short label. An `EVENT("switch", "press")` clause reads `switch/press`, a `VALUE("p")` clause
- * reads `p`, and an `EVAL { return x > 1 }` clause reads `[x > 1]`. Several clauses are joined by `&`, since all of
- * them must hold. A long label is cut and ends with an ellipsis.
+ * reads `p`, an `EVAL { return x > 1 }` clause reads `[x > 1]` and a `DONE` clause reads `DONE`. Several clauses are
+ * joined by `&`, since all of them must hold. A long label is cut and ends with an ellipsis.
  */
 public object StatechartProjection {
 
@@ -45,7 +46,11 @@ public object StatechartProjection {
     private val STRING = Regex(""""([^"]*)"""")
     private val NOT_LOOPING = Regex("""\bNOT\s+LOOPING\b""")
     private val CONDITION = Regex("""\bCONDITION\s*\{""")
-    private val CLAUSE = Regex("""\b(EVENT|VALUE)\s*\(([^)]*)\)|\bEVAL\s*\{""")
+    private val CLAUSE = Regex("""\b(EVENT|VALUE)\s*\(([^)]*)\)|\bEVAL\s*\{|\bDONE\b""")
+    private val CONTAINER = Regex("""\bCONTAINER\b""")
+    private val FINAL = Regex("""\bFINAL\b""")
+    private val USE = Regex("""\bUSE\s*"([^"]*)"""")
+    private const val DONE = "DONE"
     private val RETURN = Regex("""^return\s+""")
     private val BLANKS = Regex("""\s+""")
 
@@ -54,22 +59,31 @@ public object StatechartProjection {
      * machine. [text] must be the text the outline was made from.
      */
     public fun of(text: String, outline: List<OutlineNode>): StatechartDiagram? {
-        val machine = outline.firstOrNull { it.kind == SymbolKind.STATEMACHINE } ?: return null
+        val machine = outline.firstOrNull { it.kind == SymbolKind.STATEMACHINE || it.kind == SymbolKind.FRAGMENT } ?: return null
+        val isFragment = machine.kind == SymbolKind.FRAGMENT
         val states = machine.children.filter { it.kind == SymbolKind.STATE }.map { state(text, it) }
         val counts = HashMap<String, Int>()
         val transitions = machine.children
             .filter { it.kind == SymbolKind.TRANSITION || it.kind == SymbolKind.SPLIT || it.kind == SymbolKind.JOIN }
             .mapIndexed { index, node -> transition(text, node, index + 1, counts) }
+        if (isFragment) return StatechartDiagram(machine.name, emptyList(), states, transitions, machine.range, isFragment = true)
         val name = machine.name.takeUnless { it == SymbolDeclaration.ATTACHED_MACHINE_NAME }
         val types = machine.detail?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
         return StatechartDiagram(name, types, states, transitions, machine.range)
     }
 
-    /** The state of [node] with the states nested in it. Its history, breakpoints and tick limit are read from [text]. */
+    /**
+     * The state of [node] with the states nested in it. Its kind, history, breakpoints and tick limit are read from
+     * [text]. The words of the kind stand in front of `STATE`, the fragment of a container state behind its name.
+     */
     private fun state(text: String, node: OutlineNode): StateNode {
-        val open = text.indexOf('{', minOf(node.selectionRange.end + 1, text.length))
+        val afterName = minOf(node.selectionRange.end + 1, text.length)
+        val open = text.indexOf('{', afterName)
         val leading = if (open < 0) LeadingBlocks(null, null) else StateOptionReader.leadingOf(text, open)
         val halts = StateOptionReader.wordsOf(text, leading.breakpoint)
+        val head = text.substring(node.range.start, maxOf(node.range.start, node.selectionRange.start))
+        val use = USE.find(text.substring(afterName, if (open < 0) afterName else maxOf(afterName, open)))
+        val isContainer = CONTAINER.containsMatchIn(head) || use != null
         return StateNode(
             name = node.name,
             isInitial = text.startsWith("INITIAL", node.range.start),
@@ -78,13 +92,16 @@ public object StatechartProjection {
             children = node.children.filter { it.kind == SymbolKind.STATE }.map { state(text, it) },
             range = node.range,
             nameRange = node.selectionRange,
-            history = StateOptionReader.historyOf(text.substring(node.range.start, maxOf(node.range.start, node.selectionRange.start))),
+            history = StateOptionReader.historyOf(head),
             breakpointRange = leading.breakpoint,
             entryBreakpoint = "ENTRY" in halts,
             exitBreakpoint = "EXIT" in halts,
             tickLimitRange = leading.tickLimit,
             delay = StateOptionReader.delayOf(text, leading.tickLimit),
             timeout = StateOptionReader.timeoutOf(text, leading.tickLimit),
+            fragment = if (isContainer) use?.groupValues?.get(1).orEmpty() else null,
+            fragmentRange = use?.groups?.get(1)?.range?.let { TextRange(afterName + it.first, afterName + it.last + 1) },
+            isFinal = FINAL.containsMatchIn(head),
         )
     }
 
@@ -109,6 +126,7 @@ public object StatechartProjection {
         }
         val breakpoint = StateOptionReader.breakpointOf(text, node.range.start + header.length)
         val halts = StateOptionReader.wordsOf(text, breakpoint)
+        val clauses = clausesOf(whole)
         val signature = StatechartIds.signature(kind, sources, targets)
         val ordinal = counts.merge(signature, 1, Int::plus) ?: 1
         return TransitionEdge(
@@ -117,7 +135,7 @@ public object StatechartProjection {
             sources = sources,
             targets = targets,
             priority = priority,
-            label = label(whole),
+            label = label(clauses),
             notLooping = NOT_LOOPING.containsMatchIn(header),
             range = node.range,
             conditionRange = CONDITION.find(whole)?.let { match ->
@@ -126,29 +144,50 @@ public object StatechartProjection {
             breakpointRange = breakpoint,
             startBreakpoint = "START" in halts,
             endBreakpoint = "END" in halts,
+            doneRange = clauses.firstOrNull { it.isDone }?.let { TextRange(node.range.start + it.range.first, node.range.start + it.range.last + 1) },
         )
     }
 
-    /** The condition of the transition with the text [transition] as a label, or empty if it has none. */
-    private fun label(transition: String): String {
-        val start = CONDITION.find(transition)?.range?.last ?: return ""
-        val body = transition.substring(start + 1, closingBrace(transition, start))
-        val clauses = ArrayList<String>()
+    /**
+     * A clause of a condition: its short text, where it stands in the text of its transition, and whether it is the
+     * clause `DONE`.
+     */
+    private class Clause(val text: String, val range: IntRange, val isDone: Boolean = false)
+
+    /** The clauses of the condition of the transition with the text [transition], or none if it has no condition. */
+    private fun clausesOf(transition: String): List<Clause> {
+        val start = CONDITION.find(transition)?.range?.last ?: return emptyList()
+        val bodyStart = start + 1
+        val body = transition.substring(bodyStart, closingBrace(transition, start))
+        val clauses = ArrayList<Clause>()
         var position = 0
         while (true) {
             val match = CLAUSE.find(body, position) ?: break
-            if (match.groupValues[1].isNotEmpty()) {
-                val arguments = STRING.findAll(match.groupValues[2]).map { it.groupValues[1] }.toList()
-                clauses += arguments.joinToString("/")
-                position = match.range.last + 1
-            } else {
-                val end = closingBrace(body, match.range.last)
-                val code = body.substring(match.range.last + 1, end).trim().replace(BLANKS, " ").replace(RETURN, "")
-                clauses += "[$code]"
-                position = end + 1
+            val shifted = (match.range.first + bodyStart)..(match.range.last + bodyStart)
+            when {
+                match.value == DONE -> {
+                    clauses += Clause(DONE, shifted, isDone = true)
+                    position = match.range.last + 1
+                }
+                match.groupValues[1].isNotEmpty() -> {
+                    val arguments = STRING.findAll(match.groupValues[2]).map { it.groupValues[1] }.toList()
+                    clauses += Clause(arguments.joinToString("/"), shifted)
+                    position = match.range.last + 1
+                }
+                else -> {
+                    val end = closingBrace(body, match.range.last)
+                    val code = body.substring(match.range.last + 1, end).trim().replace(BLANKS, " ").replace(RETURN, "")
+                    clauses += Clause("[$code]", (match.range.first + bodyStart)..(end + bodyStart))
+                    position = end + 1
+                }
             }
         }
-        val label = clauses.joinToString(" & ")
+        return clauses
+    }
+
+    /** The [clauses] of a condition as a label, or empty without clauses. */
+    private fun label(clauses: List<Clause>): String {
+        val label = clauses.joinToString(" & ") { it.text }
         return if (label.length <= MAX_LABEL) label else label.take(MAX_LABEL - 1) + ELLIPSIS
     }
 

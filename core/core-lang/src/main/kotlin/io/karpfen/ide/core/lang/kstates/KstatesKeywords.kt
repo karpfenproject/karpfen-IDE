@@ -38,6 +38,11 @@ internal object KstatesKeywords {
     /** A state that remembers its innermost state. */
     private val DEEP_HISTORY_STATE =
         Snippet("DEEP HISTORY STATE \"…\" { }", "DEEP HISTORY STATE \"\$0\" { }", detail = "state with a deep history")
+    /** A container state, which runs a fragment inside. */
+    private val CONTAINER_STATE =
+        Snippet("CONTAINER STATE \"…\" USE \"…\" { }", "CONTAINER STATE \"\$0\" USE \"\" { }", detail = "container state of a fragment")
+    /** A final state of a fragment. */
+    private val FINAL_STATE = Snippet("FINAL STATE \"…\" { }", "FINAL STATE \"\$0\" { }", detail = "final state of a fragment")
     /** The breakpoints of a state or a transition. */
     private val BREAKPOINT = Snippet("BREAKPOINT { }", "BREAKPOINT { \$0 }", detail = "breakpoints")
     /** An event, emitted as an action or awaited in a condition. */
@@ -77,19 +82,23 @@ internal object KstatesKeywords {
                 "STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE \"\$0\" ATTACHABLE TO \"\" { }",
                 detail = "attachable state machine",
             ),
+            Snippet("STATEMACHINE \"…\" FRAGMENT { }", "STATEMACHINE \"\$0\" FRAGMENT { }", detail = "fragment"),
         ),
         KstatesPosition.MACHINE_HEADER to offers(
             Snippet("ATTACHED TO \"…\"", "ATTACHED TO \"\$0\"", detail = "attached to the object of a type"),
             Snippet("\"…\" ATTACHABLE TO \"…\"", "\"\$0\" ATTACHABLE TO \"\"", detail = "attachable to types, by name"),
+            Snippet("\"…\" FRAGMENT", "\"\$0\" FRAGMENT", detail = "fragment, by name"),
         ),
         KstatesPosition.NAMED_MACHINE_HEADER to offers(
             Snippet("ATTACHABLE TO \"…\"", "ATTACHABLE TO \"\$0\"", detail = "attachable to types"),
+            Snippet.keyword("FRAGMENT", detail = "used by container states"),
         ),
         KstatesPosition.MACHINE to offers(
             Snippet("STATES { }", "STATES { \$0 }", detail = "states block"),
             Snippet("TRANSITIONS { }", "TRANSITIONS { \$0 }", detail = "transitions block"),
         ) + offers(KstatesFeature.MACROS, Snippet("MACROS { }", "MACROS { \$0 }", detail = "macros block")),
-        KstatesPosition.STATES to offers(STATE, INITIAL_STATE) + offers(KstatesFeature.HISTORY, SHALLOW_HISTORY_STATE, DEEP_HISTORY_STATE),
+        KstatesPosition.STATES to offers(STATE, INITIAL_STATE, CONTAINER_STATE, FINAL_STATE) +
+            offers(KstatesFeature.HISTORY, SHALLOW_HISTORY_STATE, DEEP_HISTORY_STATE),
         KstatesPosition.STATE_BODY to
             offers(KstatesFeature.BREAKPOINTS, BREAKPOINT) +
             offers(KstatesFeature.TICK_LIMIT, Snippet("TICK LIMIT { }", "TICK LIMIT { \$0 }", detail = "delay and timeout")) +
@@ -98,6 +107,7 @@ internal object KstatesKeywords {
                 Snippet("DO { }", "DO { \$0 }", detail = "do actions"),
                 STATE,
                 INITIAL_STATE,
+                CONTAINER_STATE,
             ) +
             offers(KstatesFeature.HISTORY, SHALLOW_HISTORY_STATE, DEEP_HISTORY_STATE),
         KstatesPosition.STATE_BREAKPOINTS to offers(
@@ -136,6 +146,7 @@ internal object KstatesKeywords {
             EVENT.copy(detail = "event clause"),
             EVAL.copy(detail = "Python guard"),
             Snippet("VALUE(\"…\")", "VALUE(\"\$0\")", detail = "boolean path guard"),
+            Snippet.keyword("DONE", detail = "the fragment of the container state has ended"),
         ),
         KstatesPosition.MACROS to offers(KstatesFeature.MACROS, Snippet("MACRO \"…\" { }", "MACRO \"\$0\" { }", detail = "macro definition")),
         KstatesPosition.MACRO_BODY to offers(

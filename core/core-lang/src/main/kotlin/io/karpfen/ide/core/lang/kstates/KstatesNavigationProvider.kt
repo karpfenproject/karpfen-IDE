@@ -28,6 +28,7 @@ import io.karpfen.ide.core.lang.symbols.AttachableMachines
 import io.karpfen.ide.core.lang.symbols.DocumentDeclarations
 import io.karpfen.ide.core.lang.symbols.TypeCatalog
 import io.karpfen.ide.core.lang.symbols.TypeOrigin
+import io.karpfen.ide.core.lang.symbols.UsableFragments
 
 /**
  * Navigation in KStates.
@@ -37,6 +38,8 @@ import io.karpfen.ide.core.lang.symbols.TypeOrigin
  * - Event names lead to the event type.
  * - The name after `ATTACH` and the second argument of `EXCHANGE` lead to the attachable state machine of the context
  *   with that name, and its declaration finds them across the context.
+ * - The name after `USE` leads to the header of the fragment with that name in the project, as [UsableFragments]
+ *   finds it, and its references are the names after `USE` across the project.
  * - Model path segments lead to the member declarations in the metamodel, through [paths] and
  *   `PathMember.declaration`. WITH bindings and macro parameters lead to their declarations, and `self` and `event`
  *   lead to the type.
@@ -62,6 +65,9 @@ internal class KstatesNavigationProvider(
 
         /** A type or member of the modeling context, declared at [declaration]. */
         data class Shared(val symbol: ContextSymbol, val declaration: Location?) : Target
+
+        /** A fragment of the project named [name], declared at [declaration] and used at [uses]. */
+        data class Fragment(val name: String, val declaration: Location?, val uses: List<Location>) : Target
     }
 
     override fun definition(request: FeatureRequest, offset: Int): List<Location> =
@@ -69,6 +75,7 @@ internal class KstatesNavigationProvider(
             is Target.Local -> DocumentDeclarations(request.document).named(target.declaration, target.name).map { it.location }
             is Target.Binding -> listOfNotNull(target.declaration)
             is Target.Shared -> listOfNotNull(target.declaration)
+            is Target.Fragment -> listOfNotNull(target.declaration)
             null -> emptyList()
         }
 
@@ -78,6 +85,7 @@ internal class KstatesNavigationProvider(
             is Target.Local -> local.of(target.declaration, target.reference, target.name)
             is Target.Binding -> listOfNotNull(target.declaration) + local.ofBinding(target.name, offset)
             is Target.Shared -> listOfNotNull(target.declaration) + references.find(target.symbol, request)
+            is Target.Fragment -> listOfNotNull(target.declaration) + target.uses
             null -> emptyList()
         }
         return found.distinct()
@@ -96,6 +104,7 @@ internal class KstatesNavigationProvider(
                 ContextSymbol.StateMachine(slot.name),
                 AttachableMachines(request).named(slot.name).firstOrNull()?.location,
             )
+            is KstatesSlot.FragmentName -> UsableFragments(request).let { Target.Fragment(slot.name, it.declaration(slot.name), it.uses(slot.name)) }
             is KstatesSlot.EventName -> Target.Shared(
                 ContextSymbol.Type(slot.name),
                 types.contextTypes(request).firstOrNull { it.origin == TypeOrigin.EVENTS && it.name == slot.name }?.declaration,
@@ -143,5 +152,6 @@ internal class KstatesNavigationProvider(
         is Target.Local -> target.name
         is Target.Binding -> target.name
         is Target.Shared -> target.symbol.name
+        is Target.Fragment -> target.name
     }
 }

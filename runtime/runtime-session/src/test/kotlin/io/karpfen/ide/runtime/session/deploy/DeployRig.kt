@@ -114,6 +114,9 @@ internal object LampPlans {
     /** An attachable state machine named glowing, uploaded as a definition. */
     val glowingDefinition: PlannedUpload = upload(UploadRole.DEFINITION, "glowing.kstates")
 
+    /** A fragment named bulb test, which a container state of the lamp uses. */
+    val bulbTestFragment: PlannedUpload = upload(UploadRole.FRAGMENT, "bulb_test.kstates")
+
     /** Where the model's objects are declared, which is at their keys in the model text. */
     val locations: DeclarationLocations = DeclarationLocations(
         objects = mapOf(modelFile to listOf("lamp", "bulb", "spare").associateWith { rangeOf(it) }),
@@ -122,7 +125,8 @@ internal object LampPlans {
 
     /**
      * The plan of the lamp with [configuration], [domains] and [features], with the event definitions if [withEvents]
-     * and with the definition glowing between the two attached machines if [withDefinition].
+     * with the definition glowing between the two attached machines if [withDefinition], and with the fragment bulb
+     * test before the attached machines if [withFragment].
      */
     fun plan(
         configuration: DeployConfiguration = DeployConfiguration(20, 1500),
@@ -130,13 +134,22 @@ internal object LampPlans {
         withEvents: Boolean = true,
         features: List<FeatureName> = listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT),
         withDefinition: Boolean = false,
+        withFragment: Boolean = false,
     ): DeploymentPlan =
         DeploymentPlan.Builder()
             .name("lamp")
             .descriptor(descriptor)
             .generation(3)
             .uploads(
-                listOfNotNull(metamodel, events.takeIf { withEvents }, model, lampMachine, glowingDefinition.takeIf { withDefinition }, switchMachine),
+                listOfNotNull(
+                    metamodel,
+                    events.takeIf { withEvents },
+                    model,
+                    bulbTestFragment.takeIf { withFragment },
+                    lampMachine,
+                    glowingDefinition.takeIf { withDefinition },
+                    switchMachine,
+                ),
             )
             .definitions(if (withDefinition) listOf(DefinedMachine("glowing", glowingDefinition.file, listOf("Bulb"))) else emptyList())
             .attachments(

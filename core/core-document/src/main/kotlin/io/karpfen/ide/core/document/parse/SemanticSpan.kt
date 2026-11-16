@@ -55,7 +55,10 @@ public enum class SemanticKind {
     /** A file path in an environment descriptor, relative to the descriptor's directory. */
     FILE_PATH,
 
-    /** The name of an attachable state machine, where it is declared and where `behaves after`, `ATTACH` or `EXCHANGE` names it. */
+    /**
+     * The name of an attachable state machine, where it is declared and where `behaves after`, `ATTACH` or `EXCHANGE`
+     * names it, and the name of a fragment, where its header declares it and where `USE` names it.
+     */
     STATE_MACHINE_NAME,
 }
 

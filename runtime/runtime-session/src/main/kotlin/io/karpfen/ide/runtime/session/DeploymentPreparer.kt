@@ -15,7 +15,10 @@
  */
 package io.karpfen.ide.runtime.session
 
+import io.karpfen.dsl.states.StateMachine
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.core.document.dsl.DslFlattener
+import io.karpfen.ide.core.document.dsl.Flattening
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.analysis.ContextAnalysis
 import io.karpfen.ide.core.workspace.analysis.ContextSymbols
@@ -27,6 +30,7 @@ import io.karpfen.ide.runtime.session.events.EventCatalogBuilder
 import io.karpfen.ide.runtime.session.events.EventSources
 import io.karpfen.ide.runtime.session.events.ListeningMachine
 import io.karpfen.ide.runtime.session.mirror.MirrorSeeder
+import io.karpfen.ide.runtime.session.plan.Compositions
 import io.karpfen.ide.runtime.session.plan.DeploymentPlan
 import io.karpfen.ide.runtime.session.plan.DeploymentPlanner
 import io.karpfen.ide.runtime.session.plan.PlanResult
@@ -36,6 +40,7 @@ import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.problem.SourceLocation
 import io.karpfen.ide.runtime.session.schema.TypeSchema
 import io.karpfen.ide.runtime.session.states.DefinitionLayout
+import io.karpfen.ide.runtime.session.states.MachinePages
 import io.karpfen.ide.runtime.session.states.MachineLayout
 import org.slf4j.LoggerFactory
 import java.nio.file.Path
@@ -55,7 +60,10 @@ import java.nio.file.Path
  *    configuration of that earlier descriptor would be deployed.
  * 4. It plans the deployment with [planner].
  * 5. It turns the analysis into immutable values. These are the schema of the domain metamodel, the seed of the model,
- *    one layout per attached machine and the event catalog of the plan's domains.
+ *    one layout per attached machine and per definition and the event catalog of the plan's domains. The layouts and
+ *    the catalog read the state machines as the runtime runs them: flattened with the fragments of the context, so
+ *    that the predicted stacks carry the flat names of the states inside container states and the events of the
+ *    fragments are known. The planner refused a state machine that does not flatten, so every layout is flat.
  *
  * Nothing the preparation returns holds a dsl-tools object. The dsl-tools objects of the analysis are read only here.
  * Stateless.
@@ -63,10 +71,12 @@ import java.nio.file.Path
  * @param planner plans the deployment from the analysis.
  * @param descriptorReader decodes the current text of an open environment descriptor, to compare it with the
  *   descriptor of its analyzed context.
+ * @param flattener flattens the state machines of a ready plan with their fragments.
  */
 internal class DeploymentPreparer(
     private val planner: DeploymentPlanner,
     private val descriptorReader: EnvironmentDescriptorReader,
+    private val flattener: DslFlattener = DslFlattener(),
 ) {
 
     /** Prepares the deployment of [descriptor] from [workspace], with the [projectFeatures] of the project. */
@@ -105,13 +115,20 @@ internal class DeploymentPreparer(
         val metamodel = checkNotNull(context.metamodel) { "a ready plan has a domain metamodel" }
         val model = checkNotNull(context.models[plan.model.file]) { "a ready plan has an analyzed model" }
         val schema = TypeSchema.of(metamodel)
+        val compositions = Compositions(context.stateMachines, flattener)
+        val fragmentFiles = compositions.fragmentFiles()
+        val pages = HashMap<Path, MachinePages>()
+        fun running(file: Path): StateMachine {
+            val read = checkNotNull(context.stateMachines[file]) { "a ready plan has every state machine analyzed" }
+            val flat = compositions.of(file) as? Flattening.Flat ?: return read
+            pages.getOrPut(file) { MachinePages.of(file, flat, fragmentFiles) }
+            return flat.machine
+        }
         val machines = plan.attachments.map { attachment ->
-            val machine = checkNotNull(context.stateMachines[attachment.file]) { "a ready plan has every state machine analyzed" }
-            ListeningMachine(attachment.attachedTo, attachment.file, machine)
+            ListeningMachine(attachment.attachedTo, attachment.file, running(attachment.file))
         }
         val definitions = plan.definitions.map { definition ->
-            val machine = checkNotNull(context.stateMachines[definition.file]) { "a ready plan has every definition analyzed" }
-            definition to ListeningMachine(null, definition.file, machine)
+            definition to ListeningMachine(null, definition.file, running(definition.file))
         }
         val catalog = EventCatalogBuilder.build(
             domains = plan.domains,
@@ -124,11 +141,16 @@ internal class DeploymentPreparer(
             plan = plan,
             schema = schema,
             seed = MirrorSeeder.seed(model, schema),
-            layouts = machines.map { MachineLayout.of(checkNotNull(it.attachedTo), it.file, it.machine) },
+            layouts = machines.map { MachineLayout.of(checkNotNull(it.attachedTo), it.file, it.machine, pagesOf(pages, it.file)) },
             catalog = catalog,
-            definitions = definitions.map { (definition, listening) -> DefinitionLayout.of(definition.name, definition.file, listening.machine) },
+            definitions = definitions.map { (definition, listening) ->
+                DefinitionLayout.of(definition.name, definition.file, listening.machine, pagesOf(pages, definition.file))
+            },
         )
     }
+
+    /** The pages of the state machine in [file] among [pages], or none if it has no container state that flattened. */
+    private fun pagesOf(pages: Map<Path, MachinePages>, file: Path): MachinePages = pages[file] ?: MachinePages.NONE
 
     /** The analyzed context whose descriptor is the descriptor of [plan]. */
     private fun contextOf(analysis: ProjectAnalysis, plan: DeploymentPlan): ContextAnalysis =

@@ -119,6 +119,17 @@ class KstatesTokenizerTest {
     }
 
     @Test
+    fun `the words of pages are keywords`() {
+        val text = "STATEMACHINE \"bulb test\" FRAGMENT { STATES { INITIAL CONTAINER STATE \"a\" USE \"wiring\" { }\n" +
+            "FINAL STATE \"b\" { } } TRANSITIONS { TRANSITION \"a\" -> \"b\" { CONDITION { DONE } } } }"
+
+        listOf("FRAGMENT", "CONTAINER", "USE", "FINAL", "DONE").forEach { word ->
+            assertEquals(listOf(TokenKind.KEYWORD), kindsOf(text, word), word)
+        }
+        assertTrue(tokenize(text).diagnostics.isEmpty())
+    }
+
+    @Test
     fun `EVENT is an operation in action blocks and a keyword in conditions`() {
         assertEquals(listOf(TokenKind.OPERATION, TokenKind.KEYWORD), kindsOf(machine, "EVENT"))
     }

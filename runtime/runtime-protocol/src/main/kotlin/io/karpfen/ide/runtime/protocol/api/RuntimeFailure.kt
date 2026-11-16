@@ -15,6 +15,7 @@
  */
 package io.karpfen.ide.runtime.protocol.api
 
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningRejection
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
@@ -83,9 +84,13 @@ public sealed interface RuntimeFailure {
      *   and [RejectionKind.UNCLASSIFIED] for a text the client does not know.
      * @property message the body, the runtime's text.
      * @property captured the placeholder values of the matched text, such as the parameter name of a missing parameter.
-     *   It is empty for a text without placeholders, for a refused upload and for an unknown text.
+     *   It is empty for a text without placeholders, for a refused upload, for a refused flattening and for an unknown
+     *   text.
      * @property content the parsed body of an upload refused for its content. It is present exactly when [kind] is
      *   [RejectionKind.CONTENT_REJECTED], and it lists the errors with their places in the uploaded text.
+     * @property flattening the parsed body of an activation refused because state machines do not flatten. It is
+     *   present exactly when [kind] is [RejectionKind.NOT_FLATTENED], and it lists every problem with the state machine
+     *   it belongs to.
      */
     public data class Rejected(
         override val route: RuntimeRoute,
@@ -94,10 +99,14 @@ public sealed interface RuntimeFailure {
         public val message: String,
         public val captured: Map<String, String>,
         public val content: UploadRejection? = null,
+        public val flattening: FlatteningRejection? = null,
     ) : RuntimeFailure {
         init {
             require((kind == RejectionKind.CONTENT_REJECTED) == (content != null)) {
                 "exactly a rejection of the content carries the parsed body: $kind with $content"
+            }
+            require((kind == RejectionKind.NOT_FLATTENED) == (flattening != null)) {
+                "exactly a refused flattening carries the parsed body: $kind with $flattening"
             }
         }
 

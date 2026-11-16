@@ -56,6 +56,7 @@ class UploadRejectionTest {
             "model" to RejectedUpload.Model,
             "event definitions" to RejectedUpload.EventDefinitions,
             "attachable state machine" to RejectedUpload.AttachableStateMachine,
+            "fragment" to RejectedUpload.Fragment,
             "state machine for 'lamp'" to RejectedUpload.StateMachine("lamp"),
             "state machine for 'living room's lamp'" to RejectedUpload.StateMachine("living room's lamp"),
             "state machine for ''" to RejectedUpload.StateMachine(""),

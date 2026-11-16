@@ -33,8 +33,15 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
     /** A model, `*.kmodel`. */
     KMODEL(KarpfenLanguage.KMODEL),
 
-    /** A state machine, `*.kstates`. */
+    /** A state machine, `*.kstates`, except a fragment. */
     KSTATES(KarpfenLanguage.KSTATES),
+
+    /**
+     * A fragment, `*.frag.kstates`: KStates text that holds `STATEMACHINE "name" FRAGMENT`, which container states of
+     * other state machines use by its name. The file is named after the fragment, `<name>.frag.kstates`. The runtime
+     * does not care about the name, and the workspace warns about a name that does not fit.
+     */
+    FRAGMENT(KarpfenLanguage.KSTATES),
 
     /** An environment descriptor, `*.kenv.json`. */
     ENV_DESCRIPTOR(KarpfenLanguage.ENVIRONMENT),
@@ -61,6 +68,9 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
      * full language support as well, but they define contexts instead of belonging to one.
      */
     public val isKarpfenSource: Boolean get() = language?.isModelingLanguage == true
+
+    /** True for a file of KStates text, a state machine or a fragment. */
+    public val isStateMachine: Boolean get() = language == KarpfenLanguage.KSTATES
 
     /**
      * True for a file that is opened for reading only. The IDE keeps such a file up to date itself, and its open
@@ -99,18 +109,23 @@ public enum class FileKind(public val language: KarpfenLanguage?) {
         /** The file-name suffix of the companion files that hold diagram layouts. */
         public const val LAYOUT_SUFFIX: String = ".vis"
 
+        /** The file-name suffix of fragments, which are KStates files of their own kind. */
+        public const val FRAGMENT_SUFFIX: String = ".frag.kstates"
+
         /** The name of the event metamodel. */
         public const val EVENTS_FILE_NAME: String = "EVENTS.kmeta"
 
         /**
          * The kind of a file named [fileName], which is a name and not a path. Suffixes are compared ignoring case. The
          * languages come from `KarpfenLanguage.fromFileName`, the same file-name rule that
-         * `LanguageRegistry.languageOf` uses.
+         * `LanguageRegistry.languageOf` uses. A KStates file whose name ends with `.frag.kstates` after at least one
+         * character is a [FRAGMENT].
          */
         public fun of(fileName: String): FileKind = when {
             fileName.equals(EVENTS_FILE_NAME, ignoreCase = true) -> EVENTS_KMETA
             fileName.endsWith(BRIDGE_SUFFIX, ignoreCase = true) -> BRIDGE
             fileName.endsWith(LAYOUT_SUFFIX, ignoreCase = true) -> LAYOUT
+            fileName.length > FRAGMENT_SUFFIX.length && fileName.endsWith(FRAGMENT_SUFFIX, ignoreCase = true) -> FRAGMENT
             else -> when (KarpfenLanguage.fromFileName(fileName)) {
                 KarpfenLanguage.KMETA -> KMETA
                 KarpfenLanguage.KMODEL -> KMODEL

@@ -142,7 +142,10 @@ public object PayloadDiagnosticCodes {
     /** The KModel snippet declares no object, so the runtime finds none. */
     public const val KMODEL_NO_OBJECT: String = "payload-kmodel-no-object"
 
-    /** The KModel snippet declares several root objects. The runtime takes the first. */
+    /**
+     * The KModel snippet declares several root objects. A KModel text has one, so the runtime reads none of them and
+     * the payload is null.
+     */
     public const val KMODEL_SEVERAL_OBJECTS: String = "payload-kmodel-several-objects"
 
     /** The root object's type differs from the event's name. The runtime uses the snippet's type. */
@@ -184,7 +187,7 @@ public object PayloadDiagnosticCodes {
         TEXT_FROM_VALUE to Severity.INFO,
         KMODEL_INVALID to Severity.ERROR,
         KMODEL_NO_OBJECT to Severity.ERROR,
-        KMODEL_SEVERAL_OBJECTS to Severity.WARNING,
+        KMODEL_SEVERAL_OBJECTS to Severity.ERROR,
         KMODEL_TYPE to Severity.WARNING,
         EVENT_BLANK_NAME to Severity.ERROR,
         EVENT_NOT_LISTENED to Severity.WARNING,

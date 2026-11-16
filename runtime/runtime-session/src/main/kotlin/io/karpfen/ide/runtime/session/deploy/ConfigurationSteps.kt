@@ -27,9 +27,7 @@ import io.karpfen.ide.runtime.session.plan.UploadRole
  */
 internal class UploadStep(private val upload: PlannedUpload) : DeployStep {
     init {
-        require(upload.role != UploadRole.STATE_MACHINE && upload.role != UploadRole.DEFINITION) {
-            "a state machine is uploaded by its own step"
-        }
+        require(upload.role in FILE_ROLES) { "a state machine is uploaded by its own step: ${upload.role}" }
     }
 
     override val kind: DeployStepKind = when (upload.role) {
@@ -48,6 +46,11 @@ internal class UploadStep(private val upload: PlannedUpload) : DeployStep {
             else -> environment.setModel(text)
         }
         return run.settle(outcome, upload)
+    }
+
+    private companion object {
+        /** The roles this step uploads. */
+        val FILE_ROLES: Set<UploadRole> = setOf(UploadRole.METAMODEL, UploadRole.EVENTS, UploadRole.MODEL)
     }
 }
 
@@ -84,6 +87,26 @@ internal class DefineStep(private val upload: PlannedUpload) : DeployStep {
 
     override suspend fun execute(run: DeployRun): StepOutcome =
         run.settle(run.createdEnvironment.defineStateMachine(upload.snapshot.text), upload)
+}
+
+/**
+ * Uploads one fragment without an object key, so that the environment holds it under its name. The runtime copies the
+ * states of a fragment into every container state that uses it when it activates the environment, and refuses the
+ * activation if a fragment is missing then. So the fragments are uploaded before the activation, in descriptor order
+ * with the other state machines.
+ *
+ * @param upload the fragment.
+ */
+internal class FragmentStep(private val upload: PlannedUpload) : DeployStep {
+    init {
+        require(upload.role == UploadRole.FRAGMENT) { "only a fragment is uploaded as a fragment: ${upload.role}" }
+    }
+
+    override val kind: DeployStepKind = DeployStepKind.UPLOAD_FRAGMENT
+    override val title: String = "Uploading the fragment ${upload.fileName}"
+
+    override suspend fun execute(run: DeployRun): StepOutcome =
+        run.settle(run.createdEnvironment.uploadFragment(upload.snapshot.text), upload)
 }
 
 /**

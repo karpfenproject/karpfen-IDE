@@ -37,6 +37,8 @@ class KstatesCompletionTest {
     private val probe = ServicesProbe()
     private val robot = ExampleProject.example(ExamplePaths.ROBOT_KSTATES)
     private val robotText = robot.text.text
+    private val containerState = "CONTAINER STATE \"…\" USE \"…\" { }"
+    private val finalState = "FINAL STATE \"…\" { }"
     private val domainTypes = listOf("Obstacle", "Robot", "Room", "TwoDObject", "Vector", "Wall")
     private val robotMembers = listOf(
         "boundingBox", "closest_obstacle", "closest_wall", "d_closest_obstacle", "d_closest_wall", "direction", "log", "obstacles", "walls",
@@ -55,10 +57,13 @@ class KstatesCompletionTest {
 
     @Test
     fun `structural keywords depend on the enclosing block`() {
-        assertEquals(listOf("STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE ATTACHED TO \"…\" { }"), labelsIn("‸"))
+        assertEquals(
+            listOf("STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE \"…\" FRAGMENT { }", "STATEMACHINE ATTACHED TO \"…\" { }"),
+            labelsIn("‸"),
+        )
         assertEquals(listOf("MACROS { }", "STATES { }", "TRANSITIONS { }"), labelsIn(machine("  ‸")))
-        val states = listOf("DEEP HISTORY STATE \"…\" { }", "INITIAL STATE \"…\" { }", "SHALLOW HISTORY STATE \"…\" { }", "STATE \"…\" { }")
-        assertEquals(states, labelsIn(machine(" STATES {\n  ‸\n }")))
+        val states = listOf(containerState, "DEEP HISTORY STATE \"…\" { }", "INITIAL STATE \"…\" { }", "SHALLOW HISTORY STATE \"…\" { }", "STATE \"…\" { }")
+        assertEquals((states + finalState).sorted(), labelsIn(machine(" STATES {\n  ‸\n }")))
         assertEquals(
             (listOf("BREAKPOINT { }", "DO { }", "ENTRY { }", "TICK LIMIT { }") + states).sorted(),
             labelsIn(machine(" STATES {\n  STATE \"a\" {\n   ‸\n  }\n }")),
@@ -70,7 +75,7 @@ class KstatesCompletionTest {
         assertEquals(listOf("NOT LOOPING"), labelsIn(machine(" TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" ‸ { }\n }")))
         assertEquals(listOf("BREAKPOINT { }", "CONDITION { }"), labelsIn(machine(" TRANSITIONS {\n  SPLIT \"a\" -> \"b\", \"c\" { ‸ }\n }")))
         assertEquals(
-            listOf("EVAL { }", "EVENT(\"…\", \"…\")", "VALUE(\"…\")"),
+            listOf("DONE", "EVAL { }", "EVENT(\"…\", \"…\")", "VALUE(\"…\")"),
             labelsIn(machine(" TRANSITIONS {\n  TRANSITION \"a\" -> \"b\" { CONDITION { EVENT(\"d\", \"n\")\n ‸ } }\n }")),
         )
         assertEquals(listOf("MACRO \"…\" { }"), labelsIn(machine(" MACROS {\n  ‸\n }")))
@@ -108,8 +113,8 @@ class KstatesCompletionTest {
         val stateBody = { body: String -> machine(" STATES {\n  STATE \"a\" {\n$body\n  }\n }") }
 
         assertEquals(listOf("STATES { }", "TRANSITIONS { }"), labels(machine("  ‸")))
-        assertEquals(listOf("INITIAL STATE \"…\" { }", "STATE \"…\" { }"), labels(machine(" STATES {\n  ‸\n }")))
-        assertEquals(listOf("DO { }", "ENTRY { }", "INITIAL STATE \"…\" { }", "STATE \"…\" { }"), labels(stateBody("   ‸")))
+        assertEquals(listOf(containerState, finalState, "INITIAL STATE \"…\" { }", "STATE \"…\" { }"), labels(machine(" STATES {\n  ‸\n }")))
+        assertEquals(listOf(containerState, "DO { }", "ENTRY { }", "INITIAL STATE \"…\" { }", "STATE \"…\" { }"), labels(stateBody("   ‸")))
         assertEquals(emptyList(), labels(stateBody("   BREAKPOINT { ‸ }")))
         assertEquals(emptyList(), labels(stateBody("   TICK LIMIT {\n    ‸\n   }")))
         assertEquals(listOf("TRANSITION \"…\" -> \"…\" { }"), labels(machine(" STATES { }\n TRANSITIONS {\n  ‸\n }")))
@@ -117,7 +122,10 @@ class KstatesCompletionTest {
         assertEquals(emptyList(), labels(machine(" MACROS {\n  ‸\n }")))
         val actions = labels(stateBody("   DO {\n    ‸\n   }"))
         assertTrue("SET(\"…\", …)" in actions && "EXCHANGE(\"…\", …)" in actions && actions.none { it.startsWith("WITH") }, "$actions")
-        assertEquals(listOf("STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE ATTACHED TO \"…\" { }"), labels("‸"))
+        assertEquals(
+            listOf("STATEMACHINE \"…\" ATTACHABLE TO \"…\" { }", "STATEMACHINE \"…\" FRAGMENT { }", "STATEMACHINE ATTACHED TO \"…\" { }"),
+            labels("‸"),
+        )
         assertEquals(listOf("EVAL { }"), labels(stateBody("   DO {\n    SET(\"log\", ‸)\n   }")))
     }
 
@@ -127,7 +135,7 @@ class KstatesCompletionTest {
         val (document, offset) = robotDocument(machine(" STATES {\n  ‸\n }"))
 
         assertEquals(
-            listOf("DEEP HISTORY STATE \"…\" { }", "INITIAL STATE \"…\" { }", "SHALLOW HISTORY STATE \"…\" { }", "STATE \"…\" { }"),
+            listOf(containerState, "DEEP HISTORY STATE \"…\" { }", finalState, "INITIAL STATE \"…\" { }", "SHALLOW HISTORY STATE \"…\" { }", "STATE \"…\" { }"),
             histories.labels(document, offset),
         )
         val (transitions, at) = robotDocument(machine(" STATES { }\n TRANSITIONS {\n  ‸\n }"))

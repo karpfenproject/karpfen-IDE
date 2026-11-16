@@ -66,12 +66,17 @@ class FileTemplatesTest {
     }
 
     @Test
-    fun `every kind creates files that the workspace recognizes in its language and names it after the language`() {
+    fun `every kind creates files that the workspace recognizes in its language and names it after the language or as a fragment`() {
         FileTemplateKind.entries.forEach { kind ->
             val name = templates.fileName(kind, "robot")
             assertEquals(kind.language, KarpfenLanguage.fromFileName(name), name)
             assertEquals(kind.language, FileKind.of(name).language, name)
-            assertEquals("${kind.language.displayName} File", kind.displayName)
+            if (kind == FileTemplateKind.FRAGMENT) {
+                assertEquals(FileKind.FRAGMENT, FileKind.of(name), name)
+                assertEquals("Fragment File", kind.displayName)
+            } else {
+                assertEquals("${kind.language.displayName} File", kind.displayName)
+            }
         }
         assertEquals(".kenv.json", FileTemplateKind.ENVIRONMENT.suffix)
         assertEquals("Environment File", FileTemplateKind.ENVIRONMENT.displayName)
@@ -88,6 +93,15 @@ class FileTemplatesTest {
         assertTrue(templates.content(FileTemplateKind.KSTATES, "m.kstates", TemplateContext(directory)).contains("ATTACHED TO \"M\""))
         assertEquals("Example", KarpfenSourceTemplates.typeName("__"))
         assertEquals("T2d", KarpfenSourceTemplates.typeName("2d"))
+    }
+
+    @Test
+    fun `a fragment is named after its file`() {
+        assertEquals("bulb test.frag.kstates", templates.fileName(FileTemplateKind.FRAGMENT, "bulb test"))
+        assertEquals("bulb test.frag.kstates", templates.fileName(FileTemplateKind.FRAGMENT, "bulb test.frag.kstates"))
+        val fragment = templates.content(FileTemplateKind.FRAGMENT, "bulb test.frag.kstates", TemplateContext(directory))
+        assertTrue(fragment.startsWith("STATEMACHINE \"bulb test\" FRAGMENT {"), fragment)
+        assertTrue("FINAL STATE" in fragment)
     }
 
     @Test

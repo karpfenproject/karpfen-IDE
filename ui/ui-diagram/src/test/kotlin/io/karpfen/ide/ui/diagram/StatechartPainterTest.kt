@@ -25,7 +25,8 @@ import kotlin.test.assertTrue
 
 /**
  * Covers the texts a statechart writes, which the canvas measures before the layout: the title line of the state
- * machine is measured in the style of the names of states, for an attached and for an attachable state machine.
+ * machine is measured in the style of the names of states, for an attached and for an attachable state machine and
+ * for a fragment, and the fragments that container states use are measured in the style of rows.
  */
 class StatechartPainterTest {
 
@@ -43,6 +44,15 @@ class StatechartPainterTest {
         val titles = StatechartPainter.texts(diagramOf(source))
 
         assertTrue(titles.getValue(TextRole.TITLE).containsAll(listOf("dim", "glowing ATTACHABLE TO Lamp, Bulb")), "$titles")
+    }
+
+    @Test
+    fun `the title of a fragment is measured with the names of the states, and the fragments of container states as rows`() {
+        val fragment = StatechartPainter.texts(diagramOf("STATEMACHINE \"bulb test\" FRAGMENT { STATES { INITIAL STATE \"on\" { } FINAL STATE \"done\" { } } }"))
+        val user = StatechartPainter.texts(diagramOf("STATEMACHINE ATTACHED TO \"Lamp\" { STATES { CONTAINER STATE \"check\" USE \"bulb test\" { } } }"))
+
+        assertTrue(fragment.getValue(TextRole.TITLE).containsAll(listOf("on", "done", "bulb test FRAGMENT")), "$fragment")
+        assertTrue("bulb test" in user.getValue(TextRole.ROW), "$user")
     }
 
     private fun diagramOf(source: String): StatechartDiagram {
