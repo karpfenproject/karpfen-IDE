@@ -1,11 +1,17 @@
 # 4 The IDE
 
 karpfen IDE is a desktop program for the files of a karpfen system. It opens a folder as a project, edits the KMeta,
-KModel and KStates files and the environment descriptors, and checks them while you type. It draws each of the three
-kinds of model file as a diagram that can also be edited. It validates the whole project, runs an environment
-descriptor in a karpfen runtime inside a Docker container of its own, shows the model and the active states while the
-model runs, sends events into the run, halts the run at breakpoints and connects it to HTTP, MQTT and ROS through
-bridges. The same program validates and runs a project from a terminal, without a window.
+KModel and KStates files and the environment descriptors, and checks them while you type. Each of the three kinds of
+model file is also drawn as a diagram, and the diagram can be edited as well. Beyond the editing of single files, the
+IDE works on the project as a whole.
+
+- It validates the whole project.
+- It runs an environment descriptor in a karpfen runtime inside a Docker container of its own.
+- It shows the model and the active states while the model runs, and it sends events into the run.
+- It halts the run at breakpoints.
+- It connects the run to HTTP, MQTT and ROS through bridges.
+
+The same program also validates and runs a project from a terminal, without a window.
 
 The window has a menu bar, an editor area in the middle, tool windows around it and a status bar at the bottom. Each
 tool window can be shown and hidden in the View menu, and its border to the editor area can be dragged. The Runtime
@@ -13,9 +19,9 @@ tool window can also be moved into a window of its own.
 
 | Part | Place | What it shows |
 |---|---|---|
-| Project | Left | The files of the folder in three sections: the project file and the descriptors, the folder, the bridge files. |
+| Project | Left | The files of the folder in three sections, one for the project file and the descriptors, one for the folder and one for the bridge files. |
 | Editor area | Middle | One tab per open file. Below the editor a bar holds Text, Split and Diagram for files with a diagram, the Validate button and the font size of the editor. Above the diagram of a fragment a bar names the files that use it. |
-| Outline | Right | What the active file is made of: the types of a metamodel, the objects of a model, the states and transitions of a state machine, and the header of a fragment. |
+| Outline | Right | What the active file is made of. These are the types of a metamodel, the objects of a model, the states and transitions of a state machine, and the header of a fragment. |
 | Problems | Bottom | The problems of the project in the groups Local and Global. It is hidden while there is no problem. |
 | Language Tools Output | Bottom | The log of the language tools that read and check the files. |
 | Runtime | Bottom | The runtime container, the runs, the debugger and three panes for the model, the events and the log of the selected run. |
@@ -25,9 +31,10 @@ The window has two zoom controls. `Zoom 100%` at the right end of the status bar
 everything in the window. `Font size 13` in the bar below the editor scales the text of the editors only. A click on
 either size sets it back to normal.
 
-The menu bar has the menus File, Edit, View, Navigate and Run. The table lists every entry in the order of the menu
-bar. Open Recent is a submenu with one entry per folder, and Run > Language Features is a submenu whose entries read
-`Switch On` or `Switch Off` before the name of the feature, after what a click does.
+The menu bar has the menus File, Edit, View, Navigate and Run, and the table has every entry in the order of the menu
+bar. Two of the entries are submenus. Open Recent has one entry per folder. Each entry of
+Run > Language Features names a feature with `Switch On` or `Switch Off` in front, and these words say what a click on
+the entry does.
 
 | Menu | Entry | What it does | Described in |
 |---|---|---|---|
@@ -74,9 +81,10 @@ bar. Open Recent is a submenu with one entry per folder, and Run > Language Feat
 | Run | Language Features > Splits and joins | Switches splits and joins on or off. | [4.1.7 Language features](4.1-projects.md#417-language-features) |
 | Run | Language Features > Parallel branches on threads | Switches the runtime feature TrueParallel on or off for every run. | [4.1.7 Language features](4.1-projects.md#417-language-features) |
 
-Light Theme and Dark Theme switch the colours of the whole window at once. The choice is stored in the project file as
-the key `theme` with the value `light` or `dark`. Without that line, or with `theme = system`, the window follows the
-colours of the operating system, and only an edit of the line brings that back.
+Light Theme and Dark Theme switch the colours of the whole window at once. The choice is stored in the project file
+under the key `theme` with the value `light` or `dark`. If the line is missing or reads `theme = system`, the window
+follows the colours of the operating system. The menu has no entry for that. Once a theme has been chosen, only an edit
+of the line in the project file brings back the colours of the operating system.
 
 The sections of this chapter follow the work with a project.
 
@@ -91,7 +99,7 @@ The sections of this chapter follow the work with a project.
 | [4.7 Bridges](4.7-bridges.md) | Bridge files for HTTP, MQTT and ROS, their form and their routes. |
 | [4.8 Command line](4.8-command-line.md) | `karpfen-ide validate` and `karpfen-ide run` without a window. |
 
-The languages themselves are the subject of
-[2 Modeling languages](https://github.com/karpfenproject/karpfen-dsl-tools/blob/main/docs/reference/2-modeling-languages.md),
-and what a running model does is the subject of
+The languages themselves are described in
+[2 Modeling languages](https://github.com/karpfenproject/karpfen-dsl-tools/blob/main/docs/reference/2-modeling-languages.md).
+What a running model does is described in
 [3 Execution](https://github.com/karpfenproject/karpfen-runtime/blob/main/docs/reference/3-execution.md).
