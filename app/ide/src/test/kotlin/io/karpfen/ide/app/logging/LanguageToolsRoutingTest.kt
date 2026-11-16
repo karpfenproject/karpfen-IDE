@@ -47,8 +47,8 @@ class LanguageToolsRoutingTest {
     private val output = RingOutputBuffer()
     private val context: LoggerContext by lazy { ProductionLogging.context(SettingsLocations.HOME_PROPERTY to home.toString()) }
 
-    private val converter: Logger get() = context.getLogger("${DslToolsLoggers.PARENT}.dsl.textual.KmetaDSLConverter")
-    private val fileParser: Logger get() = context.getLogger("${DslToolsLoggers.PARENT}.parser.KmetaFileParser")
+    private val metaReader: Logger get() = context.getLogger("${DslToolsLoggers.PARENT}.reader.kmeta.KmetaReader")
+    private val statesReader: Logger get() = context.getLogger("${DslToolsLoggers.PARENT}.reader.kstates.KstatesReader")
 
     @AfterTest
     fun stopLogging() {
@@ -69,15 +69,15 @@ class LanguageToolsRoutingTest {
     @Test
     fun `what dsl-tools logs reaches the output and dsl-tools log, but neither the console nor the IDE log`() {
         val console = routed {
-            converter.debug("Type {}: {}", "Robot", "a robot")
-            converter.info("converted")
+            metaReader.debug("Type {}: {}", "Robot", "a robot")
+            metaReader.info("converted")
         }
 
         assertEquals(
             listOf(OutputLevel.DEBUG to "Type Robot: a robot", OutputLevel.INFO to "converted"),
             output.snapshot().lines.map { it.level to it.message },
         )
-        assertEquals(converter.name, output.snapshot().lines.first().logger)
+        assertEquals(metaReader.name, output.snapshot().lines.first().logger)
         assertEquals("", console)
         val dslToolsLog = logText(DSL_TOOLS_LOG)
         assertTrue("DEBUG" in dslToolsLog && "Type Robot: a robot" in dslToolsLog, dslToolsLog)
@@ -87,8 +87,8 @@ class LanguageToolsRoutingTest {
     @Test
     fun `warnings and errors of dsl-tools are forwarded to the IDE log, and still not shown on the console`() {
         val console = routed {
-            fileParser.warn("KMeta syntax error at line 1:5")
-            fileParser.error("conversion failed", IllegalStateException("broken model"))
+            statesReader.warn("KMeta syntax error at line 1:5")
+            statesReader.error("conversion failed", IllegalStateException("broken model"))
         }
 
         assertEquals(listOf(OutputLevel.WARNING, OutputLevel.ERROR), output.snapshot().lines.map { it.level })
@@ -129,10 +129,10 @@ class LanguageToolsRoutingTest {
     @Test
     fun `after the routing is closed, nothing more reaches the output`() {
         val routing = LogbackLanguageToolsLogRouting(context).attach(output)
-        converter.debug("routed")
+        metaReader.debug("routed")
 
         routing.close()
-        converter.debug("not routed")
+        metaReader.debug("not routed")
 
         assertEquals(listOf("routed"), output.snapshot().lines.map { it.message })
         assertEquals(null, context.getLogger(DslToolsLoggers.PARENT).getAppender(LogbackLanguageToolsLogRouting.APPENDER_NAME))

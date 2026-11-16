@@ -176,11 +176,11 @@ class JsonPayloadFormatTest {
         val errors = setOf(
             "payload-json-syntax", "payload-not-object", "payload-duplicate-key", "payload-id-not-string", "payload-number-expected",
             "payload-boolean-expected", "payload-list-expected", "payload-object-expected", "payload-kmodel-invalid",
-            "payload-kmodel-no-object", "event-blank-name",
+            "payload-kmodel-no-object", "payload-kmodel-several-objects", "event-blank-name",
         )
         val warnings = setOf(
             "payload-unknown-key", "payload-knows-creates-object", "payload-untyped-event", "payload-not-parsed",
-            "payload-kmodel-several-objects", "payload-kmodel-type", "event-not-listened", "event-queued-until-start",
+            "payload-kmodel-type", "event-not-listened", "event-queued-until-start",
             "event-domain-is-attachment",
         )
         val infos = setOf("payload-id-assigned", "payload-domain-type", "payload-member-defaulted", "payload-member-omitted", "payload-text-from-value")

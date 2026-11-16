@@ -178,10 +178,9 @@ class ForeignApiConfinementTest {
             "io.karpfen.dsl.source.SourceMap",
             "io.karpfen.dsl.printer.kmeta.KmetaPrinter",
             "io.karpfen.dsl.printer.kstates.*",
-            "io.karpfen.dsl.examples.printObject",
+            "io.karpfen.dsl.examples.KmetaReaderExample",
             "io.karpfen.dsl.dsl.textual.KmetaDSLConverter",
             "io.karpfen.dsl.dsl.functional.MetamodelBuilder",
-            "io.karpfen.dsl.parser.KmetaFileParser",
             "io.karpfen.dsl.grammarguide.Example",
             "io.karpfen.dsl.metadata.Example",
         )

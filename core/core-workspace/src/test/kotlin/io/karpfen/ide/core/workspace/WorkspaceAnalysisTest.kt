@@ -94,6 +94,20 @@ class WorkspaceAnalysisTest {
     }
 
     @Test
+    fun `a state machine file with a byte order mark analyzes cleanly, and its analyzed text has no mark`() = runTest(timeout = 60.seconds) {
+        DescriptorExamples.copyExplicitContext(root.resolve("ctx"))
+        val workspace = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES)
+        val machine = workspace.awaitAnalysis().contexts.single().context.stateMachines.single().file
+        Files.write(machine, byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + Files.readAllBytes(machine))
+
+        val analysis = TestWorkspaces(this).open(root, languageFeatures = TestWorkspaces.ALL_FEATURES).awaitAnalysis()
+
+        val text = assertNotNull(analysis.contexts.single().files[machine]).snapshot.text
+        assertFalse(text.startsWith("\uFEFF"), "the mark is not part of the text the editor shows and the run uploads")
+        assertTrue(analysis.diagnostics.values.flatten().none { it.severity == Severity.ERROR }, "${analysis.diagnostics}")
+    }
+
+    @Test
     fun `descriptor findings appear in problems with positions in the descriptor text, unnamed files are loose`() = runTest(timeout = 60.seconds) {
         val descriptor = DescriptorExamples.copyExplicitContext(root.resolve("ctx"), DescriptorExamples.UNKNOWN_KEY_AND_MISSING_FILE)
             .toAbsolutePath().normalize()

@@ -64,7 +64,7 @@ class KmodelPayloadFormatTest {
     }
 
     @Test
-    fun `further root objects are a warning on them, and the first is checked as the runtime takes it`() {
+    fun `further root objects are an error on them, and the first is still checked`() {
         val first = "make object \"o\":\"order\" { prop(\"count\") -> \"2\" }"
         val others = "make object \"o2\":\"order\" { }\nmake object \"o3\":\"order\" { prop(\"colour\") -> \"red\" }"
         val text = "$first\n$others"
@@ -73,7 +73,7 @@ class KmodelPayloadFormatTest {
 
         assertEquals(listOf(PayloadDiagnosticCodes.KMODEL_SEVERAL_OBJECTS), validation.codes)
         assertEquals(others, text.substring(validation.diagnostics.single().range.start, validation.diagnostics.single().range.end))
-        assertFalse(validation.hasErrors)
+        assertTrue(validation.hasErrors)
     }
 
     @Test

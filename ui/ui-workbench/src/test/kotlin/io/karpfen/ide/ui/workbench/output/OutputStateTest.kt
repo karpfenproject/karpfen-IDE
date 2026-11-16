@@ -42,7 +42,7 @@ class OutputStateTest {
     private val visible = MutableStateFlow(false)
 
     private fun log(level: OutputLevel, message: String = level.name) =
-        buffer.append(time, level, "io.karpfen.dsl.dsl.textual.KmetaDSLConverter", message, null)
+        buffer.append(time, level, "io.karpfen.dsl.reader.kmeta.KmetaReader", message, null)
 
     private fun TestScope.boundState(): OutputState =
         OutputState(backgroundScope, buffer).also { it.bindVisibility(visible) }
@@ -176,12 +176,12 @@ class OutputStateTest {
     @Test
     fun `a line is written with its local time, padded level, the logger's simple name and its file`() {
         val format = OutputLineFormat(ZoneOffset.ofHours(2))
-        val line = OutputLine(7, time, OutputLevel.WARNING, "io.karpfen.dsl.parser.KmetaFileParser", "KMeta syntax error")
+        val line = OutputLine(7, time, OutputLevel.WARNING, "io.karpfen.dsl.reader.kstates.KstatesReader", "KMeta syntax error")
 
         assertEquals("12:15:30.123", format.time(line))
         assertEquals("WARN ", format.level(line))
         assertEquals("ERROR", format.level(line.copy(level = OutputLevel.ERROR)))
-        assertEquals("KmetaFileParser", format.logger(line))
+        assertEquals("KstatesReader", format.logger(line))
         assertEquals("root", format.logger(line.copy(logger = "root")))
         assertEquals(null, format.file(line))
         assertEquals("[/work/robot.kmeta]", format.file(line.copy(file = "/work/robot.kmeta")))
