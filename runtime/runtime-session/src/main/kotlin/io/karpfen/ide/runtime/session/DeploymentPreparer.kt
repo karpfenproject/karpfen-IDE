@@ -30,6 +30,7 @@ import io.karpfen.ide.runtime.session.mirror.MirrorSeeder
 import io.karpfen.ide.runtime.session.plan.DeploymentPlan
 import io.karpfen.ide.runtime.session.plan.DeploymentPlanner
 import io.karpfen.ide.runtime.session.plan.PlanResult
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
 import io.karpfen.ide.runtime.session.problem.SourceLocation
@@ -67,8 +68,8 @@ internal class DeploymentPreparer(
     private val descriptorReader: EnvironmentDescriptorReader,
 ) {
 
-    /** Prepares the deployment of [descriptor] from [workspace]. */
-    suspend fun prepare(workspace: Workspace, descriptor: Path): Preparation {
+    /** Prepares the deployment of [descriptor] from [workspace], with the [projectFeatures] of the project. */
+    suspend fun prepare(workspace: Workspace, descriptor: Path, projectFeatures: Set<ProjectFeature>): Preparation {
         val failedSaves = workspace.documents.saveAll().filterIsInstance<SaveResult.Failed>()
         if (failedSaves.isNotEmpty()) {
             logger.info("Deployment of {} blocked: {} documents could not be saved", descriptor, failedSaves.size)
@@ -76,7 +77,7 @@ internal class DeploymentPreparer(
         }
         val analysis = workspace.awaitAnalysis()
         val unsaved = workspace.documents.openDocuments.value.filter { isUnsaved(it, analysis) }.mapTo(HashSet()) { it.path }
-        return when (val planned = planner.plan(analysis, descriptor, unsaved)) {
+        return when (val planned = planner.plan(analysis, descriptor, unsaved, projectFeatures)) {
             is PlanResult.Blocked -> Preparation.Blocked(planned.findings)
             is PlanResult.Ready -> Preparation.Ready(prepared(analysis, planned.plan))
         }

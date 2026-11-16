@@ -57,5 +57,12 @@ public value class FeatureName(public val value: String) {
 
         /** The feature that pauses the engine, resumes it and runs it on tick by tick. */
         public val TICK_BY_TICK: FeatureName = FeatureName("TickByTick")
+
+        /**
+         * The feature that steps the branches of a split state machine at the same time, each branch on a thread of
+         * its own. Without it the engine steps the branches one after the other on one thread. It is no language
+         * feature: a run switches it on when the person running the project asks for it.
+         */
+        public val TRUE_PARALLEL: FeatureName = FeatureName("TrueParallel")
     }
 }

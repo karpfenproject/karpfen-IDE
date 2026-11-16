@@ -32,7 +32,8 @@ import java.nio.file.Path
  * runtime's index of the dsl-tools model gives the object keys and the types of the attached objects. The syntax index
  * gives the event domains of the machines and the declaration ranges of the uploaded files. The language features that
  * were switched on for the analysis, `ProjectAnalysis.languageFeatures`, tell the runtime features the deployment
- * switches on, as [LanguageFeature] maps them.
+ * switches on, as [LanguageFeature] maps them, followed by the runtime features of the project features that the
+ * planning is given, as [ProjectFeature.runtimeFeaturesOf] selects them.
  *
  * @param gate the checks of the problems gate, in report order.
  * @param preflight the preflight checks, in report order.
@@ -42,17 +43,17 @@ internal class DefaultDeploymentPlanner(
     private val preflight: List<PlanCheck>,
 ) : DeploymentPlanner {
 
-    override fun plan(analysis: ProjectAnalysis, descriptor: Path, unsaved: Set<Path>): PlanResult {
+    override fun plan(analysis: ProjectAnalysis, descriptor: Path, unsaved: Set<Path>, projectFeatures: Set<ProjectFeature>): PlanResult {
         val subject = PlanSubject(analysis, normalized(descriptor), unsaved.mapTo(HashSet(), ::normalized))
         val gateFindings = gate.flatMap { it.check(subject) }
         if (gateFindings.hasError()) return blocked(subject, gateFindings)
         val findings = gateFindings + preflight.flatMap { it.check(subject) }
         if (findings.hasError()) return blocked(subject, findings)
-        return PlanResult.Ready(planOf(subject, findings))
+        return PlanResult.Ready(planOf(subject, findings, projectFeatures))
     }
 
-    /** The plan of [subject], which passed every check, with the [findings] of the checks. */
-    private fun planOf(subject: PlanSubject, findings: List<DeployProblem>): DeploymentPlan {
+    /** The plan of [subject], which passed every check, with the [findings] of the checks and the [projectFeatures]. */
+    private fun planOf(subject: PlanSubject, findings: List<DeployProblem>, projectFeatures: Set<ProjectFeature>): DeploymentPlan {
         val context = checkNotNull(subject.context) { "a subject that passed the gate has a context" }
         val environment = checkNotNull(subject.environment) { "a subject that passed the gate has a descriptor" }
         val keyed = checkNotNull(subject.keyedObjects) { "a subject that passed the gate has a model" }
@@ -87,7 +88,10 @@ internal class DefaultDeploymentPlanner(
             .attachments(attachments)
             .configuration(DeployConfiguration.of(environment))
             .domains(subject.domains)
-            .features(LanguageFeature.runtimeFeaturesOf(subject.analysis.languageFeatures))
+            .features(
+                LanguageFeature.runtimeFeaturesOf(subject.analysis.languageFeatures) +
+                    ProjectFeature.runtimeFeaturesOf(projectFeatures, subject.analysis.languageFeatures),
+            )
             .modelObjectIds(keyed.ids)
             .locations(subject.locations)
             .findings(findings)

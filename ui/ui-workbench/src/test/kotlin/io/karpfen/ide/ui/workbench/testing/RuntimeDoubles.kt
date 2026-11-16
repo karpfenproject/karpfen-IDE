@@ -29,6 +29,7 @@ import io.karpfen.ide.runtime.session.RuntimeSession
 import io.karpfen.ide.runtime.session.RuntimeSessions
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
 import io.karpfen.ide.runtime.session.fixtures.FakeRuntimeSession
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -121,7 +122,8 @@ class ScriptedRuntimeSessions(private val real: RuntimeSessions) : RuntimeSessio
     /** The options of every launch, oldest first. */
     val options = ArrayList<DeployOptions>()
 
-    override suspend fun prepare(workspace: Workspace, descriptor: Path): Preparation = real.prepare(workspace, descriptor)
+    override suspend fun prepare(workspace: Workspace, descriptor: Path, projectFeatures: Set<ProjectFeature>): Preparation =
+        real.prepare(workspace, descriptor, projectFeatures)
 
     override fun launch(
         prepared: PreparedDeployment,

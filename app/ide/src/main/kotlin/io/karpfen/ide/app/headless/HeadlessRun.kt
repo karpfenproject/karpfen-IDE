@@ -17,6 +17,7 @@ package io.karpfen.ide.app.headless
 
 import io.karpfen.ide.app.IdeSession
 import io.karpfen.ide.core.workspace.validation.ProjectValidation
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.workbench.runtime.RunChoice
 import io.karpfen.ide.ui.workbench.runtime.RunPhase
 import io.karpfen.ide.ui.workbench.runtime.RuntimeState
@@ -35,7 +36,8 @@ import java.nio.file.Path
  * It opens the folder as the window does, with the settings the project file gives the run. It takes the descriptor
  * and the bridge files from the command line as [RunSelection] describes, and a wrong one is a usage error. Then it
  * starts the run through `RuntimeState.run` with a [RunChoice] of those bridges, the capture of the command line and
- * no debugger, so the run never halts at a breakpoint. The run saves nothing, because no file is open, and validates
+ * no debugger, so the run never halts at a breakpoint. The features of the project come from the project file, and
+ * the first line says when TrueParallel is among them. The run saves nothing, because no file is open, and validates
  * the whole project first. A project with errors does not run: the report is written as `validate` writes it, and the
  * status is [HeadlessExitCodes.ERRORS_FOUND]. A project with warnings and no errors runs: its report is written as
  * `validate` writes it, followed by [RunLines.GOES_ON_DESPITE_WARNINGS], and then the run goes on.
@@ -96,7 +98,8 @@ internal class HeadlessRun(
         command: HeadlessCommand.Run,
     ): Int {
         val root = project.workspace.root
-        console.line(RunLines.start(root, chosen.descriptor, chosen.bridges, command.capture))
+        val trueParallel = ProjectFeature.TRUE_PARALLEL in project.state.settings.value.projectFeatures
+        console.line(RunLines.start(root, chosen.descriptor, chosen.bridges, command.capture, trueParallel))
         val reporting = RunReporter(console, root).follow(scope, runtime)
         val logging = RuntimeLogFollower(console, command.verbose).follow(scope, runtime.logs)
         val warnings = project.state.validation.observeRunChecks(::writeWarnings)

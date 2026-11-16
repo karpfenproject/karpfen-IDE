@@ -16,6 +16,7 @@
 package io.karpfen.ide.app.headless
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.workbench.settings.IdeSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettings
 import io.karpfen.ide.ui.workbench.settings.ProjectSettingsFile
@@ -30,8 +31,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 /**
- * Covers [ReadOnlySettings]: a project file gives its language features and nothing else, a missing project file
- * gives the defaults and is not created, the user's settings are never read, and updates stay in memory.
+ * Covers [ReadOnlySettings]: a project file gives its language features and features of the project and nothing
+ * else, a missing project file gives the defaults and is not created, the user's settings are never read, and
+ * updates stay in memory.
  */
 class ReadOnlySettingsTest {
 
@@ -41,9 +43,10 @@ class ReadOnlySettingsTest {
     private val file: Path get() = root.resolve(ProjectSettings.FILE_NAME)
 
     @Test
-    fun `the language features come from the project file, everything else stays at its default`() = runTest {
+    fun `the language and project features come from the project file, everything else stays at its default`() = runTest {
         val written = ProjectSettings(
-            languageFeatures = setOf(KstatesFeature.HISTORY, KstatesFeature.BREAKPOINTS),
+            languageFeatures = setOf(KstatesFeature.HISTORY, KstatesFeature.PARALLEL),
+            projectFeatures = setOf(ProjectFeature.TRUE_PARALLEL),
             openFiles = listOf("lamp.kstates"),
             activeFile = "lamp.kstates",
             bridges = listOf("http.kbridge.json"),
@@ -55,7 +58,7 @@ class ReadOnlySettingsTest {
 
         val opened = settings.openProject(root)
 
-        assertEquals(ProjectSettings(languageFeatures = written.languageFeatures), opened.project)
+        assertEquals(ProjectSettings(languageFeatures = written.languageFeatures, projectFeatures = written.projectFeatures), opened.project)
         assertEquals(opened, settings.settings.value)
     }
 

@@ -266,7 +266,7 @@ class DeployCleanupTest {
             },
         ),
         SWITCH_FEATURES_ON(
-            DeployStepKind.SWITCH_FEATURES_ON, "activateFeature", DeployProblemCodes.RUNTIME_REJECTED,
+            DeployStepKind.SWITCH_FEATURES_ON, "activateFeature", DeployProblemCodes.RUNTIME_INCOMPATIBLE,
             listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED,
             {
                 it.fail(

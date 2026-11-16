@@ -123,6 +123,24 @@ class DeploymentPlannerTest {
     }
 
     @Test
+    fun `a project feature adds its runtime feature after those of the language, but only with its language feature on`() =
+        runTest(timeout = 60.seconds) {
+            val workspaces = PlanningWorkspaces(this, root)
+            val descriptor = workspaces.copy(SynthesizedModel.LAMP)
+            val parallel = setOf(ProjectFeature.TRUE_PARALLEL)
+
+            assertEquals(
+                listOf(FeatureName.HISTORY, FeatureName.TRUE_PARALLEL),
+                workspaces.plan(descriptor, features = PLAIN_FEATURES + KstatesFeature.HISTORY, projectFeatures = parallel).ready().features,
+            )
+            assertEquals(
+                emptyList(),
+                workspaces.plan(descriptor, features = setOf(KstatesFeature.MACROS), projectFeatures = parallel).ready().features,
+                "without splits and joins TrueParallel has no effect",
+            )
+        }
+
+    @Test
     fun `a construct of a language feature that is switched off blocks the deployment`() = runTest(timeout = 60.seconds) {
         val workspaces = PlanningWorkspaces(this, root)
         val descriptor = workspaces.copy(SynthesizedModel.LAMP)

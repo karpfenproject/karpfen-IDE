@@ -16,6 +16,7 @@
 package io.karpfen.ide.runtime.session.deploy
 
 import io.karpfen.ide.core.document.Severity
+import io.karpfen.ide.runtime.protocol.catalogue.FeatureName
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
@@ -194,6 +195,23 @@ class DeployPipelineTest {
             rig.script.callsOf("setEventDefinitions") + rig.script.callsOf("registerDomainListener") + rig.script.callsOf("activateFeature"),
         )
         assertEquals(listOf("switchOn", "differences(0)"), rig.script.callsAfter("activate"))
+    }
+
+    @Test
+    fun `TrueParallel in the plan is switched on after the features of the language, in the same step`() = runTest {
+        val rig = DeployRig(this)
+        val features = listOf(FeatureName.HISTORY, FeatureName.TICK_LIMIT, FeatureName.TRUE_PARALLEL)
+
+        rig.deploy(LampPlans.plan(features = features)).deployed()
+
+        assertEquals(
+            listOf("activateFeature(History)", "activateFeature(TickLimit)", "activateFeature(TrueParallel)"),
+            rig.script.callsOf("activateFeature"),
+        )
+        assertEquals(
+            "Switching on History, TickLimit, TrueParallel",
+            rig.listener.last.steps.single { it.kind == DeployStepKind.SWITCH_FEATURES_ON }.title,
+        )
     }
 
     @Test

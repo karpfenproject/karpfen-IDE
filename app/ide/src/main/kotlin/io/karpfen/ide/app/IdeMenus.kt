@@ -26,6 +26,7 @@ import androidx.compose.ui.window.MenuScope
 import io.karpfen.dsl.states.KstatesFeature
 import io.karpfen.ide.app.menu.ResolvedMenuEntry
 import io.karpfen.ide.app.menu.resolveMenus
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.foundation.command.MenuEntry
@@ -44,7 +45,8 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
  * Navigate holds Go to Line and Go to Definition. Run holds Run, Stop, Validate Project, the debugger's Pause, Resume
  * and Step, Start Runtime, Stop Runtime, Configure Bridge and the submenu Language Features. That submenu holds one
  * switch per entry of `KstatesFeature.entries`, with the command `WorkbenchCommandIds.languageFeature(feature)`, whose
- * title says whether it switches the feature on or off.
+ * title says whether it switches the feature on or off. Below a separator follows one switch per entry of
+ * `ProjectFeature.entries`, with the command `WorkbenchCommandIds.projectFeature(feature)`, titled the same way.
  * The items refer to `WorkbenchCommandIds`, `EditorActionIds` and `RuntimeCommandIds`.
  *
  * Menus hold command ids only. Titles, shortcuts and enablement come from the registered commands. The workbench
@@ -152,7 +154,12 @@ public object IdeMenus {
             MenuEntry.Separator,
             item(RuntimeCommandIds.CONFIGURE_BRIDGE),
             MenuEntry.Separator,
-            MenuEntry.Submenu(LANGUAGE_FEATURES, KstatesFeature.entries.map { item(WorkbenchCommandIds.languageFeature(it)) }),
+            MenuEntry.Submenu(
+                LANGUAGE_FEATURES,
+                KstatesFeature.entries.map { item(WorkbenchCommandIds.languageFeature(it)) } +
+                    MenuEntry.Separator +
+                    ProjectFeature.entries.map { item(WorkbenchCommandIds.projectFeature(it)) },
+            ),
         ),
     )
 

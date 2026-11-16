@@ -57,6 +57,7 @@ import io.karpfen.ide.runtime.session.plan.AttachedMachine
 import io.karpfen.ide.runtime.session.plan.DeployConfiguration
 import io.karpfen.ide.runtime.session.plan.DeploymentPlanner
 import io.karpfen.ide.runtime.session.plan.PlanResult
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.runtime.session.plan.PlannedUpload
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.runtime.session.problem.DeployProblemCodes
@@ -157,7 +158,8 @@ class RuntimeSessionContractTest {
         val opened = rig.open(SynthesizedModel.LAMP)
         val blocking = DeployProblem(Severity.ERROR, DeployProblemCodes.NO_MODEL, "no model", null)
         val planner = object : DeploymentPlanner {
-            override fun plan(analysis: ProjectAnalysis, descriptor: Path, unsaved: Set<Path>): PlanResult = PlanResult.Blocked(listOf(blocking))
+            override fun plan(analysis: ProjectAnalysis, descriptor: Path, unsaved: Set<Path>, projectFeatures: Set<ProjectFeature>): PlanResult =
+                PlanResult.Blocked(listOf(blocking))
         }
 
         val preparation = RuntimeSessions(rig.options, planner = planner).prepare(opened.workspace, opened.descriptor)

@@ -16,6 +16,7 @@
 package io.karpfen.ide.app
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.editor.model.action.EditorActionIds
 import io.karpfen.ide.ui.editor.model.action.EditorActionTitles
 import io.karpfen.ide.ui.foundation.command.MenuEntry
@@ -127,7 +128,7 @@ class IdeMenusTest {
                 RuntimeCommandIds.START_RUNTIME,
                 RuntimeCommandIds.STOP_RUNTIME,
                 RuntimeCommandIds.CONFIGURE_BRIDGE,
-            ) + KstatesFeature.entries.map(WorkbenchCommandIds::languageFeature),
+            ) + KstatesFeature.entries.map(WorkbenchCommandIds::languageFeature) + ProjectFeature.entries.map(WorkbenchCommandIds::projectFeature),
             menu(IdeMenus.RUN).itemIds(),
         )
         val features = menu(IdeMenus.RUN).entries.filterIsInstance<MenuEntry.Submenu>().single()
@@ -139,6 +140,7 @@ class IdeMenusTest {
                 "workbench.languageFeature.breakpoints",
                 "workbench.languageFeature.macros",
                 "workbench.languageFeature.parallel",
+                "workbench.projectFeature.trueParallel",
             ),
             features.itemIds(),
         )

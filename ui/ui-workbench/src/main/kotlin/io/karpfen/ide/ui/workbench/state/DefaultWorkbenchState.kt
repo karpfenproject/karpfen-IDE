@@ -20,6 +20,7 @@ import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.ConflictResolution
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.editor.state.EditorSettings
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
@@ -81,7 +82,8 @@ import java.nio.file.Path
  *   `.karpfenproject`.
  * - [RuntimeHolder] owns the runtime state of the workspace and uses [WorkbenchRunSupport] to reach the workbench.
  * - [ValidationState] validates the whole project for the Validate button, the command Validate Project and a run.
- * - [LanguageFeatureBinding] hands the language features of the project settings to the workspace and switches them.
+ * - [LanguageFeatureBinding] hands the language features of the project settings to the workspace and switches them
+ *   and the features of the project.
  * - [WorkbenchCommands], [RuntimeCommands], [EditorCommands] and [LanguageFeatureCommands] register the commands
  *   through a [ModalCommandRegistry]. They cover enablement including the focus rule, the recent folders, the tool
  *   window toggles, the switches of the language features, and the editor commands with their `EditorActionTitles`
@@ -223,6 +225,10 @@ internal class DefaultWorkbenchState(
     }
 
     override fun switchLanguageFeature(feature: KstatesFeature, on: Boolean): Job = runner.launch("switch language feature") {
+        languageFeatures.switch(feature, on)
+    }
+
+    override fun switchProjectFeature(feature: ProjectFeature, on: Boolean): Job = runner.launch("switch project feature") {
         languageFeatures.switch(feature, on)
     }
 

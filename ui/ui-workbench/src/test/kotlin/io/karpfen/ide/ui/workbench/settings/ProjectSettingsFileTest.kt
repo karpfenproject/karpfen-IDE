@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.settings
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -104,6 +105,21 @@ class ProjectSettingsFileTest {
         assertEquals(false, ProjectSettingsFile.parse("capture = off\n").capture)
         assertEquals(false, ProjectSettingsFile.parse("capture = yes\n").capture)
         assertEquals(emptyList(), ProjectSettingsFile.parse("capture = yes\n").otherLines, "the line is known, so it is not kept")
+    }
+
+    @Test
+    fun `a feature of the project is a feature line after the language features, read only with the one it requires`() {
+        val parallel = settings.copy(languageFeatures = setOf(KstatesFeature.PARALLEL), projectFeatures = setOf(ProjectFeature.TRUE_PARALLEL))
+
+        val text = ProjectSettingsFile.format(parallel)
+
+        assertEquals(listOf("feature.parallel = on", "feature.trueParallel = on"), text.lines().filter { it.startsWith("feature.") })
+        assertEquals(parallel, ProjectSettingsFile.parse(text))
+        assertEquals(emptySet(), ProjectSettings().projectFeatures, "off by default")
+        val alone = ProjectSettingsFile.parse("feature.trueParallel = on\n")
+        assertEquals(emptySet(), alone.projectFeatures, "without splits and joins the line is dropped")
+        assertEquals(emptyList(), alone.otherLines)
+        assertEquals(emptySet(), ProjectSettingsFile.parse("feature.parallel = on\nfeature.trueParallel = off\n").projectFeatures)
     }
 
     @Test

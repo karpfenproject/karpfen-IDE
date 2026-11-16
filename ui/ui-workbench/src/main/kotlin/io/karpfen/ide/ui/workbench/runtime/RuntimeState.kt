@@ -88,7 +88,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * @param workspace the opened workspace.
  * @param sessions prepares deployments and launches sessions.
  * @param hosts creates the host of the workspace.
- * @param settings the IDE settings, which remember the choices of the run dialog.
+ * @param settings the IDE settings, which remember the choices of the run dialog and hold the features of the project
+ *   that a run switches on in the runtime.
  * @param clients creates the client of a runtime endpoint.
  * @param support the active editor, the save-all flow, the dialogs and the tool window of the workbench.
  * @param ioDispatcher where a host is closed and the captures are written, which blocks.
@@ -100,7 +101,7 @@ public class RuntimeState internal constructor(
     private val workspace: Workspace,
     private val sessions: RuntimeSessions,
     hosts: RuntimeHostFactory,
-    settings: SettingsRepository,
+    private val settings: SettingsRepository,
     clients: (RuntimeEndpoint) -> RuntimeClient,
     private val support: RunSupport,
     private val ioDispatcher: CoroutineDispatcher,
@@ -256,7 +257,7 @@ public class RuntimeState internal constructor(
         pending[id] = currentCoroutineContext().job
         try {
             show(id)
-            when (val preparation = sessions.prepare(workspace, descriptor)) {
+            when (val preparation = sessions.prepare(workspace, descriptor, settings.settings.value.projectFeatures)) {
                 is Preparation.Blocked -> list.update(id) { it.copy(phase = RunPhase.BLOCKED, findings = preparation.findings) }
                 is Preparation.Ready -> deploy(id, preparation.prepared, choice, started)
             }

@@ -21,6 +21,7 @@ import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.ConflictResolution
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.editor.model.action.defaultEditorKeymap
 import io.karpfen.ide.ui.foundation.command.Command
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
@@ -148,6 +149,7 @@ internal class FakeWorkbenchState(val scope: CoroutineScope, val services: Workb
     override fun navigateTo(location: Location): Job = unexpected("navigateTo")
     override fun openNode(path: Path): Job = unexpected("openNode")
     override fun switchLanguageFeature(feature: KstatesFeature, on: Boolean): Job = unexpected("switchLanguageFeature")
+    override fun switchProjectFeature(feature: ProjectFeature, on: Boolean): Job = unexpected("switchProjectFeature")
     override fun runTreeCommand(command: ProjectTreeCommand): Job = unexpected("runTreeCommand")
     override fun createFile(directory: Path, kind: FileTemplateKind): Job = unexpected("createFile")
     override fun configureBridge(): Job = unexpected("configureBridge")

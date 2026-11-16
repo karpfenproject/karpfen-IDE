@@ -40,11 +40,13 @@ import io.karpfen.ide.runtime.session.Preparation
 import io.karpfen.ide.runtime.session.SessionState
 import io.karpfen.ide.runtime.session.fixtures.ModelWireText
 import io.karpfen.ide.runtime.session.observation.ObservationMode
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
 import io.karpfen.ide.ui.workbench.dialog.DialogResponse
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
+import io.karpfen.ide.ui.workbench.settings.ProjectSettings
+import io.karpfen.ide.ui.workbench.settings.ProjectSettingsFile
 import io.karpfen.ide.ui.workbench.testing.TestWorkbench
-import io.karpfen.ide.ui.workbench.testing.switchOnLanguageFeatures
 import io.karpfen.ide.ui.workbench.testing.withWorkbench
 import io.karpfen.ide.ui.workbench.validation.ValidationState
 import kotlinx.coroutines.CompletableDeferred
@@ -74,7 +76,7 @@ import kotlin.time.Duration.Companion.seconds
  * launch until the environment runs. They run again, also while the previous run waits for the runtime. They cover
  * stopping, replacing the host when the settings change, and closing the workspace. And they check the bound of the
  * sessions' shutdown and the limit of the runs list. And they capture a run to a file and end the capture with the
- * run.
+ * run. And they run a project with TrueParallel on, also against a runtime that does not know it.
  */
 class RuntimeStateTest {
 
@@ -404,6 +406,40 @@ class RuntimeStateTest {
     }
 
     @Test
+    fun `a project with TrueParallel on switches it on in every run`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP, setOf(ProjectFeature.TRUE_PARALLEL))
+        withWorkbench(settingsDirectory) {
+            open(root)
+            programDeployment(lamp, ENV_1)
+
+            confirmRun(lamp).joinSettled()
+
+            assertEquals(listOf("TrueParallel"), fakeRuntime.requests(RuntimeRoute.ACTIVATE_FEATURE).map { it.parameter(FEATURE_NAME) })
+            assertEquals(RunPhase.RUNNING, runtime.runs.value.single().phase)
+        }
+    }
+
+    @Test
+    fun `a runtime that does not know TrueParallel fails the run with a problem that names the feature`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP, setOf(ProjectFeature.TRUE_PARALLEL))
+        withWorkbench(settingsDirectory) {
+            open(root)
+            programDeployment(lamp, ENV_1)
+            fakeRuntime.respond(
+                RuntimeRoute.ACTIVATE_FEATURE,
+                FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.UNKNOWN_FEATURE, mapOf("feature" to "TrueParallel")),
+            )
+
+            confirmRun(lamp).joinSettled()
+
+            val entry = runtime.runs.value.single()
+            assertEquals(RunPhase.FAILED, entry.phase)
+            val problems = assertIs<SessionState.Failed>(entry.session?.state?.value).problems
+            assertTrue(problems.any { "feature TrueParallel" in it.message && "older than the IDE" in it.message }, "$problems")
+        }
+    }
+
+    @Test
     fun `a run without the capture writes no file`() = runTest(timeout = TIMEOUT) {
         val lamp = copy(SynthesizedModel.LAMP)
         withWorkbench(settingsDirectory) {
@@ -506,11 +542,14 @@ class RuntimeStateTest {
     /**
      * Copies [model] into a folder of its own below the workspace root and returns its descriptor. The project settings
      * switch parallel states on, which the metronome uses, so the synthesized models validate without errors. The other
-     * features stay off, so no run deploys with the debugger.
+     * features stay off, so no run deploys with the debugger. The features of the project in [projectFeatures] are on.
      */
-    private fun copy(model: SynthesizedModel): Path {
+    private fun copy(model: SynthesizedModel, projectFeatures: Set<ProjectFeature> = emptySet()): Path {
         Files.createDirectories(root)
-        switchOnLanguageFeatures(root, setOf(KstatesFeature.PARALLEL))
+        Files.writeString(
+            root.resolve(ProjectSettings.FILE_NAME),
+            ProjectSettingsFile.format(ProjectSettings(languageFeatures = setOf(KstatesFeature.PARALLEL), projectFeatures = projectFeatures)),
+        )
         return SynthesizedModels.copyTo(root.resolve(model.folder), model, DescriptorTiming.EVENT_SCENARIOS).toAbsolutePath().normalize()
     }
 
@@ -570,6 +609,9 @@ class RuntimeStateTest {
 
         /** The query parameter of an environment's key. */
         const val ENV_KEY = "envKey"
+
+        /** The query parameter of a feature's name. */
+        const val FEATURE_NAME = "featureName"
 
         /** The first and second environment the fake runtime creates. */
         val ENV_1: String = FakeRuntime.environmentKey(1)

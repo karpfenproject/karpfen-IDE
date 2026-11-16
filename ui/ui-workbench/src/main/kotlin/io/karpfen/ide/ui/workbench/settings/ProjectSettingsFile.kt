@@ -16,6 +16,7 @@
 package io.karpfen.ide.ui.workbench.settings
 
 import io.karpfen.dsl.states.KstatesFeature
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import kotlin.math.roundToInt
 
 /**
@@ -33,7 +34,8 @@ import kotlin.math.roundToInt
  * active = lamp.kstates
  * bridge = http.kbridge.json
  * capture = on
- * feature.history = on
+ * feature.parallel = on
+ * feature.trueParallel = on
  * ```
  *
  * `theme` is `light`, `dark` or `system`. `zoom` is the scale of the workbench in percent. `pane.<name>` is `shown` or
@@ -42,7 +44,9 @@ import kotlin.math.roundToInt
  * the last run was captured to a file. It is only there while that is on, and a capture line with another value counts
  * as off. Every optional language feature that is switched on has its own line `feature.<name> = on`, with the
  * `KstatesFeature.id` as its name, such as `feature.tickLimit = on`. A feature that is off has no line, and a feature
- * line with another value counts as off.
+ * line with another value counts as off. A feature of the project, a `ProjectFeature`, has a line of the same form
+ * with its own id, such as `feature.trueParallel = on`, written after the lines of the language features. It is read
+ * only together with the language feature it requires: without that one, the line is dropped.
  *
  * Reading never fails. A line with a known key and a value that makes no sense is dropped, and the default stands in.
  * A line with a key that is not known is kept and written back, so files of a newer version survive. That includes a
@@ -77,6 +81,7 @@ public object ProjectSettingsFile {
         val open = ArrayList<String>()
         val bridges = ArrayList<String>()
         val features = LinkedHashSet<KstatesFeature>()
+        val projectFeatures = LinkedHashSet<ProjectFeature>()
         val others = ArrayList<String>()
         for (line in text.lines()) {
             val trimmed = line.trim()
@@ -101,6 +106,8 @@ public object ProjectSettingsFile {
                 key == CAPTURE -> settings = settings.copy(capture = value.equals(ON, ignoreCase = true))
                 key.startsWith(FEATURE) && feature(key) != null ->
                     if (value.equals(ON, ignoreCase = true)) features.add(checkNotNull(feature(key)))
+                key.startsWith(FEATURE) && projectFeature(key) != null ->
+                    if (value.equals(ON, ignoreCase = true)) projectFeatures.add(checkNotNull(projectFeature(key)))
                 else -> others.add(trimmed)
             }
         }
@@ -109,6 +116,7 @@ public object ProjectSettingsFile {
             activeFile = settings.activeFile?.takeIf { it in open },
             bridges = bridges,
             languageFeatures = features,
+            projectFeatures = ProjectFeature.allowedBy(projectFeatures, features),
             otherLines = others,
         )
     }
@@ -127,10 +135,14 @@ public object ProjectSettingsFile {
         settings.bridges.forEach { appendLine("bridge = $it") }
         if (settings.capture) appendLine("$CAPTURE = $ON")
         KstatesFeature.entries.filter { it in settings.languageFeatures }.forEach { appendLine("$FEATURE${it.id} = $ON") }
+        ProjectFeature.entries.filter { it in settings.projectFeatures }.forEach { appendLine("$FEATURE${it.id} = $ON") }
         settings.otherLines.forEach(::appendLine)
     }
 
     private fun theme(value: String): ThemeMode? = ThemeMode.entries.firstOrNull { it.name.equals(value, ignoreCase = true) }
+
+    /** The feature of the project that the key [key] names after its `feature.` prefix, or null if it names none. */
+    private fun projectFeature(key: String): ProjectFeature? = ProjectFeature.byId(key.removePrefix(FEATURE))
 
     /** The language feature that the key [key] names after its `feature.` prefix, or null if it names none. */
     private fun feature(key: String): KstatesFeature? = KstatesFeature.byId(key.removePrefix(FEATURE))

@@ -54,6 +54,7 @@ import io.karpfen.ide.runtime.session.mirror.MirrorComparison
 import io.karpfen.ide.runtime.session.mirror.MirrorReducer
 import io.karpfen.ide.runtime.session.mirror.MirrorSnapshot
 import io.karpfen.ide.runtime.session.observation.ObservedModel
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -153,9 +154,12 @@ class SessionScenario(private val scope: RuntimeScenarioScope, val endpoint: Run
             workspaces += it
         }
 
-    /** Prepares the deployment of [descriptor] in [workspace]. It fails the scenario if the deployment is blocked. */
-    suspend fun prepare(workspace: Workspace, descriptor: Path): PreparedDeployment =
-        when (val preparation = sessions.prepare(workspace, descriptor)) {
+    /**
+     * Prepares the deployment of [descriptor] in [workspace] for a project with [projectFeatures] switched on. It fails
+     * the scenario if the deployment is blocked.
+     */
+    suspend fun prepare(workspace: Workspace, descriptor: Path, projectFeatures: Set<ProjectFeature> = emptySet()): PreparedDeployment =
+        when (val preparation = sessions.prepare(workspace, descriptor, projectFeatures)) {
             is Preparation.Ready -> preparation.prepared
             is Preparation.Blocked -> fail("The deployment of $descriptor is blocked: ${preparation.findings}. $diagnostics")
         }

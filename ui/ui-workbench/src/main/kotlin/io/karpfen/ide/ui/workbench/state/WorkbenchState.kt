@@ -20,6 +20,7 @@ import io.karpfen.ide.core.lang.LanguageServices
 import io.karpfen.ide.core.lang.Location
 import io.karpfen.ide.core.workspace.Workspace
 import io.karpfen.ide.core.workspace.document.ConflictResolution
+import io.karpfen.ide.runtime.session.plan.ProjectFeature
 import io.karpfen.ide.ui.foundation.command.CommandRegistry
 import io.karpfen.ide.ui.workbench.bridges.BridgeFormState
 import io.karpfen.ide.ui.workbench.dialog.DialogRequest
@@ -301,6 +302,13 @@ public interface WorkbenchState : AutoCloseable {
      * folder it does nothing.
      */
     public fun switchLanguageFeature(feature: KstatesFeature, on: Boolean): Job
+
+    /**
+     * Switches the feature of the project [feature] on or off, as [on] says, for the open project. The choice is
+     * written to the settings of the project. Switching it on does nothing while the language feature it requires is
+     * off. Without an open folder it does nothing.
+     */
+    public fun switchProjectFeature(feature: ProjectFeature, on: Boolean): Job
 
     /**
      * Runs the unsaved-changes flow over every dirty document and persists the settings with the current [layout].
