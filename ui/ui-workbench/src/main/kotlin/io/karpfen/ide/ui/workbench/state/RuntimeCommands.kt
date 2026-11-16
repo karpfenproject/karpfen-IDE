@@ -43,7 +43,8 @@ import kotlinx.coroutines.flow.stateIn
  * Pause, Resume and Step act on the debugger of the selected run.
  *
  * Run also shows the Runtime tool window and gives it three quarters of the height below the menu, so the model, the
- * events and the log of the run have room. The Run again button of the tool window leaves the size alone.
+ * events and the log of the run have room. While the tool window is detached, Run brings its window to the front and
+ * leaves the size of its docked place alone. The Run again button of the tool window leaves the size alone.
  *
  * Run and Configure Bridge are enabled while a workspace is open. Validate Project is enabled while a workspace is open
  * and no validation runs. Stop is enabled while there is a run it can stop. Pause is enabled while the debugger of the

@@ -8,7 +8,8 @@ model runs, sends events into the run, halts the run at breakpoints and connects
 bridges. The same program validates and runs a project from a terminal, without a window.
 
 The window has a menu bar, an editor area in the middle, tool windows around it and a status bar at the bottom. Each
-tool window can be shown and hidden in the View menu, and its border to the editor area can be dragged.
+tool window can be shown and hidden in the View menu, and its border to the editor area can be dragged. The Runtime
+tool window can also be moved into a window of its own.
 
 | Part | Place | What it shows |
 |---|---|---|

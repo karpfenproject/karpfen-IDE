@@ -119,10 +119,11 @@ as JSON. [4.8 Command line](reference/4.8-command-line.md) describes both comman
 ### Settings, logs and launch options
 
 The IDE keeps its files in `~/.karpfen-ide`. The environment variable `KARPFEN_IDE_HOME` moves that folder.
-`settings.json` holds only what belongs to the user and the machine: the recent folders and the window bounds.
+`settings.json` holds only what belongs to the user and the machine: the recent folders, the bounds of the main window
+and the bounds of the window of the detached Runtime tool window.
 
 Everything else belongs to the open project and is stored in `.karpfenproject` in the project folder: the theme, the
-two zoom values, the tool window layout, the runtime host, the open files and the bridges of the last run. The file is
+two zoom values, the tool window layout with whether the Runtime tool window is detached, the runtime host, the open files and the bridges of the last run. The file is
 plain text with one `key = value` per line, as `ProjectSettingsFile` reads and writes it. Paths in it are relative, so
 it means the same on every machine and can be committed. Reading never fails: a value that makes no sense falls back
 to its default, and lines with unknown keys are kept. The file is written only when a project value changes, so a

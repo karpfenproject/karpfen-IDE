@@ -68,13 +68,23 @@ class JsonSettingsRepositoryTest {
     fun `the user's part is written as JSON and loads again, and nothing of a project goes there`() = runTest {
         val settings = repository(dir.resolve("new/home"))
         val bounds = WindowBounds(10, 20, 800, 600, maximized = true)
-        val updated = settings.update { it.withRecentFolder("/a").copy(theme = ThemeMode.DARK, editorFontSize = 15f, windowBounds = bounds) }
+        val runtimeBounds = WindowBounds(900, 30, 960, 600)
+        val updated = settings.update {
+            it.withRecentFolder("/a").copy(theme = ThemeMode.DARK, editorFontSize = 15f, windowBounds = bounds, runtimeWindowBounds = runtimeBounds)
+        }
         assertEquals(updated, settings.settings.value)
         val written = dir.resolve("new/home").resolve(SettingsLocations.SETTINGS_FILE_NAME)
-        assertEquals(setOf("recentFolders", "windowBounds"), Json.parseToJsonElement(Files.readString(written)).jsonObject.keys)
+        assertEquals(
+            setOf("recentFolders", "windowBounds", "runtimeWindowBounds"),
+            Json.parseToJsonElement(Files.readString(written)).jsonObject.keys,
+        )
 
         val reloaded = repository(dir.resolve("new/home")).load()
-        assertEquals(IdeSettings(recentFolders = listOf("/a"), windowBounds = bounds), reloaded, "the theme belonged to no project")
+        assertEquals(
+            IdeSettings(recentFolders = listOf("/a"), windowBounds = bounds, runtimeWindowBounds = runtimeBounds),
+            reloaded,
+            "the theme belonged to no project",
+        )
     }
 
     @Test

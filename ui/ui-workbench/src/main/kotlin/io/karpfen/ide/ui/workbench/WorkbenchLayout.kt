@@ -29,6 +29,7 @@ import io.karpfen.ide.ui.foundation.layout.ToolWindow
 import io.karpfen.ide.ui.workbench.layout.LayoutState
 import io.karpfen.ide.ui.workbench.layout.LayoutUiState
 import io.karpfen.ide.ui.workbench.layout.ToolWindowId
+import io.karpfen.ide.ui.workbench.layout.view.ToolWindowPlaceButton
 
 /**
  * Arranges the tool windows around the editor area. Project sits on the left as the first pane of its split. Outline
@@ -43,6 +44,9 @@ import io.karpfen.ide.ui.workbench.layout.ToolWindowId
  *
  * The layout reports its own height to `LayoutState.reportAvailableHeight`, so a tool window can be given a share of
  * it, as the Runtime tool window is when a run starts.
+ *
+ * A detachable tool window carries the detach button in its frame. While it is detached, its split here shows the main
+ * pane alone, as for a hidden tool window, and the `Workbench` composable shows it in a window of its own.
  */
 @Composable
 internal fun WorkbenchLayout(
@@ -78,8 +82,8 @@ internal class WorkbenchPanes(
 )
 
 /**
- * Shows [main] with the tool window [id] on its [side] while that tool window is visible, and [main] alone otherwise.
- * The split exists in both cases. [main] therefore keeps its place in the composition, and showing or hiding the tool
+ * Shows [main] with the tool window [id] on its [side] while that tool window is docked and visible, and [main] alone
+ * otherwise. The split exists in both cases. [main] therefore keeps its place in the composition, and showing or hiding the tool
  * window keeps the state of everything inside [main], such as the editor's keyboard focus.
  */
 @Composable
@@ -95,7 +99,11 @@ private fun ToolWindowSplit(
 ) {
     val toolWindow = layout.toolWindow(id)
     val tool: @Composable () -> Unit = {
-        ToolWindow(title = id.title, modifier = Modifier.fillMaxSize().testTag(WorkbenchTestTags.toolWindow(id))) { content() }
+        ToolWindow(
+            title = id.title,
+            modifier = Modifier.fillMaxSize().testTag(WorkbenchTestTags.toolWindow(id)),
+            actions = { if (id.detachable) ToolWindowPlaceButton(id, detached = false, onClick = { layoutState.toggleDetached(id) }) },
+        ) { content() }
     }
     SplitPane(
         orientation = orientation,
@@ -103,7 +111,7 @@ private fun ToolWindowSplit(
         fixedSize = toolWindow.size.dp,
         onFixedSizeChange = { layoutState.resizeToolWindow(id, it.value) },
         modifier = modifier.fillMaxSize(),
-        fixedPaneShown = toolWindow.visible,
+        fixedPaneShown = layout.isDocked(id),
         first = if (side == SplitSide.FIRST) tool else main,
         second = if (side == SplitSide.FIRST) main else tool,
     )

@@ -31,11 +31,18 @@ import kotlin.math.roundToInt
 /** Size of the main window without persisted bounds, in dp. */
 internal val DEFAULT_WINDOW_SIZE: DpSize = DpSize(1280.dp, 800.dp)
 
+/**
+ * Size of the window of the detached Runtime tool window without persisted bounds, in dp. It is wide enough for the
+ * Model, Events and Log panes side by side and smaller than the main window, so the first detach leaves the main window
+ * in sight.
+ */
+internal val DEFAULT_DETACHED_WINDOW_SIZE: DpSize = DpSize(960.dp, 600.dp)
+
 /** Smallest restored window size, in dp. Smaller persisted sizes are enlarged to it. */
 internal val MINIMUM_WINDOW_SIZE: DpSize = DpSize(480.dp, 320.dp)
 
 /**
- * The main window's geometry as Compose reports it, as a snapshot of the `WindowState`. Positions and sizes are in dp,
+ * A window's geometry as Compose reports it, as a snapshot of the `WindowState`. Positions and sizes are in dp,
  * which are the window system's units on the desktop, the AWT user space.
  */
 internal data class WindowGeometry(
@@ -49,15 +56,20 @@ internal data class WindowGeometry(
 internal fun WindowState.geometry(): WindowGeometry = WindowGeometry(placement, isMinimized, position, size)
 
 /**
- * The window state the main window opens with, from the persisted [bounds], which are `LayoutUiState.windowBounds`.
+ * The window state a window opens with, from its persisted [bounds], such as `LayoutUiState.windowBounds` for the main
+ * window or `LayoutUiState.runtimeWindowBounds` for the window of the detached Runtime tool window.
  * The window is maximized if it was, and it gets the persisted position and the persisted size, at least
  * [MINIMUM_WINDOW_SIZE]. A position whose title bar would not be reachable on any of [screens] is dropped, so a window
- * saved on a disconnected monitor reopens centred. Without bounds the window opens centred with [DEFAULT_WINDOW_SIZE].
+ * saved on a disconnected monitor reopens centred. Without bounds the window opens centred with [defaultSize].
  * An empty [screens] list means the screens are unknown, as in a headless JVM, and skips the check.
  */
-internal fun initialWindowState(bounds: WindowBounds?, screens: List<ScreenArea>): WindowState {
+internal fun initialWindowState(
+    bounds: WindowBounds?,
+    screens: List<ScreenArea>,
+    defaultSize: DpSize = DEFAULT_WINDOW_SIZE,
+): WindowState {
     if (bounds == null) {
-        return WindowState(position = WindowPosition.Aligned(Alignment.Center), size = DEFAULT_WINDOW_SIZE)
+        return WindowState(position = WindowPosition.Aligned(Alignment.Center), size = defaultSize)
     }
     val size = DpSize(
         bounds.width.coerceAtLeast(MINIMUM_WINDOW_SIZE.width.value.roundToInt()).dp,
@@ -75,7 +87,8 @@ internal fun initialWindowState(bounds: WindowBounds?, screens: List<ScreenArea>
 }
 
 /**
- * Turns the window's geometry into the bounds the layout records through `LayoutState.updateWindowBounds`. It
+ * Turns a window's geometry into the bounds the layout records, through `LayoutState.updateWindowBounds` for the main
+ * window and `LayoutState.updateRuntimeWindowBounds` for the window of the detached Runtime tool window. It
  * remembers the last floating bounds. So a maximized or full-screen window is recorded as those bounds with
  * `maximized = true`, and it restores to them. A minimized window and a geometry without a known size record nothing.
  * Use it on the UI thread.
