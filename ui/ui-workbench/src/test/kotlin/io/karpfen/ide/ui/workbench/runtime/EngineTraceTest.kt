@@ -82,6 +82,11 @@ class EngineTraceTest {
         val step = line(1, OutputLevel.INFO, "[12:41:30.123] [env-1] [lamp] TRANSITION_FIRED: off -> on | from=off, to=on")
         val engine = line(2, OutputLevel.INFO, "[12:41:29.001] [env-1] [*] ENGINE_START: Engine started with 2 state machine(s)")
         val failed = line(3, OutputLevel.INFO, "[12:41:31.000] [env-1] [wallSwitch] ACTION_ERROR: Error in onEntry for state 'up': boom")
+        val condition = line(
+            6,
+            OutputLevel.INFO,
+            "[12:41:31.500] [env-1] [lamp] CONDITION_ERROR: Error in a condition of a transition from 'off': boom | path=0, state=off, stack=off",
+        )
         val stderr = line(4, OutputLevel.ERROR, "[BranchRunner] Error executing onEntry for state 'up': boom")
         val chatter = line(5, OutputLevel.INFO, "[WebSocket] Received from ide-1: hello")
 
@@ -89,6 +94,11 @@ class EngineTraceTest {
         assertEquals(StatechartLogEntry("12:41:30.123", "lamp", "off -> on", isError = false), StatechartLog.entry(step))
         assertEquals("engine", StatechartLog.entry(engine).subject)
         assertTrue(StatechartLog.entry(failed).isError)
+        assertTrue(StatechartLog.shows(condition))
+        assertEquals(
+            StatechartLogEntry("12:41:31.500", "lamp", "Error in a condition of a transition from 'off': boom", isError = true),
+            StatechartLog.entry(condition),
+        )
         assertEquals("" to true, StatechartLog.entry(stderr).let { it.subject to it.isError })
         assertEquals("[BranchRunner] Error executing onEntry for state 'up': boom", StatechartLog.entry(stderr).text)
         assertEquals("wallSwitch".length, StatechartLog.subjectWidth(listOf(step, engine, failed, stderr)))
