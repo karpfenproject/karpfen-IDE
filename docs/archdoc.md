@@ -392,8 +392,8 @@ code, and all rules live in its test sources.
    `RuntimeSession` that deploys, starts and observes.
 5. The session's `Deployer` runs the steps that `DeploySteps` lists in a `DeployPipeline`: check the runtime, create
    the environment, connect the WebSocket, upload the metamodel, the events and the model, attach each state machine,
-   set the tick delay and the event time to live, listen to the event domains, activate, observe, start and confirm
-   the start. The steps call the runtime through the `RuntimeEnvironment` handle, whose `LifecycleRules` refuse what
+   set the tick delay and the event time to live, switch the result cache on or off, listen to the event domains,
+   activate, observe, start and confirm the start. The steps call the runtime through the `RuntimeEnvironment` handle, whose `LifecycleRules` refuse what
    the runtime would mishandle, and through the `RuntimeConnection`.
 6. `PushRouter` reads every event of the connection. Object and state pushes go to `ModelObserver`, which applies
    them with `ObservationReducer`, `MirrorReducer` and `ActiveStatesReducer` to the `ObservedModel` of

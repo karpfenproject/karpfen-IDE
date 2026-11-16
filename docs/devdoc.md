@@ -107,7 +107,7 @@ dsl-tools 2.0 and never reads or writes `~/.m2`.
 
 ```bash
 karpfen-ide validate <folder> [--format text|json]
-karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--verbose]
+karpfen-ide run <folder> [--descriptor <file>] [--bridge <file>]... [--capture] [--no-result-cache] [--verbose]
 ```
 
 The IDE is its own command-line tool. `validate` runs the same validation of the whole project as Validate in the
@@ -309,6 +309,9 @@ Three things differ from the window on purpose.
   host from `.karpfenproject` and keeps every change in memory. It never reads or writes the settings of the user.
 - There is no debugger. The run is launched with `RunChoice(debugger = false)`, and `DeployOptions.applyTo` then
   leaves the runtime feature Breakpoint out of the plan, so the engine can never halt with nobody to resume it.
+- The result cache of Python code is on unless `--no-result-cache` is given. The line `resultCache = off` that the
+  run dialog leaves in `.karpfenproject` does not count, because a headless run takes its choices from the command
+  line only.
 - The command line is strict. The window ignores a wrong argument with a warning, so a typo never keeps it from
   starting. A headless command ends with status 2 and the usage instead.
 
@@ -485,7 +488,9 @@ the client is tested against.
 
 A run deploys what is on disk, never unsaved editor text. The Run action saves every open file first. The descriptor
 holds the whole deploy configuration, so a run can be repeated without the IDE's state. Every deployment sends the
-tick delay and the event time to live. A stopped environment is final for the IDE. Running again creates a new one.
+tick delay, the event time to live and the choice of the result cache, which `DeployOptions.resultCaching` carries
+from the run dialog or the command line. The runtime caches results of Python code by default, and the step sends
+`true` as well, so a run never depends on that default. A stopped environment is final for the IDE. Running again creates a new one.
 
 ### Product choices
 

@@ -161,8 +161,9 @@ the middle and the three bridge files at the bottom. The status bar shows `Probl
 ## 1.6 Running the lamp example project
 
 1. Choose *Run > Run*, or press Shift+F10. On a Mac keyboard you may have to hold Fn to get F10.
-2. The dialog *Run* lists the three bridge files and the checkbox *Capture run to file*. Leave the boxes unticked and
-   click the button *Run*.
+2. The dialog *Run* lists the three bridge files and the checkboxes *Capture run to file* and
+   *Cache results of Python code*. Leave the bridges and *Capture run to file* unticked, leave
+   *Cache results of Python code* ticked, and click the button *Run*.
 
 The *Runtime* tool window opens at the bottom and takes three quarters of the window's height. Its second line shows a
 run named `lamp`, and the label of the run changes from `preparing` to `running`.

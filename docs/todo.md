@@ -93,6 +93,10 @@ refer to.
   window and the command line validate first, so that code is a second guard and does not show in practice.
 - A pause at a transition that the engine makes up, with no index of the text, is found in a fragment by its states.
   Where the same states have several transitions, the statechart may mark another one of them.
+- The runtime counts the ticks of a run, their durations and the calls of code by the way it ran them, and
+  `RuntimeEnvironment.metrics` reads these numbers, but no view of the IDE shows them.
+- The scenarios that switch the result cache off and on and read the numbers of a run, in `RuntimeContract` and
+  `DeploymentScenarios`, are written but have not run against a real runtime yet.
 
 ### Bridges
 
@@ -157,8 +161,9 @@ dsl-tools checks each text in its readers and a project as a whole in its verifi
   state, so its `DO` block does not run any more.
 - A breakpoint override names a transition by the text form the engine prints for it, which two transitions can
   share.
-- With TrueParallel, the calls of concurrent branches into Python each get a Python process of their own. The tests
-  of that path are tagged `python` and have not been run. Calls into one shared Python process would be wrong.
+- With TrueParallel, a branch that calls Python while another one does gets a Python process of its own. Calls into one
+  shared Python process would be wrong. The tests of that path carry the tag `python` and run only in the container of
+  the runtime's `test_docker.sh`.
 - With TrueParallel, stopping an environment while one branch halts at a breakpoint and another waits to halt takes
   about five seconds, because the waiting branch only ends when the engine thread is interrupted.
 - With TrueParallel, the actions of one branch are atomic one by one, but a branch that reads a value and writes it
