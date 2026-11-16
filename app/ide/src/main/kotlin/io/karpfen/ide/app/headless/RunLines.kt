@@ -17,6 +17,7 @@ package io.karpfen.ide.app.headless
 
 import io.karpfen.ide.runtime.session.problem.DeployProblem
 import io.karpfen.ide.ui.workbench.output.OutputLine
+import io.karpfen.ide.ui.workbench.runtime.RunChoice
 import io.karpfen.ide.ui.workbench.runtime.RunEntry
 import io.karpfen.ide.ui.workbench.runtime.RuntimeTexts
 import io.karpfen.ide.ui.workbench.runtime.StatechartLog
@@ -31,12 +32,14 @@ import java.nio.file.Path
 internal object RunLines {
 
     /**
-     * The line that opens a run of [descriptor] with [bridges], both named relative to [root], captured if [capture]
-     * and with parallel branches on threads of their own if [trueParallel].
+     * The line that opens a run of [descriptor] with the bridges of [choice], both named relative to [root], captured
+     * if [choice] says so, with the result cache off if [choice] says so and with parallel branches on threads of their
+     * own if [trueParallel].
      */
-    fun start(root: Path, descriptor: Path, bridges: List<Path>, capture: Boolean, trueParallel: Boolean = false): String {
-        val with = if (bridges.isEmpty()) "" else " with " + bridges.joinToString(", ") { nameOf(root, it) }
-        return "Running ${nameOf(root, descriptor)}$with" + (if (capture) ", captured to a file" else "") +
+    fun start(root: Path, descriptor: Path, choice: RunChoice, trueParallel: Boolean = false): String {
+        val with = if (choice.bridges.isEmpty()) "" else " with " + choice.bridges.joinToString(", ") { nameOf(root, it) }
+        return "Running ${nameOf(root, descriptor)}$with" + (if (choice.capture) ", captured to a file" else "") +
+            (if (choice.resultCaching) "" else ", result cache off") +
             if (trueParallel) ", parallel branches on threads of their own" else ""
     }
 

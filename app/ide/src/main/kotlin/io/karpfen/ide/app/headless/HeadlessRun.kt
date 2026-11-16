@@ -99,12 +99,13 @@ internal class HeadlessRun(
     ): Int {
         val root = project.workspace.root
         val trueParallel = ProjectFeature.TRUE_PARALLEL in project.state.settings.value.projectFeatures
-        console.line(RunLines.start(root, chosen.descriptor, chosen.bridges, command.capture, trueParallel))
+        val choice = RunChoice(chosen.bridges, command.capture, debugger = false, resultCaching = command.resultCaching)
+        console.line(RunLines.start(root, chosen.descriptor, choice, trueParallel))
         val reporting = RunReporter(console, root).follow(scope, runtime)
         val logging = RuntimeLogFollower(console, command.verbose).follow(scope, runtime.logs)
         val warnings = project.state.validation.observeRunChecks(::writeWarnings)
         try {
-            val started = runtime.run(chosen.descriptor, RunChoice(chosen.bridges, command.capture, debugger = false))
+            val started = runtime.run(chosen.descriptor, choice)
             val ended = scope.async { endOf(runtime, started, project) }
             val end = select {
                 stop.requested.onAwait { RunEnd.STOPPED }

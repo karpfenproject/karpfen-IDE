@@ -188,6 +188,34 @@ class HeadlessRunTest {
     }
 
     @Test
+    fun `the result cache is off only for --no-result-cache, whatever the project remembers from the window`() = runTest(timeout = TIMEOUT) {
+        lamp()
+        Files.writeString(root.resolve(ProjectSettings.FILE_NAME), "resultCache = off\n")
+        withRig { rig ->
+            val stop = HeadlessStop()
+            val status = rig.run(HeadlessCommand.Run(root), stop)
+            rig.settle()
+
+            assertEquals(true, rig.sessions.options.single().resultCaching, "the remembered tick is ignored")
+            assertEquals("Running lamp.kenv.json", rig.output.first())
+            stop.request()
+            rig.settle()
+            assertEquals(HeadlessExitCodes.OK, status.await())
+        }
+        withRig { rig ->
+            val stop = HeadlessStop()
+            val status = rig.run(HeadlessCommand.Run(root, resultCaching = false), stop)
+            rig.settle()
+
+            assertEquals(false, rig.sessions.options.single().resultCaching)
+            assertEquals("Running lamp.kenv.json, result cache off", rig.output.first())
+            stop.request()
+            rig.settle()
+            assertEquals(HeadlessExitCodes.OK, status.await())
+        }
+    }
+
+    @Test
     fun `a chosen descriptor of several runs`() = runTest(timeout = TIMEOUT) {
         lamp()
         SynthesizedModels.copyTo(root.resolve("second"), SynthesizedModel.LAMP)
