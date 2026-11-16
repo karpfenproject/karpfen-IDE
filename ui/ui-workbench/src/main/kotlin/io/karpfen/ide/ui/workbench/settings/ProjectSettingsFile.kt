@@ -34,16 +34,19 @@ import kotlin.math.roundToInt
  * active = lamp.kstates
  * bridge = http.kbridge.json
  * capture = on
+ * resultCache = off
  * feature.parallel = on
  * feature.trueParallel = on
  * ```
  *
  * `theme` is `light`, `dark` or `system`. `zoom` is the scale of the workbench in percent. `pane.<name>` is `shown` or
  * `hidden` followed by the size of the tool window in dp. A third word `detached` says that the tool window is shown in
- * a window of its own, as in `pane.runtime = shown 400 detached`. The size is then the one of its docked place. Every open file has its own `open` line, in the order of the
- * tabs. Every bridge that was started with the last run has its own `bridge` line. The line `capture = on` says that
- * the last run was captured to a file. It is only there while that is on, and a capture line with another value counts
- * as off. Every optional language feature that is switched on has its own line `feature.<name> = on`, with the
+ * a window of its own, as in `pane.runtime = shown 400 detached`. The size is then the one of its docked place. Every
+ * open file has its own `open` line, in the order of the tabs. Every bridge that was started with the last run has its
+ * own `bridge` line. The line `capture = on` says that the last run was captured to a file. It is only there while that
+ * is on, and a capture line with another value counts as off. The line `resultCache = off` says that the last run was
+ * started with the result cache of Python code off. It is only there while that is off, and a line with another value
+ * counts as on. Every optional language feature that is switched on has its own line `feature.<name> = on`, with the
  * `KstatesFeature.id` as its name, such as `feature.tickLimit = on`. A feature that is off has no line, and a feature
  * line with another value counts as off. A feature of the project, a `ProjectFeature`, has a line of the same form
  * with its own id, such as `feature.trueParallel = on`, written after the lines of the language features. It is read
@@ -72,6 +75,12 @@ public object ProjectSettingsFile {
 
     /** The key of the line that says whether runs are captured to files. */
     private const val CAPTURE = "capture"
+
+    /** The key of the line that says whether the runtime caches results of Python code in runs. */
+    private const val RESULT_CACHE = "resultCache"
+
+    /** The value of the result cache that is switched off. */
+    private const val OFF = "off"
 
     /** The value of a language feature or of the capture that is switched on. */
     private const val ON = "on"
@@ -108,6 +117,7 @@ public object ProjectSettingsFile {
                 key == "active" -> if (value.isNotEmpty()) settings = settings.copy(activeFile = value)
                 key == "bridge" -> if (value.isNotEmpty() && value !in bridges) bridges.add(value)
                 key == CAPTURE -> settings = settings.copy(capture = value.equals(ON, ignoreCase = true))
+                key == RESULT_CACHE -> settings = settings.copy(resultCaching = !value.equals(OFF, ignoreCase = true))
                 key.startsWith(FEATURE) && feature(key) != null ->
                     if (value.equals(ON, ignoreCase = true)) features.add(checkNotNull(feature(key)))
                 key.startsWith(FEATURE) && projectFeature(key) != null ->
@@ -139,6 +149,7 @@ public object ProjectSettingsFile {
         settings.activeFile?.let { appendLine("active = $it") }
         settings.bridges.forEach { appendLine("bridge = $it") }
         if (settings.capture) appendLine("$CAPTURE = $ON")
+        if (!settings.resultCaching) appendLine("$RESULT_CACHE = $OFF")
         KstatesFeature.entries.filter { it in settings.languageFeatures }.forEach { appendLine("$FEATURE${it.id} = $ON") }
         ProjectFeature.entries.filter { it in settings.projectFeatures }.forEach { appendLine("$FEATURE${it.id} = $ON") }
         settings.otherLines.forEach(::appendLine)

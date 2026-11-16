@@ -47,11 +47,18 @@ internal interface RunSupport {
     suspend fun chooseDescriptor(root: Path, descriptors: List<Path>, preselected: Path?): Path?
 
     /**
-     * Asks the user how to run: which of the [bridges] of the workspace at [root] to start with the run, and whether to
-     * capture the run to a file. The dialog opens with the boxes of [preselected] ticked and the capture box ticked if
-     * [capture] is true. Returns the choice, or null if the user cancelled.
+     * Asks the user how to run: which of the [bridges] of the workspace at [root] to start with the run, whether to
+     * capture the run to a file and whether the runtime caches results of Python code. The dialog opens with the boxes
+     * of [preselected] ticked, the capture box ticked if [capture] is true and the cache box ticked if [resultCaching]
+     * is true. Returns the choice, or null if the user cancelled.
      */
-    suspend fun configureRun(root: Path, bridges: List<Path>, preselected: Set<Path>, capture: Boolean): RunChoice?
+    suspend fun configureRun(
+        root: Path,
+        bridges: List<Path>,
+        preselected: Set<Path>,
+        capture: Boolean,
+        resultCaching: Boolean,
+    ): RunChoice?
 
     /** Shows an error dialog with [title] and [message] and returns once it is acknowledged. */
     suspend fun showError(title: String, message: String)

@@ -48,6 +48,8 @@ import kotlinx.serialization.Serializable
  *   run dialog has them ticked. Part of the project.
  * @property captureRuns whether the last run was started with its capture to a file switched on. The run dialog has
  *   its capture box ticked if so. Part of the project.
+ * @property resultCaching whether the last run was started with the result cache of Python code on. The run dialog
+ *   has its cache box ticked if so, which it is by default. Part of the project.
  * @property languageFeatures the optional language features of KStates that are switched on for the project. All are
  *   off by default. Part of the project.
  * @property projectFeatures the features of the project that only switch a feature of the runtime on in its runs. All
@@ -67,6 +69,7 @@ public data class IdeSettings(
     public val activeFile: String? = null,
     public val activeBridges: List<String> = emptyList(),
     public val captureRuns: Boolean = false,
+    public val resultCaching: Boolean = true,
     public val languageFeatures: Set<KstatesFeature> = emptySet(),
     public val projectFeatures: Set<ProjectFeature> = emptySet(),
     public val otherProjectLines: List<String> = emptyList(),

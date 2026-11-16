@@ -98,19 +98,22 @@ public sealed interface DialogRequest<out R : DialogResponse> {
 
     /**
      * Asks how to run a descriptor of the workspace at [root]. Every bridge file of the workspace has a box to tick,
-     * and the boxes of [preselected] are ticked when the dialog opens. Below them, one more box says whether the run is
-     * captured to a file. It is ticked when the dialog opens if [capture] is true. A workspace without bridge files
-     * shows only that box. The answer may tick no box at all.
+     * and the boxes of [preselected] are ticked when the dialog opens. Below them, one box says whether the run is
+     * captured to a file, and one more whether the runtime answers calls of Python code from its result cache. They are
+     * ticked when the dialog opens if [capture] and [resultCaching] are true. A workspace without bridge files shows
+     * only these two boxes. The answer may tick no box at all.
      *
      * @property bridges the bridge files, in the order they are listed. The list is empty if the workspace has none.
      * @property preselected the positions of the bridge files that are ticked at first.
      * @property capture whether the box that captures the run is ticked at first.
+     * @property resultCaching whether the box that keeps the result cache on is ticked at first.
      */
     public data class ConfigureRun(
         public val root: Path,
         public val bridges: List<Path>,
         public val preselected: Set<Int> = emptySet(),
         public val capture: Boolean = false,
+        public val resultCaching: Boolean = true,
     ) : DialogRequest<RunAnswer> {
         init {
             require(preselected.all { it in bridges.indices }) { "a preselected index is out of ${bridges.indices}" }
@@ -164,8 +167,13 @@ public sealed interface DialogResponse {
      *
      * @property bridges the positions of the ticked bridge files. The set is empty if none is ticked.
      * @property capture whether the run is captured to a file.
+     * @property resultCaching whether the runtime answers calls of Python code from its result cache during the run.
      */
-    public data class RunWith(public val bridges: Set<Int>, public val capture: Boolean) : RunAnswer
+    public data class RunWith(
+        public val bridges: Set<Int>,
+        public val capture: Boolean,
+        public val resultCaching: Boolean = true,
+    ) : RunAnswer
 }
 
 /** The answers to [DialogRequest.UnsavedChanges], which are Save, Discard and Cancel. */

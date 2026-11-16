@@ -31,7 +31,7 @@ internal sealed interface DialogChoice {
     /** Answers with the selected entry of the list. */
     data object SubmitSelection : DialogChoice
 
-    /** Answers how to run: with the ticked boxes of the list and whether the box of the option below it is ticked. */
+    /** Answers how to run: with the ticked boxes of the list and the ticked boxes of the options below it. */
     data object SubmitRun : DialogChoice
 }
 
@@ -42,10 +42,10 @@ internal data class DialogButton(val label: String, val choice: DialogChoice, va
  * How a [DialogRequest] is shown. It holds presentation only, so the dialog composable just renders it. A dialog has a
  * [title], a [message] and [buttons]. The buttons offer exactly the answers the request accepts. An optional text field
  * starts with the text [input]. An optional list shows [choices] and starts with the entry at [preselected] selected.
- * An optional list of boxes shows [ticks] and starts with the boxes of [preticked] ticked. An optional single box below
- * it shows the label [option] and starts ticked if [optionTicked] is true. An optional list of [findings] shows one row
- * of text per finding, which scrolls and cannot be clicked. [dismiss] is the answer given when the user dismisses the
- * dialog with Escape.
+ * An optional list of boxes shows [ticks] and starts with the boxes of [preticked] ticked. Below it, one box per entry
+ * of [options] shows that label and starts ticked if its position is in [optionsTicked]. An optional list of
+ * [findings] shows one row of text per finding, which scrolls and cannot be clicked. [dismiss] is the answer given when
+ * the user dismisses the dialog with Escape.
  */
 internal data class DialogPresentation(
     val title: String,
@@ -57,26 +57,27 @@ internal data class DialogPresentation(
     val preselected: Int = 0,
     val ticks: List<String>? = null,
     val preticked: Set<Int> = emptySet(),
-    val option: String? = null,
-    val optionTicked: Boolean = false,
+    val options: List<String> = emptyList(),
+    val optionsTicked: Set<Int> = emptySet(),
     val findings: List<FindingRow>? = null,
 ) {
     /**
      * The response of [choice] while [text] is entered, the list entry at [selected] is selected, the boxes of
-     * [ticked] are ticked and the box of the option is [optioned]. Returns null if the choice is not possible right
-     * now, which is the case for a text answer while the text is blank.
+     * [ticked] are ticked and the boxes of the options at [optioned] are ticked. Returns null if the choice is not
+     * possible right now, which is the case for a text answer while the text is blank.
      */
     fun responseFor(
         choice: DialogChoice,
         text: String,
         selected: Int = preselected,
         ticked: Set<Int> = preticked,
-        optioned: Boolean = optionTicked,
+        optioned: Set<Int> = optionsTicked,
     ): DialogResponse? = when (choice) {
         is DialogChoice.Answer -> choice.response
         DialogChoice.SubmitText -> text.trim().takeIf { it.isNotEmpty() }?.let(DialogResponse::Text)
         DialogChoice.SubmitSelection -> DialogResponse.Chosen(selected)
-        DialogChoice.SubmitRun -> DialogResponse.RunWith(ticked, optioned)
+        DialogChoice.SubmitRun ->
+            DialogResponse.RunWith(ticked, capture = CAPTURE_OPTION in optioned, resultCaching = CACHE_OPTION in optioned)
     }
 
     companion object {
@@ -136,8 +137,11 @@ internal data class DialogPresentation(
                 dismiss = DialogResponse.Cancel,
                 ticks = request.bridges.map { request.root.relativize(it).toString() },
                 preticked = request.preselected,
-                option = CAPTURE_RUN,
-                optionTicked = request.capture,
+                options = listOf(CAPTURE_RUN, CACHE_RESULTS),
+                optionsTicked = setOfNotNull(
+                    CAPTURE_OPTION.takeIf { request.capture },
+                    CACHE_OPTION.takeIf { request.resultCaching },
+                ),
             )
             is DialogRequest.ValidationReport -> DialogPresentation(
                 title = request.title,
@@ -186,6 +190,15 @@ internal data class DialogPresentation(
 
         /** The label of the box that captures a run to a file. */
         const val CAPTURE_RUN = "Capture run to file"
+
+        /** The label of the box that lets the runtime answer calls of Python code from its result cache. */
+        const val CACHE_RESULTS = "Cache results of Python code"
+
+        /** The position of the box [CAPTURE_RUN] among the options of the run dialog. */
+        const val CAPTURE_OPTION = 0
+
+        /** The position of the box [CACHE_RESULTS] among the options of the run dialog. */
+        const val CACHE_OPTION = 1
 
         /** What the run dialog asks of a workspace with bridge files. */
         private const val TICK_BRIDGES = "Tick the bridges to start with this run."

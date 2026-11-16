@@ -22,8 +22,8 @@ import io.karpfen.ide.runtime.session.plan.ProjectFeature
  * The settings that belong to one project, which is the folder the IDE has open. They are stored in the file
  * `.karpfenproject` in that folder, so a project carries them along when it is copied or checked out on another
  * machine. They are the look of the workbench, the layout of its tool windows, which files are open, which bridges
- * were started with the last run, whether runs are captured to files, and which optional language features and
- * features of the project are switched on.
+ * were started with the last run, whether runs are captured to files, whether the runtime caches results of Python
+ * code, and which optional language features and features of the project are switched on.
  *
  * Nothing in here depends on the machine. The open files are named relative to the project folder with forward
  * slashes. The place of the window on the screen and the recent folders stay in the settings of the user.
@@ -36,6 +36,8 @@ import io.karpfen.ide.runtime.session.plan.ProjectFeature
  * @property activeFile the file of the active tab, or null if no tab is open.
  * @property bridges the bridge files that were started with the last run, named like the open files.
  * @property capture whether the last run was started with its capture to a file switched on.
+ * @property resultCaching whether the last run was started with the result cache of Python code on, which is the
+ *   default.
  * @property languageFeatures the optional language features of KStates that are switched on for the project. All are
  *   off by default.
  * @property projectFeatures the features of the project that only switch a feature of the runtime on in its runs. All
@@ -52,6 +54,7 @@ public data class ProjectSettings(
     public val activeFile: String? = null,
     public val bridges: List<String> = emptyList(),
     public val capture: Boolean = false,
+    public val resultCaching: Boolean = true,
     public val languageFeatures: Set<KstatesFeature> = emptySet(),
     public val projectFeatures: Set<ProjectFeature> = emptySet(),
     public val otherLines: List<String> = emptyList(),
@@ -65,7 +68,7 @@ public data class ProjectSettings(
 /** The part of these settings that belongs to the open project. */
 public val IdeSettings.project: ProjectSettings
     get() = ProjectSettings(
-        theme, uiScale, editorFontSize, toolWindows, openFiles, activeFile, activeBridges, captureRuns,
+        theme, uiScale, editorFontSize, toolWindows, openFiles, activeFile, activeBridges, captureRuns, resultCaching,
         languageFeatures, projectFeatures, otherProjectLines,
     )
 
@@ -82,6 +85,7 @@ public fun IdeSettings.withProject(project: ProjectSettings): IdeSettings = copy
     activeFile = project.activeFile,
     activeBridges = project.bridges,
     captureRuns = project.capture,
+    resultCaching = project.resultCaching,
     languageFeatures = project.languageFeatures,
     projectFeatures = project.projectFeatures,
     otherProjectLines = project.otherLines,

@@ -18,8 +18,8 @@ package io.karpfen.ide.ui.workbench.runtime
 import java.nio.file.Path
 
 /**
- * How a descriptor is run: which bridges start with it, whether it is captured to a file and whether it brings a
- * debugger along. In the window the user makes the choice in the run dialog, and a run there always has the debugger
+ * How a descriptor is run: which bridges start with it, whether it is captured to a file, whether it brings a debugger
+ * along and whether the runtime caches results of Python code in it. In the window the user makes the choice in the run dialog, and a run there always has the debugger
  * the project asks for. A caller that runs without a dialog, through `RuntimeState.run` with a choice, makes it
  * itself.
  *
@@ -28,9 +28,13 @@ import java.nio.file.Path
  * @property debugger whether the deployment switches on the runtime's feature `Breakpoint` when the project has
  *   breakpoints switched on, so the run halts at them and offers a debugger. Without it the run never halts, and the
  *   breakpoints in the texts stay allowed or forbidden as the project says.
+ * @property resultCaching whether the runtime answers a call of Python code from its result cache when the same code ran
+ *   before with the same values. Off, the runtime runs every such call, as code that reads the clock or draws random
+ *   numbers needs.
  */
 public data class RunChoice(
     public val bridges: List<Path>,
     public val capture: Boolean,
     public val debugger: Boolean = true,
+    public val resultCaching: Boolean = true,
 )

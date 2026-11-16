@@ -285,7 +285,7 @@ public class RuntimeState internal constructor(
                     return
                 }
                 val client = binding.clientFor(outcome.endpoint)
-                val session = sessions.launch(prepared, client, scope, DeployOptions(start = true, observe = true, debugger = choice.debugger))
+                val session = sessions.launch(prepared, client, scope, DeployOptions(start = true, observe = true, debugger = choice.debugger, resultCaching = choice.resultCaching),)
                 list.update(id) { it.copy(phase = RunPhase.DEPLOYING, session = session) }
                 launched[id] = Launched(
                     RunDetails(session, scope) { request -> session.events.inject(request) },

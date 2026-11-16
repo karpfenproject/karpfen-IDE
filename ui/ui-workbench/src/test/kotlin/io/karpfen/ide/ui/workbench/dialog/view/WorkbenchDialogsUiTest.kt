@@ -84,11 +84,13 @@ class WorkbenchDialogsUiTest {
         }
         onNodeWithText("http.kbridge.json").assertIsDisplayed()
         onNodeWithText("Capture run to file").assertIsDisplayed()
+        onNodeWithText("Cache results of Python code").assertIsDisplayed()
         onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.tick(0)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.tick(1)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.tick(2)).performClick()
-        onNodeWithTag(WorkbenchDialogTestTags.OPTION).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.option(0)).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.option(1)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.DIALOG).performKeyInput { pressKey(Key.Enter) }
         onNodeWithTag(WorkbenchDialogTestTags.tick(0)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.tick(2)).performClick()
@@ -97,8 +99,8 @@ class WorkbenchDialogsUiTest {
         assertEquals(
             listOf(
                 DialogResponse.RunWith(setOf(1), capture = true),
-                DialogResponse.RunWith(setOf(0, 2), capture = false),
-                DialogResponse.RunWith(emptySet(), capture = false),
+                DialogResponse.RunWith(setOf(0, 2), capture = false, resultCaching = false),
+                DialogResponse.RunWith(emptySet(), capture = false, resultCaching = false),
                 DialogResponse.Cancel,
             ),
             answers.toList(),
@@ -106,19 +108,23 @@ class WorkbenchDialogsUiTest {
     }
 
     @Test
-    fun `the run dialog of a project without bridge files has only the capture box`() = runComposeUiTest {
+    fun `the run dialog of a project without bridge files has only the capture box and the cache box`() = runComposeUiTest {
         val answers = mutableListOf<DialogResponse>()
         val root = Path.of("/ws").toAbsolutePath()
         setContent {
             KarpfenTheme(darkTheme = false) { WorkbenchDialogs(DialogRequest.ConfigureRun(root, emptyList())) { answers.add(it) } }
         }
         onNodeWithTag(WorkbenchDialogTestTags.tick(0)).assertDoesNotExist()
-        onNodeWithTag(WorkbenchDialogTestTags.OPTION).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.option(0)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
-        onNodeWithTag(WorkbenchDialogTestTags.OPTION).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.option(0)).performClick()
+        onNodeWithTag(WorkbenchDialogTestTags.option(1)).performClick()
         onNodeWithTag(WorkbenchDialogTestTags.button("Run")).performClick()
         assertEquals(
-            listOf<DialogResponse>(DialogResponse.RunWith(emptySet(), capture = true), DialogResponse.RunWith(emptySet(), capture = false)),
+            listOf<DialogResponse>(
+                DialogResponse.RunWith(emptySet(), capture = true),
+                DialogResponse.RunWith(emptySet(), capture = false, resultCaching = false),
+            ),
             answers.toList(),
             "the first click after the dialog opened must tick the box",
         )

@@ -440,6 +440,29 @@ class RuntimeStateTest {
     }
 
     @Test
+    fun `a run with the cache box clear switches the result cache off, and the box starts clear the next time`() = runTest(timeout = TIMEOUT) {
+        val lamp = copy(SynthesizedModel.LAMP)
+        withWorkbench(settingsDirectory) {
+            open(root)
+            programDeployment(lamp, ENV_1)
+
+            val run = runtime.run(lamp)
+            val asked = answerRun(resultCaching = false)
+            run.joinSettled()
+
+            assertTrue(asked.resultCaching, "the box starts ticked in a new project")
+            assertEquals(listOf("false"), fakeRuntime.requests(RuntimeRoute.SET_RESULT_CACHING).map { it.parameter("enabled") })
+            assertEquals(RunPhase.RUNNING, runtime.runs.value.single().phase)
+            assertFalse(state.settings.value.resultCaching, "the choice is remembered")
+            programStop(lamp, runtime.runs.value.single(), ENV_1)
+            runtime.stopSelected().joinSettled()
+
+            runtime.run(lamp)
+            assertFalse(answer(DialogRequest.ConfigureRun::class, DialogResponse.Cancel).resultCaching, "the box starts clear the next time")
+        }
+    }
+
+    @Test
     fun `a run without the capture writes no file`() = runTest(timeout = TIMEOUT) {
         val lamp = copy(SynthesizedModel.LAMP)
         withWorkbench(settingsDirectory) {
@@ -453,6 +476,8 @@ class RuntimeStateTest {
             assertNull(runtime.runs.value.single().captureFile)
             assertFalse(Files.exists(root.resolve(WorkspaceOptions.RUN_CAPTURE_DIRECTORY)))
             assertFalse(state.settings.value.captureRuns)
+            assertEquals(listOf("true"), fakeRuntime.requests(RuntimeRoute.SET_RESULT_CACHING).map { it.parameter("enabled") })
+            assertTrue(state.settings.value.resultCaching)
         }
     }
 
