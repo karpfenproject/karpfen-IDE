@@ -287,6 +287,13 @@ class RuntimeSessionFailureTest {
                 fake.respond(RuntimeRoute.SET_EVENT_TTL, FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.INVALID_PARAMETER, mapOf("name" to "ttlMs")))
                 Failure(DeployProblemCodes.RUNTIME_REJECTED, dropped)
             }
+            DeployStepKind.SET_RESULT_CACHING -> {
+                fake.respond(
+                    RuntimeRoute.SET_RESULT_CACHING,
+                    FakeResponse.rejected(FakeResponse.BAD_REQUEST, RuntimeText.INVALID_PARAMETER, mapOf("name" to "enabled")),
+                )
+                Failure(DeployProblemCodes.RUNTIME_REJECTED, dropped)
+            }
             DeployStepKind.LISTEN_DOMAINS -> {
                 fake.respond(RuntimeRoute.REGISTER_DOMAIN_LISTENER, boom, where = mapOf("domain" to "switch"))
                 Failure(DeployProblemCodes.RUNTIME_ERROR, dropped)
@@ -338,6 +345,7 @@ class RuntimeSessionFailureTest {
             DeployStepKind.UPLOAD_FRAGMENT -> error("the lamp has no fragments")
             DeployStepKind.SET_TICK_DELAY -> dropped.also { fake.hang(RuntimeRoute.SET_TICK_DELAY) }
             DeployStepKind.SET_EVENT_TTL -> dropped.also { fake.hang(RuntimeRoute.SET_EVENT_TTL) }
+            DeployStepKind.SET_RESULT_CACHING -> dropped.also { fake.hang(RuntimeRoute.SET_RESULT_CACHING) }
             DeployStepKind.LISTEN_DOMAINS -> dropped.also { fake.hang(RuntimeRoute.REGISTER_DOMAIN_LISTENER) }
             DeployStepKind.SWITCH_FEATURES_ON -> dropped.also { fake.hang(RuntimeRoute.ACTIVATE_FEATURE) }
             DeployStepKind.ACTIVATE -> dropped.also { fake.hang(RuntimeRoute.RUN_ENVIRONMENT) }

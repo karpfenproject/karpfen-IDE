@@ -72,6 +72,7 @@ class DeployPipelineTest {
                 DeployStepKind.ATTACH_STATE_MACHINE to "Attaching switch.kstates to wallSwitch",
                 DeployStepKind.SET_TICK_DELAY to "Setting the tick delay to 20 ms",
                 DeployStepKind.SET_EVENT_TTL to "Setting the event time to live to 1500 ms",
+                DeployStepKind.SET_RESULT_CACHING to "Switching the result cache on",
                 DeployStepKind.LISTEN_DOMAINS to "Listening to 2 event domains",
                 DeployStepKind.SWITCH_FEATURES_ON to "Switching on History, TickLimit",
                 DeployStepKind.ACTIVATE to "Activating the environment",
@@ -107,6 +108,7 @@ class DeployPipelineTest {
                 "setStateMachine(wallSwitch, text of switch.kstates)",
                 "setTickDelay(20)",
                 "setEventTtl(1500)",
+                "setResultCaching(true)",
                 "registerDomainListener($CLIENT, service)",
                 "registerDomainListener($CLIENT, switch)",
                 "activateFeature(History)",
@@ -193,6 +195,22 @@ class DeployPipelineTest {
     }
 
     @Test
+    fun `the choice of the result cache is always sent, on by default and off when the options say so`() = runTest {
+        val on = DeployRig(this)
+        val off = DeployRig(this)
+
+        on.deploy().deployed()
+        off.deploy(options = DeployOptions(resultCaching = false)).deployed()
+
+        assertEquals(listOf("setResultCaching(true)"), on.script.callsOf("setResultCaching"))
+        assertEquals(listOf("setResultCaching(false)"), off.script.callsOf("setResultCaching"))
+        assertEquals(
+            "Switching the result cache off",
+            off.listener.last.steps.single { it.kind == DeployStepKind.SET_RESULT_CACHING }.title,
+        )
+    }
+
+    @Test
     fun `the progress is published after every transition`() = runTest {
         val rig = DeployRig(this)
 
@@ -202,7 +220,7 @@ class DeployPipelineTest {
         val first = published.first()
         assertTrue(first.steps.all { it.status == StepStatus.PENDING }, "$first")
         assertNull(first.environment)
-        assertEquals(16, first.total)
+        assertEquals(17, first.total)
         published.zipWithNext().forEach { (before, after) ->
             val changed = before.steps.indices.filter { before.steps[it] != after.steps[it] }
             assertTrue(changed.size == 1 || before.environment != after.environment, "one transition at a time: $before -> $after")
@@ -228,7 +246,7 @@ class DeployPipelineTest {
         )
         val statuses = published.map { progress -> progress.steps.first { it.kind == DeployStepKind.UPLOAD_MODEL }.status }.distinct()
         assertEquals(listOf(StepStatus.PENDING, StepStatus.RUNNING, StepStatus.DONE), statuses)
-        assertEquals(16, rig.listener.last.completed)
+        assertEquals(17, rig.listener.last.completed)
         assertNull(rig.listener.last.current)
     }
 
@@ -249,7 +267,7 @@ class DeployPipelineTest {
             ),
             skipped,
         )
-        assertEquals(16, rig.listener.last.completed)
+        assertEquals(17, rig.listener.last.completed)
         assertEquals(
             emptyList(),
             rig.script.callsOf("setEventDefinitions") + rig.script.callsOf("registerDomainListener") + rig.script.callsOf("activateFeature"),

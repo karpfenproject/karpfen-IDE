@@ -24,7 +24,11 @@ import io.karpfen.ide.runtime.protocol.conformance.DescriptorTiming
 import io.karpfen.ide.runtime.protocol.conformance.SynthesizedModel
 import io.karpfen.ide.runtime.protocol.connection.ConnectionEnd
 import io.karpfen.ide.runtime.protocol.connection.ConnectionState
+import io.karpfen.ide.runtime.protocol.message.JsonReading
+import io.karpfen.ide.runtime.protocol.message.RuntimeJson
+import io.karpfen.ide.runtime.protocol.message.WireValue
 import io.karpfen.ide.runtime.session.deploy.DeployOptions
+import io.karpfen.ide.runtime.session.deploy.DeployStepKind
 import io.karpfen.ide.runtime.session.deploy.StepStatus
 import io.karpfen.ide.runtime.session.mirror.MirrorComparison
 import io.karpfen.ide.runtime.session.observation.SyncStatus
@@ -45,8 +49,9 @@ import kotlin.test.assertTrue
  * configuration runs both machines of the lamp and reports its steps in order. It shows the reported stacks in place of
  * the predictions, is listed with its machines and serves the saved state machine. A dirty document is saved before the
  * deployment, so the runtime reads the edited value. A deployment without start can force a state and then start. A
- * stop is final and drops the environment, so the runtime no longer lists it, and running again deploys a fresh one. The realistic single robot reads back equal to the
- * seed.
+ * stop is final and drops the environment, so the runtime no longer lists it, and running again deploys a fresh one. The
+ * choice of the result cache reaches the runtime, which reports it with the numbers of the run. The realistic single
+ * robot reads back equal to the seed.
  *
  * Some failures only a fake runtime can produce. These are an engine that halts at start and a runtime without IDE
  * support. They are ordinary tests against the fake runtime.
@@ -131,6 +136,22 @@ abstract class DeploymentScenarios {
     }
 
     @Test
+    fun `the choice of the result cache reaches the runtime, off when the options say so and on by default`() = runtime.run(root) {
+        listOf(DeployOptions(resultCaching = false), DeployOptions()).forEach { options ->
+            val session = deploy(SynthesizedModel.LAMP, options = options)
+
+            val step = session.progress.value.steps.single { it.kind == DeployStepKind.SET_RESULT_CACHING }
+            val switched = if (options.resultCaching) "on" else "off"
+            assertEquals(StepStatus.DONE to "Switching the result cache $switched", step.status to step.title)
+            val answer = call(RuntimeRoute.RUN_METRICS, "envKey" to session.environment.value)
+            assertEquals(OK, answer.status, answer.body)
+            val numbers = assertIs<WireValue.WireObject>((RuntimeJson.read(answer.body) as JsonReading.Read).value)
+            assertEquals(WireValue.WireBoolean(options.resultCaching), numbers["resultCaching"], answer.body)
+            assertEquals(SessionCommandOutcome.Done, session.stop())
+        }
+    }
+
+    @Test
     fun `the realistic single robot runs in its initial state and reads back equal to the seed`() = runtime.run(root) {
         val session = deploySingleRobot()
 
@@ -141,6 +162,9 @@ abstract class DeploymentScenarios {
     }
 
     private companion object {
+        /** The status of an answer that succeeded. */
+        const val OK = 200
+
         /** The status of a rejected argument, which an unknown environment key gets. */
         const val BAD_REQUEST = 400
     }

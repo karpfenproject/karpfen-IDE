@@ -135,6 +135,19 @@ internal class EventTtlStep(private val milliseconds: Long) : DeployStep {
 }
 
 /**
+ * Switches the result cache of Python code on or off. The step always runs and sends the choice, also when it is the
+ * runtime's own default, so the deployment never depends on that default.
+ *
+ * @param enabled true to switch the cache on, false to switch it off.
+ */
+internal class ResultCachingStep(private val enabled: Boolean) : DeployStep {
+    override val kind: DeployStepKind = DeployStepKind.SET_RESULT_CACHING
+    override val title: String = "Switching the result cache ${if (enabled) "on" else "off"}"
+
+    override suspend fun execute(run: DeployRun): StepOutcome = run.settle(run.createdEnvironment.setResultCaching(enabled))
+}
+
+/**
  * Registers a listener of the deployment's client for every event domain the state machines use. It reports each
  * domain as it goes and stops at the first registration that does not succeed.
  *

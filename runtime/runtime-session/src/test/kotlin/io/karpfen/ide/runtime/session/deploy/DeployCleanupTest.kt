@@ -255,6 +255,16 @@ class DeployCleanupTest {
             LedgerDisposition.LEFT_CONFIGURED,
             { it.fail("setEventTtl", Failures.noAnswer(RuntimeRoute.SET_EVENT_TTL)) },
         ),
+        SET_RESULT_CACHING(
+            DeployStepKind.SET_RESULT_CACHING, "setResultCaching", DeployProblemCodes.RUNTIME_REJECTED, listOf("disconnect", "close"),
+            LedgerDisposition.LEFT_CONFIGURED,
+            {
+                it.fail(
+                    "setResultCaching",
+                    Failures.rejected(RuntimeRoute.SET_RESULT_CACHING, RuntimeText.INVALID_PARAMETER, mapOf("name" to "enabled"), 400),
+                )
+            },
+        ),
         LISTEN_DOMAINS(
             DeployStepKind.LISTEN_DOMAINS, "registerDomainListener", DeployProblemCodes.RUNTIME_REJECTED,
             listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED,
@@ -343,6 +353,9 @@ class DeployCleanupTest {
         ),
         SET_TICK_DELAY(DeployStepKind.SET_TICK_DELAY, "setTickDelay", listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED),
         SET_EVENT_TTL(DeployStepKind.SET_EVENT_TTL, "setEventTtl", listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED),
+        SET_RESULT_CACHING(
+            DeployStepKind.SET_RESULT_CACHING, "setResultCaching", listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED,
+        ),
         LISTEN_DOMAINS(
             DeployStepKind.LISTEN_DOMAINS, "registerDomainListener", listOf("disconnect", "close"), LedgerDisposition.LEFT_CONFIGURED,
         ),
