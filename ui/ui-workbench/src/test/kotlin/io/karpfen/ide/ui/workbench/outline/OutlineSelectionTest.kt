@@ -101,6 +101,33 @@ class OutlineSelectionTest {
     }
 
     @Test
+    fun `of a fragment the header is shown as a node of its own above the states, which carry their kinds`() {
+        val outline = outlineOf(
+            KarpfenLanguage.KSTATES,
+            """
+            STATEMACHINE "bulb test" FRAGMENT {
+                STATES {
+                    INITIAL STATE "powered" { }
+                    CONTAINER STATE "wiring" USE "wire test" { }
+                    FINAL STATE "passed" { }
+                }
+                TRANSITIONS {
+                    TRANSITION "powered" -> "wiring" { }
+                    TRANSITION "wiring" -> "passed" { CONDITION { DONE } }
+                }
+            }
+            """.trimIndent(),
+        )
+
+        val shown = OutlineSelection.of(outline)
+
+        assertEquals(listOf("bulb test", "powered", "wiring", "passed", "powered -> wiring", "wiring -> passed"), shown.nodes.map { it.name })
+        assertEquals(listOf("FRAGMENT", null, "USE wire test", "FINAL"), shown.nodes.take(4).map { it.detail })
+        assertEquals(emptyList(), shown.nodes.first().children)
+        assertSame(outline.single(), shown.original(shown.nodes.first()))
+    }
+
+    @Test
     fun `of a descriptor everything is shown, and the nodes are those of the parse`() {
         val outline = outlineOf(KarpfenLanguage.ENVIRONMENT, """{ "model": "lamp.kmodel", "stateMachines": [ { "file": "lamp.kstates", "attachedTo": "lamp" } ] }""")
 

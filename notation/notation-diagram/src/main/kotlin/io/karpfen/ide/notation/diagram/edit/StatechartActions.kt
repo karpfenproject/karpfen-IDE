@@ -41,6 +41,17 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  * - On the empty canvas: add a state, add an initial state, add a transition, a split or a join between states that
  *   the user clicks one after the other, and edit the macros as text.
  *
+ * The pages of a state machine add their own entries. A container state is drawn without nested states, since it runs
+ * a fragment as its inner states: it opens the diagram of that fragment, also on a double click, and it can run
+ * another one of [fragments]. A container state can be added on the canvas and inside a state, with a choice among
+ * [fragments], which leaves out the fragment of the diagram itself, since a fragment never uses itself. A fragment
+ * gets final states on its canvas. A transition or split that leaves a container state, and a join of which a source is
+ * one, can wait for the end of the fragment with the clause `DONE`, which is set and removed there.
+ *
+ * What makes no sense for a kind of state is not offered: a container state has no actions and no states of its own,
+ * and a final state has neither, no tick limit, no history, is never initial, stands only at the top level and is left
+ * by no transition, split or join. No state moves into a container or a final state.
+ *
  * The entries that write a construct of an optional language feature are offered only while that feature is among
  * [switchedOn]: giving a state a history, a tick limit or a breakpoint, giving a transition a breakpoint, adding a
  * split, a join, a target or a source, letting a timeout lead to another state, and editing the macros. An entry
@@ -48,8 +59,12 @@ import io.karpfen.ide.notation.diagram.statechart.TransitionKind
  * can still be taken away. What the diagram shows of existing constructs does not depend on the features.
  *
  * @param switchedOn the optional language features of KStates that are switched on for the project.
+ * @param fragments the names of the fragments of the project, which container states can use.
  */
-public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : DiagramActions<StatechartDiagram, StatechartLayout> {
+public class StatechartActions(
+    private val switchedOn: Set<KstatesFeature>,
+    private val fragments: List<String> = emptyList(),
+) : DiagramActions<StatechartDiagram, StatechartLayout> {
 
     override fun at(source: String, diagram: StatechartDiagram, layout: StatechartLayout, point: DiagramPoint): List<DiagramAction> {
         val edge = (layout.labelAt(point) ?: layout.routeAt(point)?.edgeId)?.let(diagram::edge)
@@ -62,36 +77,66 @@ public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : Di
         }
     }
 
+    /** Opens the page of a container state, the diagram of its fragment. Elsewhere a double click does nothing. */
+    override fun onDoubleClick(source: String, diagram: StatechartDiagram, layout: StatechartLayout, point: DiagramPoint): DiagramAction? {
+        if (layout.labelAt(point) != null || layout.routeAt(point) != null) return null
+        return layout.stateAt(point)?.let(diagram::state)?.let(::openPage)
+    }
+
+    /** The entry that opens the diagram of the fragment of [state], or null for a state that names no fragment. */
+    private fun openPage(state: StateNode): DiagramAction? =
+        state.fragment?.takeIf { it.isNotEmpty() }?.let { DiagramAction.Follow("Open page $it", it) }
+
+    /** The fragments a container state of [diagram] can use: all of [fragments] but the fragment of [diagram] itself. */
+    private fun usable(diagram: StatechartDiagram): List<String> =
+        fragments.filter { !(diagram.isFragment && it == diagram.name) }
+
+    /** The names of the states that can be the source of a transition, which are all but the final states. */
+    private fun leavable(diagram: StatechartDiagram): Set<String> =
+        diagram.allStates().filter { !it.isFinal }.map { it.name }.toSet()
+
     private fun onState(source: String, diagram: StatechartDiagram, layout: StatechartLayout, state: StateNode, point: DiagramPoint): List<DiagramAction> {
         val name = state.name
         val parent = diagram.parentOf(name)
         val all = diagram.allStates().map { it.name }.toSet()
-        val newParents = all - state.withDescendants().map { it.name }.toSet() - setOfNotNull(parent?.name)
+        val holders = diagram.allStates().filter { !it.isContainer && !it.isFinal }.map { it.name }.toSet()
+        val newParents = holders - state.withDescendants().map { it.name }.toSet() - setOfNotNull(parent?.name)
+        val holds = !state.isContainer && !state.isFinal
+        val usable = usable(diagram)
+        val frame = if (state.isComposite) null else layout.states[name]
         return listOfNotNull(
+            openPage(state),
             DiagramAction.Ask("Rename", name) { new -> DiagramAction.Change("Rename") { StatechartEdits.rename(source, diagram, name, new) } },
             DiagramAction.Open("Edit as text", ConstructCells.of(name, "State $name", source, state.range)),
+            DiagramAction.Choose("Use another fragment", usable - setOfNotNull(state.fragment)) { fragment ->
+                DiagramAction.Change("Use another fragment") { PageEdits.useFragment(source, diagram, name, fragment) }
+            }.takeIf { state.isContainer && (usable - setOfNotNull(state.fragment)).isNotEmpty() },
             DiagramAction.Change("Add inner state") {
-                val frame = if (state.isComposite) null else layout.states[name]
                 StatechartEdits.addState(source, diagram, name, StatechartEdits.freshName(diagram), initial = false, at = point, parentFrame = frame)
-            },
+            }.takeIf { holds },
+            DiagramAction.Choose("Add inner container state", usable) { fragment ->
+                DiagramAction.Change("Add inner container state") {
+                    PageEdits.addContainer(source, diagram, name, StatechartEdits.freshName(diagram, fragment), fragment, at = point, parentFrame = frame)
+                }
+            }.takeIf { holds && usable.isNotEmpty() },
             DiagramAction.Pick("Add transition from here", "Click the state the transition leads to.", all) { target ->
                 DiagramAction.Change("Add transition") { StatechartEdits.addTransition(source, diagram, name, target) }
-            },
-            DiagramAction.Change("Add entry actions") { StatechartEdits.addBlock(source, diagram, name, StatechartEdits.ENTRY) }.takeIf { !state.hasEntry },
-            DiagramAction.Change("Add do actions") { StatechartEdits.addBlock(source, diagram, name, StatechartEdits.DO) }.takeIf { !state.hasDo },
-            DiagramAction.Change("Make initial state") { StatechartEdits.makeInitial(source, diagram, name) }.takeIf { !state.isInitial },
+            }.takeIf { !state.isFinal },
+            DiagramAction.Change("Add entry actions") { StatechartEdits.addBlock(source, diagram, name, StatechartEdits.ENTRY) }.takeIf { holds && !state.hasEntry },
+            DiagramAction.Change("Add do actions") { StatechartEdits.addBlock(source, diagram, name, StatechartEdits.DO) }.takeIf { holds && !state.hasDo },
+            DiagramAction.Change("Make initial state") { StatechartEdits.makeInitial(source, diagram, name) }.takeIf { !state.isInitial && !state.isFinal },
             DiagramAction.Change("Remember the last inner state (shallow history)") {
                 StatechartEdits.setHistory(source, diagram, name, StateHistory.SHALLOW)
-            }.takeIf { state.isComposite && state.history != StateHistory.SHALLOW && KstatesFeature.HISTORY.isOn },
+            }.takeIf { state.hasInner && state.history != StateHistory.SHALLOW && KstatesFeature.HISTORY.isOn },
             DiagramAction.Change("Remember the last innermost state (deep history)") {
                 StatechartEdits.setHistory(source, diagram, name, StateHistory.DEEP)
-            }.takeIf { state.isComposite && state.history != StateHistory.DEEP && KstatesFeature.HISTORY.isOn },
+            }.takeIf { state.hasInner && state.history != StateHistory.DEEP && KstatesFeature.HISTORY.isOn },
             DiagramAction.Change("Remove history") {
                 StatechartEdits.setHistory(source, diagram, name, StateHistory.NONE)
             }.takeIf { state.history != StateHistory.NONE },
             DiagramAction.Change("Add tick limit") {
                 StatechartEdits.addTickLimit(source, diagram, name)
-            }.takeIf { !state.hasTickLimit && KstatesFeature.TICK_LIMIT.isOn },
+            }.takeIf { !state.hasTickLimit && !state.isFinal && KstatesFeature.TICK_LIMIT.isOn },
             DiagramAction.Change(if (state.entryBreakpoint) "Remove breakpoint at entry" else "Add breakpoint at entry") {
                 StatechartEdits.setStateBreakpoints(source, diagram, name, !state.entryBreakpoint, state.exitBreakpoint)
             }.takeIf { state.entryBreakpoint || KstatesFeature.BREAKPOINTS.isOn },
@@ -103,23 +148,32 @@ public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : Di
             }.takeIf { parent != null },
             DiagramAction.Pick("Make inner state of", "Click the state that becomes the outer state.", newParents) { outer ->
                 DiagramAction.Change("Make inner state") { StatechartEdits.moveTo(source, diagram, name, outer) }
-            }.takeIf { newParents.isNotEmpty() },
+            }.takeIf { newParents.isNotEmpty() && !state.isFinal },
             DiagramAction.Change("Delete state") { StatechartEdits.deleteState(source, diagram, name) },
         )
     }
+
+    /** True if the state has inner states, its own or those of the fragment it runs, which a history remembers. */
+    private val StateNode.hasInner: Boolean
+        get() = isComposite || isContainer
 
     private fun onTransition(source: String, diagram: StatechartDiagram, transition: TransitionEdge): List<DiagramAction> {
         val id = transition.id
         val all = diagram.allStates().map { it.name }.toSet()
         val free = all - (transition.sources + transition.targets).toSet()
+        val freeSources = free intersect leavable(diagram)
         return listOfNotNull(
             DiagramAction.Open("Edit as text", ConstructCells.of(id, "Transition ${transition.caption}", source, transition.range)),
+            DiagramAction.Change("Wait until the fragment is done (DONE)") {
+                PageEdits.addDone(source, diagram, id)
+            }.takeIf { !transition.isDone && PageEdits.allowsDone(diagram, id) },
+            DiagramAction.Change("Remove DONE") { PageEdits.removeDone(source, diagram, id) }.takeIf { transition.isDone },
             DiagramAction.Pick("Add target", "Click the state the split also leads to.", free) { target ->
                 DiagramAction.Change("Add target") { StatechartEdits.addEnd(source, diagram, id, target) }
             }.takeIf { transition.kind == TransitionKind.SPLIT && free.isNotEmpty() && KstatesFeature.PARALLEL.isOn },
-            DiagramAction.Pick("Add source", "Click the state the join also starts at.", free) { start ->
+            DiagramAction.Pick("Add source", "Click the state the join also starts at.", freeSources) { start ->
                 DiagramAction.Change("Add source") { StatechartEdits.addEnd(source, diagram, id, start) }
-            }.takeIf { transition.kind == TransitionKind.JOIN && free.isNotEmpty() && KstatesFeature.PARALLEL.isOn },
+            }.takeIf { transition.kind == TransitionKind.JOIN && freeSources.isNotEmpty() && KstatesFeature.PARALLEL.isOn },
             DiagramAction.Change("Move earlier, to priority ${transition.priority - 1}") {
                 StatechartEdits.move(source, diagram, id, earlier = true)
             }.takeIf { transition.priority > 1 },
@@ -153,6 +207,8 @@ public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : Di
 
     private fun onCanvas(source: String, diagram: StatechartDiagram, point: DiagramPoint): List<DiagramAction> {
         val all = diagram.allStates().map { it.name }.toSet()
+        val starts = leavable(diagram)
+        val usable = usable(diagram)
         return listOfNotNull(
             DiagramAction.Change("Add state") {
                 StatechartEdits.addState(source, diagram, null, StatechartEdits.freshName(diagram), initial = false, at = point)
@@ -160,25 +216,33 @@ public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : Di
             DiagramAction.Change("Add initial state") {
                 StatechartEdits.addState(source, diagram, null, StatechartEdits.freshName(diagram), initial = true, at = point)
             }.takeIf { diagram.states.none { it.isInitial } },
-            DiagramAction.Pick("Add transition", "Click the state the transition starts at.", all) { start ->
+            DiagramAction.Choose("Add container state", usable) { fragment ->
+                DiagramAction.Change("Add container state") {
+                    PageEdits.addContainer(source, diagram, null, StatechartEdits.freshName(diagram, fragment), fragment, at = point)
+                }
+            }.takeIf { usable.isNotEmpty() },
+            DiagramAction.Change("Add final state") {
+                PageEdits.addFinal(source, diagram, StatechartEdits.freshName(diagram, FINAL_NAME), at = point)
+            }.takeIf { diagram.isFragment },
+            DiagramAction.Pick("Add transition", "Click the state the transition starts at.", starts) { start ->
                 DiagramAction.Pick("Add transition", "Click the state the transition leads to.", all) { target ->
                     DiagramAction.Change("Add transition") { StatechartEdits.addTransition(source, diagram, start, target) }
                 }
-            }.takeIf { all.isNotEmpty() },
-            DiagramAction.Pick("Add split", "Click the state the split starts at.", all) { start ->
+            }.takeIf { starts.isNotEmpty() },
+            DiagramAction.Pick("Add split", "Click the state the split starts at.", starts) { start ->
                 DiagramAction.Pick("Add split", "Click the first state the split leads to.", all - start) { first ->
                     DiagramAction.Pick("Add split", "Click the second state the split leads to.", all - start - first) { second ->
                         DiagramAction.Change("Add split") { StatechartEdits.addSplit(source, diagram, start, listOf(first, second)) }
                     }
                 }
-            }.takeIf { all.size >= 3 && KstatesFeature.PARALLEL.isOn },
-            DiagramAction.Pick("Add join", "Click the first state the join starts at.", all) { first ->
-                DiagramAction.Pick("Add join", "Click the second state the join starts at.", all - first) { second ->
+            }.takeIf { all.size >= 3 && starts.isNotEmpty() && KstatesFeature.PARALLEL.isOn },
+            DiagramAction.Pick("Add join", "Click the first state the join starts at.", starts) { first ->
+                DiagramAction.Pick("Add join", "Click the second state the join starts at.", starts - first) { second ->
                     DiagramAction.Pick("Add join", "Click the state the join leads to.", all - first - second) { target ->
                         DiagramAction.Change("Add join") { StatechartEdits.addJoin(source, diagram, listOf(first, second), target) }
                     }
                 }
-            }.takeIf { all.size >= 3 && KstatesFeature.PARALLEL.isOn },
+            }.takeIf { all.size >= 3 && starts.size >= 2 && KstatesFeature.PARALLEL.isOn },
             StatechartEdits.macros(source, diagram)?.takeIf { KstatesFeature.MACROS.isOn }?.let { DiagramAction.Open("Edit macros", it) },
         )
     }
@@ -186,4 +250,9 @@ public class StatechartActions(private val switchedOn: Set<KstatesFeature>) : Di
     /** True if this feature is among [switchedOn]. */
     private val KstatesFeature.isOn: Boolean
         get() = this in switchedOn
+
+    private companion object {
+        /** The name a final state gets when it is added, with a number behind it where that name is taken. */
+        const val FINAL_NAME = "done"
+    }
 }

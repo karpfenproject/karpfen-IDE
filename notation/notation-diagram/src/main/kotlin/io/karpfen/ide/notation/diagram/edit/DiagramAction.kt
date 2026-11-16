@@ -39,9 +39,10 @@ public class DiagramChange(
 
 /**
  * Something a user can do at a point of a diagram. The view shows the actions of a point as the entries of a context
- * menu. Some actions need more from the user before they change anything: a click on another element or a text. Such
- * an action leads to the next one, and the last one of the chain is a [Change]. An [Open] shows a piece of the model
- * as text, so whatever the menu has no entry for can still be done in the diagram.
+ * menu. Some actions need more from the user before they change anything: a click on another element, a choice among
+ * names or a text. Such an action leads to the next one, and the last one of the chain is a [Change]. An [Open] shows
+ * a piece of the model as text, so whatever the menu has no entry for can still be done in the diagram. A [Follow]
+ * changes nothing and leaves the diagram for another one.
  */
 public sealed interface DiagramAction {
     /** What the entry of the menu says. */
@@ -76,6 +77,28 @@ public sealed interface DiagramAction {
     public class Open(override val label: String, public val cell: DiagramCell) : DiagramAction
 
     /**
+     * Needs the user to choose one of a few names, such as the fragment a container state uses. The view shows them
+     * as a second menu.
+     *
+     * @property options the names to choose from, in the order the view shows them.
+     * @property next the action that follows for the name the user chose, or null if nothing follows.
+     */
+    public class Choose(
+        override val label: String,
+        public val options: List<String>,
+        public val next: (String) -> DiagramAction?,
+    ) : DiagramAction
+
+    /**
+     * Leaves the diagram for the diagram of another file, which the host of the view finds and opens. The diagram
+     * knows only the name the model refers to, such as the fragment of a container state, and not the files of the
+     * project.
+     *
+     * @property name the name the model refers to.
+     */
+    public class Follow(override val label: String, public val name: String) : DiagramAction
+
+    /**
      * Needs the user to type a short text, such as a name.
      *
      * @property initial the text the field starts with.
@@ -100,6 +123,13 @@ public fun interface DiagramActions<D, L : DiagramLayout> {
      * is empty where there is nothing to do.
      */
     public fun at(source: String, diagram: D, layout: L, point: DiagramPoint): List<DiagramAction>
+
+    /**
+     * The action of a double click at [point] of [diagram], or null if a double click does nothing there. The other
+     * arguments are those of [at]. It is one of the actions [at] offers at the same point, so a double click is only a
+     * shorter way to an entry of the menu.
+     */
+    public fun onDoubleClick(source: String, diagram: D, layout: L, point: DiagramPoint): DiagramAction? = null
 
     public companion object {
         /** No actions anywhere. */

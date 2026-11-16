@@ -63,9 +63,25 @@ public object StatechartEdits {
         at: DiagramPoint? = null,
         parentFrame: DiagramBox? = null,
     ): DiagramChange? {
+        val statement = (if (initial) "$INITIAL " else "") + "$STATE ${quoted(name)} { }"
+        return addStatement(text, diagram, parent, name, statement, at, parentFrame)
+    }
+
+    /**
+     * Adds the state [name], which [statement] declares, at the top level or nested in the state [parent], placed as
+     * [addState] places a state. It is the common part of adding a state of any kind.
+     */
+    internal fun addStatement(
+        text: String,
+        diagram: StatechartDiagram,
+        parent: String?,
+        name: String,
+        statement: String,
+        at: DiagramPoint?,
+        parentFrame: DiagramBox?,
+    ): DiagramChange? {
         if (name.isBlank() || diagram.state(name) != null) return null
         val block = (if (parent == null) statesBlock(text, diagram) else diagram.state(parent)?.let { bodyOf(text, it) }) ?: return null
-        val statement = (if (initial) "$INITIAL " else "") + "$STATE ${quoted(name)} { }"
         return DiagramChange(listOf(TextBlocks.append(text, block, statement)), arranges = at != null) { vis ->
             vis.copy(
                 boxes = if (at == null) vis.boxes else vis.boxes + (name to DiagramGrid.snap(at)),
@@ -321,7 +337,7 @@ public object StatechartEdits {
     public const val DO: String = "DO"
 
     /** The braces of the state [state] with everything between them. The search starts behind the quote that ends its name. */
-    private fun bodyOf(text: String, state: StateNode): TextRange? = TextBlocks.blockFrom(text, state.nameRange.end + 1)
+    internal fun bodyOf(text: String, state: StateNode): TextRange? = TextBlocks.blockFrom(text, state.nameRange.end + 1)
 
     private fun statesBlock(text: String, diagram: StatechartDiagram): TextRange? = blockOf(text, diagram, "STATES")
 
@@ -332,7 +348,7 @@ public object StatechartEdits {
         TextBlocks.blockFrom(text, diagram.range.start)?.let { TextBlocks.blockNamed(text, keyword, it) }
 
     /** [name] as a string literal of the language. A double quote inside it becomes a single one. */
-    private fun quoted(name: String): String = "\"" + name.trim().replace('"', '\'') + "\""
+    internal fun quoted(name: String): String = "\"" + name.trim().replace('"', '\'') + "\""
 
     /** A change of [edits], or null if two of them overlap, in which case nothing is changed. */
     private fun disjoint(edits: List<TextEdit>): DiagramChange? {

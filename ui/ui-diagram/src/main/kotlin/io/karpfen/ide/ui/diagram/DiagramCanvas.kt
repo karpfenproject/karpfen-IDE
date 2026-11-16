@@ -48,11 +48,13 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isMetaPressed
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -96,9 +98,15 @@ import kotlinx.coroutines.withContext
  * adding, renaming or deleting an element, and the entry that adds a waypoint to the line under the pointer or
  * removes the waypoint under it. Nothing changes until the user clicks an entry. Some entries need more first. One
  * that needs a box marks the boxes to choose from and waits for a click on one of them. One that needs a name shows
- * a field at the pointer. A secondary click, or a click beside the boxes, gives such an action up. A change of the
- * model is an edit of [source], the text the diagram was derived from, and goes to [onChange], which answers whether
- * the text took it.
+ * a field at the pointer. One that needs a choice among a few names shows them as a second menu at the same place. A
+ * secondary click, or a click beside the boxes, gives such an action up. A change of the model is an edit of [source],
+ * the text the diagram was derived from, and goes to [onChange], which answers whether the text took it. An entry that
+ * leaves the diagram for another one, such as the page of a container state, goes to [onFollow] with the name the
+ * model refers to.
+ *
+ * A double click with the primary button runs what [actions] give for a double click at that point, if anything. The
+ * two presses must lie within the double click time of the platform and close to each other. The first click selects
+ * as any click does, so a double click never waits for a second click that does not come.
  *
  * The boxes with an id in [active] are marked, which shows the states a running state machine is in. The notation's
  * painter marks [pause], the place where a debugger paused the run, if there is one.
@@ -129,8 +137,10 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     cellEditor: DiagramCellEditor?,
     onChange: (DiagramChange) -> Boolean,
     onSelect: (TextRange) -> Unit,
+    onFollow: (String) -> Unit,
 ) {
     val colors = KarpfenTheme.colors
+    val viewConfiguration = LocalViewConfiguration.current
     val density = LocalDensity.current.density
     val measurer = rememberTextMeasurer()
     val styles = DiagramTextStyles(
@@ -184,6 +194,8 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
     var mode by remember { mutableStateOf<CanvasMode>(CanvasMode.Idle) }
     var cellSize by remember { mutableStateOf<Size?>(null) }
     val change by rememberUpdatedState(onChange)
+    val follow by rememberUpdatedState(onFollow)
+    var lastPress by remember { mutableStateOf<Press?>(null) }
 
     fun pointAt(position: Offset): DiagramPoint {
         val point = (position - pan) / (zoom * density)
@@ -215,6 +227,17 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             is DiagramAction.Pick -> mode = CanvasMode.Picking(action, picked)
             is DiagramAction.Ask -> mode = CanvasMode.Asking(action, position)
             is DiagramAction.Open -> mode = CanvasMode.Editing(action.cell, position)
+            is DiagramAction.Choose -> {
+                mode = CanvasMode.Idle
+                val options = action.options.map { option ->
+                    ContextMenuAction(option) { run(faults.guard<DiagramAction?>("taking the choice", { null }) { action.next(option) }, position) }
+                }
+                if (options.isNotEmpty()) menu = MenuRequest(position, options)
+            }
+            is DiagramAction.Follow -> {
+                mode = CanvasMode.Idle
+                faults.attempt("opening ${action.name}") { follow(action.name) }
+            }
             is DiagramAction.Change -> {
                 mode = CanvasMode.Idle
                 val shown = current ?: return
@@ -294,6 +317,21 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
             .onPointerEvent(PointerEventType.Press) { event ->
                 val shown = current ?: return@onPointerEvent
                 val pressed = event.changes.firstOrNull() ?: return@onPointerEvent
+                if (event.buttons.isPrimaryPressed) {
+                    val previous = lastPress
+                    val press = Press(pressed.uptimeMillis, pressed.position)
+                    val double = previous != null && mode == CanvasMode.Idle &&
+                        press.time - previous.time <= viewConfiguration.doubleTapTimeoutMillis &&
+                        (press.position - previous.position).getDistance() <= viewConfiguration.touchSlop
+                    lastPress = if (double) null else press
+                    if (double) {
+                        val action = faults.guard<DiagramAction?>("finding the action of the double click", { null }) {
+                            source?.let { actions.onDoubleClick(it, shown.diagram, shown.layout, pointAt(pressed.position)) }
+                        }
+                        if (action != null) run(action, pressed.position)
+                    }
+                    return@onPointerEvent
+                }
                 if (!event.buttons.isSecondaryPressed) return@onPointerEvent
                 pressed.consume()
                 if (mode != CanvasMode.Idle) {
@@ -419,6 +457,9 @@ internal fun <D : Any, L : DiagramLayout> BoxScope.DiagramCanvas(
  */
 private fun <D, L : DiagramLayout> inARow(arrangement: DiagramArrangement<D, L>, diagram: D, widths: TextMeasurer, faults: DiagramFaults): L? =
     faults.guard<L?>("placing the elements in a row", { null }) { arrangement.byHand(diagram, VisLayout(), widths) }
+
+/** A press of the primary button: its [time] in milliseconds of uptime and its [position] on the canvas, in pixels. */
+private class Press(val time: Long, val position: Offset)
 
 /** The context menu to show: its [entries] and the [position] of the pointer on the canvas, in pixels. */
 private class MenuRequest(val position: Offset, val entries: List<ContextMenuAction>)

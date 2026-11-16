@@ -35,6 +35,12 @@ public object EditorAreaTestTags {
     /** The button below the editor that shows the states of the instance on the object with [key] in the diagram. */
     public fun liveInstance(key: String): String = "Workbench.liveInstance:$key"
 
+    /** The bar above the diagram of a fragment that names the files using it. */
+    public const val PAGE_USERS: String = "Workbench.pageUsers"
+
+    /** The link of the bar above the diagram of a fragment that opens the file named [fileName]. */
+    public fun pageUser(fileName: String): String = "Workbench.pageUser:$fileName"
+
     /** The button below the editor that validates the whole project. */
     public const val VALIDATE: String = "Workbench.validate"
 

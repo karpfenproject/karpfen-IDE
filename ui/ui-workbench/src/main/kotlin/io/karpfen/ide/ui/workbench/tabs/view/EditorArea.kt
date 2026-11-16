@@ -87,6 +87,11 @@ import java.nio.file.Path
  * context menu of a statechart offers the constructs of the optional language features in [languageFeatures] only, the
  * features switched on for the project.
  *
+ * A container state of a statechart can use one of [fragments], the fragments of the project. Opening the page of a
+ * container state calls [onOpenPage] with the name of its fragment. The diagram of a fragment has a bar above it that
+ * names [pageUsers], the files whose container states use it, and a click on one calls [onOpenUser]. [pageUsers] is
+ * null for a file that is no fragment, which has no such bar.
+ *
  * The editor and its popups are drawn at the density of the window, not at the zoomed density of the workbench around
  * them. The size of the editor's text therefore depends only on its font size. The tab strip, the banner and the zoom
  * bar belong to the workbench and follow its zoom.
@@ -122,6 +127,10 @@ internal fun EditorArea(
     languageFeatures: Set<KstatesFeature> = emptySet(),
     validation: ValidateButtonUiState = ValidateButtonUiState(),
     onValidate: () -> Unit = {},
+    fragments: List<String> = emptyList(),
+    onOpenPage: (String) -> Unit = {},
+    pageUsers: List<Path>? = null,
+    onOpenUser: (Path) -> Unit = {},
 ) {
     val colors = KarpfenTheme.colors
     val popups = remember { EditorPopups() }
@@ -156,18 +165,23 @@ internal fun EditorArea(
                 val diagram: @Composable () -> Unit = {
                     if (diagramKind != null) {
                         key(activePath) {
-                            DiagramPane(
-                                session = activeEditor.session,
-                                modelFile = activePath,
-                                kind = diagramKind,
-                                modifier = Modifier.fillMaxSize().testTag(EditorAreaTestTags.DIAGRAM),
-                                reloadKey = diskRevision,
-                                live = run?.live,
-                                cellEditor = cellEditor,
-                                languageFeatures = languageFeatures,
-                                onSelect = onSelectInText,
-                                onLayoutSaved = onDiagramSaved,
-                            )
+                            Column(Modifier.fillMaxSize()) {
+                                pageUsers?.let { users -> PageUsersBar(users, onOpenUser) }
+                                DiagramPane(
+                                    session = activeEditor.session,
+                                    modelFile = activePath,
+                                    kind = diagramKind,
+                                    modifier = Modifier.weight(1f).fillMaxWidth().testTag(EditorAreaTestTags.DIAGRAM),
+                                    reloadKey = diskRevision,
+                                    live = run?.live,
+                                    cellEditor = cellEditor,
+                                    languageFeatures = languageFeatures,
+                                    fragments = fragments,
+                                    onSelect = onSelectInText,
+                                    onLayoutSaved = onDiagramSaved,
+                                    onFollow = onOpenPage,
+                                )
+                            }
                         }
                     }
                 }
@@ -264,6 +278,36 @@ private fun InstanceSwitch(run: DiagramRun, onShowInstance: (String) -> Unit) {
                     .clickable(enabled = !run.fixed && !shown) { onShowInstance(instance.key) }
                     .padding(horizontal = 8.dp, vertical = 2.dp)
                     .testTag(EditorAreaTestTags.liveInstance(instance.key)),
+            )
+        }
+    }
+}
+
+/**
+ * The bar above the diagram of a fragment. It names the files in [users], whose container states use the fragment,
+ * each as a link that reports its path to [onOpenUser], or says that no file uses the fragment. The links never take
+ * the keyboard focus.
+ */
+@Composable
+private fun PageUsersBar(users: List<Path>, onOpenUser: (Path) -> Unit) {
+    val colors = KarpfenTheme.colors
+    Row(
+        Modifier.fillMaxWidth().background(colors.panel).padding(horizontal = 4.dp).testTag(EditorAreaTestTags.PAGE_USERS),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val caption = if (users.isEmpty()) "No state machine uses this fragment." else "Used by:"
+        Text(caption, color = colors.textMuted, style = KarpfenTheme.typography.uiSmall, modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp))
+        users.forEach { user ->
+            val name = user.fileName.toString()
+            Text(
+                name,
+                color = colors.accent,
+                style = KarpfenTheme.typography.uiSmall,
+                modifier = Modifier
+                    .focusProperties { canFocus = false }
+                    .clickable { onOpenUser(user) }
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .testTag(EditorAreaTestTags.pageUser(name)),
             )
         }
     }

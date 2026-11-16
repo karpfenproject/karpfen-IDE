@@ -25,12 +25,14 @@ import java.util.IdentityHashMap
  *
  * - of a metamodel its types,
  * - of a model its objects, each below the object that has it,
- * - of a state machine its states, nested as they are, and its transitions, splits and joins,
+ * - of a state machine its states, nested as they are, and its transitions, splits and joins, with the details of
+ *   container states and final states, and of a fragment also its header, a node of its own above them,
  * - of an environment descriptor its keys and entries, which is all it has.
  *
  * A node that is not shown gives its place to the shown nodes inside it. So an object appears directly below its
  * owner, without the `has` statement between them, and the states and transitions of a state machine appear at the
- * top, without the state machine around them.
+ * top, without the state machine around them. The header of a fragment is a node without children, so the states
+ * and transitions of a fragment stand at the top as those of every state machine do.
  *
  * @property nodes the shown nodes. A node whose children are all shown is the node of the parse itself. Any other is
  *   a copy with the shown children.
@@ -65,6 +67,7 @@ internal class OutlineSelection private constructor(val nodes: List<OutlineNode>
          */
         private fun shown(node: OutlineNode, originals: IdentityHashMap<OutlineNode, OutlineNode>): List<OutlineNode> {
             val children = node.children.flatMap { shown(it, originals) }
+            if (node.kind == SymbolKind.FRAGMENT) return listOf(node.copy(children = emptyList()).also { originals[it] = node }) + children
             if (node.kind !in SHOWN) return children
             val same = children.size == node.children.size && children.indices.all { children[it] === node.children[it] }
             return listOf(if (same) node else node.copy(children = children).also { originals[it] = node })

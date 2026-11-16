@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Density
 import io.karpfen.ide.core.lang.Location
+import io.karpfen.ide.core.workspace.analysis.ProjectFragments
 import io.karpfen.ide.runtime.session.debug.DebuggerState
 import io.karpfen.ide.ui.editor.theme.LocalEditorTheme
 import io.karpfen.ide.ui.editor.theme.darkEditorTheme
@@ -257,6 +258,13 @@ private fun EditorPane(state: WorkbenchState) {
             DiagramLives.of(observed.states, file, debugger, chosen)
         }
     }
+    val analysis = workspace?.analysis?.collectAsState()?.value
+    val pages = remember(analysis) { analysis?.let(::ProjectFragments) }
+    val fragments = remember(pages) { pages?.names().orEmpty() }
+    val pageUsers = remember(pages, active) {
+        val file = active
+        pages?.all()?.firstOrNull { it.path == file }?.let { pages.usersOf(it.name) }
+    }
     val services by state.languageServices.collectAsState()
     val cellEditor = remember(activeEditor, services, workspace) {
         val editor = activeEditor
@@ -283,6 +291,10 @@ private fun EditorPane(state: WorkbenchState) {
         languageFeatures = settings.languageFeatures,
         validation = ValidateButtonUiState(enabled = canValidate, busy = validating),
         onValidate = { state.validation.validate() },
+        fragments = fragments,
+        onOpenPage = { name -> active?.let { state.openPage(it, name) } },
+        pageUsers = pageUsers,
+        onOpenUser = { user -> active?.let { state.openWithDiagram(user, it) } },
     )
 }
 

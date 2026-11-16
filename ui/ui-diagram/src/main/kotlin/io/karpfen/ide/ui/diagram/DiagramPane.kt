@@ -75,7 +75,11 @@ import java.nio.file.Path
  *
  * The context menu of the diagram changes the model. Every such change is one edit of the text of [session], which
  * the editor can undo like any other. It is only made while the diagram shows the current text. It offers the
- * constructs of an optional language feature of KStates only while that feature is among [languageFeatures].
+ * constructs of an optional language feature of KStates only while that feature is among [languageFeatures]. A
+ * container state of a statechart can use one of [fragments], the names of the fragments of the project.
+ *
+ * An entry that leaves the diagram for another one, such as the page of a container state, calls [onFollow] with the
+ * name the model refers to. The caller finds the file of that name and opens its diagram.
  */
 @Composable
 public fun DiagramPane(
@@ -87,15 +91,19 @@ public fun DiagramPane(
     live: DiagramLive? = null,
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
+    fragments: List<String> = emptyList(),
     onSelect: (TextRange) -> Unit = {},
     onLayoutSaved: () -> Unit = {},
+    onFollow: (String) -> Unit = {},
 ) {
     val notation = when (kind) {
         DiagramKind.STATECHART -> DiagramNotation.STATECHART
         DiagramKind.TYPES -> DiagramNotation.TYPES
         DiagramKind.OBJECTS -> DiagramNotation.OBJECTS
     }
-    NotationPane(notation, session, modelFile, modifier, reloadKey, live, cellEditor, languageFeatures, onSelect, onLayoutSaved)
+    NotationPane(
+        notation, session, modelFile, modifier, reloadKey, live, cellEditor, languageFeatures, fragments, onSelect, onLayoutSaved, onFollow,
+    )
 }
 
 /** The pane of a diagram of the kind [notation]. It ties the view to the text of [session] and to the companion file. */
@@ -109,8 +117,10 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
     live: DiagramLive?,
     cellEditor: DiagramCellEditor?,
     languageFeatures: Set<KstatesFeature>,
+    fragments: List<String>,
     onSelect: (TextRange) -> Unit,
     onLayoutSaved: () -> Unit,
+    onFollow: (String) -> Unit,
 ) {
     val state by produceState<DiagramState<D>>(DiagramState.EMPTY, session, notation) {
         val tracker = DiagramTracker(notation.projection)
@@ -138,7 +148,10 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
                 session.text.apply(made.edits, EditOrigin.Command(DIAGRAM_EDIT)) != null
         }
     }
-    DiagramView(notation, state, editing, modifier, onSelect, change, live?.active.orEmpty(), live?.pause, cellEditor, languageFeatures)
+    DiagramView(
+        notation, state, editing, modifier, onSelect, change, live?.active.orEmpty(), live?.pause, cellEditor,
+        languageFeatures, fragments, onFollow,
+    )
 }
 
 /**
@@ -147,7 +160,8 @@ private fun <D : Any, L : DiagramLayout> NotationPane(
  *
  * A change the user makes to the model through the diagram goes to [onChange] as edits of the text the diagram was
  * derived from. It answers whether the text took the change. The context menu offers what the notation's actions
- * offer while [languageFeatures] are switched on.
+ * offer while [languageFeatures] are switched on and with [fragments] to choose from. An action that leaves the diagram
+ * goes to [onFollow].
  *
  * A failure inside the view does not reach the window. What failed is left out, and a second note over the drawing
  * says what went wrong. Its text can be selected and copied. See [DiagramFaults].
@@ -164,6 +178,8 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
     pause: DiagramPause? = null,
     cellEditor: DiagramCellEditor? = null,
     languageFeatures: Set<KstatesFeature> = emptySet(),
+    fragments: List<String> = emptyList(),
+    onFollow: (String) -> Unit = {},
 ) {
     val colors = KarpfenTheme.colors
     val diagram = state.diagram
@@ -178,8 +194,8 @@ internal fun <D : Any, L : DiagramLayout> DiagramView(
                 modifier = Modifier.align(Alignment.Center).padding(16.dp).testTag(DiagramViewTestTags.EMPTY),
             )
         } else {
-            val actions = remember(notation, languageFeatures) { notation.actions(languageFeatures) }
-            DiagramCanvas(notation, actions, diagram, editing, faults, state.source?.text, active, pause, cellEditor, onChange, onSelect)
+            val actions = remember(notation, languageFeatures, fragments) { notation.actions(languageFeatures, fragments) }
+            DiagramCanvas(notation, actions, diagram, editing, faults, state.source?.text, active, pause, cellEditor, onChange, onSelect, onFollow)
         }
         val fault = state.problem?.let { "The diagram could not be derived from the text: $it. This is the last diagram that could." } ?: faults.note
         Column(

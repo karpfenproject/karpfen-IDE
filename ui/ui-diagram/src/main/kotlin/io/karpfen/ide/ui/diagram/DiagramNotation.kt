@@ -42,7 +42,8 @@ import io.karpfen.ide.notation.sync.DiagramProjection
  * @property painter draws the diagram.
  * @property nothingToDraw what the view says while the text holds nothing that makes a diagram.
  * @property actions tells what the user can do at a point of the diagram, which the view offers in its context menu,
- *   while the optional language features of KStates it is given are switched on.
+ *   while the optional language features of KStates it is given are switched on, with the names of the fragments of
+ *   the project that container states can use.
  * @property cells tells which pieces of code the diagram shows folded up, to be opened and edited as text.
  */
 internal class DiagramNotation<D : Any, L : DiagramLayout>(
@@ -50,7 +51,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
     val arrangement: DiagramArrangement<D, L>,
     val painter: DiagramPainter<D, L>,
     val nothingToDraw: String,
-    val actions: (Set<KstatesFeature>) -> DiagramActions<D, L> = { DiagramActions.none() },
+    val actions: (Set<KstatesFeature>, List<String>) -> DiagramActions<D, L> = { _, _ -> DiagramActions.none() },
     val cells: DiagramCells<D, L> = DiagramCells.none(),
 ) {
     companion object {
@@ -70,7 +71,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StructureArrangement,
             StructurePainter,
             "No types to draw yet. The diagram appears once the text can be read.",
-            { StructureActions },
+            { _, _ -> StructureActions },
         )
 
         /** The object diagram of a model file. */
@@ -79,7 +80,7 @@ internal class DiagramNotation<D : Any, L : DiagramLayout>(
             StructureArrangement,
             StructurePainter,
             "No objects to draw yet. The diagram appears once the text can be read.",
-            { StructureActions },
+            { _, _ -> StructureActions },
         )
     }
 }

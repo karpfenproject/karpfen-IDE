@@ -105,9 +105,47 @@ public object StatechartMetrics {
     /** The radius of the dot of a breakpoint. */
     public const val BREAKPOINT_DOT: Float = 4f
 
-    /** The width of the box of [state] if it has no nested states, with a name as wide as [text] says. */
+    /**
+     * The extra height of a container state for the row that names its fragment. It is a little higher than the text,
+     * so the row keeps a gap to the border or to the row of the code cells below it.
+     */
+    public const val PAGE_LINE: Float = 20f
+
+    /** The width of the page mark, a sheet with a folded corner, in front of the name of the fragment of a container state. */
+    public const val PAGE_MARK: Float = 10f
+
+    /** The height of the page mark. */
+    public const val PAGE_MARK_HEIGHT: Float = 12f
+
+    /** The room between the page mark and the name of the fragment. */
+    public const val PAGE_GAP: Float = 4f
+
+    /**
+     * The width of the box of [state] if it has no nested states, with a name as wide as [text] says. A container
+     * state is at least as wide as the row that names its fragment.
+     */
     public fun leafWidth(state: StateNode, text: TextMeasurer): Float =
-        maxOf(text.widthOf(state.name) + 2 * NAME_PADDING, MIN_STATE_WIDTH, cellsWidth(state) + 2 * CELL_GAP)
+        maxOf(text.widthOf(state.name) + 2 * NAME_PADDING, MIN_STATE_WIDTH, cellsWidth(state) + 2 * CELL_GAP, pageWidth(state, text) + 2 * NAME_PADDING)
+
+    /**
+     * The width of the row that names the fragment of [state]: the page mark and the name of the fragment, as wide as
+     * [text] says. It is 0 for a state that is no container state.
+     */
+    public fun pageWidth(state: StateNode, text: TextMeasurer): Float {
+        val fragment = state.fragment ?: return 0f
+        return PAGE_MARK + if (fragment.isEmpty()) 0f else PAGE_GAP + text.widthOf(fragment)
+    }
+
+    /**
+     * Where the row that names the fragment of [state] is drawn in its box [box], or null for a state that is no
+     * container state. The row spans the width of the box and stands below the name, above the row of the code
+     * cells. Its height is that of the text, and the rest of [PAGE_LINE] stays free below it.
+     */
+    public fun pageRow(state: StateNode, box: DiagramBox): DiagramBox? {
+        if (!state.isContainer || state.isComposite) return null
+        val cells = if (cellWords(state).isNotEmpty()) BLOCK_LINE else 0f
+        return DiagramBox(box.x, box.bottom - cells - PAGE_LINE, box.width, BLOCK_LINE)
+    }
 
     /**
      * The words of the code cells of [state], in the order they are drawn: its tick limit, then its entry block, then
@@ -148,6 +186,10 @@ public object StatechartMetrics {
         return words.sumOf { cellWidth(it).toDouble() }.toFloat() + maxOf(words.size - 1, 0) * 2 * CELL_GAP
     }
 
-    /** The height of the box of [state] if it has no nested states. */
-    public fun leafHeight(state: StateNode): Float = if (cellWords(state).isNotEmpty()) STATE_HEIGHT + BLOCK_LINE else STATE_HEIGHT
+    /**
+     * The height of the box of [state] if it has no nested states: the row of its name, the row that names the
+     * fragment of a container state and the row of its code cells, each where the state has it.
+     */
+    public fun leafHeight(state: StateNode): Float =
+        STATE_HEIGHT + (if (cellWords(state).isNotEmpty()) BLOCK_LINE else 0f) + (if (state.isContainer) PAGE_LINE else 0f)
 }
