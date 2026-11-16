@@ -36,3 +36,13 @@ dependencies {
     testImplementation(testFixtures(project(":core:core-document")))
     testFixturesApi(libs.kotlinx.coroutines.test)
 }
+
+/**
+ * The tests that validate the example projects of the repository find them through the system property
+ * `karpfen.examples`, and the folder is an input of the tests.
+ */
+tasks.withType<Test>().configureEach {
+    val examples = rootProject.layout.projectDirectory.dir("examples")
+    inputs.dir(examples).withPropertyName("examples").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("karpfen.examples", examples.asFile.absolutePath)
+}

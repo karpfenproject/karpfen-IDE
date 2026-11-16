@@ -22,6 +22,7 @@ A system in karpfen is a folder of these files.
 | Event metamodel, a second `.kmeta` | One type per event. The properties of a type are the payload of its event. |
 | Model, `.kmodel` | The objects of the domain, each with a key such as `lamp`. |
 | State machine, `.kstates` | The behaviour of one object. Entering a state runs actions that change the model. Transitions wait for events and conditions. |
+| Fragment, `.frag.kstates` | A page of a state machine: a piece of behaviour that a container state of another state machine runs as its inner states, see [2.3.12 Pages](https://github.com/karpfenproject/karpfen-dsl-tools/blob/main/docs/reference/2.3-kstates.md#2312-pages). |
 | Environment descriptor, `.kenv.json` | Which metamodel, events, model and state machines run together, and which object each state machine is attached to. |
 | Bridge, `.kbridge.json` | A connection of the running model to HTTP, MQTT or ROS. |
 
@@ -30,7 +31,8 @@ The descriptor and the bridge files belong to the IDE. [4.1 Projects](4.1-projec
 ## 1.2 What you need
 
 - Docker Desktop or another local Docker engine, running. The IDE runs every model in a Docker container of its own.
-- The repository karpfen-IDE. It holds the lamp example in `examples/lamp`.
+- The repository karpfen-IDE. It holds the lamp example in `examples/lamp`. The folder `examples/pages` holds a lamp
+  composed of fragments, see [4.1.2.5 Fragments](4.1-projects.md#4125-fragments).
 - To start the IDE from the sources: the submodules of the repository and a JDK 21. Gradle also runs on JDK 17 or
   newer and downloads a JDK 21 if none is installed. An installed IDE brings its own Java and needs neither.
 

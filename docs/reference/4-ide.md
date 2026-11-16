@@ -14,8 +14,8 @@ tool window can also be moved into a window of its own.
 | Part | Place | What it shows |
 |---|---|---|
 | Project | Left | The files of the folder in three sections: the project file and the descriptors, the folder, the bridge files. |
-| Editor area | Middle | One tab per open file. Below the editor a bar holds Text, Split and Diagram for files with a diagram, the Validate button and the font size of the editor. |
-| Outline | Right | What the active file is made of: the types of a metamodel, the objects of a model, the states and transitions of a state machine. |
+| Editor area | Middle | One tab per open file. Below the editor a bar holds Text, Split and Diagram for files with a diagram, the Validate button and the font size of the editor. Above the diagram of a fragment a bar names the files that use it. |
+| Outline | Right | What the active file is made of: the types of a metamodel, the objects of a model, the states and transitions of a state machine, and the header of a fragment. |
 | Problems | Bottom | The problems of the project in the groups Local and Global. It is hidden while there is no problem. |
 | Language Tools Output | Bottom | The log of the language tools that read and check the files. |
 | Runtime | Bottom | The runtime container, the runs, the debugger and three panes for the model, the events and the log of the selected run. |

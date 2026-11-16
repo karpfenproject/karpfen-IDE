@@ -1,0 +1,46 @@
+// The state machine of the lamp, composed of pages. The descriptor attaches it to the
+// object "lamp".
+//
+// A press starts the self test, which is the fragment "bulb_test". Once the test is
+// done, the lamp goes on if the bulb is lit and back off otherwise. It goes on into its
+// inner state "warming", which runs the fragment "warm_up", and when that is done the
+// lamp burns steadily. A press switches it off from any of its states.
+STATEMACHINE ATTACHED TO "Lamp" {
+    STATES {
+        INITIAL STATE "off" {
+            ENTRY {
+                SET("mode", "off")
+                SET("bulb->lit", "false")
+                SET("bulb->watts", "0")
+            }
+        }
+        CONTAINER STATE "self test" USE "bulb_test" { }
+        STATE "on" {
+            ENTRY {
+                SET("mode", "on")
+            }
+            CONTAINER STATE "warming" USE "warm_up" { }
+            STATE "steady" { }
+        }
+    }
+    TRANSITIONS {
+        TRANSITION "off" -> "self test" {
+            CONDITION { EVENT("switch", "press") }
+        }
+        TRANSITION "self test" -> "warming" {
+            CONDITION {
+                DONE
+                VALUE("bulb->lit")
+            }
+        }
+        TRANSITION "self test" -> "off" {
+            CONDITION { DONE }
+        }
+        TRANSITION "warming" -> "steady" {
+            CONDITION { DONE }
+        }
+        TRANSITION "on" -> "off" {
+            CONDITION { EVENT("switch", "press") }
+        }
+    }
+}

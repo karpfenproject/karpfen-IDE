@@ -1,0 +1,9 @@
+// The model the pages example starts from: a lamp with a 40 W bulb.
+make object "lamp":"Lamp" {
+    prop("mode") -> "off"
+    has("bulb") -> make object "bulb":"Bulb" {
+        prop("maxWatts") -> "40"
+        prop("watts") -> "0"
+        prop("lit") -> "false"
+    }
+}

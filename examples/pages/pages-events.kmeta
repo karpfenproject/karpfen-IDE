@@ -1,0 +1,6 @@
+// The events of the pages example. A press arrives in the domain "switch", a smash in
+// the domain "service".
+type "press" "Presses the switch of the lamp" {
+}
+type "smash" "Breaks the bulb while the lamp tests it" {
+}

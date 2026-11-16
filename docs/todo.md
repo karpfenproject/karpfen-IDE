@@ -45,6 +45,14 @@ refer to.
   check them.
 - The class diagram asks for the name after `behaves after` as plain text. It does not offer the attachable state
   machines of the context, because the diagram knows only its own file.
+- The statechart of a state machine shows a container state as one box. The states of its fragment are drawn only in
+  the diagram of the fragment, and no view shows a composition as a whole.
+- The drawing of container states and final states, the second menu of the fragments, Open page with its double-click
+  and the bar of the users of a fragment were tested headless only. Nobody has looked at them in the window.
+- The bar of the users of a fragment names files by their file names, so two users of the same name in different
+  folders read alike.
+- The example `examples/pages` is validated by a test of core-workspace. The test of the command line that validates
+  the example projects lists `lamp` and `spares` only.
 
 ### Running models
 

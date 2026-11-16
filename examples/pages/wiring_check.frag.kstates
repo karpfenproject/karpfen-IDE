@@ -1,0 +1,15 @@
+// The check of the wiring, a page of the self test. It marks the lamp as testing and is
+// done one tick later.
+STATEMACHINE "wiring_check" FRAGMENT {
+    STATES {
+        INITIAL STATE "measuring" {
+            ENTRY {
+                SET("mode", "testing")
+            }
+        }
+        FINAL STATE "checked" { }
+    }
+    TRANSITIONS {
+        TRANSITION "measuring" -> "checked" { }
+    }
+}

@@ -1,0 +1,22 @@
+// The warm-up of the bulb, a page of the state "on" of the lamp. The bulb starts at
+// 10 W and then burns at its full power.
+STATEMACHINE "warm_up" FRAGMENT {
+    STATES {
+        INITIAL STATE "dim" {
+            ENTRY {
+                SET("bulb->lit", "true")
+                SET("bulb->watts", "10")
+            }
+        }
+        STATE "full" {
+            ENTRY {
+                SET("bulb->watts", EVAL { return $(bulb->maxWatts) })
+            }
+        }
+        FINAL STATE "warm" { }
+    }
+    TRANSITIONS {
+        TRANSITION "dim" -> "full" { }
+        TRANSITION "full" -> "warm" { }
+    }
+}
