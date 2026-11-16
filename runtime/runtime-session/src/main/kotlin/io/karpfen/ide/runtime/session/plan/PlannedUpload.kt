@@ -40,6 +40,12 @@ public enum class UploadRole {
      * which `behaves after`, `ATTACH` and `EXCHANGE` start instances of.
      */
     DEFINITION,
+
+    /**
+     * A fragment, `STATEMACHINE "name" FRAGMENT`, uploaded without an object key like a definition. The runtime keeps it
+     * under its name and copies its states into every container state that uses it when it activates the environment.
+     */
+    FRAGMENT,
 }
 
 /**

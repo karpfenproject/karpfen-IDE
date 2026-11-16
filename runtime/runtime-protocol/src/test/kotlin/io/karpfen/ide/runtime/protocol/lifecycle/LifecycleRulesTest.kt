@@ -17,9 +17,12 @@ package io.karpfen.ide.runtime.protocol.lifecycle
 
 import io.karpfen.ide.runtime.protocol.api.RuntimeFailure
 import io.karpfen.ide.runtime.protocol.catalogue.EnvironmentKey
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningProblemLine
+import io.karpfen.ide.runtime.protocol.catalogue.FlatteningRejection
 import io.karpfen.ide.runtime.protocol.catalogue.RejectedUpload
 import io.karpfen.ide.runtime.protocol.catalogue.RejectionKind
 import io.karpfen.ide.runtime.protocol.catalogue.RuntimeRoute
+import io.karpfen.ide.runtime.protocol.catalogue.UnflattenedMachine
 import io.karpfen.ide.runtime.protocol.catalogue.UploadError
 import io.karpfen.ide.runtime.protocol.catalogue.UploadRejection
 import io.karpfen.ide.runtime.protocol.lifecycle.LifecycleOperation.ACTIVATE
@@ -114,14 +117,23 @@ class LifecycleRulesTest {
     /** The route of the failures, which the rules do not look at. */
     private val route = RuntimeRoute.RUN_ENVIRONMENT
 
-    /** A rejection of [kind]. A rejection of the content carries a refused model with one error. */
+    /**
+     * A rejection of [kind]. A rejection of the content carries a refused model with one error, a refused flattening a
+     * container state of the lamp that uses no fragment.
+     */
     private fun rejected(kind: RejectionKind): RuntimeFailure.Rejected {
         val content = if (kind == RejectionKind.CONTENT_REJECTED) {
             UploadRejection(RejectedUpload.Model, listOf(UploadError(1, 1, "broken", "kmodel.invalid-number")))
         } else {
             null
         }
-        return RuntimeFailure.Rejected(route, 409, kind, content?.render() ?: "text", emptyMap(), content)
+        val flattening = if (kind == RejectionKind.NOT_FLATTENED) {
+            FlatteningRejection("env-1", listOf(FlatteningProblemLine(UnflattenedMachine.Attached("lamp"), "no fragment")))
+        } else {
+            null
+        }
+        val body = content?.render() ?: flattening?.render() ?: "text"
+        return RuntimeFailure.Rejected(route, 409, kind, body, emptyMap(), content, flattening)
     }
 
     /** The failures that leave open whether the call was applied. */

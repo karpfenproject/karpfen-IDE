@@ -70,6 +70,8 @@ class PhaseOnlyEnvironment(
 
     override suspend fun defineStateMachine(text: String): CallOutcome<Unit> = refuse(LifecycleOperation.SET_STATE_MACHINE)
 
+    override suspend fun uploadFragment(text: String): CallOutcome<Unit> = refuse(LifecycleOperation.SET_STATE_MACHINE)
+
     override suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit> = refuse(LifecycleOperation.SET_TICK_DELAY)
 
     override suspend fun setEventTtl(milliseconds: Long): CallOutcome<Unit> = refuse(LifecycleOperation.SET_EVENT_TTL)

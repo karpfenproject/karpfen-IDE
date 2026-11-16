@@ -28,7 +28,7 @@ package io.karpfen.ide.runtime.protocol.catalogue
  * - `{id}` is an object id.
  * - `{ms}` is a number of milliseconds.
  * - `{feature}` is a feature name.
- * - `{machine}` is the name of an attachable state machine.
+ * - `{machine}` is the name of an attachable state machine or of a fragment.
  * - `{entries}` is a list of types with the state machines they behave after, as the runtime joins them.
  *
  * A body counts as one of these texts only if it is the whole text, as [match] checks. `{env}` and `{client}` match a
@@ -98,10 +98,17 @@ public enum class RuntimeText(public val template: String, public val kind: Reje
         RejectionKind.ATTACHED_FORM_REQUIRED,
     ),
 
+    /** `setStateMachine` with `attachedTo` and a text of the fragment form (400). */
+    ATTACHED_FRAGMENT(
+        "The state machine for '{element}' must have the attached form STATEMACHINE ATTACHED TO \"Type\", but it is the " +
+            "fragment '{machine}'; upload a fragment without attachedTo",
+        RejectionKind.ATTACHED_FRAGMENT,
+    ),
+
     /** `setStateMachine` without `attachedTo` and a text of the attached form (400). */
     ATTACHABLE_FORM_REQUIRED(
-        "A state machine without attachedTo must have the attachable form STATEMACHINE \"name\" ATTACHABLE TO \"Type\"; " +
-            "give attachedTo for a state machine ATTACHED TO a type",
+        "A state machine without attachedTo must have the attachable form STATEMACHINE \"name\" ATTACHABLE TO \"Type\" or " +
+            "the fragment form STATEMACHINE \"name\" FRAGMENT; give attachedTo for a state machine ATTACHED TO a type",
         RejectionKind.ATTACHABLE_FORM_REQUIRED,
     ),
 

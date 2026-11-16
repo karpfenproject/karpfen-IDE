@@ -45,6 +45,9 @@ public enum class DeployStepKind {
     /** Uploads one attachable state machine, which the environment holds as a definition under its name. */
     DEFINE_STATE_MACHINE,
 
+    /** Uploads one fragment, which the environment holds under its name for the container states that use it. */
+    UPLOAD_FRAGMENT,
+
     /** Sets the tick delay of the deploy configuration. */
     SET_TICK_DELAY,
 

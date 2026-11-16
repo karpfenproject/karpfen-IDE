@@ -88,6 +88,9 @@ internal class DefaultRuntimeEnvironment(
     override suspend fun defineStateMachine(text: String): CallOutcome<Unit> =
         perform(LifecycleOperation.SET_STATE_MACHINE) { api.setStateMachine(key, null, text) }
 
+    override suspend fun uploadFragment(text: String): CallOutcome<Unit> =
+        perform(LifecycleOperation.SET_STATE_MACHINE) { api.setStateMachine(key, null, text) }
+
     override suspend fun setTickDelay(milliseconds: Int): CallOutcome<Unit> =
         perform(LifecycleOperation.SET_TICK_DELAY) { api.setTickDelay(key, milliseconds) }
 

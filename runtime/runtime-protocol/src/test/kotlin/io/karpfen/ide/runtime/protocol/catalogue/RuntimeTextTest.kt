@@ -54,7 +54,10 @@ class RuntimeTextTest {
             "Environment with key env-1 did not reach a tick boundary within 10000 ms",
             RuntimeText.TICK_BOUNDARY_TIMEOUT.render(mapOf("env" to "env-1", "ms" to "10000")),
         )
-        assertEquals(RejectionKind.entries - RejectionKind.CONTENT_REJECTED - RejectionKind.UNCLASSIFIED, RuntimeText.entries.map { it.kind })
+        assertEquals(
+            RejectionKind.entries - RejectionKind.CONTENT_REJECTED - RejectionKind.NOT_FLATTENED - RejectionKind.UNCLASSIFIED,
+            RuntimeText.entries.map { it.kind },
+        )
     }
 
     @Test

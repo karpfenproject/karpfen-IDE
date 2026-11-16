@@ -94,6 +94,27 @@ class RuntimeSessionPreparationTest {
     }
 
     @Test
+    fun `the paged lamp prepares with its fragment uploaded and a layout of the flat state machine`() = runTest {
+        val sessions = sessions(this)
+        val workspace = TestWorkspaces(this).open(root)
+        val descriptor = PagedLampModel.writeTo(root)
+
+        val preparation = sessions.prepare(workspace, descriptor)
+
+        val prepared = assertIs<Preparation.Ready>(preparation, "$preparation").prepared
+
+        assertEquals(emptyList(), prepared.plan.findings)
+        assertEquals(listOf(PagedLampModel.FRAGMENT), prepared.plan.fragmentUploads.map { it.fileName })
+        val layout = prepared.layouts.single()
+        assertEquals(listOf("off", "first test", "second test", "on"), layout.topLevelStates)
+        assertEquals(listOf("off"), layout.initialStack)
+        assertEquals(listOf("first test", "second test"), layout.pages.pagesIn(root.resolve(PagedLampModel.FRAGMENT)))
+        assertEquals(listOf("lit"), layout.pages.localStates(listOf("second test", "second test/lit"), "second test"))
+        val pass = checkNotNull(prepared.catalog.event("service", "pass"))
+        assertEquals(listOf(PagedLampModel.LAMP to listOf("first test/lit", "second test/lit")), pass.listeners.map { it.attachedTo to it.states })
+    }
+
+    @Test
     fun `a shelf whose descriptor lists no definition is blocked, and its literal ATTACH and EXCHANGE are warned about`() = runTest {
         val sessions = sessions(this)
         val workspace = TestWorkspaces(this).open(root, languageFeatures = KstatesFeature.ALL)

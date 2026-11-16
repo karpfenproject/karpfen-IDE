@@ -143,6 +143,26 @@ class DeployPipelineTest {
     }
 
     @Test
+    fun `a fragment is uploaded without a key in descriptor order, before the attached machines and the activation`() = runTest {
+        val rig = DeployRig(this)
+
+        rig.deploy(LampPlans.plan(withFragment = true)).deployed()
+
+        val machineSteps = rig.listener.last.steps.filter { it.kind == DeployStepKind.ATTACH_STATE_MACHINE || it.kind == DeployStepKind.UPLOAD_FRAGMENT }
+        assertEquals(
+            listOf(
+                DeployStepKind.UPLOAD_FRAGMENT to "Uploading the fragment bulb_test.kstates",
+                DeployStepKind.ATTACH_STATE_MACHINE to "Attaching lamp.kstates to lamp",
+                DeployStepKind.ATTACH_STATE_MACHINE to "Attaching switch.kstates to wallSwitch",
+            ),
+            machineSteps.map { it.kind to it.title },
+        )
+        assertEquals(listOf("text of bulb_test.kstates"), checkNotNull(rig.script.environment).fragments)
+        val log = rig.script.log
+        assertTrue(log.indexOf("uploadFragment(text of bulb_test.kstates)") in 0..<log.indexOf("setStateMachine(lamp, text of lamp.kstates)"), "$log")
+    }
+
+    @Test
     fun `the start is confirmed only once every instance of the snapshot's record reports a state`() = runTest {
         val rig = DeployRig(this)
         val withInstance = mapOf("lamp" to null, "wallSwitch" to null, "bulb" to "glowing")

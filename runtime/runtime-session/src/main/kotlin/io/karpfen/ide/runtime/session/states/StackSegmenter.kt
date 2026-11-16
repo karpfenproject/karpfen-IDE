@@ -20,6 +20,10 @@ package io.karpfen.ide.runtime.session.states
  * branches without a separator, and every branch path starts at a top-level state. So a new branch begins at every
  * name of a top-level state. Names before the first top-level name form a branch of their own.
  *
+ * For a state machine with container states the stack holds the names of the flat state machine, and its top-level
+ * states are those of the text. A state copied from a fragment is named `<container>/<state>`, so it never has the
+ * name of a top-level state, and a branch of a split inside a fragment starts at the top-level state above it too.
+ *
  * The split is ambiguous when a nested state has the same name as a top-level state. The runtime's state names are
  * global, and its lookups take the first depth-first match. The nested state then starts a branch here too.
  *
